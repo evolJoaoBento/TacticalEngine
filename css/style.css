@@ -1,0 +1,289 @@
+/* ============ POLYHEART UI ============ */
+:root {
+  --bg: #14161f;
+  --panel: #1c1f2b;
+  --panel2: #232736;
+  --line: #313749;
+  --text: #d9dce8;
+  --dim: #8b91a7;
+  --hope: #f6c453;
+  --fear: #9d6bff;
+  --accent: #5fb0ff;
+  --danger: #ff6b6b;
+  --ok: #7ad17a;
+  font-size: 15px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #app { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+#app { display: flex; flex-direction: column; }
+
+/* ---- Top bar ---- */
+#topbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 6px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  user-select: none;
+}
+.brand { font-weight: 800; letter-spacing: 3px; color: var(--hope); font-size: 0.95rem; }
+.mode-buttons, .file-buttons { display: flex; gap: 6px; }
+.file-buttons { margin-left: auto; }
+.mode-btn, .bar-btn {
+  background: var(--panel2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: 4px 14px; cursor: pointer; font-size: 0.85rem;
+}
+.mode-btn.active { background: var(--accent); color: #0c1018; border-color: var(--accent); font-weight: 700; }
+.mode-btn:hover, .bar-btn:hover { border-color: var(--accent); }
+
+/* ---- Main split ---- */
+#main { flex: 1; display: flex; min-height: 0; }
+#viewport { flex: 1; position: relative; min-width: 0; }
+#gl { width: 100%; height: 100%; display: block; touch-action: none; }
+
+#mode-badge {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  background: rgba(20,22,31,.8); border: 1px solid var(--line);
+  padding: 3px 16px; border-radius: 20px;
+  font-size: 0.72rem; letter-spacing: 3px; color: var(--dim);
+  pointer-events: none;
+}
+#mode-badge.combat { color: var(--danger); border-color: var(--danger); }
+#mode-badge.editor { color: var(--accent); border-color: var(--accent); }
+
+/* ---- Sidebar ---- */
+#sidebar {
+  width: 400px; display: flex; flex-direction: column;
+  background: var(--panel); border-left: 1px solid var(--line);
+  min-height: 0;
+}
+
+#party-panel { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); }
+.hero-card {
+  flex: 1; background: var(--panel2); border: 2px solid var(--line);
+  border-radius: 8px; padding: 6px 8px; cursor: pointer; user-select: none;
+  transition: border-color .15s;
+}
+.hero-card.selected { border-color: var(--hope); }
+.hero-card.dead { opacity: .35; filter: grayscale(1); }
+.hero-card .hname { font-weight: 700; font-size: .85rem; display: flex; align-items: center; gap: 6px; }
+.hero-chip { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.hero-card .hstats { font-size: .72rem; color: var(--dim); margin-top: 3px; line-height: 1.5; }
+.hp-pips, .hope-pips { letter-spacing: 1px; }
+.hp-pips { color: var(--danger); }
+.hope-pips { color: var(--hope); }
+
+#status-row {
+  display: flex; gap: 8px; padding: 6px 8px;
+  border-bottom: 1px solid var(--line); font-size: .78rem;
+}
+#fear-pool { color: var(--fear); font-weight: 700; letter-spacing: 1px; }
+#action-tokens { color: var(--accent); font-weight: 700; letter-spacing: 1px; margin-left: auto; }
+
+/* ---- Narrative log ---- */
+#log {
+  flex: 1; overflow-y: auto; padding: 12px 14px;
+  font-size: .9rem; line-height: 1.55;
+  scroll-behavior: smooth;
+}
+#log::-webkit-scrollbar { width: 8px; }
+#log::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+.log-entry { margin-bottom: 10px; animation: fadeIn .35s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } }
+.log-entry.narration { color: var(--text); }
+.log-entry.system { color: var(--dim); font-size: .8rem; font-style: italic; }
+.log-entry.hope { color: var(--hope); }
+.log-entry.fear { color: var(--fear); }
+.log-entry.combat { color: var(--danger); }
+.log-entry.success { color: var(--ok); }
+.log-entry h5 {
+  font-size: .7rem; letter-spacing: 2px; color: var(--dim);
+  border-bottom: 1px solid var(--line); margin-bottom: 4px; padding-bottom: 2px;
+}
+.ref {
+  color: var(--accent); border-bottom: 1px dotted var(--accent);
+  cursor: help;
+}
+.ref:hover { background: rgba(95,176,255,.15); }
+.roll-detail {
+  display: inline-block; background: var(--panel2); border-radius: 6px;
+  padding: 1px 8px; font-size: .8rem; margin-top: 2px;
+  border: 1px solid var(--line);
+}
+.d-hope { color: var(--hope); font-weight: 700; }
+.d-fear { color: var(--fear); font-weight: 700; }
+
+#context-bar {
+  padding: 7px 12px; font-size: .75rem; color: var(--dim);
+  border-top: 1px solid var(--line); min-height: 30px;
+}
+
+/* ---- Editor toolbar ---- */
+#editor-toolbar {
+  position: absolute; top: 10px; left: 10px;
+  display: flex; flex-direction: column; gap: 6px;
+  background: rgba(20,22,31,.92); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px; max-width: 240px;
+}
+.tool-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.tool-label { width: 100%; font-size: .62rem; letter-spacing: 2px; color: var(--dim); }
+.tool-btn {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 5px; padding: 3px 8px; font-size: .75rem; cursor: pointer;
+}
+.tool-btn.active { background: var(--accent); color: #0c1018; border-color: var(--accent); font-weight: 700; }
+#paint-color { width: 28px; height: 24px; border: none; background: none; cursor: pointer; }
+#group-select {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 5px; font-size: .75rem; padding: 2px;
+}
+
+/* ---- Dice overlay ---- */
+#dice-overlay {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(10,11,18,.55));
+}
+#dice-instruction {
+  margin-top: 48px; font-size: .85rem; letter-spacing: 4px; color: var(--hope);
+  text-shadow: 0 2px 12px #000; animation: pulse 1.4s infinite;
+}
+@keyframes pulse { 50% { opacity: .45; } }
+#dice-result {
+  margin-top: 14px; font-size: 1.6rem; font-weight: 800; text-align: center;
+  text-shadow: 0 2px 16px #000; animation: popIn .3s ease;
+}
+@keyframes popIn { from { transform: scale(.6); opacity: 0; } }
+#dice-result .sub { display: block; font-size: .85rem; font-weight: 400; color: var(--text); }
+#dice-result.hope { color: var(--hope); }
+#dice-result.fear { color: var(--fear); }
+
+/* ---- Modals ---- */
+.modal {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(8,9,14,.6);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 20px; width: 420px; max-width: 92vw; max-height: 88vh; overflow-y: auto;
+  box-shadow: 0 16px 60px rgba(0,0,0,.6);
+}
+.modal-card.wide { width: 640px; }
+.modal-card.center { text-align: center; }
+.modal-card h3 { margin-bottom: 10px; font-size: 1rem; letter-spacing: 1px; }
+.flavor { font-style: italic; color: var(--dim); margin-bottom: 10px; line-height: 1.5; }
+#roll-meta { margin-bottom: 12px; font-size: .9rem; }
+#roll-meta b.trait { color: var(--accent); }
+#hope-spend-row { display: block; font-size: .85rem; margin-bottom: 14px; color: var(--hope); cursor: pointer; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.modal-actions button {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 7px 16px; cursor: pointer; font-size: .85rem;
+}
+.modal-actions button.primary { background: var(--hope); color: #1a1408; border-color: var(--hope); font-weight: 700; }
+.modal-actions button.danger { border-color: var(--danger); color: var(--danger); }
+.modal-actions button:hover { filter: brightness(1.15); }
+
+/* ---- Node panel ---- */
+.np-grid { display: flex; gap: 10px; margin-bottom: 10px; }
+.np-grid label, label.block { display: flex; flex-direction: column; gap: 3px; font-size: .75rem; color: var(--dim); flex: 1; }
+label.block { margin-bottom: 10px; }
+#node-panel input, #node-panel select, #node-panel textarea {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 5px; padding: 5px 7px; font-size: .85rem; font-family: inherit; resize: vertical;
+}
+.np-outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.np-outcome { background: var(--panel2); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+.np-outcome h4 { font-size: .72rem; letter-spacing: 1px; }
+.np-outcome.hope h4 { color: var(--hope); }
+.np-outcome.fear h4 { color: var(--fear); }
+.np-outcome textarea, .np-outcome select {
+  background: var(--panel); border: 1px solid var(--line); color: var(--text);
+  border-radius: 5px; padding: 4px 6px; font-size: .78rem; font-family: inherit;
+}
+
+#end-modal h2 { font-size: 1.5rem; margin-bottom: 8px; }
+#end-modal h2.win { color: var(--hope); }
+#end-modal h2.lose { color: var(--danger); }
+
+/* ---- Campaign / choice dialogs ---- */
+.mode-btn.gold { color: var(--hope); border-color: #5c4a1e; }
+.mode-btn.gold.active { background: var(--hope); color: #1a1408; border-color: var(--hope); }
+
+.story-card { width: 560px; }
+.choice-body { max-height: 46vh; overflow-y: auto; margin-bottom: 14px; }
+.story-p {
+  font-style: italic; color: var(--text); line-height: 1.6;
+  margin-bottom: 12px; font-size: .92rem;
+  border-left: 2px solid var(--line); padding-left: 12px;
+}
+.choice-body p:not(.story-p) { margin-bottom: 10px; line-height: 1.55; }
+.choice-options { display: flex; flex-direction: column; gap: 8px; }
+.choice-btn {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 14px; cursor: pointer; text-align: left;
+  font-size: .9rem; font-family: inherit;
+}
+.choice-btn span { display: block; font-size: .75rem; color: var(--dim); margin-top: 3px; }
+.choice-btn:hover { border-color: var(--hope); background: #2a2536; }
+
+.blessing-btn {
+  margin-top: 5px; width: 100%;
+  background: rgba(246,196,83,.12); color: var(--hope);
+  border: 1px solid #5c4a1e; border-radius: 5px;
+  padding: 2px 4px; font-size: .65rem; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.blessing-btn:hover:not(:disabled) { background: rgba(246,196,83,.28); }
+.blessing-btn.used { opacity: .35; cursor: default; }
+
+.spirit-note {
+  width: 100%; text-align: center; padding: 10px;
+  color: #7be8ff; font-style: italic; font-size: .8rem;
+}
+
+#enemy-type-select, #deco-type-select {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 5px; font-size: .75rem; padding: 2px; max-width: 110px;
+}
+
+/* ---- Campaign editor extras ---- */
+#scene-select {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 5px; font-size: .75rem; padding: 2px; max-width: 130px;
+}
+.np-note { font-size: .7rem; color: var(--dim); margin-bottom: 10px; line-height: 1.4; }
+.np-outcome input {
+  background: var(--panel); border: 1px solid var(--line); color: var(--text);
+  border-radius: 5px; padding: 4px 6px; font-size: .75rem; font-family: inherit;
+}
+
+/* ---- Right-click inspector ---- */
+#inspect-panel {
+  position: absolute; z-index: 30;
+  width: 280px; max-width: 60vw;
+  background: rgba(20,22,31,.96); border: 1px solid var(--accent);
+  border-radius: 10px; padding: 12px 14px;
+  font-size: .8rem; line-height: 1.45;
+  box-shadow: 0 10px 36px rgba(0,0,0,.65);
+  pointer-events: none;
+}
+#inspect-panel h4 { font-size: .9rem; margin-bottom: 6px; letter-spacing: .5px; }
+#inspect-panel h4.ins-enemy { color: var(--danger); }
+#inspect-panel p { color: var(--dim); margin: 5px 0; font-style: italic; }
+#inspect-panel .ins-row {
+  display: flex; justify-content: space-between; gap: 10px;
+  border-bottom: 1px dotted var(--line); padding: 2px 0;
+}
+#inspect-panel .ins-row span { color: var(--dim); }
+#inspect-panel .ins-traits { font-style: normal; color: var(--accent); font-size: .72rem; letter-spacing: .5px; }
+#inspect-panel .ins-hint { margin-top: 7px; font-size: .65rem; color: var(--dim); text-align: right; }
+
+.hidden { display: none !important; }

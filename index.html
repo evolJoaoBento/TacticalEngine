@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PolyHeart — Tactical RPG</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app">
+
+  <!-- ======= TOP BAR ======= -->
+  <header id="topbar">
+    <div class="brand">⬡ POLYHEART</div>
+    <div class="mode-buttons">
+      <button id="btn-play" class="mode-btn active">▶ Play</button>
+      <button id="btn-campaign" class="mode-btn gold">★ One-Shot</button>
+      <button id="btn-editor" class="mode-btn">✎ Editor</button>
+    </div>
+    <div class="file-buttons">
+      <button id="btn-new" class="bar-btn" title="New blank map">New</button>
+      <button id="btn-save" class="bar-btn" title="Download map JSON">Save</button>
+      <button id="btn-load" class="bar-btn" title="Load map JSON">Load</button>
+      <input type="file" id="file-input" accept=".json" hidden>
+    </div>
+  </header>
+
+  <div id="main">
+    <!-- ======= 3D PANE ======= -->
+    <div id="viewport">
+      <canvas id="gl"></canvas>
+
+      <!-- Editor toolbar (hidden in play mode) -->
+      <div id="editor-toolbar" class="hidden">
+        <div class="tool-group">
+          <span class="tool-label">SCENES</span>
+          <select id="scene-select" title="Current scene"></select>
+          <button id="scene-add" class="tool-btn" title="Add a new scene to the campaign">＋</button>
+          <button id="scene-rename" class="tool-btn" title="Rename this scene">✎</button>
+          <button id="scene-del" class="tool-btn" title="Delete this scene">🗑</button>
+        </div>
+        <div class="tool-group">
+          <span class="tool-label">MAP</span>
+          <button id="map-resize" class="tool-btn" title="Resize this map (grow or crop)">⤢ Size</button>
+          <button id="map-intro" class="tool-btn" title="Edit the intro text shown when the scene loads">📜 Intro</button>
+        </div>
+        <div class="tool-group">
+          <span class="tool-label">TERRAIN</span>
+          <button class="tool-btn" data-tool="raise" title="Raise terrain (drag)">▲ Raise</button>
+          <button class="tool-btn" data-tool="lower" title="Lower terrain (drag)">▼ Lower</button>
+          <button class="tool-btn" data-tool="wall" title="Paint solid walls (drag)">▮ Wall</button>
+          <button class="tool-btn" data-tool="paint" title="Paint tile color">🎨 Paint</button>
+          <input type="color" id="paint-color" value="#5d8a4a" title="Brush color">
+        </div>
+        <div class="tool-group">
+          <span class="tool-label">PROPS</span>
+          <button class="tool-btn" data-tool="difficult" title="Difficult terrain — movement costs double">≋ Difficult</button>
+          <button class="tool-btn" data-tool="cover" title="Cover — +2 Evasion for token on tile">▣ Cover</button>
+          <button class="tool-btn" data-tool="clearprop" title="Clear tile property">✕ Clear</button>
+        </div>
+        <div class="tool-group">
+          <span class="tool-label">NODES</span>
+          <button class="tool-btn" data-tool="chest" title="Place chest">⌧ Chest</button>
+          <button class="tool-btn" data-tool="door" title="Place door">⎕ Door</button>
+          <button class="tool-btn" data-tool="pillar" title="Place pillar">◫ Pillar</button>
+          <button class="tool-btn" data-tool="portal" title="Place portal — links scenes into a campaign">⊙ Portal</button>
+        </div>
+        <div class="tool-group">
+          <span class="tool-label">ENCOUNTER</span>
+          <button class="tool-btn" data-tool="enemy" title="Place enemy token">☠ Enemy</button>
+          <select id="enemy-type-select" title="Enemy type"></select>
+          <button class="tool-btn" data-tool="trigger" title="Paint combat trigger zone">⚠ Trigger</button>
+          <select id="group-select" title="Encounter group for enemy / trigger">
+            <option value="1">Grp 1</option><option value="2">Grp 2</option>
+            <option value="3">Grp 3</option><option value="4">Grp 4</option>
+          </select>
+          <button class="tool-btn" data-tool="spawn" title="Set party spawn points">⌂ Spawn</button>
+          <button class="tool-btn" data-tool="erase" title="Erase node / enemy / deco / trigger / spawn">🗑 Erase</button>
+        </div>
+        <div class="tool-group">
+          <span class="tool-label">DECOR</span>
+          <button class="tool-btn" data-tool="deco" title="Place scenery model">⛺ Deco</button>
+          <select id="deco-type-select" title="Deco model"></select>
+        </div>
+        <div class="tool-group">
+          <span class="tool-label">SELECT</span>
+          <button class="tool-btn" data-tool="inspect" title="Click node to edit its script">✎ Inspect</button>
+        </div>
+      </div>
+
+      <!-- Dice overlay -->
+      <div id="dice-overlay" class="hidden">
+        <div id="dice-instruction">CLICK &amp; DRAG — FLING THE DICE</div>
+        <div id="dice-result" class="hidden"></div>
+      </div>
+
+      <div id="mode-badge">EXPLORATION</div>
+
+      <!-- Right-click inspector -->
+      <div id="inspect-panel" class="hidden"></div>
+    </div>
+
+    <!-- ======= TEXT / HUD PANE ======= -->
+    <div id="sidebar">
+      <div id="party-panel"></div>
+      <div id="status-row">
+        <div id="fear-pool" title="GM Fear — fuels complications">☠ FEAR <span id="fear-count">0</span></div>
+        <div id="action-tokens" class="hidden" title="Party action tokens">⬢ TOKENS <span id="token-pips"></span></div>
+      </div>
+      <div id="log" aria-live="polite"></div>
+      <div id="context-bar">Click a hero to select. Click a tile to move.</div>
+    </div>
+  </div>
+
+  <!-- ======= ROLL DIALOG ======= -->
+  <div id="roll-dialog" class="modal hidden">
+    <div class="modal-card">
+      <h3 id="roll-title">Skill Check</h3>
+      <p id="roll-flavor" class="flavor"></p>
+      <div id="roll-meta"></div>
+      <label id="hope-spend-row"><input type="checkbox" id="hope-spend"> Spend 1 Hope for <b>+2</b></label>
+      <div class="modal-actions">
+        <button id="roll-go" class="primary">🎲 Roll the Duality Dice</button>
+        <button id="roll-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======= NODE EDITOR PANEL ======= -->
+  <div id="node-panel" class="modal hidden">
+    <div class="modal-card wide">
+      <h3>Node Script — <span id="np-type"></span></h3>
+      <div class="np-grid">
+        <label>Name <input id="np-name" type="text"></label>
+        <label>Trait
+          <select id="np-trait">
+            <option>Agility</option><option>Strength</option><option>Finesse</option>
+            <option>Instinct</option><option>Presence</option><option>Knowledge</option>
+          </select>
+        </label>
+        <label>Difficulty (DC) <input id="np-dc" type="number" min="5" max="25" value="12"></label>
+      </div>
+      <div class="np-grid">
+        <label>Requires key 🗝 <input id="np-reqkey" type="text" placeholder="(none)"></label>
+        <label>Travel to scene (portal) <select id="np-goto"></select></label>
+      </div>
+      <label class="block">Locked text (shown when the key is missing)
+        <textarea id="np-locked" rows="1"></textarea>
+      </label>
+      <label class="block">Flavor text (shown on approach)
+        <textarea id="np-flavor" rows="2"></textarea>
+      </label>
+      <p class="np-note">Travel nodes skip the roll. For checks, each outcome below can also trigger a
+        mechanical effect — give a key, set a flag, start a combat group, or jump to a scene.</p>
+      <div class="np-outcomes">
+        <div class="np-outcome hope">
+          <h4>✦ Success with Hope</h4>
+          <textarea data-out="hopeSuccess" rows="2"></textarea>
+          <select data-eff="hopeSuccess"></select>
+          <input data-parm="hopeSuccess" type="text" placeholder="effect parameter">
+        </div>
+        <div class="np-outcome fear">
+          <h4>☠ Success with Fear</h4>
+          <textarea data-out="fearSuccess" rows="2"></textarea>
+          <select data-eff="fearSuccess"></select>
+          <input data-parm="fearSuccess" type="text" placeholder="effect parameter">
+        </div>
+        <div class="np-outcome hope">
+          <h4>✦ Failure with Hope</h4>
+          <textarea data-out="hopeFail" rows="2"></textarea>
+          <select data-eff="hopeFail"></select>
+          <input data-parm="hopeFail" type="text" placeholder="effect parameter">
+        </div>
+        <div class="np-outcome fear">
+          <h4>☠ Failure with Fear</h4>
+          <textarea data-out="fearFail" rows="2"></textarea>
+          <select data-eff="fearFail"></select>
+          <input data-parm="fearFail" type="text" placeholder="effect parameter">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="np-ok" class="primary">Apply</button>
+        <button id="np-delete" class="danger">Delete Node</button>
+        <button id="np-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======= CHOICE / STORY DIALOG ======= -->
+  <div id="choice-dialog" class="modal hidden">
+    <div class="modal-card story-card">
+      <h3 class="choice-title"></h3>
+      <div class="choice-body"></div>
+      <div class="choice-options"></div>
+    </div>
+  </div>
+
+  <!-- ======= END MODAL ======= -->
+  <div id="end-modal" class="modal hidden">
+    <div class="modal-card center">
+      <h2 id="end-title"></h2>
+      <p id="end-text"></p>
+      <div class="modal-actions"><button id="end-restart" class="primary">Restart Map</button></div>
+    </div>
+  </div>
+
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
