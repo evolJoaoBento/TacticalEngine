@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://daggersearch.com/schemas/common/damage.schema.json",
+  "type": "object",
+  "properties": {
+    "dice": { "$ref": "./dice.schema.json" },
+    "modifier": { "type": "integer" },
+    "type": {
+      "type": "string",
+      "enum": ["PHYSICAL", "MAGICAL", "PHYSICAL_OR_MAGICAL"]
+    }
+  },
+  "required": ["dice", "type"],
+  "additionalProperties": false
+}

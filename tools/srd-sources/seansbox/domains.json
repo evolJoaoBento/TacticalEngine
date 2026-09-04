@@ -1,0 +1,425 @@
+[
+ {
+  "card": [
+   [
+    "Rune Ward",
+    "Unleash Chaos",
+    "Wall Walk"
+   ],
+   [
+    "Cinder Grasp",
+    "Floating Eye"
+   ],
+   [
+    "Counterspell",
+    "Flight"
+   ],
+   [
+    "Blink Out",
+    "Preservation Blast"
+   ],
+   [
+    "Chain Lightning",
+    "Premonition"
+   ],
+   [
+    "Rift Walker",
+    "Telekinesis"
+   ],
+   [
+    "Arcana-Touched",
+    "Cloaking Blast"
+   ],
+   [
+    "Arcane Reflection",
+    "Confusing Aura"
+   ],
+   [
+    "Earthquake",
+    "Sensory Projection"
+   ],
+   [
+    "Adjust Reality",
+    "Falling Sky"
+   ]
+  ],
+  "description": "Arcana is the domain of **innate and instinctual** magic. Those who choose this path tap into the raw, enigmatic forces of the realms to manipulate both their own energy and the elements. Arcana oﬀers wielders a volatile power, but it is incredibly potent when correctly channeled. The Arcana domain can be accessed by the **Druid** and **Sorcerer** classes.",
+  "name": "Arcana"
+ },
+ {
+  "card": [
+   [
+    "Get Back Up",
+    "Not Good Enough",
+    "Whirlwind"
+   ],
+   [
+    "A Soldier's Bond",
+    "Reckless"
+   ],
+   [
+    "Scramble",
+    "Versatile Fighter"
+   ],
+   [
+    "Deadly Focus",
+    "Fortified Armor"
+   ],
+   [
+    "Champion's Edge",
+    "Vitality"
+   ],
+   [
+    "Battle-Hardened",
+    "Rage Up"
+   ],
+   [
+    "Blade-Touched",
+    "Glancing Blow"
+   ],
+   [
+    "Battle Cry",
+    "Frenzy"
+   ],
+   [
+    "Gore and Glory",
+    "Reaper's Strike"
+   ],
+   [
+    "Battle Monster",
+    "Onslaught"
+   ]
+  ],
+  "description": "Blade is the domain of **weapon mastery.** Whether by steel, bow, or perhaps a more specialized arm, those who follow this path have the skill to cut short the lives of others. Wielders of Blade dedicate themselves to achieving inexorable power over death. The Blade domain can be accessed by the **Guardian** and **Warrior** classes.",
+  "name": "Blade"
+ },
+ {
+  "card": [
+   [
+    "Deft Maneuvers",
+    "I See It Coming",
+    "Untouchable"
+   ],
+   [
+    "Ferocity",
+    "Strategic Approach"
+   ],
+   [
+    "Brace",
+    "Tactician"
+   ],
+   [
+    "Boost",
+    "Redirect"
+   ],
+   [
+    "Know Thy Enemy",
+    "Signature Move"
+   ],
+   [
+    "Rapid Riposte",
+    "Recovery"
+   ],
+   [
+    "Bone-Touched",
+    "Cruel Precision"
+   ],
+   [
+    "Breaking Blow",
+    "Wrangle"
+   ],
+   [
+    "On the Brink",
+    "Splintering Strike"
+   ],
+   [
+    "Deathrun",
+    "Swift Step"
+   ]
+  ],
+  "description": "Bone is the domain of **tactics and the body.** Practitioners of this domain have an uncanny control over their own physical abilities and an eye for predicting the behaviors of others in combat. Adherents to Bone gain an unparalleled understanding of bodies and their movements. The Bone domain can be accessed by the **Ranger** & **Warrior** classes.",
+  "name": "Bone"
+ },
+ {
+  "card": [
+   [
+    "Book of Ava",
+    "Book of Illiat",
+    "Book of Tyfar"
+   ],
+   [
+    "Book of Sitil",
+    "Book of Vagras"
+   ],
+   [
+    "Book of Korvax",
+    "Book of Norai"
+   ],
+   [
+    "Book of Exota",
+    "Book of Grynn"
+   ],
+   [
+    "Manifest Wall",
+    "Teleport"
+   ],
+   [
+    "Banish",
+    "Sigil of Retribution"
+   ],
+   [
+    "Book of Homet",
+    "Codex-Touched"
+   ],
+   [
+    "Book of Vyola",
+    "Safe Haven"
+   ],
+   [
+    "Book of Ronin",
+    "Disintegration Wave"
+   ],
+   [
+    "Book of Yarrow",
+    "Transcendent Union"
+   ]
+  ],
+  "description": "Codex is the domain of **intensive magical study.** Those who seek magical knowledge turn to the equations of power recorded in books, written on scrolls, etched into walls, or tattooed on bodies. Codex offers a commanding and versatile understanding of magic to devotees who pursue knowledge beyond the boundaries of common wisdom. The Codex domain can be accessed by the **Bard** and **Wizard** classes.",
+  "name": "Codex"
+ },
+ {
+  "card": [
+   [
+    "Deft Deceiver",
+    "Enrapture",
+    "Inspirational Words"
+   ],
+   [
+    "Tell No Lies",
+    "Troublemaker"
+   ],
+   [
+    "Hypnotic Shimmer",
+    "Invisibility"
+   ],
+   [
+    "Soothing Speech",
+    "Through Your Eyes"
+   ],
+   [
+    "Thought Delver",
+    "Words of Discord"
+   ],
+   [
+    "Never Upstaged",
+    "Share the Burden"
+   ],
+   [
+    "Endless Charisma",
+    "Grace-Touched"
+   ],
+   [
+    "Astral Projection",
+    "Mass Enrapture"
+   ],
+   [
+    "Copycat",
+    "Master of the Craft"
+   ],
+   [
+    "Encore",
+    "Notorious"
+   ]
+  ],
+  "description": "Grace is the domain of **charisma.** Through rapturous storytelling, charming spells, or a shroud of lies, those who channel this power define the realities of their adversaries, bending perception to their will. Grace offers its wielders raw magnetism and mastery over language. The Grace domain can be accessed by the **Bard** and **Rogue** classes",
+  "name": "Grace"
+ },
+ {
+  "card": [
+   [
+    "Pick and Pull",
+    "Rain of Blades",
+    "Uncanny Disguise"
+   ],
+   [
+    "Midnight Spirit",
+    "Shadowbind"
+   ],
+   [
+    "Chokehold",
+    "Veil of Night"
+   ],
+   [
+    "Stealth Expertise",
+    "Glyph of Nightfall"
+   ],
+   [
+    "Hush",
+    "Phantom Retreat"
+   ],
+   [
+    "Dark Whispers",
+    "Mass Disguise"
+   ],
+   [
+    "Midnight-Touched",
+    "Vanishing Dodge"
+   ],
+   [
+    "Shadowhunter",
+    "Spellcharge"
+   ],
+   [
+    "Night Terror",
+    "Twilight Toll"
+   ],
+   [
+    "Eclipse",
+    "Specter of the Dark"
+   ]
+  ],
+  "description": "Midnight is the domain of **shadows and secrecy.** Whether by clever tricks, deft magic, or the cloak of night, those who channel these forces practice the art of obscurity and can uncover sequestered treasures. Midnight offers practitioners the power to control and create enigmas. The Midnight domain can be accessed by the **Rogue** and **Sorcerer** classes.",
+  "name": "Midnight"
+ },
+ {
+  "card": [
+   [
+    "Gifted Tracker",
+    "Nature's Tongue",
+    "Vicious Entangle"
+   ],
+   [
+    "Conjure Swarm",
+    "Natural Familiar"
+   ],
+   [
+    "Corrosive Projectile",
+    "Towering Stalk"
+   ],
+   [
+    "Death Grip",
+    "Healing Field"
+   ],
+   [
+    "Thorn Skin",
+    "Wild Fortress"
+   ],
+   [
+    "Conjured Steeds",
+    "Forager"
+   ],
+   [
+    "Sage-Touched",
+    "Wild Surge"
+   ],
+   [
+    "Forest Sprites",
+    "Rejuvenation Barrier"
+   ],
+   [
+    "Fane of the Wilds",
+    "Plant Dominion"
+   ],
+   [
+    "Force of Nature",
+    "Tempest"
+   ]
+  ],
+  "description": "Sage is the domain **of the natural world.** Those who walk this path tap into the unfettered power of the earth and its creatures to unleash raw magic. Sage grants its adherents the vitality of a blooming flower and the ferocity of a ravenous predator. The Sage domain can be accessed by the **Druid** and **Ranger** classes.",
+  "name": "Sage"
+ },
+ {
+  "card": [
+   [
+    "Bolt Beacon",
+    "Mending Touch",
+    "Reassurance"
+   ],
+   [
+    "Final Words",
+    "Healing Hands"
+   ],
+   [
+    "Second Wind",
+    "Voice of Reason"
+   ],
+   [
+    "Divination",
+    "Life Ward"
+   ],
+   [
+    "Shape Material",
+    "Smite"
+   ],
+   [
+    "Restoration",
+    "Zone of Protection"
+   ],
+   [
+    "Healing Strike",
+    "Splendor-Touched"
+   ],
+   [
+    "Shield Aura",
+    "Stunning Sunlight"
+   ],
+   [
+    "Overwhelming Aura",
+    "Salvation Beam"
+   ],
+   [
+    "Invigoration",
+    "Resurrection"
+   ]
+  ],
+  "description": "Splendor is the domain of **life.** Through this magic, followers gain the ability to heal and, to an extent, control death. Splendor offers its disciples the magnificent ability to both give and end life. The Splendor domain can be accessed by the **Seraph** and **Wizard** classes.",
+  "name": "Splendor"
+ },
+ {
+  "card": [
+   [
+    "Bare Bones",
+    "Forceful Push",
+    "I Am Your Shield"
+   ],
+   [
+    "Body Basher",
+    "Bold Presence"
+   ],
+   [
+    "Critical Inspiration",
+    "Lean on Me"
+   ],
+   [
+    "Goad Them on",
+    "Support Tank"
+   ],
+   [
+    "Armorer",
+    "Rousing Strike"
+   ],
+   [
+    "Inevitable",
+    "Rise Up"
+   ],
+   [
+    "Shrug It Off",
+    "Valor-Touched"
+   ],
+   [
+    "Full Surge",
+    "Ground Pound"
+   ],
+   [
+    "Hold the Line",
+    "Lead by Example"
+   ],
+   [
+    "Unbreakable",
+    "Unyielding Armor"
+   ]
+  ],
+  "description": "Valor is the domain of **protection**. Whether through attack or defense, those who choose this discipline channel formidable strength to protect their allies in battle. Valor oﬀers great power to those who raise their shields in defense of others. The Valor domain can be accessed by the **Guardian** and **Seraph** classes.\n\n### CLASS DOMAINS\n\nEach class grants access to two domains:\n\n- **Bard:** Codex & Grace\n- **Druid:** Arcana & Sage\n- **Guardian:** Blade & Valor\n- **Ranger:** Bone & Sage\n- **Rogue:** Grace & Midnight\n- **Seraph:** Splendor & Valor\n- **Sorcerer:** Arcana & Midnight\n- **Warrior:** Blade & Bone\n- **Wizard:** Codex & Splendor\n\nPCs acquire two 1st-level domain cards at character creation and an additional domain card at or below their level each time they level up.\n\n### DOMAIN CARDS\n\nEach domain card provides one or more features your PC can utilize during their adventures. Some domain cards provide moves you can make, such as a unique attack or a spell. Others offer passive effects, new downtime or social encounter abilities, or one-time benefits.\n\n##### DOMAIN CARD ANATOMY\n\nEach domain card includes six elements:\n\n- **Level.** The number in the top left of the card indicates the card's level. You cannot acquire a domain card with a level higher than your PC's.\n- **Domain.** Beneath the card's level there is a symbol indicating its domain. You can only choose cards from your class's two domains.\n- **Recall Cost.** The number and lightning bolt in the top right of the card shows its Recall Cost. This is the amount of Stress a player must mark to swap this card from their **vault** with a card from their **loadout.** _**Note:** A player can swap domain cards during downtime without paying the domain card's Recall Cost._\n- **Title.** The name of the card.\n- **Type.** The card's **type** is listed in the center above the title. There are three types of domain cards: **abilities, spells,** and **grimoires.** Abilities are typically non-magical in nature, while spells are magical. Grimoires are unique to the Codex domain and grant access to a collection of less potent spells. Some game mechanics only apply to certain types of cards.\n- **Feature.** The text on the bottom half of the card describes its feature(s), including any special rules you need to follow when you use that card.\n\n##### LOADOUT & VAULT\n\nYour **loadout** is the set of acquired domain cards whose effects your PC can use during play. You can have up to 5 domain cards in your loadout at one time. Once you've acquired six or more domain cards, you must choose five to keep in your loadout; the rest are considered to be in your **vault.** Vault cards are inactive and do not influence play\n\n> _**Note:** Your subclass, ancestry, and community cards don't count toward your loadout or vault and are always active and available._\n\nAt the start of a rest, before using downtime moves, you can freely move cards between your loadout and your vault, so long as your loadout doesn't exceed its five-card maximum.\n\nTo move a card from your vault to your loadout at any other time, you must mark a number of Stress equal to the vaulted card's **Recall Cost** (located in the top right of the card next to the lightning bolt symbol). If your loadout is already full, you must also move a card from your loadout to your vault to make space, though you can do this at no cost.\n\nWhen you gain a new domain card at level-up, you can immediately move it into your loadout for free. If your loadout is already full, you must also move a card from your loadout to your vault to make space.\n\n##### USAGE LIMITS\n\nIf a domain card restricts how often it can be used, you can track such limits with whatever method you prefer, such as turning the card sideways, flipping it facedown, or using tokens.\n\n> _**Note:** if an effect or ability gives you a number of uses equal to a trait with a modifier of +0 or less, it grants you 0 uses._",
+  "name": "Valor"
+ }
+]
