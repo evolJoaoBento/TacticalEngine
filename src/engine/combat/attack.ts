@@ -28,7 +28,7 @@ import {
   type ResolvedDamage,
 } from '../rules/damage';
 import type { RangeBand } from '../rules/range';
-import { markHitPoints, mark, type MarkPool } from '../rules/resources';
+import { mark, markHitPoints, unmarked, type MarkPool } from '../rules/resources';
 import type { EntityState, SceneState } from '../scene/state';
 import { evaluateTarget, type TargetingOptions, type TargetingReport } from './targeting';
 
@@ -63,9 +63,19 @@ export interface DefenderProfile {
   difficulty: number;
   thresholds: DamageThresholds;
   defenses?: DamageDefenses;
-  /** Armor Slots the defender still has open. */
-  armorSlotsAvailable?: number;
 }
+
+/**
+ * Whether cover raises an adversary's Difficulty is a **house rule**.
+ *
+ * The SRD says "Light Cover - +1 to Evasion against ranged attacks", and Evasion
+ * is a PC stat: adversaries have a Difficulty score instead, and the SRD never
+ * says cover raises it. Applying it to both sides keeps terrain meaningful in
+ * either direction, which is what the legacy prototype did and what a tactical map
+ * needs, but it is an addition rather than a quotation. `TargetingReport.coverBonus`
+ * is reported separately from the Difficulty so a project can drop it.
+ */
+export const COVER_APPLIES_TO_ADVERSARY_DIFFICULTY = true;
 
 export interface AttackOptions extends TargetingOptions {
   /** Extra advantage sources on top of those the conditions imply. */
@@ -75,7 +85,12 @@ export interface AttackOptions extends TargetingOptions {
   helpDice?: number;
   /** Flat modifier on top of the profile's: an Experience, a feature, terrain. */
   bonus?: number;
-  /** Armor Slots the defender chooses to mark against this hit. */
+  /**
+   * Armor Slots the defender chooses to mark against this hit. What they can
+   * actually spend comes from the target entity's own pool, never from a
+   * separate number — two sources of truth there would silently under-damage a
+   * target that marked armor it did not have.
+   */
   armorSlotsMarked?: number;
   /** Extra flat damage from features or items. */
   damageBonus?: number;
@@ -242,7 +257,7 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
     defender.thresholds,
     {
       armorSlotsMarked: options.armorSlotsMarked ?? 0,
-      armorSlotsAvailable: defender.armorSlotsAvailable ?? 0,
+      armorSlotsAvailable: unmarked(target.armorSlots),
       ...(defender.defenses === undefined ? {} : { defenses: defender.defenses }),
       ...(options.massiveDamage === undefined ? {} : { massiveDamage: options.massiveDamage }),
     },

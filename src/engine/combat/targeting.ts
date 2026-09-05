@@ -25,6 +25,7 @@ import {
 export type TargetingRefusal =
   | 'noAttacker'
   | 'noTarget'
+  | 'selfTarget'
   | 'outOfRange'
   | 'noLineOfSight'
   | 'totalCover';
@@ -39,6 +40,20 @@ export interface TargetingOptions {
    * Defaults to "anything beyond Melee band is ranged".
    */
   ranged?: boolean;
+  /**
+   * Whether a diagonal neighbour counts as adjacent — that is, as Melee range.
+   *
+   * This has to follow the project's movement rules or the two disagree in a way
+   * players notice: straight-line distance to a diagonal neighbour is 1.41, which
+   * rounds into Very Close, so a fighter standing corner-to-corner with a target
+   * could not reach it with a Melee weapon. Defaults to `false`, matching
+   * `DEFAULT_MOVEMENT`; a project that turns diagonal movement on must turn this
+   * on with it.
+   *
+   * It only affects adjacency. Everything past a neighbouring tile is measured in
+   * a straight line, because that is what a range band describes.
+   */
+  diagonalAdjacency?: boolean;
 }
 
 export interface TargetingReport {
@@ -92,9 +107,27 @@ export function evaluateTarget(
   };
   if (!grid.isTile(attackerTile)) return { ...empty, refusal: 'noAttacker' };
   if (!grid.isTile(targetTile)) return empty;
+  // Attacking your own tile is a caller mistake, not a zero-range attack.
+  if (attackerTile === targetTile) {
+    return {
+      ...empty,
+      distance: 0,
+      band: 'melee',
+      bandLabel: bandLabel('melee'),
+      hasLineOfSight: true,
+      ranged: false,
+      refusal: 'selfTarget',
+    };
+  }
 
   const distance = grid.euclideanDistance(attackerTile, targetTile);
-  const band = bandForDistance(Math.ceil(distance), options.bandTiles);
+  // A neighbour under the movement rules is in Melee range, whichever direction it
+  // lies in; anything further is measured in a straight line.
+  const adjacent =
+    options.diagonalAdjacency === true
+      ? grid.chebyshevDistance(attackerTile, targetTile) <= 1
+      : grid.manhattanDistance(attackerTile, targetTile) <= 1;
+  const band = adjacent ? 'melee' : bandForDistance(Math.ceil(distance), options.bandTiles);
   const ranged = options.ranged ?? band !== 'melee';
 
   const sight = lineOfSight(grid, attackerTile, targetTile, options.losRules);
@@ -139,6 +172,8 @@ export function refusalMessage(refusal: TargetingRefusal): string {
       return 'The attacker is not on the map.';
     case 'noTarget':
       return 'The target is not on the map.';
+    case 'selfTarget':
+      return 'A creature cannot attack its own tile.';
     case 'outOfRange':
       return 'The target is out of range.';
     case 'noLineOfSight':

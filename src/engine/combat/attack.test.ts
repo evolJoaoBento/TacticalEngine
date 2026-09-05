@@ -242,16 +242,37 @@ describe('resolveAttack — a PC attacking', () => {
   });
 
   it('lets the defender reduce a hit by marking Armor Slots', () => {
+    const armored = { ...adversary('husk', grid.indexOf(1, 0)), armorSlots: createMarkPool(3) };
     const outcome = resolveAttack(scriptedRng([8, 3, 5, 6]), {
       grid,
       attacker: party('kara', grid.indexOf(0, 0)),
-      target: adversary('husk', grid.indexOf(1, 0)),
+      target: armored,
       profile: greatblade,
-      defender: { ...defender, armorSlotsAvailable: 3 },
+      defender,
       options: { bandTiles, armorSlotsMarked: 1 },
     });
     expect(outcome.damage).toMatchObject({ severity: 'major', finalSeverity: 'minor' });
     expect(outcome.hitPointsMarked).toBe(1);
+  });
+
+  it('spends no Armor Slots the target does not actually have', () => {
+    // The target's own pool is the only source of truth, so a defender who marks
+    // armor it has not got takes the hit in full rather than being under-damaged.
+    const outcome = resolveAttack(scriptedRng([8, 3, 5, 6]), {
+      grid,
+      attacker: party('kara', grid.indexOf(0, 0)),
+      // createAdversaryEntity gives 0 Armor Slots.
+      target: adversary('husk', grid.indexOf(1, 0)),
+      profile: greatblade,
+      defender,
+      options: { bandTiles, armorSlotsMarked: 2 },
+    });
+    expect(outcome.damage).toMatchObject({
+      severity: 'major',
+      finalSeverity: 'major',
+      armorSlotsSpent: 0,
+    });
+    expect(outcome.hitPointsMarked).toBe(2);
   });
 });
 
@@ -392,12 +413,13 @@ describe('applyAttack', () => {
   it('marks the Armor Slots the defence actually spent', () => {
     const state = setup();
     state.entity('husk')!.armorSlots = createMarkPool(3);
+    const armored = { ...adversary('husk', grid.indexOf(1, 0)), armorSlots: createMarkPool(3) };
     const outcome = resolveAttack(scriptedRng([8, 3, 5, 6]), {
       grid,
       attacker: party('kara', grid.indexOf(0, 0)),
-      target: adversary('husk', grid.indexOf(1, 0)),
+      target: armored,
       profile: greatblade,
-      defender: { ...defender, armorSlotsAvailable: 3 },
+      defender,
       options: { bandTiles, armorSlotsMarked: 1 },
     });
     const applied = applyAttack(state, outcome);
@@ -442,6 +464,68 @@ describe('applyAttack', () => {
     const before = JSON.stringify(state.snapshot());
     hit(); // resolved, not applied
     expect(JSON.stringify(state.snapshot())).toBe(before);
+  });
+});
+
+describe('adjacency and range', () => {
+  const diagonalGrid = new TileGrid({ width: 5, height: 5 });
+  const centre = diagonalGrid.indexOf(2, 2);
+  const diagonalNeighbour = diagonalGrid.indexOf(3, 3);
+
+  it('refuses a Melee attack on a diagonal neighbour by default', () => {
+    // Straight-line distance is 1.41, which rounds into Very Close. That matches
+    // DEFAULT_MOVEMENT, where a diagonal is not a step either.
+    const outcome = resolveAttack(scriptedRng([]), {
+      grid: diagonalGrid,
+      attacker: party('kara', centre),
+      target: adversary('husk', diagonalNeighbour),
+      profile: greatblade,
+      defender,
+      options: { bandTiles },
+    });
+    expect(outcome.targeting.band).toBe('veryClose');
+    expect(outcome.refused).toBe('outOfRange');
+  });
+
+  it('reaches a diagonal neighbour when the project allows diagonal movement', () => {
+    const outcome = resolveAttack(scriptedRng([8, 3, 5, 6]), {
+      grid: diagonalGrid,
+      attacker: party('kara', centre),
+      target: adversary('husk', diagonalNeighbour),
+      profile: greatblade,
+      defender,
+      options: { bandTiles, diagonalAdjacency: true },
+    });
+    expect(outcome.targeting.band).toBe('melee');
+    expect(outcome.targeting.ranged).toBe(false);
+    expect(outcome.refused).toBeNull();
+    expect(outcome.hit).toBe(true);
+  });
+
+  it('still measures anything past a neighbour in a straight line', () => {
+    const outcome = resolveAttack(scriptedRng([]), {
+      grid: diagonalGrid,
+      attacker: party('kara', diagonalGrid.indexOf(0, 0)),
+      target: adversary('husk', diagonalGrid.indexOf(4, 4)),
+      profile: { ...greatblade, range: 'veryClose' },
+      defender,
+      options: { bandTiles, diagonalAdjacency: true },
+    });
+    expect(outcome.targeting.distance).toBeCloseTo(Math.hypot(4, 4), 10);
+    expect(outcome.refused).toBe('outOfRange');
+  });
+
+  it('refuses an attack on the attacker own tile without rolling', () => {
+    const outcome = resolveAttack(scriptedRng([]), {
+      grid,
+      attacker: party('kara', grid.indexOf(2, 0)),
+      target: adversary('husk', grid.indexOf(2, 0)),
+      profile: greatblade,
+      defender,
+      options: { bandTiles },
+    });
+    expect(outcome.refused).toBe('selfTarget');
+    expect(outcome.dualityRoll).toBeUndefined();
   });
 });
 

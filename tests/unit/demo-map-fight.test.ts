@@ -93,7 +93,11 @@ function buildFight(seed: string): {
   const door = scene.interactables.find((i) => i.kind === 'door')!;
   state.setInteractableBlocking(tileOf(grid, door.position), false);
 
-  const burrowerTile = grid.indexOf(door.position.x + 2, door.position.y);
+  // Just inside the door, on open floor — (door.x + 2) is the legacy pillar's
+  // tile, which sceneStateFromScene registers as blocking.
+  const burrowerTile = grid.indexOf(door.position.x + 1, door.position.y);
+  expect(state.blockedFor('nobody')(burrowerTile)).toBe(false);
+  expect(grid.isPassable(burrowerTile)).toBe(true);
   const burrowerId = 'burrower-1';
   state.addEntity({
     id: burrowerId,
@@ -123,7 +127,6 @@ const burrowerDefence = () => ({
 const karaDefence = () => ({
   difficulty: kara.evasion,
   thresholds: pcThresholds(kara.level, kara.armor),
-  armorSlotsAvailable: kara.armorScore,
 });
 
 const burrowerAttack: AttackProfile = {

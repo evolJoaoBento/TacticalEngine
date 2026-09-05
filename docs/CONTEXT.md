@@ -76,6 +76,19 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
   `src/engine/content/srd/seansbox-adversaries.ts` normalizes the adversaries; `tests/unit/srd-content-strings.test.ts`
   asserts all 129 import with zero issues, so add a case there before trusting a new field.
 
+- **House rules the engine adds, where the SRD is silent.** Each is a decision, not a quotation, and each
+  is data or a named constant so a project can change it:
+  - Line-of-sight geometry and the cover it produces (`src/engine/grid/los.ts`). The SRD names the three
+    cover levels and their effects but leaves the geometry to the GM. Default: one blocker gives Light
+    Cover, two or more give Full; Total Cover is never inferred, only authored. Thresholds live in
+    `LineOfSightRules`.
+  - Cover raising an **adversary's Difficulty** (`COVER_APPLIES_TO_ADVERSARY_DIFFICULTY` in
+    `src/engine/combat/attack.ts`). The SRD says cover adds to *Evasion*, which is a PC stat.
+  - Band-to-tile distances (`DEFAULT_BAND_TILES` in `src/engine/rules/range.ts`), derived from the SRD's
+    own distances at 5 ft per tile.
+  - Diagonal adjacency (`TargetingOptions.diagonalAdjacency`). It must follow the project's movement rules
+    or a diagonal neighbour is out of Melee reach.
+
 - **Open gap: the engine implements SRD 1.0.** The official SRD is now v2.0 (Aug 2026):
   https://www.daggerheart.com/wp-content/uploads/2026/08/DH_SRD_2_2026_08_25.pdf — not vendored, and no 1.0→2.0
   diff pass has been done. When a rule matters, say which version it came from, and say explicitly when a rule
