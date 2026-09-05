@@ -192,12 +192,24 @@ export class SceneState {
 
   /** Tiles held by an interactable that blocks movement and has not been removed. */
   private readonly blockingInteractables = new Set<number>();
+  /** Where each interactable stands, so removing one can free its tile. */
+  private readonly interactableTiles = new Map<string, number>();
 
   /** Register an interactable's tile as blocking. Called when the scene is built. */
   setInteractableBlocking(tile: number, blocking: boolean): void {
     if (tile === NO_TILE) return;
     if (blocking) this.blockingInteractables.add(tile);
     else this.blockingInteractables.delete(tile);
+  }
+
+  /** Record where an interactable stands. Called when the scene is built. */
+  placeInteractable(id: string, tile: number): void {
+    if (tile !== NO_TILE) this.interactableTiles.set(id, tile);
+  }
+
+  /** The tile an interactable stands on, or `NO_TILE`. */
+  interactableTile(id: string): number {
+    return this.interactableTiles.get(id) ?? NO_TILE;
   }
 
   interactable(id: string): InteractableState {
@@ -224,6 +236,10 @@ export class SceneState {
 
   setFlag(flag: string): void {
     this.storyFlags.add(flag);
+  }
+
+  clearFlag(flag: string): void {
+    this.storyFlags.delete(flag);
   }
 
   hasFlag(flag: string): boolean {
@@ -386,11 +402,9 @@ export function sceneStateFromScene(
   const stats = options.adversaries ?? new Map<string, AdversaryStats>();
 
   for (const interactable of scene.interactables) {
-    if (!interactable.blocksMovement) continue;
-    state.setInteractableBlocking(
-      grid.indexOf(interactable.position.x, interactable.position.y),
-      true,
-    );
+    const tile = grid.indexOf(interactable.position.x, interactable.position.y);
+    state.placeInteractable(interactable.id, tile);
+    if (interactable.blocksMovement) state.setInteractableBlocking(tile, true);
   }
 
   for (const encounter of scene.encounters) {
