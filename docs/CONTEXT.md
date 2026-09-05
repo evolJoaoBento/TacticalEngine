@@ -1,7 +1,8 @@
 # PolyHeart Engine — Working Context (read this first)
 
-**Absolute project path (has a space — always quote it):** `C:\Users\joaoo\daggerheart game`
-(Git Bash form: `"C:/Users/joaoo/daggerheart game"`). The user home dir contains non-ASCII characters; never hardcode it.
+**Absolute project path (has a space — always quote it):** `D:\New folder\daggerheart game`
+(Git Bash form: `"D:/New folder/daggerheart game"`). The repo has moved between machines before — prefer
+repo-relative paths in code, scripts and docs; never hardcode a home directory.
 
 ## Goal
 
@@ -48,15 +49,21 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
 ## Source material available locally
 
 - Legacy prototype (what the user built, to be ported/superseded): `legacy/js/*.js`, `legacy/README.md`.
-- Daggerheart SRD data (cloned community repos, DPCGL):
-  - `C:\Users\JOOBEN~1\AppData\Local\Temp\claude\C--Users-joaoo-daggerheart-game\fcbffdc0-9886-45e6-8949-ab5ea521b4be\scratchpad\srd\daggerheart-data`
-    — daggersearch JSON with schemas (`core/*.json`, `_schemas/*.schema.json`): ancestries, armors, classes,
-    communities, consumables, domain-cards, items, rules, subclasses, weapons. Good ids and enums. No adversaries.
-  - `...\scratchpad\srd\daggerheart-srd` — seansbox: Markdown per entry (`adversaries/`, `environments/`, `classes/`, …)
-    plus `.build/03_json/*.json` (UTF-8 **with BOM** — decode with utf-8-sig / strip BOM). Has adversaries (129),
-    environments (19), beastforms (24). Stringly typed (`"atk": "+3"`, `"thresholds": "8/15"`, `"damage": "1d12+2 phy"`).
-  - `...\scratchpad\srd\og-dhsrd` — Old Gus' hypertext SRD 2.0 (HTML) — rules text reference.
+  Static analysis of it lives in `docs/research/legacy-{game,campaign,editor-ui,models}.md` — read those before
+  re-reading the legacy sources; they carry `file:line` anchors and a port verdict per behaviour.
+- Daggerheart SRD data is **vendored into the repo** (DPCGL) under `tools/srd-sources/` — no network or scratchpad
+  needed. Both sets are plain UTF-8 (no BOM):
+  - `tools/srd-sources/daggersearch/core/*.json` — structured, well-typed, with JSON Schemas in
+    `_schemas/*.schema.json`: ancestries, armors, classes, communities, consumables, domain-cards, items,
+    **rules** (14 core rules incl. Action Rolls, Advantage/Disadvantage, Attack/Damage Rolls, Range Bands),
+    subclasses, transformations, weapons. Names/descriptions are localized objects (`{"en-US": "…"}`).
+    **No adversaries, no environments.** This is the local rules-text reference.
+  - `tools/srd-sources/seansbox/*.json` — broader coverage but stringly typed (`"atk": "+3"`,
+    `"thresholds": "8/15"`, `"damage": "1d12+2 phy"`, `"tier": "1"`): **adversaries (129)**, environments,
+    beastforms (24), abilities, plus its own ancestries/classes/armor/weapons/items/subclasses.
+    A loader must parse those strings into structured types.
 - Official SRD PDF v2.0 (Aug 2026): https://www.daggerheart.com/wp-content/uploads/2026/08/DH_SRD_2_2026_08_25.pdf
+  (network; only if the vendored JSON is silent on a rule — say so explicitly when a rule came from memory instead).
 
 ## Conventions
 
