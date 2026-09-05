@@ -79,7 +79,10 @@ export interface DualityRoll {
   /** Stress the acting character clears (1 on a non-reaction critical success). */
   stressCleared: number;
   /**
-   * SRD: on a failure, and on a success with Fear, "the spotlight goes to the GM".
+   * The GM should consider making a move. SRD "GM MOVES AND ADVERSARY ACTIONS"
+   * lists both triggers this covers: the player "rolls with Fear on an action roll"
+   * or "fails an action roll" — so a success with Fear hands the spotlight over too,
+   * and only a success with Hope (a crit included) keeps it with the party.
    * The turn policy decides what to do with that; the roll only reports it.
    */
   spotlightToGm: boolean;

@@ -95,7 +95,12 @@ export function resize(pool: MarkPool, max: number, cap = MAX_SLOTS): MarkPool {
 
 /**
  * Mark Stress, applying the SRD fallback: "When a character must mark 1 or more
- * Stress but can't, they mark 1 HP instead." One HP per un-markable Stress.
+ * Stress but can't, they mark 1 HP instead."
+ *
+ * Read literally, that is a flat 1 Hit Point for the whole event however much
+ * Stress went unmarked — marking 3 Stress with one slot free marks 1 Stress and
+ * 1 HP, not 1 Stress and 2 HP. That literal reading is what this implements; the
+ * per-Stress reading some tables use would be `mark(hitPoints, overflow)`.
  *
  * The caller still has to honour the other half of the rule — "a character can't
  * *use a move* that requires them to mark Stress if all of their Stress is marked" —
@@ -116,7 +121,7 @@ export interface StressResult {
 export function markStress(stress: MarkPool, hitPoints: MarkPool, amount = 1): StressResult {
   const wasFull = isFull(stress);
   const s = mark(stress, amount);
-  const h = mark(hitPoints, s.overflow);
+  const h = mark(hitPoints, s.overflow > 0 ? 1 : 0);
   return {
     stress: s.pool,
     hitPoints: h.pool,

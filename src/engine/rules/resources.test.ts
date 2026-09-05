@@ -83,11 +83,18 @@ describe('markStress', () => {
     expect(r.becameVulnerable).toBe(false);
   });
 
-  it('marks 1 HP for each Stress that cannot be marked', () => {
-    const r = markStress(createMarkPool(6, 5), createMarkPool(6), 3);
-    expect(r.stressMarked).toBe(1);
-    expect(r.hpMarked).toBe(2);
-    expect(r.hitPoints.marked).toBe(2);
+  it('marks a flat 1 HP when Stress cannot be marked, however much overflowed', () => {
+    const partial = markStress(createMarkPool(6, 5), createMarkPool(6), 3);
+    expect(partial.stressMarked).toBe(1);
+    expect(partial.hpMarked).toBe(1);
+
+    const none = markStress(createMarkPool(6, 6), createMarkPool(6), 4);
+    expect(none.stressMarked).toBe(0);
+    expect(none.hpMarked).toBe(1);
+  });
+
+  it('marks no HP when all the Stress fits', () => {
+    expect(markStress(createMarkPool(6, 4), createMarkPool(6), 2).hpMarked).toBe(0);
   });
 
   it('flags a fall when the overflow marks the last Hit Point', () => {

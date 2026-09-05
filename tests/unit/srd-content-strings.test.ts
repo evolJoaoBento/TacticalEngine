@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { parseDice } from '../../src/engine/rules/dice';
 import { parseThresholds } from '../../src/engine/rules/damage';
+import { importSeansboxAdversaries } from '../../src/engine/content/srd/seansbox-adversaries';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
@@ -31,6 +32,7 @@ interface SeansboxAdversary {
   thresholds?: string;
   tier?: string;
   type?: string;
+  feature?: { name?: string; text?: string }[];
 }
 
 const adversaries = readJson<SeansboxAdversary[]>('tools/srd-sources/seansbox/adversaries.json');
@@ -109,6 +111,66 @@ describe('vendored SRD content is machine-readable', () => {
       }
     }
     expect(failures).toEqual([]);
+  });
+});
+
+describe('the adversary importer swallows the whole vendored roster', () => {
+  const { defs, issues } = importSeansboxAdversaries(adversaries);
+
+  it('imports all 129 with no issues at all', () => {
+    // The issue list is printed on failure, so a content shape the importer
+    // cannot read names itself here.
+    expect(issues).toEqual([]);
+    expect(defs).toHaveLength(adversaries.length);
+  });
+
+  it('gives every adversary a unique, non-empty id', () => {
+    const ids = defs.map((d) => d.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ids) expect(id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+  });
+
+  it('imports every feature of every adversary', () => {
+    const rawFeatures = adversaries.reduce((n, a) => n + (a.feature?.length ?? 0), 0);
+    const importedFeatures = defs.reduce((n, d) => n + d.features.length, 0);
+    expect(importedFeatures).toBe(rawFeatures);
+    expect(importedFeatures).toBeGreaterThan(400);
+  });
+
+  it('covers every role and tier the roster uses', () => {
+    expect(new Set(defs.map((d) => d.role))).toEqual(
+      new Set([
+        'solo',
+        'bruiser',
+        'social',
+        'skulk',
+        'horde',
+        'minion',
+        'standard',
+        'ranged',
+        'leader',
+        'support',
+      ]),
+    );
+    expect([...new Set(defs.map((d) => d.tier))].sort()).toEqual([1, 2, 3, 4]);
+  });
+
+  it('finds the Fear features the GM has to pay for', () => {
+    const fearFeatures = defs.flatMap((d) => d.features).filter((f) => f.costsFear);
+    expect(fearFeatures.length).toBeGreaterThan(50);
+  });
+
+  it('carries the Tangle Bramble the legacy one-shot uses', () => {
+    // docs/research/legacy-campaign.md: the arena fight is a Tangle Bramble Swarm.
+    const swarm = defs.find((d) => d.id === 'tangle-bramble-swarm');
+    expect(swarm).toBeDefined();
+    expect(swarm!.role).toBe('horde');
+    expect(swarm!.hordeDamagePerHp).toBe(3);
+
+    const bramble = defs.find((d) => d.id === 'tangle-bramble');
+    expect(bramble!.role).toBe('minion');
+    expect(bramble!.hitPoints).toBe(1);
+    expect(bramble!.thresholds).toEqual({ major: Infinity, severe: Infinity });
   });
 });
 
