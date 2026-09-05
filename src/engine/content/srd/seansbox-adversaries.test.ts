@@ -18,19 +18,25 @@ describe('parseFeatureName', () => {
       name: 'Acid Bath',
       kind: 'reaction',
     });
-    expect(parseFeatureName('Horde (1d4) - Passive')?.kind).toBe('passive');
+    expect(parseFeatureName('Arcane Form - Passive')?.kind).toBe('passive');
   });
 
-  it('reads the use count out of the name', () => {
+  it('lifts the parenthetical out of the name, verbatim', () => {
+    // The SRD gives each of these a different meaning, so none of them is parsed.
     expect(parseFeatureName('Relentless (3) - Passive')).toEqual({
       name: 'Relentless',
       kind: 'passive',
-      uses: 3,
+      parameter: '3',
     });
     expect(parseFeatureName('Minion (12) - Passive')).toEqual({
       name: 'Minion',
       kind: 'passive',
-      uses: 12,
+      parameter: '12',
+    });
+    expect(parseFeatureName('Horde (1d4+1) - Passive')).toEqual({
+      name: 'Horde',
+      kind: 'passive',
+      parameter: '1d4+1',
     });
   });
 
@@ -79,8 +85,8 @@ describe('parseRole', () => {
     expect(parseRole(' standard ')).toEqual({ role: 'standard' });
   });
 
-  it('reads a Horde damage-per-HP figure', () => {
-    expect(parseRole('Horde (3/HP)')).toEqual({ role: 'horde', hordeDamagePerHp: 3 });
+  it('reads a Horde creatures-per-HP figure', () => {
+    expect(parseRole('Horde (3/HP)')).toEqual({ role: 'horde', hordeUnitsPerHp: 3 });
   });
 
   it('accepts the two stat blocks that omit the Horde number', () => {
@@ -95,21 +101,29 @@ describe('parseRole', () => {
 
 describe('parseExperiences', () => {
   it('reads one Experience', () => {
-    expect(parseExperiences('Tremor Sense +2')).toEqual([{ name: 'Tremor Sense', modifier: 2 }]);
+    expect(parseExperiences('Tremor Sense +2')).toEqual({
+      experiences: [{ name: 'Tremor Sense', modifier: 2 }],
+      unreadable: [],
+    });
   });
 
   it('splits a comma-separated list', () => {
-    expect(parseExperiences('Ancient Knowledge +3, High Society +2, Tactics +2')).toEqual([
+    expect(parseExperiences('Ancient Knowledge +3, High Society +2, Tactics +2').experiences).toEqual([
       { name: 'Ancient Knowledge', modifier: 3 },
       { name: 'High Society', modifier: 2 },
       { name: 'Tactics', modifier: 2 },
     ]);
   });
 
-  it('is empty for missing or unreadable text', () => {
-    expect(parseExperiences(undefined)).toEqual([]);
-    expect(parseExperiences('')).toEqual([]);
-    expect(parseExperiences('Nothing numeric here')).toEqual([]);
+  it('is empty for missing text', () => {
+    expect(parseExperiences(undefined)).toEqual({ experiences: [], unreadable: [] });
+    expect(parseExperiences('')).toEqual({ experiences: [], unreadable: [] });
+  });
+
+  it('reports an unreadable part instead of dropping it', () => {
+    const r = parseExperiences('Tracker +2, Nothing numeric here');
+    expect(r.experiences).toEqual([{ name: 'Tracker', modifier: 2 }]);
+    expect(r.unreadable).toEqual(['Nothing numeric here']);
   });
 });
 
@@ -117,7 +131,13 @@ describe('costsFear', () => {
   it('spots the GM paying Fear', () => {
     expect(costsFear('Spend a Fear to make the Burrower attack again.')).toBe(true);
     expect(costsFear('Spend 2 Fear to summon reinforcements.')).toBe(true);
-    expect(costsFear('Spend Fear as usual to spotlight them.')).toBe(true);
+  });
+
+  it('does not count the ordinary spotlight cost as a feature cost', () => {
+    // Relentless prints this on every adversary that has it.
+    expect(
+      costsFear('The Legion can be spotlighted up to two times per GM turn. Spend Fear as usual to spotlight them.'),
+    ).toBe(false);
   });
 
   it('does not fire on Fear that is merely mentioned', () => {
@@ -145,7 +165,7 @@ describe('importSeansboxAdversaries', () => {
     feature: [
       {
         name: 'Relentless (3) - Passive',
-        text: 'Can be spotlighted up to three times per GM turn. Spend Fear as usual.',
+        text: 'Can be spotlighted up to three times per GM turn. Spend a Fear to enrage it.',
       },
     ],
   };
@@ -174,8 +194,8 @@ describe('importSeansboxAdversaries', () => {
         {
           name: 'Relentless',
           kind: 'passive',
-          uses: 3,
-          text: 'Can be spotlighted up to three times per GM turn. Spend Fear as usual.',
+          parameter: '3',
+          text: 'Can be spotlighted up to three times per GM turn. Spend a Fear to enrage it.',
           costsFear: true,
         },
       ],

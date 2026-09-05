@@ -32,6 +32,7 @@ interface SeansboxAdversary {
   thresholds?: string;
   tier?: string;
   type?: string;
+  experience?: string;
   feature?: { name?: string; text?: string }[];
 }
 
@@ -137,6 +138,33 @@ describe('the adversary importer swallows the whole vendored roster', () => {
     expect(importedFeatures).toBeGreaterThan(400);
   });
 
+  it('imports every Experience of every adversary', () => {
+    // parseExperiences reports what it cannot read, and the importer turns that
+    // into an issue — but this counts the parts directly so a silently halved
+    // list would still fail.
+    const rawParts = adversaries.reduce(
+      (n, a) => n + (a.experience ?? '').split(',').filter((p) => p.trim() !== '').length,
+      0,
+    );
+    const imported = defs.reduce((n, d) => n + d.experiences.length, 0);
+    expect(imported).toBe(rawParts);
+    expect(imported).toBeGreaterThan(80);
+  });
+
+  it('lifts the parenthetical off the SRD passives that carry one', () => {
+    const byName = (name: string) =>
+      defs.flatMap((d) => d.features).filter((f) => f.name === name);
+
+    // Relentless (X) = spotlights per GM turn; Minion (X) = damage per extra kill;
+    // Horde (X) = the damage the standard attack switches to at half HP.
+    for (const name of ['Relentless', 'Minion', 'Horde']) {
+      const features = byName(name);
+      expect(features.length).toBeGreaterThan(0);
+      for (const f of features) expect(f.parameter).toBeTruthy();
+    }
+    expect(byName('Horde').some((f) => /d/.test(f.parameter ?? ''))).toBe(true);
+  });
+
   it('covers every role and tier the roster uses', () => {
     expect(new Set(defs.map((d) => d.role))).toEqual(
       new Set([
@@ -165,7 +193,7 @@ describe('the adversary importer swallows the whole vendored roster', () => {
     const swarm = defs.find((d) => d.id === 'tangle-bramble-swarm');
     expect(swarm).toBeDefined();
     expect(swarm!.role).toBe('horde');
-    expect(swarm!.hordeDamagePerHp).toBe(3);
+    expect(swarm!.hordeUnitsPerHp).toBe(3);
 
     const bramble = defs.find((d) => d.id === 'tangle-bramble');
     expect(bramble!.role).toBe('minion');

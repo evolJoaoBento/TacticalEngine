@@ -41,10 +41,17 @@ export interface AdversaryFeature {
   name: string;
   kind: FeatureKind;
   /**
-   * The number in a name like "Relentless (3)" or "Minion (7)" — how many times
-   * the feature applies. `undefined` when the name carries no number.
+   * The parenthetical in a name like "Relentless (3)", "Minion (13)" or
+   * "Horde (1d4+1)", verbatim and unparsed.
+   *
+   * It is deliberately a string, because the SRD gives it a different meaning per
+   * feature: for `Relentless (X)` it is how many times the adversary can be
+   * spotlighted per GM turn, for `Minion (X)` the damage a PC must deal to defeat
+   * an additional Minion, and for `Horde (X)` the damage its standard attack
+   * switches to at half HP — a dice expression, not a count. Feature
+   * implementations interpret it; the importer does not guess.
    */
-  uses?: number;
+  parameter?: string;
   /**
    * The countdown printed after the kind, verbatim: "5", "Loop 1d6",
    * "Decreasing 8", "1d12". Kept as text because countdown behaviour is a
@@ -72,8 +79,16 @@ export interface AdversaryDef {
   name: string;
   tier: Tier;
   role: AdversaryRole;
-  /** Damage a Horde must take per HP marked, from "Horde (3/HP)". */
-  hordeDamagePerHp?: number;
+  /**
+   * The number in a Horde's type line, "Horde (3/HP)" — how many individual
+   * creatures each marked Hit Point represents.
+   *
+   * The vendored SRD text never spells the notation out (it only defines the
+   * `Horde (X) - Passive` *feature*, which is a damage expression and a different
+   * thing), so this is carried as data and no rule consumes it yet. Two stat
+   * blocks print "Horde (/HP)" with the number missing and leave it `undefined`.
+   */
+  hordeUnitsPerHp?: number;
   description: string;
   motivesAndTactics: string;
 

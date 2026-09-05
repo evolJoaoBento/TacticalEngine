@@ -84,16 +84,18 @@ export function parseFeatureName(
   if (kind === undefined) return null;
 
   let name = rawName!.trim();
-  let uses: number | undefined;
-  const usesMatch = /^(.*?)\s*\((\d+)\)$/.exec(name);
-  if (usesMatch !== null) {
-    name = usesMatch[1]!.trim();
-    uses = Number(usesMatch[2]);
+  // "Relentless (3)", "Minion (13)", "Horde (1d4+1)" — kept verbatim, because the
+  // SRD gives the parenthetical a different meaning in each of those features.
+  let parameter: string | undefined;
+  const parameterMatch = /^(.*?)\s*\(([^)]*)\)$/.exec(name);
+  if (parameterMatch !== null && parameterMatch[1]!.trim() !== '') {
+    name = parameterMatch[1]!.trim();
+    parameter = parameterMatch[2]!.trim();
   }
   if (name === '') return null;
 
   const feature: Omit<AdversaryFeature, 'text' | 'costsFear'> = { name, kind };
-  if (uses !== undefined) feature.uses = uses;
+  if (parameter !== undefined && parameter !== '') feature.parameter = parameter;
   if (countdown !== undefined) {
     return {
       ...feature,
@@ -104,32 +106,59 @@ export function parseFeatureName(
   return feature;
 }
 
-/** "Ambusher +3, Keen Senses +2" -> two Experiences. */
-export function parseExperiences(input: string | undefined): Experience[] {
-  if (typeof input !== 'string' || input.trim() === '') return [];
-  const out: Experience[] = [];
-  for (const part of input.split(',')) {
-    const m = /^\s*(.+?)\s*([+-]\s*\d+)\s*$/.exec(part);
-    if (m === null) continue;
-    out.push({ name: m[1]!.trim(), modifier: Number(m[2]!.replace(/\s+/g, '')) });
+/**
+ * "Ambusher +3, Keen Senses +2" -> two Experiences.
+ *
+ * A part that does not read as "<name> <+/-N>" comes back in `unreadable` rather
+ * than being dropped, so the importer can report it instead of quietly losing an
+ * Experience the GM is meant to be able to spend Fear on.
+ */
+export function parseExperiences(input: string | undefined): {
+  experiences: Experience[];
+  unreadable: string[];
+} {
+  if (typeof input !== 'string' || input.trim() === '') {
+    return { experiences: [], unreadable: [] };
   }
-  return out;
+  const experiences: Experience[] = [];
+  const unreadable: string[] = [];
+  for (const part of input.split(',')) {
+    if (part.trim() === '') continue;
+    const m = /^\s*(.+?)\s*([+-]\s*\d+)\s*$/.exec(part);
+    if (m === null) {
+      unreadable.push(part.trim());
+      continue;
+    }
+    experiences.push({ name: m[1]!.trim(), modifier: Number(m[2]!.replace(/\s+/g, '')) });
+  }
+  return { experiences, unreadable };
 }
 
-/** "Horde (3/HP)" -> role `horde` plus 3 damage per Hit Point. */
-export function parseRole(input: string): { role: AdversaryRole; hordeDamagePerHp?: number } | null {
+/**
+ * "Horde (3/HP)" -> role `horde` with 3 creatures per Hit Point.
+ * Two stat blocks print "Horde (/HP)" with the number missing.
+ */
+export function parseRole(
+  input: string,
+): { role: AdversaryRole; hordeUnitsPerHp?: number } | null {
   if (typeof input !== 'string') return null;
   const m = /^\s*([a-z]+)\s*(?:\(\s*(\d*)\s*\/\s*hp\s*\))?\s*$/i.exec(input);
   if (m === null) return null;
   const role = ROLES[m[1]!.toLowerCase()];
   if (role === undefined) return null;
-  // "Horde (/HP)" appears twice in the source with the number missing.
-  if (m[2] !== undefined && m[2] !== '') return { role, hordeDamagePerHp: Number(m[2]) };
+  if (m[2] !== undefined && m[2] !== '') return { role, hordeUnitsPerHp: Number(m[2]) };
   return { role };
 }
 
-/** Whether a feature's text makes the GM pay Fear to use it. */
+/**
+ * Whether a feature's text makes the GM pay Fear to use the feature itself.
+ *
+ * "Spend Fear as usual to spotlight them" is the ordinary spotlight cost every
+ * adversary pays, not a cost of the feature, so it does not count. This is a hint
+ * derived from prose — good enough to steer a GM AI, not a guarantee.
+ */
 export function costsFear(text: string): boolean {
+  if (/\bspend\s+fear\s+as\s+usual\b/i.test(text)) return false;
   return /\bspend(?:ing|s)?\s+(?:a|an|\d+|one|two|three)?\s*fear\b/i.test(text);
 }
 
@@ -240,13 +269,18 @@ export function importSeansboxAdversaries(
       features.push({ ...parsed, text, costsFear: costsFear(text) });
     }
 
+    const { experiences, unreadable } = parseExperiences(asString(entry.experience) ?? undefined);
+    for (const part of unreadable) {
+      fail('experience', `unreadable Experience ${JSON.stringify(part)}`);
+    }
+
     seenIds.add(id);
     defs.push({
       id,
       name,
       tier: tier as Tier,
       role: role.role,
-      ...(role.hordeDamagePerHp === undefined ? {} : { hordeDamagePerHp: role.hordeDamagePerHp }),
+      ...(role.hordeUnitsPerHp === undefined ? {} : { hordeUnitsPerHp: role.hordeUnitsPerHp }),
       description: asString(entry.description) ?? '',
       motivesAndTactics: asString(entry.motives_and_tactics) ?? '',
       difficulty,
@@ -257,7 +291,7 @@ export function importSeansboxAdversaries(
       attackModifier,
       attackRange,
       attackDamage,
-      experiences: parseExperiences(asString(entry.experience) ?? undefined),
+      experiences,
       features,
     });
   });
