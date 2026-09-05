@@ -1,0 +1,162 @@
+import { describe, it, expect } from 'vitest';
+import { NO_TILE, TileGrid } from './grid';
+import { DEFAULT_TERRAIN_TYPES, TerrainPalette, terrain } from './terrain';
+
+const grid = (width = 5, height = 4) => new TileGrid({ width, height });
+
+describe('TerrainPalette', () => {
+  it('resolves ids to indices and back', () => {
+    const palette = new TerrainPalette();
+    expect(palette.size).toBe(DEFAULT_TERRAIN_TYPES.length);
+    expect(palette.indexOf('floor')).toBe(0);
+    expect(palette.at(palette.require('wall')).passable).toBe(false);
+    expect(palette.has('difficult')).toBe(true);
+  });
+
+  it('reports an unknown id rather than guessing', () => {
+    const palette = new TerrainPalette();
+    expect(palette.indexOf('lava')).toBe(-1);
+    expect(() => palette.require('lava')).toThrow(/unknown terrain/);
+  });
+
+  it('falls back to the first type for an out-of-range index', () => {
+    const palette = new TerrainPalette();
+    expect(palette.at(200).id).toBe('floor');
+  });
+
+  it('rejects an empty palette and duplicate ids', () => {
+    expect(() => new TerrainPalette([])).toThrow(RangeError);
+    expect(() => new TerrainPalette([terrain('a'), terrain('a')])).toThrow(/duplicate/);
+  });
+
+  it('gives the default types the legacy prototype semantics', () => {
+    const palette = new TerrainPalette();
+    expect(palette.at(palette.require('difficult')).cost).toBe(2);
+    expect(palette.at(palette.require('cover')).cover).toBe('light');
+    expect(palette.at(palette.require('wall')).blocksSight).toBe(true);
+  });
+});
+
+describe('TileGrid', () => {
+  it('rejects non-positive or fractional dimensions', () => {
+    expect(() => new TileGrid({ width: 0, height: 4 })).toThrow(RangeError);
+    expect(() => new TileGrid({ width: 4, height: -1 })).toThrow(RangeError);
+    expect(() => new TileGrid({ width: 2.5, height: 4 })).toThrow(RangeError);
+  });
+
+  it('converts between coordinates and indices', () => {
+    const g = grid();
+    expect(g.size).toBe(20);
+    expect(g.indexOf(0, 0)).toBe(0);
+    expect(g.indexOf(4, 3)).toBe(19);
+    expect(g.xOf(7)).toBe(2);
+    expect(g.yOf(7)).toBe(1);
+    for (let i = 0; i < g.size; i++) expect(g.indexOf(g.xOf(i), g.yOf(i))).toBe(i);
+  });
+
+  it('reports out-of-bounds coordinates as NO_TILE', () => {
+    const g = grid();
+    expect(g.indexOf(-1, 0)).toBe(NO_TILE);
+    expect(g.indexOf(5, 0)).toBe(NO_TILE);
+    expect(g.indexOf(0, 4)).toBe(NO_TILE);
+    expect(g.isTile(NO_TILE)).toBe(false);
+    expect(g.isTile(20)).toBe(false);
+  });
+
+  it('starts as passable floor at height 0', () => {
+    const g = grid();
+    for (let i = 0; i < g.size; i++) {
+      expect(g.heightAt(i)).toBe(0);
+      expect(g.terrainAt(i).id).toBe('floor');
+      expect(g.isPassable(i)).toBe(true);
+      expect(g.costAt(i)).toBe(1);
+    }
+  });
+
+  it('honours the fill options', () => {
+    const g = new TileGrid({ width: 2, height: 2, fillHeight: 3, fillTerrain: 1 });
+    expect(g.heightAt(0)).toBe(3);
+    expect(g.terrainAt(0).id).toBe('difficult');
+    expect(g.costAt(0)).toBe(2);
+  });
+
+  it('charges Infinity to enter impassable terrain', () => {
+    const g = grid();
+    g.setTerrainById(6, 'wall');
+    expect(g.isPassable(6)).toBe(false);
+    expect(g.costAt(6)).toBe(Infinity);
+    expect(g.blocksSight(6)).toBe(true);
+  });
+
+  it('treats anything off the grid as impassable and sight-blocking', () => {
+    const g = grid();
+    expect(g.isPassable(NO_TILE)).toBe(false);
+    expect(g.blocksSight(999)).toBe(true);
+  });
+
+  it('ignores writes to tiles that do not exist', () => {
+    const g = grid();
+    expect(() => g.setHeight(999, 4)).not.toThrow();
+    expect(() => g.setTerrain(-3, 1)).not.toThrow();
+  });
+
+  it('measures distance three ways', () => {
+    const g = grid(8, 8);
+    const a = g.indexOf(1, 1);
+    const b = g.indexOf(4, 5);
+    expect(g.manhattanDistance(a, b)).toBe(7);
+    expect(g.chebyshevDistance(a, b)).toBe(4);
+    expect(g.euclideanDistance(a, b)).toBe(5);
+  });
+
+  describe('forEachNeighbor', () => {
+    const collect = (g: TileGrid, tile: number, diagonals: boolean): number[] => {
+      const out: number[] = [];
+      g.forEachNeighbor(tile, diagonals, (n) => out.push(n));
+      return out;
+    };
+
+    it('visits four orthogonal neighbours', () => {
+      const g = grid();
+      const centre = g.indexOf(2, 1);
+      expect(collect(g, centre, false)).toEqual([
+        g.indexOf(1, 1),
+        g.indexOf(3, 1),
+        g.indexOf(2, 0),
+        g.indexOf(2, 2),
+      ]);
+    });
+
+    it('adds the four diagonals when asked', () => {
+      const g = grid();
+      const centre = g.indexOf(2, 1);
+      const neighbours = collect(g, centre, true);
+      expect(neighbours).toHaveLength(8);
+      expect(neighbours.slice(4)).toEqual([
+        g.indexOf(1, 0),
+        g.indexOf(3, 0),
+        g.indexOf(1, 2),
+        g.indexOf(3, 2),
+      ]);
+    });
+
+    it('clips at the edges and corners', () => {
+      const g = grid();
+      expect(collect(g, g.indexOf(0, 0), false)).toEqual([g.indexOf(1, 0), g.indexOf(0, 1)]);
+      expect(collect(g, g.indexOf(0, 0), true)).toHaveLength(3);
+      expect(collect(g, g.indexOf(4, 3), true)).toHaveLength(3);
+    });
+
+    it('visits nothing for a tile that does not exist', () => {
+      expect(collect(grid(), 999, true)).toEqual([]);
+    });
+  });
+
+  it('recognises a diagonal step', () => {
+    const g = grid();
+    const centre = g.indexOf(2, 1);
+    expect(g.isDiagonalStep(centre, g.indexOf(3, 2))).toBe(true);
+    expect(g.isDiagonalStep(centre, g.indexOf(3, 1))).toBe(false);
+    expect(g.isDiagonalStep(centre, g.indexOf(2, 2))).toBe(false);
+  });
+});
