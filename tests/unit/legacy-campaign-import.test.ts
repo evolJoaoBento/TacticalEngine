@@ -15,6 +15,7 @@
 import { describe, it, expect } from 'vitest';
 import { demoMap, makeCampaign, type LegacyMapDoc } from '../../legacy/js/data.js';
 import { campMap, pitMap, theaterMap } from '../../legacy/js/data-campaign.js';
+import { NO_TILE } from '../../src/engine/grid/grid';
 import { Pathfinder } from '../../src/engine/grid/pathfinding';
 import { gridFromScene, tileOf } from '../../src/engine/scene/grid-from-scene';
 import {
@@ -23,6 +24,7 @@ import {
   importLegacyScene,
 } from '../../src/engine/scene/legacy-import';
 import { projectSchema, sceneSchema } from '../../src/engine/scene/schema';
+import { createPartyEntity, sceneStateFromScene } from '../../src/engine/scene/state';
 
 const legacyScenes: [string, () => LegacyMapDoc][] = [
   ['camp', campMap],
@@ -166,20 +168,61 @@ describe('imported scenes drive the grid and the pathfinder', () => {
     for (const tile of reachable) expect(grid.isPassable(tile)).toBe(true);
   });
 
-  it('reaches every enemy placement in the demo map from a spawn', () => {
+  it('stands a full scene up and gates the vault behind its door', () => {
+    // The whole chain: legacy document -> SceneDoc -> TileGrid -> SceneState ->
+    // pathfinding with real occupancy, which is the seam combat will sit on.
+    //
+    // The demo map is a sealed vault: a solid wall at x = 12 with a single door
+    // at (12, 7). Every enemy, the chest and the pillar are behind it, so "can
+    // the party reach the fight" is a question about the door, not the terrain —
+    // which is exactly what a scene state has to model and a bare grid cannot.
     const scene = importLegacyScene(demoMap()).scene!;
     const { grid } = gridFromScene(scene);
-    const pathfinder = new Pathfinder(grid);
-    const start = tileOf(grid, scene.spawns[0]!);
-    const field = pathfinder.reachable(start, Infinity);
+
+    // The demo map fields Hollow Husks, the prototype's homebrew: no SRD stat
+    // block exists for them, so a project has to supply one.
+    const husk = { id: 'hollow-husk', hitPoints: 5, stress: 3 };
+    const { state, issues } = sceneStateFromScene(scene, grid, {
+      adversaries: new Map([[husk.id, husk]]),
+      party: [createPartyEntity('kara', 'sentinel', -1)],
+    });
+    expect(issues).toEqual([]);
 
     const placements = scene.encounters.flatMap((e) => e.adversaries);
-    expect(placements.length).toBeGreaterThan(0);
+    expect(placements.length).toBe(3);
+    expect(state.entitiesOf('adversary')).toHaveLength(placements.length);
+
+    const kara = state.entity('kara')!;
+    expect(kara.tile).toBe(tileOf(grid, scene.spawns[0]!));
+
+    const pathfinder = new Pathfinder(grid);
+    const door = scene.interactables.find((i) => i.kind === 'door')!;
+    const doorTile = tileOf(grid, door.position);
+
+    // Closed: an adversary's own tile is held, and none can even be approached.
+    const shut = pathfinder.reachable(kara.tile, Infinity, {
+      isBlocked: state.blockedFor('kara'),
+    });
+    expect(shut.canReach(doorTile)).toBe(false);
     for (const placement of placements) {
+      const tile = tileOf(grid, placement.position);
+      expect(state.blockedFor('kara')(tile)).toBe(true);
+      expect(pathfinder.nearestReachableAdjacentTo(shut, tile)).toBe(NO_TILE);
+    }
+
+    // Opened: the same query, the same grid, one line of state changed.
+    state.interactable(door.id).open = true;
+    state.setInteractableBlocking(doorTile, false);
+    const opened = pathfinder.reachable(kara.tile, Infinity, {
+      isBlocked: state.blockedFor('kara'),
+    });
+    expect(opened.canReach(doorTile)).toBe(true);
+    for (const placement of placements) {
+      const tile = tileOf(grid, placement.position);
       expect(
-        field.canReach(tileOf(grid, placement.position)),
-        `${placement.id} at (${placement.position.x}, ${placement.position.y}) is unreachable`,
-      ).toBe(true);
+        pathfinder.nearestReachableAdjacentTo(opened, tile),
+        `${placement.id} at (${placement.position.x}, ${placement.position.y}) cannot be approached`,
+      ).not.toBe(NO_TILE);
     }
   });
 

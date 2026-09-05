@@ -2,10 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { TileGrid } from '../grid/grid';
 import { Pathfinder } from '../grid/pathfinding';
 import { createFear } from '../rules/resources';
+import { blankScene } from './grid-from-scene';
+import { sceneSchema } from './schema';
 import {
   SceneState,
   createAdversaryEntity,
   createPartyEntity,
+  sceneStateFromScene,
   type Faction,
 } from './state';
 
@@ -246,5 +249,119 @@ describe('snapshot and restore', () => {
     original.interactable('chest').data['x'] = 1;
     expect(snapshot.flags).toEqual(['met-hag']);
     expect(snapshot.interactables['chest']!.data).toEqual({});
+  });
+});
+
+describe('sceneStateFromScene', () => {
+  const scene = sceneSchema.parse({
+    ...blankScene('room', 6, 3),
+    spawns: [
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+    ],
+    interactables: [
+      { id: 'door', kind: 'door', position: { x: 3, y: 1 } },
+      { id: 'rug', kind: 'scripted', position: { x: 4, y: 1 }, blocksMovement: false },
+    ],
+    encounters: [
+      {
+        id: 'group-1',
+        adversaries: [
+          { id: 'bramble-a', adversary: 'tangle-bramble', position: { x: 5, y: 0 } },
+          { id: 'bramble-b', adversary: 'tangle-bramble', position: { x: 5, y: 2 } },
+        ],
+      },
+    ],
+  });
+
+  const stats = new Map([['tangle-bramble', { id: 'tangle-bramble', hitPoints: 1, stress: 3 }]]);
+  const build = (options: Parameters<typeof sceneStateFromScene>[2] = {}) =>
+    sceneStateFromScene(scene, new TileGrid({ width: 6, height: 3 }), {
+      adversaries: stats,
+      ...options,
+    });
+
+  it('places every adversary with its stat block', () => {
+    const { state, issues } = build();
+    expect(issues).toEqual([]);
+    expect(state.entitiesOf('adversary').map((e) => e.id)).toEqual(['bramble-a', 'bramble-b']);
+    expect(state.entity('bramble-a')!.hitPoints.max).toBe(1);
+    expect(state.entity('bramble-a')!.stress.max).toBe(3);
+    expect(state.entity('bramble-a')!.tile).toBe(state.grid.indexOf(5, 0));
+  });
+
+  it('leaves the encounter unstarted — adversaries stand there dormant', () => {
+    const { state } = build();
+    expect(state.encounter('group-1').started).toBe(false);
+  });
+
+  it('honours a per-placement Hit Point override', () => {
+    const wounded = sceneSchema.parse({
+      ...scene,
+      encounters: [
+        {
+          id: 'group-1',
+          adversaries: [
+            {
+              id: 'bramble-a',
+              adversary: 'tangle-bramble',
+              position: { x: 5, y: 0 },
+              hitPoints: 4,
+            },
+          ],
+        },
+      ],
+    });
+    const { state } = sceneStateFromScene(wounded, new TileGrid({ width: 6, height: 3 }), {
+      adversaries: stats,
+    });
+    expect(state.entity('bramble-a')!.hitPoints.max).toBe(4);
+  });
+
+  it('reports a placement whose stat block is missing, and keeps the rest', () => {
+    const { state, issues } = build({ adversaries: new Map() });
+    expect(state.entitiesOf('adversary')).toEqual([]);
+    expect(issues).toHaveLength(2);
+    expect(issues[0]).toMatchObject({ entry: 'bramble-a', field: 'adversary' });
+    expect(issues[0]!.message).toMatch(/no stat block for adversary "tangle-bramble"/);
+  });
+
+  it('registers only the interactables that block movement', () => {
+    const { state } = build();
+    const blocked = state.blockedFor('nobody');
+    expect(blocked(state.grid.indexOf(3, 1))).toBe(true);
+    expect(blocked(state.grid.indexOf(4, 1))).toBe(false);
+  });
+
+  it('seats the party on the spawn points, repeating them when it runs out', () => {
+    const { state } = build({
+      party: [
+        createPartyEntity('kara', 'sentinel', -1),
+        createPartyEntity('finn', 'nightwalker', -1),
+        createPartyEntity('mira', 'seer', -1),
+      ],
+    });
+    expect(state.entity('kara')!.tile).toBe(state.grid.indexOf(0, 0));
+    expect(state.entity('finn')!.tile).toBe(state.grid.indexOf(0, 1));
+    expect(state.entity('mira')!.tile).toBe(state.grid.indexOf(0, 0));
+    expect([...state.occupantsOf(state.grid.indexOf(0, 0))].sort()).toEqual(['kara', 'mira']);
+  });
+
+  it('carries the GM Fear in from the previous scene', () => {
+    expect(build({ fear: createFear(7) }).state.fear.value).toBe(7);
+    expect(build().state.fear.value).toBe(0);
+  });
+
+  it('produces a state the pathfinder can route around', () => {
+    const { state } = build({ party: [createPartyEntity('kara', 'sentinel', -1)] });
+    const pathfinder = new Pathfinder(state.grid);
+    const field = pathfinder.reachable(state.entity('kara')!.tile, Infinity, {
+      isBlocked: state.blockedFor('kara'),
+    });
+    // The door blocks (3, 1); the route detours around it.
+    expect(field.canReach(state.grid.indexOf(3, 1))).toBe(false);
+    expect(field.canReach(state.grid.indexOf(4, 1))).toBe(true);
+    // The brambles hold their own tiles.
+    expect(field.canReach(state.grid.indexOf(5, 0))).toBe(false);
   });
 });

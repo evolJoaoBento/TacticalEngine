@@ -13,8 +13,15 @@
  * set of occupied tiles per query the way the legacy code did.
  */
 
+import type { ContentIssue } from '../content/types';
 import { NO_TILE, type TileGrid } from '../grid/grid';
-import { createFear, createHope, createMarkPool, type Currency, type MarkPool } from '../rules/resources';
+import {
+  createFear,
+  createHope,
+  createMarkPool,
+  type Currency,
+  type MarkPool,
+} from '../rules/resources';
 import type { SceneDoc } from './schema';
 
 /** Which side an entity fights for. */
@@ -160,6 +167,10 @@ export class SceneState {
    * was that allies are transparent while exploring and everything blocks in
    * combat, which callers express by passing different sets rather than by the
    * engine hard-coding a mode.
+   *
+   * Each call builds a fresh predicate and a small `Set`. That is nothing next to
+   * a pathfinding query, but a hover preview that runs per frame should hold on to
+   * one predicate for as long as the mover and the pass-through set stay the same.
    */
   blockedFor(moverId: string, passThrough: readonly Faction[] = []): (tile: number) => boolean {
     const transparent = new Set(passThrough);
@@ -334,4 +345,85 @@ export function createAdversaryEntity(
     conditions: new Set(),
     alive: true,
   };
+}
+
+/** The part of an `AdversaryDef` this needs to stand a stat block up on the map. */
+export interface AdversaryStats {
+  id: string;
+  hitPoints: number;
+  stress: number;
+}
+
+export interface SceneStateOptions {
+  /**
+   * Stat blocks by content id, from the adversary importer. A placement whose
+   * definition is missing is reported and skipped — the legacy prototype's
+   * homebrew Hollow Husk and Shadow Hag have no SRD stat block, so a project has
+   * to supply them before those scenes can be played.
+   */
+  adversaries?: ReadonlyMap<string, AdversaryStats>;
+  /** Party members to place on the scene's spawn points, in order. */
+  party?: EntityState[];
+  /** The GM's Fear, carried in from the previous scene. */
+  fear?: Currency;
+}
+
+/**
+ * Stand a scene up: place every encounter's adversaries, register the
+ * interactables that block movement, and seat the party on the spawn points.
+ *
+ * Adversaries are placed immediately but their encounter stays unstarted, which
+ * is how the legacy prototype worked — enemies stand on the map, dormant, until a
+ * trigger cell or an effect wakes them.
+ */
+export function sceneStateFromScene(
+  scene: SceneDoc,
+  grid: TileGrid,
+  options: SceneStateOptions = {},
+): { state: SceneState; issues: ContentIssue[] } {
+  const issues: ContentIssue[] = [];
+  const state = new SceneState(scene, grid, options.fear ?? createFear());
+  const stats = options.adversaries ?? new Map<string, AdversaryStats>();
+
+  for (const interactable of scene.interactables) {
+    if (!interactable.blocksMovement) continue;
+    state.setInteractableBlocking(
+      grid.indexOf(interactable.position.x, interactable.position.y),
+      true,
+    );
+  }
+
+  for (const encounter of scene.encounters) {
+    for (const placement of encounter.adversaries) {
+      const definition = stats.get(placement.adversary);
+      if (definition === undefined) {
+        issues.push({
+          source: scene.id,
+          entry: placement.id,
+          field: 'adversary',
+          message: `no stat block for adversary "${placement.adversary}"`,
+        });
+        continue;
+      }
+      state.addEntity(
+        createAdversaryEntity(
+          placement.id,
+          placement.adversary,
+          grid.indexOf(placement.position.x, placement.position.y),
+          {
+            hitPoints: placement.hitPoints ?? definition.hitPoints,
+            stress: definition.stress,
+          },
+        ),
+      );
+    }
+  }
+
+  // Spawns repeat when the party outnumbers them, as the legacy code did.
+  (options.party ?? []).forEach((member, i) => {
+    const spawn = scene.spawns[i % scene.spawns.length]!;
+    state.addEntity({ ...member, tile: grid.indexOf(spawn.x, spawn.y) });
+  });
+
+  return { state, issues };
 }

@@ -190,7 +190,8 @@ export function importLegacyCampaign(
   return {
     project: {
       formatVersion: 1,
-      id: options.id ?? toContentId(name) ?? 'imported',
+      // toContentId returns '' (not undefined) for a name with no usable characters.
+      id: options.id ?? (toContentId(name) || 'imported'),
       name,
       scenes,
       startScene: scenes[0]!.id,
