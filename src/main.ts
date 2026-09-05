@@ -2,11 +2,13 @@
  * The demo page.
  *
  * Everything that genuinely needs a browser — a WebGL renderer, a camera, pointer
- * events — and nothing else. The scene it draws is assembled by
+ * and key events — and nothing else. The scene it drives is assembled by
  * `game/demo-scene.ts`, which runs anywhere; the engine underneath it has never
  * heard of any of this.
  *
- * Hover previews where the leader can walk, a click walks them there.
+ * Click a companion to take control of them, click the ground to walk (the rest
+ * follow), Tab to cycle. Walk into the vault and the fight starts; then a click on
+ * an adversary attacks, and Space plays the GM's turn.
  */
 
 import {
@@ -23,11 +25,13 @@ import { NO_TILE } from './engine/grid/grid';
 import { mapExtent, tileAtWorld } from './engine/render/layout';
 import { SceneView } from './engine/render/scene-view';
 import {
+  attackWithSelected,
   buildDemoScene,
-  moveLeaderTo,
+  inCombat,
+  moveSelectedTo,
+  playGmTurn,
   reachableTiles,
   DEMO_MODELS,
-  DEMO_MOVE_BUDGET,
 } from './game/demo-scene';
 
 declare global {
@@ -41,11 +45,19 @@ declare global {
       entities: number;
       decos: number;
       missingModels: () => string[];
-      leaderTile: () => number;
-      highlighted: () => number;
-      /** Move the leader to a tile, as a click would. Returns whether it moved. */
+      party: () => string[];
+      selected: () => string | null;
+      select: (id: string) => boolean;
+      selectNext: () => string | null;
+      tileOf: (id: string) => number;
+      inCombat: () => boolean;
+      round: () => number;
+      adversaries: () => string[];
+      hitPoints: (id: string) => { marked: number; max: number };
       moveTo: (tile: number) => boolean;
-      /** Tiles the leader can currently reach. */
+      attack: (id: string) => boolean;
+      endGmTurn: () => number;
+      highlighted: () => number;
       reachable: () => number[];
       sample: (x: number, y: number) => number[];
     };
@@ -70,7 +82,6 @@ const view = new SceneView(demo.grid, {
 view.setDecos(demo.scene.decos);
 view.syncTokens(demo.state);
 
-// Frame the whole map from a fixed three-quarter view.
 const extent = mapExtent(demo.grid, view.layout);
 const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
 camera.position.set(0, extent.radius * 1.35, extent.radius * 1.25);
@@ -80,13 +91,11 @@ const raycaster = new Raycaster();
 const pointer = new Vector2();
 const groundPoint = new Vector3();
 
-/** The tile under a pointer event, or NO_TILE. */
 function tileUnderPointer(event: PointerEvent | MouseEvent): number {
   const rect = canvas.getBoundingClientRect();
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
-
   const hits: Intersection<Object3D>[] = raycaster.intersectObjects(view.terrain.meshes, false);
   const hit = hits[0];
   if (hit === undefined) return NO_TILE;
@@ -94,25 +103,44 @@ function tileUnderPointer(event: PointerEvent | MouseEvent): number {
   return tileAtWorld(demo.grid, groundPoint.x, groundPoint.z, view.layout);
 }
 
-function refreshPreview(): void {
-  view.showHighlights(reachableTiles(demo, DEMO_MOVE_BUDGET).tiles());
+/** The living entity standing on a tile — a click on a token, not the ground. */
+function entityOn(tile: number): string | null {
+  for (const id of demo.state.occupantsOf(tile)) {
+    if (demo.state.entity(id)?.alive === true) return id;
+  }
+  return null;
 }
-refreshPreview();
 
-let hovered = NO_TILE;
-canvas.addEventListener('pointermove', (event) => {
-  const tile = tileUnderPointer(event);
-  if (tile === hovered) return;
-  hovered = tile;
-});
+function refresh(): void {
+  view.syncTokens(demo.state);
+  view.showHighlights(demo.party.selected === null ? [] : reachableTiles(demo).tiles());
+}
+refresh();
 
 canvas.addEventListener('pointerdown', (event) => {
   if (event.button !== 0) return;
   const tile = tileUnderPointer(event);
   if (tile === NO_TILE) return;
-  if (moveLeaderTo(demo, tile, DEMO_MOVE_BUDGET).moved) {
-    view.syncTokens(demo.state);
-    refreshPreview();
+
+  const occupant = entityOn(tile);
+  if (occupant !== null) {
+    const entity = demo.state.entity(occupant)!;
+    if (entity.faction === 'party') demo.party.select(occupant);
+    else attackWithSelected(demo, occupant);
+  } else {
+    moveSelectedTo(demo, tile);
+  }
+  refresh();
+});
+
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Tab') {
+    event.preventDefault();
+    demo.party.selectNext();
+    refresh();
+  } else if (event.key === ' ' || event.key === 'Enter') {
+    playGmTurn(demo);
+    refresh();
   }
 });
 
@@ -131,17 +159,44 @@ const state = {
   entities: demo.state.allEntities().length,
   decos: view.decoCount,
   missingModels: (): string[] => view.registry.missing(),
-  leaderTile: () => demo.state.entity(demo.leaderId)?.tile ?? NO_TILE,
-  highlighted: () => view.highlightedCount,
+  party: (): string[] => demo.party.members(),
+  selected: (): string | null => demo.party.selected,
+  select: (id: string): boolean => {
+    const ok = demo.party.select(id);
+    if (ok) refresh();
+    return ok;
+  },
+  selectNext: (): string | null => {
+    const id = demo.party.selectNext();
+    refresh();
+    return id;
+  },
+  tileOf: (id: string): number => demo.state.entity(id)?.tile ?? NO_TILE,
+  inCombat: (): boolean => inCombat(demo),
+  round: (): number => demo.encounter?.round ?? 0,
+  adversaries: (): string[] =>
+    demo.state.entitiesOf('adversary').filter((e) => e.alive).map((e) => e.id),
+  hitPoints: (id: string): { marked: number; max: number } => {
+    const pool = demo.state.entity(id)?.hitPoints;
+    return { marked: pool?.marked ?? 0, max: pool?.max ?? 0 };
+  },
   moveTo: (tile: number): boolean => {
-    const result = moveLeaderTo(demo, tile, DEMO_MOVE_BUDGET);
-    if (result.moved) {
-      view.syncTokens(demo.state);
-      refreshPreview();
-    }
+    const result = moveSelectedTo(demo, tile);
+    if (result.moved) refresh();
     return result.moved;
   },
-  reachable: (): number[] => reachableTiles(demo, DEMO_MOVE_BUDGET).tiles(),
+  attack: (id: string): boolean => {
+    const result = attackWithSelected(demo, id);
+    refresh();
+    return result !== null && result.refused === null;
+  },
+  endGmTurn: (): number => {
+    const acted = playGmTurn(demo);
+    refresh();
+    return acted;
+  },
+  highlighted: (): number => view.highlightedCount,
+  reachable: (): number[] => reachableTiles(demo).tiles(),
   sample: (x: number, y: number): number[] => {
     // The drawing buffer is not preserved between frames, so read it inside the
     // same task that drew it rather than whenever a caller happens to ask.

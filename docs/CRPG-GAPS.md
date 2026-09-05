@@ -3,14 +3,16 @@
 An honest audit against the goal in `CONTEXT.md`: *a full CRPG engine + editor for making
 party-based tactical RPGs in the style of Baldur's Gate 3, running on Daggerheart*.
 
-Written 2026-09-05, after seven slices. Re-check it when the answer changes.
+Written 2026-09-05. Updated the same day after the scripting, dialogue, turn-loop and party
+slices. Re-check it when the answer changes.
 
 ## The short answer
 
-**Not yet.** What exists is a correct, well-tested *tactical rules and map engine*: it can
-resolve Daggerheart, path a grid, hold a scene, and draw it. What it cannot do is the half of a
-CRPG that is not combat — talking, choosing, questing, carrying things, growing a character —
-and it cannot yet run a *turn*.
+**Getting there.** It can now run a small vertical slice: a party you select between and walk
+around, followers that keep up, a trigger that starts a fight, a spotlight that passes back and
+forth, and conversations with gated replies and social checks. What it still cannot do is let
+someone *author* one without engine code — there is no editor, no character sheet, no
+inventory, and no quest model.
 
 The risk this document exists to name: a Daggerheart rules library with a renderer looks like
 progress and is not the goal. BG3 is roughly a third combat. Everything below is the other
@@ -31,34 +33,32 @@ two thirds.
 
 Each item says what it unlocks, because order matters more than the list.
 
-### 1. The scripting substrate — conditions, effects, events
+### ~~1. The scripting substrate~~ — done
 
-**Nothing in the engine can currently make content *do* something.** `SceneDoc` already
-declares an `Effect` vocabulary (`open`, `giveKey`, `setFlag`, `startEncounter`, `goto`…) and
-`Interactable.check` already declares an action roll with per-outcome text — and no code reads
-either. That is the single biggest gap, because dialogue, quests, triggers, interactions and
-encounters are all the same machine underneath: *evaluate a condition, run an effect list,
-sometimes stop and ask the player something.*
+`script/conditions.ts`, `script/effects.ts`, `script/runner.ts`, `script/world.ts`. Conditions
+over flags, keys, scenario variables and world state; the legacy effect vocabulary typed and
+extended; and a **stepper** that pauses on an effect needing input rather than forcing async
+into the rules core. Everything it does comes back in a journal.
 
-Needs: a condition language over scenario variables, flags, keys and world state; an effect
-executor that journals what it did; and a stepper that can pause on an effect requiring input
-rather than forcing async into the rules core.
+### ~~2. Dialogue graphs~~ — done
 
-### 2. Dialogue graphs
+`dialogue/dialogue.ts`. Speakers, lines, replies gated by conditions, replies that cost a roll
+and route by its outcome, effects on choosing. `danglingLinks` and `unreachableNodes` catch
+authoring errors before runtime.
 
-The most BG3-shaped feature there is, and the one with nothing behind it. Nodes, speakers,
-lines, choices gated by conditions, choices that cost a roll (a Presence check to intimidate),
-and effects on choosing. Rides entirely on (1).
+### ~~3. The turn loop~~ — done
 
-### 3. The turn loop
+`combat/encounter.ts`. No initiative, as the SRD has none: the party acts until a roll hands the
+spotlight over, the GM spotlights one adversary free and spends a Fear for each additional one,
+then it passes back. The SRD's optional Spotlight Tracker is a second policy rather than a
+different code path. Victory and defeat settle themselves.
 
-Combat is *resolvable* but not *playable*: no encounter start or end, no spotlight, no notion
-of whose turn it is. `duality.ts` already reports `spotlightToGm`; nothing consumes it.
+### ~~4. Party control~~ — done
 
-### 4. Party control
-
-BG3 is a party game. Today the demo moves one "leader". Needs: selection, per-character action
-budgets, follow-the-leader out of combat, and the party carrying between scenes.
+`scene/party.ts`. Selection with wrap-around cycling, per-member movement, allies transparent
+out of combat and solid in it, and the follow-the-leader trail the prototype had.
+`scene/triggers.ts` indexes the map's trigger cells so walking into one starts its encounter and
+stops the mover there rather than letting them run past the ambush.
 
 ### 5. Characters — classes, ancestries, equipment, progression
 
@@ -92,6 +92,13 @@ fixed — BG3 needs orbit, pan and zoom), dice presentation.
 ## How to tell whether this is on track
 
 A good check at any point: **could someone build a small BG3-like scenario with this and no
-engine code?** Today the honest answer is no — they could build a map and a fight, and could
-not write a single line of dialogue or a single quest. When items 1–4 are done the answer
-becomes "a vertical slice, yes", and that is the milestone worth aiming at.
+engine code?**
+
+With 1–4 done, a scenario *runs*: `tests/unit/demo-scene.test.ts` and `tests/e2e/demo.spec.ts`
+walk a party into a vault, fire a trigger, trade blows with an SRD adversary and pass the
+spotlight, all from content plus a seed. What is still missing is the ability to **author** one:
+characters are three hard-coded literals in `game/demo-scene.ts` rather than sheets built from
+the vendored classes and equipment, and there is no editor, inventory or quest model.
+
+So the honest answer today is: *the engine can run a vertical slice; a designer cannot yet make
+one.* Item 5 is what closes most of that distance, and item 8 closes the rest.
