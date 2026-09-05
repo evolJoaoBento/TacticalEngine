@@ -16,28 +16,37 @@ import {
   AmbientLight,
   BoxGeometry,
   Color,
-  CylinderGeometry,
   DirectionalLight,
   Group,
   InstancedMesh,
-  Mesh,
   MeshBasicMaterial,
-  MeshStandardMaterial,
   Object3D,
   Scene,
-  type Material,
 } from 'three';
 import type { TileGrid } from '../grid/grid';
+import type { Deco } from '../scene/schema';
 import type { EntityState, SceneState } from '../scene/state';
 import { DEFAULT_LAYOUT, surfaceHeight, tileCenter, type TileLayout } from './layout';
+import { ModelResources, buildModel, type BuiltModel } from './procedural/build';
+import { ModelRegistry } from './procedural/registry';
+import { ringMaterial } from './procedural/spec';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
 
 export interface SceneViewOptions extends TerrainMeshOptions {
   layout?: TileLayout;
-  /** Token colour per faction. */
+  /** Base-ring colour per faction, so a token reads as friend or foe at a glance. */
   factionColors?: Readonly<Record<string, string>>;
   /** Largest number of tiles the highlight layer can show at once. */
   maxHighlights?: number;
+  /** Model library. Defaults to the shipped one. */
+  registry?: ModelRegistry;
+  /** Shared geometry and material caches. Pass one per renderer, not per scene. */
+  resources?: ModelResources;
+  /**
+   * Which model an entity uses. Defaults to its `definition`, which is what the
+   * legacy content's `model` strings import to.
+   */
+  modelForEntity?: (entity: EntityState) => string;
 }
 
 export const DEFAULT_FACTION_COLORS: Readonly<Record<string, string>> = {
@@ -46,8 +55,12 @@ export const DEFAULT_FACTION_COLORS: Readonly<Record<string, string>> = {
   neutral: '#8ea3b0',
 };
 
-const TOKEN_RADIUS = 0.32;
-const TOKEN_HEIGHT = 0.9;
+/** Fallback model per faction, when an entity's definition names none. */
+const FALLBACK_MODEL: Readonly<Record<string, string>> = {
+  party: 'knight',
+  adversary: 'husk',
+  neutral: 'dummy',
+};
 
 /**
  * A three scene built from a grid, kept in step with a `SceneState`.
@@ -64,9 +77,14 @@ export class SceneView {
   readonly root = new Group();
   readonly terrain: TerrainMesh;
 
-  private readonly tokens = new Map<string, Mesh>();
-  private readonly tokenGeometry: CylinderGeometry;
-  private readonly tokenMaterials = new Map<string, MeshStandardMaterial>();
+  readonly registry: ModelRegistry;
+  readonly resources: ModelResources;
+  /** True when this view created the resources and should dispose them. */
+  private readonly ownsResources: boolean;
+
+  private readonly tokens = new Map<string, BuiltModel>();
+  private readonly decos: Group[] = [];
+  private readonly modelForEntity: (entity: EntityState) => string;
   private readonly highlight: InstancedMesh;
   private readonly highlightGeometry: BoxGeometry;
   private readonly highlightMaterial: MeshBasicMaterial;
@@ -81,14 +99,21 @@ export class SceneView {
     this.factionColors = options.factionColors ?? DEFAULT_FACTION_COLORS;
     this.maxHighlights = options.maxHighlights ?? grid.size;
 
+    this.registry = options.registry ?? new ModelRegistry();
+    this.ownsResources = options.resources === undefined;
+    this.resources = options.resources ?? new ModelResources();
+    this.modelForEntity =
+      options.modelForEntity ??
+      ((entity) =>
+        this.registry.has(entity.definition)
+          ? entity.definition
+          : (FALLBACK_MODEL[entity.faction] ?? 'dummy'));
+
     this.scene.background = new Color('#0d0f14');
     this.scene.add(this.root);
 
     this.terrain = buildTerrainMesh(grid, options);
     for (const mesh of this.terrain.meshes) this.root.add(mesh);
-
-    this.tokenGeometry = new CylinderGeometry(TOKEN_RADIUS, TOKEN_RADIUS, TOKEN_HEIGHT, 8);
-    this.tokenGeometry.translate(0, TOKEN_HEIGHT / 2, 0);
 
     // One flat quad per highlighted tile, hovering just above the surface.
     this.highlightGeometry = new BoxGeometry(this.layout.tileSize * 0.92, 0.02, this.layout.tileSize * 0.92);
@@ -135,50 +160,68 @@ export class SceneView {
       seen.add(entity.id);
       let token = this.tokens.get(entity.id);
       if (token === undefined) {
-        token = new Mesh(this.tokenGeometry, this.materialFor(entity.faction));
-        token.name = `token:${entity.id}`;
-        token.castShadow = true;
+        // The base ring carries the faction colour, so one spec serves both sides.
+        const ring = this.factionColors[entity.faction] ?? DEFAULT_FACTION_COLORS['neutral']!;
+        token = buildModel(this.registry.get(this.modelForEntity(entity)), this.resources, {
+          palette: { ring: ringMaterial(ring) },
+        });
+        token.group.name = `token:${entity.id}`;
         this.tokens.set(entity.id, token);
-        this.root.add(token);
+        this.root.add(token.group);
       }
       this.placeToken(token, entity);
     }
 
     for (const [id, token] of this.tokens) {
       if (seen.has(id)) continue;
-      this.root.remove(token);
+      this.root.remove(token.group);
       this.tokens.delete(id);
     }
   }
 
-  private placeToken(token: Mesh, entity: EntityState): void {
+  private placeToken(token: BuiltModel, entity: EntityState): void {
+    const group = token.group;
     if (!this.grid.isTile(entity.tile)) {
-      token.visible = false;
+      group.visible = false;
       return;
     }
-    token.visible = true;
+    group.visible = true;
     const centre = tileCenter(this.grid, entity.tile, this.layout);
-    token.position.set(centre.x, centre.y, centre.z);
-    // A fallen creature lies down rather than vanishing.
-    token.rotation.set(entity.alive ? 0 : Math.PI / 2, 0, 0);
-    token.position.y = entity.alive ? centre.y : centre.y + TOKEN_RADIUS;
+    const lift = token.spec.groundOffset ?? 0;
+    group.position.set(centre.x, centre.y + lift, centre.z);
+    // A fallen creature lies down rather than vanishing; the engine keeps its body.
+    group.rotation.set(entity.alive ? 0 : -Math.PI / 2, 0, 0);
   }
 
-  private materialFor(faction: string): MeshStandardMaterial {
-    let material = this.tokenMaterials.get(faction);
-    if (material === undefined) {
-      material = new MeshStandardMaterial({
-        color: new Color(this.factionColors[faction] ?? DEFAULT_FACTION_COLORS['neutral']!),
-        flatShading: true,
-      });
-      this.tokenMaterials.set(faction, material);
-    }
-    return material;
-  }
-
-  /** The mesh standing for an entity, if it has one. */
-  tokenFor(id: string): Mesh | undefined {
+  /** The model standing for an entity, if it has one. */
+  tokenFor(id: string): BuiltModel | undefined {
     return this.tokens.get(id);
+  }
+
+  /**
+   * Build the scenery. Decos never change during play, so this is called once;
+   * calling it again replaces what was there.
+   */
+  setDecos(decos: readonly Deco[]): void {
+    for (const group of this.decos) this.root.remove(group);
+    this.decos.length = 0;
+
+    for (const deco of decos) {
+      const tile = this.grid.indexOf(deco.position.x, deco.position.y);
+      if (!this.grid.isTile(tile)) continue;
+      const model = buildModel(this.registry.get(deco.model), this.resources);
+      const centre = tileCenter(this.grid, tile, this.layout);
+      const lift = model.spec.groundOffset ?? 0;
+      model.group.position.set(centre.x, centre.y + lift, centre.z);
+      model.group.rotation.y = deco.rotation;
+      this.root.add(model.group);
+      this.decos.push(model.group);
+    }
+  }
+
+  /** How many scenery models are in the scene. */
+  get decoCount(): number {
+    return this.decos.length;
   }
 
   /**
@@ -215,11 +258,12 @@ export class SceneView {
 
   dispose(): void {
     this.terrain.dispose();
-    this.tokenGeometry.dispose();
-    for (const material of this.tokenMaterials.values()) (material as Material).dispose();
     this.highlightGeometry.dispose();
     this.highlightMaterial.dispose();
     this.highlight.dispose();
     this.tokens.clear();
+    this.decos.length = 0;
+    // Shared caches outlive a scene unless this view created them.
+    if (this.ownsResources) this.resources.dispose();
   }
 }

@@ -17,6 +17,8 @@ declare global {
       errors: string[];
       tiles: number;
       entities: number;
+      decos: number;
+      missingModels: () => string[];
       leaderTile: () => number;
       highlighted: () => number;
       moveTo: (tile: number) => boolean;
@@ -48,6 +50,8 @@ test('renders the imported demo vault under headless WebGL, with no errors', asy
       errors: api.errors,
       tiles: api.tiles,
       entities: api.entities,
+      decos: api.decos,
+      missingModels: api.missingModels(),
       samples: [
         api.sample(2, 2),
         api.sample(canvas.width >> 1, canvas.height >> 1),
@@ -64,6 +68,9 @@ test('renders the imported demo vault under headless WebGL, with no errors', asy
   // The demo map is the legacy 22x16 vault, with a party and its adversaries.
   expect(info.tiles).toBe(22 * 16);
   expect(info.entities).toBeGreaterThan(2);
+  // Every deco in the map got a model, and none fell back to the placeholder.
+  expect(info.decos).toBe(19);
+  expect(info.missingModels).toEqual([]);
 
   // Something was actually drawn: the frame is not one flat colour.
   const distinct = new Set(info.samples.map((s) => s.join(',')));

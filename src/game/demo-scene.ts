@@ -52,6 +52,21 @@ export interface DemoScene {
   leaderId: string;
 }
 
+/**
+ * Which model an entity uses.
+ *
+ * Party members carry a class name from the legacy hero defs; adversaries carry an
+ * SRD content id. Neither is a model id, so the demo maps them — the model
+ * registry is content, and content decides what a thing looks like.
+ */
+export const DEMO_MODELS: Readonly<Record<string, string>> = {
+  sentinel: 'knight',
+  nightwalker: 'rogue',
+  seer: 'mage',
+  'acid-burrower': 'bramble',
+  'hollow-husk': 'husk',
+};
+
 /** Factions a mover walks through rather than around. */
 const PASS_THROUGH: readonly Faction[] = ['party'];
 

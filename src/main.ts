@@ -26,6 +26,7 @@ import {
   buildDemoScene,
   moveLeaderTo,
   reachableTiles,
+  DEMO_MODELS,
   DEMO_MOVE_BUDGET,
 } from './game/demo-scene';
 
@@ -38,6 +39,8 @@ declare global {
       errors: string[];
       tiles: number;
       entities: number;
+      decos: number;
+      missingModels: () => string[];
       leaderTile: () => number;
       highlighted: () => number;
       /** Move the leader to a tile, as a click would. Returns whether it moved. */
@@ -60,7 +63,11 @@ const gl = renderer.getContext();
 const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
 
 const demo = buildDemoScene(demoMap());
-const view = new SceneView(demo.grid, { tints: demo.scene.tints });
+const view = new SceneView(demo.grid, {
+  tints: demo.scene.tints,
+  modelForEntity: (entity) => DEMO_MODELS[entity.definition] ?? entity.definition,
+});
+view.setDecos(demo.scene.decos);
 view.syncTokens(demo.state);
 
 // Frame the whole map from a fixed three-quarter view.
@@ -122,6 +129,8 @@ const state = {
   errors,
   tiles: demo.grid.size,
   entities: demo.state.allEntities().length,
+  decos: view.decoCount,
+  missingModels: (): string[] => view.registry.missing(),
   leaderTile: () => demo.state.entity(demo.leaderId)?.tile ?? NO_TILE,
   highlighted: () => view.highlightedCount,
   moveTo: (tile: number): boolean => {

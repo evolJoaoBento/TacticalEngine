@@ -142,9 +142,9 @@ describe('SceneView', () => {
     const kara = view.tokenFor('kara')!;
     expect(kara).toBeDefined();
     const centre = tileCenter(grid, grid.indexOf(0, 0));
-    expect(kara.position.x).toBeCloseTo(centre.x, 10);
-    expect(kara.position.z).toBeCloseTo(centre.z, 10);
-    expect(kara.position.y).toBeCloseTo(centre.y, 10);
+    expect(kara.group.position.x).toBeCloseTo(centre.x, 10);
+    expect(kara.group.position.z).toBeCloseTo(centre.z, 10);
+    expect(kara.group.position.y).toBeCloseTo(centre.y, 10);
     expect(view.tokenFor('husk')).toBeDefined();
     view.dispose();
   });
@@ -158,19 +158,29 @@ describe('SceneView', () => {
     view.syncTokens(state);
     const after = view.tokenFor('kara')!;
 
-    expect(after).toBe(before); // same mesh, moved
+    expect(after).toBe(before); // same model, moved
     const centre = tileCenter(grid, grid.indexOf(3, 1));
-    expect(after.position.x).toBeCloseTo(centre.x, 10);
-    expect(after.position.z).toBeCloseTo(centre.z, 10);
+    expect(after.group.position.x).toBeCloseTo(centre.x, 10);
+    expect(after.group.position.z).toBeCloseTo(centre.z, 10);
     view.dispose();
   });
 
-  it('shares one material per faction across tokens', () => {
+  it('shares geometry and materials between two tokens of the same model', () => {
     const { state, grid, view } = setup();
-    state.addEntity(createPartyEntity('finn', 'nightwalker', grid.indexOf(1, 0)));
+    state.addEntity(createPartyEntity('finn', 'sentinel', grid.indexOf(1, 0)));
     view.syncTokens(state);
-    expect(view.tokenFor('kara')!.material).toBe(view.tokenFor('finn')!.material);
-    expect(view.tokenFor('kara')!.material).not.toBe(view.tokenFor('husk')!.material);
+
+    const kara = view.tokenFor('kara')!.group;
+    const finn = view.tokenFor('finn')!.group;
+    expect(finn).not.toBe(kara);
+    // Same spec, same caches: every part shares its geometry and material.
+    for (let i = 0; i < kara.children.length; i++) {
+      const a = kara.children[i] as unknown as { geometry?: unknown; material?: unknown };
+      const b = finn.children[i] as unknown as { geometry?: unknown; material?: unknown };
+      if (a.geometry === undefined) continue;
+      expect(b.geometry).toBe(a.geometry);
+      expect(b.material).toBe(a.material);
+    }
     view.dispose();
   });
 
@@ -180,16 +190,16 @@ describe('SceneView', () => {
     state.entity('husk')!.alive = false;
     view.syncTokens(state);
 
-    const husk = view.tokenFor('husk')!;
+    const husk = view.tokenFor('husk')!.group;
     expect(husk.visible).toBe(true);
-    expect(husk.rotation.x).toBeCloseTo(Math.PI / 2, 10);
+    expect(husk.rotation.x).toBeCloseTo(-Math.PI / 2, 10);
     view.dispose();
   });
 
   it('retires a token when its entity leaves the scene', () => {
     const { state, view } = setup();
     view.syncTokens(state);
-    const token = view.tokenFor('husk')!;
+    const token = view.tokenFor('husk')!.group;
 
     state.removeEntity('husk');
     view.syncTokens(state);
@@ -202,7 +212,7 @@ describe('SceneView', () => {
     const { state, view } = setup();
     state.addEntity(createPartyEntity('offstage', 'seer', -1));
     view.syncTokens(state);
-    expect(view.tokenFor('offstage')!.visible).toBe(false);
+    expect(view.tokenFor('offstage')!.group.visible).toBe(false);
     view.dispose();
   });
 
