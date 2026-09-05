@@ -8,11 +8,15 @@
  * and had no line of sight at all, so a hero could shoot through a wall. Here the
  * distance becomes an SRD range band, the line is actually traced, and cover is
  * derived from what it passes through.
+ *
+ * Follows SRD 2.0: a ranged attacker needs line of sight, a partial obstruction
+ * gives cover, and a total obstruction means no line of sight at all. Melee
+ * attacks are unaffected by both — the attacker is already past the obstruction.
  */
 
 import { TileGrid } from '../grid/grid';
 import { coverBetween, lineOfSight, type LineOfSightRules } from '../grid/los';
-import { canBeTargetedByRanged, type CoverLevel } from '../rules/cover';
+import { coverDisadvantage, type Cover } from '../rules/cover';
 import {
   bandForDistance,
   bandLabel,
@@ -27,8 +31,7 @@ export type TargetingRefusal =
   | 'noTarget'
   | 'selfTarget'
   | 'outOfRange'
-  | 'noLineOfSight'
-  | 'totalCover';
+  | 'noLineOfSight';
 
 export interface TargetingOptions {
   /** Tile distances that define each band. Defaults to the engine's table. */
@@ -63,23 +66,19 @@ export interface TargetingReport {
   /** Human-readable band, for logs and the inspector. */
   bandLabel: string;
   hasLineOfSight: boolean;
-  /** Tiles between the two that block sight. */
-  blockers: number;
+  /** Whether something got in the way without stopping the shot. */
+  partialObstruction: boolean;
   /** Cover the target benefits from. Always `none` against a melee attack. */
-  cover: CoverLevel;
-  /** Evasion or Difficulty bonus the cover grants. */
-  coverBonus: number;
+  cover: Cover;
+  /**
+   * Disadvantage dice the cover imposes on the attack roll — 1 through cover,
+   * 0 otherwise. SRD 2.0: "Attacks made through cover are rolled with disadvantage."
+   */
+  coverDisadvantage: number;
   ranged: boolean;
   /** `null` when the attack is legal. */
   refusal: TargetingRefusal | null;
 }
-
-const COVER_BONUS: Readonly<Record<CoverLevel, number>> = {
-  none: 0,
-  light: 1,
-  full: 2,
-  total: 0,
-};
 
 /**
  * Evaluate an attack from one tile to another against a maximum range.
@@ -99,9 +98,9 @@ export function evaluateTarget(
     band: 'outOfRange',
     bandLabel: bandLabel('outOfRange'),
     hasLineOfSight: false,
-    blockers: 0,
+    partialObstruction: false,
     cover: 'none',
-    coverBonus: 0,
+    coverDisadvantage: 0,
     ranged: true,
     refusal: 'noTarget',
   };
@@ -133,22 +132,22 @@ export function evaluateTarget(
   const sight = lineOfSight(grid, attackerTile, targetTile, options.losRules);
   const cover = ranged ? coverBetween(grid, attackerTile, targetTile, options.losRules) : 'none';
 
+  // SRD 2.0 folds "cannot be targeted" into line of sight: a total obstruction
+  // means there is no line, rather than a third grade of cover.
   const refusal: TargetingRefusal | null = !reaches(band, maxRange)
     ? 'outOfRange'
-    : !sight.clear
+    : ranged && !sight.clear
       ? 'noLineOfSight'
-      : ranged && !canBeTargetedByRanged(cover)
-        ? 'totalCover'
-        : null;
+      : null;
 
   return {
     distance,
     band,
     bandLabel: bandLabel(band),
     hasLineOfSight: sight.clear,
-    blockers: sight.blockers,
+    partialObstruction: sight.partial,
     cover,
-    coverBonus: COVER_BONUS[cover],
+    coverDisadvantage: coverDisadvantage(cover, ranged),
     ranged,
     refusal,
   };
@@ -178,7 +177,5 @@ export function refusalMessage(refusal: TargetingRefusal): string {
       return 'The target is out of range.';
     case 'noLineOfSight':
       return 'Something blocks the line of sight.';
-    case 'totalCover':
-      return 'The target is behind total cover.';
   }
 }

@@ -1,25 +1,30 @@
 /**
- * Line of sight and the cover it produces.
+ * Line of sight, and the cover it produces.
  *
- * The SRD names three cover levels and their effects but leaves the geometry to
- * the GM, and the legacy prototype had no line of sight at all — a tile was
- * "cover" and that was the whole rule. What follows is therefore an explicit,
- * stated house rule rather than a quotation, with every threshold in
- * `LineOfSightRules` so a project can change it without touching the engine:
+ * SRD 2.0, "LINE OF SIGHT & COVER": a ranged attacker needs line of sight; a
+ * *partial* obstruction gives the target cover; a *total* obstruction means there
+ * is no line of sight at all. The SRD does not say what makes an obstruction
+ * partial rather than total — that is still the table's call — so the engine
+ * answers it with the geometry it already traces, and states the answer here:
  *
  * - Sight travels between tile centres, over the tiles the segment actually
- *   passes through (a supercover walk, so a wall on a corner still blocks).
+ *   passes through (a supercover walk).
+ * - Running squarely into a blocking tile is a **total** obstruction: no line of
+ *   sight, and the attack cannot be made.
+ * - Clipping the corner between two tiles where only *one* of them blocks is a
+ *   **partial** obstruction: the shot gets through, and the target has cover.
+ * - Terrain flagged `providesCover` — a low wall, rubble, a cart — gives the
+ *   creature standing on it cover without blocking sight at all.
  * - A tile blocks sight if its terrain says so, or if it stands higher than both
- *   endpoints — you can see over a low wall from a rampart, not from the floor.
- * - The endpoints themselves never block; a creature is not its own cover.
- * - Cover comes from what the line passes through: nothing blocking is no cover,
- *   one blocker is Light Cover, two or more is Full Cover. The target's own
- *   terrain cover applies too, and the better of the two wins. Total Cover is
- *   never inferred from geometry — it is authored, because "cannot be targeted at
- *   all" is too strong a consequence to derive from a heuristic.
+ *   endpoints: you can see over a low wall from a rampart, not from the floor.
+ * - The endpoints themselves never block; a creature is not its own obstruction.
+ *
+ * The 1.0 rule this replaced graded cover into Light/Full/Total by counting
+ * blockers. 2.0 made cover binary, so the count no longer matters — only whether
+ * anything got in the way, and whether anything got through.
  */
 
-import { bestCover, type CoverLevel } from '../rules/cover';
+import { combineCover, type Cover } from '../rules/cover';
 import type { TileGrid } from './grid';
 
 export interface LineOfSightRules {
@@ -28,23 +33,19 @@ export interface LineOfSightRules {
    * 1 means "any tile above both ends blocks".
    */
   readonly blockingHeightMargin: number;
-  /** Blockers needed for Light Cover, then for Full Cover. */
-  readonly lightCoverBlockers: number;
-  readonly fullCoverBlockers: number;
 }
 
-export const DEFAULT_LINE_OF_SIGHT: LineOfSightRules = {
-  blockingHeightMargin: 1,
-  lightCoverBlockers: 1,
-  fullCoverBlockers: 2,
-};
+export const DEFAULT_LINE_OF_SIGHT: LineOfSightRules = { blockingHeightMargin: 1 };
 
 export interface LineOfSightResult {
-  /** Whether anything can be seen — and so targeted — at all. */
+  /** Whether the target can be seen, and so targeted, at all. */
   clear: boolean;
-  /** How many tiles between the endpoints block sight. */
-  blockers: number;
-  /** The first blocking tile, or -1. */
+  /**
+   * Something stood in the way but the shot still got through — the partial
+   * obstruction that 2.0 turns into cover.
+   */
+  partial: boolean;
+  /** The first tile that blocked the line, or -1. */
   firstBlocker: number;
 }
 
@@ -52,15 +53,15 @@ export interface LineOfSightResult {
  * Walk the tiles a segment between two tile centres passes through, endpoints
  * included, and hand each to `visit`. Returning `false` stops the walk.
  *
- * This is a supercover line: when the segment crosses exactly through a corner
- * both adjacent tiles are visited, so a diagonal gap between two walls does not
- * leak sight.
+ * At an exact corner both tiles the segment touches are visited, and they are
+ * reported as a pair so a caller can tell "squeezed past one wall" from "ran into
+ * two". `atCorner` is true for the two tiles of such a pair.
  */
 export function traceLine(
   grid: TileGrid,
   from: number,
   to: number,
-  visit: (tile: number) => boolean | void,
+  visit: (tile: number, atCorner: boolean) => boolean | void,
 ): void {
   if (!grid.isTile(from) || !grid.isTile(to)) return;
   let x = grid.xOf(from);
@@ -69,7 +70,7 @@ export function traceLine(
   const y1 = grid.yOf(to);
 
   if (x === x1 && y === y1) {
-    visit(from);
+    visit(from, false);
     return;
   }
 
@@ -88,7 +89,7 @@ export function traceLine(
   // from B to A visits the same tiles in reverse.
   let takenX = 0;
   let takenY = 0;
-  if (visit(grid.indexOf(x, y)) === false) return;
+  if (visit(grid.indexOf(x, y), false) === false) return;
 
   while (takenX < spanX || takenY < spanY) {
     const nextX = (2 * takenX + 1) * spanY;
@@ -100,14 +101,14 @@ export function traceLine(
       y += stepY;
       takenY++;
     } else {
-      if (visit(grid.indexOf(x + stepX, y)) === false) return;
-      if (visit(grid.indexOf(x, y + stepY)) === false) return;
+      if (visit(grid.indexOf(x + stepX, y), true) === false) return;
+      if (visit(grid.indexOf(x, y + stepY), true) === false) return;
       x += stepX;
       y += stepY;
       takenX++;
       takenY++;
     }
-    if (visit(grid.indexOf(x, y)) === false) return;
+    if (visit(grid.indexOf(x, y), false) === false) return;
   }
 }
 
@@ -124,7 +125,10 @@ function blocksBetween(
   return grid.heightAt(tile) - highestEnd >= rules.blockingHeightMargin;
 }
 
-/** Trace sight between two tiles and report what stands in the way. */
+/**
+ * Trace sight between two tiles and report whether the obstruction — if any — is
+ * partial or total.
+ */
 export function lineOfSight(
   grid: TileGrid,
   from: number,
@@ -132,24 +136,51 @@ export function lineOfSight(
   rules: LineOfSightRules = DEFAULT_LINE_OF_SIGHT,
 ): LineOfSightResult {
   if (!grid.isTile(from) || !grid.isTile(to)) {
-    return { clear: false, blockers: 0, firstBlocker: -1 };
+    return { clear: false, partial: false, firstBlocker: -1 };
   }
-  if (from === to) return { clear: true, blockers: 0, firstBlocker: -1 };
+  if (from === to) return { clear: true, partial: false, firstBlocker: -1 };
 
   const fromHeight = grid.heightAt(from);
   const toHeight = grid.heightAt(to);
-  let blockers = 0;
-  let firstBlocker = -1;
 
-  traceLine(grid, from, to, (tile) => {
-    // A creature is never its own cover, and never blocks the shot it is taking.
+  let blocked = false;
+  let partial = false;
+  let firstBlocker = -1;
+  // A corner pair is two tiles the segment touches at once. It only stops the
+  // line when *both* of them block; one blocked tile is squeezing past a corner.
+  let cornerBlocked = 0;
+  let cornerSeen = 0;
+  let cornerFirst = -1;
+
+  traceLine(grid, from, to, (tile, atCorner) => {
     if (tile === from || tile === to) return;
-    if (!blocksBetween(grid, tile, fromHeight, toHeight, rules)) return;
-    blockers++;
-    if (firstBlocker < 0) firstBlocker = tile;
+    const blocks = blocksBetween(grid, tile, fromHeight, toHeight, rules);
+
+    if (!atCorner) {
+      if (!blocks) return;
+      blocked = true;
+      if (firstBlocker < 0) firstBlocker = tile;
+      return false; // Squarely into an obstruction: nothing further matters.
+    }
+
+    if (blocks && cornerFirst < 0) cornerFirst = tile;
+    if (blocks) cornerBlocked++;
+    cornerSeen++;
+    if (cornerSeen === 2) {
+      if (cornerBlocked === 2) {
+        blocked = true;
+        if (firstBlocker < 0) firstBlocker = cornerFirst;
+        return false;
+      }
+      if (cornerBlocked === 1) partial = true;
+      cornerBlocked = 0;
+      cornerSeen = 0;
+      cornerFirst = -1;
+    }
+    return;
   });
 
-  return { clear: blockers === 0, blockers, firstBlocker };
+  return { clear: !blocked, partial: !blocked && partial, firstBlocker };
 }
 
 /** Whether one tile can see another at all. */
@@ -165,25 +196,19 @@ export function hasLineOfSight(
 /**
  * The cover a target at `to` has against an attacker at `from`.
  *
- * A target the line cannot reach at all has Total Cover — "cannot be targeted by
- * ranged attacks until you move or the cover is removed" — which is why this
- * returns a level rather than a boolean.
+ * Cover comes from a partial obstruction on the line, or from the target standing
+ * on terrain that provides cover. A target with no line of sight has no cover
+ * either — it simply cannot be attacked, which the caller learns from
+ * `lineOfSight`.
  */
 export function coverBetween(
   grid: TileGrid,
   from: number,
   to: number,
   rules: LineOfSightRules = DEFAULT_LINE_OF_SIGHT,
-): CoverLevel {
-  const terrainCover = grid.isTile(to) ? grid.terrainAt(to).cover : 'none';
+): Cover {
+  const terrain: Cover =
+    grid.isTile(to) && grid.terrainAt(to).providesCover ? 'cover' : 'none';
   const sight = lineOfSight(grid, from, to, rules);
-
-  let fromBlockers: CoverLevel = 'none';
-  if (sight.blockers >= rules.fullCoverBlockers) fromBlockers = 'full';
-  else if (sight.blockers >= rules.lightCoverBlockers) fromBlockers = 'light';
-
-  // Terrain marked as total cover, or a target that cannot be seen from anywhere
-  // along the line, cannot be targeted at all.
-  if (terrainCover === 'total') return 'total';
-  return bestCover(terrainCover, fromBlockers);
+  return combineCover(terrain, sight.partial ? 'cover' : 'none');
 }

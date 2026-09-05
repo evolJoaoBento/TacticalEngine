@@ -38,7 +38,7 @@ describe('gridFromScene', () => {
     expect(grid.terrainAt(grid.indexOf(1, 0)).id).toBe('wall');
     expect(grid.isPassable(grid.indexOf(1, 0))).toBe(false);
     expect(grid.costAt(grid.indexOf(2, 0))).toBe(2);
-    expect(grid.terrainAt(grid.indexOf(0, 1)).cover).toBe('light');
+    expect(grid.terrainAt(grid.indexOf(0, 1)).providesCover).toBe(true);
     expect(grid.heightAt(grid.indexOf(2, 1))).toBe(2);
   });
 
@@ -109,8 +109,8 @@ describe('paletteForProject', () => {
   it('builds a project-declared palette', () => {
     const palette = paletteForProject({
       terrainPalette: [
-        { id: 'sand', name: 'Sand', passable: true, cost: 2, cover: 'none', blocksSight: false },
-        { id: 'hedge', name: '', passable: false, cost: 1, cover: 'full', blocksSight: true },
+        { id: 'sand', name: 'Sand', passable: true, cost: 2, providesCover: false, blocksSight: false },
+        { id: 'hedge', name: '', passable: false, cost: 1, providesCover: true, blocksSight: true },
       ],
     });
     expect(palette.size).toBe(2);

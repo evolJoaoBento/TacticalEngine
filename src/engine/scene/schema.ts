@@ -220,7 +220,7 @@ export const terrainTypeSchema = z.object({
   name: z.string().default(''),
   passable: z.boolean().default(true),
   cost: z.number().positive().default(1),
-  cover: z.enum(['none', 'light', 'full', 'total']).default('none'),
+  providesCover: z.boolean().default(false),
   blocksSight: z.boolean().default(false),
 });
 

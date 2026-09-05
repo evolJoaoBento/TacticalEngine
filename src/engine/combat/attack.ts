@@ -66,16 +66,13 @@ export interface DefenderProfile {
 }
 
 /**
- * Whether cover raises an adversary's Difficulty is a **house rule**.
+ * Cover needs no house rule under SRD 2.0.
  *
- * The SRD says "Light Cover - +1 to Evasion against ranged attacks", and Evasion
- * is a PC stat: adversaries have a Difficulty score instead, and the SRD never
- * says cover raises it. Applying it to both sides keeps terrain meaningful in
- * either direction, which is what the legacy prototype did and what a tactical map
- * needs, but it is an addition rather than a quotation. `TargetingReport.coverBonus`
- * is reported separately from the Difficulty so a project can drop it.
+ * 1.0 added cover to the target's *Evasion*, which is a PC stat — adversaries
+ * have a Difficulty score instead, so applying it to both sides took an engine
+ * decision. 2.0 instead makes the attacker "roll with disadvantage", which is a
+ * property of the roll and applies identically whoever is making it.
  */
-export const COVER_APPLIES_TO_ADVERSARY_DIFFICULTY = true;
 
 export interface AttackOptions extends TargetingOptions {
   /** Extra advantage sources on top of those the conditions imply. */
@@ -187,12 +184,14 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
 
   const conditions = conditionModifiers(target);
   const advantage = conditions.advantage + (options.advantage ?? 0);
-  const disadvantage = conditions.disadvantage + (options.disadvantage ?? 0);
+  const disadvantage =
+    conditions.disadvantage + targeting.coverDisadvantage + (options.disadvantage ?? 0);
 
-  const modifier =
-    rollDice(rng, profile.modifier).total + (options.bonus ?? 0);
-  // Cover raises the Difficulty of a ranged attack rather than lowering the roll.
-  const difficulty = defender.difficulty + targeting.coverBonus;
+  const modifier = rollDice(rng, profile.modifier).total + (options.bonus ?? 0);
+  // SRD 2.0: cover costs the attacker a disadvantage die; it does not touch the
+  // target's Difficulty. Advantage and disadvantage still cancel one for one, so
+  // an attacker with advantage can shoot through cover unimpeded.
+  const difficulty = defender.difficulty;
 
   let hit: boolean;
   let critical: boolean;

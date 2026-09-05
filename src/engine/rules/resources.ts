@@ -11,8 +11,9 @@
  * actually happened, so callers can log the real numbers instead of the requested
  * ones (asking to clear 4 Stress with 2 marked clears 2).
  *
- * SRD reference: `tools/srd-sources/seansbox/README.md`, sections "HOPE & FEAR",
- * "HIT POINTS & DAMAGE THRESHOLDS", "STRESS", "ARMOR", "DOWNTIME".
+ * SRD 2.0 reference: `tools/srd-sources/official-2.0/srd-2.0.txt`, sections
+ * "HOPE & FEAR", "HIT POINTS & DAMAGE THRESHOLDS", "STRESS", "ARMOR" and
+ * "DOWNTIME" — all unchanged from SRD 1.0.
  */
 
 /** A PC starts with 2 Hope. */

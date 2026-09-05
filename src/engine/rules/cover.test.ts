@@ -1,40 +1,34 @@
 import { describe, it, expect } from 'vitest';
-import {
-  COVER_LEVELS,
-  bestCover,
-  canBeTargetedByRanged,
-  coverEvasionBonus,
-  coverIndex,
-} from './cover';
+import { combineCover, coverApplies, coverDisadvantage } from './cover';
 
-describe('cover', () => {
-  it('lists the levels least protective first', () => {
-    expect([...COVER_LEVELS]).toEqual(['none', 'light', 'full', 'total']);
-    expect(coverIndex('none')).toBeLessThan(coverIndex('light'));
-    expect(coverIndex('light')).toBeLessThan(coverIndex('full'));
+describe('cover (SRD 2.0)', () => {
+  it('costs a ranged attacker one disadvantage die', () => {
+    // "Attacks made through cover are rolled with disadvantage."
+    expect(coverDisadvantage('cover')).toBe(1);
+    expect(coverDisadvantage('none')).toBe(0);
   });
 
-  it('gives +1 Evasion for Light Cover and +2 for Full Cover', () => {
-    expect(coverEvasionBonus('none')).toBe(0);
-    expect(coverEvasionBonus('light')).toBe(1);
-    expect(coverEvasionBonus('full')).toBe(2);
+  it('never imposes more than one die, because they do not stack', () => {
+    expect(coverDisadvantage(combineCover('cover', 'cover'))).toBe(1);
   });
 
-  it('gives Total Cover no Evasion bonus, because it cannot be targeted at all', () => {
-    expect(coverEvasionBonus('total')).toBe(0);
-    expect(canBeTargetedByRanged('total')).toBe(false);
-    expect(canBeTargetedByRanged('full')).toBe(true);
+  it('does not apply to melee attacks', () => {
+    expect(coverDisadvantage('cover', false)).toBe(0);
+    expect(coverApplies(false)).toBe(false);
+    expect(coverApplies(true)).toBe(true);
   });
 
-  it('ignores cover against melee attacks', () => {
-    expect(coverEvasionBonus('full', false)).toBe(0);
-    expect(coverEvasionBonus('light', false)).toBe(0);
+  it('combines two sources into one binary answer', () => {
+    expect(combineCover('none', 'none')).toBe('none');
+    expect(combineCover('cover', 'none')).toBe('cover');
+    expect(combineCover('none', 'cover')).toBe('cover');
   });
 
-  it('takes the better of two covers rather than stacking them', () => {
-    expect(bestCover('light', 'full')).toBe('full');
-    expect(bestCover('full', 'light')).toBe('full');
-    expect(bestCover('none', 'none')).toBe('none');
-    expect(bestCover('total', 'full')).toBe('total');
+  it('has no graded levels — 2.0 removed Light, Full and Total Cover', () => {
+    // Guard against the 1.0 model creeping back: the only values are none/cover,
+    // and the effect is on the roll, never on the target's Evasion.
+    const values: string[] = ['none', 'cover'];
+    expect(values).toHaveLength(2);
+    expect(coverDisadvantage('cover')).toBe(1);
   });
 });

@@ -7,7 +7,10 @@
  * reports — the caller decides when resource deltas land, so a roll can be
  * previewed, logged, replayed or animated before it takes effect.
  *
- * Rule text used here is quoted from `tools/srd-sources/daggersearch/core/rules.json`.
+ * Rule text used here is quoted from SRD 2.0,
+ * `tools/srd-sources/official-2.0/srd-2.0.txt`. Action rolls, the five outcomes,
+ * Help an Ally and reaction rolls are unchanged from SRD 1.0; 2.0 adds an explicit
+ * statement that a player never rolls more than one advantage or disadvantage die.
  */
 
 import type { Rng } from '../core/rng';

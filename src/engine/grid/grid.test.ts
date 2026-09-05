@@ -32,7 +32,7 @@ describe('TerrainPalette', () => {
   it('gives the default types the legacy prototype semantics', () => {
     const palette = new TerrainPalette();
     expect(palette.at(palette.require('difficult')).cost).toBe(2);
-    expect(palette.at(palette.require('cover')).cover).toBe('light');
+    expect(palette.at(palette.require('cover')).providesCover).toBe(true);
     expect(palette.at(palette.require('wall')).blocksSight).toBe(true);
   });
 });

@@ -1,10 +1,10 @@
 /**
  * Range bands.
  *
- * SRD reference: `tools/srd-sources/seansbox/README.md`, "MAPS, RANGE, AND MOVEMENT".
- * Note that the terser `Range Bands` entry in
- * `tools/srd-sources/daggersearch/core/rules.json` omits Melee; the six bands here
- * are the full list.
+ * SRD 2.0 reference: `tools/srd-sources/official-2.0/srd-2.0.txt`,
+ * "MAPS, RANGE, AND MOVEMENT" — the bands are unchanged from 1.0. Note that the
+ * terser `Range Bands` entry in `tools/srd-sources/daggersearch/core/rules.json`
+ * omits Melee; the six bands here are the full list.
  */
 
 /** Ordered from closest to furthest. `outOfRange` is "beyond a character's Very Far". */

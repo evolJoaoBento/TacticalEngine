@@ -1,49 +1,45 @@
 /**
- * Cover.
+ * Cover and line of sight.
  *
- * SRD reference: `tools/srd-sources/seansbox/README.md`, "COVER" — "Physical
- * obstructions, allies, and terrain can protect you from harm."
+ * SRD 2.0 reference: `tools/srd-sources/official-2.0/srd-2.0.txt`,
+ * "LINE OF SIGHT & COVER":
  *
- * The SRD names three levels and their effects but does not say what geometry
- * produces which level; that is left to the GM. So this module owns the *effects*,
- * which are rules, and `grid/los.ts` owns the geometry behind a policy the engine
- * states openly as a house rule.
+ * > Unless stated otherwise, a ranged attacker must have line of sight to their
+ * > intended target to make an attack roll. If a partial obstruction lies between
+ * > the attacker and target, the target has cover. Attacks made through cover are
+ * > rolled with disadvantage. If the obstruction is total, there is no line of sight.
+ *
+ * **This replaced the SRD 1.0 rule.** 1.0 had three graded levels — Light Cover
+ * (+1 Evasion against ranged attacks), Full Cover (+2) and Total Cover (cannot be
+ * targeted) — and the engine implemented those until the 2.0 diff pass. In 2.0 the
+ * strings "Light Cover", "Full Cover" and "Total Cover" do not appear at all:
+ * cover is binary, it costs the attacker a disadvantage die rather than raising
+ * the target's Evasion, and being unreachable is a line-of-sight question instead
+ * of a third cover level.
+ *
+ * The 2.0 rule is also simpler to apply evenly. Because it modifies the *attack
+ * roll* rather than the target's Evasion — a PC stat that adversaries do not have —
+ * it needs no house rule to work in both directions, which the 1.0 version did.
  */
 
-/** Ordered from least to most protective. */
-export const COVER_LEVELS = ['none', 'light', 'full', 'total'] as const;
-export type CoverLevel = (typeof COVER_LEVELS)[number];
+/** Whether an obstruction stands between an attacker and their target. */
+export type Cover = 'none' | 'cover';
 
 /**
- * Evasion bonus against *ranged* attacks: Light Cover +1, Full Cover +2.
- * Total Cover is not a bonus — the target cannot be targeted at all.
+ * Cover costs the attacker a disadvantage die: "Attacks made through cover are
+ * rolled with disadvantage." One die, never more — advantage and disadvantage do
+ * not stack in 2.0 either.
  */
-export const COVER_EVASION_BONUS: Readonly<Record<CoverLevel, number>> = {
-  none: 0,
-  light: 1,
-  full: 2,
-  total: 0,
-};
-
-/** Melee attacks ignore cover; only ranged attacks are affected. */
-export function coverEvasionBonus(cover: CoverLevel, ranged = true): number {
-  return ranged ? COVER_EVASION_BONUS[cover] : 0;
+export function coverDisadvantage(cover: Cover, ranged = true): number {
+  return ranged && cover === 'cover' ? 1 : 0;
 }
 
-/**
- * "Total Cover - cannot be targeted by ranged attacks until you move or the cover
- * is removed."
- */
-export function canBeTargetedByRanged(cover: CoverLevel): boolean {
-  return cover !== 'total';
+/** Cover only applies to ranged attacks; a melee attacker is already past it. */
+export function coverApplies(ranged: boolean): boolean {
+  return ranged;
 }
 
-/** Position in the cover order; larger is more protective. */
-export function coverIndex(cover: CoverLevel): number {
-  return COVER_LEVELS.indexOf(cover);
-}
-
-/** The more protective of two cover levels — cover does not stack, the best applies. */
-export function bestCover(a: CoverLevel, b: CoverLevel): CoverLevel {
-  return coverIndex(a) >= coverIndex(b) ? a : b;
+/** True when either source gives the target cover. Cover does not stack. */
+export function combineCover(a: Cover, b: Cover): Cover {
+  return a === 'cover' || b === 'cover' ? 'cover' : 'none';
 }

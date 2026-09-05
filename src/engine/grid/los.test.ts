@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { canBeTargetedByRanged } from '../rules/cover';
 import { TileGrid } from './grid';
 import { TerrainPalette, terrain } from './terrain';
 import { DEFAULT_LINE_OF_SIGHT, coverBetween, hasLineOfSight, lineOfSight, traceLine } from './los';
@@ -115,20 +114,22 @@ describe('lineOfSight', () => {
   it('is clear across open floor', () => {
     const grid = makeGrid(['.....']);
     const result = lineOfSight(grid, grid.indexOf(0, 0), grid.indexOf(4, 0));
-    expect(result).toEqual({ clear: true, blockers: 0, firstBlocker: -1 });
+    expect(result).toEqual({ clear: true, partial: false, firstBlocker: -1 });
   });
 
   it('is blocked by a wall in between', () => {
     const grid = makeGrid(['..#..']);
     const result = lineOfSight(grid, grid.indexOf(0, 0), grid.indexOf(4, 0));
     expect(result.clear).toBe(false);
-    expect(result.blockers).toBe(1);
+    expect(result.partial).toBe(false);
     expect(result.firstBlocker).toBe(grid.indexOf(2, 0));
   });
 
-  it('counts every blocker on the line', () => {
+  it('stops at the first total obstruction', () => {
     const grid = makeGrid(['.#.#.']);
-    expect(lineOfSight(grid, grid.indexOf(0, 0), grid.indexOf(4, 0)).blockers).toBe(2);
+    const result = lineOfSight(grid, grid.indexOf(0, 0), grid.indexOf(4, 0));
+    expect(result.clear).toBe(false);
+    expect(result.firstBlocker).toBe(grid.indexOf(1, 0));
   });
 
   it('never lets the endpoints block their own line', () => {
@@ -184,44 +185,54 @@ describe('lineOfSight', () => {
   });
 });
 
-describe('coverBetween', () => {
+describe('coverBetween (SRD 2.0)', () => {
   it('is none across open ground', () => {
     const grid = makeGrid(['.....']);
     expect(coverBetween(grid, grid.indexOf(0, 0), grid.indexOf(4, 0))).toBe('none');
   });
 
-  it('is light behind one blocker and full behind two', () => {
-    const one = makeGrid(['.#...']);
-    expect(coverBetween(one, one.indexOf(0, 0), one.indexOf(4, 0))).toBe('light');
-    const two = makeGrid(['.#.#.']);
-    expect(coverBetween(two, two.indexOf(0, 0), two.indexOf(4, 0))).toBe('full');
-  });
-
-  it('comes from the target standing in cover terrain', () => {
+  it('comes from the target standing on terrain that provides cover', () => {
     const grid = makeGrid(['....c']);
-    expect(coverBetween(grid, grid.indexOf(0, 0), grid.indexOf(4, 0))).toBe('light');
+    expect(coverBetween(grid, grid.indexOf(0, 0), grid.indexOf(4, 0))).toBe('cover');
   });
 
-  it('takes the better of terrain cover and blockers rather than adding them', () => {
-    const grid = makeGrid(['.#.#c']);
-    // Two blockers give Full; the target's terrain gives Light. Full wins.
-    expect(coverBetween(grid, grid.indexOf(0, 0), grid.indexOf(4, 0))).toBe('full');
+  it('comes from squeezing the shot past one corner of an obstruction', () => {
+    // The line from (0,0) to (1,1) clips the corner between (1,0) and (0,1).
+    // One of them blocks, so the shot gets through with cover: a partial
+    // obstruction in SRD 2.0 terms.
+    const grid = makeGrid(['.#', '..']);
+    const sight = lineOfSight(grid, grid.indexOf(0, 0), grid.indexOf(1, 1));
+    expect(sight.clear).toBe(true);
+    expect(sight.partial).toBe(true);
+    expect(coverBetween(grid, grid.indexOf(0, 0), grid.indexOf(1, 1))).toBe('cover');
   });
 
-  it('honours Total Cover authored on the terrain', () => {
-    const palette = new TerrainPalette([
-      terrain('floor'),
-      terrain('hideaway', { cover: 'total' }),
-    ]);
-    const grid = new TileGrid({ width: 3, height: 1, palette });
-    const target = grid.indexOf(2, 0);
-    grid.setTerrainById(target, 'hideaway');
-    expect(coverBetween(grid, grid.indexOf(0, 0), target)).toBe('total');
-    expect(canBeTargetedByRanged(coverBetween(grid, grid.indexOf(0, 0), target))).toBe(false);
+  it('is not cover but no line of sight when both corner tiles block', () => {
+    const grid = makeGrid(['.#', '#.']);
+    const sight = lineOfSight(grid, grid.indexOf(0, 0), grid.indexOf(1, 1));
+    expect(sight.clear).toBe(false);
+    expect(sight.partial).toBe(false);
+    expect(coverBetween(grid, grid.indexOf(0, 0), grid.indexOf(1, 1))).toBe('none');
   });
 
-  it('never infers Total Cover from geometry alone', () => {
-    const grid = makeGrid(['.####']);
-    expect(coverBetween(grid, grid.indexOf(0, 0), grid.indexOf(4, 0))).toBe('full');
+  it('is binary — two obstructions are no worse than one', () => {
+    const one = makeGrid(['.#', '..']);
+    const both = makeGrid(['.#', '..']);
+    both.setTerrainById(both.indexOf(1, 1), 'cover');
+    expect(coverBetween(one, one.indexOf(0, 0), one.indexOf(1, 1))).toBe('cover');
+    expect(coverBetween(both, both.indexOf(0, 0), both.indexOf(1, 1))).toBe('cover');
+  });
+
+  it('gives no cover to a target that cannot be seen at all', () => {
+    // Not targetable is a line-of-sight answer in 2.0, not a grade of cover.
+    const grid = makeGrid(['.#...']);
+    expect(hasLineOfSight(grid, grid.indexOf(0, 0), grid.indexOf(4, 0))).toBe(false);
+    expect(coverBetween(grid, grid.indexOf(0, 0), grid.indexOf(4, 0))).toBe('none');
+  });
+
+  it('has no graded levels — 2.0 removed Light, Full and Total Cover', () => {
+    const grid = makeGrid(['....c']);
+    const cover = coverBetween(grid, grid.indexOf(0, 0), grid.indexOf(4, 0));
+    expect(['none', 'cover']).toContain(cover);
   });
 });

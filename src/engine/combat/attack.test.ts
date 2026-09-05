@@ -195,10 +195,12 @@ describe('resolveAttack — a PC attacking', () => {
     expect(outcome.damageRoll!.total).toBe(14);
   });
 
-  it('raises the Difficulty by the target cover rather than lowering the roll', () => {
+  it('costs a disadvantage die for cover, and leaves the Difficulty alone', () => {
+    // SRD 2.0: "Attacks made through cover are rolled with disadvantage." The
+    // 1.0 rule this replaced added +1 to the target's Evasion instead.
     const covered = new TileGrid({ width: 10, height: 3 });
     covered.setTerrainById(covered.indexOf(3, 0), 'cover');
-    const outcome = resolveAttack(scriptedRng([6, 5]), {
+    const outcome = resolveAttack(scriptedRng([6, 5, 4]), {
       grid: covered,
       attacker: party('kara', covered.indexOf(0, 0)),
       target: adversary('husk', covered.indexOf(3, 0)),
@@ -206,11 +208,49 @@ describe('resolveAttack — a PC attacking', () => {
       defender,
       options: { bandTiles },
     });
-    // 6 + 5 + 2 = 13 against Difficulty 13 + 1 cover = a miss by exactly one,
-    // which would have been a hit on the same roll in the open.
-    expect(outcome.dualityRoll!.total).toBe(13);
-    expect(outcome.dualityRoll!.difficulty).toBe(14);
+    expect(outcome.targeting.cover).toBe('cover');
+    expect(outcome.disadvantage).toBe(1);
+    expect(outcome.dualityRoll!.difficulty).toBe(13); // untouched by cover
+    expect(outcome.dualityRoll!.advantageDie).toBe(-4);
+    expect(outcome.dualityRoll!.total).toBe(9);
     expect(outcome.hit).toBe(false);
+
+    // The same dice in the open would have hit: 6 + 5 + 2 = 13. (The two extra
+    // faces are the damage roll that follows a hit.)
+    const open = resolveAttack(scriptedRng([6, 5, 3, 4]), {
+      grid,
+      attacker: party('kara', grid.indexOf(0, 0)),
+      target: adversary('husk', grid.indexOf(3, 0)),
+      profile: { ...greatblade, range: 'far' },
+      defender,
+      options: { bandTiles },
+    });
+    expect(open.disadvantage).toBe(0);
+    expect(open.dualityRoll!.total).toBe(13);
+    expect(open.hit).toBe(true);
+  });
+
+  it('lets advantage cancel the disadvantage that cover imposes', () => {
+    // Advantage and disadvantage cancel one for one, so a Vulnerable target in
+    // cover is attacked with neither die.
+    const covered = new TileGrid({ width: 10, height: 3 });
+    covered.setTerrainById(covered.indexOf(3, 0), 'cover');
+    const outcome = resolveAttack(scriptedRng([6, 5, 5, 6]), {
+      grid: covered,
+      attacker: party('kara', covered.indexOf(0, 0)),
+      target: {
+        ...adversary('husk', covered.indexOf(3, 0)),
+        conditions: new Set(['vulnerable']),
+      },
+      profile: { ...greatblade, range: 'far' },
+      defender,
+      options: { bandTiles },
+    });
+    expect(outcome.advantage).toBe(1);
+    expect(outcome.disadvantage).toBe(1);
+    expect(outcome.dualityRoll!.advantageDie).toBe(0);
+    expect(outcome.dualityRoll!.total).toBe(13);
+    expect(outcome.hit).toBe(true);
   });
 
   it('takes advantage from a Vulnerable target', () => {

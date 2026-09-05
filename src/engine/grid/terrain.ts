@@ -11,7 +11,7 @@
  * A grid stores one byte per tile, so a palette holds at most 256 types.
  */
 
-import type { CoverLevel } from '../rules/cover';
+
 
 export interface TerrainType {
   /** Stable id used by content and save files. Never rely on palette order. */
@@ -22,8 +22,11 @@ export interface TerrainType {
   readonly passable: boolean;
   /** Movement points to enter this tile. Ignored when impassable. */
   readonly cost: number;
-  /** Cover a creature standing here benefits from. */
-  readonly cover: CoverLevel;
+  /**
+   * Whether a creature standing here has cover — a low wall, rubble, a cart.
+   * SRD 2.0 made cover binary; the graded Light/Full levels are gone.
+   */
+  readonly providesCover: boolean;
   /** Whether the tile blocks line of sight through it. */
   readonly blocksSight: boolean;
 }
@@ -40,7 +43,7 @@ export function terrain(
     name: overrides.name ?? id,
     passable: overrides.passable ?? true,
     cost: overrides.cost ?? 1,
-    cover: overrides.cover ?? 'none',
+    providesCover: overrides.providesCover ?? false,
     blocksSight: overrides.blocksSight ?? false,
   };
 }
@@ -52,7 +55,7 @@ export function terrain(
 export const DEFAULT_TERRAIN_TYPES: readonly TerrainType[] = [
   terrain('floor', { name: 'Floor' }),
   terrain('difficult', { name: 'Difficult Terrain', cost: 2 }),
-  terrain('cover', { name: 'Cover', cover: 'light' }),
+  terrain('cover', { name: 'Cover', providesCover: true }),
   terrain('wall', { name: 'Wall', passable: false, cost: Infinity, blocksSight: true }),
 ];
 

@@ -30,9 +30,9 @@ describe('evaluateTarget', () => {
       band: 'close',
       bandLabel: 'Close',
       hasLineOfSight: true,
-      blockers: 0,
+      partialObstruction: false,
       cover: 'none',
-      coverBonus: 0,
+      coverDisadvantage: 0,
       ranged: true,
       refusal: null,
     });
@@ -72,13 +72,13 @@ describe('evaluateTarget', () => {
     expect(report.refusal).toBe('noLineOfSight');
   });
 
-  it('gives a target in cover terrain a +1 Difficulty against a ranged attack', () => {
+  it('gives a target standing in cover terrain one disadvantage die', () => {
     const grid = makeGrid(['....c']);
     const report = evaluateTarget(grid, grid.indexOf(0, 0), grid.indexOf(4, 0), 'far', {
       bandTiles,
     });
-    expect(report.cover).toBe('light');
-    expect(report.coverBonus).toBe(1);
+    expect(report.cover).toBe('cover');
+    expect(report.coverDisadvantage).toBe(1);
     expect(report.refusal).toBeNull();
   });
 
@@ -87,14 +87,14 @@ describe('evaluateTarget', () => {
     const report = evaluateTarget(grid, 0, 1, 'melee', { bandTiles });
     expect(report.ranged).toBe(false);
     expect(report.cover).toBe('none');
-    expect(report.coverBonus).toBe(0);
+    expect(report.coverDisadvantage).toBe(0);
   });
 
   it('honours an explicit ranged flag over the band default', () => {
     const grid = makeGrid(['.c']);
     const thrown = evaluateTarget(grid, 0, 1, 'melee', { bandTiles, ranged: true });
-    expect(thrown.cover).toBe('light');
-    expect(thrown.coverBonus).toBe(1);
+    expect(thrown.cover).toBe('cover');
+    expect(thrown.coverDisadvantage).toBe(1);
   });
 
   it('refuses an attacker or target that is not on the map', () => {
@@ -116,7 +116,13 @@ describe('evaluateTarget', () => {
 
 describe('refusalMessage', () => {
   it('has a message for every refusal', () => {
-    for (const refusal of ['noAttacker', 'noTarget', 'outOfRange', 'noLineOfSight', 'totalCover'] as const) {
+    for (const refusal of [
+      'noAttacker',
+      'noTarget',
+      'selfTarget',
+      'outOfRange',
+      'noLineOfSight',
+    ] as const) {
       expect(refusalMessage(refusal)).toMatch(/\w/);
     }
   });

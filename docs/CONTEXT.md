@@ -23,9 +23,10 @@ typed arrays, no per-frame allocations, measured budgets.
 - The user asked for autonomy: decide, build, test, verify. Do not leave questions for the user in code or docs.
 - Keep the original prototype runnable: it lives in `legacy/` (open `legacy/start.bat`). Do not modify `legacy/`.
 - Daggerheart SRD content is used under the **Darrington Press Community Gaming License (DPCGL)**. Keep attribution:
-  "This product includes materials from the Daggerheart System Reference Document 1.0, © Critical Role, LLC. under the
+  "This product includes materials from the Daggerheart System Reference Document 2.0, © Critical Role, LLC. under the
   terms of the Darrington Press Community Gaming (DPCGL) License. More information can be found at
   https://www.daggerheart.com." Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
+  (The vendored community *data* sets are SRD 1.0 and carry their own 1.0 attribution; keep both.)
 
 ## Chosen stack (verified working on this machine, 2026-09-04)
 
@@ -51,19 +52,30 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
 - Legacy prototype (what the user built, to be ported/superseded): `legacy/js/*.js`, `legacy/README.md`.
   Static analysis of it lives in `docs/research/legacy-{game,campaign,editor-ui,models}.md` — read those before
   re-reading the legacy sources; they carry `file:line` anchors and a port verdict per behaviour.
-- Daggerheart SRD material is **vendored into the repo** (DPCGL) under `tools/srd-sources/` — no network or
-  scratchpad needed. Both sets are plain UTF-8 (no BOM), and both are **SRD 1.0**.
+- Daggerheart SRD material is **vendored into the repo** (DPCGL) under `tools/srd-sources/` — no network
+  needed for anything.
 
-  **Rules text — use `tools/srd-sources/seansbox/README.md`.** It is a verbatim reproduction of SRD 1.0
-  (ver Sep-09-2025), 2757 lines, with headed sections. Ranges read so far: 409–500 (spotlight, turn order,
-  action rolls, GM moves), 573–700 (Hope & Fear, Evasion, HP & damage thresholds, Stress, attacking, damage,
-  critical damage, resistance/immunity, range bands), 725–832 (conditions, downtime/rests, death moves,
-  additional rules incl. rounding up), 1262–1276 (armor, reducing incoming damage), 1988–2100 (adversary stat
-  block anatomy, roles, standard passives). Quote it, and cite the section in the code comment.
+  **Rules text — use `tools/srd-sources/official-2.0/srd-2.0.txt`.** This is the *official* SRD 2.0
+  (ver 2026-08-25), extracted from the daggerheart.com PDF; see that directory's README for how, and why a
+  naive extraction is unusable. Quote it, and cite the section in the code comment. `===== PAGE n =====`
+  markers are preserved; sentences are grep-able in one piece.
 
-  `tools/srd-sources/daggersearch/core/rules.json` is a **terse summary, not the rules text** — it has known
-  defects (the Failure-with-Fear bullet has Hope/Fear swapped, its critical-damage line contradicts the verbatim
-  text, and its Range Bands entry omits Melee). Use it only as a cross-check.
+  **The engine implements SRD 2.0.** A full section-by-section diff pass against 1.0 was done on 2026-09-05.
+  Almost everything is identical — action rolls and the five outcomes, critical damage (add the maximum
+  possible dice result), damage thresholds and 1/2/3 HP, optional Massive Damage, the GM's d20 against
+  Evasion with a natural-20 crit, Hope 6 / Fear 12, Stress 6→12, Armor Score cap 12, resistance and immunity,
+  direct damage, death moves, rests, conditions, range bands. What changed:
+  - **Cover and line of sight were replaced.** 1.0 graded cover Light / Full / Total, worth +1 / +2 Evasion,
+    with Total meaning "cannot be targeted". In 2.0 those three strings do not appear at all: a ranged
+    attacker needs line of sight, a *partial* obstruction gives the target **cover**, an attack through cover
+    is rolled with **disadvantage**, and a *total* obstruction means there is simply no line of sight.
+    `src/engine/rules/cover.ts` and `src/engine/grid/los.ts` implement 2.0; the 1.0 model is gone.
+  - **Area of Effect** is new: a group effect's targets must be within Very Close of one origin point inside
+    the effect's range (`src/engine/combat/area.ts`).
+  - **Movement Under Pressure** is new: a PC may reposition within Close range as part of an action roll,
+    otherwise an Agility Roll; an adversary moves within Close free, or Very Far as an action (same file).
+  - 2.0 states explicitly what 1.0 only implied: "a player never rolls more than one advantage or
+    disadvantage die on the same roll". The engine already worked this way.
 
   **Structured data — use `tools/srd-sources/daggersearch/core/*.json`.** Well-typed, with JSON Schemas in
   `_schemas/*.schema.json`: ancestries, armors, classes, communities, consumables, domain-cards, items, rules,
@@ -76,23 +88,24 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
   `src/engine/content/srd/seansbox-adversaries.ts` normalizes the adversaries; `tests/unit/srd-content-strings.test.ts`
   asserts all 129 import with zero issues, so add a case there before trusting a new field.
 
+  **Both community sets are still SRD 1.0** and neither upstream repo had updated as of 2026-09-05. They are
+  fine as *content* — stat blocks, armor and weapon tables are unaffected by the 2.0 rules changes — but never
+  quote them for a rule. `daggersearch/core/rules.json` in particular is a terse summary with known defects
+  (the Failure-with-Fear bullet swaps Hope and Fear, and its critical-damage line contradicts the verbatim
+  text of *both* 1.0 and 2.0).
+
 - **House rules the engine adds, where the SRD is silent.** Each is a decision, not a quotation, and each
   is data or a named constant so a project can change it:
-  - Line-of-sight geometry and the cover it produces (`src/engine/grid/los.ts`). The SRD names the three
-    cover levels and their effects but leaves the geometry to the GM. Default: one blocker gives Light
-    Cover, two or more give Full; Total Cover is never inferred, only authored. Thresholds live in
-    `LineOfSightRules`.
-  - Cover raising an **adversary's Difficulty** (`COVER_APPLIES_TO_ADVERSARY_DIFFICULTY` in
-    `src/engine/combat/attack.ts`). The SRD says cover adds to *Evasion*, which is a PC stat.
+  - What makes an obstruction *partial* rather than *total* (`src/engine/grid/los.ts`). 2.0 introduces the
+    distinction but does not define the geometry. The engine's answer: running squarely into a blocking tile
+    is total; clipping a corner where only one of the two tiles blocks is partial, and gives cover.
   - Band-to-tile distances (`DEFAULT_BAND_TILES` in `src/engine/rules/range.ts`), derived from the SRD's
     own distances at 5 ft per tile.
   - Diagonal adjacency (`TargetingOptions.diagonalAdjacency`). It must follow the project's movement rules
     or a diagonal neighbour is out of Melee reach.
 
-- **Open gap: the engine implements SRD 1.0.** The official SRD is now v2.0 (Aug 2026):
-  https://www.daggerheart.com/wp-content/uploads/2026/08/DH_SRD_2_2026_08_25.pdf — not vendored, and no 1.0→2.0
-  diff pass has been done. When a rule matters, say which version it came from, and say explicitly when a rule
-  came from memory rather than from a file in this repo.
+  *(The 1.0-era house rule "cover raises an adversary's Difficulty" is gone: 2.0 puts cover on the attack
+  roll as disadvantage, which applies identically to either side and needs no engine decision.)*
 
 ## Conventions
 

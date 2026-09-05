@@ -22,7 +22,7 @@ export function paletteForProject(project: Pick<ProjectDoc, 'terrainPalette'>): 
         name: type.name === '' ? type.id : type.name,
         passable: type.passable,
         cost: type.cost,
-        cover: type.cover,
+        providesCover: type.providesCover,
         blocksSight: type.blocksSight,
       }),
     ),
