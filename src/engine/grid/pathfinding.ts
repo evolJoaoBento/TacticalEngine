@@ -49,7 +49,12 @@ export interface MovementContext {
    * Kept out of the grid because it changes every time something moves.
    */
   isBlocked?: (tile: number) => boolean;
-  /** Additional cost to enter a tile, on top of its terrain cost. */
+  /**
+   * Additional cost to enter a tile, on top of its terrain cost.
+   * Must not be negative: a negative surcharge would make `findPath`'s heuristic
+   * overestimate and quietly return non-optimal routes. Negative values are
+   * clamped to zero rather than trusted.
+   */
   extraCost?: (tile: number) => number;
 }
 
@@ -172,6 +177,19 @@ export class Pathfinder {
   /** Cheapest cost any passable terrain can charge — keeps the A* heuristic admissible. */
   private readonly minStepCost: number;
 
+  // State of the query in flight. Held on the instance so the neighbour visitor
+  // can be a single callback bound once in the constructor rather than a closure
+  // rebuilt for every tile the search expands.
+  private queryRules: MovementRules = DEFAULT_MOVEMENT;
+  private queryContext: MovementContext = {};
+  private queryGeneration = 0;
+  private queryBudget = Infinity;
+  private queryFrom = NO_TILE;
+  private queryFromCost = 0;
+  /** `NO_TILE` for an unguided flood; a goal tile switches the heap key to A*. */
+  private queryGoal = NO_TILE;
+  private readonly relaxNeighbor: (next: number) => void;
+
   constructor(grid: TileGrid) {
     this.grid = grid;
     const size = grid.size;
@@ -185,6 +203,23 @@ export class Pathfinder {
       if (type.passable) min = Math.min(min, type.cost);
     }
     this.minStepCost = Number.isFinite(min) ? Math.max(0, min) : 0;
+
+    this.relaxNeighbor = (next: number): void => {
+      const from = this.queryFrom;
+      const rules = this.queryRules;
+      const generation = this.queryGeneration;
+      if (!this.canStep(from, next, rules, this.queryContext)) return;
+
+      const total = this.queryFromCost + this.stepCost(from, next, rules, this.queryContext);
+      if (total > this.queryBudget) return;
+      if (this.stamp[next] === generation && this.cost[next]! <= total) return;
+
+      this.cost[next] = total;
+      this.prev[next] = from;
+      this.stamp[next] = generation;
+      const goal = this.queryGoal;
+      this.heap.push(next, goal === NO_TILE ? total : total + this.heuristic(next, goal, rules));
+    };
   }
 
   /**
@@ -193,7 +228,7 @@ export class Pathfinder {
    */
   reachable(start: number, budget: number, context: MovementContext = {}): ReachableField {
     const rules = context.rules ?? DEFAULT_MOVEMENT;
-    const generation = this.beginQuery();
+    const generation = this.beginQuery(rules, context, budget, NO_TILE);
     const { cost, prev, stamp, heap, grid } = this;
 
     if (grid.isTile(start)) {
@@ -212,17 +247,9 @@ export class Pathfinder {
       const currentCost = cost[current]!;
       if (currentCost >= budget) continue;
 
-      grid.forEachNeighbor(current, rules.diagonals, (next) => {
-        if (!this.canStep(current, next, rules, context)) return;
-        const stepCost = this.stepCost(current, next, rules, context);
-        const total = currentCost + stepCost;
-        if (total > budget) return;
-        if (stamp[next] === generation && cost[next]! <= total) return;
-        cost[next] = total;
-        prev[next] = current;
-        stamp[next] = generation;
-        heap.push(next, total);
-      });
+      this.queryFrom = current;
+      this.queryFromCost = currentCost;
+      grid.forEachNeighbor(current, rules.diagonals, this.relaxNeighbor);
     }
 
     return this.makeField(start, budget, generation);
@@ -242,7 +269,7 @@ export class Pathfinder {
     if (start === goal) return [start];
     if (!grid.isPassable(goal) || context.isBlocked?.(goal) === true) return null;
 
-    const generation = this.beginQuery();
+    const generation = this.beginQuery(rules, context, Infinity, goal);
     cost[start] = 0;
     prev[start] = NO_TILE;
     stamp[start] = generation;
@@ -255,16 +282,9 @@ export class Pathfinder {
       this.closed[current] = generation;
       if (current === goal) return this.tracePath(start, goal, generation);
 
-      const currentCost = cost[current]!;
-      grid.forEachNeighbor(current, rules.diagonals, (next) => {
-        if (!this.canStep(current, next, rules, context)) return;
-        const total = currentCost + this.stepCost(current, next, rules, context);
-        if (stamp[next] === generation && cost[next]! <= total) return;
-        cost[next] = total;
-        prev[next] = current;
-        stamp[next] = generation;
-        heap.push(next, total + this.heuristic(next, goal, rules));
-      });
+      this.queryFrom = current;
+      this.queryFromCost = cost[current]!;
+      grid.forEachNeighbor(current, rules.diagonals, this.relaxNeighbor);
     }
     return null;
   }
@@ -291,8 +311,19 @@ export class Pathfinder {
     return best;
   }
 
-  private beginQuery(): number {
+  private beginQuery(
+    rules: MovementRules,
+    context: MovementContext,
+    budget: number,
+    goal: number,
+  ): number {
     this.heap.clear();
+    this.queryRules = rules;
+    this.queryContext = context;
+    this.queryBudget = budget;
+    this.queryGoal = goal;
+    this.queryFrom = NO_TILE;
+    this.queryFromCost = 0;
     this.generation++;
     if (this.generation === 0x7fff_ffff) {
       // Wrapped: the only moment a full clear is needed.
@@ -300,6 +331,7 @@ export class Pathfinder {
       this.closed.fill(0);
       this.generation = 1;
     }
+    this.queryGeneration = this.generation;
     return this.generation;
   }
 
@@ -315,16 +347,26 @@ export class Pathfinder {
     if (Math.abs(grid.heightAt(to) - grid.heightAt(from)) > rules.maxStepHeight) return false;
 
     if (rules.diagonals && !rules.allowCornerCutting && grid.isDiagonalStep(from, to)) {
-      // Both tiles shared by the corner must be enterable.
+      // Both tiles shared by the corner must be enterable. Checked inline rather
+      // than through an array, so a diagonal step allocates nothing.
       const sideA = grid.indexOf(grid.xOf(to), grid.yOf(from));
       const sideB = grid.indexOf(grid.xOf(from), grid.yOf(to));
-      for (const side of [sideA, sideB]) {
-        if (!grid.isPassable(side)) return false;
-        if (context.isBlocked?.(side) === true) return false;
-        if (Math.abs(grid.heightAt(side) - grid.heightAt(from)) > rules.maxStepHeight) return false;
-      }
+      if (!this.isCornerClear(sideA, from, rules, context)) return false;
+      if (!this.isCornerClear(sideB, from, rules, context)) return false;
     }
     return true;
+  }
+
+  private isCornerClear(
+    side: number,
+    from: number,
+    rules: MovementRules,
+    context: MovementContext,
+  ): boolean {
+    const grid = this.grid;
+    if (!grid.isPassable(side)) return false;
+    if (context.isBlocked?.(side) === true) return false;
+    return Math.abs(grid.heightAt(side) - grid.heightAt(from)) <= rules.maxStepHeight;
   }
 
   private stepCost(
@@ -337,18 +379,26 @@ export class Pathfinder {
     if (rules.diagonals && this.grid.isDiagonalStep(from, to)) {
       cost *= rules.diagonalCostMultiplier;
     }
-    return cost + (context.extraCost?.(to) ?? 0);
+    return cost + Math.max(0, context.extraCost?.(to) ?? 0);
   }
 
   /**
-   * Never overestimates: the cheapest terrain cost times the fewest steps the
-   * movement rules could possibly need.
+   * Never overestimates the remaining cost, which is what keeps A* optimal: the
+   * fewest steps the movement rules could need, times the cheapest a step can
+   * possibly be.
+   *
+   * A diagonal multiplier below 1 makes a diagonal step cheaper than an
+   * orthogonal one, so it has to be folded in — otherwise a project that prices
+   * diagonals cheaply would get non-optimal paths with no error.
    */
   private heuristic(from: number, to: number, rules: MovementRules): number {
     const steps = rules.diagonals
       ? this.grid.chebyshevDistance(from, to)
       : this.grid.manhattanDistance(from, to);
-    return steps * this.minStepCost;
+    const cheapestStep = rules.diagonals
+      ? this.minStepCost * Math.min(1, rules.diagonalCostMultiplier)
+      : this.minStepCost;
+    return steps * cheapestStep;
   }
 
   private tracePath(start: number, goal: number, generation: number): number[] | null {

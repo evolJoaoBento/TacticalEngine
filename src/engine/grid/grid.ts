@@ -133,9 +133,9 @@ export class TileGrid {
    * Visit the four orthogonal neighbours of a tile, then — when `diagonals` is on —
    * the four diagonal ones. Allocation-free: the callback receives indices.
    *
-   * The visit order is fixed (west, east, north, south, then the diagonals
-   * clockwise from north-west), which is what makes tie-breaking in pathfinding
-   * deterministic.
+   * The visit order is fixed — west, east, north, south, then north-west,
+   * north-east, south-west, south-east — which is what makes tie-breaking in
+   * pathfinding deterministic.
    */
   forEachNeighbor(index: number, diagonals: boolean, visit: (neighbor: number) => void): void {
     if (!this.isTile(index)) return;

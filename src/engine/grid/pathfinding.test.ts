@@ -23,6 +23,8 @@ function makeGrid(rows: string[]): TileGrid {
 }
 
 const diagonal: MovementRules = { ...DEFAULT_MOVEMENT, diagonals: true };
+/** Diagonals priced below an orthogonal step — the case that breaks a naive heuristic. */
+const cheapDiagonal: MovementRules = { ...diagonal, diagonalCostMultiplier: 0.75 };
 
 describe('Pathfinder.reachable', () => {
   it('costs one movement point per orthogonal step', () => {
@@ -224,6 +226,37 @@ describe('Pathfinder.findPath', () => {
     expect(blockedGoal).toBeNull();
   });
 
+  it('stays optimal when diagonals are cheaper than orthogonal steps', () => {
+    // Found by searching random maps against an unfixed heuristic: with a
+    // diagonal multiplier below 1 the fewest-steps estimate can exceed the true
+    // remaining cost, and A* then pops the goal before a cheaper route to it is
+    // final. On this map it returned 9.75 where 9.5 was available.
+    const grid = makeGrid([
+      '.~.~#~.',
+      '.....#~',
+      '.~~~.~.',
+      '#..~...',
+      '~.#~#~.',
+      '.~...~#',
+      '~~.#...',
+    ]);
+    const pathfinder = new Pathfinder(grid);
+    const start = grid.indexOf(0, 0);
+    const goal = grid.indexOf(6, 6);
+
+    const path = pathfinder.findPath(start, goal, { rules: cheapDiagonal })!;
+    let cost = 0;
+    for (let i = 1; i < path.length; i++) {
+      const step = grid.costAt(path[i]!);
+      cost += grid.isDiagonalStep(path[i - 1]!, path[i]!)
+        ? step * cheapDiagonal.diagonalCostMultiplier
+        : step;
+    }
+    const field = pathfinder.reachable(start, Infinity, { rules: cheapDiagonal });
+    expect(cost).toBeCloseTo(9.5, 10);
+    expect(cost).toBeCloseTo(field.costTo(goal), 10);
+  });
+
   it('matches Dijkstra costs over many random maps', () => {
     // A* with an inadmissible heuristic silently returns non-optimal paths, so
     // this compares it against the exhaustive search on generated terrain.
@@ -250,7 +283,7 @@ describe('Pathfinder.findPath', () => {
       const pathfinder = new Pathfinder(grid);
       const start = grid.indexOf(0, 0);
       const goal = grid.indexOf(8, 8);
-      for (const rules of [DEFAULT_MOVEMENT, diagonal]) {
+      for (const rules of [DEFAULT_MOVEMENT, diagonal, cheapDiagonal]) {
         const path = pathfinder.findPath(start, goal, { rules });
         const field = pathfinder.reachable(start, Infinity, { rules });
         if (path === null) {
