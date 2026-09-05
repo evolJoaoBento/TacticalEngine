@@ -14,10 +14,13 @@ import { demoMap } from '../../legacy/js/data.js';
 import { SceneView } from '../../src/engine/render/scene-view';
 import { instanceCount } from '../../src/engine/render/terrain-mesh';
 import { tileOf } from '../../src/engine/scene/grid-from-scene';
+import { attackProfile } from '../../src/engine/character/sheet';
 import {
   DEMO_ADVERSARY_ID,
   DEMO_MOVE_BUDGET,
+  PARTY_SHEETS,
   SRD_ADVERSARIES,
+  SRD_CHARACTERS,
   attackWithSelected,
   buildDemoScene,
   inCombat,
@@ -242,6 +245,64 @@ describe('a fight, end to end', () => {
       return marks.join(',');
     };
     expect(run()).toBe(run());
+  });
+});
+
+describe('the party is built from content, not written down', () => {
+  it('derives every sheet against the vendored SRD with no issues', () => {
+    const demo = build();
+    expect(demo.characters.size).toBe(PARTY_SHEETS.length);
+    for (const sheet of PARTY_SHEETS) {
+      expect(SRD_CHARACTERS.classes.has(sheet.classId)).toBe(true);
+      expect(SRD_CHARACTERS.armors.has(sheet.armorId!)).toBe(true);
+      expect(SRD_CHARACTERS.weapons.has(sheet.primaryWeaponId!)).toBe(true);
+      expect(SRD_CHARACTERS.ancestries.has(sheet.ancestryId!)).toBe(true);
+    }
+  });
+
+  it('takes each character Hit Points and Armor Slots from their class and armor', () => {
+    const demo = build();
+    for (const [id, character] of demo.characters) {
+      const klass = SRD_CHARACTERS.classes.get(character.sheet.classId)!;
+      const armor = SRD_CHARACTERS.armors.get(character.sheet.armorId!)!;
+      const entity = demo.state.entity(id)!;
+
+      expect(entity.hitPoints.max).toBe(klass.startingHitPoints);
+      expect(entity.armorSlots.max).toBe(armor.baseScore);
+      expect(entity.stress.max).toBe(6);
+      expect(entity.hope!.value).toBe(2);
+      // Level 1, so thresholds are the armor's plus one.
+      expect(character.thresholds).toEqual({
+        major: armor.baseThresholds.major + 1,
+        severe: armor.baseThresholds.severe + 1,
+      });
+    }
+  });
+
+  it('gives the party genuinely different characters', () => {
+    const demo = build();
+    const evasions = [...demo.characters.values()].map((c) => c.evasion);
+    const hitPoints = [...demo.characters.values()].map((c) => c.hitPoints);
+    // Three classes, so these are not all the same number by construction.
+    expect(new Set([...evasions, ...hitPoints]).size).toBeGreaterThan(1);
+  });
+
+  it('rolls the trait the equipped weapon names', () => {
+    const demo = build();
+    const finn = demo.characters.get('finn')!;
+    const bow = SRD_CHARACTERS.weapons.get(finn.sheet.primaryWeaponId!)!;
+    const profile = attackProfile(finn);
+    expect(profile.name).toBe(bow.name);
+    expect(profile.modifier.modifier).toBe(finn.sheet.traits[bow.trait]);
+    expect(profile.range).toBe(bow.range);
+  });
+
+  it('gives the ranged character a longer reach than the sword-carrier', () => {
+    const demo = build();
+    const kara = attackProfile(demo.characters.get('kara')!);
+    const finn = attackProfile(demo.characters.get('finn')!);
+    expect(kara.range).toBe('melee');
+    expect(finn.range).not.toBe('melee');
   });
 });
 

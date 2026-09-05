@@ -11,8 +11,23 @@
  */
 
 import adversaryJson from '../../tools/srd-sources/seansbox/adversaries.json';
+import ancestryJson from '../../tools/srd-sources/daggersearch/core/ancestries.json';
+import armorJson from '../../tools/srd-sources/daggersearch/core/armors.json';
+import classJson from '../../tools/srd-sources/daggersearch/core/classes.json';
+import communityJson from '../../tools/srd-sources/daggersearch/core/communities.json';
+import weaponJson from '../../tools/srd-sources/daggersearch/core/weapons.json';
 import { applyAttack, resolveAttack, type AttackProfile } from '../engine/combat/attack';
 import { EncounterRunner } from '../engine/combat/encounter';
+import {
+  attackProfile,
+  blankSheet,
+  defenderProfile,
+  deriveCharacter,
+  startingPools,
+  type CharacterSheet,
+  type DerivedCharacter,
+} from '../engine/character/sheet';
+import { importCharacterContent } from '../engine/content/srd/daggersearch';
 import {
   importSeansboxAdversaries,
   type RawAdversary,
@@ -21,8 +36,6 @@ import type { AdversaryDef } from '../engine/content/types';
 import { createRng, type Rng } from '../engine/core/rng';
 import { NO_TILE, type TileGrid } from '../engine/grid/grid';
 import { Pathfinder, type ReachableField } from '../engine/grid/pathfinding';
-import { parseDice } from '../engine/rules/dice';
-import { pcThresholds } from '../engine/rules/damage';
 import { gridFromScene, tileOf } from '../engine/scene/grid-from-scene';
 import { importLegacyScene, type LegacyMap } from '../engine/scene/legacy-import';
 import { Party } from '../engine/scene/party';
@@ -53,22 +66,52 @@ export const DEMO_BAND_TILES = { melee: 1, veryClose: 2, close: 4, far: 8, veryF
  * SRD content id; neither is a model id, so the demo maps them.
  */
 export const DEMO_MODELS: Readonly<Record<string, string>> = {
-  sentinel: 'knight',
-  nightwalker: 'rogue',
-  seer: 'mage',
+  guardian: 'knight',
+  rogue: 'rogue',
+  wizard: 'mage',
   'acid-burrower': 'bramble',
   'hollow-husk': 'husk',
 };
 
-/** The party, in SRD terms. The character layer will replace this wholesale. */
-const PARTY = [
-  { id: 'kara', definition: 'sentinel', evasion: 11, hitPoints: 6, weapon: 'd10+3 phy', modifier: '+2' },
-  { id: 'finn', definition: 'nightwalker', evasion: 13, hitPoints: 5, weapon: 'd8+2 phy', modifier: '+3' },
-  { id: 'mira', definition: 'seer', evasion: 12, hitPoints: 5, weapon: 'd6+2 mag', modifier: '+2' },
-] as const;
+/** Classes, ancestries, communities, armor and weapons, from the vendored SRD. */
+export const SRD_CHARACTERS = importCharacterContent({
+  weapons: weaponJson as unknown[],
+  armors: armorJson as unknown[],
+  classes: classJson as unknown[],
+  ancestries: ancestryJson as unknown[],
+  communities: communityJson as unknown[],
+}).content;
 
-const LEVEL = 1;
-const GAMBESON = { major: 5, severe: 11 };
+/**
+ * The demo party, as authored character sheets.
+ *
+ * Everything mechanical — Evasion, Hit Points, damage thresholds, Armor Slots and
+ * the trait each attack rolls — is derived from the class, ancestry and equipment
+ * these name, rather than written down here.
+ */
+export const PARTY_SHEETS: readonly CharacterSheet[] = [
+  blankSheet('kara', 'guardian', {
+    name: 'Kara',
+    traits: { agility: 0, strength: 2, finesse: 0, instinct: 1, presence: 1, knowledge: -1 },
+    ancestryId: 'human',
+    armorId: 'chainmail-armor',
+    primaryWeaponId: 'broadsword',
+  }),
+  blankSheet('finn', 'rogue', {
+    name: 'Finn',
+    traits: { agility: 2, strength: -1, finesse: 2, instinct: 1, presence: 0, knowledge: 0 },
+    ancestryId: 'elf',
+    armorId: 'gambeson-armor',
+    primaryWeaponId: 'shortbow',
+  }),
+  blankSheet('mira', 'wizard', {
+    name: 'Mira',
+    traits: { agility: 0, strength: -1, finesse: 1, instinct: 2, presence: 1, knowledge: 2 },
+    ancestryId: 'faerie',
+    armorId: 'gambeson-armor',
+    primaryWeaponId: 'greatstaff',
+  }),
+];
 
 export interface DemoScene {
   scene: SceneDoc;
@@ -76,6 +119,8 @@ export interface DemoScene {
   state: SceneState;
   pathfinder: Pathfinder;
   party: Party;
+  /** Derived sheets, by character id. */
+  characters: ReadonlyMap<string, DerivedCharacter>;
   triggers: TriggerIndex;
   rng: Rng;
   /** Set while a fight is running. */
@@ -102,12 +147,25 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     }
   }
 
+  // Derive every sheet once; the pools a character enters a scene with come
+  // straight off it, so nothing about them is written down twice.
+  const characters = new Map<string, DerivedCharacter>();
+  for (const sheet of PARTY_SHEETS) {
+    characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS).character);
+  }
+
   const { state } = sceneStateFromScene(scene, grid, {
     adversaries: stats,
-    party: PARTY.map((member) => ({
-      ...createPartyEntity(member.id, member.definition, NO_TILE),
-      hitPoints: { max: member.hitPoints, marked: 0 },
-    })),
+    party: PARTY_SHEETS.map((sheet) => {
+      const pools = startingPools(characters.get(sheet.id)!);
+      return {
+        ...createPartyEntity(sheet.id, sheet.classId, NO_TILE),
+        hitPoints: pools.hitPoints,
+        stress: pools.stress,
+        armorSlots: pools.armorSlots,
+        hope: pools.hope,
+      };
+    }),
   });
 
   // The vault door is shut in the authored map; open it so the demo has somewhere
@@ -125,6 +183,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     state,
     pathfinder,
     party: new Party(state, pathfinder, { moveBudget: DEMO_MOVE_BUDGET }),
+    characters,
     triggers: new TriggerIndex(scene, grid),
     rng: createRng(seed),
     encounter: null,
@@ -193,16 +252,6 @@ export function startEncounter(demo: DemoScene, encounterId: string): EncounterR
   return runner;
 }
 
-const profileFor = (member: (typeof PARTY)[number]): AttackProfile => ({
-  kind: 'pc',
-  name: 'Weapon',
-  modifier: parseDice(member.modifier)!,
-  range: 'melee',
-  damage: parseDice(member.weapon)!,
-  proficiency: 1,
-});
-
-const memberOf = (id: string) => PARTY.find((m) => m.id === id);
 
 /**
  * The selected character attacks an adversary.
@@ -215,10 +264,10 @@ export function attackWithSelected(
   targetId: string,
 ): { hit: boolean; refused: string | null; hitPointsMarked: number } | null {
   const id = demo.party.selected;
-  const member = id === null ? undefined : memberOf(id);
+  const character = id === null ? undefined : demo.characters.get(id);
   const attacker = id === null ? undefined : demo.state.entity(id);
   const target = demo.state.entity(targetId);
-  if (member === undefined || attacker === undefined || target === undefined) return null;
+  if (character === undefined || attacker === undefined || target === undefined) return null;
   if (inCombat(demo) && !demo.encounter!.canAct(id!)) return null;
 
   const def = SRD_ADVERSARIES.get(target.definition) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
@@ -226,7 +275,7 @@ export function attackWithSelected(
     grid: demo.grid,
     attacker,
     target,
-    profile: profileFor(member),
+    profile: attackProfile(character),
     defender: { difficulty: def.difficulty, thresholds: def.thresholds },
     options: { bandTiles: DEMO_BAND_TILES },
   });
@@ -270,7 +319,7 @@ function attackNearestPartyMember(demo: DemoScene, adversaryId: string): void {
         demo.grid.manhattanDistance(adversary.tile, b.tile) || a.id.localeCompare(b.id),
   )[0]!;
 
-  const member = memberOf(target.id);
+  const character = demo.characters.get(target.id);
   const def = SRD_ADVERSARIES.get(adversary.definition) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
   const outcome = resolveAttack(demo.rng, {
     grid: demo.grid,
@@ -283,10 +332,11 @@ function attackNearestPartyMember(demo: DemoScene, adversaryId: string): void {
       range: def.attackRange,
       damage: def.attackDamage,
     },
-    defender: {
-      difficulty: member?.evasion ?? 11,
-      thresholds: pcThresholds(LEVEL, GAMBESON),
-    },
+    // The target defends with the Evasion and thresholds their own sheet derives.
+    defender:
+      character === undefined
+        ? { difficulty: 11, thresholds: { major: 6, severe: 12 } }
+        : defenderProfile(character),
     options: { bandTiles: DEMO_BAND_TILES },
   });
   if (outcome.refused === null) applyAttack(demo.state, outcome);

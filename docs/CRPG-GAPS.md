@@ -60,11 +60,16 @@ out of combat and solid in it, and the follow-the-leader trail the prototype had
 `scene/triggers.ts` indexes the map's trigger cells so walking into one starts its encounter and
 stops the mover there rather than letting them run past the ambush.
 
-### 5. Characters — classes, ancestries, equipment, progression
+### ~~5. Characters — classes, ancestries, equipment~~ — mostly done
 
-The vendored SRD has classes, subclasses, ancestries, communities, domain cards, armor and
-weapons; the engine models none of them. Equipment matters mechanically here — armor sets the
-damage thresholds and Armor Slots the rules already use, weapons set Proficiency dice and range.
+`content/srd/daggersearch.ts` imports the 9 classes, 18 ancestries, 9 communities, 34 armors and
+192 weapons; `character/sheet.ts` turns a sheet naming those by id into the numbers the rules
+already consume — Evasion and Hit Points from the class, damage thresholds and Armor Slots from
+the armor plus level, and an attack profile whose trait, range and dice come from the weapon.
+The demo party is three authored sheets rather than three literals.
+
+**Still open:** subclasses, domain cards and progression (levelling, advancements, multiclass).
+Those are what item 6 and a future levelling pass need.
 
 ### 6. Inventory, loot, gold
 
@@ -100,5 +105,11 @@ spotlight, all from content plus a seed. What is still missing is the ability to
 characters are three hard-coded literals in `game/demo-scene.ts` rather than sheets built from
 the vendored classes and equipment, and there is no editor, inventory or quest model.
 
-So the honest answer today is: *the engine can run a vertical slice; a designer cannot yet make
-one.* Item 5 is what closes most of that distance, and item 8 closes the rest.
+A designer can now author a *party* — three sheets naming a class, an ancestry, armor and a
+weapon produce three mechanically distinct characters with no engine code. What they still
+cannot author without code is a *scenario*: scenes, dialogue and encounters are TypeScript
+literals rather than files an editor writes, and there is no inventory or quest model.
+
+So the honest answer today is: *the engine can run a vertical slice, and a designer can build
+the characters in it but not yet the world around them.* Item 8 — the editor — is what closes
+most of the remaining distance.
