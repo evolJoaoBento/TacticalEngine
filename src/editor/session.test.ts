@@ -131,6 +131,80 @@ describe('the session', () => {
 });
 
 describe('painting terrain', () => {
+  /** A scene whose every tile carries a colour override, as the legacy importer leaves it. */
+  const tinted = (): EditorSession => {
+    const s = session();
+    const scene = s.requireScene('room');
+    scene.tints = scene.terrain.map(() => '#123456');
+    return s;
+  };
+
+  // `buildTerrainMesh` lets a tint win over the terrain type's colour, so a paint
+  // that left the tint behind changed the map for the pathfinder and not for the
+  // eye. On an imported map that is every tile.
+  it('drops the colour override so the new terrain is visible', () => {
+    const s = tinted();
+    s.run(paintTerrain('room', [0, 1], 'wall'));
+    const scene = s.requireScene('room');
+    expect(scene.terrain[0]).toBe('wall');
+    expect(scene.tints?.[0]).toBe('');
+    expect(scene.tints?.[1]).toBe('');
+    // Untouched tiles keep theirs.
+    expect(scene.tints?.[2]).toBe('#123456');
+  });
+
+  it('restores the colour override on undo', () => {
+    const s = tinted();
+    const before = snapshot(s);
+    s.run(paintTerrain('room', [0, 1], 'wall'));
+    expect(s.undo()).toBe(true);
+    expect(snapshot(s)).toBe(before);
+  });
+
+  it('restores every tint across a coalesced drag, and clears them all again on redo', () => {
+    const s = tinted();
+    const scene = s.requireScene('room');
+    const before = snapshot(s);
+
+    for (let x = 0; x < 4; x++) s.run(paintTerrain('room', brushTiles(scene, { x, y: 0 }), 'wall'));
+    expect(scene.tints?.slice(0, 4)).toEqual(['', '', '', '']);
+
+    expect(s.undo()).toBe(true);
+    expect(snapshot(s)).toBe(before);
+
+    expect(s.redo()).toBe(true);
+    // The whole drag comes back, colours included.
+    expect(s.requireScene('room').tints?.slice(0, 4)).toEqual(['', '', '', '']);
+    expect(s.requireScene('room').terrain.slice(0, 4)).toEqual(['wall', 'wall', 'wall', 'wall']);
+  });
+
+  it('repaints a tile that already holds the terrain but still carries an override', () => {
+    const s = tinted();
+    const scene = s.requireScene('room');
+    scene.terrain[0] = 'wall';
+    // The terrain matches, so the old no-op check would have skipped it and left
+    // the tile looking like whatever it was tinted.
+    expect(s.run(paintTerrain('room', [0], 'wall'))).toBe(true);
+    expect(scene.tints?.[0]).toBe('');
+  });
+
+  it('paints scenes that carry no tints at all', () => {
+    const s = session();
+    expect(s.requireScene('room').tints).toBeUndefined();
+    expect(s.run(paintTerrain('room', [0], 'wall'))).toBe(true);
+    expect(s.requireScene('room').terrain[0]).toBe('wall');
+    expect(s.undo()).toBe(true);
+    expect(s.requireScene('room').terrain[0]).toBe('floor');
+  });
+
+  it('leaves elevation alone, because Raise is a separate tool', () => {
+    const s = tinted();
+    const scene = s.requireScene('room');
+    scene.heights[0] = 3;
+    s.run(paintTerrain('room', [0], 'wall'));
+    expect(scene.heights[0]).toBe(3);
+  });
+
   it('skips tiles that already hold the terrain', () => {
     const s = session();
     s.run(paintTerrain('room', [0, 1], 'wall'));

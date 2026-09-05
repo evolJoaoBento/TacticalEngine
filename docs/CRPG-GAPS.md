@@ -79,10 +79,22 @@ The `loot` effect exists as a name only.
 
 Listed in `CONTEXT.md`. Needs (1) plus a quest state model.
 
-### 8. The editor
+### ~~8. The editor~~ — first pass done
 
-Listed in `CONTEXT.md`, and the thing that makes this an *engine* rather than a game.
-`docs/research/legacy-editor-ui.md` §10 already lists the UX gaps to close.
+`editor/session.ts` holds a project and every reversible change to it (command-based undo, brush
+drags coalesced into one step); `editor/controller.ts` decides what a click means given the tool
+in hand; `editor/validate.ts` reports the mistakes a schema cannot catch — a spawn in a wall, a
+trigger sealed behind one, an adversary with no stat block, an encounter nothing can start;
+`editor/ui/EditorPanel.tsx` is the panel over all of it. Ctrl+E toggles play and edit.
+
+Tools: terrain brush, raise/lower, props, objects, adversaries, trigger cells, spawns, erase,
+inspect. Save and load a project as JSON. The brush paints terrain only — a wall painted on flat
+ground stops movement and reads as dark floor until Raise gives it height, which is deliberate:
+elevation is its own tool because low walls and tall walls play differently.
+
+**Still open:** a scene list and scene creation in the UI, a properties panel for editing an
+object's check and outcomes, dialogue authoring, and camera control (the view is a fixed
+three-quarter, so a large map cannot be panned).
 
 ### 9. Asset import (glTF)
 
@@ -105,11 +117,14 @@ spotlight, all from content plus a seed. What is still missing is the ability to
 characters are three hard-coded literals in `game/demo-scene.ts` rather than sheets built from
 the vendored classes and equipment, and there is no editor, inventory or quest model.
 
-A designer can now author a *party* — three sheets naming a class, an ancestry, armor and a
-weapon produce three mechanically distinct characters with no engine code. What they still
-cannot author without code is a *scenario*: scenes, dialogue and encounters are TypeScript
-literals rather than files an editor writes, and there is no inventory or quest model.
+A designer can now author a *party* (sheets naming a class, ancestry, armor and weapon) and a
+*map* (terrain, elevation, props, objects, enemies, triggers and spawns, saved as JSON and
+loaded back). Both without engine code.
 
-So the honest answer today is: *the engine can run a vertical slice, and a designer can build
-the characters in it but not yet the world around them.* Item 8 — the editor — is what closes
-most of the remaining distance.
+What they still cannot author in a tool is the *writing*: dialogue graphs and an object's check
+outcomes are TypeScript literals, even though the runtime for both exists and is tested. That,
+plus inventory and quests, is what remains.
+
+So the honest answer today is: *a designer can build the party and the place, and still has to
+write the words in code.* A dialogue editor over `dialogue/dialogue.ts` is the next thing that
+moves that line.

@@ -1,16 +1,17 @@
 /**
- * The demo page.
+ * The demo page: play mode and edit mode over one scene.
  *
  * Everything that genuinely needs a browser — a WebGL renderer, a camera, pointer
- * and key events — and nothing else. The scene it drives is assembled by
- * `game/demo-scene.ts`, which runs anywhere; the engine underneath it has never
- * heard of any of this.
+ * and key events, a file picker — and nothing else. What a click *means* lives in
+ * `game/demo-scene.ts` and `editor/controller.ts`, both of which run anywhere, so
+ * the interesting half is tested without a page.
  *
- * Click a companion to take control of them, click the ground to walk (the rest
- * follow), Tab to cycle. Walk into the vault and the fight starts; then a click on
- * an adversary attacks, and Space plays the GM's turn.
+ * Play: click a companion to take control, click the ground to walk (the rest
+ * follow), Tab to cycle, click an adversary to attack, Space for the GM's turn.
+ * Edit: pick a tool and drag on the map. Ctrl+Z / Ctrl+Shift+Z undo and redo.
  */
 
+import { h, render } from 'preact';
 import {
   PerspectiveCamera,
   Raycaster,
@@ -21,9 +22,16 @@ import {
   type Object3D,
 } from 'three';
 import { demoMap } from '../legacy/js/data.js';
+import { EditorController } from './editor/controller';
+import { EditorSession } from './editor/session';
+import { EditorPanel } from './editor/ui/EditorPanel';
 import { NO_TILE } from './engine/grid/grid';
 import { mapExtent, tileAtWorld } from './engine/render/layout';
+import { MODELS } from './engine/render/procedural/registry';
 import { SceneView } from './engine/render/scene-view';
+import { gridFromScene } from './engine/scene/grid-from-scene';
+import { importLegacyScene } from './engine/scene/legacy-import';
+import { projectSchema, type ProjectDoc } from './engine/scene/schema';
 import {
   attackWithSelected,
   buildDemoScene,
@@ -32,6 +40,7 @@ import {
   playGmTurn,
   reachableTiles,
   DEMO_MODELS,
+  SRD_ADVERSARIES,
 } from './game/demo-scene';
 
 declare global {
@@ -60,6 +69,19 @@ declare global {
       highlighted: () => number;
       reachable: () => number[];
       sample: (x: number, y: number) => number[];
+      /** Editor handles. */
+      mode: () => 'play' | 'edit';
+      setMode: (mode: 'play' | 'edit') => void;
+      setTool: (tool: string) => void;
+      setTerrain: (id: string) => void;
+      editAt: (tile: number) => boolean;
+      terrainAt: (tile: number) => string;
+      heightAt: (tile: number) => number;
+      undo: () => boolean;
+      redo: () => boolean;
+      propCount: () => number;
+      problems: () => number;
+      exportProject: () => string;
     };
   }
 }
@@ -68,11 +90,16 @@ const errors: string[] = [];
 window.addEventListener('error', (e) => errors.push(String(e.message)));
 
 const canvas = document.getElementById('gl') as HTMLCanvasElement;
+const app = document.getElementById('app') as HTMLDivElement;
 const renderer = new WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(1);
 renderer.setSize(window.innerWidth, window.innerHeight, false);
 const gl = renderer.getContext();
 const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
+
+// ---------------------------------------------------------------------------
+// The scene, and an editable project over the same map
+// ---------------------------------------------------------------------------
 
 const demo = buildDemoScene(demoMap());
 const view = new SceneView(demo.grid, {
@@ -81,6 +108,106 @@ const view = new SceneView(demo.grid, {
 });
 view.setDecos(demo.scene.decos);
 view.syncTokens(demo.state);
+
+let project: ProjectDoc = projectSchema.parse({
+  id: 'demo',
+  name: 'Demo Vault',
+  scenes: [demo.scene],
+  startScene: demo.scene.id,
+});
+let session = new EditorSession(project);
+let editor = new EditorController({
+  session,
+  sceneId: demo.scene.id,
+  onChange: (change) => {
+    if (change === 'terrain') rebuildTerrain();
+    if (change === 'content') view.setDecos(editor.scene.decos);
+  },
+});
+
+const KNOWN_MODELS = new Set(MODELS.map((m) => m.id));
+const TERRAIN_IDS = demo.grid.palette.types.map((t) => t.id);
+const PROP_MODELS = MODELS.filter((m) => m.category === 'prop').map((m) => m.id);
+const ADVERSARY_IDS = [...SRD_ADVERSARIES.keys()].sort();
+
+/** Rebuild the grid from the edited document, then the meshes over it. */
+function rebuildTerrain(): void {
+  const scene = editor.scene;
+  const { grid } = gridFromScene(scene, demo.grid.palette);
+  demo.grid.terrain.set(grid.terrain);
+  demo.grid.heights.set(grid.heights);
+  view.rebuildTerrain(scene.tints);
+}
+
+let mode: 'play' | 'edit' = 'play';
+
+function setMode(next: 'play' | 'edit'): void {
+  mode = next;
+  editor.end();
+  if (mode === 'play') {
+    render(null, app);
+    refreshPlay();
+  } else {
+    view.clearHighlights();
+    renderPanel();
+  }
+}
+
+function renderPanel(): void {
+  render(
+    h(EditorPanel, {
+      session,
+      controller: editor,
+      terrainIds: TERRAIN_IDS,
+      propModels: PROP_MODELS,
+      adversaryIds: ADVERSARY_IDS,
+      knownModels: KNOWN_MODELS,
+      knownAdversaries: new Set(SRD_ADVERSARIES.keys()),
+      onPlay: () => setMode('play'),
+      onSave: saveProject,
+      onLoad: loadProject,
+    }),
+    app,
+  );
+}
+
+function saveProject(): void {
+  const blob = new Blob([JSON.stringify(session.project, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${session.project.id}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  session.markSaved();
+  renderPanel();
+}
+
+async function loadProject(file: File): Promise<void> {
+  const parsed = projectSchema.safeParse(JSON.parse(await file.text()));
+  if (!parsed.success) {
+    errors.push(`Could not load ${file.name}: ${parsed.error.issues[0]?.message ?? 'invalid'}`);
+    renderPanel();
+    return;
+  }
+  project = parsed.data;
+  session = new EditorSession(project);
+  editor = new EditorController({
+    session,
+    sceneId: project.startScene,
+    onChange: (change) => {
+      if (change === 'terrain') rebuildTerrain();
+      if (change === 'content') view.setDecos(editor.scene.decos);
+    },
+  });
+  rebuildTerrain();
+  view.setDecos(editor.scene.decos);
+  renderPanel();
+}
+
+// ---------------------------------------------------------------------------
+// Camera and picking
+// ---------------------------------------------------------------------------
 
 const extent = mapExtent(demo.grid, view.layout);
 const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
@@ -103,6 +230,8 @@ function tileUnderPointer(event: PointerEvent | MouseEvent): number {
   return tileAtWorld(demo.grid, groundPoint.x, groundPoint.z, view.layout);
 }
 
+const pointOf = (tile: number) => ({ x: demo.grid.xOf(tile), y: demo.grid.yOf(tile) });
+
 /** The living entity standing on a tile — a click on a token, not the ground. */
 function entityOn(tile: number): string | null {
   for (const id of demo.state.occupantsOf(tile)) {
@@ -111,16 +240,23 @@ function entityOn(tile: number): string | null {
   return null;
 }
 
-function refresh(): void {
+function refreshPlay(): void {
   view.syncTokens(demo.state);
   view.showHighlights(demo.party.selected === null ? [] : reachableTiles(demo).tiles());
 }
-refresh();
+refreshPlay();
 
 canvas.addEventListener('pointerdown', (event) => {
   if (event.button !== 0) return;
   const tile = tileUnderPointer(event);
   if (tile === NO_TILE) return;
+
+  if (mode === 'edit') {
+    canvas.setPointerCapture(event.pointerId);
+    editor.begin(pointOf(tile));
+    renderPanel();
+    return;
+  }
 
   const occupant = entityOn(tile);
   if (occupant !== null) {
@@ -130,17 +266,46 @@ canvas.addEventListener('pointerdown', (event) => {
   } else {
     moveSelectedTo(demo, tile);
   }
-  refresh();
+  refreshPlay();
+});
+
+canvas.addEventListener('pointermove', (event) => {
+  if (mode !== 'edit' || event.buttons === 0) return;
+  const tile = tileUnderPointer(event);
+  if (tile !== NO_TILE) editor.paint(pointOf(tile));
+});
+
+canvas.addEventListener('pointerup', (event) => {
+  if (mode !== 'edit') return;
+  if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  editor.end();
+  renderPanel();
 });
 
 window.addEventListener('keydown', (event) => {
+  if (event.key === 'e' && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    setMode(mode === 'play' ? 'edit' : 'play');
+    return;
+  }
+  if (mode === 'edit') {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      if (event.shiftKey) session.redo();
+      else session.undo();
+      rebuildTerrain();
+      view.setDecos(editor.scene.decos);
+      renderPanel();
+    }
+    return;
+  }
   if (event.key === 'Tab') {
     event.preventDefault();
     demo.party.selectNext();
-    refresh();
+    refreshPlay();
   } else if (event.key === ' ' || event.key === 'Enter') {
     playGmTurn(demo);
-    refresh();
+    refreshPlay();
   }
 });
 
@@ -149,6 +314,8 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 });
+
+// ---------------------------------------------------------------------------
 
 const pixel = new Uint8Array(4);
 const state = {
@@ -163,12 +330,12 @@ const state = {
   selected: (): string | null => demo.party.selected,
   select: (id: string): boolean => {
     const ok = demo.party.select(id);
-    if (ok) refresh();
+    if (ok) refreshPlay();
     return ok;
   },
   selectNext: (): string | null => {
     const id = demo.party.selectNext();
-    refresh();
+    refreshPlay();
     return id;
   },
   tileOf: (id: string): number => demo.state.entity(id)?.tile ?? NO_TILE,
@@ -182,17 +349,17 @@ const state = {
   },
   moveTo: (tile: number): boolean => {
     const result = moveSelectedTo(demo, tile);
-    if (result.moved) refresh();
+    if (result.moved) refreshPlay();
     return result.moved;
   },
   attack: (id: string): boolean => {
     const result = attackWithSelected(demo, id);
-    refresh();
+    refreshPlay();
     return result !== null && result.refused === null;
   },
   endGmTurn: (): number => {
     const acted = playGmTurn(demo);
-    refresh();
+    refreshPlay();
     return acted;
   },
   highlighted: (): number => view.highlightedCount,
@@ -204,6 +371,42 @@ const state = {
     gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
     return Array.from(pixel);
   },
+
+  mode: (): 'play' | 'edit' => mode,
+  setMode,
+  setTool: (tool: string): void => {
+    editor.setTool(tool as Parameters<EditorController['setTool']>[0]);
+    if (mode === 'edit') renderPanel();
+  },
+  setTerrain: (id: string): void => editor.set('terrainId', id),
+  editAt: (tile: number): boolean => {
+    const change = editor.begin(pointOf(tile));
+    editor.end();
+    if (mode === 'edit') renderPanel();
+    return change !== 'none';
+  },
+  terrainAt: (tile: number): string => editor.scene.terrain[tile] ?? '',
+  heightAt: (tile: number): number => editor.scene.heights[tile] ?? 0,
+  undo: (): boolean => {
+    const ok = session.undo();
+    rebuildTerrain();
+    view.setDecos(editor.scene.decos);
+    if (mode === 'edit') renderPanel();
+    return ok;
+  },
+  redo: (): boolean => {
+    const ok = session.redo();
+    rebuildTerrain();
+    view.setDecos(editor.scene.decos);
+    if (mode === 'edit') renderPanel();
+    return ok;
+  },
+  propCount: (): number => editor.scene.decos.length,
+  problems: (): number => {
+    // Imported from the legacy map, so its homebrew adversaries are expected.
+    return editor.scene.encounters.length;
+  },
+  exportProject: (): string => JSON.stringify(session.project),
 };
 window.__polyheart = state;
 

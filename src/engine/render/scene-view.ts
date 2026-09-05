@@ -75,7 +75,8 @@ export class SceneView {
   readonly layout: TileLayout;
   /** Everything the view owns, so a caller can add it to a scene of their own. */
   readonly root = new Group();
-  readonly terrain: TerrainMesh;
+  terrain: TerrainMesh;
+  private readonly terrainOptions: TerrainMeshOptions;
 
   readonly registry: ModelRegistry;
   readonly resources: ModelResources;
@@ -112,6 +113,7 @@ export class SceneView {
     this.scene.background = new Color('#0d0f14');
     this.scene.add(this.root);
 
+    this.terrainOptions = options;
     this.terrain = buildTerrainMesh(grid, options);
     for (const mesh of this.terrain.meshes) this.root.add(mesh);
 
@@ -191,6 +193,25 @@ export class SceneView {
     group.position.set(centre.x, centre.y + lift, centre.z);
     // A fallen creature lies down rather than vanishing; the engine keeps its body.
     group.rotation.set(entity.alive ? 0 : -Math.PI / 2, 0, 0);
+  }
+
+  /**
+   * Rebuild the terrain after an edit.
+   *
+   * Instancing groups tiles by terrain type with a fixed count per group, so a
+   * tile changing type changes group membership — cheaper and far less
+   * error-prone to rebuild the whole thing than to shuffle instances between
+   * meshes. A 22x16 map is 352 instances across four meshes; the cost is not the
+   * problem the grouping would be.
+   */
+  rebuildTerrain(tints?: readonly string[]): void {
+    for (const mesh of this.terrain.meshes) this.root.remove(mesh);
+    this.terrain.dispose();
+    this.terrain = buildTerrainMesh(this.grid, {
+      ...this.terrainOptions,
+      ...(tints === undefined ? {} : { tints }),
+    });
+    for (const mesh of this.terrain.meshes) this.root.add(mesh);
   }
 
   /** The model standing for an entity, if it has one. */

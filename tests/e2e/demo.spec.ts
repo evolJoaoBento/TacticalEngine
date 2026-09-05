@@ -34,6 +34,18 @@ declare global {
       highlighted: () => number;
       reachable: () => number[];
       sample: (x: number, y: number) => number[];
+      mode: () => 'play' | 'edit';
+      setMode: (mode: 'play' | 'edit') => void;
+      setTool: (tool: string) => void;
+      setTerrain: (id: string) => void;
+      editAt: (tile: number) => boolean;
+      terrainAt: (tile: number) => string;
+      heightAt: (tile: number) => number;
+      undo: () => boolean;
+      redo: () => boolean;
+      propCount: () => number;
+      problems: () => number;
+      exportProject: () => string;
     };
   }
 }
@@ -206,4 +218,137 @@ test('refuses a move to a tile that is out of reach', async ({ page }) => {
   expect(result.unreachable).toBeGreaterThanOrEqual(0);
   expect(result.ok).toBe(false);
   expect(result.after).toBe(result.before);
+});
+
+
+test('edits the map, and undoes exactly what it did', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  const result = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('edit');
+
+    // Paint a wall over open ground.
+    const tile = 3 * 22 + 3;
+    const before = api.terrainAt(tile);
+    api.setTool('paintTerrain');
+    api.setTerrain('wall');
+    const painted = api.editAt(tile);
+    const after = api.terrainAt(tile);
+
+    // Raise the ground next to it.
+    api.setTool('raise');
+    const heightBefore = api.heightAt(tile + 1);
+    api.editAt(tile + 1);
+    const heightAfter = api.heightAt(tile + 1);
+
+    // Drop a prop.
+    api.setTool('prop');
+    const propsBefore = api.propCount();
+    api.editAt(tile + 2);
+    const propsAfter = api.propCount();
+
+    // Undo all three.
+    api.undo();
+    api.undo();
+    api.undo();
+
+    return {
+      mode: api.mode(),
+      painted,
+      before,
+      after,
+      heightBefore,
+      heightAfter,
+      propsBefore,
+      propsAfter,
+      terrainRestored: api.terrainAt(tile),
+      heightRestored: api.heightAt(tile + 1),
+      propsRestored: api.propCount(),
+    };
+  });
+
+  expect(result.mode).toBe('edit');
+  expect(result.painted).toBe(true);
+  expect(result.before).not.toBe('wall');
+  expect(result.after).toBe('wall');
+  expect(result.heightAfter).toBe(result.heightBefore + 1);
+  expect(result.propsAfter).toBe(result.propsBefore + 1);
+
+  // Undo put the document back exactly.
+  expect(result.terrainRestored).toBe(result.before);
+  expect(result.heightRestored).toBe(result.heightBefore);
+  expect(result.propsRestored).toBe(result.propsBefore);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('shows the editor panel and keeps the scene renderable while editing', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await expect(page.locator('#app')).toContainText('Editor');
+  await expect(page.locator('#app')).toContainText('Terrain');
+
+  const drawn = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const canvas = document.getElementById('gl') as HTMLCanvasElement;
+    const middle = (): number[] => api.sample(canvas.width >> 1, canvas.height >> 1);
+
+    // Paint a block over the middle of the map, and read the same pixel either
+    // side of it. Asserting only that the frame is non-uniform passed happily
+    // while the brush was writing terrain the renderer never showed, because the
+    // imported per-tile tint outranked it.
+    const before = middle();
+    api.setTool('paintTerrain');
+    api.setTerrain('wall');
+    for (let y = 4; y < 12; y++) for (let x = 6; x < 16; x++) api.editAt(y * 22 + x);
+    const after = middle();
+
+    return {
+      before,
+      after,
+      samples: [api.sample(2, 2), middle(), api.sample(canvas.width >> 2, canvas.height >> 1)],
+      exported: api.exportProject().length,
+    };
+  });
+
+  // The paint reached the screen, not just the document.
+  expect(drawn.after).not.toEqual(drawn.before);
+  expect(new Set(drawn.samples.map((s) => s.join(','))).size).toBeGreaterThan(1);
+  // The edited project still serialises.
+  expect(drawn.exported).toBeGreaterThan(100);
+  expect(consoleErrors).toEqual([]);
+});
+
+test('returns to play with the edited map underfoot', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  const result = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const selected = api.selected()!;
+    const start = api.tileOf(selected);
+
+    // Wall in the tile immediately east of the party, then play again.
+    api.setMode('edit');
+    api.setTool('paintTerrain');
+    api.setTerrain('wall');
+    api.editAt(start + 1);
+    api.setMode('play');
+
+    return {
+      mode: api.mode(),
+      walled: api.terrainAt(start + 1),
+      canWalkIntoWall: api.reachable().includes(start + 1),
+      reachable: api.reachable().length,
+    };
+  });
+
+  expect(result.mode).toBe('play');
+  expect(result.walled).toBe('wall');
+  // The pathfinder is reading the edited terrain, not the imported terrain.
+  expect(result.canWalkIntoWall).toBe(false);
+  expect(result.reachable).toBeGreaterThan(0);
+
+  expect(consoleErrors).toEqual([]);
 });

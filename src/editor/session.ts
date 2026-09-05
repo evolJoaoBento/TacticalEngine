@@ -35,6 +35,11 @@ export interface Edit {
    * empty strings over them.
    */
   absorb?(other: Edit): boolean;
+  /**
+   * Whether the edit turned out to change nothing — painting floor onto floor.
+   * A no-op is not worth an undo step, and a viewport should not redraw for it.
+   */
+  isNoop?(): boolean;
 }
 
 export interface SessionOptions {
@@ -57,6 +62,8 @@ export class EditorSession {
   private readonly limit: number;
   private readonly listeners = new Set<SessionListener>();
   private savedAt = 0;
+  /** Set by `endGroup`, so the next edit starts a fresh undo step. */
+  private groupBroken = false;
 
   constructor(project: ProjectDoc, options: SessionOptions = {}) {
     this.project = project;
@@ -73,14 +80,23 @@ export class EditorSession {
     for (const listener of this.listeners) listener(this);
   }
 
-  /** Apply an edit, coalescing it into the last one when both agree to. */
-  run(edit: Edit): void {
+  /**
+   * Apply an edit, coalescing it into the last one when both agree to.
+   * Returns whether anything actually changed, so a caller knows whether to
+   * redraw — an edit that turned out to be a no-op reports false.
+   */
+  run(edit: Edit): boolean {
     // Apply first: an edit only knows what it replaced once it has run, and the
     // previous edit needs exactly that to extend its own undo record.
     edit.apply(this.project);
 
+    // An edit that changed nothing is not worth remembering, and nothing has to
+    // be redrawn for it.
+    if (edit.isNoop?.() === true) return false;
+
     const last = this.done[this.done.length - 1];
     const mergeable =
+      !this.groupBroken &&
       last !== undefined &&
       this.undone.length === 0 &&
       // A save is a boundary: coalescing into an already-saved edit would leave
@@ -90,9 +106,10 @@ export class EditorSession {
       last.mergeKey === edit.mergeKey;
     if (mergeable && last!.absorb?.(edit) === true) {
       this.notify();
-      return;
+      return true;
     }
 
+    this.groupBroken = false;
     this.done.push(edit);
     if (this.done.length > this.limit) {
       this.done.shift();
@@ -102,6 +119,18 @@ export class EditorSession {
     // A new edit discards the redo branch, as every editor does.
     this.undone.length = 0;
     this.notify();
+    return true;
+  }
+
+  /**
+   * End the current undo group.
+   *
+   * A drag is one undo step, but two drags are two — releasing the pointer is the
+   * boundary, and without this a second stroke of the same brush would silently
+   * join the first.
+   */
+  endGroup(): void {
+    this.groupBroken = true;
   }
 
   get canUndo(): boolean {
@@ -122,6 +151,7 @@ export class EditorSession {
   }
 
   undo(): boolean {
+    this.groupBroken = true;
     const edit = this.done.pop();
     if (edit === undefined) return false;
     edit.undo(this.project);
@@ -172,6 +202,22 @@ const inBounds = (scene: SceneDoc, point: Point): boolean =>
   point.x >= 0 && point.y >= 0 && point.x < scene.width && point.y < scene.height;
 
 /**
+ * A second, parallel per-tile array an edit blanks as it writes.
+ *
+ * `SceneDoc.tints` is a per-tile colour override, and `buildTerrainMesh` lets it
+ * win over the terrain type's own colour. The legacy importer writes a tint for
+ * every tile, so without this a terrain brush changed what the pathfinder saw and
+ * nothing of what the author saw - the paint was invisible on exactly the maps
+ * people start from.
+ */
+interface TileClear {
+  /** The array to blank, or undefined when the scene carries none. */
+  read: (scene: SceneDoc) => (string | undefined)[] | undefined;
+  /** The value meaning "nothing authored here". */
+  empty: string;
+}
+
+/**
  * An edit that writes one value across a set of tiles in an array on the scene,
  * remembering what each held.
  *
@@ -185,6 +231,7 @@ function tileValueEdit<T>(
   label: string,
   mergeKey: string,
   read: (scene: SceneDoc) => (T | undefined)[],
+  alsoClear?: TileClear,
 ): Edit {
   // Every tile this edit is responsible for. It grows as drags are absorbed, and
   // it — not the original argument — is what a redo replays, or a merged drag
@@ -193,33 +240,61 @@ function tileValueEdit<T>(
   // Parallel arrays rather than a Map: a brush drag appends thousands of times.
   const changed: number[] = [];
   const previous: T[] = [];
+  // What the cleared array held per changed tile, so undo restores the colour as
+  // well as the terrain. `undefined` means the scene had no such array.
+  const previousCleared: (string | undefined)[] = [];
 
   const edit: Edit = {
     label,
     mergeKey,
     apply(project) {
-      const array = read(requireScene(project, sceneId));
+      const scene = requireScene(project, sceneId);
+      const array = read(scene);
+      const clearing = alsoClear?.read(scene);
       changed.length = 0;
       previous.length = 0;
+      previousCleared.length = 0;
       for (const tile of targets) {
         const current = array[tile];
+        if (current === undefined) continue;
+        const cleared = clearing?.[tile];
+        const needsClear = cleared !== undefined && cleared !== alsoClear!.empty;
         // Skip tiles already holding the value, so re-dragging over painted
-        // ground does not fill the history with no-ops.
-        if (current === undefined || current === value) continue;
+        // ground does not fill the history with no-ops. A tile that still
+        // carries a colour override is not "already painted", however the
+        // document reads.
+        if (current === value && !needsClear) continue;
         changed.push(tile);
         previous.push(current);
+        previousCleared.push(cleared);
         array[tile] = value;
+        if (needsClear) clearing![tile] = alsoClear!.empty;
       }
     },
     undo(project) {
-      const array = read(requireScene(project, sceneId));
+      const scene = requireScene(project, sceneId);
+      const array = read(scene);
+      const clearing = alsoClear?.read(scene);
       changed.forEach((tile, i) => {
         array[tile] = previous[i]!;
+        const cleared = previousCleared[i];
+        if (clearing !== undefined && cleared !== undefined) clearing[tile] = cleared;
       });
     },
+    isNoop() {
+      return changed.length === 0;
+    },
     absorb(other) {
-      const record = (other as Edit & { __tiles?: { changed: number[]; previous: T[]; targets: number[] } })
-        .__tiles;
+      const record = (
+        other as Edit & {
+          __tiles?: {
+            changed: number[];
+            previous: T[];
+            previousCleared: (string | undefined)[];
+            targets: number[];
+          };
+        }
+      ).__tiles;
       if (record === undefined) return false;
       record.changed.forEach((tile, i) => {
         // A tile this edit already touched keeps its *original* value, which is
@@ -227,6 +302,7 @@ function tileValueEdit<T>(
         if (changed.includes(tile)) return;
         changed.push(tile);
         previous.push(record.previous[i]!);
+        previousCleared.push(record.previousCleared[i]);
       });
       for (const tile of record.targets) {
         if (!targets.includes(tile)) targets.push(tile);
@@ -234,12 +310,17 @@ function tileValueEdit<T>(
       return true;
     },
   };
-  (edit as Edit & { __tiles: unknown }).__tiles = { changed, previous, targets };
+  (edit as Edit & { __tiles: unknown }).__tiles = { changed, previous, previousCleared, targets };
   return edit;
 }
 
 /**
  * Paint terrain onto tiles. Dragging a brush is one undo step.
+ *
+ * Painting also drops the tile's colour override, so the new terrain is the
+ * colour the palette says it is. Elevation deliberately does not change: a wall
+ * painted at ground level is one the party cannot cross but can see over, and
+ * Raise is a separate tool.
  */
 export function paintTerrain(sceneId: string, tiles: readonly number[], terrainId: string): Edit {
   return tileValueEdit(
@@ -249,6 +330,7 @@ export function paintTerrain(sceneId: string, tiles: readonly number[], terrainI
     `Paint ${terrainId}`,
     `paint:${sceneId}:${terrainId}`,
     (scene) => scene.terrain,
+    { read: (scene) => scene.tints, empty: '' },
   );
 }
 
