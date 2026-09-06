@@ -46,6 +46,8 @@ switches between play and edit at any time.
 | Left click | Party member: select. Adversary: attack with the selected character. Object: use it. Ground: walk there. | Apply the current tool to the tile |
 | Left drag | Orbit the camera | Paint / drag with the current tool |
 | Right or middle drag | Pan the camera | Pan the camera |
+| Right click (still) | Inspect what is under the pointer: a card with a character's pools, Evasion and gear, an adversary's tier, role and Difficulty, or an object's kind, state and the roll it asks for | — |
+| `Escape` | Close the inspect card | — |
 | Mouse wheel | Zoom | Zoom |
 | `W A S D` / arrow keys | Pan (held; smooth) | — |
 | `Q` / `E` | Turn the camera | — |
@@ -139,7 +141,14 @@ item with id X.
 **Equip** puts a carried weapon or armor item on the *selected* character. The item leaves the
 pack; what it replaced returns to the pack if the project has an item for it. Evasion, damage,
 thresholds and Armor Slots are re-derived; nothing marked is cleared. Armor cannot be changed
-during a fight; a weapon can. Consumables are carried, not used (see Limits).
+during a fight; a weapon can.
+
+**Use** runs a consumable's `use` effects with the *selected* character as the actor — the
+demo's healing draught clears 2 marked Hit Points. The item is spent before its effects run,
+so a use script that stops to ask something (a roll, a choice) has already consumed it even if
+you cancel. In a fight, using something is that character's action, and nothing can be used
+while a prompt is waiting or during the GM's turn. An item with no `use` effects has no Use
+button.
 
 ### Travel
 
@@ -478,8 +487,9 @@ elf, gambeson, shortbow) and Mira (Wizard, faerie, gambeson, greatstaff), each w
 two domain cards and one Experience. Every adversary uses the SRD Acid Burrower's stat block,
 standing in for the prototype's homebrew Hollow Husks.
 
-1. **The Husk Vault** (imported from the prototype's map, 22×16). The vault door is opened for
-   you by the demo builder. East of the door, trigger cells start the husk fight; a chest opens
+1. **The Husk Vault** (imported from the prototype's map, 22×16). The vault door starts shut
+   and in the way: using it is a Finesse 13 roll, a failure leaves it shut, and a door can be
+   tried again. East of the door, trigger cells start the husk fight; a chest opens
    on a Finesse check and pays out from the `vault-chest` table (gold, a healing draught, or
    the brass key).
 2. **The Warden** is the carved pillar. Using it starts the conversation and the quest
@@ -554,6 +564,7 @@ Play                                   Edit
   Left click   select / attack / use / walk   apply tool
   Left drag    orbit                          paint or drag with tool
   Right drag   pan                            pan
+  Right click  inspect (Escape closes)        —
   Wheel        zoom                           zoom
   WASD/arrows  pan                            —
   Q / E        turn                           —
@@ -563,4 +574,7 @@ Play                                   Edit
   Space/Enter  GM turn                        —
   Ctrl+Z / Ctrl+Shift+Z   —                   undo / redo
   Ctrl+E       toggle play / edit (both modes)
+
+Play panel:  Save (quick slot) · Save as… (named) · Load (list; load or delete)
+             Use / Equip beside a pack item · Level up beside a name when a level is owed
 ```

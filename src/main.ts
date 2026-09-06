@@ -133,6 +133,7 @@ declare global {
       equip: (id: string) => string;
       useItem: (id: string) => string;
       objectState: (id: string) => { used: boolean; open: boolean; removed: boolean };
+      objectTile: (id: string) => number;
       inspect: (tile: number) => { kind: string; id: string; name: string; facts: string[] } | null;
       animating: () => number;
       wound: (id: string, marks: number) => void;
@@ -154,7 +155,7 @@ declare global {
       load: () => boolean;
       saveAs: (name: string) => string | null;
       loadSlot: (id: string) => boolean;
-      saves: () => { id: string; name: string; where: string }[];
+      saves: () => { id: string; name: string; where: string; savedAt: number }[];
       saveBlocked: () => string | null;
       saveText: () => string | null;
       mode: () => 'play' | 'edit';
@@ -579,6 +580,9 @@ function loadSlot(id: string): boolean {
   // The room may have changed under the renderer, so force a rebind the way
   // loading a project does.
   boundScene = '';
+  // A load is not a doorway: the room changed, but the autosave from the
+  // last real doorway must survive so a bad load can be undone.
+  lastRoom = demo.scene.id;
   note(demo, 'Loaded.', 'system');
   return true;
 }
@@ -1129,6 +1133,7 @@ const state = {
     return inspecting === null ? null : { kind: inspecting.kind, id: inspecting.id, name: inspecting.name, facts: [...inspecting.facts] };
   },
   animating: (): number => view.animationCount,
+  objectTile: (id: string): number => demo.state.interactableTile(id),
   objectState: (id: string): { used: boolean; open: boolean; removed: boolean } => {
     const s = demo.state.interactable(id);
     return { used: s.used, open: s.open, removed: s.removed };
@@ -1222,8 +1227,8 @@ const state = {
     refreshPlay();
     return ok;
   },
-  saves: (): { id: string; name: string; where: string }[] =>
-    slots.list().map((slot) => ({ id: slot.id, name: slot.name, where: slot.where })),
+  saves: (): { id: string; name: string; where: string; savedAt: number }[] =>
+    slots.list().map((slot) => ({ id: slot.id, name: slot.name, where: slot.where, savedAt: slot.savedAt })),
   saveBlocked: (): string | null => saveBlockedBy(demo),
   saveText: (): string | null => slots.read(QUICK_SLOT),
 

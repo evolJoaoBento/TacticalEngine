@@ -67,6 +67,7 @@ declare global {
       equip: (id: string) => string;
       useItem: (id: string) => string;
       objectState: (id: string) => { used: boolean; open: boolean; removed: boolean };
+      objectTile: (id: string) => number;
       inspect: (tile: number) => { kind: string; id: string; name: string; facts: string[] } | null;
       animating: () => number;
       wound: (id: string, marks: number) => void;
@@ -88,7 +89,7 @@ declare global {
       load: () => boolean;
       saveAs: (name: string) => string | null;
       loadSlot: (id: string) => boolean;
-      saves: () => { id: string; name: string; where: string }[];
+      saves: () => { id: string; name: string; where: string; savedAt: number }[];
       saveBlocked: () => string | null;
       saveText: () => string | null;
       mode: () => 'play' | 'edit';
@@ -1520,6 +1521,18 @@ test('keeps named saves and an autosave from the last doorway', async ({ page })
   await page.locator('[data-testid="load"]').click();
   const list = page.locator('[data-testid="saves"]');
   await expect(list).toContainText('Before the stairs');
+  // A fresh boot starts in the vault, so loading "Downstairs" changes rooms.
+  // A load is not a doorway: the autosave from the stairs must still be the
+  // one from the stairs, not a copy of what was just loaded.
+  const autosaveBefore = await page.evaluate(() => window.__polyheart!.saves().find((s) => s.name === 'Autosave'));
+  await list.locator(`[data-save="${ids.downstairs}"] [data-testid="load-slot"]`).click();
+  expect(await page.evaluate(() => window.__polyheart!.sceneId())).toBe('the-pit');
+  const autosaveAfter = await page.evaluate(() => window.__polyheart!.saves().find((s) => s.name === 'Autosave'));
+  expect(autosaveAfter).toEqual(autosaveBefore);
+  expect(autosaveAfter!.where).toContain('Sounding Pit');
+
+  // And loading the older slot puts the party back upstairs, pack intact.
+  await page.locator('[data-testid="load"]').click();
   await list.locator(`[data-save="${ids.beforeTravel}"] [data-testid="load-slot"]`).click();
   expect(await page.evaluate(() => window.__polyheart!.sceneId())).not.toBe('the-pit');
   expect(await page.evaluate(() => window.__polyheart!.carried().length)).toBeGreaterThan(0);
@@ -1563,11 +1576,18 @@ test('right-clicks to inspect, and Escape closes the card', async ({ page }) => 
   const chest = await page.evaluate(() => {
     const api = window.__polyheart!;
     const id = api.objects().find((o) => o.startsWith('chest'))!;
-    const tile = api.sceneTiles(); // any call to keep the handle warm
-    void tile;
-    return api.inspect(api.party().length > 0 ? api.tileOf('kara') : 0) === null ? null : id;
+    const shut = api.inspect(api.objectTile(id));
+    api.standBeside(id);
+    api.use(id);
+    api.answer({ kind: 'roll' });
+    const after = api.inspect(api.objectTile(id));
+    return { id, shut, after, state: api.objectState(id) };
   });
-  expect(chest).not.toBeNull();
+  expect(chest.shut).toMatchObject({ kind: 'object', id: chest.id, name: 'Old Wooden Chest' });
+  expect(chest.shut!.facts).toEqual(expect.arrayContaining(['finesse 12']));
+  expect(chest.shut!.facts).not.toContain('Open');
+  // After the roll the card says so — Open on a success, Used on a failure.
+  expect(chest.after!.facts).toContain(chest.state.open ? 'Open' : 'Used');
 
   expect(consoleErrors).toEqual([]);
 });
