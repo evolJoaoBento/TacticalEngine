@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'preact/hooks';
-import type { LogLine, PendingScript } from '../demo-scene';
+import type { LogLine, Pending } from '../demo-scene';
 import type { Response } from '../../engine/script/runner';
 
 /** One line of the pack: what it is, and how many. */
@@ -54,7 +54,7 @@ export interface PlayPanelProps {
   journal: readonly JournalQuest[];
   /** What the party is carrying. */
   carried: readonly CarriedItem[];
-  pending: PendingScript | null;
+  pending: Pending | null;
   /** Named when something is close enough to touch. */
   within: string | null;
   onUse: (id: string) => void;
@@ -143,7 +143,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
 
   // A conversation raises its own prompts, so the panel reads the innermost
   // thing waiting rather than assuming the script is the one asking.
-  const talking = pending?.dialogue ?? null;
+  const talking = pending !== null && pending.kind === 'script' ? pending.dialogue : null;
   const asking = talking?.prompt ?? (talking === null ? (pending?.prompt ?? null) : null);
   const check = asking !== null && asking.kind === 'check' ? asking : null;
   const choice = asking !== null && asking.kind === 'choice' ? asking : null;
@@ -396,17 +396,24 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {choice !== null ? (
-        <div style={{ ...logBox, background: 'rgba(20,26,34,0.95)' }}>
+        <div data-testid="choice-prompt" style={{ ...logBox, background: 'rgba(20,26,34,0.95)' }}>
           {choice.title !== undefined ? (
             <div style={{ marginBottom: '6px', fontWeight: 600 }}>{choice.title}</div>
+          ) : null}
+          {choice.body !== undefined ? (
+            <div style={{ marginBottom: '6px', color: '#b9c6d0' }}>{choice.body}</div>
           ) : null}
           {choice.options.map((option) => (
             <button
               key={option.index}
+              data-option={option.index}
               style={{ ...button(false), display: 'block', marginBottom: '4px', width: '100%', textAlign: 'left' }}
               onClick={() => props.onAnswer({ kind: 'choose', index: option.index })}
             >
               {option.label}
+              {option.detail === undefined ? null : (
+                <span style={{ color: '#8ea3b0' }}> — {option.detail}</span>
+              )}
             </button>
           ))}
         </div>

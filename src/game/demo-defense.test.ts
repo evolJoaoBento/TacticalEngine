@@ -3,7 +3,17 @@ import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { runScript } from '../engine/script/runner';
 import { rest, useAbility } from './demo-abilities';
-import { SRD_CHARACTERS, buildDemoScene, refreshWorld, syncPools, type DemoScene } from './demo-scene';
+import { NO_TILE } from '../engine/grid/grid';
+import {
+  SRD_CHARACTERS,
+  answerPending,
+  buildDemoScene,
+  endTurn,
+  refreshWorld,
+  startEncounter,
+  syncPools,
+  type DemoScene,
+} from './demo-scene';
 
 /**
  * Passives and reactions in play: what a held card changes on the sheet,
@@ -120,5 +130,180 @@ describe('reactions when a hit lands', () => {
       return;
     }
     throw new Error('the ward never helped in twenty seeds');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The defender's choice
+// ---------------------------------------------------------------------------
+
+/** A fight where one husk stands next to Kara and the party is asked. */
+function standoff(seed = 'ask'): DemoScene {
+  const demo = scene(seed);
+  demo.askDefender = true;
+  const foe = demo.state
+    .entitiesOf('adversary')
+    .filter((e) => e.alive)
+    .sort((a, b) => demo.grid.manhattanDistance(demo.state.entity('kara')!.tile, a.tile) - demo.grid.manhattanDistance(demo.state.entity('kara')!.tile, b.tile))[0]!;
+  // Kara beside it, the others out of the way but in range to help.
+  const blocked = demo.state.blockedFor('kara');
+  let stand = NO_TILE;
+  demo.grid.forEachNeighbor(foe.tile, false, (tile) => {
+    if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+  });
+  demo.state.moveEntity('kara', stand);
+  demo.party.select('kara');
+  startEncounter(demo, demo.scene.encounters[0]!.id);
+  // Everyone else is down, so the husk always swings at Kara.
+  for (const e of demo.state.entitiesOf('adversary')) {
+    if (e.id !== foe.id) {
+      e.hitPoints = { ...e.hitPoints, marked: e.hitPoints.max };
+      e.alive = false;
+    }
+  }
+  return demo;
+}
+
+/** Play GM turns until the husk's blow actually lands on someone. */
+function untilAsked(demo: DemoScene, limit = 30): boolean {
+  for (let i = 0; i < limit; i++) {
+    endTurn(demo);
+    if (demo.pending !== null) return true;
+    if (demo.encounter?.outcome !== 'ongoing') return false;
+  }
+  return false;
+}
+
+describe('being asked how a hit lands', () => {
+  it('offers the Armor Slot and the cards that can pay, and marks what was chosen', () => {
+    const demo = standoff();
+    expect(untilAsked(demo)).toBe(true);
+    const pending = demo.pending!;
+    expect(pending.kind).toBe('defense');
+    if (pending.kind !== 'defense') throw new Error('expected a defence');
+    expect(pending.prompt.kind).toBe('choice');
+    const labels = pending.choices.map((c) => c.label);
+    // "Take it" is always there, and always first, so there is always an answer.
+    expect(labels[0]).toMatch(/^Take it — \d Hit Point/);
+    expect(labels.some((l) => l.startsWith('Mark an Armor Slot'))).toBe(true);
+    const kara = demo.state.entity('kara')!;
+    const armorBefore = kara.armorSlots.marked;
+    const hpBefore = kara.hitPoints.marked;
+
+    const armor = labels.findIndex((l) => l.startsWith('Mark an Armor Slot'));
+    const promised = Number(/— (\d+) Hit Point/.exec(labels[armor]!)![1]);
+    answerPending(demo, { kind: 'choose', index: armor });
+    expect(demo.state.entity('kara')!.armorSlots.marked).toBe(armorBefore + 1);
+    expect(demo.state.entity('kara')!.hitPoints.marked).toBe(hpBefore + promised);
+    // The question is answered and the fight moves on.
+    expect(demo.pending).toBeNull();
+  });
+
+  it('takes it as it comes when the answer is stepped back from', () => {
+    const demo = standoff('step-back');
+    expect(untilAsked(demo)).toBe(true);
+    const pending = demo.pending!;
+    if (pending.kind !== 'defense') throw new Error('expected a defence');
+    const straight = Number(/— (\d+) Hit Point/.exec(pending.choices[0]!.label)![1]);
+    const kara = demo.state.entity('kara')!;
+    const before = { hp: kara.hitPoints.marked, armor: kara.armorSlots.marked };
+    answerPending(demo, { kind: 'cancel' });
+    expect(demo.state.entity('kara')!.hitPoints.marked).toBe(before.hp + straight);
+    expect(demo.state.entity('kara')!.armorSlots.marked).toBe(before.armor);
+  });
+
+  it('holds the rest of the GM\'s turn until it is answered', () => {
+    const demo = standoff('two-husks');
+    // Wake a second husk beside Finn, so the GM has two to spotlight.
+    const down = demo.state.entitiesOf('adversary').find((e) => !e.alive)!;
+    down.alive = true;
+    down.hitPoints = { ...down.hitPoints, marked: 0 };
+    demo.state.moveEntity('finn', demo.state.entity('kara')!.tile === NO_TILE ? down.tile : down.tile);
+    expect(untilAsked(demo)).toBe(true);
+    const turn = demo.gmTurn;
+    expect(turn).not.toBeNull();
+    // Something is still to act, and nothing else has happened yet.
+    const linesBefore = demo.log.length;
+    expect(demo.pending).not.toBeNull();
+    answerPending(demo, { kind: 'choose', index: 0 });
+    expect(demo.log.length).toBeGreaterThan(linesBefore);
+    // Either the turn finished, or it stopped again on the second husk's blow.
+    expect(demo.gmTurn === null || demo.pending !== null).toBe(true);
+  });
+
+  it('decides for itself when nobody is being asked', () => {
+    const demo = standoff('auto');
+    demo.askDefender = false;
+    for (let i = 0; i < 20 && demo.encounter?.outcome === 'ongoing'; i++) endTurn(demo);
+    expect(demo.pending).toBeNull();
+    expect(demo.gmTurn).toBeNull();
+  });
+});
+
+describe('an ally interrupting', () => {
+  it('takes the hit instead when I Am Your Shield is chosen', () => {
+    const demo = standoff('shield');
+    // Finn holds the card and stands beside Kara.
+    demo.sheets.set('finn', { ...demo.sheets.get('finn')!, domainCards: ['i-am-your-shield'], loadout: ['i-am-your-shield'] });
+    demo.characters.set('finn', deriveCharacter(demo.sheets.get('finn')!, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    const blocked = demo.state.blockedFor('finn');
+    let beside = NO_TILE;
+    demo.grid.forEachNeighbor(demo.state.entity('kara')!.tile, false, (tile) => {
+      if (beside === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) beside = tile;
+    });
+    demo.state.moveEntity('finn', beside);
+
+    expect(untilAsked(demo)).toBe(true);
+    const pending = demo.pending!;
+    if (pending.kind !== 'defense') throw new Error('expected a defence');
+    const shield = pending.choices.findIndex((c) => c.kind === 'redirect');
+    expect(shield).toBeGreaterThan(-1);
+    const karaBefore = demo.state.entity('kara')!.hitPoints.marked;
+    const finn = demo.state.entity('finn')!;
+    const finnStress = finn.stress.marked;
+    answerPending(demo, { kind: 'choose', index: shield });
+
+    // Finn marked the Stress and is now the one being asked how it lands.
+    expect(demo.state.entity('finn')!.stress.marked).toBe(finnStress + 1);
+    expect(demo.log.map((l) => l.text).some((t) => t.includes('steps in front of Kara'))).toBe(true);
+    if (demo.pending !== null) {
+      expect(demo.pending.kind).toBe('defense');
+      if (demo.pending.kind === 'defense') expect(demo.pending.attack.defender).toBe('finn');
+      answerPending(demo, { kind: 'choose', index: 0 });
+    }
+    expect(demo.state.entity('kara')!.hitPoints.marked).toBe(karaBefore);
+    expect(demo.state.entity('finn')!.hitPoints.marked).toBeGreaterThan(0);
+  });
+
+  it('makes the adversary roll again for Not This Time, and asks once per hit', () => {
+    const demo = standoff('reroll');
+    const mira = demo.state.entity('mira')!;
+    mira.hope = { max: 6, value: 6 };
+    // Mira is a Wizard: Not This Time is her Hope feature. She has to be able
+    // to see it happen — within Far range of the adversary.
+    const blockedForMira = demo.state.blockedFor('mira');
+    let watching = NO_TILE;
+    demo.grid.forEachNeighbor(demo.state.entity('kara')!.tile, false, (tile) => {
+      if (watching === NO_TILE && demo.grid.isPassable(tile) && !blockedForMira(tile)) watching = tile;
+    });
+    demo.state.moveEntity('mira', watching);
+
+    expect(untilAsked(demo)).toBe(true);
+    const pending = demo.pending!;
+    if (pending.kind !== 'defense') throw new Error('expected a defence');
+    const reroll = pending.choices.findIndex((c) => c.kind === 'reroll');
+    expect(reroll).toBeGreaterThan(-1);
+    answerPending(demo, { kind: 'choose', index: reroll });
+    // Three Hope gone, and the log says the blow came again.
+    expect(demo.state.entity('mira')!.hope!.value).toBe(3);
+    expect(demo.log.map((l) => l.text).some((t) => t.includes('Not This Time'))).toBe(true);
+
+    // If it still landed, the same card is not offered twice for the same hit.
+    if (demo.pending !== null && demo.pending.kind === 'defense') {
+      expect(demo.pending.choices.some((c) => c.kind === 'reroll')).toBe(false);
+      answerPending(demo, { kind: 'choose', index: 0 });
+    }
+    expect(demo.pending).toBeNull();
   });
 });

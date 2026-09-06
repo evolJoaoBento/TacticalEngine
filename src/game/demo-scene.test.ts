@@ -8,6 +8,7 @@ import {
   reachableInteractable,
   useSelectedOn,
   type DemoScene,
+  scriptPending,
 } from './demo-scene';
 
 /**
@@ -56,7 +57,7 @@ describe('using the demo vault', () => {
     const result = useSelectedOn(demo, CHEST);
     expect(result.status).toBe('waiting');
     expect(demo.pending?.prompt.kind).toBe('check');
-    expect(demo.pending?.interactable).toBe(CHEST);
+    expect(scriptPending(demo)?.interactable).toBe(CHEST);
     // The chest's own words reached the log before the roll was asked for.
     expect(demo.log.some((l) => l.text.length > 0)).toBe(true);
   });

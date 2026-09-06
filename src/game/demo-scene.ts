@@ -35,7 +35,7 @@ import type { CheckOutcome, LogTone } from '../engine/script/effects';
 import type { DualityRoll } from '../engine/rules/duality';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
 import { createScenarioState, SceneScriptWorld, useKey, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
-import { maxTilesForBand, type RangeBand } from '../engine/rules/range';
+import { maxTilesForBand, reaches, type RangeBand } from '../engine/rules/range';
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
 import ancestryJson from '../../tools/srd-sources/daggersearch/core/ancestries.json';
 import armorJson from '../../tools/srd-sources/daggersearch/core/armors.json';
@@ -44,7 +44,17 @@ import communityJson from '../../tools/srd-sources/daggersearch/core/communities
 import weaponJson from '../../tools/srd-sources/daggersearch/core/weapons.json';
 import subclassJson from '../../tools/srd-sources/daggersearch/core/subclasses.json';
 import domainCardJson from '../../tools/srd-sources/daggersearch/core/domain-cards.json';
-import { applyAttack, resolveAttack, type AttackProfile } from '../engine/combat/attack';
+import { applyAttack, resolveAttack, type AttackOutcome, type AttackProfile } from '../engine/combat/attack';
+import {
+  canPayFor,
+  previewPlan,
+  resolveDefensePlan,
+  type Defender,
+  type DefensePlan,
+} from '../engine/combat/defense';
+import type { AbilityDef } from '../engine/content/abilities';
+import { unmarked } from '../engine/rules/resources';
+import { rollDamage } from '../engine/rules/damage';
 import { EncounterRunner } from '../engine/combat/encounter';
 import {
   attackProfile,
@@ -179,10 +189,29 @@ export interface DemoScene {
   dialogues: ReadonlyMap<string, Dialogue>;
   /** The narrative log, oldest first. */
   log: LogLine[];
-  /** A script waiting on the player — a roll to make, or a choice to pick. */
-  pending: PendingScript | null;
+  /** Waiting on the player: a script's roll or choice, or a defender's answer. */
+  pending: Pending | null;
   /** Set while a fight is running. */
   encounter: EncounterRunner | null;
+  /**
+   * The GM's turn, while it is being played. It stops when a hit puts a
+   * choice to the defender and picks up again when they answer.
+   */
+  gmTurn: GmTurn | null;
+  /**
+   * Whether a hit on a party member asks them how they take it. The demo
+   * decides for them by default — a test wants no prompt — and `main.ts`
+   * turns it on for a player at the table.
+   */
+  askDefender: boolean;
+}
+
+/** What is left of the GM's turn. */
+export interface GmTurn {
+  /** Adversaries still to be spotlighted, in order. */
+  remaining: string[];
+  /** How many have acted so far, for the caller that counts. */
+  acted: number;
 }
 
 /** A line in the narrative pane. */
@@ -199,7 +228,49 @@ export interface LogLine {
  * on. That nesting is why this is one object rather than two fields — the outer
  * runner has to be kept alive across the whole conversation.
  */
+export type Pending = PendingScript | PendingDefense;
+
+/** The waiting script, when what is waiting is a script and not a defender. */
+export function scriptPending(demo: DemoScene): PendingScript | null {
+  return demo.pending !== null && demo.pending.kind === 'script' ? demo.pending : null;
+}
+
+/**
+ * A hit that is waiting on the defender.
+ *
+ * The SRD makes taking damage a decision — mark an Armor Slot, mark a Stress
+ * to Get Back Up, spend a Hope on a Rune Ward, or let an ally stand in the
+ * way. The engine can make it for you (`askDefender: false`, and every test
+ * that predates the prompt does); with a player at the table it is asked.
+ */
+export interface PendingDefense {
+  kind: 'defense';
+  /** A choice prompt, so a UI that can draw a script's choice can draw this. */
+  prompt: Prompt;
+  attack: IncomingAttack;
+  choices: readonly DefenseChoice[];
+}
+
+/** One hit, as it stands while the defender decides. */
+export interface IncomingAttack {
+  attacker: string;
+  /** Who takes it — not always who it was aimed at, once someone steps in. */
+  defender: string;
+  outcome: AttackOutcome;
+  /** The adversary's stat block, for the lines the log writes. */
+  def: AdversaryDef;
+  /** Cards already spent against this hit, so one card fires once. */
+  used: string[];
+}
+
+/** Something the defender's side can do about a hit. */
+export type DefenseChoice =
+  | { kind: 'plan'; label: string; plan: DefensePlan }
+  | { kind: 'redirect'; label: string; by: string; ability: AbilityDef }
+  | { kind: 'reroll'; label: string; by: string; ability: AbilityDef; what: 'attack' | 'damage' };
+
 export interface PendingScript {
+  kind: 'script';
   runner: ScriptRunner;
   prompt: Prompt;
   /** The interactable it came from, for a UI that wants to name it; null for an item. */
@@ -262,6 +333,8 @@ interface RuntimeOptions {
   lootTables?: ReadonlyMap<string, LootTable>;
   /** The project's abilities and conditions, for the world's modifiers. */
   project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code'>;
+  /** Ask the defender how they take a hit, rather than deciding for them. */
+  askDefender?: boolean;
 }
 
 /** The pools a character carries between rooms. */
@@ -653,6 +726,8 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     log: [],
     pending: null,
     encounter: null,
+    gmTurn: null,
+    askDefender: false,
   };
 }
 
@@ -781,18 +856,38 @@ export function attackWithSelected(
 export function playGmTurn(demo: DemoScene): number {
   const encounter = demo.encounter;
   if (encounter === null || encounter.outcome !== 'ongoing' || encounter.view().side !== 'gm') return 0;
+  if (demo.gmTurn !== null || demo.pending !== null) return 0;
+  demo.gmTurn = { remaining: [...encounter.view().waiting], acted: 0 };
+  return runGmTurn(demo);
+}
 
-  let acted = 0;
-  for (const id of encounter.view().waiting) {
+/**
+ * Play what is left of the GM's turn.
+ *
+ * A hit can stop it: the defender is asked how they take it, and until they
+ * answer nothing else moves. `answerPending` calls this again, so the rest of
+ * the adversaries act on the far side of the question.
+ */
+export function runGmTurn(demo: DemoScene): number {
+  const encounter = demo.encounter;
+  const turn = demo.gmTurn;
+  if (encounter === null || turn === null) return 0;
+
+  while (turn.remaining.length > 0 && demo.pending === null && encounter.outcome === 'ongoing') {
+    const id = turn.remaining[0]!;
     if (!encounter.canSpotlight(id)) break;
+    turn.remaining.shift();
     encounter.spotlight(id);
-    acted++;
+    turn.acted++;
     adversaryTurn(demo, id);
-    if (encounter.outcome !== 'ongoing') break;
   }
+  // Still waiting on a defender: the turn keeps its place.
+  if (demo.pending !== null) return turn.acted;
+
+  demo.gmTurn = null;
   encounter.endGmTurn();
   settleFight(demo);
-  return acted;
+  return turn.acted;
 }
 
 /**
@@ -933,7 +1028,11 @@ function clearWithFear(demo: DemoScene, adversaryId: string): void {
   note(demo, `The GM spends a Fear: the ${nameOf(demo, adversaryId)} shakes off ${held.join(' and ')}.`, 'fear');
 }
 
-/** Returns whether the attack was made at all (false when out of reach). */
+/**
+ * Returns whether the attack was made at all (false when out of reach). A hit
+ * may leave the defender deciding: `demo.pending` is set and the GM's turn
+ * waits for the answer.
+ */
 function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: string): boolean {
   const adversary = demo.state.entity(adversaryId);
   const target = demo.state.entity(targetId);
@@ -959,33 +1058,250 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   });
   if (outcome.refused !== null) return false;
 
-  let final = outcome;
-  const who = character?.sheet.name ?? target.id;
-  if (outcome.hit && outcome.damageRoll !== undefined && character !== undefined) {
-    // The defender's choice, made for them: an Armor Slot, and the reactions
-    // they hold — Get Back Up, a Rune Ward, Iron Will — when they help.
-    const defense = demo.world.defend(target.id, { amount: outcome.damageRoll.total, types: def.attackDamage.types ?? [] }, demo.rng);
-    final = { ...outcome, damage: defense.resolved, hitPointsMarked: defense.resolved.hpMarked };
-    for (const used of defense.reactions) {
-      const cost = [used.hopeSpent > 0 ? `${used.hopeSpent} Hope` : '', used.stressMarked > 0 ? `${used.stressMarked} Stress` : ''].filter((c) => c !== '').join(' and ');
-      note(demo, `${who}: ${used.ability.name}${used.rolled === undefined ? '' : ` (${used.rolled})`}${cost === '' ? '' : `, ${cost}`}.`, 'hope');
+  // A miss is over at once. A hit becomes something the defender's side can
+  // answer, if there is anything worth asking.
+  if (!outcome.hit || outcome.damageRoll === undefined || character === undefined) {
+    applyAttack(demo.state, outcome);
+    demo.world.endsOnAttack(adversaryId);
+    note(demo, `The ${def.name}'s ${def.attackName} misses ${character?.sheet.name ?? target.id}.`, 'combat');
+    return true;
+  }
+  offerOrLand(demo, { attacker: adversaryId, defender: targetId, outcome, def, used: [] });
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// The defender's choice
+// ---------------------------------------------------------------------------
+
+/** The damage a hit is carrying right now. */
+function incomingOf(attack: IncomingAttack): { amount: number; types: readonly ('physical' | 'magic')[] } {
+  return { amount: attack.outcome.damageRoll?.total ?? 0, types: attack.def.attackDamage.types ?? [] };
+}
+
+/** Everything the defence rules need to know about whoever is taking the hit. */
+function defenderFor(demo: DemoScene, id: string): Defender | null {
+  const entity = demo.state.entity(id);
+  if (entity === undefined) return null;
+  return {
+    thresholds: demo.world.defenderOf(entity).thresholds,
+    armorSlots: entity.armorSlots,
+    stress: entity.stress,
+    ...(entity.hope === undefined ? {} : { hope: entity.hope }),
+    reactions: demo.world.reactionsOf(id),
+  };
+}
+
+const costOf = (ability: AbilityDef): string =>
+  [ability.cost.hope === undefined ? '' : `${ability.cost.hope} Hope`, ability.cost.stress === undefined ? '' : `${ability.cost.stress} Stress`]
+    .filter((part) => part !== '')
+    .join(' and ');
+
+const hitPointWord = (n: number): string => `${n} Hit Point${n === 1 ? '' : 's'}`;
+
+/**
+ * What the defender's side can do about this hit.
+ *
+ * The first is always "take it", so there is always an answer; the rest are
+ * the Armor Slot, the reactions the defender can pay for, and the interrupts
+ * an ally in range holds. Each says what it would cost and what it would
+ * leave — a player should not have to do the arithmetic the engine just did.
+ */
+export function defenseChoices(demo: DemoScene, attack: IncomingAttack): DefenseChoice[] {
+  const defender = defenderFor(demo, attack.defender);
+  if (defender === null) return [];
+  const damage = incomingOf(attack);
+  const bare: DefensePlan = { armorSlots: 0, reactions: [] };
+  const straight = previewPlan(damage, defender, bare) ?? 0;
+  const choices: DefenseChoice[] = [{ kind: 'plan', label: `Take it — ${hitPointWord(straight)}`, plan: bare }];
+
+  const room = unmarked(defender.armorSlots) > 0;
+  const withArmor = room ? previewPlan(damage, defender, { armorSlots: 1, reactions: [] }) : null;
+  if (withArmor !== null && withArmor < straight) {
+    choices.push({ kind: 'plan', label: `Mark an Armor Slot — ${hitPointWord(withArmor)}`, plan: { armorSlots: 1, reactions: [] } });
+  }
+
+  const own = demo.world
+    .reactionsFor(attack.defender, 'incomingDamage')
+    .filter((a) => a.reaction !== undefined && !attack.used.includes(a.id) && canPayFor(defender, a));
+  for (const ability of own) {
+    if (ability.reaction?.kind === 'redirect') continue; // an ally's card, offered below
+    for (const slots of room ? [0, 1] : [0]) {
+      const plan: DefensePlan = { armorSlots: slots, reactions: [ability] };
+      const after = previewPlan(damage, defender, plan);
+      // A plan that changes nothing is not a choice; one whose dice are not
+      // yet rolled (a Rune Ward) has no number to show and is always offered.
+      if (after !== null && after >= (slots === 1 ? (withArmor ?? straight) : straight)) continue;
+      const armorPart = slots === 1 ? 'Armor Slot and ' : '';
+      const cost = costOf(ability);
+      const result = after === null ? '' : ` — ${hitPointWord(after)}`;
+      choices.push({ kind: 'plan', label: `${armorPart}${ability.name}${cost === '' ? '' : ` (${cost})`}${result}`, plan });
     }
   }
-  applyAttack(demo.state, final);
-  demo.world.endsOnAttack(adversaryId);
-  if (final.hit) {
-    const ended = [...demo.world.endsOnHit(target.id), ...(final.hitPointsMarked > 0 ? demo.world.endsOnDamage(target.id) : [])];
-    for (const condition of ended) note(demo, `${who} is no longer ${condition}.`, 'system');
+
+  // What the rest of the party can do about it.
+  for (const entity of demo.state.entitiesOf('party')) {
+    if (!entity.alive || entity.id === attack.defender) continue;
+    const helper = defenderFor(demo, entity.id);
+    if (helper === null) continue;
+    const name = nameOf(demo, entity.id);
+    for (const ability of demo.world.reactionsFor(entity.id, 'incomingDamage')) {
+      if (ability.reaction?.kind !== 'redirect' || attack.used.includes(ability.id) || !canPayFor(helper, ability)) continue;
+      const band = demo.world.bandTo(entity.id, attack.defender);
+      if (band === null || !reaches(band, ability.target.range)) continue;
+      choices.push({ kind: 'redirect', label: `${name}: ${ability.name} (${costOf(ability)})`, by: entity.id, ability });
+    }
+    for (const ability of demo.world.reactionsFor(entity.id, 'attackHit')) {
+      if (ability.reaction?.kind !== 'reroll' || attack.used.includes(ability.id) || !canPayFor(helper, ability)) continue;
+      const band = demo.world.bandTo(entity.id, attack.attacker);
+      if (band === null || !reaches(band, ability.target.range)) continue;
+      const what = ability.reaction.what;
+      const cost = costOf(ability);
+      if (what !== 'damage') {
+        choices.push({ kind: 'reroll', label: `${name}: ${ability.name} — reroll the attack (${cost})`, by: entity.id, ability, what: 'attack' });
+      }
+      if (what !== 'attack') {
+        choices.push({ kind: 'reroll', label: `${name}: ${ability.name} — reroll the damage (${cost})`, by: entity.id, ability, what: 'damage' });
+      }
+    }
   }
+  return choices;
+}
+
+/** Ask, if there is anything to ask; otherwise take the hit the engine's way. */
+function offerOrLand(demo: DemoScene, attack: IncomingAttack): void {
+  if (demo.askDefender) {
+    const choices = defenseChoices(demo, attack);
+    if (choices.length > 1) {
+      const damage = incomingOf(attack);
+      demo.pending = {
+        kind: 'defense',
+        attack,
+        choices,
+        prompt: {
+          kind: 'choice',
+          title: `${attack.def.attackName} on ${nameOf(demo, attack.defender)}`,
+          body: `${damage.amount} ${damage.types.join(' and ') || 'physical'} damage. How does it land?`,
+          options: choices.map((choice, index) => ({ index, label: choice.label })),
+        },
+      };
+      return;
+    }
+  }
+  landAttack(demo, attack, null);
+}
+
+/**
+ * Take the hit: with the plan the defender chose, or — when `plan` is null —
+ * with the one the engine decides, which is what happens when nobody is being
+ * asked.
+ */
+function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan | null): void {
+  const target = demo.state.entity(attack.defender);
+  const defender = defenderFor(demo, attack.defender);
+  if (target === undefined || defender === null) return;
+  const who = nameOf(demo, attack.defender);
+  const damage = incomingOf(attack);
+
+  const defense =
+    plan === null
+      ? demo.world.defend(attack.defender, damage, demo.rng)
+      : resolveDefensePlan(demo.rng, damage, defender, plan);
+  if (plan !== null) {
+    // `world.defend` pays for what it decided; a chosen plan is paid here.
+    if (defense.hopeSpent > 0) demo.world.spendHope(attack.defender, defense.hopeSpent);
+    if (defense.stressMarked > 0) demo.world.markStress(attack.defender, defense.stressMarked);
+  }
+  for (const used of defense.reactions) {
+    const cost = costOf(used.ability);
+    note(demo, `${who}: ${used.ability.name}${used.rolled === undefined ? '' : ` (${used.rolled})`}${cost === '' ? '' : `, ${cost}`}.`, 'hope');
+  }
+
+  const final: AttackOutcome = {
+    ...attack.outcome,
+    targetId: attack.defender,
+    damage: defense.resolved,
+    hitPointsMarked: defense.resolved.hpMarked,
+  };
+  applyAttack(demo.state, final);
+  demo.world.endsOnAttack(attack.attacker);
+  const ended = [...demo.world.endsOnHit(attack.defender), ...(final.hitPointsMarked > 0 ? demo.world.endsOnDamage(attack.defender) : [])];
+  for (const condition of ended) note(demo, `${who} is no longer ${condition}.`, 'system');
   note(
     demo,
-    final.hit
-      ? final.hitPointsMarked === 0
-        ? `The ${def.name}'s ${def.attackName} hits ${who}, and is turned aside.`
-        : `The ${def.name}'s ${def.attackName} ${final.critical ? 'tears into' : 'hits'} ${who}: ${final.hitPointsMarked} Hit Point${final.hitPointsMarked === 1 ? '' : 's'}.`
-      : `The ${def.name}'s ${def.attackName} misses ${who}.`,
+    final.hitPointsMarked === 0
+      ? `The ${attack.def.name}'s ${attack.def.attackName} hits ${who}, and is turned aside.`
+      : `The ${attack.def.name}'s ${attack.def.attackName} ${final.critical ? 'tears into' : 'hits'} ${who}: ${hitPointWord(final.hitPointsMarked)}.`,
     'combat',
   );
+  settleFight(demo);
+}
+
+/**
+ * Do what the defender's side chose. A plan ends the hit; an interrupt changes
+ * it and asks again, because standing in the way is a new defender's decision
+ * and a reroll is a new hit.
+ */
+export function applyDefenseChoice(demo: DemoScene, attack: IncomingAttack, choice: DefenseChoice): void {
+  if (choice.kind === 'plan') {
+    landAttack(demo, attack, choice.plan);
+    return;
+  }
+  const helper = nameOf(demo, choice.by);
+  if (choice.kind === 'redirect') {
+    if (!payFor(demo, choice.by, choice.ability)) return landAttack(demo, attack, null);
+    note(demo, `${helper} steps in front of ${nameOf(demo, attack.defender)}: ${choice.ability.name}.`, 'hope');
+    offerOrLand(demo, { ...attack, defender: choice.by, used: [...attack.used, choice.ability.id] });
+    return;
+  }
+
+  if (!payFor(demo, choice.by, choice.ability)) return landAttack(demo, attack, null);
+  const adversary = demo.state.entity(attack.attacker);
+  const target = demo.state.entity(attack.defender);
+  if (adversary === undefined || target === undefined) return landAttack(demo, attack, null);
+  const used = [...attack.used, choice.ability.id];
+
+  if (choice.what === 'damage') {
+    // The same swing, a new damage roll: the attack still landed.
+    const rolled = rollDamage(demo.rng, attack.def.attackDamage, {});
+    note(demo, `${helper}: ${choice.ability.name}. The blow rolls again — ${rolled.total}.`, 'hope');
+    offerOrLand(demo, { ...attack, outcome: { ...attack.outcome, damageRoll: rolled }, used });
+    return;
+  }
+
+  const again = resolveAttack(demo.rng, {
+    grid: demo.grid,
+    attacker: adversary,
+    target,
+    profile: {
+      kind: 'adversary',
+      name: attack.def.attackName,
+      modifier: attack.def.attackModifier,
+      range: attack.def.attackRange,
+      damage: attack.def.attackDamage,
+    },
+    defender: demo.world.defenderOf(target),
+    options: { bandTiles: DEMO_BAND_TILES, armorSlotsMarked: 0 },
+  });
+  note(demo, `${helper}: ${choice.ability.name}. The ${attack.def.name} swings again.`, 'hope');
+  if (again.refused !== null || !again.hit || again.damageRoll === undefined) {
+    applyAttack(demo.state, again);
+    demo.world.endsOnAttack(attack.attacker);
+    note(demo, `The ${attack.def.name}'s ${attack.def.attackName} misses ${nameOf(demo, attack.defender)}.`, 'combat');
+    settleFight(demo);
+    return;
+  }
+  offerOrLand(demo, { ...attack, outcome: again, used });
+}
+
+/** Pay a reaction's cost. Returns false when it turned out they could not. */
+function payFor(demo: DemoScene, id: string, ability: AbilityDef): boolean {
+  const entity = demo.state.entity(id);
+  if (entity === undefined) return false;
+  const hope = ability.cost.hope ?? 0;
+  const stress = ability.cost.stress ?? 0;
+  if (hope > 0 && !demo.world.spendHope(id, hope)) return false;
+  if (stress > 0) demo.world.markStress(id, stress);
   return true;
 }
 
@@ -1041,6 +1357,7 @@ export function useSelectedOn(demo: DemoScene, interactableId: string): UseOutco
   const lines = record(demo, result.journal);
   if (result.status === 'waiting') {
     demo.pending = {
+      kind: 'script',
       runner: result.runner,
       prompt: result.prompt,
       interactable: object.id,
@@ -1061,6 +1378,20 @@ export function useSelectedOn(demo: DemoScene, interactableId: string): UseOutco
 export function answerPending(demo: DemoScene, response: Response): UseOutcome {
   const waiting = demo.pending;
   if (waiting === null) return { status: 'refused', lines: [] };
+
+  // A hit waiting on the defender. Stepping back from the question is taking
+  // it as it comes — the first choice is always "take it".
+  if (waiting.kind === 'defense') {
+    const index = response.kind === 'choose' ? response.index : 0;
+    const choice = waiting.choices[index] ?? waiting.choices[0];
+    const before = demo.log.length;
+    demo.pending = null;
+    if (choice !== undefined) applyDefenseChoice(demo, waiting.attack, choice);
+    // An interrupt may have opened another question; otherwise the GM's turn
+    // picks up where it stopped.
+    if (demo.pending === null) runGmTurn(demo);
+    return settle(demo, demo.log.slice(before));
+  }
 
   // A conversation on top of the script takes the answer first.
   if (waiting.dialogue !== null) return answerDialogue(demo, waiting, waiting.dialogue, response);
@@ -1117,7 +1448,7 @@ function answerDialogue(
  * happened in.
  */
 function resumeOuter(demo: DemoScene, lines: LogLine[]): UseOutcome {
-  const waiting = demo.pending;
+  const waiting = scriptPending(demo);
   if (waiting === null) return { status: 'done', lines };
   const result = waiting.runner.resume({ kind: 'continue' });
   const more = record(demo, result.journal.slice(waiting.recorded));
@@ -1136,7 +1467,7 @@ function resumeOuter(demo: DemoScene, lines: LogLine[]): UseOutcome {
  * so the caller never sees a prompt it has no UI for.
  */
 export function settle(demo: DemoScene, lines: LogLine[]): UseOutcome {
-  const waiting = demo.pending;
+  const waiting = scriptPending(demo);
   if (waiting === null || waiting.prompt.kind !== 'dialogue') {
     return { status: 'waiting', lines };
   }
@@ -1594,7 +1925,7 @@ export function useItem(demo: DemoScene, itemId: string): UseOutcome {
   const result = runner.run(item.use);
   lines.push(...record(demo, result.journal));
   if (result.status === 'waiting') {
-    demo.pending = { runner, prompt: result.prompt, interactable: null, recorded: result.journal.length, dialogue: null };
+    demo.pending = { kind: 'script', runner, prompt: result.prompt, interactable: null, recorded: result.journal.length, dialogue: null };
     return settle(demo, lines);
   }
   return settleTravel(demo, lines);

@@ -167,10 +167,13 @@ editor's Code panel writes. A hook reads the world and *queues effects*, so noth
 journal, and rolls only off the seeded stream (`Math.random` throws). The demo ships one card
 written that way.
 
-**Still open:** 22 of 189 cards are scripted (`docs/CARDS.md`); the rest are text. No defender
-prompt (reactions are automatic); no interrupts (reroll, redirect); no card tokens; adversary
-features are still inert; Hidden is defined (ends when its bearer attacks) but nothing applies
-it yet.
+A hit on a party member is put to them: an Armor Slot, a reaction they can pay for, or an ally's
+interrupt — I Am Your Shield redirects it, Not This Time makes the adversary reroll. The GM's
+turn is resumable, so it waits on the answer and carries on afterwards.
+
+**Still open:** 22 of 189 cards are scripted (`docs/CARDS.md`); the rest are text. No card
+tokens; adversary features are still inert; Hidden is defined (ends when its bearer attacks) but
+nothing applies it yet.
 
 ### ~~6. Inventory, loot and equipping~~ — done
 

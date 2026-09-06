@@ -232,7 +232,7 @@ Scripted: 22 of 189 cards.
 |---|---|---|---|
 | 1 | Bare Bones | Ability | **passive** |
 | 1 | Forceful Push | Ability | **action** |
-| 1 | I Am Your Shield | Ability | **text** |
+| 1 | I Am Your Shield | Ability | **reaction** |
 | 2 | Body Basher | Ability | **passive** |
 | 2 | Bold Presence | Ability | text |
 | 3 | Critical Inspiration | Ability | text |

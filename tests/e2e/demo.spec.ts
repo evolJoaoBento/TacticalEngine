@@ -255,6 +255,9 @@ test('walks into the vault, fights, and hands the spotlight back and forth', asy
       }
       if (api.attack(foe)) attacks++;
       const acted = api.endGmTurn();
+      // A hit on the party stops the GM's turn to ask how it lands; take it as
+      // it comes, and the rest of the adversaries act.
+      while (api.pendingKind() === 'choice') api.answer({ kind: 'choose', index: 0 });
       if (acted > 0) gmTurns++;
     }
 
@@ -1754,6 +1757,9 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
   await expect(pass).toBeVisible();
   await expect(pass).toBeEnabled();
   await pass.click();
+  // The husk's blow may be waiting on Kara's answer; take it as it comes.
+  const asked = page.locator('[data-testid="choice-prompt"]');
+  if ((await asked.count()) > 0) await asked.locator('[data-option="0"]').click();
   await expect(page.locator('[data-testid="log"]')).toContainText(/Acid Burrower's/);
   expect(await page.evaluate(() => window.__polyheart!.turnSide())).not.toBe('gm');
   await page.screenshot({ path: 'test-results/action-bar.png' });
@@ -1846,6 +1852,48 @@ test('writes logic in the Code panel and plays the card that runs it', async ({ 
   for (const id of Object.keys(before.stress)) {
     if (id !== 'kara') expect(after.stress[id]).toBe(before.stress[id]! - 1);
   }
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('asks the defender how a hit lands, and the fight waits for the answer', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  // Kara stands in the husk's reach and hands the spotlight over.
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.select('kara');
+    api.standNear(api.adversaries()[0]!);
+    api.startFight();
+  });
+
+  const prompt = page.locator('[data-testid="choice-prompt"]');
+  // A blow has to land before there is anything to ask, so pass until one does.
+  for (let i = 0; i < 20 && (await prompt.count()) === 0; i++) {
+    await page.evaluate(() => window.__polyheart!.passToGm());
+    if (await page.evaluate(() => window.__polyheart!.inCombat() === false)) break;
+  }
+  await expect(prompt).toBeVisible();
+  await expect(prompt).toContainText('How does it land?');
+  await expect(prompt.locator('[data-option="0"]')).toContainText('Take it');
+
+  const before = await page.evaluate(() => ({
+    hp: window.__polyheart!.hitPoints('kara').marked,
+    pending: window.__polyheart!.pendingKind(),
+  }));
+  expect(before.pending).toBe('choice');
+
+  // Answer it: the choice is applied and the question goes away.
+  const options = await prompt.locator('button[data-option]').allTextContents();
+  const armor = options.findIndex((label) => label.startsWith('Mark an Armor Slot'));
+  await prompt.locator(`[data-option="${armor === -1 ? 0 : armor}"]`).click();
+  await expect(prompt).toHaveCount(0);
+  const after = await page.evaluate(() => ({
+    hp: window.__polyheart!.hitPoints('kara').marked,
+    pending: window.__polyheart!.pendingKind(),
+  }));
+  expect(after.pending).toBeNull();
+  expect(after.hp).toBeGreaterThanOrEqual(before.hp);
 
   expect(consoleErrors).toEqual([]);
 });

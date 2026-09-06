@@ -690,9 +690,13 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
 - **An object's check uses the party's best trait**, not the acting character's; using an
   object in a fight spends that character's action. Both are demo decisions, not SRD rules.
   A card's roll is the acting character's own.
-- **Armor Slots and damage reactions are decided for you**: one slot against a hit that it
-  lessens, and Get Back Up, Iron Will or a Rune Ward when they lower the Hit Points marked.
-  There is no prompt for the defender's choice; a card can be set `auto: false` to keep it out.
+- **The defender is asked how a hit lands** when an adversary's attack connects: take it, mark
+  an Armor Slot, spend a card that can pay (Get Back Up, Iron Will, a Rune Ward), or let an ally
+  interrupt — I Am Your Shield takes the hit instead, Not This Time makes the adversary reroll
+  the attack or the damage. Each option says what it costs and what it would leave. The GM's
+  turn stops on the question and picks up when it is answered; stepping back takes the hit as
+  it comes. Damage from a script (a card, a trap) is still resolved automatically, and so is
+  everything in a headless run, where there is nobody to ask.
 - **Scripted cards are a minority** (`docs/CARDS.md`): the demo party's cards, the three Hope
   features, the Stalwart cards, and the level 1–2 combat cards of the demo's domains. The rest
   are shown as text. Interrupts (a reroll, taking an ally's hit) and tokens on a card do not

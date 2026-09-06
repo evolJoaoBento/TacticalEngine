@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import { validateProject } from '../editor/validate';
-import { answerPending, buildDemoScene, travelTo, useSelectedOn, type DemoScene } from './demo-scene';
+import { answerPending, buildDemoScene, scriptPending, travelTo, useSelectedOn, type DemoScene } from './demo-scene';
 import { PIT_SCENE_ID } from './demo-scenes';
 import {
   OBJECTIVE_OPEN_THE_STRONGBOX,
@@ -31,20 +31,20 @@ function stand(demo: DemoScene, id: string): void {
 }
 
 const options = (demo: DemoScene): string[] =>
-  demo.pending?.dialogue?.view?.options.map((o) => o.text) ?? [];
+  scriptPending(demo)?.dialogue?.view?.options.map((o) => o.text) ?? [];
 
 function choose(demo: DemoScene, containing: string): void {
-  const view = demo.pending!.dialogue!.view!;
+  const view = scriptPending(demo)!.dialogue!.view!;
   const option = view.options.find((o) => o.text.includes(containing))!;
   answerPending(demo, { kind: 'choose', index: option.index });
 }
 
 function playToEnd(demo: DemoScene, limit = 20): void {
   for (let i = 0; i < limit && demo.pending !== null; i++) {
-    const view = demo.pending.dialogue?.view;
+    const view = scriptPending(demo)!.dialogue?.view;
     if (view !== null && view !== undefined && view.options.length > 0) {
       answerPending(demo, { kind: 'choose', index: view.options[0]!.index });
-    } else if (demo.pending.dialogue?.prompt?.kind === 'check') {
+    } else if (scriptPending(demo)!.dialogue?.prompt?.kind === 'check') {
       answerPending(demo, { kind: 'roll' });
     } else {
       answerPending(demo, { kind: 'continue' });
@@ -88,7 +88,7 @@ describe('the demo quest', () => {
     // The pillar is repeatable: the second use opens a conversation rather
     // than refusing, which is what makes this test mean anything.
     expect(useSelectedOn(demo, PILLAR).status).toBe('waiting');
-    expect(demo.pending?.dialogue).not.toBeNull();
+    expect(scriptPending(demo)?.dialogue).not.toBeNull();
     playToEnd(demo);
     expect(demo.log.filter((l) => l.text.startsWith('New quest')).length).toBe(1);
   });

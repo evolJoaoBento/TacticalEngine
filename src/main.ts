@@ -78,6 +78,7 @@ import {
   nameOf,
   startEncounter,
   refreshWorld,
+  scriptPending,
   reachableInteractable,
   travelTo,
   useSelectedOn,
@@ -214,6 +215,10 @@ const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof We
 // ---------------------------------------------------------------------------
 
 const demo = buildDemoScene(demoMap());
+// At the table the defender decides how a hit lands: an Armor Slot, a card,
+// or an ally stepping in. The engine decides for itself in tests and headless
+// runs, where there is nobody to ask.
+demo.askDefender = true;
 
 /** glTF files the project declares, loaded on first use. */
 const gltfLoader = new GLTFLoader();
@@ -1192,8 +1197,8 @@ const state = {
   pendingKind: (): string | null => demo.pending?.prompt.kind ?? null,
   objects: (): string[] => demo.scene.interactables.map((i) => i.id),
   dialogueOptions: (): string[] =>
-    demo.pending?.dialogue?.view?.options.map((o) => o.text) ?? [],
-  hasDialogue: (): boolean => demo.pending?.dialogue != null,
+    scriptPending(demo)?.dialogue?.view?.options.map((o) => o.text) ?? [],
+  hasDialogue: (): boolean => scriptPending(demo)?.dialogue != null,
   within: (): string | null => reachableInteractable(demo),
   /** Put the selected member beside a thing, so a test can reach it. */
   standBeside: (id: string): boolean => {

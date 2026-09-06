@@ -101,6 +101,16 @@ export const damageReactionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('reduceDamage'), dice: z.string().min(1) }),
   /** Mark more Armor Slots than the one — Iron Will's extra slot. */
   z.object({ kind: z.literal('extraArmor'), slots: z.number().int().positive().default(1), only: z.enum(['physical', 'magic']).optional() }),
+  /**
+   * Stand in the way: the attack lands on the holder instead of the ally it
+   * was aimed at — I Am Your Shield. Never automatic; it is asked.
+   */
+  z.object({ kind: z.literal('redirect') }),
+  /**
+   * Make the attacker roll again — Not This Time's "force an adversary to
+   * reroll an attack or damage roll". `what` says which rolls are on offer.
+   */
+  z.object({ kind: z.literal('reroll'), what: z.enum(['attack', 'damage', 'either']).default('either') }),
 ]);
 
 export const abilitySchema = z.object({
@@ -140,6 +150,13 @@ export const abilitySchema = z.object({
    */
   auto: z.boolean().default(true),
 });
+
+/** Reactions the defence step may use on its own: it never spends an interrupt. */
+export function isAutomatic(ability: AbilityDef): boolean {
+  const reaction = ability.reaction;
+  if (reaction === undefined || !ability.auto) return false;
+  return reaction.kind !== 'redirect' && reaction.kind !== 'reroll';
+}
 
 export type AbilityDef = z.infer<typeof abilitySchema>;
 export type AbilitySource = z.infer<typeof abilitySourceSchema>;

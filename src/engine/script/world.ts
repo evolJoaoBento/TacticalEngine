@@ -394,9 +394,17 @@ export class SceneScriptWorld implements ScriptWorld {
 
   /** The reactions to incoming damage a creature holds. */
   reactionsOf(id: string): AbilityDef[] {
+    return this.reactionsFor(id, 'incomingDamage');
+  }
+
+  /**
+   * The reactions a creature holds that answer this trigger — a defence, or
+   * an interrupt like Not This Time. Stunned silences all of them.
+   */
+  reactionsFor(id: string, trigger: NonNullable<AbilityDef['trigger']>): AbilityDef[] {
     const character = this.characters.get(id);
     if (character === undefined || this.blocks(id, 'reactions')) return [];
-    return abilitiesFor(character, this.abilities).filter((a) => a.kind === 'reaction' && a.trigger === 'incomingDamage');
+    return abilitiesFor(character, this.abilities).filter((a) => a.kind === 'reaction' && a.trigger === trigger);
   }
 
   /** Logic in code by id, or null when nothing defines it. */

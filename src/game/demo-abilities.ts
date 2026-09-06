@@ -248,7 +248,7 @@ export function useAbility(demo: DemoScene, characterId: string, abilityId: stri
   const result = runner.run(ability.effects);
   lines.push(...record(demo, result.journal));
   if (result.status === 'waiting') {
-    demo.pending = { runner, prompt: result.prompt, interactable: null, recorded: result.journal.length, dialogue: null, onDone: finish };
+    demo.pending = { kind: 'script', runner, prompt: result.prompt, interactable: null, recorded: result.journal.length, dialogue: null, onDone: finish };
     return settle(demo, lines);
   }
   finish(runner);

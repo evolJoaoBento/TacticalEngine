@@ -162,8 +162,10 @@ const RAW: Input[] = [
     cost: { stress: 1 },
     target: { kind: 'ally', range: 'veryClose' },
     action: false,
-    // Taking an ally's hit is a redirection the defence step does not do yet;
-    // text for the table.
+    // Offered to the ally being hit, never taken automatically: standing in
+    // the way is the holder's decision, and it costs them.
+    reaction: { kind: 'redirect' },
+    auto: false,
   },
   {
     id: 'body-basher',
@@ -461,7 +463,10 @@ const RAW: Input[] = [
     target: { kind: 'none', range: 'far' },
     inCombatOnly: true,
     action: false,
-    // Forcing a reroll is an interrupt the attack flow does not offer yet.
+    // "Force an adversary within Far range to reroll an attack or damage
+    // roll": offered when the attack lands, and paid for only if taken.
+    reaction: { kind: 'reroll', what: 'either' },
+    auto: false,
   },
   // ---- Subclass cards ---------------------------------------------------------
   {

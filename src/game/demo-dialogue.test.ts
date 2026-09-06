@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { tileOf } from '../engine/scene/grid-from-scene';
-import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './demo-scene';
+import { answerPending, buildDemoScene, scriptPending, useSelectedOn, type DemoScene } from './demo-scene';
 import { KNOWS_THE_NAME, PILLAR_DIALOGUE_ID } from './demo-dialogue';
 
 /**
@@ -26,7 +26,7 @@ const scene = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
 
 /** The reply labels the player can currently see. */
 const options = (demo: DemoScene): string[] =>
-  demo.pending?.dialogue?.view?.options.map((o) => o.text) ?? [];
+  scriptPending(demo)?.dialogue?.view?.options.map((o) => o.text) ?? [];
 
 /**
  * Play the conversation out to its end.
@@ -36,10 +36,10 @@ const options = (demo: DemoScene): string[] =>
  */
 function playToEnd(demo: DemoScene, limit = 20): void {
   for (let i = 0; i < limit && demo.pending !== null; i++) {
-    const view = demo.pending.dialogue?.view;
+    const view = scriptPending(demo)!.dialogue?.view;
     if (view !== null && view !== undefined && view.options.length > 0) {
       answerPending(demo, { kind: 'choose', index: view.options[0]!.index });
-    } else if (demo.pending.dialogue?.prompt?.kind === 'check') {
+    } else if (scriptPending(demo)!.dialogue?.prompt?.kind === 'check') {
       answerPending(demo, { kind: 'roll' });
     } else {
       answerPending(demo, { kind: 'continue' });
@@ -60,7 +60,7 @@ describe('the pillar conversation', () => {
     const result = useSelectedOn(demo, PILLAR);
 
     expect(result.status).toBe('waiting');
-    expect(demo.pending?.dialogue?.id).toBe(PILLAR_DIALOGUE_ID);
+    expect(scriptPending(demo)?.dialogue?.id).toBe(PILLAR_DIALOGUE_ID);
     expect(demo.log.some((l) => l.text.includes('opens its eyes'))).toBe(true);
     expect(options(demo).length).toBeGreaterThan(2);
   });
@@ -105,8 +105,8 @@ describe('the pillar conversation', () => {
     answerPending(demo, { kind: 'choose', index: politely });
 
     // A reply that costs a check hands out an inner prompt, not a view.
-    expect(demo.pending?.dialogue?.prompt?.kind).toBe('check');
-    expect(demo.pending?.dialogue?.view).toBeNull();
+    expect(scriptPending(demo)?.dialogue?.prompt?.kind).toBe('check');
+    expect(scriptPending(demo)?.dialogue?.view).toBeNull();
 
     answerPending(demo, { kind: 'roll' });
     // Whichever way it went, the conversation moved somewhere and said something.
@@ -130,7 +130,7 @@ describe('the pillar conversation', () => {
     expect(demo.world.interactableState(PILLAR).used).toBe(true);
     // Used, but repeatable: the Warden can be spoken to again.
     expect(useSelectedOn(demo, PILLAR).status).toBe('waiting');
-    expect(demo.pending?.dialogue).not.toBeNull();
+    expect(scriptPending(demo)?.dialogue).not.toBeNull();
   });
 
   it('never repeats a line, across the whole nested conversation', () => {
