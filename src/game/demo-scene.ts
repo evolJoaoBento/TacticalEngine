@@ -1316,6 +1316,15 @@ function describeEntry(
     case 'heal':
       return { text: `You recover ${entry.amount}.`, tone: 'hope' };
     case 'check':
+      if (entry.reused === true) {
+        return {
+          text:
+            entry.hit.length > 0
+              ? `The same roll (${entry.roll.total}) carries to ${entry.hit.map(who).join(', ')}.`
+              : `The same roll (${entry.roll.total}) reaches nobody else.`,
+          tone: toneFor(entry.outcome),
+        };
+      }
       return { text: `${describeRoll(entry.roll)} ${describeOutcome(entry.outcome)}`, tone: toneFor(entry.outcome) };
     case 'chose':
       return { text: entry.label, tone: 'system' };

@@ -188,6 +188,13 @@ export const checkRequestSchema = z.object({
    * way; against targets, it succeeds against each one it meets or exceeds.
    */
   difficulty: z.union([z.number().int().positive(), z.literal('target')]),
+  /**
+   * `last`: reuse the last action roll made in this script instead of rolling
+   * again — Whirlwind's "the same attack roll against all other targets". No
+   * dice, no prompt, no Hope or Fear, no spotlight; the roll's total stands
+   * against each target's Difficulty as it is now.
+   */
+  roll: z.literal('last').optional(),
   /** Who the roll is against. The chosen target when left out. */
   targets: targetSelectorSchema.optional(),
   /** Words for what the roll is: "lock", "deceive". Features key off these. */

@@ -186,7 +186,7 @@ export type JournalEntry =
   | { kind: 'revealed'; quest: string; objective: string }
   | { kind: 'chose'; label: string; index: number }
   /** `targets` are who the roll was against, `hit` the ones it beat. */
-  | { kind: 'check'; outcome: CheckOutcome; roll: DualityRoll; targets: readonly string[]; hit: readonly string[] }
+  | { kind: 'check'; outcome: CheckOutcome; roll: DualityRoll; targets: readonly string[]; hit: readonly string[]; reused?: boolean }
   | { kind: 'experience'; name: string; modifier: number }
   /** An effect that could not happen: no Hope to spend, no Spellcast trait, no target. */
   | { kind: 'refused'; reason: string }
@@ -295,7 +295,7 @@ export class ScriptRunner {
   /** The creatures the last roll beat. */
   private hit: readonly string[] = [];
   /** The last action roll made, for a critical's extra damage and `difficulty: 'roll'`. */
-  private lastRoll: { critical: boolean; total: number } | null = null;
+  private lastRoll: DualityRoll | null = null;
 
   /** Whether any action roll in this script hands the spotlight to the GM. */
   spotlightToGm = false;
@@ -354,11 +354,40 @@ export class ScriptRunner {
   }
 
   private applyChoice(options: readonly ChoiceOption[], response: Response): void {
-    if (response.kind !== 'choose') return; // cancelling a choice does nothing
+    if (response.kind !== 'choose') {
+      // Cancelling a choice picks nothing; the caller may put the card back.
+      if (response.kind === 'cancel') this.cancelled = true;
+      return;
+    }
     const option = options[response.index];
     if (option === undefined || !evaluateOptional(option.available, this.world, this.bindings())) return;
     this.journal.push({ kind: 'chose', label: option.label, index: response.index });
     this.stack.push({ effects: option.effects, index: 0 });
+  }
+
+  /**
+   * The last roll stands against these targets too: the same total, the same
+   * Hope or Fear, no dice. A target it does not reach is simply not hit; with
+   * nobody reached the failure branch runs, flavoured as the roll was.
+   */
+  private reuseRoll(check: CheckRequest): null {
+    const roll = this.lastRoll;
+    if (roll === null) return this.refuse('no roll to reuse');
+    const targets = check.targets === undefined ? [...this.targets] : this.resolve(check.targets);
+    const beats = (difficulty: number): boolean => roll.critical || roll.total >= difficulty;
+    const hit =
+      check.difficulty === 'target'
+        ? targets.filter((id) => beats(this.world.difficultyOf(id) ?? Infinity))
+        : beats(check.difficulty)
+          ? targets
+          : [];
+    const outcome: CheckOutcome =
+      hit.length > 0 || targets.length === 0 ? roll.outcome : roll.hope > roll.fear ? 'failureWithHope' : 'failureWithFear';
+    this.hit = hit;
+    this.journal.push({ kind: 'check', outcome, roll, targets, hit, reused: true });
+    if (check.always !== undefined) this.stack.push({ effects: check.always, index: 0, hit });
+    this.stack.push({ effects: outcomeEffects(check, outcome), index: 0, hit });
+    return null;
   }
 
   private applyCheck(check: CheckRequest, response: Response): void {
@@ -410,7 +439,7 @@ export class ScriptRunner {
           ? targets
           : [];
     this.hit = hit;
-    this.lastRoll = { critical: roll.critical, total: roll.total };
+    this.lastRoll = roll;
     this.rolled = true;
     this.spotlightToGm = this.spotlightToGm || roll.spotlightToGm;
     this.journal.push({ kind: 'check', outcome: roll.outcome, roll, targets, hit });
@@ -618,6 +647,7 @@ export class ScriptRunner {
         };
       }
       case 'check': {
+        if (effect.check.roll === 'last') return this.reuseRoll(effect.check);
         const modifier = world.checkModifier(effect.check.trait, this.rollAs);
         // A roll the actor cannot make is refused here, before a prompt that
         // could only be declined.
@@ -801,7 +831,7 @@ export class ScriptRunner {
 
     this.rolled = true;
     this.spotlightToGm = this.spotlightToGm || summary.spotlightToGm;
-    if (summary.roll !== undefined) this.lastRoll = { critical: summary.roll.critical, total: summary.roll.total };
+    if (summary.roll !== undefined) this.lastRoll = summary.roll;
     this.journal.push({
       kind: 'attack',
       attacker,

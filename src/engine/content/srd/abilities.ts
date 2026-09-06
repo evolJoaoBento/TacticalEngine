@@ -71,12 +71,14 @@ const RAW: Input[] = [
       {
         kind: 'attack',
         onHit: [
-          // The same swing at everyone *else* in reach: the weapon's own dice, halved.
+          // The same attack roll against everyone *else* in reach: no second
+          // roll, the weapon's own dice halved for the ones it reaches.
           {
             kind: 'check',
             check: {
               trait: 'weapon',
               difficulty: 'target',
+              roll: 'last',
               targets: { kind: 'adversaries', range: 'veryClose', except: 'target' },
               onSuccessWithHope: [{ kind: 'damage', dice: 'weapon', using: 'proficiency', half: true }],
             },

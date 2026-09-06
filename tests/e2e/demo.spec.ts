@@ -1222,14 +1222,20 @@ test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a sti
     return { tile: api.tileOf(api.selected()!), log: api.log().length };
   });
   await page.keyboard.press('Home');
-  // The camera eases to the framing; a slow run needs a little longer to settle.
-  await page.waitForTimeout(800);
   // Hover over another party member's tile: the cursor marks it, and a still
-  // click there selects them rather than being eaten as a drag.
+  // click there selects them rather than being eaten as a drag. The camera
+  // eases to the framing, so the hover is retried until it lands on the tile.
   const target = await page.evaluate(() => window.__polyheart!.tileOf(window.__polyheart!.party()[1]!));
-  const at = await page.evaluate((tile) => window.__polyheart!.screenOf(tile), target);
-  await page.mouse.move(at.x, at.y);
-  expect(await page.evaluate(() => window.__polyheart!.cursorTile())).toBe(target);
+  await expect
+    .poll(
+      async () => {
+        const at = await page.evaluate((tile) => window.__polyheart!.screenOf(tile), target);
+        await page.mouse.move(at.x, at.y);
+        return page.evaluate(() => window.__polyheart!.cursorTile());
+      },
+      { timeout: 5000 },
+    )
+    .toBe(target);
   await page.mouse.down();
   await page.mouse.up();
   const selected = await page.evaluate(() => window.__polyheart!.selected());

@@ -117,7 +117,8 @@ light up on the board; click one, or `Escape` to put the card down. With exactly
 reach it fires at once. A card's cost is paid the moment it is played, before any roll it asks
 for; a roll it asks for appears in the play panel like an object's. **Step back** from that roll
 before any die is thrown and the card goes back in hand with its cost returned; once a roll is
-made the turn is spent when the card's script finishes.
+made the turn is spent when the card's script finishes. A choice a card asks for has no step
+back in the panel.
 
 ### Rests
 
@@ -478,7 +479,9 @@ leaves the chosen target out — "all other targets within range").
 `trait` (a trait, or `spellcast` for the actor's Spellcast trait, or `weapon` for the trait of
 the weapon in hand), `difficulty` (a number, or `target` for each target's own Difficulty —
 an adversary's, or a party member's Evasion), `targets?` (a selector; the chosen target when
-left out), `tags?`, `prompt?`, and effect lists `onCriticalSuccess`, `onSuccessWithHope`,
+left out), `roll?: last` (reuse the last action roll made in this script — Whirlwind's "the
+same attack roll against all other targets" — no dice, no prompt, no Hope, Fear or spotlight;
+the total stands against each target's Difficulty), `tags?`, `prompt?`, and effect lists `onCriticalSuccess`, `onSuccessWithHope`,
 `onSuccessWithFear`, `onFailureWithHope`, `onFailureWithFear`, `always` (runs after the outcome
 list). One roll is made; against targets it succeeds against each one it meets or exceeds, and
 those are bound to the `hit` selector for the outcome lists. A Spellcast Roll by a character

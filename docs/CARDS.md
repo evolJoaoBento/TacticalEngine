@@ -8,7 +8,7 @@ the action bar and the table adjudicates, as at a real one. A grimoire lists eac
 Known simplifications in the scripted ones:
 
 - **Rune Ward** never breaks on an 8; **Get Back Up**, **Iron Will** and the ward fire on their own when they lower the Hit Points marked (per-card `auto`, prompts are a later step).
-- **Whirlwind**'s other targets take half of a second roll of the weapon's dice rather than half the first roll.
+- **Whirlwind** reuses the attack roll against everyone else in reach, as the card says; the ones it reaches take half of a second roll of the weapon's dice rather than half the first roll.
 - **Arcane Barrage** offers 1, 2 or 3 Hope rather than any number.
 - **Slumber**'s sleeper loses its spotlight until damage marks a Hit Point or the GM spends a Fear, which the GM's turn does on its own when there is one.
 - **Enrapture** is text: what a fixed attention does to an adversary is the table's call.

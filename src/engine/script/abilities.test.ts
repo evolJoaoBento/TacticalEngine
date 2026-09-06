@@ -524,29 +524,56 @@ describe('a push', () => {
 });
 
 describe('the shipped cards', () => {
-  it("Whirlwind: the same swing at everyone else in reach, for half the weapon's own roll", () => {
+  it("Whirlwind: the same attack roll at everyone else in reach, for half the weapon's own dice", () => {
     const { world, state, scenario, grid } = scene({ content: true });
     scenario.actorId = 'kara';
     state.moveEntity('kara', grid.indexOf(2, 1)); // adjacent to husk-1 at x=3
     state.moveEntity('husk-2', grid.indexOf(4, 1)); // Very Close, not adjacent
-    // The swing: Hope 10 + Fear 2 beats 10; broadsword d8 rolls 6: Minor, one Hit Point.
-    // The whirl: Hope 12 + Fear 6 = 18 beats the tough husk's 16; the same d8 rolls 7, halved to 4: Minor.
-    const rng = scripted([10, 2, 6, 12, 6, 7]);
-    const runner = new ScriptRunner(world, rng, { targets: ['husk-1'], rollAs: 'actor' });
-    expect(runner.run(SRD_ABILITY_MAP.get('whirlwind')!.effects).status).toBe('waiting');
-    const journal = runner.resume({ kind: 'roll' }).journal;
+    // One roll: Hope 12 + Fear 6 = 18 beats the soft husk's 10 and the tough one's 16.
+    // Broadsword d8 rolls 6 on the target (Minor, one Hit Point); the whirl rolls it again, 7, halved to 4 (Minor).
+    const rng = scripted([12, 6, 6, 7]);
+    const journal = runScript(SRD_ABILITY_MAP.get('whirlwind')!.effects, world, rng, { targets: ['husk-1'], rollAs: 'actor' });
     expect(journal.find((e) => e.kind === 'attack')).toMatchObject({ target: 'husk-1', hit: true, hitPointsMarked: 1 });
-    // The second roll is aimed at the *other* husk only, and rolls the broadsword, not a fixed die.
-    expect(journal.find((e) => e.kind === 'check')).toMatchObject({ targets: ['husk-2'], hit: ['husk-2'] });
+    // The roll carries to the *other* husk only, without new dice, Hope or Fear; the damage is the broadsword's, not a fixed die.
+    expect(kinds(journal)).toEqual(['attack', 'hope', 'check', 'damage']);
+    expect(journal.find((e) => e.kind === 'check')).toMatchObject({ targets: ['husk-2'], hit: ['husk-2'], reused: true, outcome: 'successWithHope' });
     expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 4, targets: ['husk-2'], dice: '1d8', marked: 1 });
     expect(state.entity('husk-1')!.hitPoints.marked).toBe(1);
     expect(state.entity('husk-2')!.hitPoints.marked).toBe(1);
-    expect(rng.drawn()).toBe(6);
+    expect(state.entity('kara')!.hope!.value).toBe(3);
+    expect(rng.drawn()).toBe(4);
+
+    // A roll that beats the target but not the tough husk reaches nobody else, and draws no damage die for it.
+    const short = scene({ content: true });
+    short.scenario.actorId = 'kara';
+    short.state.moveEntity('kara', short.grid.indexOf(2, 1));
+    short.state.moveEntity('husk-2', short.grid.indexOf(4, 1));
+    const few = scripted([10, 2, 6]);
+    const again = runScript(SRD_ABILITY_MAP.get('whirlwind')!.effects, short.world, few, { targets: ['husk-1'], rollAs: 'actor' });
+    expect(kinds(again)).toEqual(['attack', 'hope', 'check']);
+    expect(again.find((e) => e.kind === 'check')).toMatchObject({ targets: ['husk-2'], hit: [], reused: true, outcome: 'failureWithHope' });
+    expect(short.state.entity('husk-2')!.hitPoints.marked).toBe(0);
+    expect(few.drawn()).toBe(3);
+  });
+
+  it('refuses to reuse a roll nobody made', () => {
+    const { world } = scene();
+    const journal = runScript(
+      [{ kind: 'check', check: { trait: 'strength', difficulty: 10, roll: 'last', onSuccessWithHope: [{ kind: 'log', text: 'no' }] } }],
+      world,
+      scripted([]),
+      { targets: ['husk-1'], rollAs: 'actor' },
+    );
+    expect(refusals(journal)).toEqual(['no roll to reuse']);
   });
 
   it('rolls `weapon` damage as whatever the actor carries', () => {
     const { world, state } = scene();
-    // Mira's greatstaff: d6 magic.
+    // Mira's greatstaff: d6 magic. The dice are the weapon's own; Proficiency
+    // is applied only when the effect says `using: 'proficiency'`.
+    expect(world.weaponDamage('mira')).toMatchObject({ count: 1, sides: 6 });
+    expect(world.weaponDamage('kara')).toMatchObject({ count: 1, sides: 8, modifier: 0 });
+    expect(world.weaponDamage('husk-1')).toMatchObject({ count: 1, sides: 6, modifier: 2 });
     const journal = runScript([{ kind: 'damage', dice: 'weapon', target: { kind: 'target' } }], world, scripted([4]), { targets: ['husk-1'], rollAs: 'actor' });
     expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 4, dice: '1d6', targets: ['husk-1'] });
     expect(state.entity('husk-1')!.hitPoints.marked).toBe(1);

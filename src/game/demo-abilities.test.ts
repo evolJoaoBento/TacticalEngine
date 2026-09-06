@@ -405,6 +405,26 @@ describe('stepping back from a roll', () => {
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'finn')).toBe(false);
     expect(demo.encounter!.canAct('finn')).toBe(true);
   });
+
+  it('gives a once-per-rest use back when the choice it opens with is cancelled', () => {
+    const demo = scene();
+    const sheet = demo.sheets.get('mira')!;
+    const grown = { ...sheet, domainCards: [...(sheet.domainCards ?? []), 'book-of-illiat'] };
+    demo.sheets.set('mira', grown);
+    demo.characters.set('mira', deriveCharacter(grown, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    const foe = nearestFoe(demo, 'mira');
+    closeIn(demo, 'mira', foe.id);
+    startEncounter(demo, demo.scene.encounters[0]!.id);
+    demo.state.entity('mira')!.hope = { max: 6, value: 2 };
+    expect(useAbility(demo, 'mira', 'book-of-illiat-arcane-barrage').status).toBe('waiting');
+    expect(demo.pending?.prompt.kind).toBe('choice');
+    expect(demo.scenario.abilityUses.get(useKey('mira', 'book-of-illiat-arcane-barrage'))).toBe(1);
+    expect(answerPending(demo, { kind: 'cancel' }).status).toBe('done');
+    expect(demo.scenario.abilityUses.has(useKey('mira', 'book-of-illiat-arcane-barrage'))).toBe(false);
+    expect(demo.state.entity('mira')!.hope!.value).toBe(2);
+    expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'mira')).toBe(false);
+  });
 });
 
 describe("a grimoire spell's words", () => {
