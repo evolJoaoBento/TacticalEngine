@@ -352,8 +352,15 @@ the start, so a conversation written by hand opens as a readable tree. It never 
 document: a position is stored only when someone drags a node, so opening a file and moving one
 thing is a one-node diff.
 
-**Still open:** items and loot tables are authored in the project JSON; there is no sheet
-editor for the party.
+A **party panel** writes the characters themselves. The party moved out of `demo-scene.ts` and
+into `ProjectDoc.party`, so a campaign carries who it is about; the panel picks every id from
+the vendored SRD content, narrows subclasses to the class and cards to the character's domains
+and level, and shows what a sheet comes to — Evasion, Armor Score, pools, thresholds — as it is
+written. `deriveCharacter`'s own issues are the validation, so the editor reports exactly what
+the game would refuse. Levels are shown, not edited: a level is taken at the table.
+
+**Still open:** items and loot tables are authored in the project JSON. A character added in the
+panel joins when the project is next loaded, not mid-fight.
 
 ### ~~9. Asset import (glTF)~~ — done
 
@@ -413,9 +420,10 @@ engine code?**
 
 A scenario *runs*: `src/game/demo-scene.test.ts` and `tests/e2e/demo.spec.ts`
 walk a party into a vault, fire a trigger, trade blows with an SRD adversary and pass the
-spotlight, all from content plus a seed. What is still missing is the ability to **author** one:
-characters are three hard-coded literals in `game/demo-scene.ts` rather than sheets built from
-the vendored classes and equipment, and there is no editor, inventory or quest model.
+spotlight, all from content plus a seed. It can now also be **authored**: the party, the map,
+the objects on it, the conversations, the quests, the cards and the logic behind them are all
+project data with a panel apiece. What is still typed into JSON by hand is items and loot
+tables.
 
 A designer can now author a *party* (sheets naming a class, ancestry, armor and weapon), a
 *map* (terrain, elevation, props, objects, enemies, triggers and spawns, saved as JSON and

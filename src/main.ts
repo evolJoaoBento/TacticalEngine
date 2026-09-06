@@ -78,6 +78,7 @@ import {
   nameOf,
   startEncounter,
   refreshWorld,
+  syncPools,
   scriptPending,
   reachableInteractable,
   travelTo,
@@ -320,10 +321,19 @@ let mode: 'play' | 'edit' = 'play';
  * the old Evasion until something else happened to rederive it.
  */
 function rederiveParty(): void {
+  // The document is the truth: an edit in the Party panel replaces the sheet
+  // in `project.party`, so the game's copy is re-read rather than rederived
+  // from what it happened to boot with.
+  for (const sheet of demo.project.party) {
+    if (!demo.sheets.has(sheet.id)) continue;
+    demo.sheets.set(sheet.id, sheet);
+  }
   for (const [id, sheet] of demo.sheets) {
     demo.characters.set(id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
   }
+  // The world first: `syncPools` reads the modifiers a card grants through it.
   refreshWorld(demo);
+  syncPools(demo);
 }
 
 function setMode(next: 'play' | 'edit'): void {
@@ -357,6 +367,7 @@ function renderPanel(): void {
       knownAdversaries: new Set(SRD_ADVERSARIES.keys()),
       nativeHooks: [...SRD_HOOKS.keys()],
       libraryAbilities: SRD_ABILITIES,
+      characterContent: SRD_CHARACTERS,
       onPlay: () => setMode('play'),
       onSave: saveProject,
       onAssetsChanged: () => {

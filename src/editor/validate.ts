@@ -23,6 +23,9 @@ import {
   type Effect,
 } from '../engine/script/schema';
 import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-from-scene';
+import { deriveCharacter } from '../engine/character/sheet';
+import { heldCards } from '../engine/character/progression';
+import type { SrdCharacterContent } from '../engine/content/srd/daggersearch';
 import { compileHooks } from '../engine/script/hooks';
 import { projectSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
 
@@ -48,6 +51,11 @@ export interface ValidationOptions {
   knownModels?: ReadonlySet<string>;
   /** Hooks the engine registers natively, so content may name them without carrying code. */
   knownHooks?: ReadonlySet<string>;
+  /**
+   * The SRD content a sheet's ids are checked against. Omit to skip the party
+   * check — a headless caller that has not loaded the content is not wrong.
+   */
+  characterContent?: SrdCharacterContent;
 }
 
 /**
@@ -90,7 +98,47 @@ export function validateProject(
   checkAbilitiesAndCode(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkParty(project, options, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   return problems;
+}
+
+/** The SRD's starting spread, which a homebrew party may depart from. */
+const STARTING_TRAITS = [-1, 0, 0, 1, 1, 2];
+
+/**
+ * The party.
+ *
+ * `deriveCharacter` already reports an id that does not resolve — it is the
+ * same check the game makes when it builds a character — so this hands its
+ * issues on rather than repeating them, and adds the two things a sheet can
+ * get wrong that deriving does not mind: a loadout naming a card the character
+ * does not hold, and a trait spread that is not the one the SRD deals.
+ */
+function checkParty(
+  project: ProjectDoc,
+  options: ValidationOptions,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const content = options.characterContent;
+  if (content === undefined) return;
+  for (const sheet of project.party) {
+    const who = sheet.name || sheet.id;
+    for (const issue of deriveCharacter(sheet, content, project.abilities).issues) {
+      add('error', `${who}: ${issue.field} — ${issue.message}`, sheet.id);
+    }
+    const held = new Set(heldCards(sheet));
+    for (const card of sheet.loadout ?? []) {
+      if (!held.has(card)) {
+        add('warning', `${who} has "${card}" in their loadout but does not hold it.`, sheet.id);
+      }
+    }
+    const spread = Object.values(sheet.traits).sort((a, b) => a - b);
+    if (spread.join() !== STARTING_TRAITS.join() && (sheet.levels ?? []).length === 0) {
+      add('warning', `${who}'s traits are not the SRD's starting spread (-1, 0, 0, +1, +1, +2).`, sheet.id);
+    }
+  }
 }
 
 /**

@@ -193,6 +193,8 @@ export function importLegacyCampaign(
       // toContentId returns '' (not undefined) for a name with no usable characters.
       id: options.id ?? (toContentId(name) || 'imported'),
       name,
+      // A legacy campaign has no party: the game falls back on its own sheets.
+      party: [],
       abilities: [],
       code: [],
       conditionDefs: [],

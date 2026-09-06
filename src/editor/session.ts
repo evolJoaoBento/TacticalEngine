@@ -1214,6 +1214,87 @@ export function removeAsset(assetId: string): Edit {
 }
 
 // ---------------------------------------------------------------------------
+// The party
+// ---------------------------------------------------------------------------
+
+/**
+ * A sheet as the project holds it. The interface in `character/sheet.ts` has
+ * readonly arrays; what a document carries, and what an edit writes back, is
+ * the parsed shape.
+ */
+export type PartySheet = ProjectDoc['party'][number];
+
+/** Add a character. Their id is what a spawn, a granted card and a save name. */
+export function addSheet(sheet: PartySheet): Edit {
+  return {
+    label: `Add ${sheet.name || sheet.id}`,
+    apply(project) {
+      project.party.push(sheet);
+    },
+    undo(project) {
+      const at = project.party.lastIndexOf(sheet);
+      if (at >= 0) project.party.splice(at, 1);
+    },
+  };
+}
+
+/**
+ * Remove a character.
+ *
+ * A running game keeps the party it booted with until it is restarted, the
+ * same way it keeps the project it booted with: pulling somebody out from
+ * under a fight they are standing in is not an edit, it is a crash.
+ */
+export function removeSheet(characterId: string): Edit {
+  let removed: { index: number; sheet: PartySheet } | null = null;
+  return {
+    label: 'Remove from the party',
+    apply(project) {
+      removed = null;
+      const index = project.party.findIndex((s) => s.id === characterId);
+      if (index < 0) return;
+      removed = { index, sheet: project.party[index]! };
+      project.party.splice(index, 1);
+    },
+    undo(project) {
+      if (removed !== null) project.party.splice(removed.index, 0, removed.sheet);
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
+/** Edit a sheet. Typing into one field coalesces into one undo step. */
+export function updateSheet(characterId: string, changes: Partial<PartySheet>): Edit {
+  let before: PartySheet | null = null;
+  const current: Partial<PartySheet> = { ...changes };
+  const edit: Edit = {
+    label: 'Edit a character',
+    mergeKey: `sheet:${characterId}:${Object.keys(changes).sort().join(',')}`,
+    apply(project) {
+      const index = project.party.findIndex((s) => s.id === characterId);
+      if (index < 0) return;
+      before = project.party[index]!;
+      project.party[index] = { ...before, ...current };
+    },
+    undo(project) {
+      if (before === null) return;
+      const index = project.party.findIndex((s) => s.id === characterId);
+      if (index >= 0) project.party[index] = before;
+    },
+    absorb(other) {
+      const next = (other as Edit & { __sheet?: Partial<PartySheet> }).__sheet;
+      if (next === undefined) return false;
+      Object.assign(current, next);
+      return true;
+    },
+  };
+  (edit as Edit & { __sheet: Partial<PartySheet> }).__sheet = current;
+  return edit;
+}
+
+// ---------------------------------------------------------------------------
 // Cards
 // ---------------------------------------------------------------------------
 

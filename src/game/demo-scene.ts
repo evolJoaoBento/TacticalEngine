@@ -653,7 +653,6 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
   const vault = imported.scene;
   if (vault === null) throw new Error('the demo map could not be imported');
 
-  const sheets = new Map<string, CharacterSheet>(PARTY_SHEETS.map((sheet) => [sheet.id, sheet]));
 
   // The pillar is the dullest thing on the map — a Strength check and a line of
   // text. Give it the conversation instead, so the demo has something to talk to.
@@ -696,8 +695,13 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     abilities: [...SRD_ABILITIES, ...SRD_ADVERSARY_ABILITIES, ...DEMO_PROJECT_ABILITIES],
     code: [...DEMO_CODE],
     conditionDefs: [...SRD_CONDITIONS],
+    party: [...PARTY_SHEETS],
     startScene: vault.id,
   });
+
+  // The party the project holds, not the literals it was parsed from: the same
+  // rule the scenes follow, so an edit in the Party panel reaches the table.
+  const sheets = new Map<string, CharacterSheet>(project.party.map((sheet) => [sheet.id, sheet]));
 
   // Derive every sheet once, with the project's abilities folded in; the pools
   // a character enters a scene with come straight off it, so nothing about

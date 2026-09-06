@@ -2008,3 +2008,51 @@ test('writes a card that reuses one roll against every other adversary in reach'
 
   expect(consoleErrors).toEqual([]);
 });
+
+test('writes a character in the Party panel and the table plays the new sheet', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  page.on('dialog', (dialog) => void dialog.accept('Ilse'));
+
+  const before = await page.evaluate(() => window.__polyheart!.gear('kara'));
+
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-party"]').click();
+  const panel = page.locator('[data-testid="party-panel"]');
+  await expect(panel).toBeVisible();
+
+  // The demo party is in the project file now, not a TypeScript literal.
+  await expect(panel.locator('[data-character="kara"]')).toBeVisible();
+  await expect(panel.locator('[data-character="finn"]')).toBeVisible();
+  await expect(panel.locator('[data-character="mira"]')).toBeVisible();
+
+  await panel.locator('[data-character="kara"]').click();
+  await expect(panel.locator('[data-testid="character-name"]')).toHaveValue('Kara');
+  const derived = panel.locator('[data-testid="character-derived"]');
+  const armored = await derived.textContent();
+
+  // Taking the mail off changes what the sheet comes to, there and then.
+  await panel.locator('[data-testid="character-armor"]').selectOption('gambeson-armor');
+  await expect(derived).not.toHaveText(armored ?? '');
+
+  // A card list narrowed to her domains and level: Whirlwind is a Blade card.
+  await panel.locator('[data-card="whirlwind"]').click();
+  await panel.locator('[data-loadout="whirlwind"]').check();
+
+  // A new character can be written from nothing.
+  await panel.locator('[data-testid="add-character"]').click();
+  await expect(panel.locator('[data-character="ilse"]')).toBeVisible();
+  await expect(panel.locator('[data-testid="character-derived"]')).toContainText('Hit Points');
+
+  await panel.locator('[data-testid="close-party"]').click();
+
+  // Back at the table, Kara wears what the document says and knows the card.
+  const after = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('play');
+    return { gear: api.gear('kara'), loadout: api.loadout('kara').loadout };
+  });
+  expect(after.gear.armor).not.toBe(before.armor);
+  expect(after.loadout).toContain('whirlwind');
+
+  expect(consoleErrors).toEqual([]);
+});

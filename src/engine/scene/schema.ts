@@ -17,6 +17,7 @@
 import { z } from 'zod';
 import { itemSchema, lootTableSchema } from '../content/items';
 import { abilitySchema } from '../content/abilities';
+import { characterSheetSchema } from '../character/sheet-schema';
 import { conditionDefSchema } from '../content/conditions';
 import { questSchema } from '../content/quests';
 import { modelAssetSchema } from '../render/assets';
@@ -243,6 +244,14 @@ export const projectSchema = z
     code: z.array(codeSchema).default([]),
     /** What a named condition does to its bearer. Defaulted, like abilities. */
     conditionDefs: z.array(conditionDefSchema).default([]),
+    /**
+     * The party, as authored sheets. Everything mechanical is derived from the
+     * class, ancestry and equipment a sheet names, so what is written down here
+     * is the character rather than their numbers. Defaulted: a project written
+     * before the party moved into the file is still a project, and the game
+     * falls back on the sheets it ships with.
+     */
+    party: z.array(characterSheetSchema).default([]),
     /** Scene the project opens on. */
     startScene: contentIdSchema,
   })
@@ -287,6 +296,13 @@ export const projectSchema = z
       questIds.add(quest.id);
     });
     const abilityIds = new Set<string>();
+    const partyIds = new Set<string>();
+    project.party.forEach((sheet, i) => {
+      if (partyIds.has(sheet.id)) {
+        ctx.addIssue({ code: 'custom', path: ['party', i, 'id'], message: `duplicate character id "${sheet.id}"` });
+      }
+      partyIds.add(sheet.id);
+    });
     project.abilities.forEach((ability, i) => {
       if (abilityIds.has(ability.id)) {
         ctx.addIssue({ code: 'custom', path: ['abilities', i, 'id'], message: `duplicate ability id "${ability.id}"` });

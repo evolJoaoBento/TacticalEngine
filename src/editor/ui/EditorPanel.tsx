@@ -15,12 +15,14 @@ import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
 import { addDialogue, removeDialogue, removeInteractable, updateInteractable } from '../session';
 import type { AbilityDef } from '../../engine/content/abilities';
+import type { SrdCharacterContent } from '../../engine/content/srd/daggersearch';
 import { questSchema } from '../../engine/content/quests';
 import { addQuest, removeQuest } from '../session';
 import { addAsset, removeAsset } from '../session';
 import { modelAssetSchema } from '../../engine/render/assets';
 import { CodePanel } from './CodePanel';
 import { AbilityPanel } from './AbilityPanel';
+import { PartyPanel } from './PartyPanel';
 import { QuestEditor } from './QuestEditor';
 import { dialogueSchema } from '../../engine/dialogue/schema';
 import { DialogueGraph } from './DialogueGraph';
@@ -53,6 +55,8 @@ export interface EditorPanelProps {
   nativeHooks: readonly string[];
   /** The cards the engine ships, listed beside the project's own. */
   libraryAbilities: readonly AbilityDef[];
+  /** The vendored SRD content the Party panel picks from, and validates against. */
+  characterContent: SrdCharacterContent;
 }
 
 const TOOLS: { tool: EditorTool; label: string; hint: string }[] = [
@@ -119,6 +123,8 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
   const [code, setCode] = useState(false);
   /** Whether the Cards panel is open over the map. */
   const [cards, setCards] = useState(false);
+  /** Whether the Party panel is open over the map. */
+  const [party, setParty] = useState(false);
   const [openQuest, setOpenQuest] = useState<string | null>(null);
 
   const scene = controller.scene;
@@ -132,6 +138,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         knownModels: props.knownModels,
         knownAdversaries: props.knownAdversaries,
         knownHooks: new Set(props.nativeHooks),
+        characterContent: props.characterContent,
       }),
     );
     setShowProblems(true);
@@ -144,6 +151,17 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         nativeHooks={props.nativeHooks}
         onChange={bump}
         onClose={() => setCode(false)}
+      />
+    );
+  }
+
+  if (party) {
+    return (
+      <PartyPanel
+        session={session}
+        content={props.characterContent}
+        onChange={bump}
+        onClose={() => setParty(false)}
       />
     );
   }
@@ -501,8 +519,11 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         </button>
       </div>
 
-      <div style={heading}>Cards and code</div>
+      <div style={heading}>Party, cards and code</div>
       <div>
+        <button style={button(false)} data-testid="open-party" onClick={() => setParty(true)}>
+          {session.project.party.length === 0 ? 'Write a character…' : `Party (${session.project.party.length})…`}
+        </button>
         <button style={button(false)} data-testid="open-abilities" onClick={() => setCards(true)}>
           {session.project.abilities.length === 0 ? 'Write a card…' : `Cards (${session.project.abilities.length})…`}
         </button>

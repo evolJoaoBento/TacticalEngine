@@ -374,6 +374,25 @@ There is no editor UI for items or loot tables. Author them in the project JSON 
 `lootTables`); the inspector's loot effect names a table by id, and validation catches a name
 that does not exist.
 
+### Party
+
+**Write a character…** opens the Party panel: the campaign's own characters, one at a time. A
+sheet is a name, a class and subclass, an ancestry and a community, six traits, the armor and
+weapons they carry, the domain cards they know and which five are in the loadout, and their
+Experiences. Nothing mechanical is typed: Evasion, Armor Score, Hit Points, Stress, damage
+thresholds and Proficiency are all derived from what the sheet *names*, and the line under the
+form shows them as they change. Ids are picked from the vendored SRD content, and the lists
+narrow the way the rules do — subclasses to the class, cards to the character's domains and
+level. An id that does not resolve is shown in red under the form and reported by **Check**.
+
+Levels are shown but not edited: a level is taken at the table, where the level-up form records
+what was ticked, and this panel is the record rather than a second way to write it.
+
+**A sheet edited here reaches the table when you press Play** — the party's numbers are rebuilt
+and their pools refitted. Adding or removing a character changes the document but not a game
+already running: somebody standing in a fight is not something an edit should pull out from
+under it, so a new character joins when the project is next loaded.
+
 ### Cards
 
 **Write a card…** opens the Cards panel: the project's own cards, one at a time, beside a count
@@ -423,8 +442,16 @@ the buttons' tooltips name the step.
 
 `formatVersion` (1) · `id` · `name` · `terrainPalette?` (id, name, passable, cost,
 providesCover, blocksSight) · `scenes[]` · `dialogues[]` · `items[]` · `lootTables[]` ·
-`quests[]` · `abilities[]` · `conditionDefs[]` · `code[]` · `startScene`. All ids are stable
-kebab-case strings; duplicates are rejected.
+`quests[]` · `abilities[]` · `conditionDefs[]` · `code[]` · `party[]` · `startScene`. All ids
+are stable kebab-case strings; duplicates are rejected.
+
+A **character sheet** (`project.party[]`): `id`, `name`, `level`, `classId`, `subclassId?`,
+`ancestryId?`, `communityId?`, `traits` (the six), `proficiency`, `armorId?`,
+`primaryWeaponId?`, `secondaryWeaponId?`, `experiences?` (`name`, `modifier`), `domainCards?`,
+`loadout?` (at most five), `levels?` (what was ticked at each level taken) and `bonuses?` (flat
+adjustments to Evasion, pools and thresholds). Everything else — Evasion, Armor Score, Hit
+Points, Stress, thresholds, the trait an attack rolls — is derived from those. A project with
+no party plays the sheets the game ships with.
 `assets[]` holds imported models (`id`, `kind` 'gltf', `url`, `scale`, `groundOffset`,
 `rotationY`).
 
