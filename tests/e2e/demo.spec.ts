@@ -66,6 +66,10 @@ declare global {
       carried: () => { id: string; name: string; quantity: number }[];
       journal: () => { id: string; status: string; done: string[] }[];
       camera: () => { yaw: number; pitch: number; distance: number; target: { x: number; z: number } };
+      grantLevel: (level?: number) => number;
+      awaitingLevel: () => string[];
+      takeLevel: (id: string, plan: unknown) => boolean;
+      characterLevel: (id: string) => number;
       cursorTile: () => number;
       screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
@@ -1228,5 +1232,43 @@ test('reads the dice out in the log', async ({ page }) => {
     return api.log().map((l) => l.text).find((t) => t.startsWith('Hope '));
   });
   expect(line).toMatch(/^Hope \d+ \+ Fear \d+ .*= \d+ vs \d+\. (A critical success|Success|Failure)/);
+  expect(consoleErrors).toEqual([]);
+});
+
+test('levels a character up through the sheet, and the pips grow', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  const hud = page.locator('[data-testid="hud"]');
+  await expect(hud.locator('[data-testid="level-up-button"]')).toHaveCount(0);
+
+  // The GM grants a level: every card offers it.
+  const granted = await page.evaluate(() => window.__polyheart!.grantLevel());
+  expect(granted).toBe(2);
+  await expect(hud.locator('[data-testid="level-up-button"]')).toHaveCount(3);
+
+  const hpBefore = await page.evaluate(() => window.__polyheart!.hitPoints('kara'));
+  await hud.locator('[data-member="kara"] [data-testid="level-up-button"]').click();
+  const sheet = page.locator('[data-testid="level-up"]');
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText('Kara — level 2');
+
+  // Try to take it with nothing picked: the engine refuses and says why.
+  await sheet.locator('[data-testid="experience"]').fill('Survived the vault');
+  await sheet.locator('[data-testid="take-level"]').click();
+  await expect(sheet.locator('[data-testid="level-issues"]')).toContainText('exactly 2 picks');
+
+  // Two picks, then take it.
+  await sheet.locator('[data-pick="hitPoint"]').click();
+  await sheet.locator('[data-pick="traits"]').click();
+  await sheet.locator('[data-testid="take-level"]').click();
+  await expect(sheet).toHaveCount(0);
+
+  expect(await page.evaluate(() => window.__polyheart!.characterLevel('kara'))).toBe(2);
+  expect(await page.evaluate(() => window.__polyheart!.awaitingLevel())).toEqual(['finn', 'mira']);
+  const hpAfter = await page.evaluate(() => window.__polyheart!.hitPoints('kara'));
+  expect(hpAfter.max).toBe(hpBefore.max + 1);
+  await expect(hud.locator('[data-member="kara"] [data-testid="hp"]')).toHaveAttribute('data-max', String(hpAfter.max));
+  await expect(hud.locator('[data-member="kara"] [data-testid="level-up-button"]')).toHaveCount(0);
+  await expect(page.locator('[data-testid="log"]')).toContainText('Kara reaches level 2');
+
   expect(consoleErrors).toEqual([]);
 });

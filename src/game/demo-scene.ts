@@ -29,11 +29,14 @@ import type { CheckOutcome, LogTone } from '../engine/script/effects';
 import type { DualityRoll } from '../engine/rules/duality';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
 import { createScenarioState, SceneScriptWorld, type ScenarioState } from '../engine/script/world';
+import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
 import ancestryJson from '../../tools/srd-sources/daggersearch/core/ancestries.json';
 import armorJson from '../../tools/srd-sources/daggersearch/core/armors.json';
 import classJson from '../../tools/srd-sources/daggersearch/core/classes.json';
 import communityJson from '../../tools/srd-sources/daggersearch/core/communities.json';
 import weaponJson from '../../tools/srd-sources/daggersearch/core/weapons.json';
+import subclassJson from '../../tools/srd-sources/daggersearch/core/subclasses.json';
+import domainCardJson from '../../tools/srd-sources/daggersearch/core/domain-cards.json';
 import { applyAttack, resolveAttack, type AttackProfile } from '../engine/combat/attack';
 import { EncounterRunner } from '../engine/combat/encounter';
 import {
@@ -101,6 +104,8 @@ export const SRD_CHARACTERS = importCharacterContent({
   classes: classJson as unknown[],
   ancestries: ancestryJson as unknown[],
   communities: communityJson as unknown[],
+  subclasses: subclassJson as unknown[],
+  domainCards: domainCardJson as unknown[],
 }).content;
 
 /**
@@ -117,6 +122,9 @@ export const PARTY_SHEETS: readonly CharacterSheet[] = [
     ancestryId: 'human',
     armorId: 'chainmail-armor',
     primaryWeaponId: 'broadsword',
+    subclassId: 'stalwart',
+    domainCards: ['bare-bones', 'get-back-up'],
+    experiences: [{ name: 'Held the line', modifier: 2 }],
   }),
   blankSheet('finn', 'rogue', {
     name: 'Finn',
@@ -124,6 +132,9 @@ export const PARTY_SHEETS: readonly CharacterSheet[] = [
     ancestryId: 'elf',
     armorId: 'gambeson-armor',
     primaryWeaponId: 'shortbow',
+    subclassId: 'nightwalker',
+    domainCards: ['pick-and-pull', 'rain-of-blades'],
+    experiences: [{ name: 'Knows a locksmith', modifier: 2 }],
   }),
   blankSheet('mira', 'wizard', {
     name: 'Mira',
@@ -131,6 +142,9 @@ export const PARTY_SHEETS: readonly CharacterSheet[] = [
     ancestryId: 'faerie',
     armorId: 'gambeson-armor',
     primaryWeaponId: 'greatstaff',
+    subclassId: 'school-of-knowledge',
+    domainCards: ['book-of-ava', 'rune-ward'],
+    experiences: [{ name: 'Read the old script', modifier: 2 }],
   }),
 ];
 
@@ -140,8 +154,10 @@ export interface DemoScene {
   state: SceneState;
   pathfinder: Pathfinder;
   party: Party;
-  /** Derived sheets, by character id. */
-  characters: ReadonlyMap<string, DerivedCharacter>;
+  /** The party's sheets as they stand — levels taken included. */
+  sheets: Map<string, CharacterSheet>;
+  /** Derived sheets, by character id. Rebuilt for one character when they level. */
+  characters: Map<string, DerivedCharacter>;
   triggers: TriggerIndex;
   rng: Rng;
   /** What scripts read and write: flags, keys, variables. */
@@ -437,8 +453,9 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
 
   // Derive every sheet once; the pools a character enters a scene with come
   // straight off it, so nothing about them is written down twice.
+  const sheets = new Map<string, CharacterSheet>(PARTY_SHEETS.map((sheet) => [sheet.id, sheet]));
   const characters = new Map<string, DerivedCharacter>();
-  for (const sheet of PARTY_SHEETS) {
+  for (const sheet of sheets.values()) {
     characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS).character);
   }
 
@@ -507,6 +524,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
 
   return {
     ...runtime,
+    sheets,
     characters,
     rng: createRng(seed),
     scenario,
@@ -948,6 +966,8 @@ function describeEntry(
       if (entry.change === 'completed') return { text: `Quest complete: ${name}.`, tone: 'success' };
       return { text: `Quest failed: ${name}.`, tone: 'fear' };
     }
+    case 'levelUp':
+      return { text: `The party reaches level ${entry.level}.`, tone: 'hope' };
     case 'objective': {
       const quest = quests.get(entry.quest);
       const step = quest?.objectives.find((o) => o.id === entry.objective)?.text ?? entry.objective;
@@ -1025,9 +1045,63 @@ function traitsFor(
   // object is the party solving it together, not one specific hand.
   const best: Partial<Record<Trait, number>> = {};
   for (const character of characters.values()) {
-    for (const [trait, value] of Object.entries(character.sheet.traits) as [Trait, number][]) {
+    for (const [trait, value] of Object.entries(character.traits) as [Trait, number][]) {
       if (best[trait] === undefined || value > best[trait]!) best[trait] = value;
     }
   }
   return best;
+}
+
+// ---------------------------------------------------------------------------
+// Levelling up
+// ---------------------------------------------------------------------------
+
+/** Party members whose sheet is below the level the party has been granted. */
+export function awaitingLevel(demo: DemoScene): string[] {
+  return [...demo.sheets.values()].filter((s) => s.level < demo.scenario.partyLevel).map((s) => s.id);
+}
+
+export type LevelUpResult = { ok: true; level: number } | { ok: false; issues: LevelUpIssue[] };
+
+/**
+ * Take a level for one character.
+ *
+ * The plan is checked whole by `levelUp`; if it holds, the sheet is replaced,
+ * the derived character rebuilt, and the live entity's pools grow to match —
+ * the new slots arrive unmarked, and nothing marked is cleared. Refused during
+ * a fight or a pending prompt, because the script world caches the party's
+ * traits and a fresh one would orphan whatever is waiting.
+ */
+export function applyLevelUp(demo: DemoScene, characterId: string, plan: LevelUpPlan): LevelUpResult {
+  const sheet = demo.sheets.get(characterId);
+  if (sheet === undefined) return { ok: false, issues: [{ field: 'character', message: `no character "${characterId}"` }] };
+  if (sheet.level >= demo.scenario.partyLevel) {
+    return { ok: false, issues: [{ field: 'level', message: 'no level-up waiting' }] };
+  }
+  if (inCombat(demo) || demo.pending !== null) {
+    return { ok: false, issues: [{ field: 'level', message: 'not in the middle of a fight or a conversation' }] };
+  }
+
+  const result = levelUp(sheet, SRD_CHARACTERS, plan);
+  if (result.issues.length > 0) return { ok: false, issues: result.issues };
+
+  const derived = deriveCharacter(result.sheet, SRD_CHARACTERS).character;
+  demo.sheets.set(characterId, result.sheet);
+  demo.characters.set(characterId, derived);
+
+  const entity = demo.state.entity(characterId);
+  if (entity !== undefined) {
+    entity.hitPoints = { max: derived.hitPoints, marked: Math.min(entity.hitPoints.marked, derived.hitPoints) };
+    entity.stress = { max: derived.stress, marked: Math.min(entity.stress.marked, derived.stress) };
+    entity.armorSlots = { max: derived.armorScore, marked: Math.min(entity.armorSlots.marked, derived.armorScore) };
+  }
+
+  // The script world caches the party's best traits; a raised Strength has to
+  // reach the next check.
+  demo.world = new SceneScriptWorld(demo.state, demo.scenario, {
+    traits: traitsFor(demo.characters),
+    lootTables: new Map(demo.project.lootTables.map((table) => [table.id, table])),
+  });
+  note(demo, `${result.sheet.name} reaches level ${result.sheet.level}.`, 'hope');
+  return { ok: true, level: result.sheet.level };
 }

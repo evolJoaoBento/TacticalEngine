@@ -82,6 +82,29 @@ export interface CommunityDef {
   features: SrdFeature[];
 }
 
+export interface SubclassDef {
+  id: string;
+  name: string;
+  /** The class this belongs to, as a content id. */
+  classId: string;
+  domains: string[];
+  spellcastTrait?: Trait;
+  foundation: SrdFeature[];
+  specialization: SrdFeature[];
+  mastery: SrdFeature[];
+}
+
+export interface DomainCardDef {
+  id: string;
+  name: string;
+  domain: string;
+  type: 'ability' | 'spell' | 'grimoire';
+  /** Minimum character level to take it. */
+  level: number;
+  recallCost: number;
+  text: string;
+}
+
 /** Everything a character can be built from. */
 export interface SrdCharacterContent {
   weapons: ReadonlyMap<string, WeaponDef>;
@@ -89,6 +112,8 @@ export interface SrdCharacterContent {
   classes: ReadonlyMap<string, ClassDef>;
   ancestries: ReadonlyMap<string, AncestryDef>;
   communities: ReadonlyMap<string, CommunityDef>;
+  subclasses: ReadonlyMap<string, SubclassDef>;
+  domainCards: ReadonlyMap<string, DomainCardDef>;
 }
 
 // ---------------------------------------------------------------------------
@@ -332,12 +357,77 @@ export function importCommunities(raw: readonly unknown[]): ImportResult<Communi
   }));
 }
 
+export function importSubclasses(raw: readonly unknown[]): ImportResult<SubclassDef> {
+  return importList(raw, 'subclasses.json', 'subclass', (entry, id, name, fail) => {
+    const klass = entry['class'];
+    if (typeof klass !== 'string') {
+      fail('class', 'expected a class name');
+      return null;
+    }
+    const stage = (key: string): SrdFeature[] => {
+      const block = entry[key];
+      return typeof block === 'object' && block !== null
+        ? readFeatures((block as Record<string, unknown>)['features'])
+        : [];
+    };
+    const trait = typeof entry['spellcastTrait'] === 'string' ? TRAITS[entry['spellcastTrait']] : undefined;
+    return {
+      id,
+      name,
+      classId: toContentId(klass.toLowerCase()),
+      domains: Array.isArray(entry['domains'])
+        ? (entry['domains'] as unknown[]).map((d) => String(d).toLowerCase())
+        : [],
+      ...(trait === undefined ? {} : { spellcastTrait: trait }),
+      foundation: stage('foundation'),
+      specialization: stage('specialization'),
+      mastery: stage('mastery'),
+    };
+  });
+}
+
+const CARD_TYPES: Readonly<Record<string, DomainCardDef['type']>> = {
+  ABILITY: 'ability',
+  SPELL: 'spell',
+  GRIMOIRE: 'grimoire',
+};
+
+export function importDomainCards(raw: readonly unknown[]): ImportResult<DomainCardDef> {
+  return importList(raw, 'domain-cards.json', 'domain_card', (entry, id, name, fail) => {
+    const domain = entry['domain'];
+    const level = entry['level'];
+    if (typeof domain !== 'string' || typeof level !== 'number') {
+      fail('domain/level', 'expected a domain name and a level');
+      return null;
+    }
+    const type = CARD_TYPES[String(entry['type'])];
+    if (type === undefined) {
+      fail('type', `unknown card type "${String(entry['type'])}"`);
+      return null;
+    }
+    return {
+      id,
+      name,
+      domain: domain.toLowerCase(),
+      type,
+      level,
+      recallCost: typeof entry['recallCost'] === 'number' ? entry['recallCost'] : 0,
+      text: readFeatures(entry['features'])
+        .map((f) => f.text)
+        .join('\n'),
+    };
+  });
+}
+
 export interface RawCharacterSources {
   weapons: readonly unknown[];
   armors: readonly unknown[];
   classes: readonly unknown[];
   ancestries: readonly unknown[];
   communities: readonly unknown[];
+  /** Optional, so a caller that only needs the level-1 numbers can leave them out. */
+  subclasses?: readonly unknown[];
+  domainCards?: readonly unknown[];
 }
 
 /** Import every character source at once. */
@@ -349,6 +439,8 @@ export function importCharacterContent(
   const classes = importClasses(raw.classes);
   const ancestries = importAncestries(raw.ancestries);
   const communities = importCommunities(raw.communities);
+  const subclasses = importSubclasses(raw.subclasses ?? []);
+  const domainCards = importDomainCards(raw.domainCards ?? []);
 
   const index = <T extends { id: string }>(defs: readonly T[]): ReadonlyMap<string, T> =>
     new Map(defs.map((def) => [def.id, def]));
@@ -360,6 +452,8 @@ export function importCharacterContent(
       classes: index(classes.defs),
       ancestries: index(ancestries.defs),
       communities: index(communities.defs),
+      subclasses: index(subclasses.defs),
+      domainCards: index(domainCards.defs),
     },
     issues: [
       ...weapons.issues,
@@ -367,6 +461,8 @@ export function importCharacterContent(
       ...classes.issues,
       ...ancestries.issues,
       ...communities.issues,
+      ...subclasses.issues,
+      ...domainCards.issues,
     ],
   };
 }

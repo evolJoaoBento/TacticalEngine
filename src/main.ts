@@ -34,6 +34,8 @@ import {
 import { EditorPanel } from './editor/ui/EditorPanel';
 import { PlayPanel, type JournalQuest } from './game/ui/PlayPanel';
 import { PartyHud, type HudMember } from './game/ui/PartyHud';
+import { LevelUpPanel } from './game/ui/LevelUpPanel';
+import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
 import { NO_TILE, type TileGrid } from './engine/grid/grid';
 import { mapExtent, tileAtWorld, tileCenter } from './engine/render/layout';
@@ -54,6 +56,8 @@ import {
   attackWithSelected,
   buildDemoScene,
   inCombat,
+  applyLevelUp,
+  awaitingLevel,
   moveSelectedTo,
   note,
   playGmTurn,
@@ -119,6 +123,10 @@ declare global {
       carried: () => { id: string; name: string; quantity: number }[];
       journal: () => { id: string; status: string; done: string[] }[];
       camera: () => { yaw: number; pitch: number; distance: number; target: { x: number; z: number } };
+      grantLevel: (level?: number) => number;
+      awaitingLevel: () => string[];
+      takeLevel: (id: string, plan: unknown) => boolean;
+      characterLevel: (id: string) => number;
       cursorTile: () => number;
       screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
@@ -549,6 +557,7 @@ function journalEntries(): JournalQuest[] {
 
 /** What the HUD shows for each party member. */
 function hudMembers(): HudMember[] {
+  const waiting = new Set(awaitingLevel(demo));
   return demo.state.entitiesOf('party').map((entity) => {
     const character = demo.characters.get(entity.id);
     const sheet = character?.sheet;
@@ -564,8 +573,25 @@ function hudMembers(): HudMember[] {
       armorSlots: { ...entity.armorSlots },
       ...(entity.hope === undefined ? {} : { hope: { ...entity.hope } }),
       conditions: [...entity.conditions],
+      canLevel: waiting.has(entity.id) && !inCombat(demo) && demo.pending === null,
     };
   });
+}
+
+/** Who is filling in a level-up sheet, and why the last attempt was refused. */
+let levelling: string | null = null;
+let levelIssues: LevelUpIssue[] = [];
+
+function takeLevel(id: string, plan: LevelUpPlan): boolean {
+  const result = applyLevelUp(demo, id, plan);
+  if (result.ok) {
+    levelling = null;
+    levelIssues = [];
+  } else {
+    levelIssues = result.issues;
+  }
+  refreshPlay();
+  return result.ok;
 }
 
 function renderPlayPanel(): void {
@@ -578,7 +604,24 @@ function renderPlayPanel(): void {
         demo.party.select(id);
         refreshPlay();
       },
-    }), h(PlayPanel, {
+      onLevelUp: (id: string) => {
+        levelling = id;
+        levelIssues = [];
+        refreshPlay();
+      },
+    }), levelling !== null && demo.sheets.has(levelling) && awaitingLevel(demo).includes(levelling)
+      ? h(LevelUpPanel, {
+          sheet: demo.sheets.get(levelling)!,
+          content: SRD_CHARACTERS,
+          issues: levelIssues,
+          onApply: (plan: LevelUpPlan) => void takeLevel(levelling!, plan),
+          onClose: () => {
+            levelling = null;
+            levelIssues = [];
+            refreshPlay();
+          },
+        })
+      : null, h(PlayPanel, {
       log: demo.log,
       journal: journalEntries(),
       carried: carriedItems(),
@@ -920,6 +963,14 @@ const state = {
     distance: orbit.goal.distance,
     target: { x: orbit.goal.target.x, z: orbit.goal.target.z },
   }),
+  grantLevel: (level?: number): number => {
+    demo.world.grantLevel(level);
+    refreshPlay();
+    return demo.scenario.partyLevel;
+  },
+  awaitingLevel: (): string[] => awaitingLevel(demo),
+  takeLevel: (id: string, plan: unknown): boolean => takeLevel(id, plan as LevelUpPlan),
+  characterLevel: (id: string): number => demo.sheets.get(id)?.level ?? 0,
   cursorTile: (): number => view.cursorAt,
   /** Where a tile's centre lands on screen, in CSS pixels from the page origin. */
   screenOf: (tile: number): { x: number; y: number } => {

@@ -48,6 +48,11 @@ export interface ScenarioState {
   actorId: string | null;
   /** Quest progress by quest id. A quest with no entry has not been started. */
   quests: Map<string, QuestProgress>;
+  /**
+   * The level the party has been granted. A character whose sheet is below it
+   * has a level-up waiting; the choices are theirs, the moment is the GM's.
+   */
+  partyLevel: number;
 }
 
 export function createScenarioState(
@@ -62,6 +67,7 @@ export function createScenarioState(
     items: new Map(items),
     actorId,
     quests: new Map(),
+    partyLevel: 1,
   };
 }
 
@@ -84,6 +90,7 @@ export const scenarioSnapshotSchema = z.object({
   quests: z
     .array(z.object({ quest: z.string(), status: questStatusSchema, done: z.array(z.string()) }))
     .default([]),
+  partyLevel: z.number().int().min(1).max(10).default(1),
 });
 
 export type ScenarioSnapshot = z.infer<typeof scenarioSnapshotSchema>;
@@ -99,6 +106,7 @@ export function scenarioSnapshot(scenario: ScenarioState): ScenarioSnapshot {
       status: progress.status,
       done: [...progress.done],
     })),
+    partyLevel: scenario.partyLevel,
   };
 }
 
@@ -121,6 +129,7 @@ export function restoreScenario(scenario: ScenarioState, snapshot: ScenarioSnaps
   for (const entry of snapshot.quests) {
     scenario.quests.set(entry.quest, { status: entry.status, done: new Set(entry.done) });
   }
+  scenario.partyLevel = snapshot.partyLevel;
 }
 
 export interface SceneScriptWorldOptions {
@@ -246,6 +255,13 @@ export class SceneScriptWorld implements ScriptWorld {
   // failed one is not completed by a late objective. Finishing is explicit —
   // ticking the last objective does not complete a quest, because "you have
   // everything, now bring it back" is a beat a designer places on purpose.
+
+  grantLevel(level?: number): number | null {
+    const target = Math.min(10, level ?? this.scenario.partyLevel + 1);
+    if (target <= this.scenario.partyLevel) return null;
+    this.scenario.partyLevel = target;
+    return target;
+  }
 
   startQuest(quest: string): boolean {
     if (this.scenario.quests.has(quest)) return false;

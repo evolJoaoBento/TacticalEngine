@@ -39,6 +39,7 @@ two thirds.
 | Saving | A campaign put down and picked up: rooms, pack, flags, and the dice position |
 | Quests | Start, tick, finish; a journal; a demo quest across two rooms |
 | Presentation | Orbit/pan/zoom camera, hover cursor, party HUD with pips, dice read out |
+| Progression | Tiered level-ups with recorded advancements, subclasses, domain cards, multiclass |
 | Items | Items and weighted loot tables; a shared pack that survives a doorway |
 | Editor | Map tools, scene list, object inspector, dialogue graph, quest form, undo, validation, JSON |
 
@@ -118,8 +119,29 @@ already consume — Evasion and Hit Points from the class, damage thresholds and
 the armor plus level, and an attack profile whose trait, range and dice come from the weapon.
 The demo party is three authored sheets rather than three literals.
 
-**Still open:** subclasses, domain cards and progression (levelling, advancements, multiclass).
-Those are what item 6 and a future levelling pass need.
+**Progression is in** (`character/progression.ts`). Subclasses and the 189 domain cards are
+imported from the vendored SRD. A sheet *records* its levels — each one's two advancements, the
+domain card it granted, the Experience at a tier threshold — and `deriveCharacter` folds them into
+the numbers, so a grown character is data a save can carry and an editor can show. The rules as
+implemented: two picks per level from the tier's option table (traits ×3, Hit Point ×2, Stress ×2,
+Experiences, an extra domain card, Evasion, a subclass upgrade; from tier 3 also Proficiency and
+Multiclass, each costing both picks); one new domain card per level from the character's domains
+at or below their level; at levels 2, 5 and 8 a new Experience and +1 Proficiency; trait marks
+cleared at 5 and 8; multiclass opens one domain of the second class. A plan is legal or nothing
+happens.
+
+Daggerheart has no experience points — the GM says when — so levelling is a `levelUp` **effect** a
+designer places as a milestone; the demo grants one when the strongbox opens. The HUD offers a
+"Level up" on each card with a level waiting; the sheet shows every option with its boxes left
+and its cost, the card's text, and the engine's reasons when it refuses. Pools grow without
+clearing a wound, the script world picks up a raised trait, and the grown sheet rides in the save.
+
+**Not verifiable here:** the tier option table is transcribed from the SRD 2.0 level-up sheet.
+The vendored `rules.json` does not include levelling, so the limits and costs could not be checked
+against source text in this repo. Treat the numbers in `TIER_OPTIONS` as the thing to confirm.
+
+**Still open:** subclass and domain-card *features* are text on the sheet, not mechanics — a card's
+effect is read, not executed. And equipping (see 6).
 
 ### ~~6. Inventory and loot~~ — mostly done
 

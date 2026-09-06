@@ -31,6 +31,7 @@ import {
   type MarkPool,
 } from '../rules/resources';
 import type { Trait } from '../scene/schema';
+import { progressionBonuses, type LevelRecord } from './progression';
 
 /** The six traits, at the SRD's starting spread of +2 +1 +1 +0 +0 −1. */
 export type Traits = Record<Trait, number>;
@@ -61,6 +62,12 @@ export interface CharacterSheet {
   armorId?: string;
   /** Experiences, each spendable for a Hope: "Tremor Sense +2". */
   experiences?: readonly { name: string; modifier: number }[];
+  /** The subclass chosen at level 1. Its stage is read off `levels`. */
+  subclassId?: string;
+  /** Domain cards taken at level 1 (the SRD grants two). */
+  domainCards?: readonly string[];
+  /** Every level taken since 1, in order. `progression.ts` reads and writes this. */
+  levels?: readonly LevelRecord[];
   /** Flat adjustments from advancements, features or items. */
   bonuses?: {
     evasion?: number;
@@ -75,6 +82,10 @@ export interface CharacterSheet {
 /** Everything derived from a sheet, computed once per change rather than per read. */
 export interface DerivedCharacter {
   sheet: CharacterSheet;
+  /** The sheet's traits with every recorded advancement folded in. */
+  traits: Traits;
+  /** Experiences with their advancement bumps folded in. */
+  experiences: readonly { name: string; modifier: number }[];
   /** "Any roll made against a PC has a Difficulty equal to the target's Evasion." */
   evasion: number;
   /** Armor's base thresholds plus the character's level. */
@@ -132,6 +143,23 @@ export function deriveCharacter(
   );
 
   const bonuses = sheet.bonuses ?? {};
+  if (sheet.subclassId !== undefined) {
+    const subclass = content.subclasses.get(sheet.subclassId);
+    if (subclass === undefined) miss('subclass', sheet.subclassId);
+    else if (subclass.classId !== sheet.classId) {
+      issues.push({
+        sheet: sheet.id,
+        field: 'subclass',
+        message: `subclass "${sheet.subclassId}" belongs to ${subclass.classId}, not ${sheet.classId}`,
+      });
+    }
+  }
+  for (const card of sheet.domainCards ?? []) {
+    if (!content.domainCards.has(card)) miss('domainCard', card);
+  }
+  // What the recorded levels add. Experiences fold in below; traits fold into
+  // the sheet's own map so a check reads the grown number.
+  const grown = progressionBonuses(sheet);
   // "A PC's damage thresholds are calculated by adding their level to the listed
   // damage thresholds of their equipped armor." Unarmoured is level / twice level.
   const base = pcThresholds(sheet.level, armor?.baseThresholds ?? null);
@@ -140,17 +168,26 @@ export function deriveCharacter(
     severe: base.severe + (bonuses.severeThreshold ?? 0),
   };
 
+  const traits: Traits = { ...sheet.traits };
+  for (const trait of Object.keys(grown.traits) as Trait[]) traits[trait] += grown.traits[trait] ?? 0;
+  const experiences = (sheet.experiences ?? []).map((e) => ({
+    ...e,
+    modifier: e.modifier + (grown.experiences[e.name] ?? 0),
+  }));
+
   const character: DerivedCharacter = {
     sheet,
-    evasion: (klass?.startingEvasion ?? 10) + (bonuses.evasion ?? 0),
+    traits,
+    experiences,
+    evasion: (klass?.startingEvasion ?? 10) + (bonuses.evasion ?? 0) + grown.evasion,
     thresholds,
     // "While unarmored, your character's base Armor Score is 0."
     armorScore: armorScore(armor?.baseScore ?? 0, bonuses.armorScore ?? 0),
     hitPoints: Math.min(
       MAX_SLOTS,
-      (klass?.startingHitPoints ?? 5) + (bonuses.hitPoints ?? 0),
+      (klass?.startingHitPoints ?? 5) + (bonuses.hitPoints ?? 0) + grown.hitPoints,
     ),
-    stress: Math.min(MAX_SLOTS, STARTING_STRESS_SLOTS + (bonuses.stress ?? 0)),
+    stress: Math.min(MAX_SLOTS, STARTING_STRESS_SLOTS + (bonuses.stress ?? 0) + grown.stress),
     hope: createHope(),
     ...(primaryWeapon === undefined ? {} : { primaryWeapon }),
     ...(secondaryWeapon === undefined ? {} : { secondaryWeapon }),
@@ -192,7 +229,8 @@ export function attackProfile(
   which: 'primary' | 'secondary' = 'primary',
 ): AttackProfile {
   const weapon = which === 'primary' ? character.primaryWeapon : character.secondaryWeapon;
-  const traits = character.sheet.traits;
+  // The derived traits, so an advancement that raised Strength raises the swing.
+  const traits = character.traits;
 
   if (weapon === undefined) {
     return {

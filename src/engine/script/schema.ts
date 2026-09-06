@@ -193,6 +193,12 @@ export const effectSchema = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal('completeQuest'), quest: contentIdSchema }),
   z.object({ kind: z.literal('failQuest'), quest: contentIdSchema }),
+  /**
+   * The party levels up. Daggerheart has no experience points — the GM says
+   * when — so this is a milestone a designer places. `level` names the level
+   * reached; left out, it is one more than the party's current level.
+   */
+  z.object({ kind: z.literal('levelUp'), level: z.number().int().min(2).max(10).optional() }),
   z.object({
     kind: z.literal('branch'),
     when: conditionSchema,

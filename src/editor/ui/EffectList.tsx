@@ -50,6 +50,7 @@ const ADDABLE = [
   'completeObjective',
   'completeQuest',
   'failQuest',
+  'levelUp',
 ] as const;
 
 type Addable = (typeof ADDABLE)[number];
@@ -72,6 +73,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   completeObjective: 'Complete an objective',
   completeQuest: 'Complete a quest',
   failQuest: 'Fail a quest',
+  levelUp: 'Level the party up',
 };
 
 const row: Record<string, string | number> = {
@@ -138,6 +140,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
         quest: props.quests[0]?.id ?? '',
         objective: props.quests[0]?.objectives[0]?.id ?? '',
       };
+    case 'levelUp':
+      return { kind };
   }
 }
 
@@ -292,6 +296,8 @@ function renderBody(
         </>
       );
     }
+    case 'levelUp':
+      return <span style={{ ...field, color: '#8ea3b0' }}>one level, whole party</span>;
     case 'open':
     case 'remove':
     case 'markUsed':

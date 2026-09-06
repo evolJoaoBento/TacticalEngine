@@ -17,7 +17,8 @@
 
 import { z } from 'zod';
 
-import { enterSavedScene, inCombat, type DemoScene } from './demo-scene';
+import { SRD_CHARACTERS, enterSavedScene, inCombat, type DemoScene } from './demo-scene';
+import { deriveCharacter, type CharacterSheet } from '../engine/character/sheet';
 import { logToneSchema } from '../engine/script/schema';
 import {
   restoreScenario,
@@ -43,6 +44,12 @@ export const saveSchema = z.object({
   scenes: z.record(z.string(), sceneSnapshotSchema),
   /** Whose turn it is to be clicked on. */
   selected: z.string().nullable(),
+  /**
+   * The party's sheets, levels taken included. Defaulted so an older save
+   * loads with the project's level-1 sheets. Loosely typed here: a sheet is
+   * validated by `deriveCharacter` on load, which reports rather than throws.
+   */
+  sheets: z.array(z.record(z.string(), z.unknown())).default([]),
   log: z.array(z.object({ text: z.string(), tone: logToneSchema })),
 });
 
@@ -73,6 +80,7 @@ export function saveGame(demo: DemoScene): SaveGame | null {
     scenario: scenarioSnapshot(demo.scenario),
     scenes,
     selected: demo.party.selected,
+    sheets: [...demo.sheets.values()].map((sheet) => ({ ...sheet })),
     log: demo.log.map((line) => ({ ...line })),
   };
 }
@@ -108,6 +116,12 @@ export function loadGame(demo: DemoScene, save: SaveGame): LoadResult {
   }
 
   restoreScenario(demo.scenario, save.scenario);
+  for (const raw of save.sheets) {
+    const sheet = raw as unknown as CharacterSheet;
+    if (typeof sheet.id !== 'string' || !demo.sheets.has(sheet.id)) continue;
+    demo.sheets.set(sheet.id, sheet);
+    demo.characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS).character);
+  }
   enterSavedScene(demo, save.sceneId, current);
 
   demo.snapshots.clear();

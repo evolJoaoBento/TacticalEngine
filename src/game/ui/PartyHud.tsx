@@ -19,6 +19,8 @@ export interface HudMember {
   armorSlots: { marked: number; max: number };
   hope?: { value: number; max: number };
   conditions: readonly string[];
+  /** A level-up is waiting for this character. */
+  canLevel: boolean;
 }
 
 export interface PartyHudProps {
@@ -27,6 +29,7 @@ export interface PartyHudProps {
   fear: { value: number; max: number };
   round: number | null;
   onSelect: (id: string) => void;
+  onLevelUp: (id: string) => void;
 }
 
 const wrap: Record<string, string | number> = {
@@ -102,6 +105,29 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
             <strong>{member.name}</strong>
             <span style={{ color: '#8ea3b0', fontSize: '10px' }}>{member.role}</span>
           </div>
+          {member.canLevel ? (
+            <button
+              style={{
+                display: 'block',
+                width: '100%',
+                margin: '2px 0 4px',
+                padding: '2px 6px',
+                border: '1px solid #ffe08a',
+                borderRadius: '4px',
+                background: 'rgba(255,224,138,0.15)',
+                color: '#ffe08a',
+                font: 'inherit',
+                cursor: 'pointer',
+              }}
+              data-testid="level-up-button"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onLevelUp(member.id);
+              }}
+            >
+              Level up
+            </button>
+          ) : null}
           <Pips label="HP" marked={member.hitPoints.marked} max={member.hitPoints.max} colour="#ff7a7a" testId="hp" />
           <Pips label="Stress" marked={member.stress.marked} max={member.stress.max} colour="#c8a2ff" testId="stress" />
           <Pips label="Armor" marked={member.armorSlots.marked} max={member.armorSlots.max} colour="#9ab5c8" testId="armor" />

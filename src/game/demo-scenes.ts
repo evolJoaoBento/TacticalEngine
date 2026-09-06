@@ -95,6 +95,8 @@ export const PIT_SCENE: SceneDoc = sceneSchema.parse({
           objective: OBJECTIVE_OPEN_THE_STRONGBOX,
         },
         { kind: 'completeQuest', quest: WARDENS_WORD_QUEST },
+        // A milestone: the GM says the party has earned a level.
+        { kind: 'levelUp' },
       ],
     },
   ],

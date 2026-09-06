@@ -421,6 +421,7 @@ describe('the runner as a whole', () => {
       countAlive: () => 1,
       questStatus: () => 'inactive',
       objectiveDone: () => false,
+      grantLevel: () => null,
       startQuest: () => false,
       completeObjective: () => false,
       completeQuest: () => false,
