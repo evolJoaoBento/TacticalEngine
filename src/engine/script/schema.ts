@@ -294,6 +294,19 @@ export function walkConditionsIn(
   });
 }
 
+/** Every condition read anywhere inside a check's outcomes, each visited once. */
+export function walkConditionsInCheck(
+  check: CheckRequest,
+  visit: (condition: Condition) => void,
+): void {
+  walkConditionsIn(check.onCriticalSuccess, visit);
+  walkConditionsIn(check.onSuccessWithHope, visit);
+  walkConditionsIn(check.onSuccessWithFear, visit);
+  walkConditionsIn(check.onFailureWithHope, visit);
+  walkConditionsIn(check.onFailureWithFear, visit);
+  walkConditionsIn(check.always, visit);
+}
+
 /** Every effect a check can run, whichever way the roll goes. */
 export function walkCheck(check: CheckRequest, visit: (effect: Effect) => void): void {
   walkEffects(check.onCriticalSuccess, visit);

@@ -17,6 +17,7 @@ import {
   walkCheck,
   walkCondition,
   walkConditionsIn,
+  walkConditionsInCheck,
   walkEffects,
   type Condition,
   type Effect,
@@ -337,7 +338,7 @@ function validateEffects(
   walkConditionsIn(interactable.effects, quests.condition);
   if (interactable.check !== undefined) {
     walkCheck(interactable.check, inspectAll);
-    walkCheck(interactable.check, (effect) => walkConditionsIn([effect], quests.condition));
+    walkConditionsInCheck(interactable.check, quests.condition);
   }
 }
 
@@ -427,7 +428,7 @@ function checkDialogues(
         walkConditionsIn(choice.effects, quests.condition);
         if (choice.check !== undefined) {
           walkCheck(choice.check, inspectAll);
-          walkCheck(choice.check, (effect) => walkConditionsIn([effect], quests.condition));
+          walkConditionsInCheck(choice.check, quests.condition);
         }
       }
     }

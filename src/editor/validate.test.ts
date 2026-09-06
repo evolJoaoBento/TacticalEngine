@@ -547,6 +547,34 @@ describe('quests', () => {
     expect(messages(project)).toContain('"chest-1" refers to quest "ghost", which does not exist.');
   });
 
+  it('reports a condition two levels down inside a check outcome exactly once', () => {
+    // `walkCheck` already descends into nested branches; walking conditions
+    // from every visited effect as well would report the inner one twice.
+    const project = withQuest();
+    project.scenes[0]!.interactables.push({
+      ...chest,
+      check: {
+        trait: 'finesse',
+        difficulty: 10,
+        onSuccessWithHope: [
+          {
+            kind: 'branch',
+            when: { kind: 'always' },
+            then: [
+              {
+                kind: 'branch',
+                when: { kind: 'quest', quest: 'ghost', status: 'active' },
+                then: [{ kind: 'completeObjective', quest: 'word', objective: 'ask' }],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const ghosts = messages(project).filter((m) => m.includes('quest "ghost"'));
+    expect(ghosts).toHaveLength(1);
+  });
+
   it('reads a reply gated on a quest', () => {
     const project = withQuest();
     (project as { dialogues: unknown[] }).dialogues = [
