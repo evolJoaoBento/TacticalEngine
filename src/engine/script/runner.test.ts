@@ -447,6 +447,7 @@ describe('the runner as a whole', () => {
       checkModifier: () => 0,
       experiences: () => [],
       difficultyOf: () => null,
+      hook: () => null,
       actorId: () => null,
       resolveTargets: () => [],
       inCombat: () => false,

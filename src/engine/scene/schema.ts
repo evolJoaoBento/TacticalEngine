@@ -191,6 +191,21 @@ export const terrainTypeSchema = z.object({
   blocksSight: z.boolean().default(false),
 });
 
+/**
+ * A piece of logic in code the project carries. The body is a JavaScript
+ * function body run against a hook context (`script/hooks.ts`); `id` is what
+ * a `run` effect or a `hook` condition names.
+ */
+export const codeSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().default(''),
+  /** What it is for, in words, for whoever opens the project next. */
+  notes: z.string().default(''),
+  source: z.string().default(''),
+});
+
+export type CodeDef = z.infer<typeof codeSchema>;
+
 export const projectSchema = z
   .object({
     /** Bumped when a migration is needed; validated so old files fail loudly. */
@@ -221,6 +236,11 @@ export const projectSchema = z
      * with their scripts. Defaulted, so an older project is still a project.
      */
     abilities: z.array(abilitySchema).default([]),
+    /**
+     * Logic in code, for what the effect vocabulary cannot say. Defaulted: a
+     * project that never needed code is still a project.
+     */
+    code: z.array(codeSchema).default([]),
     /** What a named condition does to its bearer. Defaulted, like abilities. */
     conditionDefs: z.array(conditionDefSchema).default([]),
     /** Scene the project opens on. */

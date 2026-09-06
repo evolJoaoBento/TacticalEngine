@@ -194,6 +194,7 @@ export function importLegacyCampaign(
       id: options.id ?? (toContentId(name) || 'imported'),
       name,
       abilities: [],
+      code: [],
       conditionDefs: [],
       scenes,
       dialogues: [],

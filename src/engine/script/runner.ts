@@ -25,6 +25,8 @@
 import type { Rng } from '../core/rng';
 import { rollDuality, type DualityRoll } from '../rules/duality';
 import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
+import { hookReads } from './conditions';
+import { runHook, type HookContext } from './hooks';
 import { rollDamage, type IncomingDamage } from '../rules/damage';
 import type { RangeBand } from '../rules/range';
 import type { Trait } from '../scene/primitives';
@@ -725,6 +727,30 @@ export class ScriptRunner {
           const moved = world.pushBack(actor, id, effect.to);
           if (moved !== null) this.journal.push({ kind: 'moved', id, from: moved.from, to: moved.to });
         }
+        return null;
+      }
+      case 'run': {
+        const fn = world.hook(effect.hook);
+        if (fn === null) return this.refuse(`no hook named "${effect.hook}"`);
+        const queued: Effect[] = [];
+        const context: HookContext = {
+          ...hookReads(world, this.bindings(), effect.args ?? {}),
+          rng: this.rng,
+          lastRoll:
+            this.lastRoll === null
+              ? null
+              : { total: this.lastRoll.total, critical: this.lastRoll.critical, outcome: this.lastRoll.outcome },
+          queue: (effects) => {
+            queued.push(...effects);
+          },
+          log: (text, tone) => {
+            queued.push({ kind: 'log', text, ...(tone === undefined ? {} : { tone }) });
+          },
+        };
+        const result = runHook(fn, context);
+        if (!result.ok) return this.refuse(`hook "${effect.hook}" failed: ${result.message}`);
+        // Whatever it queued runs here, before the rest of the list it sits in.
+        if (queued.length > 0) this.stack.push({ effects: queued, index: 0 });
         return null;
       }
       case 'reactionRoll': {

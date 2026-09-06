@@ -71,6 +71,8 @@ declare global {
       inspect: (tile: number) => { kind: string; id: string; name: string; facts: string[] } | null;
       animating: () => number;
       wound: (id: string, marks: number) => void;
+      markStress: (id: string, marks: number) => void;
+      stressOf: (id: string) => { marked: number; max: number };
       gear: (id: string) => { weapon: string; armor: string };
       giveItem: (id: string, quantity?: number) => void;
       journal: () => { id: string; status: string; done: string[] }[];
@@ -1222,24 +1224,46 @@ test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a sti
     return { tile: api.tileOf(api.selected()!), log: api.log().length };
   });
   await page.keyboard.press('Home');
-  // Hover over another party member's tile: the cursor marks it, and a still
-  // click there selects them rather than being eaten as a drag. The camera
-  // eases to the framing, so the hover is retried until it lands on the tile.
-  const target = await page.evaluate(() => window.__polyheart!.tileOf(window.__polyheart!.party()[1]!));
+  // The camera eases to the framing; hovering while it is still moving picks
+  // whatever tile happens to be under the cursor that frame, so wait for two
+  // readings that agree before aiming at anything.
   await expect
     .poll(
       async () => {
-        const at = await page.evaluate((tile) => window.__polyheart!.screenOf(tile), target);
-        await page.mouse.move(at.x, at.y);
-        return page.evaluate(() => window.__polyheart!.cursorTile());
+        const first = await page.evaluate(() => window.__polyheart!.camera());
+        await page.waitForTimeout(100);
+        const second = await page.evaluate(() => window.__polyheart!.camera());
+        return JSON.stringify(first) === JSON.stringify(second);
       },
       { timeout: 5000 },
     )
-    .toBe(target);
+    .toBe(true);
+  // Hover over another party member's tile: the cursor marks it, and a still
+  // click there selects them rather than being eaten as a drag. The action bar
+  // floats over the top of the board, so aim at a member it is not covering.
+  const barBox = await page.locator('[data-testid="action-bar"]').boundingBox();
+  const others = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const me = api.selected();
+    return api
+      .party()
+      .filter((id) => id !== me)
+      .map((id) => ({ id, tile: api.tileOf(id), at: api.screenOf(api.tileOf(id)) }));
+  });
+  const clear = others.find(
+    (member) =>
+      barBox === null ||
+      member.at.x < barBox.x ||
+      member.at.x > barBox.x + barBox.width ||
+      member.at.y < barBox.y ||
+      member.at.y > barBox.y + barBox.height,
+  );
+  expect(clear, 'a party member the action bar does not cover').toBeDefined();
+  await page.mouse.move(clear!.at.x, clear!.at.y);
+  expect(await page.evaluate(() => window.__polyheart!.cursorTile())).toBe(clear!.tile);
   await page.mouse.down();
   await page.mouse.up();
-  const selected = await page.evaluate(() => window.__polyheart!.selected());
-  expect(selected).toBe(await page.evaluate(() => window.__polyheart!.party()[1]));
+  expect(await page.evaluate(() => window.__polyheart!.selected())).toBe(clear!.id);
   expect(before.tile).toBeDefined();
 
   expect(consoleErrors).toEqual([]);
@@ -1762,5 +1786,66 @@ test('takes a short rest through the panel and the wounds close', async ({ page 
   await expect(log).toContainText('catch its breath');
   await expect(log).toContainText(/The GM gains \d Fear/);
   await page.screenshot({ path: 'test-results/rest-panel-after.png' });
+  expect(consoleErrors).toEqual([]);
+});
+
+test('writes logic in the Code panel and plays the card that runs it', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  // The demo ships one card written in project code. Open the panel and read it.
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-code"]').click();
+  const panel = page.locator('[data-testid="code-panel"]');
+  await expect(panel).toBeVisible();
+  await panel.locator('[data-code="rally-the-line"]').click();
+  await expect(panel.locator('[data-testid="code-errors"]')).toHaveText('Compiles.');
+  await expect(panel).toContainText('run by: rally-the-line');
+
+  // A syntax error is reported here, where an author can see it, not at the table.
+  const source = panel.locator('[data-testid="code-source"]');
+  const original = (await source.inputValue());
+  await source.fill('return (;');
+  await expect(panel.locator('[data-testid="code-errors"]')).not.toHaveText('Compiles.');
+
+  // Write our own line into it: the log will say this instead.
+  await source.fill(original.replace('The line steadies.', 'The banner goes up.'));
+  await expect(panel.locator('[data-testid="code-errors"]')).toHaveText('Compiles.');
+  await panel.locator('[data-testid="close-code"]').click();
+
+  // Play it: Kara's card runs the project's code, and every change it makes is logged.
+  const before = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('play');
+    api.select('kara');
+    // Kara is badly hurt, so the code clears a Hit Point for her; the others
+    // are merely rattled, so it clears a Stress.
+    const hp = api.hitPoints('kara');
+    api.wound('kara', hp.max - 1);
+    for (const id of api.party()) api.markStress(id, 1);
+    return {
+      kara: api.hitPoints('kara').marked,
+      stress: Object.fromEntries(api.party().map((id) => [id, api.stressOf(id).marked])),
+    };
+  });
+
+  const bar = page.locator('[data-testid="action-bar"]');
+  await expect(bar.locator('[data-ability="rally-the-line"]')).toHaveAttribute('data-usable', 'true');
+  await bar.locator('[data-ability="rally-the-line"]').click();
+
+  await expect(page.locator('[data-testid="log"]')).toContainText('The banner goes up.');
+  const after = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    return {
+      kara: api.hitPoints('kara').marked,
+      stress: Object.fromEntries(api.party().map((id) => [id, api.stressOf(id).marked])),
+    };
+  });
+  // The wound closed for the one who needed it; the others shook off the Stress.
+  expect(after.kara).toBe(before.kara - 1);
+  expect(after.stress['kara']).toBe(before.stress['kara']);
+  for (const id of Object.keys(before.stress)) {
+    if (id !== 'kara') expect(after.stress[id]).toBe(before.stress[id]! - 1);
+  }
+
   expect(consoleErrors).toEqual([]);
 });

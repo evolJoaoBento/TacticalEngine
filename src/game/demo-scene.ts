@@ -15,13 +15,16 @@ import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
 import { DEMO_QUESTS } from './demo-quests';
 import { SRD_ABILITIES } from '../engine/content/srd/abilities';
+import { SRD_HOOKS } from '../engine/content/srd/hooks';
+import { compileHooks, mergeHooks, type HookMap } from '../engine/script/hooks';
+import { DEMO_CODE, DEMO_PROJECT_ABILITIES } from './demo-code';
 import { SRD_CONDITIONS } from '../engine/content/conditions';
 import { MAX_SLOTS } from '../engine/rules/resources';
 import { walkCheck } from '../engine/script/schema';
 import type { ItemDef, LootTable } from '../engine/content/items';
 import type { QuestDef } from '../engine/content/quests';
 import type { Currency, MarkPool } from '../engine/rules/resources';
-import { interactableSchema, projectSchema, type ProjectDoc } from '../engine/scene/schema';
+import { interactableSchema, projectSchema, type CodeDef, type ProjectDoc } from '../engine/scene/schema';
 import type { SceneStateSnapshot } from '../engine/scene/state';
 import { DialogueRunner, type DialogueView } from '../engine/dialogue/dialogue';
 import type { Dialogue } from '../engine/dialogue/schema';
@@ -258,7 +261,7 @@ interface RuntimeOptions {
   /** The project's loot tables, so a chest in any room pays out. */
   lootTables?: ReadonlyMap<string, LootTable>;
   /** The project's abilities and conditions, for the world's modifiers. */
-  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs'>;
+  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code'>;
 }
 
 /** The pools a character carries between rooms. */
@@ -341,7 +344,7 @@ export function worldOptions(
   characters: ReadonlyMap<string, DerivedCharacter>,
   lootTables?: ReadonlyMap<string, LootTable>,
   scene?: SceneDoc,
-  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs'>,
+  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code'>,
 ): SceneScriptWorldOptions {
   return {
     traits: traitsFor(characters),
@@ -350,8 +353,32 @@ export function worldOptions(
     bandTiles: DEMO_BAND_TILES,
     abilities: project?.abilities ?? SRD_ABILITIES,
     conditionDefs: project?.conditionDefs ?? SRD_CONDITIONS,
+    // The engine's native hooks, then the project's own code, which may
+    // override one of them by using the same id. Asked for each time: the
+    // editor rewrites a hook in place, and the table plays what it now says.
+    hooks: () => hooksFor(project?.code),
     ...(lootTables === undefined ? {} : { lootTables }),
   };
+}
+
+/**
+ * Compile a project's code once and cache it: a world is rebuilt whenever a
+ * sheet changes, and recompiling every card's logic each time would be waste.
+ * Compile errors are dropped here — `editor/validate.ts` reports them where a
+ * designer can see them.
+ */
+let compiled: { signature: string; hooks: HookMap } | null = null;
+
+export function hooksFor(code: readonly CodeDef[] | undefined): HookMap {
+  if (code === undefined || code.length === 0) return SRD_HOOKS;
+  // Keyed on what the code *says*, not on the array holding it: the editor
+  // rewrites an entry in place, and a cache keyed on identity would go on
+  // running the version the author has just changed.
+  const signature = code.map((entry) => `${entry.id} ${entry.source}`).join('');
+  if (compiled !== null && compiled.signature === signature) return compiled.hooks;
+  const hooks = mergeHooks(SRD_HOOKS, compileHooks(code).hooks);
+  compiled = { signature, hooks };
+  return hooks;
 }
 
 /**
@@ -577,7 +604,8 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     items: [...DEMO_ITEMS],
     lootTables: [...DEMO_LOOT_TABLES],
     quests: [...DEMO_QUESTS],
-    abilities: [...SRD_ABILITIES],
+    abilities: [...SRD_ABILITIES, ...DEMO_PROJECT_ABILITIES],
+    code: [...DEMO_CODE],
     conditionDefs: [...SRD_CONDITIONS],
     startScene: vault.id,
   });

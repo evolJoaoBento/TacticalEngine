@@ -22,8 +22,10 @@
 export type { Condition, CompareOp, ScriptValue } from './schema';
 export { conditionSchema } from './schema';
 
-import type { Condition, CompareOp, PoolName, ScriptValue, TargetSelector } from './schema';
+import type { Condition, CompareOp, HookArgs, PoolName, ScriptValue, TargetSelector } from './schema';
 import type { QuestQuery } from '../content/quests';
+import type { HookFn, HookReads } from './hooks';
+import { runHook } from './hooks';
 import { reaches, type RangeBand } from '../rules/range';
 
 /**
@@ -59,6 +61,33 @@ export interface ConditionContext {
   poolValue(id: string, pool: PoolName, measure: 'available' | 'marked' | 'max'): number | null;
   /** The range band between two creatures, or null when either is off the map. */
   bandTo(from: string, to: string): RangeBand | null;
+  /** What a roll against this creature must beat: Evasion, or a Difficulty. */
+  difficultyOf(id: string): number | null;
+  /** A hook by id — native or project code — or null when nothing defines it. */
+  hook(id: string): HookFn | null;
+}
+
+/**
+ * The read-only half of a hook's context, built from whatever a condition is
+ * evaluated against. A predicate hook gets this; a `run` hook gets this plus
+ * the dice and `queue` (`runner.ts` adds those).
+ */
+export function hookReads(context: ConditionContext, bindings: TargetBindings, args: HookArgs = {}): HookReads {
+  return {
+    args,
+    actor: context.actorId(),
+    targets: bindings.targets,
+    hit: bindings.hit,
+    inCombat: context.inCombat(),
+    pool: (id, pool, measure = 'available') => context.poolValue(id, pool, measure),
+    hasCondition: (id, condition) => context.hasCondition(id, condition),
+    bandTo: (from, to) => context.bandTo(from, to),
+    difficultyOf: (id) => context.difficultyOf(id),
+    select: (selector) => context.resolveTargets(selector, bindings),
+    flag: (name) => context.hasFlag(name),
+    variable: (name) => context.getVar(name),
+    countAlive: (faction) => context.countAlive(faction),
+  };
 }
 
 function compare(left: ScriptValue, op: CompareOp, right: ScriptValue): boolean {
@@ -129,6 +158,14 @@ export function evaluate(
       return context
         .resolveTargets(condition.of ?? { kind: 'target' }, bindings)
         .some((id) => context.hasCondition(id, condition.condition));
+    case 'hook': {
+      // A hook nobody defined is false, not a crash: content outlives the code
+      // that backed it, and a missing predicate must not stop a scene.
+      const fn = context.hook(condition.hook);
+      if (fn === null) return false;
+      const result = runHook(fn, hookReads(context, bindings, condition.args ?? {}) as never);
+      return result.ok && result.value === true;
+    }
     case 'withinRange': {
       const actor = context.actorId();
       if (actor === null) return false;

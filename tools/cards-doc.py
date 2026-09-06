@@ -1,0 +1,54 @@
+"""Write docs/CARDS.md: every SRD domain card, scripted or text-only.
+
+Run from the repo root: `python tools/cards-doc.py`. It reads the vendored SRD
+card list and the scripted library, and rewrites the table so the doc cannot
+drift from what the engine actually runs.
+"""
+import io, json, re
+import os
+root=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+'/'
+cards=json.load(open(root+'tools/srd-sources/daggersearch/core/domain-cards.json',encoding='utf-8'))
+lib=io.open(root+'src/engine/content/srd/abilities.ts',encoding='utf-8').read()
+def t(x): return x.get('en-US') if isinstance(x,dict) else x
+def kebab(name):
+    s=name.lower().replace("'","").replace("’","")
+    s=re.sub(r'[^a-z0-9]+','-',s).strip('-')
+    return s
+entries=[]
+for c in cards:
+    cid=kebab(t(c['name']))
+    kind='text'
+    # which library entries name this card, and how they run
+    blocks=[m.start() for m in re.finditer(r"source: card\('%s'\)"%re.escape(cid), lib)]
+    names=[]
+    for b in blocks:
+        seg=lib[lib.rfind('  {\n',0,b):lib.find('\n  },',b)]
+        nm=re.search(r"name: (['\"])(.*?)\1", seg).group(2)
+        how='action' if 'effects: [' in seg else 'reaction' if 'reaction: {' in seg else 'passive' if 'modifiers: [' in seg else 'text'
+        names.append((nm,how))
+    entries.append((c['domain'].title(), c['level'], t(c['name']), c['type'].title(), names))
+entries.sort(key=lambda e:(e[0],e[1],e[2]))
+out=[]
+out.append("# Domain cards: what the engine runs\n")
+out.append("Every SRD domain card is held, shown and counted toward the loadout. The ones marked here")
+out.append("as **action**, **reaction** or **passive** are scripted in `src/engine/content/srd/abilities.ts`")
+out.append("and run through the one effect vocabulary; the rest are **text**: the card's words are shown on")
+out.append("the action bar and the table adjudicates, as at a real one. A grimoire lists each spell.\n")
+out.append("Known simplifications in the scripted ones:\n")
+out.append("- **Rune Ward** never breaks on an 8; **Get Back Up**, **Iron Will** and the ward fire on their own when they lower the Hit Points marked (per-card `auto`, prompts are a later step).")
+out.append("- **Whirlwind** reuses the attack roll against everyone else in reach, as the card says; the ones it reaches take half of a second roll of the weapon's dice rather than half the first roll.")
+out.append("- **Arcane Barrage** offers 1, 2 or 3 Hope rather than any number.")
+out.append("- **Slumber**'s sleeper loses its spotlight until damage marks a Hit Point or the GM spends a Fear, which the GM's turn does on its own when there is one.")
+out.append("- **Enrapture** is text: what a fixed attention does to an adversary is the table's call.")
+out.append("- **I Am Your Shield** and **Not This Time** are text: redirecting a hit and forcing a reroll are interrupts the attack flow does not offer yet.")
+out.append("- Cards that ask for a Presence Roll, tokens on the card, Hidden/Cloaked, or a GM's discretion stay text.\n")
+count_s=sum(1 for e in entries if e[4])
+out.append(f"Scripted: {count_s} of {len(entries)} cards.\n")
+dom=None
+for d,lvl,name,typ,names in entries:
+    if d!=dom:
+        dom=d; out.append(f"\n## {d}\n"); out.append("| Level | Card | Type | Engine |"); out.append("|---|---|---|---|")
+    how = ', '.join(f"**{h}**" + ('' if nm==name else f" ({nm})") for nm,h in names) if names else 'text'
+    out.append(f"| {lvl} | {name} | {typ} | {how} |")
+io.open(root+'docs/CARDS.md','w',encoding='utf-8',newline='\n').write('\n'.join(out)+'\n')
+print('cards', len(entries), 'scripted', count_s)

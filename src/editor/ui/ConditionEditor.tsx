@@ -18,6 +18,8 @@ export interface ConditionEditorProps {
   encounterIds: readonly string[];
   /** Objects in the scene, for the `interactable` condition. */
   interactableIds?: readonly string[];
+  /** Hooks the project defines, for the `hook` condition. */
+  hookIds?: readonly string[];
   /** How deep this editor is nested, to keep the indent honest. */
   depth?: number;
 }
@@ -67,7 +69,7 @@ const small: Record<string, string | number> = {
 };
 
 /** A fresh condition of a kind, with the first sensible content id filled in. */
-export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEditorProps, 'quests' | 'encounterIds' | 'interactableIds'>): Condition {
+export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEditorProps, 'quests' | 'encounterIds' | 'interactableIds' | 'hookIds'>): Condition {
   switch (kind) {
     case 'always':
     case 'never':
@@ -99,6 +101,8 @@ export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEdi
       return { kind, condition: 'vulnerable' };
     case 'withinRange':
       return { kind, range: 'close' };
+    case 'hook':
+      return { kind, hook: props.hookIds?.[0] ?? 'a-hook' };
     case 'not':
       return { kind, of: { kind: 'always' } };
     case 'all':
@@ -221,6 +225,10 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
           (['melee', 'veryClose', 'close', 'far', 'veryFar'] as const).map((id) => ({ id })),
           (range) => onChange({ ...condition, range }),
         );
+      case 'hook':
+        return props.hookIds !== undefined && props.hookIds.length > 0
+          ? select(condition.hook, props.hookIds.map((id) => ({ id })), (hook) => onChange({ ...condition, hook }), 'cond-hook')
+          : text(condition.hook, (hook) => onChange({ ...condition, hook }), 'hook id');
       case 'not':
         return (
           <div style={{ marginLeft: '12px', marginTop: '2px' }}>

@@ -35,6 +35,13 @@ export const conditionDurationSchema = z.enum(['temporary', 'scene', 'rest', 'pe
 /** Which pool a condition or an effect reads. */
 export const poolNameSchema = z.enum(['hitPoints', 'stress', 'armorSlots', 'hope']);
 
+/**
+ * What an effect or a condition hands a hook. Deliberately flat: a hook's
+ * arguments are content, so they must survive a JSON round trip and be
+ * editable in a form.
+ */
+export const hookArgsSchema = z.record(z.string().min(1), z.union([z.string(), z.number(), z.boolean()]));
+
 /** A value a scenario variable can hold. */
 export const scriptValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 
@@ -63,6 +70,8 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('actor') }),
   z.object({ kind: z.literal('party') }),
   z.object({ kind: z.literal('entity'), id: z.string().min(1) }),
+  /** Named creatures, in the order given: what a hook builds when it picks them itself. */
+  z.object({ kind: z.literal('entities'), ids: z.array(z.string().min(1)) }),
   z.object({ kind: z.literal('target') }),
   /** The creatures the last roll beat; `having` keeps only those with a condition. */
   z.object({ kind: z.literal('hit'), having: z.string().min(1).optional() }),
@@ -159,6 +168,16 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     kind: z.literal('withinRange'),
     range: rangeBandSchema,
     of: targetSelectorSchema.optional(),
+  }),
+  /**
+   * Whatever a piece of code says. `hook` names a native hook or a
+   * `project.code[]` entry; its return value is read as a boolean. A
+   * predicate hook reads the world and nothing else: no dice, no writes.
+   */
+  z.object({
+    kind: z.literal('hook'),
+    hook: contentIdSchema,
+    args: hookArgsSchema.optional(),
   }),
 ]);
 
@@ -368,6 +387,16 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * bound to `hit`, then `onSuccess` with the ones who passed. `difficulty:
    * 'roll'` is the result of the actor's last roll, as Chain Lightning asks.
    */
+  /**
+   * Run a hook: TypeScript registered with the engine, or a `project.code[]`
+   * entry the editor wrote. It reads the world and queues effects, which run
+   * here, before whatever follows this one. See `script/hooks.ts`.
+   */
+  z.object({
+    kind: z.literal('run'),
+    hook: contentIdSchema,
+    args: hookArgsSchema.optional(),
+  }),
   z.object({
     kind: z.literal('reactionRoll'),
     difficulty: z.union([z.number().int().positive(), z.literal('roll')]),
@@ -393,6 +422,7 @@ export type TargetSelector = z.infer<typeof targetSelectorSchema>;
 export type ScriptValue = z.infer<typeof scriptValueSchema>;
 export type CompareOp = z.infer<typeof compareOpSchema>;
 export type LogTone = z.infer<typeof logToneSchema>;
+export type HookArgs = z.infer<typeof hookArgsSchema>;
 
 /**
  * Visit every effect in a tree, including the ones nested inside a branch, a

@@ -23,6 +23,7 @@ import {
   type Effect,
 } from '../engine/script/schema';
 import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-from-scene';
+import { compileHooks } from '../engine/script/hooks';
 import { projectSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
 
 export type ProblemSeverity =
@@ -45,6 +46,8 @@ export interface ValidationOptions {
   knownAdversaries?: ReadonlySet<string>;
   /** Model ids the renderer can resolve. Omit to skip the check. */
   knownModels?: ReadonlySet<string>;
+  /** Hooks the engine registers natively, so content may name them without carrying code. */
+  knownHooks?: ReadonlySet<string>;
 }
 
 /**
@@ -84,7 +87,67 @@ export function validateProject(
   checkItemUses(project, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkAbilitiesAndCode(project, options, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   return problems;
+}
+
+/**
+ * The project's own logic: cards, conditions and code.
+ *
+ * A card that names a hook nobody defines runs into a refusal at the table,
+ * where it is far too late; the same goes for a condition it applies that has
+ * no definition. Code that will not compile is reported with the message the
+ * engine gave, because that is the only place a designer sees it.
+ */
+function checkAbilitiesAndCode(
+  project: ProjectDoc,
+  options: ValidationOptions,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const hooks = new Set<string>([...(options.knownHooks ?? []), ...project.code.map((c) => c.id)]);
+  const conditionIds = new Set(project.conditionDefs.map((c) => c.id));
+  for (const issue of compileHooks(project.code).issues) {
+    add('error', `Code "${issue.id}" does not compile: ${issue.message}`, issue.id);
+  }
+  for (const entry of project.code) {
+    if (entry.source.trim() === '') add('warning', `Code "${entry.id}" is empty.`, entry.id);
+  }
+  const used = new Set<string>();
+  const inspect = (owner: string) => (effect: Effect): void => {
+    if (effect.kind === 'run') {
+      used.add(effect.hook);
+      if (!hooks.has(effect.hook)) {
+        add('error', `"${owner}" runs hook "${effect.hook}", which nothing defines.`, owner);
+      }
+    }
+    if (effect.kind === 'applyCondition' && !conditionIds.has(effect.condition)) {
+      add('warning', `"${owner}" applies condition "${effect.condition}", which the project does not define.`, owner);
+    }
+  };
+  const asked = (owner: string) => (condition: Condition): void => {
+    if (condition.kind !== 'hook') return;
+    used.add(condition.hook);
+    if (!hooks.has(condition.hook)) {
+      add('error', `"${owner}" asks hook "${condition.hook}", which nothing defines.`, owner);
+    }
+  };
+  const inspectCondition = (owner: string, condition: Condition | undefined): void => {
+    if (condition !== undefined) walkCondition(condition, asked(owner));
+  };
+  for (const ability of project.abilities) {
+    walkEffects(ability.effects, inspect(ability.id));
+    walkConditionsIn(ability.effects, asked(ability.id));
+    inspectCondition(ability.id, ability.available);
+    for (const modifier of ability.modifiers) inspectCondition(ability.id, modifier.when);
+  }
+  for (const def of project.conditionDefs) {
+    for (const modifier of def.modifiers) inspectCondition(def.id, modifier.when);
+  }
+  for (const entry of project.code) {
+    if (!used.has(entry.id)) add('warning', `Code "${entry.id}" is never run by anything.`, entry.id);
+  }
 }
 
 /** What using an item can do names content too. */

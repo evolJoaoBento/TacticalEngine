@@ -11,7 +11,9 @@ import { ScriptRunner, runScript, type JournalEntry } from './runner';
 import { SceneScriptWorld, createScenarioState } from './world';
 import type { Effect } from './schema';
 import { SRD_ABILITIES, SRD_ABILITY_MAP } from '../content/srd/abilities';
+import { SRD_HOOKS } from '../content/srd/hooks';
 import { SRD_CONDITIONS } from '../content/conditions';
+import { compileHooks, mergeHooks } from './hooks';
 
 /**
  * The combat half of the script vocabulary: what lets a domain card be a
@@ -85,7 +87,7 @@ const bandTiles = { melee: 1, veryClose: 2, close: 4, far: 8, veryFar: 12 };
  * A corridor: Kara (a Guardian, no Spellcast trait) and Mira (a Wizard, who
  * casts with Knowledge +2), a soft husk two tiles east and a tough one four.
  */
-function scene(options: { fighting?: boolean; armor?: 'auto' | 'never'; content?: boolean } = {}) {
+function scene(options: { fighting?: boolean; armor?: 'auto' | 'never'; content?: boolean; code?: { id: string; source: string }[] } = {}) {
   const grid = new TileGrid({ width: 14, height: 3 });
   const state = new SceneState({ id: 'corridor' }, grid);
   const sheets = [
@@ -133,6 +135,7 @@ function scene(options: { fighting?: boolean; armor?: 'auto' | 'never'; content?
     ...(options.armor === undefined ? {} : { armor: options.armor }),
     // The shipped cards and conditions, when a test plays the real ones.
     ...(options.content === true ? { abilities: SRD_ABILITIES, conditionDefs: SRD_CONDITIONS } : {}),
+    hooks: mergeHooks(SRD_HOOKS, compileHooks((options.code ?? []).map((c) => ({ ...c, name: c.id }))).hooks),
   });
   return { grid, state, scenario, world, characters };
 }
@@ -640,5 +643,83 @@ describe('conditions that hold a creature', () => {
     // A miss is still an attack: Hope 1 + Fear 2 falls short of 10.
     world.attack({ attacker: 'kara', target: 'husk-1', weapon: 'primary' }, scripted([1, 2]));
     expect(kara.conditions.has('hidden')).toBe(false);
+  });
+});
+
+describe('a hook in a script', () => {
+  it('queues effects that journal like any other, right where it sits', () => {
+    const { world, state } = scene({
+      code: [
+        {
+          id: 'scorch',
+          source: `ctx.log('the air catches');
+ctx.queue([{ kind: 'damage', amount: ctx.args.amount, target: { kind: 'entities', ids: ctx.select({ kind: 'adversaries', range: 'far' }) } }]);`,
+        },
+      ],
+    });
+    const journal = runScript(
+      [{ kind: 'run', hook: 'scorch', args: { amount: 3 } }, { kind: 'log', text: 'and then the door' }],
+      world,
+      scripted([]),
+      { rollAs: 'actor' },
+    );
+    // The hook's own effects run before what follows it, and each is journalled.
+    expect(kinds(journal)).toEqual(['log', 'damage', 'log']);
+    expect(journal.map((e) => (e.kind === 'log' ? e.text : ''))).toEqual(['the air catches', '', 'and then the door']);
+    expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 3 });
+    // Flat damage, straight to the Hit Points, on both husks the selector named.
+    expect(state.entity('husk-1')!.hitPoints.marked).toBe(3);
+    expect(state.entity('husk-2')!.hitPoints.marked).toBe(3);
+  });
+
+  it('refuses a hook nobody defined, and one that throws, without drawing dice', () => {
+    const { world } = scene({ code: [{ id: 'angry', source: 'throw new Error("the runes are wrong");' }] });
+    const rng = scripted([]);
+    const journal = runScript([{ kind: 'run', hook: 'missing' }, { kind: 'run', hook: 'angry' }], world, rng, { rollAs: 'actor' });
+    expect(refusals(journal)).toEqual(['no hook named "missing"', 'hook "angry" failed: the runes are wrong']);
+    expect(rng.drawn()).toBe(0);
+  });
+
+  it('rolls a hook\'s dice off the scenario stream, in order', () => {
+    const { world } = scene({
+      code: [{ id: 'sparks', source: "ctx.queue([{ kind: 'damage', amount: ctx.rng.die(6) + ctx.rng.die(6), target: { kind: 'target' } }]);" }],
+    });
+    const rng = scripted([2, 5]);
+    const journal = runScript([{ kind: 'run', hook: 'sparks' }], world, rng, { targets: ['husk-1'], rollAs: 'actor' });
+    expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 7 });
+    expect(rng.drawn()).toBe(2);
+  });
+
+  it('builds Arcane Barrage\'s options from the Hope actually held', () => {
+    const { world, state } = scene({ content: true });
+    state.entity('mira')!.hope = { max: 6, value: 4 };
+    const rng = scripted([5, 5, 5, 5]);
+    const runner = new ScriptRunner(world, rng, { targets: ['husk-1'], rollAs: 'actor' });
+    const waiting = runner.run(SRD_ABILITY_MAP.get('book-of-illiat-arcane-barrage')!.effects);
+    if (waiting.status !== 'waiting' || waiting.prompt.kind !== 'choice') throw new Error('expected a choice');
+    expect(waiting.prompt.options.map((o) => o.label)).toEqual([
+      '1 Hope: 1d6 magic',
+      '2 Hope: 2d6 magic',
+      '3 Hope: 3d6 magic',
+      '4 Hope: 4d6 magic',
+    ]);
+    // Four d6 of 5 is 20: Severe against 7/12, three Hit Points, and the Hope is gone.
+    const done = runner.resume({ kind: 'choose', index: 3 });
+    expect(done.journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 20, marked: 3, dice: '4d6' });
+    expect(state.entity('mira')!.hope!.value).toBe(0);
+    expect(rng.drawn()).toBe(4);
+  });
+
+  it('caps Wild Flame at three adversaries in reach', () => {
+    const { world, state, grid, scenario } = scene({ content: true });
+    scenario.actorId = 'mira';
+    state.moveEntity('mira', grid.indexOf(4, 1));
+    state.addEntity(createAdversaryEntity('husk-3', 'soft-husk', grid.indexOf(4, 0), { hitPoints: 5, stress: 3 }));
+    state.addEntity(createAdversaryEntity('husk-4', 'soft-husk', grid.indexOf(4, 2), { hitPoints: 5, stress: 3 }));
+    state.moveEntity('husk-1', grid.indexOf(3, 1));
+    const runner = new ScriptRunner(world, scripted([]), { rollAs: 'actor' });
+    const waiting = runner.run(SRD_ABILITY_MAP.get('book-of-tyfar-wild-flame')!.effects);
+    if (waiting.status !== 'waiting' || waiting.prompt.kind !== 'check') throw new Error('expected a check');
+    expect(waiting.prompt.targets).toHaveLength(3);
   });
 });

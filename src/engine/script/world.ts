@@ -47,6 +47,7 @@ import { rollLoot, type LootDrop, type LootTable } from '../content/items';
 import { questStatusSchema, type QuestProgress, type QuestQuery } from '../content/quests';
 import type { AttackSummary, DealtDamage, ScriptWorld } from './runner';
 import { evaluate, type TargetBindings } from './conditions';
+import type { HookFn, HookMap } from './hooks';
 
 /**
  * What outlives a scene: variables, story flags, the keys the party carries, and
@@ -219,6 +220,12 @@ export interface SceneScriptWorldOptions {
   abilities?: readonly AbilityDef[];
   /** What a named condition does to its bearer. */
   conditionDefs?: readonly ConditionDef[];
+  /**
+   * Logic in code, by id: the engine's native hooks and the project's compiled
+   * code. A function is asked each time, so an editor rewriting a hook does
+   * not need the world rebuilt to see the change.
+   */
+  hooks?: HookMap | (() => HookMap);
 }
 
 /** A stat a modifier can move at roll time. */
@@ -239,6 +246,7 @@ export class SceneScriptWorld implements ScriptWorld {
   private readonly defense: DefensePolicy;
   private readonly abilities: readonly AbilityDef[];
   private readonly conditionDefs: ReadonlyMap<string, ConditionDef>;
+  private readonly hooks: () => HookMap;
 
   constructor(state: SceneState, scenario: ScenarioState, options: SceneScriptWorldOptions = {}) {
     this.state = state;
@@ -252,6 +260,8 @@ export class SceneScriptWorld implements ScriptWorld {
     this.defense = { armor: options.armor ?? 'auto', reactions: options.reactions ?? true };
     this.abilities = options.abilities ?? [];
     this.conditionDefs = new Map((options.conditionDefs ?? []).map((c) => [c.id, c]));
+    const hooks = options.hooks ?? new Map<string, HookFn>();
+    this.hooks = typeof hooks === 'function' ? hooks : () => hooks;
   }
 
   // ---- reads ---------------------------------------------------------------
@@ -389,6 +399,11 @@ export class SceneScriptWorld implements ScriptWorld {
     return abilitiesFor(character, this.abilities).filter((a) => a.kind === 'reaction' && a.trigger === 'incomingDamage');
   }
 
+  /** Logic in code by id, or null when nothing defines it. */
+  hook(id: string): HookFn | null {
+    return this.hooks().get(id) ?? null;
+  }
+
   /** The conditions on a creature that stop it from doing this. */
   blocking(id: string, what: ConditionBlock): string[] {
     const entity = this.state.entity(id);
@@ -496,6 +511,8 @@ export class SceneScriptWorld implements ScriptWorld {
         return this.state.entitiesOf('party').filter((e) => e.alive).map((e) => e.id);
       case 'entity':
         return this.state.entity(selector.id) === undefined ? [] : [selector.id];
+      case 'entities':
+        return living(selector.ids);
       case 'target':
         return living(bindings.targets);
       case 'hit':

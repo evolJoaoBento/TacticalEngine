@@ -15,7 +15,7 @@
  * validated with the same schema the loader uses and saved as the same JSON.
  */
 
-import type { Deco, Encounter, Interactable, Point, ProjectDoc, SceneDoc } from '../engine/scene/schema';
+import type { CodeDef, Deco, Encounter, Interactable, Point, ProjectDoc, SceneDoc } from '../engine/scene/schema';
 import type { Dialogue, DialogueChoice, DialogueNode } from '../engine/dialogue/schema';
 import type { QuestDef, QuestObjective } from '../engine/content/quests';
 import type { ModelAsset } from '../engine/render/assets';
@@ -1210,4 +1210,77 @@ export function removeAsset(assetId: string): Edit {
       return removed === null;
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Logic in code
+// ---------------------------------------------------------------------------
+
+/** Add a piece of project code. Its id is what a `run` effect will name. */
+export function addCode(code: CodeDef): Edit {
+  return {
+    label: `Add code ${code.id}`,
+    apply(project) {
+      project.code.push(code);
+    },
+    undo(project) {
+      const at = project.code.lastIndexOf(code);
+      if (at >= 0) project.code.splice(at, 1);
+    },
+  };
+}
+
+/**
+ * Delete a piece of code.
+ *
+ * A card may still run it. That is not repaired here — the validator reports a
+ * `run` naming nothing, which is what an author needs to see.
+ */
+export function removeCode(codeId: string): Edit {
+  let removed: { index: number; code: CodeDef } | null = null;
+  return {
+    label: 'Delete code',
+    apply(project) {
+      removed = null;
+      const index = project.code.findIndex((c) => c.id === codeId);
+      if (index < 0) return;
+      removed = { index, code: project.code[index]! };
+      project.code.splice(index, 1);
+    },
+    undo(project) {
+      if (removed !== null) project.code.splice(removed.index, 0, removed.code);
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
+/** Edit a piece of code. Typing into one field coalesces into one undo step. */
+export function updateCode(codeId: string, changes: Partial<Pick<CodeDef, 'name' | 'notes' | 'source'>>): Edit {
+  let before: CodeDef | null = null;
+  const current: Partial<CodeDef> = { ...changes };
+  const edit: Edit = {
+    label: 'Edit code',
+    mergeKey: `code:${codeId}:${Object.keys(changes).sort().join(',')}`,
+    apply(project) {
+      const index = project.code.findIndex((c) => c.id === codeId);
+      if (index < 0) return;
+      before = project.code[index]!;
+      project.code[index] = { ...before, ...current };
+    },
+    undo(project) {
+      if (before === null) return;
+      const index = project.code.findIndex((c) => c.id === codeId);
+      if (index >= 0) project.code[index] = before;
+    },
+    absorb(other) {
+      const next = (other as Edit & { __code?: Partial<CodeDef> }).__code;
+      if (next === undefined) return false;
+      Object.assign(current, next);
+      return true;
+    },
+  };
+  (edit as Edit & { __code: Partial<CodeDef> }).__code = current;
+  return edit;
 }

@@ -607,3 +607,41 @@ describe('quests', () => {
     );
   });
 });
+
+describe('logic in code', () => {
+  it('reports a hook nobody defines, code that will not compile, and code nothing runs', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      code: [
+        { id: 'good', name: 'Good', source: 'return true;' },
+        { id: 'broken', name: 'Broken', source: 'return (;' },
+        { id: 'lonely', name: 'Lonely', source: 'return 1;' },
+      ],
+      abilities: [
+        {
+          id: 'a-card',
+          name: 'A Card',
+          source: { kind: 'granted', characters: ['kara'] },
+          target: { kind: 'self' },
+          available: { kind: 'hook', hook: 'good' },
+          effects: [{ kind: 'run', hook: 'nowhere' }],
+        },
+        {
+          id: 'native-card',
+          name: 'Native',
+          source: { kind: 'granted', characters: ['kara'] },
+          target: { kind: 'self' },
+          effects: [{ kind: 'run', hook: 'arcane-barrage' }],
+        },
+      ],
+    });
+    const problems = validateProject(project, { knownHooks: new Set(['arcane-barrage']) });
+    const messages = problems.map((p) => p.message);
+    expect(messages).toContain('"a-card" runs hook "nowhere", which nothing defines.');
+    expect(messages.some((m) => m.startsWith('Code "broken" does not compile'))).toBe(true);
+    expect(messages).toContain('Code "lonely" is never run by anything.');
+    // A hook the engine registers is fine, and so is a condition naming project code.
+    expect(messages.some((m) => m.includes('arcane-barrage'))).toBe(false);
+    expect(messages.some((m) => m.includes('asks hook "good"'))).toBe(false);
+  });
+});

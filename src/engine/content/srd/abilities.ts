@@ -274,46 +274,16 @@ const RAW: Input[] = [
     uses: { count: 1, per: 'rest' },
     target: { kind: 'adversary', range: 'close' },
     available: { kind: 'pool', pool: 'hope', op: '>=', value: 1 },
-    effects: [
-      {
-        kind: 'choice',
-        title: 'Arcane Barrage',
-        body: 'How much Hope goes into it?',
-        options: [
-          { label: '1 Hope: 1d6', effects: [{ kind: 'spendHope', amount: 1 }, { kind: 'damage', dice: '1d6', type: 'magic', target: { kind: 'target' } }] },
-          {
-            label: '2 Hope: 2d6',
-            available: { kind: 'pool', pool: 'hope', op: '>=', value: 2 },
-            effects: [{ kind: 'spendHope', amount: 2 }, { kind: 'damage', dice: '2d6', type: 'magic', target: { kind: 'target' } }],
-          },
-          {
-            label: '3 Hope: 3d6',
-            available: { kind: 'pool', pool: 'hope', op: '>=', value: 3 },
-            effects: [{ kind: 'spendHope', amount: 3 }, { kind: 'damage', dice: '3d6', type: 'magic', target: { kind: 'target' } }],
-          },
-        ],
-      },
-    ],
+    // "Any number of Hope" is a count only code can build: `srd/hooks.ts`.
+    effects: [{ kind: 'run', hook: 'arcane-barrage' }],
   },
   {
     id: 'book-of-tyfar-wild-flame',
     name: 'Wild Flame',
     source: card('book-of-tyfar'),
     target: { kind: 'none', range: 'melee' },
-    effects: [
-      {
-        kind: 'check',
-        check: {
-          trait: 'spellcast',
-          difficulty: 'target',
-          targets: { kind: 'adversaries', range: 'melee' },
-          onSuccessWithHope: [
-            { kind: 'damage', dice: '2d6', type: 'magic' },
-            { kind: 'markStress', target: { kind: 'hit' } },
-          ],
-        },
-      },
-    ],
+    // "Up to three adversaries": the cap is a hook's, the roll is the vocabulary's.
+    effects: [{ kind: 'run', hook: 'wild-flame' }],
   },
   {
     id: 'book-of-ava-power-push',

@@ -87,6 +87,7 @@ import {
   SRD_ADVERSARIES,
   SRD_CHARACTERS,
 } from './game/demo-scene';
+import { SRD_HOOKS } from './engine/content/srd/hooks';
 
 declare global {
   interface Window {
@@ -146,6 +147,8 @@ declare global {
       inspect: (tile: number) => { kind: string; id: string; name: string; facts: string[] } | null;
       animating: () => number;
       wound: (id: string, marks: number) => void;
+      markStress: (id: string, marks: number) => void;
+      stressOf: (id: string) => { marked: number; max: number };
       gear: (id: string) => { weapon: string; armor: string };
       giveItem: (id: string, quantity?: number) => void;
       journal: () => { id: string; status: string; done: string[] }[];
@@ -330,6 +333,7 @@ function renderPanel(): void {
       adversaryIds: ADVERSARY_IDS,
       knownModels: KNOWN_MODELS,
       knownAdversaries: new Set(SRD_ADVERSARIES.keys()),
+      nativeHooks: [...SRD_HOOKS.keys()],
       onPlay: () => setMode('play'),
       onSave: saveProject,
       onAssetsChanged: () => {
@@ -1350,6 +1354,15 @@ const state = {
     const entity = demo.state.entity(id);
     if (entity !== undefined) entity.hitPoints.marked = Math.min(entity.hitPoints.max, Math.max(0, marks));
     refreshPlay();
+  },
+  markStress: (id: string, marks: number): void => {
+    const entity = demo.state.entity(id);
+    if (entity !== undefined) entity.stress = { ...entity.stress, marked: Math.min(entity.stress.max, Math.max(0, marks)) };
+    refreshPlay();
+  },
+  stressOf: (id: string): { marked: number; max: number } => {
+    const entity = demo.state.entity(id);
+    return { marked: entity?.stress.marked ?? 0, max: entity?.stress.max ?? 0 };
   },
   equip: (id: string): string => {
     const who = demo.party.selected;

@@ -161,6 +161,12 @@ costs them the spotlight, and the GM spends a Fear to wake a sleeper when there 
 grimoire's spells read their words from the card's named features in the vendored SRD
 content; the engine ships no card text of its own.
 
+Logic the vocabulary cannot say is **code**: `{ kind: 'run', hook }` and `{ kind: 'hook' }` reach
+either a native TypeScript hook (`engine/content/srd/hooks.ts`) or a `project.code[]` entry the
+editor's Code panel writes. A hook reads the world and *queues effects*, so nothing escapes the
+journal, and rolls only off the seeded stream (`Math.random` throws). The demo ships one card
+written that way.
+
 **Still open:** 22 of 189 cards are scripted (`docs/CARDS.md`); the rest are text. No defender
 prompt (reactions are automatic); no interrupts (reroll, redirect); no card tokens; adversary
 features are still inert; Hidden is defined (ends when its bearer attacks) but nothing applies

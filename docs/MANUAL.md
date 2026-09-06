@@ -356,6 +356,13 @@ There is no editor UI for items or loot tables. Author them in the project JSON 
 `lootTables`); the inspector's loot effect names a table by id, and validation catches a name
 that does not exist.
 
+### Code
+
+**Write logic in code…** opens the Code panel: the project's own hooks, one at a time. It
+compiles as you type — the line under the editor says `Compiles.` or the error — and names the
+cards that run each piece, so deleting one is not a guess. What a hook may read, write and roll
+is on the panel itself, and in full under **Logic in code**.
+
 ### Validation
 
 **Check** runs the validator and lists up to 30 problems, errors in red and warnings in yellow,
@@ -387,7 +394,8 @@ the buttons' tooltips name the step.
 
 `formatVersion` (1) · `id` · `name` · `terrainPalette?` (id, name, passable, cost,
 providesCover, blocksSight) · `scenes[]` · `dialogues[]` · `items[]` · `lootTables[]` ·
-`quests[]` · `startScene`. All ids are stable kebab-case strings; duplicates are rejected.
+`quests[]` · `abilities[]` · `conditionDefs[]` · `code[]` · `startScene`. All ids are stable
+kebab-case strings; duplicates are rejected.
 `assets[]` holds imported models (`id`, `kind` 'gltf', `url`, `scale`, `groundOffset`,
 `rotationY`).
 
@@ -430,8 +438,10 @@ Target selectors: `{kind:'actor'}` (whoever used the thing; the default), `{kind
 | `inCombat` | — | a fight is on |
 | `hasCondition` | `condition`, `of?` | any of `of` (default: the chosen target) bears the condition |
 | `withinRange` | `range`, `of?` | any of `of` (default: the chosen target) stands within that band of the actor |
+| `hook` | `hook`, `args?` | logic in code says so — the hook returns `true` (see **Logic in code**) |
 
-**Target selectors** (`target`/`of` fields): `actor`, `party`, `entity` (`id`), `target` (what
+**Target selectors** (`target`/`of` fields): `actor`, `party`, `entity` (`id`), `entities`
+(`ids[]`, in the order given — what a hook builds when it picks them itself), `target` (what
 the player picked when using an ability), `hit` (whoever the last roll beat; `having?` keeps
 only those with a condition), `allies` (`range?`, `includeSelf?`), `adversaries` (`range`,
 `around?` actor \| target — the SRD's group, measured from the chosen target; `except?: target`
@@ -488,6 +498,74 @@ those are bound to the `hit` selector for the outcome lists. A Spellcast Roll by
 whose subclass has no Spellcast trait is refused before any die. Fallbacks when a list is missing: critical → success with Hope → success with Fear; each
 success falls back to the other success; each failure to the other failure. Writing one success
 and one failure list therefore covers all five.
+
+### Logic in code
+
+Everything above is data: serialisable, editable in the panel, safe to replay. Some things a
+designer wants are not — "spend any number of Hope and roll that many d6", "one option per
+adversary in reach", a house rule the vocabulary never anticipated. Those are **hooks**, and
+they are reached from the same vocabulary: the effect `{ kind: 'run', hook: 'id', args? }` and
+the condition `{ kind: 'hook', hook: 'id', args? }`.
+
+There are two doors and one lookup:
+
+- **Native hooks** — TypeScript registered with the engine (`defineHooks` in
+  `engine/script/hooks.ts`). The engine's own are in `engine/content/srd/hooks.ts`:
+  `arcane-barrage` and `wild-flame`, the two SRD cards whose mechanic is a count.
+- **Project code** — JavaScript the project carries in `code[]` (`id`, `name`, `notes`,
+  `source`) and the editor's **Code** panel writes. Compiled with `new Function` when the
+  project loads and again whenever the text changes.
+
+A project entry with the same id as a native hook wins, so a campaign can rewrite one of the
+engine's without touching the engine.
+
+**What a hook may do.** It is handed one argument, `ctx`:
+
+| | |
+|---|---|
+| reads | `ctx.actor`, `ctx.targets`, `ctx.hit`, `ctx.args`, `ctx.inCombat`, `ctx.lastRoll`, `ctx.pool(id, pool, measure?)`, `ctx.hasCondition(id, name)`, `ctx.bandTo(a, b)`, `ctx.difficultyOf(id)`, `ctx.select(selector)`, `ctx.flag(name)`, `ctx.variable(name)`, `ctx.countAlive(faction)` |
+| writes | `ctx.queue([effects])` and `ctx.log(text, tone?)` — and nothing else |
+| dice | `ctx.rng` (`die(n)`, `dice(count, sides)`, `pick`, `shuffle`) |
+
+Two rules make that list what it is. **A hook cannot write directly**: it queues effects, which
+the runner then runs, so everything it does is journalled, shown in the log, and goes through
+the same rules as an authored effect — a hook can never quietly move a Hit Point. **A hook
+cannot roll its own dice**: `Math.random` throws, because a hook that rolled off it would break
+every seeded replay silently. The queued effects run where the `run` sits, before whatever
+follows it.
+
+A `hook` condition gets the reads and nothing else — no `queue`, no `rng` — and is true only
+when the code returns exactly `true`.
+
+**What it cannot reach.** `document`, `window`, `globalThis`, `fetch`, `Date`, `setTimeout`,
+`console`, `localStorage` and friends are shadowed as `undefined`. That is a guard rail against
+honest mistakes (a `Date.now()` that would desync a replay), **not a security boundary**:
+project code is trusted exactly as the rest of a project file is. Do not load a campaign you
+would not run.
+
+**Errors.** A body that will not compile is a validator error naming the id and the message,
+shown live in the Code panel; a hook that throws at the table is a refusal in the log
+(`hook "x" failed: …`), and play carries on. A `run` naming a hook nothing defines is a
+validator error and a refusal.
+
+The demo ships one: `rally-the-line`, a card written in the project's own code, granted to
+Kara. Open the editor, press **Write logic in code…**, and it is there to read and change.
+
+```js
+// Each ally in Close range clears what they most need cleared.
+var allies = ctx.select({ kind: 'allies', range: 'close', includeSelf: true });
+var effects = [];
+for (var i = 0; i < allies.length; i++) {
+  var id = allies[i];
+  var marked = ctx.pool(id, 'hitPoints', 'marked') || 0;
+  var max = ctx.pool(id, 'hitPoints', 'max') || 1;
+  var who = { kind: 'entity', id: id };
+  effects.push(marked * 2 > max
+    ? { kind: 'heal', amount: 1, target: who }
+    : { kind: 'clearStress', amount: 1, target: who });
+}
+ctx.queue(effects);
+```
 
 ### Abilities and conditions
 

@@ -61,7 +61,7 @@ const names = (demo: DemoScene, id: string): string[] => abilitiesOf(demo, id).m
 describe('who has what', () => {
   it('lists class, Hope, subclass and loadout abilities per character', () => {
     const demo = scene();
-    expect(names(demo, 'kara')).toEqual(['guardian-frontline-tank', 'stalwart-unwavering', 'stalwart-iron-will', 'bare-bones', 'get-back-up']);
+    expect(names(demo, 'kara')).toEqual(['guardian-frontline-tank', 'stalwart-unwavering', 'stalwart-iron-will', 'bare-bones', 'get-back-up', 'rally-the-line']);
     expect(names(demo, 'finn')).toEqual(['rogue-rogues-dodge', 'pick-and-pull', 'rain-of-blades']);
     expect(names(demo, 'mira')).toEqual([
       'wizard-not-this-time',
@@ -434,5 +434,32 @@ describe("a grimoire spell's words", () => {
     const text = abilityText(demo, push);
     expect(text.startsWith('Make a Spellcast Roll against a target within Melee range.')).toBe(true);
     expect(text).not.toContain('Ice Spike');
+  });
+});
+
+describe('a card written in the project\'s own code', () => {
+  it('clears a Hit Point from the badly hurt and a Stress from the rest', () => {
+    const demo = scene();
+    const kara = demo.state.entity('kara')!;
+    const finn = demo.state.entity('finn')!;
+    const mira = demo.state.entity('mira')!;
+    // Everyone stands together, so the selector reaches them.
+    demo.state.moveEntity('finn', demo.grid.indexOf(demo.grid.xOf(kara.tile) + 1, demo.grid.yOf(kara.tile)));
+    demo.state.moveEntity('mira', demo.grid.indexOf(demo.grid.xOf(kara.tile), demo.grid.yOf(kara.tile) + 1));
+    kara.hope = { max: 6, value: 2 };
+    // Finn is badly hurt; Mira is merely rattled.
+    finn.hitPoints = { ...finn.hitPoints, marked: finn.hitPoints.max - 1 };
+    finn.stress = { ...finn.stress, marked: 1 };
+    mira.stress = { ...mira.stress, marked: 2 };
+    kara.stress = { ...kara.stress, marked: 1 };
+
+    const result = useAbility(demo, 'kara', 'rally-the-line');
+    expect(result.status).toBe('done');
+    expect(kara.hope.value).toBe(1);
+    expect(finn.hitPoints.marked).toBe(finn.hitPoints.max - 2);
+    expect(finn.stress.marked).toBe(1);
+    expect(mira.stress.marked).toBe(1);
+    expect(kara.stress.marked).toBe(0);
+    expect(demo.log.map((l) => l.text)).toContain('The line steadies.');
   });
 });

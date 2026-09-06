@@ -18,6 +18,7 @@ import { questSchema } from '../../engine/content/quests';
 import { addQuest, removeQuest } from '../session';
 import { addAsset, removeAsset } from '../session';
 import { modelAssetSchema } from '../../engine/render/assets';
+import { CodePanel } from './CodePanel';
 import { QuestEditor } from './QuestEditor';
 import { dialogueSchema } from '../../engine/dialogue/schema';
 import { DialogueGraph } from './DialogueGraph';
@@ -46,6 +47,8 @@ export interface EditorPanelProps {
   /** Ids the validator should consider resolvable. */
   knownModels: ReadonlySet<string>;
   knownAdversaries: ReadonlySet<string>;
+  /** Hooks the engine registers itself, listed in the Code panel. */
+  nativeHooks: readonly string[];
 }
 
 const TOOLS: { tool: EditorTool; label: string; hint: string }[] = [
@@ -108,6 +111,8 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
   const [showProblems, setShowProblems] = useState(false);
   /** The conversation whose graph is open over the map, if any. */
   const [graph, setGraph] = useState<string | null>(null);
+  /** Whether the Code panel is open over the map. */
+  const [code, setCode] = useState(false);
   const [openQuest, setOpenQuest] = useState<string | null>(null);
 
   const scene = controller.scene;
@@ -120,10 +125,22 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
       validateProject(session.project, {
         knownModels: props.knownModels,
         knownAdversaries: props.knownAdversaries,
+        knownHooks: new Set(props.nativeHooks),
       }),
     );
     setShowProblems(true);
   };
+
+  if (code) {
+    return (
+      <CodePanel
+        session={session}
+        nativeHooks={props.nativeHooks}
+        onChange={bump}
+        onClose={() => setCode(false)}
+      />
+    );
+  }
 
   const openGraph = session.project.dialogues.find((d) => d.id === graph) ?? null;
   if (openGraph !== null) {
@@ -457,6 +474,13 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
           }}
         >
           + Conversation
+        </button>
+      </div>
+
+      <div style={heading}>Code</div>
+      <div>
+        <button style={button(false)} data-testid="open-code" onClick={() => setCode(true)}>
+          {session.project.code.length === 0 ? 'Write logic in code…' : `Code (${session.project.code.length})…`}
         </button>
       </div>
 
