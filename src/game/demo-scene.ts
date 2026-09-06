@@ -11,6 +11,9 @@
  */
 
 import adversaryJson from '../../tools/srd-sources/seansbox/adversaries.json';
+import { DialogueRunner, type DialogueView } from '../engine/dialogue/dialogue';
+import type { Dialogue } from '../engine/dialogue/schema';
+import { DEMO_DIALOGUES, PILLAR_DIALOGUE_ID } from './demo-dialogue';
 import { useInteractable } from '../engine/scene/interact';
 import type { Trait } from '../engine/scene/primitives';
 import type { CheckOutcome, LogTone } from '../engine/script/effects';
@@ -131,6 +134,8 @@ export interface DemoScene {
   /** What scripts read and write: flags, keys, variables. */
   world: SceneScriptWorld;
   scenario: ScenarioState;
+  /** Conversations the project ships, by id. */
+  dialogues: ReadonlyMap<string, Dialogue>;
   /** The narrative log, oldest first. */
   log: LogLine[];
   /** A script waiting on the player — a roll to make, or a choice to pick. */
@@ -145,7 +150,14 @@ export interface LogLine {
   tone: LogTone;
 }
 
-/** A script that stopped to ask the player something. */
+/**
+ * A script that stopped to ask the player something.
+ *
+ * `dialogue` is set when the thing it stopped *on* was a conversation: the
+ * dialogue runs to its end, and only then does the script it interrupted carry
+ * on. That nesting is why this is one object rather than two fields — the outer
+ * runner has to be kept alive across the whole conversation.
+ */
 export interface PendingScript {
   runner: ScriptRunner;
   prompt: Prompt;
@@ -159,6 +171,28 @@ export interface PendingScript {
    * are shown again after it.
    */
   recorded: number;
+  /** The conversation this script opened, while it is being had. */
+  dialogue: PendingDialogue | null;
+}
+
+/** A conversation in progress. */
+export interface PendingDialogue {
+  id: string;
+  runner: DialogueRunner;
+  /** What the player is looking at, or null while an inner script has the floor. */
+  view: DialogueView | null;
+  /** An inner prompt: a reply that costs a roll. */
+  prompt: Prompt | null;
+  /** Same cumulative-journal guard as above. */
+  recorded: number;
+  /**
+   * The node whose lines are already in the log.
+   *
+   * What a character *says* lives in the view, not the journal, so a transcript
+   * has to be written as nodes are entered — and only once each, because a node
+   * offering replies keeps handing back the same view until one is picked.
+   */
+  spokenNode: string | null;
 }
 
 export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
@@ -202,6 +236,16 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     }),
   });
 
+  // The pillar is the dullest thing on the map — a Strength check and a line of
+  // text. Give it the conversation instead, so the demo has something to talk to.
+  // Authored the way a project file would: an effect on the object, no roll to
+  // reach it.
+  const pillar = scene.interactables.find((i) => i.kind === 'pillar');
+  if (pillar !== undefined) {
+    pillar.effects = [{ kind: 'startDialogue', dialogue: PILLAR_DIALOGUE_ID }];
+    delete pillar.check;
+  }
+
   // The vault door is shut in the authored map; open it so the demo has somewhere
   // to walk and something to reach.
   const door = scene.interactables.find((i) => i.kind === 'door');
@@ -230,6 +274,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     rng: createRng(seed),
     world,
     scenario,
+    dialogues: new Map(DEMO_DIALOGUES.map((d) => [d.id, d])),
     log: [],
     pending: null,
     encounter: null,
@@ -447,8 +492,9 @@ export function useSelectedOn(demo: DemoScene, interactableId: string): UseOutco
       prompt: result.prompt,
       interactable: object.id,
       recorded: result.journal.length,
+      dialogue: null,
     };
-    return { status: 'waiting', lines };
+    return settle(demo, lines);
   }
   return { status: 'done', lines };
 }
@@ -463,15 +509,108 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
   const waiting = demo.pending;
   if (waiting === null) return { status: 'refused', lines: [] };
 
+  // A conversation on top of the script takes the answer first.
+  if (waiting.dialogue !== null) return answerDialogue(demo, waiting, waiting.dialogue, response);
+
   const result = waiting.runner.resume(response);
   // Only the part that has not been shown yet.
   const lines = record(demo, result.journal.slice(waiting.recorded));
   if (result.status === 'waiting') {
     demo.pending = { ...waiting, prompt: result.prompt, recorded: result.journal.length };
-    return { status: 'waiting', lines };
+    return settle(demo, lines);
   }
   demo.pending = null;
   return { status: 'done', lines };
+}
+
+/** Pick a reply, or answer a roll a reply asked for. */
+function answerDialogue(
+  demo: DemoScene,
+  waiting: PendingScript,
+  talking: PendingDialogue,
+  response: Response,
+): UseOutcome {
+  const status =
+    response.kind === 'choose'
+      ? talking.runner.choose(response.index)
+      : response.kind === 'continue'
+        ? talking.runner.advance()
+        : talking.runner.resume(response);
+
+  const lines = record(demo, status.journal.slice(talking.recorded));
+  const next: PendingDialogue = { ...talking, recorded: status.journal.length };
+
+  if (status.status === 'talking') {
+    const shown: PendingDialogue = { ...next, view: status.view, prompt: null };
+    const said = speak(demo, shown, status.view);
+    demo.pending = { ...waiting, dialogue: shown };
+    return { status: 'waiting', lines: [...lines, ...said] };
+  }
+  if (status.status === 'script') {
+    demo.pending = { ...waiting, dialogue: { ...next, view: null, prompt: status.prompt } };
+    return { status: 'waiting', lines };
+  }
+
+  // The conversation ended; the script that opened it carries on.
+  demo.pending = { ...waiting, dialogue: null };
+  return resumeOuter(demo, lines);
+}
+
+/**
+ * Carry the interrupted script on past its `startDialogue`.
+ *
+ * Its own lines are appended after the conversation's, which is the order they
+ * happened in.
+ */
+function resumeOuter(demo: DemoScene, lines: LogLine[]): UseOutcome {
+  const waiting = demo.pending;
+  if (waiting === null) return { status: 'done', lines };
+  const result = waiting.runner.resume({ kind: 'continue' });
+  const more = record(demo, result.journal.slice(waiting.recorded));
+  const all = [...lines, ...more];
+  if (result.status === 'waiting') {
+    demo.pending = { ...waiting, prompt: result.prompt, recorded: result.journal.length };
+    return settle(demo, all);
+  }
+  demo.pending = null;
+  return { status: 'done', lines: all };
+}
+
+/**
+ * A script that just stopped on a `startDialogue` opens the conversation itself,
+ * so the caller never sees a prompt it has no UI for.
+ */
+function settle(demo: DemoScene, lines: LogLine[]): UseOutcome {
+  const waiting = demo.pending;
+  if (waiting === null || waiting.prompt.kind !== 'dialogue') {
+    return { status: 'waiting', lines };
+  }
+  const dialogue = demo.dialogues.get(waiting.prompt.dialogue);
+  if (dialogue === undefined) {
+    // A missing conversation must not wedge the script; `validateProject` is
+    // where an author is told about it.
+    const missing = note(demo, 'There is nothing to say.', 'system');
+    return resumeOuter(demo, [...lines, ...missing]);
+  }
+
+  const runner = new DialogueRunner(dialogue, demo.world, demo.rng);
+  const status = runner.start();
+  const started = record(demo, status.journal);
+  const opened: PendingDialogue = {
+    id: dialogue.id,
+    runner,
+    view: status.status === 'talking' ? status.view : null,
+    prompt: status.status === 'script' ? status.prompt : null,
+    recorded: status.journal.length,
+    spokenNode: null,
+  };
+  if (status.status === 'ended') {
+    demo.pending = { ...waiting, dialogue: null };
+    return resumeOuter(demo, [...lines, ...started]);
+  }
+  const said = status.status === 'talking' ? speak(demo, opened, status.view) : [];
+  demo.pending = { ...waiting, dialogue: opened };
+  return { status: 'waiting', lines: [...lines, ...started, ...said] };
 }
 
 /** The nearest thing the selected member could use right now, if any. */
@@ -494,6 +633,22 @@ function chebyshev(grid: TileGrid, a: number, b: number): number {
   const bx = b % grid.width;
   const by = Math.floor(b / grid.width);
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+}
+
+/**
+ * Add a node's spoken lines to the transcript, if they are not there already.
+ *
+ * Returns what it added, so a caller can report the lines from one step.
+ */
+function speak(demo: DemoScene, talking: PendingDialogue, view: DialogueView): LogLine[] {
+  if (talking.spokenNode === view.node.id) return [];
+  talking.spokenNode = view.node.id;
+  const lines = view.lines.map((line) => ({
+    text: line.speaker === undefined ? line.text : `${line.speaker}: ${line.text}`,
+    tone: 'narration' as const,
+  }));
+  demo.log.push(...lines);
+  return lines;
 }
 
 /** Put one line in the log, and return it. */

@@ -12,7 +12,8 @@
  */
 
 import { Pathfinder } from '../engine/grid/pathfinding';
-import { walkCheck } from '../engine/script/schema';
+import { danglingLinks, unreachableNodes } from '../engine/dialogue/dialogue';
+import { walkCheck, walkEffects } from '../engine/script/schema';
 import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-from-scene';
 import { projectSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
 
@@ -63,6 +64,9 @@ export function validateProject(
   for (const scene of project.scenes) {
     validateScene(scene, { project, sceneIds, palette, options }, problems);
   }
+  checkDialogues(project, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   return problems;
 }
 
@@ -207,22 +211,27 @@ function validateEffects(
   context: Context,
   add: (severity: ProblemSeverity, message: string, entity?: string) => void,
 ): void {
-  const check = interactable.check;
-  if (check === undefined) return;
   const encounterIds = new Set(
     context.project.scenes.flatMap((s) => s.encounters.map((e) => e.id)),
   );
+  const dialogueIds = new Set(context.project.dialogues.map((d) => d.id));
 
   // Every outcome, and everything nested inside a branch, a choice or a further
   // check — a walk that stops at the top level passes a broken file.
-  walkCheck(check, (effect) => {
+  const inspect = (effect: Parameters<Parameters<typeof walkCheck>[1]>[0]): void => {
     if (effect.kind === 'goto' && !context.sceneIds.has(effect.scene)) {
       add('error', `"${interactable.id}" travels to scene "${effect.scene}", which does not exist.`, interactable.id);
     }
     if (effect.kind === 'startEncounter' && !encounterIds.has(effect.encounter)) {
       add('error', `"${interactable.id}" starts encounter "${effect.encounter}", which does not exist.`, interactable.id);
     }
-  });
+    if (effect.kind === 'startDialogue' && !dialogueIds.has(effect.dialogue)) {
+      add('error', `"${interactable.id}" starts conversation "${effect.dialogue}", which does not exist.`, interactable.id);
+    }
+  };
+
+  walkEffects(interactable.effects, inspect);
+  if (interactable.check !== undefined) walkCheck(interactable.check, inspect);
 }
 
 /** Only the problems that stop a project running. */
@@ -239,4 +248,54 @@ export function summarise(problems: readonly Problem[]): string {
   if (errors > 0) parts.push(`${errors} error${errors === 1 ? '' : 's'}`);
   if (warnings > 0) parts.push(`${warnings} warning${warnings === 1 ? '' : 's'}`);
   return parts.join(', ');
+}
+
+/**
+ * Conversations: the errors a schema cannot see.
+ *
+ * `dialogueSchema` catches a duplicate node id and a start that names nothing.
+ * These are the ones that need the whole graph: a reply pointing at a node
+ * nobody wrote, and a node no path can reach — the second is a warning, because
+ * an author part-way through writing one is not making a mistake.
+ */
+function checkDialogues(
+  project: ProjectDoc,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const sceneIds = new Set(project.scenes.map((s) => s.id));
+  const dialogueIds = new Set(project.dialogues.map((d) => d.id));
+  const encounterIds = new Set(
+    project.scenes.flatMap((s) => s.encounters.map((e) => e.id)),
+  );
+
+  for (const dialogue of project.dialogues) {
+    for (const missing of danglingLinks(dialogue)) {
+      add('error', `Conversation "${dialogue.id}" goes to node "${missing}", which does not exist.`, dialogue.id);
+    }
+    for (const stranded of unreachableNodes(dialogue)) {
+      add('warning', `Conversation "${dialogue.id}" has a node nothing reaches: "${stranded}".`, dialogue.id);
+    }
+
+    // Everything a reply or an entered node can do, including inside a branch,
+    // a nested choice, or either half of a check.
+    const inspect = (effect: Parameters<Parameters<typeof walkCheck>[1]>[0]): void => {
+      if (effect.kind === 'goto' && !sceneIds.has(effect.scene)) {
+        add('error', `Conversation "${dialogue.id}" travels to scene "${effect.scene}", which does not exist.`, dialogue.id);
+      }
+      if (effect.kind === 'startDialogue' && !dialogueIds.has(effect.dialogue)) {
+        add('error', `Conversation "${dialogue.id}" starts "${effect.dialogue}", which does not exist.`, dialogue.id);
+      }
+      if (effect.kind === 'startEncounter' && !encounterIds.has(effect.encounter)) {
+        add('error', `Conversation "${dialogue.id}" starts encounter "${effect.encounter}", which does not exist.`, dialogue.id);
+      }
+    };
+
+    for (const node of dialogue.nodes) {
+      walkEffects(node.onEnter, inspect);
+      for (const choice of node.choices ?? []) {
+        walkEffects(choice.effects, inspect);
+        if (choice.check !== undefined) walkCheck(choice.check, inspect);
+      }
+    }
+  }
 }

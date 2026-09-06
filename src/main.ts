@@ -81,6 +81,8 @@ declare global {
       log: () => { text: string; tone: string }[];
       pendingKind: () => string | null;
       objects: () => string[];
+      dialogueOptions: () => string[];
+      hasDialogue: () => boolean;
       within: () => string | null;
       standBeside: (id: string) => boolean;
       mode: () => 'play' | 'edit';
@@ -126,6 +128,9 @@ let project: ProjectDoc = projectSchema.parse({
   id: 'demo',
   name: 'Demo Vault',
   scenes: [demo.scene],
+  // The conversations travel with the project, so Save JSON writes the words as
+  // well as the map — the whole point of putting dialogue in the document.
+  dialogues: [...demo.dialogues.values()],
   startScene: demo.scene.id,
 });
 let session = new EditorSession(project);
@@ -437,6 +442,9 @@ const state = {
   log: (): { text: string; tone: string }[] => demo.log.map((l) => ({ ...l })),
   pendingKind: (): string | null => demo.pending?.prompt.kind ?? null,
   objects: (): string[] => demo.scene.interactables.map((i) => i.id),
+  dialogueOptions: (): string[] =>
+    demo.pending?.dialogue?.view?.options.map((o) => o.text) ?? [],
+  hasDialogue: (): boolean => demo.pending?.dialogue != null,
   within: (): string | null => reachableInteractable(demo),
   /** Put the selected member beside a thing, so a test can reach it. */
   standBeside: (id: string): boolean => {

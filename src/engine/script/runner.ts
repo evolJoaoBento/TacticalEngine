@@ -79,7 +79,9 @@ export type Prompt =
       difficulty: number;
       modifier: number;
       prompt?: string;
-    };
+    }
+  /** Play this conversation out, then resume with `continue`. */
+  | { kind: 'dialogue'; dialogue: string };
 
 export type RunStatus =
   | { status: 'done'; journal: readonly JournalEntry[] }
@@ -88,6 +90,8 @@ export type RunStatus =
 /** The caller's answer to a prompt. */
 export type Response =
   | { kind: 'choose'; index: number }
+  /** The dialogue a `startDialogue` opened has finished; carry on. */
+  | { kind: 'continue' }
   /** Make the roll. `advantage`/`disadvantage`/`helpDice` come from the table. */
   | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number }
   /** Decline the roll — the legacy dialog let a player back out, costing nothing. */
@@ -277,8 +281,12 @@ export class ScriptRunner {
         this.journal.push({ kind: 'goto', scene: effect.scene });
         return null;
       case 'startDialogue':
+        // A conversation is not something a script can run past. Like `choice`
+        // and `check`, it stops here and hands the caller a prompt; the caller
+        // plays the dialogue out and resumes with `continue`. Journalling it and
+        // running on would leave the ordering of everything after it undefined.
         this.journal.push({ kind: 'dialogue', dialogue: effect.dialogue });
-        return null;
+        return { kind: 'dialogue', dialogue: effect.dialogue };
       case 'branch': {
         const taken = evaluateOptional(effect.when, world) ? effect.then : effect.otherwise;
         if (taken !== undefined && taken.length > 0) this.stack.push({ effects: taken, index: 0 });

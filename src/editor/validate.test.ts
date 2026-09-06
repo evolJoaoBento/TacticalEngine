@@ -145,6 +145,7 @@ describe('interactables', () => {
     flavor: '',
     model: null,
     blocksMovement: true,
+    effects: [],
     lockedText: '',
     tags: [],
     data: {},
@@ -263,6 +264,7 @@ describe('reporting', () => {
       flavor: '',
       model: null,
       blocksMovement: true,
+    effects: [],
       lockedText: '',
       goto: 'nowhere',
       tags: [],
@@ -290,5 +292,118 @@ describe('against the real imported campaign', () => {
       errorsOnly(withAdversaries).every((p) => p.message.includes('hollow-husk')),
     ).toBe(true);
     expect(errorsOnly(withAdversaries).length).toBeGreaterThan(0);
+  });
+});
+
+describe('conversations', () => {
+  const chest = {
+    id: 'chest-1',
+    kind: 'chest' as const,
+    position: { x: 2, y: 1 },
+    name: '',
+    flavor: '',
+    model: null,
+    blocksMovement: true,
+    effects: [],
+    lockedText: '',
+    tags: [],
+    data: {},
+  };
+
+  const talking = (dialogue: Record<string, unknown>): ProjectDoc => {
+    const project = build();
+    (project as { dialogues: unknown[] }).dialogues = [dialogue];
+    return project;
+  };
+
+  const straight = {
+    id: 'hag',
+    start: 'a',
+    nodes: [
+      { id: 'a', lines: [{ text: 'Hello.' }], choices: [{ text: 'Hello.', goto: 'b' }] },
+      { id: 'b', lines: [{ text: 'Goodbye.' }] },
+    ],
+  };
+
+  it('accepts a conversation whose links all land', () => {
+    expect(messages(talking(straight)).some((m) => m.includes('hag'))).toBe(false);
+  });
+
+  it('reports a reply pointing at a node nobody wrote', () => {
+    const broken = {
+      ...straight,
+      nodes: [
+        { id: 'a', lines: [], choices: [{ text: 'Onward.', goto: 'nowhere' }] },
+        { id: 'b', lines: [] },
+      ],
+    };
+    expect(messages(talking(broken))).toContain(
+      'Conversation "hag" goes to node "nowhere", which does not exist.',
+    );
+  });
+
+  it('warns about a node no path reaches, rather than erroring', () => {
+    const orphan = {
+      ...straight,
+      nodes: [...straight.nodes, { id: 'lost', lines: [{ text: 'Unheard.' }] }],
+    };
+    const problems = validateProject(talking(orphan));
+    const stranded = problems.find((p) => p.message.includes('nothing reaches'));
+    expect(stranded?.severity).toBe('warning');
+    // An author mid-draft is not making a mistake.
+    expect(errorsOnly(problems).some((p) => p.message.includes('nothing reaches'))).toBe(false);
+  });
+
+  it('follows a reply into a check outcome to find a bad reference', () => {
+    const nested = {
+      ...straight,
+      nodes: [
+        {
+          id: 'a',
+          lines: [],
+          choices: [
+            {
+              text: 'Ask nicely.',
+              check: {
+                trait: 'presence',
+                difficulty: 12,
+                onSuccessWithHope: [
+                  {
+                    kind: 'branch',
+                    when: { kind: 'flag', flag: 'x' },
+                    then: [{ kind: 'goto', scene: 'no-such-scene' }],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        { id: 'b', lines: [] },
+      ],
+    };
+    // Two levels down: inside a check outcome, inside a branch.
+    expect(messages(talking(nested))).toContain(
+      'Conversation "hag" travels to scene "no-such-scene", which does not exist.',
+    );
+  });
+
+  it('reports an object that opens a conversation nobody wrote', () => {
+    const project = build();
+    project.scenes[0]!.interactables.push({
+      ...chest,
+      effects: [{ kind: 'startDialogue', dialogue: 'the-ghost' }],
+    });
+    expect(messages(project)).toContain(
+      '"chest-1" starts conversation "the-ghost", which does not exist.',
+    );
+  });
+
+  it('accepts an object opening a conversation the project ships', () => {
+    const project = talking(straight);
+    project.scenes[0]!.interactables.push({
+      ...chest,
+      effects: [{ kind: 'startDialogue', dialogue: 'hag' }],
+    });
+    expect(messages(project).some((m) => m.includes('which does not exist'))).toBe(false);
   });
 });

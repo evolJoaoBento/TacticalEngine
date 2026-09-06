@@ -363,6 +363,7 @@ describe('interactables', () => {
     flavor: '',
     model: null,
     blocksMovement: true,
+    effects: [],
     lockedText: '',
     tags: [],
     data: {},
@@ -382,6 +383,7 @@ describe('interactables', () => {
     expect(s.requireScene('room').interactables[0]).toMatchObject({
       name: 'Old Chest',
       blocksMovement: true,
+    effects: [],
     });
 
     s.run(removeInteractable('room', 'chest-1'));

@@ -73,6 +73,13 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
   const { log, pending, within } = props;
   if (log.length === 0 && pending === null && within === null) return null;
 
+  // A conversation raises its own prompts, so the panel reads the innermost
+  // thing waiting rather than assuming the script is the one asking.
+  const talking = pending?.dialogue ?? null;
+  const asking = talking?.prompt ?? (talking === null ? (pending?.prompt ?? null) : null);
+  const check = asking !== null && asking.kind === 'check' ? asking : null;
+  const choice = asking !== null && asking.kind === 'choice' ? asking : null;
+
   return (
     <div style={wrap}>
       {log.length > 0 ? (
@@ -85,14 +92,52 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         </div>
       ) : null}
 
-      {pending !== null && pending.prompt.kind === 'check' ? (
+      {talking !== null && talking.view !== null ? (
+        <div style={{ ...logBox, background: 'rgba(20,26,34,0.95)' }} data-testid="dialogue">
+          {talking.view.lines.map((line, i) => (
+            <div key={i} style={{ marginBottom: '6px' }}>
+              {line.speaker !== undefined ? (
+                <span style={{ color: '#c8b88a' }}>{line.speaker}: </span>
+              ) : null}
+              <span style={{ color: '#d8d4c8' }}>{line.text}</span>
+            </div>
+          ))}
+          {talking.view.options.map((option) => (
+            <button
+              key={option.index}
+              disabled={!option.enabled}
+              title={option.enabled ? undefined : 'Not available'}
+              style={{
+                ...button(false),
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                marginBottom: '4px',
+                opacity: option.enabled ? 1 : 0.5,
+              }}
+              onClick={() => props.onAnswer({ kind: 'choose', index: option.index })}
+            >
+              {option.text}
+              {option.detail !== undefined ? (
+                <span style={{ color: '#8ea3b0' }}> — {option.detail}</span>
+              ) : null}
+            </button>
+          ))}
+          {talking.view.options.length === 0 ? (
+            <button style={button(true)} onClick={() => props.onAnswer({ kind: 'continue' })}>
+              Continue
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {check !== null ? (
         <div style={{ ...logBox, background: 'rgba(20,26,34,0.95)' }}>
           <div style={{ marginBottom: '8px' }}>
-            {pending.prompt.prompt ??
-              `Roll ${pending.prompt.trait} against ${pending.prompt.difficulty}?`}
+            {check.prompt ?? `Roll ${check.trait} against ${check.difficulty}?`}
           </div>
           <button style={button(true)} onClick={() => props.onAnswer({ kind: 'roll' })}>
-            Roll {pending.prompt.trait} {signed(pending.prompt.modifier)}
+            Roll {check.trait} {signed(check.modifier)}
           </button>
           <button style={button(false)} onClick={() => props.onAnswer({ kind: 'cancel' })}>
             Step back
@@ -100,12 +145,12 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         </div>
       ) : null}
 
-      {pending !== null && pending.prompt.kind === 'choice' ? (
+      {choice !== null ? (
         <div style={{ ...logBox, background: 'rgba(20,26,34,0.95)' }}>
-          {pending.prompt.title !== undefined ? (
-            <div style={{ marginBottom: '6px', fontWeight: 600 }}>{pending.prompt.title}</div>
+          {choice.title !== undefined ? (
+            <div style={{ marginBottom: '6px', fontWeight: 600 }}>{choice.title}</div>
           ) : null}
-          {pending.prompt.options.map((option) => (
+          {choice.options.map((option) => (
             <button
               key={option.index}
               style={{ ...button(false), display: 'block', marginBottom: '4px', width: '100%', textAlign: 'left' }}

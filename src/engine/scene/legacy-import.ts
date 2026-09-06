@@ -194,6 +194,7 @@ export function importLegacyCampaign(
       id: options.id ?? (toContentId(name) || 'imported'),
       name,
       scenes,
+    dialogues: [],
       startScene: scenes[0]!.id,
     },
     issues,
@@ -321,6 +322,8 @@ function importInteractables(
       id,
       kind,
       position: point,
+      // The legacy editor had no roll-free effects; a check is all it wrote.
+      effects: [],
       name: asString(raw['name']) ?? '',
       flavor: asString(raw['flavor']) ?? '',
       model: asString(raw['model']),

@@ -40,11 +40,14 @@ declare global {
         response:
           | { kind: 'choose'; index: number }
           | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number }
-          | { kind: 'cancel' },
+          | { kind: 'cancel' }
+          | { kind: 'continue' },
       ) => string;
       log: () => { text: string; tone: string }[];
       pendingKind: () => string | null;
       objects: () => string[];
+      dialogueOptions: () => string[];
+      hasDialogue: () => boolean;
       within: () => string | null;
       standBeside: (id: string) => boolean;
       mode: () => 'play' | 'edit';
@@ -433,6 +436,65 @@ test('shows the narrative log and the roll prompt on the page', async ({ page })
 
   await roll.click();
   await expect(page.locator('[data-testid="log"]')).toContainText(/Hope|Fear|critical/i);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('talks to the pillar, and the conversation is part of the saved project', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
+    api.standBeside(pillar);
+    api.use(pillar);
+  });
+
+  // The conversation is on screen, with the speaker's words and the replies.
+  const dialogue = page.locator('[data-testid="dialogue"]');
+  await expect(dialogue).toBeVisible();
+  await expect(dialogue).toContainText('Three hundred years');
+
+  // A reply that costs a roll advertises the cost.
+  await page.getByRole('button', { name: /came for the vault/i }).click();
+  await expect(dialogue).toContainText('Presence 13');
+
+  // Choosing it hands over to the check prompt rather than resolving silently.
+  await page.getByRole('button', { name: /politely/i }).click();
+  const roll = page.getByRole('button', { name: /Roll presence/i });
+  await expect(roll).toBeVisible();
+  await roll.click();
+
+  // Whichever way the roll went, the conversation moved on and said something.
+  await expect(page.locator('[data-testid="log"]')).toContainText(/Hope|Fear|critical/i);
+
+  // And the words themselves are document data: they survive Save JSON.
+  const saved = await page.evaluate(() => window.__polyheart!.exportProject());
+  expect(saved).toContain('the-listening-pillar');
+  expect(saved).toContain('Three hundred years');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('hides a reply until the party knows what it is talking about', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  const gated = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
+    api.standBeside(pillar);
+    api.use(pillar);
+
+    const before = api.dialogueOptions();
+    // Ask who it is; the node that answers sets the flag the gated reply needs.
+    const ask = before.findIndex((t) => t === 'Who are you?');
+    api.answer({ kind: 'choose', index: ask });
+    return { before, knows: api.log().some((l) => l.text.includes('counted')) };
+  });
+
+  expect(gated.before.some((t) => t.startsWith('Warden.'))).toBe(false);
+  expect(gated.before.length).toBeGreaterThan(2);
+  expect(gated.knows).toBe(true);
 
   expect(consoleErrors).toEqual([]);
 });

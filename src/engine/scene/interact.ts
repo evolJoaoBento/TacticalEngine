@@ -96,11 +96,14 @@ function openingEffects(interactable: Interactable): Effect[] {
   if (interactable.flavor !== '') {
     effects.push({ kind: 'log', text: interactable.flavor, tone: 'narration' });
   }
+  effects.push(...interactable.effects);
+
   if (interactable.check !== undefined) {
     effects.push({ kind: 'check', check: interactable.check });
   } else if (interactable.goto !== undefined) {
     effects.push({ kind: 'goto', scene: interactable.goto });
-  } else {
+  } else if (interactable.effects.length === 0) {
+    // Flavour alone is not something you use up; see the caller.
     return effects;
   }
   effects.push({ kind: 'markUsed', interactable: interactable.id });

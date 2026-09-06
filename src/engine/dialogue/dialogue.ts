@@ -25,50 +25,27 @@ import {
   type ScriptWorld,
 } from '../script/runner';
 
-export interface DialogueLine {
-  /** Who is talking. Omitted for narration. */
-  speaker?: string;
-  text: string;
-}
+/**
+ * The shapes live in `schema.ts` so a project can hold a conversation; this
+ * module keeps the behaviour that runs one. Re-exported so existing importers
+ * are unchanged.
+ */
+export type {
+  Dialogue,
+  DialogueCheck,
+  DialogueChoice,
+  DialogueLine,
+  DialogueNode,
+} from './schema';
+export { dialogueSchema } from './schema';
 
-export interface DialogueChoice {
-  /** What the player's reply says. */
-  text: string;
-  /** A hint at the cost or consequence, shown under the reply. */
-  detail?: string;
-  /** Hidden entirely when this fails, which is how knowledge gates a reply. */
-  available?: Condition;
-  /** Shown but not selectable when this fails — a visible locked option. */
-  enabled?: Condition;
-  /** A roll the reply requires; its outcomes decide where the conversation goes. */
-  check?: DialogueCheck;
-  effects?: readonly Effect[];
-  /** Where to go next. Omitted ends the conversation. */
-  goto?: string;
-}
-
-/** A check inside a dialogue: same rules, but each outcome can also branch. */
-export interface DialogueCheck extends CheckRequest {
-  /** Node to go to per outcome; falls back to the choice's own `goto`. */
-  gotoOnSuccess?: string;
-  gotoOnFailure?: string;
-}
-
-export interface DialogueNode {
-  id: string;
-  lines: readonly DialogueLine[];
-  /** Run when the node is entered, before its lines are shown. */
-  onEnter?: readonly Effect[];
-  choices?: readonly DialogueChoice[];
-  /** Where to go with no choices at all — a straight line of narration. */
-  goto?: string;
-}
-
-export interface Dialogue {
-  id: string;
-  start: string;
-  nodes: readonly DialogueNode[];
-}
+import type {
+  Dialogue,
+  DialogueCheck,
+  DialogueChoice,
+  DialogueLine,
+  DialogueNode,
+} from './schema';
 
 /** What the player is being shown right now. */
 export interface DialogueView {

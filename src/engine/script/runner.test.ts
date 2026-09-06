@@ -376,19 +376,33 @@ describe('the runner as a whole', () => {
     ).toThrow(/needs a choice/);
   });
 
-  it('journals a goto and a dialogue rather than acting on them itself', () => {
-    // Scene changes and conversations belong to the layer above; the runner only
-    // reports that content asked for one.
+  it('journals a goto rather than acting on it itself', () => {
+    // Scene changes belong to the layer above; the runner only reports that
+    // content asked for one.
     const { world: w } = world();
-    const journal = runScript(
-      [{ kind: 'goto', scene: 'the-pit' }, { kind: 'startDialogue', dialogue: 'hag' }],
-      w,
-      createRng(1),
-    );
-    expect(journal).toEqual([
-      { kind: 'goto', scene: 'the-pit' },
-      { kind: 'dialogue', dialogue: 'hag' },
+    const journal = runScript([{ kind: 'goto', scene: 'the-pit' }], w, createRng(1));
+    expect(journal).toEqual([{ kind: 'goto', scene: 'the-pit' }]);
+  });
+
+  it('stops on a dialogue and waits to be told it finished', () => {
+    const { world: w } = world();
+    const runner = new ScriptRunner(w, createRng(1));
+    const waiting = runner.run([
+      { kind: 'log', text: 'before' },
+      { kind: 'startDialogue', dialogue: 'hag' },
+      { kind: 'log', text: 'after' },
     ]);
+
+    // A conversation is not something a script runs past: everything after it
+    // waits, or the ordering of the two would be undefined.
+    expect(waiting.status).toBe('waiting');
+    if (waiting.status !== 'waiting') return;
+    expect(waiting.prompt).toEqual({ kind: 'dialogue', dialogue: 'hag' });
+    expect(waiting.journal.some((e) => e.kind === 'log' && e.text === 'after')).toBe(false);
+
+    const done = runner.resume({ kind: 'continue' });
+    expect(done.status).toBe('done');
+    expect(done.journal.some((e) => e.kind === 'log' && e.text === 'after')).toBe(true);
   });
 
   it('works against a stub world, not just a scene', () => {

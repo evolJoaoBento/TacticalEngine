@@ -13,12 +13,8 @@ that map do, and play it — no engine code. Select between characters, walk wit
 keeping up, cross a trigger into a fight, pass the spotlight, open a locked chest on a Finesse
 roll and read what the author wrote about it.
 
-The two things that keep it from being a game rather than a scene:
-
-1. **Nothing talks.** The dialogue runtime is built and tested, but a `Dialogue` is not part of
-   the saved project, so it cannot be authored or shipped (item 2).
-2. **There is only ever one room.** `goto` names a scene and nothing ever changes scene
-   (item 11).
+The thing that keeps it from being a game rather than a scene: **there is only ever one room.**
+`goto` names a scene and nothing ever changes scene (item 11).
 
 Everything else on the list is depth — inventory, quests, progression, presentation — rather
 than a wall.
@@ -62,8 +58,7 @@ execute anything a document can hold.
 
 That is a claim about the *runner*, not about the game: three effects still land
 in the journal and stop there. `goto` names a scene and nothing changes scenes
-(see 11); `loot` finds something and there is nowhere to put it (see 6);
-`startDialogue` names a conversation that cannot be saved (see 2).
+(see 11), and `loot` finds something and there is nowhere to put it (see 6).
 
 `scene/interact.ts` is the verb that was missing: reach a thing, and its authored `requiresKey`,
 `lockedText`, `check` and outcomes actually happen. The legacy vault's own furniture — a Finesse
@@ -75,11 +70,28 @@ with the *best* trait in the party rather than the acting character's, because
 `SceneScriptWorld` takes one traits map at construction; and using something in a fight spends
 that character's action, which is a choice rather than a rule read out of the SRD.
 
-### ~~2. Dialogue graphs~~ — done
+### ~~2. Dialogue graphs~~ — done, and shipped in the project file
 
-`dialogue/dialogue.ts`. Speakers, lines, replies gated by conditions, replies that cost a roll
-and route by its outcome, effects on choosing. `danglingLinks` and `unreachableNodes` catch
-authoring errors before runtime.
+`dialogue/dialogue.ts` runs a conversation: speakers, lines, replies gated by conditions,
+replies that cost a roll and route by its outcome, effects on choosing. `dialogue/schema.ts` is
+the authored form, and `ProjectDoc.dialogues` carries it — so Save JSON writes the words as well
+as the map, which is what makes conversation authorable at all.
+
+`startDialogue` **pauses** the script that ran it, the way `check` and `choice` do; the caller
+plays the conversation out and resumes with `continue`. Journalling it and running on would have
+left the order of everything after it undefined.
+
+That nesting is the interesting part, and `game/demo-scene.ts` holds it: a script stops on a
+conversation, the conversation itself stops for a Presence roll, and only when it ends does the
+script that opened it carry on. Both runners keep cumulative journals, so both need the same
+"what has already been shown" guard.
+
+`danglingLinks` and `unreachableNodes` run in `validateProject`, along with a walk over every
+node's effects — a reply that starts a conversation nobody wrote is an error before it is a
+crash.
+
+**Still open:** authoring one in the editor. The graph is data now, so this is a UI job rather
+than an engine one.
 
 ### ~~3. The turn loop~~ — done
 
@@ -134,8 +146,9 @@ ground stops movement and reads as dark floor until Raise gives it height, which
 elevation is its own tool because low walls and tall walls play differently.
 
 **Still open:** a scene list and scene creation in the UI, a properties panel for editing an
-object's check and outcomes, dialogue authoring, and camera control (the view is a fixed
-three-quarter, so a large map cannot be panned).
+object's effects, check and outcomes, a dialogue graph editor, and camera control (the view is a
+fixed three-quarter, so a large map cannot be panned). Everything those would edit is document
+data already; none of it needs engine work first.
 
 ### 9. Asset import (glTF)
 
@@ -167,15 +180,18 @@ A designer can now author a *party* (sheets naming a class, ancestry, armor and 
 loaded back), and *what the things in it do* — a check, its difficulty, and effects and prose
 per outcome, all as document data the engine executes. None of it needs engine code.
 
-What is left of the authoring gap is **conversation**. `dialogue/dialogue.ts` runs a graph,
-`danglingLinks` and `unreachableNodes` check one — but a `Dialogue` is not part of `ProjectDoc`,
-so it cannot be saved, and `startDialogue` is journalled rather than run. Until that closes,
-dialogue is the one thing that still lives only in TypeScript.
+Conversation is authorable too, as of this pass: the demo's pillar holds a five-node
+conversation with a reply hidden until the party knows the Warden's name and a reply that costs
+a Presence 13, and the whole thing is document data that survives Save JSON.
 
-So the honest answer today is: *a designer can build the party, the place, and what everything
-in it does — except talk.* Putting dialogues in the project document, making `startDialogue`
-pause the runner the way a check does, and an editor over the graph is the next thing that moves
-that line.
+What is left of the authoring gap is a *tool* for the writing rather than the writing itself —
+today a conversation is a literal in `game/demo-dialogue.ts` that happens to parse through the
+schema, which is the same position maps were in before the editor.
+
+So the honest answer today is: *a designer can build the party, the place, what everything in it
+does, and what it says — but only one room of it, and the writing has no editor yet.* Scene travel (item 11) is the next thing that moves that line,
+and it is small: the runner already reports `goto`, so it wants a scene switch in the demo layer
+and a spawn to arrive on.
 
 One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
 workaround from when nothing could use a door. It can go now — the party can pick that lock

@@ -15,6 +15,7 @@
  */
 
 import { z } from 'zod';
+import { dialogueSchema } from '../dialogue/schema';
 import { checkRequestSchema, effectSchema } from '../script/schema';
 import {
   contentIdSchema,
@@ -49,6 +50,12 @@ export const interactableSchema = z.object({
   model: z.string().nullable().default(null),
   /** Whether a creature can walk through this tile. */
   blocksMovement: z.boolean().default(true),
+  /**
+   * What using it does with no roll involved. Runs before any `check`, so an
+   * object can say something and then ask for one — or, with no check at all,
+   * simply open a conversation.
+   */
+  effects: z.array(effectSchema).default([]),
   check: checkRequestSchema.optional(),
   /** The party must hold this key to interact at all. */
   requiresKey: z.string().optional(),
@@ -183,6 +190,11 @@ export const projectSchema = z
     /** Omitted means the engine's default palette. */
     terrainPalette: z.array(terrainTypeSchema).min(1).optional(),
     scenes: z.array(sceneSchema).min(1),
+    /**
+     * Conversations, addressed by id from a `startDialogue` effect. Project-level
+     * rather than per-scene: the same character can be talked to in two places.
+     */
+    dialogues: z.array(dialogueSchema).default([]),
     /** Scene the project opens on. */
     startScene: contentIdSchema,
   })
@@ -193,6 +205,17 @@ export const projectSchema = z
         ctx.addIssue({ code: 'custom', path: ['scenes', i, 'id'], message: `duplicate scene id "${scene.id}"` });
       }
       ids.add(scene.id);
+    });
+    const dialogueIds = new Set<string>();
+    project.dialogues.forEach((dialogue, i) => {
+      if (dialogueIds.has(dialogue.id)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['dialogues', i, 'id'],
+          message: `duplicate dialogue id "${dialogue.id}"`,
+        });
+      }
+      dialogueIds.add(dialogue.id);
     });
     if (!ids.has(project.startScene)) {
       ctx.addIssue({
