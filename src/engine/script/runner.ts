@@ -13,11 +13,29 @@
  *
  * Everything it did comes back in a journal, so a caller can render a log, assert
  * on a scenario, or diff two runs.
+ *
+ * An ability is the same machine with two things bound: `targets`, the creatures
+ * the player chose, and `hit`, the ones the last roll beat. A `check` against
+ * targets binds `hit`; a `damage` with dice lands on whatever `hit` names. So a
+ * card's text — "make a Spellcast Roll against a target within Far range; on a
+ * success, deal d8+2 magic damage" — is a check whose success list holds a
+ * damage effect, in the one vocabulary a chest's outcome is written in.
  */
 
 import type { Rng } from '../core/rng';
 import { rollDuality, type DualityRoll } from '../rules/duality';
-import { evaluateOptional, type Condition, type ConditionContext, type ScriptValue } from './conditions';
+import { formatDice, parseDice, type DamageType } from '../rules/dice';
+import { rollDamage, type IncomingDamage } from '../rules/damage';
+import type { RangeBand } from '../rules/range';
+import type { Trait } from '../scene/primitives';
+import {
+  evaluateOptional,
+  NO_BINDINGS,
+  type Condition,
+  type ConditionContext,
+  type ScriptValue,
+  type TargetBindings,
+} from './conditions';
 import {
   outcomeEffects,
   type CheckOutcome,
@@ -27,6 +45,30 @@ import {
   type LogTone,
   type TargetSelector,
 } from './effects';
+import type { CheckTrait, ConditionDuration } from './schema';
+
+/** What one damage event did to one creature. */
+export interface DealtDamage {
+  /** Damage after resistance and immunity. */
+  incoming: number;
+  hpMarked: number;
+  armorSlotsSpent: number;
+  fell: boolean;
+}
+
+/** An attack made from inside a script, reported the way the log needs it. */
+export interface AttackSummary {
+  refused: string | null;
+  weapon: string;
+  hit: boolean;
+  critical: boolean;
+  hitPointsMarked: number;
+  roll?: DualityRoll;
+  hopeGained: number;
+  fearGained: number;
+  stressCleared: number;
+  spotlightToGm: boolean;
+}
 
 /** What the world must let a script do. Implemented over `SceneState` in `world.ts`. */
 export interface ScriptWorld extends ConditionContext {
@@ -49,27 +91,68 @@ export interface ScriptWorld extends ConditionContext {
   startEncounter(id: string): void;
   endEncounter(id: string): void;
   /** Bypasses the attack roll — a trap, a hidden thorn. Returns HP actually marked. */
-  damage(target: TargetSelector, amount: number, source?: string): number;
+  damage(target: TargetSelector, amount: number, source?: string, bindings?: TargetBindings): number;
   /** Returns HP actually cleared. */
-  heal(target: TargetSelector, amount: number): number;
-  /** The trait modifier for the acting character, for a check. */
-  traitModifier(trait: CheckRequest['trait']): number;
+  heal(target: TargetSelector, amount: number, bindings?: TargetBindings): number;
   /**
-   * Quest progress. Each returns whether anything changed, so the runner can
-   * journal a real event and stay quiet about a `startQuest` that was already
-   * started — scripts re-run, and the journal must not say "New quest" twice.
+   * The modifier for a check. `party` is how an object's check has always been
+   * rolled — the party's best hand at that trait — and `actor` is the acting
+   * character's own, which is what a card demands. Null when the actor cannot
+   * make that roll at all: a Spellcast Roll with no Spellcast trait.
    */
+  checkModifier(trait: CheckTrait, as: 'party' | 'actor'): number | null;
+  /** The acting character's Experiences, spendable for a Hope each. */
+  experiences(): readonly { name: string; modifier: number }[];
+  /** What a roll against this creature must meet: Evasion, or an adversary's Difficulty. */
+  difficultyOf(id: string): number | null;
   /** Raise the party's level to `level` (or by one). Returns the level reached, or null if nothing changed. */
   grantLevel(level?: number): number | null;
   /** The acting character gains a Hope. Returns whether anyone was there to gain it. */
   gainHope(): boolean;
   /** The GM gains a Fear. Returns whether the pool had room. */
   gainFear(): boolean;
+  /**
+   * Quest progress. Each returns whether anything changed, so the runner can
+   * journal a real event and stay quiet about a `startQuest` that was already
+   * started — scripts re-run, and the journal must not say "New quest" twice.
+   */
   startQuest(quest: string): boolean;
   completeObjective(quest: string, objective: string): boolean;
   revealObjective(quest: string, objective: string): boolean;
   completeQuest(quest: string): boolean;
   failQuest(quest: string): boolean;
+
+  // ---- what an ability does to a creature ----------------------------------
+  /** Rolled damage through thresholds, resistances and Armor Slots. */
+  dealDamage(id: string, damage: IncomingDamage): DealtDamage;
+  /** Mark Stress; a full track marks a Hit Point instead, as the SRD says. */
+  markStress(id: string, amount: number): { stressMarked: number; hpMarked: number; fell: boolean };
+  clearStress(id: string, amount: number): number;
+  clearArmor(id: string, amount: number): number;
+  /** Returns Hope actually gained (an adversary gains none). */
+  gainHopeFor(id: string, amount: number): number;
+  /** Returns whether the Hope was there to spend. */
+  spendHope(id: string, amount: number): boolean;
+  applyCondition(id: string, condition: string, duration: ConditionDuration): boolean;
+  clearCondition(id: string, condition: string): boolean;
+  proficiencyOf(id: string): number;
+  /** The value of the creature's Spellcast trait, or null when it has none. */
+  spellcastValue(id: string): number | null;
+  /** A weapon attack, rolled and applied. */
+  attack(
+    request: {
+      attacker: string;
+      target: string;
+      weapon: 'primary' | 'secondary';
+      advantage?: number;
+      damageBonus?: number;
+    },
+    rng: Rng,
+  ): AttackSummary;
+  /** Knock a creature away from another to a band. Null when it could not move at all. */
+  pushBack(from: string, target: string, band: RangeBand): { from: number; to: number } | null;
+  /** A reaction roll: a d20 for an adversary, Duality Dice for a party member. */
+  rollReaction(id: string, difficulty: number, trait: Trait, rng: Rng): { success: boolean; total: number };
 }
 
 /** One thing that happened, in order. A UI renders these; a test asserts on them. */
@@ -83,19 +166,41 @@ export type JournalEntry =
   | { kind: 'var'; name: string; value: ScriptValue }
   | { kind: 'interactable'; id: string; change: 'open' | 'removed' | 'used' }
   | { kind: 'loot'; table?: string; found: readonly { item: string; quantity: number }[] }
-  | { kind: 'damage'; amount: number; marked: number; source?: string }
+  /** `targets` and `dice` are set when the damage was rolled at someone. */
+  | { kind: 'damage'; amount: number; marked: number; source?: string; targets?: readonly string[]; dice?: string }
   | { kind: 'heal'; amount: number; cleared: number }
   | { kind: 'encounter'; id: string; change: 'started' | 'ended'; intro?: string }
   | { kind: 'goto'; scene: string }
   | { kind: 'dialogue'; dialogue: string }
   | { kind: 'quest'; quest: string; change: 'started' | 'completed' | 'failed' }
   | { kind: 'levelUp'; level: number }
-  | { kind: 'hope'; gained: number }
+  /** `id` is set when the Hope went to someone other than the actor. */
+  | { kind: 'hope'; gained: number; id?: string }
+  | { kind: 'hopeSpent'; amount: number }
   | { kind: 'fear'; gained: number }
   | { kind: 'objective'; quest: string; objective: string }
   | { kind: 'revealed'; quest: string; objective: string }
   | { kind: 'chose'; label: string; index: number }
-  | { kind: 'check'; outcome: CheckOutcome; roll: DualityRoll };
+  /** `targets` are who the roll was against, `hit` the ones it beat. */
+  | { kind: 'check'; outcome: CheckOutcome; roll: DualityRoll; targets: readonly string[]; hit: readonly string[] }
+  | { kind: 'experience'; name: string; modifier: number }
+  /** An effect that could not happen: no Hope to spend, no Spellcast trait, no target. */
+  | { kind: 'refused'; reason: string }
+  | { kind: 'stress'; id: string; marked: number; cleared: number; hitPoints: number }
+  | { kind: 'armor'; id: string; cleared: number }
+  | { kind: 'condition'; id: string; condition: string; applied: boolean }
+  | {
+      kind: 'attack';
+      attacker: string;
+      target: string;
+      weapon: string;
+      hit: boolean;
+      critical: boolean;
+      hitPointsMarked: number;
+      roll?: DualityRoll;
+    }
+  | { kind: 'moved'; id: string; from: number; to: number }
+  | { kind: 'reaction'; id: string; success: boolean; total: number; difficulty: number };
 
 /** What the runner is waiting for. */
 export type Prompt =
@@ -108,10 +213,15 @@ export type Prompt =
     }
   | {
       kind: 'check';
-      trait: CheckRequest['trait'];
-      difficulty: number;
+      trait: CheckTrait;
+      /** A number, or `target` when the roll is against each target's own Difficulty. */
+      difficulty: number | 'target';
       modifier: number;
       prompt?: string;
+      /** Who the roll is against, so a UI can name them. */
+      targets: readonly string[];
+      /** The actor's Experiences, each spendable for a Hope with `roll.experience`. */
+      experiences: readonly { name: string; modifier: number }[];
     }
   /** Play this conversation out, then resume with `continue`. */
   | { kind: 'dialogue'; dialogue: string };
@@ -125,8 +235,12 @@ export type Response =
   | { kind: 'choose'; index: number }
   /** The dialogue a `startDialogue` opened has finished; carry on. */
   | { kind: 'continue' }
-  /** Make the roll. `advantage`/`disadvantage`/`helpDice` come from the table. */
-  | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number }
+  /**
+   * Make the roll. `advantage`/`disadvantage`/`helpDice` come from the table;
+   * `experience` names one of the actor's to Utilize — a Hope is spent and its
+   * modifier added, as the SRD has it.
+   */
+  | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number; experience?: string }
   /** Decline the roll — the legacy dialog let a player back out, costing nothing. */
   | { kind: 'cancel' };
 
@@ -140,6 +254,20 @@ export type Response =
 export interface ScriptRunnerOptions {
   /** The interactable a bare `open`/`remove`/`markUsed` refers to. */
   subject?: string;
+  /** The creatures `target` names: what the player chose when using an ability. */
+  targets?: readonly string[];
+  /**
+   * Whose hand rolls a plain trait check. An object's check has always been
+   * the party's best; an ability's is the actor's own.
+   */
+  rollAs?: 'party' | 'actor';
+}
+
+/** A list of effects part-way through, and what `hit` meant when it was pushed. */
+interface Frame {
+  effects: readonly Effect[];
+  index: number;
+  hit?: readonly string[];
 }
 
 export class ScriptRunner {
@@ -147,7 +275,7 @@ export class ScriptRunner {
   private readonly rng: Rng;
   private readonly journal: JournalEntry[] = [];
   /** Stacked cursors into effect lists: [list, next index]. */
-  private readonly stack: { effects: readonly Effect[]; index: number }[] = [];
+  private readonly stack: Frame[] = [];
   private pending: { effect: Effect } | null = null;
 
   /**
@@ -156,11 +284,24 @@ export class ScriptRunner {
    * writes a chest's outcome without repeating the chest's id in every branch.
    */
   private readonly subject: string | null;
+  private readonly targets: readonly string[];
+  private readonly rollAs: 'party' | 'actor';
+  /** The creatures the last roll beat. */
+  private hit: readonly string[] = [];
+  /** The last action roll made, for a critical's extra damage and `difficulty: 'roll'`. */
+  private lastRoll: { critical: boolean; total: number } | null = null;
+
+  /** Whether any action roll in this script hands the spotlight to the GM. */
+  spotlightToGm = false;
+  /** Whether an action roll was made at all. */
+  rolled = false;
 
   constructor(world: ScriptWorld, rng: Rng, options: ScriptRunnerOptions = {}) {
     this.world = world;
     this.rng = rng;
     this.subject = options.subject ?? null;
+    this.targets = [...(options.targets ?? [])];
+    this.rollAs = options.rollAs ?? 'party';
   }
 
   /** Start a script. Returns as soon as it finishes or needs an answer. */
@@ -190,10 +331,24 @@ export class ScriptRunner {
     return this.journal;
   }
 
+  /** What `target` and `hit` mean right now. */
+  bindings(): TargetBindings {
+    return { targets: this.targets, hit: this.hit };
+  }
+
+  private resolve(selector: TargetSelector): string[] {
+    return this.world.resolveTargets(selector, this.bindings());
+  }
+
+  private refuse(reason: string): null {
+    this.journal.push({ kind: 'refused', reason });
+    return null;
+  }
+
   private applyChoice(options: readonly ChoiceOption[], response: Response): void {
     if (response.kind !== 'choose') return; // cancelling a choice does nothing
     const option = options[response.index];
-    if (option === undefined || !evaluateOptional(option.available, this.world)) return;
+    if (option === undefined || !evaluateOptional(option.available, this.world, this.bindings())) return;
     this.journal.push({ kind: 'chose', label: option.label, index: response.index });
     this.stack.push({ effects: option.effects, index: 0 });
   }
@@ -201,27 +356,70 @@ export class ScriptRunner {
   private applyCheck(check: CheckRequest, response: Response): void {
     if (response.kind !== 'roll') return; // declining costs nothing, as the legacy dialog did
 
+    const base = this.world.checkModifier(check.trait, this.rollAs);
+    if (base === null) {
+      this.refuse(`no ${check.trait} trait to roll with`);
+      return;
+    }
+    let modifier = base;
+
+    // Utilize an Experience: a Hope for its modifier, before the dice.
+    const actor = this.world.actorId();
+    if (response.experience !== undefined) {
+      const found = this.world.experiences().find((e) => e.name === response.experience);
+      if (found !== undefined && actor !== null && this.world.spendHope(actor, 1)) {
+        modifier += found.modifier;
+        this.journal.push({ kind: 'hopeSpent', amount: 1 });
+        this.journal.push({ kind: 'experience', name: found.name, modifier: found.modifier });
+      }
+    }
+
+    // One roll, however many targets. Against targets, the Difficulty that
+    // decides success is the lowest, and each target is beaten on its own
+    // number; against a fixed Difficulty, all of them stand or fall together.
+    const targets = check.targets === undefined ? [...this.targets] : this.resolve(check.targets);
+    const difficulties =
+      check.difficulty === 'target'
+        ? targets.map((id) => this.world.difficultyOf(id) ?? Infinity)
+        : [check.difficulty];
+    const difficulty = difficulties.length === 0 ? Infinity : Math.min(...difficulties);
+
     const roll = rollDuality(this.rng, {
-      difficulty: check.difficulty,
-      modifier: this.world.traitModifier(check.trait),
+      difficulty,
+      modifier,
       ...(response.advantage === undefined ? {} : { advantage: response.advantage }),
       ...(response.disadvantage === undefined ? {} : { disadvantage: response.disadvantage }),
       ...(response.helpDice === undefined ? {} : { helpDice: response.helpDice }),
     });
-    this.journal.push({ kind: 'check', outcome: roll.outcome, roll });
+    const hit =
+      check.difficulty === 'target'
+        ? targets.filter((_, i) => roll.critical || roll.total >= difficulties[i]!)
+        : roll.success
+          ? targets
+          : [];
+    this.hit = hit;
+    this.lastRoll = { critical: roll.critical, total: roll.total };
+    this.rolled = true;
+    this.spotlightToGm = this.spotlightToGm || roll.spotlightToGm;
+    this.journal.push({ kind: 'check', outcome: roll.outcome, roll, targets, hit });
+
     // The core loop: a roll with Hope hands the roller a Hope, a roll with
-    // Fear hands the GM a Fear. Attacks already did this; a chest and a
-    // conversation are rolls too.
+    // Fear hands the GM a Fear, and a critical clears a Stress. Attacks
+    // already did this; a chest and a conversation are rolls too.
     if (roll.hopeGained > 0 && this.world.gainHope()) {
       this.journal.push({ kind: 'hope', gained: roll.hopeGained });
     }
     if (roll.fearGained > 0 && this.world.gainFear()) {
       this.journal.push({ kind: 'fear', gained: roll.fearGained });
     }
+    if (roll.stressCleared > 0 && actor !== null) {
+      const cleared = this.world.clearStress(actor, roll.stressCleared);
+      if (cleared > 0) this.journal.push({ kind: 'stress', id: actor, marked: 0, cleared, hitPoints: 0 });
+    }
 
     // `always` runs after the outcome branch, so it is pushed first.
-    if (check.always !== undefined) this.stack.push({ effects: check.always, index: 0 });
-    this.stack.push({ effects: outcomeEffects(check, roll.outcome), index: 0 });
+    if (check.always !== undefined) this.stack.push({ effects: check.always, index: 0, hit });
+    this.stack.push({ effects: outcomeEffects(check, roll.outcome), index: 0, hit });
   }
 
   private step(): RunStatus {
@@ -231,6 +429,9 @@ export class ScriptRunner {
         this.stack.pop();
         continue;
       }
+      // A frame pushed with its own `hit` — a reaction's failures, an attack's
+      // target — reads that list, however the roll after it went.
+      if (frame.hit !== undefined) this.hit = frame.hit;
       const effect = frame.effects[frame.index++]!;
       const prompt = this.apply(effect);
       if (prompt !== null) {
@@ -351,19 +552,10 @@ export class ScriptRunner {
         );
         return null;
       }
-      case 'damage': {
-        const target = effect.target ?? { kind: 'actor' as const };
-        const marked = world.damage(target, effect.amount, effect.source);
-        this.journal.push({
-          kind: 'damage',
-          amount: effect.amount,
-          marked,
-          ...(effect.source === undefined ? {} : { source: effect.source }),
-        });
-        return null;
-      }
+      case 'damage':
+        return effect.dice === undefined ? this.applyFlatDamage(effect) : this.applyRolledDamage(effect);
       case 'heal': {
-        const cleared = world.heal(effect.target ?? { kind: 'actor' }, effect.amount);
+        const cleared = world.heal(effect.target ?? { kind: 'actor' }, effect.amount, this.bindings());
         this.journal.push({ kind: 'heal', amount: effect.amount, cleared });
         return null;
       }
@@ -391,14 +583,14 @@ export class ScriptRunner {
         this.journal.push({ kind: 'dialogue', dialogue: effect.dialogue });
         return { kind: 'dialogue', dialogue: effect.dialogue };
       case 'branch': {
-        const taken = evaluateOptional(effect.when, world) ? effect.then : effect.otherwise;
+        const taken = evaluateOptional(effect.when, world, this.bindings()) ? effect.then : effect.otherwise;
         if (taken !== undefined && taken.length > 0) this.stack.push({ effects: taken, index: 0 });
         return null;
       }
       case 'choice': {
         const options = effect.options
           .map((option, index) => ({ option, index }))
-          .filter(({ option }) => evaluateOptional(option.available, world))
+          .filter(({ option }) => evaluateOptional(option.available, world, this.bindings()))
           .map(({ option, index }) => ({
             index,
             label: option.label,
@@ -413,15 +605,204 @@ export class ScriptRunner {
           options,
         };
       }
-      case 'check':
+      case 'check': {
+        const modifier = world.checkModifier(effect.check.trait, this.rollAs);
+        // A roll the actor cannot make is refused here, before a prompt that
+        // could only be declined.
+        if (modifier === null) return this.refuse(`no ${effect.check.trait} trait to roll with`);
         return {
           kind: 'check',
           trait: effect.check.trait,
           difficulty: effect.check.difficulty,
-          modifier: world.traitModifier(effect.check.trait),
+          modifier,
           ...(effect.check.prompt === undefined ? {} : { prompt: effect.check.prompt }),
+          targets: effect.check.targets === undefined ? [...this.targets] : this.resolve(effect.check.targets),
+          experiences: world.experiences(),
         };
+      }
+      case 'markStress': {
+        const amount = effect.amount ?? 1;
+        for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
+          const result = world.markStress(id, amount);
+          this.journal.push({ kind: 'stress', id, marked: result.stressMarked, cleared: 0, hitPoints: result.hpMarked });
+        }
+        return null;
+      }
+      case 'clearStress': {
+        const amount = effect.amount ?? 1;
+        for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
+          const cleared = world.clearStress(id, amount);
+          if (cleared > 0) this.journal.push({ kind: 'stress', id, marked: 0, cleared, hitPoints: 0 });
+        }
+        return null;
+      }
+      case 'clearArmor': {
+        const amount = effect.amount ?? 1;
+        for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
+          const cleared = world.clearArmor(id, amount);
+          if (cleared > 0) this.journal.push({ kind: 'armor', id, cleared });
+        }
+        return null;
+      }
+      case 'gainHope': {
+        const amount = effect.amount ?? 1;
+        const actor = world.actorId();
+        for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
+          const gained = world.gainHopeFor(id, amount);
+          if (gained > 0) this.journal.push(id === actor ? { kind: 'hope', gained } : { kind: 'hope', gained, id });
+        }
+        return null;
+      }
+      case 'spendHope': {
+        const amount = effect.amount ?? 1;
+        const actor = world.actorId();
+        if (actor === null || !world.spendHope(actor, amount)) return this.refuse(`not enough Hope to spend ${amount}`);
+        this.journal.push({ kind: 'hopeSpent', amount });
+        return null;
+      }
+      case 'applyCondition':
+        for (const id of this.resolve(effect.target ?? { kind: 'target' })) {
+          if (world.applyCondition(id, effect.condition, effect.duration ?? 'temporary')) {
+            this.journal.push({ kind: 'condition', id, condition: effect.condition, applied: true });
+          }
+        }
+        return null;
+      case 'clearCondition':
+        for (const id of this.resolve(effect.target ?? { kind: 'target' })) {
+          if (world.clearCondition(id, effect.condition)) {
+            this.journal.push({ kind: 'condition', id, condition: effect.condition, applied: false });
+          }
+        }
+        return null;
+      case 'attack':
+        return this.applyAttack(effect);
+      case 'push': {
+        const actor = world.actorId();
+        if (actor === null) return this.refuse('nobody to push from');
+        for (const id of this.resolve(effect.target ?? { kind: 'target' })) {
+          const moved = world.pushBack(actor, id, effect.to);
+          if (moved !== null) this.journal.push({ kind: 'moved', id, from: moved.from, to: moved.to });
+        }
+        return null;
+      }
+      case 'reactionRoll': {
+        const difficulty = effect.difficulty === 'roll' ? (this.lastRoll?.total ?? 0) : effect.difficulty;
+        const failed: string[] = [];
+        const passed: string[] = [];
+        for (const id of this.resolve(effect.targets ?? { kind: 'hit' })) {
+          const result = world.rollReaction(id, difficulty, effect.trait ?? 'agility', this.rng);
+          this.journal.push({ kind: 'reaction', id, success: result.success, total: result.total, difficulty });
+          (result.success ? passed : failed).push(id);
+        }
+        // Failures resolve first, so `onSuccess` is pushed first.
+        if (effect.onSuccess !== undefined) this.stack.push({ effects: effect.onSuccess, index: 0, hit: passed });
+        if (effect.onFail !== undefined) this.stack.push({ effects: effect.onFail, index: 0, hit: failed });
+        return null;
+      }
     }
+  }
+
+  private applyFlatDamage(effect: Extract<Effect, { kind: 'damage' }>): null {
+    const target = effect.target ?? { kind: 'actor' as const };
+    const amount = effect.amount ?? 1;
+    const marked = this.world.damage(target, amount, effect.source, this.bindings());
+    this.journal.push({
+      kind: 'damage',
+      amount,
+      marked,
+      ...(effect.source === undefined ? {} : { source: effect.source }),
+    });
+    return null;
+  }
+
+  /**
+   * Rolled damage: once, then to everyone it lands on — "when your attack deals
+   * damage to more than one target, roll damage once and apply the total to
+   * each". The dice scale with Proficiency or the Spellcast trait when the
+   * card says so, and a critical on the roll that bound `hit` adds the maximum.
+   */
+  private applyRolledDamage(effect: Extract<Effect, { kind: 'damage' }>): null {
+    const world = this.world;
+    const expression = parseDice(effect.dice ?? '');
+    if (expression === null) return this.refuse(`cannot read damage dice "${effect.dice}"`);
+    const targets = this.resolve(effect.target ?? { kind: 'hit' });
+    if (targets.length === 0) return null;
+
+    const actor = world.actorId();
+    let multiplier = 1;
+    if (effect.using === 'proficiency') multiplier = actor === null ? 1 : world.proficiencyOf(actor);
+    if (effect.using === 'spellcast') {
+      const value = actor === null ? null : world.spellcastValue(actor);
+      if (value === null) return this.refuse('no Spellcast trait to deal damage with');
+      multiplier = Math.max(0, value);
+    }
+    const roll = rollDamage(this.rng, expression, {
+      proficiency: multiplier,
+      critical: this.lastRoll?.critical ?? false,
+    });
+    const amount = effect.half === true ? Math.ceil(roll.total / 2) : roll.total;
+    const types: readonly DamageType[] = effect.type === undefined ? (expression.types ?? []) : [effect.type];
+
+    let marked = 0;
+    for (const id of targets) {
+      const dealt = world.dealDamage(id, { amount, types, ...(effect.direct === undefined ? {} : { direct: effect.direct }) });
+      marked += dealt.hpMarked;
+    }
+    this.journal.push({
+      kind: 'damage',
+      amount,
+      marked,
+      targets,
+      dice: formatDice(roll.expression),
+      ...(effect.source === undefined ? {} : { source: effect.source }),
+    });
+    return null;
+  }
+
+  /** A weapon attack from a script: one target, a full action roll. */
+  private applyAttack(effect: Extract<Effect, { kind: 'attack' }>): null {
+    const world = this.world;
+    const attacker = world.actorId();
+    if (attacker === null) return this.refuse('nobody to attack with');
+    const target = this.resolve(effect.target ?? { kind: 'target' })[0];
+    if (target === undefined) return this.refuse('nothing to attack');
+
+    const summary = world.attack(
+      {
+        attacker,
+        target,
+        weapon: effect.weapon ?? 'primary',
+        ...(effect.advantage === undefined ? {} : { advantage: effect.advantage }),
+        ...(effect.damageBonus === undefined ? {} : { damageBonus: effect.damageBonus }),
+      },
+      this.rng,
+    );
+    if (summary.refused !== null) return this.refuse(summary.refused);
+
+    this.rolled = true;
+    this.spotlightToGm = this.spotlightToGm || summary.spotlightToGm;
+    if (summary.roll !== undefined) this.lastRoll = { critical: summary.roll.critical, total: summary.roll.total };
+    this.journal.push({
+      kind: 'attack',
+      attacker,
+      target,
+      weapon: summary.weapon,
+      hit: summary.hit,
+      critical: summary.critical,
+      hitPointsMarked: summary.hitPointsMarked,
+      ...(summary.roll === undefined ? {} : { roll: summary.roll }),
+    });
+    if (summary.hopeGained > 0) this.journal.push({ kind: 'hope', gained: summary.hopeGained });
+    if (summary.fearGained > 0) this.journal.push({ kind: 'fear', gained: summary.fearGained });
+    if (summary.stressCleared > 0) {
+      this.journal.push({ kind: 'stress', id: attacker, marked: 0, cleared: summary.stressCleared, hitPoints: 0 });
+    }
+
+    const hit = summary.hit ? [target] : [];
+    this.hit = hit;
+    const branch = summary.hit ? effect.onHit : effect.onMiss;
+    if (branch !== undefined) this.stack.push({ effects: branch, index: 0, hit });
+    return null;
   }
 
   private applyInteractable(
@@ -454,8 +835,9 @@ export function runScript(
   effects: readonly Effect[],
   world: ScriptWorld,
   rng: Rng,
+  options: ScriptRunnerOptions = {},
 ): readonly JournalEntry[] {
-  const runner = new ScriptRunner(world, rng);
+  const runner = new ScriptRunner(world, rng, options);
   const result = runner.run(effects);
   if (result.status === 'waiting') {
     throw new Error(`this script needs a ${result.prompt.kind}; use ScriptRunner directly`);
@@ -465,3 +847,4 @@ export function runScript(
 
 /** A condition helper so callers do not have to import both modules. */
 export type { Condition };
+export { NO_BINDINGS };

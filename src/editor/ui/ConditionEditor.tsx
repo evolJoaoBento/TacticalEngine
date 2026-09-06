@@ -35,6 +35,10 @@ const KINDS: readonly { kind: Condition['kind']; label: string }[] = [
   { kind: 'encounter', label: 'a fight is' },
   { kind: 'partyAlive', label: 'party alive' },
   { kind: 'adversariesAlive', label: 'adversaries alive' },
+  { kind: 'pool', label: 'a pool compares' },
+  { kind: 'inCombat', label: 'in a fight' },
+  { kind: 'hasCondition', label: 'the target has a condition' },
+  { kind: 'withinRange', label: 'the target is within' },
   { kind: 'not', label: 'not …' },
   { kind: 'all', label: 'all of …' },
   { kind: 'any', label: 'any of …' },
@@ -87,6 +91,14 @@ export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEdi
     case 'partyAlive':
     case 'adversariesAlive':
       return { kind, op: '>', value: 0 };
+    case 'pool':
+      return { kind, pool: 'stress', op: '>=', value: 1 };
+    case 'inCombat':
+      return { kind };
+    case 'hasCondition':
+      return { kind, condition: 'vulnerable' };
+    case 'withinRange':
+      return { kind, range: 'close' };
     case 'not':
       return { kind, of: { kind: 'always' } };
     case 'all':
@@ -189,6 +201,25 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
             {select(condition.op, ops.map((id) => ({ id })), (op) => onChange({ ...condition, op }))}
             {number(condition.value, (value) => onChange({ ...condition, value }))}
           </>
+        );
+      case 'pool':
+        return (
+          <>
+            {select(condition.pool, (['hitPoints', 'stress', 'armorSlots', 'hope'] as const).map((id) => ({ id })), (pool) => onChange({ ...condition, pool }))}
+            {select(condition.measure ?? 'available', (['available', 'marked', 'max'] as const).map((id) => ({ id })), (measure) => onChange({ ...condition, measure }))}
+            {select(condition.op, ops.map((id) => ({ id })), (op) => onChange({ ...condition, op }))}
+            {number(condition.value, (value) => onChange({ ...condition, value }))}
+          </>
+        );
+      case 'inCombat':
+        return null;
+      case 'hasCondition':
+        return text(condition.condition, (name) => onChange({ ...condition, condition: name }), 'condition');
+      case 'withinRange':
+        return select(
+          condition.range,
+          (['melee', 'veryClose', 'close', 'far', 'veryFar'] as const).map((id) => ({ id })),
+          (range) => onChange({ ...condition, range }),
         );
       case 'not':
         return (

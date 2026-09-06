@@ -28,6 +28,12 @@ function context(overrides: Partial<ConditionContext> = {}): ConditionContext {
     countAlive: () => 0,
     questStatus: () => 'inactive',
     objectiveDone: () => false,
+    actorId: () => null,
+    resolveTargets: () => [],
+    inCombat: () => false,
+    hasCondition: () => false,
+    poolValue: () => null,
+    bandTo: () => null,
     ...overrides,
   };
 }

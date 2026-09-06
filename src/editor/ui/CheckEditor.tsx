@@ -104,22 +104,36 @@ export function CheckEditor<T extends CheckRequest>(props: CheckEditorProps<T>):
             value={check.trait}
             onChange={(e) => onChange({ ...check, trait: (e.target as HTMLSelectElement).value as CheckRequest['trait'] })}
           >
-            {TRAITS.map((trait) => (
+            {[...TRAITS, 'spellcast', 'weapon'].map((trait) => (
               <option key={trait} value={trait}>
                 {trait}
               </option>
             ))}
           </select>
-          <input
-            type="number"
-            min={1}
-            style={{ ...field, flex: 'none', width: '56px' }}
-            data-testid="check-difficulty"
-            value={check.difficulty}
-            onInput={(e) =>
-              onChange({ ...check, difficulty: Math.max(1, Number((e.target as HTMLInputElement).value) || 1) })
-            }
-          />
+          {check.difficulty === 'target' ? (
+            <span style={{ ...field, flex: 'none', color: '#8ea3b0' }} data-testid="check-difficulty">
+              vs target
+            </span>
+          ) : (
+            <input
+              type="number"
+              min={1}
+              style={{ ...field, flex: 'none', width: '56px' }}
+              data-testid="check-difficulty"
+              value={check.difficulty}
+              onInput={(e) =>
+                onChange({ ...check, difficulty: Math.max(1, Number((e.target as HTMLInputElement).value) || 1) })
+              }
+            />
+          )}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }} title="Roll against each target's own Difficulty">
+            <input
+              type="checkbox"
+              checked={check.difficulty === 'target'}
+              onChange={(e) => onChange({ ...check, difficulty: (e.target as HTMLInputElement).checked ? 'target' : 12 })}
+            />
+            target
+          </label>
           <input
             style={{ ...field, flex: 2 }}
             placeholder="Prompt shown with the roll (optional)"

@@ -39,7 +39,7 @@ declare global {
       answer: (
         response:
           | { kind: 'choose'; index: number }
-          | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number }
+          | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number; experience?: string }
           | { kind: 'cancel' }
           | { kind: 'continue' },
       ) => string;

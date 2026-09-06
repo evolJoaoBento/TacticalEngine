@@ -22,8 +22,20 @@
 export type { Condition, CompareOp, ScriptValue } from './schema';
 export { conditionSchema } from './schema';
 
-import type { Condition, CompareOp, ScriptValue } from './schema';
+import type { Condition, CompareOp, PoolName, ScriptValue, TargetSelector } from './schema';
 import type { QuestQuery } from '../content/quests';
+import { reaches, type RangeBand } from '../rules/range';
+
+/**
+ * What `target` and `hit` mean right now: the creatures an ability was used
+ * on, and the ones its last roll beat. A chest's script has neither.
+ */
+export interface TargetBindings {
+  targets: readonly string[];
+  hit: readonly string[];
+}
+
+export const NO_BINDINGS: TargetBindings = { targets: [], hit: [] };
 
 /** What a condition is evaluated against. Read-only: conditions never mutate. */
 export interface ConditionContext {
@@ -37,6 +49,16 @@ export interface ConditionContext {
   /** Where a quest stands; `inactive` when nothing has started it. */
   questStatus(quest: string): QuestQuery;
   objectiveDone(quest: string, objective: string): boolean;
+  /** The acting creature, if there is one. */
+  actorId(): string | null;
+  /** The living creatures a selector names, in a stable order. */
+  resolveTargets(selector: TargetSelector, bindings: TargetBindings): string[];
+  inCombat(): boolean;
+  hasCondition(id: string, condition: string): boolean;
+  /** A pool on a creature, or null for a creature that is not there. */
+  poolValue(id: string, pool: PoolName, measure: 'available' | 'marked' | 'max'): number | null;
+  /** The range band between two creatures, or null when either is off the map. */
+  bandTo(from: string, to: string): RangeBand | null;
 }
 
 function compare(left: ScriptValue, op: CompareOp, right: ScriptValue): boolean {
@@ -58,18 +80,22 @@ function compare(left: ScriptValue, op: CompareOp, right: ScriptValue): boolean 
 }
 
 /** Evaluate a condition. Total: an unknown variable reads as `null`, never throws. */
-export function evaluate(condition: Condition, context: ConditionContext): boolean {
+export function evaluate(
+  condition: Condition,
+  context: ConditionContext,
+  bindings: TargetBindings = NO_BINDINGS,
+): boolean {
   switch (condition.kind) {
     case 'always':
       return true;
     case 'never':
       return false;
     case 'not':
-      return !evaluate(condition.of, context);
+      return !evaluate(condition.of, context, bindings);
     case 'all':
-      return condition.of.every((c) => evaluate(c, context));
+      return condition.of.every((c) => evaluate(c, context, bindings));
     case 'any':
-      return condition.of.some((c) => evaluate(c, context));
+      return condition.of.some((c) => evaluate(c, context, bindings));
     case 'flag':
       return context.hasFlag(condition.flag);
     case 'hasItem':
@@ -90,6 +116,27 @@ export function evaluate(condition: Condition, context: ConditionContext): boole
       return compare(context.countAlive('party'), condition.op, condition.value);
     case 'adversariesAlive':
       return compare(context.countAlive('adversary'), condition.op, condition.value);
+    case 'pool': {
+      // The first creature the selector names; "the actor" for a card's own cost.
+      const id = context.resolveTargets(condition.of ?? { kind: 'actor' }, bindings)[0];
+      if (id === undefined) return false;
+      const value = context.poolValue(id, condition.pool, condition.measure ?? 'available');
+      return value !== null && compare(value, condition.op, condition.value);
+    }
+    case 'inCombat':
+      return context.inCombat();
+    case 'hasCondition':
+      return context
+        .resolveTargets(condition.of ?? { kind: 'target' }, bindings)
+        .some((id) => context.hasCondition(id, condition.condition));
+    case 'withinRange': {
+      const actor = context.actorId();
+      if (actor === null) return false;
+      return context.resolveTargets(condition.of ?? { kind: 'target' }, bindings).some((id) => {
+        const band = context.bandTo(actor, id);
+        return band !== null && reaches(band, condition.range);
+      });
+    }
   }
 }
 
@@ -97,8 +144,9 @@ export function evaluate(condition: Condition, context: ConditionContext): boole
 export function evaluateOptional(
   condition: Condition | undefined,
   context: ConditionContext,
+  bindings: TargetBindings = NO_BINDINGS,
 ): boolean {
-  return condition === undefined || evaluate(condition, context);
+  return condition === undefined || evaluate(condition, context, bindings);
 }
 
 // ---------------------------------------------------------------------------

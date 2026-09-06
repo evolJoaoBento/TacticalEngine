@@ -44,9 +44,17 @@ export interface EntityState {
   hope?: Currency;
   /** Condition ids currently applied. A condition cannot be applied twice. */
   conditions: Set<string>;
+  /**
+   * How long each applied condition lasts. A condition with no entry here is
+   * `permanent` — what a save written before durations existed says.
+   */
+  conditionDurations: Map<string, ConditionDuration>;
   /** False once the entity has fallen. */
   alive: boolean;
 }
+
+/** When a condition ends. The SRD's "temporary" plus the engine's scopes. */
+export type ConditionDuration = 'temporary' | 'scene' | 'rest' | 'permanent';
 
 export interface InteractableState {
   /** An interaction that has been resolved and should not fire again. */
@@ -91,6 +99,9 @@ export const sceneSnapshotSchema = z.object({
       armorSlots: markPoolSchema,
       hope: currencySchema.optional(),
       conditions: z.array(z.string()),
+      conditionDurations: z
+        .record(z.string(), z.enum(['temporary', 'scene', 'rest', 'permanent']))
+        .default({}),
       alive: z.boolean(),
     }),
   ),
@@ -112,7 +123,13 @@ export const sceneSnapshotSchema = z.object({
 
 export interface SceneStateSnapshot {
   sceneId: string;
-  entities: Record<string, Omit<EntityState, 'conditions'> & { conditions: string[] }>;
+  entities: Record<
+    string,
+    Omit<EntityState, 'conditions' | 'conditionDurations'> & {
+      conditions: string[];
+      conditionDurations: Record<string, ConditionDuration>;
+    }
+  >;
   interactables: Record<string, InteractableState>;
   encounters: Record<string, EncounterState>;
   fear: Currency;
@@ -304,13 +321,40 @@ export class SceneState {
     return state;
   }
 
+  // ---- conditions ---------------------------------------------------------
+
+  /**
+   * End the conditions a moment ends. A fight ending clears `temporary` and
+   * `scene`; a rest clears those and `rest`. Returns what was cleared, by
+   * creature, so the caller can say so.
+   */
+  clearConditions(scope: 'scene' | 'rest'): { id: string; condition: string }[] {
+    const ending: ReadonlySet<ConditionDuration> =
+      scope === 'rest' ? new Set(['temporary', 'scene', 'rest']) : new Set(['temporary', 'scene']);
+    const cleared: { id: string; condition: string }[] = [];
+    for (const entity of this.entities.values()) {
+      for (const condition of [...entity.conditions]) {
+        const duration = entity.conditionDurations.get(condition) ?? 'permanent';
+        if (!ending.has(duration)) continue;
+        entity.conditions.delete(condition);
+        entity.conditionDurations.delete(condition);
+        cleared.push({ id: entity.id, condition });
+      }
+    }
+    return cleared;
+  }
+
   // ---- serialisation ------------------------------------------------------
 
   /** A plain, JSON-safe snapshot — `Set`s become arrays, which the legacy state could not. */
   snapshot(): SceneStateSnapshot {
     const entities: SceneStateSnapshot['entities'] = {};
     for (const [id, entity] of this.entities) {
-      entities[id] = { ...entity, conditions: [...entity.conditions] };
+      entities[id] = {
+        ...entity,
+        conditions: [...entity.conditions],
+        conditionDurations: Object.fromEntries(entity.conditionDurations),
+      };
     }
     const interactables: Record<string, InteractableState> = {};
     for (const [id, state] of this.interactables) interactables[id] = { ...state, data: { ...state.data } };
@@ -334,7 +378,12 @@ export class SceneState {
     this.encounters.clear();
 
     for (const [id, entity] of Object.entries(snapshot.entities)) {
-      this.addEntity({ ...entity, id, conditions: new Set(entity.conditions) });
+      this.addEntity({
+        ...entity,
+        id,
+        conditions: new Set(entity.conditions),
+        conditionDurations: new Map(Object.entries(entity.conditionDurations)),
+      });
     }
     for (const [id, state] of Object.entries(snapshot.interactables)) {
       this.interactables.set(id, { ...state, data: { ...state.data } });
@@ -389,6 +438,7 @@ export function createPartyEntity(
     armorSlots: createMarkPool(options.armorSlots ?? 0),
     hope: createHope(),
     conditions: new Set(),
+    conditionDurations: new Map(),
     alive: true,
   };
 }
@@ -409,6 +459,7 @@ export function createAdversaryEntity(
     stress: createMarkPool(options.stress),
     armorSlots: createMarkPool(0),
     conditions: new Set(),
+    conditionDurations: new Map(),
     alive: true,
   };
 }

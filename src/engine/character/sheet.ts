@@ -18,7 +18,7 @@
  */
 
 import type { AttackProfile, DefenderProfile } from '../combat/attack';
-import type { SrdCharacterContent, WeaponDef } from '../content/srd/daggersearch';
+import type { DomainCardDef, SrdCharacterContent, SubclassDef, WeaponDef } from '../content/srd/daggersearch';
 import { armorScore, pcThresholds, type DamageThresholds } from '../rules/damage';
 import type { ParsedDamage } from '../rules/dice';
 import type { RangeBand } from '../rules/range';
@@ -31,7 +31,7 @@ import {
   type MarkPool,
 } from '../rules/resources';
 import type { Trait } from '../scene/schema';
-import { progressionBonuses, type LevelRecord } from './progression';
+import { heldCards, progressionBonuses, subclassStage, type LevelRecord } from './progression';
 
 /** The six traits, at the SRD's starting spread of +2 +1 +1 +0 +0 −1. */
 export type Traits = Record<Trait, number>;
@@ -79,9 +79,28 @@ export interface CharacterSheet {
   };
 }
 
+/** A feature the character has, wherever it came from, as the SRD words it. */
+export interface CharacterFeature {
+  source: 'class' | 'hope' | 'subclass' | 'card';
+  /** For a subclass feature, which card it is on. */
+  stage?: 'foundation' | 'specialization' | 'mastery';
+  /** The domain card's id, for a card. */
+  card?: string;
+  name: string;
+  text: string;
+}
+
 /** Everything derived from a sheet, computed once per change rather than per read. */
 export interface DerivedCharacter {
   sheet: CharacterSheet;
+  /** The subclass, when the sheet names one the content has. */
+  subclass?: SubclassDef;
+  /** The trait a Spellcast Roll uses, from the subclass. Absent for a class that does not cast. */
+  spellcastTrait?: Trait;
+  /** Every domain card held: the two from level 1 and one per level since. */
+  cards: readonly DomainCardDef[];
+  /** Class, Hope, subclass (up to the stage reached) and card features, in that order. */
+  features: readonly CharacterFeature[];
   /** The sheet's traits with every recorded advancement folded in. */
   traits: Traits;
   /** Experiences with their advancement bumps folded in. */
@@ -143,8 +162,9 @@ export function deriveCharacter(
   );
 
   const bonuses = sheet.bonuses ?? {};
+  let subclass: SubclassDef | undefined;
   if (sheet.subclassId !== undefined) {
-    const subclass = content.subclasses.get(sheet.subclassId);
+    subclass = content.subclasses.get(sheet.subclassId);
     if (subclass === undefined) miss('subclass', sheet.subclassId);
     else if (subclass.classId !== sheet.classId) {
       issues.push({
@@ -154,9 +174,13 @@ export function deriveCharacter(
       });
     }
   }
-  for (const card of sheet.domainCards ?? []) {
-    if (!content.domainCards.has(card)) miss('domainCard', card);
+  const cards: DomainCardDef[] = [];
+  for (const id of heldCards(sheet)) {
+    const card = content.domainCards.get(id);
+    if (card === undefined) miss('domainCard', id);
+    else cards.push(card);
   }
+  const features = collectFeatures(sheet, klass, subclass, cards);
   // What the recorded levels add. Experiences fold in below; traits fold into
   // the sheet's own map so a check reads the grown number.
   const grown = progressionBonuses(sheet);
@@ -177,6 +201,10 @@ export function deriveCharacter(
 
   const character: DerivedCharacter = {
     sheet,
+    ...(subclass === undefined ? {} : { subclass }),
+    ...(subclass?.spellcastTrait === undefined ? {} : { spellcastTrait: subclass.spellcastTrait }),
+    cards,
+    features,
     traits,
     experiences,
     evasion: (klass?.startingEvasion ?? 10) + (bonuses.evasion ?? 0) + grown.evasion,
@@ -193,6 +221,34 @@ export function deriveCharacter(
     ...(secondaryWeapon === undefined ? {} : { secondaryWeapon }),
   };
   return { character, issues };
+}
+
+/**
+ * Everything the character can do that has a name, in the order a sheet lists
+ * it. A subclass gives its foundation card at level 1 and the others as they
+ * are taken; a domain card's text is one feature.
+ */
+function collectFeatures(
+  sheet: CharacterSheet,
+  klass: { hopeFeature?: { name: string; text: string }; features: readonly { name: string; text: string }[] } | undefined,
+  subclass: SubclassDef | undefined,
+  cards: readonly DomainCardDef[],
+): CharacterFeature[] {
+  const features: CharacterFeature[] = [];
+  for (const feature of klass?.features ?? []) features.push({ source: 'class', name: feature.name, text: feature.text });
+  if (klass?.hopeFeature !== undefined) {
+    features.push({ source: 'hope', name: klass.hopeFeature.name, text: klass.hopeFeature.text });
+  }
+  if (subclass !== undefined) {
+    const stage = subclassStage(sheet);
+    const stages: ('foundation' | 'specialization' | 'mastery')[] =
+      stage === 'mastery' ? ['foundation', 'specialization', 'mastery'] : stage === 'specialization' ? ['foundation', 'specialization'] : ['foundation'];
+    for (const at of stages) {
+      for (const feature of subclass[at]) features.push({ source: 'subclass', stage: at, name: feature.name, text: feature.text });
+    }
+  }
+  for (const card of cards) features.push({ source: 'card', card: card.id, name: card.name, text: card.text });
+  return features;
 }
 
 function lookupWeapon(

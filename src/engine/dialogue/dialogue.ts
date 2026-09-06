@@ -58,7 +58,7 @@ export interface DialogueView {
     /** False when a visible option is locked. */
     enabled: boolean;
     /** Set when picking this needs a roll, so a UI can mark it. */
-    check?: { trait: DialogueCheck['trait']; difficulty: number; modifier: number };
+    check?: { trait: DialogueCheck['trait']; difficulty: number | 'target'; modifier: number };
   }[];
 }
 
@@ -250,7 +250,7 @@ export class DialogueRunner {
               check: {
                 trait: choice.check.trait,
                 difficulty: choice.check.difficulty,
-                modifier: this.world.traitModifier(choice.check.trait),
+                modifier: this.world.checkModifier(choice.check.trait, 'party') ?? 0,
               },
             }),
       }));

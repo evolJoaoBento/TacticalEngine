@@ -108,6 +108,7 @@ function buildFight(seed: string): {
     stress: { max: burrower.stress, marked: 0 },
     armorSlots: { max: 0, marked: 0 },
     conditions: new Set(),
+    conditionDurations: new Map(),
     alive: true,
   });
 
