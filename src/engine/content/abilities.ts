@@ -37,6 +37,8 @@ export const abilitySourceSchema = z.discriminatedUnion('kind', [
   }),
   /** A project's own, given to a character by id. */
   z.object({ kind: z.literal('granted'), characters: z.array(contentIdSchema) }),
+  /** A stat block's feature, by the adversary ids that have it. */
+  z.object({ kind: z.literal('adversary'), adversaries: z.array(contentIdSchema) }),
 ]);
 
 export const abilityTargetSchema = z.object({
@@ -67,6 +69,23 @@ export const abilityUsesSchema = z.object({
  * `bareBones` is the one card that rewrites the base rather than adding to
  * it: unarmored, Armor Score 3 + Strength and thresholds by tier.
  */
+/**
+ * Tokens a card carries.
+ *
+ * A dozen SRD cards work this way: "place a number of tokens equal to your
+ * Spellcast trait on this card", spent later for what the card does. The count
+ * is a number or a trait, because the cards say both, and `refill` is when the
+ * pile comes back.
+ */
+export const abilityTokensSchema = z.object({
+  /** How many arrive: a number, or the trait to read off the sheet. */
+  amount: z.union([z.number().int().min(0), traitSchema, z.literal('spellcast')]),
+  /** At least this many, whatever the trait says — "(minimum 1)". */
+  minimum: z.number().int().min(0).default(0),
+  /** When the pile is replenished. `never` is placed once and never again. */
+  refill: z.enum(['session', 'longRest', 'rest', 'scene', 'never']).default('longRest'),
+});
+
 export const abilityModifierSchema = z.object({
   stat: z.enum([
     'evasion',
@@ -125,7 +144,7 @@ export const abilitySchema = z.object({
    */
   kind: z.enum(['action', 'reaction', 'passive']).default('action'),
   /** What a reaction answers. */
-  trigger: z.enum(['incomingDamage', 'attackHit', 'attackMissed']).optional(),
+  trigger: z.enum(['incomingDamage', 'attackHit', 'attackMissed', 'tookSevere']).optional(),
   cost: z.object({ hope: z.number().int().min(0).optional(), stress: z.number().int().min(0).optional() }).default({}),
   uses: abilityUsesSchema.optional(),
   target: abilityTargetSchema.default({ kind: 'none', range: 'melee' }),
@@ -144,6 +163,8 @@ export const abilitySchema = z.object({
   modifiers: z.array(abilityModifierSchema).default([]),
   /** For a reaction to incoming damage: what it does. */
   reaction: damageReactionSchema.optional(),
+  /** Tokens the card holds, if it is one of the cards that holds them. */
+  tokens: abilityTokensSchema.optional(),
   /**
    * How a reaction is used: automatically whenever it helps, or never unless a
    * prompt asks. Automatic is the CRPG's default; a prompt is a later step.
@@ -210,6 +231,9 @@ export function abilitiesFor(character: Pick<DerivedCharacter, 'sheet' | 'cards'
         return source.subclassId === sheet.subclassId && stages[source.stage] <= reached;
       case 'granted':
         return source.characters.includes(sheet.id);
+      // An adversary's feature is never a character's.
+      case 'adversary':
+        return false;
     }
   };
   const order = (ability: AbilityDef): number => {

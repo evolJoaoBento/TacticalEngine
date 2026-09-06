@@ -463,3 +463,38 @@ describe('a card written in the project\'s own code', () => {
     expect(demo.log.map((l) => l.text)).toContain('The line steadies.');
   });
 });
+
+describe('tokens on a card', () => {
+  it('places them on a rest, spends them for the damage rolled, and clears them on the next', () => {
+    const demo = scene();
+    // Mira takes Unleash Chaos: her Spellcast trait is Knowledge, so that many tokens.
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['unleash-chaos'], loadout: ['unleash-chaos'] };
+    demo.sheets.set('mira', sheet);
+    demo.characters.set('mira', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    const spellcast = demo.world.spellcastValue('mira')!;
+    expect(spellcast).toBeGreaterThan(0);
+
+    // Nothing on the card yet: the card is greyed out and says why.
+    const before = abilityList(demo, 'mira').find((a) => a.ability.id === 'unleash-chaos')!;
+    expect(before.usable).toBe(false);
+
+    expect(rest(demo, 'long', { moves: {} }).ok).toBe(true);
+    expect(demo.world.tokensOn('mira', 'unleash-chaos')).toBe(spellcast);
+    expect(demo.log.map((l) => l.text).some((t) => t.includes('places') && t.includes('Unleash Chaos'))).toBe(true);
+
+    const foe = nearestFoe(demo, 'mira');
+    closeIn(demo, 'mira', foe.id);
+    startEncounter(demo, demo.scene.encounters[0]!.id);
+    const result = useAbility(demo, 'mira', 'unleash-chaos', [foe.id]);
+    expect(result.status).toBe('waiting');
+    if (demo.pending?.kind !== 'script' || demo.pending.prompt.kind !== 'choice') throw new Error('expected a choice');
+    // One option per token held.
+    expect(demo.pending.prompt.options).toHaveLength(spellcast);
+    answerPending(demo, { kind: 'choose', index: spellcast - 1 });
+    expect(demo.world.tokensOn('mira', 'unleash-chaos')).toBe(0);
+    // Spending them all leaves the card unusable until the next long rest.
+    const after = abilityList(demo, 'mira').find((a) => a.ability.id === 'unleash-chaos')!;
+    expect(after.usable).toBe(false);
+  });
+});

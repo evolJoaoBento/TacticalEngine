@@ -43,6 +43,60 @@ export const SRD_HOOKS: HookMap = defineHooks({
   },
 
   /**
+   * Unleash Chaos: "spend any number of tokens … roll a number of d10s equal
+   * to the tokens you spent". The tokens actually on the card decide how many
+   * options there are, which is why this is code and not a list.
+   */
+  'unleash-chaos': (ctx) => {
+    const actor = ctx.actor;
+    const target = ctx.targets[0];
+    if (actor === null || target === undefined) return;
+    const held = ctx.tokens(actor, 'unleash-chaos');
+    if (held < 1) {
+      ctx.log('No chaos left to unleash.', 'system');
+      return;
+    }
+    const options: ChoiceOption[] = [];
+    for (let spent = 1; spent <= held; spent++) {
+      options.push({
+        label: `${spent} token${spent === 1 ? '' : 's'}: ${spent}d10 magic`,
+        effects: [
+          { kind: 'spendToken', ability: 'unleash-chaos', amount: spent },
+          {
+            kind: 'check',
+            check: {
+              trait: 'spellcast',
+              difficulty: 'target',
+              onSuccessWithHope: [{ kind: 'damage', dice: `${spent}d10`, type: 'magic' }],
+            },
+          },
+        ],
+      });
+    }
+    ctx.queue([{ kind: 'choice', title: 'Unleash Chaos', body: 'How much of it?', options }]);
+  },
+
+  /**
+   * Spit Acid's aftermath: "must mark an Armor Slot without receiving its
+   * benefits. If they can't, they must mark an additional HP and you gain a
+   * Fear." Which of the two happens is decided per target, which is why it is
+   * code: a branch decides for the whole list.
+   */
+  'spit-acid-armor': (ctx) => {
+    for (const id of ctx.hit) {
+      const room = ctx.pool(id, 'armorSlots') ?? 0;
+      if (room > 0) {
+        ctx.queue([{ kind: 'markArmor', amount: 1, target: { kind: 'entity', id } }]);
+      } else {
+        ctx.queue([
+          { kind: 'damage', amount: 1, direct: true, target: { kind: 'entity', id } },
+          { kind: 'gainFear' },
+        ]);
+      }
+    }
+  },
+
+  /**
    * Wild Flame: "up to three adversaries within Melee range". Which three is
    * the player's call at the table; nearest-first is the engine's, and the
    * cap is the part the selector cannot express.

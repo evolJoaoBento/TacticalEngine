@@ -133,6 +133,8 @@ export interface ScriptWorld extends ConditionContext {
   markStress(id: string, amount: number): { stressMarked: number; hpMarked: number; fell: boolean };
   clearStress(id: string, amount: number): number;
   clearArmor(id: string, amount: number): number;
+  /** Mark Armor Slots with no benefit. Returns how many were actually marked. */
+  markArmor(id: string, amount: number): number;
   /** Returns Hope actually gained (an adversary gains none). */
   gainHopeFor(id: string, amount: number): number;
   /** Returns whether the Hope was there to spend. */
@@ -140,6 +142,12 @@ export interface ScriptWorld extends ConditionContext {
   applyCondition(id: string, condition: string, duration: ConditionDuration): boolean;
   clearCondition(id: string, condition: string): boolean;
   proficiencyOf(id: string): number;
+  /** Tokens sitting on a card this creature holds. */
+  tokensOn(id: string, ability: string): number;
+  /** Put tokens on a card; returns how many are there now. */
+  addTokens(id: string, ability: string, amount?: number): number;
+  /** Take tokens off a card. Returns how many were actually spent. */
+  spendTokens(id: string, ability: string, amount: number): number;
   /** The value of the creature's Spellcast trait, or null when it has none. */
   spellcastValue(id: string): number | null;
   /** The creature's primary weapon dice (an adversary's attack), or null when it has none. */
@@ -152,6 +160,8 @@ export interface ScriptWorld extends ConditionContext {
       weapon: 'primary' | 'secondary';
       advantage?: number;
       damageBonus?: number;
+      /** Damage dice instead of the attacker's own. */
+      damage?: string;
     },
     rng: Rng,
   ): AttackSummary;
@@ -194,6 +204,7 @@ export type JournalEntry =
   | { kind: 'refused'; reason: string }
   | { kind: 'stress'; id: string; marked: number; cleared: number; hitPoints: number }
   | { kind: 'armor'; id: string; cleared: number }
+  | { kind: 'tokens'; id: string; ability: string; added: number; spent: number; left: number }
   | { kind: 'condition'; id: string; condition: string; applied: boolean }
   | {
       kind: 'attack';
@@ -753,6 +764,40 @@ export class ScriptRunner {
         if (queued.length > 0) this.stack.push({ effects: queued, index: 0 });
         return null;
       }
+      case 'markArmor': {
+        const amount = effect.amount ?? 1;
+        for (const id of this.resolve(effect.target ?? { kind: 'target' })) {
+          const marked = world.markArmor(id, amount);
+          if (marked > 0) this.journal.push({ kind: 'armor', id, cleared: -marked });
+        }
+        return null;
+      }
+      case 'gainFear': {
+        for (let i = 0; i < (effect.amount ?? 1); i++) {
+          if (world.gainFear()) this.journal.push({ kind: 'fear', gained: 1 });
+        }
+        return null;
+      }
+      case 'addToken': {
+        for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
+          const before = world.tokensOn(id, effect.ability);
+          const left = world.addTokens(id, effect.ability, effect.amount);
+          this.journal.push({ kind: 'tokens', id, ability: effect.ability, added: left - before, spent: 0, left });
+        }
+        return null;
+      }
+      case 'spendToken': {
+        const amount = effect.amount ?? 1;
+        for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
+          const spent = world.spendTokens(id, effect.ability, amount);
+          if (spent < amount) {
+            this.refuse(`not enough tokens on ${effect.ability}`);
+            continue;
+          }
+          this.journal.push({ kind: 'tokens', id, ability: effect.ability, added: 0, spent, left: world.tokensOn(id, effect.ability) });
+        }
+        return null;
+      }
       case 'reactionRoll': {
         const difficulty = effect.difficulty === 'roll' ? (this.lastRoll?.total ?? 0) : effect.difficulty;
         const failed: string[] = [];
@@ -840,43 +885,52 @@ export class ScriptRunner {
     const world = this.world;
     const attacker = world.actorId();
     if (attacker === null) return this.refuse('nobody to attack with');
-    const target = this.resolve(effect.target ?? { kind: 'target' })[0];
-    if (target === undefined) return this.refuse('nothing to attack');
+    const targets = this.resolve(effect.target ?? { kind: 'target' });
+    if (targets.length === 0) return this.refuse('nothing to attack');
 
-    const summary = world.attack(
-      {
+    const hit: string[] = [];
+    let swung = false;
+    for (const target of targets) {
+      const summary = world.attack(
+        {
+          attacker,
+          target,
+          weapon: effect.weapon ?? 'primary',
+          ...(effect.advantage === undefined ? {} : { advantage: effect.advantage }),
+          ...(effect.damageBonus === undefined ? {} : { damageBonus: effect.damageBonus }),
+          ...(effect.damage === undefined ? {} : { damage: effect.damage }),
+        },
+        this.rng,
+      );
+      if (summary.refused !== null) {
+        this.refuse(summary.refused);
+        continue;
+      }
+      swung = true;
+      this.rolled = true;
+      this.spotlightToGm = this.spotlightToGm || summary.spotlightToGm;
+      if (summary.roll !== undefined) this.lastRoll = summary.roll;
+      this.journal.push({
+        kind: 'attack',
         attacker,
         target,
-        weapon: effect.weapon ?? 'primary',
-        ...(effect.advantage === undefined ? {} : { advantage: effect.advantage }),
-        ...(effect.damageBonus === undefined ? {} : { damageBonus: effect.damageBonus }),
-      },
-      this.rng,
-    );
-    if (summary.refused !== null) return this.refuse(summary.refused);
-
-    this.rolled = true;
-    this.spotlightToGm = this.spotlightToGm || summary.spotlightToGm;
-    if (summary.roll !== undefined) this.lastRoll = summary.roll;
-    this.journal.push({
-      kind: 'attack',
-      attacker,
-      target,
-      weapon: summary.weapon,
-      hit: summary.hit,
-      critical: summary.critical,
-      hitPointsMarked: summary.hitPointsMarked,
-      ...(summary.roll === undefined ? {} : { roll: summary.roll }),
-    });
-    if (summary.hopeGained > 0) this.journal.push({ kind: 'hope', gained: summary.hopeGained });
-    if (summary.fearGained > 0) this.journal.push({ kind: 'fear', gained: summary.fearGained });
-    if (summary.stressCleared > 0) {
-      this.journal.push({ kind: 'stress', id: attacker, marked: 0, cleared: summary.stressCleared, hitPoints: 0 });
+        weapon: summary.weapon,
+        hit: summary.hit,
+        critical: summary.critical,
+        hitPointsMarked: summary.hitPointsMarked,
+        ...(summary.roll === undefined ? {} : { roll: summary.roll }),
+      });
+      if (summary.hopeGained > 0) this.journal.push({ kind: 'hope', gained: summary.hopeGained });
+      if (summary.fearGained > 0) this.journal.push({ kind: 'fear', gained: summary.fearGained });
+      if (summary.stressCleared > 0) {
+        this.journal.push({ kind: 'stress', id: attacker, marked: 0, cleared: summary.stressCleared, hitPoints: 0 });
+      }
+      if (summary.hit) hit.push(target);
     }
+    if (!swung) return null;
 
-    const hit = summary.hit ? [target] : [];
     this.hit = hit;
-    const branch = summary.hit ? effect.onHit : effect.onMiss;
+    const branch = hit.length > 0 ? effect.onHit : effect.onMiss;
     if (branch !== undefined) this.stack.push({ effects: branch, index: 0, hit });
     return null;
   }

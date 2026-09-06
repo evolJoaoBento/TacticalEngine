@@ -4,12 +4,17 @@ import { deriveCharacter } from '../engine/character/sheet';
 import { runScript } from '../engine/script/runner';
 import { rest, useAbility } from './demo-abilities';
 import { NO_TILE } from '../engine/grid/grid';
+import { adversaryTraits } from '../engine/combat/adversary-features';
+import type { DefenseChoice, PendingDefense } from './demo-scene';
 import {
   SRD_CHARACTERS,
+  adversaryDefOf,
   answerPending,
+  attackWithSelected,
   buildDemoScene,
   endTurn,
   refreshWorld,
+  settleFight,
   startEncounter,
   syncPools,
   type DemoScene,
@@ -164,9 +169,68 @@ function standoff(seed = 'ask'): DemoScene {
   return demo;
 }
 
-/** Play GM turns until the husk's blow actually lands on someone. */
-function untilAsked(demo: DemoScene, limit = 30): boolean {
+
+/**
+ * Stand a party member where they can help Kara but are not the nearest
+ * target themselves: beside her, but a step further from the husk. The GM
+ * takes the nearest, so this keeps Kara the one being hit.
+ */
+function standBehind(demo: DemoScene, id: string, husk: number): void {
+  const kara = demo.state.entity('kara')!.tile;
+  const blocked = demo.state.blockedFor(id);
+  let best = NO_TILE;
+  demo.grid.forEachNeighbor(kara, false, (tile) => {
+    if (!demo.grid.isPassable(tile) || blocked(tile)) return;
+    if (demo.grid.manhattanDistance(tile, husk) <= demo.grid.manhattanDistance(kara, husk)) return;
+    if (best === NO_TILE) best = tile;
+  });
+  expect(best).not.toBe(NO_TILE);
+  demo.state.moveEntity(id, best);
+}
+
+/**
+ * Play GM turns until a particular kind of answer is on offer.
+ *
+ * The party is patched up between turns and the plain "take it" answers are
+ * given, because what is under test is one choice appearing — the Burrower
+ * spits acid and erupts as often as it swings, and whoever holds the card has
+ * to be standing when the blow finally lands.
+ */
+function untilChoice(demo: DemoScene, kind: DefenseChoice['kind'], limit = 80): PendingDefense | null {
   for (let i = 0; i < limit; i++) {
+    for (const member of demo.state.entitiesOf('party')) {
+      member.hitPoints = { ...member.hitPoints, marked: 0 };
+      member.stress = { ...member.stress, marked: 0 };
+      member.armorSlots = { ...member.armorSlots, marked: 0 };
+      if (member.hope !== undefined) member.hope = { max: member.hope.max, value: member.hope.max };
+      member.alive = true;
+    }
+    endTurn(demo);
+    while (demo.pending !== null) {
+      const waiting = demo.pending;
+      if (waiting.kind === 'defense' && waiting.choices.some((c) => c.kind === kind)) return waiting;
+      answerPending(demo, { kind: 'choose', index: 0 });
+    }
+    if (demo.encounter?.outcome !== 'ongoing') {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Play GM turns until the husk's blow actually lands on someone.
+ *
+ * The party is patched up between turns: the Burrower erupts while it has the
+ * Stress for it and swings when it does not, so a fight has to last a while
+ * for a blow to land at all.
+ */
+function untilAsked(demo: DemoScene, limit = 60): boolean {
+  for (let i = 0; i < limit; i++) {
+    for (const member of demo.state.entitiesOf('party')) {
+      member.hitPoints = { ...member.hitPoints, marked: 0 };
+      member.alive = true;
+    }
     endTurn(demo);
     if (demo.pending !== null) return true;
     if (demo.encounter?.outcome !== 'ongoing') return false;
@@ -247,18 +311,14 @@ describe('an ally interrupting', () => {
     demo.sheets.set('finn', { ...demo.sheets.get('finn')!, domainCards: ['i-am-your-shield'], loadout: ['i-am-your-shield'] });
     demo.characters.set('finn', deriveCharacter(demo.sheets.get('finn')!, SRD_CHARACTERS, demo.project.abilities).character);
     refreshWorld(demo);
-    const blocked = demo.state.blockedFor('finn');
-    let beside = NO_TILE;
-    demo.grid.forEachNeighbor(demo.state.entity('kara')!.tile, false, (tile) => {
-      if (beside === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) beside = tile;
-    });
-    demo.state.moveEntity('finn', beside);
+    standBehind(demo, 'finn', demo.state.entitiesOf('adversary').find((e) => e.alive)!.tile);
+    // Spit Acid catches the whole party; Finn has to still be standing when a
+    // single blow finally lands on Kara.
+    demo.state.entity('finn')!.hitPoints = { max: 12, marked: 0 };
 
-    expect(untilAsked(demo)).toBe(true);
-    const pending = demo.pending!;
-    if (pending.kind !== 'defense') throw new Error('expected a defence');
-    const shield = pending.choices.findIndex((c) => c.kind === 'redirect');
-    expect(shield).toBeGreaterThan(-1);
+    const pending = untilChoice(demo, 'redirect');
+    expect(pending, 'the shield was offered').not.toBeNull();
+    const shield = pending!.choices.findIndex((c) => c.kind === 'redirect');
     const karaBefore = demo.state.entity('kara')!.hitPoints.marked;
     const finn = demo.state.entity('finn')!;
     const finnStress = finn.stress.marked;
@@ -282,18 +342,12 @@ describe('an ally interrupting', () => {
     mira.hope = { max: 6, value: 6 };
     // Mira is a Wizard: Not This Time is her Hope feature. She has to be able
     // to see it happen — within Far range of the adversary.
-    const blockedForMira = demo.state.blockedFor('mira');
-    let watching = NO_TILE;
-    demo.grid.forEachNeighbor(demo.state.entity('kara')!.tile, false, (tile) => {
-      if (watching === NO_TILE && demo.grid.isPassable(tile) && !blockedForMira(tile)) watching = tile;
-    });
-    demo.state.moveEntity('mira', watching);
+    standBehind(demo, 'mira', demo.state.entitiesOf('adversary').find((e) => e.alive)!.tile);
+    demo.state.entity('mira')!.hitPoints = { max: 12, marked: 0 };
 
-    expect(untilAsked(demo)).toBe(true);
-    const pending = demo.pending!;
-    if (pending.kind !== 'defense') throw new Error('expected a defence');
-    const reroll = pending.choices.findIndex((c) => c.kind === 'reroll');
-    expect(reroll).toBeGreaterThan(-1);
+    const pending = untilChoice(demo, 'reroll');
+    expect(pending, 'Not This Time was offered').not.toBeNull();
+    const reroll = pending!.choices.findIndex((c) => c.kind === 'reroll');
     answerPending(demo, { kind: 'choose', index: reroll });
     // Three Hope gone, and the log says the blow came again.
     expect(demo.state.entity('mira')!.hope!.value).toBe(3);
@@ -305,5 +359,119 @@ describe('an ally interrupting', () => {
       answerPending(demo, { kind: 'choose', index: 0 });
     }
     expect(demo.pending).toBeNull();
+  });
+});
+
+describe('answering a miss', () => {
+  it('offers Vanishing Dodge, which leaves the rogue Hidden until they act', () => {
+    const demo = standoff('vanish');
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: ['vanishing-dodge'], loadout: ['vanishing-dodge'] };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+
+    const pending = untilChoice(demo, 'react');
+    expect(pending, 'Vanishing Dodge was offered').not.toBeNull();
+    expect(pending!.choices[0]!.label).toBe('Let it go wide');
+    const dodge = pending!.choices.findIndex((c) => c.kind === 'react');
+    answerPending(demo, { kind: 'choose', index: dodge });
+
+    expect(demo.world.hasCondition('kara', 'hidden')).toBe(true);
+    expect(demo.state.entity('kara')!.hope!.value).toBe(5);
+    expect(demo.log.map((l) => l.text)).toContain('Shadow closes over the space where they stood.');
+
+    // Hidden until they act: swinging ends it.
+    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    const foe = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    attackWithSelected(demo, foe.id);
+    expect(demo.world.hasCondition('kara', 'hidden')).toBe(false);
+  });
+});
+
+describe("an adversary's own features", () => {
+  it('erupts when it catches more than one of the party, and the ones who fail are Vulnerable', () => {
+    const demo = standoff('eruption');
+    // Finn and Mira crowd in beside Kara, so the Burrower has a reason to erupt.
+    const around: number[] = [];
+    demo.grid.forEachNeighbor(demo.state.entity('kara')!.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile)) around.push(tile);
+    });
+    demo.state.moveEntity('finn', around[0]!);
+    demo.state.moveEntity('mira', around[1]!);
+
+    let erupted = false;
+    for (let i = 0; i < 20 && !erupted; i++) {
+      endTurn(demo);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      erupted = demo.log.some((l) => l.text.includes('Earth Eruption'));
+      if (demo.encounter?.outcome !== 'ongoing') break;
+    }
+    expect(erupted).toBe(true);
+    expect(demo.log.map((l) => l.text)).toContain('The ground splits and heaves.');
+    // It paid the Stress the feature asks for.
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    expect(husk.stress.marked).toBeGreaterThan(0);
+    // Everyone rolled; whoever failed is Vulnerable.
+    const knocked = demo.state.entitiesOf('party').filter((e) => e.conditions.has('vulnerable'));
+    const rolled = demo.log.filter((l) => l.text.includes('Knocked off their feet.'));
+    expect(knocked.length).toBe(rolled.length);
+  });
+
+  it('lets a Relentless adversary act twice in one GM turn when the GM can pay', () => {
+    const demo = standoff('relentless');
+    demo.askDefender = false;
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    // The Acid Burrower is Relentless (3).
+    expect(adversaryTraits(adversaryDefOf(demo, husk.id)!).spotlights).toBe(3);
+    const fearBefore = demo.state.fear.value;
+    const before = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed').length;
+    endTurn(demo);
+    const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed').length - before;
+    expect(acted).toBeGreaterThan(1);
+    expect(acted).toBeLessThanOrEqual(3);
+    // Every spotlight past the first costs the GM a Fear.
+    expect(demo.state.fear.value).toBe(fearBefore - (acted - 1));
+  });
+});
+
+describe('the Burrower\'s scripted attacks', () => {
+  it('sprays acid over everyone in reach, and those without armor mark a Hit Point instead', () => {
+    const demo = standoff('spit');
+    demo.askDefender = false;
+    // Two of the party in reach gives it a reason, and a Fear pays for it.
+    standBehind(demo, 'finn', demo.state.entitiesOf('adversary').find((e) => e.alive)!.tile);
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    // Finn's armor is already gone, so the acid costs him a Hit Point instead.
+    const finn = demo.state.entity('finn')!;
+    finn.armorSlots = { ...finn.armorSlots, marked: finn.armorSlots.max };
+
+    let sprayed = false;
+    for (let i = 0; i < 30 && !sprayed; i++) {
+      endTurn(demo);
+      sprayed = demo.log.some((l) => l.text.includes('Acid arcs out'));
+      if (demo.encounter?.outcome !== 'ongoing') break;
+    }
+    expect(sprayed).toBe(true);
+    // Everyone it beat was rolled for separately, and the log says what happened.
+    expect(demo.log.map((l) => l.text).filter((t) => t.includes('Spit Acid')).length).toBeGreaterThan(0);
+  });
+
+  it('bathes the room in acid when it takes Severe damage', () => {
+    const demo = standoff('bath');
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 8, marked: 0 };
+    const kara = demo.state.entity('kara')!;
+    const before = kara.hitPoints.marked + kara.armorSlots.marked;
+    // Straight past its Severe threshold (8/15), without killing it.
+    demo.world.dealDamage(husk.id, { amount: 16, types: ['physical'] }, demo.rng);
+    expect(husk.alive).toBe(true);
+    settleFight(demo);
+    expect(demo.log.map((l) => l.text)).toContain('Acid blood sprays from the wound.');
+    // The splash reaches her: a Hit Point, or the Armor Slot that turned it aside.
+    const after = demo.state.entity('kara')!;
+    expect(after.hitPoints.marked + after.armorSlots.marked).toBeGreaterThan(before);
   });
 });

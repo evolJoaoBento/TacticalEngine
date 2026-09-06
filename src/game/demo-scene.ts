@@ -15,6 +15,7 @@ import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
 import { DEMO_QUESTS } from './demo-quests';
 import { SRD_ABILITIES } from '../engine/content/srd/abilities';
+import { SRD_ADVERSARY_ABILITIES } from '../engine/content/srd/adversary-abilities';
 import { SRD_HOOKS } from '../engine/content/srd/hooks';
 import { compileHooks, mergeHooks, type HookMap } from '../engine/script/hooks';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES } from './demo-code';
@@ -25,7 +26,7 @@ import type { ItemDef, LootTable } from '../engine/content/items';
 import type { QuestDef } from '../engine/content/quests';
 import type { Currency, MarkPool } from '../engine/rules/resources';
 import { interactableSchema, projectSchema, type CodeDef, type ProjectDoc } from '../engine/scene/schema';
-import type { SceneStateSnapshot } from '../engine/scene/state';
+import type { EntityState, SceneStateSnapshot } from '../engine/scene/state';
 import { DialogueRunner, type DialogueView } from '../engine/dialogue/dialogue';
 import type { Dialogue } from '../engine/dialogue/schema';
 import { DEMO_DIALOGUES, PILLAR_DIALOGUE_ID } from './demo-dialogue';
@@ -35,6 +36,7 @@ import type { CheckOutcome, LogTone } from '../engine/script/effects';
 import type { DualityRoll } from '../engine/rules/duality';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
 import { createScenarioState, SceneScriptWorld, useKey, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
+import { NO_BINDINGS } from '../engine/script/conditions';
 import { maxTilesForBand, reaches, type RangeBand } from '../engine/rules/range';
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
 import ancestryJson from '../../tools/srd-sources/daggersearch/core/ancestries.json';
@@ -45,6 +47,7 @@ import weaponJson from '../../tools/srd-sources/daggersearch/core/weapons.json';
 import subclassJson from '../../tools/srd-sources/daggersearch/core/subclasses.json';
 import domainCardJson from '../../tools/srd-sources/daggersearch/core/domain-cards.json';
 import { applyAttack, resolveAttack, type AttackOutcome, type AttackProfile } from '../engine/combat/attack';
+import { adversaryTraits, attackDamageOf } from '../engine/combat/adversary-features';
 import {
   canPayFor,
   previewPlan,
@@ -53,7 +56,7 @@ import {
   type DefensePlan,
 } from '../engine/combat/defense';
 import type { AbilityDef } from '../engine/content/abilities';
-import { unmarked } from '../engine/rules/resources';
+import { gain, unmarked } from '../engine/rules/resources';
 import { rollDamage } from '../engine/rules/damage';
 import { EncounterRunner } from '../engine/combat/encounter';
 import {
@@ -212,6 +215,10 @@ export interface GmTurn {
   remaining: string[];
   /** How many have acted so far, for the caller that counts. */
   acted: number;
+  /** How many times each adversary has been spotlighted this turn — Relentless. */
+  spotlights: Record<string, number>;
+  /** Who has already played a stat-block feature this turn. */
+  features: Record<string, boolean>;
 }
 
 /** A line in the narrative pane. */
@@ -266,6 +273,10 @@ export interface IncomingAttack {
 /** Something the defender's side can do about a hit. */
 export type DefenseChoice =
   | { kind: 'plan'; label: string; plan: DefensePlan }
+  /** Nothing to answer with, or nothing chosen: the blow simply misses. */
+  | { kind: 'none'; label: string }
+  /** A card whose own effects answer the attack — Vanishing Dodge on a miss. */
+  | { kind: 'react'; label: string; by: string; ability: AbilityDef }
   | { kind: 'redirect'; label: string; by: string; ability: AbilityDef }
   | { kind: 'reroll'; label: string; by: string; ability: AbilityDef; what: 'attack' | 'damage' };
 
@@ -497,6 +508,11 @@ export function adversaryDefOf(demo: DemoScene, entityId: string): AdversaryDef 
   return SRD_ADVERSARIES.get(entity.definition) ?? (entity.faction === 'adversary' ? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID) : undefined);
 }
 
+/** The same, for the fight, which always has a stat block to read. */
+function statBlock(demo: DemoScene, entityId: string): AdversaryDef {
+  return adversaryDefOf(demo, entityId) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
+}
+
 /** Rebuild the script world after a sheet changed under it. */
 export function refreshWorld(demo: DemoScene): void {
   demo.world = new SceneScriptWorld(
@@ -677,7 +693,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     items: [...DEMO_ITEMS],
     lootTables: [...DEMO_LOOT_TABLES],
     quests: [...DEMO_QUESTS],
-    abilities: [...SRD_ABILITIES, ...DEMO_PROJECT_ABILITIES],
+    abilities: [...SRD_ABILITIES, ...SRD_ADVERSARY_ABILITIES, ...DEMO_PROJECT_ABILITIES],
     code: [...DEMO_CODE],
     conditionDefs: [...SRD_CONDITIONS],
     startScene: vault.id,
@@ -834,8 +850,10 @@ export function attackWithSelected(
   const applied = applyAttack(demo.state, outcome);
   demo.world.endsOnAttack(id!);
   if (outcome.hit) {
+    if (outcome.damage?.severity === 'severe') demo.world.noteSevere(targetId);
     demo.world.endsOnHit(targetId);
     if (applied.hitPointsMarked > 0) demo.world.endsOnDamage(targetId);
+    defeatMinions(demo, targetId, outcome.damageRoll?.total ?? 0);
   }
   note(
     demo,
@@ -857,7 +875,7 @@ export function playGmTurn(demo: DemoScene): number {
   const encounter = demo.encounter;
   if (encounter === null || encounter.outcome !== 'ongoing' || encounter.view().side !== 'gm') return 0;
   if (demo.gmTurn !== null || demo.pending !== null) return 0;
-  demo.gmTurn = { remaining: [...encounter.view().waiting], acted: 0 };
+  demo.gmTurn = { remaining: [...encounter.view().waiting], acted: 0, spotlights: {}, features: {} };
   return runGmTurn(demo);
 }
 
@@ -875,10 +893,17 @@ export function runGmTurn(demo: DemoScene): number {
 
   while (turn.remaining.length > 0 && demo.pending === null && encounter.outcome === 'ongoing') {
     const id = turn.remaining[0]!;
-    if (!encounter.canSpotlight(id)) break;
-    turn.remaining.shift();
-    encounter.spotlight(id);
+    const again = (turn.spotlights[id] ?? 0) > 0;
+    if (again ? !encounter.canSpotlightAgain(id) : !encounter.canSpotlight(id)) break;
+    if (again) encounter.spotlightAgain(id);
+    else encounter.spotlight(id);
+    turn.spotlights[id] = (turn.spotlights[id] ?? 0) + 1;
     turn.acted++;
+    // Relentless: "can be spotlighted up to X times per GM turn. Spend Fear as
+    // usual." It keeps its place at the head of the queue until it runs out of
+    // spotlights or the GM runs out of Fear.
+    const allowed = adversaryTraits(statBlock(demo, id)).spotlights;
+    if (turn.spotlights[id]! >= allowed) turn.remaining.shift();
     adversaryTurn(demo, id);
   }
   // Still waiting on a defender: the turn keeps its place.
@@ -912,6 +937,7 @@ const announced = new WeakSet<EncounterRunner>();
  * abilities that refresh with the scene refresh, and the log says who won.
  */
 export function settleFight(demo: DemoScene): void {
+  playSevereReactions(demo);
   const encounter = demo.encounter;
   if (encounter === null || encounter.outcome === 'ongoing' || announced.has(encounter)) return;
   announced.add(encounter);
@@ -920,6 +946,10 @@ export function settleFight(demo: DemoScene): void {
   for (const key of [...demo.scenario.abilityUses.keys()]) {
     const ability = demo.project.abilities.find((a) => key.endsWith(`/${a.id}`));
     if (ability?.uses?.per === 'scene') demo.scenario.abilityUses.delete(key);
+  }
+  for (const key of [...demo.scenario.abilityTokens.keys()]) {
+    const ability = demo.project.abilities.find((a) => key.endsWith(`/${a.id}`));
+    if (ability?.tokens?.refill === 'scene') demo.scenario.abilityTokens.delete(key);
   }
   note(
     demo,
@@ -954,6 +984,13 @@ function adversaryTurn(demo: DemoScene, adversaryId: string): void {
 
   const targets = demo.state.entitiesOf('party').filter((e) => e.alive);
   if (targets.length === 0) return;
+
+  // A stat-block feature worth using beats a plain swing.
+  const feature = adversaryFeature(demo, adversaryId);
+  if (feature !== null) {
+    useAdversaryFeature(demo, adversaryId, feature);
+    return;
+  }
   // Nearest, then by id, so the same state always produces the same target.
   const target = targets.sort(
     (a, b) =>
@@ -967,6 +1004,86 @@ function adversaryTurn(demo: DemoScene, adversaryId: string): void {
   // Nothing in reach even after moving: an adversary with something to shake
   // off shakes it off, which is at least a move.
   if (!attacked && adversary.conditions.size > 0) clearTemporaryConditions(demo, adversaryId);
+}
+
+/**
+ * A feature this adversary would rather use than swing.
+ *
+ * The bar is deliberately low and deliberately fixed: it has to be an action
+ * it can pay for, and it has to catch more than one of the party — otherwise
+ * a Stress buys less than a claw would. A seeded fight replays the same way
+ * because nothing here is random.
+ */
+function adversaryFeature(demo: DemoScene, adversaryId: string): AbilityDef | null {
+  if (!inCombat(demo)) return null;
+  // One feature a turn, however many spotlights Relentless buys: an adversary
+  // that erupted goes back to teeth and claws for the rest of the turn.
+  if (demo.gmTurn?.features[adversaryId] === true) return null;
+  const entity = demo.state.entity(adversaryId);
+  if (entity === undefined) return null;
+  const def = statBlock(demo, adversaryId);
+  const was = demo.scenario.actorId;
+  demo.scenario.actorId = adversaryId;
+  try {
+    for (const ability of demo.world.abilitiesForAdversary(def.id)) {
+      if (ability.kind !== 'action' || ability.effects.length === 0) continue;
+      if ((ability.cost.stress ?? 0) > unmarked(entity.stress)) continue;
+      // A feature the block charges nothing for still costs the GM a Fear:
+      // otherwise the best feature is simply what the adversary does every
+      // turn, and its teeth never come into it.
+      if (featureFear(ability) > demo.state.fear.value) continue;
+      const caught = demo.world.resolveTargets({ kind: 'allies', range: ability.target.range }, NO_BINDINGS);
+      if (caught.length >= 2) return ability;
+    }
+  } finally {
+    demo.scenario.actorId = was;
+  }
+  return null;
+}
+
+/** Play one, paying for it, with the adversary as the actor its script reads. */
+/** What the GM pays to use a feature its stat block charges nothing for. */
+function featureFear(ability: AbilityDef): number {
+  return (ability.cost.stress ?? 0) === 0 && (ability.cost.hope ?? 0) === 0 ? 1 : 0;
+}
+
+function useAdversaryFeature(demo: DemoScene, adversaryId: string, ability: AbilityDef): void {
+  if (demo.gmTurn !== null) demo.gmTurn.features[adversaryId] = true;
+  const fear = featureFear(ability);
+  if (fear > 0) {
+    demo.state.fear = { ...demo.state.fear, value: Math.max(0, demo.state.fear.value - fear) };
+    note(demo, `The GM spends ${fear} Fear.`, 'fear');
+  }
+  runAdversaryScript(demo, adversaryId, ability);
+  settleFight(demo);
+}
+
+function runAdversaryScript(demo: DemoScene, adversaryId: string, ability: AbilityDef): void {
+  const stress = ability.cost.stress ?? 0;
+  if (stress > 0) demo.world.markStress(adversaryId, stress);
+  note(demo, `The ${nameOf(demo, adversaryId)} uses ${ability.name}.`, 'combat');
+  const was = demo.scenario.actorId;
+  demo.scenario.actorId = adversaryId;
+  const runner = new ScriptRunner(demo.world, demo.rng, { rollAs: 'actor' });
+  const result = runner.run(ability.effects);
+  record(demo, result.journal);
+  demo.scenario.actorId = was;
+}
+
+/**
+ * "When the Burrower takes Severe damage…": the features that answer a wound,
+ * played once for each creature that took one, whoever dealt it. The world
+ * keeps the list; this is where it is spent.
+ */
+function playSevereReactions(demo: DemoScene): void {
+  for (const id of demo.world.drainSevere()) {
+    const entity = demo.state.entity(id);
+    if (entity === undefined || !entity.alive || entity.faction !== 'adversary') continue;
+    for (const ability of demo.world.abilitiesForAdversary(statBlock(demo, id).id)) {
+      if (ability.kind !== 'reaction' || ability.trigger !== 'tookSevere') continue;
+      runAdversaryScript(demo, id, ability);
+    }
+  }
 }
 
 /**
@@ -1038,7 +1155,7 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   const target = demo.state.entity(targetId);
   if (adversary === undefined || target === undefined) return false;
   const character = demo.characters.get(target.id);
-  const def = SRD_ADVERSARIES.get(adversary.definition) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
+  const def = statBlock(demo, adversaryId);
   const outcome = resolveAttack(demo.rng, {
     grid: demo.grid,
     attacker: adversary,
@@ -1048,7 +1165,8 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
       name: def.attackName,
       modifier: def.attackModifier,
       range: def.attackRange,
-      damage: def.attackDamage,
+      // A Horde's standard attack changes once half its Hit Points are marked.
+      damage: attackDamageOf(def, adversary.hitPoints),
     },
     // The target defends with the Evasion and thresholds their sheet derives,
     // plus whatever their conditions add; the defence step below decides the
@@ -1058,16 +1176,53 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   });
   if (outcome.refused !== null) return false;
 
-  // A miss is over at once. A hit becomes something the defender's side can
-  // answer, if there is anything worth asking.
+  // A miss is usually over at once — unless the target holds a card that
+  // answers one, like Vanishing Dodge.
   if (!outcome.hit || outcome.damageRoll === undefined || character === undefined) {
     applyAttack(demo.state, outcome);
     demo.world.endsOnAttack(adversaryId);
     note(demo, `The ${def.name}'s ${def.attackName} misses ${character?.sheet.name ?? target.id}.`, 'combat');
+    offerMiss(demo, { attacker: adversaryId, defender: targetId, outcome, def, used: [] });
     return true;
   }
   offerOrLand(demo, { attacker: adversaryId, defender: targetId, outcome, def, used: [] });
   return true;
+}
+
+/**
+ * Minion (X): "defeated when they take any damage. For every X damage a PC
+ * deals, defeat an additional Minion within range the attack would succeed
+ * against." The extras are the nearest of the same kind, which is how a table
+ * plays it without arguing about which rat dies.
+ */
+function defeatMinions(demo: DemoScene, targetId: string, damage: number): void {
+  const target = demo.state.entity(targetId);
+  if (target === undefined) return;
+  const per = adversaryTraits(statBlock(demo, targetId)).minion;
+  if (per === undefined || damage <= 0) return;
+
+  const fell = (entity: EntityState): void => {
+    entity.hitPoints = { ...entity.hitPoints, marked: entity.hitPoints.max };
+    entity.alive = false;
+  };
+  if (target.alive) {
+    fell(target);
+    note(demo, `The ${nameOf(demo, targetId)} goes down at a touch.`, 'combat');
+  }
+  const extras = Math.floor(damage / per);
+  if (extras <= 0) return;
+  const nearby = demo.state
+    .entitiesOf('adversary')
+    .filter((e) => e.alive && e.id !== targetId && e.definition === target.definition)
+    .filter((e) => {
+      const band = demo.world.bandTo(targetId, e.id);
+      return band !== null && reaches(band, 'veryClose');
+    })
+    .slice(0, extras);
+  for (const entity of nearby) fell(entity);
+  if (nearby.length > 0) {
+    note(demo, `The blow carries: ${nearby.length} more go down.`, 'combat');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1077,6 +1232,35 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
 /** The damage a hit is carrying right now. */
 function incomingOf(attack: IncomingAttack): { amount: number; types: readonly ('physical' | 'magic')[] } {
   return { amount: attack.outcome.damageRoll?.total ?? 0, types: attack.def.attackDamage.types ?? [] };
+}
+
+/**
+ * What a successful attack does beyond its damage: Momentum hands the GM a
+ * Fear, Terrifying costs every PC in Close range a Hope and hands over a Fear
+ * as well.
+ */
+function landedFeatures(demo: DemoScene, attack: IncomingAttack): void {
+  const traits = adversaryTraits(attack.def);
+  let fear = 0;
+  if (traits.momentum) fear += 1;
+  if (traits.terrifying) {
+    fear += 1;
+    const shaken: string[] = [];
+    for (const entity of demo.state.entitiesOf('party')) {
+      if (!entity.alive || entity.hope === undefined) continue;
+      const band = demo.world.bandTo(attack.attacker, entity.id);
+      if (band === null || !reaches(band, 'close')) continue;
+      if (entity.hope.value <= 0) continue;
+      entity.hope = { max: entity.hope.max, value: entity.hope.value - 1 };
+      shaken.push(nameOf(demo, entity.id));
+    }
+    if (shaken.length > 0) note(demo, `Terrifying: ${shaken.join(', ')} lose a Hope.`, 'fear');
+  }
+  if (fear > 0) {
+    const gained = gain(demo.state.fear, fear);
+    demo.state.fear = gained.currency;
+    if (gained.applied > 0) note(demo, `The GM gains ${gained.applied} Fear.`, 'fear');
+  }
 }
 
 /** Everything the defence rules need to know about whoever is taking the hit. */
@@ -1168,6 +1352,43 @@ export function defenseChoices(demo: DemoScene, attack: IncomingAttack): Defense
   return choices;
 }
 
+/**
+ * A blow that went wide, and someone who can do something about it.
+ *
+ * "When an attack made against you fails, you can spend a Hope to …" — the
+ * card's own effects are the answer, so any card written that way is offered
+ * here without the engine knowing what it does.
+ */
+function offerMiss(demo: DemoScene, attack: IncomingAttack): void {
+  if (!demo.askDefender) return;
+  const holder = defenderFor(demo, attack.defender);
+  if (holder === null) return;
+  const cards = demo.world
+    .reactionsFor(attack.defender, 'attackMissed')
+    .filter((ability) => ability.effects.length > 0 && canPayFor(holder, ability));
+  if (cards.length === 0) return;
+  const choices: DefenseChoice[] = [
+    { kind: 'none', label: 'Let it go wide' },
+    ...cards.map((ability) => ({
+      kind: 'react' as const,
+      label: `${ability.name}${costOf(ability) === '' ? '' : ` (${costOf(ability)})`}`,
+      by: attack.defender,
+      ability,
+    })),
+  ];
+  demo.pending = {
+    kind: 'defense',
+    attack,
+    choices,
+    prompt: {
+      kind: 'choice',
+      title: `${attack.def.attackName} goes wide`,
+      body: `${nameOf(demo, attack.defender)} can answer it.`,
+      options: choices.map((choice, index) => ({ index, label: choice.label })),
+    },
+  };
+}
+
 /** Ask, if there is anything to ask; otherwise take the hit the engine's way. */
 function offerOrLand(demo: DemoScene, attack: IncomingAttack): void {
   if (demo.askDefender) {
@@ -1225,6 +1446,7 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
   };
   applyAttack(demo.state, final);
   demo.world.endsOnAttack(attack.attacker);
+  landedFeatures(demo, attack);
   const ended = [...demo.world.endsOnHit(attack.defender), ...(final.hitPointsMarked > 0 ? demo.world.endsOnDamage(attack.defender) : [])];
   for (const condition of ended) note(demo, `${who} is no longer ${condition}.`, 'system');
   note(
@@ -1243,8 +1465,36 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
  * and a reroll is a new hit.
  */
 export function applyDefenseChoice(demo: DemoScene, attack: IncomingAttack, choice: DefenseChoice): void {
+  if (choice.kind === 'none') return;
   if (choice.kind === 'plan') {
     landAttack(demo, attack, choice.plan);
+    return;
+  }
+  if (choice.kind === 'react') {
+    if (!payFor(demo, choice.by, choice.ability)) return;
+    const was = demo.scenario.actorId;
+    demo.scenario.actorId = choice.by;
+    const runner = new ScriptRunner(demo.world, demo.rng, { targets: [attack.attacker], rollAs: 'actor' });
+    const result = runner.run(choice.ability.effects);
+    record(demo, result.journal);
+    if (result.status === 'waiting') {
+      // A card that stops to ask something keeps the floor; the GM's turn
+      // resumes when the script is done, as it does for any other card.
+      demo.pending = {
+        kind: 'script',
+        runner,
+        prompt: result.prompt,
+        interactable: null,
+        recorded: result.journal.length,
+        dialogue: null,
+        onDone: () => {
+          demo.scenario.actorId = was;
+          runGmTurn(demo);
+        },
+      };
+      return;
+    }
+    demo.scenario.actorId = was;
     return;
   }
   const helper = nameOf(demo, choice.by);

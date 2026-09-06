@@ -30,12 +30,12 @@ import { resolveDamage, type IncomingDamage } from '../rules/damage';
 import { rollDuality } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
 import { bandForDistance, bandIndex, reaches, type BandTiles, type RangeBand } from '../rules/range';
-import { applyAttack, resolveAttack } from '../combat/attack';
+import { applyAttack, resolveAttack, type AttackProfile } from '../combat/attack';
 import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
 import { attackProfile, UNARMED, type DerivedCharacter } from '../character/sheet';
 import { abilitiesFor, type AbilityDef, type AbilityModifier } from '../content/abilities';
 import type { ConditionBlock, ConditionDef } from '../content/conditions';
-import type { ParsedDamage } from '../rules/dice';
+import { parseDice, type ParsedDamage } from '../rules/dice';
 import type { AdversaryDef } from '../content/types';
 import { NO_TILE } from '../grid/grid';
 import type { EntityState, SceneState } from '../scene/state';
@@ -85,6 +85,8 @@ export interface ScenarioState {
    * ones it refreshes.
    */
   abilityUses: Map<string, number>;
+  /** Tokens on a card, keyed the same way: "who/which-card". */
+  abilityTokens: Map<string, number>;
 }
 
 /** The key `abilityUses` files a use under. */
@@ -106,6 +108,7 @@ export function createScenarioState(
     quests: new Map(),
     partyLevel: 1,
     abilityUses: new Map(),
+    abilityTokens: new Map(),
   };
 }
 
@@ -137,6 +140,7 @@ export const scenarioSnapshotSchema = z.object({
     .default([]),
   partyLevel: z.number().int().min(1).max(10).default(1),
   abilityUses: z.array(z.tuple([z.string(), z.number().int().min(0)])).default([]),
+  abilityTokens: z.array(z.tuple([z.string(), z.number().int().min(0)])).default([]),
 });
 
 export type ScenarioSnapshot = z.infer<typeof scenarioSnapshotSchema>;
@@ -155,6 +159,7 @@ export function scenarioSnapshot(scenario: ScenarioState): ScenarioSnapshot {
     })),
     partyLevel: scenario.partyLevel,
     abilityUses: [...scenario.abilityUses].map(([key, used]) => [key, used] as [string, number]),
+    abilityTokens: [...scenario.abilityTokens].map(([key, held]) => [key, held] as [string, number]),
   };
 }
 
@@ -184,6 +189,8 @@ export function restoreScenario(scenario: ScenarioState, snapshot: ScenarioSnaps
   scenario.partyLevel = snapshot.partyLevel;
   scenario.abilityUses.clear();
   for (const [key, used] of snapshot.abilityUses) scenario.abilityUses.set(key, used);
+  scenario.abilityTokens.clear();
+  for (const [key, held] of snapshot.abilityTokens ?? []) scenario.abilityTokens.set(key, held);
 }
 
 /** Thresholds for a creature nothing describes: the demo's stand-in numbers. */
@@ -247,6 +254,8 @@ export class SceneScriptWorld implements ScriptWorld {
   private readonly abilities: readonly AbilityDef[];
   private readonly conditionDefs: ReadonlyMap<string, ConditionDef>;
   private readonly hooks: () => HookMap;
+  /** Creatures that have taken Severe damage since anyone last looked. */
+  private readonly severe: string[] = [];
 
   constructor(state: SceneState, scenario: ScenarioState, options: SceneScriptWorldOptions = {}) {
     this.state = state;
@@ -405,6 +414,52 @@ export class SceneScriptWorld implements ScriptWorld {
     const character = this.characters.get(id);
     if (character === undefined || this.blocks(id, 'reactions')) return [];
     return abilitiesFor(character, this.abilities).filter((a) => a.kind === 'reaction' && a.trigger === trigger);
+  }
+
+  /**
+   * The scripted features of an adversary's stat block. Named by the
+   * definition id, not the entity's, so every husk in a room shares them.
+   */
+  abilitiesForAdversary(definition: string): AbilityDef[] {
+    return this.abilities.filter((a) => a.source.kind === 'adversary' && a.source.adversaries.includes(definition));
+  }
+
+  /** Tokens sitting on a card a creature holds. */
+  tokensOn(id: string, ability: string): number {
+    return this.scenario.abilityTokens.get(useKey(id, ability)) ?? 0;
+  }
+
+  /**
+   * Put tokens on a card. With no amount, the card's own count is placed —
+   * "a number of tokens equal to your Spellcast trait", with its minimum.
+   */
+  addTokens(id: string, ability: string, amount?: number): number {
+    const key = useKey(id, ability);
+    const placed = amount ?? this.tokenCount(id, ability);
+    const left = Math.max(0, (this.scenario.abilityTokens.get(key) ?? 0) + placed);
+    this.scenario.abilityTokens.set(key, left);
+    return left;
+  }
+
+  spendTokens(id: string, ability: string, amount: number): number {
+    const key = useKey(id, ability);
+    const held = this.scenario.abilityTokens.get(key) ?? 0;
+    const spent = Math.min(held, Math.max(0, amount));
+    this.scenario.abilityTokens.set(key, held - spent);
+    return spent;
+  }
+
+  /** How many tokens the card places at once, for whoever holds it. */
+  tokenCount(id: string, ability: string): number {
+    const tokens = this.abilities.find((a) => a.id === ability)?.tokens;
+    if (tokens === undefined) return 0;
+    const amount =
+      typeof tokens.amount === 'number'
+        ? tokens.amount
+        : tokens.amount === 'spellcast'
+          ? (this.spellcastValue(id) ?? 0)
+          : (this.characters.get(id)?.traits[tokens.amount] ?? 0);
+    return Math.max(tokens.minimum, amount);
   }
 
   /** Logic in code by id, or null when nothing defines it. */
@@ -789,6 +844,7 @@ export class SceneScriptWorld implements ScriptWorld {
     entity.hitPoints = marked.hitPoints;
     if (marked.fell) entity.alive = false;
     if (resolved.hpMarked > 0 || resolved.armorSlotsSpent > 0) this.endsOnDamage(id);
+    if (resolved.severity === 'severe') this.noteSevere(id);
     return {
       incoming: resolved.incoming,
       hpMarked: marked.hpMarked,
@@ -865,8 +921,39 @@ export class SceneScriptWorld implements ScriptWorld {
     return true;
   }
 
+  /**
+   * Note that a creature took Severe damage, so whoever runs the fight can
+   * play the features that answer it — Acid Bath. Kept as a queue rather than
+   * fired here: the world applies rules, it does not start scripts.
+   */
+  noteSevere(id: string): void {
+    if (!this.severe.includes(id)) this.severe.push(id);
+  }
+
+  /** Who has taken Severe damage since the last call. Clears as it reports. */
+  drainSevere(): string[] {
+    const took = [...this.severe];
+    this.severe.length = 0;
+    return took;
+  }
+
+  markArmor(id: string, amount: number): number {
+    const entity = this.state.entity(id);
+    if (entity === undefined) return 0;
+    const marked = Math.min(amount, unmarked(entity.armorSlots));
+    entity.armorSlots = { max: entity.armorSlots.max, marked: entity.armorSlots.marked + marked };
+    return marked;
+  }
+
   attack(
-    request: { attacker: string; target: string; weapon: 'primary' | 'secondary'; advantage?: number; damageBonus?: number },
+    request: {
+      attacker: string;
+      target: string;
+      weapon: 'primary' | 'secondary';
+      advantage?: number;
+      damageBonus?: number;
+      damage?: string;
+    },
     rng: Rng,
   ): AttackSummary {
     const none: AttackSummary = {
@@ -883,10 +970,15 @@ export class SceneScriptWorld implements ScriptWorld {
     const attacker = this.state.entity(request.attacker);
     const target = this.state.entity(request.target);
     const character = this.characters.get(request.attacker);
-    if (attacker === undefined || character === undefined) return { ...none, refused: 'no weapon to attack with' };
+    if (attacker === undefined) return { ...none, refused: 'no weapon to attack with' };
     if (target === undefined || !target.alive) return { ...none, refused: 'nothing to attack' };
 
-    const profile = attackProfile(character, request.weapon);
+    // A character swings their weapon; an adversary swings whatever its stat
+    // block prints, so a feature can be written as an attack like any other.
+    const stated = request.damage === undefined ? null : parseDice(request.damage);
+    const own = character !== undefined ? attackProfile(character, request.weapon) : this.adversaryProfile(attacker.definition);
+    if (own === null) return { ...none, refused: 'no weapon to attack with' };
+    const profile: AttackProfile = stated === null ? own : { ...own, damage: stated };
     const melee = profile.range === 'melee';
     const outcome = resolveAttack(rng, {
       grid: this.state.grid,
@@ -922,6 +1014,19 @@ export class SceneScriptWorld implements ScriptWorld {
       fearGained: applied.fearGained,
       stressCleared: applied.stressCleared,
       spotlightToGm: outcome.spotlightToGm,
+    };
+  }
+
+  /** What an adversary swings, from its stat block. */
+  private adversaryProfile(definition: string): AttackProfile | null {
+    const def = this.adversaries.get(definition);
+    if (def === undefined) return null;
+    return {
+      kind: 'adversary',
+      name: def.attackName,
+      modifier: def.attackModifier,
+      range: def.attackRange,
+      damage: def.attackDamage,
     };
   }
 

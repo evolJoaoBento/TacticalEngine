@@ -29,6 +29,7 @@ const reads = (overrides: Partial<ConditionContext> = {}): ConditionContext => (
   bandTo: () => 'close',
   difficultyOf: () => 11,
   hook: () => null,
+  tokensOn: () => 0,
   ...overrides,
 });
 

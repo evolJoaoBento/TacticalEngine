@@ -438,6 +438,7 @@ Target selectors: `{kind:'actor'}` (whoever used the thing; the default), `{kind
 | `inCombat` | — | a fight is on |
 | `hasCondition` | `condition`, `of?` | any of `of` (default: the chosen target) bears the condition |
 | `withinRange` | `range`, `of?` | any of `of` (default: the chosen target) stands within that band of the actor |
+| `tokens` | `ability`, `of?`, `op`, `value` | tokens on that card, for whoever `of` names (the actor by default), compare so |
 | `hook` | `hook`, `args?` | logic in code says so — the hook returns `true` (see **Logic in code**) |
 
 **Target selectors** (`target`/`of` fields): `actor`, `party`, `entity` (`id`), `entities`
@@ -468,7 +469,10 @@ leaves the chosen target out — "all other targets within range").
 | `gainHope` | `amount?`, `target?` | Hope to the target(s); an adversary gains none |
 | `spendHope` | `amount?` | the actor spends Hope; refused (and logged) without enough |
 | `applyCondition` / `clearCondition` | `condition`, `duration?` (temporary \| scene \| rest \| permanent), `target?` (the chosen target) | a condition cannot stack; `temporary` is what an adversary shakes off, `scene` ends with the fight, `rest` at a rest |
-| `attack` | `weapon?` (primary), `target?`, `advantage?`, `damageBonus?`, `onHit[]?`, `onMiss[]?` | a weapon attack as an action roll: Hope or Fear, the spotlight, a critical's extra dice; the branch runs with the target bound to `hit` |
+| `attack` | `weapon?` (primary), `target?`, `advantage?`, `damageBonus?`, `damage?` (dice instead of the attacker's own), `onHit[]?`, `onMiss[]?` | a weapon attack as an action roll: Hope or Fear, the spotlight, a critical's extra dice. A selector naming several creatures is swung at in turn, each with its own roll, and `onHit` runs once with everyone it beat bound to `hit`. An adversary swings what its stat block prints |
+| `markArmor` | `amount?`, `target?` | marks Armor Slots with no benefit — the SRD's "must mark an Armor Slot without receiving its benefits" |
+| `gainFear` | `amount?` | the GM gains Fear |
+| `addToken` / `spendToken` | `ability`, `amount?`, `target?` | puts tokens on a card the actor holds, or takes them off. `addToken` with no amount places the card's own count; spending more than are there is refused and logged |
 | `push` | `to` (band), `target?` | knocks the target(s) straight away from the actor until the distance reads as that band, stopping at a wall or a creature |
 | `reactionRoll` | `difficulty` (number \| `roll` = the actor's last total), `trait?`, `targets?` (hit), `onFail[]?`, `onSuccess[]?` | adversaries roll a d20, party members their Duality Dice (no Hope or Fear); `onFail` runs with the failures bound to `hit`, then `onSuccess` with the rest |
 | `startEncounter` | `encounter`, `intro?` | starts a fight; logs `intro` or "Something moves." |
@@ -571,15 +575,30 @@ ctx.queue(effects);
 
 An **ability** (`project.abilities[]`): `id`, `name`, `source` (`domainCard` `card` \| `classHope`
 `classId` \| `classFeature` `classId` \| `subclass` `subclassId` + `stage` \| `granted`
-`characters[]`), `text` (the card's SRD text when empty), `kind` (action \| reaction \| passive),
-`trigger?` (incomingDamage \| attackHit \| attackMissed), `cost` (`hope?`, `stress?`), `uses?`
+`characters[]` \| `adversary` `adversaries[]`), `text` (the card's SRD text when empty), `kind`
+(action \| reaction \| passive),
+`trigger?` (incomingDamage \| attackHit \| attackMissed \| tookSevere), `cost` (`hope?`, `stress?`), `uses?`
 (`count`, `per` rest \| longRest \| scene), `target` (`kind` none \| self \| adversary \| ally \|
 creature \| group, `range`), `available?` (a condition read against the actor), `inCombatOnly`,
 `action` (whether using it is the turn), `effects[]`, `modifiers[]` (`stat`, `bonus`,
 `plusTrait?`, `requires?` unarmored \| armored \| meleeWeapon, `when?`), `reaction?` (for a
 reaction to damage: `reduceSeverity` `steps` `only?`, `reduceDamage` `dice`, `extraArmor` `slots`
-`only?`), `auto` (whether a reaction fires on its own). `src/engine/content/srd/abilities.ts`
-is the library for the SRD's cards; `docs/CARDS.md` lists what is scripted and what is text.
+`only?`, `redirect`, `reroll` `what`), `tokens?` (`amount` — a number, a trait or `spellcast` —
+`minimum`, `refill` session \| longRest \| rest \| scene \| never), `auto` (whether a reaction
+fires on its own; an interrupt never does). `src/engine/content/srd/abilities.ts` is the library
+for the SRD's cards and `docs/CARDS.md` lists what is scripted;
+`src/engine/content/srd/adversary-abilities.ts` is the same for stat-block features, listed in
+`docs/ADVERSARIES.md`.
+
+**Adversary features.** The role features every third stat block shares are read straight off
+the block (`src/engine/combat/adversary-features.ts`): **Relentless (X)** spotlights it up to X
+times a GM turn, each past the first costing a Fear; **Horde (X)** switches its standard attack's
+damage once half its Hit Points are marked; **Minion (X)** falls to any damage and takes one more
+of its kind down per X damage; **Momentum** hands the GM a Fear on a successful attack;
+**Terrifying** does that and costs every PC in Close range a Hope. Action and reaction features
+are abilities sourced to the adversary. The GM plays one a turn, when it would catch two or more
+of the party, and pays a Fear for one the block charges nothing for. From an adversary's script,
+`allies` reads as the party in that band — a selector is relative to whoever is acting.
 
 A character's abilities are the class's, the subclass's up to the stage reached, and the domain
 cards in the loadout (`sheet.loadout`, at most five; the first five held when unset).

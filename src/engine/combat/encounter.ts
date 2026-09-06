@@ -199,6 +199,28 @@ export class EncounterRunner {
     return this.view();
   }
 
+  /**
+   * Relentless: "can be spotlighted up to X times per GM turn. Spend Fear as
+   * usual to spotlight them." The cap is the adversary's own business — the
+   * caller counts — but the Fear is spent here, like any other spotlight past
+   * the first.
+   */
+  canSpotlightAgain(id: string): boolean {
+    if (this.outcome !== 'ongoing' || this.side !== 'gm') return false;
+    if (!this.actedThisGmTurn.has(id)) return false;
+    const entity = this.state.entity(id);
+    if (entity === undefined || !entity.alive || entity.faction !== 'adversary') return false;
+    return this.state.fear.value >= 1;
+  }
+
+  spotlightAgain(id: string): EncounterView {
+    if (!this.canSpotlightAgain(id)) return this.view();
+    this.state.fear = { max: this.state.fear.max, value: this.state.fear.value - 1 };
+    this.events.push({ kind: 'adversaryActed', id, fearSpent: 1 });
+    this.checkEnd();
+    return this.view();
+  }
+
   /** End the GM turn: "the spotlight goes back to the PCs." */
   endGmTurn(): EncounterView {
     if (this.outcome !== 'ongoing' || this.side !== 'gm') return this.view();

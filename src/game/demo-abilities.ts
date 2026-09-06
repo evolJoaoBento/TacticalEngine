@@ -255,6 +255,27 @@ export function useAbility(demo: DemoScene, characterId: string, abilityId: stri
   return settleTravel(demo, lines);
 }
 
+/**
+ * "After a long rest, place a number of tokens equal to your Presence on this
+ * card." Every card whose pile refills on one of these events is topped back
+ * up for whoever holds it — and cleared first, because the SRD's cards say
+ * "clear all unspent tokens" as often as they say "place".
+ */
+export function refillTokens(demo: DemoScene, events: readonly ('session' | 'longRest' | 'rest' | 'scene')[]): void {
+  for (const entity of demo.state.entitiesOf('party')) {
+    for (const ability of abilitiesOf(demo, entity.id)) {
+      const tokens = ability.tokens;
+      if (tokens === undefined || !events.includes(tokens.refill as 'rest')) continue;
+      const key = useKey(entity.id, ability.id);
+      demo.scenario.abilityTokens.delete(key);
+      const placed = demo.world.addTokens(entity.id, ability.id);
+      if (placed > 0) {
+        note(demo, `${nameOf(demo, entity.id)} places ${placed} token${placed === 1 ? '' : 's'} on ${ability.name}.`, 'hope');
+      }
+    }
+  }
+}
+
 /** The card goes back in hand: what it cost is returned. */
 function putBack(demo: DemoScene, characterId: string, ability: AbilityDef): void {
   const entity = demo.state.entity(characterId);
@@ -432,6 +453,7 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
     const per = ability?.uses?.per;
     if (per === 'rest' || per === 'scene' || (per === 'longRest' && kind === 'long')) demo.scenario.abilityUses.delete(key);
   }
+  refillTokens(demo, kind === 'long' ? ['rest', 'longRest', 'scene'] : ['rest', 'scene']);
   const ended = demo.state.clearConditions('rest');
   for (const { id, condition } of ended) note(demo, `${nameOf(demo, id)} is no longer ${condition}.`, 'system');
   syncPools(demo);

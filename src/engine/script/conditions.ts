@@ -65,6 +65,8 @@ export interface ConditionContext {
   difficultyOf(id: string): number | null;
   /** A hook by id — native or project code — or null when nothing defines it. */
   hook(id: string): HookFn | null;
+  /** Tokens sitting on a card a creature holds. */
+  tokensOn(id: string, ability: string): number;
 }
 
 /**
@@ -87,6 +89,7 @@ export function hookReads(context: ConditionContext, bindings: TargetBindings, a
     flag: (name) => context.hasFlag(name),
     variable: (name) => context.getVar(name),
     countAlive: (faction) => context.countAlive(faction),
+    tokens: (id, ability) => context.tokensOn(id, ability),
   };
 }
 
@@ -158,6 +161,10 @@ export function evaluate(
       return context
         .resolveTargets(condition.of ?? { kind: 'target' }, bindings)
         .some((id) => context.hasCondition(id, condition.condition));
+    case 'tokens': {
+      const ids = context.resolveTargets(condition.of ?? { kind: 'actor' }, bindings);
+      return ids.some((id) => compare(context.tokensOn(id, condition.ability), condition.op, condition.value));
+    }
     case 'hook': {
       // A hook nobody defined is false, not a crash: content outlives the code
       // that backed it, and a missing predicate must not stop a scene.

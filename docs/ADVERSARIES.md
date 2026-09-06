@@ -1,0 +1,432 @@
+# Adversary features: what the engine runs
+
+Every feature printed on an adversary in the vendored stat blocks, and what this engine
+does with it. Three states:
+
+- **read** — a rule the fight obeys, read straight off the block
+  (`src/engine/combat/adversary-features.ts`): Relentless, Horde, Minion, Momentum, Terrifying.
+- **scripted** — an ability in the one effect vocabulary
+  (`src/engine/content/srd/adversary-abilities.ts`), used by the GM on its spotlight.
+- **text** — printed for the GM to narrate; the engine does nothing with it.
+
+Read: 73. Scripted: 3. Text: 341.
+
+| Adversary | Feature | Kind | Engine |
+|---|---|---|---|
+| Acid Burrower | Relentless (3) | Passive | **read** — read off the stat block |
+| Acid Burrower | Earth Eruption | Action | **scripted** — runs as an ability |
+| Acid Burrower | Spit Acid | Action | **scripted** — runs as an ability |
+| Acid Burrower | Acid Bath | Reaction | **scripted** — runs as an ability |
+| Bear | Overwhelming Force | Passive | **text** — the GM's to play |
+| Bear | Bite | Action | **text** — the GM's to play |
+| Bear | Momentum | Reaction | **read** — read off the stat block |
+| Cave Ogre | Ramp Up | Passive | **text** — the GM's to play |
+| Cave Ogre | Bone Breaker | Passive | **text** — the GM's to play |
+| Cave Ogre | Hail of Boulders | Action | **text** — the GM's to play |
+| Cave Ogre | Rampaging Fury | Reaction | **text** — the GM's to play |
+| Construct | Relentless (2) | Passive | **read** — read off the stat block |
+| Construct | Weak Structure | Passive | **text** — the GM's to play |
+| Construct | Trample | Action | **text** — the GM's to play |
+| Construct | Overload | Reaction | **text** — the GM's to play |
+| Construct | Death Quake | Reaction | **text** — the GM's to play |
+| Courtier | Mockery | Action | **text** — the GM's to play |
+| Courtier | Scapegoat | Action | **text** — the GM's to play |
+| Deeproot Defender | Ground Slam | Action | **text** — the GM's to play |
+| Deeproot Defender | Grab and Drag | Action | **text** — the GM's to play |
+| Dire Wolf | Pack Tactics | Passive | **text** — the GM's to play |
+| Dire Wolf | Hobbling Strike | Action | **text** — the GM's to play |
+| Giant Mosquitoes | Horde (1d4+1) | Passive | **read** — read off the stat block |
+| Giant Mosquitoes | Flying | Passive | **text** — the GM's to play |
+| Giant Mosquitoes | Bloodsucker | Reaction | **text** — the GM's to play |
+| Giant Rat | Minion (3) | Passive | **read** — read off the stat block |
+| Giant Rat | Group Attack | Action | **text** — the GM's to play |
+| Giant Scorpion | Double Strike | Action | **text** — the GM's to play |
+| Giant Scorpion | Venomous Stinger | Action | **text** — the GM's to play |
+| Giant Scorpion | Momentum | Reaction | **read** — read off the stat block |
+| Glass Snake | Armor-Shredding Shards | Passive | **text** — the GM's to play |
+| Glass Snake | Spinning Serpent | Action | **text** — the GM's to play |
+| Glass Snake | Spitter | Action | **text** — the GM's to play |
+| Harrier | Maintain Distance | Passive | **text** — the GM's to play |
+| Harrier | Fall Back | Reaction | **text** — the GM's to play |
+| Archer Guard | Hobbling Shot | Action | **text** — the GM's to play |
+| Bladed Guard | Shield Wall | Passive | **text** — the GM's to play |
+| Bladed Guard | Detain | Action | **text** — the GM's to play |
+| Head Guard | Rally Guards | Action | **text** — the GM's to play |
+| Head Guard | On My Signal | Reaction: Countdown (5) | **text** — the GM's to play |
+| Head Guard | Momentum | Reaction | **read** — read off the stat block |
+| Jagged Knife Bandit | Climber | Passive | **text** — the GM's to play |
+| Jagged Knife Bandit | From Above | Passive | **text** — the GM's to play |
+| Jagged Knife Hexer | Curse | Action | **text** — the GM's to play |
+| Jagged Knife Hexer | Chaotic Flux | Action | **text** — the GM's to play |
+| Jagged Knife Kneebreaker | I've Got 'Em | Passive | **text** — the GM's to play |
+| Jagged Knife Kneebreaker | Hold Them Down | Action | **text** — the GM's to play |
+| Jagged Knife Lackey | Minion (3) | Passive | **read** — read off the stat block |
+| Jagged Knife Lackey | Group Attack | Action | **text** — the GM's to play |
+| Jagged Knife Lieutenant | Tactician | Action | **text** — the GM's to play |
+| Jagged Knife Lieutenant | More Where That Came From | Action | **text** — the GM's to play |
+| Jagged Knife Lieutenant | Coup de Grace | Action | **text** — the GM's to play |
+| Jagged Knife Lieutenant | Momentum | Reaction | **read** — read off the stat block |
+| Jagged Knife Shadow | Backstab | Passive | **text** — the GM's to play |
+| Jagged Knife Shadow | Cloaked | Action | **text** — the GM's to play |
+| Jagged Knife Sniper | Unseen Strike | Passive | **text** — the GM's to play |
+| Merchant | Preferential Treatment | Passive | **text** — the GM's to play |
+| Merchant | The Runaround | Passive | **text** — the GM's to play |
+| Minor Chaos Elemental | Arcane Form | Passive | **text** — the GM's to play |
+| Minor Chaos Elemental | Sickening Flux | Action | **text** — the GM's to play |
+| Minor Chaos Elemental | Remake Reality | Action | **text** — the GM's to play |
+| Minor Chaos Elemental | Magical reflection | Reaction | **text** — the GM's to play |
+| Minor Chaos Elemental | Momentum | Reaction | **read** — read off the stat block |
+| Minor Fire Elemental | Relentless (2) | Passive | **read** — read off the stat block |
+| Minor Fire Elemental | Scorched Earth | Action | **text** — the GM's to play |
+| Minor Fire Elemental | Explosion | Action | **text** — the GM's to play |
+| Minor Fire Elemental | Consume Kindling | Reaction | **text** — the GM's to play |
+| Minor Fire Elemental | Momentum | Reaction | **read** — read off the stat block |
+| Minor Demon | Relentless (2) | Passive | **read** — read off the stat block |
+| Minor Demon | All Must Fall | Passive | **text** — the GM's to play |
+| Minor Demon | Hellfire | Action | **text** — the GM's to play |
+| Minor Demon | Reaper | Reaction | **text** — the GM's to play |
+| Minor Demon | Momentum | Reaction | **read** — read off the stat block |
+| Minor Treant | Minion (5) | Passive | **read** — read off the stat block |
+| Minor Treant | Group Attack | Action | **text** — the GM's to play |
+| Green Ooze | Slow | Passive | **text** — the GM's to play |
+| Green Ooze | Acidic Form | Passive | **text** — the GM's to play |
+| Green Ooze | Envelop | Action | **text** — the GM's to play |
+| Green Ooze | Split | Reaction | **text** — the GM's to play |
+| Tiny Green Ooze | Acidic Form | Passive | **text** — the GM's to play |
+| Red Ooze | Creeping Fire | Passive | **text** — the GM's to play |
+| Red Ooze | Ignite | Action | **text** — the GM's to play |
+| Red Ooze | Split | Reaction | **text** — the GM's to play |
+| Tiny Red Ooze | Burning | Reaction | **text** — the GM's to play |
+| Petty Noble | My Land, My Rules | Passive | **text** — the GM's to play |
+| Petty Noble | Guards, Seize Them! | Action | **text** — the GM's to play |
+| Petty Noble | Exile | Action | **text** — the GM's to play |
+| Pirate Captain | Swashbuckler | Passive | **text** — the GM's to play |
+| Pirate Captain | Reinforcements | Action | **text** — the GM's to play |
+| Pirate Captain | No Quarter | Action | **text** — the GM's to play |
+| Pirate Captain | Momentum | Reaction | **read** — read off the stat block |
+| Pirate Raiders | Horde (1d4+1) | Passive | **read** — read off the stat block |
+| Pirate Raiders | Swashbuckler | Passive | **text** — the GM's to play |
+| Pirate Tough | Swashbuckler | Passive | **text** — the GM's to play |
+| Pirate Tough | Clear the Decks | Action | **text** — the GM's to play |
+| Sellsword | Minion (4) | Passive | **read** — read off the stat block |
+| Sellsword | Group Attack | Action | **text** — the GM's to play |
+| Skeleton Archer | Opportunist | Passive | **text** — the GM's to play |
+| Skeleton Archer | Deadly Shot | Action | **text** — the GM's to play |
+| Skeleton Dredge | Minion (4) | Passive | **read** — read off the stat block |
+| Skeleton Dredge | Group Attack | Action | **text** — the GM's to play |
+| Skeleton Knight | Terrifying | Passive | **read** — read off the stat block |
+| Skeleton Knight | Cut to the Bone | Action | **text** — the GM's to play |
+| Skeleton Knight | Dig Two Graves | Reaction | **text** — the GM's to play |
+| Skeleton Warrior | Only Bones | Passive | **text** — the GM's to play |
+| Skeleton Warrior | Won't Stay Dead | Reaction | **text** — the GM's to play |
+| Spellblade | Arcane Steel | Passive | **text** — the GM's to play |
+| Spellblade | Suppressing Blast | Action | **text** — the GM's to play |
+| Spellblade | Move as a Unit | Action | **text** — the GM's to play |
+| Spellblade | Momentum | Reaction | **read** — read off the stat block |
+| Swarm of Rats | Horde (1d4+1) | Passive | **read** — read off the stat block |
+| Swarm of Rats | In Your Face | Passive | **text** — the GM's to play |
+| Sylvan Soldier | Pack Tactics | Passive | **text** — the GM's to play |
+| Sylvan Soldier | Forest Control | Action | **text** — the GM's to play |
+| Sylvan Soldier | Blend In | Reaction | **text** — the GM's to play |
+| Tangle Bramble Swarm | Horde (1d4+2) | Passive | **read** — read off the stat block |
+| Tangle Bramble Swarm | Crush | Action | **text** — the GM's to play |
+| Tangle Bramble Swarm | Encumber | Reaction | **text** — the GM's to play |
+| Tangle Bramble | Minion (4) | Passive | **read** — read off the stat block |
+| Tangle Bramble | Group Attack | Action | **text** — the GM's to play |
+| Tangle Bramble | Drain and Multiply | Reaction | **text** — the GM's to play |
+| Weaponmaster | Goading Strike | Action | **text** — the GM's to play |
+| Weaponmaster | Adrenaline Burst | Action | **text** — the GM's to play |
+| Weaponmaster | Momentum | Reaction | **read** — read off the stat block |
+| Young Dryad | Voice of the Forest | Action | **text** — the GM's to play |
+| Young Dryad | Thorny Cage | Action | **text** — the GM's to play |
+| Young Dryad | Momentum | Reaction | **read** — read off the stat block |
+| Brawny Zombie | Slow | Passive | **text** — the GM's to play |
+| Brawny Zombie | Rend Asunder | Action | **text** — the GM's to play |
+| Brawny Zombie | Rip and Tear | Reaction | **text** — the GM's to play |
+| Patchwork Zombie Hulk | Destructible | Passive | **text** — the GM's to play |
+| Patchwork Zombie Hulk | Flailing Limbs | Passive | **text** — the GM's to play |
+| Patchwork Zombie Hulk | Another for the Pile | Action | **text** — the GM's to play |
+| Patchwork Zombie Hulk | Tormented Screams | Action | **text** — the GM's to play |
+| Rotted Zombie | Minion (3) | Passive | **read** — read off the stat block |
+| Rotted Zombie | Group Attack | Action | **text** — the GM's to play |
+| Shambling Zombie | Too Many to Handle | Passive | **text** — the GM's to play |
+| Shambling Zombie | Horrifying | Passive | **text** — the GM's to play |
+| Zombie Pack | Horde (1d4+2) | Passive | **read** — read off the stat block |
+| Zombie Pack | Overwhelm | Reaction | **text** — the GM's to play |
+| Archer Squadron | Horde (1d6+3) | Passive | **read** — read off the stat block |
+| Archer Squadron | Focused Volley | Action | **text** — the GM's to play |
+| Archer Squadron | Suppressing Fire | Action | **text** — the GM's to play |
+| Apprentice Assassin | Minion (6) | Passive | **read** — read off the stat block |
+| Apprentice Assassin | Group Attack | Action | **text** — the GM's to play |
+| Assassin Poisoner | Grindletooth Venom | Passive | **text** — the GM's to play |
+| Assassin Poisoner | Out of Nowhere | Passive | **text** — the GM's to play |
+| Assassin Poisoner | Fumigation | Action | **text** — the GM's to play |
+| Master Assassin | Won't See It Coming | Passive | **text** — the GM's to play |
+| Master Assassin | Strike as One | Action | **text** — the GM's to play |
+| Master Assassin | The Subtle Blade | Reaction | **text** — the GM's to play |
+| Master Assassin | Momentum | Reaction | **read** — read off the stat block |
+| Battle Box | Relentless (2) | Passive | **read** — read off the stat block |
+| Battle Box | Randomized Tactics | Action | **text** — the GM's to play |
+| Battle Box | Overcharge | Reaction | **text** — the GM's to play |
+| Battle Box | Death Quake | Reaction | **text** — the GM's to play |
+| Chaos Skull | Levitation | Passive | **text** — the GM's to play |
+| Chaos Skull | Wards | Passive | **text** — the GM's to play |
+| Chaos Skull | Magic Burst | Action | **text** — the GM's to play |
+| Chaos Skull | Siphon Magic | Action | **text** — the GM's to play |
+| Conscript | Minion (6) | Passive | **read** — read off the stat block |
+| Conscript | Group Attack | Action | **text** — the GM's to play |
+| Courtesan | Searing Glance | Reaction | **text** — the GM's to play |
+| Cult Adept | Enervating Blast | Action | **text** — the GM's to play |
+| Cult Adept | Shroud of the Fallen | Action | **text** — the GM's to play |
+| Cult Adept | Shadow Shackles | Action | **text** — the GM's to play |
+| Cult Adept | Fear Is Fuel | Reaction | **text** — the GM's to play |
+| Cult Fang | Shadow's Embrace | Passive | **text** — the GM's to play |
+| Cult Fang | Pick Off the Straggler | Action | **text** — the GM's to play |
+| Cult Initiate | Minion (6) | Passive | **read** — read off the stat block |
+| Cult Initiate | Group Attack | Action | **text** — the GM's to play |
+| Demonic Hound Pack | Horde (2d4+1) | Passive | **read** — read off the stat block |
+| Demonic Hound Pack | Dreadhowl | Action | **text** — the GM's to play |
+| Demonic Hound Pack | Momentum | Reaction | **read** — read off the stat block |
+| Electric Eels | Horde (2d4+1) | Passive | **read** — read off the stat block |
+| Electric Eels | Paralyzing Shock | Action | **text** — the GM's to play |
+| Elite Soldier | Reinforce | Action | **text** — the GM's to play |
+| Elite Soldier | Vassal's Loyalty | Reaction | **text** — the GM's to play |
+| Failed Experiment | Warped Fortitude | Passive | **text** — the GM's to play |
+| Failed Experiment | Overwhelm | Passive | **text** — the GM's to play |
+| Failed Experiment | Lurching Lunge | Action | **text** — the GM's to play |
+| Giant Beastmaster | Two as One | Passive | **text** — the GM's to play |
+| Giant Beastmaster | Pinning Strike | Action | **text** — the GM's to play |
+| Giant Beastmaster | Deadly Companion | Action | **text** — the GM's to play |
+| Giant Brawler | Battering Ram | Action | **text** — the GM's to play |
+| Giant Brawler | Bloody Reprisal | Reaction | **text** — the GM's to play |
+| Giant Brawler | Momentum | Reaction | **read** — read off the stat block |
+| Giant Recruit | Minion (7) | Passive | **read** — read off the stat block |
+| Giant Recruit | Group Attack | Action | **text** — the GM's to play |
+| Giant Eagle | Flight | Passive | **text** — the GM's to play |
+| Giant Eagle | Deadly Dive | Action | **text** — the GM's to play |
+| Giant Eagle | Take Off- Action | — | **text** — the GM's to play |
+| Giant Eagle | Deadly Drop | Action | **text** — the GM's to play |
+| Gorgon | Relentless (2) | Passive | **read** — read off the stat block |
+| Gorgon | Sunsear Arrows | Passive | **text** — the GM's to play |
+| Gorgon | Crown of Serpents | Action | **text** — the GM's to play |
+| Gorgon | Petrifying Gaze | Reaction | **text** — the GM's to play |
+| Gorgon | Momentum | Reaction | **read** — read off the stat block |
+| Juvenile Flickerfly | Relentless (3) | Passive | **read** — read off the stat block |
+| Juvenile Flickerfly | Peerless Accuracy | Passive | **text** — the GM's to play |
+| Juvenile Flickerfly | Mind Dance | Action | **text** — the GM's to play |
+| Juvenile Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **text** — the GM's to play |
+| Knight of the Realm | Chevalier | Passive | **text** — the GM's to play |
+| Knight of the Realm | Heavily Armored | Passive | **text** — the GM's to play |
+| Knight of the Realm | Cavalry Charge | Action | **text** — the GM's to play |
+| Knight of the Realm | For the Realm! | Action | **text** — the GM's to play |
+| Masked Thief | Quick Hands | Action | **text** — the GM's to play |
+| Masked Thief | Escape Plan | Action | **text** — the GM's to play |
+| Merchant Baron | Everyone Has a Price | Action | **text** — the GM's to play |
+| Merchant Baron | The Best Muscle Money Can Buy | Action | **text** — the GM's to play |
+| Minotaur Wrecker | Ramp Up | Passive | **text** — the GM's to play |
+| Minotaur Wrecker | Charging Bull | Action | **text** — the GM's to play |
+| Minotaur Wrecker | Gore | Action | **text** — the GM's to play |
+| Mortal Hunter | Terrifying | Passive | **read** — read off the stat block |
+| Mortal Hunter | Deathlock | Action | **text** — the GM's to play |
+| Mortal Hunter | Inevitable Death | Action | **text** — the GM's to play |
+| Mortal Hunter | Rampage | Reaction: Countdown (Loop 1d6) | **text** — the GM's to play |
+| Royal Advisor | Devastating Retort | Passive | **text** — the GM's to play |
+| Royal Advisor | Bend Ears | Action | **text** — the GM's to play |
+| Royal Advisor | Scapegoat | Action | **text** — the GM's to play |
+| Secret-Keeper | Seize Your Moment | Action | **text** — the GM's to play |
+| Secret-Keeper | Our Master's Will | Reaction | **text** — the GM's to play |
+| Secret-Keeper | Summoning Ritual | Reaction: Countdown (6) | **text** — the GM's to play |
+| Secret-Keeper | Fallen Hounds | Reaction | **text** — the GM's to play |
+| Shark | Terrifying | Passive | **read** — read off the stat block |
+| Shark | Rending Bite | Passive | **text** — the GM's to play |
+| Shark | Blood in the Water | Reaction | **text** — the GM's to play |
+| Siren | Captive Audience | Passive | **text** — the GM's to play |
+| Siren | Enchanting Song | Action | **text** — the GM's to play |
+| Spectral Archer | Ghost | Passive | **text** — the GM's to play |
+| Spectral Archer | Pick Your Target | Action | **text** — the GM's to play |
+| Spectral Captain | Ghost | Passive | **text** — the GM's to play |
+| Spectral Captain | Unending Battle | Action | **text** — the GM's to play |
+| Spectral Captain | Hold Fast | Reaction | **text** — the GM's to play |
+| Spectral Captain | Momentum | Reaction | **read** — read off the stat block |
+| Spectral Guardian | Ghost | Passive | **text** — the GM's to play |
+| Spectral Guardian | Grave Blade | Action | **text** — the GM's to play |
+| Spy | Gathering Secrets | Action | **text** — the GM's to play |
+| Spy | Fly on the Wall | Reaction | **text** — the GM's to play |
+| Stonewraith | Stonestrider | Passive | **text** — the GM's to play |
+| Stonewraith | Rocky Ambush | Action | **text** — the GM's to play |
+| Stonewraith | Avalanche Roar | Action | **text** — the GM's to play |
+| Stonewraith | Momentum | Reaction | **read** — read off the stat block |
+| War Wizard | Battle Teleport | Passive | **text** — the GM's to play |
+| War Wizard | Refresh Warding Sphere | Action | **text** — the GM's to play |
+| War Wizard | Eruption | Action | **text** — the GM's to play |
+| War Wizard | Arcane Artillery | Action | **text** — the GM's to play |
+| War Wizard | Warding Sphere | Reaction | **text** — the GM's to play |
+| Adult Flickerfly | Relentless (4) | Passive | **read** — read off the stat block |
+| Adult Flickerfly | Never Misses | Passive | **text** — the GM's to play |
+| Adult Flickerfly | Deadly Flight | Passive | **text** — the GM's to play |
+| Adult Flickerfly | Whirlwind | Action | **text** — the GM's to play |
+| Adult Flickerfly | Mind Dance | Action | **text** — the GM's to play |
+| Adult Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **text** — the GM's to play |
+| Adult Flickerfly | Uncanny Reflexes | Reaction | **text** — the GM's to play |
+| Demon of Avarice | Money Talks | Passive | **text** — the GM's to play |
+| Demon of Avarice | Numbers Must Go Up | Passive | **text** — the GM's to play |
+| Demon of Avarice | Money Is Time | Action | **text** — the GM's to play |
+| Demon of Despair | Depths of Despair | Passive | **text** — the GM's to play |
+| Demon of Despair | Your Struggle Is Pointless | Action | **text** — the GM's to play |
+| Demon of Despair | Your Friends Will Fail You | Reaction | **text** — the GM's to play |
+| Demon of Despair | Momentum | Reaction | **read** — read off the stat block |
+| Demon of Hubris | Terrifying | Passive | **read** — read off the stat block |
+| Demon of Hubris | Double or Nothing | Passive | **text** — the GM's to play |
+| Demon of Hubris | Unparalleled Skill | Action | **text** — the GM's to play |
+| Demon of Hubris | The Root of Villainy | Action | **text** — the GM's to play |
+| Demon of Hubris | You Pale in Comparison | Reaction | **text** — the GM's to play |
+| Demon of Jealousy | Unprotected Mind | Passive | **text** — the GM's to play |
+| Demon of Jealousy | My Turn | Reaction | **text** — the GM's to play |
+| Demon of Jealousy | Rivalry | Reaction | **text** — the GM's to play |
+| Demon of Jealousy | What's Yours Is Mine | Reaction | **text** — the GM's to play |
+| Demon of Wrath | Anger Unrelenting | Passive | **text** — the GM's to play |
+| Demon of Wrath | Battle Lust | Action | **text** — the GM's to play |
+| Demon of Wrath | Retaliation | Reaction | **text** — the GM's to play |
+| Demon of Wrath | Blood and Souls | Reaction: Countdown (Loop 6) | **text** — the GM's to play |
+| Dire Bat | Flying | Passive | **text** — the GM's to play |
+| Dire Bat | Screech | Action | **text** — the GM's to play |
+| Dire Bat | Guardian | Reaction | **text** — the GM's to play |
+| Dryad | Bramble Patch | Action | **text** — the GM's to play |
+| Dryad | Grow Saplings | Action | **text** — the GM's to play |
+| Dryad | We Are All One | Reaction | **text** — the GM's to play |
+| Elemental Spark | Minion (9) | Passive | **read** — read off the stat block |
+| Elemental Spark | Group Attack | Action | **text** — the GM's to play |
+| Greater Earth Elemental | Slow | Passive | **text** — the GM's to play |
+| Greater Earth Elemental | Crushing Blows | Passive | **text** — the GM's to play |
+| Greater Earth Elemental | Immovable Object | Passive | **text** — the GM's to play |
+| Greater Earth Elemental | Rockslide | Action | **text** — the GM's to play |
+| Greater Earth Elemental | Momentum | Reaction | **read** — read off the stat block |
+| Greater Water Elemental | Water Jet | Action | **text** — the GM's to play |
+| Greater Water Elemental | Drowning Embrace | Action | **text** — the GM's to play |
+| Greater Water Elemental | High Tide | Reaction | **text** — the GM's to play |
+| Huge Green Ooze | Slow | Passive | **text** — the GM's to play |
+| Huge Green Ooze | Acidic Form | Passive | **text** — the GM's to play |
+| Huge Green Ooze | Envelop | Action | **text** — the GM's to play |
+| Huge Green Ooze | Split | Reaction | **text** — the GM's to play |
+| Hydra | Many-Headed Menace | Passive | **text** — the GM's to play |
+| Hydra | Relentless (X) | Passive | **read** — read off the stat block |
+| Hydra | Regeneration | Action | **text** — the GM's to play |
+| Hydra | Terrifying Chorus | Action | **text** — the GM's to play |
+| Hydra | Magical Weakness | Reaction | **text** — the GM's to play |
+| Monarch | Execute Them! | Action | **text** — the GM's to play |
+| Monarch | Crownsguard | Action | **text** — the GM's to play |
+| Monarch | Casus Belli | Reaction: Long-Term Countdown (8) | **text** — the GM's to play |
+| Stag Knight | From Above | Passive | **text** — the GM's to play |
+| Stag Knight | Blade of the Forest | Action | **text** — the GM's to play |
+| Stag Knight | Thorny Armor | Reaction | **text** — the GM's to play |
+| Oak Treant | Just a Tree | Passive | **text** — the GM's to play |
+| Oak Treant | Seed Barrage | Action | **text** — the GM's to play |
+| Oak Treant | Take Root | Action | **text** — the GM's to play |
+| Head Vampire | Terrifying | Passive | **read** — read off the stat block |
+| Head Vampire | Look into My Eyes | Passive | **text** — the GM's to play |
+| Head Vampire | Feed on Followers | Action | **text** — the GM's to play |
+| Head Vampire | The Hunt Is On | Action | **text** — the GM's to play |
+| Head Vampire | Lifesuck | Reaction | **text** — the GM's to play |
+| Treant Sapling | Minion (6) | Passive | **read** — read off the stat block |
+| Treant Sapling | Group Attack | Action | **text** — the GM's to play |
+| Vampire | Draining Bite | Action | **text** — the GM's to play |
+| Vampire | Mistform | Reaction | **text** — the GM's to play |
+| Vault Guardian Gaoler | Blocking Shield | Passive | **text** — the GM's to play |
+| Vault Guardian Gaoler | Lock Up | Action | **text** — the GM's to play |
+| Vault Guardian Sentinel | Kinetic Slam | Passive | **text** — the GM's to play |
+| Vault Guardian Sentinel | Box In | Action | **text** — the GM's to play |
+| Vault Guardian Sentinel | Mana Bolt | Action | **text** — the GM's to play |
+| Vault Guardian Sentinel | Momentum | Reaction | **read** — read off the stat block |
+| Vault Guardian Turret | Slow Firing | Passive | **text** — the GM's to play |
+| Vault Guardian Turret | Mark Target | Action | **text** — the GM's to play |
+| Vault Guardian Turret | Concentrate Fire | Reaction | **text** — the GM's to play |
+| Vault Guardian Turret | Detonation | Reaction | **text** — the GM's to play |
+| Young Ice Dragon | Relentless (3) | Passive | **read** — read off the stat block |
+| Young Ice Dragon | Rend and Crush | Passive | **text** — the GM's to play |
+| Young Ice Dragon | No Hope | Passive | **text** — the GM's to play |
+| Young Ice Dragon | Blizzard Breath | Action | **text** — the GM's to play |
+| Young Ice Dragon | Avalanche | Action | **text** — the GM's to play |
+| Young Ice Dragon | Frozen Scales | Reaction | **text** — the GM's to play |
+| Young Ice Dragon | Momentum | Reaction | **read** — read off the stat block |
+| Arch-Necromancer | Dance of Death | Action | **text** — the GM's to play |
+| Arch-Necromancer | Beam of Decay | Action | **text** — the GM's to play |
+| Arch-Necromancer | Open the Gates of Death | Action | **text** — the GM's to play |
+| Arch-Necromancer | Not Today, My Dears | Reaction | **text** — the GM's to play |
+| Arch-Necromancer | Your Life Is Mine | Reaction: Countdown (Loop 2d6) | **text** — the GM's to play |
+| Fallen Shock Troop | Minion (12) | Passive | **read** — read off the stat block |
+| Fallen Shock Troop | Aura of Doom | Passive | **text** — the GM's to play |
+| Fallen Shock Troop | Group Attack | Action | **text** — the GM's to play |
+| Fallen Sorcerer | Conflagration | Action | **text** — the GM's to play |
+| Fallen Sorcerer | Nightmare Tableau | Action | **text** — the GM's to play |
+| Fallen Sorcerer | Slippery | Reaction | **text** — the GM's to play |
+| Fallen Sorcerer | Shackles of Guilt | Reaction: Countdown (Loop 2d6) | **text** — the GM's to play |
+| Fallen Warlord: Realm-Breaker | Relentless (2) | Passive | **read** — read off the stat block |
+| Fallen Warlord: Realm-Breaker | Firespite Plate Armor | Passive | **text** — the GM's to play |
+| Fallen Warlord: Realm-Breaker | Tormenting Lash | Action | **text** — the GM's to play |
+| Fallen Warlord: Realm-Breaker | All-Consuming Rage | Reaction: Countdown (Decreasing 8) | **text** — the GM's to play |
+| Fallen Warlord: Realm-Breaker | Doombringer | Reaction | **text** — the GM's to play |
+| Fallen Warlord: Realm-Breaker | I Have Never Known Defeat (Phase Change) | Reaction | **text** — the GM's to play |
+| Fallen Warlord: Undefeated Champion | Relentless (3) | Passive | **read** — read off the stat block |
+| Fallen Warlord: Undefeated Champion | Faltering Armor | Passive | **text** — the GM's to play |
+| Fallen Warlord: Undefeated Champion | Shattering Strike | Action | **text** — the GM's to play |
+| Fallen Warlord: Undefeated Champion | Endless Legions | Action | **text** — the GM's to play |
+| Fallen Warlord: Undefeated Champion | Circle of Defilement | Reaction: Countdown (1d8) | **text** — the GM's to play |
+| Fallen Warlord: Undefeated Champion | Momentum | Reaction | **read** — read off the stat block |
+| Fallen Warlord: Undefeated Champion | Doombringer | Reaction | **text** — the GM's to play |
+| Hallowed Archer | Punish the Guilty | Passive | **text** — the GM's to play |
+| Hallowed Archer | Divine Volley | Action | **text** — the GM's to play |
+| Hallowed Soldier | Minion (13) | Passive | **read** — read off the stat block |
+| Hallowed Soldier | Divine Flight | Passive | **text** — the GM's to play |
+| Hallowed Soldier | Group Attack | Action | **text** — the GM's to play |
+| High Seraph | Relentless (3) | Passive | **read** — read off the stat block |
+| High Seraph | Divine Flight | Passive | **text** — the GM's to play |
+| High Seraph | Judgment | Action | **text** — the GM's to play |
+| High Seraph | God Rays | Action | **text** — the GM's to play |
+| High Seraph | We Are One | Action | **text** — the GM's to play |
+| Kraken | Relentless (3) | Passive | **read** — read off the stat block |
+| Kraken | Many Tentacles | Passive | **text** — the GM's to play |
+| Kraken | Grapple and Drown | Action | **text** — the GM's to play |
+| Kraken | Boiling Blast | Action | **text** — the GM's to play |
+| Kraken | Momentum | Reaction | **read** — read off the stat block |
+| Oracle of Doom | Terrifying | Passive | **read** — read off the stat block |
+| Oracle of Doom | Walls Closing In | Passive | **text** — the GM's to play |
+| Oracle of Doom | Pronounce Fate | Action | **text** — the GM's to play |
+| Oracle of Doom | Summon Tormentors | Action | **text** — the GM's to play |
+| Oracle of Doom | Ominous Knowledge | Reaction | **text** — the GM's to play |
+| Oracle of Doom | Vengeful Fate | Reaction | **text** — the GM's to play |
+| Outer Realms Abomination | Chaotic Form | Passive | **text** — the GM's to play |
+| Outer Realms Abomination | Disorienting Presence | Passive | **text** — the GM's to play |
+| Outer Realms Abomination | Reality Quake | Action | **text** — the GM's to play |
+| Outer Realms Abomination | Unreal Form | Reaction | **text** — the GM's to play |
+| Outer Realms Corruptor | Will-Shattering Touch | Passive | **text** — the GM's to play |
+| Outer Realms Corruptor | Disgorge Reality Flotsam | Action | **text** — the GM's to play |
+| Outer Realms Thrall | Minion (13) | Passive | **read** — read off the stat block |
+| Outer Realms Thrall | Group Attack | Action | **text** — the GM's to play |
+| Volcanic Dragon: Obsidian Predator | Relentless (2) | Passive | **read** — read off the stat block |
+| Volcanic Dragon: Obsidian Predator | Flying | Passive | **text** — the GM's to play |
+| Volcanic Dragon: Obsidian Predator | Obsidian Scales | Passive | **text** — the GM's to play |
+| Volcanic Dragon: Obsidian Predator | Avalanche Tail | Action | **text** — the GM's to play |
+| Volcanic Dragon: Obsidian Predator | Dive-Bomb | Action | **text** — the GM's to play |
+| Volcanic Dragon: Obsidian Predator | Erupting Rage (Phase Change) | Reaction | **text** — the GM's to play |
+| Volcanic Dragon: Molten Scourge | Relentless (3) | Passive | **read** — read off the stat block |
+| Volcanic Dragon: Molten Scourge | Cracked Scales | Passive | **text** — the GM's to play |
+| Volcanic Dragon: Molten Scourge | Shattering Might | Action | **text** — the GM's to play |
+| Volcanic Dragon: Molten Scourge | Eruption | Action | **text** — the GM's to play |
+| Volcanic Dragon: Molten Scourge | Volcanic Breath | Reaction | **text** — the GM's to play |
+| Volcanic Dragon: Molten Scourge | Lava Splash | Reaction | **text** — the GM's to play |
+| Volcanic Dragon: Molten Scourge | Ashen Vengeance (Phase Change) | Reaction | **text** — the GM's to play |
+| Volcanic Dragon: Ashen Tyrant | Relentless (4) | Passive | **read** — read off the stat block |
+| Volcanic Dragon: Ashen Tyrant | Cornered | Passive | **text** — the GM's to play |
+| Volcanic Dragon: Ashen Tyrant | Injured Wings | Passive | **text** — the GM's to play |
+| Volcanic Dragon: Ashen Tyrant | Ashes to Ashes | Passive | **text** — the GM's to play |
+| Volcanic Dragon: Ashen Tyrant | Desperate Rampage | Action | **text** — the GM's to play |
+| Volcanic Dragon: Ashen Tyrant | Ashen Cloud | Action | **text** — the GM's to play |
+| Volcanic Dragon: Ashen Tyrant | Apocalyptic Thrashing | Action: Countdown (1d12) | **text** — the GM's to play |
+| Perfected Zombie | Terrifying | Passive | **read** — read off the stat block |
+| Perfected Zombie | Fearsome Presence | Passive | **text** — the GM's to play |
+| Perfected Zombie | Perfect Strike | Action | **text** — the GM's to play |
+| Perfected Zombie | Skilled Opportunist | Reaction | **text** — the GM's to play |
+| Zombie Legion | Horde (2d6+5) | Passive | **read** — read off the stat block |
+| Zombie Legion | Unyielding | Passive | **text** — the GM's to play |
+| Zombie Legion | Relentless (2) | Passive | **read** — read off the stat block |
+| Zombie Legion | Overwhelm | Reaction | **text** — the GM's to play |

@@ -15,7 +15,7 @@ Known simplifications in the scripted ones:
 - **I Am Your Shield** and **Not This Time** are text: redirecting a hit and forcing a reroll are interrupts the attack flow does not offer yet.
 - Cards that ask for a Presence Roll, tokens on the card, Hidden/Cloaked, or a GM's discretion stay text.
 
-Scripted: 22 of 189 cards.
+Scripted: 24 of 189 cards.
 
 
 ## Arcana
@@ -23,7 +23,7 @@ Scripted: 22 of 189 cards.
 | Level | Card | Type | Engine |
 |---|---|---|---|
 | 1 | Rune Ward | Spell | **reaction** |
-| 1 | Unleash Chaos | Spell | text |
+| 1 | Unleash Chaos | Spell | **action** |
 | 1 | Wall Walk | Spell | text |
 | 2 | Cinder Grasp | Spell | text |
 | 2 | Floating Eye | Spell | text |
@@ -166,7 +166,7 @@ Scripted: 22 of 189 cards.
 | 6 | Dark Whispers | Spell | text |
 | 6 | Mass Disguise | Spell | text |
 | 7 | Midnight-Touched | Ability | text |
-| 7 | Vanishing Dodge | Spell | text |
+| 7 | Vanishing Dodge | Spell | **action** |
 | 8 | Shadowhunter | Ability | text |
 | 8 | Spellcharge | Spell | text |
 | 9 | Night Terror | Spell | text |

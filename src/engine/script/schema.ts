@@ -158,6 +158,14 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     value: z.number().int(),
   }),
   z.object({ kind: z.literal('inCombat') }),
+  /** How many tokens sit on a card the actor holds. */
+  z.object({
+    kind: z.literal('tokens'),
+    ability: contentIdSchema,
+    of: targetSelectorSchema.optional(),
+    op: compareOpSchema,
+    value: z.number().int(),
+  }),
   z.object({
     kind: z.literal('hasCondition'),
     condition: z.string().min(1),
@@ -352,6 +360,14 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('markStress'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
   z.object({ kind: z.literal('clearStress'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
   z.object({ kind: z.literal('clearArmor'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
+  /**
+   * Mark Armor Slots without their benefit — the SRD's "must mark an Armor
+   * Slot without receiving its benefits". Marks what there is; a script that
+   * cares whether there was room asks with a `pool` condition first.
+   */
+  z.object({ kind: z.literal('markArmor'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
+  /** The GM gains Fear. */
+  z.object({ kind: z.literal('gainFear'), amount: z.number().int().positive().optional() }),
   z.object({ kind: z.literal('gainHope'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
   /** The actor spends Hope. Refused, and journalled as such, when they cannot. */
   z.object({ kind: z.literal('spendHope'), amount: z.number().int().positive().optional() }),
@@ -369,15 +385,39 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('attack'),
     weapon: z.enum(['primary', 'secondary']).optional(),
+    /**
+     * Who is swung at. More than one is swung at in turn — an adversary's
+     * "make an attack against all targets in front of it" — each with its own
+     * roll, and `onHit` runs once with everyone it beat bound to `hit`.
+     */
     target: targetSelectorSchema.optional(),
     advantage: z.number().int().optional(),
     damageBonus: z.number().int().optional(),
+    /** Damage dice instead of the attacker's own — a feature's "2d6". */
+    damage: z.string().min(1).optional(),
     get onHit() {
       return z.array(effectSchema).optional();
     },
     get onMiss() {
       return z.array(effectSchema).optional();
     },
+  }),
+  /**
+   * Put tokens on a card the actor holds, or take them off. `amount` defaults
+   * to the card's own count for `addToken` and to one for `spendToken`;
+   * spending more than are there is refused and journalled as such.
+   */
+  z.object({
+    kind: z.literal('addToken'),
+    ability: contentIdSchema,
+    amount: z.number().int().positive().optional(),
+    target: targetSelectorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('spendToken'),
+    ability: contentIdSchema,
+    amount: z.number().int().positive().optional(),
+    target: targetSelectorSchema.optional(),
   }),
   /** Knock the targets back, away from the actor, to this band. */
   z.object({ kind: z.literal('push'), to: rangeBandSchema, target: targetSelectorSchema.optional() }),

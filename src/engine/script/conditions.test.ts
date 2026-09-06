@@ -28,6 +28,7 @@ function context(overrides: Partial<ConditionContext> = {}): ConditionContext {
     countAlive: () => 0,
     difficultyOf: () => null,
     hook: () => null,
+    tokensOn: () => 0,
     questStatus: () => 'inactive',
     objectiveDone: () => false,
     actorId: () => null,

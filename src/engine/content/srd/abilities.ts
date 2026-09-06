@@ -186,6 +186,24 @@ const RAW: Input[] = [
   },
   // ---- Midnight --------------------------------------------------------------
   {
+    id: 'vanishing-dodge',
+    name: 'Vanishing Dodge',
+    source: card('vanishing-dodge'),
+    kind: 'reaction',
+    trigger: 'attackMissed',
+    cost: { hope: 1 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    action: false,
+    auto: false,
+    // The shadow, not the step: the teleport within Close range of the
+    // attacker is the table's to describe, and `docs/CARDS.md` says so.
+    effects: [
+      { kind: 'log', text: 'Shadow closes over the space where they stood.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'hidden', duration: 'scene', target: { kind: 'actor' } },
+    ],
+  },
+  {
     id: 'pick-and-pull',
     name: 'Pick and Pull',
     source: card('pick-and-pull'),
@@ -250,6 +268,18 @@ const RAW: Input[] = [
         },
       },
     ],
+  },
+  // ---- Arcana ----------------------------------------------------------------
+  {
+    id: 'unleash-chaos',
+    name: 'Unleash Chaos',
+    source: card('unleash-chaos'),
+    target: { kind: 'adversary', range: 'far' },
+    // "At the beginning of a session, place a number of tokens equal to your
+    // Spellcast trait on this card"; a session here is a long rest.
+    tokens: { amount: 'spellcast', refill: 'longRest' },
+    available: { kind: 'tokens', ability: 'unleash-chaos', op: '>=', value: 1 },
+    effects: [{ kind: 'run', hook: 'unleash-chaos' }],
   },
   // ---- Codex -----------------------------------------------------------------
   {

@@ -171,9 +171,16 @@ A hit on a party member is put to them: an Armor Slot, a reaction they can pay f
 interrupt — I Am Your Shield redirects it, Not This Time makes the adversary reroll. The GM's
 turn is resumable, so it waits on the answer and carries on afterwards.
 
-**Still open:** 22 of 189 cards are scripted (`docs/CARDS.md`); the rest are text. No card
-tokens; adversary features are still inert; Hidden is defined (ends when its bearer attacks) but
-nothing applies it yet.
+Cards that carry tokens hold them (`tokens` on an ability, `addToken` / `spendToken` /  a
+`tokens` condition), refilled at the rest the card names. A miss can be answered too, which is
+what applies Hidden — Vanishing Dodge. Adversaries play their own stat blocks: Relentless, Horde,
+Minion, Momentum and Terrifying are read off the block, and action or reaction features are
+abilities in the same vocabulary (`docs/ADVERSARIES.md` lists which of the 417 printed features
+the engine runs).
+
+**Still open:** 24 of 189 cards are scripted (`docs/CARDS.md`); the rest are text. 341 of 417
+adversary features are still the GM's to narrate. Damage from a feature or a card resolves
+without asking the defender — the prompt covers an adversary's standard attack.
 
 ### ~~6. Inventory, loot and equipping~~ — done
 
