@@ -405,8 +405,8 @@ under it, so a new character joins when the project is next loaded.
 **Write a card…** opens the Cards panel: the project's own cards, one at a time, beside a count
 of the ones the engine ships (those live in `srd/abilities.ts` and are edited in code). A card
 is its name, the text as printed, the character ids that hold it, whether it is an action, a
-reaction (and what it answers) or passive, what it costs in Hope and Stress, who it can be aimed
-at and how far, whether using it is the character's action, whether it is only for a fight,
+reaction (and what it answers) or passive, what it costs in Hope, Stress and Fear, who it can be
+aimed at and how far, whether using it is the character's action, whether it is only for a fight,
 whether it holds tokens and when they refill — and then the effect list, which is the same one
 every other panel uses. A card with no effects is not broken: it is shown as text and the table
 decides, exactly as an unscripted SRD card is.
@@ -558,7 +558,7 @@ leaves the chosen target out — "all other targets within range").
 | `gainFear` | `amount?` | the GM gains Fear |
 | `addToken` / `spendToken` | `ability`, `amount?`, `target?` | puts tokens on a card the actor holds, or takes them off. `addToken` with no amount places the card's own count; spending more than are there is refused and logged |
 | `push` | `to` (band), `target?` | knocks the target(s) straight away from the actor until the distance reads as that band, stopping at a wall or a creature |
-| `reactionRoll` | `difficulty` (number \| `roll` = the actor's last total), `trait?`, `targets?` (hit), `onFail[]?`, `onSuccess[]?` | adversaries roll a d20, party members their Duality Dice (no Hope or Fear); `onFail` runs with the failures bound to `hit`, then `onSuccess` with the rest |
+| `reactionRoll` | `difficulty` (number \| `roll` = the actor's last total), `trait?`, `targets?` (hit), `damage?` (`dice`, `type?`), `onFail[]?`, `onSuccess[]?` | adversaries roll a d20, party members their Duality Dice (no Hope or Fear); `onFail` runs with the failures bound to `hit`, then `onSuccess` with the rest. `damage` is rolled once, before anyone rolls to avoid it, and both branches spend it with `{ kind: 'damage', dice: 'same' }` — the successes adding `half`. That is what "targets who succeed take half damage" means: half of the number that landed, and something to halve even when nobody failed |
 | `startEncounter` | `encounter`, `intro?` | starts a fight; logs `intro` or "Something moves." |
 | `endEncounter` | `encounter` | marks the encounter ended |
 | `goto` | `scene` | travel, taken once the script has stopped asking |
@@ -661,7 +661,9 @@ An **ability** (`project.abilities[]`): `id`, `name`, `source` (`domainCard` `ca
 `classId` \| `classFeature` `classId` \| `subclass` `subclassId` + `stage` \| `granted`
 `characters[]` \| `adversary` `adversaries[]`), `text` (the card's SRD text when empty), `kind`
 (action \| reaction \| passive),
-`trigger?` (incomingDamage \| attackHit \| attackMissed \| tookSevere), `cost` (`hope?`, `stress?`), `uses?`
+`trigger?` (incomingDamage \| attackHit \| attackMissed \| tookSevere), `cost` (`hope?`, `stress?`,
+`fear?` — the GM's pool, so it belongs to a stat block's features; a character ability that states
+one is refused, because nobody at the player's end of the table has a Fear to spend), `uses?`
 (`count`, `per` rest \| longRest \| scene), `target` (`kind` none \| self \| adversary \| ally \|
 creature \| group, `range`), `available?` (a condition read with the card's *holder* standing
 as the actor, so "when you have 2 or fewer Hit Points unmarked" is about them and not about
@@ -684,7 +686,8 @@ damage once half its Hit Points are marked; **Minion (X)** falls to any damage a
 of its kind down per X damage; **Momentum** hands the GM a Fear on a successful attack;
 **Terrifying** does that and costs every PC in Close range a Hope. Action and reaction features
 are abilities sourced to the adversary. The GM plays one a turn, when it would catch two or more
-of the party, and pays a Fear for one the block charges nothing for. From an adversary's script,
+of the party, and pays what the block says it costs — a Fear for one that names no cost at all,
+so that a free feature is not simply what the adversary does every turn. From an adversary's script,
 `allies` reads as the party in that band — a selector is relative to whoever is acting.
 
 A character's abilities are the class's, the subclass's up to the stage reached, and the domain

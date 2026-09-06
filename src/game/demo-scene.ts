@@ -1063,9 +1063,6 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): AbilityDef | nu
     for (const ability of demo.world.abilitiesForAdversary(def.id)) {
       if (ability.kind !== 'action' || ability.effects.length === 0) continue;
       if ((ability.cost.stress ?? 0) > unmarked(entity.stress)) continue;
-      // A feature the block charges nothing for still costs the GM a Fear:
-      // otherwise the best feature is simply what the adversary does every
-      // turn, and its teeth never come into it.
       if (featureFear(ability) > demo.state.fear.value) continue;
       const caught = demo.world.resolveTargets({ kind: 'allies', range: ability.target.range }, NO_BINDINGS);
       if (caught.length >= 2) return ability;
@@ -1077,8 +1074,16 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): AbilityDef | nu
 }
 
 /** Play one, paying for it, with the adversary as the actor its script reads. */
-/** What the GM pays to use a feature its stat block charges nothing for. */
+/**
+ * What the GM pays to use a feature.
+ *
+ * A block that says "Spend a Fear to…" is taken at its word. One that names no
+ * cost at all still costs a Fear, because otherwise the best feature is simply
+ * what the adversary does every turn and its teeth never come into it.
+ */
 function featureFear(ability: AbilityDef): number {
+  const stated = ability.cost.fear ?? 0;
+  if (stated > 0) return stated;
   return (ability.cost.stress ?? 0) === 0 && (ability.cost.hope ?? 0) === 0 ? 1 : 0;
 }
 

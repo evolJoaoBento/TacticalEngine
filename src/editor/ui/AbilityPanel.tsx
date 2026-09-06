@@ -266,6 +266,18 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 }
               />
               <span style={{ color: '#8ea3b0', fontSize: '11px' }}>Stress</span>
+              <input
+                type="number"
+                min={0}
+                style={{ ...field, width: '50px' }}
+                data-testid="ability-fear"
+                value={open.cost.fear ?? 0}
+                onInput={(e) =>
+                  edit({ cost: { ...open.cost, fear: Math.max(0, Number((e.target as HTMLInputElement).value) || 0) } })
+                }
+              />
+              {/* The GM's pool: a stat block spends it, a card never can. */}
+              <span style={{ color: '#8ea3b0', fontSize: '11px' }}>Fear</span>
               {label(
                 'aimed at',
                 <select

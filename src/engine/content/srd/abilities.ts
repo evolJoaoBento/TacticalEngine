@@ -558,13 +558,14 @@ const RAW: Input[] = [
               kind: 'reactionRoll',
               difficulty: 18,
               targets: { kind: 'adversaries', range: 'veryFar' },
+              // Rolled once, up front: those who kept their feet take half of
+              // the number that hit the ones who did not.
+              damage: { dice: '3d10+8', type: 'physical' },
               onFail: [
-                { kind: 'damage', dice: '3d10+8', type: 'physical' },
+                { kind: 'damage', dice: 'same' },
                 { kind: 'applyCondition', condition: 'vulnerable', duration: 'temporary', target: { kind: 'hit' } },
               ],
-              // Half damage for those who kept their feet. Its own roll: the
-              // one the failures took may not have happened at all.
-              onSuccess: [{ kind: 'damage', dice: '3d10+8', type: 'physical', half: true }],
+              onSuccess: [{ kind: 'damage', dice: 'same', half: true }],
             },
           ],
         },
@@ -1022,8 +1023,9 @@ const RAW: Input[] = [
               kind: 'reactionRoll',
               difficulty: 17,
               targets: { kind: 'hit' },
-              onFail: [{ kind: 'damage', dice: '4d10+8', type: 'physical' }],
-              onSuccess: [{ kind: 'damage', dice: '4d10+8', type: 'physical', half: true }],
+              damage: { dice: '4d10+8', type: 'physical' },
+              onFail: [{ kind: 'damage', dice: 'same' }],
+              onSuccess: [{ kind: 'damage', dice: 'same', half: true }],
             },
           ],
         },

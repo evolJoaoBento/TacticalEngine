@@ -146,6 +146,7 @@ export function canUseAbility(
   if (fighting && demo.encounter!.view().side !== 'party') return { ok: false, reason: "the GM's turn" };
   if (fighting && ability.action && !demo.encounter!.canAct(characterId)) return { ok: false, reason: 'already acted' };
   const cost = ability.cost;
+  if ((cost.fear ?? 0) > 0) return { ok: false, reason: 'only the GM spends Fear' };
   if ((cost.hope ?? 0) > 0 && (entity.hope?.value ?? 0) < cost.hope!) return { ok: false, reason: `needs ${cost.hope} Hope` };
   if ((cost.stress ?? 0) > 0 && !canMarkStress(entity.stress, cost.stress)) return { ok: false, reason: 'no Stress slot to mark' };
   const left = usesLeft(demo, characterId, ability);

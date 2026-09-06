@@ -464,6 +464,15 @@ export const effectSchema = z.discriminatedUnion('kind', [
     difficulty: z.union([z.number().int().positive(), z.literal('roll')]),
     trait: traitSchema.optional(),
     targets: targetSelectorSchema.optional(),
+    /**
+     * Damage rolled once, before anyone rolls to avoid it — the shape almost
+     * every adversary's area attack is written in: "targets who fail take
+     * 4d6+5 physical damage; targets who succeed take half damage". Both
+     * branches then spend it with `{ kind: 'damage', dice: 'same' }`, the
+     * successes adding `half`, so the halves match the number that was rolled
+     * and nobody failing still leaves the successes something to halve.
+     */
+    damage: z.object({ dice: z.string().min(1), type: z.enum(['physical', 'magic']).optional() }).optional(),
     get onFail() {
       return z.array(effectSchema).optional();
     },

@@ -492,6 +492,40 @@ describe("an adversary's own features", () => {
     expect(knocked.length).toBe(rolled.length);
   });
 
+  /**
+   * "Spend a Fear to…" is written on most of the SRD's stat blocks, and what
+   * it says is what the GM pays: not the one Fear a feature that names no cost
+   * is charged so that its teeth still come into the fight.
+   */
+  it('pays what a feature says it costs, and leaves it alone when the GM is short', () => {
+    const demo = standoff('fear-cost');
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    // Two of the party in reach: the bar a feature has to clear to be worth it.
+    standBehind(demo, 'finn', husk.tile);
+    // Nothing left to mark, so the feature that costs Stress is out of the way
+    // and Spit Acid — repriced here at two Fear — is the only one on offer.
+    husk.stress = { ...husk.stress, marked: husk.stress.max };
+    const spit = demo.project.abilities.find((a) => a.id === 'acid-burrower-spit-acid')!;
+    spit.cost = { fear: 2 };
+    refreshWorld(demo);
+
+    // One Fear buys nothing, though one would have paid for it unpriced.
+    demo.state.fear = { ...demo.state.fear, value: 1 };
+    for (let i = 0; i < 4 && demo.encounter?.outcome === 'ongoing'; i++) endTurn(demo);
+    expect(demo.log.some((l) => l.text.includes('Spit Acid'))).toBe(false);
+
+    // Three, and it spits — spending the two it named.
+    demo.state.fear = { ...demo.state.fear, value: 3 };
+    let sprayed = false;
+    for (let i = 0; i < 4 && !sprayed && demo.encounter?.outcome === 'ongoing'; i++) {
+      endTurn(demo);
+      sprayed = demo.log.some((l) => l.text.includes('Spit Acid'));
+    }
+    expect(sprayed).toBe(true);
+    expect(demo.log.map((l) => l.text)).toContain('The GM spends 2 Fear.');
+  });
+
   it('lets a Relentless adversary act twice in one GM turn when the GM can pay', () => {
     const demo = standoff('relentless');
     demo.askDefender = false;

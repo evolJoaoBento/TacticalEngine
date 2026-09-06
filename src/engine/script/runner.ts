@@ -815,6 +815,16 @@ export class ScriptRunner {
         return null;
       }
       case 'reactionRoll': {
+        // The damage is rolled first and once, however the rolls to avoid it
+        // go: that is what "targets who succeed take half damage" means, and
+        // it is the only way the halves are halves of the same number.
+        if (effect.damage !== undefined) {
+          const expression = parseDice(effect.damage.dice);
+          if (expression === null) return this.refuse(`cannot read damage dice "${effect.damage.dice}"`);
+          const rolled = rollDamage(this.rng, expression, { proficiency: 1, critical: false });
+          const types = effect.damage.type === undefined ? (expression.types ?? []) : [effect.damage.type];
+          this.lastDamage = { total: rolled.total, dice: formatDice(rolled.expression), types };
+        }
         const difficulty = effect.difficulty === 'roll' ? (this.lastRoll?.total ?? 0) : effect.difficulty;
         const failed: string[] = [];
         const passed: string[] = [];

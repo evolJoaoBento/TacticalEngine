@@ -149,7 +149,19 @@ export const abilitySchema = z.object({
   kind: z.enum(['action', 'reaction', 'passive']).default('action'),
   /** What a reaction answers. */
   trigger: z.enum(['incomingDamage', 'attackHit', 'attackMissed', 'tookSevere']).optional(),
-  cost: z.object({ hope: z.number().int().min(0).optional(), stress: z.number().int().min(0).optional() }).default({}),
+  /**
+   * What using it costs its holder. `fear` is the GM's pool, so it belongs to
+   * a stat block's features — "Spend a Fear to…" is written on adversaries,
+   * never on a card; a character ability that states one is refused, because
+   * nobody at the player's end of the table has a Fear to spend.
+   */
+  cost: z
+    .object({
+      hope: z.number().int().min(0).optional(),
+      stress: z.number().int().min(0).optional(),
+      fear: z.number().int().min(0).optional(),
+    })
+    .default({}),
   uses: abilityUsesSchema.optional(),
   target: abilityTargetSchema.default({ kind: 'none', range: 'melee' }),
   /** When it can be used at all, beyond cost and uses, read against the actor. */

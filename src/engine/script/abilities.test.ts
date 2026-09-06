@@ -497,6 +497,50 @@ describe('a reaction roll', () => {
     expect(done.journal.some((e) => e.kind === 'log' && e.text === 'zapped')).toBe(true);
   });
 
+  /**
+   * "Targets who fail take 4d6+5 physical damage; targets who succeed take
+   * half damage" is how nearly every area attack in the SRD is written, so the
+   * damage is rolled once, before anyone rolls to avoid it.
+   */
+  it('rolls its damage once, up front, and halves that same number for the ones who made it', () => {
+    const { world } = scene();
+    const blast: Effect = {
+      kind: 'reactionRoll',
+      difficulty: 13,
+      targets: { kind: 'target' },
+      damage: { dice: '2d6+1', type: 'physical' },
+      onFail: [{ kind: 'damage', dice: 'same' }],
+      onSuccess: [{ kind: 'damage', dice: 'same', half: true }],
+    };
+    // 5 and 4 make the damage 10; husk-1 then rolls 4 and fails, husk-2 rolls 20.
+    const rng = scripted([5, 4, 4, 20]);
+    const journal = runScript([blast], world, rng, { targets: ['husk-1', 'husk-2'] });
+    expect(journal.filter((e) => e.kind === 'damage')).toEqual([
+      expect.objectContaining({ amount: 10, targets: ['husk-1'], dice: '2d6+1' }),
+      expect.objectContaining({ amount: 5, targets: ['husk-2'], dice: '2d6+1' }),
+    ]);
+    // Two dice for the damage and one per creature dodging: no second roll.
+    expect(rng.drawn()).toBe(4);
+  });
+
+  it('still has something to halve when nobody failed', () => {
+    const { world, state } = scene();
+    const blast: Effect = {
+      kind: 'reactionRoll',
+      difficulty: 13,
+      targets: { kind: 'target' },
+      damage: { dice: '2d6+1', type: 'physical' },
+      onFail: [{ kind: 'damage', dice: 'same' }],
+      onSuccess: [{ kind: 'damage', dice: 'same', half: true }],
+    };
+    const journal = runScript([blast], world, scripted([5, 4, 20, 20]), { targets: ['husk-1', 'husk-2'] });
+    expect(refusals(journal)).toEqual([]);
+    expect(journal.filter((e) => e.kind === 'damage')).toEqual([
+      expect.objectContaining({ amount: 5, targets: ['husk-1', 'husk-2'] }),
+    ]);
+    expect(state.entity('husk-1')!.hitPoints.marked).toBe(1);
+  });
+
   it('has a party member roll their Duality Dice with the named trait, gaining nothing', () => {
     const { world, state } = scene();
     const journal = runScript(
