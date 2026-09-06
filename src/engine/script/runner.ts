@@ -30,6 +30,9 @@ import {
 
 /** What the world must let a script do. Implemented over `SceneState` in `world.ts`. */
 export interface ScriptWorld extends ConditionContext {
+  addItem(item: string, quantity?: number): number;
+  /** Returns how many were actually taken. */
+  removeItem(item: string, quantity?: number): number;
   setFlag(flag: string): void;
   clearFlag(flag: string): void;
   giveKey(key: string): void;
@@ -53,6 +56,8 @@ export type JournalEntry =
   | { kind: 'story'; title: string; paragraphs: readonly string[]; button: string }
   | { kind: 'flag'; flag: string; set: boolean }
   | { kind: 'key'; key: string }
+  /** Items gained or lost. `change` is negative when they went. */
+  | { kind: 'item'; item: string; change: number }
   | { kind: 'var'; name: string; value: ScriptValue }
   | { kind: 'interactable'; id: string; change: 'open' | 'removed' | 'used' }
   | { kind: 'loot'; table?: string }
@@ -225,9 +230,24 @@ export class ScriptRunner {
         this.journal.push({ kind: 'flag', flag: effect.flag, set: false });
         return null;
       case 'giveKey':
+        // A key is an item you have one of; `giveKey` stays in the vocabulary
+        // because content is written with it.
         world.giveKey(effect.key);
         this.journal.push({ kind: 'key', key: effect.key });
         return null;
+      case 'addItem': {
+        const quantity = effect.quantity ?? 1;
+        world.addItem(effect.item, quantity);
+        this.journal.push({ kind: 'item', item: effect.item, change: quantity });
+        return null;
+      }
+      case 'removeItem': {
+        // Journal what actually went, not what was asked for — taking three of
+        // something the party has one of takes one.
+        const taken = world.removeItem(effect.item, effect.quantity ?? 1);
+        this.journal.push({ kind: 'item', item: effect.item, change: -taken });
+        return null;
+      }
       case 'setVar':
         world.setVar(effect.name, effect.value);
         this.journal.push({ kind: 'var', name: effect.name, value: effect.value });

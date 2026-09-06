@@ -65,6 +65,12 @@ export const conditionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('flag'), flag: z.string().min(1) }),
   z.object({ kind: z.literal('hasKey'), key: z.string().min(1) }),
   z.object({
+    kind: z.literal('hasItem'),
+    item: contentIdSchema,
+    /** How many are needed. One when left out. */
+    quantity: z.number().int().positive().optional(),
+  }),
+  z.object({
     kind: z.literal('var'),
     name: z.string().min(1),
     op: compareOpSchema,
@@ -139,6 +145,16 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('setFlag'), flag: z.string().min(1) }),
   z.object({ kind: z.literal('clearFlag'), flag: z.string().min(1) }),
   z.object({ kind: z.literal('giveKey'), key: z.string().min(1) }),
+  z.object({
+    kind: z.literal('addItem'),
+    item: contentIdSchema,
+    quantity: z.number().int().positive().optional(),
+  }),
+  z.object({
+    kind: z.literal('removeItem'),
+    item: contentIdSchema,
+    quantity: z.number().int().positive().optional(),
+  }),
   z.object({ kind: z.literal('setVar'), name: z.string().min(1), value: scriptValueSchema }),
   z.object({ kind: z.literal('addVar'), name: z.string().min(1), by: z.number() }),
   z.object({ kind: z.literal('open'), interactable: z.string().min(1).optional() }),

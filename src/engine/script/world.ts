@@ -31,8 +31,14 @@ export interface ScenarioState {
   variables: Record<string, ScriptValue>;
   /** Story flags, set and cleared by scripts. */
   flags: Set<string>;
-  /** Keys the party is carrying. */
-  keys: Set<string>;
+  /**
+   * What the party is carrying, by item id, with how many of each.
+   *
+   * This used to be a `Set` of key names. Folding keys into items means a
+   * designer learns one idea rather than two — a key is an item you have one of,
+   * and `hasKey` is `hasItem` with a quantity of one.
+   */
+  items: Map<string, number>;
   /** The character a script's `actor` selector refers to. */
   actorId: string | null;
 }
@@ -41,12 +47,12 @@ export function createScenarioState(
   variables: Record<string, ScriptValue> = {},
   actorId: string | null = null,
   flags: Iterable<string> = [],
-  keys: Iterable<string> = [],
+  items: Iterable<readonly [string, number]> = [],
 ): ScenarioState {
   return {
     variables: { ...variables },
     flags: new Set(flags),
-    keys: new Set(keys),
+    items: new Map(items),
     actorId,
   };
 }
@@ -78,7 +84,15 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   hasKey(key: string): boolean {
-    return this.scenario.keys.has(key);
+    return this.hasItem(key, 1);
+  }
+
+  hasItem(item: string, quantity = 1): boolean {
+    return (this.scenario.items.get(item) ?? 0) >= quantity;
+  }
+
+  itemCount(item: string): number {
+    return this.scenario.items.get(item) ?? 0;
   }
 
   getVar(name: string): ScriptValue {
@@ -116,7 +130,26 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   giveKey(key: string): void {
-    this.scenario.keys.add(key);
+    this.addItem(key, 1);
+  }
+
+  addItem(item: string, quantity = 1): number {
+    if (quantity <= 0) return this.itemCount(item);
+    const next = this.itemCount(item) + quantity;
+    this.scenario.items.set(item, next);
+    return next;
+  }
+
+  /** Take some away, and report how many actually went. */
+  removeItem(item: string, quantity = 1): number {
+    const held = this.itemCount(item);
+    // Taking more than the party has takes what it has, rather than going
+    // negative and leaving a phantom debt in the save.
+    const taken = Math.max(0, Math.min(held, quantity));
+    if (taken === 0) return 0;
+    if (held - taken === 0) this.scenario.items.delete(item);
+    else this.scenario.items.set(item, held - taken);
+    return taken;
   }
 
   setVar(name: string, value: ScriptValue): void {

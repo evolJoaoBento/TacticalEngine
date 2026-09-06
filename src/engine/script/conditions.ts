@@ -28,6 +28,7 @@ import type { Condition, CompareOp, ScriptValue } from './schema';
 export interface ConditionContext {
   hasFlag(flag: string): boolean;
   hasKey(key: string): boolean;
+  hasItem(item: string, quantity?: number): boolean;
   getVar(name: string): ScriptValue;
   interactableState(id: string): { used: boolean; open: boolean; removed: boolean };
   encounterState(id: string): { started: boolean; ended: boolean; triggered: boolean };
@@ -67,6 +68,8 @@ export function evaluate(condition: Condition, context: ConditionContext): boole
       return condition.of.some((c) => evaluate(c, context));
     case 'flag':
       return context.hasFlag(condition.flag);
+    case 'hasItem':
+      return context.hasItem(condition.item, condition.quantity ?? 1);
     case 'hasKey':
       return context.hasKey(condition.key);
     case 'var':

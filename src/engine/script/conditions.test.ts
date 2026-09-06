@@ -21,6 +21,7 @@ function context(overrides: Partial<ConditionContext> = {}): ConditionContext {
   return {
     hasFlag: (f) => flags.has(f),
     hasKey: (k) => keys.has(k),
+    hasItem: (k) => keys.has(k),
     getVar: () => null,
     interactableState: () => ({ used: false, open: false, removed: false }),
     encounterState: () => ({ started: false, ended: false, triggered: false }),
