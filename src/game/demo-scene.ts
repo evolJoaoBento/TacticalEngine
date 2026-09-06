@@ -15,7 +15,7 @@ import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
 import { DEMO_QUESTS } from './demo-quests';
 import { walkCheck } from '../engine/script/schema';
-import type { LootTable } from '../engine/content/items';
+import type { ItemDef, LootTable } from '../engine/content/items';
 import type { QuestDef } from '../engine/content/quests';
 import type { Currency, MarkPool } from '../engine/rules/resources';
 import { interactableSchema, projectSchema, type ProjectDoc } from '../engine/scene/schema';
@@ -48,7 +48,7 @@ import {
   type CharacterSheet,
   type DerivedCharacter,
 } from '../engine/character/sheet';
-import { importCharacterContent } from '../engine/content/srd/daggersearch';
+import { importCharacterContent, type WeaponDef } from '../engine/content/srd/daggersearch';
 import {
   importSeansboxAdversaries,
   type RawAdversary,
@@ -1104,4 +1104,85 @@ export function applyLevelUp(demo: DemoScene, characterId: string, plan: LevelUp
   });
   note(demo, `${result.sheet.name} reaches level ${result.sheet.level}.`, 'hope');
   return { ok: true, level: result.sheet.level };
+}
+
+// ---------------------------------------------------------------------------
+// Equipping
+// ---------------------------------------------------------------------------
+
+export type EquipResult = { ok: true; slot: 'primary' | 'secondary' | 'armor' } | { ok: false; reason: string };
+
+/** The item in the project whose `contentId` is this piece of SRD gear, if any. */
+function itemForGear(demo: DemoScene, contentId: string | undefined): ItemDef | undefined {
+  if (contentId === undefined) return undefined;
+  return demo.project.items.find((item) => item.contentId === contentId);
+}
+
+/** Which slot a weapon goes in: shields and the like are secondary, the rest primary. */
+function slotOf(weapon: WeaponDef): 'primary' | 'secondary' {
+  return weapon.slot === 'secondary' ? 'secondary' : 'primary';
+}
+
+/**
+ * Put a carried weapon or armor on a character.
+ *
+ * The pack is the party's, so anyone can wear anything it holds; the piece
+ * comes out of the pack and whatever it replaces goes back in, as long as the
+ * project has an item for it — a sheet's starting gear is SRD content that may
+ * have no item, in which case it is simply set aside. The sheet is re-derived
+ * and the live pools follow: Armor Slots rise or fall with the armor, nothing
+ * marked is cleared. Armor cannot be changed mid-fight; a weapon can.
+ */
+export function equipItem(demo: DemoScene, characterId: string, itemId: string): EquipResult {
+  const sheet = demo.sheets.get(characterId);
+  if (sheet === undefined) return { ok: false, reason: `no character "${characterId}"` };
+  const item = demo.project.items.find((candidate) => candidate.id === itemId);
+  if (item === undefined) return { ok: false, reason: `no item "${itemId}"` };
+  if ((demo.scenario.items.get(itemId) ?? 0) < 1) return { ok: false, reason: `the party is not carrying ${item.name}` };
+  if (demo.pending !== null) return { ok: false, reason: 'not in the middle of a conversation' };
+  if (item.contentId === undefined) return { ok: false, reason: `${item.name} is not something that can be worn` };
+
+  let next: CharacterSheet;
+  let slot: 'primary' | 'secondary' | 'armor';
+  let replaced: string | undefined;
+  if (item.kind === 'weapon') {
+    const weapon = SRD_CHARACTERS.weapons.get(item.contentId);
+    if (weapon === undefined) return { ok: false, reason: `${item.name} points at no known weapon` };
+    slot = slotOf(weapon);
+    replaced = slot === 'primary' ? sheet.primaryWeaponId : sheet.secondaryWeaponId;
+    next = slot === 'primary' ? { ...sheet, primaryWeaponId: weapon.id } : { ...sheet, secondaryWeaponId: weapon.id };
+  } else if (item.kind === 'armor') {
+    if (inCombat(demo)) return { ok: false, reason: 'armor cannot be changed in a fight' };
+    const armor = SRD_CHARACTERS.armors.get(item.contentId);
+    if (armor === undefined) return { ok: false, reason: `${item.name} points at no known armor` };
+    slot = 'armor';
+    replaced = sheet.armorId;
+    next = { ...sheet, armorId: armor.id };
+  } else {
+    return { ok: false, reason: `${item.name} is not something that can be worn` };
+  }
+
+  // Out of the pack, and the old piece back in when the project has an item for it.
+  demo.world.removeItem(itemId, 1);
+  const returned = itemForGear(demo, replaced);
+  if (returned !== undefined && returned.id !== itemId) demo.world.addItem(returned.id, 1);
+
+  const derived = deriveCharacter(next, SRD_CHARACTERS).character;
+  demo.sheets.set(characterId, next);
+  demo.characters.set(characterId, derived);
+  const entity = demo.state.entity(characterId);
+  if (entity !== undefined) {
+    entity.armorSlots = { max: derived.armorScore, marked: Math.min(entity.armorSlots.marked, derived.armorScore) };
+  }
+  note(demo, `${sheet.name} ${slot === 'armor' ? 'puts on' : 'takes up'} the ${item.name}.`, 'system');
+  return { ok: true, slot };
+}
+
+/** What a character is wielding and wearing, by name, for a HUD line. */
+export function gearOf(demo: DemoScene, characterId: string): { weapon: string; armor: string } {
+  const character = demo.characters.get(characterId);
+  return {
+    weapon: character?.primaryWeapon?.name ?? 'Unarmed',
+    armor: character?.sheet.armorId === undefined ? 'Unarmored' : (SRD_CHARACTERS.armors.get(character.sheet.armorId)?.name ?? 'Unarmored'),
+  };
 }

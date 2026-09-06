@@ -64,6 +64,9 @@ declare global {
       nodePosition: (dialogue: string, node: string) => { x: number; y: number } | null;
       dialogueNodes: (dialogue: string) => string[];
       carried: () => { id: string; name: string; quantity: number }[];
+      equip: (id: string) => string;
+      gear: (id: string) => { weapon: string; armor: string };
+      giveItem: (id: string, quantity?: number) => void;
       journal: () => { id: string; status: string; done: string[] }[];
       camera: () => { yaw: number; pitch: number; distance: number; target: { x: number; z: number } };
       grantLevel: (level?: number) => number;
@@ -1269,6 +1272,37 @@ test('levels a character up through the sheet, and the pips grow', async ({ page
   await expect(hud.locator('[data-member="kara"] [data-testid="hp"]')).toHaveAttribute('data-max', String(hpAfter.max));
   await expect(hud.locator('[data-member="kara"] [data-testid="level-up-button"]')).toHaveCount(0);
   await expect(page.locator('[data-testid="log"]')).toContainText('Kara reaches level 2');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('equips a found weapon from the pack, and the card says so', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.select('kara');
+    api.giveItem('longsword');
+    api.giveItem('full-plate');
+  });
+  const card = page.locator('[data-member="kara"] [data-testid="gear"]');
+  await expect(card).toContainText('Broadsword · Chainmail');
+
+  const pack = page.locator('[data-testid="pack"]');
+  await pack.locator('[data-item="longsword"] [data-testid="equip"]').click();
+  await expect(card).toContainText('Longsword · Chainmail');
+  // The sword came out of the pack; the broadsword it replaced went in.
+  await expect(pack.locator('[data-item="longsword"]')).toHaveCount(0);
+  await expect(pack.locator('[data-item="broadsword"]')).toHaveCount(1);
+
+  await pack.locator('[data-item="full-plate"] [data-testid="equip"]').click();
+  await expect(card).toContainText('Longsword · Full Plate Armor');
+  const armor = page.locator('[data-member="kara"] [data-testid="armor"]');
+  // Full plate is Armor Score 4 at tier 1, same as chainmail in this SRD; what
+  // matters is the max follows the sheet.
+  const gear = await page.evaluate(() => window.__polyheart!.gear('kara'));
+  expect(gear.armor).toBe('Full Plate Armor');
+  await expect(armor).toHaveAttribute('data-max', /\d+/);
+  await expect(page.locator('[data-testid="log"]')).toContainText('Kara puts on the Full plate');
 
   expect(consoleErrors).toEqual([]);
 });

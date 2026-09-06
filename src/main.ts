@@ -58,6 +58,8 @@ import {
   inCombat,
   applyLevelUp,
   awaitingLevel,
+  equipItem,
+  gearOf,
   moveSelectedTo,
   note,
   playGmTurn,
@@ -121,6 +123,9 @@ declare global {
       nodePosition: (dialogue: string, node: string) => { x: number; y: number } | null;
       dialogueNodes: (dialogue: string) => string[];
       carried: () => { id: string; name: string; quantity: number }[];
+      equip: (id: string) => string;
+      gear: (id: string) => { weapon: string; armor: string };
+      giveItem: (id: string, quantity?: number) => void;
       journal: () => { id: string; status: string; done: string[] }[];
       camera: () => { yaw: number; pitch: number; distance: number; target: { x: number; z: number } };
       grantLevel: (level?: number) => number;
@@ -477,13 +482,19 @@ function refreshPlay(): void {
 }
 
 /** The party's pack, joined to the project's item names. */
-function carriedItems(): { id: string; name: string; quantity: number }[] {
-  const names = new Map(demo.project.items.map((item) => [item.id, item.name]));
-  return [...demo.scenario.items].map(([id, quantity]) => ({
-    id,
-    name: names.get(id) ?? id,
-    quantity,
-  }));
+function carriedItems(): { id: string; name: string; quantity: number; wearable: boolean }[] {
+  const items = new Map(demo.project.items.map((item) => [item.id, item]));
+  return [...demo.scenario.items]
+    .filter(([, quantity]) => quantity > 0)
+    .map(([id, quantity]) => {
+      const item = items.get(id);
+      return {
+        id,
+        name: item?.name ?? id,
+        quantity,
+        wearable: (item?.kind === 'weapon' || item?.kind === 'armor') && item.contentId !== undefined,
+      };
+    });
 }
 
 /**
@@ -574,6 +585,7 @@ function hudMembers(): HudMember[] {
       ...(entity.hope === undefined ? {} : { hope: { ...entity.hope } }),
       conditions: [...entity.conditions],
       canLevel: waiting.has(entity.id) && !inCombat(demo) && demo.pending === null,
+      gear: `${gearOf(demo, entity.id).weapon} · ${gearOf(demo, entity.id).armor}`,
     };
   });
 }
@@ -635,6 +647,13 @@ function renderPlayPanel(): void {
       },
       onLoad: () => {
         loadNow();
+        refreshPlay();
+      },
+      onEquip: (id: string) => {
+        const who = demo.party.selected;
+        if (who === null) return;
+        const result = equipItem(demo, who, id);
+        if (!result.ok) note(demo, `Cannot equip that: ${result.reason}.`, 'system');
         refreshPlay();
       },
       onUse: (id: string) => {
@@ -956,6 +975,17 @@ const state = {
     session.project.dialogues.find((d) => d.id === dialogue)?.nodes.map((n) => n.id) ?? [],
 
   carried: (): { id: string; name: string; quantity: number }[] => carriedItems(),
+  equip: (id: string): string => {
+    const who = demo.party.selected;
+    const result = who === null ? { ok: false as const, reason: 'nobody selected' } : equipItem(demo, who, id);
+    refreshPlay();
+    return result.ok ? result.slot : `refused: ${result.reason}`;
+  },
+  gear: (id: string): { weapon: string; armor: string } => gearOf(demo, id),
+  giveItem: (id: string, quantity = 1): void => {
+    demo.world.addItem(id, quantity);
+    refreshPlay();
+  },
 
   camera: (): { yaw: number; pitch: number; distance: number; target: { x: number; z: number } } => ({
     yaw: orbit.goal.yaw,

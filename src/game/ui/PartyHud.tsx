@@ -21,6 +21,8 @@ export interface HudMember {
   conditions: readonly string[];
   /** A level-up is waiting for this character. */
   canLevel: boolean;
+  /** "Broadsword · Chainmail". */
+  gear: string;
 }
 
 export interface PartyHudProps {
@@ -134,6 +136,9 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
           {member.hope !== undefined ? (
             <Pips label="Hope" marked={member.hope.value} max={member.hope.max} colour="#7fd1ff" testId="hope" />
           ) : null}
+          <div style={{ color: '#8ea3b0', fontSize: '10px' }} data-testid="gear">
+            {member.gear}
+          </div>
           {member.conditions.length > 0 ? (
             <div style={{ color: '#ffc861', fontSize: '10px', marginTop: '2px' }}>{member.conditions.join(' · ')}</div>
           ) : null}

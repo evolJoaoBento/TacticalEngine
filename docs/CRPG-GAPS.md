@@ -40,6 +40,7 @@ two thirds.
 | Quests | Start, tick, finish; a journal; a demo quest across two rooms |
 | Presentation | Orbit/pan/zoom camera, hover cursor, party HUD with pips, dice read out |
 | Progression | Tiered level-ups with recorded advancements, subclasses, domain cards, multiclass |
+| Equipping | Weapons and armor from the pack onto a character, reversible, pools reconciled |
 | Items | Items and weighted loot tables; a shared pack that survives a doorway |
 | Editor | Map tools, scene list, object inspector, dialogue graph, quest form, undo, validation, JSON |
 
@@ -143,7 +144,7 @@ against source text in this repo. Treat the numbers in `TIER_OPTIONS` as the thi
 **Still open:** subclass and domain-card *features* are text on the sheet, not mechanics — a card's
 effect is read, not executed. And equipping (see 6).
 
-### ~~6. Inventory and loot~~ — mostly done
+### ~~6. Inventory, loot and equipping~~ — done
 
 `content/items.ts` holds items and loot tables; `ProjectDoc` carries both. The party's keys
 became items — a key is an item you have one of, `hasKey` is `hasItem` with a quantity of one —
@@ -158,9 +159,15 @@ The demo's vault chest and the pit's strongbox draw from different tables, and `
 what the party carries. Validation catches a `loot` naming a table nobody wrote, a table that can
 drop something which is not an item, and an `addItem` for an item that does not exist.
 
-**Still open:** *equipping*. Weapons and armour are SRD content and an item can point at one
-through `contentId`, but changing what a character wields mid-game means re-deriving their sheet
-and reconciling pools whose maximums move. That is its own slice.
+**Equipping is in** (`equipItem` in `game/demo-scene.ts`). A carried weapon or armor item whose
+`contentId` names SRD gear can be put on whoever is selected, from the pack. The piece comes out
+of the pack and what it replaced goes back in when the project has an item for it (the demo ships
+items for the party's starting gear so a swap is reversible); the sheet is re-derived, the attack
+profile changes, Armor Slots follow the armor without clearing a mark, and the HUD card names
+what each character wields and wears. Armor cannot be changed mid-fight; a weapon can — that is
+this engine's rule, not the SRD's, chosen so a fight cannot be paused to change into plate.
+
+**Still open:** consumables do nothing yet — a healing draught is carried, not drunk.
 
 ### ~~12. Saving a game~~ — done
 

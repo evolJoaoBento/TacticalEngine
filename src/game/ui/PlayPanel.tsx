@@ -17,6 +17,8 @@ export interface CarriedItem {
   id: string;
   name: string;
   quantity: number;
+  /** Something the selected character could wear or wield. */
+  wearable: boolean;
 }
 
 /** One quest as the journal shows it: the words, and which steps are ticked. */
@@ -45,6 +47,8 @@ export interface PlayPanelProps {
   hasSave: boolean;
   onSave: () => void;
   onLoad: () => void;
+  /** Equip a carried item on whoever is selected. */
+  onEquip: (id: string) => void;
 }
 
 const TONE: Readonly<Record<LogLine['tone'], string>> = {
@@ -171,9 +175,20 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         <div style={{ ...logBox, padding: '8px 12px', flexShrink: 0 }} data-testid="pack">
           <div style={heading}>Carried</div>
           {props.carried.map((item) => (
-            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} data-item={item.id}>
               <span>{item.name}</span>
-              <span style={{ color: '#8ea3b0' }}>{item.quantity > 1 ? `×${item.quantity}` : ''}</span>
+              <span style={{ color: '#8ea3b0' }}>
+                {item.quantity > 1 ? `×${item.quantity}` : ''}
+                {item.wearable ? (
+                  <button
+                    style={{ ...button(false), padding: '1px 8px', marginLeft: '6px', marginRight: 0, fontSize: '11px' }}
+                    data-testid="equip"
+                    onClick={() => props.onEquip(item.id)}
+                  >
+                    Equip
+                  </button>
+                ) : null}
+              </span>
             </div>
           ))}
         </div>
