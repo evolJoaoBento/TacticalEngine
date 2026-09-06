@@ -12,72 +12,22 @@
  * is what keeps this whole layer testable in node and replayable from a seed.
  */
 
-import type { Condition, ScriptValue } from './conditions';
-import type { Trait } from '../scene/schema';
+import type { Condition } from './conditions';
 
-/** Log styling the legacy UI used, kept because the narrative pane depends on it. */
-export type LogTone = 'narration' | 'system' | 'hope' | 'fear' | 'combat' | 'success';
+/**
+ * The shapes live in `schema.ts` so a document can hold them; this module keeps
+ * the behaviour that reads them. Re-exported so existing importers are unchanged.
+ */
+export type {
+  Effect,
+  ChoiceOption,
+  TargetSelector,
+  CheckRequest,
+  LogTone,
+} from './schema';
+export { effectSchema, checkRequestSchema, walkEffects, walkCheck } from './schema';
 
-export interface ChoiceOption {
-  /** What the button says. */
-  label: string;
-  /** Optional second line explaining the cost or consequence. */
-  detail?: string;
-  /** Hidden entirely when this fails, so a branch can be gated. */
-  available?: Condition;
-  effects: readonly Effect[];
-}
-
-export type Effect =
-  | { kind: 'none' }
-  /** A line in the narrative log. */
-  | { kind: 'log'; text: string; tone?: LogTone }
-  /** A full-screen story panel: title, paragraphs, one button. */
-  | { kind: 'story'; title: string; paragraphs: readonly string[]; button?: string }
-  | { kind: 'setFlag'; flag: string }
-  | { kind: 'clearFlag'; flag: string }
-  | { kind: 'giveKey'; key: string }
-  | { kind: 'setVar'; name: string; value: ScriptValue }
-  /** Add to a numeric variable. Treats an unset variable as 0. */
-  | { kind: 'addVar'; name: string; by: number }
-  | { kind: 'open'; interactable?: string }
-  | { kind: 'remove'; interactable?: string }
-  | { kind: 'markUsed'; interactable?: string }
-  | { kind: 'loot'; table?: string }
-  /** Damage that bypasses the attack roll — a trap, a hidden thorn, a puppet strike. */
-  | { kind: 'damage'; amount: number; target?: TargetSelector; source?: string }
-  | { kind: 'heal'; amount: number; target?: TargetSelector }
-  | { kind: 'startEncounter'; encounter: string; intro?: string }
-  | { kind: 'endEncounter'; encounter: string }
-  | { kind: 'goto'; scene: string }
-  | { kind: 'startDialogue'; dialogue: string }
-  /** Run one branch of an effect list, chosen by condition. */
-  | { kind: 'branch'; when: Condition; then: readonly Effect[]; otherwise?: readonly Effect[] }
-  /** Stop and ask the player to choose. */
-  | { kind: 'choice'; title?: string; body?: string; options: readonly ChoiceOption[] }
-  /** Stop and ask the player to make an action roll, then dispatch on the outcome. */
-  | { kind: 'check'; check: CheckRequest };
-
-/** Who an effect applies to. Kept small; expressions come later if content needs them. */
-export type TargetSelector =
-  | { kind: 'actor' }
-  | { kind: 'party' }
-  | { kind: 'entity'; id: string };
-
-export interface CheckRequest {
-  trait: Trait;
-  difficulty: number;
-  /** Shown while the player decides whether to roll. */
-  prompt?: string;
-  /** Effects per outcome. A missing outcome falls back as `outcomeEffects` describes. */
-  onCriticalSuccess?: readonly Effect[];
-  onSuccessWithHope?: readonly Effect[];
-  onSuccessWithFear?: readonly Effect[];
-  onFailureWithHope?: readonly Effect[];
-  onFailureWithFear?: readonly Effect[];
-  /** Run whichever way it went, after the outcome branch. */
-  always?: readonly Effect[];
-}
+import type { CheckRequest, Effect, LogTone, ScriptValue } from './schema';
 
 /** Outcomes in the order the duality roll produces them. */
 export type CheckOutcome =

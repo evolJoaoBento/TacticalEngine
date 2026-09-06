@@ -109,15 +109,50 @@ describe('sceneSchema', () => {
             check: {
               trait: 'finesse',
               difficulty: 12,
-              outcomes: { successWithHope: { text: 'It opens.', effects: [{ kind: 'open' }] } },
+              onSuccessWithHope: [
+                { kind: 'log', text: 'It opens.' },
+                { kind: 'open' },
+              ],
             },
           },
         ],
       }),
     );
-    const outcomes = parsed.interactables[0]!.check!.outcomes;
-    expect(outcomes.successWithHope!.effects).toEqual([{ kind: 'open' }]);
-    expect(outcomes.failureWithFear).toBeUndefined();
+    const check = parsed.interactables[0]!.check!;
+    expect(check.onSuccessWithHope).toEqual([
+      { kind: 'log', text: 'It opens.' },
+      { kind: 'open' },
+    ]);
+    // Outcomes nobody wrote stay absent, and fall back at runtime.
+    expect(check.onFailureWithFear).toBeUndefined();
+  });
+
+  it('accepts an effect the old narrow vocabulary could not express', () => {
+    const parsed = sceneSchema.parse(
+      scene({
+        interactables: [
+          {
+            id: 'statue',
+            kind: 'scripted',
+            position: { x: 1, y: 1 },
+            check: {
+              trait: 'presence',
+              difficulty: 14,
+              onSuccessWithHope: [
+                {
+                  kind: 'branch',
+                  when: { kind: 'flag', flag: 'knows-the-name' },
+                  then: [{ kind: 'startDialogue', dialogue: 'the-statue' }],
+                  otherwise: [{ kind: 'log', text: 'It stays silent.' }],
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+    const effects = parsed.interactables[0]!.check!.onSuccessWithHope!;
+    expect(effects[0]!.kind).toBe('branch');
   });
 });
 

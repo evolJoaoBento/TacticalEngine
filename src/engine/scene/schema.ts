@@ -15,79 +15,29 @@
  */
 
 import { z } from 'zod';
+import { checkRequestSchema, effectSchema } from '../script/schema';
+import {
+  contentIdSchema,
+  pointSchema,
+  rollOutcomeSchema,
+  traitSchema,
+  type Point,
+} from './primitives';
 
-/** Kebab-case, stable across saves. */
-export const contentIdSchema = z
-  .string()
-  .min(1)
-  .regex(/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/, 'ids are lowercase kebab- or snake-case');
-
-export const traitSchema = z.enum([
-  'agility',
-  'strength',
-  'finesse',
-  'instinct',
-  'presence',
-  'knowledge',
-]);
-export type Trait = z.infer<typeof traitSchema>;
-
-export const rollOutcomeSchema = z.enum([
-  'criticalSuccess',
-  'successWithHope',
-  'successWithFear',
-  'failureWithHope',
-  'failureWithFear',
-]);
-
-export const pointSchema = z.object({
-  x: z.number().int().min(0),
-  y: z.number().int().min(0),
-});
-export type Point = z.infer<typeof pointSchema>;
+// The building blocks moved to `primitives.ts` to break an import cycle with
+// `script/schema.ts`; they are re-exported so importers here are unchanged.
+export { contentIdSchema, pointSchema, rollOutcomeSchema, traitSchema };
+export type { Point, Trait } from './primitives';
 
 /**
- * What an interaction does. The legacy effect vocabulary, given typed parameters
- * instead of a `param` string that every consumer re-parsed.
+ * What an interaction does, and the roll that gates it.
+ *
+ * Both come from `script/schema.ts`, which is the single vocabulary the runner
+ * executes. They used to be a narrower set defined here, which is why an
+ * authored check could be saved but never run.
  */
-export const effectSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('none') }),
-  z.object({ kind: z.literal('open') }),
-  z.object({ kind: z.literal('remove') }),
-  z.object({ kind: z.literal('loot'), table: contentIdSchema.optional() }),
-  z.object({ kind: z.literal('damage'), amount: z.number().int().positive() }),
-  z.object({ kind: z.literal('giveKey'), key: z.string().min(1) }),
-  z.object({ kind: z.literal('setFlag'), flag: z.string().min(1) }),
-  z.object({ kind: z.literal('startEncounter'), encounter: contentIdSchema }),
-  z.object({ kind: z.literal('goto'), scene: contentIdSchema }),
-]);
-export type Effect = z.infer<typeof effectSchema>;
-
-export const outcomeSchema = z.object({
-  text: z.string().default(''),
-  effects: z.array(effectSchema).default([]),
-});
-
-/** An action roll gating an interaction. */
-export const checkSchema = z.object({
-  trait: traitSchema,
-  difficulty: z.number().int().positive(),
-  /**
-   * Text and effects per outcome. Every entry is optional; a missing outcome
-   * falls back to the next less specific one at runtime — a critical success
-   * reads `successWithHope` when it has no entry of its own.
-   */
-  outcomes: z
-    .object({
-      criticalSuccess: outcomeSchema.optional(),
-      successWithHope: outcomeSchema.optional(),
-      successWithFear: outcomeSchema.optional(),
-      failureWithHope: outcomeSchema.optional(),
-      failureWithFear: outcomeSchema.optional(),
-    })
-    .default({}),
-});
-export type Check = z.infer<typeof checkSchema>;
+export { effectSchema, checkRequestSchema };
+export type { Effect, CheckRequest } from '../script/schema';
 
 export const interactableSchema = z.object({
   id: contentIdSchema,
@@ -99,7 +49,7 @@ export const interactableSchema = z.object({
   model: z.string().nullable().default(null),
   /** Whether a creature can walk through this tile. */
   blocksMovement: z.boolean().default(true),
-  check: checkSchema.optional(),
+  check: checkRequestSchema.optional(),
   /** The party must hold this key to interact at all. */
   requiresKey: z.string().optional(),
   lockedText: z.string().default(''),

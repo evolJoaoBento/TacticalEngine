@@ -48,8 +48,7 @@ export interface DialogueChoice {
 }
 
 /** A check inside a dialogue: same rules, but each outcome can also branch. */
-export interface DialogueCheck extends Omit<CheckRequest, 'always'> {
-  always?: readonly Effect[];
+export interface DialogueCheck extends CheckRequest {
   /** Node to go to per outcome; falls back to the choice's own `goto`. */
   gotoOnSuccess?: string;
   gotoOnFailure?: string;

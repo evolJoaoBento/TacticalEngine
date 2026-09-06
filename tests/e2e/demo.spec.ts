@@ -34,6 +34,19 @@ declare global {
       highlighted: () => number;
       reachable: () => number[];
       sample: (x: number, y: number) => number[];
+      use: (id: string) => string;
+      useInReach: () => string;
+      answer: (
+        response:
+          | { kind: 'choose'; index: number }
+          | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number }
+          | { kind: 'cancel' },
+      ) => string;
+      log: () => { text: string; tone: string }[];
+      pendingKind: () => string | null;
+      objects: () => string[];
+      within: () => string | null;
+      standBeside: (id: string) => boolean;
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -349,6 +362,77 @@ test('returns to play with the edited map underfoot', async ({ page }) => {
   // The pathfinder is reading the edited terrain, not the imported terrain.
   expect(result.canWalkIntoWall).toBe(false);
   expect(result.reachable).toBeGreaterThan(0);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('uses the vault furniture the original map authored', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  // The legacy map wrote a Finesse 12 on this chest, with a line of prose for
+  // each way the roll can go. Every one of those fields imported cleanly and ran
+  // nowhere until the use verb existed, so this is the test that it reaches play.
+  const result = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const chest = api.objects().find((id) => id.startsWith('chest'))!;
+
+    const acrossTheRoom = api.use(chest);
+    api.standBeside(chest);
+    const beside = api.use(chest);
+    const promptKind = api.pendingKind();
+    const linesBeforeRoll = api.log().length;
+    const answered = api.answer({ kind: 'roll' });
+
+    return {
+      chest,
+      acrossTheRoom,
+      beside,
+      promptKind,
+      linesBeforeRoll,
+      answered,
+      log: api.log().map((l) => l.text),
+      usedAgain: api.use(chest),
+      pendingAfter: api.pendingKind(),
+    };
+  });
+
+  // Reach is enforced: you cannot pick a lock from the far side of the vault.
+  expect(result.acrossTheRoom).toBe('unreachable');
+
+  // Standing next to it, the authored check stops for the player's roll.
+  expect(result.beside).toBe('waiting');
+  expect(result.promptKind).toBe('check');
+  // The chest's own flavour text reached the log before the roll was offered.
+  expect(result.linesBeforeRoll).toBeGreaterThan(0);
+
+  // Rolling resolves it, and the authored outcome prose is what gets shown.
+  expect(result.answered).toBe('done');
+  expect(result.pendingAfter).toBeNull();
+  expect(result.log.join(' ')).toMatch(/with (Hope|Fear)|critical/i);
+
+  // And it stays used.
+  expect(result.usedAgain).toBe('refused');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('shows the narrative log and the roll prompt on the page', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const chest = api.objects().find((id) => id.startsWith('chest'))!;
+    api.standBeside(chest);
+    api.use(chest);
+  });
+
+  // The prose and the prompt are on screen, not only in the journal.
+  await expect(page.locator('[data-testid="log"]')).toBeVisible();
+  const roll = page.getByRole('button', { name: /Roll finesse/i });
+  await expect(roll).toBeVisible();
+
+  await roll.click();
+  await expect(page.locator('[data-testid="log"]')).toContainText(/Hope|Fear|critical/i);
 
   expect(consoleErrors).toEqual([]);
 });

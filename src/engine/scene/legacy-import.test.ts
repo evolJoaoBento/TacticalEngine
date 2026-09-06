@@ -150,13 +150,16 @@ describe('importLegacyScene', () => {
       expect(chest.kind).toBe('chest');
       expect(chest.position).toEqual({ x: 1, y: 0 });
       expect(chest.requiresKey).toBe('brass');
+      // The legacy outcome text becomes a leading `log`: in the unified
+      // vocabulary a line of narration is an effect like any other.
       expect(chest.check).toEqual({
         trait: 'finesse',
         difficulty: 12,
-        outcomes: {
-          successWithHope: { text: 'It opens.', effects: [{ kind: 'loot' }] },
-          failureWithFear: { text: 'A needle.', effects: [{ kind: 'damage', amount: 2 }] },
-        },
+        onSuccessWithHope: [{ kind: 'log', text: 'It opens.', tone: 'narration' }, { kind: 'loot' }],
+        onFailureWithFear: [
+          { kind: 'log', text: 'A needle.', tone: 'narration' },
+          { kind: 'damage', amount: 2 },
+        ],
       });
     });
 

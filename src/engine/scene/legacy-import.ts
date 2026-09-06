@@ -356,6 +356,15 @@ function importInteractables(
   return out;
 }
 
+/** Outcome name -> the field on a check that holds that outcome's effects. */
+const CHECK_KEYS = {
+  criticalSuccess: 'onCriticalSuccess',
+  successWithHope: 'onSuccessWithHope',
+  successWithFear: 'onSuccessWithFear',
+  failureWithHope: 'onFailureWithHope',
+  failureWithFear: 'onFailureWithFear',
+} as const;
+
 function importCheck(raw: Record<string, unknown>): Interactable['check'] | null {
   const outcomes = raw['outcomes'];
   if (typeof outcomes !== 'object' || outcomes === null) return null;
@@ -363,18 +372,23 @@ function importCheck(raw: Record<string, unknown>): Interactable['check'] | null
   const difficulty = asInteger(raw['dc']);
   if (trait === undefined || difficulty === null || difficulty <= 0) return null;
 
-  const converted: NonNullable<Interactable['check']>['outcomes'] = {};
+  // The legacy outcome held a line of text beside its effect. Text *is* an
+  // effect in the unified vocabulary, so it becomes a leading `log` — which is
+  // what the narrative pane wanted from it anyway, and means one walk over an
+  // effect list sees everything an outcome does.
+  const check: NonNullable<Interactable['check']> = { trait, difficulty };
   for (const [legacyKey, key] of Object.entries(OUTCOME_KEYS)) {
     const entry = (outcomes as Record<string, unknown>)[legacyKey];
     if (typeof entry !== 'object' || entry === null) continue;
     const record = entry as { text?: unknown; effect?: unknown; param?: unknown };
+    const effects: Effect[] = [];
+    const text = asString(record.text) ?? '';
+    if (text !== '') effects.push({ kind: 'log', text, tone: 'narration' });
     const effect = convertEffect(record.effect, record.param);
-    converted[key] = {
-      text: asString(record.text) ?? '',
-      effects: effect === null || effect.kind === 'none' ? [] : [effect],
-    };
+    if (effect !== null && effect.kind !== 'none') effects.push(effect);
+    if (effects.length > 0) check[CHECK_KEYS[key]] = effects;
   }
-  return { trait, difficulty, outcomes: converted };
+  return check;
 }
 
 function importEncounters(

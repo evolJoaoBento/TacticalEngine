@@ -100,6 +100,11 @@ export type Response =
  * choice or a check can splice its branch in without recursion or a copy of the
  * whole remaining script.
  */
+export interface ScriptRunnerOptions {
+  /** The interactable a bare `open`/`remove`/`markUsed` refers to. */
+  subject?: string;
+}
+
 export class ScriptRunner {
   private readonly world: ScriptWorld;
   private readonly rng: Rng;
@@ -108,9 +113,17 @@ export class ScriptRunner {
   private readonly stack: { effects: readonly Effect[]; index: number }[] = [];
   private pending: { effect: Effect } | null = null;
 
-  constructor(world: ScriptWorld, rng: Rng) {
+  /**
+   * The interactable this script was started from, if any. `open`, `remove` and
+   * `markUsed` with no id of their own mean "this one" — which is how an author
+   * writes a chest's outcome without repeating the chest's id in every branch.
+   */
+  private readonly subject: string | null;
+
+  constructor(world: ScriptWorld, rng: Rng, options: ScriptRunnerOptions = {}) {
     this.world = world;
     this.rng = rng;
+    this.subject = options.subject ?? null;
   }
 
   /** Start a script. Returns as soon as it finishes or needs an answer. */
@@ -303,10 +316,10 @@ export class ScriptRunner {
   private applyInteractable(
     effect: Extract<Effect, { kind: 'open' | 'remove' | 'markUsed' }>,
   ): null {
-    const id = effect.interactable;
     // An effect with no id targets whatever the script was started from; a caller
     // that has no such subject simply gets nothing, rather than a crash.
-    if (id === undefined) return null;
+    const id = effect.interactable ?? this.subject;
+    if (id === null || id === undefined) return null;
     if (effect.kind === 'open') {
       this.world.openInteractable(id);
       this.journal.push({ kind: 'interactable', id, change: 'open' });

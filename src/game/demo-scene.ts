@@ -11,6 +11,11 @@
  */
 
 import adversaryJson from '../../tools/srd-sources/seansbox/adversaries.json';
+import { useInteractable } from '../engine/scene/interact';
+import type { Trait } from '../engine/scene/primitives';
+import type { CheckOutcome, LogTone } from '../engine/script/effects';
+import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
+import { createScenarioState, SceneScriptWorld, type ScenarioState } from '../engine/script/world';
 import ancestryJson from '../../tools/srd-sources/daggersearch/core/ancestries.json';
 import armorJson from '../../tools/srd-sources/daggersearch/core/armors.json';
 import classJson from '../../tools/srd-sources/daggersearch/core/classes.json';
@@ -123,8 +128,37 @@ export interface DemoScene {
   characters: ReadonlyMap<string, DerivedCharacter>;
   triggers: TriggerIndex;
   rng: Rng;
+  /** What scripts read and write: flags, keys, variables. */
+  world: SceneScriptWorld;
+  scenario: ScenarioState;
+  /** The narrative log, oldest first. */
+  log: LogLine[];
+  /** A script waiting on the player — a roll to make, or a choice to pick. */
+  pending: PendingScript | null;
   /** Set while a fight is running. */
   encounter: EncounterRunner | null;
+}
+
+/** A line in the narrative pane. */
+export interface LogLine {
+  text: string;
+  tone: LogTone;
+}
+
+/** A script that stopped to ask the player something. */
+export interface PendingScript {
+  runner: ScriptRunner;
+  prompt: Prompt;
+  /** The interactable it came from, for a UI that wants to name it. */
+  interactable: string;
+  /**
+   * How much of the runner's journal has already reached the log.
+   *
+   * A runner's journal is cumulative — every `resume` returns the whole story so
+   * far, not just the new part — so without this the lines shown before a roll
+   * are shown again after it.
+   */
+  recorded: number;
 }
 
 export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
@@ -177,6 +211,14 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
   }
 
   const pathfinder = new Pathfinder(grid);
+
+  // One world for the whole scene, so a flag a chest sets is a flag a later
+  // dialogue or trigger can read.
+  const scenario = createScenarioState();
+  const world = new SceneScriptWorld(state, scenario, {
+    traits: traitsFor(characters),
+  });
+
   return {
     scene,
     grid,
@@ -186,6 +228,10 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     characters,
     triggers: new TriggerIndex(scene, grid),
     rng: createRng(seed),
+    world,
+    scenario,
+    log: [],
+    pending: null,
     encounter: null,
   };
 }
@@ -340,4 +386,183 @@ function attackNearestPartyMember(demo: DemoScene, adversaryId: string): void {
     options: { bandTiles: DEMO_BAND_TILES },
   });
   if (outcome.refused === null) applyAttack(demo.state, outcome);
+}
+
+// ---------------------------------------------------------------------------
+// Using the things in the world
+// ---------------------------------------------------------------------------
+
+/** How close you have to be to touch something. */
+export const DEMO_REACH = 1;
+
+export interface UseOutcome {
+  status: 'done' | 'waiting' | 'refused' | 'unreachable' | 'missing';
+  /** Lines added to the narrative log by this use. */
+  lines: readonly LogLine[];
+}
+
+/**
+ * Use the interactable with this id, with whoever is selected.
+ *
+ * You have to be able to reach it: the legacy prototype let you click a chest
+ * across the room, which made keys and locked doors meaningless.
+ */
+export function useSelectedOn(demo: DemoScene, interactableId: string): UseOutcome {
+  const object = demo.scene.interactables.find((i) => i.id === interactableId);
+  if (object === undefined) return { status: 'missing', lines: [] };
+
+  const actor = demo.party.selected;
+  if (actor === null) return { status: 'unreachable', lines: [] };
+  const here = demo.state.entity(actor)?.tile ?? NO_TILE;
+  const there = tileOf(demo.grid, object.position);
+  if (here === NO_TILE || there === NO_TILE || chebyshev(demo.grid, here, there) > DEMO_REACH) {
+    return { status: 'unreachable', lines: note(demo, 'It is out of reach.', 'system') };
+  }
+
+  demo.scenario.actorId = actor;
+  const result = useInteractable(object, demo.world, demo.rng);
+  if (result.status === 'refused') {
+    return { status: 'refused', lines: note(demo, result.text, 'system') };
+  }
+
+  const lines = record(demo, result.journal);
+  if (result.status === 'waiting') {
+    demo.pending = {
+      runner: result.runner,
+      prompt: result.prompt,
+      interactable: object.id,
+      recorded: result.journal.length,
+    };
+    return { status: 'waiting', lines };
+  }
+  return { status: 'done', lines };
+}
+
+/**
+ * Answer whatever a script is waiting for.
+ *
+ * Rolling uses the scene's RNG, so a use is part of the same replayable stream
+ * as every attack.
+ */
+export function answerPending(demo: DemoScene, response: Response): UseOutcome {
+  const waiting = demo.pending;
+  if (waiting === null) return { status: 'refused', lines: [] };
+
+  const result = waiting.runner.resume(response);
+  // Only the part that has not been shown yet.
+  const lines = record(demo, result.journal.slice(waiting.recorded));
+  if (result.status === 'waiting') {
+    demo.pending = { ...waiting, prompt: result.prompt, recorded: result.journal.length };
+    return { status: 'waiting', lines };
+  }
+  demo.pending = null;
+  return { status: 'done', lines };
+}
+
+/** The nearest thing the selected member could use right now, if any. */
+export function reachableInteractable(demo: DemoScene): string | null {
+  const actor = demo.party.selected;
+  if (actor === null) return null;
+  const here = demo.state.entity(actor)?.tile ?? NO_TILE;
+  if (here === NO_TILE) return null;
+  for (const object of demo.scene.interactables) {
+    const there = tileOf(demo.grid, object.position);
+    if (there !== NO_TILE && chebyshev(demo.grid, here, there) <= DEMO_REACH) return object.id;
+  }
+  return null;
+}
+
+/** Tiles apart, counting a diagonal as one step. */
+function chebyshev(grid: TileGrid, a: number, b: number): number {
+  const ax = a % grid.width;
+  const ay = Math.floor(a / grid.width);
+  const bx = b % grid.width;
+  const by = Math.floor(b / grid.width);
+  return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+}
+
+/** Put one line in the log, and return it. */
+function note(demo: DemoScene, text: string, tone: LogTone): LogLine[] {
+  const line = { text, tone };
+  demo.log.push(line);
+  return [line];
+}
+
+/**
+ * Turn what a script did into what the player reads.
+ *
+ * Only the entries with something to say become lines; a flag being set is real
+ * but not news.
+ */
+function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLine[] {
+  const lines: LogLine[] = [];
+  for (const entry of journal) {
+    const line = describeEntry(entry);
+    if (line !== null) lines.push(line);
+  }
+  demo.log.push(...lines);
+  return lines;
+}
+
+function describeEntry(entry: JournalEntry): LogLine | null {
+  switch (entry.kind) {
+    case 'log':
+      return { text: entry.text, tone: entry.tone };
+    case 'story':
+      return { text: [entry.title, ...entry.paragraphs].join(' '), tone: 'narration' };
+    case 'key':
+      return { text: `You take the ${entry.key}.`, tone: 'success' };
+    case 'loot':
+      return { text: 'You find something worth carrying.', tone: 'success' };
+    case 'damage':
+      return { text: `You take ${entry.amount} damage.`, tone: 'fear' };
+    case 'heal':
+      return { text: `You recover ${entry.amount}.`, tone: 'hope' };
+    case 'check':
+      return { text: describeOutcome(entry.outcome), tone: toneFor(entry.outcome) };
+    case 'chose':
+      return { text: entry.label, tone: 'system' };
+    case 'encounter':
+      return entry.change === 'started'
+        ? { text: entry.intro ?? 'Something moves.', tone: 'combat' }
+        : null;
+    default:
+      // Flags, variables and bookkeeping are real but not news.
+      return null;
+  }
+}
+
+function describeOutcome(outcome: CheckOutcome): string {
+  switch (outcome) {
+    case 'criticalSuccess':
+      return 'A critical success.';
+    case 'successWithHope':
+      return 'Success, with Hope.';
+    case 'successWithFear':
+      return 'Success, with Fear.';
+    case 'failureWithHope':
+      return 'Failure, with Hope.';
+    case 'failureWithFear':
+      return 'Failure, with Fear.';
+  }
+}
+
+function toneFor(outcome: CheckOutcome): LogTone {
+  if (outcome === 'criticalSuccess') return 'success';
+  return outcome.startsWith('success') ? 'hope' : 'fear';
+}
+
+/** Trait modifiers for whoever is acting, so a check uses the real sheet. */
+function traitsFor(
+  characters: ReadonlyMap<string, DerivedCharacter>,
+): Partial<Record<Trait, number>> {
+  // The demo rolls with the strongest of the party for each trait: a check on an
+  // object is the party solving it together, not one specific hand.
+  const best: Partial<Record<Trait, number>> = {};
+  for (const character of characters.values()) {
+    for (const [trait, value] of Object.entries(character.sheet.traits) as [Trait, number][]) {
+      if (best[trait] === undefined || value > best[trait]!) best[trait] = value;
+    }
+  }
+  return best;
 }

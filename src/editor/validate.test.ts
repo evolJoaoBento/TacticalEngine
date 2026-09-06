@@ -165,9 +165,7 @@ describe('interactables', () => {
       check: {
         trait: 'finesse',
         difficulty: 12,
-        outcomes: {
-          failureWithFear: { text: '', effects: [{ kind: 'startEncounter', encounter: 'ghosts' }] },
-        },
+        onFailureWithFear: [{ kind: 'startEncounter', encounter: 'ghosts' }],
       },
     });
     expect(messages(project)).toContain(
@@ -189,9 +187,7 @@ describe('interactables', () => {
       check: {
         trait: 'finesse',
         difficulty: 12,
-        outcomes: {
-          failureWithFear: { text: '', effects: [{ kind: 'startEncounter', encounter: 'ghosts' }] },
-        },
+        onFailureWithFear: [{ kind: 'startEncounter', encounter: 'ghosts' }],
       },
     });
     expect(messages(project).some((m) => m.includes('which does not exist'))).toBe(false);

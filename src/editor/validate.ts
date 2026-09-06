@@ -12,6 +12,7 @@
  */
 
 import { Pathfinder } from '../engine/grid/pathfinding';
+import { walkCheck } from '../engine/script/schema';
 import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-from-scene';
 import { projectSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
 
@@ -212,16 +213,16 @@ function validateEffects(
     context.project.scenes.flatMap((s) => s.encounters.map((e) => e.id)),
   );
 
-  for (const outcome of Object.values(check.outcomes)) {
-    for (const effect of outcome?.effects ?? []) {
-      if (effect.kind === 'goto' && !context.sceneIds.has(effect.scene)) {
-        add('error', `"${interactable.id}" travels to scene "${effect.scene}", which does not exist.`, interactable.id);
-      }
-      if (effect.kind === 'startEncounter' && !encounterIds.has(effect.encounter)) {
-        add('error', `"${interactable.id}" starts encounter "${effect.encounter}", which does not exist.`, interactable.id);
-      }
+  // Every outcome, and everything nested inside a branch, a choice or a further
+  // check — a walk that stops at the top level passes a broken file.
+  walkCheck(check, (effect) => {
+    if (effect.kind === 'goto' && !context.sceneIds.has(effect.scene)) {
+      add('error', `"${interactable.id}" travels to scene "${effect.scene}", which does not exist.`, interactable.id);
     }
-  }
+    if (effect.kind === 'startEncounter' && !encounterIds.has(effect.encounter)) {
+      add('error', `"${interactable.id}" starts encounter "${effect.encounter}", which does not exist.`, interactable.id);
+    }
+  });
 }
 
 /** Only the problems that stop a project running. */

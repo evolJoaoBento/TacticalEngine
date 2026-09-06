@@ -33,12 +33,23 @@ two thirds.
 
 Each item says what it unlocks, because order matters more than the list.
 
-### ~~1. The scripting substrate~~ — done
+### ~~1. The scripting substrate~~ — done, and now actually reachable
 
 `script/conditions.ts`, `script/effects.ts`, `script/runner.ts`, `script/world.ts`. Conditions
 over flags, keys, scenario variables and world state; the legacy effect vocabulary typed and
 extended; and a **stepper** that pauses on an effect needing input rather than forcing async
 into the rules core. Everything it does comes back in a journal.
+
+`script/schema.ts` is the authored form of all of it, and it is the *only* form. There used to
+be two effect vocabularies — a nine-variant one a document could hold, and the full union the
+runner could execute — with nothing converting between them. An interactable's authored check
+was imported, validated, saved, and never run. They are one schema now, so what a designer can
+write is exactly what the engine can do.
+
+`scene/interact.ts` is the verb that was missing: reach a thing, and its authored `requiresKey`,
+`lockedText`, `check` and outcomes actually happen. The legacy vault's own furniture — a Finesse
+13 door, a trapped chest, a Strength 12 pillar, every line of prose written by the original
+author — plays through it.
 
 ### ~~2. Dialogue graphs~~ — done
 
@@ -101,10 +112,14 @@ three-quarter, so a large map cannot be panned).
 Fixtures are vendored (`tests/fixtures/models/*.glb`) and unused. The procedural library was
 built spec-first partly so an imported asset can slot in beside it behind one resolver.
 
-### 10. Presentation the prototype had and this does not
+### 10. Presentation the prototype had and this does not — partly closed
 
-Narrative log with entity-hover links, inspector, HUD, camera control (the demo camera is
-fixed — BG3 needs orbit, pan and zoom), dice presentation.
+The **narrative log** exists (`game/ui/PlayPanel.tsx`): tone-coloured lines, and the prompt a
+script raises when it stops for a roll, with the option to step back from it. Text only —
+CONTEXT.md rules out narration, and a conversation UI is exactly where that creeps back in.
+
+Still missing: entity-hover links in the log, an inspector, a HUD, camera control (the demo
+camera is fixed — BG3 needs orbit, pan and zoom), and dice presentation.
 
 ## How to tell whether this is on track
 
@@ -117,14 +132,21 @@ spotlight, all from content plus a seed. What is still missing is the ability to
 characters are three hard-coded literals in `game/demo-scene.ts` rather than sheets built from
 the vendored classes and equipment, and there is no editor, inventory or quest model.
 
-A designer can now author a *party* (sheets naming a class, ancestry, armor and weapon) and a
+A designer can now author a *party* (sheets naming a class, ancestry, armor and weapon), a
 *map* (terrain, elevation, props, objects, enemies, triggers and spawns, saved as JSON and
-loaded back). Both without engine code.
+loaded back), and *what the things in it do* — a check, its difficulty, and effects and prose
+per outcome, all as document data the engine executes. None of it needs engine code.
 
-What they still cannot author in a tool is the *writing*: dialogue graphs and an object's check
-outcomes are TypeScript literals, even though the runtime for both exists and is tested. That,
-plus inventory and quests, is what remains.
+What is left of the authoring gap is **conversation**. `dialogue/dialogue.ts` runs a graph,
+`danglingLinks` and `unreachableNodes` check one — but a `Dialogue` is not part of `ProjectDoc`,
+so it cannot be saved, and `startDialogue` is journalled rather than run. Until that closes,
+dialogue is the one thing that still lives only in TypeScript.
 
-So the honest answer today is: *a designer can build the party and the place, and still has to
-write the words in code.* A dialogue editor over `dialogue/dialogue.ts` is the next thing that
-moves that line.
+So the honest answer today is: *a designer can build the party, the place, and what everything
+in it does — except talk.* Putting dialogues in the project document, making `startDialogue`
+pause the runner the way a check does, and an editor over the graph is the next thing that moves
+that line.
+
+One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
+workaround from when nothing could use a door. It can go now — the party can pick that lock
+themselves — but the combat e2e walks east through it, so that is its own change.

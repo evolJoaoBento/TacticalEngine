@@ -25,6 +25,7 @@ import { demoMap } from '../legacy/js/data.js';
 import { EditorController } from './editor/controller';
 import { EditorSession } from './editor/session';
 import { EditorPanel } from './editor/ui/EditorPanel';
+import { PlayPanel } from './game/ui/PlayPanel';
 import { NO_TILE } from './engine/grid/grid';
 import { mapExtent, tileAtWorld } from './engine/render/layout';
 import { MODELS } from './engine/render/procedural/registry';
@@ -32,12 +33,16 @@ import { SceneView } from './engine/render/scene-view';
 import { gridFromScene } from './engine/scene/grid-from-scene';
 import { importLegacyScene } from './engine/scene/legacy-import';
 import { projectSchema, type ProjectDoc } from './engine/scene/schema';
+import type { Response } from './engine/script/runner';
 import {
+  answerPending,
   attackWithSelected,
   buildDemoScene,
   inCombat,
   moveSelectedTo,
   playGmTurn,
+  reachableInteractable,
+  useSelectedOn,
   reachableTiles,
   DEMO_MODELS,
   SRD_ADVERSARIES,
@@ -70,6 +75,14 @@ declare global {
       reachable: () => number[];
       sample: (x: number, y: number) => number[];
       /** Editor handles. */
+      use: (id: string) => string;
+      useInReach: () => string;
+      answer: (response: Response) => string;
+      log: () => { text: string; tone: string }[];
+      pendingKind: () => string | null;
+      objects: () => string[];
+      within: () => string | null;
+      standBeside: (id: string) => boolean;
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -145,7 +158,6 @@ function setMode(next: 'play' | 'edit'): void {
   mode = next;
   editor.end();
   if (mode === 'play') {
-    render(null, app);
     refreshPlay();
   } else {
     view.clearHighlights();
@@ -232,6 +244,15 @@ function tileUnderPointer(event: PointerEvent | MouseEvent): number {
 
 const pointOf = (tile: number) => ({ x: demo.grid.xOf(tile), y: demo.grid.yOf(tile) });
 
+/** The interactable standing on a tile, if any. */
+function objectOn(tile: number): string | null {
+  const point = pointOf(tile);
+  const found = demo.scene.interactables.find(
+    (i) => i.position.x === point.x && i.position.y === point.y,
+  );
+  return found?.id ?? null;
+}
+
 /** The living entity standing on a tile — a click on a token, not the ground. */
 function entityOn(tile: number): string | null {
   for (const id of demo.state.occupantsOf(tile)) {
@@ -243,6 +264,26 @@ function entityOn(tile: number): string | null {
 function refreshPlay(): void {
   view.syncTokens(demo.state);
   view.showHighlights(demo.party.selected === null ? [] : reachableTiles(demo).tiles());
+  renderPlayPanel();
+}
+
+function renderPlayPanel(): void {
+  render(
+    h(PlayPanel, {
+      log: demo.log,
+      pending: demo.pending,
+      within: reachableInteractable(demo),
+      onUse: (id: string) => {
+        useSelectedOn(demo, id);
+        refreshPlay();
+      },
+      onAnswer: (response: Response) => {
+        answerPending(demo, response);
+        refreshPlay();
+      },
+    }),
+    app,
+  );
 }
 refreshPlay();
 
@@ -264,7 +305,11 @@ canvas.addEventListener('pointerdown', (event) => {
     if (entity.faction === 'party') demo.party.select(occupant);
     else attackWithSelected(demo, occupant);
   } else {
-    moveSelectedTo(demo, tile);
+    // A click on a thing tries to use it; on bare ground, walk. Reach is checked
+    // inside the verb, which reports "out of reach" rather than silently walking.
+    const object = objectOn(tile);
+    if (object !== null) useSelectedOn(demo, object);
+    else moveSelectedTo(demo, tile);
   }
   refreshPlay();
 });
@@ -370,6 +415,39 @@ const state = {
     renderer.render(view.scene, camera);
     gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
     return Array.from(pixel);
+  },
+
+  use: (id: string): string => {
+    const result = useSelectedOn(demo, id);
+    refreshPlay();
+    return result.status;
+  },
+  useInReach: (): string => {
+    const id = reachableInteractable(demo);
+    if (id === null) return 'none';
+    const result = useSelectedOn(demo, id);
+    refreshPlay();
+    return result.status;
+  },
+  answer: (response: Response): string => {
+    const result = answerPending(demo, response);
+    refreshPlay();
+    return result.status;
+  },
+  log: (): { text: string; tone: string }[] => demo.log.map((l) => ({ ...l })),
+  pendingKind: (): string | null => demo.pending?.prompt.kind ?? null,
+  objects: (): string[] => demo.scene.interactables.map((i) => i.id),
+  within: (): string | null => reachableInteractable(demo),
+  /** Put the selected member beside a thing, so a test can reach it. */
+  standBeside: (id: string): boolean => {
+    const object = demo.scene.interactables.find((i) => i.id === id);
+    const actor = demo.party.selected;
+    if (object === undefined || actor === null) return false;
+    const tile = demo.grid.indexOf(object.position.x - 1, object.position.y);
+    if (!demo.grid.isTile(tile)) return false;
+    demo.state.moveEntity(actor, tile);
+    refreshPlay();
+    return true;
   },
 
   mode: (): 'play' | 'edit' => mode,

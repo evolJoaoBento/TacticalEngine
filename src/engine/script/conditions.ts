@@ -14,32 +14,15 @@
  * on untrusted content, and previewable in an editor.
  */
 
-/** A value a variable can hold. Scenario state has to be JSON, so this is it. */
-export type ScriptValue = string | number | boolean | null;
+/**
+ * The shapes themselves live in `schema.ts`, because content has to be able to
+ * *hold* a condition as well as evaluate one. These are re-exported so the many
+ * modules that import a `Condition` from here keep working.
+ */
+export type { Condition, CompareOp, ScriptValue } from './schema';
+export { conditionSchema } from './schema';
 
-export type CompareOp = '==' | '!=' | '<' | '<=' | '>' | '>=';
-
-export type Condition =
-  /** Always true — the default when content omits a condition. */
-  | { kind: 'always' }
-  | { kind: 'never' }
-  | { kind: 'not'; of: Condition }
-  | { kind: 'all'; of: readonly Condition[] }
-  | { kind: 'any'; of: readonly Condition[] }
-  /** A story flag has been set. */
-  | { kind: 'flag'; flag: string }
-  /** The party holds a key. */
-  | { kind: 'hasKey'; key: string }
-  /** A scenario variable compared against a literal. */
-  | { kind: 'var'; name: string; op: CompareOp; value: ScriptValue }
-  /** An interactable's runtime state. */
-  | { kind: 'interactable'; id: string; state: 'used' | 'open' | 'removed' }
-  /** An encounter's runtime state. */
-  | { kind: 'encounter'; id: string; state: 'started' | 'ended' | 'triggered' }
-  /** How many of the party are still standing. */
-  | { kind: 'partyAlive'; op: CompareOp; value: number }
-  /** Whether any adversary is still standing. */
-  | { kind: 'adversariesAlive'; op: CompareOp; value: number };
+import type { Condition, CompareOp, ScriptValue } from './schema';
 
 /** What a condition is evaluated against. Read-only: conditions never mutate. */
 export interface ConditionContext {
