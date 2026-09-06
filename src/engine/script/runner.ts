@@ -54,6 +54,15 @@ export interface ScriptWorld extends ConditionContext {
   heal(target: TargetSelector, amount: number): number;
   /** The trait modifier for the acting character, for a check. */
   traitModifier(trait: CheckRequest['trait']): number;
+  /**
+   * Quest progress. Each returns whether anything changed, so the runner can
+   * journal a real event and stay quiet about a `startQuest` that was already
+   * started — scripts re-run, and the journal must not say "New quest" twice.
+   */
+  startQuest(quest: string): boolean;
+  completeObjective(quest: string, objective: string): boolean;
+  completeQuest(quest: string): boolean;
+  failQuest(quest: string): boolean;
 }
 
 /** One thing that happened, in order. A UI renders these; a test asserts on them. */
@@ -72,6 +81,8 @@ export type JournalEntry =
   | { kind: 'encounter'; id: string; change: 'started' | 'ended'; intro?: string }
   | { kind: 'goto'; scene: string }
   | { kind: 'dialogue'; dialogue: string }
+  | { kind: 'quest'; quest: string; change: 'started' | 'completed' | 'failed' }
+  | { kind: 'objective'; quest: string; objective: string }
   | { kind: 'chose'; label: string; index: number }
   | { kind: 'check'; outcome: CheckOutcome; roll: DualityRoll };
 
@@ -240,6 +251,32 @@ export class ScriptRunner {
         // because content is written with it.
         world.giveKey(effect.key);
         this.journal.push({ kind: 'key', key: effect.key });
+        return null;
+      case 'startQuest':
+        if (world.startQuest(effect.quest)) {
+          this.journal.push({ kind: 'quest', quest: effect.quest, change: 'started' });
+        }
+        return null;
+      case 'completeObjective': {
+        // Ticking a step off a quest nobody started starts it, so "the party
+        // found the thing" is one effect rather than two.
+        if (world.startQuest(effect.quest)) {
+          this.journal.push({ kind: 'quest', quest: effect.quest, change: 'started' });
+        }
+        if (world.completeObjective(effect.quest, effect.objective)) {
+          this.journal.push({ kind: 'objective', quest: effect.quest, objective: effect.objective });
+        }
+        return null;
+      }
+      case 'completeQuest':
+        if (world.completeQuest(effect.quest)) {
+          this.journal.push({ kind: 'quest', quest: effect.quest, change: 'completed' });
+        }
+        return null;
+      case 'failQuest':
+        if (world.failQuest(effect.quest)) {
+          this.journal.push({ kind: 'quest', quest: effect.quest, change: 'failed' });
+        }
         return null;
       case 'addItem': {
         const quantity = effect.quantity ?? 1;

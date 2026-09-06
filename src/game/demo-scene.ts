@@ -13,8 +13,10 @@
 import adversaryJson from '../../tools/srd-sources/seansbox/adversaries.json';
 import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
+import { DEMO_QUESTS } from './demo-quests';
 import { walkCheck } from '../engine/script/schema';
 import type { LootTable } from '../engine/content/items';
+import type { QuestDef } from '../engine/content/quests';
 import type { Currency, MarkPool } from '../engine/rules/resources';
 import { interactableSchema, projectSchema, type ProjectDoc } from '../engine/scene/schema';
 import type { SceneStateSnapshot } from '../engine/scene/state';
@@ -474,6 +476,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     dialogues: [...DEMO_DIALOGUES],
     items: [...DEMO_ITEMS],
     lootTables: [...DEMO_LOOT_TABLES],
+    quests: [...DEMO_QUESTS],
     startScene: vault.id,
   });
 
@@ -905,11 +908,12 @@ export function note(demo: DemoScene, text: string, tone: LogTone): LogLine[] {
 function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLine[] {
   const lines: LogLine[] = [];
   const names = new Map(demo.project.items.map((item) => [item.id, item.name]));
+  const quests = new Map(demo.project.quests.map((quest) => [quest.id, quest]));
   for (const entry of journal) {
     // Travel is remembered rather than taken: the rest of this script belongs to
     // the room it was asked in. `settleTravel` spends it once nothing waits.
     if (entry.kind === 'goto') demo.destination = entry.scene;
-    const line = describeEntry(entry, names);
+    const line = describeEntry(entry, names, quests);
     if (line !== null) lines.push(line);
   }
   demo.log.push(...lines);
@@ -929,8 +933,25 @@ function listItems(
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]!}`;
 }
 
-function describeEntry(entry: JournalEntry, names: ReadonlyMap<string, string>): LogLine | null {
+function describeEntry(
+  entry: JournalEntry,
+  names: ReadonlyMap<string, string>,
+  quests: ReadonlyMap<string, QuestDef>,
+): LogLine | null {
   switch (entry.kind) {
+    // Quest events are news, unlike the flags underneath them: the journal
+    // changed, and the player should hear it without opening the journal.
+    case 'quest': {
+      const name = quests.get(entry.quest)?.name ?? entry.quest;
+      if (entry.change === 'started') return { text: `New quest: ${name}.`, tone: 'system' };
+      if (entry.change === 'completed') return { text: `Quest complete: ${name}.`, tone: 'success' };
+      return { text: `Quest failed: ${name}.`, tone: 'fear' };
+    }
+    case 'objective': {
+      const quest = quests.get(entry.quest);
+      const step = quest?.objectives.find((o) => o.id === entry.objective)?.text ?? entry.objective;
+      return { text: `Objective complete: ${step}`, tone: 'success' };
+    }
     case 'log':
       return { text: entry.text, tone: entry.tone };
     case 'story':

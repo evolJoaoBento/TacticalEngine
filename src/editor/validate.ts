@@ -13,7 +13,14 @@
 
 import { Pathfinder } from '../engine/grid/pathfinding';
 import { danglingLinks, unreachableNodes } from '../engine/dialogue/dialogue';
-import { walkCheck, walkEffects } from '../engine/script/schema';
+import {
+  walkCheck,
+  walkCondition,
+  walkConditionsIn,
+  walkEffects,
+  type Condition,
+  type Effect,
+} from '../engine/script/schema';
 import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-from-scene';
 import { projectSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
 
@@ -70,7 +77,87 @@ export function validateProject(
   checkDialogues(project, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkQuests(project, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   return problems;
+}
+
+/**
+ * Every place a script can name a quest, so the quest checks are written once.
+ *
+ * `owner` is what the message blames — an interactable id, a conversation id.
+ */
+function questReferences(
+  project: ProjectDoc,
+  owner: string,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): { effect: (effect: Effect) => void; condition: (condition: Condition) => void } {
+  const quests = new Map(project.quests.map((quest) => [quest.id, quest]));
+  const missingQuest = (id: string): boolean => {
+    if (quests.has(id)) return false;
+    add('error', `"${owner}" refers to quest "${id}", which does not exist.`, owner);
+    return true;
+  };
+  const checkObjective = (quest: string, objective: string): void => {
+    if (missingQuest(quest)) return;
+    if (!quests.get(quest)!.objectives.some((o) => o.id === objective)) {
+      add('error', `"${owner}" refers to objective "${objective}" of quest "${quest}", which does not exist.`, owner);
+    }
+  };
+  return {
+    effect: (effect) => {
+      if (effect.kind === 'startQuest' || effect.kind === 'completeQuest' || effect.kind === 'failQuest') {
+        missingQuest(effect.quest);
+      }
+      if (effect.kind === 'completeObjective') checkObjective(effect.quest, effect.objective);
+    },
+    condition: (condition) => {
+      if (condition.kind === 'quest') missingQuest(condition.quest);
+      if (condition.kind === 'objectiveDone') checkObjective(condition.quest, condition.objective);
+    },
+  };
+}
+
+/** A quest nothing starts, an objective nothing completes. */
+function checkQuests(
+  project: ProjectDoc,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const started = new Set<string>();
+  const completed = new Set<string>();
+  const visit = (effect: Effect): void => {
+    if (effect.kind === 'startQuest') started.add(effect.quest);
+    if (effect.kind === 'completeObjective') {
+      started.add(effect.quest);
+      completed.add(`${effect.quest}/${effect.objective}`);
+    }
+  };
+  for (const scene of project.scenes) {
+    for (const interactable of scene.interactables) {
+      walkEffects(interactable.effects, visit);
+      if (interactable.check !== undefined) walkCheck(interactable.check, visit);
+    }
+  }
+  for (const dialogue of project.dialogues) {
+    for (const node of dialogue.nodes) {
+      walkEffects(node.onEnter, visit);
+      for (const choice of node.choices ?? []) {
+        walkEffects(choice.effects, visit);
+        if (choice.check !== undefined) walkCheck(choice.check, visit);
+      }
+    }
+  }
+  for (const quest of project.quests) {
+    if (!started.has(quest.id)) {
+      add('warning', `Quest "${quest.id}" is never started by anything.`, quest.id);
+    }
+    for (const objective of quest.objectives) {
+      if (!completed.has(`${quest.id}/${objective.id}`)) {
+        add('warning', `Objective "${objective.id}" of quest "${quest.id}" is never completed by anything.`, quest.id);
+      }
+    }
+  }
 }
 
 interface Context {
@@ -241,8 +328,17 @@ function validateEffects(
     }
   };
 
-  walkEffects(interactable.effects, inspect);
-  if (interactable.check !== undefined) walkCheck(interactable.check, inspect);
+  const quests = questReferences(context.project, interactable.id, add);
+  const inspectAll = (effect: Effect): void => {
+    inspect(effect);
+    quests.effect(effect);
+  };
+  walkEffects(interactable.effects, inspectAll);
+  walkConditionsIn(interactable.effects, quests.condition);
+  if (interactable.check !== undefined) {
+    walkCheck(interactable.check, inspectAll);
+    walkCheck(interactable.check, (effect) => walkConditionsIn([effect], quests.condition));
+  }
 }
 
 /** Only the problems that stop a project running. */
@@ -316,11 +412,23 @@ function checkDialogues(
       }
     };
 
+    const quests = questReferences(project, dialogue.id, add);
+    const inspectAll = (effect: Effect): void => {
+      inspect(effect);
+      quests.effect(effect);
+    };
     for (const node of dialogue.nodes) {
-      walkEffects(node.onEnter, inspect);
+      walkEffects(node.onEnter, inspectAll);
+      walkConditionsIn(node.onEnter, quests.condition);
       for (const choice of node.choices ?? []) {
-        walkEffects(choice.effects, inspect);
-        if (choice.check !== undefined) walkCheck(choice.check, inspect);
+        if (choice.available !== undefined) walkCondition(choice.available, quests.condition);
+        if (choice.enabled !== undefined) walkCondition(choice.enabled, quests.condition);
+        walkEffects(choice.effects, inspectAll);
+        walkConditionsIn(choice.effects, quests.condition);
+        if (choice.check !== undefined) {
+          walkCheck(choice.check, inspectAll);
+          walkCheck(choice.check, (effect) => walkConditionsIn([effect], quests.condition));
+        }
       }
     }
   }

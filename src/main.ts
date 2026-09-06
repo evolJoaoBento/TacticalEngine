@@ -32,7 +32,7 @@ import {
   updateInteractable,
 } from './editor/session';
 import { EditorPanel } from './editor/ui/EditorPanel';
-import { PlayPanel } from './game/ui/PlayPanel';
+import { PlayPanel, type JournalQuest } from './game/ui/PlayPanel';
 import { NO_TILE, type TileGrid } from './engine/grid/grid';
 import { mapExtent, tileAtWorld } from './engine/render/layout';
 import { MODELS } from './engine/render/procedural/registry';
@@ -114,6 +114,7 @@ declare global {
       nodePosition: (dialogue: string, node: string) => { x: number; y: number } | null;
       dialogueNodes: (dialogue: string) => string[];
       carried: () => { id: string; name: string; quantity: number }[];
+      journal: () => { id: string; status: string; done: string[] }[];
       save: () => boolean;
       load: () => boolean;
       saveBlocked: () => string | null;
@@ -480,10 +481,29 @@ function loadNow(): boolean {
   return true;
 }
 
+/** The journal: every quest the party has been given, joined to its words. */
+function journalEntries(): JournalQuest[] {
+  const entries: JournalQuest[] = [];
+  for (const quest of demo.project.quests) {
+    const progress = demo.scenario.quests.get(quest.id);
+    if (progress === undefined) continue;
+    entries.push({
+      id: quest.id,
+      name: quest.name,
+      summary: quest.summary,
+      status: progress.status,
+      objectives: quest.objectives.map((o) => ({ id: o.id, text: o.text, done: progress.done.has(o.id) })),
+    });
+  }
+  // Active first; finished ones sink to the tail.
+  return entries.sort((a, b) => Number(a.status !== 'active') - Number(b.status !== 'active'));
+}
+
 function renderPlayPanel(): void {
   render(
     h(PlayPanel, {
       log: demo.log,
+      journal: journalEntries(),
       carried: carriedItems(),
       pending: demo.pending,
       within: reachableInteractable(demo),
@@ -741,6 +761,12 @@ const state = {
 
   carried: (): { id: string; name: string; quantity: number }[] => carriedItems(),
 
+  journal: (): { id: string; status: string; done: string[] }[] =>
+    journalEntries().map((q) => ({
+      id: q.id,
+      status: q.status,
+      done: q.objectives.filter((o) => o.done).map((o) => o.id),
+    })),
   save: (): boolean => {
     const ok = saveNow();
     refreshPlay();

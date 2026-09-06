@@ -11,6 +11,7 @@
  */
 
 import { dialogueSchema, type Dialogue } from '../engine/dialogue/schema';
+import { OBJECTIVE_WIN_THE_WORD, WARDENS_WORD_QUEST } from './demo-quests';
 
 export const PILLAR_DIALOGUE_ID = 'the-listening-pillar';
 
@@ -23,6 +24,7 @@ export const PILLAR_DIALOGUE: Dialogue = dialogueSchema.parse({
   nodes: [
     {
       id: 'wakes',
+      onEnter: [{ kind: 'startQuest', quest: WARDENS_WORD_QUEST }],
       lines: [
         { text: 'The carving in the pillar opens its eyes.' },
         {
@@ -86,10 +88,12 @@ export const PILLAR_DIALOGUE: Dialogue = dialogueSchema.parse({
             onSuccessWithHope: [
               { kind: 'log', text: 'Something in the stone unclenches.', tone: 'hope' },
               { kind: 'giveKey', key: 'wardens-word' },
+              { kind: 'completeObjective', quest: WARDENS_WORD_QUEST, objective: OBJECTIVE_WIN_THE_WORD },
             ],
             onSuccessWithFear: [
               { kind: 'log', text: 'It yields — and something deeper in the vault notices.', tone: 'fear' },
               { kind: 'giveKey', key: 'wardens-word' },
+              { kind: 'completeObjective', quest: WARDENS_WORD_QUEST, objective: OBJECTIVE_WIN_THE_WORD },
             ],
             onFailureWithHope: [
               { kind: 'log', text: 'The Warden is unmoved, but not unkind.', tone: 'narration' },

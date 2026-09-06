@@ -470,3 +470,107 @@ describe('items and loot', () => {
     expect(messages(project).some((m) => m.includes('does not exist'))).toBe(false);
   });
 });
+
+describe('quests', () => {
+  const chest = {
+    id: 'chest-1',
+    kind: 'chest' as const,
+    position: { x: 2, y: 1 },
+    name: '',
+    flavor: '',
+    model: null,
+    blocksMovement: true,
+    effects: [],
+    lockedText: '',
+    tags: [],
+    data: {},
+  };
+  const quest = {
+    id: 'word',
+    name: 'The word',
+    summary: '',
+    objectives: [{ id: 'ask', text: 'Ask.' }],
+  };
+  const withQuest = (): ProjectDoc => {
+    const project = build();
+    (project as { quests: unknown[] }).quests = [quest];
+    return project;
+  };
+
+  it('warns about a quest nothing starts and a step nothing ticks', () => {
+    const problems = validateProject(withQuest());
+    expect(problems.map((p) => p.message)).toEqual([
+      'Quest "word" is never started by anything.',
+      'Objective "ask" of quest "word" is never completed by anything.',
+    ]);
+    expect(problems.every((p) => p.severity === 'warning')).toBe(true);
+  });
+
+  it('is quiet once content drives the quest', () => {
+    const project = withQuest();
+    project.scenes[0]!.interactables.push({
+      ...chest,
+      effects: [{ kind: 'completeObjective', quest: 'word', objective: 'ask' }],
+    });
+    expect(messages(project)).toEqual([]);
+  });
+
+  it('catches an effect naming a quest nobody wrote', () => {
+    const project = build();
+    project.scenes[0]!.interactables.push({ ...chest, effects: [{ kind: 'startQuest', quest: 'ghost' }] });
+    expect(messages(project)).toContain('"chest-1" refers to quest "ghost", which does not exist.');
+  });
+
+  it('catches an objective the quest does not have', () => {
+    const project = withQuest();
+    project.scenes[0]!.interactables.push({
+      ...chest,
+      effects: [{ kind: 'completeObjective', quest: 'word', objective: 'fly' }],
+    });
+    expect(messages(project)).toContain(
+      '"chest-1" refers to objective "fly" of quest "word", which does not exist.',
+    );
+  });
+
+  it('reads the conditions too, not only the effects', () => {
+    const project = withQuest();
+    project.scenes[0]!.interactables.push({
+      ...chest,
+      effects: [
+        {
+          kind: 'branch',
+          when: { kind: 'not', of: { kind: 'quest', quest: 'ghost', status: 'active' } },
+          then: [{ kind: 'completeObjective', quest: 'word', objective: 'ask' }],
+        },
+      ],
+    });
+    expect(messages(project)).toContain('"chest-1" refers to quest "ghost", which does not exist.');
+  });
+
+  it('reads a reply gated on a quest', () => {
+    const project = withQuest();
+    (project as { dialogues: unknown[] }).dialogues = [
+      {
+        id: 'hag',
+        start: 'a',
+        nodes: [
+          {
+            id: 'a',
+            lines: [{ text: 'Hello.' }],
+            onEnter: [{ kind: 'startQuest', quest: 'word' }],
+            choices: [
+              {
+                text: 'Done it.',
+                available: { kind: 'objectiveDone', quest: 'word', objective: 'nope' },
+                effects: [{ kind: 'completeObjective', quest: 'word', objective: 'ask' }],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    expect(messages(project)).toContain(
+      '"hag" refers to objective "nope" of quest "word", which does not exist.',
+    );
+  });
+});

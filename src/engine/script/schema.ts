@@ -19,6 +19,7 @@
 
 import { z } from 'zod';
 import { contentIdSchema, traitSchema } from '../scene/primitives';
+import { questQuerySchema } from '../content/quests';
 
 /** A value a scenario variable can hold. */
 export const scriptValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
@@ -86,6 +87,9 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     id: z.string().min(1),
     state: z.enum(['started', 'ended', 'triggered']),
   }),
+  /** Where a quest stands; `inactive` is a quest nothing has started yet. */
+  z.object({ kind: z.literal('quest'), quest: contentIdSchema, status: questQuerySchema }),
+  z.object({ kind: z.literal('objectiveDone'), quest: contentIdSchema, objective: contentIdSchema }),
   z.object({ kind: z.literal('partyAlive'), op: compareOpSchema, value: z.number().int() }),
   z.object({
     kind: z.literal('adversariesAlive'),
@@ -180,6 +184,15 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('endEncounter'), encounter: contentIdSchema }),
   z.object({ kind: z.literal('goto'), scene: contentIdSchema }),
   z.object({ kind: z.literal('startDialogue'), dialogue: contentIdSchema }),
+  z.object({ kind: z.literal('startQuest'), quest: contentIdSchema }),
+  /** Ticks one step off. Starts the quest if nothing has yet. */
+  z.object({
+    kind: z.literal('completeObjective'),
+    quest: contentIdSchema,
+    objective: contentIdSchema,
+  }),
+  z.object({ kind: z.literal('completeQuest'), quest: contentIdSchema }),
+  z.object({ kind: z.literal('failQuest'), quest: contentIdSchema }),
   z.object({
     kind: z.literal('branch'),
     when: conditionSchema,
@@ -244,6 +257,41 @@ export function walkEffects(
         break;
     }
   }
+}
+
+/** Visit a condition and every condition nested inside it. */
+export function walkCondition(condition: Condition, visit: (condition: Condition) => void): void {
+  visit(condition);
+  switch (condition.kind) {
+    case 'not':
+      walkCondition(condition.of, visit);
+      break;
+    case 'all':
+    case 'any':
+      for (const inner of condition.of) walkCondition(inner, visit);
+      break;
+    default:
+      break;
+  }
+}
+
+/**
+ * Every condition an effect tree reads: a branch's `when`, a choice option's
+ * `available`. Effects are walked with `walkEffects`; this is the other half a
+ * validator needs when a condition names content that has to exist.
+ */
+export function walkConditionsIn(
+  effects: readonly Effect[] | undefined,
+  visit: (condition: Condition) => void,
+): void {
+  walkEffects(effects, (effect) => {
+    if (effect.kind === 'branch') walkCondition(effect.when, visit);
+    if (effect.kind === 'choice') {
+      for (const option of effect.options) {
+        if (option.available !== undefined) walkCondition(option.available, visit);
+      }
+    }
+  });
 }
 
 /** Every effect a check can run, whichever way the roll goes. */

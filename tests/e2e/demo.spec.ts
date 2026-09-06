@@ -64,6 +64,7 @@ declare global {
       nodePosition: (dialogue: string, node: string) => { x: number; y: number } | null;
       dialogueNodes: (dialogue: string) => string[];
       carried: () => { id: string; name: string; quantity: number }[];
+      journal: () => { id: string; status: string; done: string[] }[];
       save: () => boolean;
       load: () => boolean;
       saveBlocked: () => string | null;
@@ -1040,6 +1041,33 @@ test('will not save in the middle of a conversation', async ({ page }) => {
   expect(await page.evaluate(() => window.__polyheart!.hasDialogue())).toBe(true);
   await expect(save).toBeDisabled();
   expect(await page.evaluate(() => window.__polyheart!.saveBlocked())).toMatch(/conversation/);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('opens a quest in the journal when the pillar wakes', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  // No journal until there is something in it.
+  await expect(page.locator('[data-testid="journal"]')).toHaveCount(0);
+
+  const journal = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const before = api.journal();
+    const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
+    api.standBeside(pillar);
+    api.use(pillar);
+    return { before, after: api.journal(), log: api.log().map((l) => l.text) };
+  });
+  expect(journal.before).toEqual([]);
+  expect(journal.after).toEqual([{ id: 'the-wardens-word', status: 'active', done: [] }]);
+  expect(journal.log.join(' ')).toContain("New quest: The Warden's Word");
+
+  const panel = page.locator('[data-testid="journal"]');
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("The Warden's Word");
+  await expect(panel).toContainText('Get the word out of the Warden');
+  await expect(panel.locator('[data-objective="win-the-word"]')).toHaveAttribute('data-done', 'false');
 
   expect(consoleErrors).toEqual([]);
 });

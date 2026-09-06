@@ -16,6 +16,7 @@
 
 import { z } from 'zod';
 import { itemSchema, lootTableSchema } from '../content/items';
+import { questSchema } from '../content/quests';
 import { dialogueSchema } from '../dialogue/schema';
 import { checkRequestSchema, effectSchema } from '../script/schema';
 import {
@@ -200,6 +201,11 @@ export const projectSchema = z
     items: z.array(itemSchema).default([]),
     /** What a `loot` effect draws from. */
     lootTables: z.array(lootTableSchema).default([]),
+    /**
+     * What the party can be asked to do. Defaulted rather than versioned: a
+     * project written before quests existed is still a valid project.
+     */
+    quests: z.array(questSchema).default([]),
     /** Scene the project opens on. */
     startScene: contentIdSchema,
   })
@@ -228,6 +234,13 @@ export const projectSchema = z
         ctx.addIssue({ code: 'custom', path: ['items', i, 'id'], message: `duplicate item id "${item.id}"` });
       }
       seen.add(item.id);
+    });
+    const questIds = new Set<string>();
+    project.quests.forEach((quest, i) => {
+      if (questIds.has(quest.id)) {
+        ctx.addIssue({ code: 'custom', path: ['quests', i, 'id'], message: `duplicate quest id "${quest.id}"` });
+      }
+      questIds.add(quest.id);
     });
     const tables = new Set<string>();
     project.lootTables.forEach((table, i) => {

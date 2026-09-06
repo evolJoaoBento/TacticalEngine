@@ -20,6 +20,7 @@ import { scriptValueSchema, type ScriptValue } from './schema';
 import type { TargetSelector } from './effects';
 import type { Rng } from '../core/rng';
 import { rollLoot, type LootDrop, type LootTable } from '../content/items';
+import { questStatusSchema, type QuestProgress, type QuestQuery } from '../content/quests';
 import type { ScriptWorld } from './runner';
 
 /**
@@ -45,6 +46,8 @@ export interface ScenarioState {
   items: Map<string, number>;
   /** The character a script's `actor` selector refers to. */
   actorId: string | null;
+  /** Quest progress by quest id. A quest with no entry has not been started. */
+  quests: Map<string, QuestProgress>;
 }
 
 export function createScenarioState(
@@ -58,6 +61,7 @@ export function createScenarioState(
     flags: new Set(flags),
     items: new Map(items),
     actorId,
+    quests: new Map(),
   };
 }
 
@@ -73,6 +77,13 @@ export const scenarioSnapshotSchema = z.object({
   flags: z.array(z.string()),
   items: z.array(z.tuple([z.string(), z.number().int().min(0)])),
   actorId: z.string().nullable(),
+  /**
+   * Defaulted, so a save written before quests existed still loads. A save
+   * format is a promise to every file already on disk.
+   */
+  quests: z
+    .array(z.object({ quest: z.string(), status: questStatusSchema, done: z.array(z.string()) }))
+    .default([]),
 });
 
 export type ScenarioSnapshot = z.infer<typeof scenarioSnapshotSchema>;
@@ -83,6 +94,11 @@ export function scenarioSnapshot(scenario: ScenarioState): ScenarioSnapshot {
     flags: [...scenario.flags],
     items: [...scenario.items].map(([id, quantity]) => [id, quantity] as [string, number]),
     actorId: scenario.actorId,
+    quests: [...scenario.quests].map(([quest, progress]) => ({
+      quest,
+      status: progress.status,
+      done: [...progress.done],
+    })),
   };
 }
 
@@ -101,6 +117,10 @@ export function restoreScenario(scenario: ScenarioState, snapshot: ScenarioSnaps
   scenario.items.clear();
   for (const [id, quantity] of snapshot.items) scenario.items.set(id, quantity);
   scenario.actorId = snapshot.actorId;
+  scenario.quests.clear();
+  for (const entry of snapshot.quests) {
+    scenario.quests.set(entry.quest, { status: entry.status, done: new Set(entry.done) });
+  }
 }
 
 export interface SceneScriptWorldOptions {
@@ -146,6 +166,14 @@ export class SceneScriptWorld implements ScriptWorld {
 
   itemCount(item: string): number {
     return this.scenario.items.get(item) ?? 0;
+  }
+
+  questStatus(quest: string): QuestQuery {
+    return this.scenario.quests.get(quest)?.status ?? 'inactive';
+  }
+
+  objectiveDone(quest: string, objective: string): boolean {
+    return this.scenario.quests.get(quest)?.done.has(objective) ?? false;
   }
 
   getVar(name: string): ScriptValue {
@@ -210,6 +238,42 @@ export class SceneScriptWorld implements ScriptWorld {
     if (held - taken === 0) this.scenario.items.delete(item);
     else this.scenario.items.set(item, held - taken);
     return taken;
+  }
+
+  // ---- quests --------------------------------------------------------------
+  //
+  // Completed and failed are terminal: a finished quest does not restart, a
+  // failed one is not completed by a late objective. Finishing is explicit —
+  // ticking the last objective does not complete a quest, because "you have
+  // everything, now bring it back" is a beat a designer places on purpose.
+
+  startQuest(quest: string): boolean {
+    if (this.scenario.quests.has(quest)) return false;
+    this.scenario.quests.set(quest, { status: 'active', done: new Set() });
+    return true;
+  }
+
+  completeObjective(quest: string, objective: string): boolean {
+    const progress = this.scenario.quests.get(quest);
+    if (progress === undefined || progress.status !== 'active') return false;
+    if (progress.done.has(objective)) return false;
+    progress.done.add(objective);
+    return true;
+  }
+
+  completeQuest(quest: string): boolean {
+    return this.finishQuest(quest, 'completed');
+  }
+
+  failQuest(quest: string): boolean {
+    return this.finishQuest(quest, 'failed');
+  }
+
+  private finishQuest(quest: string, status: 'completed' | 'failed'): boolean {
+    const progress = this.scenario.quests.get(quest);
+    if (progress === undefined || progress.status !== 'active') return false;
+    progress.status = status;
+    return true;
   }
 
   setVar(name: string, value: ScriptValue): void {

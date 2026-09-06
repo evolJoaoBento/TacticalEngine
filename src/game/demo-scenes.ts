@@ -11,6 +11,7 @@
  */
 
 import { sceneSchema, type SceneDoc } from '../engine/scene/schema';
+import { OBJECTIVE_OPEN_THE_STRONGBOX, WARDENS_WORD_QUEST } from './demo-quests';
 
 export const PIT_SCENE_ID = 'the-pit';
 
@@ -88,6 +89,12 @@ export const PIT_SCENE: SceneDoc = sceneSchema.parse({
       effects: [
         { kind: 'log', text: 'The word you were given does the work for you.', tone: 'hope' },
         { kind: 'loot', table: 'pit-strongbox' },
+        {
+          kind: 'completeObjective',
+          quest: WARDENS_WORD_QUEST,
+          objective: OBJECTIVE_OPEN_THE_STRONGBOX,
+        },
+        { kind: 'completeQuest', quest: WARDENS_WORD_QUEST },
       ],
     },
   ],

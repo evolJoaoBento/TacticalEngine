@@ -23,6 +23,7 @@ export type { Condition, CompareOp, ScriptValue } from './schema';
 export { conditionSchema } from './schema';
 
 import type { Condition, CompareOp, ScriptValue } from './schema';
+import type { QuestQuery } from '../content/quests';
 
 /** What a condition is evaluated against. Read-only: conditions never mutate. */
 export interface ConditionContext {
@@ -33,6 +34,9 @@ export interface ConditionContext {
   interactableState(id: string): { used: boolean; open: boolean; removed: boolean };
   encounterState(id: string): { started: boolean; ended: boolean; triggered: boolean };
   countAlive(faction: 'party' | 'adversary'): number;
+  /** Where a quest stands; `inactive` when nothing has started it. */
+  questStatus(quest: string): QuestQuery;
+  objectiveDone(quest: string, objective: string): boolean;
 }
 
 function compare(left: ScriptValue, op: CompareOp, right: ScriptValue): boolean {
@@ -78,6 +82,10 @@ export function evaluate(condition: Condition, context: ConditionContext): boole
       return context.interactableState(condition.id)[condition.state];
     case 'encounter':
       return context.encounterState(condition.id)[condition.state];
+    case 'quest':
+      return context.questStatus(condition.quest) === condition.status;
+    case 'objectiveDone':
+      return context.objectiveDone(condition.quest, condition.objective);
     case 'partyAlive':
       return compare(context.countAlive('party'), condition.op, condition.value);
     case 'adversariesAlive':

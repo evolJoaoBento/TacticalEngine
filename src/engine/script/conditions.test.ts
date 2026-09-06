@@ -26,6 +26,8 @@ function context(overrides: Partial<ConditionContext> = {}): ConditionContext {
     interactableState: () => ({ used: false, open: false, removed: false }),
     encounterState: () => ({ started: false, ended: false, triggered: false }),
     countAlive: () => 0,
+    questStatus: () => 'inactive',
+    objectiveDone: () => false,
     ...overrides,
   };
 }

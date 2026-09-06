@@ -19,8 +19,19 @@ export interface CarriedItem {
   quantity: number;
 }
 
+/** One quest as the journal shows it: the words, and which steps are ticked. */
+export interface JournalQuest {
+  id: string;
+  name: string;
+  summary: string;
+  status: 'active' | 'completed' | 'failed';
+  objectives: readonly { id: string; text: string; done: boolean }[];
+}
+
 export interface PlayPanelProps {
   log: readonly LogLine[];
+  /** Quests the party has been given, active first. */
+  journal: readonly JournalQuest[];
   /** What the party is carrying. */
   carried: readonly CarriedItem[];
   pending: PendingScript | null;
@@ -50,7 +61,7 @@ const wrap: Record<string, string | number> = {
   right: 0,
   bottom: 0,
   width: '340px',
-  maxHeight: '60vh',
+  maxHeight: '75vh',
   display: 'flex',
   flexDirection: 'column',
   gap: '8px',
@@ -80,6 +91,14 @@ function button(primary: boolean): Record<string, string | number> {
     cursor: 'pointer',
   };
 }
+
+const heading: Record<string, string | number> = {
+  color: '#8ea3b0',
+  font: '600 10px/1 system-ui, sans-serif',
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  marginBottom: '4px',
+};
 
 /** A modifier reads as +2 or -1, never as +-1. */
 const signed = (n: number): string => (n >= 0 ? `+${n}` : `${n}`);
@@ -119,19 +138,38 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         </button>
       </div>
 
+      {props.journal.length > 0 ? (
+        <div style={{ ...logBox, padding: '8px 12px', flexShrink: 0 }} data-testid="journal">
+          <div style={heading}>Journal</div>
+          {props.journal.map((quest) => (
+            <div key={quest.id} style={{ marginBottom: '6px' }} data-quest={quest.id}>
+              <div
+                style={{
+                  color: quest.status === 'active' ? '#e8e6df' : '#8ea3b0',
+                  textDecoration: quest.status === 'completed' ? 'line-through' : 'none',
+                }}
+              >
+                {quest.name}
+                {quest.status === 'failed' ? ' — failed' : ''}
+              </div>
+              {quest.status === 'active' ? (
+                <div style={{ color: '#8ea3b0', fontSize: '12px' }}>
+                  {quest.summary !== '' ? <div style={{ marginBottom: '2px' }}>{quest.summary}</div> : null}
+                  {quest.objectives.map((objective) => (
+                    <div key={objective.id} data-objective={objective.id} data-done={objective.done}>
+                      {objective.done ? '☑' : '☐'} {objective.text}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {props.carried.length > 0 ? (
-        <div style={{ ...logBox, padding: '8px 12px' }} data-testid="pack">
-          <div
-            style={{
-              color: '#8ea3b0',
-              font: '600 10px/1 system-ui, sans-serif',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              marginBottom: '4px',
-            }}
-          >
-            Carried
-          </div>
+        <div style={{ ...logBox, padding: '8px 12px', flexShrink: 0 }} data-testid="pack">
+          <div style={heading}>Carried</div>
           {props.carried.map((item) => (
             <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>{item.name}</span>
@@ -142,7 +180,14 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {log.length > 0 ? (
-        <div style={logBox} data-testid="log">
+        <div
+          style={{ ...logBox, flex: '1 1 auto', minHeight: '80px' }}
+          data-testid="log"
+          // The newest line is the one being read; keep it in view.
+          ref={(el) => {
+            if (el !== null) el.scrollTop = el.scrollHeight;
+          }}
+        >
           {log.slice(-12).map((line, i) => (
             <div key={i} style={{ color: TONE[line.tone], marginBottom: '4px' }}>
               {line.text}

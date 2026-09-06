@@ -37,6 +37,7 @@ two thirds.
 | UI | Narrative log with tone, the conversation panel, and the roll prompt a script raises |
 | Campaign | Two scenes, travel between them, and state that outlives a room |
 | Saving | A campaign put down and picked up: rooms, pack, flags, and the dice position |
+| Quests | Start, tick, finish; a journal; a demo quest across two rooms |
 | Items | Items and weighted loot tables; a shared pack that survives a doorway |
 | Editor | Map tools, scene list, object inspector, dialogue graph, undo, validation, JSON |
 
@@ -164,9 +165,33 @@ reported rather than thrown.
 saves, autosaves, a save browser and a trimmed log are all UI and policy on top of a format that
 already carries what they need.
 
-### 7. Quests and journal
+### ~~7. Quests and journal~~ — done, in the engine and the game
 
-Listed in `CONTEXT.md`. Needs (1) plus a quest state model.
+`content/quests.ts` holds a quest: a name, a summary, and a flat list of objectives. Progress is
+not content — it lives in `ScenarioState.quests` beside the flags and the pack, so it travels
+between rooms and into a save (the save format defaults the field, so a save written before
+quests existed still loads).
+
+The vocabulary grew four effects (`startQuest`, `completeObjective`, `completeQuest`, `failQuest`)
+and two conditions (`quest` with a status, `objectiveDone`), in the one schema. The rules are few
+and each is a decision: starting is idempotent and journals once; ticking a step starts the
+quest, so "the party found the thing" is one effect; completed and failed are terminal; and
+finishing is **explicit** — ticking the last objective does not complete a quest, because "you
+have everything, now bring it back" is a beat a designer places on purpose.
+
+Quest events are news in the narrative log ("New quest: …", "Objective complete: …", "Quest
+complete: …"), unlike the flags underneath them. The play panel shows a journal: active quests
+with ticked and unticked steps, finished ones sunk to the tail. Validation catches an effect or
+a condition naming a quest or an objective nobody wrote — which meant teaching the validator to
+walk *conditions* for the first time — and warns about a quest nothing starts or a step nothing
+ticks.
+
+The demo's quest threads through content that already existed: the pillar starts it, winning
+the word ticks the first step, and the strongbox downstairs ticks the second and closes it.
+
+**Still open:** objectives are all visible once a quest is active, and there are no stages with
+their own summary text — a BG3 journal reveals steps progressively and rewrites the summary as
+the story turns. And the *editor* half: quests are authored as literals until the next slice.
 
 ### ~~11. Scene travel~~ — done
 
