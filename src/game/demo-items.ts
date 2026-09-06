@@ -41,6 +41,10 @@ export const DEMO_ITEMS: readonly ItemDef[] = [
     name: 'Healing draught',
     kind: 'consumable',
     description: 'Tastes of iron and mint.',
+    use: [
+      { kind: 'heal', amount: 2, target: { kind: 'actor' } },
+      { kind: 'log', text: 'Iron and mint. The cuts close.', tone: 'hope' },
+    ],
   },
   {
     id: 'husk-carapace',

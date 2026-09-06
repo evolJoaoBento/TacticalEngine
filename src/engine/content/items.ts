@@ -16,6 +16,7 @@
 import { z } from 'zod';
 import type { Rng } from '../core/rng';
 import { contentIdSchema } from '../scene/primitives';
+import { effectSchema } from '../script/schema';
 
 export const itemKindSchema = z.enum(['key', 'consumable', 'weapon', 'armor', 'trinket']);
 export type ItemKind = z.infer<typeof itemKindSchema>;
@@ -32,6 +33,14 @@ export const itemSchema = z.object({
   contentId: z.string().optional(),
   /** Whether a second one adds to the count or sits beside the first. */
   stackable: z.boolean().default(true),
+  /**
+   * What using it does, in the one effect vocabulary — a draught heals the
+   * `actor`, a scroll starts a conversation. Empty means it cannot be used.
+   * A `consumable` is spent by the use; any other kind stays in the pack.
+   */
+  get use() {
+    return z.array(effectSchema).default([]);
+  },
 });
 export type ItemDef = z.infer<typeof itemSchema>;
 

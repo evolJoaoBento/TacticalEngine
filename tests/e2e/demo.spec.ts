@@ -65,6 +65,8 @@ declare global {
       dialogueNodes: (dialogue: string) => string[];
       carried: () => { id: string; name: string; quantity: number }[];
       equip: (id: string) => string;
+      useItem: (id: string) => string;
+      wound: (id: string, marks: number) => void;
       gear: (id: string) => { weapon: string; armor: string };
       giveItem: (id: string, quantity?: number) => void;
       journal: () => { id: string; status: string; done: string[] }[];
@@ -1403,5 +1405,29 @@ test('keeps a hidden objective out of the journal until it is revealed', async (
   const journal = page.locator('[data-testid="journal"]');
   await expect(journal).toContainText('Get the word out of the Warden');
   await expect(journal).not.toContainText('Open the strongbox');
+  expect(consoleErrors).toEqual([]);
+});
+
+test('drinks a draught from the pack, and the wound closes on the card', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.select('kara');
+    api.wound('kara', 3);
+    api.giveItem('healing-draught', 2);
+  });
+  const hp = page.locator('[data-member="kara"] [data-testid="hp"]');
+  await expect(hp).toHaveAttribute('data-marked', '3');
+
+  const pack = page.locator('[data-testid="pack"]');
+  await pack.locator('[data-item="healing-draught"] [data-testid="use-item"]').click();
+  await expect(hp).toHaveAttribute('data-marked', '1');
+  await expect(page.locator('[data-testid="log"]')).toContainText('Iron and mint');
+
+  // The second one goes too, and the row disappears with it.
+  await pack.locator('[data-item="healing-draught"] [data-testid="use-item"]').click();
+  await expect(pack.locator('[data-item="healing-draught"]')).toHaveCount(0);
+  await expect(hp).toHaveAttribute('data-marked', '0');
+
   expect(consoleErrors).toEqual([]);
 });

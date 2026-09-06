@@ -19,6 +19,8 @@ export interface CarriedItem {
   quantity: number;
   /** Something the selected character could wear or wield. */
   wearable: boolean;
+  /** Something with a `use`. */
+  usable: boolean;
 }
 
 /** One quest as the journal shows it: the words, and which steps are ticked. */
@@ -49,6 +51,8 @@ export interface PlayPanelProps {
   onLoad: () => void;
   /** Equip a carried item on whoever is selected. */
   onEquip: (id: string) => void;
+  /** Use a carried item, with whoever is selected. */
+  onUseItem: (id: string) => void;
 }
 
 const TONE: Readonly<Record<LogLine['tone'], string>> = {
@@ -179,6 +183,15 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               <span>{item.name}</span>
               <span style={{ color: '#8ea3b0' }}>
                 {item.quantity > 1 ? `×${item.quantity}` : ''}
+                {item.usable ? (
+                  <button
+                    style={{ ...button(true), padding: '1px 8px', marginLeft: '6px', marginRight: 0, fontSize: '11px' }}
+                    data-testid="use-item"
+                    onClick={() => props.onUseItem(item.id)}
+                  >
+                    Use
+                  </button>
+                ) : null}
                 {item.wearable ? (
                   <button
                     style={{ ...button(false), padding: '1px 8px', marginLeft: '6px', marginRight: 0, fontSize: '11px' }}

@@ -196,8 +196,8 @@ export interface LogLine {
 export interface PendingScript {
   runner: ScriptRunner;
   prompt: Prompt;
-  /** The interactable it came from, for a UI that wants to name it. */
-  interactable: string;
+  /** The interactable it came from, for a UI that wants to name it; null for an item. */
+  interactable: string | null;
   /**
    * How much of the runner's journal has already reached the log.
    *
@@ -1195,4 +1195,50 @@ export function gearOf(demo: DemoScene, characterId: string): { weapon: string; 
     weapon: character?.primaryWeapon?.name ?? 'Unarmed',
     armor: character?.sheet.armorId === undefined ? 'Unarmored' : (SRD_CHARACTERS.armors.get(character.sheet.armorId)?.name ?? 'Unarmored'),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Using what is carried
+// ---------------------------------------------------------------------------
+
+/**
+ * Use a carried item, with whoever is selected as the actor.
+ *
+ * The item's `use` effects run through the same runner as an object's, so a
+ * draught can heal, a scroll can start a conversation, and a script that stops
+ * to ask something is answered through `answerPending` like any other. A
+ * consumable is spent first — before its effects run, so a `loot` inside them
+ * cannot hand it back. In a fight, using something is the character's action.
+ */
+export function useItem(demo: DemoScene, itemId: string): UseOutcome {
+  if (demo.pending !== null) return { status: 'busy', lines: [] };
+  const item = demo.project.items.find((candidate) => candidate.id === itemId);
+  if (item === undefined) return { status: 'missing', lines: [] };
+  const actor = demo.party.selected;
+  if (actor === null) return { status: 'unreachable', lines: [] };
+  if ((demo.scenario.items.get(itemId) ?? 0) < 1) {
+    return { status: 'refused', lines: note(demo, `The party is not carrying ${item.name}.`, 'system') };
+  }
+  if (item.use.length === 0) {
+    return { status: 'refused', lines: note(demo, `There is nothing to do with ${item.name}.`, 'system') };
+  }
+  const fighting = inCombat(demo);
+  if (fighting && !demo.encounter!.canAct(actor)) {
+    return { status: 'refused', lines: note(demo, 'There is no time — you have acted.', 'system') };
+  }
+
+  demo.scenario.actorId = actor;
+  if (item.kind === 'consumable') demo.world.removeItem(itemId, 1);
+  if (fighting) demo.encounter!.act(actor);
+  const who = demo.sheets.get(actor)?.name ?? actor;
+  const lines = note(demo, `${who} uses the ${item.name}.`, 'system');
+
+  const runner = new ScriptRunner(demo.world, demo.rng);
+  const result = runner.run(item.use);
+  lines.push(...record(demo, result.journal));
+  if (result.status === 'waiting') {
+    demo.pending = { runner, prompt: result.prompt, interactable: null, recorded: result.journal.length, dialogue: null };
+    return settle(demo, lines);
+  }
+  return settleTravel(demo, lines);
 }

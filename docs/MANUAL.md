@@ -129,7 +129,7 @@ tried again. In this build a
 scripted check rolls with the *best* modifier for that trait in the whole party, not the
 selected character's (see Limits).
 
-### Loot, keys and equipping
+### Loot, keys, equipping and using
 
 A `loot` effect draws from a weighted table with the scene's own dice, so a chest's contents are
 as replayable as the roll that opened it. Drops read "You find 7 Gold and a Brass key." and go
@@ -502,7 +502,6 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   spends that character's action. Both are demo decisions, not SRD rules.
 - **Quests have no stages**: steps can be hidden and revealed, but the summary is one string
   and is never rewritten.
-- **Consumables do nothing** — a healing draught is carried, not drunk.
 - **Domain-card and subclass features are text**, shown on the level-up sheet but not
   executed. Level-up tier tables are unverified against the SRD.
 - **Partial effect editing.** `branch` and reply gates have a condition editor; `choice`,

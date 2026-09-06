@@ -64,6 +64,7 @@ import {
   awaitingLevel,
   equipItem,
   gearOf,
+  useItem,
   moveSelectedTo,
   note,
   playGmTurn,
@@ -128,6 +129,8 @@ declare global {
       dialogueNodes: (dialogue: string) => string[];
       carried: () => { id: string; name: string; quantity: number }[];
       equip: (id: string) => string;
+      useItem: (id: string) => string;
+      wound: (id: string, marks: number) => void;
       gear: (id: string) => { weapon: string; armor: string };
       giveItem: (id: string, quantity?: number) => void;
       journal: () => { id: string; status: string; done: string[] }[];
@@ -507,7 +510,7 @@ function refreshPlay(): void {
 }
 
 /** The party's pack, joined to the project's item names. */
-function carriedItems(): { id: string; name: string; quantity: number; wearable: boolean }[] {
+function carriedItems(): { id: string; name: string; quantity: number; wearable: boolean; usable: boolean }[] {
   const items = new Map(demo.project.items.map((item) => [item.id, item]));
   return [...demo.scenario.items]
     .filter(([, quantity]) => quantity > 0)
@@ -518,6 +521,7 @@ function carriedItems(): { id: string; name: string; quantity: number; wearable:
         name: item?.name ?? id,
         quantity,
         wearable: (item?.kind === 'weapon' || item?.kind === 'armor') && item.contentId !== undefined,
+        usable: (item?.use.length ?? 0) > 0,
       };
     });
 }
@@ -675,6 +679,10 @@ function renderPlayPanel(): void {
       },
       onLoad: () => {
         loadNow();
+        refreshPlay();
+      },
+      onUseItem: (id: string) => {
+        useItem(demo, id);
         refreshPlay();
       },
       onEquip: (id: string) => {
@@ -1015,6 +1023,16 @@ const state = {
     session.project.dialogues.find((d) => d.id === dialogue)?.nodes.map((n) => n.id) ?? [],
 
   carried: (): { id: string; name: string; quantity: number }[] => carriedItems(),
+  useItem: (id: string): string => {
+    const result = useItem(demo, id);
+    refreshPlay();
+    return result.status;
+  },
+  wound: (id: string, marks: number): void => {
+    const entity = demo.state.entity(id);
+    if (entity !== undefined) entity.hitPoints.marked = Math.min(entity.hitPoints.max, Math.max(0, marks));
+    refreshPlay();
+  },
   equip: (id: string): string => {
     const who = demo.party.selected;
     const result = who === null ? { ok: false as const, reason: 'nobody selected' } : equipItem(demo, who, id);

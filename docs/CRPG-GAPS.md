@@ -168,7 +168,11 @@ profile changes, Armor Slots follow the armor without clearing a mark, and the H
 what each character wields and wears. Armor cannot be changed mid-fight; a weapon can — that is
 this engine's rule, not the SRD's, chosen so a fight cannot be paused to change into plate.
 
-**Still open:** consumables do nothing yet — a healing draught is carried, not drunk.
+Consumables work: an item carries `use` effects in the one vocabulary (a draught heals the
+`actor`; a scroll could start a conversation), the pack offers **Use** on whoever is selected,
+a consumable is spent before its effects run so a `loot` inside them cannot hand it back, and
+in a fight using something is the character's action. Validation walks an item's effects like
+any other script.
 
 ### ~~12. Saving a game~~ — done
 

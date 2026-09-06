@@ -81,7 +81,40 @@ export function validateProject(
   checkQuests(project, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkItemUses(project, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   return problems;
+}
+
+/** What using an item can do names content too. */
+function checkItemUses(
+  project: ProjectDoc,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const sceneIds = new Set(project.scenes.map((s) => s.id));
+  const dialogueIds = new Set(project.dialogues.map((d) => d.id));
+  const tableIds = new Set(project.lootTables.map((t) => t.id));
+  const itemIds = new Set(project.items.map((i) => i.id));
+  for (const item of project.items) {
+    const quests = questReferences(project, item.id, add);
+    walkEffects(item.use, (effect) => {
+      quests.effect(effect);
+      if (effect.kind === 'goto' && !sceneIds.has(effect.scene)) {
+        add('error', `Item "${item.id}" travels to scene "${effect.scene}", which does not exist.`, item.id);
+      }
+      if (effect.kind === 'startDialogue' && !dialogueIds.has(effect.dialogue)) {
+        add('error', `Item "${item.id}" starts conversation "${effect.dialogue}", which does not exist.`, item.id);
+      }
+      if (effect.kind === 'loot' && effect.table !== undefined && !tableIds.has(effect.table)) {
+        add('error', `Item "${item.id}" draws from loot table "${effect.table}", which does not exist.`, item.id);
+      }
+      if ((effect.kind === 'addItem' || effect.kind === 'removeItem') && !itemIds.has(effect.item)) {
+        add('error', `Item "${item.id}" refers to item "${effect.item}", which does not exist.`, item.id);
+      }
+    });
+    walkConditionsIn(item.use, quests.condition);
+  }
 }
 
 /**
@@ -152,6 +185,7 @@ function checkQuests(
       }
     }
   }
+  for (const item of project.items) walkEffects(item.use, visit);
   for (const quest of project.quests) {
     if (!started.has(quest.id)) {
       add('warning', `Quest "${quest.id}" is never started by anything.`, quest.id);
