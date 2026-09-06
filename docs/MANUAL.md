@@ -451,7 +451,7 @@ leaves the chosen target out — "all other targets within range").
 | `addVar` | `name`, `by` | adds to a numeric variable |
 | `open` / `remove` / `markUsed` | `interactable?` | changes that object's state; default is the object the script ran from. An opened door stops blocking |
 | `loot` | `table?` | draws from the table into the pack and logs the drops; no table finds nothing |
-| `damage` | `amount` **or** `dice`, `type?`, `using?` (proficiency \| spellcast), `direct?`, `half?`, `target?`, `source?` | `amount` marks that many Hit Points outright (default target: the actor). `dice` rolls damage once and takes it through thresholds, resistances, Armor Slots and reactions on each target (default: `hit`), scaled by Proficiency or the Spellcast trait, with a critical's maximum dice |
+| `damage` | `amount` **or** `dice` ("d8+2", or `weapon` for the actor's own weapon), `type?`, `using?` (proficiency \| spellcast), `direct?`, `half?`, `target?`, `source?` | `amount` marks that many Hit Points outright (default target: the actor). `dice` rolls damage once and takes it through thresholds, resistances, Armor Slots and reactions on each target (default: `hit`), scaled by Proficiency or the Spellcast trait, with a critical's maximum dice |
 | `heal` | `amount`, `target?` | clears Hit Points; brings a fallen character back up |
 | `markStress` / `clearStress` | `amount?` (1), `target?` (actor) | a full Stress track marks a Hit Point instead |
 | `clearArmor` | `amount?`, `target?` | clears Armor Slots |
