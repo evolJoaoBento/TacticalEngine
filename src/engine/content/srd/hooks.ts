@@ -97,6 +97,40 @@ export const SRD_HOOKS: HookMap = defineHooks({
   },
 
   /**
+   * Falling Sky: "mark any number of Stress … 1d20+2 magic damage for each
+   * Stress marked". How many is the player's, and how many they *can* is the
+   * sheet's, so the list of offers is built from the Stress actually free.
+   */
+  'falling-sky': (ctx) => {
+    const actor = ctx.actor;
+    if (actor === null) return;
+    const free = ctx.pool(actor, 'stress', 'available') ?? 0;
+    if (free < 1) {
+      ctx.log('No Stress left to spend: the sky holds.', 'system');
+      return;
+    }
+    const options: ChoiceOption[] = [];
+    for (let spent = 1; spent <= free; spent++) {
+      options.push({
+        label: `${spent} Stress: ${spent}d20+${spent * 2} magic`,
+        effects: [
+          { kind: 'markStress', amount: spent, target: { kind: 'actor' } },
+          {
+            kind: 'check',
+            check: {
+              trait: 'spellcast',
+              difficulty: 'target',
+              targets: { kind: 'adversaries', range: 'far' },
+              onSuccessWithHope: [{ kind: 'damage', dice: `${spent}d20+${spent * 2}`, type: 'magic' }],
+            },
+          },
+        ],
+      });
+    }
+    ctx.queue([{ kind: 'choice', title: 'Falling Sky', body: 'How much of yourself goes into it?', options }]);
+  },
+
+  /**
    * Wild Flame: "up to three adversaries within Melee range". Which three is
    * the player's call at the table; nearest-first is the engine's, and the
    * cap is the part the selector cannot express.

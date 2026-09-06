@@ -405,13 +405,33 @@ function renderBody(
       return text(effect.key, (key) => ({ ...effect, key }));
     case 'loot':
       return text(effect.table ?? '', (table) => ({ ...effect, table }), 'loot table (optional)');
-    case 'heal':
+    case 'heal': {
+      // Exactly one of a flat amount or dice, the same pairing damage has.
+      const rolled = effect.dice !== undefined;
       return (
         <>
-          {count(effect.amount, (amount) => ({ ...effect, amount }))}
+          <select
+            style={{ ...field, flex: 'none', width: '84px' }}
+            data-role="heal-mode"
+            value={rolled ? 'dice' : 'amount'}
+            onChange={(e) =>
+              onChange(
+                (e.target as HTMLSelectElement).value === 'dice'
+                  ? { ...effect, amount: undefined, dice: '1d4' }
+                  : { ...effect, dice: undefined, amount: 2 },
+              )
+            }
+          >
+            <option value="amount">flat</option>
+            <option value="dice">rolled</option>
+          </select>
+          {rolled
+            ? text(effect.dice ?? '', (dice) => ({ ...effect, dice }), '1d4')
+            : count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))}
           {who(effect.target, 'the actor', (target) => ({ ...effect, target }))}
         </>
       );
+    }
     case 'damage': {
       // Exactly one of a flat amount or dice: switching sets one and drops the
       // other, so the pair can never both be written.

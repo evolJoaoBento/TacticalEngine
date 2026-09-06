@@ -56,6 +56,8 @@ export interface ConditionContext {
   /** The living creatures a selector names, in a stable order. */
   resolveTargets(selector: TargetSelector, bindings: TargetBindings): string[];
   inCombat(): boolean;
+  /** How many of a domain's cards sit in a character's loadout. */
+  loadoutDomain(id: string, domain: string): number | null;
   hasCondition(id: string, condition: string): boolean;
   /** A pool on a creature, or null for a creature that is not there. */
   poolValue(id: string, pool: PoolName, measure: 'available' | 'marked' | 'max'): number | null;
@@ -157,6 +159,12 @@ export function evaluate(
     }
     case 'inCombat':
       return context.inCombat();
+    case 'loadout': {
+      const who = context.resolveTargets(condition.of ?? { kind: 'actor' }, bindings)[0];
+      if (who === undefined) return false;
+      const held = context.loadoutDomain(who, condition.domain);
+      return held !== null && compare(held, condition.op, condition.value);
+    }
     case 'hasCondition':
       return context
         .resolveTargets(condition.of ?? { kind: 'target' }, bindings)

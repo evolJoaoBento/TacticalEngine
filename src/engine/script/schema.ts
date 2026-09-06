@@ -158,6 +158,18 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     value: z.number().int(),
   }),
   z.object({ kind: z.literal('inCombat') }),
+  /**
+   * How many of a domain's cards a character has in their loadout — the nine
+   * "-Touched" cards' "when 4 or more of the domain cards in your loadout are
+   * from the Blade domain". Read against the actor unless `of` says otherwise.
+   */
+  z.object({
+    kind: z.literal('loadout'),
+    domain: contentIdSchema,
+    of: targetSelectorSchema.optional(),
+    op: compareOpSchema,
+    value: z.number().int(),
+  }),
   /** How many tokens sit on a card the actor holds. */
   z.object({
     kind: z.literal('tokens'),
@@ -305,11 +317,18 @@ export const effectSchema = z.discriminatedUnion('kind', [
     .refine((d) => (d.amount === undefined) !== (d.dice === undefined), {
       message: 'damage needs exactly one of amount or dice',
     }),
-  z.object({
-    kind: z.literal('heal'),
-    amount: z.number().int().positive(),
-    target: targetSelectorSchema.optional(),
-  }),
+  z
+    .object({
+      kind: z.literal('heal'),
+      /** Hit Points cleared outright. */
+      amount: z.number().int().positive().optional(),
+      /** Or rolled for — "clear 1d4 Hit Points". Rolled once for everyone. */
+      dice: z.string().min(1).optional(),
+      target: targetSelectorSchema.optional(),
+    })
+    .refine((d) => (d.amount === undefined) !== (d.dice === undefined), {
+      message: 'heal needs exactly one of amount or dice',
+    }),
   z.object({
     kind: z.literal('startEncounter'),
     encounter: contentIdSchema,

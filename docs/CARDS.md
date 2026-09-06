@@ -7,15 +7,19 @@ the action bar and the table adjudicates, as at a real one. A grimoire lists eac
 
 Known simplifications in the scripted ones:
 
-- **Rune Ward** never breaks on an 8; **Get Back Up**, **Iron Will** and the ward fire on their own when they lower the Hit Points marked (per-card `auto`, prompts are a later step).
-- **Whirlwind** reuses the attack roll against everyone else in reach, as the card says; the ones it reaches take half of a second roll of the weapon's dice rather than half the first roll.
-- **Arcane Barrage** offers 1, 2 or 3 Hope rather than any number.
+- **Rune Ward** never breaks on an 8; **Get Back Up**, **Iron Will**, **Brace**, **Shrug It Off**, **On the Brink** and the ward fire on their own when they lower the Hit Points marked (per-card `auto`, and an interrupt is always asked).
+- **Arcane Barrage**, **Unleash Chaos**, **Falling Sky** and **Wild Flame** offer a short list of amounts rather than any number.
 - **Slumber**'s sleeper loses its spotlight until damage marks a Hit Point or the GM spends a Fear, which the GM's turn does on its own when there is one.
+- **Earthquake**, **Ground Pound** and **Stunning Sunlight** roll the half damage for those who resist as its own roll: the roll the failures took may not have happened at all.
+- **Cinder Grasp** lights a target On Fire, but the extra damage for acting while alight is the condition's text and the table's to apply. **Chokehold** makes a target Vulnerable without the card's stronger version of it, and **Corrosive Projectile** deals its damage without the standing Corroded penalty.
+- **Chain Lightning** strikes the first ring; the chain onward from each wounded target is the table's. **Vicious Entangle** binds the one target, not the second bought with a Hope.
+- **Cruel Precision** adds Finesse rather than the better of Finesse and Agility; **Voice of Reason**'s Proficiency bonus applies wherever Proficiency is read, not to damage alone; **Second Wind** does not branch on Hope, so the ally's share of it is text.
+- **Inspirational Words** and **Restoration** spend one token at a time. **Fire Flies** is one of Conjure Swarm's two swarms; the beetles that soak a blow are text.
+- Four of the nine **-Touched** cards carry a bonus the sheet can hold (Arcana, Blade, Splendor, Valor); the rest ask for something the engine has no number for and stay text.
 - **Enrapture** is text: what a fixed attention does to an adversary is the table's call.
-- **I Am Your Shield** and **Not This Time** are text: redirecting a hit and forcing a reroll are interrupts the attack flow does not offer yet.
-- Cards that ask for a Presence Roll, tokens on the card, Hidden/Cloaked, or a GM's discretion stay text.
+- Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 24 of 189 cards.
+Scripted: 53 of 189 cards.
 
 
 ## Arcana
@@ -25,24 +29,24 @@ Scripted: 24 of 189 cards.
 | 1 | Rune Ward | Spell | **reaction** |
 | 1 | Unleash Chaos | Spell | **action** |
 | 1 | Wall Walk | Spell | text |
-| 2 | Cinder Grasp | Spell | text |
+| 2 | Cinder Grasp | Spell | **action** |
 | 2 | Floating Eye | Spell | text |
 | 3 | Counterspell | Spell | text |
 | 3 | Flight | Spell | text |
 | 4 | Blink Out | Spell | text |
-| 4 | Preservation Blast | Spell | text |
-| 5 | Chain Lightning | Spell | text |
+| 4 | Preservation Blast | Spell | **action** |
+| 5 | Chain Lightning | Spell | **action** |
 | 5 | Premonition | Spell | text |
 | 6 | Rift Walker | Spell | text |
 | 6 | Telekinesis | Spell | text |
-| 7 | Arcana-Touched | Ability | text |
+| 7 | Arcana-Touched | Ability | **passive** |
 | 7 | Cloaking Blast | Spell | text |
 | 8 | Arcane Reflection | Spell | text |
 | 8 | Confusing Aura | Spell | text |
-| 9 | Earthquake | Spell | text |
+| 9 | Earthquake | Spell | **action** |
 | 9 | Sensory Projection | Spell | text |
 | 10 | Adjust Reality | Spell | text |
-| 10 | Falling Sky | Spell | text |
+| 10 | Falling Sky | Spell | **action** |
 
 ## Blade
 
@@ -61,7 +65,7 @@ Scripted: 24 of 189 cards.
 | 5 | Vitality | Ability | text |
 | 6 | Battle-Hardened | Ability | text |
 | 6 | Rage Up | Ability | text |
-| 7 | Blade-Touched | Ability | text |
+| 7 | Blade-Touched | Ability | **passive** |
 | 7 | Glancing Blow | Ability | text |
 | 8 | Battle Cry | Ability | text |
 | 8 | Frenzy | Ability | text |
@@ -79,7 +83,7 @@ Scripted: 24 of 189 cards.
 | 1 | Untouchable | Ability | **text** |
 | 2 | Ferocity | Ability | text |
 | 2 | Strategic Approach | Ability | text |
-| 3 | Brace | Ability | text |
+| 3 | Brace | Ability | **reaction** |
 | 3 | Tactician | Ability | text |
 | 4 | Boost | Ability | text |
 | 4 | Redirect | Ability | text |
@@ -88,13 +92,13 @@ Scripted: 24 of 189 cards.
 | 6 | Rapid Riposte | Ability | text |
 | 6 | Recovery | Ability | text |
 | 7 | Bone-Touched | Ability | text |
-| 7 | Cruel Precision | Ability | text |
+| 7 | Cruel Precision | Ability | **passive** |
 | 8 | Breaking Blow | Ability | text |
 | 8 | Wrangle | Ability | text |
-| 9 | On the Brink | Ability | text |
+| 9 | On the Brink | Ability | **reaction** |
 | 9 | Splintering Strike | Ability | text |
 | 10 | Deathrun | Ability | text |
-| 10 | Swift Step | Ability | text |
+| 10 | Swift Step | Ability | **action** |
 
 ## Codex
 
@@ -128,10 +132,10 @@ Scripted: 24 of 189 cards.
 |---|---|---|---|
 | 1 | Deft Deceiver | Ability | text |
 | 1 | Enrapture | Spell | text |
-| 1 | Inspirational Words | Ability | text |
+| 1 | Inspirational Words | Ability | **action** |
 | 2 | Tell No Lies | Spell | text |
 | 2 | Troublemaker | Ability | text |
-| 3 | Hypnotic Shimmer | Spell | text |
+| 3 | Hypnotic Shimmer | Spell | **action** |
 | 3 | Invisibility | Spell | text |
 | 4 | Soothing Speech | Ability | text |
 | 4 | Through Your Eyes | Spell | text |
@@ -157,7 +161,7 @@ Scripted: 24 of 189 cards.
 | 1 | Uncanny Disguise | Spell | text |
 | 2 | Midnight Spirit | Spell | **action** |
 | 2 | Shadowbind | Spell | **action** |
-| 3 | Chokehold | Ability | text |
+| 3 | Chokehold | Ability | **action** |
 | 3 | Veil of Night | Spell | text |
 | 4 | Glyph of Nightfall | Spell | text |
 | 4 | Stealth Expertise | Ability | text |
@@ -180,13 +184,13 @@ Scripted: 24 of 189 cards.
 |---|---|---|---|
 | 1 | Gifted Tracker | Ability | text |
 | 1 | Nature's Tongue | Ability | text |
-| 1 | Vicious Entangle | Spell | text |
-| 2 | Conjure Swarm | Spell | text |
+| 1 | Vicious Entangle | Spell | **action** |
+| 2 | Conjure Swarm | Spell | **action** (Fire Flies) |
 | 2 | Natural Familiar | Spell | text |
-| 3 | Corrosive Projectile | Spell | text |
-| 3 | Towering Stalk | Spell | text |
+| 3 | Corrosive Projectile | Spell | **action** |
+| 3 | Towering Stalk | Spell | **action** |
 | 4 | Death Grip | Spell | text |
-| 4 | Healing Field | Spell | text |
+| 4 | Healing Field | Spell | **action** |
 | 5 | Thorn Skin | Spell | text |
 | 5 | Wild Fortress | Spell | text |
 | 6 | Conjured Steeds | Spell | text |
@@ -194,7 +198,7 @@ Scripted: 24 of 189 cards.
 | 7 | Sage-Touched | Ability | text |
 | 7 | Wild Surge | Spell | text |
 | 8 | Forest Sprites | Spell | text |
-| 8 | Rejuvenation Barrier | Spell | text |
+| 8 | Rejuvenation Barrier | Spell | **action** |
 | 9 | Fane of the Wilds | Ability | text |
 | 9 | Plant Dominion | Spell | text |
 | 10 | Force of Nature | Spell | text |
@@ -209,18 +213,18 @@ Scripted: 24 of 189 cards.
 | 1 | Reassurance | Ability | text |
 | 2 | Final Words | Spell | text |
 | 2 | Healing Hands | Spell | **action** |
-| 3 | Second Wind | Ability | text |
-| 3 | Voice of Reason | Ability | text |
+| 3 | Second Wind | Ability | **action** |
+| 3 | Voice of Reason | Ability | **passive** |
 | 4 | Divination | Spell | text |
 | 4 | Life Ward | Spell | text |
 | 5 | Shape Material | Spell | text |
 | 5 | Smite | Spell | text |
-| 6 | Restoration | Spell | text |
+| 6 | Restoration | Spell | **action** |
 | 6 | Zone of Protection | Spell | text |
 | 7 | Healing Strike | Spell | text |
-| 7 | Splendor-Touched | Ability | text |
+| 7 | Splendor-Touched | Ability | **passive** |
 | 8 | Shield Aura | Spell | text |
-| 8 | Stunning Sunlight | Spell | text |
+| 8 | Stunning Sunlight | Spell | **action** |
 | 9 | Overwhelming Aura | Spell | text |
 | 9 | Salvation Beam | Spell | text |
 | 10 | Invigoration | Spell | text |
@@ -239,14 +243,14 @@ Scripted: 24 of 189 cards.
 | 3 | Lean on Me | Ability | text |
 | 4 | Goad Them On | Ability | text |
 | 4 | Support Tank | Ability | text |
-| 5 | Armorer | Ability | text |
+| 5 | Armorer | Ability | **passive** |
 | 5 | Rousing Strike | Ability | text |
 | 6 | Inevitable | Ability | text |
 | 6 | Rise Up | Ability | text |
-| 7 | Shrug It Off | Ability | text |
-| 7 | Valor-Touched | Ability | text |
+| 7 | Shrug It Off | Ability | **reaction** |
+| 7 | Valor-Touched | Ability | **passive** |
 | 8 | Full Surge | Ability | text |
-| 8 | Ground Pound | Ability | text |
+| 8 | Ground Pound | Ability | **action** |
 | 9 | Hold the Line | Ability | text |
 | 9 | Lead by Example | Ability | text |
 | 10 | Unbreakable | Ability | text |

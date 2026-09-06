@@ -465,6 +465,582 @@ const RAW: Input[] = [
     ],
   },
   // Enrapture is text: "their attention is fixed on you" is the table's to play.
+  // ---- A second pass over the decks ------------------------------------------
+  // Everything the vocabulary can carry, domain by domain. A card here whose
+  // text says more than the entry does has the difference written in
+  // `docs/CARDS.md`, so the table knows what it is still adjudicating.
+
+  // ---- Arcana ----------------------------------------------------------------
+  {
+    id: 'cinder-grasp',
+    name: 'Cinder Grasp',
+    source: card('cinder-grasp'),
+    target: { kind: 'adversary', range: 'melee' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          // The burn that follows — extra damage when they act while alight —
+          // is the condition's text and the table's to apply.
+          onSuccessWithHope: [
+            { kind: 'damage', dice: '1d20+3', type: 'magic' },
+            { kind: 'applyCondition', condition: 'on-fire', duration: 'temporary', target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'preservation-blast',
+    name: 'Preservation Blast',
+    source: card('preservation-blast'),
+    target: { kind: 'none', range: 'melee' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'melee' },
+          onSuccessWithHope: [
+            { kind: 'damage', dice: 'd8+3', type: 'magic', using: 'spellcast' },
+            { kind: 'push', to: 'far', target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'chain-lightning',
+    name: 'Chain Lightning',
+    source: card('chain-lightning'),
+    cost: { stress: 2 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'close' },
+          onSuccessWithHope: [
+            {
+              kind: 'reactionRoll',
+              // "A Difficulty equal to the result of your Spellcast Roll."
+              difficulty: 'roll',
+              targets: { kind: 'hit' },
+              onFail: [{ kind: 'damage', dice: '2d8+4', type: 'magic' }],
+            },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'earthquake',
+    name: 'Earthquake',
+    source: card('earthquake'),
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'none', range: 'veryFar' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 16,
+          onSuccessWithHope: [
+            { kind: 'log', text: 'The ground bucks and splits for as far as anyone can see.', tone: 'combat' },
+            {
+              kind: 'reactionRoll',
+              difficulty: 18,
+              targets: { kind: 'adversaries', range: 'veryFar' },
+              onFail: [
+                { kind: 'damage', dice: '3d10+8', type: 'physical' },
+                { kind: 'applyCondition', condition: 'vulnerable', duration: 'temporary', target: { kind: 'hit' } },
+              ],
+              // Half damage for those who kept their feet. Its own roll: the
+              // one the failures took may not have happened at all.
+              onSuccess: [{ kind: 'damage', dice: '3d10+8', type: 'physical', half: true }],
+            },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'falling-sky',
+    name: 'Falling Sky',
+    source: card('falling-sky'),
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [{ kind: 'run', hook: 'falling-sky' }],
+  },
+  {
+    id: 'arcana-touched',
+    name: 'Arcana-Touched',
+    source: card('arcana-touched'),
+    kind: 'passive',
+    action: false,
+    // The second half — switching the Hope and Fear dice once per rest — is
+    // text; the bonus is a modifier that reads the loadout it is written about.
+    modifiers: [
+      { stat: 'spellcastRoll', bonus: 1, when: { kind: 'loadout', domain: 'arcana', op: '>=', value: 4 } },
+    ],
+  },
+
+  // ---- Blade -----------------------------------------------------------------
+  {
+    id: 'blade-touched',
+    name: 'Blade-Touched',
+    source: card('blade-touched'),
+    kind: 'passive',
+    action: false,
+    modifiers: [
+      { stat: 'attackRoll', bonus: 2, when: { kind: 'loadout', domain: 'blade', op: '>=', value: 4 } },
+      { stat: 'severeThreshold', bonus: 4, when: { kind: 'loadout', domain: 'blade', op: '>=', value: 4 } },
+    ],
+  },
+
+  // ---- Bone ------------------------------------------------------------------
+  {
+    id: 'brace',
+    name: 'Brace',
+    source: card('brace'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    cost: { stress: 1 },
+    action: false,
+    reaction: { kind: 'extraArmor', slots: 1 },
+  },
+  {
+    id: 'on-the-brink',
+    name: 'On the Brink',
+    source: card('on-the-brink'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    // "When you have 2 or fewer Hit Points unmarked": the reaction is only
+    // offered while that holds, which is what `available` says.
+    available: { kind: 'pool', pool: 'hitPoints', measure: 'available', op: '<=', value: 2 },
+    reaction: { kind: 'reduceSeverity', steps: 1, only: 'minor' },
+  },
+  {
+    id: 'swift-step',
+    name: 'Swift Step',
+    source: card('swift-step'),
+    kind: 'reaction',
+    trigger: 'attackMissed',
+    action: false,
+    effects: [
+      {
+        kind: 'branch',
+        when: { kind: 'pool', pool: 'stress', measure: 'marked', op: '>=', value: 1 },
+        then: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }],
+        otherwise: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }],
+      },
+    ],
+  },
+  {
+    id: 'cruel-precision',
+    name: 'Cruel Precision',
+    source: card('cruel-precision'),
+    kind: 'passive',
+    action: false,
+    // "Equal to either your Finesse or Agility": the sheet takes Finesse, which
+    // is the trait the card's own domain rolls with.
+    modifiers: [{ stat: 'damageRoll', bonus: 0, plusTrait: 'finesse' }],
+  },
+
+  // ---- Grace -----------------------------------------------------------------
+  {
+    id: 'inspirational-words',
+    name: 'Inspirational Words',
+    source: card('inspirational-words'),
+    target: { kind: 'ally', range: 'close' },
+    action: false,
+    tokens: { amount: 'presence', minimum: 1, refill: 'longRest' },
+    available: { kind: 'tokens', ability: 'inspirational-words', op: '>=', value: 1 },
+    effects: [
+      {
+        kind: 'choice',
+        title: 'What do they take from it?',
+        options: [
+          {
+            label: 'They clear a Stress',
+            effects: [
+              { kind: 'spendToken', ability: 'inspirational-words', amount: 1 },
+              { kind: 'clearStress', amount: 1, target: { kind: 'target' } },
+            ],
+          },
+          {
+            label: 'They clear a Hit Point',
+            effects: [
+              { kind: 'spendToken', ability: 'inspirational-words', amount: 1 },
+              { kind: 'heal', amount: 1, target: { kind: 'target' } },
+            ],
+          },
+          {
+            label: 'They gain a Hope',
+            effects: [
+              { kind: 'spendToken', ability: 'inspirational-words', amount: 1 },
+              { kind: 'gainHope', amount: 1, target: { kind: 'target' } },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'hypnotic-shimmer',
+    name: 'Hypnotic Shimmer',
+    source: card('hypnotic-shimmer'),
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          // "In front of you" is the table's line; the engine does not model facing.
+          targets: { kind: 'adversaries', range: 'close' },
+          onSuccessWithHope: [
+            { kind: 'applyCondition', condition: 'stunned', duration: 'temporary', target: { kind: 'hit' } },
+            { kind: 'markStress', amount: 1, target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+
+  // ---- Midnight --------------------------------------------------------------
+  {
+    id: 'chokehold',
+    name: 'Chokehold',
+    source: card('chokehold'),
+    cost: { stress: 1 },
+    target: { kind: 'adversary', range: 'melee' },
+    action: false,
+    // The extra 2d6 an attacker deals to someone held this way is text: the
+    // engine's Vulnerable is the SRD's, and this card's is a stronger one.
+    effects: [{ kind: 'applyCondition', condition: 'vulnerable', duration: 'temporary', target: { kind: 'target' } }],
+  },
+
+  // ---- Sage ------------------------------------------------------------------
+  {
+    id: 'vicious-entangle',
+    name: 'Vicious Entangle',
+    source: card('vicious-entangle'),
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          onSuccessWithHope: [
+            { kind: 'damage', dice: '1d8+1', type: 'physical' },
+            { kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'conjure-swarm-fire-flies',
+    name: 'Fire Flies',
+    source: card('conjure-swarm'),
+    cost: { hope: 1 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    // The card's other swarm, the beetles that soak a blow, is text.
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'close' },
+          onSuccessWithHope: [{ kind: 'damage', dice: '2d8+3', type: 'magic' }],
+        },
+      },
+    ],
+  },
+  {
+    id: 'corrosive-projectile',
+    name: 'Corrosive Projectile',
+    source: card('corrosive-projectile'),
+    target: { kind: 'adversary', range: 'far' },
+    // Corroded — a standing penalty to a creature's Difficulty — is text.
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          onSuccessWithHope: [{ kind: 'damage', dice: 'd6+4', type: 'magic', using: 'proficiency' }],
+        },
+      },
+    ],
+  },
+  {
+    id: 'towering-stalk',
+    name: 'Towering Stalk',
+    source: card('towering-stalk'),
+    uses: { count: 1, per: 'rest' },
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    // The stalk itself — something to climb, up to Far range — is the table's.
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'close' },
+          onSuccessWithHope: [{ kind: 'damage', dice: 'd8', type: 'physical', using: 'proficiency' }],
+        },
+      },
+    ],
+  },
+  {
+    id: 'healing-field',
+    name: 'Healing Field',
+    source: card('healing-field'),
+    uses: { count: 1, per: 'longRest' },
+    target: { kind: 'none', range: 'close' },
+    effects: [
+      {
+        kind: 'choice',
+        title: 'How deep does it run?',
+        options: [
+          {
+            label: 'Everyone clears a Hit Point',
+            effects: [{ kind: 'heal', amount: 1, target: { kind: 'allies', range: 'close', includeSelf: true } }],
+          },
+          {
+            label: 'Spend 2 Hope: everyone clears 2',
+            effects: [
+              { kind: 'spendHope', amount: 2 },
+              { kind: 'heal', amount: 2, target: { kind: 'allies', range: 'close', includeSelf: true } },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'rejuvenation-barrier',
+    name: 'Rejuvenation Barrier',
+    source: card('rejuvenation-barrier'),
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'none', range: 'veryClose' },
+    // The barrier that stands afterwards, and the resistance inside it, is text.
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 15,
+          onSuccessWithHope: [
+            { kind: 'heal', dice: '1d4', target: { kind: 'allies', range: 'veryClose', includeSelf: true } },
+          ],
+        },
+      },
+    ],
+  },
+
+  // ---- Splendor --------------------------------------------------------------
+  {
+    id: 'second-wind',
+    name: 'Second Wind',
+    source: card('second-wind'),
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'adversary', range: 'melee' },
+    inCombatOnly: true,
+    // "On a success with Hope, an ally clears too": the attack does not branch
+    // on Hope, so the ally's share is text.
+    effects: [
+      {
+        kind: 'attack',
+        onHit: [
+          {
+            kind: 'choice',
+            title: 'What does the opening buy you?',
+            options: [
+              { label: 'Clear 3 Stress', effects: [{ kind: 'clearStress', amount: 3, target: { kind: 'actor' } }] },
+              { label: 'Clear a Hit Point', effects: [{ kind: 'heal', amount: 1, target: { kind: 'actor' } }] },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'restoration',
+    name: 'Restoration',
+    source: card('restoration'),
+    target: { kind: 'ally', range: 'melee' },
+    action: false,
+    tokens: { amount: 'spellcast', refill: 'longRest' },
+    available: { kind: 'tokens', ability: 'restoration', op: '>=', value: 1 },
+    // One token at a time: "spend any number" is the same choice made twice.
+    effects: [
+      {
+        kind: 'choice',
+        title: 'What does the touch mend?',
+        options: [
+          {
+            label: 'Clear 2 Hit Points',
+            effects: [
+              { kind: 'spendToken', ability: 'restoration', amount: 1 },
+              { kind: 'heal', amount: 2, target: { kind: 'target' } },
+            ],
+          },
+          {
+            label: 'Clear 2 Stress',
+            effects: [
+              { kind: 'spendToken', ability: 'restoration', amount: 1 },
+              { kind: 'clearStress', amount: 2, target: { kind: 'target' } },
+            ],
+          },
+          {
+            label: 'Clear Vulnerable',
+            effects: [
+              { kind: 'spendToken', ability: 'restoration', amount: 1 },
+              { kind: 'clearCondition', condition: 'vulnerable', target: { kind: 'target' } },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'stunning-sunlight',
+    name: 'Stunning Sunlight',
+    source: card('stunning-sunlight'),
+    cost: { hope: 1 },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    // One Hope, everyone it beat: "spend any number of Hope and force that
+    // many targets" is a count the prompt does not ask for yet.
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'far' },
+          onSuccessWithHope: [
+            {
+              kind: 'reactionRoll',
+              difficulty: 14,
+              targets: { kind: 'hit' },
+              onFail: [
+                { kind: 'damage', dice: '4d20+5', type: 'magic' },
+                { kind: 'applyCondition', condition: 'stunned', duration: 'temporary', target: { kind: 'hit' } },
+              ],
+              onSuccess: [{ kind: 'damage', dice: '3d20+3', type: 'magic' }],
+            },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'voice-of-reason',
+    name: 'Voice of Reason',
+    source: card('voice-of-reason'),
+    kind: 'passive',
+    action: false,
+    // "When all of your Stress slots are marked": the bonus is to damage rolls,
+    // and Proficiency is what a damage roll multiplies, so it is written there.
+    modifiers: [
+      {
+        stat: 'proficiency',
+        bonus: 1,
+        when: { kind: 'pool', pool: 'stress', measure: 'available', op: '<=', value: 0 },
+      },
+    ],
+  },
+  {
+    id: 'splendor-touched',
+    name: 'Splendor-Touched',
+    source: card('splendor-touched'),
+    kind: 'passive',
+    action: false,
+    modifiers: [
+      { stat: 'severeThreshold', bonus: 3, when: { kind: 'loadout', domain: 'splendor', op: '>=', value: 4 } },
+    ],
+  },
+
+  // ---- Valor -----------------------------------------------------------------
+  {
+    id: 'armorer',
+    name: 'Armorer',
+    source: card('armorer'),
+    kind: 'passive',
+    action: false,
+    // The downtime half — allies clearing an Armor Slot when you repair yours —
+    // is a rest move, not a number on the sheet.
+    modifiers: [{ stat: 'armorScore', bonus: 1, requires: 'armored' }],
+  },
+  {
+    id: 'shrug-it-off',
+    name: 'Shrug It Off',
+    source: card('shrug-it-off'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    cost: { stress: 1 },
+    action: false,
+    // The d6 that sends the card to the vault afterwards is text.
+    reaction: { kind: 'reduceSeverity', steps: 1 },
+  },
+  {
+    id: 'ground-pound',
+    name: 'Ground Pound',
+    source: card('ground-pound'),
+    cost: { hope: 2 },
+    target: { kind: 'none', range: 'veryClose' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'strength',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'veryClose' },
+          onSuccessWithHope: [
+            { kind: 'push', to: 'far', target: { kind: 'hit' } },
+            {
+              kind: 'reactionRoll',
+              difficulty: 17,
+              targets: { kind: 'hit' },
+              onFail: [{ kind: 'damage', dice: '4d10+8', type: 'physical' }],
+              onSuccess: [{ kind: 'damage', dice: '4d10+8', type: 'physical', half: true }],
+            },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'valor-touched',
+    name: 'Valor-Touched',
+    source: card('valor-touched'),
+    kind: 'passive',
+    action: false,
+    modifiers: [
+      { stat: 'armorScore', bonus: 1, when: { kind: 'loadout', domain: 'valor', op: '>=', value: 4 } },
+    ],
+  },
+
   // ---- Class Hope features ----------------------------------------------------
   {
     id: 'guardian-frontline-tank',

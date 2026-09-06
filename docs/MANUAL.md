@@ -465,6 +465,7 @@ Target selectors: `{kind:'actor'}` (whoever used the thing; the default), `{kind
 | `adversariesAlive` | `op`, `value` | living adversary count compares so |
 | `pool` | `pool` (hitPoints \| stress \| armorSlots \| hope), `of?`, `measure?` (available \| marked \| max), `op`, `value` | a creature's pool compares so; `of` defaults to the actor |
 | `inCombat` | — | a fight is on |
+| `loadout` | `domain`, `of?`, `op`, `value` | how many of that domain's cards are in the loadout, for whoever `of` names (the actor by default) — what the "-Touched" cards read |
 | `hasCondition` | `condition`, `of?` | any of `of` (default: the chosen target) bears the condition |
 | `withinRange` | `range`, `of?` | any of `of` (default: the chosen target) stands within that band of the actor |
 | `tokens` | `ability`, `of?`, `op`, `value` | tokens on that card, for whoever `of` names (the actor by default), compare so |
@@ -492,7 +493,7 @@ leaves the chosen target out — "all other targets within range").
 | `open` / `remove` / `markUsed` | `interactable?` | changes that object's state; default is the object the script ran from. An opened door stops blocking |
 | `loot` | `table?` | draws from the table into the pack and logs the drops; no table finds nothing |
 | `damage` | `amount` **or** `dice` ("d8+2"; `weapon` for the actor's own weapon; `same` to reuse the damage already rolled in this script), `type?`, `using?` (proficiency \| spellcast), `direct?`, `half?`, `target?`, `source?` | `amount` marks that many Hit Points outright (default target: the actor). `dice` rolls damage once and takes it through thresholds, resistances, Armor Slots and reactions on each target (default: `hit`), scaled by Proficiency or the Spellcast trait, with a critical's maximum dice. `same` rolls nothing: it hands on the last damage this script rolled — the total off an `attack` or an earlier `damage` — which is how Whirlwind gives the rest of the room half of the swing it already made rather than a second roll |
-| `heal` | `amount`, `target?` | clears Hit Points; brings a fallen character back up |
+| `heal` | `amount` **or** `dice` ("1d4"), `target?` | clears Hit Points; brings a fallen character back up. `dice` is rolled once and the same number clears for every target |
 | `markStress` / `clearStress` | `amount?` (1), `target?` (actor) | a full Stress track marks a Hit Point instead |
 | `clearArmor` | `amount?`, `target?` | clears Armor Slots |
 | `gainHope` | `amount?`, `target?` | Hope to the target(s); an adversary gains none |
@@ -746,10 +747,12 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   turn stops on the question and picks up when it is answered; stepping back takes the hit as
   it comes. Damage from a script (a card, a trap) is still resolved automatically, and so is
   everything in a headless run, where there is nobody to ask.
-- **Scripted cards are a minority** (`docs/CARDS.md`): the demo party's cards, the three Hope
-  features, the Stalwart cards, and the level 1–2 combat cards of the demo's domains. The rest
-  are shown as text, and the same holds for most stat-block features (`docs/ADVERSARIES.md`) —
-  an adversary plays the ones the engine knows and otherwise falls back on its standard attack.
+- **53 of the 189 domain cards are scripted** (`docs/CARDS.md`, which lists every one and what
+  each scripted card leaves to the table). The rest are shown as text, and the same holds for
+  most stat-block features (`docs/ADVERSARIES.md`) — an adversary plays the ones the engine
+  knows and otherwise falls back on its standard attack. A card is text when it asks for
+  something the engine has no number for: a Countdown, flight, teleportation, a summon, being
+  unseen, or a GM's discretion.
 - **Adversaries clear a temporary condition only when Restrained** (or with nothing in reach);
   a PC's temporary conditions end with the scene. The SRD lets both roll or spend to clear them.
 - **Quests have no stages**: steps can be hidden and revealed, but the summary is one string

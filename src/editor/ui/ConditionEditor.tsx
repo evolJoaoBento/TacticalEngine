@@ -39,6 +39,7 @@ const KINDS: readonly { kind: Condition['kind']; label: string }[] = [
   { kind: 'adversariesAlive', label: 'adversaries alive' },
   { kind: 'pool', label: 'a pool compares' },
   { kind: 'inCombat', label: 'in a fight' },
+  { kind: 'loadout', label: "a domain's cards in the loadout" },
   { kind: 'hasCondition', label: 'the target has a condition' },
   { kind: 'withinRange', label: 'the target is within' },
   { kind: 'tokens', label: "a card's tokens compare" },
@@ -107,6 +108,8 @@ export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEdi
       return { kind, hook: props.hookIds?.[0] ?? 'a-hook' };
     case 'tokens':
       return { kind, ability: 'a-card', op: '>=', value: 1 };
+    case 'loadout':
+      return { kind, domain: 'blade', op: '>=', value: 4 };
     case 'not':
       return { kind, of: { kind: 'always' } };
     case 'all':
@@ -228,6 +231,14 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
           condition.range,
           (['melee', 'veryClose', 'close', 'far', 'veryFar'] as const).map((id) => ({ id })),
           (range) => onChange({ ...condition, range }),
+        );
+      case 'loadout':
+        return (
+          <>
+            {text(condition.domain, (domain) => onChange({ ...condition, domain }), 'domain')}
+            {select(condition.op, ops.map((id) => ({ id })), (op) => onChange({ ...condition, op }))}
+            {number(condition.value, (value) => onChange({ ...condition, value }))}
+          </>
         );
       case 'tokens':
         return (

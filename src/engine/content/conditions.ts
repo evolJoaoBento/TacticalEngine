@@ -69,6 +69,14 @@ const RAW: ConditionInput[] = [
     blocks: ['act', 'move'],
     endsWhen: 'damaged',
   },
+  // Cinder Grasp's flames. The extra damage a creature takes for acting while
+  // alight is the condition's text, not a rule the engine applies: nothing
+  // reads "at the end of their action" yet.
+  {
+    id: 'on-fire',
+    name: 'On Fire',
+    text: 'When you act while On Fire, you take an extra 2d6 magic damage if you are still On Fire at the end of your action.',
+  },
   { id: 'tavas-armor', name: "Tava's Armor", text: '+1 to your Armor Score until your next rest.', modifiers: [{ stat: 'armorScore', bonus: 1 }] },
   {
     id: 'dodging',

@@ -33,7 +33,7 @@ import { bandForDistance, bandIndex, reaches, type BandTiles, type RangeBand } f
 import { applyAttack, resolveAttack, type AttackProfile } from '../combat/attack';
 import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
 import { attackProfile, UNARMED, type DerivedCharacter } from '../character/sheet';
-import { abilitiesFor, type AbilityDef, type AbilityModifier } from '../content/abilities';
+import { abilitiesFor, loadoutOf, type AbilityDef, type AbilityModifier } from '../content/abilities';
 import type { ConditionBlock, ConditionDef } from '../content/conditions';
 import { formatDice, parseDice, type ParsedDamage } from '../rules/dice';
 import type { AdversaryDef } from '../content/types';
@@ -323,6 +323,18 @@ export class SceneScriptWorld implements ScriptWorld {
     return this.scenario.actorId;
   }
 
+  /**
+   * How many of a domain's cards a character has active. Null for anyone
+   * without a sheet: an adversary has no loadout, and a condition that reads
+   * one of them is false rather than an error.
+   */
+  loadoutDomain(id: string, domain: string): number | null {
+    const character = this.characters.get(id);
+    if (character === undefined) return null;
+    const active = new Set(loadoutOf(character));
+    return character.cards.filter((card) => active.has(card.id) && card.domain === domain).length;
+  }
+
   inCombat(): boolean {
     return this.fighting();
   }
@@ -413,7 +425,14 @@ export class SceneScriptWorld implements ScriptWorld {
   reactionsFor(id: string, trigger: NonNullable<AbilityDef['trigger']>): AbilityDef[] {
     const character = this.characters.get(id);
     if (character === undefined || this.blocks(id, 'reactions')) return [];
-    return abilitiesFor(character, this.abilities).filter((a) => a.kind === 'reaction' && a.trigger === trigger);
+    return abilitiesFor(character, this.abilities).filter(
+      (a) =>
+        a.kind === 'reaction' &&
+        a.trigger === trigger &&
+        // "When you have 2 or fewer Hit Points unmarked": a reaction's own
+        // `available` gates it exactly as it gates using a card by hand.
+        (a.available === undefined || evaluate(a.available, this, { targets: [id], hit: [] })),
+    );
   }
 
   /**

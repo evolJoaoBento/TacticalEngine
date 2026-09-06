@@ -24,6 +24,7 @@ const reads = (overrides: Partial<ConditionContext> = {}): ConditionContext => (
   actorId: () => 'kara',
   resolveTargets: () => ['husk-1'],
   inCombat: () => true,
+  loadoutDomain: () => null,
   hasCondition: () => false,
   poolValue: () => 3,
   bandTo: () => 'close',

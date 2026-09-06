@@ -617,8 +617,16 @@ export class ScriptRunner {
       case 'damage':
         return effect.dice === undefined ? this.applyFlatDamage(effect) : this.applyRolledDamage(effect);
       case 'heal': {
-        const cleared = world.heal(effect.target ?? { kind: 'actor' }, effect.amount, this.bindings());
-        this.journal.push({ kind: 'heal', amount: effect.amount, cleared });
+        // "Clear 1d4 Hit Points": rolled once, then the same number for each,
+        // the way rolled damage lands the one total on every target.
+        let amount = effect.amount;
+        if (amount === undefined) {
+          const expression = parseDice(effect.dice ?? '');
+          if (expression === null) return this.refuse(`cannot read healing dice "${effect.dice}"`);
+          amount = Math.max(1, rollDamage(this.rng, expression, { proficiency: 1, critical: false }).total);
+        }
+        const cleared = world.heal(effect.target ?? { kind: 'actor' }, amount, this.bindings());
+        this.journal.push({ kind: 'heal', amount, cleared });
         return null;
       }
       case 'startEncounter':

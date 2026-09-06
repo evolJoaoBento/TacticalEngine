@@ -52,6 +52,7 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     actorId: () => null,
     resolveTargets: () => [],
     inCombat: () => false,
+    loadoutDomain: () => null,
     hasCondition: () => false,
     poolValue: () => null,
     bandTo: () => null,

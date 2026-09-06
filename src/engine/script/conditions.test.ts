@@ -34,6 +34,7 @@ function context(overrides: Partial<ConditionContext> = {}): ConditionContext {
     actorId: () => null,
     resolveTargets: () => [],
     inCombat: () => false,
+  loadoutDomain: () => null,
     hasCondition: () => false,
     poolValue: () => null,
     bandTo: () => null,

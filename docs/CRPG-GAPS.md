@@ -178,9 +178,10 @@ Minion, Momentum and Terrifying are read off the block, and action or reaction f
 abilities in the same vocabulary (`docs/ADVERSARIES.md` lists which of the 417 printed features
 the engine runs).
 
-**Still open:** 24 of 189 cards are scripted (`docs/CARDS.md`); the rest are text. 341 of 417
-adversary features are still the GM's to narrate. Damage from a feature or a card resolves
-without asking the defender — the prompt covers an adversary's standard attack.
+**Still open:** 53 of 189 cards are scripted (`docs/CARDS.md`); the rest are text, each for a
+reason the doc gives. 341 of 417 adversary features are still the GM's to narrate. Damage from a
+feature or a card resolves without asking the defender — the prompt covers an adversary's
+standard attack.
 
 ### ~~6. Inventory, loot and equipping~~ — done
 
