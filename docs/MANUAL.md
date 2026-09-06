@@ -408,7 +408,9 @@ is its name, the text as printed, the character ids that hold it, whether it is 
 reaction (and what it answers) or passive, what it costs in Hope, Stress and Fear, who it can be
 aimed at and how far, whether using it is the character's action, whether it is only for a fight,
 whether it holds tokens and when they refill — and then the effect list, which is the same one
-every other panel uses. A card with no effects is not broken: it is shown as text and the table
+every other panel uses — including an attack's own reach and whether it goes through armor, and
+a reaction roll's damage, which is rolled once before anyone rolls to avoid it. A card with no
+effects is not broken: it is shown as text and the table
 decides, exactly as an unscripted SRD card is.
 
 ### Items and loot
@@ -664,7 +666,7 @@ An **ability** (`project.abilities[]`): `id`, `name`, `source` (`domainCard` `ca
 (action \| reaction \| passive),
 `trigger?` (incomingDamage \| attackHit \| attackMissed \| tookSevere), `cost` (`hope?`, `stress?`,
 `fear?` — the GM's pool, so it belongs to a stat block's features; a character ability that states
-one is refused, because nobody at the player's end of the table has a Fear to spend), `uses?`
+one is refused at the table and warned about by **Check**), `uses?`
 (`count`, `per` rest \| longRest \| scene), `target` (`kind` none \| self \| adversary \| ally \|
 creature \| group, `range`), `available?` (a condition read with the card's *holder* standing
 as the actor, so "when you have 2 or fewer Hit Points unmarked" is about them and not about

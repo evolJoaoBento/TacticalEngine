@@ -3,6 +3,7 @@ import { abilitySchema } from '../engine/content/abilities';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
 import { EditorSession, addAbility, removeAbility, updateAbility } from './session';
+import { validateProject } from './validate';
 
 /**
  * Editing a card as a document. The Cards panel is a view over these three
@@ -31,6 +32,18 @@ function project(): ProjectDoc {
 
 const session = (): EditorSession => new EditorSession(project());
 const rally = (s: EditorSession) => s.project.abilities[0]!;
+
+describe('a cost only the GM can pay', () => {
+  it('warns when a card asks its holder for a Fear, and not when a stat block does', () => {
+    const s = session();
+    s.run(updateAbility('rally', { cost: { fear: 1 } }));
+    expect(validateProject(s.project).map((p) => p.message).join(' ')).toContain('only the GM spends');
+
+    // The same cost on a stat block's feature is exactly where it belongs.
+    s.run(updateAbility('rally', { source: { kind: 'adversary', adversaries: ['acid-burrower'] } }));
+    expect(validateProject(s.project)).toEqual([]);
+  });
+});
 
 describe('cards in the project', () => {
   it('adds and removes one, putting it back where it was', () => {

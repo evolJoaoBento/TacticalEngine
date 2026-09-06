@@ -78,6 +78,7 @@ const ADDABLE = [
   'clearArmor',
   'gainHope',
   'spendHope',
+  'loseHope',
   'gainFear',
   'applyCondition',
   'clearCondition',
@@ -126,6 +127,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   clearArmor: 'Clear Armor Slots',
   gainHope: 'Gain Hope',
   spendHope: 'Spend Hope',
+  loseHope: 'Take their Hope',
   gainFear: 'GM gains Fear',
   applyCondition: 'Apply a condition',
   clearCondition: 'Clear a condition',
@@ -234,6 +236,7 @@ function blank(kind: Addable, props: EffectListProps): Effect {
     case 'clearArmor':
     case 'gainHope':
     case 'spendHope':
+    case 'loseHope':
     case 'gainFear':
       return { kind, amount: 1 };
     case 'applyCondition':
@@ -498,10 +501,11 @@ function renderBody(
     case 'markArmor':
     case 'clearArmor':
     case 'gainHope':
+    case 'loseHope':
       return (
         <>
           {count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))}
-          {who(effect.target, effect.kind === 'gainHope' ? 'the actor' : 'the chosen target', (target) => ({ ...effect, target }))}
+          {who(effect.target, effect.kind === 'gainHope' ? 'the actor' : 'everyone it hit', (target) => ({ ...effect, target }))}
         </>
       );
     case 'spendHope':
@@ -608,6 +612,27 @@ function renderBody(
                 onChange({ ...effect, damage: damage === '' ? undefined : damage });
               }}
             />
+            <select
+              style={{ ...field, flex: 'none', width: '96px' }}
+              data-role="attack-range"
+              title="Reach instead of the attacker's own"
+              value={effect.range ?? ''}
+              onChange={(e) => {
+                const range = (e.target as HTMLSelectElement).value;
+                onChange({ ...effect, range: range === '' ? undefined : (range as RangeBand) });
+              }}
+            >
+              <option value="">its own reach</option>
+              {BANDS.map((band) => (
+                <option key={band} value={band}>
+                  reaches {band}
+                </option>
+              ))}
+            </select>
+            {flag('direct', 'Damage no Armor Slot reduces', effect.direct === true, (on) => ({
+              ...effect,
+              direct: on ? true : undefined,
+            }))}
           </div>
           <div style={{ color: '#8ea3b0', fontSize: '11px' }}>on a hit</div>
           <EffectList {...props} testId={undefined} effects={effect.onHit ?? []} onChange={(onHit) => onChange({ ...effect, onHit: onHit.length === 0 ? undefined : onHit })} />
@@ -645,11 +670,26 @@ function renderBody(
               difficulty: on ? 'roll' : 12,
             }))}
             {who(effect.targets, 'the chosen target', (targets) => ({ ...effect, targets }))}
+            <input
+              style={{ ...field, flex: 'none', width: '90px' }}
+              data-role="reaction-damage"
+              placeholder="damage dice"
+              title="Rolled once, before anyone rolls to avoid it; both branches spend it with damage dice 'same'"
+              value={effect.damage?.dice ?? ''}
+              onInput={(e) => {
+                const dice = (e.target as HTMLInputElement).value;
+                onChange({ ...effect, damage: dice === '' ? undefined : { ...effect.damage, dice } });
+              }}
+            />
           </div>
-          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>those who fail</div>
-          <EffectList {...props} testId={undefined} effects={effect.onFail ?? []} onChange={(onFail) => onChange({ ...effect, onFail: onFail.length === 0 ? undefined : onFail })} />
-          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>those who succeed</div>
-          <EffectList {...props} testId={undefined} effects={effect.onSuccess ?? []} onChange={(onSuccess) => onChange({ ...effect, onSuccess: onSuccess.length === 0 ? undefined : onSuccess })} />
+          <div data-outcome="onFail">
+            <div style={{ color: '#8ea3b0', fontSize: '11px' }}>those who fail</div>
+            <EffectList {...props} testId={undefined} effects={effect.onFail ?? []} onChange={(onFail) => onChange({ ...effect, onFail: onFail.length === 0 ? undefined : onFail })} />
+          </div>
+          <div data-outcome="onSuccess">
+            <div style={{ color: '#8ea3b0', fontSize: '11px' }}>those who succeed</div>
+            <EffectList {...props} testId={undefined} effects={effect.onSuccess ?? []} onChange={(onSuccess) => onChange({ ...effect, onSuccess: onSuccess.length === 0 ? undefined : onSuccess })} />
+          </div>
         </div>
       );
     case 'goto':

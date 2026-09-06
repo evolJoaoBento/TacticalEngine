@@ -1953,6 +1953,59 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
   expect(consoleErrors).toEqual([]);
 });
 
+test("writes a stat block's shape: an area everyone rolls to avoid, and a swing that reaches further", async ({ page }) => {
+  const consoleErrors = await boot(page);
+  page.on('dialog', (dialog) => void dialog.accept('Eruption'));
+
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-abilities"]').click();
+  const panel = page.locator('[data-testid="ability-panel"]');
+  await panel.locator('[data-testid="add-ability"]').click();
+  // Fear is the GM's pool, which is what a stat block's feature spends.
+  await panel.locator('[data-testid="ability-fear"]').fill('2');
+
+  const effects = panel.locator('[data-testid="ability-effects"]');
+
+  // "All targets must make a reaction roll. Those who fail take 2d10; those
+  // who succeed take half" — one roll of the damage, spent by both branches.
+  await effects.locator('[data-role="add-effect"]').first().selectOption('reactionRoll');
+  const roll = effects.locator('[data-effect="0"] [data-testid="reaction-roll"]');
+  await roll.locator('[data-role="reaction-damage"]').fill('2d10');
+  const fail = roll.locator('[data-outcome="onFail"]');
+  await fail.locator('[data-role="add-effect"]').first().selectOption('loseHope');
+
+  // And a swing that reaches further than the creature's own weapon, through
+  // armor: the two things a feature says about an attack that a card does not.
+  await effects.locator(':scope > [data-role="add-effect"]').last().selectOption('attack');
+  const attack = effects.locator('[data-effect="1"] [data-testid="attack"]');
+  await attack.locator('[data-role="attack-range"]').selectOption('close');
+  await attack.locator('label:has-text("direct") input').check();
+
+  const written = await page.evaluate(() => {
+    const project = JSON.parse(window.__polyheart!.exportProject()) as {
+      abilities: { id: string; cost: unknown; effects: unknown[] }[];
+    };
+    const ability = project.abilities.find((a) => a.id === 'eruption')!;
+    return { cost: ability.cost, effects: ability.effects };
+  });
+  expect(written).toEqual({
+    // Only what the author touched: the Hope and Stress fields were left alone.
+    cost: { fear: 2 },
+    effects: [
+      {
+        kind: 'reactionRoll',
+        difficulty: 12,
+        trait: 'agility',
+        damage: { dice: '2d10' },
+        onFail: [{ kind: 'loseHope', amount: 1 }],
+      },
+      { kind: 'attack', range: 'close', direct: true },
+    ],
+  });
+
+  expect(consoleErrors).toEqual([]);
+});
+
 test('writes a card that reuses one roll against every other adversary in reach', async ({ page }) => {
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Sweep'));

@@ -910,6 +910,12 @@ export function playGmTurn(demo: DemoScene): number {
   const encounter = demo.encounter;
   if (encounter === null || encounter.outcome !== 'ongoing' || encounter.view().side !== 'gm') return 0;
   if (demo.gmTurn !== null || demo.pending !== null) return 0;
+  // "Temporary … until they next act": the party has had their turn, whether
+  // they ended it or a roll with Fear took the spotlight off them, so what a
+  // creature put on them for a moment comes off — the same way an adversary
+  // shakes one off on its spotlight. Without this a hold the SRD ends with a
+  // Strength Roll, which nothing here can ask for, would last the whole fight.
+  clearPartyTemporary(demo);
   demo.gmTurn = { remaining: [...encounter.view().waiting], acted: 0, spotlights: {}, features: {} };
   return runGmTurn(demo);
 }
@@ -960,15 +966,7 @@ export function runGmTurn(demo: DemoScene): number {
 export function endTurn(demo: DemoScene): number {
   const encounter = demo.encounter;
   if (encounter === null || encounter.outcome !== 'ongoing') return 0;
-  if (encounter.view().side === 'party') {
-    // "Temporary … until they next act": the party has acted, so what a
-    // creature put on them for a moment comes off, the same way an adversary
-    // shakes one off on its spotlight. Without this a hold that the SRD ends
-    // with a Strength Roll — and the engine has no way to ask for one — would
-    // last the whole fight.
-    clearPartyTemporary(demo);
-    encounter.passToGm();
-  }
+  if (encounter.view().side === 'party') encounter.passToGm();
   return playGmTurn(demo);
 }
 
