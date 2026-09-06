@@ -3,16 +3,25 @@
 An honest audit against the goal in `CONTEXT.md`: *a full CRPG engine + editor for making
 party-based tactical RPGs in the style of Baldur's Gate 3, running on Daggerheart*.
 
-Written 2026-09-05. Updated the same day after the scripting, dialogue, turn-loop and party
-slices. Re-check it when the answer changes.
+Written 2026-09-05. Updated 2026-09-06 after the editor and the use-verb slices. Re-check it
+when the answer changes.
 
 ## The short answer
 
-**Getting there.** It can now run a small vertical slice: a party you select between and walk
-around, followers that keep up, a trigger that starts a fight, a spotlight that passes back and
-forth, and conversations with gated replies and social checks. What it still cannot do is let
-someone *author* one without engine code — there is no editor, no character sheet, no
-inventory, and no quest model.
+**Most of the way, for one room.** A designer can author a party, a map, and what the things on
+that map do, and play it — no engine code. Select between characters, walk with followers
+keeping up, cross a trigger into a fight, pass the spotlight, open a locked chest on a Finesse
+roll and read what the author wrote about it.
+
+The two things that keep it from being a game rather than a scene:
+
+1. **Nothing talks.** The dialogue runtime is built and tested, but a `Dialogue` is not part of
+   the saved project, so it cannot be authored or shipped (item 2).
+2. **There is only ever one room.** `goto` names a scene and nothing ever changes scene
+   (item 11).
+
+Everything else on the list is depth — inventory, quests, progression, presentation — rather
+than a wall.
 
 The risk this document exists to name: a Daggerheart rules library with a renderer looks like
 progress and is not the goal. BG3 is roughly a third combat. Everything below is the other
@@ -28,6 +37,11 @@ two thirds.
 | Scene | Authored document (zod), runtime state overlay, JSON save/restore |
 | Combat | One attack, end to end, seeded and replayable |
 | Render | Instanced terrain, procedural model library, click-to-move demo |
+| Characters | SRD classes/ancestries/communities/armor/weapons; sheets deriving the real numbers |
+| Scripting | One schema for conditions and effects; a stepper that pauses for input |
+| Interaction | Use a thing: keys, locked text, an action roll, effects and prose per outcome |
+| Editor | Terrain/height/props/objects/enemies/triggers/spawns, undo, validation, JSON save+load |
+| UI | Narrative log with tone, and the roll prompt a script raises |
 
 ## What is missing, in the order it should be built
 
@@ -100,6 +114,12 @@ The `loot` effect exists as a name only.
 
 Listed in `CONTEXT.md`. Needs (1) plus a quest state model.
 
+### 11. Scene travel
+
+`ProjectDoc` holds `scenes[]` and a `startScene`, an interactable can name a `goto`, and the
+runner journals it — but nothing in play ever changes scene, so a portal marks itself used and
+leaves the party where it stood. A campaign of one room is not a campaign.
+
 ### ~~8. The editor~~ — first pass done
 
 `editor/session.ts` holds a project and every reversible change to it (command-based undo, brush
@@ -116,12 +136,6 @@ elevation is its own tool because low walls and tall walls play differently.
 **Still open:** a scene list and scene creation in the UI, a properties panel for editing an
 object's check and outcomes, dialogue authoring, and camera control (the view is a fixed
 three-quarter, so a large map cannot be panned).
-
-### 11. Scene travel
-
-`ProjectDoc` holds `scenes[]` and a `startScene`, an interactable can name a `goto`, and the
-runner journals it — but nothing in play ever changes scene, so a portal marks itself used and
-leaves the party where it stood. A campaign of one room is not a campaign.
 
 ### 9. Asset import (glTF)
 
@@ -142,7 +156,7 @@ camera is fixed — BG3 needs orbit, pan and zoom), and dice presentation.
 A good check at any point: **could someone build a small BG3-like scenario with this and no
 engine code?**
 
-With 1–4 done, a scenario *runs*: `tests/unit/demo-scene.test.ts` and `tests/e2e/demo.spec.ts`
+A scenario *runs*: `src/game/demo-scene.test.ts` and `tests/e2e/demo.spec.ts`
 walk a party into a vault, fire a trigger, trade blows with an SRD adversary and pass the
 spotlight, all from content plus a seed. What is still missing is the ability to **author** one:
 characters are three hard-coded literals in `game/demo-scene.ts` rather than sheets built from
