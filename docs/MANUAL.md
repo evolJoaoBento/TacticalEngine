@@ -386,7 +386,12 @@ narrow the way the rules do — subclasses to the class, cards to the character'
 level. An id that does not resolve is shown in red under the form and reported by **Check**.
 
 Levels are shown but not edited: a level is taken at the table, where the level-up form records
-what was ticked, and this panel is the record rather than a second way to write it.
+what was ticked, and this panel is the record rather than a second way to write it. Changing the
+class clears the subclass and the cards with it — a new class is a different character, and the
+cards were from domains they no longer have. Undo puts all of it back.
+
+Whatever changes a sheet — a level taken, a card recalled, a save restored — writes it back to
+the project, so the document and the table never hold two different characters.
 
 **A sheet edited here reaches the table when you press Play** — the party's numbers are rebuilt
 and their pools refitted. Adding or removing a character changes the document but not a game

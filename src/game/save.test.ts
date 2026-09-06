@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import {
+  SRD_CHARACTERS,
   answerPending,
   buildDemoScene,
   startEncounter,
@@ -9,8 +10,11 @@ import {
   useSelectedOn,
   type DemoScene,
 } from './demo-scene';
+import { deriveCharacter } from '../engine/character/sheet';
+import type { LevelUpPlan } from '../engine/character/progression';
 import { PIT_SCENE_ID } from './demo-scenes';
 import { loadGame, loadGameText, saveBlockedBy, saveGame, saveSchema } from './save';
+import { applyLevelUp } from './demo-scene';
 
 /**
  * Putting a campaign down and picking it up again.
@@ -87,6 +91,52 @@ describe('saving a game', () => {
     expect(saveBlockedBy(demo)).toMatch(/conversation/);
     expect(saveGame(demo)).toBeNull();
   });
+});
+
+/**
+ * A character is written down twice — the map the game reads and the list the
+ * project carries — and everything that changes a sheet has to change both, or
+ * the next time the party is rebuilt from the document the change is gone.
+ */
+const KARA_TO_TWO: LevelUpPlan = {
+  advancements: [{ kind: 'hitPoint' }, { kind: 'traits', traits: ['strength', 'agility'] }],
+  domainCard: 'forceful-push',
+  experience: { name: 'Vault-born', modifier: 2 },
+};
+
+describe('a sheet the document has to keep', () => {
+  /** What `setMode('play')` does: rebuild the party from the project. */
+  const rebuild = (demo: DemoScene): void => {
+    for (const sheet of demo.project.party) {
+      if (demo.sheets.has(sheet.id)) demo.sheets.set(sheet.id, sheet);
+    }
+    for (const [id, sheet] of demo.sheets) {
+      demo.characters.set(id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    }
+  };
+
+  it('keeps a level taken at the table through a rebuild', () => {
+    const demo = scene();
+    demo.world.grantLevel(2);
+    expect(applyLevelUp(demo, 'kara', KARA_TO_TWO)).toMatchObject({ ok: true });
+    expect(demo.sheets.get('kara')!.level).toBe(2);
+
+    rebuild(demo);
+    expect(demo.sheets.get('kara')!.level).toBe(2);
+    expect(demo.project.party.find((s) => s.id === 'kara')!.levels).toHaveLength(1);
+  });
+
+  it('keeps a restored save through a rebuild', () => {
+    const demo = scene();
+    demo.world.grantLevel(2);
+    expect(applyLevelUp(demo, 'kara', KARA_TO_TWO)).toMatchObject({ ok: true });
+
+    const fresh = reload(demo);
+    expect(fresh.sheets.get('kara')!.level).toBe(2);
+    rebuild(fresh);
+    expect(fresh.sheets.get('kara')!.level).toBe(2);
+  });
+
 });
 
 describe('loading a game', () => {

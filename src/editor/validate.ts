@@ -24,7 +24,7 @@ import {
 } from '../engine/script/schema';
 import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-from-scene';
 import { deriveCharacter } from '../engine/character/sheet';
-import { heldCards } from '../engine/character/progression';
+import { domainsOf, heldCards } from '../engine/character/progression';
 import type { SrdCharacterContent } from '../engine/content/srd/daggersearch';
 import { compileHooks } from '../engine/script/hooks';
 import { projectSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
@@ -132,6 +132,16 @@ function checkParty(
     for (const card of sheet.loadout ?? []) {
       if (!held.has(card)) {
         add('warning', `${who} has "${card}" in their loadout but does not hold it.`, sheet.id);
+      }
+    }
+    // A card from outside their domains: a hand-written sheet, or a class
+    // changed in the panel before the cards were. The panel's list cannot
+    // show it, so the validator has to.
+    const domains = domainsOf(sheet, content);
+    for (const card of held) {
+      const def = content.domainCards.get(card);
+      if (def !== undefined && !domains.includes(def.domain)) {
+        add('warning', `${who} holds "${def.name}", a ${def.domain} card outside their domains.`, sheet.id);
       }
     }
     const spread = Object.values(sheet.traits).sort((a, b) => a - b);

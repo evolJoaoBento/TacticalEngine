@@ -22,6 +22,7 @@ import { useState } from 'preact/hooks';
 import type { EditorSession, PartySheet } from '../session';
 import { addSheet, removeSheet, updateSheet } from '../session';
 import { blankSheet, deriveCharacter, type DerivedCharacter } from '../../engine/character/sheet';
+import { characterSheetSchema } from '../../engine/character/sheet-schema';
 import { domainsOf, heldCards } from '../../engine/character/progression';
 import { LOADOUT_LIMIT } from '../../engine/content/abilities';
 import type { SrdCharacterContent } from '../../engine/content/srd/daggersearch';
@@ -178,7 +179,7 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
             const id = typed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
             if (id === '' || session.project.party.some((s) => s.id === id)) return;
             const firstClass = options(content.classes)[0]?.id ?? 'guardian';
-            session.run(addSheet(blankSheet(id, firstClass, { name: typed }) as PartySheet));
+            session.run(addSheet(characterSheetSchema.parse(blankSheet(id, firstClass, { name: typed }))));
             setOpenId(id);
             props.onChange();
           }}
@@ -222,9 +223,10 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
                 pick(
                   open.classId,
                   options(content.classes),
-                  // A new class means a new set of subclasses: keeping the old
-                  // one would leave the sheet naming a subclass of nobody.
-                  (classId) => edit({ classId, subclassId: undefined }),
+                  // A new class is a new character: the subclass belongs to
+                  // nobody now, and the cards are from domains they no longer
+                  // have. Undo puts all of it back.
+                  (classId) => edit({ classId, subclassId: undefined, domainCards: [], loadout: [] }),
                   'character-class',
                 ),
               )}

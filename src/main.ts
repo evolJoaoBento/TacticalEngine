@@ -88,6 +88,7 @@ import {
   DEMO_MODELS,
   SRD_ADVERSARIES,
   SRD_CHARACTERS,
+  setSheet,
 } from './game/demo-scene';
 import { SRD_HOOKS } from './engine/content/srd/hooks';
 import { SRD_ABILITIES } from './engine/content/srd/abilities';
@@ -325,8 +326,7 @@ function rederiveParty(): void {
   // in `project.party`, so the game's copy is re-read rather than rederived
   // from what it happened to boot with.
   for (const sheet of demo.project.party) {
-    if (!demo.sheets.has(sheet.id)) continue;
-    demo.sheets.set(sheet.id, sheet);
+    if (demo.sheets.has(sheet.id)) demo.sheets.set(sheet.id, sheet);
   }
   for (const [id, sheet] of demo.sheets) {
     demo.characters.set(id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
@@ -1299,8 +1299,7 @@ const state = {
     if (sheet === undefined) return;
     const grown = { ...sheet, domainCards: cards };
     delete (grown as { loadout?: readonly string[] }).loadout;
-    demo.sheets.set(id, grown);
-    demo.characters.set(id, deriveCharacter(grown, SRD_CHARACTERS, demo.project.abilities).character);
+    setSheet(demo, grown);
     refreshWorld(demo);
     refreshPlay();
   },

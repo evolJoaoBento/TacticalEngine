@@ -40,6 +40,7 @@ import {
   type DemoScene,
   type LogLine,
   type UseOutcome,
+  setSheet,
 } from './demo-scene';
 
 /** An ability as the action bar shows it: what it is, and why it is greyed out. */
@@ -344,9 +345,7 @@ export function swapCard(
   if (cost > 0) demo.world.markStress(characterId, cost);
 
   const next = [...loadout.filter((id) => id !== cardOut), cardIn];
-  const grown = { ...sheet, loadout: next };
-  demo.sheets.set(characterId, grown);
-  demo.characters.set(characterId, deriveCharacter(grown, SRD_CHARACTERS, demo.project.abilities).character);
+  setSheet(demo, { ...sheet, loadout: next });
   refreshWorld(demo);
   syncPools(demo);
   note(
@@ -398,9 +397,7 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
     if (character === undefined || sheet === undefined) continue;
     const held = character.cards.map((c) => c.id);
     const next = loadout.filter((id) => held.includes(id)).slice(0, LOADOUT_LIMIT);
-    const grown = { ...sheet, loadout: next };
-    demo.sheets.set(characterId, grown);
-    demo.characters.set(characterId, deriveCharacter(grown, SRD_CHARACTERS, demo.project.abilities).character);
+    setSheet(demo, { ...sheet, loadout: next });
   }
   refreshWorld(demo);
   syncPools(demo);

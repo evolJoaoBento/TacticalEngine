@@ -17,7 +17,7 @@
 
 import { z } from 'zod';
 
-import { SRD_CHARACTERS, enterSavedScene, inCombat, type DemoScene } from './demo-scene';
+import { SRD_CHARACTERS, enterSavedScene, inCombat, setSheet, type DemoScene } from './demo-scene';
 import { deriveCharacter } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { logToneSchema } from '../engine/script/schema';
@@ -129,8 +129,7 @@ export function loadGame(demo: DemoScene, save: SaveGame): LoadResult {
   }
   for (const sheet of save.sheets) {
     if (!demo.sheets.has(sheet.id)) continue;
-    demo.sheets.set(sheet.id, sheet);
-    demo.characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    setSheet(demo, sheet);
   }
   enterSavedScene(demo, save.sceneId, current);
 

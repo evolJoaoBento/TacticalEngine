@@ -67,6 +67,7 @@ import {
   type CharacterSheet,
   type DerivedCharacter,
 } from '../engine/character/sheet';
+import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { importCharacterContent, type WeaponDef } from '../engine/content/srd/daggersearch';
 import {
   importSeansboxAdversaries,
@@ -470,6 +471,22 @@ export function hooksFor(code: readonly CodeDef[] | undefined): HookMap {
  * conditions say the maximum is: Tava's Armor adds an Armor Slot while it
  * lasts, and takes it back when it ends. Marks are kept, clamped.
  */
+/**
+ * Write a sheet back.
+ *
+ * A character is written down twice — the map the game reads and the list the
+ * project carries — and the two must not drift: a level taken at the table, a
+ * card swapped, a save restored, all of it belongs in the document, or the
+ * next time the party is rebuilt from it the change is gone. Every place that
+ * changes a sheet goes through here.
+ */
+export function setSheet(demo: DemoScene, sheet: CharacterSheet): void {
+  demo.sheets.set(sheet.id, sheet);
+  const at = demo.project.party.findIndex((s) => s.id === sheet.id);
+  if (at >= 0) demo.project.party[at] = characterSheetSchema.parse(sheet);
+  demo.characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+}
+
 export function syncPools(demo: DemoScene): void {
   for (const entity of demo.state.entitiesOf('party')) {
     const character = demo.characters.get(entity.id);
@@ -2035,9 +2052,8 @@ export function applyLevelUp(demo: DemoScene, characterId: string, plan: LevelUp
   const result = levelUp(sheet, SRD_CHARACTERS, plan);
   if (result.issues.length > 0) return { ok: false, issues: result.issues };
 
-  const derived = deriveCharacter(result.sheet, SRD_CHARACTERS, demo.project.abilities).character;
-  demo.sheets.set(characterId, result.sheet);
-  demo.characters.set(characterId, derived);
+  setSheet(demo, result.sheet);
+  const derived = demo.characters.get(characterId)!;
 
   const entity = demo.state.entity(characterId);
   if (entity !== undefined) {
@@ -2117,9 +2133,8 @@ export function equipItem(demo: DemoScene, characterId: string, itemId: string):
   const returned = itemForGear(demo, replaced);
   if (returned !== undefined && returned.id !== itemId) demo.world.addItem(returned.id, 1);
 
-  const derived = deriveCharacter(next, SRD_CHARACTERS, demo.project.abilities).character;
-  demo.sheets.set(characterId, next);
-  demo.characters.set(characterId, derived);
+  setSheet(demo, next);
+  const derived = demo.characters.get(characterId)!;
   const entity = demo.state.entity(characterId);
   if (entity !== undefined) {
     entity.armorSlots = { max: derived.armorScore, marked: Math.min(entity.armorSlots.marked, derived.armorScore) };

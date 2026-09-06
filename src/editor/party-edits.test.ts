@@ -122,6 +122,11 @@ describe('checking a party', () => {
     expect(check({ loadout: ['whirlwind'] }).join(' ')).toContain('does not hold it');
   });
 
+  it('warns about a card from outside their domains', () => {
+    // Rune Ward is Arcana; a Guardian's domains are Valor and Blade.
+    expect(check({ domainCards: ['bare-bones', 'rune-ward'] }).join(' ')).toContain('outside their domains');
+  });
+
   it("warns when the traits are not the SRD's starting spread", () => {
     expect(check({ traits: { agility: 3, strength: 3, finesse: 3, instinct: 3, presence: 3, knowledge: 3 } }).join(' ')).toContain(
       'starting spread',
