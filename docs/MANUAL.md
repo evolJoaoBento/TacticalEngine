@@ -680,7 +680,9 @@ long rest, which is where a session boundary falls in play), `auto` (whether a r
 fires on its own; an interrupt never does). `src/engine/content/srd/abilities.ts` is the library
 for the SRD's cards and `docs/CARDS.md` lists what is scripted;
 `src/engine/content/srd/adversary-abilities.ts` is the same for stat-block features, listed in
-`docs/ADVERSARIES.md`.
+`docs/ADVERSARIES.md`. Those come with the block: a project that places an Acid Burrower gets
+Spit Acid without writing it, and a project ability with the same id says something different
+with it.
 
 **Adversary features.** The role features every third stat block shares are read straight off
 the block (`src/engine/combat/adversary-features.ts`): **Relentless (X)** spotlights it up to X
@@ -697,7 +699,9 @@ nobody but itself — a heal, a shout — catches no one by definition, and whet
 turn is what its `available` says ("if the Hydra has any marked HP"): area first, then aimed,
 then itself, and the block's own order inside each. `uses` is counted under the creature's own
 id, so "once per scene" is once for that adversary and back for the next fight. From an adversary's script,
-`allies` reads as the party in that band — a selector is relative to whoever is acting.
+`allies` is the party and `adversaries` the adversaries, whoever is acting: the selectors name
+factions, not sides. From a stat block, `allies` is who the feature is aimed at, and a feature
+that helps its own kind reaches for `adversaries`.
 
 A character's abilities are the class's, the subclass's up to the stage reached, and the domain
 cards in the loadout (`sheet.loadout`, at most five; the first five held when unset).

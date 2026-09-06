@@ -22,7 +22,9 @@ import {
   attackWithSelected,
   answerPending,
   buildProjectScene,
+  endTurn,
   moveSelectedTo,
+  startEncounter,
   useSelectedOn,
 } from '../game/demo-scene';
 
@@ -115,6 +117,44 @@ function author(): EditorSession {
 
   return s;
 }
+
+/**
+ * The other half of the same question, for the GM's side: a room with a stat
+ * block nobody wrote by hand, whose printed feature the engine plays.
+ *
+ * Every other test of the GM's turn injects an ability of its own; this one
+ * places a real adversary from the vendored blocks and lets the turn find the
+ * real feature — the only test that would notice a misfiled id, a Difficulty
+ * that never reached the roll, or a cost the turn cannot pay.
+ */
+describe("a room with a stat block the engine did not write", () => {
+  it("plays the block's own printed feature on the GM's turn", () => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(addSheet(characterSheetSchema.parse({ ...KARA, id: 'lio', name: 'Lio' })));
+    s.run(setSpawns('hall', [{ x: 1, y: 3 }, { x: 1, y: 5 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'demon', name: 'A demon' })));
+    // The Minor Demon's Hellfire: a Fear, an Agility Reaction Roll from
+    // everyone within Far range, and magic damage on those who fail.
+    s.run(addAdversary('hall', 'demon', { id: 'demon-1', adversary: 'minor-demon', position: { x: 5, y: 4 } }));
+
+    const demo = buildProjectScene(s.project, 'hellfire');
+    demo.askDefender = false;
+    startEncounter(demo, 'demon');
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+
+    let rained = false;
+    for (let i = 0; i < 6 && !rained && demo.encounter?.outcome === 'ongoing'; i++) {
+      endTurn(demo);
+      rained = demo.log.some((l) => l.text.includes('uses Hellfire'));
+    }
+    expect(rained).toBe(true);
+    // Everyone it caught rolled against the block's own Difficulty of 14.
+    const rolls = demo.log.map((l) => l.text).filter((t) => t.includes('reacts:'));
+    expect(rolls.length).toBeGreaterThanOrEqual(2);
+    expect(rolls[0]).toContain('against 14');
+  });
+});
 
 describe('a scenario built with nothing but the editor', () => {
   it('passes the validator the Check button runs', () => {

@@ -38,8 +38,9 @@ const RAW: Input[] = [
         // The Burrower's own Difficulty is what a reaction to it has to beat.
         difficulty: 14,
         trait: 'agility',
-        // From an adversary, `allies` reads as the party within that band —
-        // the selector is relative to whoever is acting.
+        // `allies` is the party and `adversaries` the adversaries, whoever is
+        // acting: the selectors name factions, not sides. So from a stat
+        // block, `allies` is who the feature is aimed at.
         targets: { kind: 'allies', range: 'veryClose' },
         onFail: [
           { kind: 'log', text: 'Knocked off their feet.', tone: 'fear' },

@@ -427,6 +427,19 @@ function buildRuntime(
  * world is rebuilt whenever a sheet changes and a site that forgot the stat
  * blocks would roll every spell against the fallback numbers.
  */
+/**
+ * A stat block's features come with the block.
+ *
+ * A project carries its own abilities, and a campaign that places an Acid
+ * Burrower has not written the Burrower's Spit Acid — the SRD did, and the
+ * engine ships it. So the shipped features are always there, and a project
+ * that gives one the same id says something different with it.
+ */
+function withStatBlockFeatures(abilities: readonly AbilityDef[]): readonly AbilityDef[] {
+  const own = new Set(abilities.map((ability) => ability.id));
+  return [...abilities, ...SRD_ADVERSARY_ABILITIES.filter((feature) => !own.has(feature.id))];
+}
+
 export function worldOptions(
   characters: ReadonlyMap<string, DerivedCharacter>,
   lootTables?: ReadonlyMap<string, LootTable>,
@@ -438,7 +451,7 @@ export function worldOptions(
     characters,
     adversaries: adversaryDefsFor(scene),
     bandTiles: DEMO_BAND_TILES,
-    abilities: project?.abilities ?? SRD_ABILITIES,
+    abilities: withStatBlockFeatures(project?.abilities ?? SRD_ABILITIES),
     conditionDefs: project?.conditionDefs ?? SRD_CONDITIONS,
     // The engine's native hooks, then the project's own code, which may
     // override one of them by using the same id. Asked for each time: the
