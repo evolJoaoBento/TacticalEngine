@@ -1102,3 +1102,36 @@ test('edits a quest in the editor, and the journal reads the new words', async (
 
   expect(consoleErrors).toEqual([]);
 });
+
+test('authors a quest effect from dropdowns, and the objective follows the quest', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+
+  // A second quest, so switching between them means something.
+  page.once('dialog', (dialog) => void dialog.accept('Another errand'));
+  await page.locator('button', { hasText: '+ Quest' }).click();
+
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.selectObject(api.objects().find((id) => id.startsWith('chest'))!);
+  });
+  const list = page.locator('[data-testid="object-effects"]');
+  await list.locator('[data-role="add-effect"]').selectOption('completeObjective');
+
+  const fresh = await page.evaluate(() => {
+    const effects = window.__polyheart!.objectField('effects') as { kind: string }[];
+    return effects[effects.length - 1];
+  });
+  expect(fresh).toEqual({ kind: 'completeObjective', quest: 'the-wardens-word', objective: 'win-the-word' });
+
+  // Switch the quest: the objective must not stay pointed at the old quest's step.
+  const row = list.locator('[data-effect]').last();
+  await row.locator('select').first().selectOption('another-errand');
+  const switched = await page.evaluate(() => {
+    const effects = window.__polyheart!.objectField('effects') as { kind: string }[];
+    return effects[effects.length - 1];
+  });
+  expect(switched).toEqual({ kind: 'completeObjective', quest: 'another-errand', objective: 'first-step' });
+
+  expect(consoleErrors).toEqual([]);
+});

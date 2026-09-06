@@ -171,6 +171,7 @@ export function Inspector(props: InspectorProps): preact.JSX.Element {
         Runs with no roll, before any check below.
       </div>
       <EffectList
+        testId="object-effects"
         effects={object.effects}
         onChange={(effects) => props.onChange({ effects })}
         {...listProps}

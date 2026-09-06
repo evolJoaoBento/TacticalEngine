@@ -17,6 +17,8 @@ import type { Effect } from '../../engine/script/schema';
 import type { QuestDef } from '../../engine/content/quests';
 
 export interface EffectListProps {
+  /** A hook for tests to find one list among several. */
+  testId?: string;
   effects: readonly Effect[];
   onChange: (effects: Effect[]) => void;
   /** What a `goto` can name. */
@@ -171,9 +173,9 @@ export function EffectList(props: EffectListProps): preact.JSX.Element {
     props.onChange(effects.filter((_, i) => i !== index));
 
   return (
-    <div>
+    <div data-testid={props.testId}>
       {effects.map((effect, i) => (
-        <div key={i} style={row}>
+        <div key={i} style={row} data-effect={i}>
           <span style={{ color: '#8ea3b0', width: '70px', flexShrink: 0, fontSize: '11px' }}>
             {effect.kind in LABELS ? LABELS[effect.kind as Addable] : effect.kind}
           </span>
@@ -186,6 +188,7 @@ export function EffectList(props: EffectListProps): preact.JSX.Element {
 
       <select
         value=""
+        data-role="add-effect"
         style={{ ...field, flex: 'none', width: '100%', marginTop: '2px' }}
         onChange={(e) => {
           const kind = (e.target as HTMLSelectElement).value as Addable | '';
