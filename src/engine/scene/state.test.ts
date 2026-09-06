@@ -248,18 +248,38 @@ describe('snapshot and restore', () => {
     expect(restored.blockedFor('nobody')(9)).toBe(false);
   });
 
-  it('keeps a door that is merely open in the way', () => {
-    // Open is not gone: an opened chest still occupies its tile.
+  it('keeps an opened chest in the way', () => {
+    // Open is not gone: an opened chest still sits where it sat. Only the things
+    // registered as walk-through-when-open — doors — clear their tile.
     const state = makeState();
-    state.placeInteractable('door', 9);
+    state.placeInteractable('chest', 9);
     state.setInteractableBlocking(9, true);
-    state.interactable('door').open = true;
+    state.openInteractable('chest');
+    expect(state.blockedFor('nobody')(9)).toBe(true);
 
     const restored = makeState();
-    restored.placeInteractable('door', 9);
+    restored.placeInteractable('chest', 9);
     restored.setInteractableBlocking(9, true);
     restored.restore(state.snapshot());
     expect(restored.blockedFor('nobody')(9)).toBe(true);
+  });
+
+  it('lets an opened door through, and still lets it through after a restore', () => {
+    // Opening a door has to clear its tile, and every way back into the room —
+    // a snapshot restored, a save reloaded — has to agree, because the blocking
+    // index is rebuilt from a document that still says the door is shut.
+    const state = makeState();
+    state.placeInteractable('door', 9, true);
+    state.setInteractableBlocking(9, true);
+    expect(state.blockedFor('nobody')(9)).toBe(true);
+    state.openInteractable('door');
+    expect(state.blockedFor('nobody')(9)).toBe(false);
+
+    const restored = makeState();
+    restored.placeInteractable('door', 9, true);
+    restored.setInteractableBlocking(9, true);
+    restored.restore(state.snapshot());
+    expect(restored.blockedFor('nobody')(9)).toBe(false);
   });
 
   // Flags and keys are the campaign's, not the room's: a scene snapshot must not

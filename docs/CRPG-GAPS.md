@@ -160,8 +160,9 @@ Loading restores the party to the tiles they were standing on rather than to the
 what separates it from `travelTo`. A save for another project is refused, and damaged text is
 reported rather than thrown.
 
-**Still open:** one slot, in `localStorage`. Named saves, autosaves and a save browser are UI on
-top of a format that already carries what they need.
+**Still open:** one slot, in `localStorage`, and the log grows without limit inside it. Named
+saves, autosaves, a save browser and a trimmed log are all UI and policy on top of a format that
+already carries what they need.
 
 ### 7. Quests and journal
 
@@ -287,3 +288,11 @@ look around with (10).
 One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
 workaround from when nothing could use a door. It can go now — the party can pick that lock
 themselves — but the combat e2e walks east through it, so that is its own change.
+
+Doors did learn one thing they should have known all along, while the save was being written: an
+open door stops blocking its tile, on every path into a room. It used to be a line in
+`buildDemoScene` that reached past the state and cleared the blocking index by hand, which meant
+a door opened by its own script still stood in the way, and coming back to a room — or loading a
+save of it — walled the party in behind a door the snapshot said was open. `SceneState` now knows
+which interactables are walk-through-when-open (`kind: 'door'`, and only those: an opened chest
+still sits where it sat) and reconciles the index on open and on restore.

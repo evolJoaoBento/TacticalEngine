@@ -38,6 +38,12 @@ function loot(demo: DemoScene): void {
   if (demo.pending !== null) answerPending(demo, { kind: 'roll' });
 }
 
+/** The vault's door, and the tile it stands on. */
+function doorTile(demo: DemoScene): number {
+  const door = demo.scene.interactables.find((i) => i.kind === 'door')!;
+  return tileOf(demo.grid, door.position);
+}
+
 /** Save, put it through JSON, and load it into a scene built from scratch. */
 function reload(demo: DemoScene, seed = 'demo'): DemoScene {
   const text = JSON.stringify(saveGame(demo));
@@ -135,6 +141,19 @@ describe('loading a game', () => {
     expect(back.state.entity(mover)!.tile).toBe(tile);
   });
 
+  it('leaves the vault door open, the way the save left it', () => {
+    // The blocking index is built from the document, which still says the door
+    // is shut; a load that trusted it would wall the party in.
+    const demo = scene();
+    const tile = doorTile(demo);
+    const mover = demo.party.selected!;
+    expect(demo.state.blockedFor(mover)(tile)).toBe(false);
+
+    const back = reload(demo);
+    expect(doorTile(back)).toBe(tile);
+    expect(back.state.blockedFor(mover)(tile)).toBe(false);
+  });
+
   it('remembers wounds', () => {
     const demo = scene();
     const wounded = demo.party.selected!;
@@ -197,6 +216,26 @@ describe('loading a game', () => {
     const save = saveGame(demo)!;
     const result = loadGame(scene(), { ...save, sceneId: PIT_SCENE_ID });
     expect(result.ok).toBe(false);
+  });
+
+  it('leaves the game alone when it refuses a room the project no longer has', () => {
+    // A save naming a scene the editor has since deleted. Refusing after the
+    // scenario had already been overwritten would leave a half-loaded game.
+    const demo = scene();
+    loot(demo);
+    const save = saveGame(demo)!;
+    const orphan = {
+      ...save,
+      sceneId: 'nowhere',
+      scenes: { nowhere: save.scenes[save.sceneId]! },
+      scenario: { ...save.scenario, items: [] as [string, number][], flags: ['ghost'] },
+    };
+
+    const before = { scene: demo.scene.id, items: [...demo.scenario.items] };
+    expect(loadGame(demo, orphan).ok).toBe(false);
+    expect(demo.scene.id).toBe(before.scene);
+    expect([...demo.scenario.items]).toEqual(before.items);
+    expect(demo.scenario.flags.has('ghost')).toBe(false);
   });
 
   it('reports damaged text rather than throwing', () => {

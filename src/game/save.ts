@@ -100,11 +100,15 @@ export function loadGame(demo: DemoScene, save: SaveGame): LoadResult {
   if (current === undefined) {
     return { ok: false, reason: `the save has no state for scene "${save.sceneId}"` };
   }
-
-  restoreScenario(demo.scenario, save.scenario);
-  if (!enterSavedScene(demo, save.sceneId, current)) {
+  // Every refusal gets its chance *before* anything is touched: a save naming a
+  // room the editor has since deleted must leave the game being played alone
+  // rather than half-loaded.
+  if (!demo.project.scenes.some((scene) => scene.id === save.sceneId)) {
     return { ok: false, reason: `this project has no scene "${save.sceneId}"` };
   }
+
+  restoreScenario(demo.scenario, save.scenario);
+  enterSavedScene(demo, save.sceneId, current);
 
   demo.snapshots.clear();
   for (const [id, snapshot] of Object.entries(save.scenes)) {

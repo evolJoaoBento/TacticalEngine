@@ -217,7 +217,9 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   openInteractable(id: string): void {
-    this.state.interactable(id).open = true;
+    // Through the method, not the flag: an opened door has to stop blocking its
+    // tile, or unlocking one leaves the party standing in front of it.
+    this.state.openInteractable(id);
   }
 
   removeInteractable(id: string): void {

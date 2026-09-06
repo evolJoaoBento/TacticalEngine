@@ -246,6 +246,11 @@ export class SceneState {
   private readonly blockingInteractables = new Set<number>();
   /** Where each interactable stands, so removing one can free its tile. */
   private readonly interactableTiles = new Map<string, number>();
+  /**
+   * Interactables you can walk through once they are open — doors, and nothing
+   * else. An opened chest still sits where it sat.
+   */
+  private readonly passableWhenOpen = new Set<string>();
 
   /** Register an interactable's tile as blocking. Called when the scene is built. */
   setInteractableBlocking(tile: number, blocking: boolean): void {
@@ -254,9 +259,24 @@ export class SceneState {
     else this.blockingInteractables.delete(tile);
   }
 
-  /** Record where an interactable stands. Called when the scene is built. */
-  placeInteractable(id: string, tile: number): void {
+  /**
+   * Record where an interactable stands. Called when the scene is built.
+   *
+   * `passableWhenOpen` is what makes a door a door: opening it clears the tile,
+   * and every path back into this room — a restore, a save reloaded — has to
+   * agree, because the blocking index is built from the document and the
+   * document says the door is shut.
+   */
+  placeInteractable(id: string, tile: number, passableWhenOpen = false): void {
     if (tile !== NO_TILE) this.interactableTiles.set(id, tile);
+    if (passableWhenOpen) this.passableWhenOpen.add(id);
+    else this.passableWhenOpen.delete(id);
+  }
+
+  /** Open something, and get out of the way if it is the kind of thing that does. */
+  openInteractable(id: string): void {
+    this.interactable(id).open = true;
+    if (this.passableWhenOpen.has(id)) this.setInteractableBlocking(this.interactableTile(id), false);
   }
 
   /** The tile an interactable stands on, or `NO_TILE`. */
@@ -319,9 +339,11 @@ export class SceneState {
     for (const [id, state] of Object.entries(snapshot.interactables)) {
       this.interactables.set(id, { ...state, data: { ...state.data } });
       // The blocking index is built from the *document*, so it comes back
-      // believing a door that was smashed open is still in the way. Only the
-      // snapshot knows otherwise.
-      if (state.removed) this.setInteractableBlocking(this.interactableTile(id), false);
+      // believing a door the party opened or smashed is still in the way. Only
+      // the snapshot knows otherwise.
+      if (state.removed || (state.open && this.passableWhenOpen.has(id))) {
+        this.setInteractableBlocking(this.interactableTile(id), false);
+      }
     }
     for (const [id, state] of Object.entries(snapshot.encounters)) {
       this.encounters.set(id, { ...state });
@@ -431,7 +453,7 @@ export function sceneStateFromScene(
 
   for (const interactable of scene.interactables) {
     const tile = grid.indexOf(interactable.position.x, interactable.position.y);
-    state.placeInteractable(interactable.id, tile);
+    state.placeInteractable(interactable.id, tile, interactable.kind === 'door');
     if (interactable.blocksMovement) state.setInteractableBlocking(tile, true);
   }
 

@@ -499,10 +499,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
   // The vault door is shut in the authored map; open it so the demo has somewhere
   // to walk and something to reach.
   const door = vaultDoc.interactables.find((i) => i.kind === 'door');
-  if (door !== undefined) {
-    runtime.state.interactable(door.id).open = true;
-    runtime.state.setInteractableBlocking(tileOf(runtime.grid, door.position), false);
-  }
+  if (door !== undefined) runtime.state.openInteractable(door.id);
 
   return {
     ...runtime,

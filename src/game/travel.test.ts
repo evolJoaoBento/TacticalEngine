@@ -31,6 +31,12 @@ function stand(demo: DemoScene, id: string): void {
   );
 }
 
+/** The vault's door, and the tile it stands on. */
+function doorTile(demo: DemoScene): number {
+  const door = demo.scene.interactables.find((i) => i.kind === 'door')!;
+  return tileOf(demo.grid, door.position);
+}
+
 describe('travelling between scenes', () => {
   it('ships two scenes in one project', () => {
     const demo = scene();
@@ -113,6 +119,22 @@ describe('travelling between scenes', () => {
     // Walk back over to it — arriving puts the party on the spawns.
     stand(demo, CHEST);
     expect(useSelectedOn(demo, CHEST).status).toBe('refused');
+  });
+
+  it('finds the vault door still open on the way back', () => {
+    // Coming back rebuilds the room from a document that says the door is shut,
+    // then restores the snapshot over it. If only the snapshot's flags came back
+    // and not the tile it cleared, the party would be walled in on return.
+    const demo = scene();
+    const tile = doorTile(demo);
+    const mover = demo.party.selected!;
+    const vault = demo.scene.id;
+    expect(demo.state.blockedFor(mover)(tile)).toBe(false);
+
+    travelTo(demo, PIT_SCENE_ID);
+    travelTo(demo, vault);
+    expect(doorTile(demo)).toBe(tile);
+    expect(demo.state.blockedFor(mover)(tile)).toBe(false);
   });
 
   it('puts the party on the spawns when it comes back, not where it left', () => {
