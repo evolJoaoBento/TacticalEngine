@@ -72,6 +72,8 @@ export interface AttackSummary {
   damage?: number;
   /** The expression rolled, as the log writes it. */
   damageDice?: string;
+  /** What the damage counted as, so a reuse of it counts as the same. */
+  damageTypes?: readonly DamageType[];
   hopeGained: number;
   fearGained: number;
   stressCleared: number;
@@ -314,7 +316,7 @@ export class ScriptRunner {
   /** The last action roll made, for a critical's extra damage and `difficulty: 'roll'`. */
   private lastRoll: DualityRoll | null = null;
   /** The last damage rolled in this script, for `dice: 'same'`. */
-  private lastDamage: { total: number; dice: string } | null = null;
+  private lastDamage: { total: number; dice: string; types: readonly DamageType[] } | null = null;
 
   /** Whether any action roll in this script hands the spotlight to the GM. */
   spotlightToGm = false;
@@ -853,7 +855,10 @@ export class ScriptRunner {
       const targets = this.resolve(effect.target ?? { kind: 'hit' });
       if (targets.length === 0) return null;
       const amount = effect.half === true ? Math.ceil(last.total / 2) : last.total;
-      return this.dealTo(targets, amount, effect, last.dice);
+      // The same damage, so the same kind of damage: a card that carries a
+      // sword's swing over carries physical, and armor that answers one
+      // answers the other.
+      return this.dealTo(targets, amount, effect, last.dice, last.types);
     }
 
     // `weapon` is whatever the actor swings.
@@ -876,7 +881,7 @@ export class ScriptRunner {
       critical: this.lastRoll?.critical ?? false,
     });
     const amount = effect.half === true ? Math.ceil(roll.total / 2) : roll.total;
-    this.lastDamage = { total: roll.total, dice: formatDice(roll.expression) };
+    this.lastDamage = { total: roll.total, dice: formatDice(roll.expression), types: expression.types ?? [] };
     return this.dealTo(targets, amount, effect, formatDice(roll.expression), expression.types);
   }
 
@@ -942,7 +947,7 @@ export class ScriptRunner {
       this.spotlightToGm = this.spotlightToGm || summary.spotlightToGm;
       if (summary.roll !== undefined) this.lastRoll = summary.roll;
       if (summary.damage !== undefined) {
-        this.lastDamage = { total: summary.damage, dice: summary.damageDice ?? '' };
+        this.lastDamage = { total: summary.damage, dice: summary.damageDice ?? '', types: summary.damageTypes ?? [] };
       }
       this.journal.push({
         kind: 'attack',

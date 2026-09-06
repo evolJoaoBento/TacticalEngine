@@ -1012,7 +1012,11 @@ export class SceneScriptWorld implements ScriptWorld {
       hitPointsMarked: applied.hitPointsMarked,
       ...(outcome.damageRoll === undefined
         ? {}
-        : { damage: outcome.damageRoll.total, damageDice: formatDice(outcome.damageRoll.expression) }),
+        : {
+            damage: outcome.damageRoll.total,
+            damageDice: formatDice(outcome.damageRoll.expression),
+            damageTypes: profile.damage.types ?? [],
+          }),
       ...(outcome.dualityRoll === undefined ? {} : { roll: outcome.dualityRoll }),
       hopeGained: applied.hopeGained,
       fearGained: applied.fearGained,

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
+import { abilitySchema } from '../engine/content/abilities';
 import { runScript } from '../engine/script/runner';
 import { rest, useAbility } from './demo-abilities';
 import { NO_TILE } from '../engine/grid/grid';
@@ -456,6 +457,40 @@ describe('the Burrower\'s scripted attacks', () => {
     expect(sprayed).toBe(true);
     // Everyone it beat was rolled for separately, and the log says what happened.
     expect(demo.log.map((l) => l.text).filter((t) => t.includes('Spit Acid')).length).toBeGreaterThan(0);
+  });
+
+  it("bathes the room when a card's own attack is what wounds it", () => {
+    // The reaction has to fire off a script's attack too, not only off damage
+    // the world was handed: a card's `attack` goes through the same door an
+    // adversary's swing does, and the queue has to drain after a card.
+    const demo = standoff('bath-card');
+    demo.askDefender = false;
+    demo.project.abilities.push(
+      abilitySchema.parse({
+        id: 'heavy-blow',
+        name: 'Heavy Blow',
+        source: { kind: 'granted', characters: ['kara'] },
+        target: { kind: 'adversary', range: 'melee' },
+        action: false,
+        // Well past the Burrower's Severe threshold, and not enough to kill it.
+        effects: [{ kind: 'attack', damage: '+16 phy' }],
+      }),
+    );
+
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const kara = demo.state.entity('kara')!;
+    const before = kara.hitPoints.marked + kara.armorSlots.marked;
+
+    // Whether a given swing lands is the seed's business; that the wound
+    // answers is not, so swing until one lands.
+    for (let i = 0; i < 20 && !demo.log.some((l) => l.text.includes('Acid blood')); i++) {
+      husk.hitPoints = { max: 40, marked: 0 };
+      expect(useAbility(demo, 'kara', 'heavy-blow', [husk.id]).status).toBe('done');
+    }
+    expect(husk.alive).toBe(true);
+    expect(demo.log.map((l) => l.text)).toContain('Acid blood sprays from the wound.');
+    const after = demo.state.entity('kara')!;
+    expect(after.hitPoints.marked + after.armorSlots.marked).toBeGreaterThan(before);
   });
 
   it('bathes the room in acid when it takes Severe damage', () => {

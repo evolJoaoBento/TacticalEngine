@@ -311,6 +311,21 @@ function rebuildTerrain(): void {
 
 let mode: 'play' | 'edit' = 'play';
 
+/**
+ * Fold the project's cards back into the party's derived numbers.
+ *
+ * A card's `effects` are read live when it is played, but its `modifiers` — a
+ * passive's "+1 to your Evasion" — are folded in when a character is derived.
+ * Editing one in the Cards panel has to rebuild them, or the sheet would keep
+ * the old Evasion until something else happened to rederive it.
+ */
+function rederiveParty(): void {
+  for (const [id, sheet] of demo.sheets) {
+    demo.characters.set(id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+  }
+  refreshWorld(demo);
+}
+
 function setMode(next: 'play' | 'edit'): void {
   mode = next;
   editor.end();
@@ -319,6 +334,7 @@ function setMode(next: 'play' | 'edit'): void {
     editor.switchScene(demo.scene.id);
   }
   if (mode === 'play') {
+    rederiveParty();
     rebindScene();
     refreshPlay();
   } else {

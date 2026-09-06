@@ -6,6 +6,87 @@ import { addVar, log, setFlag, type Effect } from './effects';
 import { ScriptRunner, runScript, type ScriptWorld } from './runner';
 import { SceneScriptWorld, createScenarioState } from './world';
 
+/**
+ * A world that does nothing, for testing what the runner asks of it rather
+ * than what a scene does about it. Override the one or two members a test
+ * cares about; the rest answer "nothing there".
+ */
+function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
+  const flags = new Set<string>();
+  const base: ScriptWorld = {
+    hasFlag: (f) => flags.has(f),
+    hasKey: () => false,
+    hasItem: () => false,
+    rollLoot: () => [],
+    addItem: () => 1,
+    removeItem: () => 1,
+    getVar: () => null,
+    interactableState: () => ({ used: false, open: false, removed: false }),
+    encounterState: () => ({ started: false, ended: false, triggered: false }),
+    countAlive: () => 1,
+    questStatus: () => 'inactive',
+    objectiveDone: () => false,
+    grantLevel: () => null,
+    gainHope: () => false,
+    gainFear: () => false,
+    startQuest: () => false,
+    completeObjective: () => false,
+    revealObjective: () => false,
+    completeQuest: () => false,
+    failQuest: () => false,
+    setFlag: (f) => void flags.add(f),
+    clearFlag: (f) => void flags.delete(f),
+    giveKey: () => {},
+    setVar: () => {},
+    openInteractable: () => {},
+    removeInteractable: () => {},
+    markInteractableUsed: () => {},
+    startEncounter: () => {},
+    endEncounter: () => {},
+    damage: () => 0,
+    heal: () => 0,
+    checkModifier: () => 0,
+    experiences: () => [],
+    difficultyOf: () => null,
+    hook: () => null,
+    actorId: () => null,
+    resolveTargets: () => [],
+    inCombat: () => false,
+    hasCondition: () => false,
+    poolValue: () => null,
+    bandTo: () => null,
+    dealDamage: () => ({ incoming: 0, hpMarked: 0, armorSlotsSpent: 0, fell: false, reactions: [] }),
+    markStress: () => ({ stressMarked: 0, hpMarked: 0, fell: false }),
+    clearStress: () => 0,
+    clearArmor: () => 0,
+    gainHopeFor: () => 0,
+    spendHope: () => false,
+    applyCondition: () => false,
+    clearCondition: () => false,
+    proficiencyOf: () => 1,
+    markArmor: () => 0,
+    tokensOn: () => 0,
+    addTokens: () => 0,
+    spendTokens: () => 0,
+    spellcastValue: () => null,
+    weaponDamage: () => null,
+    attack: () => ({
+      refused: 'nothing to attack',
+      weapon: '',
+      hit: false,
+      critical: false,
+      hitPointsMarked: 0,
+      hopeGained: 0,
+      fearGained: 0,
+      stressCleared: 0,
+      spotlightToGm: false,
+    }),
+    pushBack: () => null,
+    rollReaction: () => ({ success: false, total: 0 }),
+  };
+  return { ...base, ...overrides };
+}
+
 /** Faces scripted in order, so an outcome can be pinned. */
 function scriptedRng(faces: number[]): Rng {
   let i = 0;
@@ -409,81 +490,47 @@ describe('the runner as a whole', () => {
     expect(done.journal.some((e) => e.kind === 'log' && e.text === 'after')).toBe(true);
   });
 
-  it('works against a stub world, not just a scene', () => {
-    // The runner talks to an interface, which is what lets a replay drive it.
-    const flags = new Set<string>();
-    const stub: ScriptWorld = {
-      hasFlag: (f) => flags.has(f),
-      hasKey: () => false,
-      hasItem: () => false,
-      rollLoot: () => [],
-      addItem: () => 1,
-      removeItem: () => 1,
-      getVar: () => null,
-      interactableState: () => ({ used: false, open: false, removed: false }),
-      encounterState: () => ({ started: false, ended: false, triggered: false }),
-      countAlive: () => 1,
-      questStatus: () => 'inactive',
-      objectiveDone: () => false,
-      grantLevel: () => null,
-      gainHope: () => false,
-      gainFear: () => false,
-      startQuest: () => false,
-      completeObjective: () => false,
-      revealObjective: () => false,
-      completeQuest: () => false,
-      failQuest: () => false,
-      setFlag: (f) => void flags.add(f),
-      clearFlag: (f) => void flags.delete(f),
-      giveKey: () => {},
-      setVar: () => {},
-      openInteractable: () => {},
-      removeInteractable: () => {},
-      markInteractableUsed: () => {},
-      startEncounter: () => {},
-      endEncounter: () => {},
-      damage: () => 0,
-      heal: () => 0,
-      checkModifier: () => 0,
-      experiences: () => [],
-      difficultyOf: () => null,
-      hook: () => null,
-      actorId: () => null,
-      resolveTargets: () => [],
-      inCombat: () => false,
-      hasCondition: () => false,
-      poolValue: () => null,
-      bandTo: () => null,
-      dealDamage: () => ({ incoming: 0, hpMarked: 0, armorSlotsSpent: 0, fell: false, reactions: [] }),
-      markStress: () => ({ stressMarked: 0, hpMarked: 0, fell: false }),
-      clearStress: () => 0,
-      clearArmor: () => 0,
-      gainHopeFor: () => 0,
-      spendHope: () => false,
-      applyCondition: () => false,
-      clearCondition: () => false,
-      proficiencyOf: () => 1,
-      markArmor: () => 0,
-      tokensOn: () => 0,
-      addTokens: () => 0,
-      spendTokens: () => 0,
-      spellcastValue: () => null,
-      weaponDamage: () => null,
+  it("carries the attack's damage type over, not just its total", () => {
+    // "All other adversaries take half damage" is half of *that* damage: a
+    // sword's swing stays physical, so armor and resistances that answer the
+    // swing answer the spill too.
+    const dealt: { amount: number; types: readonly string[] | undefined }[] = [];
+    const stub = stubWorld({
+      actorId: () => 'kara',
+      resolveTargets: () => ['husk'],
       attack: () => ({
-        refused: 'nothing to attack',
-        weapon: '',
-        hit: false,
+        refused: null,
+        weapon: 'broadsword',
+        hit: true,
         critical: false,
-        hitPointsMarked: 0,
+        hitPointsMarked: 1,
+        damage: 9,
+        damageDice: '1d8+1',
+        damageTypes: ['physical'],
         hopeGained: 0,
         fearGained: 0,
         stressCleared: 0,
         spotlightToGm: false,
       }),
-      pushBack: () => null,
-      rollReaction: () => ({ success: false, total: 0 }),
-    };
+      dealDamage: (_id, request) => {
+        dealt.push({ amount: request.amount, types: request.types });
+        return { incoming: request.amount, hpMarked: 1, armorSlotsSpent: 0, fell: false, reactions: [] };
+      },
+    });
+
+    runScript(
+      [{ kind: 'attack', onHit: [{ kind: 'damage', dice: 'same', half: true, target: { kind: 'entities', ids: ['other'] } }] }],
+      stub,
+      createRng(1),
+    );
+    expect(dealt).toEqual([{ amount: 5, types: ['physical'] }]);
+  });
+
+  it('works against a stub world, not just a scene', () => {
+    // The runner talks to an interface, which is what lets a replay drive it.
+    const seen = new Set<string>();
+    const stub = stubWorld({ setFlag: (f) => void seen.add(f) });
     runScript([setFlag('worked')], stub, createRng(1));
-    expect(flags.has('worked')).toBe(true);
+    expect(seen.has('worked')).toBe(true);
   });
 });
