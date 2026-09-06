@@ -644,3 +644,76 @@ describe('deleting and choosing scenes', () => {
     expect(s.project.scenes.map((x) => x.id)).toEqual(['cellar']);
   });
 });
+
+describe('editing an object', () => {
+  const withChest = (): EditorSession => {
+    const s = session(8, 6);
+    s.run(
+      addInteractable('room', {
+        id: 'chest-1',
+        kind: 'chest',
+        position: { x: 1, y: 1 },
+        name: '',
+        flavor: '',
+        model: null,
+        blocksMovement: true,
+        effects: [],
+        lockedText: '',
+        tags: [],
+        data: {},
+      }),
+    );
+    return s;
+  };
+
+  it('coalesces successive edits to the same field into one undo', () => {
+    const s = withChest();
+    for (const name of ['A', 'An', 'An o', 'An old chest']) {
+      s.run(updateInteractable('room', 'chest-1', { name }));
+    }
+    expect(s.requireScene('room').interactables[0]!.name).toBe('An old chest');
+
+    // One undo, not four — typing is not four undo steps.
+    s.undo();
+    expect(s.requireScene('room').interactables[0]!.name).toBe('');
+  });
+
+  it('redoes the whole of a coalesced edit, not its first keystroke', () => {
+    const s = withChest();
+    s.run(updateInteractable('room', 'chest-1', { name: 'A' }));
+    s.run(updateInteractable('room', 'chest-1', { name: 'An old chest' }));
+    s.undo();
+    s.redo();
+    expect(s.requireScene('room').interactables[0]!.name).toBe('An old chest');
+  });
+
+  it('keeps edits to different fields as separate undo steps', () => {
+    const s = withChest();
+    s.run(updateInteractable('room', 'chest-1', { name: 'An old chest' }));
+    s.run(updateInteractable('room', 'chest-1', { lockedText: 'It will not budge.' }));
+
+    s.undo();
+    // Undoing the locked text must not silently undo the rename as well.
+    expect(s.requireScene('room').interactables[0]!.lockedText).toBe('');
+    expect(s.requireScene('room').interactables[0]!.name).toBe('An old chest');
+  });
+
+  it('writes a check and its outcomes, reversibly', () => {
+    const s = withChest();
+    s.run(
+      updateInteractable('room', 'chest-1', {
+        check: {
+          trait: 'finesse',
+          difficulty: 14,
+          onSuccessWithHope: [{ kind: 'log', text: 'It opens.' }, { kind: 'open' }],
+        },
+      }),
+    );
+    const check = s.requireScene('room').interactables[0]!.check;
+    expect(check?.difficulty).toBe(14);
+    expect(check?.onSuccessWithHope?.length).toBe(2);
+
+    s.undo();
+    expect(s.requireScene('room').interactables[0]!.check).toBeUndefined();
+  });
+});

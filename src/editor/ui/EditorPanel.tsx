@@ -13,7 +13,9 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
+import { removeInteractable, updateInteractable } from '../session';
 import { summarise, validateProject, type Problem } from '../validate';
+import { Inspector } from './Inspector';
 
 export interface EditorPanelProps {
   session: EditorSession;
@@ -98,6 +100,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
 
   const scene = controller.scene;
   const state = controller.state;
+  const selectedObject = controller.selectedInteractable();
   const bump = (): void => setVersion((v) => v + 1);
 
   const check = (): void => {
@@ -353,6 +356,30 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         {scene.encounters.reduce((n, e) => n + e.adversaries.length, 0)} enemies ·{' '}
         {scene.spawns.length} spawns
       </div>
+
+      {state.tool === 'select' ? (
+        selectedObject === null ? (
+          <div style={{ ...heading, textTransform: 'none', letterSpacing: 0, color: '#8ea3b0' }}>
+            Click an object to edit what it does.
+          </div>
+        ) : (
+          <Inspector
+            interactable={selectedObject}
+            sceneIds={session.project.scenes.map((s) => s.id)}
+            dialogueIds={session.project.dialogues.map((d) => d.id)}
+            encounterIds={scene.encounters.map((e) => e.id)}
+            onChange={(changes) => {
+              session.run(updateInteractable(scene.id, selectedObject.id, changes));
+              bump();
+            }}
+            onDelete={() => {
+              session.run(removeInteractable(scene.id, selectedObject.id));
+              controller.selected = null;
+              bump();
+            }}
+          />
+        )
+      ) : null}
 
       <div style={heading}>Project</div>
       <div>

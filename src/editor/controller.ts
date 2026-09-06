@@ -94,6 +94,8 @@ export class EditorController {
   /** Tiles already painted in this drag, so one stroke does not re-edit them. */
   private readonly strokeTiles = new Set<number>();
   private dragging = false;
+  /** The object the inspector is showing, if the select tool has hit one. */
+  selected: string | null = null;
 
   constructor(options: EditorControllerOptions) {
     this.session = options.session;
@@ -122,6 +124,8 @@ export class EditorController {
     this.end();
     this.sceneId = sceneId;
     this.state.encounterId = null;
+    // The selection belonged to the room being left.
+    this.selected = null;
   }
 
   set<K extends keyof EditorToolState>(key: K, value: EditorToolState[K]): void {
@@ -170,8 +174,16 @@ export class EditorController {
   private run(point: Point, tiles: number[], pressed: boolean): EditorChange {
     const { session, sceneId, state } = this;
     switch (state.tool) {
-      case 'select':
-        return 'none';
+      case 'select': {
+        if (!pressed) return 'none';
+        // Selecting is not an edit — nothing enters the undo history — but the
+        // panel has to redraw, so it reports a change.
+        const found = this.interactableAt(point);
+        const next = found?.id ?? null;
+        if (next === this.selected) return 'none';
+        this.selected = next;
+        return 'content';
+      }
 
       // Each reports 'none' when the session discarded the edit as a no-op, so a
       // viewport does not rebuild for a brush painting what was already there.
@@ -253,6 +265,12 @@ export class EditorController {
         return 'none';
       }
     }
+  }
+
+  /** The object the inspector should show, if it is still there. */
+  selectedInteractable(): Interactable | null {
+    if (this.selected === null) return null;
+    return this.scene.interactables.find((i) => i.id === this.selected) ?? null;
   }
 
   /** The prop on a tile, topmost first. */

@@ -29,6 +29,7 @@ import {
   removeScene,
   renameScene,
   setStartScene,
+  updateInteractable,
 } from './editor/session';
 import { EditorPanel } from './editor/ui/EditorPanel';
 import { PlayPanel } from './game/ui/PlayPanel';
@@ -38,7 +39,12 @@ import { MODELS } from './engine/render/procedural/registry';
 import { SceneView } from './engine/render/scene-view';
 import { blankScene, gridFromScene } from './engine/scene/grid-from-scene';
 import { importLegacyScene } from './engine/scene/legacy-import';
-import { projectSchema, type ProjectDoc, type SceneDoc } from './engine/scene/schema';
+import {
+  projectSchema,
+  type Interactable,
+  type ProjectDoc,
+  type SceneDoc,
+} from './engine/scene/schema';
 import type { Response } from './engine/script/runner';
 import {
   answerPending,
@@ -100,6 +106,9 @@ declare global {
       switchScene: (id: string) => void;
       addScene: (name: string) => string;
       removeScene: (id: string) => boolean;
+      selectObject: (id: string) => boolean;
+      editObject: (changes: Record<string, unknown>) => void;
+      objectField: (field: string) => unknown;
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -618,6 +627,26 @@ const state = {
     rebindScene();
     refreshEditor();
     return removed;
+  },
+
+  selectObject: (id: string): boolean => {
+    const found = editor.scene.interactables.find((i) => i.id === id);
+    if (found === undefined) return false;
+    editor.setTool('select');
+    editor.selected = id;
+    renderPanel();
+    return true;
+  },
+  editObject: (changes: Record<string, unknown>): void => {
+    if (editor.selected === null) return;
+    session.run(
+      updateInteractable(editor.sceneId, editor.selected, changes as Partial<Interactable>),
+    );
+    renderPanel();
+  },
+  objectField: (field: string): unknown => {
+    const found = editor.selectedInteractable();
+    return found === null ? null : (found as unknown as Record<string, unknown>)[field];
   },
 
   mode: (): 'play' | 'edit' => mode,

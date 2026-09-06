@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema } from '../engine/scene/schema';
 import { EditorController, type EditorTool } from './controller';
-import { EditorSession } from './session';
+import { EditorSession, addScene, removeInteractable } from './session';
 
 function setup(width = 8, height = 6): { session: EditorSession; editor: EditorController; changes: string[] } {
   const project = projectSchema.parse({
@@ -416,5 +416,77 @@ describe('editing a different scene', () => {
     controller.end();
     expect(s.requireScene('cellar').encounters.length).toBe(1);
     expect(s.requireScene('room').encounters[0]!.adversaries.length).toBe(1);
+  });
+});
+
+describe('selecting an object to edit', () => {
+  const withObject = (): EditorController => {
+    const s = new EditorSession(
+      projectSchema.parse({
+        id: 'p',
+        name: '',
+        scenes: [sceneSchema.parse(blankScene('room', 8, 6))],
+        startScene: 'room',
+      }),
+    );
+    const controller = new EditorController({ session: s, sceneId: 'room' });
+    controller.setTool('interactable');
+    controller.begin({ x: 2, y: 2 });
+    controller.end();
+    return controller;
+  };
+
+  it('selects the object under the pointer, and nothing on bare ground', () => {
+    const controller = withObject();
+    controller.setTool('select');
+
+    expect(controller.begin({ x: 2, y: 2 })).toBe('content');
+    expect(controller.selectedInteractable()?.position).toEqual({ x: 2, y: 2 });
+
+    controller.end();
+    expect(controller.begin({ x: 5, y: 5 })).toBe('content');
+    expect(controller.selected).toBeNull();
+  });
+
+  it('does not put a selection in the undo history', () => {
+    const controller = withObject();
+    const label = controller.session.undoLabel;
+    controller.setTool('select');
+    controller.begin({ x: 2, y: 2 });
+    controller.end();
+    // Still the object placement, not a "select".
+    expect(controller.session.undoLabel).toBe(label);
+  });
+
+  it('reports no change when the same object is clicked twice', () => {
+    const controller = withObject();
+    controller.setTool('select');
+    controller.begin({ x: 2, y: 2 });
+    controller.end();
+    expect(controller.begin({ x: 2, y: 2 })).toBe('none');
+  });
+
+  it('forgets a selection that belonged to another room', () => {
+    const controller = withObject();
+    controller.setTool('select');
+    controller.begin({ x: 2, y: 2 });
+    controller.end();
+    controller.session.run(addScene(sceneSchema.parse(blankScene('cellar', 4, 4))));
+
+    controller.switchScene('cellar');
+    expect(controller.selected).toBeNull();
+    expect(controller.selectedInteractable()).toBeNull();
+  });
+
+  it('stops offering an object once it has been deleted', () => {
+    const controller = withObject();
+    controller.setTool('select');
+    controller.begin({ x: 2, y: 2 });
+    controller.end();
+    const id = controller.selected!;
+
+    controller.session.run(removeInteractable('room', id));
+    // The id is still selected but the object is gone; the panel must not crash.
+    expect(controller.selectedInteractable()).toBeNull();
   });
 });

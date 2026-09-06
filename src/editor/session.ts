@@ -454,28 +454,49 @@ export function removeInteractable(sceneId: string, id: string): Edit {
 }
 
 /** Replace an interactable's fields — what a properties panel commits. */
+/**
+ * Change an object's fields.
+ *
+ * Successive edits to the *same fields* coalesce, so typing a name is one undo
+ * step rather than one per keystroke. The merge key includes which fields are
+ * changing, so renaming a thing and then rewriting its locked text stay separate
+ * — undoing the second should not silently undo the first.
+ */
 export function updateInteractable(
   sceneId: string,
   id: string,
   changes: Partial<Interactable>,
 ): Edit {
   let before: Interactable | null = null;
-  return {
-    label: 'Edit interactable',
+  // Mutable, so an absorbed edit can extend what a redo replays; the first edit
+  // keeps `before`, which is the state that predates all of them.
+  const current: Partial<Interactable> = { ...changes };
+
+  const edit: Edit = {
+    label: 'Edit object',
+    mergeKey: `interactable:${sceneId}:${id}:${Object.keys(changes).sort().join(',')}`,
     apply(project) {
       const list = requireScene(project, sceneId).interactables;
       const index = list.findIndex((i) => i.id === id);
       if (index < 0) return;
       before = { ...list[index]! };
-      list[index] = { ...list[index]!, ...changes };
+      list[index] = { ...list[index]!, ...current };
     },
     undo(project) {
       if (before === null) return;
       const list = requireScene(project, sceneId).interactables;
-      const index = list.findIndex((i) => i.id === (changes.id ?? id));
+      const index = list.findIndex((i) => i.id === (current.id ?? id));
       if (index >= 0) list[index] = before;
     },
+    absorb(other) {
+      const next = (other as Edit & { __changes?: Partial<Interactable> }).__changes;
+      if (next === undefined) return false;
+      Object.assign(current, next);
+      return true;
+    },
   };
+  (edit as Edit & { __changes: Partial<Interactable> }).__changes = current;
+  return edit;
 }
 
 export function addEncounter(sceneId: string, encounter: Encounter): Edit {

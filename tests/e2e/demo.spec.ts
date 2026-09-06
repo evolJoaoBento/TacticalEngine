@@ -58,6 +58,9 @@ declare global {
       switchScene: (id: string) => void;
       addScene: (name: string) => string;
       removeScene: (id: string) => boolean;
+      selectObject: (id: string) => boolean;
+      editObject: (changes: Record<string, unknown>) => void;
+      objectField: (field: string) => unknown;
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -678,6 +681,88 @@ test('lists the scenes in the panel, marking where the party is', async ({ page 
   expect(editing.editScene).toBe('the-pit');
   // Browsing scenes must not move the party.
   expect(editing.playing).not.toBe('the-pit');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('authors an object in the inspector, and plays what it wrote', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  // Author a brand new lever in the editor: a Strength roll that opens onto a
+  // line of prose. None of this touches a TypeScript file.
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('edit');
+    api.setTool('interactable');
+    // Somewhere the party can reach, in the open part of the vault.
+    api.editAt(9 * 22 + 3);
+  });
+
+  const authored = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const scene = api.exportProject();
+    const id = (JSON.parse(scene) as { scenes: { interactables: { id: string }[] }[] }).scenes[0]!
+      .interactables.map((i) => i.id)
+      .find((i) => i.startsWith('chest-3-9'))!;
+
+    api.selectObject(id);
+    api.editObject({ name: 'A rusted lever' });
+    api.editObject({ flavor: 'A lever, thick with rust, set into the floor.' });
+    api.editObject({
+      check: {
+        trait: 'strength',
+        difficulty: 1,
+        onSuccessWithHope: [{ kind: 'log', text: 'The lever gives with a crack.' }],
+        onSuccessWithFear: [{ kind: 'log', text: 'The lever gives with a crack.' }],
+        onFailureWithHope: [{ kind: 'log', text: 'The lever gives with a crack.' }],
+        onFailureWithFear: [{ kind: 'log', text: 'The lever gives with a crack.' }],
+      },
+    });
+
+    return { id, name: api.objectField('name'), flavor: api.objectField('flavor') };
+  });
+
+  expect(authored.name).toBe('A rusted lever');
+
+  // Now play it: walk up to the thing that did not exist a moment ago and use it.
+  const played = await page.evaluate((id: string) => {
+    const api = window.__polyheart!;
+    api.setMode('play');
+    api.standBeside(id);
+    const used = api.use(id);
+    const answered = api.answer({ kind: 'roll' });
+    return { used, answered, log: api.log().map((l) => l.text) };
+  }, authored.id);
+
+  expect(played.used).toBe('waiting');
+  expect(played.answered).toBe('done');
+  // The flavour and the outcome the inspector wrote are what the player reads.
+  expect(played.log.join(' ')).toContain('thick with rust');
+  expect(played.log.join(' ')).toContain('The lever gives with a crack.');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('shows the inspector for a clicked object', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('edit');
+    api.selectObject(api.objects().find((id) => id.startsWith('chest'))!);
+  });
+
+  const panel = page.locator('#app');
+  // The chest's authored roll is on screen, editable.
+  await expect(panel).toContainText('The roll');
+  await expect(panel).toContainText('Success with Hope');
+  await expect(panel).toContainText('Flavour');
+
+  // Editing the name in the panel reaches the document.
+  const name = panel.locator('input').first();
+  await name.fill('A very old chest');
+  const stored = await page.evaluate(() => window.__polyheart!.objectField('name'));
+  expect(stored).toBe('A very old chest');
 
   expect(consoleErrors).toEqual([]);
 });

@@ -36,7 +36,7 @@ two thirds.
 | Editor | Terrain/height/props/objects/enemies/triggers/spawns, undo, validation, JSON save+load |
 | UI | Narrative log with tone, the conversation panel, and the roll prompt a script raises |
 | Campaign | Two scenes, travel between them, and state that outlives a room |
-| Editor | Map tools, undo, validation, a scene list, and JSON save + load |
+| Editor | Map tools, undo, validation, a scene list, an object inspector, JSON save + load |
 
 ## What is missing, in the order it should be built
 
@@ -172,10 +172,17 @@ two different `ProjectDoc` objects, because `projectSchema.parse` copies. Terrai
 play only because the grid is written in place; a scene added, renamed or deleted in the editor
 was invisible to the game. They are one document now.
 
-**Still open:** a properties panel for editing an object's effects, check and outcomes; a
-dialogue graph editor; and camera control (the view is a fixed three-quarter, so a large map
-cannot be panned). Everything the first two would edit is document data already; neither needs
-engine work first.
+An **inspector** edits the object under the Inspect tool: its name, flavour, kind, whether it
+blocks movement, the key it wants and what it says without one, the effects it runs with no roll,
+and the roll itself — trait, difficulty, and effects per outcome down all five branches.
+`EffectList` covers the flat vocabulary and picks scene, dialogue and encounter ids from what the
+project holds rather than having them typed, so the commonest authoring error cannot be made.
+Recursive effects (`branch`, `choice`, a nested `check`) are shown and removable but not
+editable — a tree editor is its own job, and silently dropping what it could not represent would
+be worse than saying so.
+
+**Still open:** a dialogue graph editor, and camera control (the view is a fixed three-quarter,
+so a large map cannot be panned).
 
 ### 9. Asset import (glTF)
 
@@ -216,9 +223,10 @@ today a conversation is a literal in `game/demo-dialogue.ts` that happens to par
 schema, which is the same position maps were in before the editor.
 
 So the honest answer today is: *a designer can build the party, the place, what everything in it
-does, what it says, and the way between rooms — and the writing still has no editor.* The next thing that moves it is the object inspector — a
-check, its difficulty and its outcomes are the last things a designer has to open an editor of
-their own to write.
+does, what it says, and the way between rooms — all of it in a tool, except the conversations,
+which are still TypeScript literals that happen to parse.* The next thing that moves it is a dialogue editor. The
+runtime, the schema, the validation and the project slot all exist; what is missing is a way to
+draw the graph.
 
 One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
 workaround from when nothing could use a door. It can go now — the party can pick that lock
