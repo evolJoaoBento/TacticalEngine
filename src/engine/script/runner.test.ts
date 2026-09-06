@@ -424,6 +424,7 @@ describe('the runner as a whole', () => {
       grantLevel: () => null,
       startQuest: () => false,
       completeObjective: () => false,
+      revealObjective: () => false,
       completeQuest: () => false,
       failQuest: () => false,
       setFlag: (f) => void flags.add(f),

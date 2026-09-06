@@ -63,6 +63,7 @@ export interface ScriptWorld extends ConditionContext {
   grantLevel(level?: number): number | null;
   startQuest(quest: string): boolean;
   completeObjective(quest: string, objective: string): boolean;
+  revealObjective(quest: string, objective: string): boolean;
   completeQuest(quest: string): boolean;
   failQuest(quest: string): boolean;
 }
@@ -86,6 +87,7 @@ export type JournalEntry =
   | { kind: 'quest'; quest: string; change: 'started' | 'completed' | 'failed' }
   | { kind: 'levelUp'; level: number }
   | { kind: 'objective'; quest: string; objective: string }
+  | { kind: 'revealed'; quest: string; objective: string }
   | { kind: 'chose'; label: string; index: number }
   | { kind: 'check'; outcome: CheckOutcome; roll: DualityRoll };
 
@@ -276,6 +278,14 @@ export class ScriptRunner {
         }
         return null;
       }
+      case 'revealObjective':
+        if (world.startQuest(effect.quest)) {
+          this.journal.push({ kind: 'quest', quest: effect.quest, change: 'started' });
+        }
+        if (world.revealObjective(effect.quest, effect.objective)) {
+          this.journal.push({ kind: 'revealed', quest: effect.quest, objective: effect.objective });
+        }
+        return null;
       case 'completeQuest':
         if (world.completeQuest(effect.quest)) {
           this.journal.push({ kind: 'quest', quest: effect.quest, change: 'completed' });

@@ -192,6 +192,8 @@ export const effectSchema = z.discriminatedUnion('kind', [
     objective: contentIdSchema,
   }),
   z.object({ kind: z.literal('completeQuest'), quest: contentIdSchema }),
+  /** Bring a hidden objective into the journal. Starts the quest if nothing has. */
+  z.object({ kind: z.literal('revealObjective'), quest: contentIdSchema, objective: contentIdSchema }),
   z.object({ kind: z.literal('failQuest'), quest: contentIdSchema }),
   /**
    * The party levels up. Daggerheart has no experience points — the GM says

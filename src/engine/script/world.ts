@@ -88,7 +88,14 @@ export const scenarioSnapshotSchema = z.object({
    * format is a promise to every file already on disk.
    */
   quests: z
-    .array(z.object({ quest: z.string(), status: questStatusSchema, done: z.array(z.string()) }))
+    .array(
+      z.object({
+        quest: z.string(),
+        status: questStatusSchema,
+        done: z.array(z.string()),
+        revealed: z.array(z.string()).default([]),
+      }),
+    )
     .default([]),
   partyLevel: z.number().int().min(1).max(10).default(1),
 });
@@ -105,6 +112,7 @@ export function scenarioSnapshot(scenario: ScenarioState): ScenarioSnapshot {
       quest,
       status: progress.status,
       done: [...progress.done],
+      revealed: [...progress.revealed],
     })),
     partyLevel: scenario.partyLevel,
   };
@@ -127,7 +135,11 @@ export function restoreScenario(scenario: ScenarioState, snapshot: ScenarioSnaps
   scenario.actorId = snapshot.actorId;
   scenario.quests.clear();
   for (const entry of snapshot.quests) {
-    scenario.quests.set(entry.quest, { status: entry.status, done: new Set(entry.done) });
+    scenario.quests.set(entry.quest, {
+      status: entry.status,
+      done: new Set(entry.done),
+      revealed: new Set(entry.revealed),
+    });
   }
   scenario.partyLevel = snapshot.partyLevel;
 }
@@ -265,7 +277,15 @@ export class SceneScriptWorld implements ScriptWorld {
 
   startQuest(quest: string): boolean {
     if (this.scenario.quests.has(quest)) return false;
-    this.scenario.quests.set(quest, { status: 'active', done: new Set() });
+    this.scenario.quests.set(quest, { status: 'active', done: new Set(), revealed: new Set() });
+    return true;
+  }
+
+  revealObjective(quest: string, objective: string): boolean {
+    const progress = this.scenario.quests.get(quest);
+    if (progress === undefined || progress.status !== 'active') return false;
+    if (progress.revealed.has(objective) || progress.done.has(objective)) return false;
+    progress.revealed.add(objective);
     return true;
   }
 

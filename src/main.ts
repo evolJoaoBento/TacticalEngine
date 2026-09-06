@@ -584,7 +584,10 @@ function journalEntries(): JournalQuest[] {
       name: quest.name,
       summary: quest.summary,
       status: progress.status,
-      objectives: quest.objectives.map((o) => ({ id: o.id, text: o.text, done: progress.done.has(o.id) })),
+      objectives: quest.objectives
+        // A hidden step stays out of the journal until revealed or done.
+        .filter((o) => !o.hidden || progress.revealed.has(o.id) || progress.done.has(o.id))
+        .map((o) => ({ id: o.id, text: o.text, done: progress.done.has(o.id) })),
     });
   }
   // Active first; finished ones sink to the tail.
@@ -781,7 +784,19 @@ canvas.addEventListener('pointerup', (event) => {
   renderPanel();
 });
 
+/** Typing into a field must not walk the party or undo the map. */
+function typing(event: KeyboardEvent): boolean {
+  const target = event.target;
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
+
 window.addEventListener('keydown', (event) => {
+  if (typing(event)) return;
   if (event.key === 'e' && (event.ctrlKey || event.metaKey)) {
     event.preventDefault();
     setMode(mode === 'play' ? 'edit' : 'play');
@@ -818,7 +833,7 @@ window.addEventListener('keydown', (event) => {
 // motion is smooth and independent of key-repeat.
 const held = new Set<string>();
 window.addEventListener('keydown', (event) => {
-  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+  if (typing(event)) return;
   held.add(event.key.toLowerCase());
 });
 window.addEventListener('keyup', (event) => held.delete(event.key.toLowerCase()));

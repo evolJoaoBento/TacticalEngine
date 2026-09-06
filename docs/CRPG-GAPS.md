@@ -220,9 +220,13 @@ ticks.
 The demo's quest threads through content that already existed: the pillar starts it, winning
 the word ticks the first step, and the strongbox downstairs ticks the second and closes it.
 
-**Still open:** objectives are all visible once a quest is active, and there are no stages with
-their own summary text — a BG3 journal reveals steps progressively and rewrites the summary as
-the story turns.
+Objectives can be **hidden** until revealed — by a `revealObjective` effect, or by being
+completed — so a quest unfolds rather than listing its plot on the first page. The demo's
+strongbox step stays out of the journal until the Warden has been talked round, and "New
+objective:" lands in the log when it appears. The quest form has a *hidden* box per step.
+
+**Still open:** stages with their own summary text — a BG3 journal rewrites the summary as the
+story turns; here the summary is one string.
 
 The editor has a quest list and a form — name, summary, steps — because a quest is a list and a
 list is edited as a list; the graph was the right call for conversations, not for this. The
@@ -282,9 +286,11 @@ blocks movement, the key it wants and what it says without one, the effects it r
 and the roll itself — trait, difficulty, and effects per outcome down all five branches.
 `EffectList` covers the flat vocabulary and picks scene, dialogue and encounter ids from what the
 project holds rather than having them typed, so the commonest authoring error cannot be made.
-Recursive effects (`branch`, `choice`, a nested `check`) are shown and removable but not
-editable — a tree editor is its own job, and silently dropping what it could not represent would
-be worse than saying so.
+`branch` is editable in place — a **condition editor** (`ui/ConditionEditor.tsx`) for its
+`when`, which nests for `not`/`all`/`any` and picks quests, objectives and encounters from
+dropdowns, and two nested effect lists for `then` and `otherwise`. The same editor gates a reply
+in the graph: *if…* hides it unless a condition holds, *only if…* greys it. `choice` and a nested
+`check` are still shown and removable but not editable.
 
 A **dialogue graph** (`ui/DialogueGraph.tsx`) draws a conversation as a tree: node cards on a
 pannable surface, links curving from each reply to the node it leads to, a check's success and
@@ -297,9 +303,8 @@ the start, so a conversation written by hand opens as a readable tree. It never 
 document: a position is stored only when someone drags a node, so opening a file and moving one
 thing is a one-node diff.
 
-**Still open:** camera control (the view is a fixed three-quarter, so a large map cannot be
-panned), and a condition editor — a reply's `available`/`enabled` gates are still written in
-code.
+**Still open:** a `choice` editor and a nested-`check` editor; items and loot tables are
+authored in the project JSON; there is no sheet editor for the party.
 
 ### ~~9. Asset import (glTF)~~ — done
 

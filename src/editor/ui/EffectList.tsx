@@ -15,6 +15,7 @@
 
 import type { Effect } from '../../engine/script/schema';
 import type { QuestDef } from '../../engine/content/quests';
+import { ConditionEditor } from './ConditionEditor';
 
 export interface EffectListProps {
   /** A hook for tests to find one list among several. */
@@ -48,9 +49,11 @@ const ADDABLE = [
   'startDialogue',
   'startQuest',
   'completeObjective',
+  'revealObjective',
   'completeQuest',
   'failQuest',
   'levelUp',
+  'branch',
 ] as const;
 
 type Addable = (typeof ADDABLE)[number];
@@ -71,14 +74,19 @@ const LABELS: Readonly<Record<Addable, string>> = {
   startDialogue: 'Start a conversation',
   startQuest: 'Start a quest',
   completeObjective: 'Complete an objective',
+  revealObjective: 'Reveal an objective',
   completeQuest: 'Complete a quest',
   failQuest: 'Fail a quest',
   levelUp: 'Level the party up',
+  branch: 'If … then',
 };
 
 const row: Record<string, string | number> = {
   display: 'flex',
   alignItems: 'center',
+  // Nested under a branch the panel gets narrow; a field is better on its own
+  // line than squeezed to two letters.
+  flexWrap: 'wrap',
   gap: '4px',
   marginBottom: '3px',
 };
@@ -135,6 +143,7 @@ function blank(kind: Addable, props: EffectListProps): Effect {
     case 'failQuest':
       return { kind, quest: props.quests[0]?.id ?? '' };
     case 'completeObjective':
+    case 'revealObjective':
       return {
         kind,
         quest: props.quests[0]?.id ?? '',
@@ -142,6 +151,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       };
     case 'levelUp':
       return { kind };
+    case 'branch':
+      return { kind, when: { kind: 'flag', flag: 'a-flag' }, then: [] };
   }
 }
 
@@ -277,7 +288,8 @@ function renderBody(
     case 'completeQuest':
     case 'failQuest':
       return pick(effect.quest, props.quests.map((q) => q.id), (quest) => ({ ...effect, quest }));
-    case 'completeObjective': {
+    case 'completeObjective':
+    case 'revealObjective': {
       // The objective list follows the chosen quest; switching quests resets
       // the objective to that quest's first, so the effect never names a step
       // of a different quest.
@@ -298,6 +310,27 @@ function renderBody(
     }
     case 'levelUp':
       return <span style={{ ...field, color: '#8ea3b0' }}>one level, whole party</span>;
+    case 'branch':
+      // A whole little script under a gate: the condition, then the two lists.
+      return (
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="branch">
+          <ConditionEditor
+            condition={effect.when}
+            quests={props.quests}
+            encounterIds={props.encounterIds}
+            onChange={(when) => onChange({ ...effect, when })}
+          />
+          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>then</div>
+          <EffectList {...props} testId={undefined} effects={effect.then} onChange={(then) => onChange({ ...effect, then })} />
+          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>otherwise</div>
+          <EffectList
+            {...props}
+            testId={undefined}
+            effects={effect.otherwise ?? []}
+            onChange={(otherwise) => onChange({ ...effect, ...(otherwise.length === 0 ? { otherwise: undefined } : { otherwise }) })}
+          />
+        </div>
+      );
     case 'open':
     case 'remove':
     case 'markUsed':

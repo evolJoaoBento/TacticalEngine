@@ -13,8 +13,8 @@ objects, conversations, quests, items, loot tables — that the engine executes 
 designer builds a scenario in the editor without writing engine code.
 
 It ships with a small two-room demo campaign (placeholder fiction) that exercises the whole
-loop: walk, talk, roll, fight, loot, travel, save, level up. Everything is text on screen; the
-engine has no audio narration of any kind and all content text is English.
+loop: walk, talk, roll, fight, loot, travel, save, level up. Everything is text on screen, and
+all content text is English.
 
 ### Running it
 
@@ -57,8 +57,8 @@ switches between play and edit at any time.
 | `Ctrl+E` | Switch to edit | Switch to play |
 
 A press that moves less than six pixels counts as a click; anything longer is a drag. The tile
-under the pointer is marked so a click has a visible target. Keys are ignored while an input
-field has focus.
+under the pointer is marked so a click has a visible target. The camera keys (WASD, arrows,
+Q/E) are ignored while a text field has focus; the other keys are not (see Limits).
 
 ### The screen
 
@@ -111,7 +111,7 @@ refuses a second use.
 
 A conversation shows its lines and the replies you may give. A reply can be hidden until the
 party knows something, shown but greyed ("Not available"), cost a roll (the roll prompt appears
-inside the conversation), or end the conversation. Lines spoken are also written to the log.
+inside the conversation), or end the conversation. A node's lines are also written to the log.
 Everything else — walking, using, saving, levelling — waits until the conversation ends.
 
 ### Rolls
@@ -123,7 +123,9 @@ Difficulty. The log reads it out, naming only the parts that applied:
 
 Extra parts appear as `+ d6 N` / `− d6 N` (advantage or disadvantage) and `+ help N`. The five
 outcomes are critical success (both dice match), success with Hope, success with Fear, failure
-with Hope, failure with Fear. **Step back** on the prompt cancels the roll. In this build a
+with Hope, failure with Fear. **Step back** declines the roll at no cost: the outcome lists
+and `always` are skipped, any effects written after the check still run, and the object can be
+tried again. In this build a
 scripted check rolls with the *best* modifier for that trait in the whole party, not the
 selected character's (see Limits).
 
@@ -234,9 +236,14 @@ conversation, Start a quest, Complete an objective, Complete a quest, Fail a que
 party up. Scene, conversation, encounter and quest ids are dropdowns over what the project holds;
 the objective dropdown follows its quest. Flag, key and loot-table ids are typed.
 
-Effects the editor cannot build — `branch`, `choice`, a nested `check`, `story`, `setVar`,
-`addVar`, `addItem`, `removeItem`, `endEncounter`, `none` — are shown with a summary and can be
-removed, but must be edited in the project JSON. There is no condition editor anywhere.
+**If … then** adds a `branch`: a condition editor for its `when` (kind from a dropdown; quest,
+objective and encounter ids from dropdowns; flags, items and variables typed; `not`/`all`/`any`
+nest), then two effect lists for *then* and *otherwise*. **Reveal an objective** brings a hidden
+quest step into the journal.
+
+Effects the editor cannot build — `choice`, a nested `check`, `story`, `setVar`, `addVar`,
+`addItem`, `removeItem`, `endEncounter`, `none` — are shown with a summary and can be removed,
+but must be edited in the project JSON.
 
 ### Conversations (the graph)
 
@@ -254,23 +261,29 @@ over the whole view:
   (or "— ends the conversation —"), **Costs a roll** with trait and Difficulty, **+ Reply**,
   **Open here** (make this the start node), **Delete**, and **On entering this node** effects.
 
-Not editable in the graph (JSON only): a line's `speaker`, a reply's `detail`, `available` and
-`enabled` gates, a reply's own `effects`, a check's outcome effect lists, `gotoOnSuccess` and
+A reply can be gated: **if…** adds an `available` condition (the reply is hidden unless it
+holds), **only if…** an `enabled` one (shown greyed unless it holds); each opens the condition
+editor under the reply, and **✕** removes the gate.
+
+Not editable in the graph (JSON only): a line's `speaker`, a reply's `detail`, a reply's own
+`effects`, a check's outcome effect lists, `gotoOnSuccess` and
 `gotoOnFailure`.
 
 ### Quests
 
 **Quests** lists each quest with its step count. **+ Quest** asks for a name (the id is derived
 from it) and creates a one-step quest. Click a quest to open its form: name, summary (what the
-journal says), and each step's id and text with **✕** (a quest keeps at least one) and **+ Step**.
+journal says), and each step's id and text with a **hidden** box (the step stays out of the
+journal until a `revealObjective` effect shows it or it is completed), **✕** (a quest keeps at
+least one) and **+ Step**.
 
-### Models (glTF import — uncommitted in the working tree at the time of writing)
+### Models (glTF import)
 
 A **Models** section lists the project's imported models (id and URL). **+ Model** asks for a
 `.glb`/`.gltf` URL (relative URLs resolve against the page) and a scale (a tile is one unit);
 the id is derived from the file name. **✕** removes one. Content refers to an imported model by
-id exactly as it refers to a built-in one — in a deco's or an object's `model` field — and the
-view draws the built-in placeholder until the file has loaded. The Prop palette still lists only
+id exactly as it refers to a built-in one — a deco's or an object's `model` field, or an
+entity's definition — and the view draws the built-in placeholder until the file has loaded. The Prop palette still lists only
 the built-in library, so placing an imported model from the UI is **not verified**; the
 end-to-end test places it through the debug handle.
 
@@ -312,8 +325,8 @@ the buttons' tooltips name the step.
 `formatVersion` (1) · `id` · `name` · `terrainPalette?` (id, name, passable, cost,
 providesCover, blocksSight) · `scenes[]` · `dialogues[]` · `items[]` · `lootTables[]` ·
 `quests[]` · `startScene`. All ids are stable kebab-case strings; duplicates are rejected.
-The uncommitted asset slice adds `assets[]` (`id`, `kind` 'gltf', `url`, `scale`,
-`groundOffset`, `rotationY`).
+`assets[]` holds imported models (`id`, `kind` 'gltf', `url`, `scale`, `groundOffset`,
+`rotationY`).
 
 A **scene**: `id`, `name`, `intro` (logged on arrival), `width`, `height` (≤ 512), `terrain[]`
 (terrain ids, row-major), `heights[]`, `tints[]?` (per-tile CSS colour, presentation only),
@@ -373,6 +386,7 @@ Target selectors: `{kind:'actor'}` (whoever used the thing; the default), `{kind
 | `startDialogue` | `dialogue` | pauses the script, runs the conversation, then resumes |
 | `startQuest` | `quest` | starts it (idempotent); logs "New quest: …" |
 | `completeObjective` | `quest`, `objective` | ticks a step (starts the quest if needed); logs "Objective complete: …" |
+| `revealObjective` | `quest`, `objective` | brings a hidden step into the journal (starts the quest if needed); logs "New objective: …" |
 | `completeQuest` / `failQuest` | `quest` | ends the quest; logs "Quest complete/failed: …". Ticking the last step does not complete a quest by itself |
 | `levelUp` | `level?` (2–10) | raises the party level to `level` or by one; never lowers it |
 | `branch` | `when`, `then[]`, `otherwise[]?` | runs one list depending on a condition |
@@ -398,9 +412,10 @@ false), `check?` (a check plus `gotoOnSuccess?` / `gotoOnFailure?`), `effects[]?
 
 ### Quests
 
-`id`, `name`, `summary`, `objectives[]` (`id`, `text`; ≥ 1, unique ids). Objectives are flat:
-all visible while active, no dependencies, no stages. Progress lives in campaign state, not in
-the document.
+`id`, `name`, `summary`, `objectives[]` (`id`, `text`, `hidden` default false; ≥ 1, unique
+ids). A hidden objective is kept out of the journal until a `revealObjective` effect shows it or
+it is completed. There are no stages and no dependencies between steps. Progress lives in
+campaign state, not in the document.
 
 ### Items and loot tables
 
@@ -459,8 +474,9 @@ standing in for the prototype's homebrew Hollow Husks.
    on a Finesse check and pays out from the `vault-chest` table (gold, a healing draught, or
    the brass key).
 2. **The Warden** is the carved pillar. Using it starts the conversation and the quest
-   **The Warden's Word**. Ask "Who are you?" to learn the name (a flag that unlocks a reply on a
-   later visit). "We came for the vault" → "Then let us ask it politely" costs a Presence 13
+   **The Warden's Word**. Ask "Who are you?" to learn the name (this sets a flag; a reply
+   gated on that flag exists to demonstrate an `available` condition, but since a used pillar
+   refuses a second conversation it is not reachable in normal play). "We came for the vault" → "Then let us ask it politely" costs a Presence 13
    roll: any success gives the party *The Warden's word* (a key item) and ticks step one.
 3. **A stair down** behind the husks leads to **The Sounding Pit** (10×8). The banded
    strongbox requires the Warden's word; without it, "The lid will not shift." With it, the box
@@ -473,29 +489,31 @@ Save between beats; the whole thing is designed to be put down and picked up.
 
 Taken from `docs/CRPG-GAPS.md` and checked against the code.
 
-- **glTF import is partial.** At HEAD nothing loads the vendored fixtures under
-  `tests/fixtures/models/`; the working tree holds an uncommitted slice (project `assets`, a
-  Models section, a loader with placeholder fallback) that is not yet reachable from the Prop
-  palette. Textures, audio and data-pack import do not exist.
+- **glTF import is partial.** A project can declare `.glb`/`.gltf` models by URL and content
+  can name them, but the Prop palette lists only the built-in library, so an imported model
+  is placed by editing JSON. A model is referenced by URL, not packaged with the project; the
+  zip packaging CONTEXT.md mentions does not exist. Textures, audio and data-pack import do
+  not exist.
 - **One save slot**, in `localStorage`, and the log is stored unbounded inside it. No named
   saves, autosave or save browser.
 - **Loading a project JSON does not restart play.** The editor edits the loaded document; the
   running game stays on the project it booted with. A schema failure is not shown in the panel.
 - **Checks use the party's best trait**, not the acting character's; using an object in a fight
   spends that character's action. Both are demo decisions, not SRD rules.
-- **Quests are flat**: every objective is visible from the start, no stages, no rewritten
-  summaries.
+- **Quests have no stages**: steps can be hidden and revealed, but the summary is one string
+  and is never rewritten.
 - **Consumables do nothing** — a healing draught is carried, not drunk.
 - **Domain-card and subclass features are text**, shown on the level-up sheet but not
   executed. Level-up tier tables are unverified against the SRD.
-- **No condition editor.** `available`, `enabled` and `branch.when` are written in JSON only;
-  recursive effects (`branch`, `choice`, nested `check`) and several flat ones are shown but
-  not editable; no items or loot-table UI; no sheet editor; no tint tool though `tints` is
-  document data.
+- **Partial effect editing.** `branch` and reply gates have a condition editor; `choice`,
+  a nested `check` and several flat effects are shown but not editable; no items or
+  loot-table UI; no sheet editor; no tint tool though `tints` is document data.
 - **Editor camera**: right-drag pan and wheel zoom work in edit mode, but the keyboard camera
   (WASD, Q/E, F, Home) is play-only.
 - **No right-click inspector** in play and no entity-hover links in the log.
 - Attacks are not read out in the log, and an impossible attack click is silent.
+- Scripted checks (objects, conversations) do not award Hope or Fear; the pips move only from
+  attacks.
 - Travel rebuilds the whole scene view; fine for two rooms, not measured for fifty.
 - `story` renders as a single log line; its `button` field is ignored.
 - Project format is `formatVersion` 1 only; there is no migration. CONTEXT.md mentions zip

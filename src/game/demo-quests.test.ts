@@ -112,6 +112,24 @@ describe('the demo quest', () => {
     expect(demo!.log.some((l) => l.text.includes("Quest complete: The Warden's Word"))).toBe(true);
   });
 
+  it('keeps the strongbox step hidden until the word is won', () => {
+    const demo = scene();
+    const hidden = demo.project.quests[0]!.objectives.find((o) => o.id === OBJECTIVE_OPEN_THE_STRONGBOX)!;
+    expect(hidden.hidden).toBe(true);
+    stand(demo, PILLAR);
+    useSelectedOn(demo, PILLAR);
+    expect(demo.scenario.quests.get(WARDENS_WORD_QUEST)!.revealed.has(OBJECTIVE_OPEN_THE_STRONGBOX)).toBe(false);
+
+    let won: DemoScene | null = null;
+    for (let seed = 0; seed < 40 && won === null; seed++) {
+      const candidate = scene(`reveal-${seed}`);
+      if (askTheWarden(candidate)) won = candidate;
+    }
+    expect(won).not.toBeNull();
+    expect(won!.scenario.quests.get(WARDENS_WORD_QUEST)!.revealed.has(OBJECTIVE_OPEN_THE_STRONGBOX)).toBe(true);
+    expect(won!.log.some((l) => l.text === 'New objective: Open the strongbox in the pit.')).toBe(true);
+  });
+
   it('leaves the quest open when the Warden refuses', () => {
     let demo: DemoScene | null = null;
     for (let seed = 0; seed < 40 && demo === null; seed++) {

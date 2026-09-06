@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { QuestDef } from '../../engine/content/quests';
+import { ConditionEditor } from './ConditionEditor';
 import { layoutDialogue } from '../../engine/dialogue/layout';
 import type { Dialogue, DialogueNode } from '../../engine/dialogue/schema';
 import type { Effect } from '../../engine/script/schema';
@@ -412,6 +413,22 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
                     </option>
                   ))}
                 </select>
+                {(['available', 'enabled'] as const).map((gate) =>
+                  choice[gate] === undefined ? (
+                    <button
+                      key={gate}
+                      style={small}
+                      title={gate === 'available' ? 'Hide this reply unless a condition holds' : 'Show this reply greyed unless a condition holds'}
+                      data-gate={gate}
+                      onPointerDown={holdPointer}
+                      onClick={() =>
+                        onRun(updateChoice(dialogue.id, node.id, i, { [gate]: { kind: 'flag', flag: 'a-flag' } }))
+                      }
+                    >
+                      {gate === 'available' ? 'if…' : 'only if…'}
+                    </button>
+                  ) : null,
+                )}
                 <button
                   style={small}
                   title="Delete this reply"
@@ -421,6 +438,24 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
                   ✕
                 </button>
               </div>
+              {(['available', 'enabled'] as const).map((gate) =>
+                choice[gate] !== undefined ? (
+                  <div key={gate} style={{ display: 'flex', gap: '3px', alignItems: 'flex-start', marginTop: '2px' }} data-gate-editor={gate} onPointerDown={holdPointer}>
+                    <span style={{ color: '#8ea3b0', fontSize: '11px', whiteSpace: 'nowrap', paddingTop: '3px' }}>
+                      {gate === 'available' ? 'shown if' : 'enabled if'}
+                    </span>
+                    <ConditionEditor
+                      condition={choice[gate]!}
+                      quests={props.quests}
+                      encounterIds={props.encounterIds}
+                      onChange={(condition) => onRun(updateChoice(dialogue.id, node.id, i, { [gate]: condition }))}
+                    />
+                    <button style={small} title="Remove this gate" onClick={() => onRun(updateChoice(dialogue.id, node.id, i, { [gate]: undefined }))}>
+                      ✕
+                    </button>
+                  </div>
+                ) : null,
+              )}
               <label
                 style={{ display: 'flex', alignItems: 'center', gap: '4px', margin: '3px 0', color: '#8ea3b0' }}
                 onPointerDown={holdPointer}

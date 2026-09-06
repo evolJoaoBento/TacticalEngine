@@ -188,8 +188,19 @@ describe('quests in a snapshot', () => {
     const snapshot = JSON.parse(JSON.stringify(scenarioSnapshot(w.scenario)));
     const restored = createScenarioState();
     restoreScenario(restored, scenarioSnapshotSchema.parse(snapshot));
-    expect(restored.quests.get('q')).toEqual({ status: 'active', done: new Set(['find']) });
-    expect(restored.quests.get('r')).toEqual({ status: 'failed', done: new Set() });
+    expect(restored.quests.get('q')).toEqual({ status: 'active', done: new Set(['find']), revealed: new Set() });
+    expect(restored.quests.get('r')).toEqual({ status: 'failed', done: new Set(), revealed: new Set() });
+  });
+
+  it('loads a quest entry written before objectives could be hidden', () => {
+    const parsed = scenarioSnapshotSchema.parse({
+      variables: {},
+      flags: [],
+      items: [],
+      actorId: null,
+      quests: [{ quest: 'q', status: 'active', done: ['a'] }],
+    });
+    expect(parsed.quests[0]!.revealed).toEqual([]);
   });
 
   it('still loads a snapshot written before quests existed', () => {
@@ -201,5 +212,41 @@ describe('quests in a snapshot', () => {
     restoreScenario(restored, parsed);
     expect(restored.flags.has('seen')).toBe(true);
     expect(restored.quests.size).toBe(0);
+  });
+});
+
+describe('hidden objectives', () => {
+  it('reveals a step once, and journals it', () => {
+    const w = world();
+    const journal = run(w, [
+      { kind: 'revealObjective', quest: 'q', objective: 'later' },
+      { kind: 'revealObjective', quest: 'q', objective: 'later' },
+    ]);
+    expect(w.questStatus('q')).toBe('active');
+    expect(w.scenario.quests.get('q')!.revealed.has('later')).toBe(true);
+    expect(questEvents(journal)).toEqual([{ kind: 'quest', quest: 'q', change: 'started' }]);
+    expect(journal.filter((e) => e.kind === 'revealed')).toEqual([{ kind: 'revealed', quest: 'q', objective: 'later' }]);
+  });
+
+  it('has nothing to reveal about a step already done', () => {
+    const w = world();
+    run(w, [{ kind: 'completeObjective', quest: 'q', objective: 'find' }]);
+    const journal = run(w, [{ kind: 'revealObjective', quest: 'q', objective: 'find' }]);
+    expect(journal.filter((e) => e.kind === 'revealed')).toEqual([]);
+  });
+
+  it('does not reveal on a finished quest', () => {
+    const w = world();
+    run(w, [{ kind: 'startQuest', quest: 'q' }, { kind: 'completeQuest', quest: 'q' }]);
+    run(w, [{ kind: 'revealObjective', quest: 'q', objective: 'late' }]);
+    expect(w.scenario.quests.get('q')!.revealed.size).toBe(0);
+  });
+
+  it('carries what was revealed through a snapshot', () => {
+    const w = world();
+    run(w, [{ kind: 'revealObjective', quest: 'q', objective: 'later' }]);
+    const restored = createScenarioState();
+    restoreScenario(restored, scenarioSnapshotSchema.parse(JSON.parse(JSON.stringify(scenarioSnapshot(w.scenario)))));
+    expect(restored.quests.get('q')!.revealed.has('later')).toBe(true);
   });
 });

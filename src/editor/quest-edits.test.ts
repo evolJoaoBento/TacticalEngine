@@ -76,7 +76,7 @@ describe('quests in the project', () => {
   it('survives a round trip through the schema after every edit', () => {
     const s = session();
     s.run(updateQuest('word', { name: 'Renamed' }));
-    s.run(addObjective('word', { id: 'bring', text: 'Bring it back.' }));
+    s.run(addObjective('word', { id: 'bring', text: 'Bring it back.', hidden: false }));
     expect(() => projectSchema.parse(JSON.parse(JSON.stringify(s.project)))).not.toThrow();
   });
 });
@@ -84,7 +84,7 @@ describe('quests in the project', () => {
 describe('objectives', () => {
   it('adds a step at the end, and undoes it', () => {
     const s = session();
-    s.run(addObjective('word', { id: 'bring', text: 'Bring it back.' }));
+    s.run(addObjective('word', { id: 'bring', text: 'Bring it back.', hidden: false }));
     expect(word(s).objectives.map((o) => o.id)).toEqual(['ask', 'open', 'bring']);
     s.undo();
     expect(word(s).objectives.map((o) => o.id)).toEqual(['ask', 'open']);

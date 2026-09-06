@@ -20,6 +20,12 @@ export const questObjectiveSchema = z.object({
   id: contentIdSchema,
   /** What the journal shows for this step. */
   text: z.string().min(1),
+  /**
+   * Kept out of the journal until revealed — by a `revealObjective` effect, or
+   * by being completed. This is how a quest unfolds rather than listing its
+   * whole plot on the first page.
+   */
+  hidden: z.boolean().default(false),
 });
 
 export const questSchema = z
@@ -59,4 +65,6 @@ export interface QuestProgress {
   status: QuestStatus;
   /** Objective ids ticked off. */
   done: Set<string>;
+  /** Hidden objectives brought into the journal. A done objective is always shown. */
+  revealed: Set<string>;
 }

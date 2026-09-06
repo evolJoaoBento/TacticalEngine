@@ -111,7 +111,9 @@ function questReferences(
       if (effect.kind === 'startQuest' || effect.kind === 'completeQuest' || effect.kind === 'failQuest') {
         missingQuest(effect.quest);
       }
-      if (effect.kind === 'completeObjective') checkObjective(effect.quest, effect.objective);
+      if (effect.kind === 'completeObjective' || effect.kind === 'revealObjective') {
+        checkObjective(effect.quest, effect.objective);
+      }
     },
     condition: (condition) => {
       if (condition.kind === 'quest') missingQuest(condition.quest);
@@ -133,6 +135,7 @@ function checkQuests(
       started.add(effect.quest);
       completed.add(`${effect.quest}/${effect.objective}`);
     }
+    if (effect.kind === 'revealObjective') started.add(effect.quest);
   };
   for (const scene of project.scenes) {
     for (const interactable of scene.interactables) {

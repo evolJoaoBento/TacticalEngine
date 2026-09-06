@@ -1096,7 +1096,7 @@ test('edits a quest in the editor, and the journal reads the new words', async (
 
   // Rename the quest and rewrite its first step, the way an author would.
   await editor.locator('[data-field="name"]').fill('The Word Below');
-  await editor.locator('[data-objective="win-the-word"] input').fill('Talk the Warden round.');
+  await editor.locator('[data-objective="win-the-word"] input:not([type="checkbox"])').fill('Talk the Warden round.');
   await editor.locator('button', { hasText: '+ Step' }).click();
 
   // Back in play, the journal shows what was written.
@@ -1341,5 +1341,67 @@ test('imports a glTF model and draws it where a prop names it', async ({ page })
   ]);
   await expect(page.locator('[data-asset="duck"]')).toBeVisible();
 
+  expect(consoleErrors).toEqual([]);
+});
+
+test('authors a branch with a condition from dropdowns, and gates a reply', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('edit');
+    api.selectObject(api.objects().find((id) => id.startsWith('chest'))!);
+  });
+  const list = page.locator('[data-testid="object-effects"]');
+  await list.locator('[data-role="add-effect"]').selectOption('branch');
+  const branch = list.locator('[data-testid="branch"]').first();
+  await expect(branch).toBeVisible();
+
+  // Gate it on the quest being complete, from dropdowns.
+  await branch.locator('[data-testid="cond-kind"]').first().selectOption('quest');
+  await branch.locator('[data-testid="cond-status"]').first().selectOption('completed');
+  // And put a line under "then".
+  await branch.locator('[data-role="add-effect"]').first().selectOption('log');
+
+  const authored = await page.evaluate(() => {
+    const effects = window.__polyheart!.objectField('effects') as unknown[];
+    return effects[effects.length - 1];
+  });
+  expect(authored).toMatchObject({
+    kind: 'branch',
+    when: { kind: 'quest', quest: 'the-wardens-word', status: 'completed' },
+    then: [{ kind: 'log' }],
+  });
+
+  // A reply in the conversation, hidden unless an objective is done.
+  await page.getByRole('button', { name: /the-listening-pillar/ }).click();
+  const graph = page.locator('[data-testid="dialogue-graph"]');
+  const node = graph.locator('[data-node="vault"]');
+  await node.getByRole('button', { name: '▸' }).click();
+  await node.locator('[data-goto]').first().waitFor();
+  await node.locator('[data-gate="available"]').first().click();
+  const gate = node.locator('[data-gate-editor="available"]').first();
+  await gate.locator('[data-testid="cond-kind"]').selectOption('objectiveDone');
+  const exported = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject()));
+  const vault = exported.dialogues[0].nodes.find((n: { id: string }) => n.id === 'vault');
+  expect(vault.choices[0].available).toEqual({
+    kind: 'objectiveDone',
+    quest: 'the-wardens-word',
+    objective: 'win-the-word',
+  });
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('keeps a hidden objective out of the journal until it is revealed', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
+    api.standBeside(pillar);
+    api.use(pillar);
+  });
+  const journal = page.locator('[data-testid="journal"]');
+  await expect(journal).toContainText('Get the word out of the Warden');
+  await expect(journal).not.toContainText('Open the strongbox');
   expect(consoleErrors).toEqual([]);
 });

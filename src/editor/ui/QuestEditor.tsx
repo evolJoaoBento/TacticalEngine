@@ -85,6 +85,15 @@ export function QuestEditor(props: QuestEditorProps): preact.JSX.Element {
             }
             onBlur={() => session.endGroup()}
           />
+          <label style={{ fontSize: '11px', color: '#8ea3b0', whiteSpace: 'nowrap', alignSelf: 'center' }} title="Kept out of the journal until revealed or done">
+            <input
+              type="checkbox"
+              checked={objective.hidden}
+              data-hidden={objective.id}
+              onChange={(e) => run(updateObjective(quest.id, index, { hidden: (e.target as HTMLInputElement).checked }))}
+            />{' '}
+            hidden
+          </label>
           <button
             style={small}
             title={quest.objectives.length <= 1 ? 'A quest keeps at least one step' : 'Delete this step'}
@@ -97,7 +106,7 @@ export function QuestEditor(props: QuestEditorProps): preact.JSX.Element {
       ))}
       <button
         style={small}
-        onClick={() => run(addObjective(quest.id, { id: nextObjectiveId(quest), text: 'Do the next thing.' }))}
+        onClick={() => run(addObjective(quest.id, { id: nextObjectiveId(quest), text: 'Do the next thing.', hidden: false }))}
       >
         + Step
       </button>

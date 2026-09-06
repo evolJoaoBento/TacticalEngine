@@ -973,12 +973,17 @@ function describeEntry(
       const step = quest?.objectives.find((o) => o.id === entry.objective)?.text ?? entry.objective;
       return { text: `Objective complete: ${step}`, tone: 'success' };
     }
+    case 'revealed': {
+      const quest = quests.get(entry.quest);
+      const step = quest?.objectives.find((o) => o.id === entry.objective)?.text ?? entry.objective;
+      return { text: `New objective: ${step}`, tone: 'system' };
+    }
     case 'log':
       return { text: entry.text, tone: entry.tone };
     case 'story':
       return { text: [entry.title, ...entry.paragraphs].join(' '), tone: 'narration' };
     case 'key':
-      return { text: `You take the ${entry.key}.`, tone: 'success' };
+      return { text: `You take the ${names.get(entry.key) ?? entry.key}.`, tone: 'success' };
     case 'loot':
       return entry.found.length === 0
         ? { text: 'Nothing worth taking.', tone: 'system' }
