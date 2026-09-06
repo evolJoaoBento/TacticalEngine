@@ -428,7 +428,8 @@ walk a party into a vault, fire a trigger, trade blows with an SRD adversary and
 spotlight, all from content plus a seed. It can now also be **authored**: the party, the map,
 the objects on it, the conversations, the quests, the cards and the logic behind them are all
 project data with a panel apiece — the party, items and loot included. Nothing a small
-scenario needs is typed into JSON by hand any more.
+scenario needs is typed into JSON by hand any more, beyond a custom condition definition or a
+terrain palette.
 
 A designer can now author a *party* (sheets naming a class, ancestry, armor and weapon), a
 *map* (terrain, elevation, props, objects, enemies, triggers and spawns, saved as JSON and

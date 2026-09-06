@@ -162,6 +162,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
     return (
       <ItemPanel
         session={session}
+        content={props.characterContent}
         hookIds={[...props.nativeHooks, ...session.project.code.map((entry) => entry.id)]}
         sceneIds={session.project.scenes.map((entry) => entry.id)}
         dialogueIds={session.project.dialogues.map((entry) => entry.id)}

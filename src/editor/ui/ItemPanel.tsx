@@ -24,6 +24,7 @@ import {
 } from '../session';
 import { itemSchema, lootTableSchema, type ItemDef, type LootTable } from '../../engine/content/items';
 import type { QuestDef } from '../../engine/content/quests';
+import type { SrdCharacterContent } from '../../engine/content/srd/daggersearch';
 import { EffectList } from './EffectList';
 
 export interface ItemPanelProps {
@@ -36,6 +37,13 @@ export interface ItemPanelProps {
   dialogueIds: readonly string[];
   encounterIds: readonly string[];
   quests: readonly QuestDef[];
+  /** The vendored SRD content a weapon or armour item stands for. */
+  content: SrdCharacterContent;
+}
+
+/** Sorted `id → name` pairs, so a dropdown reads as words and writes an id. */
+function options(map: ReadonlyMap<string, { id: string; name: string }>): { id: string; name: string }[] {
+  return [...map.values()].map((v) => ({ id: v.id, name: v.name })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 const KINDS: readonly ItemDef['kind'][] = ['key', 'consumable', 'weapon', 'armor', 'trinket'];
@@ -247,16 +255,22 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 {labelled(
                   'stands for',
-                  <input
-                    style={{ ...field, width: '180px' }}
+                  <select
+                    style={{ ...field, width: '200px' }}
                     data-testid="item-content-id"
-                    placeholder="SRD id, e.g. broadsword"
                     value={item.contentId ?? ''}
-                    onInput={(e) => {
-                      const contentId = (e.target as HTMLInputElement).value;
+                    onChange={(e) => {
+                      const contentId = (e.target as HTMLSelectElement).value;
                       editItem({ contentId: contentId === '' ? undefined : contentId });
                     }}
-                  />,
+                  >
+                    <option value="">— nothing —</option>
+                    {options(item.kind === 'weapon' ? props.content.weapons : props.content.armors).map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.name}
+                      </option>
+                    ))}
+                  </select>,
                 )}
                 <span style={{ color: '#8ea3b0', fontSize: '11px' }}>
                   Equipping is a lookup into the SRD content, not a copy of it.

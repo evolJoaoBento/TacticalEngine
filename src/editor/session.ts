@@ -1403,9 +1403,16 @@ export function removeSheet(characterId: string): Edit {
   };
 }
 
-/** Edit a sheet. Typing into one field coalesces into one undo step. */
+/**
+ * Edit a sheet. Typing into one field coalesces into one undo step.
+ *
+ * Undo puts back only the fields this edit wrote. The party is the one list
+ * the *game* also writes — a level taken at the table, a card recalled — and
+ * restoring the whole sheet would quietly undo that too, hours later, from a
+ * panel that never knew about it.
+ */
 export function updateSheet(characterId: string, changes: Partial<PartySheet>): Edit {
-  let before: PartySheet | null = null;
+  let before: Partial<PartySheet> = {};
   const current: Partial<PartySheet> = { ...changes };
   const edit: Edit = {
     label: 'Edit a character',
@@ -1413,13 +1420,13 @@ export function updateSheet(characterId: string, changes: Partial<PartySheet>): 
     apply(project) {
       const index = project.party.findIndex((s) => s.id === characterId);
       if (index < 0) return;
-      before = project.party[index]!;
-      project.party[index] = { ...before, ...current };
+      const sheet = project.party[index]!;
+      before = Object.fromEntries(Object.keys(current).map((key) => [key, sheet[key as keyof PartySheet]]));
+      project.party[index] = { ...sheet, ...current };
     },
     undo(project) {
-      if (before === null) return;
       const index = project.party.findIndex((s) => s.id === characterId);
-      if (index >= 0) project.party[index] = before;
+      if (index >= 0) project.party[index] = { ...project.party[index]!, ...before };
     },
     absorb(other) {
       const next = (other as Edit & { __sheet?: Partial<PartySheet> }).__sheet;

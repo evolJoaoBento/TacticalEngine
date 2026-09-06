@@ -80,6 +80,19 @@ describe('the party in the project', () => {
     expect(kara(s).name).toBe('Kara');
   });
 
+  it('undoes only what it wrote, leaving what the table wrote alone', () => {
+    const s = session();
+    s.run(updateSheet('kara', { name: 'Karah' }));
+    // The table levels her up between the edit and the undo: the panel never
+    // knew about it, and must not take it back.
+    s.project.party[0] = { ...s.project.party[0]!, level: 2, levels: [{ level: 2, advancements: [], domainCard: 'whirlwind' }] };
+
+    s.undo();
+    expect(kara(s).name).toBe('Kara');
+    expect(kara(s).level).toBe(2);
+    expect(kara(s).levels).toHaveLength(1);
+  });
+
   it('survives the trip through JSON with its level history intact', () => {
     const s = session();
     s.run(

@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { itemSchema, lootTableSchema } from '../engine/content/items';
 import { blankScene } from '../engine/scene/grid-from-scene';
-import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
+import { interactableSchema, projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { importCharacterContent } from '../engine/content/srd/daggersearch';
 import {
   EditorSession,
   addItem,
@@ -19,6 +22,19 @@ import { validateProject } from './validate';
  * quietly repair the other — the validator's job is to say what now names
  * nothing, and it can only do that if the reference survives the delete.
  */
+
+const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
+const read = (name: string): unknown[] =>
+  JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
+const content = importCharacterContent({
+  weapons: read('weapons'),
+  armors: read('armors'),
+  classes: read('classes'),
+  ancestries: read('ancestries'),
+  communities: read('communities'),
+  subclasses: read('subclasses'),
+  domainCards: read('domain-cards'),
+}).content;
 
 const KEY = { id: 'brass-key', name: 'A brass key', kind: 'key' };
 const TABLE = { id: 'chest', rolls: 2, entries: [{ item: 'brass-key', weight: 3 }] };
@@ -68,6 +84,25 @@ describe('items in the project', () => {
     );
     const parsed = projectSchema.parse(JSON.parse(JSON.stringify(s.project)));
     expect(parsed.items[0]!.use).toEqual([{ kind: 'heal', amount: 2, target: { kind: 'actor' } }]);
+  });
+
+  it('reports a weapon item standing for SRD content that does not exist', () => {
+    const s = session();
+    s.run(updateItem('brass-key', { kind: 'weapon', contentId: 'vorpal-nonsense' }));
+    expect(validateProject(s.project, { characterContent: content }).map((p) => p.message).join(' ')).toContain(
+      'vorpal-nonsense',
+    );
+    s.run(updateItem('brass-key', { contentId: 'broadsword' }));
+    expect(validateProject(s.project, { characterContent: content })).toEqual([]);
+  });
+
+  it('reports a door wanting a key nobody can carry', () => {
+    const s = session();
+    const scene = s.project.scenes[0]!;
+    scene.interactables.push(
+      interactableSchema.parse({ id: 'door-1', kind: 'door', position: { x: 1, y: 1 }, requiresKey: 'no-such-key' }),
+    );
+    expect(validateProject(s.project).map((p) => p.message).join(' ')).toContain('no-such-key');
   });
 
   it('does not repair a table that named a deleted item — it reports it', () => {

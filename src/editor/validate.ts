@@ -92,7 +92,7 @@ export function validateProject(
   checkQuests(project, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
-  checkItemUses(project, (severity, message, entity) => {
+  checkItemUses(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
   checkAbilitiesAndCode(project, options, (severity, message, entity) => {
@@ -211,8 +211,21 @@ function checkAbilitiesAndCode(
 /** What using an item can do names content too. */
 function checkItemUses(
   project: ProjectDoc,
+  options: ValidationOptions,
   add: (severity: ProblemSeverity, message: string, entity?: string) => void,
 ): void {
+  // A weapon or armour points at SRD content rather than restating it, so an
+  // id that does not resolve is an item nobody can equip.
+  const content = options.characterContent;
+  if (content !== undefined) {
+    for (const item of project.items) {
+      if (item.contentId === undefined) continue;
+      const known = item.kind === 'weapon' ? content.weapons : item.kind === 'armor' ? content.armors : null;
+      if (known !== null && !known.has(item.contentId)) {
+        add('error', `Item "${item.id}" stands for ${item.kind} "${item.contentId}", which the SRD content does not have.`, item.id);
+      }
+    }
+  }
   const sceneIds = new Set(project.scenes.map((s) => s.id));
   const dialogueIds = new Set(project.dialogues.map((d) => d.id));
   const tableIds = new Set(project.lootTables.map((t) => t.id));
@@ -485,7 +498,16 @@ function validateEffects(
     if ((effect.kind === 'addItem' || effect.kind === 'removeItem') && !itemIds.has(effect.item)) {
       add('error', `"${interactable.id}" refers to item "${effect.item}", which does not exist.`, interactable.id);
     }
+    // A key is an item with a quantity of one, so a key nobody can be given
+    // is a door nobody can open.
+    if (effect.kind === 'giveKey' && !itemIds.has(effect.key)) {
+      add('error', `"${interactable.id}" gives key "${effect.key}", which is not an item in this project.`, interactable.id);
+    }
   };
+
+  if (interactable.requiresKey !== undefined && !itemIds.has(interactable.requiresKey)) {
+    add('error', `"${interactable.id}" wants key "${interactable.requiresKey}", which is not an item in this project.`, interactable.id);
+  }
 
   const quests = questReferences(context.project, interactable.id, add);
   const inspectAll = (effect: Effect): void => {

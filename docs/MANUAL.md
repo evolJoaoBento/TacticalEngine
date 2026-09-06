@@ -409,8 +409,10 @@ decides, exactly as an unscripted SRD card is.
 mean anything together. An **item** is a name, a description, a kind (key, consumable, weapon,
 armor, trinket), whether a second one stacks, and an effect list for what using it does — the
 same list every other panel edits, so a draught heals and a scroll starts a conversation. A
-consumable is spent by the use; anything else stays in the pack. A weapon or armour also names
-the SRD content it stands for, so equipping is a lookup rather than a copy.
+consumable is spent by the use; anything else stays in the pack. A weapon or armour also picks
+the SRD content it stands for, from the same vendored list the Party panel uses, so equipping is
+a lookup rather than a copy and an id that does not resolve is caught by **Check** rather than at
+the moment somebody tries to equip it.
 
 A **loot table** is how many times a chest draws and what it draws from: an item, how many
 (a fixed count or a range rolled per drop), and a weight. Weights are relative to the rest of
@@ -418,7 +420,8 @@ the table rather than percentages, so the panel shows the odds each entry works 
 of asking for numbers that add to a hundred.
 
 Deleting an item does not quietly rewrite the tables and doors that named it. The reference
-stays and **Check** reports it, because a designer needs to see what they broke.
+stays and **Check** reports it — a loot entry, a `giveKey`, or a door's `requiresKey` naming
+nothing is an error — because a designer needs to see what they broke.
 
 ### Code
 
@@ -466,8 +469,8 @@ A **character sheet** (`project.party[]`): `id`, `name`, `level`, `classId`, `su
 `primaryWeaponId?`, `secondaryWeaponId?`, `experiences?` (`name`, `modifier`), `domainCards?`,
 `loadout?` (at most five), `levels?` (what was ticked at each level taken) and `bonuses?` (flat
 adjustments to Evasion, pools and thresholds). Everything else — Evasion, Armor Score, Hit
-Points, Stress, thresholds, the trait an attack rolls — is derived from those. A project with
-no party plays the sheets the game ships with.
+Points, Stress, thresholds, the trait an attack rolls — is derived from those. `party` is
+defaulted, so a project written before it existed still parses.
 `assets[]` holds imported models (`id`, `kind` 'gltf', `url`, `scale`, `groundOffset`,
 `rotationY`).
 
