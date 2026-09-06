@@ -151,10 +151,14 @@ text is logged on arrival. Walking out abandons a fight.
 
 ### Saving
 
-One slot, in the browser's `localStorage` under `polyheart:save`. **Save** is greyed during a
-fight ("Not in the middle of a fight.") and while any prompt is waiting — a roll, a choice or a
-conversation ("Not in the middle of a conversation."), because a running encounter and a paused
-script hold live objects the save format cannot serialise. A save is a checkpoint between beats.
+Saves are named slots in the browser's `localStorage`. **Save** writes the quick slot
+(overwritten each time); **Save as…** asks for a name and makes a new slot; **Load** opens the
+list — newest first, with where the party was — and each entry can be loaded or deleted. An
+**Autosave** slot is written whenever the party changes rooms. Both save buttons are greyed
+during a fight ("Not in the middle of a fight.") and while any prompt is waiting — a roll, a
+choice or a conversation ("Not in the middle of a conversation."), because a running encounter
+and a paused script hold live objects the save format cannot serialise. A save is a checkpoint
+between beats.
 
 A save records: the scene being played, every visited room as it was left, where everyone
 stands, the pack, flags and variables, quest progress, the party's sheets (levels and gear),
@@ -499,8 +503,7 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   is placed by editing JSON. A model is referenced by URL, not packaged with the project; the
   zip packaging CONTEXT.md mentions does not exist. Textures, audio and data-pack import do
   not exist.
-- **One save slot**, in `localStorage`, and the log is stored unbounded inside it. No named
-  saves, autosave or save browser.
+- Saves live in `localStorage`, and the log is stored unbounded inside each one.
 - **Loading a project JSON does not restart play.** The editor edits the loaded document; the
   running game stays on the project it booted with. A schema failure is not shown in the panel.
 - **Checks use the party's best trait**, not the acting character's; using an object in a fight

@@ -55,6 +55,7 @@ import {
 } from './engine/scene/schema';
 import type { Response } from './engine/script/runner';
 import { loadGameText, saveBlockedBy, serialiseSave } from './game/save';
+import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore } from './game/save-slots';
 import {
   answerPending,
   attackWithSelected,
@@ -148,6 +149,9 @@ declare global {
       screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
       load: () => boolean;
+      saveAs: (name: string) => string | null;
+      loadSlot: (id: string) => boolean;
+      saves: () => { id: string; name: string; where: string }[];
       saveBlocked: () => string | null;
       saveText: () => string | null;
       mode: () => 'play' | 'edit';
@@ -498,6 +502,7 @@ function rebindScene(): void {
 }
 
 function refreshPlay(): void {
+  autosaveOnTravel();
   rebindScene();
   // Tokens belong to the played room. Drawing them over another room's grid puts
   // the party on whatever happens to share those tile indices.
@@ -528,43 +533,35 @@ function carriedItems(): { id: string; name: string; quantity: number; wearable:
 }
 
 /**
- * Where a save lives.
- *
- * `localStorage` throws outright in some contexts — a browser set to block site
- * data, a headless run with storage disabled — so every touch is guarded and a
- * failure reads as "no save" rather than taking the page down on boot.
+ * Where saves live: named slots over `localStorage`, guarded so a browser
+ * that blocks site data reads as "no saves" rather than taking the page down.
+ * The quick slot and the autosave slot are fixed and overwritten; "Save as…"
+ * mints a new one every time.
  */
-const SAVE_KEY = 'polyheart:save';
+const slots = new SaveSlots(browserStore());
 
-function readSave(): string | null {
-  try {
-    return window.localStorage.getItem(SAVE_KEY);
-  } catch {
-    return null;
-  }
+/** "The Husk Vault, level 2" — a line for the saves list. */
+function whereWeAre(): string {
+  const level = demo.scenario.partyLevel;
+  return `${demo.scene.name || demo.scene.id}${level > 1 ? `, level ${level}` : ''}`;
 }
 
-function writeSave(text: string): boolean {
-  try {
-    window.localStorage.setItem(SAVE_KEY, text);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Save the campaign, and say so in the log either way. */
-function saveNow(): boolean {
+/** Save into a slot, and say so in the log either way. */
+function saveTo(id: string | undefined, name: string, quiet = false): boolean {
   const text = serialiseSave(demo);
   if (text === null) return false;
-  const stored = writeSave(text);
-  note(demo, stored ? 'Saved.' : 'This browser will not let the game save.', 'system');
-  return stored;
+  const slot = slots.write(text, name, whereWeAre(), id);
+  if (!quiet) note(demo, slot === null ? 'This browser will not let the game save.' : `Saved: ${name}.`, 'system');
+  return slot !== null;
 }
 
-/** Go back to the last save. */
-function loadNow(): boolean {
-  const text = readSave();
+function saveNow(): boolean {
+  return saveTo(QUICK_SLOT, 'Quick save');
+}
+
+/** Load a slot back into the game. */
+function loadSlot(id: string): boolean {
+  const text = slots.read(id);
   if (text === null) return false;
   const result = loadGameText(demo, text);
   if (!result.ok) {
@@ -576,6 +573,18 @@ function loadNow(): boolean {
   boundScene = '';
   note(demo, 'Loaded.', 'system');
   return true;
+}
+
+/**
+ * Autosave when the party changes rooms. Detected here rather than hooked
+ * into `travelTo`, because a script's `goto` travels without going through
+ * `main.ts` at all; every action ends in `refreshPlay`, which is enough.
+ */
+let lastRoom = demo.scene.id;
+function autosaveOnTravel(): void {
+  if (demo.scene.id === lastRoom) return;
+  lastRoom = demo.scene.id;
+  if (saveBlockedBy(demo) === null) saveTo(AUTO_SLOT, 'Autosave', true);
 }
 
 /** The journal: every quest the party has been given, joined to its words. */
@@ -673,13 +682,23 @@ function renderPlayPanel(): void {
       pending: demo.pending,
       within: reachableInteractable(demo),
       saveBlocked: saveBlockedBy(demo),
-      hasSave: readSave() !== null,
+      saves: slots.list(),
       onSave: () => {
         saveNow();
         refreshPlay();
       },
-      onLoad: () => {
-        loadNow();
+      onSaveAs: () => {
+        const name = prompt('Name this save', whereWeAre());
+        if (name === null || name.trim() === '') return;
+        saveTo(undefined, name.trim());
+        refreshPlay();
+      },
+      onLoad: (id: string) => {
+        loadSlot(id);
+        refreshPlay();
+      },
+      onDeleteSave: (id: string) => {
+        slots.remove(id);
         refreshPlay();
       },
       onUseItem: (id: string) => {
@@ -1102,12 +1121,25 @@ const state = {
     return ok;
   },
   load: (): boolean => {
-    const ok = loadNow();
+    const ok = loadSlot(QUICK_SLOT);
     refreshPlay();
     return ok;
   },
+  saveAs: (name: string): string | null => {
+    const text = serialiseSave(demo);
+    const slot = text === null ? null : slots.write(text, name, whereWeAre());
+    refreshPlay();
+    return slot?.id ?? null;
+  },
+  loadSlot: (id: string): boolean => {
+    const ok = loadSlot(id);
+    refreshPlay();
+    return ok;
+  },
+  saves: (): { id: string; name: string; where: string }[] =>
+    slots.list().map((slot) => ({ id: slot.id, name: slot.name, where: slot.where })),
   saveBlocked: (): string | null => saveBlockedBy(demo),
-  saveText: (): string | null => readSave(),
+  saveText: (): string | null => slots.read(QUICK_SLOT),
 
   mode: (): 'play' | 'edit' => mode,
   setMode,

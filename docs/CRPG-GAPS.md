@@ -196,9 +196,13 @@ Loading restores the party to the tiles they were standing on rather than to the
 what separates it from `travelTo`. A save for another project is refused, and damaged text is
 reported rather than thrown.
 
-**Still open:** one slot, in `localStorage`, and the log grows without limit inside it. Named
-saves, autosaves, a save browser and a trimmed log are all UI and policy on top of a format that
-already carries what they need.
+Saves are **named slots** (`game/save-slots.ts`, DOM-free over an injected store): a quick slot
+and an autosave slot that are overwritten, and "Save as…" minting a new one each time, listed
+newest first with where the party was. The autosave is written whenever the party changes rooms,
+detected in `refreshPlay` rather than hooked into `travelTo`, because a script's `goto` travels
+without passing through `main.ts` at all.
+
+**Still open:** the log grows without limit inside a save.
 
 ### ~~7. Quests and journal~~ — done
 

@@ -9,6 +9,7 @@
  * Text only. Lines are read, never spoken — CONTEXT.md rules out narration.
  */
 
+import { useState } from 'preact/hooks';
 import type { LogLine, PendingScript } from '../demo-scene';
 import type { Response } from '../../engine/script/runner';
 
@@ -45,10 +46,14 @@ export interface PlayPanelProps {
   onAnswer: (response: Response) => void;
   /** Why saving is refused right now, or `null` when it can go ahead. */
   saveBlocked: string | null;
-  /** Whether there is a save to come back to. */
-  hasSave: boolean;
+  /** Every save, newest first. */
+  saves: readonly { id: string; name: string; savedAt: number; where: string }[];
+  /** Quick save: one fixed slot, overwritten. */
   onSave: () => void;
-  onLoad: () => void;
+  /** A new named slot. */
+  onSaveAs: () => void;
+  onLoad: (id: string) => void;
+  onDeleteSave: (id: string) => void;
   /** Equip a carried item on whoever is selected. */
   onEquip: (id: string) => void;
   /** Use a carried item, with whoever is selected. */
@@ -113,6 +118,7 @@ const signed = (n: number): string => (n >= 0 ? `+${n}` : `${n}`);
 
 export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
   const { log, pending, within } = props;
+  const [saves, setSaves] = useState(false);
 
   // A conversation raises its own prompts, so the panel reads the innermost
   // thing waiting rather than assuming the script is the one asking.
@@ -128,7 +134,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
           type="button"
           style={{ ...button(false), opacity: props.saveBlocked === null ? 1 : 0.4 }}
           disabled={props.saveBlocked !== null}
-          title={props.saveBlocked ?? 'Save the campaign as it stands'}
+          title={props.saveBlocked ?? 'Quick save: one slot, overwritten'}
           data-testid="save"
           onClick={props.onSave}
         >
@@ -136,15 +142,52 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         </button>
         <button
           type="button"
-          style={{ ...button(false), marginRight: 0, opacity: props.hasSave ? 1 : 0.4 }}
-          disabled={!props.hasSave}
-          title={props.hasSave ? 'Go back to the last save' : 'Nothing saved yet'}
+          style={{ ...button(false), opacity: props.saveBlocked === null ? 1 : 0.4 }}
+          disabled={props.saveBlocked !== null}
+          title={props.saveBlocked ?? 'Save into a new named slot'}
+          data-testid="save-as"
+          onClick={props.onSaveAs}
+        >
+          Save as…
+        </button>
+        <button
+          type="button"
+          style={{ ...button(saves), marginRight: 0, opacity: props.saves.length > 0 ? 1 : 0.4 }}
+          disabled={props.saves.length === 0}
+          title={props.saves.length > 0 ? 'Saved games' : 'Nothing saved yet'}
           data-testid="load"
-          onClick={props.onLoad}
+          onClick={() => setSaves(!saves)}
         >
           Load
         </button>
       </div>
+      {saves && props.saves.length > 0 ? (
+        <div style={{ ...logBox, padding: '8px 12px', flexShrink: 0 }} data-testid="saves">
+          <div style={heading}>Saved games</div>
+          {props.saves.map((slot) => (
+            <div key={slot.id} style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '3px' }} data-save={slot.id}>
+              <button
+                type="button"
+                style={{ ...button(false), flex: 1, textAlign: 'left', margin: 0 }}
+                data-testid="load-slot"
+                onClick={() => {
+                  props.onLoad(slot.id);
+                  setSaves(false);
+                }}
+              >
+                {slot.name}
+                <span style={{ color: '#8ea3b0', fontSize: '11px' }}>
+                  {' '}
+                  · {slot.where} · {new Date(slot.savedAt).toLocaleString()}
+                </span>
+              </button>
+              <button type="button" style={{ ...button(false), margin: 0 }} title="Delete this save" onClick={() => props.onDeleteSave(slot.id)}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {props.journal.length > 0 ? (
         <div style={{ ...logBox, padding: '8px 12px', flexShrink: 0 }} data-testid="journal">

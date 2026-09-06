@@ -84,6 +84,9 @@ declare global {
       screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
       load: () => boolean;
+      saveAs: (name: string) => string | null;
+      loadSlot: (id: string) => boolean;
+      saves: () => { id: string; name: string; where: string }[];
       saveBlocked: () => string | null;
       saveText: () => string | null;
       mode: () => 'play' | 'edit';
@@ -984,7 +987,7 @@ test('talks the Warden round, and the word opens the strongbox downstairs', asyn
 
 test('saves the campaign and finds it again after a reload', async ({ page }) => {
   const consoleErrors = await boot(page);
-  await page.evaluate(() => window.localStorage.removeItem('polyheart:save'));
+  await page.evaluate(() => window.localStorage.clear());
 
   // Nothing saved yet, so there is nothing to go back to.
   await expect(page.locator('[data-testid="load"]')).toBeDisabled();
@@ -1009,7 +1012,7 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
 
   // Save through the button a player would actually press.
   await page.locator('[data-testid="save"]').click();
-  await expect(page.locator('[data-testid="log"]')).toContainText('Saved.');
+  await expect(page.locator('[data-testid="log"]')).toContainText('Saved: Quick save.');
 
   // A real reload: a new page, a new engine, and nothing but storage between.
   await page.reload();
@@ -1022,6 +1025,7 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
   expect(fresh.carried).toEqual([]);
 
   await page.locator('[data-testid="load"]').click();
+  await page.locator('[data-testid="saves"] [data-save="quick"] [data-testid="load-slot"]').click();
   const after = await page.evaluate(() => {
     const api = window.__polyheart!;
     return {
@@ -1484,6 +1488,44 @@ test('authors a roll and a choice inside an effect list, and outcomes on a reply
   const withCheck = vault.choices.find((c: { check?: unknown }) => c.check !== undefined);
   expect(withCheck.check.gotoOnSuccess).toBe('granted');
   expect(withCheck.check.always).toMatchObject([{ kind: 'setFlag' }]);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('keeps named saves and an autosave from the last doorway', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => window.localStorage.clear());
+
+  const ids = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const chest = api.objects().find((id) => id.startsWith('chest'))!;
+    api.standBeside(chest);
+    api.use(chest);
+    api.answer({ kind: 'roll' });
+    const beforeTravel = api.saveAs('Before the stairs');
+    api.travelTo('the-pit');
+    const downstairs = api.saveAs('Downstairs');
+    return { beforeTravel, downstairs, saves: api.saves() };
+  });
+  expect(ids.beforeTravel).not.toBeNull();
+  // Three saves: the two named ones and the autosave the doorway wrote.
+  expect(ids.saves.map((s) => s.name).sort()).toEqual(['Autosave', 'Before the stairs', 'Downstairs']);
+  expect(ids.saves.find((s) => s.name === 'Autosave')!.where).toContain('Sounding Pit');
+
+  // Reload the page: the list survives, and loading the older slot puts the party back upstairs.
+  await page.reload();
+  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.locator('[data-testid="load"]').click();
+  const list = page.locator('[data-testid="saves"]');
+  await expect(list).toContainText('Before the stairs');
+  await list.locator(`[data-save="${ids.beforeTravel}"] [data-testid="load-slot"]`).click();
+  expect(await page.evaluate(() => window.__polyheart!.sceneId())).not.toBe('the-pit');
+  expect(await page.evaluate(() => window.__polyheart!.carried().length)).toBeGreaterThan(0);
+
+  // Delete one; it is gone from the list and from storage.
+  await page.locator('[data-testid="load"]').click();
+  await list.locator(`[data-save="${ids.downstairs}"] button[title="Delete this save"]`).click();
+  expect(await page.evaluate(() => window.__polyheart!.saves().map((s) => s.name).sort())).toEqual(['Autosave', 'Before the stairs']);
 
   expect(consoleErrors).toEqual([]);
 });
