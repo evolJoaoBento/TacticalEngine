@@ -459,7 +459,8 @@ no sheet editor.
 ### Level-up option table (as implemented)
 
 Tiers: level 1 is tier 1; 2–4 tier 2; 5–7 tier 3; 8–10 tier 4. A level-up spends exactly 2
-picks; the tier's boxes are shared across all levels in that tier.
+picks; the tier's boxes are shared across all levels in that tier, and from tier 3 on a level
+may also tick a box the previous tier's sheet left unmarked (shown as "(tier N sheet)").
 
 | Option | Boxes per tier | Cost | Available |
 |---|---|---|---|
@@ -467,18 +468,16 @@ picks; the tier's boxes are shared across all levels in that tier.
 | +1 Hit Point slot | 2 | 1 | tiers 2–4 |
 | +1 Stress slot | 2 | 1 | tiers 2–4 |
 | +1 to two Experiences | 1 | 1 | tiers 2–4 |
-| An extra domain card | 1 | 1 | tiers 2–4 |
+| An extra domain card | 1 | 1 | tiers 2–4; the tier 2 box allows cards up to level 4, tier 3 up to 7 |
 | +1 Evasion | 1 | 1 | tiers 2–4 |
-| Upgrade your subclass | 1 | 1 | tiers 2–4; needs a subclass; foundation → specialization → mastery |
+| Upgrade your subclass | 1 | 1 | tiers 3–4; needs a subclass; foundation → specialization → mastery; crosses out that tier's multiclass box |
 | +1 Proficiency | 1 | 2 | tiers 3–4 |
-| Multiclass (class + one of its domains) | 1 | 2 | tiers 3–4; once per character |
+| Multiclass (class + one of its domains) | 1 | 2 | tiers 3–4; once per character; crosses out the mastery card |
 
 Every level also grants one domain card (from the character's domains, level ≤ the new level,
 not held). Levels 2, 5 and 8 grant a new Experience (+2) and +1 Proficiency. Maximum level 10.
 
-The source file states that these tier tables were transcribed from the SRD 2.0 level-up sheet
-and could not be cross-checked against source text offline (the vendored `rules.json` has no
-levelling section). Treat the limits and costs as **not verified** against the SRD.
+This table matches the core rulebook's level-up sheet (Chapter 2, "Choosing Advancements").
 
 ## 5. The demo campaign
 
@@ -521,7 +520,7 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
 - **Quests have no stages**: steps can be hidden and revealed, but the summary is one string
   and is never rewritten.
 - **Domain-card and subclass features are text**, shown on the level-up sheet but not
-  executed. Level-up tier tables are unverified against the SRD.
+  executed.
 - **No items or loot-table UI**, no sheet editor, no tint tool though `tints` is document
   data.
 - **Editor camera**: right-drag pan and wheel zoom work in edit mode, but the keyboard camera

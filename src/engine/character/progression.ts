@@ -12,9 +12,13 @@
  * That is what lets a save hold a character who has grown, and an editor show
  * how they got there.
  *
- * The tier tables are transcribed from the SRD 2.0 level-up sheet. The vendored
- * `rules.json` does not include them, so they could not be cross-checked
- * against source text here; see docs/CRPG-GAPS.md.
+ * The tier tables follow the core rulebook's level-up sheet (Chapter 2,
+ * "Choosing Advancements"): tier 2 has no subclass, Proficiency or multiclass
+ * boxes; tiers 3 and 4 may also tick an unmarked box on the previous tier's
+ * sheet; the extra-card box is capped at level 4 on the tier 2 sheet and 7 on
+ * tier 3; taking an upgraded subclass card crosses out that tier's multiclass
+ * box, and multiclassing crosses out an unused subclass box (so mastery is
+ * out of reach) and the other multiclass box.
  */
 
 import type { SrdCharacterContent } from '../content/srd/daggersearch';
@@ -33,17 +37,26 @@ export function tierOf(level: number): Tier {
 
 export const MAX_LEVEL = 10;
 
+/**
+ * Which tier's sheet a box is ticked on. Left out, it is the tier of the level
+ * being taken; set, it is the previous tier, whose unmarked boxes tiers 3 and
+ * 4 may still spend.
+ */
+interface Box {
+  fromTier?: Tier;
+}
+
 /** One choice off the level-up sheet. */
 export type Advancement =
-  | { kind: 'traits'; traits: [Trait, Trait] }
-  | { kind: 'hitPoint' }
-  | { kind: 'stress' }
-  | { kind: 'experiences'; names: [string, string] }
-  | { kind: 'domainCard'; card: string }
-  | { kind: 'evasion' }
-  | { kind: 'subclass' }
-  | { kind: 'proficiency' }
-  | { kind: 'multiclass'; classId: string; domain: string };
+  | ({ kind: 'traits'; traits: [Trait, Trait] } & Box)
+  | ({ kind: 'hitPoint' } & Box)
+  | ({ kind: 'stress' } & Box)
+  | ({ kind: 'experiences'; names: [string, string] } & Box)
+  | ({ kind: 'domainCard'; card: string } & Box)
+  | ({ kind: 'evasion' } & Box)
+  | ({ kind: 'subclass' } & Box)
+  | ({ kind: 'proficiency' } & Box)
+  | ({ kind: 'multiclass'; classId: string; domain: string } & Box);
 
 export type AdvancementKind = Advancement['kind'];
 
@@ -54,6 +67,8 @@ export interface TierOption {
   limit: number;
   /** Advancement picks it consumes. Two for the big ones. */
   cost: 1 | 2;
+  /** For the extra-card box: the highest card level this tier's box allows. */
+  cardCap?: number;
 }
 
 const COMMON: TierOption[] = [
@@ -61,17 +76,31 @@ const COMMON: TierOption[] = [
   { kind: 'hitPoint', limit: 2, cost: 1 },
   { kind: 'stress', limit: 2, cost: 1 },
   { kind: 'experiences', limit: 1, cost: 1 },
-  { kind: 'domainCard', limit: 1, cost: 1 },
   { kind: 'evasion', limit: 1, cost: 1 },
+];
+
+const UPPER: TierOption[] = [
   { kind: 'subclass', limit: 1, cost: 1 },
+  { kind: 'proficiency', limit: 1, cost: 2 },
+  { kind: 'multiclass', limit: 1, cost: 2 },
 ];
 
 export const TIER_OPTIONS: Readonly<Record<Tier, readonly TierOption[]>> = {
   1: [],
-  2: COMMON,
-  3: [...COMMON, { kind: 'proficiency', limit: 1, cost: 2 }, { kind: 'multiclass', limit: 1, cost: 2 }],
-  4: [...COMMON, { kind: 'proficiency', limit: 1, cost: 2 }, { kind: 'multiclass', limit: 1, cost: 2 }],
+  2: [...COMMON, { kind: 'domainCard', limit: 1, cost: 1, cardCap: 4 }],
+  3: [...COMMON, { kind: 'domainCard', limit: 1, cost: 1, cardCap: 7 }, ...UPPER],
+  4: [...COMMON, { kind: 'domainCard', limit: 1, cost: 1 }, ...UPPER],
 };
+
+/** The tier whose unmarked boxes a level in `tier` may also spend, if any. */
+export function previousTier(tier: Tier): Tier | null {
+  return tier === 3 ? 2 : tier === 4 ? 3 : null;
+}
+
+/** An option as offered at a level: which tier's sheet the box sits on. */
+export interface OfferedOption extends TierOption {
+  tier: Tier;
+}
 
 /** Picks a level-up grants. */
 export const PICKS_PER_LEVEL = 2;
@@ -107,14 +136,36 @@ export interface LevelUpIssue {
 // Reading a sheet's history
 // ---------------------------------------------------------------------------
 
-/** How many times an option has been taken within one tier. */
+/** How many boxes of an option are ticked on one tier's sheet. */
 export function takenInTier(sheet: CharacterSheet, tier: Tier, kind: AdvancementKind): number {
   let count = 0;
   for (const record of sheet.levels ?? []) {
-    if (tierOf(record.level) !== tier) continue;
-    for (const advancement of record.advancements) if (advancement.kind === kind) count++;
+    for (const advancement of record.advancements) {
+      if (advancement.kind === kind && (advancement.fromTier ?? tierOf(record.level)) === tier) count++;
+    }
   }
   return count;
+}
+
+function hasMulticlassed(sheet: CharacterSheet): boolean {
+  return (sheet.levels ?? []).some((r) => r.advancements.some((a) => a.kind === 'multiclass'));
+}
+
+/**
+ * Whether a box is crossed out rather than merely used up. An upgraded
+ * subclass card crosses out that tier's multiclass box; multiclassing crosses
+ * out the other multiclass box and an unused subclass box, which is what puts
+ * the mastery card out of reach.
+ */
+export function crossedOut(sheet: CharacterSheet, tier: Tier, kind: AdvancementKind): string | null {
+  if (kind === 'multiclass') {
+    if (hasMulticlassed(sheet)) return 'already multiclassed';
+    if (takenInTier(sheet, tier, 'subclass') > 0) return `crossed out by the tier ${tier} subclass card`;
+  }
+  if (kind === 'subclass' && hasMulticlassed(sheet) && subclassStage(sheet) !== 'foundation') {
+    return 'multiclassing crossed out the mastery card';
+  }
+  return null;
 }
 
 /** Traits raised by an advancement since the last clear. */
@@ -180,12 +231,23 @@ export function cardAllowed(
   return { ok: true };
 }
 
-/** Options with a box still open in this tier, and how many picks each costs. */
-export function availableAdvancements(sheet: CharacterSheet, atLevel: number): TierOption[] {
+/**
+ * Options with a box still open at this level, and how many picks each costs:
+ * this tier's sheet first, then whatever is left unmarked on the previous
+ * tier's, each tagged with the sheet it sits on.
+ */
+export function availableAdvancements(sheet: CharacterSheet, atLevel: number): OfferedOption[] {
   const tier = tierOf(atLevel);
-  return TIER_OPTIONS[tier]
-    .map((option) => ({ ...option, limit: option.limit - takenInTier(sheet, tier, option.kind) }))
-    .filter((option) => option.limit > 0);
+  const previous = previousTier(tier);
+  const offered: OfferedOption[] = [];
+  for (const from of previous === null ? [tier] : [tier, previous]) {
+    for (const option of TIER_OPTIONS[from]) {
+      if (crossedOut(sheet, from, option.kind) !== null) continue;
+      const limit = option.limit - takenInTier(sheet, from, option.kind);
+      if (limit > 0) offered.push({ ...option, limit, tier: from });
+    }
+  }
+  return offered;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,19 +273,34 @@ export function levelUp(
   if (sheet.level >= MAX_LEVEL) fail('level', `already at level ${MAX_LEVEL}`);
 
   // ---- the picks ----
-  const options = new Map(TIER_OPTIONS[tier].map((o) => [o.kind, o]));
   let spent = 0;
-  const takenNow = new Map<AdvancementKind, number>();
-  for (const advancement of plan.advancements) {
-    const option = options.get(advancement.kind);
+  const takenNow = new Map<string, number>();
+  /** The cap on an extra card taken through a given pick, by its index in the plan. */
+  const cardCaps = new Map<number, number>();
+  plan.advancements.forEach((advancement, index) => {
+    const from = advancement.fromTier ?? tier;
+    if (from !== tier && from !== previousTier(tier)) {
+      fail('advancements', `tier ${tier} cannot spend a box on the tier ${from} sheet`);
+      return;
+    }
+    const option = TIER_OPTIONS[from].find((o) => o.kind === advancement.kind);
     if (option === undefined) {
-      fail('advancements', `"${advancement.kind}" is not on the tier ${tier} sheet`);
-      continue;
+      fail('advancements', `"${advancement.kind}" is not on the tier ${from} sheet`);
+      return;
     }
     spent += option.cost;
-    const already = takenInTier(sheet, tier, advancement.kind) + (takenNow.get(advancement.kind) ?? 0);
-    if (already >= option.limit) fail('advancements', `"${advancement.kind}" has no boxes left in tier ${tier}`);
-    takenNow.set(advancement.kind, (takenNow.get(advancement.kind) ?? 0) + 1);
+    const crossed = crossedOut(sheet, from, advancement.kind);
+    if (crossed !== null) fail('advancements', `"${advancement.kind}" on the tier ${from} sheet: ${crossed}`);
+    const key = `${from}:${advancement.kind}`;
+    const already = takenInTier(sheet, from, advancement.kind) + (takenNow.get(key) ?? 0);
+    if (already >= option.limit) fail('advancements', `"${advancement.kind}" has no boxes left in tier ${from}`);
+    takenNow.set(key, (takenNow.get(key) ?? 0) + 1);
+    if (option.cardCap !== undefined) cardCaps.set(index, option.cardCap);
+  });
+  // A subclass card and a multiclass on the same sheet cross each other out.
+  const kindsNow = new Set(plan.advancements.map((a) => a.kind));
+  if (kindsNow.has('subclass') && kindsNow.has('multiclass')) {
+    fail('advancements', 'an upgraded subclass card and a multiclass cross each other out');
   }
   if (spent !== PICKS_PER_LEVEL) {
     fail('advancements', `a level-up spends exactly ${PICKS_PER_LEVEL} picks; this plan spends ${spent}`);
@@ -232,7 +309,7 @@ export function levelUp(
   // ---- each pick's own rule ----
   const marked = markedTraits(sheet);
   const bumpedNow = new Set<Trait>();
-  for (const advancement of plan.advancements) {
+  plan.advancements.forEach((advancement, index) => {
     switch (advancement.kind) {
       case 'traits': {
         const [a, b] = advancement.traits;
@@ -252,7 +329,7 @@ export function levelUp(
         break;
       }
       case 'domainCard': {
-        const allowed = cardAllowed(sheet, content, advancement.card, next);
+        const allowed = cardAllowed(sheet, content, advancement.card, Math.min(next, cardCaps.get(index) ?? next));
         if (!allowed.ok) fail('domainCard', allowed.reason);
         if (advancement.card === plan.domainCard) fail('domainCard', 'that is already the card this level grants');
         break;
@@ -276,7 +353,7 @@ export function levelUp(
       default:
         break;
     }
-  }
+  });
 
   // ---- the card every level grants ----
   const granted = cardAllowed(sheet, content, plan.domainCard, next);

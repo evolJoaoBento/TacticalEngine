@@ -23,16 +23,19 @@ const traitsSchema = z.object({
 
 const experienceSchema = z.object({ name: z.string(), modifier: z.number().int() });
 
+/** Which tier's sheet the box was ticked on, when not the level's own. */
+const box = { fromTier: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional() };
+
 export const advancementSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('traits'), traits: z.tuple([traitSchema, traitSchema]) }),
-  z.object({ kind: z.literal('hitPoint') }),
-  z.object({ kind: z.literal('stress') }),
-  z.object({ kind: z.literal('experiences'), names: z.tuple([z.string(), z.string()]) }),
-  z.object({ kind: z.literal('domainCard'), card: z.string() }),
-  z.object({ kind: z.literal('evasion') }),
-  z.object({ kind: z.literal('subclass') }),
-  z.object({ kind: z.literal('proficiency') }),
-  z.object({ kind: z.literal('multiclass'), classId: z.string(), domain: z.string() }),
+  z.object({ kind: z.literal('traits'), traits: z.tuple([traitSchema, traitSchema]), ...box }),
+  z.object({ kind: z.literal('hitPoint'), ...box }),
+  z.object({ kind: z.literal('stress'), ...box }),
+  z.object({ kind: z.literal('experiences'), names: z.tuple([z.string(), z.string()]), ...box }),
+  z.object({ kind: z.literal('domainCard'), card: z.string(), ...box }),
+  z.object({ kind: z.literal('evasion'), ...box }),
+  z.object({ kind: z.literal('subclass'), ...box }),
+  z.object({ kind: z.literal('proficiency'), ...box }),
+  z.object({ kind: z.literal('multiclass'), classId: z.string(), domain: z.string(), ...box }),
 ]);
 
 export const levelRecordSchema = z.object({

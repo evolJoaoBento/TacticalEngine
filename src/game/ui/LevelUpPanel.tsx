@@ -17,6 +17,7 @@ import {
   availableAdvancements,
   cardAllowed,
   markedTraits,
+  tierOf,
   type Advancement,
   type AdvancementKind,
   type LevelUpIssue,
@@ -126,9 +127,12 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
   const [experience, setExperience] = useState<string>('');
   const achievement = ACHIEVEMENT_LEVELS.includes(next);
 
+  const tier = tierOf(next);
   const options = availableAdvancements(sheet, next);
-  const spent = picks.reduce((sum, pick) => sum + (options.find((o) => o.kind === pick.kind)?.cost ?? 1), 0);
-  const usedNow = (kind: AdvancementKind): number => picks.filter((p) => p.kind === kind).length;
+  const optionOf = (pick: Advancement) => options.find((o) => o.kind === pick.kind && o.tier === (pick.fromTier ?? tier));
+  const spent = picks.reduce((sum, pick) => sum + (optionOf(pick)?.cost ?? 1), 0);
+  const usedNow = (kind: AdvancementKind, from: number): number =>
+    picks.filter((p) => p.kind === kind && (p.fromTier ?? tier) === from).length;
 
   const replace = (index: number, pick: Advancement): void =>
     setPicks(picks.map((p, i) => (i === index ? pick : p)));
@@ -169,13 +173,15 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
           </>
         );
       }
-      case 'domainCard':
+      case 'domainCard': {
+        const cap = optionOf(pick)?.cardCap ?? next;
         return pickSelect(
           pick.card,
-          cards.filter((c) => c.id !== card).map((c) => ({ id: c.id, label: `${c.name} (${c.domain} ${c.level})` })),
+          cards.filter((c) => c.id !== card && c.level <= cap).map((c) => ({ id: c.id, label: `${c.name} (${c.domain} ${c.level})` })),
           (id) => replace(index, { ...pick, card: id }),
           `extra-card-${index}`,
         );
+      }
       case 'multiclass': {
         const classes = [...content.classes.values()].filter((c) => c.id !== sheet.classId);
         const klass = content.classes.get(pick.classId);
@@ -216,20 +222,29 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
         Advancements
       </div>
       {options.map((option) => {
-        const left = option.limit - usedNow(option.kind);
+        const left = option.limit - usedNow(option.kind, option.tier);
         const affordable = spent + option.cost <= PICKS_PER_LEVEL;
+        const fromPrevious = option.tier !== tier;
         return (
-          <div key={option.kind} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+          <div key={`${option.tier}-${option.kind}`} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
             <button
               style={{ ...button(false), opacity: left > 0 && affordable ? 1 : 0.4, minWidth: '190px', textAlign: 'left' }}
               disabled={left <= 0 || !affordable}
               data-pick={option.kind}
-              onClick={() => setPicks([...picks, blank(option.kind, sheet, content, next)])}
+              data-tier={option.tier}
+              onClick={() =>
+                setPicks([
+                  ...picks,
+                  { ...blank(option.kind, sheet, content, Math.min(next, option.cardCap ?? next)), ...(fromPrevious ? { fromTier: option.tier } : {}) },
+                ])
+              }
             >
               {LABELS[option.kind]}
+              {fromPrevious ? ` (tier ${option.tier} sheet)` : ''}
             </button>
             <span style={{ color: '#8ea3b0', fontSize: '11px' }}>
               {left} left{option.cost === 2 ? ' · costs both picks' : ''}
+              {option.cardCap !== undefined && option.cardCap < next ? ` · up to level ${option.cardCap}` : ''}
             </span>
           </div>
         );
@@ -239,7 +254,10 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
         <div style={{ margin: '8px 0' }} data-testid="picks">
           {picks.map((pick, index) => (
             <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px', flexWrap: 'wrap' }}>
-              <span style={{ minWidth: '150px' }}>{LABELS[pick.kind]}</span>
+              <span style={{ minWidth: '150px' }}>
+                {LABELS[pick.kind]}
+                {pick.fromTier !== undefined ? ` (tier ${pick.fromTier})` : ''}
+              </span>
               {detail(pick, index)}
               <button style={button(false)} onClick={() => setPicks(picks.filter((_, i) => i !== index))} title="Remove">
                 ✕
