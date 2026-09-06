@@ -43,13 +43,23 @@ into the rules core. Everything it does comes back in a journal.
 `script/schema.ts` is the authored form of all of it, and it is the *only* form. There used to
 be two effect vocabularies — a nine-variant one a document could hold, and the full union the
 runner could execute — with nothing converting between them. An interactable's authored check
-was imported, validated, saved, and never run. They are one schema now, so what a designer can
-write is exactly what the engine can do.
+was imported, validated, saved, and never run. They are one schema now, so the runner can
+execute anything a document can hold.
+
+That is a claim about the *runner*, not about the game: three effects still land
+in the journal and stop there. `goto` names a scene and nothing changes scenes
+(see 11); `loot` finds something and there is nowhere to put it (see 6);
+`startDialogue` names a conversation that cannot be saved (see 2).
 
 `scene/interact.ts` is the verb that was missing: reach a thing, and its authored `requiresKey`,
 `lockedText`, `check` and outcomes actually happen. The legacy vault's own furniture — a Finesse
 13 door, a trapped chest, a Strength 12 pillar, every line of prose written by the original
 author — plays through it.
+
+Two known simplifications, both in `game/demo-scene.ts` rather than the engine: a check rolls
+with the *best* trait in the party rather than the acting character's, because
+`SceneScriptWorld` takes one traits map at construction; and using something in a fight spends
+that character's action, which is a choice rather than a rule read out of the SRD.
 
 ### ~~2. Dialogue graphs~~ — done
 
@@ -106,6 +116,12 @@ elevation is its own tool because low walls and tall walls play differently.
 **Still open:** a scene list and scene creation in the UI, a properties panel for editing an
 object's check and outcomes, dialogue authoring, and camera control (the view is a fixed
 three-quarter, so a large map cannot be panned).
+
+### 11. Scene travel
+
+`ProjectDoc` holds `scenes[]` and a `startScene`, an interactable can name a `goto`, and the
+runner journals it — but nothing in play ever changes scene, so a portal marks itself used and
+leaves the party where it stood. A campaign of one room is not a campaign.
 
 ### 9. Asset import (glTF)
 

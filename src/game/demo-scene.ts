@@ -263,6 +263,8 @@ export interface MoveResult {
  * the mover stops there rather than running on through the ambush.
  */
 export function moveSelectedTo(demo: DemoScene, destination: number): MoveResult {
+  // A script waiting on the player blocks everything else; see `useSelectedOn`.
+  if (demo.pending !== null) return { moved: false, path: [] };
   const id = demo.party.selected;
   if (id === null || !demo.party.canCommand(id)) return { moved: false, path: [] };
   const fighting = inCombat(demo);
@@ -309,6 +311,7 @@ export function attackWithSelected(
   demo: DemoScene,
   targetId: string,
 ): { hit: boolean; refused: string | null; hitPointsMarked: number } | null {
+  if (demo.pending !== null) return null;
   const id = demo.party.selected;
   const character = id === null ? undefined : demo.characters.get(id);
   const attacker = id === null ? undefined : demo.state.entity(id);
@@ -396,7 +399,7 @@ function attackNearestPartyMember(demo: DemoScene, adversaryId: string): void {
 export const DEMO_REACH = 1;
 
 export interface UseOutcome {
-  status: 'done' | 'waiting' | 'refused' | 'unreachable' | 'missing';
+  status: 'done' | 'waiting' | 'refused' | 'unreachable' | 'missing' | 'busy';
   /** Lines added to the narrative log by this use. */
   lines: readonly LogLine[];
 }
@@ -408,6 +411,10 @@ export interface UseOutcome {
  * across the room, which made keys and locked doors meaningless.
  */
 export function useSelectedOn(demo: DemoScene, interactableId: string): UseOutcome {
+  // One thing at a time: a script waiting on an answer holds the floor, or a
+  // player could walk away from a lock and then pick it from across the room.
+  if (demo.pending !== null) return { status: 'busy', lines: [] };
+
   const object = demo.scene.interactables.find((i) => i.id === interactableId);
   if (object === undefined) return { status: 'missing', lines: [] };
 
@@ -419,11 +426,19 @@ export function useSelectedOn(demo: DemoScene, interactableId: string): UseOutco
     return { status: 'unreachable', lines: note(demo, 'It is out of reach.', 'system') };
   }
 
+  // In a fight, opening a chest is what you did with your turn.
+  const fighting = inCombat(demo);
+  if (fighting && !demo.encounter!.canAct(actor)) {
+    return { status: 'refused', lines: note(demo, 'There is no time — you have acted.', 'system') };
+  }
+
   demo.scenario.actorId = actor;
   const result = useInteractable(object, demo.world, demo.rng);
   if (result.status === 'refused') {
     return { status: 'refused', lines: note(demo, result.text, 'system') };
   }
+
+  if (fighting) demo.encounter!.act(actor);
 
   const lines = record(demo, result.journal);
   if (result.status === 'waiting') {

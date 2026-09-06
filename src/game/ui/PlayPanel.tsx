@@ -66,6 +66,9 @@ function button(primary: boolean): Record<string, string | number> {
   };
 }
 
+/** A modifier reads as +2 or -1, never as +-1. */
+const signed = (n: number): string => (n >= 0 ? `+${n}` : `${n}`);
+
 export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
   const { log, pending, within } = props;
   if (log.length === 0 && pending === null && within === null) return null;
@@ -89,7 +92,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               `Roll ${pending.prompt.trait} against ${pending.prompt.difficulty}?`}
           </div>
           <button style={button(true)} onClick={() => props.onAnswer({ kind: 'roll' })}>
-            Roll {pending.prompt.trait} +{pending.prompt.modifier}
+            Roll {pending.prompt.trait} {signed(pending.prompt.modifier)}
           </button>
           <button style={button(false)} onClick={() => props.onAnswer({ kind: 'cancel' })}>
             Step back

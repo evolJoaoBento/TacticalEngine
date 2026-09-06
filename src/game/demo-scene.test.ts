@@ -3,6 +3,7 @@ import { demoMap } from '../../legacy/js/data.js';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import {
   answerPending,
+  moveSelectedTo,
   buildDemoScene,
   reachableInteractable,
   useSelectedOn,
@@ -96,6 +97,23 @@ describe('using the demo vault', () => {
 
     expect(demo.world.interactableState(CHEST).used).toBe(true);
     expect(useSelectedOn(demo, CHEST).status).toBe('refused');
+  });
+
+  it('holds the floor while a script is waiting on the player', () => {
+    const demo = scene();
+    stand(demo, CHEST);
+    const before = demo.state.entity(demo.party.selected!)!.tile;
+    useSelectedOn(demo, CHEST);
+    expect(demo.pending).not.toBeNull();
+
+    // Walking away from an open lock prompt and then rolling it would let a
+    // player pick the lock from across the room.
+    expect(moveSelectedTo(demo, before - 3).moved).toBe(false);
+    expect(demo.state.entity(demo.party.selected!)!.tile).toBe(before);
+    expect(useSelectedOn(demo, CHEST).status).toBe('busy');
+
+    answerPending(demo, { kind: 'roll' });
+    expect(demo.pending).toBeNull();
   });
 
   it('lets a player back out of the roll', () => {

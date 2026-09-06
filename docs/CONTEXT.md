@@ -111,6 +111,9 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
 
 - Engine core (`src/engine/**` except `render/`, `audio/`, `input/`) must be **DOM- and WebGL-free** so it runs under
   Vitest in node. Rendering binds to engine state through explicit view/adapter layers.
+- Conditions and effects have **one** schema, `src/engine/script/schema.ts`, and the runtime types are
+  inferred from it. There were once two vocabularies — one a document could hold, one the runner could
+  execute — and authored content silently did nothing. Never add a second.
 - Every module ships with unit tests next to it (`*.test.ts`) or under `tests/unit/`.
 - Before returning, an implementing agent runs `npx tsc --noEmit` and `npx vitest run <its files>` and reports results
   truthfully.
