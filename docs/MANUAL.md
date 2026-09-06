@@ -554,7 +554,7 @@ leaves the chosen target out — "all other targets within range").
 | `spendHope` | `amount?` | the actor spends Hope; refused (and logged) without enough |
 | `loseHope` | `amount?` (1), `target?` (hit) | Hope taken rather than spent — "all targets within Far range lose a Hope". Never refused: a creature with one loses one, a creature with none loses nothing. "If they can't lose a Hope, they mark 2 Stress instead" is a branch on how much was taken, which is the GM's to read |
 | `applyCondition` / `clearCondition` | `condition`, `duration?` (temporary \| scene \| rest \| permanent), `target?` (the chosen target) | a condition cannot stack; `temporary` is what an adversary shakes off, `scene` ends with the fight, `rest` at a rest |
-| `attack` | `weapon?` (primary), `target?`, `advantage?`, `damageBonus?`, `damage?` (dice instead of the attacker's own), `onHit[]?`, `onMiss[]?` | a weapon attack as an action roll: Hope or Fear, the spotlight, a critical's extra dice. A selector naming several creatures is swung at in turn, each with its own roll, and `onHit` runs once with everyone it beat bound to `hit`. An adversary swings what its stat block prints |
+| `attack` | `weapon?` (primary), `target?`, `advantage?`, `damageBonus?`, `damage?` (dice instead of the attacker's own), `range?` (reach instead of the attacker's own — a stat block prints one reach for its claws and its features say their own), `direct?` (damage no Armor Slot reduces), `onHit[]?`, `onMiss[]?` | a weapon attack as an action roll: Hope or Fear, the spotlight, a critical's extra dice. A selector naming several creatures is swung at in turn, each with its own roll, and `onHit` runs once with everyone it beat bound to `hit`. An adversary swings what its stat block prints |
 | `markArmor` | `amount?`, `target?` | marks Armor Slots with no benefit — the SRD's "must mark an Armor Slot without receiving its benefits" |
 | `gainFear` | `amount?` | the GM gains Fear |
 | `addToken` / `spendToken` | `ability`, `amount?`, `target?` | puts tokens on a card the actor holds, or takes them off. `addToken` with no amount places the card's own count; spending more than are there is refused and logged |
@@ -690,9 +690,11 @@ are abilities sourced to the adversary. The GM plays one a turn and pays what th
 cost at all, so that a free feature is not simply what the adversary does every turn. Which one:
 a feature that goes off around the adversary is used when it would catch two or more of the
 party; one that names a creature ("make an attack against a target within Close range") only
-needs someone in reach, and is aimed at the nearest, by id on a tie, exactly as a claw is. Area
-before aimed, then the block's own order. `uses` is counted under the creature's own id, so
-"once per scene" is once for that adversary and back for the next fight. From an adversary's script,
+needs someone in reach, and is aimed at the nearest, by id on a tie, exactly as a claw is. A feature aimed at
+nobody but itself — a heal, a shout — catches no one by definition, and whether it is worth a
+turn is what its `available` says ("if the Hydra has any marked HP"): area first, then aimed,
+then itself, and the block's own order inside each. `uses` is counted under the creature's own
+id, so "once per scene" is once for that adversary and back for the next fight. From an adversary's script,
 `allies` reads as the party in that band — a selector is relative to whoever is acting.
 
 A character's abilities are the class's, the subclass's up to the stage reached, and the domain
@@ -823,6 +825,9 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   standard attack. A card is text when it asks for
   something the engine has no number for: a Countdown, flight, teleportation, a summon, being
   unseen, or a GM's discretion.
+- **A temporary condition on a party member ends when their turn does** — "until they next
+  act", read as the moment the party hands the spotlight back. It is how a hold the SRD ends
+  with a Strength Roll comes off at all, since nothing here can ask for that roll.
 - **Adversaries clear a temporary condition only when Restrained** (or with nothing in reach);
   a PC's temporary conditions end with the scene. The SRD lets both roll or spend to clear them.
 - **Quests have no stages**: steps can be hidden and revealed, but the summary is one string

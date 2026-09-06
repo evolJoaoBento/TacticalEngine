@@ -60,7 +60,9 @@ const RAW: Input[] = [
       {
         kind: 'attack',
         // Every party member in reach, each rolled for; "in front of" is the
-        // table's line and the engine does not model facing.
+        // table's line and the engine does not model facing. The feature says
+        // Close, which is further than the Burrower's claws go.
+        range: 'close',
         target: { kind: 'allies', range: 'close' },
         damage: '2d6',
         onHit: [{ kind: 'run', hook: 'spit-acid-armor' }],
@@ -148,6 +150,7 @@ const RAW: Input[] = [
     cost: { stress: 2 },
     target: { kind: 'none', range: 'far' },
     inCombatOnly: true,
+    // Simplified: the extra Stress and Vulnerable for a target who marks 2 or more Hit Points are the table's.
     effects: [
       { kind: 'log', text: 'A beam of grey rot sweeps the room.', tone: 'combat' },
       {
@@ -255,6 +258,7 @@ const RAW: Input[] = [
     cost: { stress: 1 },
     target: { kind: 'none', range: 'veryFar' },
     inCombatOnly: true,
+    // Simplified: the disadvantage a Guilty target rolls with is the table's.
     effects: [
       { kind: 'log', text: 'Divinity comes through in searing beams.', tone: 'combat' },
       {
@@ -276,6 +280,7 @@ const RAW: Input[] = [
     cost: { stress: 1 },
     target: { kind: 'none', range: 'far' },
     inCombatOnly: true,
+    // Simplified: the Fear for each target who marked a Hit Point is the GM's to take.
     effects: [
       { kind: 'log', text: 'Magic hammers down over the whole group.', tone: 'combat' },
       {
@@ -296,6 +301,7 @@ const RAW: Input[] = [
     cost: { stress: 1 },
     target: { kind: 'none', range: 'far' },
     inCombatOnly: true,
+    // Simplified: one Fear, rather than one for each target who failed.
     effects: [
       { kind: 'log', text: 'The stitched-together thing screams with every mouth it has.', tone: 'fear' },
       {
@@ -335,6 +341,7 @@ const RAW: Input[] = [
     cost: { fear: 1 },
     target: { kind: 'none', range: 'far' },
     inCombatOnly: true,
+    // Simplified: the Fear for each failure is the GM's, and they dig out on their next turn rather than on a roll.
     effects: [
       { kind: 'log', text: 'Snow and ice come down over everything.', tone: 'combat' },
       {
@@ -342,7 +349,7 @@ const RAW: Input[] = [
         difficulty: 18,
         trait: 'instinct',
         targets: { kind: 'allies', range: 'far' },
-        onFail: [{ kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: { kind: 'hit' } }],
+        onFail: [{ kind: 'applyCondition', condition: 'vulnerable', duration: 'temporary', target: { kind: 'hit' } }],
       },
     ],
   },
@@ -354,6 +361,7 @@ const RAW: Input[] = [
     cost: { fear: 1 },
     target: { kind: 'none', range: 'far' },
     inCombatOnly: true,
+    // Simplified: the Stress for answering it with armor is the table's.
     effects: [
       { kind: 'log', text: 'A line of boiling water goes out across the deck.', tone: 'combat' },
       {
@@ -418,14 +426,14 @@ const RAW: Input[] = [
     cost: { fear: 1 },
     target: { kind: 'none', range: 'close' },
     inCombatOnly: true,
-    // Simplified: the attack rolls its own damage; the direct half is the second line.
     effects: [
       { kind: 'log', text: 'The firestorm takes the whole room.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'close',
         target: { kind: 'allies', range: 'close' },
         damage: '2d10+6',
-        onHit: [{ kind: 'damage', dice: 'same', type: 'magic', direct: true }],
+        direct: true,
       },
     ],
   },
@@ -441,6 +449,7 @@ const RAW: Input[] = [
       { kind: 'log', text: 'The Tyrant throws itself at everything still standing.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'close',
         target: { kind: 'allies', range: 'close' },
         damage: '2d20+2',
         onHit: [
@@ -462,6 +471,7 @@ const RAW: Input[] = [
       { kind: 'log', text: 'The blade goes round in one long cut.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'veryClose',
         target: { kind: 'allies', range: 'veryClose' },
         damage: '1d8+2',
         onHit: [{ kind: 'markStress', target: { kind: 'hit' } }],
@@ -478,7 +488,7 @@ const RAW: Input[] = [
     inCombatOnly: true,
     effects: [
       { kind: 'log', text: 'The skull bursts with raw magic.', tone: 'combat' },
-      { kind: 'attack', target: { kind: 'allies', range: 'close' }, damage: '2d6+4' },
+      { kind: 'attack', range: 'close', target: { kind: 'allies', range: 'close' }, damage: '2d6+4' },
     ],
   },
   {
@@ -491,7 +501,7 @@ const RAW: Input[] = [
     inCombatOnly: true,
     effects: [
       { kind: 'log', text: 'The snake spins, glass edges out.', tone: 'combat' },
-      { kind: 'attack', target: { kind: 'allies', range: 'veryClose' }, damage: '1d6+1' },
+      { kind: 'attack', range: 'veryClose', target: { kind: 'allies', range: 'veryClose' }, damage: '1d6+1' },
     ],
   },
   {
@@ -506,6 +516,7 @@ const RAW: Input[] = [
       { kind: 'log', text: 'It erupts.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'close',
         target: { kind: 'allies', range: 'close' },
         damage: '1d8',
         onHit: [{ kind: 'push', to: 'far', target: { kind: 'hit' } }],
@@ -525,6 +536,7 @@ const RAW: Input[] = [
       { kind: 'log', text: 'The Minotaur puts its head down and goes through them.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'close',
         target: { kind: 'allies', range: 'close' },
         damage: '2d6+8',
         onHit: [{ kind: 'push', to: 'veryFar', target: { kind: 'hit' } }],
@@ -543,6 +555,7 @@ const RAW: Input[] = [
       { kind: 'log', text: 'The tail comes round like a falling cliff.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'close',
         target: { kind: 'allies', range: 'close' },
         damage: '4d6+4',
         onHit: [
@@ -560,14 +573,14 @@ const RAW: Input[] = [
     cost: { fear: 1 },
     target: { kind: 'none', range: 'veryClose' },
     inCombatOnly: true,
-    // Simplified: the attack rolls its own damage; the direct half is the second line.
     effects: [
       { kind: 'log', text: 'The Flickerfly whirls, wings like knives.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'veryClose',
         target: { kind: 'allies', range: 'veryClose' },
         damage: '3d8',
-        onHit: [{ kind: 'damage', dice: 'same', type: 'physical', direct: true }],
+        direct: true,
       },
     ],
   },
@@ -583,6 +596,7 @@ const RAW: Input[] = [
       { kind: 'log', text: 'It strikes once, perfectly, at each of them.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'veryClose',
         target: { kind: 'allies', range: 'veryClose' },
         onHit: [{ kind: 'applyCondition', condition: 'vulnerable', duration: 'rest', target: { kind: 'hit' } }],
       },
@@ -599,7 +613,7 @@ const RAW: Input[] = [
     // Simplified: the Fear for catching more than one is the GM's to take.
     effects: [
       { kind: 'log', text: 'The Ogre throws whatever it can lift.', tone: 'combat' },
-      { kind: 'attack', target: { kind: 'allies', range: 'far' }, damage: '1d10+2' },
+      { kind: 'attack', range: 'far', target: { kind: 'allies', range: 'far' }, damage: '1d10+2' },
     ],
   },
   {
@@ -610,14 +624,16 @@ const RAW: Input[] = [
     cost: { fear: 1 },
     target: { kind: 'none', range: 'veryClose' },
     inCombatOnly: true,
+    // Simplified: the roll to break free is the table's; the hold ends on their next turn.
     effects: [
       { kind: 'log', text: 'The water closes over them.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'veryClose',
         target: { kind: 'allies', range: 'veryClose' },
         onHit: [
-          { kind: 'applyCondition', condition: 'restrained', duration: 'scene', target: { kind: 'hit' } },
-          { kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: { kind: 'hit' } },
+          { kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } },
+          { kind: 'applyCondition', condition: 'vulnerable', duration: 'temporary', target: { kind: 'hit' } },
         ],
       },
     ],
@@ -630,12 +646,14 @@ const RAW: Input[] = [
     cost: { stress: 1 },
     target: { kind: 'creature', range: 'melee' },
     inCombatOnly: true,
+    // Simplified: the Strength Roll to break free is the table's; the hold ends on their next turn.
     effects: [
       { kind: 'log', text: 'The Bear closes its jaws.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'melee',
         damage: '3d4+10',
-        onHit: [{ kind: 'applyCondition', condition: 'restrained', duration: 'scene', target: { kind: 'hit' } }],
+        onHit: [{ kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } }],
       },
     ],
   },
@@ -647,16 +665,15 @@ const RAW: Input[] = [
     cost: { stress: 1 },
     target: { kind: 'creature', range: 'melee' },
     inCombatOnly: true,
-    // Simplified: the attack rolls its own damage; the direct half is the second line.
+    // Simplified: the SRD holds it until they clear a Hit Point; here it ends on their next turn.
     effects: [
       { kind: 'log', text: 'The Wolf goes for the legs.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'melee',
         damage: '3d4+10',
-        onHit: [
-          { kind: 'damage', dice: 'same', type: 'physical', direct: true },
-          { kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: { kind: 'hit' } },
-        ],
+        direct: true,
+        onHit: [{ kind: 'applyCondition', condition: 'vulnerable', duration: 'temporary', target: { kind: 'hit' } }],
       },
     ],
   },
@@ -667,10 +684,9 @@ const RAW: Input[] = [
     text: 'Make an attack against a target within Very Close range, moving the Minotaur into Melee range of them. On a success, deal 2d8 direct physical damage.',
     target: { kind: 'creature', range: 'veryClose' },
     inCombatOnly: true,
-    // Simplified: the attack rolls its own damage; the direct half is the second line.
     effects: [
       { kind: 'log', text: 'It lowers its horns and comes in.', tone: 'combat' },
-      { kind: 'attack', damage: '2d8', onHit: [{ kind: 'damage', dice: 'same', type: 'physical', direct: true }] },
+      { kind: 'attack', range: 'veryClose', damage: '2d8', direct: true },
     ],
   },
   {
@@ -685,6 +701,7 @@ const RAW: Input[] = [
       { kind: 'log', text: 'The snakes strike on their own.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'melee',
         damage: '2d10+4',
         onHit: [{ kind: 'markStress', target: { kind: 'hit' } }],
       },
@@ -702,6 +719,7 @@ const RAW: Input[] = [
       { kind: 'log', text: 'The grave blade comes up out of the dark.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'veryClose',
         damage: '2d10+6',
         onHit: [{ kind: 'markStress', target: { kind: 'hit' } }],
       },
@@ -718,7 +736,7 @@ const RAW: Input[] = [
     // Simplified: the disadvantage on Agility Rolls afterwards is the table's.
     effects: [
       { kind: 'log', text: 'The shot is aimed low.', tone: 'combat' },
-      { kind: 'attack', damage: '1d12+3' },
+      { kind: 'attack', range: 'far', damage: '1d12+3' },
     ],
   },
   {
@@ -733,6 +751,7 @@ const RAW: Input[] = [
       { kind: 'log', text: 'The Eagle folds its wings and drops.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'far',
         damage: '2d10+2',
         onHit: [{ kind: 'applyCondition', condition: 'vulnerable', duration: 'temporary', target: { kind: 'hit' } }],
       },
@@ -750,6 +769,7 @@ const RAW: Input[] = [
       { kind: 'log', text: 'The Vampire drinks.', tone: 'fear' },
       {
         kind: 'attack',
+        range: 'melee',
         damage: '5d4',
         onHit: [
           { kind: 'loseHope', target: { kind: 'hit' } },
@@ -767,11 +787,13 @@ const RAW: Input[] = [
     cost: { stress: 1 },
     target: { kind: 'creature', range: 'veryClose' },
     inCombatOnly: true,
+    // Simplified: the roll to break free is the table's; the hold ends on their next turn.
     effects: [
       { kind: 'log', text: 'The Guard takes hold and does not let go.', tone: 'combat' },
       {
         kind: 'attack',
-        onHit: [{ kind: 'applyCondition', condition: 'restrained', duration: 'scene', target: { kind: 'hit' } }],
+        range: 'veryClose',
+        onHit: [{ kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } }],
       },
     ],
   },
@@ -783,11 +805,13 @@ const RAW: Input[] = [
     cost: { stress: 1 },
     target: { kind: 'creature', range: 'veryClose' },
     inCombatOnly: true,
+    // Simplified: the Strength Roll to break free is the table's; the hold ends on their next turn.
     effects: [
       { kind: 'log', text: 'The Gaoler folds them inside itself.', tone: 'combat' },
       {
         kind: 'attack',
-        onHit: [{ kind: 'applyCondition', condition: 'restrained', duration: 'scene', target: { kind: 'hit' } }],
+        range: 'veryClose',
+        onHit: [{ kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } }],
       },
     ],
   },
@@ -799,11 +823,13 @@ const RAW: Input[] = [
     cost: { stress: 1 },
     target: { kind: 'creature', range: 'veryClose' },
     inCombatOnly: true,
+    // Simplified: the roll to break free is the table's; the pin ends on their next turn.
     effects: [
       { kind: 'log', text: 'The strike pins them to the wall.', tone: 'combat' },
       {
         kind: 'attack',
-        onHit: [{ kind: 'applyCondition', condition: 'restrained', duration: 'scene', target: { kind: 'hit' } }],
+        range: 'veryClose',
+        onHit: [{ kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } }],
       },
     ],
   },
@@ -819,6 +845,7 @@ const RAW: Input[] = [
       { kind: 'log', text: 'The blow lands like a falling mountain.', tone: 'combat' },
       {
         kind: 'attack',
+        range: 'veryClose',
         damage: '4d8+1',
         onHit: [
           { kind: 'loseHope', target: { kind: 'hit' } },
@@ -852,7 +879,7 @@ const RAW: Input[] = [
     // Simplified: the disadvantage on their next action is the table's.
     effects: [
       { kind: 'log', text: 'A jet of water hits like a hammer.', tone: 'combat' },
-      { kind: 'attack', damage: '2d4+7', onMiss: [{ kind: 'markStress', target: { kind: 'target' } }] },
+      { kind: 'attack', range: 'veryClose', damage: '2d4+7', onMiss: [{ kind: 'markStress', target: { kind: 'target' } }] },
     ],
   },
   {
@@ -930,6 +957,7 @@ const RAW: Input[] = [
     text: 'Once per scene, spend a Fear to clear 2 HP and 2 Stress.',
     cost: { fear: 1 },
     uses: { count: 1, per: 'scene' },
+    available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 1 },
     target: { kind: 'self', range: 'melee' },
     inCombatOnly: true,
     effects: [
@@ -943,6 +971,7 @@ const RAW: Input[] = [
     name: 'Another for the Pile',
     source: from('patchwork-zombie-hulk'),
     text: 'When the Zombie is within Very Close range of a corpse, they can incorporate it into themselves, clearing a HP and a Stress.',
+    available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 1 },
     target: { kind: 'self', range: 'veryClose' },
     inCombatOnly: true,
     // Simplified: the corpse it needs is the table's to place.
@@ -958,6 +987,7 @@ const RAW: Input[] = [
     source: from('hydra'),
     text: 'If the Hydra has any marked HP, spend a Fear to clear a HP and grow two heads.',
     cost: { fear: 1 },
+    available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 1 },
     target: { kind: 'self', range: 'melee' },
     inCombatOnly: true,
     // Simplified: the heads it grows are counted by the table.

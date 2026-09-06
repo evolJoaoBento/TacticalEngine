@@ -600,6 +600,80 @@ describe("an adversary's own features", () => {
     expect(bursts).toBe(1);
   });
 
+  it('lets the party shake off a temporary hold when their turn is over', () => {
+    const demo = standoff('hold');
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities.push(
+      abilitySchema.parse({
+        id: 'lock-up',
+        name: 'Lock Up',
+        source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
+        text: 'Restrain a target until they break free.',
+        target: { kind: 'creature', range: 'veryClose' },
+        inCombatOnly: true,
+        effects: [
+          { kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'target' } },
+        ],
+      }),
+    );
+    refreshWorld(demo);
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+
+    let held = false;
+    for (let i = 0; i < 6 && !held && demo.encounter?.outcome === 'ongoing'; i++) {
+      endTurn(demo);
+      held = demo.world.hasCondition('kara', 'restrained');
+    }
+    // The hold lands, and it is gone once the party has had their turn: the
+    // Strength Roll the block asks for is not a roll this engine can ask for,
+    // so the hold cannot be allowed to last the whole fight.
+    expect(held).toBe(true);
+    endTurn(demo);
+    // It comes off when the party's turn ends — and goes straight back on,
+    // because the only thing this adversary does is put it there, so the log
+    // is what says the hold was shaken rather than the state afterwards.
+    expect(demo.log.map((l) => l.text)).toContain('Kara shakes off restrained.');
+  });
+
+  it("leaves a feature alone when the block's own condition on it is not met", () => {
+    const demo = standoff('unhurt');
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    standBehind(demo, 'finn', husk.tile);
+    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities.push(
+      abilitySchema.parse({
+        id: 'regeneration',
+        name: 'Regeneration',
+        source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
+        text: 'If the Burrower has any marked HP, spend a Fear to clear a HP.',
+        cost: { fear: 1 },
+        available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 1 },
+        target: { kind: 'self', range: 'melee' },
+        inCombatOnly: true,
+        effects: [{ kind: 'heal', amount: 1, target: { kind: 'actor' } }],
+      }),
+    );
+    refreshWorld(demo);
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+
+    // Unhurt: it has nothing to heal, so it does not spend a Fear on one.
+    for (let i = 0; i < 3 && demo.encounter?.outcome === 'ongoing'; i++) endTurn(demo);
+    expect(demo.log.some((l) => l.text.includes('Regeneration'))).toBe(false);
+
+    // Wounded, and it heals — which also shows a heal reaches an adversary.
+    husk.hitPoints = { ...husk.hitPoints, marked: 3 };
+    let healed = false;
+    for (let i = 0; i < 4 && !healed && demo.encounter?.outcome === 'ongoing'; i++) {
+      endTurn(demo);
+      healed = demo.log.some((l) => l.text.includes('Regeneration'));
+    }
+    expect(healed).toBe(true);
+    expect(demo.state.entity(husk.id)!.hitPoints.marked).toBeLessThan(3);
+  });
+
   it('lets a Relentless adversary act twice in one GM turn when the GM can pay', () => {
     const demo = standoff('relentless');
     demo.askDefender = false;

@@ -36,7 +36,7 @@ import type { CheckOutcome, LogTone } from '../engine/script/effects';
 import type { DualityRoll } from '../engine/rules/duality';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
 import { createScenarioState, SceneScriptWorld, useKey, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
-import { NO_BINDINGS } from '../engine/script/conditions';
+import { NO_BINDINGS, evaluateOptional } from '../engine/script/conditions';
 import { maxTilesForBand, reaches, type RangeBand } from '../engine/rules/range';
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
 import ancestryJson from '../../tools/srd-sources/daggersearch/core/ancestries.json';
@@ -960,8 +960,32 @@ export function runGmTurn(demo: DemoScene): number {
 export function endTurn(demo: DemoScene): number {
   const encounter = demo.encounter;
   if (encounter === null || encounter.outcome !== 'ongoing') return 0;
-  if (encounter.view().side === 'party') encounter.passToGm();
+  if (encounter.view().side === 'party') {
+    // "Temporary … until they next act": the party has acted, so what a
+    // creature put on them for a moment comes off, the same way an adversary
+    // shakes one off on its spotlight. Without this a hold that the SRD ends
+    // with a Strength Roll — and the engine has no way to ask for one — would
+    // last the whole fight.
+    clearPartyTemporary(demo);
+    encounter.passToGm();
+  }
   return playGmTurn(demo);
+}
+
+/** Temporary conditions end on the party members carrying them. */
+function clearPartyTemporary(demo: DemoScene): void {
+  for (const entity of demo.state.entitiesOf('party')) {
+    if (!entity.alive) continue;
+    const cleared: string[] = [];
+    for (const condition of [...entity.conditions]) {
+      if ((entity.conditionDurations.get(condition) ?? 'permanent') !== 'temporary') continue;
+      entity.conditions.delete(condition);
+      entity.conditionDurations.delete(condition);
+      cleared.push(condition);
+    }
+    if (cleared.length > 0) note(demo, `${nameOf(demo, entity.id)} shakes off ${cleared.join(' and ')}.`, 'hope');
+  }
+  syncPools(demo);
 }
 
 /** Fights whose end has already been announced. */
@@ -1064,19 +1088,29 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
   demo.scenario.actorId = adversaryId;
   try {
     let aimed: { ability: AbilityDef; targets: string[] } | null = null;
+    let itself: { ability: AbilityDef; targets: string[] } | null = null;
     for (const ability of demo.world.abilitiesForAdversary(def.id)) {
       if (ability.kind !== 'action' || ability.effects.length === 0) continue;
       if ((ability.cost.stress ?? 0) > unmarked(entity.stress)) continue;
       if (featureFear(ability) > demo.state.fear.value) continue;
       if (featureUsesLeft(demo, adversaryId, ability) <= 0) continue;
+      // "If the Hydra has any marked HP": what the block says about when the
+      // feature is worth using at all, read with the creature as the actor.
+      if (!evaluateOptional(ability.available, demo.world, NO_BINDINGS)) continue;
       const caught = demo.world.resolveTargets({ kind: 'allies', range: ability.target.range }, NO_BINDINGS);
       if (readsATarget(ability.effects)) {
         if (aimed === null && caught.length > 0) aimed = { ability, targets: [nearestOf(demo, adversaryId, caught)] };
         continue;
       }
+      // A feature aimed at nobody but itself — a heal, a shout — catches no one
+      // by definition; whether it is worth a turn is what `available` says.
+      if (ability.target.kind === 'self') {
+        if (itself === null) itself = { ability, targets: [] };
+        continue;
+      }
       if (caught.length >= 2) return { ability, targets: [] };
     }
-    return aimed;
+    return aimed ?? itself;
   } finally {
     demo.scenario.actorId = was;
   }

@@ -443,6 +443,45 @@ describe('an attack from a script', () => {
     expect(state.fear.value).toBe(1);
   });
 
+  /**
+   * A stat block prints one reach for its claws, and its features say their
+   * own — "make an attack against all targets within Close range" from a
+   * creature that swings at Melee. The feature's reach wins.
+   */
+  it('reaches as far as the feature says, not as far as the block does', () => {
+    const { world, scenario } = scene();
+    scenario.actorId = 'husk-1';
+    const at = (effect: Effect) =>
+      runScript([effect], world, scripted([12, 4]), { targets: ['kara'], rollAs: 'actor' });
+    // Kara stands at Very Close; the husk's claws are a Melee weapon.
+    expect(at({ kind: 'attack' }).filter((e) => e.kind === 'refused').map((e) => e.reason)).toEqual([
+      expect.stringContaining('outOfRange'),
+    ]);
+    const reached = at({ kind: 'attack', range: 'veryClose' });
+    expect(reached.filter((e) => e.kind === 'refused')).toEqual([]);
+    expect(reached.find((e) => e.kind === 'attack')).toMatchObject({ target: 'kara', hit: true });
+  });
+
+  it('goes through armor when the feature says direct, and lands once', () => {
+    const { world, state, scenario } = scene();
+    scenario.actorId = 'husk-1';
+    const kara = state.entity('kara')!;
+    const armorBefore = kara.armorSlots.marked;
+    // 12 + 4 beats Kara's Evasion; the damage is stated, so no die is rolled for it.
+    const journal = runScript(
+      [{ kind: 'attack', range: 'veryClose', damage: '20 phy', direct: true }],
+      world,
+      scripted([12, 4]),
+      { targets: ['kara'], rollAs: 'actor' },
+    );
+    expect(journal.filter((e) => e.kind === 'attack').length).toBe(1);
+    // Nothing else dealt damage after it: an attack pays out once.
+    expect(journal.filter((e) => e.kind === 'damage')).toEqual([]);
+    // And no Armor Slot answered it.
+    expect(state.entity('kara')!.armorSlots.marked).toBe(armorBefore);
+    expect(state.entity('kara')!.hitPoints.marked).toBeGreaterThan(0);
+  });
+
   it('refuses out of reach, before any die', () => {
     const { world, scenario } = scene();
     scenario.actorId = 'kara';

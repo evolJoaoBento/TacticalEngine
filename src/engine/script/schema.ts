@@ -424,6 +424,15 @@ export const effectSchema = z.discriminatedUnion('kind', [
     damageBonus: z.number().int().optional(),
     /** Damage dice instead of the attacker's own — a feature's "2d6". */
     damage: z.string().min(1).optional(),
+    /**
+     * Reach instead of the attacker's own. A stat block prints one range for
+     * its claws and its features reach further ("all targets within Close
+     * range" from a creature that swings at Very Close), so a feature says how
+     * far it goes rather than borrowing the block's teeth.
+     */
+    range: rangeBandSchema.optional(),
+    /** Damage no Armor Slot reduces — "deal 2d10+6 direct magic damage". */
+    direct: z.boolean().optional(),
     get onHit() {
       return z.array(effectSchema).optional();
     },

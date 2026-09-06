@@ -991,6 +991,10 @@ export class SceneScriptWorld implements ScriptWorld {
       advantage?: number;
       damageBonus?: number;
       damage?: string;
+      /** Reach for this swing, when a feature says further than the block does. */
+      range?: RangeBand;
+      /** Damage no Armor Slot reduces. */
+      direct?: boolean;
     },
     rng: Rng,
   ): AttackSummary {
@@ -1016,7 +1020,14 @@ export class SceneScriptWorld implements ScriptWorld {
     const stated = request.damage === undefined ? null : parseDice(request.damage);
     const own = character !== undefined ? attackProfile(character, request.weapon) : this.adversaryProfile(attacker.definition);
     if (own === null) return { ...none, refused: 'no weapon to attack with' };
-    const profile: AttackProfile = stated === null ? own : { ...own, damage: stated };
+    // A feature says its own reach and whether it goes through armor; what the
+    // block prints is only the default for the creature's own teeth.
+    const profile: AttackProfile = {
+      ...own,
+      ...(stated === null ? {} : { damage: stated }),
+      ...(request.range === undefined ? {} : { range: request.range }),
+      ...(request.direct === undefined ? {} : { direct: request.direct }),
+    };
     const melee = profile.range === 'melee';
     const outcome = resolveAttack(rng, {
       grid: this.state.grid,

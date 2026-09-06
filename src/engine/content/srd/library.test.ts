@@ -115,9 +115,7 @@ const husk = (id: string, difficulty: number): AdversaryDef => ({
   stress: 3,
   attackName: 'Claws',
   attackModifier: { count: 0, sides: 0, modifier: 1 },
-  // The stand-in reaches Close, because a stat block's own features are
-  // written at Close and the fixture has to be able to run them.
-  attackRange: 'close',
+attackRange: 'melee',
   attackDamage: { count: 1, sides: 6, modifier: 2, types: ['physical'] },
   experiences: [],
   features: [],
@@ -190,7 +188,9 @@ function fixture(): { run: (ability: AbilityDef) => string[]; state: SceneState 
     const fromBlock = ability.source.kind === 'adversary';
     scenario.actorId = fromBlock ? 'foe-1' : 'mira';
     const runner = new ScriptRunner(world, createRng(`smoke:${ability.id}`), {
-      targets: fromBlock ? ['mira'] : ability.target.kind === 'ally' ? ['kara'] : ['foe-1'],
+      // Kara stands in Melee range of foe-1, so a feature that reaches only
+      // that far still has someone to reach.
+      targets: fromBlock ? ['kara'] : ability.target.kind === 'ally' ? ['kara'] : ['foe-1'],
       rollAs: 'actor',
     });
     let result = runner.run(ability.effects);

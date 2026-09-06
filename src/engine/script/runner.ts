@@ -170,6 +170,10 @@ export interface ScriptWorld extends ConditionContext {
       damageBonus?: number;
       /** Damage dice instead of the attacker's own. */
       damage?: string;
+      /** Reach instead of the attacker's own, when a feature says further. */
+      range?: RangeBand;
+      /** Damage no Armor Slot reduces. */
+      direct?: boolean;
     },
     rng: Rng,
   ): AttackSummary;
@@ -964,6 +968,8 @@ export class ScriptRunner {
           ...(effect.advantage === undefined ? {} : { advantage: effect.advantage }),
           ...(effect.damageBonus === undefined ? {} : { damageBonus: effect.damageBonus }),
           ...(effect.damage === undefined ? {} : { damage: effect.damage }),
+          ...(effect.range === undefined ? {} : { range: effect.range }),
+          ...(effect.direct === undefined ? {} : { direct: effect.direct }),
         },
         this.rng,
       );
