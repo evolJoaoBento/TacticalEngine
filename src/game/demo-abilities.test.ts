@@ -60,7 +60,7 @@ const names = (demo: DemoScene, id: string): string[] => abilitiesOf(demo, id).m
 describe('who has what', () => {
   it('lists class, Hope, subclass and loadout abilities per character', () => {
     const demo = scene();
-    expect(names(demo, 'kara')).toEqual(['guardian-frontline-tank', 'bare-bones', 'get-back-up']);
+    expect(names(demo, 'kara')).toEqual(['guardian-frontline-tank', 'stalwart-unwavering', 'stalwart-iron-will', 'bare-bones', 'get-back-up']);
     expect(names(demo, 'finn')).toEqual(['rogue-rogues-dodge', 'pick-and-pull', 'rain-of-blades']);
     expect(names(demo, 'mira')).toEqual([
       'wizard-not-this-time',

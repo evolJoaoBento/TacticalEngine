@@ -17,6 +17,7 @@
 import { z } from 'zod';
 import { itemSchema, lootTableSchema } from '../content/items';
 import { abilitySchema } from '../content/abilities';
+import { conditionDefSchema } from '../content/conditions';
 import { questSchema } from '../content/quests';
 import { modelAssetSchema } from '../render/assets';
 import { dialogueSchema } from '../dialogue/schema';
@@ -220,6 +221,8 @@ export const projectSchema = z
      * with their scripts. Defaulted, so an older project is still a project.
      */
     abilities: z.array(abilitySchema).default([]),
+    /** What a named condition does to its bearer. Defaulted, like abilities. */
+    conditionDefs: z.array(conditionDefSchema).default([]),
     /** Scene the project opens on. */
     startScene: contentIdSchema,
   })

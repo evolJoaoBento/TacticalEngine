@@ -31,7 +31,8 @@ import {
   type MarkPool,
 } from '../rules/resources';
 import type { Trait } from '../scene/schema';
-import { heldCards, progressionBonuses, subclassStage, type LevelRecord } from './progression';
+import { heldCards, progressionBonuses, subclassStage, tierOf, type LevelRecord } from './progression';
+import { abilitiesFor, type AbilityDef, type AbilityModifier } from '../content/abilities';
 
 /** The six traits, at the SRD's starting spread of +2 +1 +1 +0 +0 −1. */
 export type Traits = Record<Trait, number>;
@@ -106,6 +107,14 @@ export interface DerivedCharacter {
   cards: readonly DomainCardDef[];
   /** Class, Hope, subclass (up to the stage reached) and card features, in that order. */
   features: readonly CharacterFeature[];
+  /**
+   * The modifiers the character's abilities grant, those whose `requires` the
+   * sheet meets. The ones with no `when` are already folded into the numbers
+   * below; the rest are read at roll time against the scene.
+   */
+  modifiers: readonly AbilityModifier[];
+  /** Proficiency with every bonus folded in. */
+  proficiency: number;
   /** The sheet's traits with every recorded advancement folded in. */
   traits: Traits;
   /** Experiences with their advancement bumps folded in. */
@@ -139,6 +148,7 @@ export interface SheetIssue {
 export function deriveCharacter(
   sheet: CharacterSheet,
   content: SrdCharacterContent,
+  abilities: readonly AbilityDef[] = [],
 ): { character: DerivedCharacter; issues: SheetIssue[] } {
   const issues: SheetIssue[] = [];
   const miss = (field: string, id: string): void => {
@@ -189,13 +199,6 @@ export function deriveCharacter(
   // What the recorded levels add. Experiences fold in below; traits fold into
   // the sheet's own map so a check reads the grown number.
   const grown = progressionBonuses(sheet);
-  // "A PC's damage thresholds are calculated by adding their level to the listed
-  // damage thresholds of their equipped armor." Unarmoured is level / twice level.
-  const base = pcThresholds(sheet.level, armor?.baseThresholds ?? null);
-  const thresholds: DamageThresholds = {
-    major: base.major + (bonuses.majorThreshold ?? 0),
-    severe: base.severe + (bonuses.severeThreshold ?? 0),
-  };
 
   const traits: Traits = { ...sheet.traits };
   for (const trait of Object.keys(grown.traits) as Trait[]) traits[trait] += grown.traits[trait] ?? 0;
@@ -204,23 +207,46 @@ export function deriveCharacter(
     modifier: e.modifier + (grown.experiences[e.name] ?? 0),
   }));
 
+  // What the held abilities add. `requires` is the sheet's to answer here;
+  // `when` is the scene's, so those wait for the roll.
+  const held = abilitiesFor({ sheet, cards }, abilities);
+  const modifiers = held
+    .flatMap((ability) => ability.modifiers)
+    .filter((m) => m.requires === undefined || m.requires === 'meleeWeapon' || (m.requires === 'armored') === (armor !== undefined));
+  const folded = (stat: AbilityModifier['stat']): number =>
+    modifiers
+      .filter((m) => m.stat === stat && m.when === undefined && m.requires !== 'meleeWeapon')
+      .reduce((sum, m) => sum + m.bonus + (m.plusTrait === undefined ? 0 : traits[m.plusTrait]), 0);
+
+  // "A PC's damage thresholds are calculated by adding their level to the listed
+  // damage thresholds of their equipped armor." Unarmoured is level / twice level —
+  // unless Bare Bones rewrites the base.
+  const bareBones = armor === undefined && modifiers.some((m) => m.stat === 'bareBones' && m.when === undefined);
+  const base = pcThresholds(sheet.level, bareBones ? BARE_BONES_THRESHOLDS[tierOf(sheet.level)] : (armor?.baseThresholds ?? null));
+  const thresholds: DamageThresholds = {
+    major: base.major + (bonuses.majorThreshold ?? 0) + folded('majorThreshold') + folded('thresholds'),
+    severe: base.severe + (bonuses.severeThreshold ?? 0) + folded('severeThreshold') + folded('thresholds'),
+  };
+
   const character: DerivedCharacter = {
     sheet,
     ...(subclass === undefined ? {} : { subclass }),
     ...(subclass?.spellcastTrait === undefined ? {} : { spellcastTrait: subclass.spellcastTrait }),
     cards,
     features,
+    modifiers,
+    proficiency: Math.max(1, sheet.proficiency + folded('proficiency')),
     traits,
     experiences,
-    evasion: (klass?.startingEvasion ?? 10) + (bonuses.evasion ?? 0) + grown.evasion,
+    evasion: (klass?.startingEvasion ?? 10) + (bonuses.evasion ?? 0) + grown.evasion + folded('evasion'),
     thresholds,
-    // "While unarmored, your character's base Armor Score is 0."
-    armorScore: armorScore(armor?.baseScore ?? 0, bonuses.armorScore ?? 0),
+    // "While unarmored, your character's base Armor Score is 0." Bare Bones: 3 + Strength.
+    armorScore: armorScore(bareBones ? 3 + traits.strength : (armor?.baseScore ?? 0), (bonuses.armorScore ?? 0) + folded('armorScore')),
     hitPoints: Math.min(
       MAX_SLOTS,
-      (klass?.startingHitPoints ?? 5) + (bonuses.hitPoints ?? 0) + grown.hitPoints,
+      (klass?.startingHitPoints ?? 5) + (bonuses.hitPoints ?? 0) + grown.hitPoints + folded('hitPoints'),
     ),
-    stress: Math.min(MAX_SLOTS, STARTING_STRESS_SLOTS + (bonuses.stress ?? 0) + grown.stress),
+    stress: Math.min(MAX_SLOTS, STARTING_STRESS_SLOTS + (bonuses.stress ?? 0) + grown.stress + folded('stress')),
     hope: createHope(),
     ...(primaryWeapon === undefined ? {} : { primaryWeapon }),
     ...(secondaryWeapon === undefined ? {} : { secondaryWeapon }),
@@ -271,6 +297,14 @@ function lookupWeapon(
   return weapon;
 }
 
+/** Bare Bones' base thresholds by tier: "Tier 1: 9/19, Tier 2: 11/24, Tier 3: 13/31, Tier 4: 15/38". */
+const BARE_BONES_THRESHOLDS: Readonly<Record<1 | 2 | 3 | 4, DamageThresholds>> = {
+  1: { major: 9, severe: 19 },
+  2: { major: 11, severe: 24 },
+  3: { major: 13, severe: 31 },
+  4: { major: 15, severe: 38 },
+};
+
 /** "Successful unarmed attacks inflict [Proficiency]d4 damage." */
 export const UNARMED: { damage: ParsedDamage; range: RangeBand; trait: Trait } = {
   damage: { count: 1, sides: 4, modifier: 0, types: ['physical'] },
@@ -300,7 +334,7 @@ export function attackProfile(
       modifier: { count: 0, sides: 0, modifier: traits[UNARMED.trait] },
       range: UNARMED.range,
       damage: UNARMED.damage,
-      proficiency: character.sheet.proficiency,
+      proficiency: character.proficiency,
     };
   }
 
@@ -312,7 +346,7 @@ export function attackProfile(
     modifier: { count: 0, sides: 0, modifier: traits[weapon.trait] },
     range: weapon.range,
     damage: weapon.damage,
-    proficiency: character.sheet.proficiency,
+    proficiency: character.proficiency,
   };
 }
 

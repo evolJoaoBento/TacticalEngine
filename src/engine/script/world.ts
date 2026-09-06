@@ -31,7 +31,10 @@ import { rollDuality } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
 import { bandForDistance, bandIndex, reaches, type BandTiles, type RangeBand } from '../rules/range';
 import { applyAttack, resolveAttack } from '../combat/attack';
-import { attackProfile, defenderProfile, UNARMED, type DerivedCharacter } from '../character/sheet';
+import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
+import { attackProfile, UNARMED, type DerivedCharacter } from '../character/sheet';
+import { abilitiesFor, type AbilityDef, type AbilityModifier } from '../content/abilities';
+import type { ConditionDef } from '../content/conditions';
 import type { AdversaryDef } from '../content/types';
 import { NO_TILE } from '../grid/grid';
 import type { EntityState, SceneState } from '../scene/state';
@@ -42,7 +45,7 @@ import type { Rng } from '../core/rng';
 import { rollLoot, type LootDrop, type LootTable } from '../content/items';
 import { questStatusSchema, type QuestProgress, type QuestQuery } from '../content/quests';
 import type { AttackSummary, DealtDamage, ScriptWorld } from './runner';
-import type { TargetBindings } from './conditions';
+import { evaluate, type TargetBindings } from './conditions';
 
 /**
  * What outlives a scene: variables, story flags, the keys the party carries, and
@@ -205,11 +208,22 @@ export interface SceneScriptWorldOptions {
   inCombat?: () => boolean;
   /**
    * Whether a creature marks Armor Slots against damage without being asked.
-   * `auto` marks as many as lower the Hit Points marked; the defender's choice
-   * as a prompt is a later refinement of the same policy.
+   * `auto` marks the one that lowers the Hit Points marked; the defender's
+   * choice as a prompt is a later refinement of the same policy.
    */
   armor?: 'auto' | 'never';
+  /** Whether reactions to damage fire on their own. On when left out. */
+  reactions?: boolean;
+  /** Every ability the project knows, for a character's modifiers and reactions. */
+  abilities?: readonly AbilityDef[];
+  /** What a named condition does to its bearer. */
+  conditionDefs?: readonly ConditionDef[];
 }
+
+/** A stat a modifier can move at roll time. */
+export type RollStat = 'attackRoll' | 'damageRoll' | 'spellcastRoll';
+/** A stat a modifier can move on a pool or a defence. */
+export type PoolStat = 'evasion' | 'armorScore' | 'hitPoints' | 'stress' | 'majorThreshold' | 'severeThreshold' | 'thresholds';
 
 /** A `ScriptWorld` backed by a live scene. */
 export class SceneScriptWorld implements ScriptWorld {
@@ -221,7 +235,9 @@ export class SceneScriptWorld implements ScriptWorld {
   private readonly adversaries: ReadonlyMap<string, AdversaryDef>;
   private readonly bandTiles: BandTiles | undefined;
   private readonly fighting: () => boolean;
-  private readonly armor: 'auto' | 'never';
+  private readonly defense: DefensePolicy;
+  private readonly abilities: readonly AbilityDef[];
+  private readonly conditionDefs: ReadonlyMap<string, ConditionDef>;
 
   constructor(state: SceneState, scenario: ScenarioState, options: SceneScriptWorldOptions = {}) {
     this.state = state;
@@ -232,7 +248,9 @@ export class SceneScriptWorld implements ScriptWorld {
     this.adversaries = options.adversaries ?? new Map();
     this.bandTiles = options.bandTiles;
     this.fighting = options.inCombat ?? (() => state.encounterRunning());
-    this.armor = options.armor ?? 'auto';
+    this.defense = { armor: options.armor ?? 'auto', reactions: options.reactions ?? true };
+    this.abilities = options.abilities ?? [];
+    this.conditionDefs = new Map((options.conditionDefs ?? []).map((c) => [c.id, c]));
   }
 
   // ---- reads ---------------------------------------------------------------
@@ -301,16 +319,88 @@ export class SceneScriptWorld implements ScriptWorld {
 
   checkModifier(trait: CheckTrait, as: 'party' | 'actor'): number | null {
     const character = this.actorCharacter();
+    const actor = this.scenario.actorId;
     if (trait === 'spellcast') {
-      if (character?.spellcastTrait === undefined) return null;
-      return character.traits[character.spellcastTrait];
+      if (character?.spellcastTrait === undefined || actor === null) return null;
+      return character.traits[character.spellcastTrait] + this.rollBonus(actor, 'spellcastRoll');
     }
     if (trait === 'weapon') {
-      if (character === undefined) return null;
-      return character.traits[character.primaryWeapon?.trait ?? UNARMED.trait];
+      if (character === undefined || actor === null) return null;
+      const weapon = character.primaryWeapon;
+      return character.traits[weapon?.trait ?? UNARMED.trait] + this.rollBonus(actor, 'attackRoll', { melee: (weapon?.range ?? UNARMED.range) === 'melee' });
     }
     if (as === 'actor' && character !== undefined) return character.traits[trait];
     return this.traitModifier(trait);
+  }
+
+  // ---- modifiers -------------------------------------------------------------
+
+  /**
+   * Every modifier on a creature right now: its abilities' (those whose
+   * `when` holds, read with the creature as the actor) and its conditions'.
+   * Static ability modifiers are already in the derived numbers, so only the
+   * `when`-gated ones count for pools; every one counts for a roll.
+   */
+  modifiersOf(id: string, scope: 'roll' | 'pool'): AbilityModifier[] {
+    const entity = this.state.entity(id);
+    if (entity === undefined) return [];
+    const character = this.characters.get(id);
+    const own = (character?.modifiers ?? []).filter((m) => {
+      if (scope === 'pool' && m.when === undefined) return false;
+      if (m.when === undefined) return true;
+      const was = this.scenario.actorId;
+      this.scenario.actorId = id;
+      const holds = evaluate(m.when, this, { targets: [], hit: [] });
+      this.scenario.actorId = was;
+      return holds;
+    });
+    const worn: AbilityModifier[] = [];
+    for (const condition of entity.conditions) {
+      const def = this.conditionDefs.get(condition);
+      if (def !== undefined) worn.push(...def.modifiers);
+    }
+    return [...own, ...worn];
+  }
+
+  private sumModifiers(id: string, modifiers: readonly AbilityModifier[]): number {
+    const character = this.characters.get(id);
+    return modifiers.reduce((sum, m) => sum + m.bonus + (m.plusTrait === undefined || character === undefined ? 0 : character.traits[m.plusTrait]), 0);
+  }
+
+  /** The bonus a creature's modifiers add to a roll of this kind. */
+  rollBonus(id: string, stat: RollStat, context: { melee?: boolean } = {}): number {
+    const applicable = this.modifiersOf(id, 'roll').filter(
+      (m) => m.stat === stat && (m.requires !== 'meleeWeapon' || context.melee === true),
+    );
+    return this.sumModifiers(id, applicable);
+  }
+
+  /** What a creature's scene-dependent modifiers add to a pool or a defence. */
+  poolBonus(id: string, stat: PoolStat): number {
+    const applicable = this.modifiersOf(id, 'pool').filter((m) => m.stat === stat && m.requires !== 'meleeWeapon');
+    return this.sumModifiers(id, applicable);
+  }
+
+  /** The reactions to incoming damage a creature holds. */
+  reactionsOf(id: string): AbilityDef[] {
+    const character = this.characters.get(id);
+    if (character === undefined) return [];
+    return abilitiesFor(character, this.abilities).filter((a) => a.kind === 'reaction' && a.trigger === 'incomingDamage');
+  }
+
+  /** Conditions that end when an attack succeeds against their bearer. */
+  endsOnHit(id: string): string[] {
+    const entity = this.state.entity(id);
+    if (entity === undefined) return [];
+    const ended: string[] = [];
+    for (const condition of [...entity.conditions]) {
+      if (this.conditionDefs.get(condition)?.endsWhen === 'hit') {
+        entity.conditions.delete(condition);
+        entity.conditionDurations.delete(condition);
+        ended.push(condition);
+      }
+    }
+    return ended;
   }
 
   experiences(): readonly { name: string; modifier: number }[] {
@@ -575,39 +665,80 @@ export class SceneScriptWorld implements ScriptWorld {
 
   // ---- what an ability does to a creature ----------------------------------
 
-  /** How a creature is attacked: its sheet's Evasion and thresholds, or its stat block's. */
-  private defenderOf(entity: EntityState): { difficulty: number; thresholds: { major: number; severe: number } } {
+  /**
+   * How a creature is attacked: its sheet's Evasion and thresholds, or its
+   * stat block's, with whatever its conditions and scene-gated features add.
+   */
+  defenderOf(entity: EntityState): { difficulty: number; thresholds: { major: number; severe: number } } {
     const character = this.characters.get(entity.id);
-    if (character !== undefined) return defenderProfile(character);
-    const def = this.adversaries.get(entity.definition);
-    if (def !== undefined) return { difficulty: def.difficulty, thresholds: def.thresholds };
-    return FALLBACK_DEFENDER;
+    const base =
+      character !== undefined
+        ? { difficulty: character.evasion, thresholds: character.thresholds }
+        : (() => {
+            const def = this.adversaries.get(entity.definition);
+            return def === undefined ? FALLBACK_DEFENDER : { difficulty: def.difficulty, thresholds: def.thresholds };
+          })();
+    const both = this.poolBonus(entity.id, 'thresholds');
+    return {
+      difficulty: base.difficulty + this.poolBonus(entity.id, 'evasion'),
+      thresholds: {
+        major: base.thresholds.major + this.poolBonus(entity.id, 'majorThreshold') + both,
+        severe: base.thresholds.severe + this.poolBonus(entity.id, 'severeThreshold') + both,
+      },
+    };
   }
 
   /**
-   * Armor Slots to mark against a hit, under the world's policy. One, at most:
-   * "mark an Armor Slot to reduce the severity by one threshold" is one slot
-   * per hit unless a feature says otherwise, and features that do say so add
-   * their own.
+   * Decide and pay the defence against one damage event: Armor Slots and the
+   * reactions the creature holds, under the world's policy. Pays the Hope and
+   * Stress the reactions cost; the caller marks the Armor Slots and Hit Points
+   * the result says.
    */
-  private armorAgainst(entity: EntityState): number {
-    return this.armor === 'auto' ? Math.min(1, unmarked(entity.armorSlots)) : 0;
+  defend(id: string, damage: IncomingDamage, rng: Rng): Defense {
+    const entity = this.state.entity(id);
+    if (entity === undefined) {
+      return { resolved: resolveDamage(damage, FALLBACK_DEFENDER.thresholds), armorSlotsMarked: 0, reactions: [], hopeSpent: 0, stressMarked: 0 };
+    }
+    const defense = resolveDefense(
+      rng,
+      damage,
+      {
+        thresholds: this.defenderOf(entity).thresholds,
+        armorSlots: entity.armorSlots,
+        stress: entity.stress,
+        ...(entity.hope === undefined ? {} : { hope: entity.hope }),
+        reactions: this.reactionsOf(id),
+      },
+      this.defense,
+    );
+    if (defense.hopeSpent > 0) this.spendHope(id, defense.hopeSpent);
+    if (defense.stressMarked > 0) this.markStress(id, defense.stressMarked);
+    return defense;
   }
 
-  dealDamage(id: string, damage: IncomingDamage): DealtDamage {
+  dealDamage(id: string, damage: IncomingDamage, rng: Rng): DealtDamage {
     const entity = this.state.entity(id);
-    if (entity === undefined || !entity.alive) return { incoming: 0, hpMarked: 0, armorSlotsSpent: 0, fell: false };
-    const resolved = resolveDamage(damage, this.defenderOf(entity).thresholds, {
-      armorSlotsMarked: this.armorAgainst(entity),
-      armorSlotsAvailable: unmarked(entity.armorSlots),
-    });
+    if (entity === undefined || !entity.alive) return { incoming: 0, hpMarked: 0, armorSlotsSpent: 0, fell: false, reactions: [] };
+    const defense = this.defend(id, damage, rng);
+    const resolved = defense.resolved;
     if (resolved.armorSlotsSpent > 0) {
       entity.armorSlots = { max: entity.armorSlots.max, marked: entity.armorSlots.marked + resolved.armorSlotsSpent };
     }
     const marked = markHitPoints(entity.hitPoints, resolved.hpMarked);
     entity.hitPoints = marked.hitPoints;
     if (marked.fell) entity.alive = false;
-    return { incoming: resolved.incoming, hpMarked: marked.hpMarked, armorSlotsSpent: resolved.armorSlotsSpent, fell: marked.fell };
+    return {
+      incoming: resolved.incoming,
+      hpMarked: marked.hpMarked,
+      armorSlotsSpent: resolved.armorSlotsSpent,
+      fell: marked.fell,
+      reactions: defense.reactions.map((r) => ({
+        name: r.ability.name,
+        hopeSpent: r.hopeSpent,
+        stressMarked: r.stressMarked,
+        ...(r.rolled === undefined ? {} : { rolled: r.rolled }),
+      })),
+    };
   }
 
   markStress(id: string, amount: number): { stressMarked: number; hpMarked: number; fell: boolean } {
@@ -694,6 +825,7 @@ export class SceneScriptWorld implements ScriptWorld {
     if (target === undefined || !target.alive) return { ...none, refused: 'nothing to attack' };
 
     const profile = attackProfile(character, request.weapon);
+    const melee = profile.range === 'melee';
     const outcome = resolveAttack(rng, {
       grid: this.state.grid,
       attacker,
@@ -703,12 +835,16 @@ export class SceneScriptWorld implements ScriptWorld {
       options: {
         ...(this.bandTiles === undefined ? {} : { bandTiles: this.bandTiles }),
         ...(request.advantage === undefined ? {} : { advantage: request.advantage }),
-        ...(request.damageBonus === undefined ? {} : { damageBonus: request.damageBonus }),
-        armorSlotsMarked: this.armorAgainst(target),
+        bonus: this.rollBonus(request.attacker, 'attackRoll', { melee }),
+        damageBonus: (request.damageBonus ?? 0) + this.rollBonus(request.attacker, 'damageRoll', { melee }),
+        // A party member attacked from a script defends the same way as from
+        // an adversary; an adversary has no Armor Slots to mark.
+        armorSlotsMarked: this.defense.armor === 'auto' ? Math.min(1, unmarked(target.armorSlots)) : 0,
       },
     });
     if (outcome.refused !== null) return { ...none, weapon: profile.name, refused: outcome.targeting.bandLabel + ': ' + outcome.refused };
     const applied = applyAttack(this.state, outcome);
+    if (outcome.hit) this.endsOnHit(request.target);
     return {
       refused: null,
       weapon: profile.name,

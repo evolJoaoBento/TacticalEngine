@@ -54,6 +54,8 @@ export interface DealtDamage {
   hpMarked: number;
   armorSlotsSpent: number;
   fell: boolean;
+  /** Reactions the defender used against it, and what they cost. */
+  reactions: readonly { name: string; hopeSpent: number; stressMarked: number; rolled?: number }[];
 }
 
 /** An attack made from inside a script, reported the way the log needs it. */
@@ -123,8 +125,8 @@ export interface ScriptWorld extends ConditionContext {
   failQuest(quest: string): boolean;
 
   // ---- what an ability does to a creature ----------------------------------
-  /** Rolled damage through thresholds, resistances and Armor Slots. */
-  dealDamage(id: string, damage: IncomingDamage): DealtDamage;
+  /** Rolled damage through thresholds, resistances, Armor Slots and the defender's reactions. */
+  dealDamage(id: string, damage: IncomingDamage, rng: Rng): DealtDamage;
   /** Mark Stress; a full track marks a Hit Point instead, as the SRD says. */
   markStress(id: string, amount: number): { stressMarked: number; hpMarked: number; fell: boolean };
   clearStress(id: string, amount: number): number;
@@ -200,7 +202,9 @@ export type JournalEntry =
       roll?: DualityRoll;
     }
   | { kind: 'moved'; id: string; from: number; to: number }
-  | { kind: 'reaction'; id: string; success: boolean; total: number; difficulty: number };
+  | { kind: 'reaction'; id: string; success: boolean; total: number; difficulty: number }
+  /** A defender's reaction to damage fired: Get Back Up, a Rune Ward. */
+  | { kind: 'defended'; id: string; ability: string; hopeSpent: number; stressMarked: number; rolled?: number };
 
 /** What the runner is waiting for. */
 export type Prompt =
@@ -744,9 +748,13 @@ export class ScriptRunner {
     const types: readonly DamageType[] = effect.type === undefined ? (expression.types ?? []) : [effect.type];
 
     let marked = 0;
+    const defended: JournalEntry[] = [];
     for (const id of targets) {
-      const dealt = world.dealDamage(id, { amount, types, ...(effect.direct === undefined ? {} : { direct: effect.direct }) });
+      const dealt = world.dealDamage(id, { amount, types, ...(effect.direct === undefined ? {} : { direct: effect.direct }) }, this.rng);
       marked += dealt.hpMarked;
+      for (const r of dealt.reactions) {
+        defended.push({ kind: 'defended', id, ability: r.name, hopeSpent: r.hopeSpent, stressMarked: r.stressMarked, ...(r.rolled === undefined ? {} : { rolled: r.rolled }) });
+      }
     }
     this.journal.push({
       kind: 'damage',
@@ -756,6 +764,7 @@ export class ScriptRunner {
       dice: formatDice(roll.expression),
       ...(effect.source === undefined ? {} : { source: effect.source }),
     });
+    this.journal.push(...defended);
     return null;
   }
 

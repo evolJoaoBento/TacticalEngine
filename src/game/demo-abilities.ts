@@ -36,6 +36,7 @@ import {
   settle,
   settleFight,
   settleTravel,
+  syncPools,
   type DemoScene,
   type LogLine,
   type UseOutcome,
@@ -296,8 +297,9 @@ export function swapCard(
   const next = [...loadout.filter((id) => id !== cardOut), cardIn];
   const grown = { ...sheet, loadout: next };
   demo.sheets.set(characterId, grown);
-  demo.characters.set(characterId, deriveCharacter(grown, SRD_CHARACTERS).character);
+  demo.characters.set(characterId, deriveCharacter(grown, SRD_CHARACTERS, demo.project.abilities).character);
   refreshWorld(demo);
+  syncPools(demo);
   note(
     demo,
     `${sheet.name} recalls ${card?.name ?? cardIn}${cardOut === undefined ? '' : ` and vaults ${SRD_CHARACTERS.domainCards.get(cardOut)?.name ?? cardOut}`}${cost > 0 ? `, marking ${cost} Stress` : ''}.`,
@@ -349,9 +351,10 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
     const next = loadout.filter((id) => held.includes(id)).slice(0, LOADOUT_LIMIT);
     const grown = { ...sheet, loadout: next };
     demo.sheets.set(characterId, grown);
-    demo.characters.set(characterId, deriveCharacter(grown, SRD_CHARACTERS).character);
+    demo.characters.set(characterId, deriveCharacter(grown, SRD_CHARACTERS, demo.project.abilities).character);
   }
   refreshWorld(demo);
+  syncPools(demo);
 
   // "If you choose to Prepare with one or more members of your party, you each gain 2 Hope."
   const preparing = Object.entries(plan.moves).filter(([, moves]) => moves.some((m) => m.kind === 'prepare')).length;
@@ -403,6 +406,7 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
   }
   const ended = demo.state.clearConditions('rest');
   for (const { id, condition } of ended) note(demo, `${nameOf(demo, id)} is no longer ${condition}.`, 'system');
+  syncPools(demo);
 
   // "On a short rest, they gain 1d4 Fear. On a long rest, 1d4 + the number of PCs."
   const fear = demo.rng.die(4) + (kind === 'long' ? party.length : 0);

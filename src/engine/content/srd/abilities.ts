@@ -20,45 +20,53 @@
  * - "Spend a Hope to …" is a `cost`, paid before the script runs; "mark a
  *   Stress to …" likewise. A cost the actor cannot pay refuses the use.
  * - "Once per rest" is `uses: { count: 1, per: 'rest' }`.
+ * - "When you take damage, …" is a `reaction` to `incomingDamage`, used
+ *   automatically when it lowers the Hit Points marked.
+ * - "Gain a +1 bonus to …" is a `modifier`, folded into the sheet.
  * - A Hope feature costs 3 Hope and is not the character's action unless it
  *   rolls something.
  */
 
-import type { AbilityDef } from '../abilities';
+import { z } from 'zod';
+import { abilitySchema, type AbilityDef } from '../abilities';
 
-const card = (id: string): AbilityDef['source'] => ({ kind: 'domainCard', card: id });
-const hope = (classId: string): AbilityDef['source'] => ({ kind: 'classHope', classId });
+type Input = z.input<typeof abilitySchema>;
 
-/**
- * Every SRD ability the engine can run. Ids are the card's id, or the card's
- * id plus the spell's name for a grimoire's several spells.
- */
-export const SRD_ABILITIES: readonly AbilityDef[] = [
+const card = (id: string): Input['source'] => ({ kind: 'domainCard', card: id });
+const hope = (classId: string): Input['source'] => ({ kind: 'classHope', classId });
+const subclass = (subclassId: string, stage: 'foundation' | 'specialization' | 'mastery'): Input['source'] => ({
+  kind: 'subclass',
+  subclassId,
+  stage,
+});
+
+const RAW: Input[] = [
   // ---- Blade -----------------------------------------------------------------
   {
     id: 'get-back-up',
     name: 'Get Back Up',
     source: card('get-back-up'),
-    text: '',
     kind: 'reaction',
     trigger: 'incomingDamage',
     cost: { stress: 1 },
-    target: { kind: 'none', range: 'melee' },
-    inCombatOnly: false,
     action: false,
-    effects: [],
-    modifiers: [],
+    reaction: { kind: 'reduceSeverity', steps: 1, only: 'severe' },
+  },
+  {
+    id: 'not-good-enough',
+    name: 'Not Good Enough',
+    source: card('not-good-enough'),
+    kind: 'passive',
+    action: false,
+    // "You can reroll any 1s or 2s" on damage dice: text for the table until
+    // the damage roll learns rerolls.
   },
   {
     id: 'whirlwind',
     name: 'Whirlwind',
     source: card('whirlwind'),
-    text: '',
-    kind: 'action',
     cost: { hope: 1 },
     target: { kind: 'adversary', range: 'veryClose' },
-    inCombatOnly: false,
-    action: true,
     effects: [
       {
         kind: 'attack',
@@ -76,45 +84,37 @@ export const SRD_ABILITIES: readonly AbilityDef[] = [
         ],
       },
     ],
-    modifiers: [],
   },
   {
     id: 'reckless',
     name: 'Reckless',
     source: card('reckless'),
-    text: '',
-    kind: 'action',
     cost: { stress: 1 },
     target: { kind: 'adversary', range: 'far' },
-    inCombatOnly: false,
-    action: true,
     effects: [{ kind: 'attack', advantage: 1 }],
-    modifiers: [],
+  },
+  {
+    id: 'fortified-armor',
+    name: 'Fortified Armor',
+    source: card('fortified-armor'),
+    kind: 'passive',
+    action: false,
+    modifiers: [{ stat: 'thresholds', bonus: 2, requires: 'armored' }],
   },
   // ---- Valor -----------------------------------------------------------------
   {
     id: 'bare-bones',
     name: 'Bare Bones',
     source: card('bare-bones'),
-    text: '',
     kind: 'passive',
-    cost: {},
-    target: { kind: 'none', range: 'melee' },
-    inCombatOnly: false,
     action: false,
-    effects: [],
-    modifiers: [],
+    modifiers: [{ stat: 'bareBones', requires: 'unarmored' }],
   },
   {
     id: 'forceful-push',
     name: 'Forceful Push',
     source: card('forceful-push'),
-    text: '',
-    kind: 'action',
-    cost: {},
     target: { kind: 'adversary', range: 'melee' },
-    inCombatOnly: false,
-    action: true,
     effects: [
       {
         kind: 'attack',
@@ -136,59 +136,52 @@ export const SRD_ABILITIES: readonly AbilityDef[] = [
         ],
       },
     ],
-    modifiers: [],
   },
   {
     id: 'i-am-your-shield',
     name: 'I Am Your Shield',
     source: card('i-am-your-shield'),
-    text: '',
     kind: 'reaction',
     trigger: 'incomingDamage',
     cost: { stress: 1 },
     target: { kind: 'ally', range: 'veryClose' },
-    inCombatOnly: false,
     action: false,
-    effects: [],
-    modifiers: [],
+    // Taking an ally's hit is a redirection the defence step does not do yet;
+    // text for the table.
   },
   {
     id: 'body-basher',
     name: 'Body Basher',
     source: card('body-basher'),
-    text: '',
     kind: 'passive',
-    cost: {},
-    target: { kind: 'none', range: 'melee' },
-    inCombatOnly: false,
     action: false,
-    effects: [],
-    modifiers: [{ stat: 'damageRoll', bonus: 0 }],
+    modifiers: [{ stat: 'damageRoll', plusTrait: 'strength', requires: 'meleeWeapon' }],
+  },
+  // ---- Bone ------------------------------------------------------------------
+  {
+    id: 'untouchable',
+    name: 'Untouchable',
+    source: card('untouchable'),
+    kind: 'passive',
+    action: false,
+    // "Half your Agility": a modifier adds a whole trait, so this stays text.
   },
   // ---- Midnight --------------------------------------------------------------
   {
     id: 'pick-and-pull',
     name: 'Pick and Pull',
     source: card('pick-and-pull'),
-    text: '',
     kind: 'passive',
-    cost: {},
-    target: { kind: 'none', range: 'melee' },
-    inCombatOnly: false,
     action: false,
-    effects: [],
-    modifiers: [],
+    // Advantage on lock, trap and theft rolls: the check editor tags a roll;
+    // the advantage is the next step. Text for the table.
   },
   {
     id: 'rain-of-blades',
     name: 'Rain of Blades',
     source: card('rain-of-blades'),
-    text: '',
-    kind: 'action',
     cost: { hope: 1 },
     target: { kind: 'none', range: 'veryClose' },
-    inCombatOnly: false,
-    action: true,
     effects: [
       {
         kind: 'check',
@@ -205,18 +198,12 @@ export const SRD_ABILITIES: readonly AbilityDef[] = [
         },
       },
     ],
-    modifiers: [],
   },
   {
     id: 'shadowbind',
     name: 'Shadowbind',
     source: card('shadowbind'),
-    text: '',
-    kind: 'action',
-    cost: {},
     target: { kind: 'none', range: 'veryClose' },
-    inCombatOnly: false,
-    action: true,
     effects: [
       {
         kind: 'check',
@@ -228,7 +215,6 @@ export const SRD_ABILITIES: readonly AbilityDef[] = [
         },
       },
     ],
-    modifiers: [],
   },
   // ---- Codex -----------------------------------------------------------------
   {
@@ -236,11 +222,7 @@ export const SRD_ABILITIES: readonly AbilityDef[] = [
     name: 'Power Push',
     source: card('book-of-ava'),
     text: 'Make a Spellcast Roll against a target within Melee range. On a success, they’re knocked back to Far range and take d10+2 magic damage using your Proficiency.',
-    kind: 'action',
-    cost: {},
     target: { kind: 'adversary', range: 'melee' },
-    inCombatOnly: false,
-    action: true,
     effects: [
       {
         kind: 'check',
@@ -254,34 +236,25 @@ export const SRD_ABILITIES: readonly AbilityDef[] = [
         },
       },
     ],
-    modifiers: [],
   },
   {
     id: 'book-of-ava-tavas-armor',
     name: "Tava's Armor",
     source: card('book-of-ava'),
     text: 'Spend a Hope to give a target you can touch a +1 bonus to their Armor Score until their next rest or you cast Tava’s Armor again.',
-    kind: 'action',
     cost: { hope: 1 },
     target: { kind: 'ally', range: 'melee' },
-    inCombatOnly: false,
-    action: true,
     effects: [
       { kind: 'clearCondition', condition: 'tavas-armor', target: { kind: 'party' } },
       { kind: 'applyCondition', condition: 'tavas-armor', duration: 'rest', target: { kind: 'target' } },
     ],
-    modifiers: [],
   },
   {
     id: 'book-of-ava-ice-spike',
     name: 'Ice Spike',
     source: card('book-of-ava'),
     text: 'Make a Spellcast Roll (12) to summon a large ice spike within Far range. If you use it as a weapon, make the Spellcast Roll against the target’s Difficulty instead. On a success, deal d6 physical damage using your Proficiency.',
-    kind: 'action',
-    cost: {},
     target: { kind: 'adversary', range: 'far' },
-    inCombatOnly: false,
-    action: true,
     effects: [
       {
         kind: 'check',
@@ -292,34 +265,26 @@ export const SRD_ABILITIES: readonly AbilityDef[] = [
         },
       },
     ],
-    modifiers: [],
   },
   // ---- Arcana ----------------------------------------------------------------
   {
     id: 'rune-ward',
     name: 'Rune Ward',
     source: card('rune-ward'),
-    text: '',
     kind: 'reaction',
     trigger: 'incomingDamage',
     cost: { hope: 1 },
-    target: { kind: 'none', range: 'melee' },
-    inCombatOnly: false,
     action: false,
-    effects: [],
-    modifiers: [],
+    // "If the Ward Die result is 8, the ward's power ends" until the next rest:
+    // the ward here never breaks; noted in docs/CARDS.md.
+    reaction: { kind: 'reduceDamage', dice: '1d8' },
   },
   // ---- Splendor --------------------------------------------------------------
   {
     id: 'bolt-beacon',
     name: 'Bolt Beacon',
     source: card('bolt-beacon'),
-    text: '',
-    kind: 'action',
-    cost: {},
     target: { kind: 'adversary', range: 'far' },
-    inCombatOnly: false,
-    action: true,
     effects: [
       {
         kind: 'check',
@@ -335,19 +300,13 @@ export const SRD_ABILITIES: readonly AbilityDef[] = [
         },
       },
     ],
-    modifiers: [],
   },
   {
     id: 'healing-hands',
     name: 'Healing Hands',
     source: card('healing-hands'),
-    text: '',
-    kind: 'action',
-    cost: {},
     uses: { count: 1, per: 'longRest' },
     target: { kind: 'ally', range: 'melee' },
-    inCombatOnly: false,
-    action: true,
     effects: [
       {
         kind: 'check',
@@ -379,19 +338,13 @@ export const SRD_ABILITIES: readonly AbilityDef[] = [
         },
       },
     ],
-    modifiers: [],
   },
   // ---- Grace -----------------------------------------------------------------
   {
     id: 'enrapture',
     name: 'Enrapture',
     source: card('enrapture'),
-    text: '',
-    kind: 'action',
-    cost: {},
     target: { kind: 'adversary', range: 'close' },
-    inCombatOnly: false,
-    action: true,
     effects: [
       {
         kind: 'check',
@@ -402,52 +355,87 @@ export const SRD_ABILITIES: readonly AbilityDef[] = [
         },
       },
     ],
-    modifiers: [],
   },
   // ---- Class Hope features ----------------------------------------------------
   {
     id: 'guardian-frontline-tank',
     name: 'Frontline Tank',
     source: hope('guardian'),
-    text: '',
-    kind: 'action',
     cost: { hope: 3 },
-    target: { kind: 'none', range: 'melee' },
     available: { kind: 'pool', pool: 'armorSlots', measure: 'marked', op: '>=', value: 1 },
-    inCombatOnly: false,
     action: false,
     effects: [{ kind: 'clearArmor', amount: 2 }],
-    modifiers: [],
   },
   {
     id: 'rogue-rogues-dodge',
     name: "Rogue's Dodge",
     source: hope('rogue'),
-    text: '',
-    kind: 'action',
     cost: { hope: 3 },
-    target: { kind: 'none', range: 'melee' },
     available: { kind: 'not', of: { kind: 'hasCondition', condition: 'dodging', of: { kind: 'actor' } } },
-    inCombatOnly: false,
     action: false,
     effects: [{ kind: 'applyCondition', condition: 'dodging', duration: 'rest', target: { kind: 'actor' } }],
-    modifiers: [],
   },
   {
     id: 'wizard-not-this-time',
     name: 'Not This Time',
     source: hope('wizard'),
-    text: '',
     kind: 'reaction',
     trigger: 'attackHit',
     cost: { hope: 3 },
     target: { kind: 'none', range: 'far' },
     inCombatOnly: true,
     action: false,
-    effects: [],
-    modifiers: [],
+    // Forcing a reroll is an interrupt the attack flow does not offer yet.
+  },
+  // ---- Subclass cards ---------------------------------------------------------
+  {
+    id: 'stalwart-unwavering',
+    name: 'Unwavering',
+    source: subclass('stalwart', 'foundation'),
+    kind: 'passive',
+    action: false,
+    modifiers: [{ stat: 'thresholds', bonus: 1 }],
+  },
+  {
+    id: 'stalwart-iron-will',
+    name: 'Iron Will',
+    source: subclass('stalwart', 'foundation'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    reaction: { kind: 'extraArmor', slots: 1, only: 'physical' },
+  },
+  {
+    id: 'stalwart-unrelenting',
+    name: 'Unrelenting',
+    source: subclass('stalwart', 'specialization'),
+    kind: 'passive',
+    action: false,
+    modifiers: [{ stat: 'thresholds', bonus: 2 }],
+  },
+  {
+    id: 'stalwart-undaunted',
+    name: 'Undaunted',
+    source: subclass('stalwart', 'mastery'),
+    kind: 'passive',
+    action: false,
+    modifiers: [{ stat: 'thresholds', bonus: 3 }],
+  },
+  {
+    id: 'nightwalker-fleeting-shadow',
+    name: 'Fleeting Shadow',
+    source: subclass('nightwalker', 'mastery'),
+    kind: 'passive',
+    action: false,
+    modifiers: [{ stat: 'evasion', bonus: 1 }],
   },
 ];
+
+/**
+ * Every SRD ability the engine can run. Ids are the card's id, or the card's
+ * id and the spell's name for a grimoire's several spells.
+ */
+export const SRD_ABILITIES: readonly AbilityDef[] = RAW.map((raw) => abilitySchema.parse(raw));
 
 /** The library by id. */
 export const SRD_ABILITY_MAP: ReadonlyMap<string, AbilityDef> = new Map(SRD_ABILITIES.map((a) => [a.id, a]));

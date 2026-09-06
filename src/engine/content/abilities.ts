@@ -17,7 +17,7 @@
 import { z } from 'zod';
 import type { DerivedCharacter } from '../character/sheet';
 import { subclassStage } from '../character/progression';
-import { contentIdSchema } from '../scene/primitives';
+import { contentIdSchema, traitSchema } from '../scene/primitives';
 import { conditionSchema, effectSchema, rangeBandSchema } from '../script/schema';
 
 /** How many domain cards can be active at once. The rest wait in the vault. */
@@ -57,15 +57,51 @@ export const abilityUsesSchema = z.object({
 });
 
 /**
- * A static bonus the ability grants while held — "+1 to your Evasion". `when`
- * gates it on a condition read against the holder, for "while wearing armor"
- * or "while Vulnerable"; `stat` names what it moves.
+ * A bonus the ability grants while held — "+1 to your Evasion", "+2 to your
+ * damage thresholds while wearing armor", "add your Strength to damage with a
+ * Melee weapon". `bonus` is flat; `plusTrait` adds a trait's value on top;
+ * `requires` reads the sheet (armor on or off, the weapon's reach) and `when`
+ * reads the scene (a condition on the holder, a fight on) — the first is
+ * folded into the derived numbers, the second checked when the roll is made.
+ *
+ * `bareBones` is the one card that rewrites the base rather than adding to
+ * it: unarmored, Armor Score 3 + Strength and thresholds by tier.
  */
 export const abilityModifierSchema = z.object({
-  stat: z.enum(['evasion', 'armorScore', 'majorThreshold', 'severeThreshold', 'attackRoll', 'damageRoll', 'spellcastRoll', 'proficiency']),
-  bonus: z.number().int(),
+  stat: z.enum([
+    'evasion',
+    'armorScore',
+    'majorThreshold',
+    'severeThreshold',
+    'thresholds',
+    'attackRoll',
+    'damageRoll',
+    'spellcastRoll',
+    'proficiency',
+    'hitPoints',
+    'stress',
+    'bareBones',
+  ]),
+  bonus: z.number().int().default(0),
+  plusTrait: traitSchema.optional(),
+  requires: z.enum(['unarmored', 'armored', 'meleeWeapon']).optional(),
   when: conditionSchema.optional(),
 });
+
+/**
+ * What a reaction to incoming damage does, once its cost is paid. Applied in
+ * the order the holder lists them, automatically when they would lower the
+ * Hit Points marked; `only` narrows it to a severity, as "when you take
+ * Severe damage" asks.
+ */
+export const damageReactionSchema = z.discriminatedUnion('kind', [
+  /** Step the severity down: Severe to Major, Major to Minor, Minor to none. */
+  z.object({ kind: z.literal('reduceSeverity'), steps: z.number().int().positive().default(1), only: z.enum(['severe', 'major', 'minor']).optional() }),
+  /** Roll dice off the damage before thresholds — Rune Ward's d8. */
+  z.object({ kind: z.literal('reduceDamage'), dice: z.string().min(1) }),
+  /** Mark more Armor Slots than the one — Iron Will's extra slot. */
+  z.object({ kind: z.literal('extraArmor'), slots: z.number().int().positive().default(1), only: z.enum(['physical', 'magic']).optional() }),
+]);
 
 export const abilitySchema = z.object({
   id: contentIdSchema,
@@ -96,16 +132,24 @@ export const abilitySchema = z.object({
     return z.array(effectSchema).default([]);
   },
   modifiers: z.array(abilityModifierSchema).default([]),
+  /** For a reaction to incoming damage: what it does. */
+  reaction: damageReactionSchema.optional(),
+  /**
+   * How a reaction is used: automatically whenever it helps, or never unless a
+   * prompt asks. Automatic is the CRPG's default; a prompt is a later step.
+   */
+  auto: z.boolean().default(true),
 });
 
 export type AbilityDef = z.infer<typeof abilitySchema>;
 export type AbilitySource = z.infer<typeof abilitySourceSchema>;
 export type AbilityTarget = z.infer<typeof abilityTargetSchema>;
 export type AbilityModifier = z.infer<typeof abilityModifierSchema>;
+export type DamageReaction = z.infer<typeof damageReactionSchema>;
 
 /** Whether an ability has a script the engine can run, or is text only. */
 export function isScripted(ability: AbilityDef): boolean {
-  return ability.effects.length > 0 || ability.modifiers.length > 0;
+  return ability.effects.length > 0 || ability.modifiers.length > 0 || ability.reaction !== undefined;
 }
 
 /**
@@ -113,7 +157,7 @@ export function isScripted(ability: AbilityDef): boolean {
  * one, else the first five held. Cards no longer held are dropped, so a sheet
  * that traded a card away does not keep casting from it.
  */
-export function loadoutOf(character: DerivedCharacter): string[] {
+export function loadoutOf(character: Pick<DerivedCharacter, 'sheet' | 'cards'>): string[] {
   const held = character.cards.map((card) => card.id);
   const chosen = character.sheet.loadout;
   if (chosen === undefined) return held.slice(0, LOADOUT_LIMIT);
@@ -121,7 +165,7 @@ export function loadoutOf(character: DerivedCharacter): string[] {
 }
 
 /** The held cards not in the loadout. */
-export function vaultOf(character: DerivedCharacter): string[] {
+export function vaultOf(character: Pick<DerivedCharacter, 'sheet' | 'cards'>): string[] {
   const active = new Set(loadoutOf(character));
   return character.cards.map((card) => card.id).filter((id) => !active.has(id));
 }
@@ -131,7 +175,7 @@ export function vaultOf(character: DerivedCharacter): string[] {
  * them: the class's, the subclass's up to the stage reached, then the active
  * domain cards in loadout order.
  */
-export function abilitiesFor(character: DerivedCharacter, abilities: readonly AbilityDef[]): AbilityDef[] {
+export function abilitiesFor(character: Pick<DerivedCharacter, 'sheet' | 'cards'>, abilities: readonly AbilityDef[]): AbilityDef[] {
   const sheet = character.sheet;
   const loadout = loadoutOf(character);
   const stages: Record<'foundation' | 'specialization' | 'mastery', number> = { foundation: 0, specialization: 1, mastery: 2 };

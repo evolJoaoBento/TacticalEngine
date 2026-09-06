@@ -15,6 +15,8 @@ import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
 import { DEMO_QUESTS } from './demo-quests';
 import { SRD_ABILITIES } from '../engine/content/srd/abilities';
+import { SRD_CONDITIONS } from '../engine/content/conditions';
+import { MAX_SLOTS } from '../engine/rules/resources';
 import { walkCheck } from '../engine/script/schema';
 import type { ItemDef, LootTable } from '../engine/content/items';
 import type { QuestDef } from '../engine/content/quests';
@@ -44,7 +46,6 @@ import { EncounterRunner } from '../engine/combat/encounter';
 import {
   attackProfile,
   blankSheet,
-  defenderProfile,
   deriveCharacter,
   startingPools,
   type CharacterSheet,
@@ -256,6 +257,8 @@ interface RuntimeOptions {
   fear?: Currency;
   /** The project's loot tables, so a chest in any room pays out. */
   lootTables?: ReadonlyMap<string, LootTable>;
+  /** The project's abilities and conditions, for the world's modifiers. */
+  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs'>;
 }
 
 /** The pools a character carries between rooms. */
@@ -323,7 +326,7 @@ function buildRuntime(
     pathfinder,
     party: new Party(state, pathfinder, { moveBudget: DEMO_MOVE_BUDGET }),
     triggers: new TriggerIndex(scene, grid),
-    world: new SceneScriptWorld(state, scenario, worldOptions(characters, options.lootTables, scene)),
+    world: new SceneScriptWorld(state, scenario, worldOptions(characters, options.lootTables, scene, options.project)),
   };
 }
 
@@ -338,14 +341,34 @@ export function worldOptions(
   characters: ReadonlyMap<string, DerivedCharacter>,
   lootTables?: ReadonlyMap<string, LootTable>,
   scene?: SceneDoc,
+  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs'>,
 ): SceneScriptWorldOptions {
   return {
     traits: traitsFor(characters),
     characters,
     adversaries: adversaryDefsFor(scene),
     bandTiles: DEMO_BAND_TILES,
+    abilities: project?.abilities ?? SRD_ABILITIES,
+    conditionDefs: project?.conditionDefs ?? SRD_CONDITIONS,
     ...(lootTables === undefined ? {} : { lootTables }),
   };
+}
+
+/**
+ * Put each party member's pools in step with what their sheet and their
+ * conditions say the maximum is: Tava's Armor adds an Armor Slot while it
+ * lasts, and takes it back when it ends. Marks are kept, clamped.
+ */
+export function syncPools(demo: DemoScene): void {
+  for (const entity of demo.state.entitiesOf('party')) {
+    const character = demo.characters.get(entity.id);
+    if (character === undefined) continue;
+    const fit = (pool: MarkPool, max: number): MarkPool =>
+      pool.max === max ? pool : { max, marked: Math.min(pool.marked, max) };
+    entity.armorSlots = fit(entity.armorSlots, Math.min(MAX_SLOTS, Math.max(0, character.armorScore + demo.world.poolBonus(entity.id, 'armorScore'))));
+    entity.hitPoints = fit(entity.hitPoints, Math.min(MAX_SLOTS, Math.max(1, character.hitPoints + demo.world.poolBonus(entity.id, 'hitPoints'))));
+    entity.stress = fit(entity.stress, Math.min(MAX_SLOTS, Math.max(1, character.stress + demo.world.poolBonus(entity.id, 'stress'))));
+  }
 }
 
 /**
@@ -379,7 +402,7 @@ export function refreshWorld(demo: DemoScene): void {
   demo.world = new SceneScriptWorld(
     demo.state,
     demo.scenario,
-    worldOptions(demo.characters, new Map(demo.project.lootTables.map((table) => [table.id, table])), demo.scene),
+    worldOptions(demo.characters, new Map(demo.project.lootTables.map((table) => [table.id, table])), demo.scene, demo.project),
   );
 }
 
@@ -417,6 +440,7 @@ export function travelTo(demo: DemoScene, sceneId: string): boolean {
     pools: poolsOf(demo),
     fear: demo.state.fear,
     lootTables: new Map(demo.project.lootTables.map((table) => [table.id, table])),
+    project: demo.project,
   });
 
   const remembered = demo.snapshots.get(target.id);
@@ -482,6 +506,7 @@ export function enterSavedScene(
 
   const runtime = buildRuntime(target, demo.characters, demo.scenario, {
     lootTables: new Map(demo.project.lootTables.map((table) => [table.id, table])),
+    project: demo.project,
   });
   // Everything the snapshot holds wins, pools and party tiles included; the
   // freshly built state is only here for the grid and the blocking index.
@@ -512,13 +537,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
   const vault = imported.scene;
   if (vault === null) throw new Error('the demo map could not be imported');
 
-  // Derive every sheet once; the pools a character enters a scene with come
-  // straight off it, so nothing about them is written down twice.
   const sheets = new Map<string, CharacterSheet>(PARTY_SHEETS.map((sheet) => [sheet.id, sheet]));
-  const characters = new Map<string, DerivedCharacter>();
-  for (const sheet of sheets.values()) {
-    characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS).character);
-  }
 
   // The pillar is the dullest thing on the map — a Strength check and a line of
   // text. Give it the conversation instead, so the demo has something to talk to.
@@ -559,8 +578,17 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     lootTables: [...DEMO_LOOT_TABLES],
     quests: [...DEMO_QUESTS],
     abilities: [...SRD_ABILITIES],
+    conditionDefs: [...SRD_CONDITIONS],
     startScene: vault.id,
   });
+
+  // Derive every sheet once, with the project's abilities folded in; the pools
+  // a character enters a scene with come straight off it, so nothing about
+  // them is written down twice.
+  const characters = new Map<string, DerivedCharacter>();
+  for (const sheet of sheets.values()) {
+    characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS, project.abilities).character);
+  }
 
   // Play the documents the *project* holds, not the literals they were parsed
   // from. `projectSchema.parse` copies, so keeping the originals would leave the
@@ -570,7 +598,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
 
   const scenario = createScenarioState();
   const lootTables = new Map(project.lootTables.map((table) => [table.id, table]));
-  const runtime = buildRuntime(vaultDoc, characters, scenario, { lootTables });
+  const runtime = buildRuntime(vaultDoc, characters, scenario, { lootTables, project });
 
   // The legacy `loot` effect named no table, because the prototype had no items.
   // Point it at one, so opening the chest actually pays out.
@@ -683,18 +711,32 @@ export function attackWithSelected(
   if (character === undefined || attacker === undefined || target === undefined) return null;
   if (inCombat(demo) && !demo.encounter!.canAct(id!)) return null;
 
-  const def = SRD_ADVERSARIES.get(target.definition) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
+  const profile = attackProfile(character);
+  const melee = profile.range === 'melee';
   const outcome = resolveAttack(demo.rng, {
     grid: demo.grid,
     attacker,
     target,
-    profile: attackProfile(character),
-    defender: { difficulty: def.difficulty, thresholds: def.thresholds },
-    options: { bandTiles: DEMO_BAND_TILES },
+    profile,
+    // Difficulty and thresholds with the target's conditions folded in.
+    defender: demo.world.defenderOf(target),
+    options: {
+      bandTiles: DEMO_BAND_TILES,
+      bonus: demo.world.rollBonus(id!, 'attackRoll', { melee }),
+      damageBonus: demo.world.rollBonus(id!, 'damageRoll', { melee }),
+    },
   });
   if (outcome.refused !== null) return { hit: false, refused: outcome.refused, hitPointsMarked: 0 };
 
   const applied = applyAttack(demo.state, outcome);
+  if (outcome.hit) demo.world.endsOnHit(targetId);
+  note(
+    demo,
+    outcome.hit
+      ? `${character.sheet.name} ${outcome.critical ? 'lands a critical with' : 'hits with'} the ${profile.name}: ${applied.hitPointsMarked} Hit Point${applied.hitPointsMarked === 1 ? '' : 's'} on ${nameOf(demo, targetId)}.`
+      : `${character.sheet.name} swings the ${profile.name} at ${nameOf(demo, targetId)} and misses.`,
+    'combat',
+  );
   if (inCombat(demo)) demo.encounter!.act(id!, { spotlightToGm: outcome.spotlightToGm });
   settleFight(demo);
   return { hit: outcome.hit, refused: null, hitPointsMarked: applied.hitPointsMarked };
@@ -747,6 +789,7 @@ export function settleFight(demo: DemoScene): void {
   if (encounter === null || encounter.outcome === 'ongoing' || announced.has(encounter)) return;
   announced.add(encounter);
   demo.state.clearConditions('scene');
+  syncPools(demo);
   for (const key of [...demo.scenario.abilityUses.keys()]) {
     const ability = demo.project.abilities.find((a) => key.endsWith(`/${a.id}`));
     if (ability?.uses?.per === 'scene') demo.scenario.abilityUses.delete(key);
@@ -851,22 +894,34 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
       range: def.attackRange,
       damage: def.attackDamage,
     },
-    // The target defends with the Evasion and thresholds their own sheet derives.
-    defender:
-      character === undefined
-        ? { difficulty: 11, thresholds: { major: 6, severe: 12 } }
-        : defenderProfile(character),
-    // One Armor Slot against a hit, when the target has one: the defender's
-    // standing choice, until a prompt asks them each time.
-    options: { bandTiles: DEMO_BAND_TILES, armorSlotsMarked: Math.min(1, target.armorSlots.max - target.armorSlots.marked) },
+    // The target defends with the Evasion and thresholds their sheet derives,
+    // plus whatever their conditions add; the defence step below decides the
+    // Armor Slots and reactions, so none are marked here.
+    defender: demo.world.defenderOf(target),
+    options: { bandTiles: DEMO_BAND_TILES, armorSlotsMarked: 0 },
   });
   if (outcome.refused !== null) return false;
-  applyAttack(demo.state, outcome);
+
+  let final = outcome;
   const who = character?.sheet.name ?? target.id;
+  if (outcome.hit && outcome.damageRoll !== undefined && character !== undefined) {
+    // The defender's choice, made for them: an Armor Slot, and the reactions
+    // they hold — Get Back Up, a Rune Ward, Iron Will — when they help.
+    const defense = demo.world.defend(target.id, { amount: outcome.damageRoll.total, types: def.attackDamage.types ?? [] }, demo.rng);
+    final = { ...outcome, damage: defense.resolved, hitPointsMarked: defense.resolved.hpMarked };
+    for (const used of defense.reactions) {
+      const cost = [used.hopeSpent > 0 ? `${used.hopeSpent} Hope` : '', used.stressMarked > 0 ? `${used.stressMarked} Stress` : ''].filter((c) => c !== '').join(' and ');
+      note(demo, `${who}: ${used.ability.name}${used.rolled === undefined ? '' : ` (${used.rolled})`}${cost === '' ? '' : `, ${cost}`}.`, 'hope');
+    }
+  }
+  applyAttack(demo.state, final);
+  if (final.hit) {
+    for (const ended of demo.world.endsOnHit(target.id)) note(demo, `${who} is no longer ${ended}.`, 'system');
+  }
   note(
     demo,
-    outcome.hit
-      ? `The ${def.name}'s ${def.attackName} ${outcome.critical ? 'tears into' : 'hits'} ${who}: ${outcome.hitPointsMarked} Hit Point${outcome.hitPointsMarked === 1 ? '' : 's'}.`
+    final.hit
+      ? `The ${def.name}'s ${def.attackName} ${final.critical ? 'tears into' : 'hits'} ${who}: ${final.hitPointsMarked} Hit Point${final.hitPointsMarked === 1 ? '' : 's'}.`
       : `The ${def.name}'s ${def.attackName} misses ${who}.`,
     'combat',
   );
@@ -1116,6 +1171,8 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
     if (line !== null) lines.push(line);
   }
   demo.log.push(...lines);
+  // A condition a script put on or took off someone may move a pool's maximum.
+  syncPools(demo);
   return lines;
 }
 
@@ -1175,6 +1232,10 @@ function describeEntry(
       };
     case 'refused':
       return { text: `That cannot happen: ${entry.reason}.`, tone: 'system' };
+    case 'defended': {
+      const cost = [entry.hopeSpent > 0 ? `${entry.hopeSpent} Hope` : '', entry.stressMarked > 0 ? `${entry.stressMarked} Stress` : ''].filter((c) => c !== '').join(' and ');
+      return { text: `${who(entry.id)}: ${entry.ability}${entry.rolled === undefined ? '' : ` (${entry.rolled})`}${cost === '' ? '' : `, ${cost}`}.`, tone: 'hope' };
+    }
     case 'hopeSpent':
       return { text: `Spends ${plural(entry.amount, 'Hope')}.`, tone: 'hope' };
     case 'experience':
@@ -1319,7 +1380,7 @@ export function applyLevelUp(demo: DemoScene, characterId: string, plan: LevelUp
   const result = levelUp(sheet, SRD_CHARACTERS, plan);
   if (result.issues.length > 0) return { ok: false, issues: result.issues };
 
-  const derived = deriveCharacter(result.sheet, SRD_CHARACTERS).character;
+  const derived = deriveCharacter(result.sheet, SRD_CHARACTERS, demo.project.abilities).character;
   demo.sheets.set(characterId, result.sheet);
   demo.characters.set(characterId, derived);
 
@@ -1401,7 +1462,7 @@ export function equipItem(demo: DemoScene, characterId: string, itemId: string):
   const returned = itemForGear(demo, replaced);
   if (returned !== undefined && returned.id !== itemId) demo.world.addItem(returned.id, 1);
 
-  const derived = deriveCharacter(next, SRD_CHARACTERS).character;
+  const derived = deriveCharacter(next, SRD_CHARACTERS, demo.project.abilities).character;
   demo.sheets.set(characterId, next);
   demo.characters.set(characterId, derived);
   const entity = demo.state.entity(characterId);

@@ -122,7 +122,7 @@ export function loadGame(demo: DemoScene, save: SaveGame): LoadResult {
   restoreScenario(demo.scenario, save.scenario);
   for (const sheet of save.sheets) {
     if (!demo.sheets.has(sheet.id)) continue;
-    const derived = deriveCharacter(sheet, SRD_CHARACTERS);
+    const derived = deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities);
     if (derived.issues.length > 0) {
       return { ok: false, reason: `${sheet.name}'s sheet: ${derived.issues[0]!.message}` };
     }
@@ -130,7 +130,7 @@ export function loadGame(demo: DemoScene, save: SaveGame): LoadResult {
   for (const sheet of save.sheets) {
     if (!demo.sheets.has(sheet.id)) continue;
     demo.sheets.set(sheet.id, sheet);
-    demo.characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS).character);
+    demo.characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
   }
   enterSavedScene(demo, save.sceneId, current);
 

@@ -87,7 +87,7 @@ describe('abilitiesFor', () => {
 
   it('orders class, Hope, subclass by stage reached, then the loadout', () => {
     const ids = abilitiesFor(derive(kara()), [...SRD_ABILITIES, ...custom]).map((a) => a.id);
-    expect(ids).toEqual(['guardian-frontline-tank', 'stalwart-iron', 'bare-bones', 'get-back-up', 'own']);
+    expect(ids).toEqual(['guardian-frontline-tank', 'stalwart-unwavering', 'stalwart-iron-will', 'stalwart-iron', 'bare-bones', 'get-back-up', 'own']);
   });
 
   it('leaves out vaulted cards and unreached subclass stages', () => {

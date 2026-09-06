@@ -279,10 +279,12 @@ describe('the party is built from content, not written down', () => {
       expect(entity.armorSlots.max).toBe(armor.baseScore);
       expect(entity.stress.max).toBe(6);
       expect(entity.hope!.value).toBe(2);
-      // Level 1, so thresholds are the armor's plus one.
+      // Level 1, so thresholds are the armor's plus one — plus one more for
+      // Kara, whose Stalwart card "Unwavering" adds it.
+      const unwavering = character.sheet.subclassId === 'stalwart' ? 1 : 0;
       expect(character.thresholds).toEqual({
-        major: armor.baseThresholds.major + 1,
-        severe: armor.baseThresholds.severe + 1,
+        major: armor.baseThresholds.major + 1 + unwavering,
+        severe: armor.baseThresholds.severe + 1 + unwavering,
       });
     }
   });
