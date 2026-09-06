@@ -129,6 +129,7 @@ describe('travelling between scenes', () => {
     const tile = doorTile(demo);
     const mover = demo.party.selected!;
     const vault = demo.scene.id;
+    demo.world.openInteractable(demo.scene.interactables.find((i) => i.kind === 'door')!.id);
     expect(demo.state.blockedFor(mover)(tile)).toBe(false);
 
     travelTo(demo, PIT_SCENE_ID);

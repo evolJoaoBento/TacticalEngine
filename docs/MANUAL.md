@@ -517,7 +517,6 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
 - `story` renders as a single log line; its `button` field is ignored.
 - Project format is `formatVersion` 1 only; there is no migration. CONTEXT.md mentions zip
   packaging via fflate; only JSON save/load exists in the code read for this manual.
-- The vault door is force-opened by the demo builder rather than picked.
 
 ## 7. Licensing
 

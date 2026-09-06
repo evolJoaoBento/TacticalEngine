@@ -33,6 +33,12 @@ import {
 
 const build = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
 
+/** The vault door starts shut; these tests are about what is behind it. */
+function openTheDoor(demo: DemoScene): void {
+  const door = demo.scene.interactables.find((i) => i.kind === 'door')!;
+  demo.world.openInteractable(door.id);
+}
+
 /** Walk the selected member to the far side of a reachable set, repeatedly. */
 function walkTowards(demo: DemoScene, target: number, steps = 12): void {
   for (let i = 0; i < steps; i++) {
@@ -130,6 +136,7 @@ describe('party control', () => {
 describe('walking into the fight', () => {
   it('starts the encounter when the party crosses a trigger cell', () => {
     const demo = build();
+    openTheDoor(demo);
     const target = demo.state.entitiesOf('adversary')[0]!.tile;
     expect(inCombat(demo)).toBe(false);
 
@@ -140,6 +147,7 @@ describe('walking into the fight', () => {
 
   it('stops the mover on the trigger rather than running past the ambush', () => {
     const demo = build();
+    openTheDoor(demo);
     let hit: string | undefined;
     for (let i = 0; i < 12 && hit === undefined; i++) {
       const field = reachableTiles(demo);

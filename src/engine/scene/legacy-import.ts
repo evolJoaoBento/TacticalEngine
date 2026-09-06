@@ -332,7 +332,8 @@ function importInteractables(
       flavor: asString(raw['flavor']) ?? '',
       model: asString(raw['model']),
       blocksMovement: true,
-      repeatable: false,
+      // A lock that refused once can be tried again; a chest's one set of loot cannot.
+      repeatable: kind === 'door',
       lockedText: asString(raw['lockedText']) ?? '',
       tags: [],
       data: {},

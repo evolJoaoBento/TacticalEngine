@@ -130,6 +130,7 @@ declare global {
       carried: () => { id: string; name: string; quantity: number }[];
       equip: (id: string) => string;
       useItem: (id: string) => string;
+      objectState: (id: string) => { used: boolean; open: boolean; removed: boolean };
       wound: (id: string, marks: number) => void;
       gear: (id: string) => { weapon: string; armor: string };
       giveItem: (id: string, quantity?: number) => void;
@@ -1023,6 +1024,10 @@ const state = {
     session.project.dialogues.find((d) => d.id === dialogue)?.nodes.map((n) => n.id) ?? [],
 
   carried: (): { id: string; name: string; quantity: number }[] => carriedItems(),
+  objectState: (id: string): { used: boolean; open: boolean; removed: boolean } => {
+    const s = demo.state.interactable(id);
+    return { used: s.used, open: s.open, removed: s.removed };
+  },
   useItem: (id: string): string => {
     const result = useItem(demo, id);
     refreshPlay();

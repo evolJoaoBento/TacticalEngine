@@ -147,6 +147,8 @@ describe('loading a game', () => {
     const demo = scene();
     const tile = doorTile(demo);
     const mover = demo.party.selected!;
+    expect(demo.state.blockedFor(mover)(tile)).toBe(true);
+    demo.world.openInteractable(demo.scene.interactables.find((i) => i.kind === 'door')!.id);
     expect(demo.state.blockedFor(mover)(tile)).toBe(false);
 
     const back = reload(demo);

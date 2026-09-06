@@ -390,9 +390,9 @@ rolls with the party's *best* trait, the Hope goes to the one who touched it), a
 hands the GM a Fear. And an interactable can be marked **repeatable**: the demo's pillar is, so
 the Warden can be talked to again and the reply gated on knowing the name is reachable.
 
-One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
-workaround from when nothing could use a door. It can go now — the party can pick that lock
-themselves — but the combat e2e walks east through it, so that is its own change.
+The vault door is picked, not force-opened: the last workaround in `buildDemoScene` is gone. A
+door imported from the legacy map is `repeatable`, so a lock that refused once can be tried
+again, and an open thing refuses to be opened twice.
 
 Doors did learn one thing they should have known all along, while the save was being written: an
 open door stops blocking its tile, on every path into a room. It used to be a line in

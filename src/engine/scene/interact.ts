@@ -20,7 +20,8 @@ import type { ScriptWorld } from '../script/runner';
 import type { Effect, Interactable } from './schema';
 
 /** Why a use did nothing. */
-export type RefusalReason = 'alreadyUsed' | 'removed' | 'locked' | 'nothingToDo';
+export type RefusalReason = 'alreadyUsed'
+  | 'alreadyOpen' | 'removed' | 'locked' | 'nothingToDo';
 
 export type UseResult =
   /** It did something, and finished. */
@@ -56,6 +57,10 @@ export function useInteractable(
 
   if (state.removed) {
     return { status: 'refused', reason: 'removed', text: 'There is nothing there any more.' };
+  }
+  if (state.open) {
+    // A door picked open stays open; a repeatable one is not re-rolled.
+    return { status: 'refused', reason: 'alreadyOpen', text: 'It is already open.' };
   }
   if (state.used && options.repeatable !== true) {
     return { status: 'refused', reason: 'alreadyUsed', text: 'You have already dealt with this.' };

@@ -66,6 +66,7 @@ declare global {
       carried: () => { id: string; name: string; quantity: number }[];
       equip: (id: string) => string;
       useItem: (id: string) => string;
+      objectState: (id: string) => { used: boolean; open: boolean; removed: boolean };
       wound: (id: string, marks: number) => void;
       gear: (id: string) => { weapon: string; armor: string };
       giveItem: (id: string, quantity?: number) => void;
@@ -195,6 +196,15 @@ test('walks into the vault, fights, and hands the spotlight back and forth', asy
 
   const fight = await page.evaluate(() => {
     const api = window.__polyheart!;
+
+    // The vault door is shut and blocks the way; pick it. The roll is seeded,
+    // so retry until it opens — a door can be tried again.
+    const door = api.objects().find((id) => id.startsWith('door'))!;
+    api.standBeside(door);
+    for (let i = 0; i < 20 && !api.objectState(door).open; i++) {
+      if (api.use(door) === 'waiting') api.answer({ kind: 'roll' });
+    }
+    if (!api.objectState(door).open) return { started: false };
 
     // Walk east until the trigger starts the encounter.
     for (let i = 0; i < 15 && !api.inCombat(); i++) {
