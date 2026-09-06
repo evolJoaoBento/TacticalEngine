@@ -13,6 +13,8 @@
  * set of occupied tiles per query the way the legacy code did.
  */
 
+import { z } from 'zod';
+
 import type { ContentIssue } from '../content/types';
 import { NO_TILE, type TileGrid } from '../grid/grid';
 import {
@@ -64,12 +66,66 @@ export interface EncounterState {
   triggered: boolean;
 }
 
+/**
+ * The zod mirror of `SceneStateSnapshot`.
+ *
+ * `restore` itself does no checking — it trusts what it is handed — so anything
+ * that arrives from outside the process (a save file, `localStorage`) parses
+ * through this first, and a corrupted save fails loudly at the door rather than
+ * as a crash three moves into play.
+ */
+const markPoolSchema = z.object({ marked: z.number().int().min(0), max: z.number().int().min(0) });
+const currencySchema = z.object({ value: z.number().int().min(0), max: z.number().int().min(0) });
+
+export const sceneSnapshotSchema = z.object({
+  sceneId: z.string(),
+  entities: z.record(
+    z.string(),
+    z.object({
+      id: z.string(),
+      faction: z.enum(['party', 'adversary', 'neutral']),
+      definition: z.string(),
+      tile: z.number().int(),
+      hitPoints: markPoolSchema,
+      stress: markPoolSchema,
+      armorSlots: markPoolSchema,
+      hope: currencySchema.optional(),
+      conditions: z.array(z.string()),
+      alive: z.boolean(),
+    }),
+  ),
+  interactables: z.record(
+    z.string(),
+    z.object({
+      used: z.boolean(),
+      open: z.boolean(),
+      removed: z.boolean(),
+      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+    }),
+  ),
+  encounters: z.record(
+    z.string(),
+    z.object({ started: z.boolean(), ended: z.boolean(), triggered: z.boolean() }),
+  ),
+  fear: currencySchema,
+});
+
 export interface SceneStateSnapshot {
   sceneId: string;
   entities: Record<string, Omit<EntityState, 'conditions'> & { conditions: string[] }>;
   interactables: Record<string, InteractableState>;
   encounters: Record<string, EncounterState>;
   fear: Currency;
+}
+
+/**
+ * Parse an untrusted snapshot.
+ *
+ * Typing the return as the interface is what keeps the schema honest: if the two
+ * drift apart, this stops compiling.
+ */
+export function parseSceneSnapshot(value: unknown): SceneStateSnapshot {
+  return sceneSnapshotSchema.parse(value);
 }
 
 /**
@@ -262,6 +318,10 @@ export class SceneState {
     }
     for (const [id, state] of Object.entries(snapshot.interactables)) {
       this.interactables.set(id, { ...state, data: { ...state.data } });
+      // The blocking index is built from the *document*, so it comes back
+      // believing a door that was smashed open is still in the way. Only the
+      // snapshot knows otherwise.
+      if (state.removed) this.setInteractableBlocking(this.interactableTile(id), false);
     }
     for (const [id, state] of Object.entries(snapshot.encounters)) {
       this.encounters.set(id, { ...state });

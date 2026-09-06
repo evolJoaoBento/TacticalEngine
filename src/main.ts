@@ -46,12 +46,14 @@ import {
   type SceneDoc,
 } from './engine/scene/schema';
 import type { Response } from './engine/script/runner';
+import { loadGameText, saveBlockedBy, serialiseSave } from './game/save';
 import {
   answerPending,
   attackWithSelected,
   buildDemoScene,
   inCombat,
   moveSelectedTo,
+  note,
   playGmTurn,
   reachableInteractable,
   travelTo,
@@ -112,6 +114,10 @@ declare global {
       nodePosition: (dialogue: string, node: string) => { x: number; y: number } | null;
       dialogueNodes: (dialogue: string) => string[];
       carried: () => { id: string; name: string; quantity: number }[];
+      save: () => boolean;
+      load: () => boolean;
+      saveBlocked: () => string | null;
+      saveText: () => string | null;
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -423,6 +429,57 @@ function carriedItems(): { id: string; name: string; quantity: number }[] {
   }));
 }
 
+/**
+ * Where a save lives.
+ *
+ * `localStorage` throws outright in some contexts — a browser set to block site
+ * data, a headless run with storage disabled — so every touch is guarded and a
+ * failure reads as "no save" rather than taking the page down on boot.
+ */
+const SAVE_KEY = 'polyheart:save';
+
+function readSave(): string | null {
+  try {
+    return window.localStorage.getItem(SAVE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeSave(text: string): boolean {
+  try {
+    window.localStorage.setItem(SAVE_KEY, text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Save the campaign, and say so in the log either way. */
+function saveNow(): boolean {
+  const text = serialiseSave(demo);
+  if (text === null) return false;
+  const stored = writeSave(text);
+  note(demo, stored ? 'Saved.' : 'This browser will not let the game save.', 'system');
+  return stored;
+}
+
+/** Go back to the last save. */
+function loadNow(): boolean {
+  const text = readSave();
+  if (text === null) return false;
+  const result = loadGameText(demo, text);
+  if (!result.ok) {
+    note(demo, `That save could not be opened: ${result.reason}.`, 'system');
+    return false;
+  }
+  // The room may have changed under the renderer, so force a rebind the way
+  // loading a project does.
+  boundScene = '';
+  note(demo, 'Loaded.', 'system');
+  return true;
+}
+
 function renderPlayPanel(): void {
   render(
     h(PlayPanel, {
@@ -430,6 +487,16 @@ function renderPlayPanel(): void {
       carried: carriedItems(),
       pending: demo.pending,
       within: reachableInteractable(demo),
+      saveBlocked: saveBlockedBy(demo),
+      hasSave: readSave() !== null,
+      onSave: () => {
+        saveNow();
+        refreshPlay();
+      },
+      onLoad: () => {
+        loadNow();
+        refreshPlay();
+      },
       onUse: (id: string) => {
         useSelectedOn(demo, id);
         refreshPlay();
@@ -673,6 +740,19 @@ const state = {
     session.project.dialogues.find((d) => d.id === dialogue)?.nodes.map((n) => n.id) ?? [],
 
   carried: (): { id: string; name: string; quantity: number }[] => carriedItems(),
+
+  save: (): boolean => {
+    const ok = saveNow();
+    refreshPlay();
+    return ok;
+  },
+  load: (): boolean => {
+    const ok = loadNow();
+    refreshPlay();
+    return ok;
+  },
+  saveBlocked: (): string | null => saveBlockedBy(demo),
+  saveText: (): string | null => readSave(),
 
   mode: (): 'play' | 'edit' => mode,
   setMode,

@@ -11,10 +11,12 @@
  * (docs/research/legacy-campaign.md §1.1). They serialise with the rest.
  */
 
+import { z } from 'zod';
+
 import { markHitPoints, clear as clearPool } from '../rules/resources';
 import type { SceneState } from '../scene/state';
 import type { Trait } from '../scene/schema';
-import type { ScriptValue } from './conditions';
+import { scriptValueSchema, type ScriptValue } from './schema';
 import type { TargetSelector } from './effects';
 import type { Rng } from '../core/rng';
 import { rollLoot, type LootDrop, type LootTable } from '../content/items';
@@ -57,6 +59,48 @@ export function createScenarioState(
     items: new Map(items),
     actorId,
   };
+}
+
+/**
+ * A JSON-safe `ScenarioState` — the `Set` and the `Map` flattened.
+ *
+ * Items are pairs rather than an object so an item id is never quietly coerced
+ * into a property name, and so the order the party picked things up in survives
+ * a round trip.
+ */
+export const scenarioSnapshotSchema = z.object({
+  variables: z.record(z.string(), scriptValueSchema),
+  flags: z.array(z.string()),
+  items: z.array(z.tuple([z.string(), z.number().int().min(0)])),
+  actorId: z.string().nullable(),
+});
+
+export type ScenarioSnapshot = z.infer<typeof scenarioSnapshotSchema>;
+
+export function scenarioSnapshot(scenario: ScenarioState): ScenarioSnapshot {
+  return {
+    variables: { ...scenario.variables },
+    flags: [...scenario.flags],
+    items: [...scenario.items].map(([id, quantity]) => [id, quantity] as [string, number]),
+    actorId: scenario.actorId,
+  };
+}
+
+/**
+ * Refill a scenario from a snapshot, **in place**.
+ *
+ * In place, not replaced: every `SceneScriptWorld` built so far holds a reference
+ * to this object, so handing back a new one would leave the live scene writing
+ * flags nobody reads.
+ */
+export function restoreScenario(scenario: ScenarioState, snapshot: ScenarioSnapshot): void {
+  for (const name of Object.keys(scenario.variables)) delete scenario.variables[name];
+  Object.assign(scenario.variables, snapshot.variables);
+  scenario.flags.clear();
+  for (const flag of snapshot.flags) scenario.flags.add(flag);
+  scenario.items.clear();
+  for (const [id, quantity] of snapshot.items) scenario.items.set(id, quantity);
+  scenario.actorId = snapshot.actorId;
 }
 
 export interface SceneScriptWorldOptions {

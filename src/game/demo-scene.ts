@@ -356,6 +356,20 @@ export function travelTo(demo: DemoScene, sceneId: string): boolean {
     });
   }
 
+  install(demo, runtime, selected);
+  // `SceneDoc.intro` has been an authored field nothing ever read.
+  if (target.intro !== '') note(demo, target.intro, 'narration');
+  return true;
+}
+
+/**
+ * Make a freshly built runtime the one being played.
+ *
+ * A fight does not follow you through a door, and a script that was waiting
+ * belongs to the room it was asked in — so both are dropped here rather than at
+ * each call site.
+ */
+function install(demo: DemoScene, runtime: SceneRuntime, selected: string | null): void {
   demo.scene = runtime.scene;
   demo.grid = runtime.grid;
   demo.state = runtime.state;
@@ -363,15 +377,36 @@ export function travelTo(demo: DemoScene, sceneId: string): boolean {
   demo.party = runtime.party;
   demo.triggers = runtime.triggers;
   demo.world = runtime.world;
-  // A fight does not follow you through a door, and a script that was waiting
-  // belongs to the room it was asked in.
   demo.encounter = null;
   demo.pending = null;
   demo.destination = null;
 
   if (selected !== null && demo.party.members().includes(selected)) demo.party.select(selected);
-  // `SceneDoc.intro` has been an authored field nothing ever read.
-  if (target.intro !== '') note(demo, target.intro, 'narration');
+}
+
+/**
+ * Re-enter a scene exactly as a snapshot left it, party included.
+ *
+ * This is `travelTo`'s twin and deliberately not the same function: travel walks
+ * the party in through a spawn point, while loading a save has to put everyone
+ * back on the tile they were standing on. A save that teleports you to the door
+ * on reload is a save that lost something.
+ */
+export function enterSavedScene(
+  demo: DemoScene,
+  sceneId: string,
+  snapshot: SceneStateSnapshot,
+): boolean {
+  const target = demo.project.scenes.find((candidate) => candidate.id === sceneId);
+  if (target === undefined) return false;
+
+  const runtime = buildRuntime(target, demo.characters, demo.scenario, {
+    lootTables: new Map(demo.project.lootTables.map((table) => [table.id, table])),
+  });
+  // Everything the snapshot holds wins, pools and party tiles included; the
+  // freshly built state is only here for the grid and the blocking index.
+  runtime.state.restore(snapshot);
+  install(demo, runtime, null);
   return true;
 }
 
@@ -858,7 +893,7 @@ function speak(demo: DemoScene, talking: PendingDialogue, view: DialogueView): L
 }
 
 /** Put one line in the log, and return it. */
-function note(demo: DemoScene, text: string, tone: LogTone): LogLine[] {
+export function note(demo: DemoScene, text: string, tone: LogTone): LogLine[] {
   const line = { text, tone };
   demo.log.push(line);
   return [line];

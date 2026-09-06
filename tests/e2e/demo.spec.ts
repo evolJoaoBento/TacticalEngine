@@ -64,6 +64,10 @@ declare global {
       nodePosition: (dialogue: string, node: string) => { x: number; y: number } | null;
       dialogueNodes: (dialogue: string) => string[];
       carried: () => { id: string; name: string; quantity: number }[];
+      save: () => boolean;
+      load: () => boolean;
+      saveBlocked: () => string | null;
+      saveText: () => string | null;
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -947,6 +951,95 @@ test('talks the Warden round, and the word opens the strongbox downstairs', asyn
     expect(run.opened).toBe('refused');
     expect(run.log.join(' ')).toContain('will not shift');
   }
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('saves the campaign and finds it again after a reload', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => window.localStorage.removeItem('polyheart:save'));
+
+  // Nothing saved yet, so there is nothing to go back to.
+  await expect(page.locator('[data-testid="load"]')).toBeDisabled();
+
+  const before = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const vault = api.sceneId();
+    const chest = api.objects().find((id) => id.startsWith('chest'))!;
+    api.standBeside(chest);
+    api.use(chest);
+    api.answer({ kind: 'roll' });
+    api.travelTo('the-pit');
+    return {
+      vault,
+      carried: api.carried(),
+      scene: api.sceneId(),
+      tiles: api.party().map((id) => api.tileOf(id)),
+    };
+  });
+  expect(before.carried.length).toBeGreaterThan(0);
+  expect(before.scene).toBe('the-pit');
+
+  // Save through the button a player would actually press.
+  await page.locator('[data-testid="save"]').click();
+  await expect(page.locator('[data-testid="log"]')).toContainText('Saved.');
+
+  // A real reload: a new page, a new engine, and nothing but storage between.
+  await page.reload();
+  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  const fresh = await page.evaluate(() => ({
+    scene: window.__polyheart!.sceneId(),
+    carried: window.__polyheart!.carried(),
+  }));
+  expect(fresh.scene).not.toBe('the-pit');
+  expect(fresh.carried).toEqual([]);
+
+  await page.locator('[data-testid="load"]').click();
+  const after = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    return {
+      carried: api.carried(),
+      scene: api.sceneId(),
+      tiles: api.party().map((id) => api.tileOf(id)),
+    };
+  });
+
+  expect(after.scene).toBe('the-pit');
+  expect(after.carried).toEqual(before.carried);
+  expect(after.tiles).toEqual(before.tiles);
+
+  // Upstairs, the chest the party emptied before saving is still empty: using it
+  // is refused rather than offering the lock roll again. That is the room the
+  // save was *not* being played in, restored.
+  const upstairs = await page.evaluate((vault: string) => {
+    const api = window.__polyheart!;
+    const travelled = api.travelTo(vault);
+    const chest = api.objects().find((id) => id.startsWith('chest'))!;
+    api.standBeside(chest);
+    return { travelled, used: api.use(chest), carried: api.carried() };
+  }, before.vault);
+  expect(upstairs.travelled).toBe(true);
+  expect(upstairs.used).toBe('refused');
+  expect(upstairs.carried).toEqual(before.carried);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('will not save in the middle of a conversation', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  const save = page.locator('[data-testid="save"]');
+  await expect(save).toBeEnabled();
+
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
+    api.standBeside(pillar);
+    api.use(pillar);
+  });
+  expect(await page.evaluate(() => window.__polyheart!.hasDialogue())).toBe(true);
+  await expect(save).toBeDisabled();
+  expect(await page.evaluate(() => window.__polyheart!.saveBlocked())).toMatch(/conversation/);
 
   expect(consoleErrors).toEqual([]);
 });

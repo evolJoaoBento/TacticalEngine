@@ -28,6 +28,12 @@ export interface PlayPanelProps {
   within: string | null;
   onUse: (id: string) => void;
   onAnswer: (response: Response) => void;
+  /** Why saving is refused right now, or `null` when it can go ahead. */
+  saveBlocked: string | null;
+  /** Whether there is a save to come back to. */
+  hasSave: boolean;
+  onSave: () => void;
+  onLoad: () => void;
 }
 
 const TONE: Readonly<Record<LogLine['tone'], string>> = {
@@ -80,9 +86,6 @@ const signed = (n: number): string => (n >= 0 ? `+${n}` : `${n}`);
 
 export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
   const { log, pending, within } = props;
-  if (log.length === 0 && pending === null && within === null && props.carried.length === 0) {
-    return null;
-  }
 
   // A conversation raises its own prompts, so the panel reads the innermost
   // thing waiting rather than assuming the script is the one asking.
@@ -93,6 +96,29 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
 
   return (
     <div style={wrap}>
+      <div data-testid="save-row" style={{ textAlign: 'right' }}>
+        <button
+          type="button"
+          style={{ ...button(false), opacity: props.saveBlocked === null ? 1 : 0.4 }}
+          disabled={props.saveBlocked !== null}
+          title={props.saveBlocked ?? 'Save the campaign as it stands'}
+          data-testid="save"
+          onClick={props.onSave}
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          style={{ ...button(false), marginRight: 0, opacity: props.hasSave ? 1 : 0.4 }}
+          disabled={!props.hasSave}
+          title={props.hasSave ? 'Go back to the last save' : 'Nothing saved yet'}
+          data-testid="load"
+          onClick={props.onLoad}
+        >
+          Load
+        </button>
+      </div>
+
       {props.carried.length > 0 ? (
         <div style={{ ...logBox, padding: '8px 12px' }} data-testid="pack">
           <div

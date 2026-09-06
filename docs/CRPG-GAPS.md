@@ -36,6 +36,7 @@ two thirds.
 | Editor | Terrain/height/props/objects/enemies/triggers/spawns, undo, validation, JSON save+load |
 | UI | Narrative log with tone, the conversation panel, and the roll prompt a script raises |
 | Campaign | Two scenes, travel between them, and state that outlives a room |
+| Saving | A campaign put down and picked up: rooms, pack, flags, and the dice position |
 | Items | Items and weighted loot tables; a shared pack that survives a doorway |
 | Editor | Map tools, scene list, object inspector, dialogue graph, undo, validation, JSON |
 
@@ -137,11 +138,30 @@ drop something which is not an item, and an `addItem` for an item that does not 
 through `contentId`, but changing what a character wields mid-game means re-deriving their sheet
 and reconciling pools whose maximums move. That is its own slice.
 
-### 12. Saving a game
+### ~~12. Saving a game~~ — done
 
-Not a gap anyone had named, and worth naming now that there is state worth keeping.
-`SceneState` snapshots and restores; `ScenarioState` — flags, items, variables, and the scene
-snapshots themselves — does not. A campaign can be played and edited, and cannot be put down.
+A save is *state over a project*, not a copy of one: it names the project it belongs to and
+carries only what play changed — the room being played, where everyone stands and what they have
+taken, the pack, the flags and variables, every room already visited as it was left, the log, and
+where the dice had got to. `game/save.ts` assembles it; `ScenarioState` learned
+`scenarioSnapshot`/`restoreScenario` the way `SceneState` already had `snapshot`/`restore`.
+
+Restoring in place matters more than it looks: every `SceneScriptWorld` holds a reference to the
+scenario, so handing back a fresh object would leave the live room writing flags nobody reads.
+So does the RNG position — a save that only kept the seed would re-roll numbers the session had
+already spent, and the reload would diverge from the game it came from.
+
+Two moments **refuse** to save, deliberately: a fight, and a script waiting on an answer. Both
+hold live objects with no serialisable form — `EncounterRunner` owns action tokens, whose turn it
+is, and a reference to the scene it started in; a pending prompt is a paused `ScriptRunner`
+mid-conversation. A save is a checkpoint between beats, and the Save button says why it is greyed.
+
+Loading restores the party to the tiles they were standing on rather than to the spawns, which is
+what separates it from `travelTo`. A save for another project is refused, and damaged text is
+reported rather than thrown.
+
+**Still open:** one slot, in `localStorage`. Named saves, autosaves and a save browser are UI on
+top of a format that already carries what they need.
 
 ### 7. Quests and journal
 
@@ -258,11 +278,11 @@ schema, which is the same position maps were in before the editor.
 
 So the honest answer today is: *a designer can build the party, the place, what everything in it
 does, what it says, and the way between rooms — all of it in a tool.* What is left is depth
-rather than authoring: things to carry, quests to track, characters who grow, and a camera that
-moves. The line has moved past authoring, and past the empty
-`loot`. What is left is what a campaign needs to be more than a session: quests to track (7),
-characters who grow and can change what they carry (5, 6), a camera someone can look around
-with (10) — and a way to save (12).
+rather than authoring: quests to track, characters who grow, and a camera that
+moves. The line has moved past authoring, past the empty `loot`, and past a game you could only
+play in one sitting. What is left is what a campaign needs to be more than a session: quests to
+track (7), characters who grow and can change what they carry (5, 6), and a camera someone can
+look around with (10).
 
 One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
 workaround from when nothing could use a door. It can go now — the party can pick that lock

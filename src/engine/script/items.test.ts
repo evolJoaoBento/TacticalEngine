@@ -4,7 +4,13 @@ import { createRng } from '../core/rng';
 import { SceneState } from '../scene/state';
 import { evaluate } from './conditions';
 import { runScript } from './runner';
-import { SceneScriptWorld, createScenarioState } from './world';
+import {
+  SceneScriptWorld,
+  createScenarioState,
+  restoreScenario,
+  scenarioSnapshot,
+  scenarioSnapshotSchema,
+} from './world';
 
 /**
  * What the party carries.
@@ -129,5 +135,73 @@ describe('item effects', () => {
       },
     ]);
     expect(journal.some((e) => e.kind === 'log' && e.text === 'The key turns.')).toBe(true);
+  });
+});
+
+/**
+ * Campaign state going to disk and coming back.
+ *
+ * `SceneState` has always snapshotted; this is the other half, and the half that
+ * has to be JSON-safe by hand because a `Set` and a `Map` are not.
+ */
+describe('snapshotting a scenario', () => {
+  const filled = () => {
+    const scenario = createScenarioState();
+    scenario.variables['mood'] = 'grim';
+    scenario.variables['count'] = 3;
+    scenario.flags.add('met-the-warden');
+    scenario.items.set('gold', 12);
+    scenario.items.set('brass-key', 1);
+    scenario.actorId = 'kara';
+    return scenario;
+  };
+
+  it('flattens the Set and the Map into JSON', () => {
+    const snapshot = scenarioSnapshot(filled());
+    expect(() => JSON.stringify(snapshot)).not.toThrow();
+    expect(snapshot.flags).toEqual(['met-the-warden']);
+    expect(snapshot.items).toEqual([
+      ['gold', 12],
+      ['brass-key', 1],
+    ]);
+    expect(scenarioSnapshotSchema.parse(JSON.parse(JSON.stringify(snapshot)))).toEqual(snapshot);
+  });
+
+  it('round-trips through JSON', () => {
+    const original = filled();
+    const restored = createScenarioState();
+    restoreScenario(restored, JSON.parse(JSON.stringify(scenarioSnapshot(original))));
+    expect(restored).toEqual(original);
+  });
+
+  it('refills in place, so a world already built keeps reading it', () => {
+    // Every `SceneScriptWorld` holds a reference to the scenario; replacing the
+    // object would leave the live room writing flags nobody reads.
+    const scenario = createScenarioState();
+    const w = new SceneScriptWorld(
+      new SceneState({ id: 'room' }, new TileGrid({ width: 4, height: 4 })),
+      scenario,
+    );
+    restoreScenario(scenario, scenarioSnapshot(filled()));
+    expect(w.hasItem('gold', 12)).toBe(true);
+    expect(w.hasFlag('met-the-warden')).toBe(true);
+  });
+
+  it('replaces what was there rather than merging into it', () => {
+    const scenario = filled();
+    restoreScenario(scenario, scenarioSnapshot(createScenarioState()));
+    expect(scenario.flags.size).toBe(0);
+    expect(scenario.items.size).toBe(0);
+    expect(scenario.variables).toEqual({});
+    expect(scenario.actorId).toBeNull();
+  });
+
+  it('does not alias the snapshot into live state', () => {
+    const original = filled();
+    const snapshot = scenarioSnapshot(original);
+    original.items.set('gold', 99);
+    original.flags.add('later');
+    expect(snapshot.items).toContainEqual(['gold', 12]);
+    expect(snapshot.flags).toEqual(['met-the-warden']);
   });
 });

@@ -232,6 +232,36 @@ describe('snapshot and restore', () => {
     expect(snapshot.interactables['chest']!.data).toEqual({});
   });
 
+  it('stops a smashed-open door blocking again after a restore', () => {
+    // The blocking index is built from the document, so it comes back believing
+    // every door is still standing. Only the snapshot knows which ones are not.
+    const state = makeState();
+    state.placeInteractable('door', 9);
+    state.setInteractableBlocking(9, true);
+    state.interactable('door').removed = true;
+    const snapshot = state.snapshot();
+
+    const restored = makeState();
+    restored.placeInteractable('door', 9);
+    restored.setInteractableBlocking(9, true);
+    restored.restore(snapshot);
+    expect(restored.blockedFor('nobody')(9)).toBe(false);
+  });
+
+  it('keeps a door that is merely open in the way', () => {
+    // Open is not gone: an opened chest still occupies its tile.
+    const state = makeState();
+    state.placeInteractable('door', 9);
+    state.setInteractableBlocking(9, true);
+    state.interactable('door').open = true;
+
+    const restored = makeState();
+    restored.placeInteractable('door', 9);
+    restored.setInteractableBlocking(9, true);
+    restored.restore(state.snapshot());
+    expect(restored.blockedFor('nobody')(9)).toBe(true);
+  });
+
   // Flags and keys are the campaign's, not the room's: a scene snapshot must not
   // carry them, or returning to a room would restore stale ones over the real.
   it('leaves flags and keys out of a scene snapshot entirely', () => {
