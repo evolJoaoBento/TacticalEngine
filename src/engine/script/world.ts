@@ -34,7 +34,8 @@ import { applyAttack, resolveAttack } from '../combat/attack';
 import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
 import { attackProfile, UNARMED, type DerivedCharacter } from '../character/sheet';
 import { abilitiesFor, type AbilityDef, type AbilityModifier } from '../content/abilities';
-import type { ConditionDef } from '../content/conditions';
+import type { ConditionBlock, ConditionDef } from '../content/conditions';
+import type { ParsedDamage } from '../rules/dice';
 import type { AdversaryDef } from '../content/types';
 import { NO_TILE } from '../grid/grid';
 import type { EntityState, SceneState } from '../scene/state';
@@ -384,23 +385,57 @@ export class SceneScriptWorld implements ScriptWorld {
   /** The reactions to incoming damage a creature holds. */
   reactionsOf(id: string): AbilityDef[] {
     const character = this.characters.get(id);
-    if (character === undefined) return [];
+    if (character === undefined || this.blocks(id, 'reactions')) return [];
     return abilitiesFor(character, this.abilities).filter((a) => a.kind === 'reaction' && a.trigger === 'incomingDamage');
   }
 
-  /** Conditions that end when an attack succeeds against their bearer. */
+  /** The conditions on a creature that stop it from doing this. */
+  blocking(id: string, what: ConditionBlock): string[] {
+    const entity = this.state.entity(id);
+    if (entity === undefined) return [];
+    return [...entity.conditions].filter((c) => this.conditionDefs.get(c)?.blocks.includes(what) ?? false);
+  }
+
+  blocks(id: string, what: ConditionBlock): boolean {
+    return this.blocking(id, what).length > 0;
+  }
+
+  /** Conditions that end when an attack succeeds against their bearer — Rogue's Dodge. */
   endsOnHit(id: string): string[] {
+    return this.endConditions(id, 'hit');
+  }
+
+  /** Conditions that end when damage marks something of their bearer's — Asleep. */
+  endsOnDamage(id: string): string[] {
+    return this.endConditions(id, 'damaged');
+  }
+
+  /** Conditions that end when their bearer makes an attack — Hidden. */
+  endsOnAttack(id: string): string[] {
+    return this.endConditions(id, 'attacks');
+  }
+
+  private endConditions(id: string, when: NonNullable<ConditionDef['endsWhen']>): string[] {
     const entity = this.state.entity(id);
     if (entity === undefined) return [];
     const ended: string[] = [];
     for (const condition of [...entity.conditions]) {
-      if (this.conditionDefs.get(condition)?.endsWhen === 'hit') {
+      if (this.conditionDefs.get(condition)?.endsWhen === when) {
         entity.conditions.delete(condition);
         entity.conditionDurations.delete(condition);
         ended.push(condition);
       }
     }
     return ended;
+  }
+
+  /** A character's primary weapon dice (unarmed when they carry none); an adversary's attack. */
+  weaponDamage(id: string): ParsedDamage | null {
+    const character = this.characters.get(id);
+    if (character !== undefined) return attackProfile(character).damage;
+    const entity = this.state.entity(id);
+    const def = entity === undefined ? undefined : this.adversaries.get(entity.definition);
+    return def?.attackDamage ?? null;
   }
 
   experiences(): readonly { name: string; modifier: number }[] {
@@ -478,9 +513,10 @@ export class SceneScriptWorld implements ScriptWorld {
       case 'adversaries': {
         const origin = selector.around === 'target' ? bindings.targets[0] : this.scenario.actorId;
         if (origin === undefined || origin === null) return [];
+        const left = selector.except === 'target' ? new Set(bindings.targets) : null;
         return this.state
           .entitiesOf('adversary')
-          .filter((e) => e.alive && this.within(origin, e.id, selector.range))
+          .filter((e) => e.alive && !(left?.has(e.id) ?? false) && this.within(origin, e.id, selector.range))
           .map((e) => e.id);
       }
     }
@@ -727,6 +763,7 @@ export class SceneScriptWorld implements ScriptWorld {
     const marked = markHitPoints(entity.hitPoints, resolved.hpMarked);
     entity.hitPoints = marked.hitPoints;
     if (marked.fell) entity.alive = false;
+    if (resolved.hpMarked > 0 || resolved.armorSlotsSpent > 0) this.endsOnDamage(id);
     return {
       incoming: resolved.incoming,
       hpMarked: marked.hpMarked,
@@ -844,7 +881,11 @@ export class SceneScriptWorld implements ScriptWorld {
     });
     if (outcome.refused !== null) return { ...none, weapon: profile.name, refused: outcome.targeting.bandLabel + ': ' + outcome.refused };
     const applied = applyAttack(this.state, outcome);
-    if (outcome.hit) this.endsOnHit(request.target);
+    this.endsOnAttack(request.attacker);
+    if (outcome.hit) {
+      this.endsOnHit(request.target);
+      if (applied.hitPointsMarked > 0) this.endsOnDamage(request.target);
+    }
     return {
       refused: null,
       weapon: profile.name,

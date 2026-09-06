@@ -156,11 +156,15 @@ sheet (`modifiers`), conditions are content with modifiers of their own, and a d
 five cards with the rest in a vault (Recall Cost in Stress outside a rest); rests take the SRD's
 downtime moves; Utilize an Experience spends a Hope on a roll; the action bar, a targeting
 mode, a loadout panel and a rest panel put all of it on screen. The GM's adversaries approach
-before attacking and tear free of Restrained.
+before attacking; a condition that `blocks` acting (Stunned, Asleep) or moving (Restrained)
+costs them the spotlight, and the GM spends a Fear to wake a sleeper when there is one. A
+grimoire's spells read their words from the card's named features in the vendored SRD
+content; the engine ships no card text of its own.
 
-**Still open:** 23 of 189 cards are scripted (`docs/CARDS.md`); the rest are text. No defender
+**Still open:** 22 of 189 cards are scripted (`docs/CARDS.md`); the rest are text. No defender
 prompt (reactions are automatic); no interrupts (reroll, redirect); no card tokens; adversary
-features are still inert.
+features are still inert; Hidden is defined (ends when its bearer attacks) but nothing applies
+it yet.
 
 ### ~~6. Inventory, loot and equipping~~ — done
 

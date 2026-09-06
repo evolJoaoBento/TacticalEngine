@@ -62,7 +62,13 @@ export interface AbilityView {
 export function abilityText(demo: DemoScene, ability: AbilityDef): string {
   if (ability.text !== '') return ability.text;
   const source = ability.source;
-  if (source.kind === 'domainCard') return SRD_CHARACTERS.domainCards.get(source.card)?.text ?? '';
+  if (source.kind === 'domainCard') {
+    const card = SRD_CHARACTERS.domainCards.get(source.card);
+    if (card === undefined) return '';
+    // A grimoire's spell is one of the card's named features.
+    const spell = card.name === ability.name ? undefined : card.features.find((f) => f.name === ability.name);
+    return spell?.text ?? card.text;
+  }
   if (source.kind === 'classHope') return SRD_CHARACTERS.classes.get(source.classId)?.hopeFeature?.text ?? '';
   if (source.kind === 'classFeature') {
     return SRD_CHARACTERS.classes.get(source.classId)?.features.find((f) => f.name === ability.name)?.text ?? '';
@@ -174,10 +180,11 @@ export function abilityList(demo: DemoScene, characterId: string): AbilityView[]
 /**
  * Use an ability on some targets.
  *
- * The price is paid first — a card is spent the moment it is played, even if
- * the roll it asks for is then declined — then the script runs. In a fight,
- * the character's action is spent when the script finishes, with the
- * spotlight passing if its roll said so.
+ * The price is paid first, then the script runs. In a fight, the character's
+ * action is spent when the script finishes, with the spotlight passing if its
+ * roll said so. Stepping back from the roll it asks for, before any roll was
+ * made, puts the card down again: the price comes back and the turn is still
+ * theirs.
  */
 export function useAbility(demo: DemoScene, characterId: string, abilityId: string, targets: readonly string[] = []): UseOutcome {
   const ability = demo.project.abilities.find((a) => a.id === abilityId);
@@ -227,6 +234,10 @@ export function useAbility(demo: DemoScene, characterId: string, abilityId: stri
 
   const fighting = inCombat(demo);
   const finish = (runner: ScriptRunner): void => {
+    if (runner.cancelled && !runner.rolled) {
+      putBack(demo, characterId, ability);
+      return;
+    }
     if (fighting && ability.action && inCombat(demo) && demo.encounter!.canAct(characterId)) {
       demo.encounter!.act(characterId, { spotlightToGm: runner.spotlightToGm });
     }
@@ -242,6 +253,23 @@ export function useAbility(demo: DemoScene, characterId: string, abilityId: stri
   }
   finish(runner);
   return settleTravel(demo, lines);
+}
+
+/** The card goes back in hand: what it cost is returned. */
+function putBack(demo: DemoScene, characterId: string, ability: AbilityDef): void {
+  const entity = demo.state.entity(characterId);
+  if (entity === undefined) return;
+  if ((ability.cost.hope ?? 0) > 0 && entity.hope !== undefined) {
+    entity.hope = { ...entity.hope, value: Math.min(entity.hope.max, entity.hope.value + ability.cost.hope!) };
+  }
+  if ((ability.cost.stress ?? 0) > 0) demo.world.clearStress(characterId, ability.cost.stress!);
+  if (ability.uses !== undefined) {
+    const key = useKey(characterId, ability.id);
+    const used = (demo.scenario.abilityUses.get(key) ?? 1) - 1;
+    if (used <= 0) demo.scenario.abilityUses.delete(key);
+    else demo.scenario.abilityUses.set(key, used);
+  }
+  note(demo, `${nameOf(demo, characterId)} steps back from ${ability.name}; its cost is returned.`, 'system');
 }
 
 // ---------------------------------------------------------------------------

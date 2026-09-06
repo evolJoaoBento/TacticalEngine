@@ -103,6 +103,8 @@ export interface DomainCardDef {
   level: number;
   recallCost: number;
   text: string;
+  /** The card's named features: a grimoire's spells. Most cards have one, unnamed. */
+  features: readonly SrdFeature[];
 }
 
 /** Everything a character can be built from. */
@@ -405,6 +407,7 @@ export function importDomainCards(raw: readonly unknown[]): ImportResult<DomainC
       fail('type', `unknown card type "${String(entry['type'])}"`);
       return null;
     }
+    const features = readFeatures(entry['features']);
     return {
       id,
       name,
@@ -412,9 +415,8 @@ export function importDomainCards(raw: readonly unknown[]): ImportResult<DomainC
       type,
       level,
       recallCost: typeof entry['recallCost'] === 'number' ? entry['recallCost'] : 0,
-      text: readFeatures(entry['features'])
-        .map((f) => f.text)
-        .join('\n'),
+      text: features.map((f) => f.text).join('\n'),
+      features,
     };
   });
 }

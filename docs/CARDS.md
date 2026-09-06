@@ -8,12 +8,14 @@ the action bar and the table adjudicates, as at a real one. A grimoire lists eac
 Known simplifications in the scripted ones:
 
 - **Rune Ward** never breaks on an 8; **Get Back Up**, **Iron Will** and the ward fire on their own when they lower the Hit Points marked (per-card `auto`, prompts are a later step).
-- **Whirlwind**'s extra targets take half of a fresh weapon-die roll rather than half the first roll.
+- **Whirlwind**'s other targets take half of a second roll of the weapon's dice rather than half the first roll.
 - **Arcane Barrage** offers 1, 2 or 3 Hope rather than any number.
+- **Slumber**'s sleeper loses its spotlight until damage marks a Hit Point or the GM spends a Fear, which the GM's turn does on its own when there is one.
+- **Enrapture** is text: what a fixed attention does to an adversary is the table's call.
 - **I Am Your Shield** and **Not This Time** are text: redirecting a hit and forcing a reroll are interrupts the attack flow does not offer yet.
 - Cards that ask for a Presence Roll, tokens on the card, Hidden/Cloaked, or a GM's discretion stay text.
 
-Scripted: 23 of 189 cards.
+Scripted: 22 of 189 cards.
 
 
 ## Arcana
@@ -125,7 +127,7 @@ Scripted: 23 of 189 cards.
 | Level | Card | Type | Engine |
 |---|---|---|---|
 | 1 | Deft Deceiver | Ability | text |
-| 1 | Enrapture | Spell | **action** |
+| 1 | Enrapture | Spell | text |
 | 1 | Inspirational Words | Ability | text |
 | 2 | Tell No Lies | Spell | text |
 | 2 | Troublemaker | Ability | text |

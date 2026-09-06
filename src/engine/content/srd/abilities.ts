@@ -71,14 +71,14 @@ const RAW: Input[] = [
       {
         kind: 'attack',
         onHit: [
-          // The same swing at everyone else in reach; the extra targets take half.
+          // The same swing at everyone *else* in reach: the weapon's own dice, halved.
           {
             kind: 'check',
             check: {
               trait: 'weapon',
               difficulty: 'target',
-              targets: { kind: 'adversaries', range: 'veryClose' },
-              onSuccessWithHope: [{ kind: 'damage', dice: 'd8', using: 'proficiency', half: true, type: 'physical' }],
+              targets: { kind: 'adversaries', range: 'veryClose', except: 'target' },
+              onSuccessWithHope: [{ kind: 'damage', dice: 'weapon', using: 'proficiency', half: true }],
             },
           },
         ],
@@ -252,7 +252,6 @@ const RAW: Input[] = [
     id: 'book-of-illiat-slumber',
     name: 'Slumber',
     source: card('book-of-illiat'),
-    text: 'Make a Spellcast Roll against a target within Very Close range. On a success, they’re Asleep until they take damage or the GM spends a Fear on their turn to clear this condition.',
     target: { kind: 'adversary', range: 'veryClose' },
     effects: [
       {
@@ -260,7 +259,8 @@ const RAW: Input[] = [
         check: {
           trait: 'spellcast',
           difficulty: 'target',
-          onSuccessWithHope: [{ kind: 'applyCondition', condition: 'asleep', target: { kind: 'hit' } }],
+          // Not "temporary": it does not shake off, it ends on damage or a Fear.
+          onSuccessWithHope: [{ kind: 'applyCondition', condition: 'asleep', duration: 'scene', target: { kind: 'hit' } }],
         },
       },
     ],
@@ -269,7 +269,6 @@ const RAW: Input[] = [
     id: 'book-of-illiat-arcane-barrage',
     name: 'Arcane Barrage',
     source: card('book-of-illiat'),
-    text: 'Once per rest, spend any number of Hope and shoot magical projectiles that strike a target of your choice within Close range. Roll a number of d6s equal to the Hope spent and deal that much magic damage to the target.',
     uses: { count: 1, per: 'rest' },
     target: { kind: 'adversary', range: 'close' },
     available: { kind: 'pool', pool: 'hope', op: '>=', value: 1 },
@@ -298,7 +297,6 @@ const RAW: Input[] = [
     id: 'book-of-tyfar-wild-flame',
     name: 'Wild Flame',
     source: card('book-of-tyfar'),
-    text: 'Make a Spellcast Roll against up to three adversaries within Melee range. Targets you succeed against take 2d6 magic damage and must mark a Stress as flames erupt from your hand.',
     target: { kind: 'none', range: 'melee' },
     effects: [
       {
@@ -319,7 +317,6 @@ const RAW: Input[] = [
     id: 'book-of-ava-power-push',
     name: 'Power Push',
     source: card('book-of-ava'),
-    text: 'Make a Spellcast Roll against a target within Melee range. On a success, they’re knocked back to Far range and take d10+2 magic damage using your Proficiency.',
     target: { kind: 'adversary', range: 'melee' },
     effects: [
       {
@@ -339,7 +336,6 @@ const RAW: Input[] = [
     id: 'book-of-ava-tavas-armor',
     name: "Tava's Armor",
     source: card('book-of-ava'),
-    text: 'Spend a Hope to give a target you can touch a +1 bonus to their Armor Score until their next rest or you cast Tava’s Armor again.',
     cost: { hope: 1 },
     target: { kind: 'ally', range: 'melee' },
     effects: [
@@ -351,7 +347,6 @@ const RAW: Input[] = [
     id: 'book-of-ava-ice-spike',
     name: 'Ice Spike',
     source: card('book-of-ava'),
-    text: 'Make a Spellcast Roll (12) to summon a large ice spike within Far range. If you use it as a weapon, make the Spellcast Roll against the target’s Difficulty instead. On a success, deal d6 physical damage using your Proficiency.',
     target: { kind: 'adversary', range: 'far' },
     effects: [
       {
@@ -390,10 +385,18 @@ const RAW: Input[] = [
           trait: 'spellcast',
           difficulty: 'target',
           onSuccessWithHope: [
-            // "On a success, spend a Hope to send a bolt…": the Hope is spent on the hit.
-            { kind: 'spendHope' },
-            { kind: 'damage', dice: 'd8+2', type: 'magic', using: 'proficiency' },
-            { kind: 'applyCondition', condition: 'vulnerable', target: { kind: 'hit' } },
+            // "On a success, spend a Hope to send a bolt…": the Hope is spent on
+            // the hit, and with none to spend there is no bolt.
+            {
+              kind: 'branch',
+              when: { kind: 'pool', pool: 'hope', op: '>=', value: 1 },
+              then: [
+                { kind: 'spendHope' },
+                { kind: 'damage', dice: 'd8+2', type: 'magic', using: 'proficiency' },
+                { kind: 'applyCondition', condition: 'vulnerable', target: { kind: 'hit' } },
+              ],
+              otherwise: [{ kind: 'log', text: 'No Hope to spend: the bolt never forms.', tone: 'system' }],
+            },
           ],
         },
       },
@@ -456,23 +459,7 @@ const RAW: Input[] = [
       },
     ],
   },
-  // ---- Grace -----------------------------------------------------------------
-  {
-    id: 'enrapture',
-    name: 'Enrapture',
-    source: card('enrapture'),
-    target: { kind: 'adversary', range: 'close' },
-    effects: [
-      {
-        kind: 'check',
-        check: {
-          trait: 'spellcast',
-          difficulty: 'target',
-          onSuccessWithHope: [{ kind: 'applyCondition', condition: 'enraptured', target: { kind: 'hit' } }],
-        },
-      },
-    ],
-  },
+  // Enrapture is text: "their attention is fixed on you" is the table's to play.
   // ---- Class Hope features ----------------------------------------------------
   {
     id: 'guardian-frontline-tank',

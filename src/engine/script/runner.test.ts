@@ -463,6 +463,7 @@ describe('the runner as a whole', () => {
       clearCondition: () => false,
       proficiencyOf: () => 1,
       spellcastValue: () => null,
+      weaponDamage: () => null,
       attack: () => ({
         refused: 'nothing to attack',
         weapon: '',

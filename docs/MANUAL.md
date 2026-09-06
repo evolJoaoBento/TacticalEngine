@@ -115,8 +115,9 @@ the card's text. Below: **Pass to GM** in a fight, **Rest…** out of one, and *
 An ability that wants a target and has more than one in reach arms the bar — the valid targets
 light up on the board; click one, or `Escape` to put the card down. With exactly one target in
 reach it fires at once. A card's cost is paid the moment it is played, before any roll it asks
-for; a roll it asks for appears in the play panel like an object's, and the turn is spent when
-the roll is made.
+for; a roll it asks for appears in the play panel like an object's. **Step back** from that roll
+before any die is thrown and the card goes back in hand with its cost returned; once a roll is
+made the turn is spent when the card's script finishes.
 
 ### Rests
 
@@ -432,7 +433,8 @@ Target selectors: `{kind:'actor'}` (whoever used the thing; the default), `{kind
 **Target selectors** (`target`/`of` fields): `actor`, `party`, `entity` (`id`), `target` (what
 the player picked when using an ability), `hit` (whoever the last roll beat; `having?` keeps
 only those with a condition), `allies` (`range?`, `includeSelf?`), `adversaries` (`range`,
-`around?` actor \| target — the SRD's group, measured from the chosen target).
+`around?` actor \| target — the SRD's group, measured from the chosen target; `except?: target`
+leaves the chosen target out — "all other targets within range").
 
 ### Effects
 
@@ -502,7 +504,10 @@ A character's abilities are the class's, the subclass's up to the stage reached,
 cards in the loadout (`sheet.loadout`, at most five; the first five held when unset).
 
 A **condition definition** (`project.conditionDefs[]`): `id`, `name`, `text`, `modifiers[]` (the
-same shape), `endsWhen?` (hit \| attacks). `vulnerable` and `hidden` are read by the attack rules
+same shape), `blocks[]` (act \| move \| reactions — an adversary that cannot act spends its
+spotlight shaking the condition off, or the GM spends a Fear to clear one that only ends on
+damage; one that cannot move tears free instead of closing in; `reactions` silences its damage
+reactions), `endsWhen?` (hit \| attacks \| damaged). `vulnerable` and `hidden` are read by the attack rules
 directly; Tava's Armor and Rogue's Dodge are modifiers on a condition.
 
 ### Dialogue

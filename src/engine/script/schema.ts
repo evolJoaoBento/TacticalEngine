@@ -76,6 +76,8 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
     kind: z.literal('adversaries'),
     range: rangeBandSchema,
     around: z.enum(['actor', 'target']).optional(),
+    /** Leave the chosen target out: "all other targets within range". */
+    except: z.enum(['target']).optional(),
   }),
 ]);
 
@@ -251,6 +253,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
     .object({
       kind: z.literal('damage'),
       amount: z.number().int().positive().optional(),
+      /** "d8+2", "2d6", or `weapon`: the actor's primary weapon's damage. */
       dice: z.string().min(1).optional(),
       type: z.enum(['physical', 'magic']).optional(),
       /** Multiply the dice by the actor's Proficiency, or by their Spellcast trait. */

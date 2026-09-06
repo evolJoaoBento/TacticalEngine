@@ -6,6 +6,7 @@ import { NO_TILE } from '../engine/grid/grid';
 import {
   abilityList,
   abilityTargets,
+  abilityText,
   abilitiesOf,
   loadoutView,
   rest,
@@ -337,5 +338,81 @@ describe("the GM's turn", () => {
     expect(demo.encounter!.outcome).toBe('victory');
     expect(demo.log.map((l) => l.text)).toContain('The last of them falls. The fight is over.');
     expect(kara.conditions.has('dodging')).toBe(false);
+  });
+});
+
+describe('what holds an adversary', () => {
+  it('an Asleep husk loses its spotlight, and the GM spends a Fear to wake it when there is one', () => {
+    const demo = scene();
+    const foe = nearestFoe(demo, 'kara');
+    closeIn(demo, 'kara', foe.id);
+    startEncounter(demo, demo.scene.encounters[0]!.id);
+    const husk = demo.state.entity(foe.id)!;
+    husk.conditions.add('asleep');
+    husk.conditionDurations.set('asleep', 'scene');
+    demo.state.fear = { ...demo.state.fear, value: 0 };
+    const hpBefore = demo.state.entity('kara')!.hitPoints.marked;
+    endTurn(demo);
+    // Still asleep, and it did not attack.
+    expect(husk.conditions.has('asleep')).toBe(true);
+    expect(demo.log.some((l) => l.text.includes("Acid Burrower's") && l.text.includes('Kara'))).toBe(false);
+    expect(demo.state.entity('kara')!.hitPoints.marked).toBe(hpBefore);
+
+    demo.state.fear = { ...demo.state.fear, value: 1 };
+    endTurn(demo);
+    expect(husk.conditions.has('asleep')).toBe(false);
+    expect(demo.state.fear.value).toBe(0);
+    expect(demo.log.map((l) => l.text)).toContain('The GM spends a Fear: the Acid Burrower shakes off asleep.');
+  });
+
+  it('a hit that marks a Hit Point wakes a sleeper', () => {
+    const demo = scene();
+    const foe = nearestFoe(demo, 'kara');
+    closeIn(demo, 'kara', foe.id);
+    const husk = demo.state.entity(foe.id)!;
+    husk.conditions.add('asleep');
+    husk.conditionDurations.set('asleep', 'scene');
+    let woke = false;
+    for (let i = 0; i < 12 && !woke; i++) {
+      const swing = attackWithSelected(demo, foe.id);
+      if (swing?.hit && swing.hitPointsMarked > 0) {
+        woke = true;
+        expect(husk.conditions.has('asleep')).toBe(false);
+      } else {
+        expect(husk.conditions.has('asleep')).toBe(true);
+      }
+      if (!husk.alive) break;
+    }
+    expect(woke || !husk.alive).toBe(true);
+  });
+});
+
+describe('stepping back from a roll', () => {
+  it('puts the card down with its cost returned, and the turn still to take', () => {
+    const demo = scene();
+    const foe = nearestFoe(demo, 'finn');
+    closeIn(demo, 'finn', foe.id);
+    startEncounter(demo, demo.scene.encounters[0]!.id);
+    const finn = demo.state.entity('finn')!;
+    finn.hope = { max: 6, value: 2 };
+    expect(useAbility(demo, 'finn', 'rain-of-blades').status).toBe('waiting');
+    expect(finn.hope.value).toBe(1);
+    const stepped = answerPending(demo, { kind: 'cancel' });
+    expect(stepped.status).toBe('done');
+    expect(demo.pending).toBeNull();
+    expect(finn.hope.value).toBe(2);
+    expect(demo.log.map((l) => l.text)).toContain('Finn steps back from Rain of Blades; its cost is returned.');
+    expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'finn')).toBe(false);
+    expect(demo.encounter!.canAct('finn')).toBe(true);
+  });
+});
+
+describe("a grimoire spell's words", () => {
+  it('are the spell\'s own feature text, not the whole book', () => {
+    const demo = scene();
+    const push = abilitiesOf(demo, 'mira').find((a) => a.id === 'book-of-ava-power-push')!;
+    const text = abilityText(demo, push);
+    expect(text.startsWith('Make a Spellcast Roll against a target within Melee range.')).toBe(true);
+    expect(text).not.toContain('Ice Spike');
   });
 });

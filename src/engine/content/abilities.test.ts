@@ -99,3 +99,16 @@ describe('abilitiesFor', () => {
     expect(ids.indexOf('whirlwind')).toBeGreaterThan(ids.indexOf('forceful-push'));
   });
 });
+
+describe('where the words come from', () => {
+  it('ships no card text of its own: a domain card\'s words are read from the vendored SRD content', () => {
+    for (const ability of SRD_ABILITIES) {
+      if (ability.source.kind === 'domainCard') expect(ability.text, ability.id).toBe('');
+    }
+    // A grimoire's spells are the card's named features, so a spell finds its own words.
+    const ava = content.domainCards.get('book-of-ava')!;
+    expect(ava.features.map((f) => f.name)).toEqual(['Power Push', "Tava's Armor", 'Ice Spike']);
+    expect(ava.features[0]!.text.startsWith('Make a Spellcast Roll against a target within Melee range.')).toBe(true);
+    expect(content.domainCards.get('bolt-beacon')!.features).toHaveLength(1);
+  });
+});

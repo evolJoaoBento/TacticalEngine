@@ -729,7 +729,11 @@ export function attackWithSelected(
   if (outcome.refused !== null) return { hit: false, refused: outcome.refused, hitPointsMarked: 0 };
 
   const applied = applyAttack(demo.state, outcome);
-  if (outcome.hit) demo.world.endsOnHit(targetId);
+  demo.world.endsOnAttack(id!);
+  if (outcome.hit) {
+    demo.world.endsOnHit(targetId);
+    if (applied.hitPointsMarked > 0) demo.world.endsOnDamage(targetId);
+  }
   note(
     demo,
     outcome.hit
@@ -811,8 +815,16 @@ function adversaryTurn(demo: DemoScene, adversaryId: string): void {
   const adversary = demo.state.entity(adversaryId);
   if (adversary === undefined || !adversary.alive) return;
 
+  // Unable to act — Stunned, Asleep: the spotlight goes on shaking it off. A
+  // temporary condition clears; one that only ends on damage or a Fear
+  // (Asleep) costs the GM a Fear, if they have one, else the turn is lost.
+  if (demo.world.blocks(adversaryId, 'act')) {
+    clearTemporaryConditions(demo, adversaryId);
+    if (demo.world.blocks(adversaryId, 'act')) clearWithFear(demo, adversaryId);
+    return;
+  }
   // Held in place: the spotlight goes on tearing free instead of attacking.
-  if (adversary.conditions.has('restrained')) {
+  if (demo.world.blocks(adversaryId, 'move')) {
     clearTemporaryConditions(demo, adversaryId);
     return;
   }
@@ -876,6 +888,23 @@ function clearTemporaryConditions(demo: DemoScene, adversaryId: string): void {
   }
 }
 
+/**
+ * "…or the GM spends a Fear on their turn to clear this condition": the Fear
+ * is spent when there is one, on whatever holds the adversary from acting.
+ */
+function clearWithFear(demo: DemoScene, adversaryId: string): void {
+  const adversary = demo.state.entity(adversaryId);
+  if (adversary === undefined || demo.state.fear.value < 1) return;
+  const held = demo.world.blocking(adversaryId, 'act');
+  if (held.length === 0) return;
+  demo.state.fear = { ...demo.state.fear, value: demo.state.fear.value - 1 };
+  for (const condition of held) {
+    adversary.conditions.delete(condition);
+    adversary.conditionDurations.delete(condition);
+  }
+  note(demo, `The GM spends a Fear: the ${nameOf(demo, adversaryId)} shakes off ${held.join(' and ')}.`, 'fear');
+}
+
 /** Returns whether the attack was made at all (false when out of reach). */
 function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: string): boolean {
   const adversary = demo.state.entity(adversaryId);
@@ -915,8 +944,10 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
     }
   }
   applyAttack(demo.state, final);
+  demo.world.endsOnAttack(adversaryId);
   if (final.hit) {
-    for (const ended of demo.world.endsOnHit(target.id)) note(demo, `${who} is no longer ${ended}.`, 'system');
+    const ended = [...demo.world.endsOnHit(target.id), ...(final.hitPointsMarked > 0 ? demo.world.endsOnDamage(target.id) : [])];
+    for (const condition of ended) note(demo, `${who} is no longer ${condition}.`, 'system');
   }
   note(
     demo,

@@ -10,6 +10,8 @@ import { blankSheet, deriveCharacter, startingPools, type DerivedCharacter } fro
 import { ScriptRunner, runScript, type JournalEntry } from './runner';
 import { SceneScriptWorld, createScenarioState } from './world';
 import type { Effect } from './schema';
+import { SRD_ABILITIES, SRD_ABILITY_MAP } from '../content/srd/abilities';
+import { SRD_CONDITIONS } from '../content/conditions';
 
 /**
  * The combat half of the script vocabulary: what lets a domain card be a
@@ -83,7 +85,7 @@ const bandTiles = { melee: 1, veryClose: 2, close: 4, far: 8, veryFar: 12 };
  * A corridor: Kara (a Guardian, no Spellcast trait) and Mira (a Wizard, who
  * casts with Knowledge +2), a soft husk two tiles east and a tough one four.
  */
-function scene(options: { fighting?: boolean; armor?: 'auto' | 'never' } = {}) {
+function scene(options: { fighting?: boolean; armor?: 'auto' | 'never'; content?: boolean } = {}) {
   const grid = new TileGrid({ width: 14, height: 3 });
   const state = new SceneState({ id: 'corridor' }, grid);
   const sheets = [
@@ -129,6 +131,8 @@ function scene(options: { fighting?: boolean; armor?: 'auto' | 'never' } = {}) {
     bandTiles,
     inCombat: () => options.fighting === true,
     ...(options.armor === undefined ? {} : { armor: options.armor }),
+    // The shipped cards and conditions, when a test plays the real ones.
+    ...(options.content === true ? { abilities: SRD_ABILITIES, conditionDefs: SRD_CONDITIONS } : {}),
   });
   return { grid, state, scenario, world, characters };
 }
@@ -148,6 +152,8 @@ describe('selectors', () => {
     expect(world.resolveTargets({ kind: 'adversaries', range: 'far' }, bound)).toEqual(['husk-1', 'husk-2']);
     // A group around the chosen target: husk-2's Very Close neighbours.
     expect(world.resolveTargets({ kind: 'adversaries', range: 'veryClose', around: 'target' }, { targets: ['husk-2'], hit: [] })).toEqual(['husk-1', 'husk-2']);
+    // "All other targets": the chosen one left out.
+    expect(world.resolveTargets({ kind: 'adversaries', range: 'far', except: 'target' }, { targets: ['husk-1'], hit: [] })).toEqual(['husk-2']);
     // Allies leave the actor out unless asked, and can be ranged too.
     expect(world.resolveTargets({ kind: 'allies' }, bound)).toEqual(['kara']);
     expect(world.resolveTargets({ kind: 'allies', includeSelf: true }, bound)).toEqual(['kara', 'mira']);
@@ -514,5 +520,98 @@ describe('a push', () => {
     expect(grid.xOf(state.entity('husk-2')!.tile)).toBe(9);
     // Already there: nothing moves, nothing is journalled.
     expect(runScript([{ kind: 'push', to: 'far' }], world, scripted([]), { targets: ['husk-2'] })).toEqual([]);
+  });
+});
+
+describe('the shipped cards', () => {
+  it("Whirlwind: the same swing at everyone else in reach, for half the weapon's own roll", () => {
+    const { world, state, scenario, grid } = scene({ content: true });
+    scenario.actorId = 'kara';
+    state.moveEntity('kara', grid.indexOf(2, 1)); // adjacent to husk-1 at x=3
+    state.moveEntity('husk-2', grid.indexOf(4, 1)); // Very Close, not adjacent
+    // The swing: Hope 10 + Fear 2 beats 10; broadsword d8 rolls 6: Minor, one Hit Point.
+    // The whirl: Hope 12 + Fear 6 = 18 beats the tough husk's 16; the same d8 rolls 7, halved to 4: Minor.
+    const rng = scripted([10, 2, 6, 12, 6, 7]);
+    const runner = new ScriptRunner(world, rng, { targets: ['husk-1'], rollAs: 'actor' });
+    expect(runner.run(SRD_ABILITY_MAP.get('whirlwind')!.effects).status).toBe('waiting');
+    const journal = runner.resume({ kind: 'roll' }).journal;
+    expect(journal.find((e) => e.kind === 'attack')).toMatchObject({ target: 'husk-1', hit: true, hitPointsMarked: 1 });
+    // The second roll is aimed at the *other* husk only, and rolls the broadsword, not a fixed die.
+    expect(journal.find((e) => e.kind === 'check')).toMatchObject({ targets: ['husk-2'], hit: ['husk-2'] });
+    expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 4, targets: ['husk-2'], dice: '1d8', marked: 1 });
+    expect(state.entity('husk-1')!.hitPoints.marked).toBe(1);
+    expect(state.entity('husk-2')!.hitPoints.marked).toBe(1);
+    expect(rng.drawn()).toBe(6);
+  });
+
+  it('rolls `weapon` damage as whatever the actor carries', () => {
+    const { world, state } = scene();
+    // Mira's greatstaff: d6 magic.
+    const journal = runScript([{ kind: 'damage', dice: 'weapon', target: { kind: 'target' } }], world, scripted([4]), { targets: ['husk-1'], rollAs: 'actor' });
+    expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 4, dice: '1d6', targets: ['husk-1'] });
+    expect(state.entity('husk-1')!.hitPoints.marked).toBe(1);
+  });
+
+  it('Bolt Beacon sends no bolt without a Hope to spend, and one with', () => {
+    const bolt = SRD_ABILITY_MAP.get('bolt-beacon')!.effects;
+    const empty = scene({ content: true });
+    empty.state.entity('mira')!.hope = { max: 6, value: 0 };
+    // Hope 3 + Fear 9 + 2 = 14 beats 10, with Fear: a success, but no Hope arrives to pay with.
+    const dry = scripted([3, 9]);
+    const runner = new ScriptRunner(empty.world, dry, { targets: ['husk-1'], rollAs: 'actor' });
+    runner.run(bolt);
+    const done = runner.resume({ kind: 'roll' });
+    expect(kinds(done.journal)).toEqual(['check', 'fear', 'log']);
+    expect(done.journal.find((e) => e.kind === 'log')).toMatchObject({ text: 'No Hope to spend: the bolt never forms.' });
+    expect(empty.state.entity('husk-1')!.hitPoints.marked).toBe(0);
+    expect(empty.state.entity('husk-1')!.conditions.has('vulnerable')).toBe(false);
+    expect(dry.drawn()).toBe(2);
+
+    const lit = scene({ content: true });
+    lit.state.entity('mira')!.hope = { max: 6, value: 1 };
+    // The same roll; d8 rolls 5, +2 = 7: Major against 7/12, two Hit Points, and Vulnerable.
+    const again = new ScriptRunner(lit.world, scripted([3, 9, 5]), { targets: ['husk-1'], rollAs: 'actor' });
+    again.run(bolt);
+    const journal = again.resume({ kind: 'roll' }).journal;
+    expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 7, marked: 2, targets: ['husk-1'] });
+    expect(lit.state.entity('mira')!.hope!.value).toBe(0);
+    expect(lit.state.entity('husk-1')!.conditions.has('vulnerable')).toBe(true);
+  });
+});
+
+describe('conditions that hold a creature', () => {
+  it('Asleep stops acting and moving, and ends when damage marks something', () => {
+    const { world, state } = scene({ content: true });
+    const husk = state.entity('husk-1')!;
+    husk.conditions.add('asleep');
+    husk.conditionDurations.set('asleep', 'scene');
+    expect(world.blocking('husk-1', 'act')).toEqual(['asleep']);
+    expect(world.blocks('husk-1', 'move')).toBe(true);
+    expect(world.blocks('husk-1', 'reactions')).toBe(false);
+    // 8 against 7/12: Major, two Hit Points; the sleeper wakes.
+    world.dealDamage('husk-1', { amount: 8, types: ['physical'] }, scripted([]));
+    expect(husk.hitPoints.marked).toBe(2);
+    expect(husk.conditions.has('asleep')).toBe(false);
+  });
+
+  it('Stunned silences damage reactions until it clears', () => {
+    const { world, state } = scene({ content: true });
+    expect(world.reactionsOf('kara').map((a) => a.id)).toContain('get-back-up');
+    state.entity('kara')!.conditions.add('stunned');
+    expect(world.blocks('kara', 'act')).toBe(true);
+    expect(world.reactionsOf('kara')).toEqual([]);
+    world.clearCondition('kara', 'stunned');
+    expect(world.reactionsOf('kara').map((a) => a.id)).toContain('get-back-up');
+  });
+
+  it('Hidden ends when its bearer attacks', () => {
+    const { world, state, scenario, grid } = scene({ content: true });
+    const kara = state.entity('kara')!;
+    kara.conditions.add('hidden');
+    scenario.actorId = 'kara';
+    state.moveEntity('kara', grid.indexOf(2, 1));
+    // A miss is still an attack: Hope 1 + Fear 2 falls short of 10.
+    world.attack({ attacker: 'kara', target: 'husk-1', weapon: 'primary' }, scripted([1, 2]));
+    expect(kara.conditions.has('hidden')).toBe(false);
   });
 });

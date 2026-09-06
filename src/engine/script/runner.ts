@@ -24,7 +24,7 @@
 
 import type { Rng } from '../core/rng';
 import { rollDuality, type DualityRoll } from '../rules/duality';
-import { formatDice, parseDice, type DamageType } from '../rules/dice';
+import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
 import { rollDamage, type IncomingDamage } from '../rules/damage';
 import type { RangeBand } from '../rules/range';
 import type { Trait } from '../scene/primitives';
@@ -140,6 +140,8 @@ export interface ScriptWorld extends ConditionContext {
   proficiencyOf(id: string): number;
   /** The value of the creature's Spellcast trait, or null when it has none. */
   spellcastValue(id: string): number | null;
+  /** The creature's primary weapon dice (an adversary's attack), or null when it has none. */
+  weaponDamage(id: string): ParsedDamage | null;
   /** A weapon attack, rolled and applied. */
   attack(
     request: {
@@ -299,6 +301,8 @@ export class ScriptRunner {
   spotlightToGm = false;
   /** Whether an action roll was made at all. */
   rolled = false;
+  /** Whether a roll it asked for was declined. */
+  cancelled = false;
 
   constructor(world: ScriptWorld, rng: Rng, options: ScriptRunnerOptions = {}) {
     this.world = world;
@@ -358,7 +362,11 @@ export class ScriptRunner {
   }
 
   private applyCheck(check: CheckRequest, response: Response): void {
-    if (response.kind !== 'roll') return; // declining costs nothing, as the legacy dialog did
+    if (response.kind !== 'roll') {
+      // Declining costs nothing, as the legacy dialog did; the caller may put the card back.
+      if (response.kind === 'cancel') this.cancelled = true;
+      return;
+    }
 
     const base = this.world.checkModifier(check.trait, this.rollAs);
     if (base === null) {
@@ -727,12 +735,15 @@ export class ScriptRunner {
    */
   private applyRolledDamage(effect: Extract<Effect, { kind: 'damage' }>): null {
     const world = this.world;
-    const expression = parseDice(effect.dice ?? '');
-    if (expression === null) return this.refuse(`cannot read damage dice "${effect.dice}"`);
+    const actor = world.actorId();
+    // `weapon` is whatever the actor swings: "deal half damage" of the same roll.
+    const expression = effect.dice === 'weapon' ? (actor === null ? null : world.weaponDamage(actor)) : parseDice(effect.dice ?? '');
+    if (expression === null) {
+      return this.refuse(effect.dice === 'weapon' ? 'no weapon to roll damage with' : `cannot read damage dice "${effect.dice}"`);
+    }
     const targets = this.resolve(effect.target ?? { kind: 'hit' });
     if (targets.length === 0) return null;
 
-    const actor = world.actorId();
     let multiplier = 1;
     if (effect.using === 'proficiency') multiplier = actor === null ? 1 : world.proficiencyOf(actor);
     if (effect.using === 'spellcast') {
