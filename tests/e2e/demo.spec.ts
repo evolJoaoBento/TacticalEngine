@@ -118,6 +118,7 @@ declare global {
       propCount: () => number;
       problems: () => number;
       exportProject: () => string;
+      loadProjectText: (text: string) => string;
     };
   }
 }
@@ -2097,6 +2098,54 @@ test('writes an item and the table that hands it out, and the party can carry it
   });
   expect(log).not.toBe('');
   await expect(page.locator('[data-testid="log"]')).toContainText('The rope pays out into the dark.');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('loads a project and restarts the game on it, but not in the middle of a fight', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  // Write a character in the panel, export the project, and load it back:
+  // that is the round trip a designer makes between authoring and playing.
+  page.on('dialog', (dialog) => void dialog.accept('Ilse'));
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-party"]').click();
+  const panel = page.locator('[data-testid="party-panel"]');
+  await panel.locator('[data-testid="add-character"]').click();
+  await panel.locator('[data-testid="character-armor"]').selectOption('chainmail-armor');
+  await panel.locator('[data-testid="close-party"]').click();
+
+  const result = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('play');
+    const text = api.exportProject();
+    return { before: api.party(), reason: api.loadProjectText(text), after: api.party() };
+  });
+  expect(result.reason).toBe('');
+  expect(result.before).not.toContain('ilse');
+  // The new character is standing in the room, because the game restarted on
+  // the document rather than staying on the one it booted with.
+  expect(result.after).toContain('ilse');
+  expect(result.after).toContain('kara');
+
+  // A project that parses but cannot be played says so and leaves the game alone.
+  const unplayable = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const doc = JSON.parse(api.exportProject()) as { startScene: string };
+    doc.startScene = 'no-such-room';
+    return { reason: api.loadProjectText(JSON.stringify(doc)), party: api.party() };
+  });
+  expect(unplayable.reason).toContain('no-such-room');
+  expect(unplayable.party).toContain('ilse');
+
+  // And mid-fight it refuses outright: there is a turn order waiting on it.
+  const midFight = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.startFight();
+    return { reason: api.loadProjectText(api.exportProject()), fighting: api.turnSide() };
+  });
+  expect(midFight.reason).toContain('fight');
+  expect(midFight.fighting).not.toBeNull();
 
   expect(consoleErrors).toEqual([]);
 });

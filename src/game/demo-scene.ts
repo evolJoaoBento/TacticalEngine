@@ -373,15 +373,15 @@ function buildRuntime(
 ): SceneRuntime {
   const { grid } = gridFromScene(scene);
 
-  // The legacy map's adversaries are homebrew ids with no SRD stat block, so one
-  // imported adversary stands in for all of them; a real project would ship its
-  // own. An id that *is* in the SRD uses its own numbers.
-  const stand = SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID);
-  if (stand === undefined) throw new Error(`missing adversary "${DEMO_ADVERSARY_ID}"`);
   const stats = new Map<string, { id: string; hitPoints: number; stress: number }>();
   for (const encounter of scene.encounters) {
     for (const placement of encounter.adversaries) {
-      const definition = SRD_ADVERSARIES.get(placement.adversary) ?? stand;
+      // No substitution: a room that names a creature nobody can look up is a
+      // broken document, and saying so beats quietly fielding something else.
+      const definition = SRD_ADVERSARIES.get(placement.adversary);
+      if (definition === undefined) {
+        throw new Error(`"${scene.id}" places adversary "${placement.adversary}", which has no stat block`);
+      }
       stats.set(placement.adversary, {
         id: placement.adversary,
         hitPoints: definition.hitPoints,
@@ -502,29 +502,21 @@ export function syncPools(demo: DemoScene): void {
 }
 
 /**
- * The stat blocks a scene's adversaries answer to. The legacy map's husks name
- * a homebrew id with no SRD block, so every placement the SRD does not know is
- * pointed at the stand-in — the same substitution `buildRuntime` makes for
- * their Hit Points, so a spell against a husk meets the same Difficulty as a
- * sword does.
+ * The stat blocks a scene's adversaries answer to.
+ *
+ * Every id a room places resolves, because `buildRuntime` refuses a room that
+ * names one nobody can look up. The scene is still taken as an argument so a
+ * caller reads as asking about a room rather than about the SRD.
  */
-export function adversaryDefsFor(scene?: SceneDoc): ReadonlyMap<string, AdversaryDef> {
-  const defs = new Map(SRD_ADVERSARIES);
-  const stand = SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID);
-  if (scene === undefined || stand === undefined) return defs;
-  for (const encounter of scene.encounters) {
-    for (const placement of encounter.adversaries) {
-      if (!defs.has(placement.adversary)) defs.set(placement.adversary, stand);
-    }
-  }
-  return defs;
+export function adversaryDefsFor(_scene?: SceneDoc): ReadonlyMap<string, AdversaryDef> {
+  return SRD_ADVERSARIES;
 }
 
-/** The stat block an entity answers to, stand-in included. */
+/** The stat block an entity answers to. */
 export function adversaryDefOf(demo: DemoScene, entityId: string): AdversaryDef | undefined {
   const entity = demo.state.entity(entityId);
   if (entity === undefined) return undefined;
-  return SRD_ADVERSARIES.get(entity.definition) ?? (entity.faction === 'adversary' ? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID) : undefined);
+  return SRD_ADVERSARIES.get(entity.definition);
 }
 
 /** The same, for the fight, which always has a stat block to read. */
@@ -671,6 +663,17 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
   const imported = importLegacyScene(map);
   const vault = imported.scene;
   if (vault === null) throw new Error('the demo map could not be imported');
+
+  // The prototype's husks are homebrew ids with no SRD stat block. Point them
+  // at the one imported adversary that stands in for them *in the document*,
+  // rather than substituting at runtime: what the project says is then what it
+  // plays, and saving it and loading it back gives the same fight.
+  if (!SRD_ADVERSARIES.has(DEMO_ADVERSARY_ID)) throw new Error(`missing adversary "${DEMO_ADVERSARY_ID}"`);
+  for (const encounter of vault.encounters) {
+    for (const placement of encounter.adversaries) {
+      if (!SRD_ADVERSARIES.has(placement.adversary)) placement.adversary = DEMO_ADVERSARY_ID;
+    }
+  }
 
 
   // The pillar is the dullest thing on the map — a Strength check and a line of

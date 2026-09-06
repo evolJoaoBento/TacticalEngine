@@ -368,6 +368,14 @@ entity's definition — and the view draws the built-in placeholder until the fi
 the built-in library, so placing an imported model from the UI is **not verified**; the
 end-to-end test places it through the debug handle.
 
+### Playing what you authored
+
+**Save** writes the project as JSON; **Load** reads one back and restarts the game on it. That
+is the round trip: write a party, a room, the things in it and the fight past them, save, load,
+play. `buildProjectScene(project, seed)` is the engine's side of it — hand it a document and it
+stands a game up — and `editor/authored-scenario.test.ts` walks the whole path with nothing but
+session edits, no engine code anywhere in it.
+
 ### Party
 
 **Write a character…** opens the Party panel: the campaign's own characters, one at a time. A
@@ -783,8 +791,13 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   zip packaging CONTEXT.md mentions does not exist. Textures, audio and data-pack import do
   not exist.
 - Saves live in `localStorage`, and the log is stored unbounded inside each one.
-- **Loading a project JSON does not restart play.** The editor edits the loaded document; the
-  running game stays on the project it booted with. A schema failure is not shown in the panel.
+- **Loading a project JSON restarts the game on it.** The party, the rooms and everything in
+  them come from the loaded document, so what a designer saves is what they play. It refuses
+  three ways, each with the reason in the panel: mid-fight or mid-conversation (there is a turn
+  order or a prompt waiting on the game that is running), a document that does not parse, and a
+  document that parses but cannot be stood up — a start scene that is not there, or a room
+  placing an adversary with no stat block. Nothing about the running game changes when it
+  refuses. A save from one project does not load into another.
 - **An object's check uses the party's best trait**, not the acting character's; using an
   object in a fight spends that character's action. Both are demo decisions, not SRD rules.
   A card's roll is the acting character's own.

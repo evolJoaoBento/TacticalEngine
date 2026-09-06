@@ -435,8 +435,15 @@ terrain palette.
 literals: a blank project, then the same session edits the panels run — a character, an item, a
 loot table, a chest that pays out, a door that wants the key, an adversary and the cell that
 wakes it — then `buildProjectScene` and *play*. The door refuses, the chest answers it, the
-door opens, and the thing past it can be swung at. Writing it found the last hidden literal:
-a room was stood up for the party the demo ships rather than the one the document carries.
+door opens, walking onto the marked cell starts the fight, and the thing past it can be swung
+at. Writing it found two hidden literals: a room was stood up for the party the demo ships
+rather than the one the document carries, and an adversary the SRD did not know was silently
+replaced by the demo's stand-in — a substitution that now happens once, in the document, when
+the legacy map is imported, so what a project says is what it plays.
+
+**Load restarts the game on the loaded project**, which is what makes the round trip real: write
+a party and a room in the panels, save, load, play. It refuses mid-fight, on a document that
+does not parse, and on one that parses but cannot be stood up.
 
 A designer can now author a *party* (sheets naming a class, ancestry, armor and weapon), a
 *map* (terrain, elevation, props, objects, enemies, triggers and spawns, saved as JSON and

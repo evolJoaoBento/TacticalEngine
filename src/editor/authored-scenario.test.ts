@@ -22,7 +22,7 @@ import {
   attackWithSelected,
   answerPending,
   buildProjectScene,
-  startEncounter,
+  moveSelectedTo,
   useSelectedOn,
 } from '../game/demo-scene';
 
@@ -149,15 +149,30 @@ describe('a scenario built with nothing but the editor', () => {
     expect(opened.lines.map((l) => l.text).join(' ')).toContain('swings wide');
     expect(demo.world.interactableState('iron-door').open).toBe(true);
 
-    // The thing past it is real, and can be swung at.
-    startEncounter(demo, 'ambush');
+    // Walking onto the cell the panel marked starts the fight — nothing here
+    // calls `startEncounter`, because a trigger a designer placed has to work.
+    expect(demo.encounter).toBeNull();
+    moveSelectedTo(demo, demo.grid.indexOf(7, 4));
+    expect(demo.encounter).not.toBeNull();
+
     const foe = demo.state.entitiesOf('adversary')[0]!;
     expect(foe.definition).toBe('acid-burrower');
-    demo.state.moveEntity('kara', demo.grid.indexOf(7, 4));
     const swing = attackWithSelected(demo, foe.id);
     expect(swing).not.toBeNull();
     expect(swing!.refused).toBeNull();
     expect(demo.log.map((line) => line.text).join(' ')).toMatch(/Broadsword/);
+  });
+
+  it('refuses to stand up a room that places a creature nobody can look up', () => {
+    const s = author();
+    s.project.scenes[0]!.encounters[0]!.adversaries[0]!.adversary = 'goblin-warror';
+    expect(() => buildProjectScene(s.project)).toThrow(/goblin-warror/);
+    // And the validator says the same thing before it is ever played.
+    expect(
+      validateProject(s.project, { knownAdversaries: new Set(['acid-burrower']) })
+        .map((p) => p.message)
+        .join(' '),
+    ).toContain('goblin-warror');
   });
 
   it('reports what a half-finished scenario is missing', () => {

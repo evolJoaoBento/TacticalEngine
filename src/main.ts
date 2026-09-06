@@ -88,7 +88,9 @@ import {
   DEMO_MODELS,
   SRD_ADVERSARIES,
   SRD_CHARACTERS,
+  buildProjectScene,
   setSheet,
+  type DemoScene,
 } from './game/demo-scene';
 import { SRD_HOOKS } from './engine/content/srd/hooks';
 import { SRD_ABILITIES } from './engine/content/srd/abilities';
@@ -198,6 +200,7 @@ declare global {
       propCount: () => number;
       problems: () => number;
       exportProject: () => string;
+      loadProjectText: (text: string) => string;
     };
   }
 }
@@ -217,7 +220,9 @@ const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof We
 // The scene, and an editable project over the same map
 // ---------------------------------------------------------------------------
 
-const demo = buildDemoScene(demoMap());
+// `let`, because loading a project restarts the game on it: everything below
+// reads this binding rather than capturing the object it happens to hold.
+let demo = buildDemoScene(demoMap());
 // At the table the defender decides how a hit lands: an Armor Slot, a card,
 // or an ally stepping in. The engine decides for itself in tests and headless
 // runs, where there is nobody to ask.
@@ -422,13 +427,50 @@ function saveProject(): void {
 }
 
 async function loadProject(file: File): Promise<void> {
-  const parsed = projectSchema.safeParse(JSON.parse(await file.text()));
+  loadProjectText(await file.text(), file.name);
+}
+
+/**
+ * Load a project and restart the game on it.
+ *
+ * Split from the file handle so a test can hand it text, and because "load"
+ * is one decision — parse, refuse if the moment is wrong, boot — rather than
+ * a file operation with a game somewhere behind it. Returns the reason it
+ * would not, or an empty string.
+ */
+function loadProjectText(text: string, label = 'the project'): string {
+  const parsed = projectSchema.safeParse(JSON.parse(text));
   if (!parsed.success) {
-    errors.push(`Could not load ${file.name}: ${parsed.error.issues[0]?.message ?? 'invalid'}`);
+    const reason = `Could not load ${label}: ${parsed.error.issues[0]?.message ?? 'invalid'}`;
+    errors.push(reason);
     renderPanel();
-    return;
+    return reason;
   }
-  project = parsed.data;
+  // A loaded project is a campaign to play, not a document to look at. The one
+  // moment it will not do that is mid-fight or mid-conversation: there is a
+  // prompt or a turn order waiting on the game that is running, and throwing
+  // that away under the player is not loading, it is losing.
+  const blocked = saveBlockedBy(demo);
+  if (blocked !== null) {
+    const reason = `Could not load ${label}: ${blocked}`;
+    errors.push(reason);
+    renderPanel();
+    return reason;
+  }
+  let fresh: DemoScene;
+  try {
+    fresh = buildProjectScene(parsed.data, parsed.data.id);
+  } catch (failure) {
+    // A project that parses can still be unplayable: an adversary with no stat
+    // block, a start scene that is not there. Say so and keep the game running.
+    const reason = `Could not play ${label}: ${failure instanceof Error ? failure.message : String(failure)}`;
+    errors.push(reason);
+    renderPanel();
+    return reason;
+  }
+  demo = fresh;
+  demo.askDefender = true;
+  project = demo.project;
   session = new EditorSession(project);
   editor = new EditorController({
     session,
@@ -445,7 +487,9 @@ async function loadProject(file: File): Promise<void> {
   rebindScene();
   rebuildTerrain();
   view.setDecos(editor.scene.decos);
+  refreshPlay();
   renderPanel();
+  return '';
 }
 
 // ---------------------------------------------------------------------------
@@ -1516,6 +1560,7 @@ const state = {
     return editor.scene.encounters.length;
   },
   exportProject: (): string => JSON.stringify(session.project),
+  loadProjectText: (text: string): string => loadProjectText(text),
 };
 window.__polyheart = state;
 
