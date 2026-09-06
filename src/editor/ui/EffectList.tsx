@@ -1,22 +1,25 @@
 /**
  * Editing a list of effects.
  *
- * This is the piece that lets a designer write what an object *does* without
- * opening a TypeScript file. It covers the flat vocabulary — a line of prose, a
- * flag, a key, loot, damage, travel, a conversation — and shows the recursive
- * ones (`branch`, `choice`, a nested `check`) without pretending to edit them: a
- * tree editor is its own piece of work, and quietly dropping the parts it cannot
- * represent would be worse than saying so.
+ * This is the piece that lets a designer write what an object or a card *does*
+ * without opening a TypeScript file: a line of prose, a flag, loot, travel, a
+ * conversation, and the combat vocabulary — an attack, damage, Stress, Hope,
+ * conditions, tokens on a card, and a `run` that hands off to project code.
+ * The recursive ones nest a list inside a list, so a whole card's script can be
+ * written here; the rare ones it cannot build are shown rather than hidden,
+ * because quietly dropping what it cannot represent would be worse.
  *
- * Ids that must resolve — a scene, a dialogue, an encounter — are chosen from
- * what the project actually holds rather than typed, so the commonest authoring
- * error cannot be made here at all.
+ * Ids that must resolve — a scene, a dialogue, an encounter, a hook — are chosen
+ * from what the project actually holds rather than typed, so the commonest
+ * authoring error cannot be made here at all.
  */
 
-import type { Effect } from '../../engine/script/schema';
+import type { Effect, TargetSelector } from '../../engine/script/schema';
 import type { QuestDef } from '../../engine/content/quests';
+import { RANGE_BANDS, type RangeBand } from '../../engine/rules/range';
 import { ConditionEditor } from './ConditionEditor';
 import { CheckEditor } from './CheckEditor';
+import { TargetEditor } from './TargetEditor';
 
 export interface EffectListProps {
   /** A hook for tests to find one list among several. */
@@ -31,6 +34,10 @@ export interface EffectListProps {
   encounterIds: readonly string[];
   /** What the quest effects can name — the whole definition, for the objectives. */
   quests: readonly QuestDef[];
+  /** What a `run` can name: the engine's own hooks plus the project's code. */
+  hookIds?: readonly string[];
+  /** What a token effect can name: the cards the project and the SRD carry. */
+  abilityIds?: readonly string[];
 }
 
 /** The kinds this can build. Anything else is shown, not offered. */
@@ -63,6 +70,22 @@ const ADDABLE = [
   'addItem',
   'removeItem',
   'endEncounter',
+  // What a card does to a creature.
+  'attack',
+  'markStress',
+  'clearStress',
+  'markArmor',
+  'clearArmor',
+  'gainHope',
+  'spendHope',
+  'gainFear',
+  'applyCondition',
+  'clearCondition',
+  'addToken',
+  'spendToken',
+  'push',
+  'reactionRoll',
+  'run',
 ] as const;
 
 type Addable = (typeof ADDABLE)[number];
@@ -96,7 +119,25 @@ const LABELS: Readonly<Record<Addable, string>> = {
   addItem: 'Give an item',
   removeItem: 'Take an item',
   endEncounter: 'End a fight',
+  attack: 'Make an attack',
+  markStress: 'Mark Stress',
+  clearStress: 'Clear Stress',
+  markArmor: 'Mark Armor Slots',
+  clearArmor: 'Clear Armor Slots',
+  gainHope: 'Gain Hope',
+  spendHope: 'Spend Hope',
+  gainFear: 'GM gains Fear',
+  applyCondition: 'Apply a condition',
+  clearCondition: 'Clear a condition',
+  addToken: 'Put tokens on a card',
+  spendToken: 'Spend tokens on a card',
+  push: 'Push them back',
+  reactionRoll: 'Ask for a reaction roll',
+  run: 'Run code',
 };
+
+/** The bands a `push` can name. */
+const BANDS = RANGE_BANDS.filter((band) => band !== 'outOfRange');
 
 const row: Record<string, string | number> = {
   display: 'flex',
@@ -185,7 +226,49 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, item: 'an-item', quantity: 1 };
     case 'endEncounter':
       return { kind, encounter: props.encounterIds[0] ?? 'encounter-1' };
+    case 'attack':
+      return { kind };
+    case 'markStress':
+    case 'clearStress':
+    case 'markArmor':
+    case 'clearArmor':
+    case 'gainHope':
+    case 'spendHope':
+    case 'gainFear':
+      return { kind, amount: 1 };
+    case 'applyCondition':
+      return { kind, condition: 'vulnerable', duration: 'temporary' };
+    case 'clearCondition':
+      return { kind, condition: 'vulnerable' };
+    case 'addToken':
+    case 'spendToken':
+      return { kind, ability: props.abilityIds?.[0] ?? '', amount: 1 };
+    case 'push':
+      return { kind, to: 'far' };
+    case 'reactionRoll':
+      return { kind, difficulty: 12, trait: 'agility' };
+    case 'run':
+      return { kind, hook: props.hookIds?.[0] ?? '' };
   }
+}
+
+/**
+ * `name=value` pairs for a hook's arguments. Numbers and booleans are read as
+ * such — a hook that asks for `ctx.args.amount` wants a number, and typing one
+ * should not hand it the string.
+ */
+function parseArgs(raw: string): Record<string, string | number | boolean> | undefined {
+  const args: Record<string, string | number | boolean> = {};
+  for (const pair of raw.split(',')) {
+    const at = pair.indexOf('=');
+    if (at < 0) continue;
+    const name = pair.slice(0, at).trim();
+    const value = pair.slice(at + 1).trim();
+    if (name === '') continue;
+    const asNumber = Number(value);
+    args[name] = value === 'true' ? true : value === 'false' ? false : value !== '' && !Number.isNaN(asNumber) ? asNumber : value;
+  }
+  return Object.keys(args).length === 0 ? undefined : args;
 }
 
 /** A one-line summary of an effect this cannot edit. */
@@ -268,6 +351,31 @@ function renderBody(
       onInput={(e) => onChange(set((e.target as HTMLInputElement).value))}
     />
   );
+  /** Who it lands on. Every combat effect takes the same one. */
+  const who = (
+    selector: TargetSelector | undefined,
+    fallback: string,
+    set: (s: TargetSelector | undefined) => Effect,
+  ): preact.JSX.Element => <TargetEditor selector={selector} fallback={fallback} onChange={(s) => onChange(set(s))} />;
+
+  /** A small whole number, defaulting to one when the field is emptied. */
+  const count = (value: number, set: (n: number) => Effect): preact.JSX.Element => (
+    <input
+      type="number"
+      min={1}
+      style={{ ...field, flex: 'none', width: '52px' }}
+      value={value}
+      onInput={(e) => onChange(set(Math.max(1, Number((e.target as HTMLInputElement).value) || 1)))}
+    />
+  );
+
+  const flag = (label: string, hint: string, on: boolean, set: (v: boolean) => Effect): preact.JSX.Element => (
+    <label style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }} title={hint}>
+      <input type="checkbox" checked={on} onChange={(e) => onChange(set((e.target as HTMLInputElement).checked))} />
+      {label}
+    </label>
+  );
+
   const pick = (
     value: string,
     options: readonly string[],
@@ -297,18 +405,232 @@ function renderBody(
       return text(effect.key, (key) => ({ ...effect, key }));
     case 'loot':
       return text(effect.table ?? '', (table) => ({ ...effect, table }), 'loot table (optional)');
-    case 'damage':
     case 'heal':
       return (
-        <input
-          type="number"
-          min={1}
-          style={field}
-          value={effect.amount}
-          onInput={(e) =>
-            onChange({ ...effect, amount: Math.max(1, Number((e.target as HTMLInputElement).value) || 1) })
-          }
-        />
+        <>
+          {count(effect.amount, (amount) => ({ ...effect, amount }))}
+          {who(effect.target, 'the actor', (target) => ({ ...effect, target }))}
+        </>
+      );
+    case 'damage': {
+      // Exactly one of a flat amount or dice: switching sets one and drops the
+      // other, so the pair can never both be written.
+      const rolled = effect.dice !== undefined;
+      return (
+        <>
+          <select
+            style={{ ...field, flex: 'none', width: '84px' }}
+            data-role="damage-mode"
+            value={rolled ? 'dice' : 'amount'}
+            onChange={(e) =>
+              onChange(
+                (e.target as HTMLSelectElement).value === 'dice'
+                  ? { ...effect, amount: undefined, dice: 'd6' }
+                  : { ...effect, dice: undefined, amount: 2 },
+              )
+            }
+          >
+            <option value="amount">flat</option>
+            <option value="dice">rolled</option>
+          </select>
+          {rolled ? (
+            <input
+              style={{ ...field, flex: 'none', width: '84px' }}
+              data-role="damage-dice"
+              // `weapon` and `same` are words, not dice: the first is whatever
+              // the actor swings, the second the damage this script already rolled.
+              placeholder="2d6, weapon, same"
+              list="damage-dice-words"
+              value={effect.dice ?? ''}
+              onInput={(e) => onChange({ ...effect, dice: (e.target as HTMLInputElement).value })}
+            />
+          ) : (
+            count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))
+          )}
+          {rolled ? (
+            <select
+              style={{ ...field, flex: 'none', width: '92px' }}
+              data-role="damage-using"
+              title="Multiply the dice by the actor's Proficiency or Spellcast trait"
+              value={effect.using ?? ''}
+              onChange={(e) => {
+                const using = (e.target as HTMLSelectElement).value;
+                onChange({ ...effect, using: using === '' ? undefined : (using as 'proficiency' | 'spellcast') });
+              }}
+            >
+              <option value="">×1</option>
+              <option value="proficiency">× Proficiency</option>
+              <option value="spellcast">× Spellcast</option>
+            </select>
+          ) : null}
+          {rolled ? flag('half', 'Half the total, rounded up', effect.half === true, (half) => ({ ...effect, half: half ? true : undefined })) : null}
+          {flag('direct', 'Armor Slots cannot reduce it', effect.direct === true, (direct) => ({ ...effect, direct: direct ? true : undefined }))}
+          {who(effect.target, rolled ? 'everyone the roll beat' : 'the actor', (target) => ({ ...effect, target }))}
+          <datalist id="damage-dice-words">
+            <option value="weapon" />
+            <option value="same" />
+          </datalist>
+        </>
+      );
+    }
+    case 'markStress':
+    case 'clearStress':
+    case 'markArmor':
+    case 'clearArmor':
+    case 'gainHope':
+      return (
+        <>
+          {count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))}
+          {who(effect.target, effect.kind === 'gainHope' ? 'the actor' : 'the chosen target', (target) => ({ ...effect, target }))}
+        </>
+      );
+    case 'spendHope':
+    case 'gainFear':
+      return count(effect.amount ?? 1, (amount) => ({ ...effect, amount }));
+    case 'applyCondition':
+      return (
+        <>
+          {text(effect.condition, (condition) => ({ ...effect, condition }), 'condition')}
+          <select
+            style={{ ...field, flex: 'none', width: '90px' }}
+            data-role="condition-duration"
+            value={effect.duration ?? 'temporary'}
+            onChange={(e) =>
+              onChange({ ...effect, duration: (e.target as HTMLSelectElement).value as 'temporary' | 'scene' | 'rest' | 'permanent' })
+            }
+          >
+            <option value="temporary">until they act</option>
+            <option value="scene">this scene</option>
+            <option value="rest">until a rest</option>
+            <option value="permanent">until cleared</option>
+          </select>
+          {who(effect.target, 'everyone the roll beat', (target) => ({ ...effect, target }))}
+        </>
+      );
+    case 'clearCondition':
+      return (
+        <>
+          {text(effect.condition, (condition) => ({ ...effect, condition }), 'condition')}
+          {who(effect.target, 'the actor', (target) => ({ ...effect, target }))}
+        </>
+      );
+    case 'addToken':
+    case 'spendToken':
+      return (
+        <>
+          {props.abilityIds === undefined || props.abilityIds.length === 0
+            ? text(effect.ability, (ability) => ({ ...effect, ability }), 'card id')
+            : pick(effect.ability, props.abilityIds, (ability) => ({ ...effect, ability }))}
+          {count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))}
+          {who(effect.target, 'the actor', (target) => ({ ...effect, target }))}
+        </>
+      );
+    case 'push':
+      return (
+        <>
+          <select
+            style={{ ...field, flex: 'none', width: '84px' }}
+            data-role="push-to"
+            value={effect.to}
+            onChange={(e) => onChange({ ...effect, to: (e.target as HTMLSelectElement).value as RangeBand })}
+          >
+            {BANDS.map((band) => (
+              <option key={band} value={band}>
+                to {band}
+              </option>
+            ))}
+          </select>
+          {who(effect.target, 'the chosen target', (target) => ({ ...effect, target }))}
+        </>
+      );
+    case 'run':
+      return (
+        <>
+          {props.hookIds === undefined || props.hookIds.length === 0
+            ? text(effect.hook, (hook) => ({ ...effect, hook }), 'code id')
+            : pick(effect.hook, props.hookIds, (hook) => ({ ...effect, hook }))}
+          <input
+            style={{ ...field, flex: 'none', width: '120px' }}
+            data-role="run-args"
+            placeholder="name=value, name=value"
+            title="Handed to the code as ctx.args"
+            value={Object.entries(effect.args ?? {})
+              .map(([k, v]) => `${k}=${String(v)}`)
+              .join(', ')}
+            onInput={(e) => onChange({ ...effect, args: parseArgs((e.target as HTMLInputElement).value) })}
+          />
+        </>
+      );
+    case 'attack':
+      return (
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="attack">
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              style={{ ...field, flex: 'none', width: '86px' }}
+              data-role="attack-weapon"
+              value={effect.weapon ?? 'primary'}
+              onChange={(e) =>
+                onChange({ ...effect, weapon: (e.target as HTMLSelectElement).value as 'primary' | 'secondary' })
+              }
+            >
+              <option value="primary">primary</option>
+              <option value="secondary">secondary</option>
+            </select>
+            {who(effect.target, 'the chosen target', (target) => ({ ...effect, target }))}
+            <input
+              style={{ ...field, flex: 'none', width: '80px' }}
+              data-role="attack-damage"
+              placeholder="damage dice"
+              title="Damage dice instead of the attacker's own"
+              value={effect.damage ?? ''}
+              onInput={(e) => {
+                const damage = (e.target as HTMLInputElement).value;
+                onChange({ ...effect, damage: damage === '' ? undefined : damage });
+              }}
+            />
+          </div>
+          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>on a hit</div>
+          <EffectList {...props} testId={undefined} effects={effect.onHit ?? []} onChange={(onHit) => onChange({ ...effect, onHit: onHit.length === 0 ? undefined : onHit })} />
+          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>on a miss</div>
+          <EffectList {...props} testId={undefined} effects={effect.onMiss ?? []} onChange={(onMiss) => onChange({ ...effect, onMiss: onMiss.length === 0 ? undefined : onMiss })} />
+        </div>
+      );
+    case 'reactionRoll':
+      return (
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="reaction-roll">
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              style={{ ...field, flex: 'none', width: '86px' }}
+              data-role="reaction-trait"
+              value={effect.trait ?? 'agility'}
+              onChange={(e) => onChange({ ...effect, trait: (e.target as HTMLSelectElement).value as typeof effect.trait })}
+            >
+              {['agility', 'strength', 'finesse', 'instinct', 'presence', 'knowledge'].map((trait) => (
+                <option key={trait} value={trait}>
+                  {trait}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min={1}
+              style={{ ...field, flex: 'none', width: '52px' }}
+              data-role="reaction-difficulty"
+              value={effect.difficulty === 'roll' ? '' : effect.difficulty}
+              disabled={effect.difficulty === 'roll'}
+              onInput={(e) => onChange({ ...effect, difficulty: Math.max(1, Number((e.target as HTMLInputElement).value) || 1) })}
+            />
+            {flag('vs the last roll', "The actor's last roll is the Difficulty", effect.difficulty === 'roll', (on) => ({
+              ...effect,
+              difficulty: on ? 'roll' : 12,
+            }))}
+            {who(effect.targets, 'the chosen target', (targets) => ({ ...effect, targets }))}
+          </div>
+          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>those who fail</div>
+          <EffectList {...props} testId={undefined} effects={effect.onFail ?? []} onChange={(onFail) => onChange({ ...effect, onFail: onFail.length === 0 ? undefined : onFail })} />
+          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>those who succeed</div>
+          <EffectList {...props} testId={undefined} effects={effect.onSuccess ?? []} onChange={(onSuccess) => onChange({ ...effect, onSuccess: onSuccess.length === 0 ? undefined : onSuccess })} />
+        </div>
       );
     case 'goto':
       return pick(effect.scene, props.sceneIds, (scene) => ({ ...effect, scene }));
@@ -408,6 +730,9 @@ function renderBody(
             dialogueIds={props.dialogueIds}
             encounterIds={props.encounterIds}
             quests={props.quests}
+            showTargets={true}
+            {...(props.hookIds === undefined ? {} : { hookIds: props.hookIds })}
+            {...(props.abilityIds === undefined ? {} : { abilityIds: props.abilityIds })}
           />
         </div>
       );

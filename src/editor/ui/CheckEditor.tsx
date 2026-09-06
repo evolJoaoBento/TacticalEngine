@@ -11,6 +11,7 @@
 import type { CheckRequest, Effect } from '../../engine/script/schema';
 import type { QuestDef } from '../../engine/content/quests';
 import { EffectList } from './EffectList';
+import { TargetEditor } from './TargetEditor';
 
 export interface CheckEditorProps<T extends CheckRequest> {
   check: T;
@@ -21,6 +22,15 @@ export interface CheckEditorProps<T extends CheckRequest> {
   quests: readonly QuestDef[];
   /** Hide the trait/difficulty row when the caller draws its own. */
   showHeader?: boolean;
+  /**
+   * Show who the roll is against and whether it reuses the last one. Off for a
+   * dialogue's or an object's check, where there is nobody to roll against.
+   */
+  showTargets?: boolean;
+  /** Hooks a `run` effect inside an outcome can name. */
+  hookIds?: readonly string[];
+  /** Cards a token effect inside an outcome can name. */
+  abilityIds?: readonly string[];
   /** For a reply's check: the nodes a success or a failure can lead to. */
   nodeIds?: readonly string[];
 }
@@ -59,6 +69,16 @@ export function CheckEditor<T extends CheckRequest>(props: CheckEditorProps<T>):
     dialogueIds: props.dialogueIds,
     encounterIds: props.encounterIds,
     quests: props.quests,
+    ...(props.hookIds === undefined ? {} : { hookIds: props.hookIds }),
+    ...(props.abilityIds === undefined ? {} : { abilityIds: props.abilityIds }),
+  };
+
+  /** Set or delete one optional field, so nothing is written as `undefined`. */
+  const setField = (key: keyof CheckRequest, value: unknown): void => {
+    const next = { ...check } as Record<string, unknown>;
+    if (value === undefined) delete next[key];
+    else next[key] = value;
+    onChange(next as T);
   };
 
   /** Replace one outcome's effects, dropping the field when it empties. */
@@ -146,6 +166,30 @@ export function CheckEditor<T extends CheckRequest>(props: CheckEditorProps<T>):
               onChange(next as T);
             }}
           />
+        </div>
+      ) : null}
+
+      {props.showTargets === true ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
+          <span style={{ color: '#8ea3b0', fontSize: '11px' }}>against</span>
+          <TargetEditor
+            testId="check-targets"
+            selector={check.targets}
+            fallback="the chosen target"
+            onChange={(targets) => setField('targets', targets)}
+          />
+          <label
+            style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}
+            title="No new dice: the last roll made in this script stands against each target's Difficulty"
+          >
+            <input
+              type="checkbox"
+              data-testid="check-reuse"
+              checked={check.roll === 'last'}
+              onChange={(e) => setField('roll', (e.target as HTMLInputElement).checked ? 'last' : undefined)}
+            />
+            reuse the last roll
+          </label>
         </div>
       ) : null}
 

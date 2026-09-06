@@ -14,11 +14,13 @@ import { useEffect, useState } from 'preact/hooks';
 import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
 import { addDialogue, removeDialogue, removeInteractable, updateInteractable } from '../session';
+import type { AbilityDef } from '../../engine/content/abilities';
 import { questSchema } from '../../engine/content/quests';
 import { addQuest, removeQuest } from '../session';
 import { addAsset, removeAsset } from '../session';
 import { modelAssetSchema } from '../../engine/render/assets';
 import { CodePanel } from './CodePanel';
+import { AbilityPanel } from './AbilityPanel';
 import { QuestEditor } from './QuestEditor';
 import { dialogueSchema } from '../../engine/dialogue/schema';
 import { DialogueGraph } from './DialogueGraph';
@@ -49,6 +51,8 @@ export interface EditorPanelProps {
   knownAdversaries: ReadonlySet<string>;
   /** Hooks the engine registers itself, listed in the Code panel. */
   nativeHooks: readonly string[];
+  /** The cards the engine ships, listed beside the project's own. */
+  libraryAbilities: readonly AbilityDef[];
 }
 
 const TOOLS: { tool: EditorTool; label: string; hint: string }[] = [
@@ -113,6 +117,8 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
   const [graph, setGraph] = useState<string | null>(null);
   /** Whether the Code panel is open over the map. */
   const [code, setCode] = useState(false);
+  /** Whether the Cards panel is open over the map. */
+  const [cards, setCards] = useState(false);
   const [openQuest, setOpenQuest] = useState<string | null>(null);
 
   const scene = controller.scene;
@@ -138,6 +144,24 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         nativeHooks={props.nativeHooks}
         onChange={bump}
         onClose={() => setCode(false)}
+      />
+    );
+  }
+
+  if (cards) {
+    return (
+      <AbilityPanel
+        session={session}
+        libraryAbilities={props.libraryAbilities}
+        // A card's `run` can name either door: the engine's own hooks or the
+        // project's code, which is exactly what the runner looks in.
+        hookIds={[...props.nativeHooks, ...session.project.code.map((entry) => entry.id)]}
+        sceneIds={session.project.scenes.map((entry) => entry.id)}
+        dialogueIds={session.project.dialogues.map((entry) => entry.id)}
+        encounterIds={scene.encounters.map((entry) => entry.id)}
+        quests={session.project.quests}
+        onChange={bump}
+        onClose={() => setCards(false)}
       />
     );
   }
@@ -477,8 +501,11 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         </button>
       </div>
 
-      <div style={heading}>Code</div>
+      <div style={heading}>Cards and code</div>
       <div>
+        <button style={button(false)} data-testid="open-abilities" onClick={() => setCards(true)}>
+          {session.project.abilities.length === 0 ? 'Write a card…' : `Cards (${session.project.abilities.length})…`}
+        </button>
         <button style={button(false)} data-testid="open-code" onClick={() => setCode(true)}>
           {session.project.code.length === 0 ? 'Write logic in code…' : `Code (${session.project.code.length})…`}
         </button>

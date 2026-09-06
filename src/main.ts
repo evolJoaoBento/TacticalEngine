@@ -89,6 +89,7 @@ import {
   SRD_CHARACTERS,
 } from './game/demo-scene';
 import { SRD_HOOKS } from './engine/content/srd/hooks';
+import { SRD_ABILITIES } from './engine/content/srd/abilities';
 
 declare global {
   interface Window {
@@ -339,6 +340,7 @@ function renderPanel(): void {
       knownModels: KNOWN_MODELS,
       knownAdversaries: new Set(SRD_ADVERSARIES.keys()),
       nativeHooks: [...SRD_HOOKS.keys()],
+      libraryAbilities: SRD_ABILITIES,
       onPlay: () => setMode('play'),
       onSave: saveProject,
       onAssetsChanged: () => {

@@ -1897,3 +1897,114 @@ test('asks the defender how a hit lands, and the fight waits for the answer', as
 
   expect(consoleErrors).toEqual([]);
 });
+
+test('writes a whole card in the Cards panel and plays it from the action bar', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  // `+ Card` asks for a name; nothing else in this test opens a dialog.
+  page.on('dialog', (dialog) => void dialog.accept('Banner Cry'));
+
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-abilities"]').click();
+  const panel = page.locator('[data-testid="ability-panel"]');
+  await expect(panel).toBeVisible();
+
+  // The demo's own granted card is listed and opens.
+  await panel.locator('[data-ability="rally-the-line"]').click();
+  await expect(panel.locator('[data-testid="ability-name"]')).toHaveValue('Rally the Line');
+
+  await panel.locator('[data-testid="add-ability"]').click();
+  await expect(panel.locator('[data-ability="banner-cry"]')).toBeVisible();
+  await expect(panel.locator('[data-testid="ability-name"]')).toHaveValue('Banner Cry');
+
+  // Kara holds it, and it says what it is.
+  await panel.locator('[data-testid="ability-characters"]').fill('kara');
+  await panel.locator('[data-testid="ability-text"]').fill('Raise the banner: the whole line breathes again.');
+
+  // A line of prose, then Stress off everyone — the selector is the piece the
+  // panel could not reach before this.
+  const effects = panel.locator('[data-testid="ability-effects"]');
+  await effects.locator('[data-role="add-effect"]').first().selectOption('log');
+  await effects.locator('[data-effect="0"] input').first().fill('The banner goes up over the field.');
+  await effects.locator('[data-role="add-effect"]').first().selectOption('clearStress');
+  await effects.locator('[data-effect="1"] [data-role="target-kind"]').selectOption('party');
+
+  await panel.locator('[data-testid="close-abilities"]').click();
+
+  const before = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('play');
+    api.select('kara');
+    for (const id of api.party()) api.markStress(id, 2);
+    return Object.fromEntries(api.party().map((id) => [id, api.stressOf(id).marked]));
+  });
+
+  const bar = page.locator('[data-testid="action-bar"]');
+  await expect(bar.locator('[data-ability="banner-cry"]')).toHaveAttribute('data-usable', 'true');
+  await bar.locator('[data-ability="banner-cry"]').click();
+
+  await expect(page.locator('[data-testid="log"]')).toContainText('The banner goes up over the field.');
+  const after = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    return Object.fromEntries(api.party().map((id) => [id, api.stressOf(id).marked]));
+  });
+  for (const id of Object.keys(before)) expect(after[id]).toBe(before[id]! - 1);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('writes a card that reuses one roll against every other adversary in reach', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  page.on('dialog', (dialog) => void dialog.accept('Sweep'));
+
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-abilities"]').click();
+  const panel = page.locator('[data-testid="ability-panel"]');
+  await panel.locator('[data-testid="add-ability"]').click();
+
+  // Whirlwind's shape, built entirely from the panel: swing, then carry the
+  // same roll and half of the same damage to everyone else in reach.
+  const effects = panel.locator('[data-testid="ability-effects"]');
+  await effects.locator('[data-role="add-effect"]').first().selectOption('attack');
+  const attack = effects.locator('[data-effect="0"] [data-testid="attack"]');
+  await attack.locator('[data-role="add-effect"]').first().selectOption('check');
+
+  const check = attack.locator('[data-testid="check-editor"]').first();
+  await check.locator('[data-testid="check-reuse"]').check();
+  await check.locator('[data-testid="check-targets"] [data-role="target-kind"]').selectOption('adversaries');
+  await check.locator('[data-testid="check-targets"] [data-role="target-except"]').check();
+
+  const outcome = check.locator('[data-outcome="onSuccessWithHope"]');
+  await outcome.locator('[data-role="add-effect"]').first().selectOption('damage');
+  await outcome.locator('[data-role="damage-mode"]').selectOption('dice');
+  await outcome.locator('[data-role="damage-dice"]').fill('same');
+  await outcome.locator('label:has-text("half") input').check();
+
+  // What the panel wrote is a script the engine's own schema accepts.
+  const written = await page.evaluate(() => {
+    const project = JSON.parse(window.__polyheart!.exportProject()) as {
+      abilities: { id: string; effects: unknown[] }[];
+    };
+    return project.abilities.find((a) => a.id === 'sweep')!.effects;
+  });
+  expect(written).toEqual([
+    {
+      // The weapon select reads "primary" because that is the default; the
+      // panel writes only what an author actually chose.
+      kind: 'attack',
+      onHit: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'finesse',
+            difficulty: 12,
+            roll: 'last',
+            targets: { kind: 'adversaries', range: 'veryClose', except: 'target' },
+            onSuccessWithHope: [{ kind: 'damage', dice: 'same', half: true }],
+          },
+        },
+      ],
+    },
+  ]);
+
+  expect(consoleErrors).toEqual([]);
+});

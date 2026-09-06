@@ -291,8 +291,23 @@ An effect list shows each effect with a one-word label and its fields, **✕** t
 **+ Add an effect…** offering: Say something, Set a flag, Clear a flag, Give a key, Open it,
 Remove it, Mark it used, Give loot, Deal damage, Heal, Start a fight, Travel to a scene, Start a
 conversation, Start a quest, Complete an objective, Complete a quest, Fail a quest, Level the
-party up. Scene, conversation, encounter and quest ids are dropdowns over what the project holds;
-the objective dropdown follows its quest. Flag, key and loot-table ids are typed.
+party up — and the combat vocabulary a card is written in: Make an attack, Mark/Clear Stress,
+Mark/Clear Armor Slots, Gain/Spend Hope, GM gains Fear, Apply/Clear a condition, Put tokens on a
+card, Spend tokens on a card, Push them back, Ask for a reaction roll, and Run code. Scene,
+conversation, encounter and quest ids are dropdowns over what the project holds; the objective
+dropdown follows its quest. Flag, key and loot-table ids are typed.
+
+**Who an effect lands on** is the same little control everywhere: a dropdown of the chosen
+target, everyone the roll beat, the one acting, the whole party, allies in range, adversaries in
+range, one named creature, or named creatures — leaving it on *— default —* keeps the effect's
+own default rather than writing a selector. Adversaries add a range band, whether it is measured
+from the actor or the target, and an **all *other*** box, which is the SRD's "all other targets
+within range". **Deal damage** switches between a flat amount and rolled dice; the dice field
+takes an expression, or the words `weapon` (the actor's own) and `same` (the damage this script
+already rolled), with ×Proficiency, ×Spellcast, *half* and *direct* beside it. **Make an attack**
+and **Ask for a reaction roll** nest effect lists of their own, for a hit and a miss, or for
+those who fail and those who pass. **Run code** picks a hook — the engine's own or the project's
+— and takes `name=value` arguments handed to it as `ctx.args`.
 
 **If … then** adds a `branch`: a condition editor for its `when` (kind from a dropdown; quest,
 objective and encounter ids from dropdowns; flags, items and variables typed; `not`/`all`/`any`
@@ -300,7 +315,10 @@ nest), then two effect lists for *then* and *otherwise*. **Reveal an objective**
 quest step into the journal.
 
 **Ask for a roll** adds a `check` with the same editor an object's roll uses — trait,
-difficulty, prompt, and an effect list per outcome. **Ask the player** adds a `choice`: a title,
+difficulty, prompt, and an effect list per outcome. Inside a card's script it also shows who the
+roll is **against** (the same selector) and a **reuse the last roll** box: no new dice, the last
+roll made in this script standing against each target's Difficulty, which is how Whirlwind hits
+the rest of the room off one swing. **Ask the player** adds a `choice`: a title,
 what the player is told, and options, each with a label, an optional *if…* gate and its own
 effect list. **Story panel**, **Set/Add a variable**, **Give/Take an item** and **End a fight**
 are edited inline. Every effect kind the engine runs can now be built in the editor.
@@ -355,6 +373,17 @@ end-to-end test places it through the debug handle.
 There is no editor UI for items or loot tables. Author them in the project JSON (`items`,
 `lootTables`); the inspector's loot effect names a table by id, and validation catches a name
 that does not exist.
+
+### Cards
+
+**Write a card…** opens the Cards panel: the project's own cards, one at a time, beside a count
+of the ones the engine ships (those live in `srd/abilities.ts` and are edited in code). A card
+is its name, the text as printed, the character ids that hold it, whether it is an action, a
+reaction (and what it answers) or passive, what it costs in Hope and Stress, who it can be aimed
+at and how far, whether using it is the character's action, whether it is only for a fight,
+whether it holds tokens and when they refill — and then the effect list, which is the same one
+every other panel uses. A card with no effects is not broken: it is shown as text and the table
+decides, exactly as an unscripted SRD card is.
 
 ### Code
 
@@ -527,7 +556,7 @@ engine's without touching the engine.
 
 | | |
 |---|---|
-| reads | `ctx.actor`, `ctx.targets`, `ctx.hit`, `ctx.args`, `ctx.inCombat`, `ctx.lastRoll`, `ctx.pool(id, pool, measure?)`, `ctx.hasCondition(id, name)`, `ctx.bandTo(a, b)`, `ctx.difficultyOf(id)`, `ctx.select(selector)`, `ctx.flag(name)`, `ctx.variable(name)`, `ctx.countAlive(faction)` |
+| reads | `ctx.actor`, `ctx.targets`, `ctx.hit`, `ctx.args`, `ctx.inCombat`, `ctx.lastRoll`, `ctx.pool(id, pool, measure?)`, `ctx.hasCondition(id, name)`, `ctx.bandTo(a, b)`, `ctx.difficultyOf(id)`, `ctx.select(selector)`, `ctx.flag(name)`, `ctx.variable(name)`, `ctx.countAlive(faction)`, `ctx.tokens(id, ability)` |
 | writes | `ctx.queue([effects])` and `ctx.log(text, tone?)` — and nothing else |
 | dice | `ctx.rng` (`die(n)`, `dice(count, sides)`, `pick`, `shuffle`) |
 

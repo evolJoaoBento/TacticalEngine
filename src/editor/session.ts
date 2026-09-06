@@ -18,6 +18,7 @@
 import type { CodeDef, Deco, Encounter, Interactable, Point, ProjectDoc, SceneDoc } from '../engine/scene/schema';
 import type { Dialogue, DialogueChoice, DialogueNode } from '../engine/dialogue/schema';
 import type { QuestDef, QuestObjective } from '../engine/content/quests';
+import type { AbilityDef } from '../engine/content/abilities';
 import type { ModelAsset } from '../engine/render/assets';
 
 /** One reversible change. `undo` must restore exactly what `apply` replaced. */
@@ -1210,6 +1211,83 @@ export function removeAsset(assetId: string): Edit {
       return removed === null;
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Cards
+// ---------------------------------------------------------------------------
+
+/** Add a card. Its id is what a sheet's loadout and a token effect will name. */
+export function addAbility(ability: AbilityDef): Edit {
+  return {
+    label: `Add card ${ability.id}`,
+    apply(project) {
+      project.abilities.push(ability);
+    },
+    undo(project) {
+      const at = project.abilities.lastIndexOf(ability);
+      if (at >= 0) project.abilities.splice(at, 1);
+    },
+  };
+}
+
+/**
+ * Delete a card.
+ *
+ * A character sheet may still hold it. That is left alone here, the same way a
+ * deleted piece of code is: the validator reports what now names nothing, which
+ * is what an author needs to see.
+ */
+export function removeAbility(abilityId: string): Edit {
+  let removed: { index: number; ability: AbilityDef } | null = null;
+  return {
+    label: 'Delete card',
+    apply(project) {
+      removed = null;
+      const index = project.abilities.findIndex((a) => a.id === abilityId);
+      if (index < 0) return;
+      removed = { index, ability: project.abilities[index]! };
+      project.abilities.splice(index, 1);
+    },
+    undo(project) {
+      if (removed !== null) project.abilities.splice(removed.index, 0, removed.ability);
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
+/**
+ * Edit a card. Typing into one field coalesces into one undo step, as the
+ * other text editors do; changing a different field starts a new one.
+ */
+export function updateAbility(abilityId: string, changes: Partial<AbilityDef>): Edit {
+  let before: AbilityDef | null = null;
+  const current: Partial<AbilityDef> = { ...changes };
+  const edit: Edit = {
+    label: 'Edit card',
+    mergeKey: `ability:${abilityId}:${Object.keys(changes).sort().join(',')}`,
+    apply(project) {
+      const index = project.abilities.findIndex((a) => a.id === abilityId);
+      if (index < 0) return;
+      before = project.abilities[index]!;
+      project.abilities[index] = { ...before, ...current };
+    },
+    undo(project) {
+      if (before === null) return;
+      const index = project.abilities.findIndex((a) => a.id === abilityId);
+      if (index >= 0) project.abilities[index] = before;
+    },
+    absorb(other) {
+      const next = (other as Edit & { __ability?: Partial<AbilityDef> }).__ability;
+      if (next === undefined) return false;
+      Object.assign(current, next);
+      return true;
+    },
+  };
+  (edit as Edit & { __ability: Partial<AbilityDef> }).__ability = current;
+  return edit;
 }
 
 // ---------------------------------------------------------------------------

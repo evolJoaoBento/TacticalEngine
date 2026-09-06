@@ -195,7 +195,7 @@ export function CodePanel(props: CodePanelProps): preact.JSX.Element {
               <code>ctx.inCombat</code>, <code>ctx.lastRoll</code>, <code>ctx.pool(id, pool, measure)</code>,{' '}
               <code>ctx.hasCondition(id, name)</code>, <code>ctx.bandTo(a, b)</code>, <code>ctx.difficultyOf(id)</code>,{' '}
               <code>ctx.select(selector)</code>, <code>ctx.flag(name)</code>, <code>ctx.variable(name)</code>,{' '}
-              <code>ctx.countAlive(faction)</code>.
+              <code>ctx.countAlive(faction)</code>, <code>ctx.tokens(id, card)</code>.
             </p>
             <p style={{ margin: '0 0 4px' }}>
               Writes: <code>ctx.queue([effects])</code> and <code>ctx.log(text, tone)</code> only, so everything shows
