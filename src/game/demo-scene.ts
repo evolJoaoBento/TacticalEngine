@@ -921,7 +921,9 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   note(
     demo,
     final.hit
-      ? `The ${def.name}'s ${def.attackName} ${final.critical ? 'tears into' : 'hits'} ${who}: ${final.hitPointsMarked} Hit Point${final.hitPointsMarked === 1 ? '' : 's'}.`
+      ? final.hitPointsMarked === 0
+        ? `The ${def.name}'s ${def.attackName} hits ${who}, and is turned aside.`
+        : `The ${def.name}'s ${def.attackName} ${final.critical ? 'tears into' : 'hits'} ${who}: ${final.hitPointsMarked} Hit Point${final.hitPointsMarked === 1 ? '' : 's'}.`
       : `The ${def.name}'s ${def.attackName} misses ${who}.`,
     'combat',
   );

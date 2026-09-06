@@ -101,6 +101,20 @@ const RAW: Input[] = [
     action: false,
     modifiers: [{ stat: 'thresholds', bonus: 2, requires: 'armored' }],
   },
+  {
+    id: 'a-soldiers-bond',
+    name: "A Soldier's Bond",
+    source: card('a-soldiers-bond'),
+    uses: { count: 1, per: 'longRest' },
+    target: { kind: 'ally', range: 'close' },
+    available: { kind: 'not', of: { kind: 'inCombat' } },
+    action: false,
+    effects: [
+      { kind: 'log', text: 'A word of respect, and it lands.', tone: 'hope' },
+      { kind: 'gainHope', amount: 3 },
+      { kind: 'gainHope', amount: 3, target: { kind: 'target' } },
+    ],
+  },
   // ---- Valor -----------------------------------------------------------------
   {
     id: 'bare-bones',
@@ -216,7 +230,91 @@ const RAW: Input[] = [
       },
     ],
   },
+  {
+    id: 'midnight-spirit',
+    name: 'Midnight Spirit',
+    source: card('midnight-spirit'),
+    cost: { hope: 1 },
+    target: { kind: 'adversary', range: 'veryFar' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          onSuccessWithHope: [{ kind: 'damage', dice: 'd6', type: 'magic', using: 'spellcast' }],
+        },
+      },
+    ],
+  },
   // ---- Codex -----------------------------------------------------------------
+  {
+    id: 'book-of-illiat-slumber',
+    name: 'Slumber',
+    source: card('book-of-illiat'),
+    text: 'Make a Spellcast Roll against a target within Very Close range. On a success, they’re Asleep until they take damage or the GM spends a Fear on their turn to clear this condition.',
+    target: { kind: 'adversary', range: 'veryClose' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          onSuccessWithHope: [{ kind: 'applyCondition', condition: 'asleep', target: { kind: 'hit' } }],
+        },
+      },
+    ],
+  },
+  {
+    id: 'book-of-illiat-arcane-barrage',
+    name: 'Arcane Barrage',
+    source: card('book-of-illiat'),
+    text: 'Once per rest, spend any number of Hope and shoot magical projectiles that strike a target of your choice within Close range. Roll a number of d6s equal to the Hope spent and deal that much magic damage to the target.',
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'adversary', range: 'close' },
+    available: { kind: 'pool', pool: 'hope', op: '>=', value: 1 },
+    effects: [
+      {
+        kind: 'choice',
+        title: 'Arcane Barrage',
+        body: 'How much Hope goes into it?',
+        options: [
+          { label: '1 Hope: 1d6', effects: [{ kind: 'spendHope', amount: 1 }, { kind: 'damage', dice: '1d6', type: 'magic', target: { kind: 'target' } }] },
+          {
+            label: '2 Hope: 2d6',
+            available: { kind: 'pool', pool: 'hope', op: '>=', value: 2 },
+            effects: [{ kind: 'spendHope', amount: 2 }, { kind: 'damage', dice: '2d6', type: 'magic', target: { kind: 'target' } }],
+          },
+          {
+            label: '3 Hope: 3d6',
+            available: { kind: 'pool', pool: 'hope', op: '>=', value: 3 },
+            effects: [{ kind: 'spendHope', amount: 3 }, { kind: 'damage', dice: '3d6', type: 'magic', target: { kind: 'target' } }],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'book-of-tyfar-wild-flame',
+    name: 'Wild Flame',
+    source: card('book-of-tyfar'),
+    text: 'Make a Spellcast Roll against up to three adversaries within Melee range. Targets you succeed against take 2d6 magic damage and must mark a Stress as flames erupt from your hand.',
+    target: { kind: 'none', range: 'melee' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'melee' },
+          onSuccessWithHope: [
+            { kind: 'damage', dice: '2d6', type: 'magic' },
+            { kind: 'markStress', target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
   {
     id: 'book-of-ava-power-push',
     name: 'Power Push',
@@ -298,6 +396,25 @@ const RAW: Input[] = [
             { kind: 'applyCondition', condition: 'vulnerable', target: { kind: 'hit' } },
           ],
         },
+      },
+    ],
+  },
+  {
+    id: 'mending-touch',
+    name: 'Mending Touch',
+    source: card('mending-touch'),
+    cost: { hope: 2 },
+    target: { kind: 'ally', range: 'melee' },
+    available: { kind: 'not', of: { kind: 'inCombat' } },
+    action: false,
+    effects: [
+      {
+        kind: 'choice',
+        title: 'Mending Touch',
+        options: [
+          { label: 'Clear a Hit Point', effects: [{ kind: 'heal', amount: 1, target: { kind: 'target' } }] },
+          { label: 'Clear a Stress', effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'target' } }] },
+        ],
       },
     ],
   },

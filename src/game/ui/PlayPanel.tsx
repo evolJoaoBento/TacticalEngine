@@ -73,6 +73,10 @@ export interface PlayPanelProps {
   onEquip: (id: string) => void;
   /** Use a carried item, with whoever is selected. */
   onUseItem: (id: string) => void;
+  /** A creature's name for the log, by id. */
+  nameOf: (id: string) => string;
+  /** The acting character's Hope, for the Experience picker. */
+  actorHope: number;
 }
 
 const TONE: Readonly<Record<LogLine['tone'], string>> = {
@@ -134,6 +138,8 @@ const signed = (n: number): string => (n >= 0 ? `+${n}` : `${n}`);
 export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
   const { log, pending, within } = props;
   const [saves, setSaves] = useState(false);
+  /** The Experience to Utilize on the roll being asked for, if any. */
+  const [experience, setExperience] = useState('');
 
   // A conversation raises its own prompts, so the panel reads the innermost
   // thing waiting rather than assuming the script is the one asking.
@@ -336,14 +342,54 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {check !== null ? (
-        <div style={{ ...logBox, background: 'rgba(20,26,34,0.95)' }}>
+        <div style={{ ...logBox, background: 'rgba(20,26,34,0.95)' }} data-testid="check-prompt">
           <div style={{ marginBottom: '8px' }}>
-            {check.prompt ?? `Roll ${check.trait} against ${check.difficulty}?`}
+            {check.prompt ??
+              (check.difficulty === 'target'
+                ? `Roll ${check.trait} against ${check.targets.length === 0 ? 'nobody' : check.targets.map(props.nameOf).join(', ')}?`
+                : `Roll ${check.trait} against ${check.difficulty}?`)}
+            {check.prompt !== undefined && check.targets.length > 0 ? (
+              <div style={{ color: '#8ea3b0', fontSize: '11px' }}>Against {check.targets.map(props.nameOf).join(', ')}.</div>
+            ) : null}
           </div>
-          <button style={button(true)} onClick={() => props.onAnswer({ kind: 'roll' })}>
-            Roll {check.trait} {signed(check.modifier)}
+          {check.experiences.length > 0 ? (
+            <div style={{ marginBottom: '8px', fontSize: '12px' }}>
+              <label style={{ color: '#8ea3b0' }}>Utilize an Experience (1 Hope): </label>
+              <select
+                style={{ padding: '2px 6px', border: '1px solid #39404d', borderRadius: '4px', background: 'rgba(0,0,0,0.3)', color: 'inherit', font: 'inherit' }}
+                value={experience}
+                disabled={props.actorHope < 1}
+                title={props.actorHope < 1 ? 'No Hope to spend' : undefined}
+                data-testid="experience-pick"
+                onChange={(e) => setExperience((e.target as HTMLSelectElement).value)}
+              >
+                <option value="">none</option>
+                {check.experiences.map((e) => (
+                  <option key={e.name} value={e.name}>
+                    {e.name} {signed(e.modifier)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          <button
+            style={button(true)}
+            data-testid="roll"
+            onClick={() => {
+              const chosen = experience;
+              setExperience('');
+              props.onAnswer(chosen === '' || props.actorHope < 1 ? { kind: 'roll' } : { kind: 'roll', experience: chosen });
+            }}
+          >
+            Roll {check.trait} {signed(check.modifier + (experience === '' ? 0 : (check.experiences.find((e) => e.name === experience)?.modifier ?? 0)))}
           </button>
-          <button style={button(false)} onClick={() => props.onAnswer({ kind: 'cancel' })}>
+          <button
+            style={button(false)}
+            onClick={() => {
+              setExperience('');
+              props.onAnswer({ kind: 'cancel' });
+            }}
+          >
             Step back
           </button>
         </div>

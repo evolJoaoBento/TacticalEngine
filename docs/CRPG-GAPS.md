@@ -144,8 +144,23 @@ not have. It now matches the sheet, including the "or any from the previous tier
 extra-card caps (level 4 on the tier 2 sheet, 7 on tier 3) and the cross-outs between the
 subclass-upgrade and multiclass boxes.
 
-**Still open:** subclass and domain-card *features* are text on the sheet, not mechanics — a card's
-effect is read, not executed. And equipping (see 6).
+**Cards do things now** (`content/abilities.ts`, `content/srd/abilities.ts`, `game/demo-abilities.ts`).
+An ability — a domain card, a class's Hope feature, a subclass card — is a script in the one
+effect vocabulary with a cost, a target, uses and a reason it is greyed out. The vocabulary
+learned what a card needs: a `check` can roll the Spellcast or weapon trait against each
+target's own Difficulty and bind the ones it beat to a `hit` selector; `damage` rolls dice
+through thresholds, armor and reactions once for every target; Stress, Hope, conditions with a
+duration, a weapon attack, a knockback and reaction rolls are effects. Passives fold into the
+sheet (`modifiers`), conditions are content with modifiers of their own, and a defence step
+(`combat/defense.ts`) decides Armor Slots and damage reactions automatically. The loadout holds
+five cards with the rest in a vault (Recall Cost in Stress outside a rest); rests take the SRD's
+downtime moves; Utilize an Experience spends a Hope on a roll; the action bar, a targeting
+mode, a loadout panel and a rest panel put all of it on screen. The GM's adversaries approach
+before attacking and tear free of Restrained.
+
+**Still open:** 23 of 189 cards are scripted (`docs/CARDS.md`); the rest are text. No defender
+prompt (reactions are automatic); no interrupts (reroll, redirect); no card tokens; adversary
+features are still inert.
 
 ### ~~6. Inventory, loot and equipping~~ — done
 

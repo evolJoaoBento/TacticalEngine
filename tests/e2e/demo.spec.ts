@@ -81,6 +81,18 @@ declare global {
       modelSource: (id: string) => string;
       placeProp: (tile: number, model: string) => void;
       awaitingLevel: () => string[];
+      abilities: (id: string) => { id: string; usable: boolean; reason: string | null; targets: string[] }[];
+      useAbility: (id: string, ability: string, targets?: string[]) => string;
+      passToGm: () => number;
+      loadout: (id: string) => { loadout: string[]; vault: string[] };
+      swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
+      rest: (kind: 'short' | 'long', plan: unknown) => boolean;
+      conditionsOf: (id: string) => string[];
+      targeting: () => string | null;
+      standNear: (id: string) => boolean;
+      setCards: (id: string, cards: string[]) => void;
+      turnSide: () => string | null;
+      startFight: () => boolean;
       takeLevel: (id: string, plan: unknown) => boolean;
       characterLevel: (id: string) => number;
       cursorTile: () => number;
@@ -1210,7 +1222,8 @@ test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a sti
     return { tile: api.tileOf(api.selected()!), log: api.log().length };
   });
   await page.keyboard.press('Home');
-  await page.waitForTimeout(400);
+  // The camera eases to the framing; a slow run needs a little longer to settle.
+  await page.waitForTimeout(800);
   // Hover over another party member's tile: the cursor marks it, and a still
   // click there selects them rather than being eaten as a drag.
   const target = await page.evaluate(() => window.__polyheart!.tileOf(window.__polyheart!.party()[1]!));
@@ -1604,5 +1617,144 @@ test('plays a skinned model\'s first clip once it arrives', async ({ page }) => 
   await page.waitForFunction(() => window.__polyheart!.assetStatus('fox') === 'ready', undefined, { timeout: 15000 });
   await page.waitForFunction(() => window.__polyheart!.animating() > 0, undefined, { timeout: 5000 });
   expect(await page.evaluate(() => window.__polyheart!.animating())).toBeGreaterThan(0);
+  expect(consoleErrors).toEqual([]);
+});
+
+test('casts Rain of Blades from the action bar, picks an Experience, and the turn passes', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  const setup = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.select('finn');
+    const foe = api.adversaries()[0]!;
+    api.standNear(foe);
+    api.startFight();
+    return { foe, fighting: api.inCombat() };
+  });
+  expect(setup.fighting).toBe(true);
+  const bar = page.locator('[data-testid="action-bar"]');
+  await expect(bar).toBeVisible();
+  const blades = bar.locator('[data-ability="rain-of-blades"]');
+  await expect(blades).toHaveAttribute('data-usable', 'true');
+  const hopeBefore = Number(await page.locator('[data-member="finn"] [data-testid="hope"]').getAttribute('data-marked'));
+
+  await blades.click();
+  const prompt = page.locator('[data-testid="check-prompt"]');
+  await expect(prompt).toBeVisible();
+  await expect(prompt).toContainText('Conjure blades');
+  await expect(prompt).toContainText('Acid Burrower');
+  // The Hope was spent when the card was played; an Experience costs another.
+  await expect(page.locator('[data-member="finn"] [data-testid="hope"]')).toHaveAttribute('data-marked', String(hopeBefore - 1));
+  await prompt.locator('[data-testid="experience-pick"]').selectOption({ index: 1 });
+  await prompt.locator('[data-testid="roll"]').click();
+  await expect(prompt).toHaveCount(0);
+
+  const log = page.locator('[data-testid="log"]');
+  await expect(log).toContainText('Draws on');
+  await expect(log).toContainText(/Hope \d+ \+ Fear \d+/);
+  // The card was the turn: Finn acted, and the side follows the roll.
+  const acted = await page.evaluate(() => window.__polyheart!.turnSide());
+  expect(['party', 'gm', null]).toContain(acted);
+  expect(consoleErrors).toEqual([]);
+});
+
+test('arms Power Push, picks the husk on the board, and Escape disarms', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  const foe = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.select('mira');
+    const foe = api.adversaries()[0]!;
+    api.standNear(foe);
+    return foe;
+  });
+  // Two husks in reach would need a pick; with one the card fires at once, so
+  // test the arming path through the handle's view of it either way.
+  const targets = await page.evaluate((f) => window.__polyheart!.abilities('mira').find((a) => a.id === 'book-of-ava-power-push')!.targets, foe);
+  expect(targets).toContain(foe);
+
+  const bar = page.locator('[data-testid="action-bar"]');
+  await bar.locator('[data-ability="book-of-ava-power-push"]').click();
+  if (targets.length > 1) {
+    await expect(bar).toHaveAttribute('data-targeting', 'book-of-ava-power-push');
+    await page.keyboard.press('Escape');
+    await expect(bar).not.toHaveAttribute('data-targeting', /.+/);
+    await bar.locator('[data-ability="book-of-ava-power-push"]').click();
+    const tile = await page.evaluate((f) => window.__polyheart!.tileOf(f), foe);
+    await page.keyboard.press('Home');
+    await page.waitForTimeout(400);
+    const at = await page.evaluate((t) => window.__polyheart!.screenOf(t), tile);
+    await page.mouse.click(at.x, at.y);
+  }
+  await expect(page.locator('[data-testid="check-prompt"]')).toBeVisible();
+  await expect(page.locator('[data-testid="log"]')).toContainText('Mira uses Power Push on Acid Burrower');
+  await page.locator('[data-testid="roll"]').click();
+  await expect(page.locator('[data-testid="check-prompt"]')).toHaveCount(0);
+  expect(consoleErrors).toEqual([]);
+});
+
+test('recalls a card from the vault for Stress, and passes the spotlight with a button', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.select('kara');
+    api.setCards('kara', ['bare-bones', 'get-back-up', 'forceful-push', 'i-am-your-shield', 'not-good-enough', 'reckless']);
+  });
+  await page.locator('[data-testid="open-loadout"]').click();
+  const panel = page.locator('[data-testid="loadout"]');
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText('5 / 5');
+  // Full: a recall needs a card to make room, then costs Reckless's 1 Stress.
+  const recall = panel.locator('[data-card="reckless"] [data-testid="recall"]');
+  await expect(recall).toBeDisabled();
+  await panel.locator('[data-card="not-good-enough"] [data-testid="pick-out"]').check();
+  await expect(recall).toBeEnabled();
+  await recall.click();
+  await expect(page.locator('[data-member="kara"] [data-testid="stress"]')).toHaveAttribute('data-marked', '1');
+  await expect(panel.locator('[data-card="not-good-enough"] [data-testid="recall"]')).toHaveCount(1);
+  await page.locator('[data-testid="close-loadout"]').click();
+  await expect(panel).toHaveCount(0);
+  expect(await page.evaluate(() => window.__polyheart!.loadout('kara').vault)).toEqual(['not-good-enough']);
+
+  // A fight, and the button that hands the turn over.
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.standNear(api.adversaries()[0]!);
+    api.startFight();
+  });
+  const pass = page.locator('[data-testid="pass-to-gm"]');
+  await expect(pass).toBeVisible();
+  await expect(pass).toBeEnabled();
+  await pass.click();
+  await expect(page.locator('[data-testid="log"]')).toContainText(/Acid Burrower's/);
+  expect(await page.evaluate(() => window.__polyheart!.turnSide())).not.toBe('gm');
+  await page.screenshot({ path: 'test-results/action-bar.png' });
+  expect(consoleErrors).toEqual([]);
+});
+
+test('takes a short rest through the panel and the wounds close', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.select('kara');
+    api.wound('kara', 5);
+  });
+  const hp = page.locator('[data-member="kara"] [data-testid="hp"]');
+  await expect(hp).toHaveAttribute('data-marked', '5');
+  await page.locator('[data-testid="open-rest"]').click();
+  const panel = page.locator('[data-testid="rest"]');
+  await expect(panel).toBeVisible();
+  // Kara tends her wounds twice; Mira tends Kara too.
+  const kara = panel.locator('[data-rest-member="kara"]');
+  await kara.locator('[data-testid="move-1"]').selectOption('tendWounds');
+  const mira = panel.locator('[data-rest-member="mira"]');
+  await mira.locator('[data-testid="move-0"]').selectOption('tendWounds');
+  await mira.locator('[data-testid="target-0"]').selectOption('kara');
+  await panel.locator('[data-testid="take-rest"]').click();
+  await expect(panel).toHaveCount(0);
+  // Three tendings of 2–5: nothing left.
+  await expect(hp).toHaveAttribute('data-marked', '0');
+  const log = page.locator('[data-testid="log"]');
+  await expect(log).toContainText('catch its breath');
+  await expect(log).toContainText(/The GM gains \d Fear/);
+  await page.screenshot({ path: 'test-results/rest-panel-after.png' });
   expect(consoleErrors).toEqual([]);
 });

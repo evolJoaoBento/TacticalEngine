@@ -1,0 +1,251 @@
+# Domain cards: what the engine runs
+
+Every SRD domain card is held, shown and counted toward the loadout. The ones marked here
+as **action**, **reaction** or **passive** are scripted in `src/engine/content/srd/abilities.ts`
+and run through the one effect vocabulary; the rest are **text**: the card's words are shown on
+the action bar and the table adjudicates, as at a real one. A grimoire lists each spell.
+
+Known simplifications in the scripted ones:
+
+- **Rune Ward** never breaks on an 8; **Get Back Up**, **Iron Will** and the ward fire on their own when they lower the Hit Points marked (per-card `auto`, prompts are a later step).
+- **Whirlwind**'s extra targets take half of a fresh weapon-die roll rather than half the first roll.
+- **Arcane Barrage** offers 1, 2 or 3 Hope rather than any number.
+- **I Am Your Shield** and **Not This Time** are text: redirecting a hit and forcing a reroll are interrupts the attack flow does not offer yet.
+- Cards that ask for a Presence Roll, tokens on the card, Hidden/Cloaked, or a GM's discretion stay text.
+
+Scripted: 23 of 189 cards.
+
+
+## Arcana
+
+| Level | Card | Type | Engine |
+|---|---|---|---|
+| 1 | Rune Ward | Spell | **reaction** |
+| 1 | Unleash Chaos | Spell | text |
+| 1 | Wall Walk | Spell | text |
+| 2 | Cinder Grasp | Spell | text |
+| 2 | Floating Eye | Spell | text |
+| 3 | Counterspell | Spell | text |
+| 3 | Flight | Spell | text |
+| 4 | Blink Out | Spell | text |
+| 4 | Preservation Blast | Spell | text |
+| 5 | Chain Lightning | Spell | text |
+| 5 | Premonition | Spell | text |
+| 6 | Rift Walker | Spell | text |
+| 6 | Telekinesis | Spell | text |
+| 7 | Arcana-Touched | Ability | text |
+| 7 | Cloaking Blast | Spell | text |
+| 8 | Arcane Reflection | Spell | text |
+| 8 | Confusing Aura | Spell | text |
+| 9 | Earthquake | Spell | text |
+| 9 | Sensory Projection | Spell | text |
+| 10 | Adjust Reality | Spell | text |
+| 10 | Falling Sky | Spell | text |
+
+## Blade
+
+| Level | Card | Type | Engine |
+|---|---|---|---|
+| 1 | Get Back Up | Ability | **reaction** |
+| 1 | Not Good Enough | Ability | **text** |
+| 1 | Whirlwind | Ability | **action** |
+| 2 | A Soldier's Bond | Ability | **action** |
+| 2 | Reckless | Ability | **action** |
+| 3 | Scramble | Ability | text |
+| 3 | Versatile Fighter | Ability | text |
+| 4 | Deadly Focus | Ability | text |
+| 4 | Fortified Armor | Ability | **passive** |
+| 5 | Champion's Edge | Ability | text |
+| 5 | Vitality | Ability | text |
+| 6 | Battle-Hardened | Ability | text |
+| 6 | Rage Up | Ability | text |
+| 7 | Blade-Touched | Ability | text |
+| 7 | Glancing Blow | Ability | text |
+| 8 | Battle Cry | Ability | text |
+| 8 | Frenzy | Ability | text |
+| 9 | Gore and Glory | Ability | text |
+| 9 | Reaper's Strike | Ability | text |
+| 10 | Battle Monster | Ability | text |
+| 10 | Onslaught | Ability | text |
+
+## Bone
+
+| Level | Card | Type | Engine |
+|---|---|---|---|
+| 1 | Deft Maneuvers | Ability | text |
+| 1 | I See It Coming | Ability | text |
+| 1 | Untouchable | Ability | **text** |
+| 2 | Ferocity | Ability | text |
+| 2 | Strategic Approach | Ability | text |
+| 3 | Brace | Ability | text |
+| 3 | Tactician | Ability | text |
+| 4 | Boost | Ability | text |
+| 4 | Redirect | Ability | text |
+| 5 | Know Thy Enemy | Ability | text |
+| 5 | Signature Move | Ability | text |
+| 6 | Rapid Riposte | Ability | text |
+| 6 | Recovery | Ability | text |
+| 7 | Bone-Touched | Ability | text |
+| 7 | Cruel Precision | Ability | text |
+| 8 | Breaking Blow | Ability | text |
+| 8 | Wrangle | Ability | text |
+| 9 | On the Brink | Ability | text |
+| 9 | Splintering Strike | Ability | text |
+| 10 | Deathrun | Ability | text |
+| 10 | Swift Step | Ability | text |
+
+## Codex
+
+| Level | Card | Type | Engine |
+|---|---|---|---|
+| 1 | Book of Ava | Grimoire | **action** (Power Push), **action** (Tava's Armor), **action** (Ice Spike) |
+| 1 | Book of Illiat | Grimoire | **action** (Slumber), **action** (Arcane Barrage) |
+| 1 | Book of Tyfar | Grimoire | **action** (Wild Flame) |
+| 2 | Book of Sitil | Grimoire | text |
+| 2 | Book of Vagras | Grimoire | text |
+| 3 | Book of Korvax | Grimoire | text |
+| 3 | Book of Norai | Grimoire | text |
+| 4 | Book of Exota | Grimoire | text |
+| 4 | Book of Grynn | Grimoire | text |
+| 5 | Manifest Wall | Spell | text |
+| 5 | Teleport | Spell | text |
+| 6 | Banish | Spell | text |
+| 6 | Sigil of Retribution | Spell | text |
+| 7 | Book of Homet | Grimoire | text |
+| 7 | Codex-Touched | Ability | text |
+| 8 | Book of Vyola | Grimoire | text |
+| 8 | Safe Haven | Spell | text |
+| 9 | Book of Ronin | Grimoire | text |
+| 9 | Disintegration Wave | Spell | text |
+| 10 | Book of Yarrow | Grimoire | text |
+| 10 | Transcendent Union | Spell | text |
+
+## Grace
+
+| Level | Card | Type | Engine |
+|---|---|---|---|
+| 1 | Deft Deceiver | Ability | text |
+| 1 | Enrapture | Spell | **action** |
+| 1 | Inspirational Words | Ability | text |
+| 2 | Tell No Lies | Spell | text |
+| 2 | Troublemaker | Ability | text |
+| 3 | Hypnotic Shimmer | Spell | text |
+| 3 | Invisibility | Spell | text |
+| 4 | Soothing Speech | Ability | text |
+| 4 | Through Your Eyes | Spell | text |
+| 5 | Thought Delver | Spell | text |
+| 5 | Words of Discord | Spell | text |
+| 6 | Never Upstaged | Ability | text |
+| 6 | Share the Burden | Spell | text |
+| 7 | Endless Charisma | Ability | text |
+| 7 | Grace-Touched | Ability | text |
+| 8 | Astral Projection | Spell | text |
+| 8 | Mass Enrapture | Spell | text |
+| 9 | Copycat | Spell | text |
+| 9 | Master of the Craft | Ability | text |
+| 10 | Encore | Spell | text |
+| 10 | Notorious | Ability | text |
+
+## Midnight
+
+| Level | Card | Type | Engine |
+|---|---|---|---|
+| 1 | Pick and Pull | Ability | **text** |
+| 1 | Rain of Blades | Spell | **action** |
+| 1 | Uncanny Disguise | Spell | text |
+| 2 | Midnight Spirit | Spell | **action** |
+| 2 | Shadowbind | Spell | **action** |
+| 3 | Chokehold | Ability | text |
+| 3 | Veil of Night | Spell | text |
+| 4 | Glyph of Nightfall | Spell | text |
+| 4 | Stealth Expertise | Ability | text |
+| 5 | Hush | Spell | text |
+| 5 | Phantom Retreat | Spell | text |
+| 6 | Dark Whispers | Spell | text |
+| 6 | Mass Disguise | Spell | text |
+| 7 | Midnight-Touched | Ability | text |
+| 7 | Vanishing Dodge | Spell | text |
+| 8 | Shadowhunter | Ability | text |
+| 8 | Spellcharge | Spell | text |
+| 9 | Night Terror | Spell | text |
+| 9 | Twilight Toll | Ability | text |
+| 10 | Eclipse | Spell | text |
+| 10 | Specter of the Dark | Spell | text |
+
+## Sage
+
+| Level | Card | Type | Engine |
+|---|---|---|---|
+| 1 | Gifted Tracker | Ability | text |
+| 1 | Nature's Tongue | Ability | text |
+| 1 | Vicious Entangle | Spell | text |
+| 2 | Conjure Swarm | Spell | text |
+| 2 | Natural Familiar | Spell | text |
+| 3 | Corrosive Projectile | Spell | text |
+| 3 | Towering Stalk | Spell | text |
+| 4 | Death Grip | Spell | text |
+| 4 | Healing Field | Spell | text |
+| 5 | Thorn Skin | Spell | text |
+| 5 | Wild Fortress | Spell | text |
+| 6 | Conjured Steeds | Spell | text |
+| 6 | Forager | Ability | text |
+| 7 | Sage-Touched | Ability | text |
+| 7 | Wild Surge | Spell | text |
+| 8 | Forest Sprites | Spell | text |
+| 8 | Rejuvenation Barrier | Spell | text |
+| 9 | Fane of the Wilds | Ability | text |
+| 9 | Plant Dominion | Spell | text |
+| 10 | Force of Nature | Spell | text |
+| 10 | Tempest | Spell | text |
+
+## Splendor
+
+| Level | Card | Type | Engine |
+|---|---|---|---|
+| 1 | Bolt Beacon | Spell | **action** |
+| 1 | Mending Touch | Spell | **action** |
+| 1 | Reassurance | Ability | text |
+| 2 | Final Words | Spell | text |
+| 2 | Healing Hands | Spell | **action** |
+| 3 | Second Wind | Ability | text |
+| 3 | Voice of Reason | Ability | text |
+| 4 | Divination | Spell | text |
+| 4 | Life Ward | Spell | text |
+| 5 | Shape Material | Spell | text |
+| 5 | Smite | Spell | text |
+| 6 | Restoration | Spell | text |
+| 6 | Zone of Protection | Spell | text |
+| 7 | Healing Strike | Spell | text |
+| 7 | Splendor-Touched | Ability | text |
+| 8 | Shield Aura | Spell | text |
+| 8 | Stunning Sunlight | Spell | text |
+| 9 | Overwhelming Aura | Spell | text |
+| 9 | Salvation Beam | Spell | text |
+| 10 | Invigoration | Spell | text |
+| 10 | Resurrection | Spell | text |
+
+## Valor
+
+| Level | Card | Type | Engine |
+|---|---|---|---|
+| 1 | Bare Bones | Ability | **passive** |
+| 1 | Forceful Push | Ability | **action** |
+| 1 | I Am Your Shield | Ability | **text** |
+| 2 | Body Basher | Ability | **passive** |
+| 2 | Bold Presence | Ability | text |
+| 3 | Critical Inspiration | Ability | text |
+| 3 | Lean on Me | Ability | text |
+| 4 | Goad Them On | Ability | text |
+| 4 | Support Tank | Ability | text |
+| 5 | Armorer | Ability | text |
+| 5 | Rousing Strike | Ability | text |
+| 6 | Inevitable | Ability | text |
+| 6 | Rise Up | Ability | text |
+| 7 | Shrug It Off | Ability | text |
+| 7 | Valor-Touched | Ability | text |
+| 8 | Full Surge | Ability | text |
+| 8 | Ground Pound | Ability | text |
+| 9 | Hold the Line | Ability | text |
+| 9 | Lead by Example | Ability | text |
+| 10 | Unbreakable | Ability | text |
+| 10 | Unyielding Armor | Ability | text |

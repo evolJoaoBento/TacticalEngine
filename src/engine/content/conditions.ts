@@ -37,6 +37,7 @@ const RAW: ConditionInput[] = [
   { id: 'restrained', name: 'Restrained', text: "You can't move until this condition is cleared, but you can still take actions from your current position." },
   { id: 'enraptured', name: 'Enraptured', text: 'Your attention is fixed on the one who enraptured you.' },
   { id: 'stunned', name: 'Stunned', text: "You can't use reactions and can't take any other actions until you clear this condition." },
+  { id: 'asleep', name: 'Asleep', text: 'Asleep until you take damage or the GM spends a Fear to clear it.', modifiers: [{ stat: 'evasion', bonus: -2 }] },
   { id: 'tavas-armor', name: "Tava's Armor", text: '+1 to your Armor Score until your next rest.', modifiers: [{ stat: 'armorScore', bonus: 1 }] },
   {
     id: 'dodging',

@@ -37,6 +37,11 @@ import { EditorPanel } from './editor/ui/EditorPanel';
 import { PlayPanel, type Inspection, type JournalQuest } from './game/ui/PlayPanel';
 import { PartyHud, type HudMember } from './game/ui/PartyHud';
 import { LevelUpPanel } from './game/ui/LevelUpPanel';
+import { deriveCharacter } from './engine/character/sheet';
+import { ActionBar } from './game/ui/ActionBar';
+import { LoadoutPanel } from './game/ui/LoadoutPanel';
+import { RestPanel } from './game/ui/RestPanel';
+import { abilityList, abilityTargets, abilitiesOf, loadoutView, rest, swapCard, useAbility, type RestPlan } from './game/demo-abilities';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
 import { AssetLibrary, modelAssetSchema, type ModelAsset } from './engine/render/assets';
@@ -70,6 +75,9 @@ import {
   note,
   playGmTurn,
   endTurn,
+  nameOf,
+  startEncounter,
+  refreshWorld,
   reachableInteractable,
   travelTo,
   useSelectedOn,
@@ -148,6 +156,18 @@ declare global {
       modelSource: (id: string) => string;
       placeProp: (tile: number, model: string) => void;
       awaitingLevel: () => string[];
+      abilities: (id: string) => { id: string; usable: boolean; reason: string | null; targets: string[] }[];
+      useAbility: (id: string, ability: string, targets?: string[]) => string;
+      passToGm: () => number;
+      loadout: (id: string) => { loadout: string[]; vault: string[] };
+      swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
+      rest: (kind: 'short' | 'long', plan: unknown) => boolean;
+      conditionsOf: (id: string) => string[];
+      targeting: () => string | null;
+      standNear: (id: string) => boolean;
+      setCards: (id: string, cards: string[]) => void;
+      turnSide: () => string | null;
+      startFight: () => boolean;
       takeLevel: (id: string, plan: unknown) => boolean;
       characterLevel: (id: string) => number;
       cursorTile: () => number;
@@ -518,7 +538,14 @@ function refreshPlay(): void {
   // the party on whatever happens to share those tile indices.
   if (activeScene().id === demo.scene.id) {
     view.syncTokens(demo.state);
-    view.showHighlights(demo.party.selected === null ? [] : reachableTiles(demo).tiles());
+    // A target to pick lights the creatures it could be; otherwise the walk.
+    view.showHighlights(
+      targeting !== null
+        ? targeting.valid.map((id) => demo.state.entity(id)?.tile ?? NO_TILE).filter((t) => t !== NO_TILE)
+        : demo.party.selected === null
+          ? []
+          : reachableTiles(demo).tiles(),
+    );
   } else {
     view.clearHighlights();
   }
@@ -652,6 +679,49 @@ let inspecting: Inspection | null = null;
 let levelling: string | null = null;
 let levelIssues: LevelUpIssue[] = [];
 
+/** An ability waiting for its target to be clicked on the board. */
+let targeting: { characterId: string; abilityId: string; name: string; valid: string[] } | null = null;
+/** Whose loadout is open, and why the last swap was refused. */
+let loadoutOpen: string | null = null;
+let loadoutIssue: string | null = null;
+let restOpen = false;
+
+/** Start using an ability: run it, or arm the bar for a target first. */
+function beginAbility(abilityId: string): void {
+  const who = demo.party.selected;
+  if (who === null) return;
+  const ability = abilitiesOf(demo, who).find((a) => a.id === abilityId);
+  if (ability === undefined) return;
+  const wantsPick = ability.target.kind !== 'none' && ability.target.kind !== 'self';
+  if (wantsPick) {
+    const valid = abilityTargets(demo, who, ability);
+    // One thing to pick is no pick at all.
+    if (valid.length === 1) {
+      useAbility(demo, who, abilityId, valid);
+    } else if (valid.length === 0) {
+      note(demo, `${ability.name}: nothing in range.`, 'system');
+    } else {
+      targeting = { characterId: who, abilityId, name: ability.name, valid };
+    }
+  } else {
+    useAbility(demo, who, abilityId);
+  }
+  refreshPlay();
+}
+
+/** The board was clicked while an ability waits for a target. */
+function pickTarget(tile: number): void {
+  if (targeting === null) return;
+  const occupant = entityOn(tile);
+  if (occupant === null || !targeting.valid.includes(occupant)) {
+    note(demo, `${targeting.name}: that is not a target it can reach.`, 'system');
+    return;
+  }
+  const armed = targeting;
+  targeting = null;
+  useAbility(demo, armed.characterId, armed.abilityId, [occupant]);
+}
+
 function takeLevel(id: string, plan: LevelUpPlan): boolean {
   const result = applyLevelUp(demo, id, plan);
   if (result.ok) {
@@ -679,7 +749,64 @@ function renderPlayPanel(): void {
         levelIssues = [];
         refreshPlay();
       },
-    }), levelling !== null && demo.sheets.has(levelling) && awaitingLevel(demo).includes(levelling)
+    }), h(ActionBar, {
+      characterId: demo.party.selected,
+      name: demo.party.selected === null ? '' : nameOf(demo, demo.party.selected),
+      weapon: demo.party.selected === null ? '' : gearOf(demo, demo.party.selected).weapon,
+      abilities: demo.party.selected === null ? [] : abilityList(demo, demo.party.selected),
+      fighting: inCombat(demo),
+      side: inCombat(demo) ? demo.encounter!.view().side : null,
+      targeting: targeting === null ? null : { abilityId: targeting.abilityId, name: targeting.name },
+      onUse: beginAbility,
+      onCancelTargeting: () => {
+        targeting = null;
+        refreshPlay();
+      },
+      onPassToGm: () => {
+        endTurn(demo);
+        refreshPlay();
+      },
+      onLoadout: () => {
+        loadoutOpen = demo.party.selected;
+        loadoutIssue = null;
+        refreshPlay();
+      },
+      onRest: () => {
+        restOpen = true;
+        refreshPlay();
+      },
+    }), loadoutOpen !== null && demo.sheets.has(loadoutOpen)
+      ? h(LoadoutPanel, {
+          name: nameOf(demo, loadoutOpen),
+          view: loadoutView(demo, loadoutOpen),
+          resting: false,
+          issue: loadoutIssue,
+          onSwap: (cardIn: string, cardOut: string | undefined) => {
+            const result = swapCard(demo, loadoutOpen!, cardIn, cardOut);
+            loadoutIssue = result.ok ? null : result.reason;
+            refreshPlay();
+          },
+          onClose: () => {
+            loadoutOpen = null;
+            loadoutIssue = null;
+            refreshPlay();
+          },
+        })
+      : null, restOpen
+      ? h(RestPanel, {
+          party: demo.party.members().map((id) => ({ id, name: nameOf(demo, id) })),
+          onRest: (kind: 'short' | 'long', plan: RestPlan) => {
+            const result = rest(demo, kind, plan);
+            if (!result.ok) note(demo, `Cannot rest: ${result.reason}.`, 'system');
+            restOpen = false;
+            refreshPlay();
+          },
+          onClose: () => {
+            restOpen = false;
+            refreshPlay();
+          },
+        })
+      : null, levelling !== null && demo.sheets.has(levelling) && awaitingLevel(demo).includes(levelling)
       ? h(LevelUpPanel, {
           sheet: demo.sheets.get(levelling)!,
           content: SRD_CHARACTERS,
@@ -741,6 +868,8 @@ function renderPlayPanel(): void {
         answerPending(demo, response);
         refreshPlay();
       },
+      nameOf: (id: string) => nameOf(demo, id),
+      actorHope: demo.scenario.actorId === null ? 0 : (demo.state.entity(demo.scenario.actorId)?.hope?.value ?? 0),
     })),
     app,
   );
@@ -826,6 +955,12 @@ function inspectTile(tile: number): Inspection | null {
 function clickAt(event: PointerEvent): void {
   const tile = tileUnderPointer(event);
   if (tile === NO_TILE) return;
+
+  if (targeting !== null) {
+    pickTarget(tile);
+    refreshPlay();
+    return;
+  }
 
   const occupant = entityOn(tile);
   if (occupant !== null) {
@@ -923,8 +1058,11 @@ window.addEventListener('keydown', (event) => {
     }
     return;
   }
-  if (event.key === 'Escape' && inspecting !== null) {
+  if (event.key === 'Escape' && (inspecting !== null || targeting !== null || loadoutOpen !== null || restOpen)) {
     inspecting = null;
+    targeting = null;
+    loadoutOpen = null;
+    restOpen = false;
     refreshPlay();
   } else if (event.key === 'Tab') {
     event.preventDefault();
@@ -1063,6 +1201,70 @@ const state = {
     demo.state.moveEntity(actor, tile);
     refreshPlay();
     return true;
+  },
+
+  abilities: (id: string) =>
+    abilityList(demo, id).map((v) => ({ id: v.ability.id, usable: v.usable, reason: v.reason, targets: v.targets })),
+  useAbility: (id: string, ability: string, targets: string[] = []): string => {
+    const result = useAbility(demo, id, ability, targets);
+    refreshPlay();
+    return result.status;
+  },
+  passToGm: (): number => {
+    const acted = endTurn(demo);
+    refreshPlay();
+    return acted;
+  },
+  loadout: (id: string) => {
+    const view = loadoutView(demo, id);
+    return { loadout: view.loadout.map((c) => c.id), vault: view.vault.map((c) => c.id) };
+  },
+  swapCard: (id: string, cardIn: string, cardOut?: string): string | null => {
+    const result = swapCard(demo, id, cardIn, cardOut);
+    refreshPlay();
+    return result.ok ? null : result.reason;
+  },
+  rest: (kind: 'short' | 'long', plan: unknown): boolean => {
+    const result = rest(demo, kind, plan as RestPlan);
+    refreshPlay();
+    return result.ok;
+  },
+  conditionsOf: (id: string): string[] => [...(demo.state.entity(id)?.conditions ?? [])],
+  targeting: (): string | null => targeting?.abilityId ?? null,
+  turnSide: (): string | null => (inCombat(demo) ? demo.encounter!.view().side : null),
+  /** Start the room's first encounter where the party stands, for a test. */
+  startFight: (): boolean => {
+    const encounter = demo.scene.encounters[0];
+    if (encounter === undefined) return false;
+    startEncounter(demo, encounter.id);
+    refreshPlay();
+    return true;
+  },
+  /** Put the selected member next to a creature, so a test can reach it. */
+  standNear: (id: string): boolean => {
+    const target = demo.state.entity(id);
+    const actor = demo.party.selected;
+    if (target === undefined || actor === null) return false;
+    const blocked = demo.state.blockedFor(actor);
+    let stand = NO_TILE;
+    demo.grid.forEachNeighbor(target.tile, false, (tile) => {
+      if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+    });
+    if (stand === NO_TILE) return false;
+    demo.state.moveEntity(actor, stand);
+    refreshPlay();
+    return true;
+  },
+  /** Hand a character a set of domain cards, for a test of the vault. */
+  setCards: (id: string, cards: string[]): void => {
+    const sheet = demo.sheets.get(id);
+    if (sheet === undefined) return;
+    const grown = { ...sheet, domainCards: cards };
+    delete (grown as { loadout?: readonly string[] }).loadout;
+    demo.sheets.set(id, grown);
+    demo.characters.set(id, deriveCharacter(grown, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    refreshPlay();
   },
 
   sceneId: (): string => demo.scene.id,

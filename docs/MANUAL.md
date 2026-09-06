@@ -90,15 +90,50 @@ Out of combat there are no turns. Click the ground to walk the selected characte
 follow in a trail. Walking onto a trigger cell starts that cell's encounter and the mover stops
 on the trigger rather than running past the ambush.
 
-In a fight there is no initiative. The party acts until an action roll hands the spotlight to
-the GM; each member's move or attack spends their action for the exchange. Press `Space` or
-`Enter` to play the GM's turn: the GM spotlights one adversary free and spends a Fear for each
-further one while Fear lasts; each spotlighted adversary attacks the nearest party member it
-can reach. Then the spotlight returns to the party. Victory and defeat settle themselves.
+In a fight there is no initiative. The party acts until an action roll — an attack, a card's
+Spellcast Roll — comes up with Fear or fails, which hands the spotlight to the GM; or until you
+press **Pass to GM** (or `Space` / `Enter`). On the GM's turn the GM spotlights one adversary
+free and spends a Fear for each further one while Fear lasts. A spotlighted adversary moves
+within Close range of the nearest party member and attacks; one held in place by Restrained
+spends its spotlight tearing free instead. Then the spotlight returns to the party. When the
+last adversary falls the log says so and the scene's conditions end.
 
-Attack results are shown by the HUD pips changing, not by a log line; a click on an adversary
-that cannot be attacked (out of range, already acted) does nothing visible. Only scripted rolls
-(checks on objects and in conversations) are read out in the log.
+Attacks and hits are read out in the log ("Kara hits with the Broadsword: 2 Hit Points on
+Acid Burrower.", "The Acid Burrower's Claws hits Kara, and is turned aside."). A click on an
+adversary that cannot be attacked (out of range, the GM's turn) does nothing visible.
+
+### The action bar
+
+Along the top of the screen sits the selected character's action bar: **Attack** with the weapon in
+hand (click an adversary on the board), then one button per ability — the class's Hope feature,
+subclass cards, and the domain cards in the loadout. Under each name is what it costs ("1 Hope",
+"2 Stress", "1 left") or, greyed, why it cannot be used now ("needs 3 Hope", "the GM's turn",
+"nothing in range", "always on" for a passive, "a reaction" for a card that fires on its own,
+"the table adjudicates this one" for a card the engine has no script for). Hover a button for
+the card's text. Below: **Pass to GM** in a fight, **Rest…** out of one, and **Loadout…**.
+
+An ability that wants a target and has more than one in reach arms the bar — the valid targets
+light up on the board; click one, or `Escape` to put the card down. With exactly one target in
+reach it fires at once. A card's cost is paid the moment it is played, before any roll it asks
+for; a roll it asks for appears in the play panel like an object's, and the turn is spent when
+the roll is made.
+
+### Rests
+
+**Rest…** opens the rest panel out of combat. Short or long; each character picks two of the
+SRD's downtime moves — tend to wounds (their own or an ally's), clear Stress, repair armor (own
+or an ally's), prepare for Hope. A short rest clears 1d4 + tier of the thing; a long rest clears
+all of it. Two or more characters preparing together gain 2 Hope each. The GM gains 1d4 Fear on
+a short rest and 1d4 plus the party's size on a long one. A rest refreshes "once per rest"
+cards (a long rest also "once per long rest" ones), ends conditions that last until a rest, and
+is where the loadout changes for free.
+
+### The loadout and the vault
+
+Five domain cards can be active; the rest wait in the vault. **Loadout…** shows both. Recalling
+a card from the vault outside a rest marks Stress equal to its Recall Cost (the button says how
+much); when the loadout is full, pick a card to make room first. The loadout rides on the sheet,
+so a save carries it.
 
 ### Using things
 
@@ -125,11 +160,19 @@ Difficulty. The log reads it out, naming only the parts that applied:
 
 Extra parts appear as `+ d6 N` / `− d6 N` (advantage or disadvantage) and `+ help N`. The five
 outcomes are critical success (both dice match), success with Hope, success with Fear, failure
-with Hope, failure with Fear. **Step back** declines the roll at no cost: the outcome lists
-and `always` are skipped, any effects written after the check still run, and the object can be
-tried again. In this build a
-scripted check rolls with the *best* modifier for that trait in the whole party, not the
-selected character's (see Limits).
+with Hope, failure with Fear. A roll with Hope gives the roller a Hope; a roll with Fear gives
+the GM a Fear; a critical also clears a Stress. **Step back** declines the roll at no cost: the
+outcome lists and `always` are skipped, any effects written after the check still run, and the
+object can be tried again.
+
+The prompt offers **Utilize an Experience**: pick one of the acting character's Experiences
+to spend a Hope and add its modifier to the roll ("Draws on "Held the line" (+2)." in the log).
+A roll against a creature ("Roll spellcast against Acid Burrower?") is made once and beats each
+target on its own Difficulty.
+
+An object's check rolls with the *best* modifier for that trait in the whole party — a lock is
+the party's problem; a card's roll is the acting character's own, with their Spellcast trait
+where the card asks for one.
 
 ### Loot, keys, equipping and using
 
@@ -381,6 +424,15 @@ Target selectors: `{kind:'actor'}` (whoever used the thing; the default), `{kind
 | `objectiveDone` | `quest`, `objective` | that step is ticked |
 | `partyAlive` | `op`, `value` | living party count compares so |
 | `adversariesAlive` | `op`, `value` | living adversary count compares so |
+| `pool` | `pool` (hitPoints \| stress \| armorSlots \| hope), `of?`, `measure?` (available \| marked \| max), `op`, `value` | a creature's pool compares so; `of` defaults to the actor |
+| `inCombat` | — | a fight is on |
+| `hasCondition` | `condition`, `of?` | any of `of` (default: the chosen target) bears the condition |
+| `withinRange` | `range`, `of?` | any of `of` (default: the chosen target) stands within that band of the actor |
+
+**Target selectors** (`target`/`of` fields): `actor`, `party`, `entity` (`id`), `target` (what
+the player picked when using an ability), `hit` (whoever the last roll beat; `having?` keeps
+only those with a condition), `allies` (`range?`, `includeSelf?`), `adversaries` (`range`,
+`around?` actor \| target — the SRD's group, measured from the chosen target).
 
 ### Effects
 
@@ -396,8 +448,16 @@ Target selectors: `{kind:'actor'}` (whoever used the thing; the default), `{kind
 | `addVar` | `name`, `by` | adds to a numeric variable |
 | `open` / `remove` / `markUsed` | `interactable?` | changes that object's state; default is the object the script ran from. An opened door stops blocking |
 | `loot` | `table?` | draws from the table into the pack and logs the drops; no table finds nothing |
-| `damage` | `amount`, `target?`, `source?` | marks Hit Points on the target(s) (default: the actor); can fell them |
+| `damage` | `amount` **or** `dice`, `type?`, `using?` (proficiency \| spellcast), `direct?`, `half?`, `target?`, `source?` | `amount` marks that many Hit Points outright (default target: the actor). `dice` rolls damage once and takes it through thresholds, resistances, Armor Slots and reactions on each target (default: `hit`), scaled by Proficiency or the Spellcast trait, with a critical's maximum dice |
 | `heal` | `amount`, `target?` | clears Hit Points; brings a fallen character back up |
+| `markStress` / `clearStress` | `amount?` (1), `target?` (actor) | a full Stress track marks a Hit Point instead |
+| `clearArmor` | `amount?`, `target?` | clears Armor Slots |
+| `gainHope` | `amount?`, `target?` | Hope to the target(s); an adversary gains none |
+| `spendHope` | `amount?` | the actor spends Hope; refused (and logged) without enough |
+| `applyCondition` / `clearCondition` | `condition`, `duration?` (temporary \| scene \| rest \| permanent), `target?` (the chosen target) | a condition cannot stack; `temporary` is what an adversary shakes off, `scene` ends with the fight, `rest` at a rest |
+| `attack` | `weapon?` (primary), `target?`, `advantage?`, `damageBonus?`, `onHit[]?`, `onMiss[]?` | a weapon attack as an action roll: Hope or Fear, the spotlight, a critical's extra dice; the branch runs with the target bound to `hit` |
+| `push` | `to` (band), `target?` | knocks the target(s) straight away from the actor until the distance reads as that band, stopping at a wall or a creature |
+| `reactionRoll` | `difficulty` (number \| `roll` = the actor's last total), `trait?`, `targets?` (hit), `onFail[]?`, `onSuccess[]?` | adversaries roll a d20, party members their Duality Dice (no Hope or Fear); `onFail` runs with the failures bound to `hit`, then `onSuccess` with the rest |
 | `startEncounter` | `encounter`, `intro?` | starts a fight; logs `intro` or "Something moves." |
 | `endEncounter` | `encounter` | marks the encounter ended |
 | `goto` | `scene` | travel, taken once the script has stopped asking |
@@ -413,11 +473,37 @@ Target selectors: `{kind:'actor'}` (whoever used the thing; the default), `{kind
 
 ### Checks
 
-`trait`, `difficulty`, `prompt?`, and effect lists `onCriticalSuccess`, `onSuccessWithHope`,
+`trait` (a trait, or `spellcast` for the actor's Spellcast trait, or `weapon` for the trait of
+the weapon in hand), `difficulty` (a number, or `target` for each target's own Difficulty —
+an adversary's, or a party member's Evasion), `targets?` (a selector; the chosen target when
+left out), `tags?`, `prompt?`, and effect lists `onCriticalSuccess`, `onSuccessWithHope`,
 `onSuccessWithFear`, `onFailureWithHope`, `onFailureWithFear`, `always` (runs after the outcome
-list). Fallbacks when a list is missing: critical → success with Hope → success with Fear; each
+list). One roll is made; against targets it succeeds against each one it meets or exceeds, and
+those are bound to the `hit` selector for the outcome lists. A Spellcast Roll by a character
+whose subclass has no Spellcast trait is refused before any die. Fallbacks when a list is missing: critical → success with Hope → success with Fear; each
 success falls back to the other success; each failure to the other failure. Writing one success
 and one failure list therefore covers all five.
+
+### Abilities and conditions
+
+An **ability** (`project.abilities[]`): `id`, `name`, `source` (`domainCard` `card` \| `classHope`
+`classId` \| `classFeature` `classId` \| `subclass` `subclassId` + `stage` \| `granted`
+`characters[]`), `text` (the card's SRD text when empty), `kind` (action \| reaction \| passive),
+`trigger?` (incomingDamage \| attackHit \| attackMissed), `cost` (`hope?`, `stress?`), `uses?`
+(`count`, `per` rest \| longRest \| scene), `target` (`kind` none \| self \| adversary \| ally \|
+creature \| group, `range`), `available?` (a condition read against the actor), `inCombatOnly`,
+`action` (whether using it is the turn), `effects[]`, `modifiers[]` (`stat`, `bonus`,
+`plusTrait?`, `requires?` unarmored \| armored \| meleeWeapon, `when?`), `reaction?` (for a
+reaction to damage: `reduceSeverity` `steps` `only?`, `reduceDamage` `dice`, `extraArmor` `slots`
+`only?`), `auto` (whether a reaction fires on its own). `src/engine/content/srd/abilities.ts`
+is the library for the SRD's cards; `docs/CARDS.md` lists what is scripted and what is text.
+
+A character's abilities are the class's, the subclass's up to the stage reached, and the domain
+cards in the loadout (`sheet.loadout`, at most five; the first five held when unset).
+
+A **condition definition** (`project.conditionDefs[]`): `id`, `name`, `text`, `modifiers[]` (the
+same shape), `endsWhen?` (hit \| attacks). `vulnerable` and `hidden` are read by the attack rules
+directly; Tava's Armor and Rogue's Dodge are modifiers on a condition.
 
 ### Dialogue
 
@@ -515,20 +601,30 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
 - Saves live in `localStorage`, and the log is stored unbounded inside each one.
 - **Loading a project JSON does not restart play.** The editor edits the loaded document; the
   running game stays on the project it booted with. A schema failure is not shown in the panel.
-- **Checks use the party's best trait**, not the acting character's; using an object in a fight
-  spends that character's action. Both are demo decisions, not SRD rules.
+- **An object's check uses the party's best trait**, not the acting character's; using an
+  object in a fight spends that character's action. Both are demo decisions, not SRD rules.
+  A card's roll is the acting character's own.
+- **Armor Slots and damage reactions are decided for you**: one slot against a hit that it
+  lessens, and Get Back Up, Iron Will or a Rune Ward when they lower the Hit Points marked.
+  There is no prompt for the defender's choice; a card can be set `auto: false` to keep it out.
+- **Scripted cards are a minority** (`docs/CARDS.md`): the demo party's cards, the three Hope
+  features, the Stalwart cards, and the level 1–2 combat cards of the demo's domains. The rest
+  are shown as text. Interrupts (a reroll, taking an ally's hit) and tokens on a card do not
+  exist; an adversary uses only its standard attack.
+- **Adversaries clear a temporary condition only when Restrained** (or with nothing in reach);
+  a PC's temporary conditions end with the scene. The SRD lets both roll or spend to clear them.
 - **Quests have no stages**: steps can be hidden and revealed, but the summary is one string
   and is never rewritten.
-- **Domain-card and subclass features are text**, shown on the level-up sheet but not
-  executed.
+- **Domain-card and subclass features without a script are text**, shown on the action bar and
+  the level-up sheet but not executed; see `docs/CARDS.md`.
 - **No items or loot-table UI**, no sheet editor, no tint tool though `tints` is document
   data.
 - **Editor camera**: right-drag pan and wheel zoom work in edit mode, but the keyboard camera
   (WASD, Q/E, F, Home) is play-only.
 - No entity-hover links in the log.
-- Attacks are not read out in the log, and an impossible attack click is silent.
+- An impossible attack click is silent.
 - A scripted check (an object, a conversation) awards Hope to whoever used the thing and Fear
-  to the GM, the same as an attack; the check itself rolls with the party's best trait.
+  to the GM, the same as an attack; an object's check rolls with the party's best trait.
 - Travel rebuilds the whole scene view; fine for two rooms, not measured for fifty.
 - `story` renders as a single log line; its `button` field is ignored.
 - Project format is `formatVersion` 1 only; there is no migration. CONTEXT.md mentions zip
@@ -570,10 +666,14 @@ Play                                   Edit
   F            frame selected                 —
   Home         frame room                     —
   Tab          next party member              —
-  Space/Enter  GM turn                        —
+  Space/Enter  pass the spotlight to the GM   —
+  Escape       close card / put an armed card down
   Ctrl+Z / Ctrl+Shift+Z   —                   undo / redo
   Ctrl+E       toggle play / edit (both modes)
 
 Play panel:  Save (quick slot) · Save as… (named) · Load (list; load or delete)
              Use / Equip beside a pack item · Level up beside a name when a level is owed
+Action bar:  Attack · one button per ability (cost or reason underneath) · Pass to GM
+             Rest… (out of combat) · Loadout… (recall costs Stress outside a rest)
+Roll prompt: Utilize an Experience (1 Hope) · Roll · Step back
 ```
