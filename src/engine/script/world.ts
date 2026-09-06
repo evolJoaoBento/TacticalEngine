@@ -35,7 +35,7 @@ import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defe
 import { attackProfile, UNARMED, type DerivedCharacter } from '../character/sheet';
 import { abilitiesFor, type AbilityDef, type AbilityModifier } from '../content/abilities';
 import type { ConditionBlock, ConditionDef } from '../content/conditions';
-import { parseDice, type ParsedDamage } from '../rules/dice';
+import { formatDice, parseDice, type ParsedDamage } from '../rules/dice';
 import type { AdversaryDef } from '../content/types';
 import { NO_TILE } from '../grid/grid';
 import type { EntityState, SceneState } from '../scene/state';
@@ -1002,6 +1002,7 @@ export class SceneScriptWorld implements ScriptWorld {
     if (outcome.hit) {
       this.endsOnHit(request.target);
       if (applied.hitPointsMarked > 0) this.endsOnDamage(request.target);
+      if (outcome.damage?.severity === 'severe') this.noteSevere(request.target);
     }
     return {
       refused: null,
@@ -1009,6 +1010,9 @@ export class SceneScriptWorld implements ScriptWorld {
       hit: outcome.hit,
       critical: outcome.critical,
       hitPointsMarked: applied.hitPointsMarked,
+      ...(outcome.damageRoll === undefined
+        ? {}
+        : { damage: outcome.damageRoll.total, damageDice: formatDice(outcome.damageRoll.expression) }),
       ...(outcome.dualityRoll === undefined ? {} : { roll: outcome.dualityRoll }),
       hopeGained: applied.hopeGained,
       fearGained: applied.fearGained,

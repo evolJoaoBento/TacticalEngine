@@ -526,25 +526,58 @@ describe('a push', () => {
   });
 });
 
+describe("damage that carries the roll over", () => {
+  it('deals the same total again, halves it when asked, and refuses when nothing has been rolled', () => {
+    const { world, state, scenario, grid } = scene();
+    scenario.actorId = 'kara';
+    state.moveEntity('kara', grid.indexOf(2, 1));
+
+    // Nothing rolled yet: the script says so rather than inventing a number.
+    expect(refusals(runScript([{ kind: 'damage', dice: 'same' }], world, scripted([]), { targets: ['husk-1'] })))
+      .toEqual(['no damage to carry over']);
+
+    // 2d6 rolls 4 and 4: eight to the first target, then the same eight again,
+    // then half of it — off the one roll, with no further dice drawn.
+    const rng = scripted([4, 4]);
+    const journal = runScript(
+      [
+        { kind: 'damage', dice: '2d6', type: 'physical', target: { kind: 'entities', ids: ['husk-1'] } },
+        { kind: 'damage', dice: 'same', type: 'physical', target: { kind: 'entities', ids: ['husk-2'] } },
+        { kind: 'damage', dice: 'same', half: true, type: 'physical', target: { kind: 'entities', ids: ['husk-2'] } },
+      ],
+      world,
+      rng,
+    );
+    expect(journal.filter((e) => e.kind === 'damage')).toMatchObject([
+      { amount: 8, targets: ['husk-1'], dice: '2d6' },
+      { amount: 8, targets: ['husk-2'], dice: '2d6' },
+      { amount: 4, targets: ['husk-2'], dice: '2d6' },
+    ]);
+    expect(rng.drawn()).toBe(2);
+  });
+});
+
 describe('the shipped cards', () => {
-  it("Whirlwind: the same attack roll at everyone else in reach, for half the weapon's own dice", () => {
+  it('Whirlwind: the same attack roll at everyone else in reach, for half the damage it already dealt', () => {
     const { world, state, scenario, grid } = scene({ content: true });
     scenario.actorId = 'kara';
     state.moveEntity('kara', grid.indexOf(2, 1)); // adjacent to husk-1 at x=3
     state.moveEntity('husk-2', grid.indexOf(4, 1)); // Very Close, not adjacent
     // One roll: Hope 12 + Fear 6 = 18 beats the soft husk's 10 and the tough one's 16.
-    // Broadsword d8 rolls 6 on the target (Minor, one Hit Point); the whirl rolls it again, 7, halved to 4 (Minor).
-    const rng = scripted([12, 6, 6, 7]);
+    // Broadsword d8 rolls 6 on the target (Minor, one Hit Point); the whirl carries
+    // that same 6 over, halved to 3 — it does not roll the dice a second time.
+    const rng = scripted([12, 6, 6]);
     const journal = runScript(SRD_ABILITY_MAP.get('whirlwind')!.effects, world, rng, { targets: ['husk-1'], rollAs: 'actor' });
     expect(journal.find((e) => e.kind === 'attack')).toMatchObject({ target: 'husk-1', hit: true, hitPointsMarked: 1 });
     // The roll carries to the *other* husk only, without new dice, Hope or Fear; the damage is the broadsword's, not a fixed die.
     expect(kinds(journal)).toEqual(['attack', 'hope', 'check', 'damage']);
     expect(journal.find((e) => e.kind === 'check')).toMatchObject({ targets: ['husk-2'], hit: ['husk-2'], reused: true, outcome: 'successWithHope' });
-    expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 4, targets: ['husk-2'], dice: '1d8', marked: 1 });
+    expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 3, targets: ['husk-2'], dice: '1d8', marked: 1 });
     expect(state.entity('husk-1')!.hitPoints.marked).toBe(1);
     expect(state.entity('husk-2')!.hitPoints.marked).toBe(1);
     expect(state.entity('kara')!.hope!.value).toBe(3);
-    expect(rng.drawn()).toBe(4);
+    // Two duality dice and one damage die: no second damage roll for the whirl.
+    expect(rng.drawn()).toBe(3);
 
     // A roll that beats the target but not the tough husk reaches nobody else, and draws no damage die for it.
     const short = scene({ content: true });

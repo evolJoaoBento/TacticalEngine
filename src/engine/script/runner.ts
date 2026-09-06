@@ -68,6 +68,10 @@ export interface AttackSummary {
   critical: boolean;
   hitPointsMarked: number;
   roll?: DualityRoll;
+  /** What the damage dice came to, for a card that reuses the same roll. */
+  damage?: number;
+  /** The expression rolled, as the log writes it. */
+  damageDice?: string;
   hopeGained: number;
   fearGained: number;
   stressCleared: number;
@@ -309,6 +313,8 @@ export class ScriptRunner {
   private hit: readonly string[] = [];
   /** The last action roll made, for a critical's extra damage and `difficulty: 'roll'`. */
   private lastRoll: DualityRoll | null = null;
+  /** The last damage rolled in this script, for `dice: 'same'`. */
+  private lastDamage: { total: number; dice: string } | null = null;
 
   /** Whether any action roll in this script hands the spotlight to the GM. */
   spotlightToGm = false;
@@ -837,7 +843,20 @@ export class ScriptRunner {
   private applyRolledDamage(effect: Extract<Effect, { kind: 'damage' }>): null {
     const world = this.world;
     const actor = world.actorId();
-    // `weapon` is whatever the actor swings: "deal half damage" of the same roll.
+
+    // `same` is the damage already rolled in this script — Whirlwind's "all
+    // additional adversaries take half damage", off the swing that started it,
+    // not off a second roll of the same dice.
+    if (effect.dice === 'same') {
+      const last = this.lastDamage;
+      if (last === null) return this.refuse('no damage to carry over');
+      const targets = this.resolve(effect.target ?? { kind: 'hit' });
+      if (targets.length === 0) return null;
+      const amount = effect.half === true ? Math.ceil(last.total / 2) : last.total;
+      return this.dealTo(targets, amount, effect, last.dice);
+    }
+
+    // `weapon` is whatever the actor swings.
     const expression = effect.dice === 'weapon' ? (actor === null ? null : world.weaponDamage(actor)) : parseDice(effect.dice ?? '');
     if (expression === null) {
       return this.refuse(effect.dice === 'weapon' ? 'no weapon to roll damage with' : `cannot read damage dice "${effect.dice}"`);
@@ -857,8 +876,20 @@ export class ScriptRunner {
       critical: this.lastRoll?.critical ?? false,
     });
     const amount = effect.half === true ? Math.ceil(roll.total / 2) : roll.total;
-    const types: readonly DamageType[] = effect.type === undefined ? (expression.types ?? []) : [effect.type];
+    this.lastDamage = { total: roll.total, dice: formatDice(roll.expression) };
+    return this.dealTo(targets, amount, effect, formatDice(roll.expression), expression.types);
+  }
 
+  /** Hand the same number to each target, journalling the whole event once. */
+  private dealTo(
+    targets: readonly string[],
+    amount: number,
+    effect: Extract<Effect, { kind: 'damage' }>,
+    dice: string,
+    stated?: readonly DamageType[],
+  ): null {
+    const world = this.world;
+    const types: readonly DamageType[] = effect.type === undefined ? (stated ?? []) : [effect.type];
     let marked = 0;
     const defended: JournalEntry[] = [];
     for (const id of targets) {
@@ -872,8 +903,8 @@ export class ScriptRunner {
       kind: 'damage',
       amount,
       marked,
-      targets,
-      dice: formatDice(roll.expression),
+      targets: [...targets],
+      dice,
       ...(effect.source === undefined ? {} : { source: effect.source }),
     });
     this.journal.push(...defended);
@@ -910,6 +941,9 @@ export class ScriptRunner {
       this.rolled = true;
       this.spotlightToGm = this.spotlightToGm || summary.spotlightToGm;
       if (summary.roll !== undefined) this.lastRoll = summary.roll;
+      if (summary.damage !== undefined) {
+        this.lastDamage = { total: summary.damage, dice: summary.damageDice ?? '' };
+      }
       this.journal.push({
         kind: 'attack',
         attacker,

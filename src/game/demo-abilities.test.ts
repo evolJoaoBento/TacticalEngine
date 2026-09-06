@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { useKey } from '../engine/script/world';
+import { SRD_ABILITY_MAP } from '../engine/content/srd/abilities';
 import { NO_TILE } from '../engine/grid/grid';
 import {
   abilityList,
@@ -465,6 +466,22 @@ describe('a card written in the project\'s own code', () => {
 });
 
 describe('tokens on a card', () => {
+  it('refills a session card on a long rest and not on a short one', () => {
+    const demo = scene();
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['unleash-chaos'], loadout: ['unleash-chaos'] };
+    demo.sheets.set('mira', sheet);
+    demo.characters.set('mira', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    // "At the beginning of a session": a session boundary falls on a long rest.
+    expect(SRD_ABILITY_MAP.get('unleash-chaos')!.tokens?.refill).toBe('session');
+
+    expect(rest(demo, 'short', { moves: {} }).ok).toBe(true);
+    expect(demo.world.tokensOn('mira', 'unleash-chaos')).toBe(0);
+    expect(rest(demo, 'long', { moves: {} }).ok).toBe(true);
+    expect(demo.world.tokensOn('mira', 'unleash-chaos')).toBe(demo.world.spellcastValue('mira')!);
+  });
+
+
   it('places them on a rest, spends them for the damage rolled, and clears them on the next', () => {
     const demo = scene();
     // Mira takes Unleash Chaos: her Spellcast trait is Knowledge, so that many tokens.

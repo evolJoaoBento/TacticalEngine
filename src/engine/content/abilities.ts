@@ -82,7 +82,11 @@ export const abilityTokensSchema = z.object({
   amount: z.union([z.number().int().min(0), traitSchema, z.literal('spellcast')]),
   /** At least this many, whatever the trait says — "(minimum 1)". */
   minimum: z.number().int().min(0).default(0),
-  /** When the pile is replenished. `never` is placed once and never again. */
+  /**
+   * When the pile is replenished. A `session` card refills on a long rest,
+   * which is where a session boundary falls in play; `never` is placed once
+   * and never again.
+   */
   refill: z.enum(['session', 'longRest', 'rest', 'scene', 'never']).default('longRest'),
 });
 

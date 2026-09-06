@@ -80,7 +80,8 @@ const RAW: Input[] = [
               difficulty: 'target',
               roll: 'last',
               targets: { kind: 'adversaries', range: 'veryClose', except: 'target' },
-              onSuccessWithHope: [{ kind: 'damage', dice: 'weapon', using: 'proficiency', half: true }],
+              // Half of the damage the swing itself dealt, not a second roll.
+              onSuccessWithHope: [{ kind: 'damage', dice: 'same', half: true }],
             },
           },
         ],
@@ -276,8 +277,8 @@ const RAW: Input[] = [
     source: card('unleash-chaos'),
     target: { kind: 'adversary', range: 'far' },
     // "At the beginning of a session, place a number of tokens equal to your
-    // Spellcast trait on this card"; a session here is a long rest.
-    tokens: { amount: 'spellcast', refill: 'longRest' },
+    // Spellcast trait on this card": a session refills on a long rest.
+    tokens: { amount: 'spellcast', refill: 'session' },
     available: { kind: 'tokens', ability: 'unleash-chaos', op: '>=', value: 1 },
     effects: [{ kind: 'run', hook: 'unleash-chaos' }],
   },

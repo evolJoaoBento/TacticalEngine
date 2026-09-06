@@ -462,7 +462,7 @@ leaves the chosen target out — "all other targets within range").
 | `addVar` | `name`, `by` | adds to a numeric variable |
 | `open` / `remove` / `markUsed` | `interactable?` | changes that object's state; default is the object the script ran from. An opened door stops blocking |
 | `loot` | `table?` | draws from the table into the pack and logs the drops; no table finds nothing |
-| `damage` | `amount` **or** `dice` ("d8+2", or `weapon` for the actor's own weapon), `type?`, `using?` (proficiency \| spellcast), `direct?`, `half?`, `target?`, `source?` | `amount` marks that many Hit Points outright (default target: the actor). `dice` rolls damage once and takes it through thresholds, resistances, Armor Slots and reactions on each target (default: `hit`), scaled by Proficiency or the Spellcast trait, with a critical's maximum dice |
+| `damage` | `amount` **or** `dice` ("d8+2"; `weapon` for the actor's own weapon; `same` to reuse the damage already rolled in this script), `type?`, `using?` (proficiency \| spellcast), `direct?`, `half?`, `target?`, `source?` | `amount` marks that many Hit Points outright (default target: the actor). `dice` rolls damage once and takes it through thresholds, resistances, Armor Slots and reactions on each target (default: `hit`), scaled by Proficiency or the Spellcast trait, with a critical's maximum dice. `same` rolls nothing: it hands on the last damage this script rolled — the total off an `attack` or an earlier `damage` — which is how Whirlwind gives the rest of the room half of the swing it already made rather than a second roll |
 | `heal` | `amount`, `target?` | clears Hit Points; brings a fallen character back up |
 | `markStress` / `clearStress` | `amount?` (1), `target?` (actor) | a full Stress track marks a Hit Point instead |
 | `clearArmor` | `amount?`, `target?` | clears Armor Slots |
@@ -584,7 +584,8 @@ creature \| group, `range`), `available?` (a condition read against the actor), 
 `plusTrait?`, `requires?` unarmored \| armored \| meleeWeapon, `when?`), `reaction?` (for a
 reaction to damage: `reduceSeverity` `steps` `only?`, `reduceDamage` `dice`, `extraArmor` `slots`
 `only?`, `redirect`, `reroll` `what`), `tokens?` (`amount` — a number, a trait or `spellcast` —
-`minimum`, `refill` session \| longRest \| rest \| scene \| never), `auto` (whether a reaction
+`minimum`, `refill` session \| longRest \| rest \| scene \| never — a `session` card refills on a
+long rest, which is where a session boundary falls in play), `auto` (whether a reaction
 fires on its own; an interrupt never does). `src/engine/content/srd/abilities.ts` is the library
 for the SRD's cards and `docs/CARDS.md` lists what is scripted;
 `src/engine/content/srd/adversary-abilities.ts` is the same for stat-block features, listed in
@@ -709,7 +710,7 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
 - **An object's check uses the party's best trait**, not the acting character's; using an
   object in a fight spends that character's action. Both are demo decisions, not SRD rules.
   A card's roll is the acting character's own.
-- **The defender is asked how a hit lands** when an adversary's attack connects: take it, mark
+- **The defender is asked how a hit lands** when an adversary's *standard attack* connects: take it, mark
   an Armor Slot, spend a card that can pay (Get Back Up, Iron Will, a Rune Ward), or let an ally
   interrupt — I Am Your Shield takes the hit instead, Not This Time makes the adversary reroll
   the attack or the damage. Each option says what it costs and what it would leave. The GM's
@@ -718,8 +719,8 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   everything in a headless run, where there is nobody to ask.
 - **Scripted cards are a minority** (`docs/CARDS.md`): the demo party's cards, the three Hope
   features, the Stalwart cards, and the level 1–2 combat cards of the demo's domains. The rest
-  are shown as text. Interrupts (a reroll, taking an ally's hit) and tokens on a card do not
-  exist; an adversary uses only its standard attack.
+  are shown as text, and the same holds for most stat-block features (`docs/ADVERSARIES.md`) —
+  an adversary plays the ones the engine knows and otherwise falls back on its standard attack.
 - **Adversaries clear a temporary condition only when Restrained** (or with nothing in reach);
   a PC's temporary conditions end with the scene. The SRD lets both roll or spend to clear them.
 - **Quests have no stages**: steps can be hidden and revealed, but the summary is one string

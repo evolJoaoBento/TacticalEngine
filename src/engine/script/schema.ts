@@ -287,7 +287,10 @@ export const effectSchema = z.discriminatedUnion('kind', [
     .object({
       kind: z.literal('damage'),
       amount: z.number().int().positive().optional(),
-      /** "d8+2", "2d6", or `weapon`: the actor's primary weapon's damage. */
+      /**
+       * "d8+2", "2d6"; `weapon` for the actor's own weapon; or `same` to reuse
+       * the damage already rolled in this script rather than rolling again.
+       */
       dice: z.string().min(1).optional(),
       type: z.enum(['physical', 'magic']).optional(),
       /** Multiply the dice by the actor's Proficiency, or by their Spellcast trait. */
