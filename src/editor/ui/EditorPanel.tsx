@@ -10,14 +10,22 @@
  * a page's CSS, and so this file is the whole of it.
  */
 
-import { useEffect, useState } from 'preact/hooks';
-import type { EditorController, EditorTool } from '../controller';
-import type { EditorSession } from '../session';
-import { addDialogue, removeDialogue, removeInteractable, updateInteractable } from '../session';
-import { dialogueSchema } from '../../engine/dialogue/schema';
-import { DialogueGraph } from './DialogueGraph';
-import { summarise, validateProject, type Problem } from '../validate';
-import { Inspector } from './Inspector';
+import { useEffect, useState } from "preact/hooks";
+import type { EditorController, EditorTool } from "../controller";
+import type { EditorSession } from "../session";
+import {
+  addDialogue,
+  removeDialogue,
+  removeInteractable,
+  updateInteractable,
+} from "../session";
+import { questSchema } from "../../engine/content/quests";
+import { addQuest, removeQuest } from "../session";
+import { QuestEditor } from "./QuestEditor";
+import { dialogueSchema } from "../../engine/dialogue/schema";
+import { DialogueGraph } from "./DialogueGraph";
+import { summarise, validateProject, type Problem } from "../validate";
+import { Inspector } from "./Inspector";
 
 export interface EditorPanelProps {
   session: EditorSession;
@@ -42,51 +50,63 @@ export interface EditorPanelProps {
 }
 
 const TOOLS: { tool: EditorTool; label: string; hint: string }[] = [
-  { tool: 'select', label: 'Inspect', hint: 'Click a tile to see what is on it' },
-  { tool: 'paintTerrain', label: 'Terrain', hint: 'Drag to paint' },
-  { tool: 'raise', label: 'Raise', hint: 'Drag to raise ground' },
-  { tool: 'lower', label: 'Lower', hint: 'Drag to lower ground' },
-  { tool: 'prop', label: 'Prop', hint: 'Click to place, again to turn' },
-  { tool: 'interactable', label: 'Object', hint: 'Chest, door, pillar, portal' },
-  { tool: 'adversary', label: 'Enemy', hint: 'Click to place in the encounter' },
-  { tool: 'trigger', label: 'Trigger', hint: 'Cells that start the encounter' },
-  { tool: 'spawn', label: 'Spawn', hint: 'Where the party starts' },
-  { tool: 'erase', label: 'Erase', hint: 'Remove props and objects' },
+  {
+    tool: "select",
+    label: "Inspect",
+    hint: "Click a tile to see what is on it",
+  },
+  { tool: "paintTerrain", label: "Terrain", hint: "Drag to paint" },
+  { tool: "raise", label: "Raise", hint: "Drag to raise ground" },
+  { tool: "lower", label: "Lower", hint: "Drag to lower ground" },
+  { tool: "prop", label: "Prop", hint: "Click to place, again to turn" },
+  {
+    tool: "interactable",
+    label: "Object",
+    hint: "Chest, door, pillar, portal",
+  },
+  {
+    tool: "adversary",
+    label: "Enemy",
+    hint: "Click to place in the encounter",
+  },
+  { tool: "trigger", label: "Trigger", hint: "Cells that start the encounter" },
+  { tool: "spawn", label: "Spawn", hint: "Where the party starts" },
+  { tool: "erase", label: "Erase", hint: "Remove props and objects" },
 ];
 
 const panel: Record<string, string | number> = {
-  position: 'absolute',
+  position: "absolute",
   top: 0,
   left: 0,
-  width: '268px',
-  maxHeight: '100vh',
-  overflowY: 'auto',
-  padding: '10px 12px 16px',
-  background: 'rgba(16,18,24,0.94)',
-  color: '#e8e6df',
-  font: '13px/1.45 system-ui, sans-serif',
-  pointerEvents: 'auto',
-  boxSizing: 'border-box',
+  width: "268px",
+  maxHeight: "100vh",
+  overflowY: "auto",
+  padding: "10px 12px 16px",
+  background: "rgba(16,18,24,0.94)",
+  color: "#e8e6df",
+  font: "13px/1.45 system-ui, sans-serif",
+  pointerEvents: "auto",
+  boxSizing: "border-box",
 };
 
 const heading: Record<string, string | number> = {
-  margin: '14px 0 6px',
-  font: '600 11px/1 system-ui, sans-serif',
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  color: '#8ea3b0',
+  margin: "14px 0 6px",
+  font: "600 11px/1 system-ui, sans-serif",
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: "#8ea3b0",
 };
 
 function button(active: boolean): Record<string, string | number> {
   return {
-    padding: '5px 8px',
-    margin: '0 4px 4px 0',
-    border: `1px solid ${active ? '#69d2ff' : '#39404d'}`,
-    borderRadius: '4px',
-    background: active ? 'rgba(105,210,255,0.18)' : 'transparent',
-    color: 'inherit',
-    font: 'inherit',
-    cursor: 'pointer',
+    padding: "5px 8px",
+    margin: "0 4px 4px 0",
+    border: `1px solid ${active ? "#69d2ff" : "#39404d"}`,
+    borderRadius: "4px",
+    background: active ? "rgba(105,210,255,0.18)" : "transparent",
+    color: "inherit",
+    font: "inherit",
+    cursor: "pointer",
   };
 }
 
@@ -101,6 +121,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
   const [showProblems, setShowProblems] = useState(false);
   /** The conversation whose graph is open over the map, if any. */
   const [graph, setGraph] = useState<string | null>(null);
+  const [openQuest, setOpenQuest] = useState<string | null>(null);
 
   const scene = controller.scene;
   const state = controller.state;
@@ -117,7 +138,8 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
     setShowProblems(true);
   };
 
-  const openGraph = session.project.dialogues.find((d) => d.id === graph) ?? null;
+  const openGraph =
+    session.project.dialogues.find((d) => d.id === graph) ?? null;
   if (openGraph !== null) {
     return (
       <DialogueGraph
@@ -126,6 +148,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         sceneIds={session.project.scenes.map((entry) => entry.id)}
         dialogueIds={session.project.dialogues.map((entry) => entry.id)}
         encounterIds={scene.encounters.map((entry) => entry.id)}
+        quests={session.project.quests}
         onClose={() => setGraph(null)}
         onChange={bump}
       />
@@ -134,23 +157,25 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
 
   return (
     <div style={panel} data-version={version}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-        <strong style={{ fontSize: '14px' }}>Editor</strong>
-        <span style={{ color: '#8ea3b0', fontSize: '12px' }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+        <strong style={{ fontSize: "14px" }}>Editor</strong>
+        <span style={{ color: "#8ea3b0", fontSize: "12px" }}>
           {scene.name || scene.id} · {scene.width}×{scene.height}
-          {session.dirty ? ' ·' : ''}
-          {session.dirty ? <span style={{ color: '#f6c453' }}> unsaved</span> : null}
+          {session.dirty ? " ·" : ""}
+          {session.dirty ? (
+            <span style={{ color: "#f6c453" }}> unsaved</span>
+          ) : null}
         </span>
       </div>
 
-      <div style={{ marginTop: '8px' }}>
+      <div style={{ marginTop: "8px" }}>
         <button style={button(false)} onClick={props.onPlay}>
           ▶ Play
         </button>
         <button
           style={button(false)}
           disabled={!session.canUndo}
-          title={session.undoLabel ?? 'Nothing to undo'}
+          title={session.undoLabel ?? "Nothing to undo"}
           onClick={() => {
             session.undo();
             bump();
@@ -161,7 +186,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         <button
           style={button(false)}
           disabled={!session.canRedo}
-          title={session.redoLabel ?? 'Nothing to redo'}
+          title={session.redoLabel ?? "Nothing to redo"}
           onClick={() => {
             session.redo();
             bump();
@@ -188,7 +213,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         ))}
       </div>
 
-      {state.tool === 'paintTerrain' ? (
+      {state.tool === "paintTerrain" ? (
         <>
           <div style={heading}>Terrain</div>
           <div>
@@ -197,7 +222,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
                 key={id}
                 style={button(state.terrainId === id)}
                 onClick={() => {
-                  controller.set('terrainId', id);
+                  controller.set("terrainId", id);
                   bump();
                 }}
               >
@@ -208,7 +233,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         </>
       ) : null}
 
-      {state.tool === 'prop' ? (
+      {state.tool === "prop" ? (
         <>
           <div style={heading}>Prop</div>
           <div>
@@ -217,7 +242,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
                 key={id}
                 style={button(state.propModel === id)}
                 onClick={() => {
-                  controller.set('propModel', id);
+                  controller.set("propModel", id);
                   bump();
                 }}
               >
@@ -228,16 +253,16 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         </>
       ) : null}
 
-      {state.tool === 'interactable' ? (
+      {state.tool === "interactable" ? (
         <>
           <div style={heading}>Object</div>
           <div>
-            {(['chest', 'door', 'pillar', 'portal'] as const).map((kind) => (
+            {(["chest", "door", "pillar", "portal"] as const).map((kind) => (
               <button
                 key={kind}
                 style={button(state.interactableKind === kind)}
                 onClick={() => {
-                  controller.set('interactableKind', kind);
+                  controller.set("interactableKind", kind);
                   bump();
                 }}
               >
@@ -248,14 +273,24 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         </>
       ) : null}
 
-      {state.tool === 'adversary' ? (
+      {state.tool === "adversary" ? (
         <>
           <div style={heading}>Adversary</div>
           <select
             value={state.adversaryId}
-            style={{ width: '100%', padding: '4px', background: '#1b1f28', color: 'inherit', border: '1px solid #39404d', borderRadius: '4px' }}
+            style={{
+              width: "100%",
+              padding: "4px",
+              background: "#1b1f28",
+              color: "inherit",
+              border: "1px solid #39404d",
+              borderRadius: "4px",
+            }}
             onChange={(e) => {
-              controller.set('adversaryId', (e.target as HTMLSelectElement).value);
+              controller.set(
+                "adversaryId",
+                (e.target as HTMLSelectElement).value,
+              );
               bump();
             }}
           >
@@ -268,7 +303,9 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         </>
       ) : null}
 
-      {state.tool === 'paintTerrain' || state.tool === 'raise' || state.tool === 'lower' ? (
+      {state.tool === "paintTerrain" ||
+      state.tool === "raise" ||
+      state.tool === "lower" ? (
         <>
           <div style={heading}>Brush</div>
           <div>
@@ -277,7 +314,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
                 key={size}
                 style={button(state.brushSize === size)}
                 onClick={() => {
-                  controller.set('brushSize', size);
+                  controller.set("brushSize", size);
                   bump();
                 }}
               >
@@ -297,40 +334,48 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
             <div
               key={entry.id}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                marginBottom: '2px',
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                marginBottom: "2px",
               }}
             >
               <button
-                style={{ ...button(editing), flex: 1, textAlign: 'left', margin: 0 }}
+                style={{
+                  ...button(editing),
+                  flex: 1,
+                  textAlign: "left",
+                  margin: 0,
+                }}
                 title={entry.id}
                 onClick={() => props.onSwitchScene(entry.id)}
               >
                 {entry.name || entry.id}
-                <span style={{ color: '#8ea3b0' }}>
-                  {' '}
+                <span style={{ color: "#8ea3b0" }}>
+                  {" "}
                   {entry.width}×{entry.height}
                 </span>
-                {opens ? <span style={{ color: '#f6c453' }}> ▸</span> : null}
+                {opens ? <span style={{ color: "#f6c453" }}> ▸</span> : null}
                 {entry.id === props.playingScene ? (
-                  <span style={{ color: '#9ae08a' }}> ●</span>
+                  <span style={{ color: "#9ae08a" }}> ●</span>
                 ) : null}
               </button>
               <button
                 style={{ ...button(false), margin: 0 }}
                 title="Rename"
                 onClick={() => {
-                  const name = prompt('Scene name', entry.name || entry.id);
-                  if (name !== null && name !== '') props.onRenameScene(entry.id, name);
+                  const name = prompt("Scene name", entry.name || entry.id);
+                  if (name !== null && name !== "")
+                    props.onRenameScene(entry.id, name);
                 }}
               >
                 ✎
               </button>
               <button
                 style={{ ...button(false), margin: 0 }}
-                title={opens ? 'Already the opening scene' : 'Open the project here'}
+                title={
+                  opens ? "Already the opening scene" : "Open the project here"
+                }
                 disabled={opens}
                 onClick={() => props.onSetStartScene(entry.id)}
               >
@@ -340,14 +385,15 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
                 style={{ ...button(false), margin: 0 }}
                 title={
                   opens
-                    ? 'The opening scene cannot be deleted'
+                    ? "The opening scene cannot be deleted"
                     : session.project.scenes.length <= 1
-                      ? 'A project needs at least one scene'
-                      : 'Delete this scene'
+                      ? "A project needs at least one scene"
+                      : "Delete this scene"
                 }
                 disabled={opens || session.project.scenes.length <= 1}
                 onClick={() => {
-                  if (confirm(`Delete "${entry.name || entry.id}"?`)) props.onRemoveScene(entry.id);
+                  if (confirm(`Delete "${entry.name || entry.id}"?`))
+                    props.onRemoveScene(entry.id);
                 }}
               >
                 ✕
@@ -358,27 +404,34 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         <button
           style={button(false)}
           onClick={() => {
-            const name = prompt('New scene name', 'New room');
-            if (name !== null && name !== '') props.onAddScene(name);
+            const name = prompt("New scene name", "New room");
+            if (name !== null && name !== "") props.onAddScene(name);
           }}
         >
           + Scene
         </button>
       </div>
-      <div style={{ color: '#8ea3b0', fontSize: '11px', marginTop: '4px' }}>
+      <div style={{ color: "#8ea3b0", fontSize: "11px", marginTop: "4px" }}>
         ▸ opens the project · ● the party is here
       </div>
 
       <div style={heading}>This scene</div>
-      <div style={{ color: '#8ea3b0', fontSize: '12px' }}>
-        {scene.decos.length} props · {scene.interactables.length} objects ·{' '}
-        {scene.encounters.reduce((n, e) => n + e.adversaries.length, 0)} enemies ·{' '}
-        {scene.spawns.length} spawns
+      <div style={{ color: "#8ea3b0", fontSize: "12px" }}>
+        {scene.decos.length} props · {scene.interactables.length} objects ·{" "}
+        {scene.encounters.reduce((n, e) => n + e.adversaries.length, 0)} enemies
+        · {scene.spawns.length} spawns
       </div>
 
-      {state.tool === 'select' ? (
+      {state.tool === "select" ? (
         selectedObject === null ? (
-          <div style={{ ...heading, textTransform: 'none', letterSpacing: 0, color: '#8ea3b0' }}>
+          <div
+            style={{
+              ...heading,
+              textTransform: "none",
+              letterSpacing: 0,
+              color: "#8ea3b0",
+            }}
+          >
             Click an object to edit what it does.
           </div>
         ) : (
@@ -387,8 +440,11 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
             sceneIds={session.project.scenes.map((s) => s.id)}
             dialogueIds={session.project.dialogues.map((d) => d.id)}
             encounterIds={scene.encounters.map((e) => e.id)}
+            quests={session.project.quests}
             onChange={(changes) => {
-              session.run(updateInteractable(scene.id, selectedObject.id, changes));
+              session.run(
+                updateInteractable(scene.id, selectedObject.id, changes),
+              );
               bump();
             }}
             onDelete={() => {
@@ -403,13 +459,24 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
       <div style={heading}>Conversations</div>
       <div>
         {session.project.dialogues.map((entry) => (
-          <div key={entry.id} style={{ display: 'flex', gap: '4px', marginBottom: '2px' }}>
+          <div
+            key={entry.id}
+            style={{ display: "flex", gap: "4px", marginBottom: "2px" }}
+          >
             <button
-              style={{ ...button(false), flex: 1, textAlign: 'left', margin: 0 }}
+              style={{
+                ...button(false),
+                flex: 1,
+                textAlign: "left",
+                margin: 0,
+              }}
               onClick={() => setGraph(entry.id)}
             >
               {entry.id}
-              <span style={{ color: '#8ea3b0' }}> {entry.nodes.length} nodes</span>
+              <span style={{ color: "#8ea3b0" }}>
+                {" "}
+                {entry.nodes.length} nodes
+              </span>
             </button>
             <button
               style={{ ...button(false), margin: 0 }}
@@ -429,16 +496,20 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         <button
           style={button(false)}
           onClick={() => {
-            const name = prompt('Conversation id', 'a-conversation');
-            if (name === null || name === '') return;
-            const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-            if (id === '' || session.project.dialogues.some((d) => d.id === id)) return;
+            const name = prompt("Conversation id", "a-conversation");
+            if (name === null || name === "") return;
+            const id = name
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-+|-+$/g, "");
+            if (id === "" || session.project.dialogues.some((d) => d.id === id))
+              return;
             session.run(
               addDialogue(
                 dialogueSchema.parse({
                   id,
-                  start: 'start',
-                  nodes: [{ id: 'start', lines: [{ text: '' }] }],
+                  start: "start",
+                  nodes: [{ id: "start", lines: [{ text: "" }] }],
                 }),
               ),
             );
@@ -450,17 +521,89 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         </button>
       </div>
 
+      <div style={heading}>Quests</div>
+      <div data-testid="quest-list">
+        {session.project.quests.map((quest) => (
+          <div key={quest.id}>
+            <div style={{ display: "flex", gap: "4px", marginBottom: "2px" }}>
+              <button
+                style={{
+                  ...button(openQuest === quest.id),
+                  flex: 1,
+                  textAlign: "left",
+                  margin: 0,
+                }}
+                data-quest={quest.id}
+                onClick={() =>
+                  setOpenQuest(openQuest === quest.id ? null : quest.id)
+                }
+              >
+                {quest.name}
+                <span style={{ color: "#8ea3b0" }}>
+                  {" "}
+                  {quest.objectives.length} steps
+                </span>
+              </button>
+              <button
+                style={{ ...button(false), margin: 0 }}
+                title="Delete this quest"
+                onClick={() => {
+                  if (confirm(`Delete "${quest.name}"?`)) {
+                    session.run(removeQuest(quest.id));
+                    if (openQuest === quest.id) setOpenQuest(null);
+                    bump();
+                  }
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            {openQuest === quest.id ? (
+              <QuestEditor session={session} quest={quest} onChange={bump} />
+            ) : null}
+          </div>
+        ))}
+        <button
+          style={button(false)}
+          onClick={() => {
+            const name = prompt("Quest name", "A quest");
+            if (name === null || name.trim() === "") return;
+            const id = name
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-+|-+$/g, "");
+            if (id === "" || session.project.quests.some((q) => q.id === id))
+              return;
+            session.run(
+              addQuest(
+                questSchema.parse({
+                  id,
+                  name: name.trim(),
+                  objectives: [
+                    { id: "first-step", text: "Do the first thing." },
+                  ],
+                }),
+              ),
+            );
+            setOpenQuest(id);
+            bump();
+          }}
+        >
+          + Quest
+        </button>
+      </div>
+
       <div style={heading}>Project</div>
       <div>
         <button style={button(false)} onClick={props.onSave}>
           Save JSON
         </button>
-        <label style={{ ...button(false), display: 'inline-block' }}>
+        <label style={{ ...button(false), display: "inline-block" }}>
           Load
           <input
             type="file"
             accept="application/json,.json"
-            style={{ display: 'none' }}
+            style={{ display: "none" }}
             onChange={(e) => {
               const file = (e.target as HTMLInputElement).files?.[0];
               if (file !== undefined) props.onLoad(file);
@@ -475,11 +618,14 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
       {showProblems ? (
         <>
           <div style={heading}>{summarise(problems)}</div>
-          <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: '12px' }}>
+          <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: "12px" }}>
             {problems.slice(0, 30).map((problem, i) => (
               <li
                 key={i}
-                style={{ color: problem.severity === 'error' ? '#ff8f7a' : '#f6c453', marginBottom: '3px' }}
+                style={{
+                  color: problem.severity === "error" ? "#ff8f7a" : "#f6c453",
+                  marginBottom: "3px",
+                }}
               >
                 {problem.message}
               </li>

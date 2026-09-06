@@ -14,6 +14,7 @@
  */
 
 import type { Effect } from '../../engine/script/schema';
+import type { QuestDef } from '../../engine/content/quests';
 
 export interface EffectListProps {
   effects: readonly Effect[];
@@ -24,6 +25,8 @@ export interface EffectListProps {
   dialogueIds: readonly string[];
   /** What a `startEncounter` can name. */
   encounterIds: readonly string[];
+  /** What the quest effects can name — the whole definition, for the objectives. */
+  quests: readonly QuestDef[];
 }
 
 /** The kinds this can build. Anything else is shown, not offered. */
@@ -41,6 +44,10 @@ const ADDABLE = [
   'startEncounter',
   'goto',
   'startDialogue',
+  'startQuest',
+  'completeObjective',
+  'completeQuest',
+  'failQuest',
 ] as const;
 
 type Addable = (typeof ADDABLE)[number];
@@ -59,6 +66,10 @@ const LABELS: Readonly<Record<Addable, string>> = {
   startEncounter: 'Start a fight',
   goto: 'Travel to a scene',
   startDialogue: 'Start a conversation',
+  startQuest: 'Start a quest',
+  completeObjective: 'Complete an objective',
+  completeQuest: 'Complete a quest',
+  failQuest: 'Fail a quest',
 };
 
 const row: Record<string, string | number> = {
@@ -115,6 +126,16 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind: 'goto', scene: props.sceneIds[0] ?? '' };
     case 'startDialogue':
       return { kind: 'startDialogue', dialogue: props.dialogueIds[0] ?? '' };
+    case 'startQuest':
+    case 'completeQuest':
+    case 'failQuest':
+      return { kind, quest: props.quests[0]?.id ?? '' };
+    case 'completeObjective':
+      return {
+        kind,
+        quest: props.quests[0]?.id ?? '',
+        objective: props.quests[0]?.objectives[0]?.id ?? '',
+      };
   }
 }
 
@@ -245,6 +266,29 @@ function renderBody(
       return pick(effect.dialogue, props.dialogueIds, (dialogue) => ({ ...effect, dialogue }));
     case 'startEncounter':
       return pick(effect.encounter, props.encounterIds, (encounter) => ({ ...effect, encounter }));
+    case 'startQuest':
+    case 'completeQuest':
+    case 'failQuest':
+      return pick(effect.quest, props.quests.map((q) => q.id), (quest) => ({ ...effect, quest }));
+    case 'completeObjective': {
+      // The objective list follows the chosen quest; switching quests resets
+      // the objective to that quest's first, so the effect never names a step
+      // of a different quest.
+      const quest = props.quests.find((q) => q.id === effect.quest);
+      return (
+        <>
+          {pick(effect.quest, props.quests.map((q) => q.id), (id) => ({
+            ...effect,
+            quest: id,
+            objective: props.quests.find((q) => q.id === id)?.objectives[0]?.id ?? '',
+          }))}
+          {pick(effect.objective, quest?.objectives.map((o) => o.id) ?? [], (objective) => ({
+            ...effect,
+            objective,
+          }))}
+        </>
+      );
+    }
     case 'open':
     case 'remove':
     case 'markUsed':

@@ -1071,3 +1071,34 @@ test('opens a quest in the journal when the pillar wakes', async ({ page }) => {
 
   expect(consoleErrors).toEqual([]);
 });
+
+test('edits a quest in the editor, and the journal reads the new words', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+
+  await page.locator('[data-quest="the-wardens-word"]').click();
+  const editor = page.locator('[data-testid="quest-editor"]');
+  await expect(editor).toBeVisible();
+
+  // Rename the quest and rewrite its first step, the way an author would.
+  await editor.locator('[data-field="name"]').fill('The Word Below');
+  await editor.locator('[data-objective="win-the-word"] input').fill('Talk the Warden round.');
+  await editor.locator('button', { hasText: '+ Step' }).click();
+
+  // Back in play, the journal shows what was written.
+  const journal = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('play');
+    const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
+    api.standBeside(pillar);
+    api.use(pillar);
+    return api.log().map((l) => l.text);
+  });
+  expect(journal.join(' ')).toContain('New quest: The Word Below');
+  const panel = page.locator('[data-testid="journal"]');
+  await expect(panel).toContainText('The Word Below');
+  await expect(panel).toContainText('Talk the Warden round.');
+  await expect(panel).toContainText('Do the next thing.');
+
+  expect(consoleErrors).toEqual([]);
+});

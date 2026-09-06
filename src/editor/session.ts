@@ -17,6 +17,7 @@
 
 import type { Deco, Encounter, Interactable, Point, ProjectDoc, SceneDoc } from '../engine/scene/schema';
 import type { Dialogue, DialogueChoice, DialogueNode } from '../engine/dialogue/schema';
+import type { QuestDef, QuestObjective } from '../engine/content/quests';
 
 /** One reversible change. `undo` must restore exactly what `apply` replaced. */
 export interface Edit {
@@ -1027,4 +1028,148 @@ export function brushTiles(scene: SceneDoc, centre: Point, size = 1): number[] {
     }
   }
   return tiles;
+}
+
+// ---------------------------------------------------------------------------
+// Quests
+// ---------------------------------------------------------------------------
+
+function requireQuest(project: ProjectDoc, questId: string): QuestDef {
+  const quest = project.quests.find((q) => q.id === questId);
+  if (quest === undefined) throw new Error(`no quest "${questId}"`);
+  return quest;
+}
+
+export function addQuest(quest: QuestDef): Edit {
+  return {
+    label: `Add quest ${quest.id}`,
+    apply(project) {
+      project.quests.push(quest);
+    },
+    undo(project) {
+      const at = project.quests.lastIndexOf(quest);
+      if (at >= 0) project.quests.splice(at, 1);
+    },
+  };
+}
+
+/**
+ * Delete a quest. Effects elsewhere may still name it; the validator reports
+ * those, the way it does for a deleted conversation.
+ */
+export function removeQuest(questId: string): Edit {
+  let removed: { index: number; quest: QuestDef } | null = null;
+  return {
+    label: 'Delete quest',
+    apply(project) {
+      removed = null;
+      const index = project.quests.findIndex((q) => q.id === questId);
+      if (index < 0) return;
+      removed = { index, quest: project.quests[index]! };
+      project.quests.splice(index, 1);
+    },
+    undo(project) {
+      if (removed !== null) project.quests.splice(removed.index, 0, removed.quest);
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
+/** Rename or re-summarise a quest. Keystrokes into one field coalesce. */
+export function updateQuest(questId: string, changes: Partial<Pick<QuestDef, 'name' | 'summary'>>): Edit {
+  let before: QuestDef | null = null;
+  const current: Partial<QuestDef> = { ...changes };
+  const edit: Edit = {
+    label: 'Edit quest',
+    mergeKey: `quest:${questId}:${Object.keys(changes).sort().join(',')}`,
+    apply(project) {
+      const index = project.quests.findIndex((q) => q.id === questId);
+      if (index < 0) return;
+      before = project.quests[index]!;
+      project.quests[index] = { ...before, ...current };
+    },
+    undo(project) {
+      if (before === null) return;
+      const index = project.quests.findIndex((q) => q.id === questId);
+      if (index >= 0) project.quests[index] = before;
+    },
+    absorb(other) {
+      const next = (other as Edit & { __quest?: Partial<QuestDef> }).__quest;
+      if (next === undefined) return false;
+      Object.assign(current, next);
+      return true;
+    },
+  };
+  (edit as Edit & { __quest: Partial<QuestDef> }).__quest = current;
+  return edit;
+}
+
+export function addObjective(questId: string, objective: QuestObjective): Edit {
+  return {
+    label: 'Add objective',
+    apply(project) {
+      const quest = requireQuest(project, questId);
+      quest.objectives = [...quest.objectives, objective];
+    },
+    undo(project) {
+      const quest = requireQuest(project, questId);
+      quest.objectives = quest.objectives.slice(0, -1);
+    },
+  };
+}
+
+/** A quest keeps at least one objective; removing the last is a no-op. */
+export function removeObjective(questId: string, index: number): Edit {
+  let removed: QuestObjective | null = null;
+  return {
+    label: 'Delete objective',
+    apply(project) {
+      removed = null;
+      const quest = requireQuest(project, questId);
+      if (index < 0 || index >= quest.objectives.length || quest.objectives.length <= 1) return;
+      removed = quest.objectives[index]!;
+      quest.objectives = quest.objectives.filter((_, i) => i !== index);
+    },
+    undo(project) {
+      if (removed === null) return;
+      const quest = requireQuest(project, questId);
+      const objectives = [...quest.objectives];
+      objectives.splice(index, 0, removed);
+      quest.objectives = objectives;
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
+export function updateObjective(questId: string, index: number, changes: Partial<QuestObjective>): Edit {
+  let before: QuestObjective | null = null;
+  const current: Partial<QuestObjective> = { ...changes };
+  const edit: Edit = {
+    label: 'Edit objective',
+    mergeKey: `objective:${questId}:${index}:${Object.keys(changes).sort().join(',')}`,
+    apply(project) {
+      const quest = requireQuest(project, questId);
+      const objective = quest.objectives[index];
+      if (objective === undefined) return;
+      before = objective;
+      quest.objectives = quest.objectives.map((o, i) => (i === index ? { ...o, ...current } : o));
+    },
+    undo(project) {
+      if (before === null) return;
+      const quest = requireQuest(project, questId);
+      quest.objectives = quest.objectives.map((o, i) => (i === index ? before! : o));
+    },
+    absorb(other) {
+      const next = (other as Edit & { __objective?: Partial<QuestObjective> }).__objective;
+      if (next === undefined) return false;
+      Object.assign(current, next);
+      return true;
+    },
+  };
+  (edit as Edit & { __objective: Partial<QuestObjective> }).__objective = current;
+  return edit;
 }

@@ -39,7 +39,7 @@ two thirds.
 | Saving | A campaign put down and picked up: rooms, pack, flags, and the dice position |
 | Quests | Start, tick, finish; a journal; a demo quest across two rooms |
 | Items | Items and weighted loot tables; a shared pack that survives a doorway |
-| Editor | Map tools, scene list, object inspector, dialogue graph, undo, validation, JSON |
+| Editor | Map tools, scene list, object inspector, dialogue graph, quest form, undo, validation, JSON |
 
 ## What is missing, in the order it should be built
 
@@ -165,7 +165,7 @@ reported rather than thrown.
 saves, autosaves, a save browser and a trimmed log are all UI and policy on top of a format that
 already carries what they need.
 
-### ~~7. Quests and journal~~ — done, in the engine and the game
+### ~~7. Quests and journal~~ — done
 
 `content/quests.ts` holds a quest: a name, a summary, and a flat list of objectives. Progress is
 not content — it lives in `ScenarioState.quests` beside the flags and the pack, so it travels
@@ -191,7 +191,13 @@ the word ticks the first step, and the strongbox downstairs ticks the second and
 
 **Still open:** objectives are all visible once a quest is active, and there are no stages with
 their own summary text — a BG3 journal reveals steps progressively and rewrites the summary as
-the story turns. And the *editor* half: quests are authored as literals until the next slice.
+the story turns.
+
+The editor has a quest list and a form — name, summary, steps — because a quest is a list and a
+list is edited as a list; the graph was the right call for conversations, not for this. The
+effect editor offers the four quest effects with the quest picked from a dropdown and the
+objective dropdown following the chosen quest, so an effect can never name a step of a different
+quest. What is written in the form is what the journal shows, checked end to end.
 
 ### ~~11. Scene travel~~ — done
 

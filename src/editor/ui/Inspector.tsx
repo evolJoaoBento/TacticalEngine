@@ -10,6 +10,7 @@
  */
 
 import type { CheckRequest, Effect } from '../../engine/script/schema';
+import type { QuestDef } from '../../engine/content/quests';
 import type { Interactable } from '../../engine/scene/schema';
 import { EffectList } from './EffectList';
 
@@ -20,6 +21,7 @@ export interface InspectorProps {
   sceneIds: readonly string[];
   dialogueIds: readonly string[];
   encounterIds: readonly string[];
+  quests: readonly QuestDef[];
 }
 
 const TRAITS = ['agility', 'strength', 'finesse', 'instinct', 'presence', 'knowledge'] as const;
@@ -84,6 +86,7 @@ export function Inspector(props: InspectorProps): preact.JSX.Element {
     sceneIds: props.sceneIds,
     dialogueIds: props.dialogueIds,
     encounterIds: props.encounterIds,
+    quests: props.quests,
   };
 
   /** Replace one outcome's effects, dropping the field when it empties. */

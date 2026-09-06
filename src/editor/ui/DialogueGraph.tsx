@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useRef, useState } from 'preact/hooks';
+import type { QuestDef } from '../../engine/content/quests';
 import { layoutDialogue } from '../../engine/dialogue/layout';
 import type { Dialogue, DialogueNode } from '../../engine/dialogue/schema';
 import type { Effect } from '../../engine/script/schema';
@@ -36,6 +37,7 @@ export interface DialogueGraphProps {
   sceneIds: readonly string[];
   dialogueIds: readonly string[];
   encounterIds: readonly string[];
+  quests: readonly QuestDef[];
   onClose: () => void;
   /** Bump the panel's version counter. */
   onChange: () => void;
@@ -282,6 +284,7 @@ export function DialogueGraph(props: DialogueGraphProps): preact.JSX.Element {
               sceneIds={props.sceneIds}
               dialogueIds={props.dialogueIds}
               encounterIds={props.encounterIds}
+              quests={props.quests}
             />
           );
         })}
@@ -302,6 +305,7 @@ interface NodeCardProps {
   sceneIds: readonly string[];
   dialogueIds: readonly string[];
   encounterIds: readonly string[];
+  quests: readonly QuestDef[];
 }
 
 function NodeCard(props: NodeCardProps): preact.JSX.Element {
@@ -545,6 +549,7 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
             sceneIds={props.sceneIds}
             dialogueIds={props.dialogueIds}
             encounterIds={props.encounterIds}
+            quests={props.quests}
           />
         </div>
       ) : null}
