@@ -113,7 +113,7 @@ describe('the pillar conversation', () => {
     expect(demo.log.some((l) => /with (Hope|Fear)|critical/i.test(l.text))).toBe(true);
   });
 
-  it('ends the conversation and marks the pillar used', () => {
+  it('ends the conversation, and the pillar can be talked to again', () => {
     const demo = scene();
     stand(demo, PILLAR);
     useSelectedOn(demo, PILLAR);
@@ -128,7 +128,9 @@ describe('the pillar conversation', () => {
 
     expect(demo.pending).toBeNull();
     expect(demo.world.interactableState(PILLAR).used).toBe(true);
-    expect(useSelectedOn(demo, PILLAR).status).toBe('refused');
+    // Used, but repeatable: the Warden can be spoken to again.
+    expect(useSelectedOn(demo, PILLAR).status).toBe('waiting');
+    expect(demo.pending?.dialogue).not.toBeNull();
   });
 
   it('never repeats a line, across the whole nested conversation', () => {

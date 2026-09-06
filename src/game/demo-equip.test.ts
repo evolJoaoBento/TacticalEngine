@@ -78,6 +78,18 @@ describe('equipping', () => {
     expect(equipItem(demo, 'kara', 'longsword').ok).toBe(true);
   });
 
+  it('refuses to equip what is already in hand, and keeps the pack whole', () => {
+    // Without this the piece left the pack and nothing came back.
+    const demo = scene();
+    demo.world.addItem('broadsword', 1);
+    const result = equipItem(demo, 'kara', 'broadsword');
+    expect(result.ok).toBe(false);
+    expect(demo.scenario.items.get('broadsword')).toBe(1);
+    demo.world.addItem('chainmail', 1);
+    expect(equipItem(demo, 'kara', 'chainmail').ok).toBe(false);
+    expect(demo.scenario.items.get('chainmail')).toBe(1);
+  });
+
   it('refuses a trinket', () => {
     const demo = scene();
     demo.world.addItem('husk-carapace', 1);

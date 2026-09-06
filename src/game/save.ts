@@ -18,7 +18,8 @@
 import { z } from 'zod';
 
 import { SRD_CHARACTERS, enterSavedScene, inCombat, type DemoScene } from './demo-scene';
-import { deriveCharacter, type CharacterSheet } from '../engine/character/sheet';
+import { deriveCharacter } from '../engine/character/sheet';
+import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { logToneSchema } from '../engine/script/schema';
 import {
   restoreScenario,
@@ -46,10 +47,12 @@ export const saveSchema = z.object({
   selected: z.string().nullable(),
   /**
    * The party's sheets, levels taken included. Defaulted so an older save
-   * loads with the project's level-1 sheets. Loosely typed here: a sheet is
-   * validated by `deriveCharacter` on load, which reports rather than throws.
+   * loads with the project's level-1 sheets. Shape-checked here; the content
+   * ids inside are checked by `deriveCharacter` on load, and a sheet that
+   * names gear the project does not have refuses the load rather than
+   * fighting unarmed by surprise.
    */
-  sheets: z.array(z.record(z.string(), z.unknown())).default([]),
+  sheets: z.array(characterSheetSchema).default([]),
   log: z.array(z.object({ text: z.string(), tone: logToneSchema })),
 });
 
@@ -80,7 +83,8 @@ export function saveGame(demo: DemoScene): SaveGame | null {
     scenario: scenarioSnapshot(demo.scenario),
     scenes,
     selected: demo.party.selected,
-    sheets: [...demo.sheets.values()].map((sheet) => ({ ...sheet })),
+    // Parsed rather than spread: a deep copy in the save's own shape.
+    sheets: [...demo.sheets.values()].map((sheet) => characterSheetSchema.parse(sheet)),
     log: demo.log.map((line) => ({ ...line })),
   };
 }
@@ -116,9 +120,15 @@ export function loadGame(demo: DemoScene, save: SaveGame): LoadResult {
   }
 
   restoreScenario(demo.scenario, save.scenario);
-  for (const raw of save.sheets) {
-    const sheet = raw as unknown as CharacterSheet;
-    if (typeof sheet.id !== 'string' || !demo.sheets.has(sheet.id)) continue;
+  for (const sheet of save.sheets) {
+    if (!demo.sheets.has(sheet.id)) continue;
+    const derived = deriveCharacter(sheet, SRD_CHARACTERS);
+    if (derived.issues.length > 0) {
+      return { ok: false, reason: `${sheet.name}'s sheet: ${derived.issues[0]!.message}` };
+    }
+  }
+  for (const sheet of save.sheets) {
+    if (!demo.sheets.has(sheet.id)) continue;
     demo.sheets.set(sheet.id, sheet);
     demo.characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS).character);
   }

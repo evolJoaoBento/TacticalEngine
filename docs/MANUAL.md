@@ -512,8 +512,8 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   (WASD, Q/E, F, Home) is play-only.
 - **No right-click inspector** in play and no entity-hover links in the log.
 - Attacks are not read out in the log, and an impossible attack click is silent.
-- Scripted checks (objects, conversations) do not award Hope or Fear; the pips move only from
-  attacks.
+- A scripted check (an object, a conversation) awards Hope to whoever used the thing and Fear
+  to the GM, the same as an attack; the check itself rolls with the party's best trait.
 - Travel rebuilds the whole scene view; fine for two rooms, not measured for fifty.
 - `story` renders as a single log line; its `button` field is ignored.
 - Project format is `formatVersion` 1 only; there is no migration. CONTEXT.md mentions zip

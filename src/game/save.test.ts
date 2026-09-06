@@ -238,6 +238,22 @@ describe('loading a game', () => {
     expect(demo.scenario.flags.has('ghost')).toBe(false);
   });
 
+  it('refuses a save whose sheet is not a sheet', () => {
+    const demo = scene();
+    const save = JSON.parse(JSON.stringify(saveGame(demo)));
+    save.sheets[0].level = 'banana';
+    expect(loadGameText(scene(), JSON.stringify(save)).ok).toBe(false);
+  });
+
+  it('refuses a save whose sheet names gear the project does not have', () => {
+    const demo = scene();
+    const save = JSON.parse(JSON.stringify(saveGame(demo)));
+    save.sheets[0].primaryWeaponId = 'vorpal-nonsense';
+    const result = loadGameText(scene(), JSON.stringify(save));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/vorpal-nonsense/);
+  });
+
   it('reports damaged text rather than throwing', () => {
     expect(loadGameText(scene(), 'not json at all').ok).toBe(false);
     expect(loadGameText(scene(), '{"formatVersion":2}').ok).toBe(false);

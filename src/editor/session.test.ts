@@ -365,6 +365,7 @@ describe('interactables', () => {
     flavor: '',
     model: null,
     blocksMovement: true,
+    repeatable: false,
     effects: [],
     lockedText: '',
     tags: [],
@@ -380,11 +381,13 @@ describe('interactables', () => {
     expect(s.requireScene('room').interactables[0]).toMatchObject({
       name: 'Rotted Chest',
       blocksMovement: false,
+      repeatable: false,
     });
     s.undo();
     expect(s.requireScene('room').interactables[0]).toMatchObject({
       name: 'Old Chest',
       blocksMovement: true,
+      repeatable: false,
     effects: [],
     });
 
@@ -657,6 +660,7 @@ describe('editing an object', () => {
         flavor: '',
         model: null,
         blocksMovement: true,
+        repeatable: false,
         effects: [],
         lockedText: '',
         tags: [],

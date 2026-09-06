@@ -61,6 +61,10 @@ export interface ScriptWorld extends ConditionContext {
    */
   /** Raise the party's level to `level` (or by one). Returns the level reached, or null if nothing changed. */
   grantLevel(level?: number): number | null;
+  /** The acting character gains a Hope. Returns whether anyone was there to gain it. */
+  gainHope(): boolean;
+  /** The GM gains a Fear. Returns whether the pool had room. */
+  gainFear(): boolean;
   startQuest(quest: string): boolean;
   completeObjective(quest: string, objective: string): boolean;
   revealObjective(quest: string, objective: string): boolean;
@@ -86,6 +90,8 @@ export type JournalEntry =
   | { kind: 'dialogue'; dialogue: string }
   | { kind: 'quest'; quest: string; change: 'started' | 'completed' | 'failed' }
   | { kind: 'levelUp'; level: number }
+  | { kind: 'hope'; gained: number }
+  | { kind: 'fear'; gained: number }
   | { kind: 'objective'; quest: string; objective: string }
   | { kind: 'revealed'; quest: string; objective: string }
   | { kind: 'chose'; label: string; index: number }
@@ -203,6 +209,15 @@ export class ScriptRunner {
       ...(response.helpDice === undefined ? {} : { helpDice: response.helpDice }),
     });
     this.journal.push({ kind: 'check', outcome: roll.outcome, roll });
+    // The core loop: a roll with Hope hands the roller a Hope, a roll with
+    // Fear hands the GM a Fear. Attacks already did this; a chest and a
+    // conversation are rolls too.
+    if (roll.hopeGained > 0 && this.world.gainHope()) {
+      this.journal.push({ kind: 'hope', gained: roll.hopeGained });
+    }
+    if (roll.fearGained > 0 && this.world.gainFear()) {
+      this.journal.push({ kind: 'fear', gained: roll.fearGained });
+    }
 
     // `always` runs after the outcome branch, so it is pushed first.
     if (check.always !== undefined) this.stack.push({ effects: check.always, index: 0 });

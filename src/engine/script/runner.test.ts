@@ -302,8 +302,12 @@ describe('check', () => {
     const after = runner.resume({ kind: 'roll' });
 
     expect(after.status).toBe('done');
-    const kinds = after.journal.map((e) => (e.kind === 'log' ? e.text : e.kind));
+    // A roll also hands out a Hope or a Fear, journalled right after the check.
+    const kinds = after.journal
+      .filter((e) => e.kind !== 'hope' && e.kind !== 'fear')
+      .map((e) => (e.kind === 'log' ? e.text : e.kind));
     expect(kinds).toEqual(['check', 'A crank!', 'var', 'You step back.']);
+    expect(after.journal[1]!.kind === 'hope' || after.journal[1]!.kind === 'fear').toBe(true);
     expect(w.getVar('cranks')).toBe(1);
   });
 
@@ -422,6 +426,8 @@ describe('the runner as a whole', () => {
       questStatus: () => 'inactive',
       objectiveDone: () => false,
       grantLevel: () => null,
+      gainHope: () => false,
+      gainFear: () => false,
       startQuest: () => false,
       completeObjective: () => false,
       revealObjective: () => false,

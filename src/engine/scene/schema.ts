@@ -60,6 +60,11 @@ export const interactableSchema = z.object({
    */
   effects: z.array(effectSchema).default([]),
   check: checkRequestSchema.optional(),
+  /**
+   * Usable again after the first time. A conversation wants this; a chest with
+   * one set of loot in it does not.
+   */
+  repeatable: z.boolean().default(false),
   /** The party must hold this key to interact at all. */
   requiresKey: z.string().optional(),
   lockedText: z.string().default(''),

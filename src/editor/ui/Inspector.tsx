@@ -147,6 +147,15 @@ export function Inspector(props: InspectorProps): preact.JSX.Element {
         />
         Blocks movement
       </label>
+      <label style={{ ...label, display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <input
+          type="checkbox"
+          checked={object.repeatable}
+          data-field="repeatable"
+          onChange={(e) => props.onChange({ repeatable: (e.target as HTMLInputElement).checked })}
+        />
+        Can be used again
+      </label>
 
       <div style={heading}>Getting in</div>
       <label style={label}>Key it needs — blank for none</label>

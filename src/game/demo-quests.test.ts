@@ -80,12 +80,15 @@ describe('the demo quest', () => {
     expect(demo.log.some((l) => l.text.includes("New quest: The Warden's Word"))).toBe(true);
   });
 
-  it('does not announce the quest twice when the pillar is used twice', () => {
+  it('does not announce the quest twice when the pillar is talked to twice', () => {
     const demo = scene();
     stand(demo, PILLAR);
     useSelectedOn(demo, PILLAR);
     playToEnd(demo);
-    useSelectedOn(demo, PILLAR);
+    // The pillar is repeatable: the second use opens a conversation rather
+    // than refusing, which is what makes this test mean anything.
+    expect(useSelectedOn(demo, PILLAR).status).toBe('waiting');
+    expect(demo.pending?.dialogue).not.toBeNull();
     playToEnd(demo);
     expect(demo.log.filter((l) => l.text.startsWith('New quest')).length).toBe(1);
   });

@@ -364,6 +364,7 @@ export class EditorController {
       flavor: '',
       model: null,
       blocksMovement: true,
+      repeatable: false,
       effects: [],
       lockedText: '',
       tags: [],

@@ -332,6 +332,7 @@ function importInteractables(
       flavor: asString(raw['flavor']) ?? '',
       model: asString(raw['model']),
       blocksMovement: true,
+      repeatable: false,
       lockedText: asString(raw['lockedText']) ?? '',
       tags: [],
       data: {},

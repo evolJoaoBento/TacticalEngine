@@ -466,6 +466,8 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
   const pillar = vault.interactables.find((i) => i.kind === 'pillar');
   if (pillar !== undefined) {
     pillar.effects = [{ kind: 'startDialogue', dialogue: PILLAR_DIALOGUE_ID }];
+    // A conversation can be had again; the second time, the Warden knows you.
+    pillar.repeatable = true;
     delete pillar.check;
   }
 
@@ -738,7 +740,7 @@ export function useSelectedOn(demo: DemoScene, interactableId: string): UseOutco
   }
 
   demo.scenario.actorId = actor;
-  const result = useInteractable(object, demo.world, demo.rng);
+  const result = useInteractable(object, demo.world, demo.rng, { repeatable: object.repeatable });
   if (result.status === 'refused') {
     return { status: 'refused', lines: note(demo, result.text, 'system') };
   }
@@ -1155,6 +1157,8 @@ export function equipItem(demo: DemoScene, characterId: string, itemId: string):
     if (weapon === undefined) return { ok: false, reason: `${item.name} points at no known weapon` };
     slot = slotOf(weapon);
     replaced = slot === 'primary' ? sheet.primaryWeaponId : sheet.secondaryWeaponId;
+    // Already in hand: nothing to swap, and taking it out of the pack would lose it.
+    if (replaced === weapon.id) return { ok: false, reason: `${sheet.name} already wields the ${item.name}` };
     next = slot === 'primary' ? { ...sheet, primaryWeaponId: weapon.id } : { ...sheet, secondaryWeaponId: weapon.id };
   } else if (item.kind === 'armor') {
     if (inCombat(demo)) return { ok: false, reason: 'armor cannot be changed in a fight' };
@@ -1162,6 +1166,7 @@ export function equipItem(demo: DemoScene, characterId: string, itemId: string):
     if (armor === undefined) return { ok: false, reason: `${item.name} points at no known armor` };
     slot = 'armor';
     replaced = sheet.armorId;
+    if (replaced === armor.id) return { ok: false, reason: `${sheet.name} already wears the ${item.name}` };
     next = { ...sheet, armorId: armor.id };
   } else {
     return { ok: false, reason: `${item.name} is not something that can be worn` };

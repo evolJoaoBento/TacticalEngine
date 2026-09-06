@@ -380,6 +380,12 @@ moves. The line has moved past authoring, past the empty `loot`, and past a game
 play in one sitting. What is left is what a campaign needs to be more than a session: quests to
 track (7), characters who grow and can change what they carry (5, 6). The camera moves now (10).
 
+A scripted check now moves the pools the way an attack does: a roll with Hope hands a Hope to
+whoever used the thing (`ScenarioState.actorId`, which is the selected character — the check
+rolls with the party's *best* trait, the Hope goes to the one who touched it), a roll with Fear
+hands the GM a Fear. And an interactable can be marked **repeatable**: the demo's pillar is, so
+the Warden can be talked to again and the reply gated on knowing the name is reachable.
+
 One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
 workaround from when nothing could use a door. It can go now — the party can pick that lock
 themselves — but the combat e2e walks east through it, so that is its own change.

@@ -13,7 +13,7 @@
 
 import { z } from 'zod';
 
-import { markHitPoints, clear as clearPool } from '../rules/resources';
+import { gain, markHitPoints, clear as clearPool } from '../rules/resources';
 import type { SceneState } from '../scene/state';
 import type { Trait } from '../scene/schema';
 import { scriptValueSchema, type ScriptValue } from './schema';
@@ -267,6 +267,21 @@ export class SceneScriptWorld implements ScriptWorld {
   // failed one is not completed by a late objective. Finishing is explicit —
   // ticking the last objective does not complete a quest, because "you have
   // everything, now bring it back" is a beat a designer places on purpose.
+
+  gainHope(): boolean {
+    const actor = this.scenario.actorId === null ? undefined : this.state.entity(this.scenario.actorId);
+    if (actor?.hope === undefined) return false;
+    // `gain` is pure; the new currency replaces the old on the entity.
+    const result = gain(actor.hope);
+    actor.hope = result.currency;
+    return result.applied > 0;
+  }
+
+  gainFear(): boolean {
+    const result = gain(this.state.fear);
+    this.state.fear = result.currency;
+    return result.applied > 0;
+  }
 
   grantLevel(level?: number): number | null {
     const target = Math.min(10, level ?? this.scenario.partyLevel + 1);
