@@ -241,9 +241,11 @@ objective and encounter ids from dropdowns; flags, items and variables typed; `n
 nest), then two effect lists for *then* and *otherwise*. **Reveal an objective** brings a hidden
 quest step into the journal.
 
-Effects the editor cannot build — `choice`, a nested `check`, `story`, `setVar`, `addVar`,
-`addItem`, `removeItem`, `endEncounter`, `none` — are shown with a summary and can be removed,
-but must be edited in the project JSON.
+**Ask for a roll** adds a `check` with the same editor an object's roll uses — trait,
+difficulty, prompt, and an effect list per outcome. **Ask the player** adds a `choice`: a title,
+what the player is told, and options, each with a label, an optional *if…* gate and its own
+effect list. **Story panel**, **Set/Add a variable**, **Give/Take an item** and **End a fight**
+are edited inline. Every effect kind the engine runs can now be built in the editor.
 
 ### Conversations (the graph)
 
@@ -265,8 +267,11 @@ A reply can be gated: **if…** adds an `available` condition (the reply is hidd
 holds), **only if…** an `enabled` one (shown greyed unless it holds); each opens the condition
 editor under the reply, and **✕** removes the gate.
 
+A reply's roll shows its outcome effect lists and the nodes a success and a failure lead to
+(**on success** / **on failure**).
+
 Not editable in the graph (JSON only): a line's `speaker`, a reply's `detail`, a reply's own
-`effects`, a check's outcome effect lists, `gotoOnSuccess` and
+`effects`, and
 `gotoOnFailure`.
 
 ### Quests
@@ -504,9 +509,8 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   and is never rewritten.
 - **Domain-card and subclass features are text**, shown on the level-up sheet but not
   executed. Level-up tier tables are unverified against the SRD.
-- **Partial effect editing.** `branch` and reply gates have a condition editor; `choice`,
-  a nested `check` and several flat effects are shown but not editable; no items or
-  loot-table UI; no sheet editor; no tint tool though `tints` is document data.
+- **No items or loot-table UI**, no sheet editor, no tint tool though `tints` is document
+  data.
 - **Editor camera**: right-drag pan and wheel zoom work in edit mode, but the keyboard camera
   (WASD, Q/E, F, Home) is play-only.
 - **No right-click inspector** in play and no entity-hover links in the log.

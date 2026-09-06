@@ -16,6 +16,7 @@
 import type { Effect } from '../../engine/script/schema';
 import type { QuestDef } from '../../engine/content/quests';
 import { ConditionEditor } from './ConditionEditor';
+import { CheckEditor } from './CheckEditor';
 
 export interface EffectListProps {
   /** A hook for tests to find one list among several. */
@@ -54,6 +55,14 @@ const ADDABLE = [
   'failQuest',
   'levelUp',
   'branch',
+  'check',
+  'choice',
+  'story',
+  'setVar',
+  'addVar',
+  'addItem',
+  'removeItem',
+  'endEncounter',
 ] as const;
 
 type Addable = (typeof ADDABLE)[number];
@@ -79,6 +88,14 @@ const LABELS: Readonly<Record<Addable, string>> = {
   failQuest: 'Fail a quest',
   levelUp: 'Level the party up',
   branch: 'If … then',
+  check: 'Ask for a roll',
+  choice: 'Ask the player',
+  story: 'Story panel',
+  setVar: 'Set a variable',
+  addVar: 'Add to a variable',
+  addItem: 'Give an item',
+  removeItem: 'Take an item',
+  endEncounter: 'End a fight',
 };
 
 const row: Record<string, string | number> = {
@@ -153,6 +170,21 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind };
     case 'branch':
       return { kind, when: { kind: 'flag', flag: 'a-flag' }, then: [] };
+    case 'check':
+      return { kind, check: { trait: 'finesse', difficulty: 12 } };
+    case 'choice':
+      return { kind, title: 'What do you do?', options: [{ label: 'Go on', effects: [] }] };
+    case 'story':
+      return { kind, title: 'A title', paragraphs: ['What the party sees.'] };
+    case 'setVar':
+      return { kind, name: 'a-variable', value: 1 };
+    case 'addVar':
+      return { kind, name: 'a-variable', by: 1 };
+    case 'addItem':
+    case 'removeItem':
+      return { kind, item: 'an-item', quantity: 1 };
+    case 'endEncounter':
+      return { kind, encounter: props.encounterIds[0] ?? 'encounter-1' };
   }
 }
 
@@ -310,6 +342,161 @@ function renderBody(
     }
     case 'levelUp':
       return <span style={{ ...field, color: '#8ea3b0' }}>one level, whole party</span>;
+    case 'endEncounter':
+      return pick(effect.encounter, props.encounterIds, (encounter) => ({ ...effect, encounter }));
+    case 'setVar':
+      return (
+        <>
+          {text(effect.name, (name) => ({ ...effect, name }), 'variable')}
+          {text(String(effect.value ?? ''), (raw) => {
+            const asNumber = Number(raw);
+            const value = raw === 'true' ? true : raw === 'false' ? false : raw !== '' && !Number.isNaN(asNumber) ? asNumber : raw;
+            return { ...effect, value };
+          }, 'value')}
+        </>
+      );
+    case 'addVar':
+      return (
+        <>
+          {text(effect.name, (name) => ({ ...effect, name }), 'variable')}
+          <input
+            type="number"
+            style={{ ...field, flex: 'none', width: '60px' }}
+            value={effect.by}
+            onInput={(e) => onChange({ ...effect, by: Number((e.target as HTMLInputElement).value) || 0 })}
+          />
+        </>
+      );
+    case 'addItem':
+    case 'removeItem':
+      return (
+        <>
+          {text(effect.item, (item) => ({ ...effect, item }), 'item id')}
+          ×
+          <input
+            type="number"
+            min={1}
+            style={{ ...field, flex: 'none', width: '50px' }}
+            value={effect.quantity ?? 1}
+            onInput={(e) =>
+              onChange({ ...effect, quantity: Math.max(1, Number((e.target as HTMLInputElement).value) || 1) })
+            }
+          />
+        </>
+      );
+    case 'story':
+      return (
+        <div style={{ flex: 1, minWidth: 0 }} data-testid="story">
+          {text(effect.title, (title) => ({ ...effect, title }), 'title')}
+          <textarea
+            style={{ ...field, width: '100%', minHeight: '40px', marginTop: '2px', resize: 'vertical' }}
+            placeholder="Paragraphs, one per line"
+            value={effect.paragraphs.join('\n')}
+            onInput={(e) =>
+              onChange({ ...effect, paragraphs: (e.target as HTMLTextAreaElement).value.split('\n') })
+            }
+          />
+        </div>
+      );
+    case 'check':
+      return (
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="check-effect">
+          <CheckEditor
+            check={effect.check}
+            onChange={(check) => onChange({ ...effect, check })}
+            sceneIds={props.sceneIds}
+            dialogueIds={props.dialogueIds}
+            encounterIds={props.encounterIds}
+            quests={props.quests}
+          />
+        </div>
+      );
+    case 'choice':
+      return (
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="choice">
+          {text(effect.title ?? '', (title) => ({ ...effect, ...(title === '' ? { title: undefined } : { title }) }), 'title')}
+          {text(effect.body ?? '', (body) => ({ ...effect, ...(body === '' ? { body: undefined } : { body }) }), 'what the player is told')}
+          {effect.options.map((option, i) => (
+            <div key={i} style={{ marginTop: '4px', paddingLeft: '4px', borderLeft: '1px solid #2a303a' }} data-option={i}>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <input
+                  style={field}
+                  value={option.label}
+                  placeholder="what the player can say or do"
+                  onInput={(e) =>
+                    onChange({
+                      ...effect,
+                      options: effect.options.map((o, j) => (j === i ? { ...o, label: (e.target as HTMLInputElement).value } : o)),
+                    })
+                  }
+                />
+                <button
+                  style={small}
+                  title="Remove this option"
+                  onClick={() => onChange({ ...effect, options: effect.options.filter((_, j) => j !== i) })}
+                >
+                  ✕
+                </button>
+              </div>
+              {option.available === undefined ? (
+                <button
+                  style={{ ...small, marginTop: '2px' }}
+                  data-role="gate-option"
+                  onClick={() =>
+                    onChange({
+                      ...effect,
+                      options: effect.options.map((o, j) => (j === i ? { ...o, available: { kind: 'flag', flag: 'a-flag' } } : o)),
+                    })
+                  }
+                >
+                  if…
+                </button>
+              ) : (
+                <div style={{ display: 'flex', gap: '3px', alignItems: 'flex-start', marginTop: '2px' }}>
+                  <span style={{ color: '#8ea3b0', fontSize: '11px', paddingTop: '3px' }}>shown if</span>
+                  <ConditionEditor
+                    condition={option.available}
+                    quests={props.quests}
+                    encounterIds={props.encounterIds}
+                    onChange={(available) =>
+                      onChange({ ...effect, options: effect.options.map((o, j) => (j === i ? { ...o, available } : o)) })
+                    }
+                  />
+                  <button
+                    style={small}
+                    title="Remove the gate"
+                    onClick={() =>
+                      onChange({
+                        ...effect,
+                        options: effect.options.map((o, j) => {
+                          if (j !== i) return o;
+                          const { available: _dropped, ...rest } = o;
+                          return rest;
+                        }),
+                      })
+                    }
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+              <EffectList
+                {...props}
+                testId={undefined}
+                effects={option.effects}
+                onChange={(effects) => onChange({ ...effect, options: effect.options.map((o, j) => (j === i ? { ...o, effects } : o)) })}
+              />
+            </div>
+          ))}
+          <button
+            style={{ ...small, marginTop: '4px' }}
+            data-role="add-option"
+            onClick={() => onChange({ ...effect, options: [...effect.options, { label: 'Another option', effects: [] }] })}
+          >
+            + Option
+          </button>
+        </div>
+      );
     case 'branch':
       // A whole little script under a gate: the condition, then the two lists.
       return (

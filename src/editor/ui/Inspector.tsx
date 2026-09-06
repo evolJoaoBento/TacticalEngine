@@ -13,6 +13,7 @@ import type { CheckRequest, Effect } from '../../engine/script/schema';
 import type { QuestDef } from '../../engine/content/quests';
 import type { Interactable } from '../../engine/scene/schema';
 import { EffectList } from './EffectList';
+import { CheckEditor } from './CheckEditor';
 
 export interface InspectorProps {
   interactable: Interactable;
@@ -24,22 +25,7 @@ export interface InspectorProps {
   quests: readonly QuestDef[];
 }
 
-const TRAITS = ['agility', 'strength', 'finesse', 'instinct', 'presence', 'knowledge'] as const;
 
-/**
- * The five outcomes, and the field each one's effects live in.
- *
- * Content rarely writes all five: a missing outcome falls back to a less
- * specific one at runtime, which is why the hint below says so rather than the
- * editor filling them all in.
- */
-const OUTCOMES = [
-  ['onCriticalSuccess', 'Critical success'],
-  ['onSuccessWithHope', 'Success with Hope'],
-  ['onSuccessWithFear', 'Success with Fear'],
-  ['onFailureWithHope', 'Failure with Hope'],
-  ['onFailureWithFear', 'Failure with Fear'],
-] as const satisfies readonly (readonly [keyof CheckRequest, string])[];
 
 const heading: Record<string, string | number> = {
   margin: '12px 0 4px',
@@ -87,15 +73,6 @@ export function Inspector(props: InspectorProps): preact.JSX.Element {
     dialogueIds: props.dialogueIds,
     encounterIds: props.encounterIds,
     quests: props.quests,
-  };
-
-  /** Replace one outcome's effects, dropping the field when it empties. */
-  const setOutcome = (key: keyof CheckRequest, effects: Effect[]): void => {
-    if (check === undefined) return;
-    const next: CheckRequest = { ...check };
-    if (effects.length === 0) delete (next as Record<string, unknown>)[key];
-    else (next as Record<string, unknown>)[key] = effects;
-    props.onChange({ check: next });
   };
 
   return (
@@ -198,60 +175,14 @@ export function Inspector(props: InspectorProps): preact.JSX.Element {
         </button>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <select
-              style={field}
-              value={check.trait}
-              onChange={(e) =>
-                props.onChange({
-                  check: { ...check, trait: (e.target as HTMLSelectElement).value as CheckRequest['trait'] },
-                })
-              }
-            >
-              {TRAITS.map((trait) => (
-                <option key={trait} value={trait}>
-                  {trait}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min={1}
-              style={field}
-              value={check.difficulty}
-              onInput={(e) =>
-                props.onChange({
-                  check: {
-                    ...check,
-                    difficulty: Math.max(1, Number((e.target as HTMLInputElement).value) || 1),
-                  },
-                })
-              }
-            />
-            <button
-              style={{ ...button, marginBottom: '6px' }}
-              title="Remove the roll; the object just does what it does"
-              onClick={() => props.onChange({ check: undefined })}
-            >
-              ✕
-            </button>
-          </div>
-
-          <div style={{ color: '#8ea3b0', fontSize: '11px', marginBottom: '4px' }}>
-            An outcome left empty falls back to a less specific one, so writing a success and a
-            failure covers all five.
-          </div>
-
-          {OUTCOMES.map(([key, title]) => (
-            <div key={key} style={{ marginBottom: '6px' }}>
-              <div style={{ color: '#c8b88a', fontSize: '11px', marginBottom: '2px' }}>{title}</div>
-              <EffectList
-                effects={(check[key] as Effect[] | undefined) ?? []}
-                onChange={(effects) => setOutcome(key, effects)}
-                {...listProps}
-              />
-            </div>
-          ))}
+          <CheckEditor check={check} onChange={(next) => props.onChange({ check: next })} {...listProps} />
+          <button
+            style={{ ...button, marginBottom: '6px' }}
+            title="Remove the roll; the object just does what it does"
+            onClick={() => props.onChange({ check: undefined })}
+          >
+            ✕ No roll
+          </button>
         </>
       )}
 

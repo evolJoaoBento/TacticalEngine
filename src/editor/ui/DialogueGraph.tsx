@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { QuestDef } from '../../engine/content/quests';
 import { ConditionEditor } from './ConditionEditor';
+import { CheckEditor } from './CheckEditor';
 import { layoutDialogue } from '../../engine/dialogue/layout';
 import type { Dialogue, DialogueNode } from '../../engine/dialogue/schema';
 import type { Effect } from '../../engine/script/schema';
@@ -517,6 +518,20 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
                         }),
                       )
                     }
+                  />
+                </div>
+              ) : null}
+              {choice.check !== undefined ? (
+                <div style={{ marginTop: '3px' }} onPointerDown={holdPointer} data-reply-check={i}>
+                  <CheckEditor
+                    check={choice.check}
+                    showHeader={false}
+                    nodeIds={nodeIds}
+                    onChange={(check) => onRun(updateChoice(dialogue.id, node.id, i, { check }))}
+                    sceneIds={props.sceneIds}
+                    dialogueIds={props.dialogueIds}
+                    encounterIds={props.encounterIds}
+                    quests={props.quests}
                   />
                 </div>
               ) : null}

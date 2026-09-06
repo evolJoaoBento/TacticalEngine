@@ -290,11 +290,14 @@ blocks movement, the key it wants and what it says without one, the effects it r
 and the roll itself — trait, difficulty, and effects per outcome down all five branches.
 `EffectList` covers the flat vocabulary and picks scene, dialogue and encounter ids from what the
 project holds rather than having them typed, so the commonest authoring error cannot be made.
-`branch` is editable in place — a **condition editor** (`ui/ConditionEditor.tsx`) for its
-`when`, which nests for `not`/`all`/`any` and picks quests, objectives and encounters from
-dropdowns, and two nested effect lists for `then` and `otherwise`. The same editor gates a reply
-in the graph: *if…* hides it unless a condition holds, *only if…* greys it. `choice` and a nested
-`check` are still shown and removable but not editable.
+Every effect kind is editable in place. `branch` has a **condition editor**
+(`ui/ConditionEditor.tsx`) for its `when` — nesting for `not`/`all`/`any`, quests, objectives and
+encounters from dropdowns — and two nested lists; the same editor gates a reply in the graph
+(*if…* hides it, *only if…* greys it) and an option in a `choice`. A `check` anywhere — on an
+object, inside a list, on a reply — uses one **check editor** (`ui/CheckEditor.tsx`): trait,
+difficulty, prompt, an effect list per outcome, and for a reply the nodes a success and a
+failure lead to. `story`, `setVar`, `addVar`, `addItem`, `removeItem` and `endEncounter` are
+inline fields.
 
 A **dialogue graph** (`ui/DialogueGraph.tsx`) draws a conversation as a tree: node cards on a
 pannable surface, links curving from each reply to the node it leads to, a check's success and
@@ -307,8 +310,8 @@ the start, so a conversation written by hand opens as a readable tree. It never 
 document: a position is stored only when someone drags a node, so opening a file and moving one
 thing is a one-node diff.
 
-**Still open:** a `choice` editor and a nested-`check` editor; items and loot tables are
-authored in the project JSON; there is no sheet editor for the party.
+**Still open:** items and loot tables are authored in the project JSON; there is no sheet
+editor for the party.
 
 ### ~~9. Asset import (glTF)~~ — done
 

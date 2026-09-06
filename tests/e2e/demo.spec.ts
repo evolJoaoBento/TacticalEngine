@@ -1441,3 +1441,49 @@ test('drinks a draught from the pack, and the wound closes on the card', async (
 
   expect(consoleErrors).toEqual([]);
 });
+
+test('authors a roll and a choice inside an effect list, and outcomes on a reply', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('edit');
+    api.selectObject(api.objects().find((id) => id.startsWith('pillar'))!);
+  });
+  const list = page.locator('[data-testid="object-effects"]');
+
+  // The list's own "add" select is its last child; nested lists have their own.
+  const addTop = list.locator(':scope > [data-role="add-effect"]');
+
+  // A roll with a line on a success.
+  await addTop.selectOption('check');
+  const check = list.locator('[data-testid="check-effect"]').first();
+  await check.locator('[data-testid="check-trait"]').selectOption('strength');
+  await check.locator('[data-outcome="onSuccessWithHope"] [data-role="add-effect"]').selectOption('log');
+
+  // A choice with a second option.
+  await addTop.selectOption('choice');
+  const choice = list.locator('[data-testid="choice"]').first();
+  await choice.locator('[data-role="add-option"]').click();
+
+  const authored = await page.evaluate(() => window.__polyheart!.objectField('effects') as unknown[]);
+  expect(authored.at(-2)).toMatchObject({
+    kind: 'check',
+    check: { trait: 'strength', difficulty: 12, onSuccessWithHope: [{ kind: 'log' }] },
+  });
+  expect(authored.at(-1)).toMatchObject({ kind: 'choice', options: [{ label: 'Go on' }, { label: 'Another option' }] });
+
+  // In the graph, the polite reply's roll gets an "always" line and a success node.
+  await page.getByRole('button', { name: /the-listening-pillar/ }).click();
+  const node = page.locator('[data-testid="dialogue-graph"] [data-node="vault"]');
+  await node.getByRole('button', { name: '▸' }).click();
+  const reply = node.locator('[data-reply-check]').first();
+  await reply.locator('[data-testid="gotoOnSuccess"]').selectOption('granted');
+  await reply.locator('[data-outcome="always"] [data-role="add-effect"]').selectOption('setFlag');
+  const exported = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject()));
+  const vault = exported.dialogues[0].nodes.find((n: { id: string }) => n.id === 'vault');
+  const withCheck = vault.choices.find((c: { check?: unknown }) => c.check !== undefined);
+  expect(withCheck.check.gotoOnSuccess).toBe('granted');
+  expect(withCheck.check.always).toMatchObject([{ kind: 'setFlag' }]);
+
+  expect(consoleErrors).toEqual([]);
+});
