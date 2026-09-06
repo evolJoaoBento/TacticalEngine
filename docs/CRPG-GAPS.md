@@ -431,6 +431,13 @@ project data with a panel apiece — the party, items and loot included. Nothing
 scenario needs is typed into JSON by hand any more, beyond a custom condition definition or a
 terrain palette.
 
+`editor/authored-scenario.test.ts` is that claim as a test. It reaches for none of the demo's
+literals: a blank project, then the same session edits the panels run — a character, an item, a
+loot table, a chest that pays out, a door that wants the key, an adversary and the cell that
+wakes it — then `buildProjectScene` and *play*. The door refuses, the chest answers it, the
+door opens, and the thing past it can be swung at. Writing it found the last hidden literal:
+a room was stood up for the party the demo ships rather than the one the document carries.
+
 A designer can now author a *party* (sheets naming a class, ancestry, armor and weapon), a
 *map* (terrain, elevation, props, objects, enemies, triggers and spawns, saved as JSON and
 loaded back), and *what the things in it do* — a check, its difficulty, and effects and prose

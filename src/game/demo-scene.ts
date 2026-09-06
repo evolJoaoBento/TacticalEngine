@@ -392,11 +392,13 @@ function buildRuntime(
 
   const { state } = sceneStateFromScene(scene, grid, {
     adversaries: stats,
-    party: PARTY_SHEETS.map((sheet) => {
-      const carried = options.pools?.get(sheet.id);
-      const pools = carried ?? startingPools(characters.get(sheet.id)!);
+    // Whoever the *project* says the party is — a room is stood up for the
+    // characters the document carries, not for the ones the demo ships.
+    party: [...characters].map(([id, character]) => {
+      const carried = options.pools?.get(id);
+      const pools = carried ?? startingPools(character);
       return {
-        ...createPartyEntity(sheet.id, sheet.classId, NO_TILE),
+        ...createPartyEntity(id, character.sheet.classId, NO_TILE),
         hitPoints: { ...pools.hitPoints },
         stress: { ...pools.stress },
         armorSlots: { ...pools.armorSlots },
@@ -716,8 +718,32 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     startScene: vault.id,
   });
 
-  // The party the project holds, not the literals it was parsed from: the same
-  // rule the scenes follow, so an edit in the Party panel reaches the table.
+  // The legacy `loot` effect named no table, because the prototype had no items.
+  // Point it at one, so opening the chest actually pays out.
+  const vaultDoc = project.scenes.find((scene) => scene.id === vault.id)!;
+  for (const object of vaultDoc.interactables) {
+    if (object.check === undefined) continue;
+    walkCheck(object.check, (effect) => {
+      if (effect.kind === 'loot' && effect.table === undefined) effect.table = CHEST_LOOT;
+    });
+  }
+
+  return buildProjectScene(project, seed);
+}
+
+/**
+ * Stand a game up from a project document.
+ *
+ * Nothing here knows anything about the demo: hand it a project — a party, a
+ * scene to open on, whatever the rest of it holds — and it plays. That is the
+ * claim `docs/CRPG-GAPS.md` makes about the editor, so it is worth being a
+ * function rather than the tail of one that starts from a legacy map.
+ */
+export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoScene {
+  // Everything is read out of the *project*, not out of the literals it was
+  // parsed from. `projectSchema.parse` copies, so keeping the originals would
+  // leave the editor and the game editing two documents that only look alike —
+  // a scene added in one would be invisible to the other.
   const sheets = new Map<string, CharacterSheet>(project.party.map((sheet) => [sheet.id, sheet]));
 
   // Derive every sheet once, with the project's abilities folded in; the pools
@@ -728,24 +754,12 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS, project.abilities).character);
   }
 
-  // Play the documents the *project* holds, not the literals they were parsed
-  // from. `projectSchema.parse` copies, so keeping the originals would leave the
-  // editor and the game editing two different documents that only look alike —
-  // a scene added in one would be invisible to the other.
-  const vaultDoc = project.scenes.find((scene) => scene.id === vault.id)!;
+  const opening = project.scenes.find((scene) => scene.id === project.startScene);
+  if (opening === undefined) throw new Error(`the project opens on "${project.startScene}", which it does not have`);
 
   const scenario = createScenarioState();
   const lootTables = new Map(project.lootTables.map((table) => [table.id, table]));
-  const runtime = buildRuntime(vaultDoc, characters, scenario, { lootTables, project });
-
-  // The legacy `loot` effect named no table, because the prototype had no items.
-  // Point it at one, so opening the chest actually pays out.
-  for (const object of vaultDoc.interactables) {
-    if (object.check === undefined) continue;
-    walkCheck(object.check, (effect) => {
-      if (effect.kind === 'loot' && effect.table === undefined) effect.table = CHEST_LOOT;
-    });
-  }
+  const runtime = buildRuntime(opening, characters, scenario, { lootTables, project });
 
   return {
     ...runtime,
@@ -756,9 +770,6 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     project,
     snapshots: new Map(),
     destination: null,
-    // From the project, not from the literals it was parsed out of: parsing
-    // copies, and a conversation edited in the graph editor has to be the one
-    // the pillar opens. Same trap as the scenes.
     dialogues: new Map(project.dialogues.map((d) => [d.id, d])),
     log: [],
     pending: null,
