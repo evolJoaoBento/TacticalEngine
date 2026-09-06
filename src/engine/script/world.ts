@@ -18,9 +18,21 @@ import type { ScriptValue } from './conditions';
 import type { TargetSelector } from './effects';
 import type { ScriptWorld } from './runner';
 
-/** Variables that outlive a scene, plus who is acting. */
+/**
+ * What outlives a scene: variables, story flags, the keys the party carries, and
+ * who is acting.
+ *
+ * Flags and keys used to live on `SceneState`, which was wrong the moment a
+ * campaign had two rooms in it — a key found in the vault would not open a door
+ * in the pit, and `SceneState.snapshot()` serialised them, so returning to a
+ * room would have restored *stale* flags over the campaign's real ones.
+ */
 export interface ScenarioState {
   variables: Record<string, ScriptValue>;
+  /** Story flags, set and cleared by scripts. */
+  flags: Set<string>;
+  /** Keys the party is carrying. */
+  keys: Set<string>;
   /** The character a script's `actor` selector refers to. */
   actorId: string | null;
 }
@@ -28,8 +40,15 @@ export interface ScenarioState {
 export function createScenarioState(
   variables: Record<string, ScriptValue> = {},
   actorId: string | null = null,
+  flags: Iterable<string> = [],
+  keys: Iterable<string> = [],
 ): ScenarioState {
-  return { variables: { ...variables }, actorId };
+  return {
+    variables: { ...variables },
+    flags: new Set(flags),
+    keys: new Set(keys),
+    actorId,
+  };
 }
 
 export interface SceneScriptWorldOptions {
@@ -55,11 +74,11 @@ export class SceneScriptWorld implements ScriptWorld {
   // ---- reads ---------------------------------------------------------------
 
   hasFlag(flag: string): boolean {
-    return this.state.hasFlag(flag);
+    return this.scenario.flags.has(flag);
   }
 
   hasKey(key: string): boolean {
-    return this.state.hasKey(key);
+    return this.scenario.keys.has(key);
   }
 
   getVar(name: string): ScriptValue {
@@ -89,15 +108,15 @@ export class SceneScriptWorld implements ScriptWorld {
   // ---- writes --------------------------------------------------------------
 
   setFlag(flag: string): void {
-    this.state.setFlag(flag);
+    this.scenario.flags.add(flag);
   }
 
   clearFlag(flag: string): void {
-    this.state.clearFlag(flag);
+    this.scenario.flags.delete(flag);
   }
 
   giveKey(key: string): void {
-    this.state.giveKey(key);
+    this.scenario.keys.add(key);
   }
 
   setVar(name: string, value: ScriptValue): void {

@@ -52,8 +52,8 @@ describe('plain effects', () => {
       createRng(1),
     );
     expect(journal.map((e) => e.kind)).toEqual(['log', 'flag', 'key']);
-    expect(state.hasFlag('opened')).toBe(true);
-    expect(state.hasKey('brass')).toBe(true);
+    expect(w.hasFlag('opened')).toBe(true);
+    expect(w.hasKey('brass')).toBe(true);
   });
 
   it('sets and adds variables, treating an unset one as zero', () => {
@@ -66,7 +66,7 @@ describe('plain effects', () => {
   it('clears a flag', () => {
     const { world: w, state } = world();
     runScript([setFlag('lit'), { kind: 'clearFlag', flag: 'lit' }], w, createRng(1));
-    expect(state.hasFlag('lit')).toBe(false);
+    expect(w.hasFlag('lit')).toBe(false);
   });
 
   it('opens, uses and removes an interactable, freeing its tile', () => {
@@ -229,7 +229,7 @@ describe('choice', () => {
     const after = runner.resume({ kind: 'choose', index: 0 });
 
     expect(after.status).toBe('done');
-    expect(state.hasFlag('bargained')).toBe(true);
+    expect(w.hasFlag('bargained')).toBe(true);
     expect(after.journal.map((e) => (e.kind === 'log' ? e.text : e.kind))).toEqual([
       'chose',
       'flag',
@@ -240,7 +240,7 @@ describe('choice', () => {
 
   it('shows a gated option once its condition holds', () => {
     const { world: w, state } = world();
-    state.setFlag('knows-cranks');
+    w.setFlag('knows-cranks');
     const runner = new ScriptRunner(w, createRng(1));
     const result = runner.run(bargain);
     if (result.status !== 'waiting' || result.prompt.kind !== 'choice') throw new Error('expected a choice');

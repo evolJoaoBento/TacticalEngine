@@ -130,7 +130,7 @@ describe('walking a conversation', () => {
     const view = talking(new DialogueRunner(hag, w, createRng(1)).start());
     expect(view.node.id).toBe('open');
     expect(view.lines[0]!.speaker).toBe('Shadow Hag');
-    expect(state.hasFlag('met-hag')).toBe(true);
+    expect(w.hasFlag('met-hag')).toBe(true);
   });
 
   it('hides a reply the player has not earned, and shows it once they have', () => {
@@ -141,7 +141,7 @@ describe('walking a conversation', () => {
       'Draw steel.',
     ]);
 
-    state.setFlag('knows-cranks');
+    w.setFlag('knows-cranks');
     const known = talking(new DialogueRunner(hag, w, createRng(1)).start());
     expect(known.options.map((o) => o.text)).toContain('You know where the cranks are.');
     // Indices stay the authored ones, so a filtered list cannot mis-route a pick.
@@ -163,13 +163,13 @@ describe('walking a conversation', () => {
     const view = talking(runner.choose(3)); // Draw steel
     expect(view.node.id).toBe('fight');
     expect(w.getVar('mood')).toBe('vengeful');
-    expect(state.hasFlag('hag-hostile')).toBe(true);
+    expect(w.hasFlag('hag-hostile')).toBe(true);
     expect(state.encounter('hag').started).toBe(true);
   });
 
   it('walks through a node that only narrates', () => {
     const { world: w, state } = world();
-    state.setFlag('knows-cranks');
+    w.setFlag('knows-cranks');
     const runner = new DialogueRunner(hag, w, createRng(1));
     runner.start();
     // 'cranks' has no choices and a goto, so it hands straight on to 'price'.
@@ -282,13 +282,13 @@ describe('a locked-but-visible reply', () => {
     expect(view.options[0]).toMatchObject({ text: 'Unlock it.', enabled: false });
 
     expect(talking(runner.choose(0)).node.id).toBe('a');
-    expect(state.hasFlag('unlocked')).toBe(false);
+    expect(w.hasFlag('unlocked')).toBe(false);
 
-    state.giveKey('brass');
+    w.giveKey('brass');
     const unlocked = new DialogueRunner(gated, w, createRng(1));
     unlocked.start();
     expect(unlocked.choose(0).status).toBe('ended');
-    expect(state.hasFlag('unlocked')).toBe(true);
+    expect(w.hasFlag('unlocked')).toBe(true);
   });
 });
 
@@ -332,7 +332,7 @@ describe('a reply whose effects need an answer of their own', () => {
     expect(waiting.prompt.options.map((o) => o.label)).toEqual(['The coin.', 'The blade.']);
 
     const after = runner.resume({ kind: 'choose', index: 1 });
-    expect(state.hasFlag('took-blade')).toBe(true);
+    expect(w.hasFlag('took-blade')).toBe(true);
     expect(talking(after).node.id).toBe('b');
   });
 });

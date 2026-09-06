@@ -172,15 +172,6 @@ describe('interactable, encounter, flag and key state', () => {
     expect(state.encounter('group-2').started).toBe(false);
   });
 
-  it('records flags and keys', () => {
-    const state = makeState();
-    expect(state.hasFlag('met-hag')).toBe(false);
-    state.setFlag('met-hag');
-    expect(state.hasFlag('met-hag')).toBe(true);
-    state.giveKey('brass');
-    expect(state.hasKey('brass')).toBe(true);
-    expect(state.hasKey('iron')).toBe(false);
-  });
 });
 
 describe('snapshot and restore', () => {
@@ -192,8 +183,6 @@ describe('snapshot and restore', () => {
     state.interactable('chest').open = true;
     state.interactable('pillar').data['lit'] = true;
     state.encounter('group-1').started = true;
-    state.setFlag('met-hag');
-    state.giveKey('brass');
     state.fear = createFear(4);
     return state;
   };
@@ -202,8 +191,6 @@ describe('snapshot and restore', () => {
     const snapshot = populate(makeState()).snapshot();
     expect(() => JSON.stringify(snapshot)).not.toThrow();
     expect(snapshot.entities['kara']!.conditions).toEqual(['vulnerable']);
-    expect(snapshot.flags).toEqual(['met-hag']);
-    expect(snapshot.keys).toEqual(['brass']);
     expect(snapshot.fear.value).toBe(4);
   });
 
@@ -222,7 +209,6 @@ describe('snapshot and restore', () => {
     expect(restored.entity('kara')!.conditions.has('vulnerable')).toBe(true);
     expect(restored.entity('husk-1')!.hitPoints.marked).toBe(2);
     expect(restored.interactable('pillar').data['lit']).toBe(true);
-    expect(restored.hasKey('brass')).toBe(true);
   });
 
   it('replaces previous state on restore rather than merging into it', () => {
@@ -232,12 +218,9 @@ describe('snapshot and restore', () => {
       entities: {},
       interactables: {},
       encounters: {},
-      flags: [],
-      keys: [],
       fear: createFear(0),
     });
     expect(state.allEntities()).toEqual([]);
-    expect(state.hasFlag('met-hag')).toBe(false);
     expect(state.occupantsOf(5)).toEqual([]);
     expect(state.interactable('chest').open).toBe(false);
   });
@@ -245,10 +228,16 @@ describe('snapshot and restore', () => {
   it('does not alias the snapshot into live state', () => {
     const original = populate(makeState());
     const snapshot = original.snapshot();
-    original.setFlag('later');
     original.interactable('chest').data['x'] = 1;
-    expect(snapshot.flags).toEqual(['met-hag']);
     expect(snapshot.interactables['chest']!.data).toEqual({});
+  });
+
+  // Flags and keys are the campaign's, not the room's: a scene snapshot must not
+  // carry them, or returning to a room would restore stale ones over the real.
+  it('leaves flags and keys out of a scene snapshot entirely', () => {
+    const snapshot = populate(makeState()).snapshot();
+    expect(Object.keys(snapshot)).not.toContain('flags');
+    expect(Object.keys(snapshot)).not.toContain('keys');
   });
 });
 

@@ -69,8 +69,6 @@ export interface SceneStateSnapshot {
   entities: Record<string, Omit<EntityState, 'conditions'> & { conditions: string[] }>;
   interactables: Record<string, InteractableState>;
   encounters: Record<string, EncounterState>;
-  flags: string[];
-  keys: string[];
   fear: Currency;
 }
 
@@ -90,8 +88,6 @@ export class SceneState {
   private readonly encounters = new Map<string, EncounterState>();
   /** Tile index -> entity ids standing on it. Kept incremental, never rebuilt. */
   private readonly occupants = new Map<number, Set<string>>();
-  private readonly storyFlags = new Set<string>();
-  private readonly partyKeys = new Set<string>();
 
   /** The GM's Fear pool. It carries between scenes; the caller passes it along. */
   fear: Currency;
@@ -232,28 +228,6 @@ export class SceneState {
     return state;
   }
 
-  // ---- flags and keys -----------------------------------------------------
-
-  setFlag(flag: string): void {
-    this.storyFlags.add(flag);
-  }
-
-  clearFlag(flag: string): void {
-    this.storyFlags.delete(flag);
-  }
-
-  hasFlag(flag: string): boolean {
-    return this.storyFlags.has(flag);
-  }
-
-  giveKey(key: string): void {
-    this.partyKeys.add(key);
-  }
-
-  hasKey(key: string): boolean {
-    return this.partyKeys.has(key);
-  }
-
   // ---- serialisation ------------------------------------------------------
 
   /** A plain, JSON-safe snapshot — `Set`s become arrays, which the legacy state could not. */
@@ -272,8 +246,6 @@ export class SceneState {
       entities,
       interactables,
       encounters,
-      flags: [...this.storyFlags],
-      keys: [...this.partyKeys],
       fear: { ...this.fear },
     };
   }
@@ -284,8 +256,6 @@ export class SceneState {
     this.occupants.clear();
     this.interactables.clear();
     this.encounters.clear();
-    this.storyFlags.clear();
-    this.partyKeys.clear();
 
     for (const [id, entity] of Object.entries(snapshot.entities)) {
       this.addEntity({ ...entity, id, conditions: new Set(entity.conditions) });
@@ -296,8 +266,6 @@ export class SceneState {
     for (const [id, state] of Object.entries(snapshot.encounters)) {
       this.encounters.set(id, { ...state });
     }
-    for (const flag of snapshot.flags) this.storyFlags.add(flag);
-    for (const key of snapshot.keys) this.partyKeys.add(key);
     this.fear = { ...snapshot.fear };
   }
 
