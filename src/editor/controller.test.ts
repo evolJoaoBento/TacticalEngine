@@ -386,3 +386,35 @@ describe('every tool is safe to use on an empty scene', () => {
     }
   });
 });
+
+describe('editing a different scene', () => {
+  it('drops the encounter it was adding to, which belonged to the other room', () => {
+    const s = new EditorSession(
+      projectSchema.parse({
+        id: 'p',
+        name: '',
+        scenes: [
+          sceneSchema.parse(blankScene('room', 6, 4)),
+          sceneSchema.parse(blankScene('cellar', 6, 4)),
+        ],
+        startScene: 'room',
+      }),
+    );
+    const controller = new EditorController({ session: s, sceneId: 'room' });
+
+    controller.setTool('adversary');
+    controller.begin({ x: 1, y: 1 });
+    controller.end();
+    expect(controller.state.encounterId).not.toBeNull();
+
+    controller.switchScene('cellar');
+    expect(controller.sceneId).toBe('cellar');
+    // Carrying it would drop the next enemy into the other room's fight.
+    expect(controller.state.encounterId).toBeNull();
+
+    controller.begin({ x: 2, y: 2 });
+    controller.end();
+    expect(s.requireScene('cellar').encounters.length).toBe(1);
+    expect(s.requireScene('room').encounters[0]!.adversaries.length).toBe(1);
+  });
+});

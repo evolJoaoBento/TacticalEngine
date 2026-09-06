@@ -54,6 +54,10 @@ declare global {
       sceneTiles: () => number;
       travelTo: (scene: string) => boolean;
       scenes: () => string[];
+      editScene: () => string;
+      switchScene: (id: string) => void;
+      addScene: (name: string) => string;
+      removeScene: (id: string) => boolean;
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -557,6 +561,123 @@ test('walks down the stair into another room, and back to find it as it was', as
   // Home again, and the chest the party opened is still opened.
   expect(trip.home).toBe(trip.vault);
   expect(trip.chestAgain).toBe('refused');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('edits one room while the party stands in another', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  const result = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const vault = api.sceneId();
+    const vaultReach = api.reachable().length;
+    const vaultTiles = api.sceneTiles();
+
+    api.setMode('edit');
+    api.switchScene('the-pit');
+    const editingTiles = api.sceneTiles();
+
+    // Paint a wall across the pit while the party is still up in the vault.
+    api.setTool('paintTerrain');
+    api.setTerrain('wall');
+    for (let x = 1; x < 9; x++) api.editAt(4 * 10 + x);
+    const pitTile = api.terrainAt(4 * 10 + 5);
+
+    api.setMode('play');
+
+    return {
+      vault,
+      vaultTiles,
+      vaultReach,
+      editing: 'the-pit',
+      editingTiles,
+      pitTile,
+      // The party never moved, and their room is untouched.
+      playing: api.sceneId(),
+      reachAfter: api.reachable().length,
+      tilesAfter: api.sceneTiles(),
+      exported: api.exportProject(),
+    };
+  });
+
+  // The editor was looking at a different, smaller room.
+  expect(result.editingTiles).toBe(10 * 8);
+  expect(result.editingTiles).not.toBe(result.vaultTiles);
+  expect(result.pitTile).toBe('wall');
+
+  // And the played room is exactly as it was — this is the assertion that
+  // catches a rebuild writing into the wrong grid.
+  expect(result.playing).toBe(result.vault);
+  expect(result.tilesAfter).toBe(result.vaultTiles);
+  expect(result.reachAfter).toBe(result.vaultReach);
+
+  // The edit did land, in the document, on the right scene.
+  const saved = JSON.parse(result.exported) as {
+    scenes: { id: string; terrain: string[] }[];
+  };
+  const pit = saved.scenes.find((scene) => scene.id === 'the-pit')!;
+  expect(pit.terrain[4 * 10 + 5]).toBe('wall');
+  const vault = saved.scenes.find((scene) => scene.id === result.vault)!;
+  expect(vault.terrain[4 * 10 + 5]).not.toBe('wall');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('adds and deletes scenes from the editor', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  const result = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('edit');
+
+    const before = api.scenes().length;
+    const id = api.addScene('Store Room');
+    const added = api.scenes();
+    // Adding switches to the new room, so there is something to draw on.
+    const editingNew = api.editScene();
+    const newTiles = api.sceneTiles();
+
+    const deleted = api.removeScene(id);
+    const afterDelete = api.scenes();
+
+    // The opening scene is protected.
+    const refused = api.removeScene(api.scenes()[0]!);
+
+    return { before, id, added, editingNew, newTiles, deleted, afterDelete, refused };
+  });
+
+  expect(result.id).toBe('store-room');
+  expect(result.added).toContain('store-room');
+  expect(result.added.length).toBe(result.before + 1);
+  expect(result.editingNew).toBe('store-room');
+  expect(result.newTiles).toBe(12 * 10);
+
+  expect(result.deleted).toBe(true);
+  expect(result.afterDelete).not.toContain('store-room');
+  expect(result.refused).toBe(false);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('lists the scenes in the panel, marking where the party is', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  const panel = page.locator('#app');
+  await expect(panel).toContainText('Scenes');
+  await expect(panel).toContainText('The Sounding Pit');
+
+  // Switching by clicking the scene's own button, not the debug handle.
+  await page.getByRole('button', { name: /The Sounding Pit/ }).click();
+  const editing = await page.evaluate(() => ({
+    editScene: window.__polyheart!.editScene(),
+    playing: window.__polyheart!.sceneId(),
+  }));
+
+  expect(editing.editScene).toBe('the-pit');
+  // Browsing scenes must not move the party.
+  expect(editing.playing).not.toBe('the-pit');
 
   expect(consoleErrors).toEqual([]);
 });

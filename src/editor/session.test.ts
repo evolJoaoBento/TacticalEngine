@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
 import {
+  removeScene,
+  setStartScene,
   EditorSession,
   addAdversary,
   addDeco,
@@ -570,5 +572,75 @@ describe('the document stays valid', () => {
 
     while (s.undo());
     expect(snapshot(s)).toBe(before);
+  });
+});
+
+describe('deleting and choosing scenes', () => {
+  /** A project with two scenes, opening on the first. */
+  const pair = (): EditorSession => {
+    const s = session();
+    s.run(addScene(sceneSchema.parse(blankScene('cellar', 4, 4))));
+    return s;
+  };
+
+  it('deletes a scene and puts it back, in the same place', () => {
+    const s = pair();
+    s.run(addScene(sceneSchema.parse(blankScene('attic', 4, 4))));
+    expect(s.project.scenes.map((x) => x.id)).toEqual(['room', 'cellar', 'attic']);
+
+    expect(s.run(removeScene('cellar'))).toBe(true);
+    expect(s.project.scenes.map((x) => x.id)).toEqual(['room', 'attic']);
+
+    s.undo();
+    // Back at index 1, not appended — an undo that reorders the list is a bad undo.
+    expect(s.project.scenes.map((x) => x.id)).toEqual(['room', 'cellar', 'attic']);
+  });
+
+  it('refuses to delete the scene the project opens on', () => {
+    const s = pair();
+    const history = s.undoLabel;
+    expect(s.run(removeScene('room'))).toBe(false);
+    expect(s.project.scenes.length).toBe(2);
+    // A refused edit is not history: the last undoable thing is still the add.
+    expect(s.undoLabel).toBe(history);
+  });
+
+  it('refuses to delete the only scene there is', () => {
+    const s = session();
+    expect(s.run(removeScene('room'))).toBe(false);
+    expect(s.project.scenes.length).toBe(1);
+  });
+
+  it('refuses to delete a scene that is not there', () => {
+    const s = pair();
+    expect(s.run(removeScene('nowhere'))).toBe(false);
+  });
+
+  it('chooses which scene the project opens on, reversibly', () => {
+    const s = pair();
+    expect(s.run(setStartScene('cellar'))).toBe(true);
+    expect(s.project.startScene).toBe('cellar');
+    s.undo();
+    expect(s.project.startScene).toBe('room');
+  });
+
+  it('treats setting the opening scene to what it already is as nothing', () => {
+    const s = pair();
+    const history = s.undoLabel;
+    expect(s.run(setStartScene('room'))).toBe(false);
+    expect(s.undoLabel).toBe(history);
+  });
+
+  it('will not open on a scene the project does not have', () => {
+    const s = pair();
+    expect(s.run(setStartScene('nowhere'))).toBe(false);
+    expect(s.project.startScene).toBe('room');
+  });
+
+  it('lets the previous opening scene be deleted once another one opens', () => {
+    const s = pair();
+    s.run(setStartScene('cellar'));
+    expect(s.run(removeScene('room'))).toBe(true);
+    expect(s.project.scenes.map((x) => x.id)).toEqual(['cellar']);
   });
 });

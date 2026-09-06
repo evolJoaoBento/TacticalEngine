@@ -23,6 +23,13 @@ export interface EditorPanelProps {
   adversaryIds: readonly string[];
   /** Switch back to playing. */
   onPlay: () => void;
+  onSwitchScene: (id: string) => void;
+  onAddScene: (name: string) => void;
+  onRenameScene: (id: string, name: string) => void;
+  onRemoveScene: (id: string) => void;
+  onSetStartScene: (id: string) => void;
+  /** The scene the party is standing in, which need not be the one being edited. */
+  playingScene: string;
   onSave: () => void;
   onLoad: (file: File) => void;
   /** Ids the validator should consider resolvable. */
@@ -259,7 +266,88 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         </>
       ) : null}
 
-      <div style={heading}>Scene</div>
+      <div style={heading}>Scenes</div>
+      <div>
+        {session.project.scenes.map((entry) => {
+          const editing = entry.id === scene.id;
+          const opens = session.project.startScene === entry.id;
+          return (
+            <div
+              key={entry.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginBottom: '2px',
+              }}
+            >
+              <button
+                style={{ ...button(editing), flex: 1, textAlign: 'left', margin: 0 }}
+                title={entry.id}
+                onClick={() => props.onSwitchScene(entry.id)}
+              >
+                {entry.name || entry.id}
+                <span style={{ color: '#8ea3b0' }}>
+                  {' '}
+                  {entry.width}×{entry.height}
+                </span>
+                {opens ? <span style={{ color: '#f6c453' }}> ▸</span> : null}
+                {entry.id === props.playingScene ? (
+                  <span style={{ color: '#9ae08a' }}> ●</span>
+                ) : null}
+              </button>
+              <button
+                style={{ ...button(false), margin: 0 }}
+                title="Rename"
+                onClick={() => {
+                  const name = prompt('Scene name', entry.name || entry.id);
+                  if (name !== null && name !== '') props.onRenameScene(entry.id, name);
+                }}
+              >
+                ✎
+              </button>
+              <button
+                style={{ ...button(false), margin: 0 }}
+                title={opens ? 'Already the opening scene' : 'Open the project here'}
+                disabled={opens}
+                onClick={() => props.onSetStartScene(entry.id)}
+              >
+                ▸
+              </button>
+              <button
+                style={{ ...button(false), margin: 0 }}
+                title={
+                  opens
+                    ? 'The opening scene cannot be deleted'
+                    : session.project.scenes.length <= 1
+                      ? 'A project needs at least one scene'
+                      : 'Delete this scene'
+                }
+                disabled={opens || session.project.scenes.length <= 1}
+                onClick={() => {
+                  if (confirm(`Delete "${entry.name || entry.id}"?`)) props.onRemoveScene(entry.id);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })}
+        <button
+          style={button(false)}
+          onClick={() => {
+            const name = prompt('New scene name', 'New room');
+            if (name !== null && name !== '') props.onAddScene(name);
+          }}
+        >
+          + Scene
+        </button>
+      </div>
+      <div style={{ color: '#8ea3b0', fontSize: '11px', marginTop: '4px' }}>
+        ▸ opens the project · ● the party is here
+      </div>
+
+      <div style={heading}>This scene</div>
       <div style={{ color: '#8ea3b0', fontSize: '12px' }}>
         {scene.decos.length} props · {scene.interactables.length} objects ·{' '}
         {scene.encounters.reduce((n, e) => n + e.adversaries.length, 0)} enemies ·{' '}

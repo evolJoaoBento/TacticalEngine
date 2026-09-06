@@ -589,6 +589,62 @@ export function addScene(scene: SceneDoc): Edit {
   };
 }
 
+/**
+ * Delete a scene.
+ *
+ * Refused for the last scene and for the one the project opens on — a project
+ * with nowhere to start is not something the schema will parse, and finding that
+ * out at Save time is too late to be useful.
+ *
+ * Effects elsewhere may still name the deleted scene. That is not repaired here:
+ * `validateProject` reports a `goto` pointing at a scene that does not exist, so
+ * Check finds it, and an author who deletes a room usually means to rewire what
+ * led there rather than have a tool guess.
+ */
+export function removeScene(sceneId: string): Edit {
+  let removed: { index: number; scene: SceneDoc } | null = null;
+  return {
+    label: 'Delete scene',
+    apply(project) {
+      removed = null;
+      if (project.scenes.length <= 1) return;
+      if (project.startScene === sceneId) return;
+      const index = project.scenes.findIndex((scene) => scene.id === sceneId);
+      if (index < 0) return;
+      removed = { index, scene: project.scenes[index]! };
+      project.scenes.splice(index, 1);
+    },
+    undo(project) {
+      // Back where it was, so the scene list does not reorder itself on undo.
+      if (removed !== null) project.scenes.splice(removed.index, 0, removed.scene);
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
+/** Choose the scene the project opens on. */
+export function setStartScene(sceneId: string): Edit {
+  let before = '';
+  let changed = false;
+  return {
+    label: 'Set opening scene',
+    apply(project) {
+      changed = project.startScene !== sceneId && project.scenes.some((s) => s.id === sceneId);
+      if (!changed) return;
+      before = project.startScene;
+      project.startScene = sceneId;
+    },
+    undo(project) {
+      if (changed) project.startScene = before;
+    },
+    isNoop() {
+      return !changed;
+    },
+  };
+}
+
 export function renameScene(sceneId: string, name: string): Edit {
   let before = '';
   return {

@@ -431,12 +431,18 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     startScene: vault.id,
   });
 
+  // Play the documents the *project* holds, not the literals they were parsed
+  // from. `projectSchema.parse` copies, so keeping the originals would leave the
+  // editor and the game editing two different documents that only look alike —
+  // a scene added in one would be invisible to the other.
+  const vaultDoc = project.scenes.find((scene) => scene.id === vault.id)!;
+
   const scenario = createScenarioState();
-  const runtime = buildRuntime(vault, characters, scenario);
+  const runtime = buildRuntime(vaultDoc, characters, scenario);
 
   // The vault door is shut in the authored map; open it so the demo has somewhere
   // to walk and something to reach.
-  const door = vault.interactables.find((i) => i.kind === 'door');
+  const door = vaultDoc.interactables.find((i) => i.kind === 'door');
   if (door !== undefined) {
     runtime.state.interactable(door.id).open = true;
     runtime.state.setInteractableBlocking(tileOf(runtime.grid, door.position), false);

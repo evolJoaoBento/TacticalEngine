@@ -23,16 +23,22 @@ import {
 } from 'three';
 import { demoMap } from '../legacy/js/data.js';
 import { EditorController } from './editor/controller';
-import { EditorSession } from './editor/session';
+import {
+  EditorSession,
+  addScene,
+  removeScene,
+  renameScene,
+  setStartScene,
+} from './editor/session';
 import { EditorPanel } from './editor/ui/EditorPanel';
 import { PlayPanel } from './game/ui/PlayPanel';
-import { NO_TILE } from './engine/grid/grid';
+import { NO_TILE, type TileGrid } from './engine/grid/grid';
 import { mapExtent, tileAtWorld } from './engine/render/layout';
 import { MODELS } from './engine/render/procedural/registry';
 import { SceneView } from './engine/render/scene-view';
-import { gridFromScene } from './engine/scene/grid-from-scene';
+import { blankScene, gridFromScene } from './engine/scene/grid-from-scene';
 import { importLegacyScene } from './engine/scene/legacy-import';
-import { projectSchema, type ProjectDoc } from './engine/scene/schema';
+import { projectSchema, type ProjectDoc, type SceneDoc } from './engine/scene/schema';
 import type { Response } from './engine/script/runner';
 import {
   answerPending,
@@ -90,6 +96,10 @@ declare global {
       sceneTiles: () => number;
       travelTo: (scene: string) => boolean;
       scenes: () => string[];
+      editScene: () => string;
+      switchScene: (id: string) => void;
+      addScene: (name: string) => string;
+      removeScene: (id: string) => boolean;
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -129,15 +139,15 @@ let view = new SceneView(demo.grid, {
 view.setDecos(demo.scene.decos);
 view.syncTokens(demo.state);
 
-let project: ProjectDoc = projectSchema.parse({
-  id: 'demo',
-  name: 'Demo Vault',
-  scenes: demo.project.scenes,
-  // The conversations travel with the project, so Save JSON writes the words as
-  // well as the map — the whole point of putting dialogue in the document.
-  dialogues: [...demo.dialogues.values()],
-  startScene: demo.scene.id,
-});
+/**
+ * One project, edited and played.
+ *
+ * Re-parsing `demo.project` here would hand the editor a copy: terrain edits
+ * would still reach the screen (the grid is written in place) while a new scene,
+ * a renamed one, or a deleted one would be invisible to the game. The demo's
+ * project is already schema-parsed, so it is the document.
+ */
+let project: ProjectDoc = demo.project;
 let session = new EditorSession(project);
 let editor = new EditorController({
   session,
@@ -153,12 +163,47 @@ const TERRAIN_IDS = demo.grid.palette.types.map((t) => t.id);
 const PROP_MODELS = MODELS.filter((m) => m.category === 'prop').map((m) => m.id);
 const ADVERSARY_IDS = [...SRD_ADVERSARIES.keys()].sort();
 
+/** Redraw whichever panel the current mode owns. */
+function refreshEditor(): void {
+  rebuildTerrain();
+  view.setDecos(editor.scene.decos);
+  renderPanel();
+}
+
+/** A kebab-case id from a name, made unique against the scenes already there. */
+function newSceneId(name: string): string {
+  const base =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'scene';
+  const taken = new Set(session.project.scenes.map((scene) => scene.id));
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
+}
+
+/**
+ * The scene on screen.
+ *
+ * Playing shows the room the party is in. Editing shows the room being edited,
+ * which is not necessarily the same one — browsing scenes in the editor must not
+ * move the party, abandon their fight, or throw away a prompt they were holding.
+ */
+function activeScene(): SceneDoc {
+  return mode === 'edit' ? editor.scene : demo.scene;
+}
+
+/** The grid under `activeScene()`. Shared with the party's when they coincide. */
+let activeGrid: TileGrid = demo.grid;
+
 /** Rebuild the grid from the edited document, then the meshes over it. */
 function rebuildTerrain(): void {
-  const scene = editor.scene;
-  const { grid } = gridFromScene(scene, demo.grid.palette);
-  demo.grid.terrain.set(grid.terrain);
-  demo.grid.heights.set(grid.heights);
+  const scene = activeScene();
+  const { grid } = gridFromScene(scene, activeGrid.palette);
+  activeGrid.terrain.set(grid.terrain);
+  activeGrid.heights.set(grid.heights);
   view.rebuildTerrain(scene.tints);
 }
 
@@ -167,10 +212,17 @@ let mode: 'play' | 'edit' = 'play';
 function setMode(next: 'play' | 'edit'): void {
   mode = next;
   editor.end();
+  // The editor may be pointed at a scene a load has since removed.
+  if (!session.project.scenes.some((scene) => scene.id === editor.sceneId)) {
+    editor.switchScene(demo.scene.id);
+  }
   if (mode === 'play') {
+    rebindScene();
     refreshPlay();
   } else {
+    rebindScene();
     view.clearHighlights();
+    view.syncTokens(demo.state);
     renderPanel();
   }
 }
@@ -188,6 +240,34 @@ function renderPanel(): void {
       onPlay: () => setMode('play'),
       onSave: saveProject,
       onLoad: loadProject,
+      playingScene: demo.scene.id,
+      onSwitchScene: (id: string) => {
+        editor.switchScene(id);
+        rebindScene();
+        refreshEditor();
+      },
+      onAddScene: (name: string) => {
+        const id = newSceneId(name);
+        session.run(addScene(blankScene(id, 12, 10)));
+        session.run(renameScene(id, name));
+        editor.switchScene(id);
+        rebindScene();
+        refreshEditor();
+      },
+      onRenameScene: (id: string, name: string) => {
+        session.run(renameScene(id, name));
+        renderPanel();
+      },
+      onRemoveScene: (id: string) => {
+        session.run(removeScene(id));
+        if (editor.sceneId === id) editor.switchScene(session.project.scenes[0]!.id);
+        rebindScene();
+        refreshEditor();
+      },
+      onSetStartScene: (id: string) => {
+        session.run(setStartScene(id));
+        renderPanel();
+      },
     }),
     app,
   );
@@ -222,6 +302,9 @@ async function loadProject(file: File): Promise<void> {
       if (change === 'content') view.setDecos(editor.scene.decos);
     },
   });
+  // The loaded project is a different document; nothing on screen survives it.
+  boundScene = '';
+  rebindScene();
   rebuildTerrain();
   view.setDecos(editor.scene.decos);
   renderPanel();
@@ -235,7 +318,7 @@ const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight,
 
 /** Frame the whole of whichever map is loaded. */
 function frameCamera(): void {
-  const extent = mapExtent(demo.grid, view.layout);
+  const extent = mapExtent(activeGrid, view.layout);
   camera.position.set(0, extent.radius * 1.35, extent.radius * 1.25);
   camera.lookAt(0, 0, 0);
 }
@@ -254,10 +337,10 @@ function tileUnderPointer(event: PointerEvent | MouseEvent): number {
   const hit = hits[0];
   if (hit === undefined) return NO_TILE;
   groundPoint.copy(hit.point);
-  return tileAtWorld(demo.grid, groundPoint.x, groundPoint.z, view.layout);
+  return tileAtWorld(activeGrid, groundPoint.x, groundPoint.z, view.layout);
 }
 
-const pointOf = (tile: number) => ({ x: demo.grid.xOf(tile), y: demo.grid.yOf(tile) });
+const pointOf = (tile: number) => ({ x: activeGrid.xOf(tile), y: activeGrid.yOf(tile) });
 
 /** The interactable standing on a tile, if any. */
 function objectOn(tile: number): string | null {
@@ -287,25 +370,34 @@ function entityOn(tile: number): string | null {
 let boundScene = demo.scene.id;
 
 function rebindScene(): void {
-  if (boundScene === demo.scene.id) return;
-  boundScene = demo.scene.id;
+  const scene = activeScene();
+  if (boundScene === scene.id) return;
+  boundScene = scene.id;
+
+  // The party's own grid when it is their room, so an edit reaches the
+  // pathfinder; a grid of its own when the editor is looking somewhere else, so
+  // editing one room cannot corrupt the one being played.
+  activeGrid = scene.id === demo.scene.id ? demo.grid : gridFromScene(scene).grid;
 
   view.dispose();
-  view = new SceneView(demo.grid, {
-    tints: demo.scene.tints,
+  view = new SceneView(activeGrid, {
+    tints: scene.tints,
     modelForEntity: (entity) => DEMO_MODELS[entity.definition] ?? entity.definition,
   });
-  view.setDecos(demo.scene.decos);
+  view.setDecos(scene.decos);
   frameCamera();
-
-  // The editor edits whatever room is being played.
-  editor.sceneId = demo.scene.id;
 }
 
 function refreshPlay(): void {
   rebindScene();
-  view.syncTokens(demo.state);
-  view.showHighlights(demo.party.selected === null ? [] : reachableTiles(demo).tiles());
+  // Tokens belong to the played room. Drawing them over another room's grid puts
+  // the party on whatever happens to share those tile indices.
+  if (activeScene().id === demo.scene.id) {
+    view.syncTokens(demo.state);
+    view.showHighlights(demo.party.selected === null ? [] : reachableTiles(demo).tiles());
+  } else {
+    view.clearHighlights();
+  }
   renderPlayPanel();
 }
 
@@ -497,12 +589,35 @@ const state = {
 
   sceneId: (): string => demo.scene.id,
   // `tiles` is captured once at boot; this reads the room the party is in.
-  sceneTiles: (): number => demo.grid.size,
+  sceneTiles: (): number => activeGrid.size,
   scenes: (): string[] => demo.project.scenes.map((s) => s.id),
   travelTo: (scene: string): boolean => {
     const moved = travelTo(demo, scene);
     refreshPlay();
     return moved;
+  },
+
+  editScene: (): string => editor.sceneId,
+  switchScene: (id: string): void => {
+    editor.switchScene(id);
+    rebindScene();
+    refreshEditor();
+  },
+  addScene: (name: string): string => {
+    const id = newSceneId(name);
+    session.run(addScene(blankScene(id, 12, 10)));
+    session.run(renameScene(id, name));
+    editor.switchScene(id);
+    rebindScene();
+    refreshEditor();
+    return id;
+  },
+  removeScene: (id: string): boolean => {
+    const removed = session.run(removeScene(id));
+    if (removed && editor.sceneId === id) editor.switchScene(session.project.scenes[0]!.id);
+    rebindScene();
+    refreshEditor();
+    return removed;
   },
 
   mode: (): 'play' | 'edit' => mode,

@@ -112,6 +112,18 @@ export class EditorController {
     this.state.tool = tool;
   }
 
+  /**
+   * Edit a different scene.
+   *
+   * The encounter goes with it: `encounterId` is scene-scoped, and carrying it
+   * across would drop the next adversary into another room's fight.
+   */
+  switchScene(sceneId: string): void {
+    this.end();
+    this.sceneId = sceneId;
+    this.state.encounterId = null;
+  }
+
   set<K extends keyof EditorToolState>(key: K, value: EditorToolState[K]): void {
     this.state[key] = value;
   }

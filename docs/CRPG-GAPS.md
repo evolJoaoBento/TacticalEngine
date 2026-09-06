@@ -36,6 +36,7 @@ two thirds.
 | Editor | Terrain/height/props/objects/enemies/triggers/spawns, undo, validation, JSON save+load |
 | UI | Narrative log with tone, the conversation panel, and the roll prompt a script raises |
 | Campaign | Two scenes, travel between them, and state that outlives a room |
+| Editor | Map tools, undo, validation, a scene list, and JSON save + load |
 
 ## What is missing, in the order it should be built
 
@@ -161,10 +162,20 @@ inspect. Save and load a project as JSON. The brush paints terrain only — a wa
 ground stops movement and reads as dark floor until Raise gives it height, which is deliberate:
 elevation is its own tool because low walls and tall walls play differently.
 
-**Still open:** a scene list and scene creation in the UI, a properties panel for editing an
-object's effects, check and outcomes, a dialogue graph editor, and camera control (the view is a
-fixed three-quarter, so a large map cannot be panned). Everything those would edit is document
-data already; none of it needs engine work first.
+A **scene list** sits in the panel: switch, add, rename, delete, and choose which scene the
+project opens on. Editing a scene is decoupled from playing one — browsing rooms in the editor
+does not move the party, abandon their fight, or throw away a prompt they were holding, and the
+view binds to whichever room is on screen rather than to the party's.
+
+That decoupling turned up a split the terrain brush had been hiding: the editor and the game held
+two different `ProjectDoc` objects, because `projectSchema.parse` copies. Terrain edits reached
+play only because the grid is written in place; a scene added, renamed or deleted in the editor
+was invisible to the game. They are one document now.
+
+**Still open:** a properties panel for editing an object's effects, check and outcomes; a
+dialogue graph editor; and camera control (the view is a fixed three-quarter, so a large map
+cannot be panned). Everything the first two would edit is document data already; neither needs
+engine work first.
 
 ### 9. Asset import (glTF)
 
@@ -205,8 +216,9 @@ today a conversation is a literal in `game/demo-dialogue.ts` that happens to par
 schema, which is the same position maps were in before the editor.
 
 So the honest answer today is: *a designer can build the party, the place, what everything in it
-does, what it says, and the way between rooms — and the writing still has no editor.* The next thing that moves it is a tool: a scene list and an
-inspector in the editor, so the rooms and the words are authored where the maps already are.
+does, what it says, and the way between rooms — and the writing still has no editor.* The next thing that moves it is the object inspector — a
+check, its difficulty and its outcomes are the last things a designer has to open an editor of
+their own to write.
 
 One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
 workaround from when nothing could use a door. It can go now — the party can pick that lock
