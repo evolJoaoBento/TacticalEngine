@@ -15,6 +15,7 @@
  */
 
 import { z } from 'zod';
+import { itemSchema, lootTableSchema } from '../content/items';
 import { dialogueSchema } from '../dialogue/schema';
 import { checkRequestSchema, effectSchema } from '../script/schema';
 import {
@@ -195,6 +196,10 @@ export const projectSchema = z
      * rather than per-scene: the same character can be talked to in two places.
      */
     dialogues: z.array(dialogueSchema).default([]),
+    /** Everything the party could carry in this campaign. */
+    items: z.array(itemSchema).default([]),
+    /** What a `loot` effect draws from. */
+    lootTables: z.array(lootTableSchema).default([]),
     /** Scene the project opens on. */
     startScene: contentIdSchema,
   })
@@ -216,6 +221,24 @@ export const projectSchema = z
         });
       }
       dialogueIds.add(dialogue.id);
+    });
+    const seen = new Set<string>();
+    project.items.forEach((item, i) => {
+      if (seen.has(item.id)) {
+        ctx.addIssue({ code: 'custom', path: ['items', i, 'id'], message: `duplicate item id "${item.id}"` });
+      }
+      seen.add(item.id);
+    });
+    const tables = new Set<string>();
+    project.lootTables.forEach((table, i) => {
+      if (tables.has(table.id)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['lootTables', i, 'id'],
+          message: `duplicate loot table id "${table.id}"`,
+        });
+      }
+      tables.add(table.id);
     });
     if (!ids.has(project.startScene)) {
       ctx.addIssue({

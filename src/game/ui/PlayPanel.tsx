@@ -12,8 +12,17 @@
 import type { LogLine, PendingScript } from '../demo-scene';
 import type { Response } from '../../engine/script/runner';
 
+/** One line of the pack: what it is, and how many. */
+export interface CarriedItem {
+  id: string;
+  name: string;
+  quantity: number;
+}
+
 export interface PlayPanelProps {
   log: readonly LogLine[];
+  /** What the party is carrying. */
+  carried: readonly CarriedItem[];
   pending: PendingScript | null;
   /** Named when something is close enough to touch. */
   within: string | null;
@@ -71,7 +80,9 @@ const signed = (n: number): string => (n >= 0 ? `+${n}` : `${n}`);
 
 export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
   const { log, pending, within } = props;
-  if (log.length === 0 && pending === null && within === null) return null;
+  if (log.length === 0 && pending === null && within === null && props.carried.length === 0) {
+    return null;
+  }
 
   // A conversation raises its own prompts, so the panel reads the innermost
   // thing waiting rather than assuming the script is the one asking.
@@ -82,6 +93,28 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
 
   return (
     <div style={wrap}>
+      {props.carried.length > 0 ? (
+        <div style={{ ...logBox, padding: '8px 12px' }} data-testid="pack">
+          <div
+            style={{
+              color: '#8ea3b0',
+              font: '600 10px/1 system-ui, sans-serif',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              marginBottom: '4px',
+            }}
+          >
+            Carried
+          </div>
+          {props.carried.map((item) => (
+            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>{item.name}</span>
+              <span style={{ color: '#8ea3b0' }}>{item.quantity > 1 ? `×${item.quantity}` : ''}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {log.length > 0 ? (
         <div style={logBox} data-testid="log">
           {log.slice(-12).map((line, i) => (

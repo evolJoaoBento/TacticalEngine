@@ -14,6 +14,7 @@
  */
 
 import { z } from 'zod';
+import type { Rng } from '../core/rng';
 import { contentIdSchema } from '../scene/primitives';
 
 export const itemKindSchema = z.enum(['key', 'consumable', 'weapon', 'armor', 'trinket']);
@@ -75,4 +76,41 @@ export type LootTable = z.infer<typeof lootTableSchema>;
 export interface LootDrop {
   item: string;
   quantity: number;
+}
+
+/**
+ * Draw from a loot table.
+ *
+ * Weights are relative within the table rather than percentages, so an entry of
+ * 3 among entries of 1 is three times as likely and nothing has to sum to
+ * anything. Drops of the same item stack into one entry, so a table that can
+ * roll gold twice reports one pile rather than two.
+ *
+ * Takes the scene's `Rng`, so what a chest holds is part of the same replayable
+ * stream as the roll that opened it.
+ */
+export function rollLoot(table: LootTable, rng: Rng): LootDrop[] {
+  const total = table.entries.reduce((sum, entry) => sum + entry.weight, 0);
+  if (total <= 0) return [];
+
+  const found = new Map<string, number>();
+  for (let roll = 0; roll < table.rolls; roll++) {
+    let ticket = rng.next() * total;
+    // The last entry catches any float slop, so a draw always lands somewhere.
+    let chosen = table.entries[table.entries.length - 1]!;
+    for (const entry of table.entries) {
+      ticket -= entry.weight;
+      if (ticket <= 0) {
+        chosen = entry;
+        break;
+      }
+    }
+    const quantity =
+      typeof chosen.quantity === 'number'
+        ? chosen.quantity
+        : chosen.quantity.min +
+          rng.nextInt(chosen.quantity.max - chosen.quantity.min + 1);
+    found.set(chosen.item, (found.get(chosen.item) ?? 0) + quantity);
+  }
+  return [...found].map(([item, quantity]) => ({ item, quantity }));
 }

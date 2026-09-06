@@ -111,6 +111,7 @@ declare global {
       objectField: (field: string) => unknown;
       nodePosition: (dialogue: string, node: string) => { x: number; y: number } | null;
       dialogueNodes: (dialogue: string) => string[];
+      carried: () => { id: string; name: string; quantity: number }[];
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -412,10 +413,21 @@ function refreshPlay(): void {
   renderPlayPanel();
 }
 
+/** The party's pack, joined to the project's item names. */
+function carriedItems(): { id: string; name: string; quantity: number }[] {
+  const names = new Map(demo.project.items.map((item) => [item.id, item.name]));
+  return [...demo.scenario.items].map(([id, quantity]) => ({
+    id,
+    name: names.get(id) ?? id,
+    quantity,
+  }));
+}
+
 function renderPlayPanel(): void {
   render(
     h(PlayPanel, {
       log: demo.log,
+      carried: carriedItems(),
       pending: demo.pending,
       within: reachableInteractable(demo),
       onUse: (id: string) => {
@@ -659,6 +671,8 @@ const state = {
   },
   dialogueNodes: (dialogue: string): string[] =>
     session.project.dialogues.find((d) => d.id === dialogue)?.nodes.map((n) => n.id) ?? [],
+
+  carried: (): { id: string; name: string; quantity: number }[] => carriedItems(),
 
   mode: (): 'play' | 'edit' => mode,
   setMode,

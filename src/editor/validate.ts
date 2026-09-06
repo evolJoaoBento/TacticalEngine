@@ -64,6 +64,9 @@ export function validateProject(
   for (const scene of project.scenes) {
     validateScene(scene, { project, sceneIds, palette, options }, problems);
   }
+  checkLootTables(project, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   checkDialogues(project, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
@@ -215,6 +218,8 @@ function validateEffects(
     context.project.scenes.flatMap((s) => s.encounters.map((e) => e.id)),
   );
   const dialogueIds = new Set(context.project.dialogues.map((d) => d.id));
+  const tableIds = new Set(context.project.lootTables.map((t) => t.id));
+  const itemIds = new Set(context.project.items.map((i) => i.id));
 
   // Every outcome, and everything nested inside a branch, a choice or a further
   // check — a walk that stops at the top level passes a broken file.
@@ -227,6 +232,12 @@ function validateEffects(
     }
     if (effect.kind === 'startDialogue' && !dialogueIds.has(effect.dialogue)) {
       add('error', `"${interactable.id}" starts conversation "${effect.dialogue}", which does not exist.`, interactable.id);
+    }
+    if (effect.kind === 'loot' && effect.table !== undefined && !tableIds.has(effect.table)) {
+      add('error', `"${interactable.id}" draws from loot table "${effect.table}", which does not exist.`, interactable.id);
+    }
+    if ((effect.kind === 'addItem' || effect.kind === 'removeItem') && !itemIds.has(effect.item)) {
+      add('error', `"${interactable.id}" refers to item "${effect.item}", which does not exist.`, interactable.id);
     }
   };
 
@@ -258,6 +269,21 @@ export function summarise(problems: readonly Problem[]): string {
  * nobody wrote, and a node no path can reach — the second is a warning, because
  * an author part-way through writing one is not making a mistake.
  */
+/** Every loot table entry naming an item the project does not have. */
+function checkLootTables(
+  project: ProjectDoc,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const itemIds = new Set(project.items.map((item) => item.id));
+  for (const table of project.lootTables) {
+    for (const entry of table.entries) {
+      if (!itemIds.has(entry.item)) {
+        add('error', `Loot table "${table.id}" can drop "${entry.item}", which is not an item.`, table.id);
+      }
+    }
+  }
+}
+
 function checkDialogues(
   project: ProjectDoc,
   add: (severity: ProblemSeverity, message: string, entity?: string) => void,

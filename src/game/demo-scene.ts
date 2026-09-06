@@ -11,7 +11,10 @@
  */
 
 import adversaryJson from '../../tools/srd-sources/seansbox/adversaries.json';
+import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
+import { walkCheck } from '../engine/script/schema';
+import type { LootTable } from '../engine/content/items';
 import type { Currency, MarkPool } from '../engine/rules/resources';
 import { interactableSchema, projectSchema, type ProjectDoc } from '../engine/scene/schema';
 import type { SceneStateSnapshot } from '../engine/scene/state';
@@ -224,6 +227,8 @@ interface RuntimeOptions {
   pools?: ReadonlyMap<string, PartyPools>;
   /** Fear is the GM's across the session, not the room's. */
   fear?: Currency;
+  /** The project's loot tables, so a chest in any room pays out. */
+  lootTables?: ReadonlyMap<string, LootTable>;
 }
 
 /** The pools a character carries between rooms. */
@@ -291,7 +296,10 @@ function buildRuntime(
     pathfinder,
     party: new Party(state, pathfinder, { moveBudget: DEMO_MOVE_BUDGET }),
     triggers: new TriggerIndex(scene, grid),
-    world: new SceneScriptWorld(state, scenario, { traits: traitsFor(characters) }),
+    world: new SceneScriptWorld(state, scenario, {
+      traits: traitsFor(characters),
+      ...(options.lootTables === undefined ? {} : { lootTables: options.lootTables }),
+    }),
   };
 }
 
@@ -328,6 +336,7 @@ export function travelTo(demo: DemoScene, sceneId: string): boolean {
   const runtime = buildRuntime(target, demo.characters, demo.scenario, {
     pools: poolsOf(demo),
     fear: demo.state.fear,
+    lootTables: new Map(demo.project.lootTables.map((table) => [table.id, table])),
   });
 
   const remembered = demo.snapshots.get(target.id);
@@ -428,6 +437,8 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     name: 'Demo Vault',
     scenes: [vault, pit],
     dialogues: [...DEMO_DIALOGUES],
+    items: [...DEMO_ITEMS],
+    lootTables: [...DEMO_LOOT_TABLES],
     startScene: vault.id,
   });
 
@@ -438,7 +449,17 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
   const vaultDoc = project.scenes.find((scene) => scene.id === vault.id)!;
 
   const scenario = createScenarioState();
-  const runtime = buildRuntime(vaultDoc, characters, scenario);
+  const lootTables = new Map(project.lootTables.map((table) => [table.id, table]));
+  const runtime = buildRuntime(vaultDoc, characters, scenario, { lootTables });
+
+  // The legacy `loot` effect named no table, because the prototype had no items.
+  // Point it at one, so opening the chest actually pays out.
+  for (const object of vaultDoc.interactables) {
+    if (object.check === undefined) continue;
+    walkCheck(object.check, (effect) => {
+      if (effect.kind === 'loot' && effect.table === undefined) effect.table = CHEST_LOOT;
+    });
+  }
 
   // The vault door is shut in the authored map; open it so the demo has somewhere
   // to walk and something to reach.
@@ -851,18 +872,32 @@ function note(demo: DemoScene, text: string, tone: LogTone): LogLine[] {
  */
 function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLine[] {
   const lines: LogLine[] = [];
+  const names = new Map(demo.project.items.map((item) => [item.id, item.name]));
   for (const entry of journal) {
     // Travel is remembered rather than taken: the rest of this script belongs to
     // the room it was asked in. `settleTravel` spends it once nothing waits.
     if (entry.kind === 'goto') demo.destination = entry.scene;
-    const line = describeEntry(entry);
+    const line = describeEntry(entry, names);
     if (line !== null) lines.push(line);
   }
   demo.log.push(...lines);
   return lines;
 }
 
-function describeEntry(entry: JournalEntry): LogLine | null {
+/** "12 gold and a brass key" — an item nobody named reads as its id. */
+function listItems(
+  found: readonly { item: string; quantity: number }[],
+  names: ReadonlyMap<string, string>,
+): string {
+  const parts = found.map((drop) => {
+    const name = names.get(drop.item) ?? drop.item;
+    return drop.quantity > 1 ? `${drop.quantity} ${name}` : name;
+  });
+  if (parts.length <= 1) return parts[0] ?? 'nothing';
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]!}`;
+}
+
+function describeEntry(entry: JournalEntry, names: ReadonlyMap<string, string>): LogLine | null {
   switch (entry.kind) {
     case 'log':
       return { text: entry.text, tone: entry.tone };
@@ -871,7 +906,9 @@ function describeEntry(entry: JournalEntry): LogLine | null {
     case 'key':
       return { text: `You take the ${entry.key}.`, tone: 'success' };
     case 'loot':
-      return { text: 'You find something worth carrying.', tone: 'success' };
+      return entry.found.length === 0
+        ? { text: 'Nothing worth taking.', tone: 'system' }
+        : { text: `You find ${listItems(entry.found, names)}.`, tone: 'success' };
     case 'damage':
       return { text: `You take ${entry.amount} damage.`, tone: 'fear' };
     case 'heal':

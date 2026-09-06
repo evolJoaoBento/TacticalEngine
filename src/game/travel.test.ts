@@ -194,3 +194,49 @@ describe('travelling between scenes', () => {
     expect(play()).toBe(play());
   });
 });
+
+describe('carrying things between rooms', () => {
+  it('fills the pack when the vault chest is opened', () => {
+    const demo = scene();
+    stand(demo, CHEST);
+    useSelectedOn(demo, CHEST);
+    answerPending(demo, { kind: 'roll' });
+
+    // The legacy chest's `loot` named no table until the demo gave it one.
+    const carried = [...demo.scenario.items.entries()];
+    expect(carried.length).toBeGreaterThan(0);
+    expect(demo.log.some((l) => l.text.startsWith('You find'))).toBe(true);
+  });
+
+  it('carries the pack through a door', () => {
+    const demo = scene();
+    demo.world.addItem('gold', 30);
+    travelTo(demo, PIT_SCENE_ID);
+    expect(demo.world.itemCount('gold')).toBe(30);
+  });
+
+  it('opens the strongbox only for the word, and pays out when it does', () => {
+    const demo = scene();
+    travelTo(demo, PIT_SCENE_ID);
+    stand(demo, 'strongbox');
+
+    expect(useSelectedOn(demo, 'strongbox').status).toBe('refused');
+    expect(demo.world.itemCount('gold')).toBe(0);
+
+    // The word is what the Warden gives up, and it is an item like any other.
+    demo.world.giveKey('wardens-word');
+    expect(useSelectedOn(demo, 'strongbox').status).toBe('done');
+    expect(demo.world.itemCount('gold')).toBeGreaterThan(0);
+  });
+
+  it('names what was found rather than saying something vague', () => {
+    const demo = scene();
+    travelTo(demo, PIT_SCENE_ID);
+    stand(demo, 'strongbox');
+    demo.world.giveKey('wardens-word');
+    useSelectedOn(demo, 'strongbox');
+
+    const line = demo.log.find((l) => l.text.startsWith('You find'))!;
+    expect(line.text).toMatch(/Gold|draught|carapace/i);
+  });
+});

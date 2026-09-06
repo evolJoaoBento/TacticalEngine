@@ -31,6 +31,12 @@ import {
 /** What the world must let a script do. Implemented over `SceneState` in `world.ts`. */
 export interface ScriptWorld extends ConditionContext {
   addItem(item: string, quantity?: number): number;
+  /**
+   * What a loot table yields, or nothing when the project has no such table.
+   * Resolving here rather than in a UI layer means a `loot` inside a dialogue
+   * reply or a check outcome behaves exactly like one on a chest.
+   */
+  rollLoot(table: string | undefined, rng: Rng): { item: string; quantity: number }[];
   /** Returns how many were actually taken. */
   removeItem(item: string, quantity?: number): number;
   setFlag(flag: string): void;
@@ -60,7 +66,7 @@ export type JournalEntry =
   | { kind: 'item'; item: string; change: number }
   | { kind: 'var'; name: string; value: ScriptValue }
   | { kind: 'interactable'; id: string; change: 'open' | 'removed' | 'used' }
-  | { kind: 'loot'; table?: string }
+  | { kind: 'loot'; table?: string; found: readonly { item: string; quantity: number }[] }
   | { kind: 'damage'; amount: number; marked: number; source?: string }
   | { kind: 'heal'; amount: number; cleared: number }
   | { kind: 'encounter'; id: string; change: 'started' | 'ended'; intro?: string }
@@ -263,11 +269,18 @@ export class ScriptRunner {
       case 'remove':
       case 'markUsed':
         return this.applyInteractable(effect);
-      case 'loot':
+      case 'loot': {
+        // The legacy importer produces table-less `loot`s; those find nothing
+        // rather than throwing.
+        const found = world.rollLoot(effect.table, this.rng);
+        for (const drop of found) world.addItem(drop.item, drop.quantity);
         this.journal.push(
-          effect.table === undefined ? { kind: 'loot' } : { kind: 'loot', table: effect.table },
+          effect.table === undefined
+            ? { kind: 'loot', found }
+            : { kind: 'loot', table: effect.table, found },
         );
         return null;
+      }
       case 'damage': {
         const target = effect.target ?? { kind: 'actor' as const };
         const marked = world.damage(target, effect.amount, effect.source);

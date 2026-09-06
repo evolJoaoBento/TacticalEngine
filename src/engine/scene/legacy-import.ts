@@ -195,6 +195,8 @@ export function importLegacyCampaign(
       name,
       scenes,
     dialogues: [],
+    items: [],
+    lootTables: [],
       startScene: scenes[0]!.id,
     },
     issues,

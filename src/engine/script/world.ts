@@ -16,6 +16,8 @@ import type { SceneState } from '../scene/state';
 import type { Trait } from '../scene/schema';
 import type { ScriptValue } from './conditions';
 import type { TargetSelector } from './effects';
+import type { Rng } from '../core/rng';
+import { rollLoot, type LootDrop, type LootTable } from '../content/items';
 import type { ScriptWorld } from './runner';
 
 /**
@@ -59,6 +61,11 @@ export function createScenarioState(
 
 export interface SceneScriptWorldOptions {
   /**
+   * The project's loot tables, by id. Left out when a caller has none, which is
+   * every test that never loots and the legacy import.
+   */
+  lootTables?: ReadonlyMap<string, LootTable>;
+  /**
    * Trait modifiers for the acting character. The character layer does not exist
    * yet, so a scenario supplies these; when it does, this reads from the sheet.
    */
@@ -70,11 +77,13 @@ export class SceneScriptWorld implements ScriptWorld {
   readonly state: SceneState;
   readonly scenario: ScenarioState;
   private readonly traits: Partial<Record<Trait, number>>;
+  private readonly lootTables: ReadonlyMap<string, LootTable>;
 
   constructor(state: SceneState, scenario: ScenarioState, options: SceneScriptWorldOptions = {}) {
     this.state = state;
     this.scenario = scenario;
     this.traits = options.traits ?? {};
+    this.lootTables = options.lootTables ?? new Map();
   }
 
   // ---- reads ---------------------------------------------------------------
@@ -131,6 +140,13 @@ export class SceneScriptWorld implements ScriptWorld {
 
   giveKey(key: string): void {
     this.addItem(key, 1);
+  }
+
+  /** Draw from one of the project's tables. An unknown table finds nothing. */
+  rollLoot(table: string | undefined, rng: Rng): LootDrop[] {
+    if (table === undefined) return [];
+    const found = this.lootTables.get(table);
+    return found === undefined ? [] : rollLoot(found, rng);
   }
 
   addItem(item: string, quantity = 1): number {

@@ -36,6 +36,7 @@ two thirds.
 | Editor | Terrain/height/props/objects/enemies/triggers/spawns, undo, validation, JSON save+load |
 | UI | Narrative log with tone, the conversation panel, and the roll prompt a script raises |
 | Campaign | Two scenes, travel between them, and state that outlives a room |
+| Items | Items and weighted loot tables; a shared pack that survives a doorway |
 | Editor | Map tools, scene list, object inspector, dialogue graph, undo, validation, JSON |
 
 ## What is missing, in the order it should be built
@@ -55,9 +56,9 @@ runner could execute — with nothing converting between them. An interactable's
 was imported, validated, saved, and never run. They are one schema now, so the runner can
 execute anything a document can hold.
 
-That is a claim about the *runner*, not about the game: one effect still lands
-in the journal and stops there. `loot` finds something and there is
-nowhere to put it (see 6).
+That claim used to come with a caveat — `goto`, `loot` and `startDialogue`
+journalled and stopped there. It no longer does. every effect the runner has now does
+something, which was not true a slice ago.
 
 `scene/interact.ts` is the verb that was missing: reach a thing, and its authored `requiresKey`,
 `lockedText`, `check` and outcomes actually happen. The legacy vault's own furniture — a Finesse
@@ -117,9 +118,30 @@ The demo party is three authored sheets rather than three literals.
 **Still open:** subclasses, domain cards and progression (levelling, advancements, multiclass).
 Those are what item 6 and a future levelling pass need.
 
-### 6. Inventory, loot, gold
+### ~~6. Inventory and loot~~ — mostly done
 
-The `loot` effect exists as a name only.
+`content/items.ts` holds items and loot tables; `ProjectDoc` carries both. The party's keys
+became items — a key is an item you have one of, `hasKey` is `hasItem` with a quantity of one —
+so there is one idea for anything carried rather than two vocabularies.
+
+`loot` resolves **in the runner**, not in a UI layer, so a chest, a dialogue reply and a check
+outcome all pay out the same way. Tables are weighted and drawn from the scene's own `Rng`, so
+what a chest holds is as replayable as the roll that opened it, and a table-less `loot` (which is
+all the legacy importer produces) finds nothing rather than throwing.
+
+The demo's vault chest and the pit's strongbox draw from different tables, and `PlayPanel` shows
+what the party carries. Validation catches a `loot` naming a table nobody wrote, a table that can
+drop something which is not an item, and an `addItem` for an item that does not exist.
+
+**Still open:** *equipping*. Weapons and armour are SRD content and an item can point at one
+through `contentId`, but changing what a character wields mid-game means re-deriving their sheet
+and reconciling pools whose maximums move. That is its own slice.
+
+### 12. Saving a game
+
+Not a gap anyone had named, and worth naming now that there is state worth keeping.
+`SceneState` snapshots and restores; `ScenarioState` — flags, items, variables, and the scene
+snapshots themselves — does not. A campaign can be played and edited, and cannot be put down.
 
 ### 7. Quests and journal
 
@@ -237,9 +259,10 @@ schema, which is the same position maps were in before the editor.
 So the honest answer today is: *a designer can build the party, the place, what everything in it
 does, what it says, and the way between rooms — all of it in a tool.* What is left is depth
 rather than authoring: things to carry, quests to track, characters who grow, and a camera that
-moves. The line has moved past authoring. What is left is what a
-campaign needs to be more than a demo: inventory and loot (6), quests (7), progression (5), and
-a camera someone can actually look around with (10).
+moves. The line has moved past authoring, and past the empty
+`loot`. What is left is what a campaign needs to be more than a session: quests to track (7),
+characters who grow and can change what they carry (5, 6), a camera someone can look around
+with (10) — and a way to save (12).
 
 One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
 workaround from when nothing could use a door. It can go now — the party can pick that lock

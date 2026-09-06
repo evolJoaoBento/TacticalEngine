@@ -63,6 +63,7 @@ declare global {
       objectField: (field: string) => unknown;
       nodePosition: (dialogue: string, node: string) => { x: number; y: number } | null;
       dialogueNodes: (dialogue: string) => string[];
+      carried: () => { id: string; name: string; quantity: number }[];
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -867,6 +868,85 @@ test('writes a new reply in the graph and hears it in play', async ({ page }) =>
   });
 
   expect(options).toContain('Say nothing, and wait.');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('fills the pack from a chest, and shows what the party carries', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  const looted = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const empty = api.carried();
+    const chest = api.objects().find((id) => id.startsWith('chest'))!;
+    api.standBeside(chest);
+    api.use(chest);
+    api.answer({ kind: 'roll' });
+    return { empty, carried: api.carried(), log: api.log().map((l) => l.text) };
+  });
+
+  // The party started with nothing, and the chest paid out.
+  expect(looted.empty).toEqual([]);
+  expect(looted.carried.length).toBeGreaterThan(0);
+  // The log names what was found, rather than "something worth carrying".
+  expect(looted.log.join(' ')).toMatch(/You find .*(Gold|draught|brass)/i);
+
+  // And it is on screen.
+  const pack = page.locator('[data-testid="pack"]');
+  await expect(pack).toBeVisible();
+  await expect(pack).toContainText('Carried');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('talks the Warden round, and the word opens the strongbox downstairs', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  // This is the whole campaign in one test: a conversation in one room decides
+  // whether a chest opens in another.
+  const run = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
+    api.standBeside(pillar);
+    api.use(pillar);
+
+    // Ask about the vault, then ask politely — the reply that costs a Presence roll.
+    const first = api.dialogueOptions();
+    api.answer({ kind: 'choose', index: first.findIndex((t) => t.includes('came for the vault')) });
+    const second = api.dialogueOptions();
+    api.answer({ kind: 'choose', index: second.findIndex((t) => t.includes('politely')) });
+    api.answer({ kind: 'roll' });
+
+    // Whatever the roll said, close the conversation out.
+    for (let i = 0; i < 12 && api.hasDialogue(); i++) {
+      const options = api.dialogueOptions();
+      if (options.length > 0) api.answer({ kind: 'choose', index: 0 });
+      else api.answer({ kind: 'continue' });
+    }
+
+    const wonTheWord = api.carried().some((item) => item.id === 'wardens-word');
+
+    // Downstairs, and try the strongbox.
+    api.travelTo('the-pit');
+    api.standBeside('strongbox');
+    const opened = api.use('strongbox');
+
+    return {
+      wonTheWord,
+      opened,
+      carried: api.carried().map((item) => item.id),
+      log: api.log().map((l) => l.text),
+    };
+  });
+
+  // The strongbox agrees with the conversation, either way it went.
+  if (run.wonTheWord) {
+    expect(run.opened).toBe('done');
+    expect(run.carried).toContain('gold');
+  } else {
+    expect(run.opened).toBe('refused');
+    expect(run.log.join(' ')).toContain('will not shift');
+  }
 
   expect(consoleErrors).toEqual([]);
 });

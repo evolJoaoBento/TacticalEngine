@@ -412,6 +412,7 @@ describe('the runner as a whole', () => {
       hasFlag: (f) => flags.has(f),
       hasKey: () => false,
       hasItem: () => false,
+      rollLoot: () => [],
       addItem: () => 1,
       removeItem: () => 1,
       getVar: () => null,

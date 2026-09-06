@@ -407,3 +407,66 @@ describe('conversations', () => {
     expect(messages(project).some((m) => m.includes('which does not exist'))).toBe(false);
   });
 });
+
+describe('items and loot', () => {
+  const chest = {
+    id: 'chest-1',
+    kind: 'chest' as const,
+    position: { x: 2, y: 1 },
+    name: '',
+    flavor: '',
+    model: null,
+    blocksMovement: true,
+    effects: [],
+    lockedText: '',
+    tags: [],
+    data: {},
+  };
+
+  it('catches a chest drawing from a table nobody wrote', () => {
+    const project = build();
+    project.scenes[0]!.interactables.push({
+      ...chest,
+      effects: [{ kind: 'loot', table: 'no-such-table' }],
+    });
+    expect(messages(project)).toContain(
+      '"chest-1" draws from loot table "no-such-table", which does not exist.',
+    );
+  });
+
+  it('catches a table that can drop something which is not an item', () => {
+    const project = build();
+    (project as { lootTables: unknown[] }).lootTables = [
+      { id: 'hoard', rolls: 1, entries: [{ item: 'phantom', quantity: 1, weight: 1 }] },
+    ];
+    expect(messages(project)).toContain(
+      'Loot table "hoard" can drop "phantom", which is not an item.',
+    );
+  });
+
+  it('catches an effect handing over an item that does not exist', () => {
+    const project = build();
+    project.scenes[0]!.interactables.push({
+      ...chest,
+      effects: [{ kind: 'addItem', item: 'moonlight', quantity: 1 }],
+    });
+    expect(messages(project)).toContain(
+      '"chest-1" refers to item "moonlight", which does not exist.',
+    );
+  });
+
+  it('accepts a table and an effect that name real items', () => {
+    const project = build();
+    (project as { items: unknown[] }).items = [
+      { id: 'gold', name: 'Gold', kind: 'trinket', description: '', stackable: true },
+    ];
+    (project as { lootTables: unknown[] }).lootTables = [
+      { id: 'hoard', rolls: 1, entries: [{ item: 'gold', quantity: 1, weight: 1 }] },
+    ];
+    project.scenes[0]!.interactables.push({
+      ...chest,
+      effects: [{ kind: 'loot', table: 'hoard' }],
+    });
+    expect(messages(project).some((m) => m.includes('does not exist'))).toBe(false);
+  });
+});
