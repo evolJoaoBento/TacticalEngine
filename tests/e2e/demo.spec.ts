@@ -2056,3 +2056,47 @@ test('writes a character in the Party panel and the table plays the new sheet', 
 
   expect(consoleErrors).toEqual([]);
 });
+
+test('writes an item and the table that hands it out, and the party can carry it', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  const names: string[] = ['A rope', 'pockets'];
+  page.on('dialog', (dialog) => void dialog.accept(names.shift() ?? 'ok'));
+
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-items"]').click();
+  const panel = page.locator('[data-testid="item-panel"]');
+  await expect(panel).toBeVisible();
+
+  // A new item, with something it does when used.
+  await panel.locator('[data-testid="add-item"]').click();
+  await expect(panel.locator('[data-testid="item-name"]')).toHaveValue('A rope');
+  await panel.locator('[data-testid="item-kind"]').selectOption('consumable');
+  await panel.locator('[data-testid="item-description"]').fill('Forty feet of it, and fraying.');
+  const effects = panel.locator('[data-testid="item-effects"]');
+  await effects.locator('[data-role="add-effect"]').first().selectOption('log');
+  await effects.locator('[data-effect="0"] input').first().fill('The rope pays out into the dark.');
+
+  // And a table that hands it out, whose odds the panel works out.
+  await panel.locator('[data-testid="add-loot-table"]').click();
+  await expect(panel.locator('[data-testid="loot-entries"]')).toBeVisible();
+  await panel.locator('[data-role="loot-item"]').first().selectOption('a-rope');
+  await panel.locator('[data-testid="add-loot-entry"]').click();
+  await panel.locator('[data-role="loot-weight"]').first().fill('3');
+  // Weights of 3 and 1: three quarters and one quarter, not two percentages.
+  await expect(panel.locator('[data-role="loot-odds"]').first()).toHaveText('75%');
+  await expect(panel.locator('[data-role="loot-odds"]').nth(1)).toHaveText('25%');
+
+  await panel.locator('[data-testid="close-items"]').click();
+
+  // Back at the table, the party can be handed it and use it.
+  const log = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('play');
+    api.giveItem('a-rope');
+    return api.useItem('a-rope');
+  });
+  expect(log).not.toBe('');
+  await expect(page.locator('[data-testid="log"]')).toContainText('The rope pays out into the dark.');
+
+  expect(consoleErrors).toEqual([]);
+});

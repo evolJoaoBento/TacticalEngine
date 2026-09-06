@@ -19,6 +19,7 @@ import type { CodeDef, Deco, Encounter, Interactable, Point, ProjectDoc, SceneDo
 import type { Dialogue, DialogueChoice, DialogueNode } from '../engine/dialogue/schema';
 import type { QuestDef, QuestObjective } from '../engine/content/quests';
 import type { AbilityDef } from '../engine/content/abilities';
+import type { ItemDef, LootTable } from '../engine/content/items';
 import type { ModelAsset } from '../engine/render/assets';
 
 /** One reversible change. `undo` must restore exactly what `apply` replaced. */
@@ -1211,6 +1212,143 @@ export function removeAsset(assetId: string): Edit {
       return removed === null;
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Items and loot
+// ---------------------------------------------------------------------------
+
+/** Add an item. Its id is what a `loot` entry, a door and a script will name. */
+export function addItem(item: ItemDef): Edit {
+  return {
+    label: `Add item ${item.id}`,
+    apply(project) {
+      project.items.push(item);
+    },
+    undo(project) {
+      const at = project.items.lastIndexOf(item);
+      if (at >= 0) project.items.splice(at, 1);
+    },
+  };
+}
+
+/**
+ * Delete an item.
+ *
+ * A loot table or a locked door may still name it. That is left alone, the
+ * same way a deleted piece of code is: the validator reports what now names
+ * nothing, which is what an author needs to see.
+ */
+export function removeItem(itemId: string): Edit {
+  let removed: { index: number; item: ItemDef } | null = null;
+  return {
+    label: 'Delete item',
+    apply(project) {
+      removed = null;
+      const index = project.items.findIndex((i) => i.id === itemId);
+      if (index < 0) return;
+      removed = { index, item: project.items[index]! };
+      project.items.splice(index, 1);
+    },
+    undo(project) {
+      if (removed !== null) project.items.splice(removed.index, 0, removed.item);
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
+/** Edit an item. Typing into one field coalesces into one undo step. */
+export function updateItem(itemId: string, changes: Partial<ItemDef>): Edit {
+  let before: ItemDef | null = null;
+  const current: Partial<ItemDef> = { ...changes };
+  const edit: Edit = {
+    label: 'Edit item',
+    mergeKey: `item:${itemId}:${Object.keys(changes).sort().join(',')}`,
+    apply(project) {
+      const index = project.items.findIndex((i) => i.id === itemId);
+      if (index < 0) return;
+      before = project.items[index]!;
+      project.items[index] = { ...before, ...current };
+    },
+    undo(project) {
+      if (before === null) return;
+      const index = project.items.findIndex((i) => i.id === itemId);
+      if (index >= 0) project.items[index] = before;
+    },
+    absorb(other) {
+      const next = (other as Edit & { __item?: Partial<ItemDef> }).__item;
+      if (next === undefined) return false;
+      Object.assign(current, next);
+      return true;
+    },
+  };
+  (edit as Edit & { __item: Partial<ItemDef> }).__item = current;
+  return edit;
+}
+
+/** Add a loot table. A `loot` effect draws from it by id. */
+export function addLootTable(table: LootTable): Edit {
+  return {
+    label: `Add loot table ${table.id}`,
+    apply(project) {
+      project.lootTables.push(table);
+    },
+    undo(project) {
+      const at = project.lootTables.lastIndexOf(table);
+      if (at >= 0) project.lootTables.splice(at, 1);
+    },
+  };
+}
+
+export function removeLootTable(tableId: string): Edit {
+  let removed: { index: number; table: LootTable } | null = null;
+  return {
+    label: 'Delete loot table',
+    apply(project) {
+      removed = null;
+      const index = project.lootTables.findIndex((t) => t.id === tableId);
+      if (index < 0) return;
+      removed = { index, table: project.lootTables[index]! };
+      project.lootTables.splice(index, 1);
+    },
+    undo(project) {
+      if (removed !== null) project.lootTables.splice(removed.index, 0, removed.table);
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
+/** Edit a loot table: how many draws, and the entries drawn from. */
+export function updateLootTable(tableId: string, changes: Partial<LootTable>): Edit {
+  let before: LootTable | null = null;
+  const current: Partial<LootTable> = { ...changes };
+  const edit: Edit = {
+    label: 'Edit loot table',
+    mergeKey: `loot:${tableId}:${Object.keys(changes).sort().join(',')}`,
+    apply(project) {
+      const index = project.lootTables.findIndex((t) => t.id === tableId);
+      if (index < 0) return;
+      before = project.lootTables[index]!;
+      project.lootTables[index] = { ...before, ...current };
+    },
+    undo(project) {
+      if (before === null) return;
+      const index = project.lootTables.findIndex((t) => t.id === tableId);
+      if (index >= 0) project.lootTables[index] = before;
+    },
+    absorb(other) {
+      const next = (other as Edit & { __loot?: Partial<LootTable> }).__loot;
+      if (next === undefined) return false;
+      Object.assign(current, next);
+      return true;
+    },
+  };
+  (edit as Edit & { __loot: Partial<LootTable> }).__loot = current;
+  return edit;
 }
 
 // ---------------------------------------------------------------------------

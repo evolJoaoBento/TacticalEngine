@@ -359,8 +359,13 @@ and level, and shows what a sheet comes to — Evasion, Armor Score, pools, thre
 written. `deriveCharacter`'s own issues are the validation, so the editor reports exactly what
 the game would refuse. Levels are shown, not edited: a level is taken at the table.
 
-**Still open:** items and loot tables are authored in the project JSON. A character added in the
-panel joins when the project is next loaded, not mid-fight.
+An **items panel** writes the pack: items with their kind, their stacking and an effect list for
+what using them does, and the loot tables that hand them out — draws, entries, quantities as a
+fixed count or a rolled range, and weights shown as the odds they work out to. Deleting an item
+leaves the references that named it alone, so the validator can report them.
+
+**Still open:** a character added in the panel joins when the project is next loaded, not
+mid-fight.
 
 ### ~~9. Asset import (glTF)~~ — done
 
@@ -422,8 +427,8 @@ A scenario *runs*: `src/game/demo-scene.test.ts` and `tests/e2e/demo.spec.ts`
 walk a party into a vault, fire a trigger, trade blows with an SRD adversary and pass the
 spotlight, all from content plus a seed. It can now also be **authored**: the party, the map,
 the objects on it, the conversations, the quests, the cards and the logic behind them are all
-project data with a panel apiece. What is still typed into JSON by hand is items and loot
-tables.
+project data with a panel apiece — the party, items and loot included. Nothing a small
+scenario needs is typed into JSON by hand any more.
 
 A designer can now author a *party* (sheets naming a class, ancestry, armor and weapon), a
 *map* (terrain, elevation, props, objects, enemies, triggers and spawns, saved as JSON and

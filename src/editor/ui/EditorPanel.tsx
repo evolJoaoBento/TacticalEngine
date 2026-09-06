@@ -23,6 +23,7 @@ import { modelAssetSchema } from '../../engine/render/assets';
 import { CodePanel } from './CodePanel';
 import { AbilityPanel } from './AbilityPanel';
 import { PartyPanel } from './PartyPanel';
+import { ItemPanel } from './ItemPanel';
 import { QuestEditor } from './QuestEditor';
 import { dialogueSchema } from '../../engine/dialogue/schema';
 import { DialogueGraph } from './DialogueGraph';
@@ -125,6 +126,8 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
   const [cards, setCards] = useState(false);
   /** Whether the Party panel is open over the map. */
   const [party, setParty] = useState(false);
+  /** Whether the Items panel is open over the map. */
+  const [items, setItems] = useState(false);
   const [openQuest, setOpenQuest] = useState<string | null>(null);
 
   const scene = controller.scene;
@@ -151,6 +154,21 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         nativeHooks={props.nativeHooks}
         onChange={bump}
         onClose={() => setCode(false)}
+      />
+    );
+  }
+
+  if (items) {
+    return (
+      <ItemPanel
+        session={session}
+        hookIds={[...props.nativeHooks, ...session.project.code.map((entry) => entry.id)]}
+        sceneIds={session.project.scenes.map((entry) => entry.id)}
+        dialogueIds={session.project.dialogues.map((entry) => entry.id)}
+        encounterIds={scene.encounters.map((entry) => entry.id)}
+        quests={session.project.quests}
+        onChange={bump}
+        onClose={() => setItems(false)}
       />
     );
   }
@@ -519,13 +537,16 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         </button>
       </div>
 
-      <div style={heading}>Party, cards and code</div>
+      <div style={heading}>Party, cards, items and code</div>
       <div>
         <button style={button(false)} data-testid="open-party" onClick={() => setParty(true)}>
           {session.project.party.length === 0 ? 'Write a character…' : `Party (${session.project.party.length})…`}
         </button>
         <button style={button(false)} data-testid="open-abilities" onClick={() => setCards(true)}>
           {session.project.abilities.length === 0 ? 'Write a card…' : `Cards (${session.project.abilities.length})…`}
+        </button>
+        <button style={button(false)} data-testid="open-items" onClick={() => setItems(true)}>
+          {session.project.items.length === 0 ? 'Write an item…' : `Items (${session.project.items.length})…`}
         </button>
         <button style={button(false)} data-testid="open-code" onClick={() => setCode(true)}>
           {session.project.code.length === 0 ? 'Write logic in code…' : `Code (${session.project.code.length})…`}

@@ -368,12 +368,6 @@ entity's definition — and the view draws the built-in placeholder until the fi
 the built-in library, so placing an imported model from the UI is **not verified**; the
 end-to-end test places it through the debug handle.
 
-### Items and loot tables
-
-There is no editor UI for items or loot tables. Author them in the project JSON (`items`,
-`lootTables`); the inspector's loot effect names a table by id, and validation catches a name
-that does not exist.
-
 ### Party
 
 **Write a character…** opens the Party panel: the campaign's own characters, one at a time. A
@@ -408,6 +402,23 @@ at and how far, whether using it is the character's action, whether it is only f
 whether it holds tokens and when they refill — and then the effect list, which is the same one
 every other panel uses. A card with no effects is not broken: it is shown as text and the table
 decides, exactly as an unscripted SRD card is.
+
+### Items and loot
+
+**Write an item…** opens the Items panel, which holds both halves of the pack because they only
+mean anything together. An **item** is a name, a description, a kind (key, consumable, weapon,
+armor, trinket), whether a second one stacks, and an effect list for what using it does — the
+same list every other panel edits, so a draught heals and a scroll starts a conversation. A
+consumable is spent by the use; anything else stays in the pack. A weapon or armour also names
+the SRD content it stands for, so equipping is a lookup rather than a copy.
+
+A **loot table** is how many times a chest draws and what it draws from: an item, how many
+(a fixed count or a range rolled per drop), and a weight. Weights are relative to the rest of
+the table rather than percentages, so the panel shows the odds each entry works out to instead
+of asking for numbers that add to a hundred.
+
+Deleting an item does not quietly rewrite the tables and doors that named it. The reference
+stays and **Check** reports it, because a designer needs to see what they broke.
 
 ### Code
 
