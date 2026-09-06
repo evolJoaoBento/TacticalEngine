@@ -425,14 +425,19 @@ export class SceneScriptWorld implements ScriptWorld {
   reactionsFor(id: string, trigger: NonNullable<AbilityDef['trigger']>): AbilityDef[] {
     const character = this.characters.get(id);
     if (character === undefined || this.blocks(id, 'reactions')) return [];
-    return abilitiesFor(character, this.abilities).filter(
+    // A card's own `available` is read with its holder as the actor, the same
+    // way a passive's `when` is: "when you have 2 or fewer Hit Points
+    // unmarked" is about the one holding the card, not whoever is swinging.
+    const was = this.scenario.actorId;
+    this.scenario.actorId = id;
+    const offered = abilitiesFor(character, this.abilities).filter(
       (a) =>
         a.kind === 'reaction' &&
         a.trigger === trigger &&
-        // "When you have 2 or fewer Hit Points unmarked": a reaction's own
-        // `available` gates it exactly as it gates using a card by hand.
         (a.available === undefined || evaluate(a.available, this, { targets: [id], hit: [] })),
     );
+    this.scenario.actorId = was;
+    return offered;
   }
 
   /**

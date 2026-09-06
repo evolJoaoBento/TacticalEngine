@@ -662,7 +662,7 @@ const RAW: Input[] = [
     source: card('inspirational-words'),
     target: { kind: 'ally', range: 'close' },
     action: false,
-    tokens: { amount: 'presence', minimum: 1, refill: 'longRest' },
+    tokens: { amount: 'presence', refill: 'longRest' },
     available: { kind: 'tokens', ability: 'inspirational-words', op: '>=', value: 1 },
     effects: [
       {

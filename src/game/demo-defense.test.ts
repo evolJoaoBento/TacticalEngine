@@ -63,6 +63,79 @@ describe('passives on the sheet', () => {
   });
 });
 
+/**
+ * Three of the new cards read something about their holder — how many Hit
+ * Points are unmarked, how much Stress is marked, how many cards of a domain
+ * are in the loadout — from inside a reaction or a modifier, where the actor
+ * is whoever is swinging rather than whoever holds the card. Each of the three
+ * paths that answers that question gets a test here.
+ */
+describe('a card that reads its own holder', () => {
+  const holding = (demo: DemoScene, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('On the Brink is offered only while its holder is nearly out, whoever is attacking', () => {
+    const demo = scene();
+    holding(demo, ['on-the-brink']);
+    const kara = demo.state.entity('kara')!;
+    // The GM's turn is on, so the actor is an adversary: the card still has to
+    // read Kara's Hit Points and not the husk's.
+    demo.scenario.actorId = demo.state.entitiesOf('adversary')[0]!.id;
+
+    // Kara's subclass brings Iron Will along; this is about the one card.
+    const offered = (): string[] =>
+      demo.world.reactionsFor('kara', 'incomingDamage').map((a) => a.id).filter((id) => id === 'on-the-brink');
+
+    kara.hitPoints = { max: 6, marked: 3 };
+    expect(offered()).toEqual([]);
+    kara.hitPoints = { max: 6, marked: 4 };
+    expect(offered()).toEqual(['on-the-brink']);
+
+    // And it does what it says: with no Armor Slots left to hide behind,
+    // Minor damage marks nothing at all.
+    kara.armorSlots = { max: kara.armorSlots.max, marked: kara.armorSlots.max };
+    expect(demo.world.dealDamage('kara', { amount: 1, types: ['physical'] }, demo.rng).hpMarked).toBe(0);
+    kara.hitPoints = { max: 6, marked: 3 };
+    expect(demo.world.dealDamage('kara', { amount: 1, types: ['physical'] }, demo.rng).hpMarked).toBe(1);
+  });
+
+  it("Swift Step clears its holder's Stress, not the attacker's", () => {
+    const demo = scene();
+    holding(demo, ['swift-step']);
+    const kara = demo.state.entity('kara')!;
+    kara.stress = { max: 6, marked: 2 };
+    const husk = demo.state.entitiesOf('adversary')[0]!;
+    husk.stress = { max: 3, marked: 3 };
+    demo.scenario.actorId = husk.id;
+
+    const card = demo.world.reactionsFor('kara', 'attackMissed')[0]!;
+    // The react path stands the holder up as the actor before running it.
+    const was = demo.scenario.actorId;
+    demo.scenario.actorId = 'kara';
+    runScript(card.effects, demo.world, demo.rng, { targets: [husk.id] });
+    demo.scenario.actorId = was;
+
+    expect(demo.state.entity('kara')!.stress.marked).toBe(1);
+    expect(demo.state.entity(husk.id)!.stress.marked).toBe(3);
+  });
+
+  it("Blade-Touched raises its holder's Severe threshold while an adversary is the one acting", () => {
+    const demo = scene();
+    const blade = ['whirlwind', 'not-good-enough', 'i-am-your-shield', 'reckless'];
+    holding(demo, ['blade-touched']);
+    const alone = demo.world.defenderOf(demo.state.entity('kara')!).thresholds.severe;
+    holding(demo, [...blade, 'blade-touched']);
+    demo.scenario.actorId = demo.state.entitiesOf('adversary')[0]!.id;
+    // Four Blade cards in the loadout beside it: the bonus holds when it is
+    // read, which is while somebody else is swinging.
+    expect(demo.world.defenderOf(demo.state.entity('kara')!).thresholds.severe).toBe(alone + 4);
+  });
+});
+
 describe('conditions with modifiers', () => {
   it("Rogue's Dodge raises Evasion until an attack lands, then ends", () => {
     const demo = scene();

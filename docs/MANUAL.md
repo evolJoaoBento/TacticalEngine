@@ -609,7 +609,9 @@ An **ability** (`project.abilities[]`): `id`, `name`, `source` (`domainCard` `ca
 (action \| reaction \| passive),
 `trigger?` (incomingDamage \| attackHit \| attackMissed \| tookSevere), `cost` (`hope?`, `stress?`), `uses?`
 (`count`, `per` rest \| longRest \| scene), `target` (`kind` none \| self \| adversary \| ally \|
-creature \| group, `range`), `available?` (a condition read against the actor), `inCombatOnly`,
+creature \| group, `range`), `available?` (a condition read with the card's *holder* standing
+as the actor, so "when you have 2 or fewer Hit Points unmarked" is about them and not about
+whoever is swinging; a `modifier`'s `when` is read the same way), `inCombatOnly`,
 `action` (whether using it is the turn), `effects[]`, `modifiers[]` (`stat`, `bonus`,
 `plusTrait?`, `requires?` unarmored \| armored \| meleeWeapon, `when?`), `reaction?` (for a
 reaction to damage: `reduceSeverity` `steps` `only?`, `reduceDamage` `dice`, `extraArmor` `slots`
