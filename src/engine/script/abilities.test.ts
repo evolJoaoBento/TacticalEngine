@@ -555,6 +555,24 @@ describe('a reaction roll', () => {
   });
 });
 
+describe('Hope taken rather than spent', () => {
+  it('takes what is there and no more, and a creature with none is untouched', () => {
+    const { world, state } = scene();
+    // Kara has 2 Hope; the husk has none at all.
+    const journal = runScript(
+      [
+        { kind: 'loseHope', amount: 3, target: { kind: 'entity', id: 'kara' } },
+        { kind: 'loseHope', target: { kind: 'entity', id: 'husk-1' } },
+      ],
+      world,
+      scripted([]),
+    );
+    expect(state.entity('kara')!.hope!.value).toBe(0);
+    // Only the loss that happened is journalled: no line for the husk.
+    expect(journal).toEqual([{ kind: 'hopeLost', lost: 2, id: 'kara' }]);
+  });
+});
+
 describe('a push', () => {
   it('moves the target straight away from the actor until the band reads right, and stops at a wall', () => {
     const { world, state, grid } = scene();

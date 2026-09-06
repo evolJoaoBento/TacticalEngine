@@ -393,6 +393,13 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('gainHope'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
   /** The actor spends Hope. Refused, and journalled as such, when they cannot. */
   z.object({ kind: z.literal('spendHope'), amount: z.number().int().positive().optional() }),
+  /**
+   * "They lose a Hope" — what a stat block takes rather than what a card
+   * spends: nothing is refused, a creature with none simply loses none. The
+   * SRD's "if they can't lose a Hope they mark 2 Stress instead" is a branch
+   * on how much was taken, which is the GM's to read.
+   */
+  z.object({ kind: z.literal('loseHope'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
   z.object({
     kind: z.literal('applyCondition'),
     condition: z.string().min(1),

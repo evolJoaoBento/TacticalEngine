@@ -927,6 +927,20 @@ export class SceneScriptWorld implements ScriptWorld {
     return true;
   }
 
+  /**
+   * Hope taken rather than spent: a creature with two loses two of three, and
+   * one with none loses nothing. Never refused — "all targets lose a Hope"
+   * happens to whoever has one.
+   */
+  loseHope(id: string, amount: number): number {
+    const entity = this.state.entity(id);
+    if (entity?.hope === undefined) return 0;
+    const lost = Math.min(entity.hope.value, amount);
+    if (lost <= 0) return 0;
+    entity.hope = { max: entity.hope.max, value: entity.hope.value - lost };
+    return lost;
+  }
+
   applyCondition(id: string, condition: string, duration: ConditionDuration): boolean {
     const entity = this.state.entity(id);
     if (entity === undefined || !entity.alive) return false;

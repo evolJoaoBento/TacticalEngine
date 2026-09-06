@@ -62,6 +62,7 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     clearArmor: () => 0,
     gainHopeFor: () => 0,
     spendHope: () => false,
+    loseHope: () => 0,
     applyCondition: () => false,
     clearCondition: () => false,
     proficiencyOf: () => 1,

@@ -552,6 +552,7 @@ leaves the chosen target out — "all other targets within range").
 | `clearArmor` | `amount?`, `target?` | clears Armor Slots |
 | `gainHope` | `amount?`, `target?` | Hope to the target(s); an adversary gains none |
 | `spendHope` | `amount?` | the actor spends Hope; refused (and logged) without enough |
+| `loseHope` | `amount?` (1), `target?` (hit) | Hope taken rather than spent — "all targets within Far range lose a Hope". Never refused: a creature with one loses one, a creature with none loses nothing. "If they can't lose a Hope, they mark 2 Stress instead" is a branch on how much was taken, which is the GM's to read |
 | `applyCondition` / `clearCondition` | `condition`, `duration?` (temporary \| scene \| rest \| permanent), `target?` (the chosen target) | a condition cannot stack; `temporary` is what an adversary shakes off, `scene` ends with the fight, `rest` at a rest |
 | `attack` | `weapon?` (primary), `target?`, `advantage?`, `damageBonus?`, `damage?` (dice instead of the attacker's own), `onHit[]?`, `onMiss[]?` | a weapon attack as an action roll: Hope or Fear, the spotlight, a critical's extra dice. A selector naming several creatures is swung at in turn, each with its own roll, and `onHit` runs once with everyone it beat bound to `hit`. An adversary swings what its stat block prints |
 | `markArmor` | `amount?`, `target?` | marks Armor Slots with no benefit — the SRD's "must mark an Armor Slot without receiving its benefits" |
@@ -685,9 +686,13 @@ times a GM turn, each past the first costing a Fear; **Horde (X)** switches its 
 damage once half its Hit Points are marked; **Minion (X)** falls to any damage and takes one more
 of its kind down per X damage; **Momentum** hands the GM a Fear on a successful attack;
 **Terrifying** does that and costs every PC in Close range a Hope. Action and reaction features
-are abilities sourced to the adversary. The GM plays one a turn, when it would catch two or more
-of the party, and pays what the block says it costs — a Fear for one that names no cost at all,
-so that a free feature is not simply what the adversary does every turn. From an adversary's script,
+are abilities sourced to the adversary. The GM plays one a turn and pays what the block says it costs — a Fear for one that names no
+cost at all, so that a free feature is not simply what the adversary does every turn. Which one:
+a feature that goes off around the adversary is used when it would catch two or more of the
+party; one that names a creature ("make an attack against a target within Close range") only
+needs someone in reach, and is aimed at the nearest, by id on a tie, exactly as a claw is. Area
+before aimed, then the block's own order. `uses` is counted under the creature's own id, so
+"once per scene" is once for that adversary and back for the next fight. From an adversary's script,
 `allies` reads as the party in that band — a selector is relative to whoever is acting.
 
 A character's abilities are the class's, the subclass's up to the stage reached, and the domain

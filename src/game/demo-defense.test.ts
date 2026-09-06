@@ -526,6 +526,80 @@ describe("an adversary's own features", () => {
     expect(demo.log.map((l) => l.text)).toContain('The GM spends 2 Fear.');
   });
 
+  /**
+   * "Make an attack against a target within Very Close range" is how most of
+   * the SRD's features are written. Nobody at the GM's end picks a creature,
+   * so the turn has to aim it — at the nearest, as a claw is aimed.
+   */
+  it('aims a feature that names a creature at the nearest of the party', () => {
+    const demo = standoff('aimed');
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    // Finn stands further off than Kara, who is beside it.
+    standBehind(demo, 'finn', husk.tile);
+    // The block's own features would be chosen ahead of this one by the rules
+    // under test; this is about how a feature is aimed, so they come off.
+    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities.push(
+      abilitySchema.parse({
+        id: 'gore',
+        name: 'Gore',
+        source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
+        text: 'Make an attack against a target within Very Close range.',
+        target: { kind: 'creature', range: 'veryClose' },
+        inCombatOnly: true,
+        // No `target` on the attack: the runner aims it at whoever was picked,
+        // and on this side of the table that is the GM's turn's job.
+        effects: [{ kind: 'attack', damage: '1d4+20' }],
+      }),
+    );
+    refreshWorld(demo);
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+
+    let gored = false;
+    for (let i = 0; i < 8 && !gored && demo.encounter?.outcome === 'ongoing'; i++) {
+      endTurn(demo);
+      gored = demo.log.some((l) => l.text.includes('uses Gore'));
+    }
+    expect(gored).toBe(true);
+    // It swung at someone: no refusal for want of anyone to swing at.
+    expect(demo.log.map((l) => l.text).join(' ')).not.toContain('nothing to attack');
+    // Kara is the nearest, so Kara is who it went for — hit or missed.
+    const swung = demo.log.map((l) => l.text).find((t) => t.includes('the Claws'));
+    expect(swung).toContain('Kara');
+  });
+
+  it('spends a once-per-scene feature once, and has it back next fight', () => {
+    const demo = standoff('once');
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    standBehind(demo, 'finn', husk.tile);
+    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities.push(
+      abilitySchema.parse({
+        id: 'adrenaline-burst',
+        name: 'Adrenaline Burst',
+        source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
+        text: 'Once per scene, spend a Fear to clear 2 Stress.',
+        cost: { fear: 1 },
+        uses: { count: 1, per: 'scene' },
+        target: { kind: 'none', range: 'close' },
+        inCombatOnly: true,
+        effects: [{ kind: 'clearStress', amount: 2 }],
+      }),
+    );
+    refreshWorld(demo);
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+
+    let bursts = 0;
+    for (let i = 0; i < 8 && demo.encounter?.outcome === 'ongoing'; i++) {
+      endTurn(demo);
+      bursts = demo.log.filter((l) => l.text.includes('uses Adrenaline Burst')).length;
+      if (bursts > 1) break;
+    }
+    expect(bursts).toBe(1);
+  });
+
   it('lets a Relentless adversary act twice in one GM turn when the GM can pay', () => {
     const demo = standoff('relentless');
     demo.askDefender = false;

@@ -18,7 +18,7 @@ import { z } from 'zod';
 import type { DerivedCharacter } from '../character/sheet';
 import { subclassStage } from '../character/progression';
 import { contentIdSchema, traitSchema } from '../scene/primitives';
-import { conditionSchema, effectSchema, rangeBandSchema } from '../script/schema';
+import { conditionSchema, effectSchema, rangeBandSchema, walkEffects, type Effect, type TargetSelector } from '../script/schema';
 
 /** How many domain cards can be active at once. The rest wait in the vault. */
 export const LOADOUT_LIMIT = 5;
@@ -200,6 +200,39 @@ export type AbilitySource = z.infer<typeof abilitySourceSchema>;
 export type AbilityTarget = z.infer<typeof abilityTargetSchema>;
 export type AbilityModifier = z.infer<typeof abilityModifierSchema>;
 export type DamageReaction = z.infer<typeof damageReactionSchema>;
+
+/**
+ * Whether anything in a script reads "the one that was picked".
+ *
+ * A card asks its holder for that pick; a stat block's feature is aimed by
+ * whoever plays the block, which on this side is the GM's turn — so it has to
+ * know whether a feature wants a creature named or simply goes off around the
+ * adversary.
+ */
+export function readsATarget(effects: readonly Effect[]): boolean {
+  let found = false;
+  const reads = (selector: TargetSelector | undefined): void => {
+    if (selector === undefined) return;
+    if (selector.kind === 'target') found = true;
+    if (selector.kind === 'adversaries' && (selector.around === 'target' || selector.except === 'target')) found = true;
+  };
+  // The effects whose `target` defaults to the pick when it is left out, so
+  // "make an attack" with nothing said about who is still aimed at someone.
+  const aimedByDefault = ['attack', 'applyCondition', 'clearCondition', 'push', 'markArmor'];
+  walkEffects(effects, (effect) => {
+    const withTarget = effect as { target?: TargetSelector; targets?: TargetSelector };
+    reads(withTarget.target);
+    reads(withTarget.targets);
+    if (withTarget.target === undefined && aimedByDefault.includes(effect.kind)) found = true;
+    if (effect.kind === 'check') {
+      reads(effect.check.targets);
+      // "Against each target's own Difficulty" with no list of its own is the
+      // chosen target's, so the script has to be aimed at someone.
+      if (effect.check.difficulty === 'target' && effect.check.targets === undefined) found = true;
+    }
+  });
+  return found;
+}
 
 /** Whether an ability has a script the engine can run, or is text only. */
 export function isScripted(ability: AbilityDef): boolean {

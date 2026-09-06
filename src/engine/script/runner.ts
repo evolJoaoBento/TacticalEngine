@@ -145,6 +145,8 @@ export interface ScriptWorld extends ConditionContext {
   gainHopeFor(id: string, amount: number): number;
   /** Returns whether the Hope was there to spend. */
   spendHope(id: string, amount: number): boolean;
+  /** Take Hope away, as far as it goes. Returns how much was actually lost. */
+  loseHope(id: string, amount: number): number;
   applyCondition(id: string, condition: string, duration: ConditionDuration): boolean;
   clearCondition(id: string, condition: string): boolean;
   proficiencyOf(id: string): number;
@@ -198,6 +200,7 @@ export type JournalEntry =
   | { kind: 'levelUp'; level: number }
   /** `id` is set when the Hope went to someone other than the actor. */
   | { kind: 'hope'; gained: number; id?: string }
+  | { kind: 'hopeLost'; lost: number; id: string }
   | { kind: 'hopeSpent'; amount: number }
   | { kind: 'fear'; gained: number }
   | { kind: 'objective'; quest: string; objective: string }
@@ -721,6 +724,14 @@ export class ScriptRunner {
         for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
           const gained = world.gainHopeFor(id, amount);
           if (gained > 0) this.journal.push(id === actor ? { kind: 'hope', gained } : { kind: 'hope', gained, id });
+        }
+        return null;
+      }
+      case 'loseHope': {
+        const amount = effect.amount ?? 1;
+        for (const id of this.resolve(effect.target ?? { kind: 'hit' })) {
+          const lost = this.world.loseHope(id, amount);
+          if (lost > 0) this.journal.push({ kind: 'hopeLost', lost, id });
         }
         return null;
       }

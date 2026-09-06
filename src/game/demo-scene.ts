@@ -55,7 +55,7 @@ import {
   type Defender,
   type DefensePlan,
 } from '../engine/combat/defense';
-import type { AbilityDef } from '../engine/content/abilities';
+import { readsATarget, type AbilityDef } from '../engine/content/abilities';
 import { gain, unmarked } from '../engine/rules/resources';
 import { rollDamage } from '../engine/rules/damage';
 import { EncounterRunner } from '../engine/combat/encounter';
@@ -1023,7 +1023,7 @@ function adversaryTurn(demo: DemoScene, adversaryId: string): void {
   // A stat-block feature worth using beats a plain swing.
   const feature = adversaryFeature(demo, adversaryId);
   if (feature !== null) {
-    useAdversaryFeature(demo, adversaryId, feature);
+    useAdversaryFeature(demo, adversaryId, feature.ability, feature.targets);
     return;
   }
   // Nearest, then by id, so the same state always produces the same target.
@@ -1042,14 +1042,17 @@ function adversaryTurn(demo: DemoScene, adversaryId: string): void {
 }
 
 /**
- * A feature this adversary would rather use than swing.
+ * A feature this adversary would rather use than swing, and who it is aimed at.
  *
- * The bar is deliberately low and deliberately fixed: it has to be an action
- * it can pay for, and it has to catch more than one of the party — otherwise
- * a Stress buys less than a claw would. A seeded fight replays the same way
- * because nothing here is random.
+ * The bar is deliberately low and deliberately fixed. A feature that goes off
+ * around the adversary has to catch more than one of the party — otherwise a
+ * Stress buys less than a claw would. One that names a creature ("make an
+ * attack against a target within Close range") only needs someone in reach,
+ * and takes the nearest, by id on a tie, exactly as a swing does. An area
+ * feature is preferred to an aimed one, and the block's own order decides the
+ * rest. Nothing here is random, so a seeded fight replays.
  */
-function adversaryFeature(demo: DemoScene, adversaryId: string): AbilityDef | null {
+function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: AbilityDef; targets: string[] } | null {
   if (!inCombat(demo)) return null;
   // One feature a turn, however many spotlights Relentless buys: an adversary
   // that erupted goes back to teeth and claws for the rest of the turn.
@@ -1060,17 +1063,43 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): AbilityDef | nu
   const was = demo.scenario.actorId;
   demo.scenario.actorId = adversaryId;
   try {
+    let aimed: { ability: AbilityDef; targets: string[] } | null = null;
     for (const ability of demo.world.abilitiesForAdversary(def.id)) {
       if (ability.kind !== 'action' || ability.effects.length === 0) continue;
       if ((ability.cost.stress ?? 0) > unmarked(entity.stress)) continue;
       if (featureFear(ability) > demo.state.fear.value) continue;
+      if (featureUsesLeft(demo, adversaryId, ability) <= 0) continue;
       const caught = demo.world.resolveTargets({ kind: 'allies', range: ability.target.range }, NO_BINDINGS);
-      if (caught.length >= 2) return ability;
+      if (readsATarget(ability.effects)) {
+        if (aimed === null && caught.length > 0) aimed = { ability, targets: [nearestOf(demo, adversaryId, caught)] };
+        continue;
+      }
+      if (caught.length >= 2) return { ability, targets: [] };
     }
+    return aimed;
   } finally {
     demo.scenario.actorId = was;
   }
-  return null;
+}
+
+/** The nearest of a list to a creature, by id on a tie: the same rule a swing uses. */
+function nearestOf(demo: DemoScene, from: string, ids: readonly string[]): string {
+  const here = demo.state.entity(from)!.tile;
+  return [...ids].sort(
+    (a, b) =>
+      demo.grid.manhattanDistance(here, demo.state.entity(a)!.tile) -
+        demo.grid.manhattanDistance(here, demo.state.entity(b)!.tile) || a.localeCompare(b),
+  )[0]!;
+}
+
+/**
+ * "Once per scene" on a stat block, counted the way a card's uses are: under
+ * the creature's own id, so two of the same adversary each get their own, and
+ * cleared when the fight ends.
+ */
+function featureUsesLeft(demo: DemoScene, adversaryId: string, ability: AbilityDef): number {
+  if (ability.uses === undefined) return Number.POSITIVE_INFINITY;
+  return Math.max(0, ability.uses.count - (demo.scenario.abilityUses.get(useKey(adversaryId, ability.id)) ?? 0));
 }
 
 /** Play one, paying for it, with the adversary as the actor its script reads. */
@@ -1087,24 +1116,28 @@ function featureFear(ability: AbilityDef): number {
   return (ability.cost.stress ?? 0) === 0 && (ability.cost.hope ?? 0) === 0 ? 1 : 0;
 }
 
-function useAdversaryFeature(demo: DemoScene, adversaryId: string, ability: AbilityDef): void {
+function useAdversaryFeature(demo: DemoScene, adversaryId: string, ability: AbilityDef, targets: readonly string[]): void {
   if (demo.gmTurn !== null) demo.gmTurn.features[adversaryId] = true;
   const fear = featureFear(ability);
   if (fear > 0) {
     demo.state.fear = { ...demo.state.fear, value: Math.max(0, demo.state.fear.value - fear) };
     note(demo, `The GM spends ${fear} Fear.`, 'fear');
   }
-  runAdversaryScript(demo, adversaryId, ability);
+  if (ability.uses !== undefined) {
+    const key = useKey(adversaryId, ability.id);
+    demo.scenario.abilityUses.set(key, (demo.scenario.abilityUses.get(key) ?? 0) + 1);
+  }
+  runAdversaryScript(demo, adversaryId, ability, targets);
   settleFight(demo);
 }
 
-function runAdversaryScript(demo: DemoScene, adversaryId: string, ability: AbilityDef): void {
+function runAdversaryScript(demo: DemoScene, adversaryId: string, ability: AbilityDef, targets: readonly string[] = []): void {
   const stress = ability.cost.stress ?? 0;
   if (stress > 0) demo.world.markStress(adversaryId, stress);
   note(demo, `The ${nameOf(demo, adversaryId)} uses ${ability.name}.`, 'combat');
   const was = demo.scenario.actorId;
   demo.scenario.actorId = adversaryId;
-  const runner = new ScriptRunner(demo.world, demo.rng, { rollAs: 'actor' });
+  const runner = new ScriptRunner(demo.world, demo.rng, { targets: [...targets], rollAs: 'actor' });
   const result = runner.run(ability.effects);
   record(demo, result.journal);
   demo.scenario.actorId = was;
@@ -1924,6 +1957,8 @@ function describeEntry(
       return { text: `Draws on "${entry.name}" (+${entry.modifier}).`, tone: 'hope' };
     case 'hope':
       return entry.id === undefined ? null : { text: `${who(entry.id)} gains ${plural(entry.gained, 'Hope')}.`, tone: 'hope' };
+    case 'hopeLost':
+      return { text: `${who(entry.id)} loses ${plural(entry.lost, 'Hope')}.`, tone: 'fear' };
     // Quest events are news, unlike the flags underneath them: the journal
     // changed, and the player should hear it without opening the journal.
     case 'quest': {

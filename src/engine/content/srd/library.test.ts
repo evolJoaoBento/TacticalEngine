@@ -9,11 +9,11 @@ import { projectSchema, sceneSchema } from '../../scene/schema';
 import { validateProject } from '../../../editor/validate';
 import { SceneScriptWorld, createScenarioState } from '../../script/world';
 import { ScriptRunner } from '../../script/runner';
-import { walkEffects, type Effect, type TargetSelector } from '../../script/schema';
+import type { Effect } from '../../script/schema';
 import { blankSheet, deriveCharacter, startingPools, type DerivedCharacter } from '../../character/sheet';
 import { importCharacterContent } from './daggersearch';
 import type { AdversaryDef } from '../types';
-import { isScripted, type AbilityDef } from '../abilities';
+import { isScripted, readsATarget, type AbilityDef } from '../abilities';
 import { SRD_CONDITIONS } from '../conditions';
 import { SRD_ABILITIES } from './abilities';
 import { SRD_HOOKS } from './hooks';
@@ -47,26 +47,7 @@ const content = importCharacterContent({
 const EVERY: readonly AbilityDef[] = [...SRD_ABILITIES, ...SRD_ADVERSARY_ABILITIES];
 
 /** Whether anything in a script reads "the one the player picked". */
-function needsAPick(effects: readonly Effect[]): boolean {
-  let found = false;
-  const reads = (selector: TargetSelector | undefined): void => {
-    if (selector === undefined) return;
-    if (selector.kind === 'target') found = true;
-    if (selector.kind === 'adversaries' && (selector.around === 'target' || selector.except === 'target')) found = true;
-  };
-  walkEffects(effects, (effect) => {
-    const withTarget = effect as { target?: TargetSelector; targets?: TargetSelector };
-    reads(withTarget.target);
-    reads(withTarget.targets);
-    if (effect.kind === 'check') {
-      reads(effect.check.targets);
-      // "Against each target's own Difficulty" with no list of its own is the
-      // chosen target's, so the card has to ask for one.
-      if (effect.check.difficulty === 'target' && effect.check.targets === undefined) found = true;
-    }
-  });
-  return found;
-}
+const needsAPick = (effects: readonly Effect[]): boolean => readsATarget(effects);
 
 describe('the shipped library, structurally', () => {
   it('names only hooks and conditions that exist', () => {
@@ -117,7 +98,9 @@ const husk = (id: string, difficulty: number): AdversaryDef => ({
   stress: 3,
   attackName: 'Claws',
   attackModifier: { count: 0, sides: 0, modifier: 1 },
-  attackRange: 'melee',
+  // The stand-in reaches Close, because a stat block's own features are
+  // written at Close and the fixture has to be able to run them.
+  attackRange: 'close',
   attackDamage: { count: 1, sides: 6, modifier: 2, types: ['physical'] },
   experiences: [],
   features: [],
@@ -177,8 +160,13 @@ function fixture(): (ability: AbilityDef) => string[] {
   });
 
   return (ability: AbilityDef): string[] => {
+    // A feature is run by the creature that prints it, aimed at the party —
+    // which is the side of the table the `allies` selector reads from, and the
+    // only way a stat block's script is exercised as it will actually run.
+    const fromBlock = ability.source.kind === 'adversary';
+    scenario.actorId = fromBlock ? 'foe-1' : 'mira';
     const runner = new ScriptRunner(world, createRng(`smoke:${ability.id}`), {
-      targets: ability.target.kind === 'ally' ? ['kara'] : ['foe-1'],
+      targets: fromBlock ? ['mira'] : ability.target.kind === 'ally' ? ['kara'] : ['foe-1'],
       rollAs: 'actor',
     });
     let result = runner.run(ability.effects);
@@ -196,15 +184,19 @@ describe('the shipped library, in a fight', () => {
     const run = fixture();
     const refused = new Map<string, string[]>();
     let ran = 0;
+    let fromBlocks = 0;
     for (const ability of EVERY) {
       if (ability.effects.length === 0) continue;
       ran++;
+      if (ability.source.kind === 'adversary') fromBlocks++;
       const reasons = run(ability);
       if (reasons.length > 0) refused.set(ability.id, reasons);
     }
     // A fixture that silently stopped finding cards would pass every other
-    // assertion here, so the count is one of them.
+    // assertion here, so the counts are two of them — and the stat blocks are
+    // counted apart from the cards, so a pass that skipped them would show.
     expect(ran).toBeGreaterThanOrEqual(40);
+    expect(fromBlocks).toBeGreaterThanOrEqual(3);
     for (const [id, reasons] of refused) {
       expect(EXPECTED_REFUSALS.has(id), `${id} refused: ${reasons.join('; ')}`).toBe(true);
     }
