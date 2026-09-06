@@ -13,7 +13,9 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
-import { removeInteractable, updateInteractable } from '../session';
+import { addDialogue, removeDialogue, removeInteractable, updateInteractable } from '../session';
+import { dialogueSchema } from '../../engine/dialogue/schema';
+import { DialogueGraph } from './DialogueGraph';
 import { summarise, validateProject, type Problem } from '../validate';
 import { Inspector } from './Inspector';
 
@@ -97,6 +99,8 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
 
   const [problems, setProblems] = useState<Problem[]>([]);
   const [showProblems, setShowProblems] = useState(false);
+  /** The conversation whose graph is open over the map, if any. */
+  const [graph, setGraph] = useState<string | null>(null);
 
   const scene = controller.scene;
   const state = controller.state;
@@ -112,6 +116,21 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
     );
     setShowProblems(true);
   };
+
+  const openGraph = session.project.dialogues.find((d) => d.id === graph) ?? null;
+  if (openGraph !== null) {
+    return (
+      <DialogueGraph
+        session={session}
+        dialogue={openGraph}
+        sceneIds={session.project.scenes.map((entry) => entry.id)}
+        dialogueIds={session.project.dialogues.map((entry) => entry.id)}
+        encounterIds={scene.encounters.map((entry) => entry.id)}
+        onClose={() => setGraph(null)}
+        onChange={bump}
+      />
+    );
+  }
 
   return (
     <div style={panel} data-version={version}>
@@ -380,6 +399,56 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
           />
         )
       ) : null}
+
+      <div style={heading}>Conversations</div>
+      <div>
+        {session.project.dialogues.map((entry) => (
+          <div key={entry.id} style={{ display: 'flex', gap: '4px', marginBottom: '2px' }}>
+            <button
+              style={{ ...button(false), flex: 1, textAlign: 'left', margin: 0 }}
+              onClick={() => setGraph(entry.id)}
+            >
+              {entry.id}
+              <span style={{ color: '#8ea3b0' }}> {entry.nodes.length} nodes</span>
+            </button>
+            <button
+              style={{ ...button(false), margin: 0 }}
+              title="Delete this conversation"
+              onClick={() => {
+                if (confirm(`Delete "${entry.id}"?`)) {
+                  session.run(removeDialogue(entry.id));
+                  if (graph === entry.id) setGraph(null);
+                  bump();
+                }
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <button
+          style={button(false)}
+          onClick={() => {
+            const name = prompt('Conversation id', 'a-conversation');
+            if (name === null || name === '') return;
+            const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            if (id === '' || session.project.dialogues.some((d) => d.id === id)) return;
+            session.run(
+              addDialogue(
+                dialogueSchema.parse({
+                  id,
+                  start: 'start',
+                  nodes: [{ id: 'start', lines: [{ text: '' }] }],
+                }),
+              ),
+            );
+            setGraph(id);
+            bump();
+          }}
+        >
+          + Conversation
+        </button>
+      </div>
 
       <div style={heading}>Project</div>
       <div>

@@ -36,7 +36,7 @@ two thirds.
 | Editor | Terrain/height/props/objects/enemies/triggers/spawns, undo, validation, JSON save+load |
 | UI | Narrative log with tone, the conversation panel, and the roll prompt a script raises |
 | Campaign | Two scenes, travel between them, and state that outlives a room |
-| Editor | Map tools, undo, validation, a scene list, an object inspector, JSON save + load |
+| Editor | Map tools, scene list, object inspector, dialogue graph, undo, validation, JSON |
 
 ## What is missing, in the order it should be built
 
@@ -181,8 +181,20 @@ Recursive effects (`branch`, `choice`, a nested `check`) are shown and removable
 editable — a tree editor is its own job, and silently dropping what it could not represent would
 be worse than saying so.
 
-**Still open:** a dialogue graph editor, and camera control (the view is a fixed three-quarter,
-so a large map cannot be panned).
+A **dialogue graph** (`ui/DialogueGraph.tsx`) draws a conversation as a tree: node cards on a
+pannable surface, links curving from each reply to the node it leads to, a check's success and
+failure branches in green and red, and a dangling link drawn as a red stub with the id it cannot
+find — the validator's error made visible where it was made. Drag a node, type its lines, add and
+rewire replies, give a reply a roll, set which node the conversation opens on.
+
+`layoutDialogue` (in `engine/dialogue/`, DOM-free) places nodes by breadth-first distance from
+the start, so a conversation written by hand opens as a readable tree. It never writes the
+document: a position is stored only when someone drags a node, so opening a file and moving one
+thing is a one-node diff.
+
+**Still open:** camera control (the view is a fixed three-quarter, so a large map cannot be
+panned), and a condition editor — a reply's `available`/`enabled` gates are still written in
+code.
 
 ### 9. Asset import (glTF)
 
@@ -223,10 +235,11 @@ today a conversation is a literal in `game/demo-dialogue.ts` that happens to par
 schema, which is the same position maps were in before the editor.
 
 So the honest answer today is: *a designer can build the party, the place, what everything in it
-does, what it says, and the way between rooms — all of it in a tool, except the conversations,
-which are still TypeScript literals that happen to parse.* The next thing that moves it is a dialogue editor. The
-runtime, the schema, the validation and the project slot all exist; what is missing is a way to
-draw the graph.
+does, what it says, and the way between rooms — all of it in a tool.* What is left is depth
+rather than authoring: things to carry, quests to track, characters who grow, and a camera that
+moves. The line has moved past authoring. What is left is what a
+campaign needs to be more than a demo: inventory and loot (6), quests (7), progression (5), and
+a camera someone can actually look around with (10).
 
 One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
 workaround from when nothing could use a door. It can go now — the party can pick that lock

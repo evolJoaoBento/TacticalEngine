@@ -61,6 +61,8 @@ declare global {
       selectObject: (id: string) => boolean;
       editObject: (changes: Record<string, unknown>) => void;
       objectField: (field: string) => unknown;
+      nodePosition: (dialogue: string, node: string) => { x: number; y: number } | null;
+      dialogueNodes: (dialogue: string) => string[];
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -763,6 +765,108 @@ test('shows the inspector for a clicked object', async ({ page }) => {
   await name.fill('A very old chest');
   const stored = await page.evaluate(() => window.__polyheart!.objectField('name'));
   expect(stored).toBe('A very old chest');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('draws the pillar conversation as a graph', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.getByRole('button', { name: /the-listening-pillar/ }).click();
+
+  const graph = page.locator('[data-testid="dialogue-graph"]');
+  await expect(graph).toBeVisible();
+
+  // Every node of the hand-written conversation is on the canvas, laid out —
+  // it carries no positions of its own.
+  for (const id of ['wakes', 'name', 'vault', 'known', 'granted', 'refused']) {
+    await expect(graph.locator(`[data-node="${id}"]`)).toBeVisible();
+  }
+  // The node it opens on is marked.
+  await expect(graph.locator('[data-node="wakes"]')).toContainText('▸');
+  await expect(graph).toContainText('Three hundred years');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('drags a node, and one undo puts it back', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.getByRole('button', { name: /the-listening-pillar/ }).click();
+
+  const before = await page.evaluate(() =>
+    window.__polyheart!.nodePosition('the-listening-pillar', 'vault'),
+  );
+  // A hand-written conversation stores no positions until something is moved.
+  expect(before).toBeNull();
+
+  const node = page.locator('[data-node="vault"]');
+  const box = (await node.boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 6);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 120, box.y + 86, { steps: 8 });
+  await page.mouse.up();
+
+  const after = await page.evaluate(() =>
+    window.__polyheart!.nodePosition('the-listening-pillar', 'vault'),
+  );
+  expect(after).not.toBeNull();
+
+  // Eight pointer moves, one undo.
+  await page.evaluate(() => window.__polyheart!.undo());
+  const undone = await page.evaluate(() =>
+    window.__polyheart!.nodePosition('the-listening-pillar', 'vault'),
+  );
+  expect(undone).toBeNull();
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('writes a new reply in the graph and hears it in play', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.getByRole('button', { name: /the-listening-pillar/ }).click();
+
+  const graph = page.locator('[data-testid="dialogue-graph"]');
+
+  // Add a node, then a reply on the opening node that leads to it.
+  await graph.getByRole('button', { name: '+ Node' }).click();
+  const nodes = await page.evaluate(() =>
+    window.__polyheart!.dialogueNodes('the-listening-pillar'),
+  );
+  const added = nodes[nodes.length - 1]!;
+
+  // A new node opens for editing straight away, so it is ready to type into.
+  const newCard = graph.locator(`[data-node="${added}"]`);
+  await newCard.locator('input').first().fill('The stone says nothing more.');
+
+  // Open the start node, add a reply, and point it at the new node.
+  const start = graph.locator('[data-node="wakes"]');
+  await start.getByRole('button', { name: '▸' }).click();
+  await start.getByRole('button', { name: '+ Reply' }).click();
+  const replyInputs = start.locator('input[placeholder="What the player says"]');
+  await replyInputs.last().fill('Say nothing, and wait.');
+  await start.locator('select[data-goto]').last().selectOption(added);
+
+  // It is in the document...
+  const exported = await page.evaluate(() => window.__polyheart!.exportProject());
+  expect(exported).toContain('Say nothing, and wait.');
+  expect(exported).toContain('The stone says nothing more.');
+
+  // ...and in the player's mouth.
+  const options = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('play');
+    const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
+    api.standBeside(pillar);
+    api.use(pillar);
+    return api.dialogueOptions();
+  });
+
+  expect(options).toContain('Say nothing, and wait.');
 
   expect(consoleErrors).toEqual([]);
 });

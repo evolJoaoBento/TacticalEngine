@@ -456,7 +456,10 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     project,
     snapshots: new Map(),
     destination: null,
-    dialogues: new Map(DEMO_DIALOGUES.map((d) => [d.id, d])),
+    // From the project, not from the literals it was parsed out of: parsing
+    // copies, and a conversation edited in the graph editor has to be the one
+    // the pillar opens. Same trap as the scenes.
+    dialogues: new Map(project.dialogues.map((d) => [d.id, d])),
     log: [],
     pending: null,
     encounter: null,

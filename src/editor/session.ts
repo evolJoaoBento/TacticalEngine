@@ -16,6 +16,7 @@
  */
 
 import type { Deco, Encounter, Interactable, Point, ProjectDoc, SceneDoc } from '../engine/scene/schema';
+import type { Dialogue, DialogueChoice, DialogueNode } from '../engine/dialogue/schema';
 
 /** One reversible change. `undo` must restore exactly what `apply` replaced. */
 export interface Edit {
@@ -764,6 +765,258 @@ function requireEncounter(project: ProjectDoc, sceneId: string, encounterId: str
 }
 
 /** Tiles a rectangular brush covers, clipped to the scene. */
+// ---------------------------------------------------------------------------
+// Conversations
+// ---------------------------------------------------------------------------
+
+function requireDialogue(project: ProjectDoc, dialogueId: string): Dialogue {
+  const dialogue = project.dialogues.find((d) => d.id === dialogueId);
+  if (dialogue === undefined) throw new Error(`no dialogue "${dialogueId}"`);
+  return dialogue;
+}
+
+function requireNode(project: ProjectDoc, dialogueId: string, nodeId: string): DialogueNode {
+  const node = requireDialogue(project, dialogueId).nodes.find((n) => n.id === nodeId);
+  if (node === undefined) throw new Error(`no node "${nodeId}" in dialogue "${dialogueId}"`);
+  return node;
+}
+
+export function addDialogue(dialogue: Dialogue): Edit {
+  return {
+    label: `Add conversation ${dialogue.id}`,
+    apply(project) {
+      project.dialogues.push(dialogue);
+    },
+    undo(project) {
+      const at = project.dialogues.lastIndexOf(dialogue);
+      if (at >= 0) project.dialogues.splice(at, 1);
+    },
+  };
+}
+
+/**
+ * Delete a conversation.
+ *
+ * Effects elsewhere may still start it. That is not repaired here — the
+ * validator reports a `startDialogue` naming nothing, and an author who deletes
+ * a conversation usually means to rewire what opened it.
+ */
+export function removeDialogue(dialogueId: string): Edit {
+  let removed: { index: number; dialogue: Dialogue } | null = null;
+  return {
+    label: 'Delete conversation',
+    apply(project) {
+      removed = null;
+      const index = project.dialogues.findIndex((d) => d.id === dialogueId);
+      if (index < 0) return;
+      removed = { index, dialogue: project.dialogues[index]! };
+      project.dialogues.splice(index, 1);
+    },
+    undo(project) {
+      if (removed !== null) project.dialogues.splice(removed.index, 0, removed.dialogue);
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
+/** Which node a conversation opens on. */
+export function setDialogueStart(dialogueId: string, nodeId: string): Edit {
+  let before = '';
+  let changed = false;
+  return {
+    label: 'Set opening node',
+    apply(project) {
+      const dialogue = requireDialogue(project, dialogueId);
+      changed = dialogue.start !== nodeId && dialogue.nodes.some((n) => n.id === nodeId);
+      if (!changed) return;
+      before = dialogue.start;
+      dialogue.start = nodeId;
+    },
+    undo(project) {
+      if (changed) requireDialogue(project, dialogueId).start = before;
+    },
+    isNoop() {
+      return !changed;
+    },
+  };
+}
+
+export function addNode(dialogueId: string, node: DialogueNode): Edit {
+  return {
+    label: 'Add node',
+    apply(project) {
+      requireDialogue(project, dialogueId).nodes.push(node);
+    },
+    undo(project) {
+      const nodes = requireDialogue(project, dialogueId).nodes;
+      const at = nodes.lastIndexOf(node);
+      if (at >= 0) nodes.splice(at, 1);
+    },
+  };
+}
+
+/**
+ * Delete a node.
+ *
+ * Refused for the node the conversation opens on. Replies pointing at the
+ * deleted node are deliberately left dangling rather than rewired: `danglingLinks`
+ * makes them visible, and an undo then puts everything back with nothing to
+ * second-guess.
+ */
+export function removeNode(dialogueId: string, nodeId: string): Edit {
+  let removed: { index: number; node: DialogueNode } | null = null;
+  return {
+    label: 'Delete node',
+    apply(project) {
+      removed = null;
+      const dialogue = requireDialogue(project, dialogueId);
+      if (dialogue.start === nodeId) return;
+      const index = dialogue.nodes.findIndex((n) => n.id === nodeId);
+      if (index < 0) return;
+      removed = { index, node: dialogue.nodes[index]! };
+      dialogue.nodes.splice(index, 1);
+    },
+    undo(project) {
+      if (removed !== null) {
+        requireDialogue(project, dialogueId).nodes.splice(removed.index, 0, removed.node);
+      }
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
+/** Change a node's fields. Successive edits to the same fields coalesce. */
+export function updateNode(
+  dialogueId: string,
+  nodeId: string,
+  changes: Partial<DialogueNode>,
+): Edit {
+  let before: DialogueNode | null = null;
+  const current: Partial<DialogueNode> = { ...changes };
+
+  const edit: Edit = {
+    label: 'Edit node',
+    mergeKey: `node:${dialogueId}:${nodeId}:${Object.keys(changes).sort().join(',')}`,
+    apply(project) {
+      const dialogue = requireDialogue(project, dialogueId);
+      const index = dialogue.nodes.findIndex((n) => n.id === nodeId);
+      if (index < 0) return;
+      before = { ...dialogue.nodes[index]! };
+      dialogue.nodes[index] = { ...dialogue.nodes[index]!, ...current };
+    },
+    undo(project) {
+      if (before === null) return;
+      const dialogue = requireDialogue(project, dialogueId);
+      const index = dialogue.nodes.findIndex((n) => n.id === nodeId);
+      if (index >= 0) dialogue.nodes[index] = before;
+    },
+    absorb(other) {
+      const next = (other as Edit & { __node?: Partial<DialogueNode> }).__node;
+      if (next === undefined) return false;
+      Object.assign(current, next);
+      return true;
+    },
+  };
+  (edit as Edit & { __node: Partial<DialogueNode> }).__node = current;
+  return edit;
+}
+
+/**
+ * Move a node on the canvas.
+ *
+ * A drag is one undo step, not one per pointer event — the same coalescing the
+ * terrain brush uses, closed by `endGroup()` when the pointer comes up.
+ */
+export function moveNode(
+  dialogueId: string,
+  nodeId: string,
+  position: { x: number; y: number },
+): Edit {
+  return updateNode(dialogueId, nodeId, { position });
+}
+
+export function addChoice(dialogueId: string, nodeId: string, choice: DialogueChoice): Edit {
+  return {
+    label: 'Add reply',
+    apply(project) {
+      const node = requireNode(project, dialogueId, nodeId);
+      node.choices = [...(node.choices ?? []), choice];
+    },
+    undo(project) {
+      const node = requireNode(project, dialogueId, nodeId);
+      node.choices = (node.choices ?? []).slice(0, -1);
+    },
+  };
+}
+
+export function removeChoice(dialogueId: string, nodeId: string, index: number): Edit {
+  let removed: DialogueChoice | null = null;
+  return {
+    label: 'Delete reply',
+    apply(project) {
+      removed = null;
+      const node = requireNode(project, dialogueId, nodeId);
+      const choices = node.choices ?? [];
+      if (index < 0 || index >= choices.length) return;
+      removed = choices[index]!;
+      node.choices = choices.filter((_, i) => i !== index);
+    },
+    undo(project) {
+      if (removed === null) return;
+      const node = requireNode(project, dialogueId, nodeId);
+      const choices = [...(node.choices ?? [])];
+      choices.splice(index, 0, removed);
+      node.choices = choices;
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
+/** Change one reply. Successive edits to the same fields coalesce. */
+export function updateChoice(
+  dialogueId: string,
+  nodeId: string,
+  index: number,
+  changes: Partial<DialogueChoice>,
+): Edit {
+  let before: DialogueChoice | null = null;
+  const current: Partial<DialogueChoice> = { ...changes };
+
+  const edit: Edit = {
+    label: 'Edit reply',
+    mergeKey: `choice:${dialogueId}:${nodeId}:${index}:${Object.keys(changes).sort().join(',')}`,
+    apply(project) {
+      const node = requireNode(project, dialogueId, nodeId);
+      const choices = [...(node.choices ?? [])];
+      if (index < 0 || index >= choices.length) return;
+      before = { ...choices[index]! };
+      choices[index] = { ...choices[index]!, ...current };
+      node.choices = choices;
+    },
+    undo(project) {
+      if (before === null) return;
+      const node = requireNode(project, dialogueId, nodeId);
+      const choices = [...(node.choices ?? [])];
+      if (index >= 0 && index < choices.length) choices[index] = before;
+      node.choices = choices;
+    },
+    absorb(other) {
+      const next = (other as Edit & { __choice?: Partial<DialogueChoice> }).__choice;
+      if (next === undefined) return false;
+      Object.assign(current, next);
+      return true;
+    },
+  };
+  (edit as Edit & { __choice: Partial<DialogueChoice> }).__choice = current;
+  return edit;
+}
+
 export function brushTiles(scene: SceneDoc, centre: Point, size = 1): number[] {
   const radius = Math.max(0, Math.floor((size - 1) / 2));
   const tiles: number[] = [];

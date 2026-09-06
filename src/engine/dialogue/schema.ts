@@ -45,8 +45,19 @@ export const dialogueChoiceSchema = z.object({
   goto: z.string().min(1).optional(),
 });
 
+/**
+ * Where a node sits on the editor's canvas.
+ *
+ * Floats with no lower bound: these are canvas coordinates, not tile ones, and
+ * keeping a dragged node out of negative space is the editor's policy rather
+ * than something the document should refuse to hold. Optional, so a dialogue
+ * written by hand parses and gets laid out automatically.
+ */
+export const canvasPointSchema = z.object({ x: z.number(), y: z.number() });
+
 export const dialogueNodeSchema = z.object({
   id: z.string().min(1),
+  position: canvasPointSchema.optional(),
   lines: z.array(dialogueLineSchema).default([]),
   /** Run when the node is entered, before its lines are shown. */
   onEnter: z.array(effectSchema).optional(),

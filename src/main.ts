@@ -109,6 +109,8 @@ declare global {
       selectObject: (id: string) => boolean;
       editObject: (changes: Record<string, unknown>) => void;
       objectField: (field: string) => unknown;
+      nodePosition: (dialogue: string, node: string) => { x: number; y: number } | null;
+      dialogueNodes: (dialogue: string) => string[];
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -648,6 +650,15 @@ const state = {
     const found = editor.selectedInteractable();
     return found === null ? null : (found as unknown as Record<string, unknown>)[field];
   },
+
+  nodePosition: (dialogue: string, node: string): { x: number; y: number } | null => {
+    const found = session.project.dialogues
+      .find((d) => d.id === dialogue)
+      ?.nodes.find((n) => n.id === node);
+    return found?.position ?? null;
+  },
+  dialogueNodes: (dialogue: string): string[] =>
+    session.project.dialogues.find((d) => d.id === dialogue)?.nodes.map((n) => n.id) ?? [],
 
   mode: (): 'play' | 'edit' => mode,
   setMode,
