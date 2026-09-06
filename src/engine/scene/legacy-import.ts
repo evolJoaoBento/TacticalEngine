@@ -198,6 +198,7 @@ export function importLegacyCampaign(
       items: [],
       lootTables: [],
       quests: [],
+      assets: [],
       startScene: scenes[0]!.id,
     },
     issues,

@@ -41,6 +41,7 @@ two thirds.
 | Presentation | Orbit/pan/zoom camera, hover cursor, party HUD with pips, dice read out |
 | Progression | Tiered level-ups with recorded advancements, subclasses, domain cards, multiclass |
 | Equipping | Weapons and armor from the pack onto a character, reversible, pools reconciled |
+| Assets | glTF models declared per project, loaded on first use, drawn beside the procedural library |
 | Items | Items and weighted loot tables; a shared pack that survives a doorway |
 | Editor | Map tools, scene list, object inspector, dialogue graph, quest form, undo, validation, JSON |
 
@@ -300,10 +301,23 @@ thing is a one-node diff.
 panned), and a condition editor — a reply's `available`/`enabled` gates are still written in
 code.
 
-### 9. Asset import (glTF)
+### ~~9. Asset import (glTF)~~ — done
 
-Fixtures are vendored (`tests/fixtures/models/*.glb`) and unused. The procedural library was
-built spec-first partly so an imported asset can slot in beside it behind one resolver.
+A project declares models (`ProjectDoc.assets`: an id, a URL, a scale, a ground offset, a turn)
+and content names them exactly as it names a procedural model — a prop's `model`, an object's
+`model`, an entity's definition. `engine/render/assets.ts` is the library: DOM-free, with the
+loader injected, so a test drives it with a fake and the browser hands it three's `GLTFLoader`.
+`SceneView` asks the library first and the procedural registry second; a declared model that has
+not arrived yet is drawn as the placeholder *without* being counted as missing, and when the
+file lands only the tokens and props drawn from that id are rebuilt. Skinned models clone through
+`SkeletonUtils`, so the Khronos Fox walks in with its rig. A faction ring still goes under an
+imported token, so a side reads at a glance.
+
+The editor lists a project's models and adds one from a URL; the e2e imports the Khronos Duck
+from the test fixtures, draws it where a prop names it, and finds it in the exported JSON.
+
+**Still open:** animations are loaded, not played; textures come with the file but nothing
+authors materials; and there is no file picker — a model is a URL the page can reach.
 
 ### ~~10. Presentation the prototype had and this does not~~ — mostly closed
 

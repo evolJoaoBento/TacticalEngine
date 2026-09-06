@@ -16,6 +16,8 @@ import type { EditorSession } from '../session';
 import { addDialogue, removeDialogue, removeInteractable, updateInteractable } from '../session';
 import { questSchema } from '../../engine/content/quests';
 import { addQuest, removeQuest } from '../session';
+import { addAsset, removeAsset } from '../session';
+import { modelAssetSchema } from '../../engine/render/assets';
 import { QuestEditor } from './QuestEditor';
 import { dialogueSchema } from '../../engine/dialogue/schema';
 import { DialogueGraph } from './DialogueGraph';
@@ -23,6 +25,8 @@ import { summarise, validateProject, type Problem } from '../validate';
 import { Inspector } from './Inspector';
 
 export interface EditorPanelProps {
+  /** The project's model list changed; the loader should follow. */
+  onAssetsChanged?: () => void;
   session: EditorSession;
   controller: EditorController;
   terrainIds: readonly string[];
@@ -510,6 +514,50 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         >
           + Quest
         </button>
+      </div>
+
+      <div style={heading}>Models</div>
+      <div data-testid="asset-list">
+        {session.project.assets.map((asset) => (
+          <div key={asset.id} style={{ display: 'flex', gap: '4px', marginBottom: '2px', alignItems: 'center' }} data-asset={asset.id}>
+            <span style={{ flex: 1, fontSize: '12px' }}>
+              {asset.id}
+              <span style={{ color: '#8ea3b0' }}> {asset.url}</span>
+            </span>
+            <button
+              style={{ ...button(false), margin: 0 }}
+              title="Remove this model"
+              onClick={() => {
+                if (confirm(`Remove model "${asset.id}"?`)) {
+                  session.run(removeAsset(asset.id));
+                  props.onAssetsChanged?.();
+                  bump();
+                }
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <button
+          style={button(false)}
+          onClick={() => {
+            const url = prompt('Model file (.glb / .gltf URL)', '/models/thing.glb');
+            if (url === null || url.trim() === '') return;
+            const base = url.split('/').pop()?.replace(/\.(glb|gltf)$/i, '') ?? 'model';
+            const id = base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'model';
+            if (session.project.assets.some((a) => a.id === id)) return;
+            const scale = Number(prompt('Scale (a tile is one unit)', '1')) || 1;
+            session.run(addAsset(modelAssetSchema.parse({ id, url: url.trim(), scale })));
+            props.onAssetsChanged?.();
+            bump();
+          }}
+        >
+          + Model
+        </button>
+        <div style={{ color: '#8ea3b0', fontSize: '11px', marginTop: '2px' }}>
+          Name a model id in the Prop tool, or on an object, to use it.
+        </div>
       </div>
 
       <div style={heading}>Project</div>

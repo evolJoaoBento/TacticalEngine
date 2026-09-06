@@ -25,6 +25,8 @@ import { demoMap } from '../legacy/js/data.js';
 import { EditorController } from './editor/controller';
 import {
   EditorSession,
+  addAsset,
+  removeAsset,
   addScene,
   removeScene,
   renameScene,
@@ -37,6 +39,8 @@ import { PartyHud, type HudMember } from './game/ui/PartyHud';
 import { LevelUpPanel } from './game/ui/LevelUpPanel';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
+import { AssetLibrary, modelAssetSchema, type ModelAsset } from './engine/render/assets';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NO_TILE, type TileGrid } from './engine/grid/grid';
 import { mapExtent, tileAtWorld, tileCenter } from './engine/render/layout';
 import { MODELS } from './engine/render/procedural/registry';
@@ -129,6 +133,10 @@ declare global {
       journal: () => { id: string; status: string; done: string[] }[];
       camera: () => { yaw: number; pitch: number; distance: number; target: { x: number; z: number } };
       grantLevel: (level?: number) => number;
+      addAsset: (asset: unknown) => boolean;
+      assetStatus: (id: string) => string;
+      modelSource: (id: string) => string;
+      placeProp: (tile: number, model: string) => void;
       awaitingLevel: () => string[];
       takeLevel: (id: string, plan: unknown) => boolean;
       characterLevel: (id: string) => number;
@@ -170,9 +178,18 @@ const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof We
 // ---------------------------------------------------------------------------
 
 const demo = buildDemoScene(demoMap());
+
+/** glTF files the project declares, loaded on first use. */
+const gltfLoader = new GLTFLoader();
+const assets = new AssetLibrary(
+  (url) => gltfLoader.loadAsync(url).then((gltf) => gltf.scene),
+  demo.project.assets,
+);
+
 let view = new SceneView(demo.grid, {
   tints: demo.scene.tints,
   modelForEntity: (entity) => DEMO_MODELS[entity.definition] ?? entity.definition,
+  assets,
 });
 view.setDecos(demo.scene.decos);
 view.syncTokens(demo.state);
@@ -277,6 +294,11 @@ function renderPanel(): void {
       knownAdversaries: new Set(SRD_ADVERSARIES.keys()),
       onPlay: () => setMode('play'),
       onSave: saveProject,
+      onAssetsChanged: () => {
+        for (const id of assets.ids()) assets.remove(id);
+        for (const asset of session.project.assets) assets.add(asset);
+        view.setDecos(editor.scene.decos);
+      },
       onLoad: loadProject,
       playingScene: demo.scene.id,
       onSwitchScene: (id: string) => {
@@ -341,6 +363,8 @@ async function loadProject(file: File): Promise<void> {
     },
   });
   // The loaded project is a different document; nothing on screen survives it.
+  for (const id of assets.ids()) assets.remove(id);
+  for (const asset of session.project.assets) assets.add(asset);
   boundScene = '';
   rebindScene();
   rebuildTerrain();
@@ -463,6 +487,7 @@ function rebindScene(): void {
   view = new SceneView(activeGrid, {
     tints: scene.tints,
     modelForEntity: (entity) => DEMO_MODELS[entity.definition] ?? entity.definition,
+    assets,
   });
   view.setDecos(scene.decos);
   frameCamera();
@@ -993,6 +1018,24 @@ const state = {
     distance: orbit.goal.distance,
     target: { x: orbit.goal.target.x, z: orbit.goal.target.z },
   }),
+  addAsset: (asset: unknown): boolean => {
+    const parsed = modelAssetSchema.safeParse(asset);
+    if (!parsed.success) return false;
+    session.run(addAsset(parsed.data));
+    assets.add(parsed.data);
+    if (mode === 'edit') renderPanel();
+    return true;
+  },
+  assetStatus: (id: string): string => assets.statusOf(id),
+  modelSource: (id: string): string => view.modelSource(id),
+  placeProp: (tile: number, model: string): void => {
+    editor.set('propModel', model);
+    editor.setTool('prop');
+    editor.begin(pointOf(tile));
+    editor.end();
+    view.setDecos(editor.scene.decos);
+    if (mode === 'edit') renderPanel();
+  },
   grantLevel: (level?: number): number => {
     demo.world.grantLevel(level);
     refreshPlay();

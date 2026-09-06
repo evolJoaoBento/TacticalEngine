@@ -18,6 +18,7 @@
 import type { Deco, Encounter, Interactable, Point, ProjectDoc, SceneDoc } from '../engine/scene/schema';
 import type { Dialogue, DialogueChoice, DialogueNode } from '../engine/dialogue/schema';
 import type { QuestDef, QuestObjective } from '../engine/content/quests';
+import type { ModelAsset } from '../engine/render/assets';
 
 /** One reversible change. `undo` must restore exactly what `apply` replaced. */
 export interface Edit {
@@ -1172,4 +1173,41 @@ export function updateObjective(questId: string, index: number, changes: Partial
   };
   (edit as Edit & { __objective: Partial<QuestObjective> }).__objective = current;
   return edit;
+}
+
+// ---------------------------------------------------------------------------
+// Assets
+// ---------------------------------------------------------------------------
+
+export function addAsset(asset: ModelAsset): Edit {
+  return {
+    label: `Add model ${asset.id}`,
+    apply(project) {
+      project.assets.push(asset);
+    },
+    undo(project) {
+      const at = project.assets.lastIndexOf(asset);
+      if (at >= 0) project.assets.splice(at, 1);
+    },
+  };
+}
+
+export function removeAsset(assetId: string): Edit {
+  let removed: { index: number; asset: ModelAsset } | null = null;
+  return {
+    label: 'Delete model',
+    apply(project) {
+      removed = null;
+      const index = project.assets.findIndex((a) => a.id === assetId);
+      if (index < 0) return;
+      removed = { index, asset: project.assets[index]! };
+      project.assets.splice(index, 1);
+    },
+    undo(project) {
+      if (removed !== null) project.assets.splice(removed.index, 0, removed.asset);
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
 }

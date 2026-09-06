@@ -17,6 +17,7 @@
 import { z } from 'zod';
 import { itemSchema, lootTableSchema } from '../content/items';
 import { questSchema } from '../content/quests';
+import { modelAssetSchema } from '../render/assets';
 import { dialogueSchema } from '../dialogue/schema';
 import { checkRequestSchema, effectSchema } from '../script/schema';
 import {
@@ -206,6 +207,8 @@ export const projectSchema = z
      * project written before quests existed is still a valid project.
      */
     quests: z.array(questSchema).default([]),
+    /** Imported models, by id. Content names them exactly as it names a procedural model. */
+    assets: z.array(modelAssetSchema).default([]),
     /** Scene the project opens on. */
     startScene: contentIdSchema,
   })
@@ -234,6 +237,13 @@ export const projectSchema = z
         ctx.addIssue({ code: 'custom', path: ['items', i, 'id'], message: `duplicate item id "${item.id}"` });
       }
       seen.add(item.id);
+    });
+    const assetIds = new Set<string>();
+    project.assets.forEach((asset, i) => {
+      if (assetIds.has(asset.id)) {
+        ctx.addIssue({ code: 'custom', path: ['assets', i, 'id'], message: `duplicate asset id "${asset.id}"` });
+      }
+      assetIds.add(asset.id);
     });
     const questIds = new Set<string>();
     project.quests.forEach((quest, i) => {

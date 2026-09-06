@@ -70,6 +70,10 @@ declare global {
       journal: () => { id: string; status: string; done: string[] }[];
       camera: () => { yaw: number; pitch: number; distance: number; target: { x: number; z: number } };
       grantLevel: (level?: number) => number;
+      addAsset: (asset: unknown) => boolean;
+      assetStatus: (id: string) => string;
+      modelSource: (id: string) => string;
+      placeProp: (tile: number, model: string) => void;
       awaitingLevel: () => string[];
       takeLevel: (id: string, plan: unknown) => boolean;
       characterLevel: (id: string) => number;
@@ -1303,6 +1307,39 @@ test('equips a found weapon from the pack, and the card says so', async ({ page 
   expect(gear.armor).toBe('Full Plate Armor');
   await expect(armor).toHaveAttribute('data-max', /\d+/);
   await expect(page.locator('[data-testid="log"]')).toContainText('Kara puts on the Full plate');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('imports a glTF model and draws it where a prop names it', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  // The Khronos sample duck, served straight from the test fixtures. A project
+  // declares it once; content then names "duck" like any procedural model.
+  const declared = await page.evaluate(() =>
+    window.__polyheart!.addAsset({ id: 'duck', url: '/tests/fixtures/models/Duck.glb', scale: 0.01 }),
+  );
+  expect(declared).toBe(true);
+  expect(await page.evaluate(() => window.__polyheart!.modelSource('duck'))).toBe('placeholder');
+
+  // Placing a prop that names it starts the load; the placeholder stands in.
+  const before = await page.evaluate(() => window.__polyheart!.decos);
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('edit');
+    api.placeProp(api.tileOf(api.party()[0]!) + 2, 'duck');
+  });
+  await page.waitForFunction(() => window.__polyheart!.assetStatus('duck') === 'ready', undefined, { timeout: 15000 });
+  expect(await page.evaluate(() => window.__polyheart!.modelSource('duck'))).toBe('asset');
+  expect(await page.evaluate(() => window.__polyheart!.missingModels())).not.toContain('duck');
+  expect(before).toBeGreaterThanOrEqual(0);
+
+  // It survives the project round trip.
+  const exported = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject()));
+  expect(exported.assets).toEqual([
+    { id: 'duck', kind: 'gltf', url: '/tests/fixtures/models/Duck.glb', scale: 0.01, groundOffset: 0, rotationY: 0 },
+  ]);
+  await expect(page.locator('[data-asset="duck"]')).toBeVisible();
 
   expect(consoleErrors).toEqual([]);
 });

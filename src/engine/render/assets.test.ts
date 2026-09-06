@@ -1,0 +1,115 @@
+import { describe, it, expect } from 'vitest';
+import { Group, Mesh } from 'three';
+import { AssetLibrary, modelAssetSchema } from './assets';
+
+/**
+ * The asset library, driven with a fake loader.
+ *
+ * What matters: nothing loads that nothing asks for, a template shows up once
+ * and only for the spec that asked, a failure is reported rather than thrown,
+ * and a spec replaced mid-flight does not receive the old file.
+ */
+
+/** A loader whose promises the test settles by hand. */
+function controllable() {
+  const pending = new Map<string, { resolve: (o: Group) => void; reject: (e: Error) => void }>();
+  const load = (url: string): Promise<Group> =>
+    new Promise((resolve, reject) => void pending.set(url, { resolve, reject }));
+  return { load, pending };
+}
+
+const duck = () =>
+  modelAssetSchema.parse({ id: 'duck', url: '/models/duck.glb', scale: 0.01, groundOffset: 0 });
+
+describe('the schema', () => {
+  it('defaults what a designer would leave out', () => {
+    expect(duck()).toEqual({ id: 'duck', kind: 'gltf', url: '/models/duck.glb', scale: 0.01, groundOffset: 0, rotationY: 0 });
+  });
+
+  it('refuses a scale of nothing', () => {
+    expect(() => modelAssetSchema.parse({ id: 'x', url: 'x.glb', scale: 0 })).toThrow();
+  });
+});
+
+describe('loading', () => {
+  it('loads only what is asked for, once', async () => {
+    const { load, pending } = controllable();
+    const library = new AssetLibrary(load, [duck()]);
+    expect(library.statusOf('duck')).toBe('unknown');
+    expect(pending.size).toBe(0);
+
+    expect(library.request('duck')).toBe(true);
+    expect(library.request('duck')).toBe(false);
+    expect(library.statusOf('duck')).toBe('loading');
+    expect(pending.size).toBe(1);
+
+    const changed: string[] = [];
+    library.onChange((id) => changed.push(id));
+    const scene = new Group();
+    scene.add(new Mesh());
+    pending.get('/models/duck.glb')!.resolve(scene);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(library.statusOf('duck')).toBe('ready');
+    expect(library.template('duck')).toBe(scene);
+    expect(changed).toEqual(['duck']);
+    expect(library.request('duck')).toBe(false);
+  });
+
+  it('ignores an id nobody declared', () => {
+    const { load } = controllable();
+    const library = new AssetLibrary(load);
+    expect(library.request('ghost')).toBe(false);
+    expect(library.template('ghost')).toBeUndefined();
+  });
+
+  it('reports a failure instead of throwing, and can try again', async () => {
+    const { load, pending } = controllable();
+    const library = new AssetLibrary(load, [duck()]);
+    const changed: string[] = [];
+    library.onChange((id) => changed.push(id));
+    library.request('duck');
+    pending.get('/models/duck.glb')!.reject(new Error('404'));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(library.statusOf('duck')).toBe('failed');
+    expect(library.errorOf('duck')).toBe('404');
+    expect(changed).toEqual(['duck']);
+    // A failed asset may be asked for again.
+    expect(library.request('duck')).toBe(true);
+  });
+
+  it('drops a file that arrives for a spec since replaced', async () => {
+    const { load, pending } = controllable();
+    const library = new AssetLibrary(load, [duck()]);
+    library.request('duck');
+    const stale = pending.get('/models/duck.glb')!;
+    library.add({ ...duck(), url: '/models/duck-v2.glb' });
+    stale.resolve(new Group());
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(library.statusOf('duck')).toBe('unknown');
+    expect(library.template('duck')).toBeUndefined();
+  });
+
+  it('can be told to fetch everything', () => {
+    const { load, pending } = controllable();
+    const library = new AssetLibrary(load, [duck(), { ...duck(), id: 'fox', url: '/models/fox.glb' }]);
+    library.requestAll();
+    expect(pending.size).toBe(2);
+  });
+
+  it('stops listening when asked', async () => {
+    const { load, pending } = controllable();
+    const library = new AssetLibrary(load, [duck()]);
+    const changed: string[] = [];
+    const stop = library.onChange((id) => changed.push(id));
+    stop();
+    library.request('duck');
+    pending.get('/models/duck.glb')!.resolve(new Group());
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(changed).toEqual([]);
+  });
+});

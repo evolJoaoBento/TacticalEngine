@@ -28,7 +28,22 @@ import { NO_TILE, type TileGrid } from '../grid/grid';
 import type { Deco } from '../scene/schema';
 import type { EntityState, SceneState } from '../scene/state';
 import { DEFAULT_LAYOUT, surfaceHeight, tileCenter, type TileLayout } from './layout';
-import { ModelResources, buildModel, type BuiltModel } from './procedural/build';
+import { ModelResources, buildModel, type BuildOptions, type BuiltModel } from './procedural/build';
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import type { AssetLibrary } from './assets';
+import type { ProceduralModelSpec } from './procedural/spec';
+import { placeholder as placeholderSpec } from './procedural/registry';
+
+/** Just the faction ring, to put under an imported model. */
+const RING_ONLY: ProceduralModelSpec = {
+  id: 'ring',
+  category: 'prop',
+  standHeight: 0,
+  tags: [],
+  info: { name: 'Ring', desc: '' },
+  palette: { ring: { color: '#ffffff' } },
+  parts: [{ prim: { kind: 'cylinder', rTop: 0.42, rBottom: 0.42, h: 0.05, seg: 24 }, mat: 'ring', pos: [0, 0.025, 0] }],
+};
 import { ModelRegistry } from './procedural/registry';
 import { ringMaterial } from './procedural/spec';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
@@ -48,6 +63,8 @@ export interface SceneViewOptions extends TerrainMeshOptions {
    * legacy content's `model` strings import to.
    */
   modelForEntity?: (entity: EntityState) => string;
+  /** Imported glTF models. Asked first for every id; the library is the fallback. */
+  assets?: AssetLibrary;
 }
 
 export const DEFAULT_FACTION_COLORS: Readonly<Record<string, string>> = {
@@ -87,6 +104,12 @@ export class SceneView {
   private readonly tokens = new Map<string, BuiltModel>();
   private readonly decos: Group[] = [];
   private readonly modelForEntity: (entity: EntityState) => string;
+  private readonly assets: AssetLibrary | null;
+  private stopListening: (() => void) | null = null;
+  /** Which model id each token and deco was drawn from, so a late asset can find them. */
+  private readonly tokenModels = new Map<string, string>();
+  private lastDecos: readonly Deco[] = [];
+  private lastState: SceneState | null = null;
   private readonly highlight: InstancedMesh;
   private readonly highlightGeometry: BoxGeometry;
   private readonly highlightMaterial: MeshBasicMaterial;
@@ -108,6 +131,11 @@ export class SceneView {
     this.registry = options.registry ?? new ModelRegistry();
     this.ownsResources = options.resources === undefined;
     this.resources = options.resources ?? new ModelResources();
+    this.assets = options.assets ?? null;
+    if (this.assets !== null) {
+      // When a file lands, redraw only what was waiting for it.
+      this.stopListening = this.assets.onChange((id) => this.assetChanged(id));
+    }
     this.modelForEntity =
       options.modelForEntity ??
       ((entity) =>
@@ -180,11 +208,11 @@ export class SceneView {
       if (token === undefined) {
         // The base ring carries the faction colour, so one spec serves both sides.
         const ring = this.factionColors[entity.faction] ?? DEFAULT_FACTION_COLORS['neutral']!;
-        token = buildModel(this.registry.get(this.modelForEntity(entity)), this.resources, {
-          palette: { ring: ringMaterial(ring) },
-        });
+        const modelId = this.modelForEntity(entity);
+        token = this.build(modelId, { palette: { ring: ringMaterial(ring) } });
         token.group.name = `token:${entity.id}`;
         this.tokens.set(entity.id, token);
+        this.tokenModels.set(entity.id, modelId);
         this.root.add(token.group);
       }
       this.placeToken(token, entity);
@@ -194,7 +222,79 @@ export class SceneView {
       if (seen.has(id)) continue;
       this.root.remove(token.group);
       this.tokens.delete(id);
+      this.tokenModels.delete(id);
     }
+    this.lastState = state;
+  }
+
+  /**
+   * A model for an id: the imported asset when it is here, the procedural spec
+   * otherwise. An asset that is declared but not yet loaded is requested and
+   * the placeholder stands in until it arrives.
+   */
+  private build(modelId: string, options: BuildOptions = {}): BuiltModel {
+    if (this.assets !== null && this.assets.has(modelId)) {
+      const template = this.assets.template(modelId);
+      if (template !== undefined) return this.instantiate(modelId, template, options);
+      this.assets.request(modelId);
+      // Declared and on its way is not "missing": stand in without recording a miss.
+      const spec = this.registry.has(modelId) ? this.registry.get(modelId) : placeholderSpec;
+      return buildModel(spec, this.resources, options);
+    }
+    return buildModel(this.registry.get(modelId), this.resources, options);
+  }
+
+  /** Clone a loaded glTF scene, scaled and seated as its asset spec says. */
+  private instantiate(modelId: string, template: Object3D, options: BuildOptions): BuiltModel {
+    const spec = this.assets!.spec(modelId)!;
+    const group = new Group();
+    group.name = `model:${modelId}`;
+    // SkeletonUtils handles skinned meshes; for a plain scene it is a deep clone.
+    const clone = cloneSkeleton(template);
+    clone.scale.setScalar(spec.scale);
+    clone.rotation.y = spec.rotationY;
+    clone.traverse((child) => {
+      if ((child as Mesh).isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    group.add(clone);
+    // The base ring the procedural tokens carry, so a faction still reads.
+    const ring = options.palette?.['ring'];
+    if (ring !== undefined) {
+      const base = buildModel(RING_ONLY, this.resources, { palette: { ring } });
+      group.add(base.group);
+    }
+    return {
+      group,
+      spec: { ...placeholderSpec, id: modelId, groundOffset: spec.groundOffset },
+      named: new Map(),
+      hooks: new Map(),
+    };
+  }
+
+  /** Redraw whatever was drawn from an id whose asset just arrived or failed. */
+  private assetChanged(id: string): void {
+    let redraw = false;
+    for (const modelId of this.tokenModels.values()) if (modelId === id) redraw = true;
+    if (this.lastDecos.some((deco) => deco.model === id)) redraw = true;
+    if (!redraw) return;
+    for (const [entityId, modelId] of this.tokenModels) {
+      if (modelId !== id) continue;
+      const token = this.tokens.get(entityId);
+      if (token !== undefined) this.root.remove(token.group);
+      this.tokens.delete(entityId);
+      this.tokenModels.delete(entityId);
+    }
+    if (this.lastState !== null) this.syncTokens(this.lastState);
+    if (this.lastDecos.some((deco) => deco.model === id)) this.setDecos(this.lastDecos);
+  }
+
+  /** Whether an id is currently drawn from an imported file, the library, or the placeholder. */
+  modelSource(modelId: string): 'asset' | 'library' | 'placeholder' {
+    if (this.assets !== null && this.assets.has(modelId) && this.assets.template(modelId) !== undefined) return 'asset';
+    return this.registry.has(modelId) ? 'library' : 'placeholder';
   }
 
   private placeToken(token: BuiltModel, entity: EntityState): void {
@@ -243,10 +343,11 @@ export class SceneView {
     for (const group of this.decos) this.root.remove(group);
     this.decos.length = 0;
 
+    this.lastDecos = decos;
     for (const deco of decos) {
       const tile = this.grid.indexOf(deco.position.x, deco.position.y);
       if (!this.grid.isTile(tile)) continue;
-      const model = buildModel(this.registry.get(deco.model), this.resources);
+      const model = this.build(deco.model);
       const centre = tileCenter(this.grid, tile, this.layout);
       const lift = model.spec.groundOffset ?? 0;
       model.group.position.set(centre.x, centre.y + lift, centre.z);
@@ -312,6 +413,7 @@ export class SceneView {
   }
 
   dispose(): void {
+    if (this.stopListening !== null) this.stopListening();
     this.terrain.dispose();
     this.highlightGeometry.dispose();
     this.highlightMaterial.dispose();
