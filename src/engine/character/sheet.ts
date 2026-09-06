@@ -66,6 +66,11 @@ export interface CharacterSheet {
   subclassId?: string;
   /** Domain cards taken at level 1 (the SRD grants two). */
   domainCards?: readonly string[];
+  /**
+   * The cards in the loadout, at most five. Left out, the first five held are
+   * active. `content/abilities.ts` reads it; a rest or a Recall Cost changes it.
+   */
+  loadout?: readonly string[];
   /** Every level taken since 1, in order. `progression.ts` reads and writes this. */
   levels?: readonly LevelRecord[];
   /** Flat adjustments from advancements, features or items. */

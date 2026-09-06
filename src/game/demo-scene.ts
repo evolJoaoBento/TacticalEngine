@@ -14,6 +14,7 @@ import adversaryJson from '../../tools/srd-sources/seansbox/adversaries.json';
 import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
 import { DEMO_QUESTS } from './demo-quests';
+import { SRD_ABILITIES } from '../engine/content/srd/abilities';
 import { walkCheck } from '../engine/script/schema';
 import type { ItemDef, LootTable } from '../engine/content/items';
 import type { QuestDef } from '../engine/content/quests';
@@ -28,7 +29,8 @@ import type { Trait } from '../engine/scene/primitives';
 import type { CheckOutcome, LogTone } from '../engine/script/effects';
 import type { DualityRoll } from '../engine/rules/duality';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
-import { createScenarioState, SceneScriptWorld, type ScenarioState } from '../engine/script/world';
+import { createScenarioState, SceneScriptWorld, useKey, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
+import { maxTilesForBand, type RangeBand } from '../engine/rules/range';
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
 import ancestryJson from '../../tools/srd-sources/daggersearch/core/ancestries.json';
 import armorJson from '../../tools/srd-sources/daggersearch/core/armors.json';
@@ -208,6 +210,12 @@ export interface PendingScript {
   recorded: number;
   /** The conversation this script opened, while it is being had. */
   dialogue: PendingDialogue | null;
+  /**
+   * What to do once the script finishes: an ability's turn is spent here,
+   * because whether the spotlight passes is known only after the roll it
+   * stopped for.
+   */
+  onDone?: (runner: ScriptRunner) => void;
 }
 
 /** A conversation in progress. */
@@ -315,11 +323,64 @@ function buildRuntime(
     pathfinder,
     party: new Party(state, pathfinder, { moveBudget: DEMO_MOVE_BUDGET }),
     triggers: new TriggerIndex(scene, grid),
-    world: new SceneScriptWorld(state, scenario, {
-      traits: traitsFor(characters),
-      ...(options.lootTables === undefined ? {} : { lootTables: options.lootTables }),
-    }),
+    world: new SceneScriptWorld(state, scenario, worldOptions(characters, options.lootTables, scene)),
   };
+}
+
+/**
+ * What a script world needs from the demo: the party's best traits for an
+ * object's check, each sheet for a card's roll, the stat blocks for an
+ * adversary's Difficulty, and the map's range bands. One place, because the
+ * world is rebuilt whenever a sheet changes and a site that forgot the stat
+ * blocks would roll every spell against the fallback numbers.
+ */
+export function worldOptions(
+  characters: ReadonlyMap<string, DerivedCharacter>,
+  lootTables?: ReadonlyMap<string, LootTable>,
+  scene?: SceneDoc,
+): SceneScriptWorldOptions {
+  return {
+    traits: traitsFor(characters),
+    characters,
+    adversaries: adversaryDefsFor(scene),
+    bandTiles: DEMO_BAND_TILES,
+    ...(lootTables === undefined ? {} : { lootTables }),
+  };
+}
+
+/**
+ * The stat blocks a scene's adversaries answer to. The legacy map's husks name
+ * a homebrew id with no SRD block, so every placement the SRD does not know is
+ * pointed at the stand-in — the same substitution `buildRuntime` makes for
+ * their Hit Points, so a spell against a husk meets the same Difficulty as a
+ * sword does.
+ */
+export function adversaryDefsFor(scene?: SceneDoc): ReadonlyMap<string, AdversaryDef> {
+  const defs = new Map(SRD_ADVERSARIES);
+  const stand = SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID);
+  if (scene === undefined || stand === undefined) return defs;
+  for (const encounter of scene.encounters) {
+    for (const placement of encounter.adversaries) {
+      if (!defs.has(placement.adversary)) defs.set(placement.adversary, stand);
+    }
+  }
+  return defs;
+}
+
+/** The stat block an entity answers to, stand-in included. */
+export function adversaryDefOf(demo: DemoScene, entityId: string): AdversaryDef | undefined {
+  const entity = demo.state.entity(entityId);
+  if (entity === undefined) return undefined;
+  return SRD_ADVERSARIES.get(entity.definition) ?? (entity.faction === 'adversary' ? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID) : undefined);
+}
+
+/** Rebuild the script world after a sheet changed under it. */
+export function refreshWorld(demo: DemoScene): void {
+  demo.world = new SceneScriptWorld(
+    demo.state,
+    demo.scenario,
+    worldOptions(demo.characters, new Map(demo.project.lootTables.map((table) => [table.id, table])), demo.scene),
+  );
 }
 
 /** What each party member is carrying, pool-wise, right now. */
@@ -436,7 +497,7 @@ export function enterSavedScene(
  * Travelling mid-script would carry the rest of that script into the wrong room,
  * so the destination is remembered and spent here.
  */
-function settleTravel(demo: DemoScene, lines: LogLine[]): UseOutcome {
+export function settleTravel(demo: DemoScene, lines: LogLine[]): UseOutcome {
   if (demo.destination === null || demo.pending !== null) {
     return { status: demo.pending === null ? 'done' : 'waiting', lines };
   }
@@ -497,6 +558,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     items: [...DEMO_ITEMS],
     lootTables: [...DEMO_LOOT_TABLES],
     quests: [...DEMO_QUESTS],
+    abilities: [...SRD_ABILITIES],
     startScene: vault.id,
   });
 
@@ -634,6 +696,7 @@ export function attackWithSelected(
 
   const applied = applyAttack(demo.state, outcome);
   if (inCombat(demo)) demo.encounter!.act(id!, { spotlightToGm: outcome.spotlightToGm });
+  settleFight(demo);
   return { hit: outcome.hit, refused: null, hitPointsMarked: applied.hitPointsMarked };
 }
 
@@ -650,16 +713,66 @@ export function playGmTurn(demo: DemoScene): number {
     if (!encounter.canSpotlight(id)) break;
     encounter.spotlight(id);
     acted++;
-    attackNearestPartyMember(demo, id);
+    adversaryTurn(demo, id);
     if (encounter.outcome !== 'ongoing') break;
   }
   encounter.endGmTurn();
+  settleFight(demo);
   return acted;
 }
 
-function attackNearestPartyMember(demo: DemoScene, adversaryId: string): void {
+/**
+ * Hand the spotlight to the GM and play the GM's turn.
+ *
+ * Under the spotlight policy the spotlight only passes on a roll with Fear or
+ * a failure; this is the party choosing to stop — "we hold and see what they
+ * do" — and it is the button a player presses when everyone has acted.
+ */
+export function endTurn(demo: DemoScene): number {
+  const encounter = demo.encounter;
+  if (encounter === null || encounter.outcome !== 'ongoing') return 0;
+  if (encounter.view().side === 'party') encounter.passToGm();
+  return playGmTurn(demo);
+}
+
+/** Fights whose end has already been announced. */
+const announced = new WeakSet<EncounterRunner>();
+
+/**
+ * What the end of a fight does, once: the scene's conditions end, the
+ * abilities that refresh with the scene refresh, and the log says who won.
+ */
+export function settleFight(demo: DemoScene): void {
+  const encounter = demo.encounter;
+  if (encounter === null || encounter.outcome === 'ongoing' || announced.has(encounter)) return;
+  announced.add(encounter);
+  demo.state.clearConditions('scene');
+  for (const key of [...demo.scenario.abilityUses.keys()]) {
+    const ability = demo.project.abilities.find((a) => key.endsWith(`/${a.id}`));
+    if (ability?.uses?.per === 'scene') demo.scenario.abilityUses.delete(key);
+  }
+  note(
+    demo,
+    encounter.outcome === 'victory' ? 'The last of them falls. The fight is over.' : 'The party falls.',
+    encounter.outcome === 'victory' ? 'success' : 'fear',
+  );
+}
+
+/**
+ * One adversary's spotlight, the way the SRD lists a spotlighted adversary's
+ * options: clear a condition, or move within Close range and make a standard
+ * attack. The AI is deliberately simple and deterministic — the nearest
+ * living party member, by id on a tie — so a seeded fight replays.
+ */
+function adversaryTurn(demo: DemoScene, adversaryId: string): void {
   const adversary = demo.state.entity(adversaryId);
   if (adversary === undefined || !adversary.alive) return;
+
+  // Held in place: the spotlight goes on tearing free instead of attacking.
+  if (adversary.conditions.has('restrained')) {
+    clearTemporaryConditions(demo, adversaryId);
+    return;
+  }
 
   const targets = demo.state.entitiesOf('party').filter((e) => e.alive);
   if (targets.length === 0) return;
@@ -670,6 +783,61 @@ function attackNearestPartyMember(demo: DemoScene, adversaryId: string): void {
         demo.grid.manhattanDistance(adversary.tile, b.tile) || a.id.localeCompare(b.id),
   )[0]!;
 
+  const def = SRD_ADVERSARIES.get(adversary.definition) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
+  approach(demo, adversary.id, target.tile, def.attackRange);
+  const attacked = attackPartyMember(demo, adversaryId, target.id);
+  // Nothing in reach even after moving: an adversary with something to shake
+  // off shakes it off, which is at least a move.
+  if (!attacked && adversary.conditions.size > 0) clearTemporaryConditions(demo, adversaryId);
+}
+
+/**
+ * Move within Close range towards a tile, stopping as soon as the target is in
+ * the attack's reach. Adversaries do not roll to move, per the SRD.
+ */
+function approach(demo: DemoScene, adversaryId: string, targetTile: number, reach: RangeBand): void {
+  const adversary = demo.state.entity(adversaryId);
+  if (adversary === undefined || adversary.tile === NO_TILE) return;
+  const reachTiles = maxTilesForBand(reach, DEMO_BAND_TILES);
+  if (demo.grid.euclideanDistance(adversary.tile, targetTile) <= reachTiles) return;
+
+  const budget = maxTilesForBand('close', DEMO_BAND_TILES);
+  const field = demo.pathfinder.reachable(adversary.tile, budget, { isBlocked: demo.state.blockedFor(adversaryId) });
+  let best = adversary.tile;
+  let bestDistance = demo.grid.euclideanDistance(adversary.tile, targetTile);
+  for (const tile of field.tiles()) {
+    if (tile === targetTile) continue;
+    const distance = demo.grid.euclideanDistance(tile, targetTile);
+    // Closer wins; a tie goes to the lower index, so the walk is the same every time.
+    if (distance < bestDistance || (distance === bestDistance && tile < best)) {
+      best = tile;
+      bestDistance = distance;
+    }
+  }
+  if (best !== adversary.tile) demo.state.moveEntity(adversaryId, best);
+}
+
+/** An adversary spends its spotlight clearing what a scene put on it. */
+function clearTemporaryConditions(demo: DemoScene, adversaryId: string): void {
+  const adversary = demo.state.entity(adversaryId);
+  if (adversary === undefined) return;
+  const cleared: string[] = [];
+  for (const condition of [...adversary.conditions]) {
+    if ((adversary.conditionDurations.get(condition) ?? 'permanent') !== 'temporary') continue;
+    adversary.conditions.delete(condition);
+    adversary.conditionDurations.delete(condition);
+    cleared.push(condition);
+  }
+  if (cleared.length > 0) {
+    note(demo, `The ${nameOf(demo, adversaryId)} shakes off ${cleared.join(' and ')}.`, 'combat');
+  }
+}
+
+/** Returns whether the attack was made at all (false when out of reach). */
+function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: string): boolean {
+  const adversary = demo.state.entity(adversaryId);
+  const target = demo.state.entity(targetId);
+  if (adversary === undefined || target === undefined) return false;
   const character = demo.characters.get(target.id);
   const def = SRD_ADVERSARIES.get(adversary.definition) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
   const outcome = resolveAttack(demo.rng, {
@@ -688,9 +856,21 @@ function attackNearestPartyMember(demo: DemoScene, adversaryId: string): void {
       character === undefined
         ? { difficulty: 11, thresholds: { major: 6, severe: 12 } }
         : defenderProfile(character),
-    options: { bandTiles: DEMO_BAND_TILES },
+    // One Armor Slot against a hit, when the target has one: the defender's
+    // standing choice, until a prompt asks them each time.
+    options: { bandTiles: DEMO_BAND_TILES, armorSlotsMarked: Math.min(1, target.armorSlots.max - target.armorSlots.marked) },
   });
-  if (outcome.refused === null) applyAttack(demo.state, outcome);
+  if (outcome.refused !== null) return false;
+  applyAttack(demo.state, outcome);
+  const who = character?.sheet.name ?? target.id;
+  note(
+    demo,
+    outcome.hit
+      ? `The ${def.name}'s ${def.attackName} ${outcome.critical ? 'tears into' : 'hits'} ${who}: ${outcome.hitPointsMarked} Hit Point${outcome.hitPointsMarked === 1 ? '' : 's'}.`
+      : `The ${def.name}'s ${def.attackName} misses ${who}.`,
+    'combat',
+  );
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -777,6 +957,7 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
     return settle(demo, lines);
   }
   demo.pending = null;
+  waiting.onDone?.(waiting.runner);
   return settleTravel(demo, lines);
 }
 
@@ -830,6 +1011,7 @@ function resumeOuter(demo: DemoScene, lines: LogLine[]): UseOutcome {
     return settle(demo, all);
   }
   demo.pending = null;
+  waiting.onDone?.(waiting.runner);
   return settleTravel(demo, all);
 }
 
@@ -837,7 +1019,7 @@ function resumeOuter(demo: DemoScene, lines: LogLine[]): UseOutcome {
  * A script that just stopped on a `startDialogue` opens the conversation itself,
  * so the caller never sees a prompt it has no UI for.
  */
-function settle(demo: DemoScene, lines: LogLine[]): UseOutcome {
+export function settle(demo: DemoScene, lines: LogLine[]): UseOutcome {
   const waiting = demo.pending;
   if (waiting === null || waiting.prompt.kind !== 'dialogue') {
     return { status: 'waiting', lines };
@@ -921,19 +1103,27 @@ export function note(demo: DemoScene, text: string, tone: LogTone): LogLine[] {
  * Only the entries with something to say become lines; a flag being set is real
  * but not news.
  */
-function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLine[] {
+export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLine[] {
   const lines: LogLine[] = [];
   const names = new Map(demo.project.items.map((item) => [item.id, item.name]));
   const quests = new Map(demo.project.quests.map((quest) => [quest.id, quest]));
+  const who = (id: string): string => nameOf(demo, id);
   for (const entry of journal) {
     // Travel is remembered rather than taken: the rest of this script belongs to
     // the room it was asked in. `settleTravel` spends it once nothing waits.
     if (entry.kind === 'goto') demo.destination = entry.scene;
-    const line = describeEntry(entry, names, quests);
+    const line = describeEntry(entry, names, quests, who);
     if (line !== null) lines.push(line);
   }
   demo.log.push(...lines);
   return lines;
+}
+
+/** A creature's name for the log: the sheet's, the stat block's, or its id. */
+export function nameOf(demo: DemoScene, id: string): string {
+  const sheet = demo.sheets.get(id);
+  if (sheet !== undefined) return sheet.name;
+  return adversaryDefOf(demo, id)?.name ?? id;
 }
 
 /** "12 gold and a brass key" — an item nobody named reads as its id. */
@@ -953,8 +1143,44 @@ function describeEntry(
   entry: JournalEntry,
   names: ReadonlyMap<string, string>,
   quests: ReadonlyMap<string, QuestDef>,
+  who: (id: string) => string,
 ): LogLine | null {
+  const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
   switch (entry.kind) {
+    case 'attack':
+      return entry.hit
+        ? {
+            text: `${who(entry.attacker)} ${entry.critical ? 'lands a critical with' : 'hits with'} the ${entry.weapon}: ${plural(entry.hitPointsMarked, 'Hit Point')} on ${who(entry.target)}.`,
+            tone: 'combat',
+          }
+        : { text: `${who(entry.attacker)} swings the ${entry.weapon} at ${who(entry.target)} and misses.`, tone: 'combat' };
+    case 'stress':
+      if (entry.cleared > 0) return { text: `${who(entry.id)} clears ${plural(entry.cleared, 'Stress')}.`, tone: 'hope' };
+      return {
+        text: `${who(entry.id)} marks ${plural(entry.marked, 'Stress')}${entry.hitPoints > 0 ? ' and, with no slot left, a Hit Point' : ''}.`,
+        tone: 'fear',
+      };
+    case 'armor':
+      return { text: `${who(entry.id)} clears ${plural(entry.cleared, 'Armor Slot')}.`, tone: 'hope' };
+    case 'condition':
+      return entry.applied
+        ? { text: `${who(entry.id)} is ${entry.condition}.`, tone: 'combat' }
+        : { text: `${who(entry.id)} is no longer ${entry.condition}.`, tone: 'system' };
+    case 'moved':
+      return { text: `${who(entry.id)} is thrown back.`, tone: 'combat' };
+    case 'reaction':
+      return {
+        text: `${who(entry.id)} reacts: ${entry.total} against ${entry.difficulty} — ${entry.success ? 'holds' : 'fails'}.`,
+        tone: entry.success ? 'system' : 'success',
+      };
+    case 'refused':
+      return { text: `That cannot happen: ${entry.reason}.`, tone: 'system' };
+    case 'hopeSpent':
+      return { text: `Spends ${plural(entry.amount, 'Hope')}.`, tone: 'hope' };
+    case 'experience':
+      return { text: `Draws on "${entry.name}" (+${entry.modifier}).`, tone: 'hope' };
+    case 'hope':
+      return entry.id === undefined ? null : { text: `${who(entry.id)} gains ${plural(entry.gained, 'Hope')}.`, tone: 'hope' };
     // Quest events are news, unlike the flags underneath them: the journal
     // changed, and the player should hear it without opening the journal.
     case 'quest': {
@@ -986,6 +1212,12 @@ function describeEntry(
         ? { text: 'Nothing worth taking.', tone: 'system' }
         : { text: `You find ${listItems(entry.found, names)}.`, tone: 'success' };
     case 'damage':
+      if (entry.targets !== undefined) {
+        return {
+          text: `${entry.dice ?? ''} → ${entry.amount} damage to ${entry.targets.map(who).join(', ')}: ${plural(entry.marked, 'Hit Point')}.`.replace(/^ → /, ''),
+          tone: 'combat',
+        };
+      }
       return { text: `You take ${entry.amount} damage.`, tone: 'fear' };
     case 'heal':
       return { text: `You recover ${entry.amount}.`, tone: 'hope' };
@@ -1100,10 +1332,7 @@ export function applyLevelUp(demo: DemoScene, characterId: string, plan: LevelUp
 
   // The script world caches the party's best traits; a raised Strength has to
   // reach the next check.
-  demo.world = new SceneScriptWorld(demo.state, demo.scenario, {
-    traits: traitsFor(demo.characters),
-    lootTables: new Map(demo.project.lootTables.map((table) => [table.id, table])),
-  });
+  refreshWorld(demo);
   note(demo, `${result.sheet.name} reaches level ${result.sheet.level}.`, 'hope');
   return { ok: true, level: result.sheet.level };
 }
@@ -1179,6 +1408,8 @@ export function equipItem(demo: DemoScene, characterId: string, itemId: string):
   if (entity !== undefined) {
     entity.armorSlots = { max: derived.armorScore, marked: Math.min(entity.armorSlots.marked, derived.armorScore) };
   }
+  // A new weapon is a new trait to roll: the world reads the sheet.
+  refreshWorld(demo);
   note(demo, `${sheet.name} ${slot === 'armor' ? 'puts on' : 'takes up'} the ${item.name}.`, 'system');
   return { ok: true, slot };
 }

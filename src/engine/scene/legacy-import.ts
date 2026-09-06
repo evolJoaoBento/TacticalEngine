@@ -193,6 +193,7 @@ export function importLegacyCampaign(
       // toContentId returns '' (not undefined) for a name with no usable characters.
       id: options.id ?? (toContentId(name) || 'imported'),
       name,
+      abilities: [],
       scenes,
       dialogues: [],
       items: [],

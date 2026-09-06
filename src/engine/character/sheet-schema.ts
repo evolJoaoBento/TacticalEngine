@@ -70,6 +70,7 @@ export const characterSheetSchema = z.object({
     .optional(),
   subclassId: z.string().optional(),
   domainCards: z.array(z.string()).optional(),
+  loadout: z.array(z.string()).optional(),
   levels: z.array(levelRecordSchema).optional(),
 });
 

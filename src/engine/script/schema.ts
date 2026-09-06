@@ -64,7 +64,8 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('party') }),
   z.object({ kind: z.literal('entity'), id: z.string().min(1) }),
   z.object({ kind: z.literal('target') }),
-  z.object({ kind: z.literal('hit') }),
+  /** The creatures the last roll beat; `having` keeps only those with a condition. */
+  z.object({ kind: z.literal('hit'), having: z.string().min(1).optional() }),
   z.object({
     kind: z.literal('allies'),
     /** Living party members within this band of the actor. Everywhere when left out. */

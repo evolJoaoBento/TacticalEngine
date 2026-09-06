@@ -321,6 +321,14 @@ export class SceneState {
     return state;
   }
 
+  /** Whether any encounter has started and not ended: the fight is on. */
+  encounterRunning(): boolean {
+    for (const encounter of this.encounters.values()) {
+      if (encounter.started && !encounter.ended) return true;
+    }
+    return false;
+  }
+
   // ---- conditions ---------------------------------------------------------
 
   /**

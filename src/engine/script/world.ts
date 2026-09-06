@@ -74,6 +74,17 @@ export interface ScenarioState {
    * has a level-up waiting; the choices are theirs, the moment is the GM's.
    */
   partyLevel: number;
+  /**
+   * How many times each character has used each limited ability since it last
+   * refreshed, keyed "character/ability". A rest or a scene's end clears the
+   * ones it refreshes.
+   */
+  abilityUses: Map<string, number>;
+}
+
+/** The key `abilityUses` files a use under. */
+export function useKey(characterId: string, abilityId: string): string {
+  return `${characterId}/${abilityId}`;
 }
 
 export function createScenarioState(
@@ -89,6 +100,7 @@ export function createScenarioState(
     actorId,
     quests: new Map(),
     partyLevel: 1,
+    abilityUses: new Map(),
   };
 }
 
@@ -119,6 +131,7 @@ export const scenarioSnapshotSchema = z.object({
     )
     .default([]),
   partyLevel: z.number().int().min(1).max(10).default(1),
+  abilityUses: z.array(z.tuple([z.string(), z.number().int().min(0)])).default([]),
 });
 
 export type ScenarioSnapshot = z.infer<typeof scenarioSnapshotSchema>;
@@ -136,6 +149,7 @@ export function scenarioSnapshot(scenario: ScenarioState): ScenarioSnapshot {
       revealed: [...progress.revealed],
     })),
     partyLevel: scenario.partyLevel,
+    abilityUses: [...scenario.abilityUses].map(([key, used]) => [key, used] as [string, number]),
   };
 }
 
@@ -163,6 +177,8 @@ export function restoreScenario(scenario: ScenarioState, snapshot: ScenarioSnaps
     });
   }
   scenario.partyLevel = snapshot.partyLevel;
+  scenario.abilityUses.clear();
+  for (const [key, used] of snapshot.abilityUses) scenario.abilityUses.set(key, used);
 }
 
 /** Thresholds for a creature nothing describes: the demo's stand-in numbers. */
@@ -185,7 +201,7 @@ export interface SceneScriptWorldOptions {
   adversaries?: ReadonlyMap<string, AdversaryDef>;
   /** How many tiles each range band spans on this map. */
   bandTiles?: BandTiles;
-  /** Whether a fight is running. Nothing is, when left out. */
+  /** Whether a fight is running. Read off the scene's encounters when left out. */
   inCombat?: () => boolean;
   /**
    * Whether a creature marks Armor Slots against damage without being asked.
@@ -215,7 +231,7 @@ export class SceneScriptWorld implements ScriptWorld {
     this.characters = options.characters ?? new Map();
     this.adversaries = options.adversaries ?? new Map();
     this.bandTiles = options.bandTiles;
-    this.fighting = options.inCombat ?? (() => false);
+    this.fighting = options.inCombat ?? (() => state.encounterRunning());
     this.armor = options.armor ?? 'auto';
   }
 
@@ -358,7 +374,9 @@ export class SceneScriptWorld implements ScriptWorld {
       case 'target':
         return living(bindings.targets);
       case 'hit':
-        return living(bindings.hit);
+        return living(bindings.hit).filter(
+          (id) => selector.having === undefined || this.state.entity(id)?.conditions.has(selector.having) === true,
+        );
       case 'allies': {
         const actor = this.scenario.actorId;
         return this.state

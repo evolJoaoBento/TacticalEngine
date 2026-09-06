@@ -1,0 +1,413 @@
+/**
+ * Using what a character can do: domain cards, Hope features, subclass cards.
+ *
+ * An ability is a script with a price and a target. This module is the verb:
+ * it checks the price can be paid and the target is fair, pays, runs the
+ * script through the same runner a chest's check uses, and — in a fight —
+ * spends the character's action once the script has finished asking things,
+ * because whether the spotlight passes is only known after the roll.
+ *
+ * Also here: the loadout and the vault (five cards active, swapping costs
+ * Stress outside a rest), and rests themselves, with the SRD's downtime moves.
+ */
+
+import {
+  abilitiesFor,
+  isScripted,
+  loadoutOf,
+  vaultOf,
+  LOADOUT_LIMIT,
+  type AbilityDef,
+} from '../engine/content/abilities';
+import { canMarkStress, gain, spend } from '../engine/rules/resources';
+import { reaches, type RangeBand } from '../engine/rules/range';
+import { tierOf } from '../engine/character/progression';
+import { deriveCharacter } from '../engine/character/sheet';
+import { evaluateOptional } from '../engine/script/conditions';
+import { ScriptRunner } from '../engine/script/runner';
+import { useKey } from '../engine/script/world';
+import {
+  SRD_CHARACTERS,
+  inCombat,
+  nameOf,
+  note,
+  record,
+  refreshWorld,
+  settle,
+  settleFight,
+  settleTravel,
+  type DemoScene,
+  type LogLine,
+  type UseOutcome,
+} from './demo-scene';
+
+/** An ability as the action bar shows it: what it is, and why it is greyed out. */
+export interface AbilityView {
+  ability: AbilityDef;
+  /** The rules text: the ability's own, or the card's / feature's from the SRD. */
+  text: string;
+  /** Whether the engine can run it, or it is text for the table. */
+  scripted: boolean;
+  usable: boolean;
+  /** Why not, when not. */
+  reason: string | null;
+  /** Uses left before the next refresh, or null when unlimited. */
+  usesLeft: number | null;
+  /** Valid targets right now, when it wants one. */
+  targets: string[];
+}
+
+/** The SRD's words for an ability, when the ability does not carry its own. */
+export function abilityText(demo: DemoScene, ability: AbilityDef): string {
+  if (ability.text !== '') return ability.text;
+  const source = ability.source;
+  if (source.kind === 'domainCard') return SRD_CHARACTERS.domainCards.get(source.card)?.text ?? '';
+  if (source.kind === 'classHope') return SRD_CHARACTERS.classes.get(source.classId)?.hopeFeature?.text ?? '';
+  if (source.kind === 'classFeature') {
+    return SRD_CHARACTERS.classes.get(source.classId)?.features.find((f) => f.name === ability.name)?.text ?? '';
+  }
+  if (source.kind === 'subclass') {
+    return SRD_CHARACTERS.subclasses.get(source.subclassId)?.[source.stage].find((f) => f.name === ability.name)?.text ?? '';
+  }
+  return demo.project.abilities.find((a) => a.id === ability.id)?.text ?? '';
+}
+
+/** Every ability a character has, in sheet order. */
+export function abilitiesOf(demo: DemoScene, characterId: string): AbilityDef[] {
+  const character = demo.characters.get(characterId);
+  return character === undefined ? [] : abilitiesFor(character, demo.project.abilities);
+}
+
+/** Uses left of a limited ability, or null when it is not limited. */
+export function usesLeft(demo: DemoScene, characterId: string, ability: AbilityDef): number | null {
+  if (ability.uses === undefined) return null;
+  return Math.max(0, ability.uses.count - (demo.scenario.abilityUses.get(useKey(characterId, ability.id)) ?? 0));
+}
+
+/**
+ * Who a script with no pick of its own will roll against: the first check's
+ * own selector — "all adversaries within Very Close range" — read from where
+ * the actor stands. Empty when nobody is there, which refuses the use rather
+ * than rolling at the air.
+ */
+export function scriptTargets(demo: DemoScene, characterId: string, ability: AbilityDef): string[] | null {
+  const first = ability.effects.find((e) => e.kind === 'check');
+  if (first?.kind !== 'check' || first.check.targets === undefined) return null;
+  const actor = demo.scenario.actorId;
+  demo.scenario.actorId = characterId;
+  const ids = demo.world.resolveTargets(first.check.targets, { targets: [], hit: [] });
+  demo.scenario.actorId = actor;
+  return ids;
+}
+
+/** The creatures an ability may be aimed at from where the actor stands. */
+export function abilityTargets(demo: DemoScene, characterId: string, ability: AbilityDef): string[] {
+  const kind = ability.target.kind;
+  if (kind === 'none') return scriptTargets(demo, characterId, ability) ?? [];
+  if (kind === 'self') return [characterId];
+  const within = (id: string, range: RangeBand): boolean => {
+    const band = demo.world.bandTo(characterId, id);
+    return band !== null && reaches(band, range);
+  };
+  const living = demo.state.allEntities().filter((e) => e.alive);
+  return living
+    .filter((e) => {
+      if (kind === 'adversary' || kind === 'group') return e.faction === 'adversary';
+      if (kind === 'ally') return e.faction === 'party';
+      return true;
+    })
+    .filter((e) => within(e.id, ability.target.range))
+    .map((e) => e.id);
+}
+
+/** Whether an ability can be used now, and if not, why. */
+export function canUseAbility(
+  demo: DemoScene,
+  characterId: string,
+  ability: AbilityDef,
+  targets: readonly string[] = [],
+): { ok: true } | { ok: false; reason: string } {
+  const entity = demo.state.entity(characterId);
+  const character = demo.characters.get(characterId);
+  if (entity === undefined || character === undefined || !entity.alive) return { ok: false, reason: 'not standing' };
+  if (demo.pending !== null) return { ok: false, reason: 'something is waiting for an answer' };
+  if (ability.kind !== 'action') return { ok: false, reason: ability.kind === 'passive' ? 'always on' : 'a reaction' };
+  if (!isScripted(ability)) return { ok: false, reason: 'the table adjudicates this one' };
+  const fighting = inCombat(demo);
+  if (ability.inCombatOnly && !fighting) return { ok: false, reason: 'only in a fight' };
+  if (fighting && demo.encounter!.view().side !== 'party') return { ok: false, reason: "the GM's turn" };
+  if (fighting && ability.action && !demo.encounter!.canAct(characterId)) return { ok: false, reason: 'already acted' };
+  const cost = ability.cost;
+  if ((cost.hope ?? 0) > 0 && (entity.hope?.value ?? 0) < cost.hope!) return { ok: false, reason: `needs ${cost.hope} Hope` };
+  if ((cost.stress ?? 0) > 0 && !canMarkStress(entity.stress, cost.stress)) return { ok: false, reason: 'no Stress slot to mark' };
+  const left = usesLeft(demo, characterId, ability);
+  if (left !== null && left <= 0) return { ok: false, reason: `used until the next ${ability.uses!.per === 'longRest' ? 'long rest' : ability.uses!.per === 'scene' ? 'fight' : 'rest'}` };
+  demo.scenario.actorId = characterId;
+  if (!evaluateOptional(ability.available, demo.world, { targets, hit: [] })) return { ok: false, reason: 'not now' };
+  if (ability.target.kind !== 'none') {
+    const valid = abilityTargets(demo, characterId, ability);
+    if (valid.length === 0) return { ok: false, reason: 'nothing in range' };
+    if (targets.length > 0 && !targets.every((id) => valid.includes(id))) return { ok: false, reason: 'that target is out of range' };
+  } else if (scriptTargets(demo, characterId, ability)?.length === 0) {
+    return { ok: false, reason: 'nothing in range' };
+  }
+  return { ok: true };
+}
+
+/** Everything a character can do, for an action bar. */
+export function abilityList(demo: DemoScene, characterId: string): AbilityView[] {
+  return abilitiesOf(demo, characterId).map((ability) => {
+    const can = canUseAbility(demo, characterId, ability);
+    return {
+      ability,
+      text: abilityText(demo, ability),
+      scripted: isScripted(ability),
+      usable: can.ok,
+      reason: can.ok ? null : can.reason,
+      usesLeft: usesLeft(demo, characterId, ability),
+      targets: abilityTargets(demo, characterId, ability),
+    };
+  });
+}
+
+/**
+ * Use an ability on some targets.
+ *
+ * The price is paid first — a card is spent the moment it is played, even if
+ * the roll it asks for is then declined — then the script runs. In a fight,
+ * the character's action is spent when the script finishes, with the
+ * spotlight passing if its roll said so.
+ */
+export function useAbility(demo: DemoScene, characterId: string, abilityId: string, targets: readonly string[] = []): UseOutcome {
+  const ability = demo.project.abilities.find((a) => a.id === abilityId);
+  if (ability === undefined) return { status: 'missing', lines: [] };
+  if (!abilitiesOf(demo, characterId).some((a) => a.id === abilityId)) return { status: 'missing', lines: [] };
+  if (demo.pending !== null) return { status: 'busy', lines: [] };
+
+  // A pick the ability wants but the caller left out: the only valid one, or nothing.
+  let chosen = [...targets];
+  if (ability.target.kind === 'self') chosen = [characterId];
+  if (ability.target.kind !== 'none' && ability.target.kind !== 'self' && chosen.length === 0) {
+    const valid = abilityTargets(demo, characterId, ability);
+    if (valid.length === 1) chosen = valid;
+  }
+  const can = canUseAbility(demo, characterId, ability, chosen);
+  if (!can.ok) return { status: 'refused', lines: note(demo, `${nameOf(demo, characterId)} cannot use ${ability.name}: ${can.reason}.`, 'system') };
+  if (ability.target.kind !== 'none' && chosen.length === 0) {
+    return { status: 'refused', lines: note(demo, `${ability.name} needs a target.`, 'system') };
+  }
+  // A group is everyone Very Close to the one picked; the script's selectors
+  // read `target` as that group.
+  if (ability.target.kind === 'group') {
+    const around = demo.world.resolveTargets({ kind: 'adversaries', range: 'veryClose', around: 'target' }, { targets: chosen, hit: [] });
+    chosen = around.length === 0 ? chosen : around;
+  }
+
+  const entity = demo.state.entity(characterId)!;
+  demo.scenario.actorId = characterId;
+  const lines: LogLine[] = note(
+    demo,
+    `${nameOf(demo, characterId)} uses ${ability.name}${chosen.length > 0 && ability.target.kind !== 'self' ? ` on ${chosen.map((id) => nameOf(demo, id)).join(', ')}` : ''}.`,
+    'system',
+  );
+  // Pay.
+  if ((ability.cost.hope ?? 0) > 0 && entity.hope !== undefined) {
+    entity.hope = spend(entity.hope, ability.cost.hope!).currency;
+    lines.push(...note(demo, `Spends ${ability.cost.hope} Hope.`, 'hope'));
+  }
+  if ((ability.cost.stress ?? 0) > 0) {
+    demo.world.markStress(characterId, ability.cost.stress!);
+    lines.push(...note(demo, `Marks ${ability.cost.stress} Stress.`, 'fear'));
+  }
+  if (ability.uses !== undefined) {
+    const key = useKey(characterId, ability.id);
+    demo.scenario.abilityUses.set(key, (demo.scenario.abilityUses.get(key) ?? 0) + 1);
+  }
+
+  const fighting = inCombat(demo);
+  const finish = (runner: ScriptRunner): void => {
+    if (fighting && ability.action && inCombat(demo) && demo.encounter!.canAct(characterId)) {
+      demo.encounter!.act(characterId, { spotlightToGm: runner.spotlightToGm });
+    }
+    settleFight(demo);
+  };
+
+  const runner = new ScriptRunner(demo.world, demo.rng, { targets: chosen, rollAs: 'actor' });
+  const result = runner.run(ability.effects);
+  lines.push(...record(demo, result.journal));
+  if (result.status === 'waiting') {
+    demo.pending = { runner, prompt: result.prompt, interactable: null, recorded: result.journal.length, dialogue: null, onDone: finish };
+    return settle(demo, lines);
+  }
+  finish(runner);
+  return settleTravel(demo, lines);
+}
+
+// ---------------------------------------------------------------------------
+// Loadout and vault
+// ---------------------------------------------------------------------------
+
+export interface LoadoutView {
+  loadout: { id: string; name: string; recallCost: number }[];
+  vault: { id: string; name: string; recallCost: number }[];
+  limit: number;
+}
+
+export function loadoutView(demo: DemoScene, characterId: string): LoadoutView {
+  const character = demo.characters.get(characterId);
+  const describe = (id: string) => {
+    const card = SRD_CHARACTERS.domainCards.get(id);
+    return { id, name: card?.name ?? id, recallCost: card?.recallCost ?? 0 };
+  };
+  if (character === undefined) return { loadout: [], vault: [], limit: LOADOUT_LIMIT };
+  return { loadout: loadoutOf(character).map(describe), vault: vaultOf(character).map(describe), limit: LOADOUT_LIMIT };
+}
+
+export type SwapResult = { ok: true; stress: number } | { ok: false; reason: string };
+
+/**
+ * Bring a card from the vault into the loadout, swapping one out when the
+ * loadout is full. Free during a rest; otherwise "mark a number of Stress
+ * equal to the vaulted card's Recall Cost".
+ */
+export function swapCard(
+  demo: DemoScene,
+  characterId: string,
+  cardIn: string,
+  cardOut?: string,
+  options: { resting?: boolean } = {},
+): SwapResult {
+  const sheet = demo.sheets.get(characterId);
+  const character = demo.characters.get(characterId);
+  const entity = demo.state.entity(characterId);
+  if (sheet === undefined || character === undefined || entity === undefined) return { ok: false, reason: `no character "${characterId}"` };
+  if (demo.pending !== null) return { ok: false, reason: 'something is waiting for an answer' };
+  const loadout = loadoutOf(character);
+  const vault = vaultOf(character);
+  if (!vault.includes(cardIn)) return { ok: false, reason: 'that card is not in the vault' };
+  if (cardOut !== undefined && !loadout.includes(cardOut)) return { ok: false, reason: 'that card is not in the loadout' };
+  if (cardOut === undefined && loadout.length >= LOADOUT_LIMIT) return { ok: false, reason: `the loadout holds ${LOADOUT_LIMIT}; choose one to vault` };
+
+  const card = SRD_CHARACTERS.domainCards.get(cardIn);
+  const cost = options.resting === true ? 0 : (card?.recallCost ?? 0);
+  if (cost > 0 && !canMarkStress(entity.stress, cost)) return { ok: false, reason: `recalling it costs ${cost} Stress, and there is no room to mark it` };
+  if (cost > 0) demo.world.markStress(characterId, cost);
+
+  const next = [...loadout.filter((id) => id !== cardOut), cardIn];
+  const grown = { ...sheet, loadout: next };
+  demo.sheets.set(characterId, grown);
+  demo.characters.set(characterId, deriveCharacter(grown, SRD_CHARACTERS).character);
+  refreshWorld(demo);
+  note(
+    demo,
+    `${sheet.name} recalls ${card?.name ?? cardIn}${cardOut === undefined ? '' : ` and vaults ${SRD_CHARACTERS.domainCards.get(cardOut)?.name ?? cardOut}`}${cost > 0 ? `, marking ${cost} Stress` : ''}.`,
+    cost > 0 ? 'fear' : 'system',
+  );
+  return { ok: true, stress: cost };
+}
+
+// ---------------------------------------------------------------------------
+// Rests
+// ---------------------------------------------------------------------------
+
+export type RestMove =
+  | { kind: 'tendWounds'; target?: string }
+  | { kind: 'clearStress' }
+  | { kind: 'repairArmor'; target?: string }
+  | { kind: 'prepare' };
+
+export interface RestPlan {
+  /** Each character's two downtime moves. A character left out makes none. */
+  moves: Record<string, readonly RestMove[]>;
+  /** Loadouts to set, free, as the rest begins. */
+  loadouts?: Record<string, readonly string[]>;
+}
+
+export type RestResult = { ok: true; fearGained: number } | { ok: false; reason: string };
+
+/**
+ * Take a short or a long rest.
+ *
+ * Short: each move clears 1d4 + tier of something, or gains a Hope; the GM
+ * gains 1d4 Fear. Long: each move clears all of something; the GM gains 1d4 +
+ * the party's size. Either refreshes the abilities it refreshes, ends the
+ * conditions a rest ends, and swaps loadouts for free first.
+ */
+export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): RestResult {
+  if (inCombat(demo)) return { ok: false, reason: 'not in the middle of a fight' };
+  if (demo.pending !== null) return { ok: false, reason: 'not in the middle of a conversation' };
+  const party = demo.state.entitiesOf('party');
+  if (party.length === 0) return { ok: false, reason: 'nobody to rest' };
+
+  note(demo, kind === 'short' ? 'The party stops to catch its breath.' : 'The party makes camp.', 'narration');
+
+  for (const [characterId, loadout] of Object.entries(plan.loadouts ?? {})) {
+    const character = demo.characters.get(characterId);
+    const sheet = demo.sheets.get(characterId);
+    if (character === undefined || sheet === undefined) continue;
+    const held = character.cards.map((c) => c.id);
+    const next = loadout.filter((id) => held.includes(id)).slice(0, LOADOUT_LIMIT);
+    const grown = { ...sheet, loadout: next };
+    demo.sheets.set(characterId, grown);
+    demo.characters.set(characterId, deriveCharacter(grown, SRD_CHARACTERS).character);
+  }
+  refreshWorld(demo);
+
+  // "If you choose to Prepare with one or more members of your party, you each gain 2 Hope."
+  const preparing = Object.entries(plan.moves).filter(([, moves]) => moves.some((m) => m.kind === 'prepare')).length;
+  const hopeEach = preparing >= 2 ? 2 : 1;
+
+  for (const [characterId, moves] of Object.entries(plan.moves)) {
+    const entity = demo.state.entity(characterId);
+    const sheet = demo.sheets.get(characterId);
+    if (entity === undefined || sheet === undefined) continue;
+    const who = sheet.name;
+    const amount = (): number => (kind === 'long' ? Infinity : demo.rng.die(4) + tierOf(sheet.level));
+    for (const move of moves.slice(0, 2)) {
+      switch (move.kind) {
+        case 'tendWounds': {
+          const target = demo.state.entity(move.target ?? characterId) ?? entity;
+          const cleared = Math.min(target.hitPoints.marked, amount());
+          target.hitPoints = { ...target.hitPoints, marked: target.hitPoints.marked - cleared };
+          if (cleared > 0 && target.hitPoints.marked < target.hitPoints.max) target.alive = true;
+          note(demo, `${who} tends ${target.id === characterId ? 'their' : `${nameOf(demo, target.id)}'s`} wounds: ${cleared} Hit Point${cleared === 1 ? '' : 's'} cleared.`, 'hope');
+          break;
+        }
+        case 'clearStress': {
+          const cleared = Math.min(entity.stress.marked, amount());
+          entity.stress = { ...entity.stress, marked: entity.stress.marked - cleared };
+          note(demo, `${who} clears ${cleared} Stress.`, 'hope');
+          break;
+        }
+        case 'repairArmor': {
+          const target = demo.state.entity(move.target ?? characterId) ?? entity;
+          const cleared = Math.min(target.armorSlots.marked, amount());
+          target.armorSlots = { ...target.armorSlots, marked: target.armorSlots.marked - cleared };
+          note(demo, `${who} repairs ${target.id === characterId ? 'their' : `${nameOf(demo, target.id)}'s`} armor: ${cleared} Armor Slot${cleared === 1 ? '' : 's'} cleared.`, 'hope');
+          break;
+        }
+        case 'prepare': {
+          if (entity.hope !== undefined) entity.hope = gain(entity.hope, hopeEach).currency;
+          note(demo, `${who} prepares: ${hopeEach} Hope.`, 'hope');
+          break;
+        }
+      }
+    }
+  }
+
+  // Features refresh, conditions end.
+  for (const key of [...demo.scenario.abilityUses.keys()]) {
+    const ability = demo.project.abilities.find((a) => key.endsWith(`/${a.id}`));
+    const per = ability?.uses?.per;
+    if (per === 'rest' || per === 'scene' || (per === 'longRest' && kind === 'long')) demo.scenario.abilityUses.delete(key);
+  }
+  const ended = demo.state.clearConditions('rest');
+  for (const { id, condition } of ended) note(demo, `${nameOf(demo, id)} is no longer ${condition}.`, 'system');
+
+  // "On a short rest, they gain 1d4 Fear. On a long rest, 1d4 + the number of PCs."
+  const fear = demo.rng.die(4) + (kind === 'long' ? party.length : 0);
+  const gained = gain(demo.state.fear, fear);
+  demo.state.fear = gained.currency;
+  note(demo, `The GM gains ${gained.applied} Fear.`, 'fear');
+  return { ok: true, fearGained: gained.applied };
+}

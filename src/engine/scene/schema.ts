@@ -16,6 +16,7 @@
 
 import { z } from 'zod';
 import { itemSchema, lootTableSchema } from '../content/items';
+import { abilitySchema } from '../content/abilities';
 import { questSchema } from '../content/quests';
 import { modelAssetSchema } from '../render/assets';
 import { dialogueSchema } from '../dialogue/schema';
@@ -214,6 +215,11 @@ export const projectSchema = z
     quests: z.array(questSchema).default([]),
     /** Imported models, by id. Content names them exactly as it names a procedural model. */
     assets: z.array(modelAssetSchema).default([]),
+    /**
+     * What characters can do: domain cards, Hope features, subclass features,
+     * with their scripts. Defaulted, so an older project is still a project.
+     */
+    abilities: z.array(abilitySchema).default([]),
     /** Scene the project opens on. */
     startScene: contentIdSchema,
   })
@@ -256,6 +262,13 @@ export const projectSchema = z
         ctx.addIssue({ code: 'custom', path: ['quests', i, 'id'], message: `duplicate quest id "${quest.id}"` });
       }
       questIds.add(quest.id);
+    });
+    const abilityIds = new Set<string>();
+    project.abilities.forEach((ability, i) => {
+      if (abilityIds.has(ability.id)) {
+        ctx.addIssue({ code: 'custom', path: ['abilities', i, 'id'], message: `duplicate ability id "${ability.id}"` });
+      }
+      abilityIds.add(ability.id);
     });
     const tables = new Set<string>();
     project.lootTables.forEach((table, i) => {

@@ -69,6 +69,7 @@ import {
   moveSelectedTo,
   note,
   playGmTurn,
+  endTurn,
   reachableInteractable,
   travelTo,
   useSelectedOn,
@@ -930,7 +931,7 @@ window.addEventListener('keydown', (event) => {
     demo.party.selectNext();
     refreshPlay();
   } else if (event.key === ' ' || event.key === 'Enter') {
-    playGmTurn(demo);
+    endTurn(demo);
     refreshPlay();
   } else if (event.key === 'f' || event.key === 'F') {
     frameParty();
