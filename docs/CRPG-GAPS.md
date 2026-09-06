@@ -38,6 +38,7 @@ two thirds.
 | Campaign | Two scenes, travel between them, and state that outlives a room |
 | Saving | A campaign put down and picked up: rooms, pack, flags, and the dice position |
 | Quests | Start, tick, finish; a journal; a demo quest across two rooms |
+| Presentation | Orbit/pan/zoom camera, hover cursor, party HUD with pips, dice read out |
 | Items | Items and weighted loot tables; a shared pack that survives a doorway |
 | Editor | Map tools, scene list, object inspector, dialogue graph, quest form, undo, validation, JSON |
 
@@ -275,14 +276,30 @@ code.
 Fixtures are vendored (`tests/fixtures/models/*.glb`) and unused. The procedural library was
 built spec-first partly so an imported asset can slot in beside it behind one resolver.
 
-### 10. Presentation the prototype had and this does not — partly closed
+### ~~10. Presentation the prototype had and this does not~~ — mostly closed
 
 The **narrative log** exists (`game/ui/PlayPanel.tsx`): tone-coloured lines, and the prompt a
 script raises when it stops for a roll, with the option to step back from it. Text only —
 CONTEXT.md rules out narration, and a conversation UI is exactly where that creeps back in.
 
-Still missing: entity-hover links in the log, an inspector, a HUD, camera control (the demo
-camera is fixed — BG3 needs orbit, pan and zoom), and dice presentation.
+The **camera** moves (`engine/render/camera.ts`): an orbit camera kept as plain numbers — target,
+yaw, pitch, distance — with clamps, screen-relative pan and easing, tested in node. `main.ts`
+owns only the events: left drag orbits, right drag pans, the wheel zooms, WASD/arrows slide,
+Q/E turn, F frames the selected character, Home frames the room. A press that moves under six
+pixels is a click, the line the prototype drew with `OrbitControls`; here it is ours and tested
+end to end.
+
+A **HUD** (`game/ui/PartyHud.tsx`) shows each party member as pips — every Hit Point, Stress and
+Armor Slot a box, filled when marked, the way the character sheet looks — plus Hope, conditions,
+the GM's Fear and the round. Clicking a card selects. The tile under the pointer is **marked**,
+so a click has a visible target.
+
+**Dice** are read out rather than rolled on screen: "Hope 8 + Fear 7 + 2 = 17 vs 12. Success,
+with Hope." Only the parts that applied are named. That is the part of dice presentation a
+player needs to trust the outcome; a 3D roll is theatre on top of it.
+
+**Still open:** entity-hover links in the log, and a right-click inspector for what is under the
+pointer.
 
 ## How to tell whether this is on track
 
@@ -313,8 +330,7 @@ does, what it says, and the way between rooms — all of it in a tool.* What is 
 rather than authoring: quests to track, characters who grow, and a camera that
 moves. The line has moved past authoring, past the empty `loot`, and past a game you could only
 play in one sitting. What is left is what a campaign needs to be more than a session: quests to
-track (7), characters who grow and can change what they carry (5, 6), and a camera someone can
-look around with (10).
+track (7), characters who grow and can change what they carry (5, 6). The camera moves now (10).
 
 One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
 workaround from when nothing could use a door. It can go now — the party can pick that lock

@@ -65,6 +65,9 @@ declare global {
       dialogueNodes: (dialogue: string) => string[];
       carried: () => { id: string; name: string; quantity: number }[];
       journal: () => { id: string; status: string; done: string[] }[];
+      camera: () => { yaw: number; pitch: number; distance: number; target: { x: number; z: number } };
+      cursorTile: () => number;
+      screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
       load: () => boolean;
       saveBlocked: () => string | null;
@@ -1133,5 +1136,97 @@ test('authors a quest effect from dropdowns, and the objective follows the quest
   });
   expect(switched).toEqual({ kind: 'completeObjective', quest: 'another-errand', objective: 'first-step' });
 
+  expect(consoleErrors).toEqual([]);
+});
+
+test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a still click is a click', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  const canvas = page.locator('#gl');
+  const box = (await canvas.boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+
+  const start = await page.evaluate(() => window.__polyheart!.camera());
+
+  // Left drag: turns, does not move the target.
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + 120, cy + 30, { steps: 6 });
+  await page.mouse.up();
+  const turned = await page.evaluate(() => window.__polyheart!.camera());
+  expect(turned.yaw).not.toBeCloseTo(start.yaw);
+  expect(turned.target).toEqual(start.target);
+
+  // Right drag: moves the target, keeps the angle.
+  await page.mouse.move(cx, cy);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(cx + 80, cy + 40, { steps: 6 });
+  await page.mouse.up({ button: 'right' });
+  const panned = await page.evaluate(() => window.__polyheart!.camera());
+  expect(panned.yaw).toBeCloseTo(turned.yaw);
+  expect(Math.hypot(panned.target.x - turned.target.x, panned.target.z - turned.target.z)).toBeGreaterThan(0.5);
+
+  // Wheel: changes the distance only.
+  await page.mouse.wheel(0, -600);
+  const zoomed = await page.evaluate(() => window.__polyheart!.camera());
+  expect(zoomed.distance).toBeLessThan(panned.distance);
+  expect(zoomed.yaw).toBeCloseTo(panned.yaw);
+
+  // A press that stays put is still a click: it selects or walks, and the log
+  // shows something happened rather than the camera absorbing it.
+  const before = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.setMode('play');
+    return { tile: api.tileOf(api.selected()!), log: api.log().length };
+  });
+  await page.keyboard.press('Home');
+  await page.waitForTimeout(400);
+  // Hover over another party member's tile: the cursor marks it, and a still
+  // click there selects them rather than being eaten as a drag.
+  const target = await page.evaluate(() => window.__polyheart!.tileOf(window.__polyheart!.party()[1]!));
+  const at = await page.evaluate((tile) => window.__polyheart!.screenOf(tile), target);
+  await page.mouse.move(at.x, at.y);
+  expect(await page.evaluate(() => window.__polyheart!.cursorTile())).toBe(target);
+  await page.mouse.down();
+  await page.mouse.up();
+  const selected = await page.evaluate(() => window.__polyheart!.selected());
+  expect(selected).toBe(await page.evaluate(() => window.__polyheart!.party()[1]));
+  expect(before.tile).toBeDefined();
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('shows the party in a HUD with pips, and clicking a card selects', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  const hud = page.locator('[data-testid="hud"]');
+  await expect(hud).toBeVisible();
+  const party = await page.evaluate(() => window.__polyheart!.party());
+  await expect(hud.locator('[data-member]')).toHaveCount(party.length);
+  await expect(hud.locator('[data-member][data-selected="true"]')).toHaveCount(1);
+
+  await hud.locator(`[data-member="${party[2]}"]`).click();
+  expect(await page.evaluate(() => window.__polyheart!.selected())).toBe(party[2]);
+  await expect(hud.locator(`[data-member="${party[2]}"]`)).toHaveAttribute('data-selected', 'true');
+
+  // The pips agree with the engine.
+  const hp = await page.evaluate((id) => window.__polyheart!.hitPoints(id), party[2]!);
+  const pips = hud.locator(`[data-member="${party[2]}"] [data-testid="hp"]`);
+  await expect(pips).toHaveAttribute('data-max', String(hp.max));
+  await expect(pips).toHaveAttribute('data-marked', String(hp.marked));
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('reads the dice out in the log', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  const line = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const chest = api.objects().find((id) => id.startsWith('chest'))!;
+    api.standBeside(chest);
+    api.use(chest);
+    api.answer({ kind: 'roll' });
+    return api.log().map((l) => l.text).find((t) => t.startsWith('Hope '));
+  });
+  expect(line).toMatch(/^Hope \d+ \+ Fear \d+ .*= \d+ vs \d+\. (A critical success|Success|Failure)/);
   expect(consoleErrors).toEqual([]);
 });

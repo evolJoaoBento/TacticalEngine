@@ -11,7 +11,7 @@
  * Edit: pick a tool and drag on the map. Ctrl+Z / Ctrl+Shift+Z undo and redo.
  */
 
-import { h, render } from 'preact';
+import { Fragment, h, render } from 'preact';
 import {
   PerspectiveCamera,
   Raycaster,
@@ -33,8 +33,10 @@ import {
 } from './editor/session';
 import { EditorPanel } from './editor/ui/EditorPanel';
 import { PlayPanel, type JournalQuest } from './game/ui/PlayPanel';
+import { PartyHud, type HudMember } from './game/ui/PartyHud';
+import { OrbitCamera } from './engine/render/camera';
 import { NO_TILE, type TileGrid } from './engine/grid/grid';
-import { mapExtent, tileAtWorld } from './engine/render/layout';
+import { mapExtent, tileAtWorld, tileCenter } from './engine/render/layout';
 import { MODELS } from './engine/render/procedural/registry';
 import { SceneView } from './engine/render/scene-view';
 import { blankScene, gridFromScene } from './engine/scene/grid-from-scene';
@@ -61,6 +63,7 @@ import {
   reachableTiles,
   DEMO_MODELS,
   SRD_ADVERSARIES,
+  SRD_CHARACTERS,
 } from './game/demo-scene';
 
 declare global {
@@ -115,6 +118,9 @@ declare global {
       dialogueNodes: (dialogue: string) => string[];
       carried: () => { id: string; name: string; quantity: number }[];
       journal: () => { id: string; status: string; done: string[] }[];
+      camera: () => { yaw: number; pitch: number; distance: number; target: { x: number; z: number } };
+      cursorTile: () => number;
+      screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
       load: () => boolean;
       saveBlocked: () => string | null;
@@ -336,12 +342,54 @@ async function loadProject(file: File): Promise<void> {
 const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
 
 /** Frame the whole of whichever map is loaded. */
+/**
+ * The camera model. `main.ts` owns the pointer and the keys; the numbers live
+ * in `OrbitCamera`, which is what a test drives and what keeps this file to
+ * event plumbing.
+ */
+const orbit = new OrbitCamera({ yaw: 0, pitch: 0.85 });
+
+/** Look at the whole room. */
 function frameCamera(): void {
   const extent = mapExtent(activeGrid, view.layout);
-  camera.position.set(0, extent.radius * 1.35, extent.radius * 1.25);
-  camera.lookAt(0, 0, 0);
+  orbit.frame({ x: 0, y: 0, z: 0 }, extent.radius);
+  orbit.snap();
+  applyCamera();
+}
+
+/** Look at whoever is selected, keeping the angle and distance. */
+function frameParty(): void {
+  const id = demo.party.selected;
+  if (id === null) return;
+  const entity = demo.state.entity(id);
+  if (entity === undefined || !activeGrid.isTile(entity.tile)) return;
+  const centre = tileCenter(activeGrid, entity.tile, view.layout);
+  orbit.lookAt({ x: centre.x, y: 0, z: centre.z });
+}
+
+function applyCamera(): void {
+  const eye = orbit.position();
+  camera.position.set(eye.x, eye.y, eye.z);
+  camera.lookAt(orbit.pose.target.x, orbit.pose.target.y, orbit.pose.target.z);
 }
 frameCamera();
+
+// Drag on the board: a left drag orbits, a right (or middle) drag pans, and a
+// press that moves less than a few pixels is a click. The prototype drew the
+// same line at 6px with OrbitControls; here the threshold is ours to test.
+const DRAG_THRESHOLD = 6;
+let drag: { button: number; startX: number; startY: number; lastX: number; lastY: number; moved: boolean } | null = null;
+
+canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+
+canvas.addEventListener(
+  'wheel',
+  (event) => {
+    event.preventDefault();
+    orbit.zoom(Math.exp(event.deltaY * 0.0012));
+  },
+  { passive: false },
+);
 
 const raycaster = new Raycaster();
 const pointer = new Vector2();
@@ -499,9 +547,38 @@ function journalEntries(): JournalQuest[] {
   return entries.sort((a, b) => Number(a.status !== 'active') - Number(b.status !== 'active'));
 }
 
+/** What the HUD shows for each party member. */
+function hudMembers(): HudMember[] {
+  return demo.state.entitiesOf('party').map((entity) => {
+    const character = demo.characters.get(entity.id);
+    const sheet = character?.sheet;
+    const role = sheet === undefined ? '' : (SRD_CHARACTERS.classes.get(sheet.classId)?.name ?? sheet.classId);
+    return {
+      id: entity.id,
+      name: sheet?.name ?? entity.id,
+      role,
+      selected: demo.party.selected === entity.id,
+      alive: entity.alive,
+      hitPoints: { ...entity.hitPoints },
+      stress: { ...entity.stress },
+      armorSlots: { ...entity.armorSlots },
+      ...(entity.hope === undefined ? {} : { hope: { ...entity.hope } }),
+      conditions: [...entity.conditions],
+    };
+  });
+}
+
 function renderPlayPanel(): void {
   render(
-    h(PlayPanel, {
+    h(Fragment, null, h(PartyHud, {
+      members: hudMembers(),
+      fear: { ...demo.state.fear },
+      round: demo.encounter?.round ?? null,
+      onSelect: (id: string) => {
+        demo.party.select(id);
+        refreshPlay();
+      },
+    }), h(PlayPanel, {
       log: demo.log,
       journal: journalEntries(),
       carried: carriedItems(),
@@ -525,23 +602,37 @@ function renderPlayPanel(): void {
         answerPending(demo, response);
         refreshPlay();
       },
-    }),
+    })),
     app,
   );
 }
 refreshPlay();
 
 canvas.addEventListener('pointerdown', (event) => {
-  if (event.button !== 0) return;
-  const tile = tileUnderPointer(event);
-  if (tile === NO_TILE) return;
-
   if (mode === 'edit') {
+    if (event.button !== 0) {
+      drag = { button: event.button, startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, moved: false };
+      canvas.setPointerCapture(event.pointerId);
+      return;
+    }
+    const tile = tileUnderPointer(event);
+    if (tile === NO_TILE) return;
     canvas.setPointerCapture(event.pointerId);
     editor.begin(pointOf(tile));
     renderPanel();
     return;
   }
+
+  // In play every button starts a possible drag; the click happens on release
+  // if the pointer stayed put.
+  drag = { button: event.button, startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, moved: false };
+  canvas.setPointerCapture(event.pointerId);
+});
+
+/** A click on the board in play mode. */
+function clickAt(event: PointerEvent): void {
+  const tile = tileUnderPointer(event);
+  if (tile === NO_TILE) return;
 
   const occupant = entityOn(tile);
   if (occupant !== null) {
@@ -556,17 +647,49 @@ canvas.addEventListener('pointerdown', (event) => {
     else moveSelectedTo(demo, tile);
   }
   refreshPlay();
-});
+}
 
 canvas.addEventListener('pointermove', (event) => {
-  if (mode !== 'edit' || event.buttons === 0) return;
-  const tile = tileUnderPointer(event);
-  if (tile !== NO_TILE) editor.paint(pointOf(tile));
+  if (drag !== null) {
+    const dx = event.clientX - drag.lastX;
+    const dy = event.clientY - drag.lastY;
+    drag.lastX = event.clientX;
+    drag.lastY = event.clientY;
+    if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) >= DRAG_THRESHOLD) {
+      drag.moved = true;
+    }
+    if (drag.moved) {
+      if (drag.button === 0) orbit.orbit(-dx * 0.006, -dy * 0.004);
+      else {
+        // Pan at a rate that keeps the ground under the pointer, roughly:
+        // farther away, a pixel is more world.
+        const scale = orbit.goal.distance * 0.0016;
+        orbit.pan(-dx * scale, dy * scale);
+      }
+    }
+    return;
+  }
+  if (mode === 'edit') {
+    if (event.buttons === 0) return;
+    const tile = tileUnderPointer(event);
+    if (tile !== NO_TILE) editor.paint(pointOf(tile));
+    return;
+  }
+  // Hover: mark the tile under the pointer so a click has a visible target.
+  view.showCursor(tileUnderPointer(event));
 });
 
+canvas.addEventListener('pointerleave', () => view.showCursor(NO_TILE));
+
 canvas.addEventListener('pointerup', (event) => {
-  if (mode !== 'edit') return;
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  if (drag !== null) {
+    const wasClick = !drag.moved && drag.button === 0 && mode === 'play';
+    drag = null;
+    if (wasClick) clickAt(event);
+    return;
+  }
+  if (mode !== 'edit') return;
   editor.end();
   renderPanel();
 });
@@ -595,8 +718,38 @@ window.addEventListener('keydown', (event) => {
   } else if (event.key === ' ' || event.key === 'Enter') {
     playGmTurn(demo);
     refreshPlay();
+  } else if (event.key === 'f' || event.key === 'F') {
+    frameParty();
+  } else if (event.key === 'Home') {
+    const extent = mapExtent(activeGrid, view.layout);
+    orbit.frame({ x: 0, y: 0, z: 0 }, extent.radius);
   }
 });
+
+// Held keys pan and turn every frame, the way a BG3 camera does: WASD and the
+// arrows slide, Q and E turn. Read in `frame()` rather than on keydown so the
+// motion is smooth and independent of key-repeat.
+const held = new Set<string>();
+window.addEventListener('keydown', (event) => {
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+  held.add(event.key.toLowerCase());
+});
+window.addEventListener('keyup', (event) => held.delete(event.key.toLowerCase()));
+window.addEventListener('blur', () => held.clear());
+
+function steerCamera(dt: number): void {
+  if (mode !== 'play') return;
+  const speed = orbit.goal.distance * 0.9 * dt;
+  let right = 0;
+  let forward = 0;
+  if (held.has('a') || held.has('arrowleft')) right -= 1;
+  if (held.has('d') || held.has('arrowright')) right += 1;
+  if (held.has('w') || held.has('arrowup')) forward += 1;
+  if (held.has('s') || held.has('arrowdown')) forward -= 1;
+  if (right !== 0 || forward !== 0) orbit.pan(right * speed, forward * speed);
+  if (held.has('q')) orbit.orbit(1.6 * dt, 0);
+  if (held.has('e')) orbit.orbit(-1.6 * dt, 0);
+}
 
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -761,6 +914,20 @@ const state = {
 
   carried: (): { id: string; name: string; quantity: number }[] => carriedItems(),
 
+  camera: (): { yaw: number; pitch: number; distance: number; target: { x: number; z: number } } => ({
+    yaw: orbit.goal.yaw,
+    pitch: orbit.goal.pitch,
+    distance: orbit.goal.distance,
+    target: { x: orbit.goal.target.x, z: orbit.goal.target.z },
+  }),
+  cursorTile: (): number => view.cursorAt,
+  /** Where a tile's centre lands on screen, in CSS pixels from the page origin. */
+  screenOf: (tile: number): { x: number; y: number } => {
+    const centre = tileCenter(activeGrid, tile, view.layout);
+    const v = new Vector3(centre.x, 0, centre.z).project(camera);
+    const rect = canvas.getBoundingClientRect();
+    return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height };
+  },
   journal: (): { id: string; status: string; done: string[] }[] =>
     journalEntries().map((q) => ({
       id: q.id,
@@ -818,7 +985,12 @@ const state = {
 };
 window.__polyheart = state;
 
-function frame(): void {
+let lastFrame = performance.now();
+function frame(now = performance.now()): void {
+  const dt = Math.min(0.1, (now - lastFrame) / 1000);
+  lastFrame = now;
+  steerCamera(dt);
+  if (orbit.update(dt)) applyCamera();
   renderer.render(view.scene, camera);
   state.frames++;
   requestAnimationFrame(frame);

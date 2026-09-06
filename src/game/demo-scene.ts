@@ -26,6 +26,7 @@ import { DEMO_DIALOGUES, PILLAR_DIALOGUE_ID } from './demo-dialogue';
 import { useInteractable } from '../engine/scene/interact';
 import type { Trait } from '../engine/scene/primitives';
 import type { CheckOutcome, LogTone } from '../engine/script/effects';
+import type { DualityRoll } from '../engine/rules/duality';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
 import { createScenarioState, SceneScriptWorld, type ScenarioState } from '../engine/script/world';
 import ancestryJson from '../../tools/srd-sources/daggersearch/core/ancestries.json';
@@ -967,7 +968,7 @@ function describeEntry(
     case 'heal':
       return { text: `You recover ${entry.amount}.`, tone: 'hope' };
     case 'check':
-      return { text: describeOutcome(entry.outcome), tone: toneFor(entry.outcome) };
+      return { text: `${describeRoll(entry.roll)} ${describeOutcome(entry.outcome)}`, tone: toneFor(entry.outcome) };
     case 'chose':
       return { text: entry.label, tone: 'system' };
     case 'encounter':
@@ -978,6 +979,22 @@ function describeEntry(
       // Flags, variables and bookkeeping are real but not news.
       return null;
   }
+}
+
+/**
+ * The dice, in words: "Hope 9 + Fear 4 +2 = 15 vs 13."
+ *
+ * The prototype rolled physical dice on screen; this reads them out instead,
+ * which is the part of dice presentation a player actually needs to trust the
+ * outcome. Only the parts that applied are named.
+ */
+export function describeRoll(roll: DualityRoll): string {
+  const parts = [`Hope ${roll.hope} + Fear ${roll.fear}`];
+  if (roll.advantageDie > 0) parts.push(`+ d6 ${roll.advantageDie}`);
+  if (roll.advantageDie < 0) parts.push(`− d6 ${-roll.advantageDie}`);
+  if (roll.helpBonus > 0) parts.push(`+ help ${roll.helpBonus}`);
+  if (roll.modifier !== 0) parts.push(roll.modifier > 0 ? `+ ${roll.modifier}` : `− ${-roll.modifier}`);
+  return `${parts.join(' ')} = ${roll.total} vs ${roll.difficulty}.`;
 }
 
 function describeOutcome(outcome: CheckOutcome): string {

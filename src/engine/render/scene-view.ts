@@ -19,11 +19,12 @@ import {
   DirectionalLight,
   Group,
   InstancedMesh,
+  Mesh,
   MeshBasicMaterial,
   Object3D,
   Scene,
 } from 'three';
-import type { TileGrid } from '../grid/grid';
+import { NO_TILE, type TileGrid } from '../grid/grid';
 import type { Deco } from '../scene/schema';
 import type { EntityState, SceneState } from '../scene/state';
 import { DEFAULT_LAYOUT, surfaceHeight, tileCenter, type TileLayout } from './layout';
@@ -89,6 +90,10 @@ export class SceneView {
   private readonly highlight: InstancedMesh;
   private readonly highlightGeometry: BoxGeometry;
   private readonly highlightMaterial: MeshBasicMaterial;
+  /** The tile under the pointer: one quad, a different colour, or hidden. */
+  private readonly cursor: Mesh;
+  private readonly cursorMaterial: MeshBasicMaterial;
+  private cursorTile = NO_TILE;
   private readonly maxHighlights: number;
   private highlightCount = 0;
   private readonly dummy = new Object3D();
@@ -134,6 +139,17 @@ export class SceneView {
     this.highlight.count = 0;
     this.highlight.frustumCulled = false;
     this.root.add(this.highlight);
+
+    this.cursorMaterial = new MeshBasicMaterial({
+      color: new Color('#ffe08a'),
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false,
+    });
+    this.cursor = new Mesh(this.highlightGeometry, this.cursorMaterial);
+    this.cursor.name = 'cursor';
+    this.cursor.visible = false;
+    this.root.add(this.cursor);
 
     this.addLights();
   }
@@ -277,11 +293,30 @@ export class SceneView {
     this.showHighlights([]);
   }
 
+  /** Mark the tile under the pointer, or nothing for `NO_TILE`. */
+  showCursor(tile: number): void {
+    if (tile === this.cursorTile) return;
+    this.cursorTile = tile;
+    if (!this.grid.isTile(tile)) {
+      this.cursor.visible = false;
+      return;
+    }
+    const centre = tileCenter(this.grid, tile, this.layout);
+    this.cursor.position.set(centre.x, surfaceHeight(this.grid.heightAt(tile), this.layout) + 0.03, centre.z);
+    this.cursor.visible = true;
+  }
+
+  /** The tile the cursor marks, or `NO_TILE`. */
+  get cursorAt(): number {
+    return this.cursorTile;
+  }
+
   dispose(): void {
     this.terrain.dispose();
     this.highlightGeometry.dispose();
     this.highlightMaterial.dispose();
     this.highlight.dispose();
+    this.cursorMaterial.dispose();
     this.tokens.clear();
     this.decos.length = 0;
     // Shared caches outlive a scene unless this view created them.
