@@ -516,7 +516,7 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   data.
 - **Editor camera**: right-drag pan and wheel zoom work in edit mode, but the keyboard camera
   (WASD, Q/E, F, Home) is play-only.
-- **No right-click inspector** in play and no entity-hover links in the log.
+- No entity-hover links in the log.
 - Attacks are not read out in the log, and an impossible attack click is silent.
 - A scripted check (an object, a conversation) awards Hope to whoever used the thing and Fear
   to the GM, the same as an attack; the check itself rolls with the party's best trait.

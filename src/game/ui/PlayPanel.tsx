@@ -33,8 +33,23 @@ export interface JournalQuest {
   objectives: readonly { id: string; text: string; done: boolean }[];
 }
 
+/** What a right-click found: a card's worth of facts, no verbs. */
+export interface Inspection {
+  kind: 'character' | 'adversary' | 'object';
+  id: string;
+  name: string;
+  /** "Guardian · level 2", "Tier 1 Bruiser", "chest". */
+  line: string;
+  text: string;
+  /** Short facts: "HP 2/6", "Difficulty 13", "Open". */
+  facts: readonly string[];
+}
+
 export interface PlayPanelProps {
   log: readonly LogLine[];
+  /** What was right-clicked, until closed. */
+  inspecting: Inspection | null;
+  onCloseInspect: () => void;
   /** Quests the party has been given, active first. */
   journal: readonly JournalQuest[];
   /** What the party is carrying. */
@@ -186,6 +201,20 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               </button>
             </div>
           ))}
+        </div>
+      ) : null}
+
+      {props.inspecting !== null ? (
+        <div style={{ ...logBox, padding: '8px 12px', flexShrink: 0, border: '1px solid #39404d' }} data-testid="inspect" data-inspect={props.inspecting.id}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <strong>{props.inspecting.name}</strong>
+            <button type="button" style={{ ...button(false), padding: '1px 8px', marginRight: 0 }} title="Close" onClick={props.onCloseInspect}>
+              ✕
+            </button>
+          </div>
+          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>{props.inspecting.line}</div>
+          {props.inspecting.text !== '' ? <div style={{ margin: '4px 0', color: '#d8d4c8' }}>{props.inspecting.text}</div> : null}
+          <div style={{ color: '#c8b88a', fontSize: '12px' }}>{props.inspecting.facts.join(' · ')}</div>
         </div>
       ) : null}
 

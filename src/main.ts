@@ -34,7 +34,7 @@ import {
   updateInteractable,
 } from './editor/session';
 import { EditorPanel } from './editor/ui/EditorPanel';
-import { PlayPanel, type JournalQuest } from './game/ui/PlayPanel';
+import { PlayPanel, type Inspection, type JournalQuest } from './game/ui/PlayPanel';
 import { PartyHud, type HudMember } from './game/ui/PartyHud';
 import { LevelUpPanel } from './game/ui/LevelUpPanel';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
@@ -73,6 +73,7 @@ import {
   travelTo,
   useSelectedOn,
   reachableTiles,
+  DEMO_ADVERSARY_ID,
   DEMO_MODELS,
   SRD_ADVERSARIES,
   SRD_CHARACTERS,
@@ -132,6 +133,8 @@ declare global {
       equip: (id: string) => string;
       useItem: (id: string) => string;
       objectState: (id: string) => { used: boolean; open: boolean; removed: boolean };
+      inspect: (tile: number) => { kind: string; id: string; name: string; facts: string[] } | null;
+      animating: () => number;
       wound: (id: string, marks: number) => void;
       gear: (id: string) => { weapon: string; armor: string };
       giveItem: (id: string, quantity?: number) => void;
@@ -190,7 +193,12 @@ const demo = buildDemoScene(demoMap());
 /** glTF files the project declares, loaded on first use. */
 const gltfLoader = new GLTFLoader();
 const assets = new AssetLibrary(
-  (url) => gltfLoader.loadAsync(url).then((gltf) => gltf.scene),
+  (url) =>
+    gltfLoader.loadAsync(url).then((gltf) => {
+      // Clips live beside the scene in a glTF; keep them on it so a clone can play them.
+      gltf.scene.animations = gltf.animations;
+      return gltf.scene;
+    }),
   demo.project.assets,
 );
 
@@ -632,6 +640,9 @@ function hudMembers(): HudMember[] {
   });
 }
 
+/** What is being looked at, until closed. */
+let inspecting: Inspection | null = null;
+
 /** Who is filling in a level-up sheet, and why the last attempt was refused. */
 let levelling: string | null = null;
 let levelIssues: LevelUpIssue[] = [];
@@ -677,6 +688,11 @@ function renderPlayPanel(): void {
         })
       : null, h(PlayPanel, {
       log: demo.log,
+      inspecting,
+      onCloseInspect: () => {
+        inspecting = null;
+        refreshPlay();
+      },
       journal: journalEntries(),
       carried: carriedItems(),
       pending: demo.pending,
@@ -747,6 +763,60 @@ canvas.addEventListener('pointerdown', (event) => {
   canvas.setPointerCapture(event.pointerId);
 });
 
+/** Facts about whatever stands on a tile — a party member, an adversary, an object. */
+function inspectTile(tile: number): Inspection | null {
+  const occupant = entityOn(tile);
+  if (occupant !== null) {
+    const entity = demo.state.entity(occupant)!;
+    const pools = [
+      `HP ${entity.hitPoints.marked}/${entity.hitPoints.max}`,
+      `Stress ${entity.stress.marked}/${entity.stress.max}`,
+      `Armor ${entity.armorSlots.marked}/${entity.armorSlots.max}`,
+    ];
+    if (entity.faction === 'party') {
+      const character = demo.characters.get(entity.id);
+      const sheet = character?.sheet;
+      const klass = sheet === undefined ? undefined : SRD_CHARACTERS.classes.get(sheet.classId);
+      const gear = gearOf(demo, entity.id);
+      return {
+        kind: 'character',
+        id: entity.id,
+        name: sheet?.name ?? entity.id,
+        line: `${klass?.name ?? sheet?.classId ?? ''} · level ${sheet?.level ?? 1}`,
+        text: `${gear.weapon} · ${gear.armor}`,
+        facts: [
+          ...pools,
+          ...(entity.hope === undefined ? [] : [`Hope ${entity.hope.value}/${entity.hope.max}`]),
+          `Evasion ${character?.evasion ?? '?'}`,
+          ...[...entity.conditions],
+        ],
+      };
+    }
+    const def = SRD_ADVERSARIES.get(entity.definition) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID);
+    return {
+      kind: 'adversary',
+      id: entity.id,
+      name: def?.name ?? entity.definition,
+      line: def === undefined ? entity.definition : `Tier ${def.tier} ${def.role}`,
+      text: def?.description ?? '',
+      facts: [...pools, ...(def === undefined ? [] : [`Difficulty ${def.difficulty}`]), ...[...entity.conditions]],
+    };
+  }
+  const objectId = objectOn(tile);
+  if (objectId !== null) {
+    const object = demo.scene.interactables.find((i) => i.id === objectId)!;
+    const state = demo.state.interactable(objectId);
+    const facts: string[] = [];
+    if (state.removed) facts.push('Gone');
+    else if (state.open) facts.push('Open');
+    else if (state.used) facts.push('Used');
+    if (object.requiresKey !== undefined) facts.push('Needs a key');
+    if (object.check !== undefined) facts.push(`${object.check.trait} ${object.check.difficulty}`);
+    return { kind: 'object', id: objectId, name: object.name || objectId, line: object.kind, text: object.flavor, facts };
+  }
+  return null;
+}
+
 /** A click on the board in play mode. */
 function clickAt(event: PointerEvent): void {
   const tile = tileUnderPointer(event);
@@ -802,9 +872,16 @@ canvas.addEventListener('pointerleave', () => view.showCursor(NO_TILE));
 canvas.addEventListener('pointerup', (event) => {
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
   if (drag !== null) {
-    const wasClick = !drag.moved && drag.button === 0 && mode === 'play';
+    const wasClick = !drag.moved && mode === 'play';
+    const button = drag.button;
     drag = null;
-    if (wasClick) clickAt(event);
+    if (wasClick && button === 0) clickAt(event);
+    if (wasClick && button === 2) {
+      // A still right-click looks at what is there rather than acting on it.
+      const tile = tileUnderPointer(event);
+      inspecting = tile === NO_TILE ? null : inspectTile(tile);
+      refreshPlay();
+    }
     return;
   }
   if (mode !== 'edit') return;
@@ -841,7 +918,10 @@ window.addEventListener('keydown', (event) => {
     }
     return;
   }
-  if (event.key === 'Tab') {
+  if (event.key === 'Escape' && inspecting !== null) {
+    inspecting = null;
+    refreshPlay();
+  } else if (event.key === 'Tab') {
     event.preventDefault();
     demo.party.selectNext();
     refreshPlay();
@@ -1043,6 +1123,12 @@ const state = {
     session.project.dialogues.find((d) => d.id === dialogue)?.nodes.map((n) => n.id) ?? [],
 
   carried: (): { id: string; name: string; quantity: number }[] => carriedItems(),
+  inspect: (tile: number): { kind: string; id: string; name: string; facts: string[] } | null => {
+    inspecting = inspectTile(tile);
+    refreshPlay();
+    return inspecting === null ? null : { kind: inspecting.kind, id: inspecting.id, name: inspecting.name, facts: [...inspecting.facts] };
+  },
+  animating: (): number => view.animationCount,
   objectState: (id: string): { used: boolean; open: boolean; removed: boolean } => {
     const s = demo.state.interactable(id);
     return { used: s.used, open: s.open, removed: s.removed };
@@ -1184,6 +1270,7 @@ function frame(now = performance.now()): void {
   const dt = Math.min(0.1, (now - lastFrame) / 1000);
   lastFrame = now;
   steerCamera(dt);
+  view.tick(dt);
   if (orbit.update(dt)) applyCamera();
   renderer.render(view.scene, camera);
   state.frames++;

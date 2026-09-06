@@ -332,8 +332,12 @@ imported token, so a side reads at a glance.
 The editor lists a project's models and adds one from a URL; the e2e imports the Khronos Duck
 from the test fixtures, draws it where a prop names it, and finds it in the exported JSON.
 
-**Still open:** animations are loaded, not played; textures come with the file but nothing
-authors materials; and there is no file picker — a model is a URL the page can reach.
+An imported model with clips plays its first one on a loop (an idle, in every sample set
+worth the name); `SceneView.tick` drives the mixers from the frame loop.
+
+**Still open:** choosing clips per state (walk, attack, fallen) is content's job and there is no
+field for it yet; textures come with the file but nothing authors materials; there is no file
+picker — a model is a URL the page can reach.
 
 ### ~~10. Presentation the prototype had and this does not~~ — mostly closed
 
@@ -357,8 +361,12 @@ so a click has a visible target.
 with Hope." Only the parts that applied are named. That is the part of dice presentation a
 player needs to trust the outcome; a 3D roll is theatre on top of it.
 
-**Still open:** entity-hover links in the log, and a right-click inspector for what is under the
-pointer.
+A still **right-click** inspects what is under the pointer — a party member (class, level,
+gear, pools, Evasion, conditions), an adversary (tier, role, description, Difficulty, pools) or
+an object (kind, flavour, whether it is open, used or gone, what it asks for) — as a card in the
+play panel; Escape or ✕ closes it.
+
+**Still open:** entity-hover links in the log.
 
 ## How to tell whether this is on track
 

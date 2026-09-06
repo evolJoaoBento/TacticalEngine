@@ -13,6 +13,7 @@
  */
 
 import {
+  AnimationMixer,
   AmbientLight,
   BoxGeometry,
   Color,
@@ -110,6 +111,8 @@ export class SceneView {
   private readonly tokenModels = new Map<string, string>();
   private lastDecos: readonly Deco[] = [];
   private lastState: SceneState | null = null;
+  /** One mixer per animated clone, advanced by `tick`. */
+  private readonly mixers = new Map<Object3D, AnimationMixer>();
   private readonly highlight: InstancedMesh;
   private readonly highlightGeometry: BoxGeometry;
   private readonly highlightMaterial: MeshBasicMaterial;
@@ -253,6 +256,14 @@ export class SceneView {
     const clone = cloneSkeleton(template);
     clone.scale.setScalar(spec.scale);
     clone.rotation.y = spec.rotationY;
+    // A file with clips plays its first one on a loop — an idle, in every
+    // sample set worth the name. Choosing clips per state is content's job later.
+    const clip = template.animations[0];
+    if (clip !== undefined) {
+      const mixer = new AnimationMixer(clone);
+      mixer.clipAction(clip).play();
+      this.mixers.set(clone, mixer);
+    }
     clone.traverse((child) => {
       if ((child as Mesh).isMesh) {
         child.castShadow = true;
@@ -289,6 +300,23 @@ export class SceneView {
     }
     if (this.lastState !== null) this.syncTokens(this.lastState);
     if (this.lastDecos.some((deco) => deco.model === id)) this.setDecos(this.lastDecos);
+  }
+
+  /** Advance every playing clip. `dt` in seconds. */
+  tick(dt: number): void {
+    for (const [object, mixer] of this.mixers) {
+      // A clone whose group left the scene stops being driven.
+      if (object.parent === null || object.parent.parent === null) {
+        this.mixers.delete(object);
+        continue;
+      }
+      mixer.update(dt);
+    }
+  }
+
+  /** How many imported models are being animated. */
+  get animationCount(): number {
+    return this.mixers.size;
   }
 
   /** Whether an id is currently drawn from an imported file, the library, or the placeholder. */
@@ -414,6 +442,8 @@ export class SceneView {
 
   dispose(): void {
     if (this.stopListening !== null) this.stopListening();
+    for (const mixer of this.mixers.values()) mixer.stopAllAction();
+    this.mixers.clear();
     this.terrain.dispose();
     this.highlightGeometry.dispose();
     this.highlightMaterial.dispose();

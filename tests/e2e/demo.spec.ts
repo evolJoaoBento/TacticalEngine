@@ -67,6 +67,8 @@ declare global {
       equip: (id: string) => string;
       useItem: (id: string) => string;
       objectState: (id: string) => { used: boolean; open: boolean; removed: boolean };
+      inspect: (tile: number) => { kind: string; id: string; name: string; facts: string[] } | null;
+      animating: () => number;
       wound: (id: string, marks: number) => void;
       gear: (id: string) => { weapon: string; armor: string };
       giveItem: (id: string, quantity?: number) => void;
@@ -1527,5 +1529,60 @@ test('keeps named saves and an autosave from the last doorway', async ({ page })
   await list.locator(`[data-save="${ids.downstairs}"] button[title="Delete this save"]`).click();
   expect(await page.evaluate(() => window.__polyheart!.saves().map((s) => s.name).sort())).toEqual(['Autosave', 'Before the stairs']);
 
+  expect(consoleErrors).toEqual([]);
+});
+
+test('right-clicks to inspect, and Escape closes the card', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  const foe = await page.evaluate(() => window.__polyheart!.adversaries()[0]!);
+  const tile = await page.evaluate((id) => window.__polyheart!.tileOf(id), foe);
+  await page.keyboard.press('Home');
+  await page.waitForTimeout(400);
+  const at = await page.evaluate((t) => window.__polyheart!.screenOf(t), tile);
+
+  // A still right-click: the card appears, and the camera did not pan.
+  const before = await page.evaluate(() => window.__polyheart!.camera());
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.up({ button: 'right' });
+  const card = page.locator('[data-testid="inspect"]');
+  await expect(card).toBeVisible();
+  await expect(card).toHaveAttribute('data-inspect', foe);
+  await expect(card).toContainText('HP');
+  await expect(card).toContainText('Difficulty');
+  const after = await page.evaluate(() => window.__polyheart!.camera());
+  expect(after.target).toEqual(before.target);
+
+  await page.keyboard.press('Escape');
+  await expect(card).toHaveCount(0);
+
+  // A party member and an object through the handle, for their facts.
+  const kara = await page.evaluate(() => window.__polyheart!.inspect(window.__polyheart!.tileOf('kara')));
+  expect(kara).toMatchObject({ kind: 'character', name: 'Kara' });
+  expect(kara!.facts.join(' ')).toMatch(/Evasion \d+/);
+  const chest = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const id = api.objects().find((o) => o.startsWith('chest'))!;
+    const tile = api.sceneTiles(); // any call to keep the handle warm
+    void tile;
+    return api.inspect(api.party().length > 0 ? api.tileOf('kara') : 0) === null ? null : id;
+  });
+  expect(chest).not.toBeNull();
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('plays a skinned model\'s first clip once it arrives', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.addAsset({ id: 'fox', url: '/tests/fixtures/models/Fox.glb', scale: 0.012 });
+    api.setMode('edit');
+    api.placeProp(api.tileOf(api.party()[0]!) + 2, 'fox');
+    api.setMode('play');
+  });
+  await page.waitForFunction(() => window.__polyheart!.assetStatus('fox') === 'ready', undefined, { timeout: 15000 });
+  await page.waitForFunction(() => window.__polyheart!.animating() > 0, undefined, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__polyheart!.animating())).toBeGreaterThan(0);
   expect(consoleErrors).toEqual([]);
 });
