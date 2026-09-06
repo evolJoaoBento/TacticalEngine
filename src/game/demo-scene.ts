@@ -11,6 +11,10 @@
  */
 
 import adversaryJson from '../../tools/srd-sources/seansbox/adversaries.json';
+import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
+import type { Currency, MarkPool } from '../engine/rules/resources';
+import { interactableSchema, projectSchema, type ProjectDoc } from '../engine/scene/schema';
+import type { SceneStateSnapshot } from '../engine/scene/state';
 import { DialogueRunner, type DialogueView } from '../engine/dialogue/dialogue';
 import type { Dialogue } from '../engine/dialogue/schema';
 import { DEMO_DIALOGUES, PILLAR_DIALOGUE_ID } from './demo-dialogue';
@@ -62,6 +66,9 @@ export const SRD_ADVERSARIES: ReadonlyMap<string, AdversaryDef> = new Map(
  * combat test makes.
  */
 export const DEMO_ADVERSARY_ID = 'acid-burrower';
+
+/** The way out of the vault, added by the demo because the legacy map had none. */
+export const DEMO_STAIR_ID = 'stair-down';
 
 /** How far a party member may move in one go, in movement points. */
 export const DEMO_MOVE_BUDGET = 8;
@@ -134,6 +141,12 @@ export interface DemoScene {
   /** What scripts read and write: flags, keys, variables. */
   world: SceneScriptWorld;
   scenario: ScenarioState;
+  /** Every scene the campaign holds, so travel has somewhere to go. */
+  project: ProjectDoc;
+  /** How each visited scene was left, so returning finds it that way. */
+  snapshots: Map<string, SceneStateSnapshot>;
+  /** A scene a script asked to travel to, acted on once the script settles. */
+  destination: string | null;
   /** Conversations the project ships, by id. */
   dialogues: ReadonlyMap<string, Dialogue>;
   /** The narrative log, oldest first. */
@@ -195,25 +208,185 @@ export interface PendingDialogue {
   spokenNode: string | null;
 }
 
-export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
-  const imported = importLegacyScene(map);
-  const scene = imported.scene;
-  if (scene === null) throw new Error('the demo map could not be imported');
+/** Everything that belongs to one room rather than to the campaign. */
+interface SceneRuntime {
+  scene: SceneDoc;
+  grid: TileGrid;
+  state: SceneState;
+  pathfinder: Pathfinder;
+  party: Party;
+  triggers: TriggerIndex;
+  world: SceneScriptWorld;
+}
 
+interface RuntimeOptions {
+  /** Pools the party arrives with, by character id. Fresh sheets when absent. */
+  pools?: ReadonlyMap<string, PartyPools>;
+  /** Fear is the GM's across the session, not the room's. */
+  fear?: Currency;
+}
+
+/** The pools a character carries between rooms. */
+export interface PartyPools {
+  hitPoints: MarkPool;
+  stress: MarkPool;
+  armorSlots: MarkPool;
+  /** Optional only because `EntityState` makes it so; party members always have it. */
+  hope?: Currency;
+}
+
+/**
+ * Build the mutable half of a scene.
+ *
+ * Split out of `buildDemoScene` so travelling can do exactly this again for the
+ * room being entered, with the party's pools carried in rather than rolled back
+ * to full.
+ */
+function buildRuntime(
+  scene: SceneDoc,
+  characters: ReadonlyMap<string, DerivedCharacter>,
+  scenario: ScenarioState,
+  options: RuntimeOptions = {},
+): SceneRuntime {
   const { grid } = gridFromScene(scene);
-  const burrower = SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID);
-  if (burrower === undefined) throw new Error(`missing adversary "${DEMO_ADVERSARY_ID}"`);
 
+  // The legacy map's adversaries are homebrew ids with no SRD stat block, so one
+  // imported adversary stands in for all of them; a real project would ship its
+  // own. An id that *is* in the SRD uses its own numbers.
+  const stand = SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID);
+  if (stand === undefined) throw new Error(`missing adversary "${DEMO_ADVERSARY_ID}"`);
   const stats = new Map<string, { id: string; hitPoints: number; stress: number }>();
   for (const encounter of scene.encounters) {
     for (const placement of encounter.adversaries) {
+      const definition = SRD_ADVERSARIES.get(placement.adversary) ?? stand;
       stats.set(placement.adversary, {
         id: placement.adversary,
-        hitPoints: burrower.hitPoints,
-        stress: burrower.stress,
+        hitPoints: definition.hitPoints,
+        stress: definition.stress,
       });
     }
   }
+
+  const { state } = sceneStateFromScene(scene, grid, {
+    adversaries: stats,
+    party: PARTY_SHEETS.map((sheet) => {
+      const carried = options.pools?.get(sheet.id);
+      const pools = carried ?? startingPools(characters.get(sheet.id)!);
+      return {
+        ...createPartyEntity(sheet.id, sheet.classId, NO_TILE),
+        hitPoints: { ...pools.hitPoints },
+        stress: { ...pools.stress },
+        armorSlots: { ...pools.armorSlots },
+        ...(pools.hope === undefined ? {} : { hope: { ...pools.hope } }),
+      };
+    }),
+    ...(options.fear === undefined ? {} : { fear: { ...options.fear } }),
+  });
+
+  const pathfinder = new Pathfinder(grid);
+  return {
+    scene,
+    grid,
+    state,
+    pathfinder,
+    party: new Party(state, pathfinder, { moveBudget: DEMO_MOVE_BUDGET }),
+    triggers: new TriggerIndex(scene, grid),
+    world: new SceneScriptWorld(state, scenario, { traits: traitsFor(characters) }),
+  };
+}
+
+/** What each party member is carrying, pool-wise, right now. */
+function poolsOf(demo: DemoScene): Map<string, PartyPools> {
+  const pools = new Map<string, PartyPools>();
+  for (const entity of demo.state.entitiesOf('party')) {
+    pools.set(entity.id, {
+      hitPoints: { ...entity.hitPoints },
+      stress: { ...entity.stress },
+      armorSlots: { ...entity.armorSlots },
+      ...(entity.hope === undefined ? {} : { hope: { ...entity.hope } }),
+    });
+  }
+  return pools;
+}
+
+/**
+ * Move the party to another scene.
+ *
+ * Wounds, Stress, Hope and Fear travel; where everyone stood does not — the
+ * party arrives on the new scene's spawn points. A room already visited is
+ * restored to how it was left, minus its party entities, which are replaced with
+ * the ones that actually walked in.
+ */
+export function travelTo(demo: DemoScene, sceneId: string): boolean {
+  const target = demo.project.scenes.find((candidate) => candidate.id === sceneId);
+  if (target === undefined || target.id === demo.scene.id) return false;
+
+  // Remember the room being left, so coming back finds the chest still open.
+  demo.snapshots.set(demo.scene.id, demo.state.snapshot());
+
+  const selected = demo.party.selected;
+  const runtime = buildRuntime(target, demo.characters, demo.scenario, {
+    pools: poolsOf(demo),
+    fear: demo.state.fear,
+  });
+
+  const remembered = demo.snapshots.get(target.id);
+  if (remembered !== undefined) {
+    const arrivals = runtime.state.entitiesOf('party').map((e) => ({ ...e }));
+    // `restore` replaces everything, the stale party included; put the real one
+    // back on the spawns afterwards.
+    runtime.state.restore(remembered);
+    for (const entity of runtime.state.entitiesOf('party')) {
+      runtime.state.removeEntity(entity.id);
+    }
+    const spawns = target.spawns;
+    arrivals.forEach((entity, i) => {
+      const spawn = spawns[i % Math.max(spawns.length, 1)];
+      const tile = spawn === undefined ? NO_TILE : tileOf(runtime.grid, spawn);
+      runtime.state.addEntity({ ...entity, tile });
+    });
+  }
+
+  demo.scene = runtime.scene;
+  demo.grid = runtime.grid;
+  demo.state = runtime.state;
+  demo.pathfinder = runtime.pathfinder;
+  demo.party = runtime.party;
+  demo.triggers = runtime.triggers;
+  demo.world = runtime.world;
+  // A fight does not follow you through a door, and a script that was waiting
+  // belongs to the room it was asked in.
+  demo.encounter = null;
+  demo.pending = null;
+  demo.destination = null;
+
+  if (selected !== null && demo.party.members().includes(selected)) demo.party.select(selected);
+  // `SceneDoc.intro` has been an authored field nothing ever read.
+  if (target.intro !== '') note(demo, target.intro, 'narration');
+  return true;
+}
+
+/**
+ * Act on a `goto` a script asked for, once the script has finished asking the
+ * player things.
+ *
+ * Travelling mid-script would carry the rest of that script into the wrong room,
+ * so the destination is remembered and spent here.
+ */
+function settleTravel(demo: DemoScene, lines: LogLine[]): UseOutcome {
+  if (demo.destination === null || demo.pending !== null) {
+    return { status: demo.pending === null ? 'done' : 'waiting', lines };
+  }
+  const before = demo.log.length;
+  travelTo(demo, demo.destination);
+  demo.destination = null;
+  return { status: 'done', lines: [...lines, ...demo.log.slice(before)] };
+}
+
+export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
+  const imported = importLegacyScene(map);
+  const vault = imported.scene;
+  if (vault === null) throw new Error('the demo map could not be imported');
 
   // Derive every sheet once; the pools a character enters a scene with come
   // straight off it, so nothing about them is written down twice.
@@ -222,58 +395,61 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS).character);
   }
 
-  const { state } = sceneStateFromScene(scene, grid, {
-    adversaries: stats,
-    party: PARTY_SHEETS.map((sheet) => {
-      const pools = startingPools(characters.get(sheet.id)!);
-      return {
-        ...createPartyEntity(sheet.id, sheet.classId, NO_TILE),
-        hitPoints: pools.hitPoints,
-        stress: pools.stress,
-        armorSlots: pools.armorSlots,
-        hope: pools.hope,
-      };
-    }),
-  });
-
   // The pillar is the dullest thing on the map — a Strength check and a line of
   // text. Give it the conversation instead, so the demo has something to talk to.
   // Authored the way a project file would: an effect on the object, no roll to
   // reach it.
-  const pillar = scene.interactables.find((i) => i.kind === 'pillar');
+  const pillar = vault.interactables.find((i) => i.kind === 'pillar');
   if (pillar !== undefined) {
     pillar.effects = [{ kind: 'startDialogue', dialogue: PILLAR_DIALOGUE_ID }];
     delete pillar.check;
   }
 
-  // The vault door is shut in the authored map; open it so the demo has somewhere
-  // to walk and something to reach.
-  const door = scene.interactables.find((i) => i.kind === 'door');
-  if (door !== undefined) {
-    state.interactable(door.id).open = true;
-    state.setInteractableBlocking(tileOf(grid, door.position), false);
-  }
+  // A way down, and a way back. The two scenes only learn each other's ids here,
+  // because one of them is imported and its id is not knowable in advance.
+  // The legacy map has no way out of the vault — it was a one-room prototype.
+  vault.interactables.push(
+    interactableSchema.parse({
+      id: DEMO_STAIR_ID,
+      kind: 'portal',
+      position: { x: 20, y: 9 },
+      name: 'A stair down',
+      flavor: 'Behind the husks, steps drop away into the dark.',
+      blocksMovement: false,
+      effects: [{ kind: 'goto', scene: PIT_SCENE_ID }],
+    }),
+  );
+  const pit = structuredClone(PIT_SCENE);
+  const back = pit.interactables.find((i) => i.id === 'stair-up');
+  if (back !== undefined) back.effects = [{ kind: 'goto', scene: vault.id }];
 
-  const pathfinder = new Pathfinder(grid);
-
-  // One world for the whole scene, so a flag a chest sets is a flag a later
-  // dialogue or trigger can read.
-  const scenario = createScenarioState();
-  const world = new SceneScriptWorld(state, scenario, {
-    traits: traitsFor(characters),
+  const project: ProjectDoc = projectSchema.parse({
+    id: 'demo',
+    name: 'Demo Vault',
+    scenes: [vault, pit],
+    dialogues: [...DEMO_DIALOGUES],
+    startScene: vault.id,
   });
 
+  const scenario = createScenarioState();
+  const runtime = buildRuntime(vault, characters, scenario);
+
+  // The vault door is shut in the authored map; open it so the demo has somewhere
+  // to walk and something to reach.
+  const door = vault.interactables.find((i) => i.kind === 'door');
+  if (door !== undefined) {
+    runtime.state.interactable(door.id).open = true;
+    runtime.state.setInteractableBlocking(tileOf(runtime.grid, door.position), false);
+  }
+
   return {
-    scene,
-    grid,
-    state,
-    pathfinder,
-    party: new Party(state, pathfinder, { moveBudget: DEMO_MOVE_BUDGET }),
+    ...runtime,
     characters,
-    triggers: new TriggerIndex(scene, grid),
     rng: createRng(seed),
-    world,
     scenario,
+    project,
+    snapshots: new Map(),
+    destination: null,
     dialogues: new Map(DEMO_DIALOGUES.map((d) => [d.id, d])),
     log: [],
     pending: null,
@@ -496,7 +672,7 @@ export function useSelectedOn(demo: DemoScene, interactableId: string): UseOutco
     };
     return settle(demo, lines);
   }
-  return { status: 'done', lines };
+  return settleTravel(demo, lines);
 }
 
 /**
@@ -520,7 +696,7 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
     return settle(demo, lines);
   }
   demo.pending = null;
-  return { status: 'done', lines };
+  return settleTravel(demo, lines);
 }
 
 /** Pick a reply, or answer a roll a reply asked for. */
@@ -573,7 +749,7 @@ function resumeOuter(demo: DemoScene, lines: LogLine[]): UseOutcome {
     return settle(demo, all);
   }
   demo.pending = null;
-  return { status: 'done', lines: all };
+  return settleTravel(demo, all);
 }
 
 /**
@@ -667,6 +843,9 @@ function note(demo: DemoScene, text: string, tone: LogTone): LogLine[] {
 function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLine[] {
   const lines: LogLine[] = [];
   for (const entry of journal) {
+    // Travel is remembered rather than taken: the rest of this script belongs to
+    // the room it was asked in. `settleTravel` spends it once nothing waits.
+    if (entry.kind === 'goto') demo.destination = entry.scene;
     const line = describeEntry(entry);
     if (line !== null) lines.push(line);
   }

@@ -50,6 +50,10 @@ declare global {
       hasDialogue: () => boolean;
       within: () => string | null;
       standBeside: (id: string) => boolean;
+      sceneId: () => string;
+      sceneTiles: () => number;
+      travelTo: (scene: string) => boolean;
+      scenes: () => string[];
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -495,6 +499,64 @@ test('hides a reply until the party knows what it is talking about', async ({ pa
   expect(gated.before.some((t) => t.startsWith('Warden.'))).toBe(false);
   expect(gated.before.length).toBeGreaterThan(2);
   expect(gated.knows).toBe(true);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('walks down the stair into another room, and back to find it as it was', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  const trip = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const vault = api.sceneId();
+    const vaultTiles = api.sceneTiles();
+
+    // Open the chest in the vault first, so there is something to remember.
+    const chest = api.objects().find((id) => id.startsWith('chest'))!;
+    api.standBeside(chest);
+    api.use(chest);
+    api.answer({ kind: 'roll' });
+
+    // Take the stair down by using it, not by calling travel directly.
+    api.standBeside('stair-down');
+    const used = api.use('stair-down');
+
+    const pit = api.sceneId();
+    const pitTiles = api.sceneTiles();
+    const intro = api.log().some((l) => l.text.includes('round chamber'));
+    const pitObjects = api.objects();
+
+    // And back up.
+    api.standBeside('stair-up');
+    api.use('stair-up');
+
+    api.standBeside(chest);
+    return {
+      vault,
+      vaultTiles,
+      used,
+      pit,
+      pitTiles,
+      intro,
+      pitObjects,
+      home: api.sceneId(),
+      chestAgain: api.use(chest),
+      scenes: api.scenes(),
+    };
+  });
+
+  expect(trip.scenes.length).toBe(2);
+  expect(trip.used).toBe('done');
+  // A different room, of a different size — so the renderer had to rebind.
+  expect(trip.pit).toBe('the-pit');
+  expect(trip.pit).not.toBe(trip.vault);
+  expect(trip.pitTiles).not.toBe(trip.vaultTiles);
+  expect(trip.intro).toBe(true);
+  expect(trip.pitObjects).toContain('strongbox');
+
+  // Home again, and the chest the party opened is still opened.
+  expect(trip.home).toBe(trip.vault);
+  expect(trip.chestAgain).toBe('refused');
 
   expect(consoleErrors).toEqual([]);
 });

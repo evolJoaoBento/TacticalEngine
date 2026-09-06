@@ -13,11 +13,8 @@ that map do, and play it — no engine code. Select between characters, walk wit
 keeping up, cross a trigger into a fight, pass the spotlight, open a locked chest on a Finesse
 roll and read what the author wrote about it.
 
-The thing that keeps it from being a game rather than a scene: **there is only ever one room.**
-`goto` names a scene and nothing ever changes scene (item 11).
-
-Everything else on the list is depth — inventory, quests, progression, presentation — rather
-than a wall.
+Nothing on the list is a wall any more. What remains is depth — inventory, quests, progression,
+presentation — and tools for the authoring that currently happens in TypeScript literals.
 
 The risk this document exists to name: a Daggerheart rules library with a renderer looks like
 progress and is not the goal. BG3 is roughly a third combat. Everything below is the other
@@ -37,7 +34,8 @@ two thirds.
 | Scripting | One schema for conditions and effects; a stepper that pauses for input |
 | Interaction | Use a thing: keys, locked text, an action roll, effects and prose per outcome |
 | Editor | Terrain/height/props/objects/enemies/triggers/spawns, undo, validation, JSON save+load |
-| UI | Narrative log with tone, and the roll prompt a script raises |
+| UI | Narrative log with tone, the conversation panel, and the roll prompt a script raises |
+| Campaign | Two scenes, travel between them, and state that outlives a room |
 
 ## What is missing, in the order it should be built
 
@@ -56,9 +54,9 @@ runner could execute — with nothing converting between them. An interactable's
 was imported, validated, saved, and never run. They are one schema now, so the runner can
 execute anything a document can hold.
 
-That is a claim about the *runner*, not about the game: three effects still land
-in the journal and stop there. `goto` names a scene and nothing changes scenes
-(see 11), and `loot` finds something and there is nowhere to put it (see 6).
+That is a claim about the *runner*, not about the game: one effect still lands
+in the journal and stops there. `loot` finds something and there is
+nowhere to put it (see 6).
 
 `scene/interact.ts` is the verb that was missing: reach a thing, and its authored `requiresKey`,
 `lockedText`, `check` and outcomes actually happen. The legacy vault's own furniture — a Finesse
@@ -126,11 +124,29 @@ The `loot` effect exists as a name only.
 
 Listed in `CONTEXT.md`. Needs (1) plus a quest state model.
 
-### 11. Scene travel
+### ~~11. Scene travel~~ — done
 
-`ProjectDoc` holds `scenes[]` and a `startScene`, an interactable can name a `goto`, and the
-runner journals it — but nothing in play ever changes scene, so a portal marks itself used and
-leaves the party where it stood. A campaign of one room is not a campaign.
+`travelTo` in `game/demo-scene.ts` swaps the per-scene half of the world — scene, grid, state,
+pathfinder, party, triggers, script world — and keeps the campaign half. Wounds, Stress, Hope and
+the GM's Fear travel with the party; where everyone stood does not, so they arrive on the new
+scene's spawns. A room already visited is restored from its snapshot, minus its stale party
+entities. `SceneDoc.intro` is finally read by something.
+
+Story flags and the keys the party carries moved from `SceneState` to `ScenarioState` first, and
+that had to happen before travel rather than after: a scene snapshot serialised them, so
+returning to a room would have restored that room's stale flags over the campaign's real ones.
+
+A `goto` is **remembered, not taken**: travelling mid-script would carry the rest of that script
+into the wrong room, so the destination is spent once nothing is waiting on the player. Walking
+out abandons a fight rather than dragging it along — the snapshot keeps the adversaries where
+they stood, and a party fleeing through a door is what actually happens.
+
+The demo ships two rooms: the imported vault, and a hand-authored pit whose strongbox only opens
+for the word the Warden gives up. That is the two halves meeting — a conversation in one room
+decides whether a chest opens in another.
+
+**Still open:** the editor cannot create or list scenes (gap 8), and arriving rebuilds the whole
+`SceneView` rather than diffing it, which is fine for two rooms and would not be for fifty.
 
 ### ~~8. The editor~~ — first pass done
 
@@ -189,9 +205,8 @@ today a conversation is a literal in `game/demo-dialogue.ts` that happens to par
 schema, which is the same position maps were in before the editor.
 
 So the honest answer today is: *a designer can build the party, the place, what everything in it
-does, and what it says — but only one room of it, and the writing has no editor yet.* Scene travel (item 11) is the next thing that moves that line,
-and it is small: the runner already reports `goto`, so it wants a scene switch in the demo layer
-and a spawn to arrive on.
+does, what it says, and the way between rooms — and the writing still has no editor.* The next thing that moves it is a tool: a scene list and an
+inspector in the editor, so the rooms and the words are authored where the maps already are.
 
 One thing worth knowing before that work: `buildDemoScene` force-opens the vault door, a
 workaround from when nothing could use a door. It can go now — the party can pick that lock

@@ -42,6 +42,7 @@ import {
   moveSelectedTo,
   playGmTurn,
   reachableInteractable,
+  travelTo,
   useSelectedOn,
   reachableTiles,
   DEMO_MODELS,
@@ -85,6 +86,10 @@ declare global {
       hasDialogue: () => boolean;
       within: () => string | null;
       standBeside: (id: string) => boolean;
+      sceneId: () => string;
+      sceneTiles: () => number;
+      travelTo: (scene: string) => boolean;
+      scenes: () => string[];
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
       setTool: (tool: string) => void;
@@ -117,7 +122,7 @@ const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof We
 // ---------------------------------------------------------------------------
 
 const demo = buildDemoScene(demoMap());
-const view = new SceneView(demo.grid, {
+let view = new SceneView(demo.grid, {
   tints: demo.scene.tints,
   modelForEntity: (entity) => DEMO_MODELS[entity.definition] ?? entity.definition,
 });
@@ -127,7 +132,7 @@ view.syncTokens(demo.state);
 let project: ProjectDoc = projectSchema.parse({
   id: 'demo',
   name: 'Demo Vault',
-  scenes: [demo.scene],
+  scenes: demo.project.scenes,
   // The conversations travel with the project, so Save JSON writes the words as
   // well as the map — the whole point of putting dialogue in the document.
   dialogues: [...demo.dialogues.values()],
@@ -226,10 +231,15 @@ async function loadProject(file: File): Promise<void> {
 // Camera and picking
 // ---------------------------------------------------------------------------
 
-const extent = mapExtent(demo.grid, view.layout);
 const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
-camera.position.set(0, extent.radius * 1.35, extent.radius * 1.25);
-camera.lookAt(0, 0, 0);
+
+/** Frame the whole of whichever map is loaded. */
+function frameCamera(): void {
+  const extent = mapExtent(demo.grid, view.layout);
+  camera.position.set(0, extent.radius * 1.35, extent.radius * 1.25);
+  camera.lookAt(0, 0, 0);
+}
+frameCamera();
 
 const raycaster = new Raycaster();
 const pointer = new Vector2();
@@ -266,7 +276,34 @@ function entityOn(tile: number): string | null {
   return null;
 }
 
+/**
+ * The scene `view`, `camera` and `editor` are currently bound to.
+ *
+ * `SceneView` captures its grid at construction and `rebuildTerrain` writes into
+ * that same grid in place, so travelling to a differently-sized room needs a new
+ * view rather than a rebuild — without this the old room stays on screen while
+ * every number underneath it changes.
+ */
+let boundScene = demo.scene.id;
+
+function rebindScene(): void {
+  if (boundScene === demo.scene.id) return;
+  boundScene = demo.scene.id;
+
+  view.dispose();
+  view = new SceneView(demo.grid, {
+    tints: demo.scene.tints,
+    modelForEntity: (entity) => DEMO_MODELS[entity.definition] ?? entity.definition,
+  });
+  view.setDecos(demo.scene.decos);
+  frameCamera();
+
+  // The editor edits whatever room is being played.
+  editor.sceneId = demo.scene.id;
+}
+
 function refreshPlay(): void {
+  rebindScene();
   view.syncTokens(demo.state);
   view.showHighlights(demo.party.selected === null ? [] : reachableTiles(demo).tiles());
   renderPlayPanel();
@@ -456,6 +493,16 @@ const state = {
     demo.state.moveEntity(actor, tile);
     refreshPlay();
     return true;
+  },
+
+  sceneId: (): string => demo.scene.id,
+  // `tiles` is captured once at boot; this reads the room the party is in.
+  sceneTiles: (): number => demo.grid.size,
+  scenes: (): string[] => demo.project.scenes.map((s) => s.id),
+  travelTo: (scene: string): boolean => {
+    const moved = travelTo(demo, scene);
+    refreshPlay();
+    return moved;
   },
 
   mode: (): 'play' | 'edit' => mode,
