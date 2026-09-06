@@ -18,6 +18,7 @@ import { SRD_CONDITIONS } from '../conditions';
 import { SRD_ABILITIES } from './abilities';
 import { SRD_HOOKS } from './hooks';
 import { SRD_ADVERSARY_ABILITIES } from './adversary-abilities';
+import { importSeansboxAdversaries, type RawAdversary } from './seansbox-adversaries';
 
 /**
  * The library as a whole, rather than one card at a time.
@@ -71,6 +72,22 @@ describe('the shipped library, structurally', () => {
     expect(wrong).toEqual([]);
   });
 
+  it('sources every stat-block feature to an adversary that exists', () => {
+    // A feature filed under a misspelled block is a feature nobody ever plays,
+    // and nothing else in the suite would notice.
+    const known = new Set(
+      importSeansboxAdversaries(
+        JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/seansbox/adversaries.json`, 'utf8')) as RawAdversary[],
+      ).defs.map((def) => def.id),
+    );
+    const missing: string[] = [];
+    for (const ability of EVERY) {
+      if (ability.source.kind !== 'adversary') continue;
+      for (const id of ability.source.adversaries) if (!known.has(id)) missing.push(`${ability.id} -> ${id}`);
+    }
+    expect(missing).toEqual([]);
+  });
+
   it('leaves no scripted reaction without a trigger', () => {
     for (const ability of EVERY) {
       if (!isScripted(ability) || ability.kind !== 'reaction') continue;
@@ -113,7 +130,7 @@ const bandTiles = { melee: 1, veryClose: 2, close: 4, far: 8, veryFar: 12 };
  * in Melee range — near enough that Melee, Very Close, Close, Far and Very
  * Far all find something, so no card refuses merely for want of a target.
  */
-function fixture(): (ability: AbilityDef) => string[] {
+function fixture(): { run: (ability: AbilityDef) => string[]; state: SceneState } {
   const grid = new TileGrid({ width: 14, height: 3 });
   const state = new SceneState({ id: 'corridor' }, grid);
   const sheets = [
@@ -159,7 +176,14 @@ function fixture(): (ability: AbilityDef) => string[] {
     hooks: SRD_HOOKS,
   });
 
-  return (ability: AbilityDef): string[] => {
+  // One room, every script — so each one starts in the room the last one left
+  // unless the fixture puts it back. A dragon's breath would otherwise kill the
+  // party halfway down the list and every feature after it would refuse for
+  // want of anyone to aim at.
+  const fresh = state.snapshot();
+
+  const run = (ability: AbilityDef): string[] => {
+    state.restore(fresh);
     // A feature is run by the creature that prints it, aimed at the party —
     // which is the side of the table the `allies` selector reads from, and the
     // only way a stat block's script is exercised as it will actually run.
@@ -177,11 +201,38 @@ function fixture(): (ability: AbilityDef) => string[] {
     }
     return result.journal.filter((e) => e.kind === 'refused').map((e) => e.reason);
   };
+  return { run, state };
 }
+
+/** One scripted feature by id, or a failure that names it. */
+function featureNamed(id: string): AbilityDef {
+  const found = SRD_ADVERSARY_ABILITIES.find((a) => a.id === id);
+  expect(found, id).toBeDefined();
+  return found!;
+}
+
+describe("a stat block's own features, played", () => {
+  it('takes a Hope from everyone the howl reaches, and none from anyone it does not', () => {
+    const { run, state } = fixture();
+    const before = state.entity('mira')!.hope!.value;
+    expect(run(featureNamed('demonic-hound-pack-dreadhowl'))).toEqual([]);
+    // Both of them stand within Very Close of the creature that howled.
+    expect(state.entity('mira')!.hope!.value).toBe(before - 1);
+    expect(state.entity('kara')!.hope!.value).toBe(before - 1);
+    // And the adversaries have no Hope to take, so nothing happened to them.
+    expect(state.entity('foe-2')!.hope).toBeUndefined();
+  });
+
+  it('takes two Hope with the chorus, which is more than anyone has left after one', () => {
+    const { run, state } = fixture();
+    expect(run(featureNamed('hydra-terrifying-chorus'))).toEqual([]);
+    expect(state.entity('mira')!.hope!.value).toBe(0);
+  });
+});
 
 describe('the shipped library, in a fight', () => {
   it('runs every scripted card without a refusal', () => {
-    const run = fixture();
+    const { run } = fixture();
     const refused = new Map<string, string[]>();
     let ran = 0;
     let fromBlocks = 0;
@@ -196,7 +247,7 @@ describe('the shipped library, in a fight', () => {
     // assertion here, so the counts are two of them — and the stat blocks are
     // counted apart from the cards, so a pass that skipped them would show.
     expect(ran).toBeGreaterThanOrEqual(40);
-    expect(fromBlocks).toBeGreaterThanOrEqual(3);
+    expect(fromBlocks).toBeGreaterThanOrEqual(50);
     for (const [id, reasons] of refused) {
       expect(EXPECTED_REFUSALS.has(id), `${id} refused: ${reasons.join('; ')}`).toBe(true);
     }

@@ -9,7 +9,31 @@ does with it. Three states:
   (`src/engine/content/srd/adversary-abilities.ts`), used by the GM on its spotlight.
 - **text** — printed for the GM to narrate; the engine does nothing with it.
 
-Read: 73. Scripted: 3. Text: 341.
+Why a feature is text, in the order the reasons come up. It asks for something the
+engine has no place to put:
+
+- **a summon** — another creature onto the map mid-fight, which no effect can place.
+- **a Countdown** — a clock that ticks on a trigger and goes off later.
+- **spotlighting allies** — a feature that hands the turn to other adversaries.
+- **a point on the map** — "choose a point within Far range; everyone within Close range
+  of *that*": selectors read bands around the creature that is acting, not around a spot.
+- **a token on the stat block**, a transformation into another block, flight, teleporting,
+  or ground that stays dangerous after the feature ends.
+- **a rider on a number the script cannot see** — "for each target who marked HP", "if
+  they used armor", "equal to the HP they marked", "up to three targets".
+- **a condition the SRD prints once** — Entranced, Poisoned, Cursed, Deathlock and the
+  rest: written into that one block rather than into the rules.
+- **a social beat** — a bargain, a rumour, a scapegoat: a scene rather than a grid.
+
+Two things are *not* reasons. Facing is not: "in front of the Burrower" is read as the
+whole band, as Spit Acid has been from the start. Nor is a passive that changes how
+damage lands — resistance, flat reduction, a standard attack that deals direct damage,
+a rider on every hit. Those are one shape, and the next pass over these blocks is theirs.
+
+A scripted feature says as much of its text as the vocabulary carries; where it says
+less, the entry in `adversary-abilities.ts` carries a line saying what was left out.
+
+Read: 73. Scripted: 52. Text: 292.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -18,23 +42,23 @@ Read: 73. Scripted: 3. Text: 341.
 | Acid Burrower | Spit Acid | Action | **scripted** — runs as an ability |
 | Acid Burrower | Acid Bath | Reaction | **scripted** — runs as an ability |
 | Bear | Overwhelming Force | Passive | **text** — the GM's to play |
-| Bear | Bite | Action | **text** — the GM's to play |
+| Bear | Bite | Action | **scripted** — runs as an ability |
 | Bear | Momentum | Reaction | **read** — read off the stat block |
 | Cave Ogre | Ramp Up | Passive | **text** — the GM's to play |
 | Cave Ogre | Bone Breaker | Passive | **text** — the GM's to play |
-| Cave Ogre | Hail of Boulders | Action | **text** — the GM's to play |
+| Cave Ogre | Hail of Boulders | Action | **scripted** — runs as an ability |
 | Cave Ogre | Rampaging Fury | Reaction | **text** — the GM's to play |
 | Construct | Relentless (2) | Passive | **read** — read off the stat block |
 | Construct | Weak Structure | Passive | **text** — the GM's to play |
 | Construct | Trample | Action | **text** — the GM's to play |
 | Construct | Overload | Reaction | **text** — the GM's to play |
 | Construct | Death Quake | Reaction | **text** — the GM's to play |
-| Courtier | Mockery | Action | **text** — the GM's to play |
+| Courtier | Mockery | Action | **scripted** — runs as an ability |
 | Courtier | Scapegoat | Action | **text** — the GM's to play |
-| Deeproot Defender | Ground Slam | Action | **text** — the GM's to play |
+| Deeproot Defender | Ground Slam | Action | **scripted** — runs as an ability |
 | Deeproot Defender | Grab and Drag | Action | **text** — the GM's to play |
 | Dire Wolf | Pack Tactics | Passive | **text** — the GM's to play |
-| Dire Wolf | Hobbling Strike | Action | **text** — the GM's to play |
+| Dire Wolf | Hobbling Strike | Action | **scripted** — runs as an ability |
 | Giant Mosquitoes | Horde (1d4+1) | Passive | **read** — read off the stat block |
 | Giant Mosquitoes | Flying | Passive | **text** — the GM's to play |
 | Giant Mosquitoes | Bloodsucker | Reaction | **text** — the GM's to play |
@@ -44,13 +68,13 @@ Read: 73. Scripted: 3. Text: 341.
 | Giant Scorpion | Venomous Stinger | Action | **text** — the GM's to play |
 | Giant Scorpion | Momentum | Reaction | **read** — read off the stat block |
 | Glass Snake | Armor-Shredding Shards | Passive | **text** — the GM's to play |
-| Glass Snake | Spinning Serpent | Action | **text** — the GM's to play |
+| Glass Snake | Spinning Serpent | Action | **scripted** — runs as an ability |
 | Glass Snake | Spitter | Action | **text** — the GM's to play |
 | Harrier | Maintain Distance | Passive | **text** — the GM's to play |
 | Harrier | Fall Back | Reaction | **text** — the GM's to play |
-| Archer Guard | Hobbling Shot | Action | **text** — the GM's to play |
+| Archer Guard | Hobbling Shot | Action | **scripted** — runs as an ability |
 | Bladed Guard | Shield Wall | Passive | **text** — the GM's to play |
-| Bladed Guard | Detain | Action | **text** — the GM's to play |
+| Bladed Guard | Detain | Action | **scripted** — runs as an ability |
 | Head Guard | Rally Guards | Action | **text** — the GM's to play |
 | Head Guard | On My Signal | Reaction: Countdown (5) | **text** — the GM's to play |
 | Head Guard | Momentum | Reaction | **read** — read off the stat block |
@@ -72,18 +96,18 @@ Read: 73. Scripted: 3. Text: 341.
 | Merchant | Preferential Treatment | Passive | **text** — the GM's to play |
 | Merchant | The Runaround | Passive | **text** — the GM's to play |
 | Minor Chaos Elemental | Arcane Form | Passive | **text** — the GM's to play |
-| Minor Chaos Elemental | Sickening Flux | Action | **text** — the GM's to play |
-| Minor Chaos Elemental | Remake Reality | Action | **text** — the GM's to play |
+| Minor Chaos Elemental | Sickening Flux | Action | **scripted** — runs as an ability |
+| Minor Chaos Elemental | Remake Reality | Action | **scripted** — runs as an ability |
 | Minor Chaos Elemental | Magical reflection | Reaction | **text** — the GM's to play |
 | Minor Chaos Elemental | Momentum | Reaction | **read** — read off the stat block |
 | Minor Fire Elemental | Relentless (2) | Passive | **read** — read off the stat block |
-| Minor Fire Elemental | Scorched Earth | Action | **text** — the GM's to play |
-| Minor Fire Elemental | Explosion | Action | **text** — the GM's to play |
+| Minor Fire Elemental | Scorched Earth | Action | **scripted** — runs as an ability |
+| Minor Fire Elemental | Explosion | Action | **scripted** — runs as an ability |
 | Minor Fire Elemental | Consume Kindling | Reaction | **text** — the GM's to play |
 | Minor Fire Elemental | Momentum | Reaction | **read** — read off the stat block |
 | Minor Demon | Relentless (2) | Passive | **read** — read off the stat block |
 | Minor Demon | All Must Fall | Passive | **text** — the GM's to play |
-| Minor Demon | Hellfire | Action | **text** — the GM's to play |
+| Minor Demon | Hellfire | Action | **scripted** — runs as an ability |
 | Minor Demon | Reaper | Reaction | **text** — the GM's to play |
 | Minor Demon | Momentum | Reaction | **read** — read off the stat block |
 | Minor Treant | Minion (5) | Passive | **read** — read off the stat block |
@@ -115,12 +139,12 @@ Read: 73. Scripted: 3. Text: 341.
 | Skeleton Dredge | Minion (4) | Passive | **read** — read off the stat block |
 | Skeleton Dredge | Group Attack | Action | **text** — the GM's to play |
 | Skeleton Knight | Terrifying | Passive | **read** — read off the stat block |
-| Skeleton Knight | Cut to the Bone | Action | **text** — the GM's to play |
+| Skeleton Knight | Cut to the Bone | Action | **scripted** — runs as an ability |
 | Skeleton Knight | Dig Two Graves | Reaction | **text** — the GM's to play |
 | Skeleton Warrior | Only Bones | Passive | **text** — the GM's to play |
 | Skeleton Warrior | Won't Stay Dead | Reaction | **text** — the GM's to play |
 | Spellblade | Arcane Steel | Passive | **text** — the GM's to play |
-| Spellblade | Suppressing Blast | Action | **text** — the GM's to play |
+| Spellblade | Suppressing Blast | Action | **scripted** — runs as an ability |
 | Spellblade | Move as a Unit | Action | **text** — the GM's to play |
 | Spellblade | Momentum | Reaction | **read** — read off the stat block |
 | Swarm of Rats | Horde (1d4+1) | Passive | **read** — read off the stat block |
@@ -135,7 +159,7 @@ Read: 73. Scripted: 3. Text: 341.
 | Tangle Bramble | Group Attack | Action | **text** — the GM's to play |
 | Tangle Bramble | Drain and Multiply | Reaction | **text** — the GM's to play |
 | Weaponmaster | Goading Strike | Action | **text** — the GM's to play |
-| Weaponmaster | Adrenaline Burst | Action | **text** — the GM's to play |
+| Weaponmaster | Adrenaline Burst | Action | **scripted** — runs as an ability |
 | Weaponmaster | Momentum | Reaction | **read** — read off the stat block |
 | Young Dryad | Voice of the Forest | Action | **text** — the GM's to play |
 | Young Dryad | Thorny Cage | Action | **text** — the GM's to play |
@@ -145,8 +169,8 @@ Read: 73. Scripted: 3. Text: 341.
 | Brawny Zombie | Rip and Tear | Reaction | **text** — the GM's to play |
 | Patchwork Zombie Hulk | Destructible | Passive | **text** — the GM's to play |
 | Patchwork Zombie Hulk | Flailing Limbs | Passive | **text** — the GM's to play |
-| Patchwork Zombie Hulk | Another for the Pile | Action | **text** — the GM's to play |
-| Patchwork Zombie Hulk | Tormented Screams | Action | **text** — the GM's to play |
+| Patchwork Zombie Hulk | Another for the Pile | Action | **scripted** — runs as an ability |
+| Patchwork Zombie Hulk | Tormented Screams | Action | **scripted** — runs as an ability |
 | Rotted Zombie | Minion (3) | Passive | **read** — read off the stat block |
 | Rotted Zombie | Group Attack | Action | **text** — the GM's to play |
 | Shambling Zombie | Too Many to Handle | Passive | **text** — the GM's to play |
@@ -171,7 +195,7 @@ Read: 73. Scripted: 3. Text: 341.
 | Battle Box | Death Quake | Reaction | **text** — the GM's to play |
 | Chaos Skull | Levitation | Passive | **text** — the GM's to play |
 | Chaos Skull | Wards | Passive | **text** — the GM's to play |
-| Chaos Skull | Magic Burst | Action | **text** — the GM's to play |
+| Chaos Skull | Magic Burst | Action | **scripted** — runs as an ability |
 | Chaos Skull | Siphon Magic | Action | **text** — the GM's to play |
 | Conscript | Minion (6) | Passive | **read** — read off the stat block |
 | Conscript | Group Attack | Action | **text** — the GM's to play |
@@ -185,7 +209,7 @@ Read: 73. Scripted: 3. Text: 341.
 | Cult Initiate | Minion (6) | Passive | **read** — read off the stat block |
 | Cult Initiate | Group Attack | Action | **text** — the GM's to play |
 | Demonic Hound Pack | Horde (2d4+1) | Passive | **read** — read off the stat block |
-| Demonic Hound Pack | Dreadhowl | Action | **text** — the GM's to play |
+| Demonic Hound Pack | Dreadhowl | Action | **scripted** — runs as an ability |
 | Demonic Hound Pack | Momentum | Reaction | **read** — read off the stat block |
 | Electric Eels | Horde (2d4+1) | Passive | **read** — read off the stat block |
 | Electric Eels | Paralyzing Shock | Action | **text** — the GM's to play |
@@ -195,7 +219,7 @@ Read: 73. Scripted: 3. Text: 341.
 | Failed Experiment | Overwhelm | Passive | **text** — the GM's to play |
 | Failed Experiment | Lurching Lunge | Action | **text** — the GM's to play |
 | Giant Beastmaster | Two as One | Passive | **text** — the GM's to play |
-| Giant Beastmaster | Pinning Strike | Action | **text** — the GM's to play |
+| Giant Beastmaster | Pinning Strike | Action | **scripted** — runs as an ability |
 | Giant Beastmaster | Deadly Companion | Action | **text** — the GM's to play |
 | Giant Brawler | Battering Ram | Action | **text** — the GM's to play |
 | Giant Brawler | Bloody Reprisal | Reaction | **text** — the GM's to play |
@@ -203,12 +227,12 @@ Read: 73. Scripted: 3. Text: 341.
 | Giant Recruit | Minion (7) | Passive | **read** — read off the stat block |
 | Giant Recruit | Group Attack | Action | **text** — the GM's to play |
 | Giant Eagle | Flight | Passive | **text** — the GM's to play |
-| Giant Eagle | Deadly Dive | Action | **text** — the GM's to play |
+| Giant Eagle | Deadly Dive | Action | **scripted** — runs as an ability |
 | Giant Eagle | Take Off- Action | — | **text** — the GM's to play |
 | Giant Eagle | Deadly Drop | Action | **text** — the GM's to play |
 | Gorgon | Relentless (2) | Passive | **read** — read off the stat block |
 | Gorgon | Sunsear Arrows | Passive | **text** — the GM's to play |
-| Gorgon | Crown of Serpents | Action | **text** — the GM's to play |
+| Gorgon | Crown of Serpents | Action | **scripted** — runs as an ability |
 | Gorgon | Petrifying Gaze | Reaction | **text** — the GM's to play |
 | Gorgon | Momentum | Reaction | **read** — read off the stat block |
 | Juvenile Flickerfly | Relentless (3) | Passive | **read** — read off the stat block |
@@ -224,8 +248,8 @@ Read: 73. Scripted: 3. Text: 341.
 | Merchant Baron | Everyone Has a Price | Action | **text** — the GM's to play |
 | Merchant Baron | The Best Muscle Money Can Buy | Action | **text** — the GM's to play |
 | Minotaur Wrecker | Ramp Up | Passive | **text** — the GM's to play |
-| Minotaur Wrecker | Charging Bull | Action | **text** — the GM's to play |
-| Minotaur Wrecker | Gore | Action | **text** — the GM's to play |
+| Minotaur Wrecker | Charging Bull | Action | **scripted** — runs as an ability |
+| Minotaur Wrecker | Gore | Action | **scripted** — runs as an ability |
 | Mortal Hunter | Terrifying | Passive | **read** — read off the stat block |
 | Mortal Hunter | Deathlock | Action | **text** — the GM's to play |
 | Mortal Hunter | Inevitable Death | Action | **text** — the GM's to play |
@@ -249,22 +273,22 @@ Read: 73. Scripted: 3. Text: 341.
 | Spectral Captain | Hold Fast | Reaction | **text** — the GM's to play |
 | Spectral Captain | Momentum | Reaction | **read** — read off the stat block |
 | Spectral Guardian | Ghost | Passive | **text** — the GM's to play |
-| Spectral Guardian | Grave Blade | Action | **text** — the GM's to play |
+| Spectral Guardian | Grave Blade | Action | **scripted** — runs as an ability |
 | Spy | Gathering Secrets | Action | **text** — the GM's to play |
 | Spy | Fly on the Wall | Reaction | **text** — the GM's to play |
 | Stonewraith | Stonestrider | Passive | **text** — the GM's to play |
 | Stonewraith | Rocky Ambush | Action | **text** — the GM's to play |
-| Stonewraith | Avalanche Roar | Action | **text** — the GM's to play |
+| Stonewraith | Avalanche Roar | Action | **scripted** — runs as an ability |
 | Stonewraith | Momentum | Reaction | **read** — read off the stat block |
 | War Wizard | Battle Teleport | Passive | **text** — the GM's to play |
 | War Wizard | Refresh Warding Sphere | Action | **text** — the GM's to play |
 | War Wizard | Eruption | Action | **text** — the GM's to play |
-| War Wizard | Arcane Artillery | Action | **text** — the GM's to play |
+| War Wizard | Arcane Artillery | Action | **scripted** — runs as an ability |
 | War Wizard | Warding Sphere | Reaction | **text** — the GM's to play |
 | Adult Flickerfly | Relentless (4) | Passive | **read** — read off the stat block |
 | Adult Flickerfly | Never Misses | Passive | **text** — the GM's to play |
 | Adult Flickerfly | Deadly Flight | Passive | **text** — the GM's to play |
-| Adult Flickerfly | Whirlwind | Action | **text** — the GM's to play |
+| Adult Flickerfly | Whirlwind | Action | **scripted** — runs as an ability |
 | Adult Flickerfly | Mind Dance | Action | **text** — the GM's to play |
 | Adult Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **text** — the GM's to play |
 | Adult Flickerfly | Uncanny Reflexes | Reaction | **text** — the GM's to play |
@@ -277,7 +301,7 @@ Read: 73. Scripted: 3. Text: 341.
 | Demon of Despair | Momentum | Reaction | **read** — read off the stat block |
 | Demon of Hubris | Terrifying | Passive | **read** — read off the stat block |
 | Demon of Hubris | Double or Nothing | Passive | **text** — the GM's to play |
-| Demon of Hubris | Unparalleled Skill | Action | **text** — the GM's to play |
+| Demon of Hubris | Unparalleled Skill | Action | **scripted** — runs as an ability |
 | Demon of Hubris | The Root of Villainy | Action | **text** — the GM's to play |
 | Demon of Hubris | You Pale in Comparison | Reaction | **text** — the GM's to play |
 | Demon of Jealousy | Unprotected Mind | Passive | **text** — the GM's to play |
@@ -299,10 +323,10 @@ Read: 73. Scripted: 3. Text: 341.
 | Greater Earth Elemental | Slow | Passive | **text** — the GM's to play |
 | Greater Earth Elemental | Crushing Blows | Passive | **text** — the GM's to play |
 | Greater Earth Elemental | Immovable Object | Passive | **text** — the GM's to play |
-| Greater Earth Elemental | Rockslide | Action | **text** — the GM's to play |
+| Greater Earth Elemental | Rockslide | Action | **scripted** — runs as an ability |
 | Greater Earth Elemental | Momentum | Reaction | **read** — read off the stat block |
-| Greater Water Elemental | Water Jet | Action | **text** — the GM's to play |
-| Greater Water Elemental | Drowning Embrace | Action | **text** — the GM's to play |
+| Greater Water Elemental | Water Jet | Action | **scripted** — runs as an ability |
+| Greater Water Elemental | Drowning Embrace | Action | **scripted** — runs as an ability |
 | Greater Water Elemental | High Tide | Reaction | **text** — the GM's to play |
 | Huge Green Ooze | Slow | Passive | **text** — the GM's to play |
 | Huge Green Ooze | Acidic Form | Passive | **text** — the GM's to play |
@@ -310,8 +334,8 @@ Read: 73. Scripted: 3. Text: 341.
 | Huge Green Ooze | Split | Reaction | **text** — the GM's to play |
 | Hydra | Many-Headed Menace | Passive | **text** — the GM's to play |
 | Hydra | Relentless (X) | Passive | **read** — read off the stat block |
-| Hydra | Regeneration | Action | **text** — the GM's to play |
-| Hydra | Terrifying Chorus | Action | **text** — the GM's to play |
+| Hydra | Regeneration | Action | **scripted** — runs as an ability |
+| Hydra | Terrifying Chorus | Action | **scripted** — runs as an ability |
 | Hydra | Magical Weakness | Reaction | **text** — the GM's to play |
 | Monarch | Execute Them! | Action | **text** — the GM's to play |
 | Monarch | Crownsguard | Action | **text** — the GM's to play |
@@ -329,13 +353,13 @@ Read: 73. Scripted: 3. Text: 341.
 | Head Vampire | Lifesuck | Reaction | **text** — the GM's to play |
 | Treant Sapling | Minion (6) | Passive | **read** — read off the stat block |
 | Treant Sapling | Group Attack | Action | **text** — the GM's to play |
-| Vampire | Draining Bite | Action | **text** — the GM's to play |
+| Vampire | Draining Bite | Action | **scripted** — runs as an ability |
 | Vampire | Mistform | Reaction | **text** — the GM's to play |
 | Vault Guardian Gaoler | Blocking Shield | Passive | **text** — the GM's to play |
-| Vault Guardian Gaoler | Lock Up | Action | **text** — the GM's to play |
+| Vault Guardian Gaoler | Lock Up | Action | **scripted** — runs as an ability |
 | Vault Guardian Sentinel | Kinetic Slam | Passive | **text** — the GM's to play |
 | Vault Guardian Sentinel | Box In | Action | **text** — the GM's to play |
-| Vault Guardian Sentinel | Mana Bolt | Action | **text** — the GM's to play |
+| Vault Guardian Sentinel | Mana Bolt | Action | **scripted** — runs as an ability |
 | Vault Guardian Sentinel | Momentum | Reaction | **read** — read off the stat block |
 | Vault Guardian Turret | Slow Firing | Passive | **text** — the GM's to play |
 | Vault Guardian Turret | Mark Target | Action | **text** — the GM's to play |
@@ -345,18 +369,18 @@ Read: 73. Scripted: 3. Text: 341.
 | Young Ice Dragon | Rend and Crush | Passive | **text** — the GM's to play |
 | Young Ice Dragon | No Hope | Passive | **text** — the GM's to play |
 | Young Ice Dragon | Blizzard Breath | Action | **text** — the GM's to play |
-| Young Ice Dragon | Avalanche | Action | **text** — the GM's to play |
+| Young Ice Dragon | Avalanche | Action | **scripted** — runs as an ability |
 | Young Ice Dragon | Frozen Scales | Reaction | **text** — the GM's to play |
 | Young Ice Dragon | Momentum | Reaction | **read** — read off the stat block |
 | Arch-Necromancer | Dance of Death | Action | **text** — the GM's to play |
-| Arch-Necromancer | Beam of Decay | Action | **text** — the GM's to play |
+| Arch-Necromancer | Beam of Decay | Action | **scripted** — runs as an ability |
 | Arch-Necromancer | Open the Gates of Death | Action | **text** — the GM's to play |
 | Arch-Necromancer | Not Today, My Dears | Reaction | **text** — the GM's to play |
 | Arch-Necromancer | Your Life Is Mine | Reaction: Countdown (Loop 2d6) | **text** — the GM's to play |
 | Fallen Shock Troop | Minion (12) | Passive | **read** — read off the stat block |
 | Fallen Shock Troop | Aura of Doom | Passive | **text** — the GM's to play |
 | Fallen Shock Troop | Group Attack | Action | **text** — the GM's to play |
-| Fallen Sorcerer | Conflagration | Action | **text** — the GM's to play |
+| Fallen Sorcerer | Conflagration | Action | **scripted** — runs as an ability |
 | Fallen Sorcerer | Nightmare Tableau | Action | **text** — the GM's to play |
 | Fallen Sorcerer | Slippery | Reaction | **text** — the GM's to play |
 | Fallen Sorcerer | Shackles of Guilt | Reaction: Countdown (Loop 2d6) | **text** — the GM's to play |
@@ -381,16 +405,16 @@ Read: 73. Scripted: 3. Text: 341.
 | High Seraph | Relentless (3) | Passive | **read** — read off the stat block |
 | High Seraph | Divine Flight | Passive | **text** — the GM's to play |
 | High Seraph | Judgment | Action | **text** — the GM's to play |
-| High Seraph | God Rays | Action | **text** — the GM's to play |
+| High Seraph | God Rays | Action | **scripted** — runs as an ability |
 | High Seraph | We Are One | Action | **text** — the GM's to play |
 | Kraken | Relentless (3) | Passive | **read** — read off the stat block |
 | Kraken | Many Tentacles | Passive | **text** — the GM's to play |
 | Kraken | Grapple and Drown | Action | **text** — the GM's to play |
-| Kraken | Boiling Blast | Action | **text** — the GM's to play |
+| Kraken | Boiling Blast | Action | **scripted** — runs as an ability |
 | Kraken | Momentum | Reaction | **read** — read off the stat block |
 | Oracle of Doom | Terrifying | Passive | **read** — read off the stat block |
 | Oracle of Doom | Walls Closing In | Passive | **text** — the GM's to play |
-| Oracle of Doom | Pronounce Fate | Action | **text** — the GM's to play |
+| Oracle of Doom | Pronounce Fate | Action | **scripted** — runs as an ability |
 | Oracle of Doom | Summon Tormentors | Action | **text** — the GM's to play |
 | Oracle of Doom | Ominous Knowledge | Reaction | **text** — the GM's to play |
 | Oracle of Doom | Vengeful Fate | Reaction | **text** — the GM's to play |
@@ -399,18 +423,18 @@ Read: 73. Scripted: 3. Text: 341.
 | Outer Realms Abomination | Reality Quake | Action | **text** — the GM's to play |
 | Outer Realms Abomination | Unreal Form | Reaction | **text** — the GM's to play |
 | Outer Realms Corruptor | Will-Shattering Touch | Passive | **text** — the GM's to play |
-| Outer Realms Corruptor | Disgorge Reality Flotsam | Action | **text** — the GM's to play |
+| Outer Realms Corruptor | Disgorge Reality Flotsam | Action | **scripted** — runs as an ability |
 | Outer Realms Thrall | Minion (13) | Passive | **read** — read off the stat block |
 | Outer Realms Thrall | Group Attack | Action | **text** — the GM's to play |
 | Volcanic Dragon: Obsidian Predator | Relentless (2) | Passive | **read** — read off the stat block |
 | Volcanic Dragon: Obsidian Predator | Flying | Passive | **text** — the GM's to play |
 | Volcanic Dragon: Obsidian Predator | Obsidian Scales | Passive | **text** — the GM's to play |
-| Volcanic Dragon: Obsidian Predator | Avalanche Tail | Action | **text** — the GM's to play |
+| Volcanic Dragon: Obsidian Predator | Avalanche Tail | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Dive-Bomb | Action | **text** — the GM's to play |
 | Volcanic Dragon: Obsidian Predator | Erupting Rage (Phase Change) | Reaction | **text** — the GM's to play |
 | Volcanic Dragon: Molten Scourge | Relentless (3) | Passive | **read** — read off the stat block |
 | Volcanic Dragon: Molten Scourge | Cracked Scales | Passive | **text** — the GM's to play |
-| Volcanic Dragon: Molten Scourge | Shattering Might | Action | **text** — the GM's to play |
+| Volcanic Dragon: Molten Scourge | Shattering Might | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Molten Scourge | Eruption | Action | **text** — the GM's to play |
 | Volcanic Dragon: Molten Scourge | Volcanic Breath | Reaction | **text** — the GM's to play |
 | Volcanic Dragon: Molten Scourge | Lava Splash | Reaction | **text** — the GM's to play |
@@ -419,12 +443,12 @@ Read: 73. Scripted: 3. Text: 341.
 | Volcanic Dragon: Ashen Tyrant | Cornered | Passive | **text** — the GM's to play |
 | Volcanic Dragon: Ashen Tyrant | Injured Wings | Passive | **text** — the GM's to play |
 | Volcanic Dragon: Ashen Tyrant | Ashes to Ashes | Passive | **text** — the GM's to play |
-| Volcanic Dragon: Ashen Tyrant | Desperate Rampage | Action | **text** — the GM's to play |
+| Volcanic Dragon: Ashen Tyrant | Desperate Rampage | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Ashen Tyrant | Ashen Cloud | Action | **text** — the GM's to play |
 | Volcanic Dragon: Ashen Tyrant | Apocalyptic Thrashing | Action: Countdown (1d12) | **text** — the GM's to play |
 | Perfected Zombie | Terrifying | Passive | **read** — read off the stat block |
 | Perfected Zombie | Fearsome Presence | Passive | **text** — the GM's to play |
-| Perfected Zombie | Perfect Strike | Action | **text** — the GM's to play |
+| Perfected Zombie | Perfect Strike | Action | **scripted** — runs as an ability |
 | Perfected Zombie | Skilled Opportunist | Reaction | **text** — the GM's to play |
 | Zombie Legion | Horde (2d6+5) | Passive | **read** — read off the stat block |
 | Zombie Legion | Unyielding | Passive | **text** — the GM's to play |

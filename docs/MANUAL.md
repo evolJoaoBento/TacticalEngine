@@ -818,8 +818,9 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   everything in a headless run, where there is nobody to ask.
 - **53 of the 189 domain cards are scripted** (`docs/CARDS.md`, which lists every one and what
   each scripted card leaves to the table). The rest are shown as text, and the same holds for
-  most stat-block features (`docs/ADVERSARIES.md`) — an adversary plays the ones the engine
-  knows and otherwise falls back on its standard attack. A card is text when it asks for
+  the stat-block features the engine does not run (`docs/ADVERSARIES.md`, which groups the
+  reasons) — an adversary plays the ones the engine knows and otherwise falls back on its
+  standard attack. A card is text when it asks for
   something the engine has no number for: a Countdown, flight, teleportation, a summon, being
   unseen, or a GM's discretion.
 - **Adversaries clear a temporary condition only when Restrained** (or with nothing in reach);

@@ -96,8 +96,8 @@ script that opened it carry on. Both runners keep cumulative journals, so both n
 node's effects — a reply that starts a conversation nobody wrote is an error before it is a
 crash.
 
-**Still open:** authoring one in the editor. The graph is data now, so this is a UI job rather
-than an engine one.
+**Still open:** nothing. A dialogue is written in the editor's Dialogue panel — nodes, replies,
+conditions and the effects a reply runs — and validated with everything else.
 
 ### ~~3. The turn loop~~ — done
 
@@ -179,8 +179,12 @@ abilities in the same vocabulary (`docs/ADVERSARIES.md` lists which of the 417 p
 the engine runs).
 
 **Still open:** 53 of 189 cards are scripted (`docs/CARDS.md`); the rest are text, each for a
-reason the doc gives. 341 of 417 adversary features are still the GM's to narrate. Damage from a
-feature or a card resolves without asking the defender — the prompt covers an adversary's
+reason the doc gives. On the stat blocks, 73 of 417 features are read off the block and 52 are
+scripted; the other 292 are the GM's to narrate, and `docs/ADVERSARIES.md` now groups the
+reasons rather than leaving them unsaid. The largest single group left is the passives that
+change how damage lands — resistance, flat reduction, a standard attack that deals direct
+damage, a rider on every hit — which is one shape and the next pass over these blocks. Damage
+from a feature or a card resolves without asking the defender: the prompt covers an adversary's
 standard attack.
 
 ### ~~6. Inventory, loot and equipping~~ — done
@@ -301,8 +305,8 @@ The demo ships two rooms: the imported vault, and a hand-authored pit whose stro
 for the word the Warden gives up. That is the two halves meeting — a conversation in one room
 decides whether a chest opens in another.
 
-**Still open:** the editor cannot create or list scenes (gap 8), and arriving rebuilds the whole
-`SceneView` rather than diffing it, which is fine for two rooms and would not be for fifty.
+**Still open:** arriving rebuilds the whole `SceneView` rather than diffing it, which is fine
+for two rooms and would not be for fifty.
 
 ### ~~8. The editor~~ — first pass done
 
