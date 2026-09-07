@@ -475,6 +475,27 @@ export const effectSchema = z.discriminatedUnion('kind', [
   /** Knock the targets back, away from the actor, to this band. */
   z.object({ kind: z.literal('push'), to: rangeBandSchema, target: targetSelectorSchema.optional() }),
   /**
+   * "Summon three Jagged Knife Lackeys, who appear at Far range."
+   *
+   * Puts creatures off a stat block onto the map, in the band named, around
+   * whoever is acting. They join the fight the moment they stand up — the
+   * encounter reads the map rather than a roster — so nothing else has to be
+   * told about them.
+   */
+  z.object({
+    kind: z.literal('summon'),
+    /** The stat block they come off. */
+    adversary: contentIdSchema,
+    /** How many, as dice: "3", "1d4", "1d4+1". One when left out. */
+    count: z.string().min(1).optional(),
+    /** Multiply the count by the number of party members still standing. */
+    perPc: z.boolean().optional(),
+    /** The band they appear in, measured from the one summoning. Close by default. */
+    range: rangeBandSchema.optional(),
+    /** "…and is immediately spotlighted": they act now rather than next turn. */
+    spotlight: z.boolean().optional(),
+  }),
+  /**
    * The targets roll to avoid something: adversaries a d20, party members
    * their Duality Dice with `trait`. `onFail` runs with the ones who failed
    * bound to `hit`, then `onSuccess` with the ones who passed. `difficulty:

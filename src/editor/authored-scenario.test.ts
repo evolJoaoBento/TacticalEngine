@@ -25,6 +25,7 @@ import {
   buildProjectScene,
   endTurn,
   moveSelectedTo,
+  settleFight,
   startEncounter,
   useSelectedOn,
 } from '../game/demo-scene';
@@ -197,6 +198,43 @@ describe('a block that shrugs the party off', () => {
     const resisted = build(false, 's5');
     expect(plain).toBe(3);
     expect(resisted).toBe(2);
+  });
+});
+
+describe('a Lieutenant with more where that came from', () => {
+  it('calls three Lackeys onto the map, and they are in the fight from that moment', () => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'thieves', name: 'Thieves' })));
+    s.run(addAdversary('hall', 'thieves', { id: 'boss', adversary: 'jagged-knife-lieutenant', position: { x: 7, y: 4 } }));
+
+    const demo = buildProjectScene(s.project, 'knives');
+    demo.askDefender = false;
+    startEncounter(demo, 'thieves');
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    const before = demo.state.entitiesOf('adversary').length;
+
+    let called = false;
+    for (let i = 0; i < 4 && !called && demo.encounter?.outcome === 'ongoing'; i++) {
+      endTurn(demo);
+      called = demo.log.some((l) => l.text.includes('uses More Where That Came From'));
+    }
+    expect(called).toBe(true);
+
+    // Three Lackeys, on the map, off the shipped stat block.
+    const now = demo.state.entitiesOf('adversary');
+    expect(now.length).toBe(before + 3);
+    const lackeys = now.filter((e) => e.definition === 'jagged-knife-lackey');
+    expect(lackeys).toHaveLength(3);
+    expect(demo.log.some((l) => l.text.includes('3 Jagged Knife Lackeys arrive.'))).toBe(true);
+
+    // They are in the fight: the encounter waits on them, so killing the
+    // Lieutenant alone does not end it.
+    demo.state.entity('boss')!.alive = false;
+    settleFight(demo);
+    expect(demo.encounter!.outcome).toBe('ongoing');
+    expect(demo.encounter!.view().waiting).toEqual(expect.arrayContaining(lackeys.map((e) => e.id)));
   });
 });
 

@@ -2068,6 +2068,13 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   await attack.locator('[data-role="attack-range"]').selectOption('close');
   await attack.locator('label:has-text("direct") input').check();
 
+  // What it calls onto the map when it is losing.
+  await effects.locator(':scope > [data-role="add-effect"]').last().selectOption('summon');
+  const summon = effects.locator('[data-effect="2"]');
+  await summon.locator('[data-role="summon-count"]').fill('1d4');
+  await summon.locator('[data-role="summon-range"]').selectOption('far');
+  await summon.locator('label:has-text("acts at once") input').check();
+
   const written = await page.evaluate(() => {
     const project = JSON.parse(window.__polyheart!.exportProject()) as {
       abilities: {
@@ -2103,6 +2110,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
         onFail: [{ kind: 'loseHope', amount: 1 }],
       },
       { kind: 'attack', range: 'close', direct: true },
+      { kind: 'summon', adversary: 'acid-burrower', count: '1d4', range: 'far', spotlight: true },
     ],
   });
 

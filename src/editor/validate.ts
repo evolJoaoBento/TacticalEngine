@@ -202,6 +202,18 @@ function checkAbilitiesAndCode(
     if ((ability.cost.fear ?? 0) > 0 && ability.source.kind !== 'adversary') {
       add('warning', `"${ability.id}" costs Fear, which only the GM spends: nobody holding it can use it.`, ability.id);
     }
+    // A summons names a stat block; one nothing ships is a feature that does
+    // nothing when the GM reaches for it.
+    walkEffects(ability.effects, (effect) => {
+      if (effect.kind !== 'summon') return;
+      const known = options.knownAdversaries;
+      if (known !== undefined && !known.has(effect.adversary)) {
+        add('error', `"${ability.id}" summons "${effect.adversary}", which is not an adversary.`, ability.id);
+      }
+      if (effect.count !== undefined && parseDice(effect.count) === null) {
+        add('error', `"${ability.id}" summons "${effect.count}" of them, which is not dice.`, ability.id);
+      }
+    });
     // "Reduce it by three" is not a number: the reduction is a dice expression
     // and an unreadable one silently reduces nothing.
     for (const entry of ability.defenses?.reduce ?? []) {

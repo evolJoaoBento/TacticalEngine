@@ -38,6 +38,8 @@ export interface EffectListProps {
   hookIds?: readonly string[];
   /** What a token effect can name: the cards the project and the SRD carry. */
   abilityIds?: readonly string[];
+  /** What a `summon` can name: every stat block the project can place. */
+  adversaryIds?: readonly string[];
 }
 
 /** The kinds this can build. Anything else is shown, not offered. */
@@ -85,6 +87,7 @@ const ADDABLE = [
   'addToken',
   'spendToken',
   'push',
+  'summon',
   'reactionRoll',
   'run',
 ] as const;
@@ -134,6 +137,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   addToken: 'Put tokens on a card',
   spendToken: 'Spend tokens on a card',
   push: 'Push them back',
+  summon: 'Summon adversaries',
   reactionRoll: 'Ask for a reaction roll',
   run: 'Run code',
 };
@@ -248,6 +252,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, ability: props.abilityIds?.[0] ?? '', amount: 1 };
     case 'push':
       return { kind, to: 'far' };
+    case 'summon':
+      return { kind, adversary: props.adversaryIds?.[0] ?? '', range: 'close' };
     case 'reactionRoll':
       return { kind, difficulty: 12, trait: 'agility' };
     case 'run':
@@ -565,6 +571,46 @@ function renderBody(
             ))}
           </select>
           {who(effect.target, 'the chosen target', (target) => ({ ...effect, target }))}
+        </>
+      );
+    case 'summon':
+      return (
+        <>
+          {props.adversaryIds === undefined || props.adversaryIds.length === 0
+            ? text(effect.adversary, (adversary) => ({ ...effect, adversary }), 'adversary id')
+            : pick(effect.adversary, props.adversaryIds, (adversary) => ({ ...effect, adversary }))}
+          <input
+            style={{ ...field, flex: 'none', width: '72px' }}
+            data-role="summon-count"
+            placeholder="1, 1d4"
+            title="How many, as dice"
+            value={effect.count ?? ''}
+            onInput={(e) => {
+              const count = (e.target as HTMLInputElement).value.trim();
+              onChange({ ...effect, count: count === '' ? undefined : count });
+            }}
+          />
+          <select
+            style={{ ...field, flex: 'none', width: '96px' }}
+            data-role="summon-range"
+            value={effect.range ?? 'close'}
+            onChange={(e) => onChange({ ...effect, range: (e.target as HTMLSelectElement).value as RangeBand })}
+          >
+            {BANDS.map((band) => (
+              <option key={band} value={band}>
+                at {band}
+              </option>
+            ))}
+          </select>
+          {/* "…and is immediately spotlighted": they act now, not next turn. */}
+          {flag('acts at once', 'They take the spotlight as they arrive', effect.spotlight === true, (on) => ({
+            ...effect,
+            spotlight: on ? true : undefined,
+          }))}
+          {flag('per PC', 'Multiply the count by the party still standing', effect.perPc === true, (on) => ({
+            ...effect,
+            perPc: on ? true : undefined,
+          }))}
         </>
       );
     case 'run':

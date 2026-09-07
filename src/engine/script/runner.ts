@@ -24,7 +24,7 @@
 
 import type { Rng } from '../core/rng';
 import { rollDuality, type DualityRoll } from '../rules/duality';
-import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
+import { formatDice, parseDice, rollDice, type DamageType, type ParsedDamage } from '../rules/dice';
 import { hookReads } from './conditions';
 import { runHook, type HookContext } from './hooks';
 import { rollDamage, type IncomingDamage } from '../rules/damage';
@@ -192,6 +192,13 @@ export interface ScriptWorld extends ConditionContext {
   ): AttackSummary;
   /** Knock a creature away from another to a band. Null when it could not move at all. */
   pushBack(from: string, target: string, band: RangeBand): { from: number; to: number } | null;
+  /**
+   * Put creatures off a stat block onto the map, in the band named, around the
+   * one summoning them. Returns the ones that found somewhere to stand.
+   */
+  summon(definition: string, count: number, range: RangeBand): { ids: string[]; refused?: string };
+  /** How many of a faction are still standing. */
+  countAlive(faction: 'party' | 'adversary'): number;
   /** A reaction roll: a d20 for an adversary, Duality Dice for a party member. */
   rollReaction(
     id: string,
@@ -261,6 +268,8 @@ export type JournalEntry =
       roll?: DualityRoll;
     }
   | { kind: 'moved'; id: string; from: number; to: number }
+  /** Creatures a feature put on the map, and whether they act at once. */
+  | { kind: 'summoned'; adversary: string; ids: readonly string[]; spotlight: boolean }
   /** `roll` is set when a party member rolled it: an adversary's is a d20. */
   | { kind: 'reaction'; id: string; success: boolean; total: number; difficulty: number; roll?: DualityRoll }
   /** A defender's reaction to damage fired: Get Back Up, a Rune Ward. */
@@ -800,6 +809,23 @@ export class ScriptRunner {
         return null;
       case 'attack':
         return this.applyAttack(effect);
+      case 'summon': {
+        const expression = parseDice(effect.count ?? '1');
+        if (expression === null) return this.refuse(`cannot read a count of "${effect.count ?? ''}"`);
+        // "A number equal to twice the number of PCs": the ones still fighting.
+        const each = Math.max(0, rollDice(this.rng, expression).total);
+        const wanted = effect.perPc === true ? each * this.world.countAlive('party') : each;
+        if (wanted === 0) return this.refuse('nothing to summon');
+        const arrived = this.world.summon(effect.adversary, wanted, effect.range ?? 'close');
+        if (arrived.ids.length === 0) return this.refuse(arrived.refused ?? 'nobody arrived');
+        this.journal.push({
+          kind: 'summoned',
+          adversary: effect.adversary,
+          ids: arrived.ids,
+          spotlight: effect.spotlight === true,
+        });
+        return null;
+      }
       case 'push': {
         const actor = world.actorId();
         if (actor === null) return this.refuse('nobody to push from');

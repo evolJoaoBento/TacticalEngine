@@ -29,7 +29,16 @@ import {
 import { resolveDamage, type DamageDefenses, type DamageReduction, type IncomingDamage } from '../rules/damage';
 import { rollDuality, type DualityRoll } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
-import { bandForDistance, bandIndex, maxTilesForBand, reaches, type BandTiles, type RangeBand } from '../rules/range';
+import {
+  bandForDistance,
+  bandIndex,
+  maxTilesForBand,
+  reaches,
+  RANGE_BANDS,
+  type BandTiles,
+  type RangeBand,
+  type TargetableRangeBand,
+} from '../rules/range';
 import { applyAttack, resolveAttack, type AttackProfile } from '../combat/attack';
 import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
 import { attackProfile, UNARMED, type DerivedCharacter } from '../character/sheet';
@@ -39,7 +48,7 @@ import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../ru
 import type { AdversaryDef } from '../content/types';
 import { NO_TILE } from '../grid/grid';
 import { Pathfinder } from '../grid/pathfinding';
-import type { EntityState, SceneState } from '../scene/state';
+import { createAdversaryEntity, type EntityState, type SceneState } from '../scene/state';
 import type { Trait } from '../scene/schema';
 import { scriptValueSchema, type ConditionDuration, type PoolName, type ScriptValue } from './schema';
 import type { CheckTrait, TargetSelector } from './schema';
@@ -1228,6 +1237,83 @@ export class SceneScriptWorld implements ScriptWorld {
       // "The Ogre's attacks deal direct damage": a passive on the block.
       ...this.standardAttackOf(definition),
     };
+  }
+
+  /**
+   * Put creatures on the map: "summon three Jagged Knife Lackeys, who appear
+   * at Far range".
+   *
+   * They stand in the band the feature names, measured from whoever summoned
+   * them — a ring, not a disc, because "at Far range" is a place to arrive at
+   * and not an area to fill. A room too small to hold that ring would summon
+   * nobody, which reads as a broken feature rather than a small room, so the
+   * search falls inward a band at a time until it finds standing room.
+   *
+   * They are on the map the moment they are placed, and that is all it takes:
+   * the encounter reads the map for whose turn is next and for whether the
+   * fight is over, so nothing keeps a roster that could disagree.
+   */
+  summon(definition: string, count: number, range: RangeBand): { ids: string[]; refused?: string } {
+    const summoner = this.scenario.actorId === null ? undefined : this.state.entity(this.scenario.actorId);
+    const block = this.adversaries.get(definition);
+    if (block === undefined) return { ids: [], refused: `nothing is a "${definition}"` };
+    if (summoner === undefined || summoner.tile === NO_TILE) return { ids: [], refused: 'nobody to summon them' };
+    const wanted = Math.max(0, Math.trunc(count));
+    if (wanted === 0) return { ids: [] };
+
+    const placed: string[] = [];
+    for (let i = 0; i < wanted; i++) {
+      const tile = this.standingRoom(summoner.tile, range);
+      if (tile === null) break;
+      const id = this.freeId(definition);
+      this.state.addEntity(
+        createAdversaryEntity(id, definition, tile, { hitPoints: block.hitPoints, stress: block.stress }),
+      );
+      placed.push(id);
+    }
+    return placed.length === 0 ? { ids: [], refused: `nowhere for a ${block.name} to stand` } : { ids: placed };
+  }
+
+  /**
+   * A free tile in that band around a point, nearest first and lowest index on
+   * a tie — the same rule the GM's walk uses, so a summons arrives in the same
+   * places on every replay. Falls inward when the band itself is full or off
+   * the map.
+   */
+  private standingRoom(from: number, range: RangeBand): number | null {
+    const grid = this.state.grid;
+    const bands = RANGE_BANDS.filter((band): band is TargetableRangeBand => band !== 'outOfRange');
+    const wanted = bands.indexOf(range as TargetableRangeBand);
+    if (wanted < 0) return null;
+    for (let step = wanted; step >= 0; step--) {
+      const band = bands[step]!;
+      let best: number | null = null;
+      let bestDistance = Infinity;
+      for (let tile = 0; tile < grid.size; tile++) {
+        if (!grid.isPassable(tile) || this.state.occupantsOf(tile).length > 0) continue;
+        const distance = Math.ceil(grid.euclideanDistance(from, tile));
+        if (distance === 0) continue;
+        if (bandForDistance(distance, this.bandTiles) !== band) continue;
+        if (distance < bestDistance || (distance === bestDistance && (best === null || tile < best))) {
+          best = tile;
+          bestDistance = distance;
+        }
+      }
+      if (best !== null) return best;
+    }
+    return null;
+  }
+
+  /**
+   * An id nothing in the room is using. The fallen keep theirs — a corpse is
+   * still an entity — so a summons can never reuse one, save and load
+   * included.
+   */
+  private freeId(definition: string): string {
+    for (let n = 1; ; n++) {
+      const id = `${definition}-s${n}`;
+      if (this.state.entity(id) === undefined) return id;
+    }
   }
 
   /**

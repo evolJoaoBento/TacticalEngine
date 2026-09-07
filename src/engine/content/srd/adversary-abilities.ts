@@ -1551,6 +1551,97 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- what a block calls onto the map ----------------------------------
+  // "Summon three Jagged Knife Lackeys, who appear at Far range." They stand
+  // in the band the feature names and are in the fight from that moment: the
+  // encounter reads the map rather than a roster, so nothing else is told.
+  // Every one of these is gated — a Fear, a Stress, once or twice a scene —
+  // because a summons nothing pays for would be all a creature ever did.
+  {
+    id: 'jagged-knife-lieutenant-more-where-that-came-from',
+    name: 'More Where That Came From',
+    source: from('jagged-knife-lieutenant'),
+    text: 'Summon three Jagged Knife Lackeys, who appear at Far range.',
+    cost: { fear: 1 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'summon', adversary: 'jagged-knife-lackey', count: '3', range: 'far' }],
+  },
+  {
+    id: 'petty-noble-guards-seize-them',
+    name: 'Guards, Seize Them!',
+    source: from('petty-noble'),
+    text: 'Once per scene, mark a Stress to summon 1d4 Bladed Guards, who appear at Far range to enforce the Noble\'s will.',
+    cost: { stress: 1 },
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'summon', adversary: 'bladed-guard', count: '1d4', range: 'far' }],
+  },
+  {
+    id: 'pirate-captain-reinforcements',
+    name: 'Reinforcements',
+    source: from('pirate-captain'),
+    text: 'Once per scene, mark a Stress to summon a Pirate Raiders Horde, which appears at Far range.',
+    cost: { stress: 1 },
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'summon', adversary: 'pirate-raiders', range: 'far' }],
+  },
+  {
+    id: 'giant-beastmaster-deadly-companion',
+    name: 'Deadly Companion',
+    source: from('giant-beastmaster'),
+    text: 'Twice per scene, summon a Bear, Dire Wolf, or similar Tier 1 animal adversary under the Beastmaster\'s control. The adversary appears at Close range and is immediately spotlighted.',
+    uses: { count: 2, per: 'scene' },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    // Simplified: it brings a Bear; the text offers a Bear, a Dire Wolf \'or similar Tier 1 animal\', which is the GM\'s pick.
+    effects: [{ kind: 'summon', adversary: 'bear', range: 'close', spotlight: true }],
+  },
+  {
+    id: 'head-vampire-the-hunt-is-on',
+    name: 'The Hunt Is On',
+    source: from('head-vampire'),
+    text: 'Spend 2 Fear to summon 1d4 Vampires, who appear at Far range and immediately take the spotlight.',
+    cost: { fear: 2 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'summon', adversary: 'vampire', count: '1d4', range: 'far', spotlight: true }],
+  },
+  {
+    id: 'arch-necromancer-open-the-gates-of-death',
+    name: 'Open the Gates of Death',
+    source: from('arch-necromancer'),
+    text: 'Spend a Fear to summon a Zombie Legion, which appears at Close range and immediately takes the spotlight.',
+    cost: { fear: 1 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'summon', adversary: 'zombie-legion', range: 'close', spotlight: true }],
+  },
+  {
+    id: 'fallen-warlord-undefeated-champion-endless-legions',
+    name: 'Endless Legions',
+    source: from('fallen-warlord-undefeated-champion'),
+    text: 'Spend a Fear to summon a number of Fallen Shock Troops equal to twice the number of PCs. The Shock Troops appear at Far range.',
+    cost: { fear: 1 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'summon', adversary: 'fallen-shock-troop', count: '2', perPc: true, range: 'far' }],
+  },
+  {
+    id: 'secret-keeper-fallen-hounds',
+    name: 'Fallen Hounds',
+    source: from('secret-keeper'),
+    text: 'Once per scene, when the Secret-Keeper marks 2 or more HP, you can mark a Stress to summon a Demonic Hound Pack, which appears at Close range and is immediately spotlighted.',
+    cost: { stress: 1 },
+    uses: { count: 1, per: 'scene' },
+    available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 2 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'summon', adversary: 'demonic-hound-pack', range: 'close', spotlight: true }],
+  },
 ];
 
 export const SRD_ADVERSARY_ABILITIES: readonly AbilityDef[] = RAW.map((raw) => abilitySchema.parse(raw));

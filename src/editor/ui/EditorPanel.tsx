@@ -193,6 +193,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         // A card's `run` can name either door: the engine's own hooks or the
         // project's code, which is exactly what the runner looks in.
         hookIds={[...props.nativeHooks, ...session.project.code.map((entry) => entry.id)]}
+        adversaryIds={props.adversaryIds}
         sceneIds={session.project.scenes.map((entry) => entry.id)}
         dialogueIds={session.project.dialogues.map((entry) => entry.id)}
         encounterIds={scene.encounters.map((entry) => entry.id)}

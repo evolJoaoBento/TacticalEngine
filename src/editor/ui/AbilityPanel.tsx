@@ -31,6 +31,8 @@ export interface AbilityPanelProps {
   libraryAbilities: readonly AbilityDef[];
   /** What a `run` inside a card's script can name. */
   hookIds: readonly string[];
+  /** What a `summon` inside a card's script can name. */
+  adversaryIds: readonly string[];
   sceneIds: readonly string[];
   dialogueIds: readonly string[];
   encounterIds: readonly string[];
@@ -502,6 +504,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
               quests={props.quests}
               hookIds={props.hookIds}
               abilityIds={abilityIds}
+              adversaryIds={props.adversaryIds}
             />
             {open.effects.length === 0 ? (
               <div style={{ color: '#8ea3b0', fontSize: '11px' }}>

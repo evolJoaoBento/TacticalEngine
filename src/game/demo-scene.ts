@@ -1174,8 +1174,10 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
         continue;
       }
       // A feature aimed at nobody but itself — a heal, a shout — catches no one
-      // by definition; whether it is worth a turn is what `available` says.
-      if (ability.target.kind === 'self') {
+      // by definition, and neither does a summons: what it puts on the map is
+      // not on it yet. Whether either is worth a turn is what its cost, its
+      // uses and `available` say.
+      if (ability.target.kind === 'self' || summonsSomething(ability)) {
         if (itself === null) itself = { ability, targets: [] };
         continue;
       }
@@ -1185,6 +1187,11 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
   } finally {
     demo.scenario.actorId = was;
   }
+}
+
+/** Whether a feature puts creatures on the map. */
+function summonsSomething(ability: AbilityDef): boolean {
+  return ability.effects.some((effect) => effect.kind === 'summon');
 }
 
 /**
@@ -1264,6 +1271,25 @@ function runAdversaryScript(
   record(demo, result.journal);
   demo.scenario.actorId = was;
   spendSwarmSpotlights(demo, result.journal);
+  spotlightArrivals(demo, result.journal);
+}
+
+/**
+ * "…and is immediately spotlighted": what a feature summons into the middle of
+ * the GM's own turn acts now, at the head of the queue, rather than waiting
+ * for the next one.
+ *
+ * Everything summoned without that line needs nothing done to it: the
+ * encounter reads the map for who is waiting, so it is in next turn's queue by
+ * standing there.
+ */
+function spotlightArrivals(demo: DemoScene, journal: readonly JournalEntry[]): void {
+  const turn = demo.gmTurn;
+  if (turn === null) return;
+  for (const entry of journal) {
+    if (entry.kind !== 'summoned' || !entry.spotlight) continue;
+    turn.remaining.unshift(...entry.ids.filter((id) => !turn.remaining.includes(id)));
+  }
 }
 
 /**
@@ -2188,6 +2214,15 @@ function describeEntry(
         : { text: `${who(entry.id)} is no longer ${entry.condition}.`, tone: 'system' };
     case 'moved':
       return { text: `${who(entry.id)} is thrown back.`, tone: 'combat' };
+    case 'summoned': {
+      const first = entry.ids[0];
+      if (first === undefined) return null;
+      const name = who(first);
+      return {
+        text: `${entry.ids.length} ${name}${entry.ids.length === 1 ? '' : 's'} arrive${entry.ids.length === 1 ? 's' : ''}.`,
+        tone: 'fear',
+      };
+    }
     case 'reaction':
       return {
         text: `${who(entry.id)} reacts: ${entry.total} against ${entry.difficulty} — ${entry.success ? 'holds' : 'fails'}.`,

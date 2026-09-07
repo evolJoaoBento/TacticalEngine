@@ -12,7 +12,10 @@ does with it. Three states:
 Why a feature is text, in the order the reasons come up. It asks for something the
 engine has no place to put:
 
-- **a summon** — another creature onto the map mid-fight, which no effect can place.
+- **a summon the block does not name** — "1d4+1 Tier 1 adversaries", "six Tier 3
+  Minions", "Minions relevant to a personal nightmare": which stat block arrives is the
+  GM to pick, and an engine that picked one would be writing the encounter. The ones
+  that name what they call are scripted.
 - **a Countdown** — a clock that ticks on a trigger and goes off later.
 - **spotlighting allies** — a feature that hands the turn to other adversaries.
 - **a point on the map** — "choose a point within Far range; everyone within Close range
@@ -32,9 +35,11 @@ engine has no place to put:
   feature that shields or heals one of its own has no way to be pointed at it.
 
 Facing is *not* a reason: "in front of the Burrower" is read as the whole band, as Spit
-Acid has been from the start. Nor is a swarm: "spotlight all Giant Rats within Close
-range of them" is a `joinedBy` on the attack the feature makes, and the rest of the
-kind walk in and swing with it. Nor is resistance — a passive that halves or ignores a
+Acid has been from the start. Nor is a summons that names its block: "summon three
+Jagged Knife Lackeys, who appear at Far range" is a `summon` effect, and they are in
+the fight from the moment they are standing there. Nor is a swarm: "spotlight all
+Giant Rats within Close range of them" is a `joinedBy` on the attack the feature
+makes, and the rest of the kind walk in and swing with it. Nor is resistance — a passive that halves or ignores a
 damage type is a `defenses` line, and so is one that takes a number off the total
 before the thresholds are read ("reduce it by 3", "reduce it by 1d10"). Neither is a
 rider that follows the swing the block already prints, which is a reaction to
@@ -47,7 +52,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 97. Text: 247.
+Read: 73. Scripted: 105. Text: 239.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -101,7 +106,7 @@ Read: 73. Scripted: 97. Text: 247.
 | Jagged Knife Lackey | Minion (3) | Passive | **read** — read off the stat block |
 | Jagged Knife Lackey | Group Attack | Action | **scripted** — runs as an ability |
 | Jagged Knife Lieutenant | Tactician | Action | **text** — the GM's to play |
-| Jagged Knife Lieutenant | More Where That Came From | Action | **text** — the GM's to play |
+| Jagged Knife Lieutenant | More Where That Came From | Action | **scripted** — runs as an ability |
 | Jagged Knife Lieutenant | Coup de Grace | Action | **text** — the GM's to play |
 | Jagged Knife Lieutenant | Momentum | Reaction | **read** — read off the stat block |
 | Jagged Knife Shadow | Backstab | Passive | **text** — the GM's to play |
@@ -136,10 +141,10 @@ Read: 73. Scripted: 97. Text: 247.
 | Red Ooze | Split | Reaction | **text** — the GM's to play |
 | Tiny Red Ooze | Burning | Reaction | **text** — the GM's to play |
 | Petty Noble | My Land, My Rules | Passive | **text** — the GM's to play |
-| Petty Noble | Guards, Seize Them! | Action | **text** — the GM's to play |
+| Petty Noble | Guards, Seize Them! | Action | **scripted** — runs as an ability |
 | Petty Noble | Exile | Action | **text** — the GM's to play |
 | Pirate Captain | Swashbuckler | Passive | **text** — the GM's to play |
-| Pirate Captain | Reinforcements | Action | **text** — the GM's to play |
+| Pirate Captain | Reinforcements | Action | **scripted** — runs as an ability |
 | Pirate Captain | No Quarter | Action | **text** — the GM's to play |
 | Pirate Captain | Momentum | Reaction | **read** — read off the stat block |
 | Pirate Raiders | Horde (1d4+1) | Passive | **read** — read off the stat block |
@@ -234,7 +239,7 @@ Read: 73. Scripted: 97. Text: 247.
 | Failed Experiment | Lurching Lunge | Action | **text** — the GM's to play |
 | Giant Beastmaster | Two as One | Passive | **text** — the GM's to play |
 | Giant Beastmaster | Pinning Strike | Action | **scripted** — runs as an ability |
-| Giant Beastmaster | Deadly Companion | Action | **text** — the GM's to play |
+| Giant Beastmaster | Deadly Companion | Action | **scripted** — runs as an ability |
 | Giant Brawler | Battering Ram | Action | **text** — the GM's to play |
 | Giant Brawler | Bloody Reprisal | Reaction | **text** — the GM's to play |
 | Giant Brawler | Momentum | Reaction | **read** — read off the stat block |
@@ -274,7 +279,7 @@ Read: 73. Scripted: 97. Text: 247.
 | Secret-Keeper | Seize Your Moment | Action | **text** — the GM's to play |
 | Secret-Keeper | Our Master's Will | Reaction | **text** — the GM's to play |
 | Secret-Keeper | Summoning Ritual | Reaction: Countdown (6) | **text** — the GM's to play |
-| Secret-Keeper | Fallen Hounds | Reaction | **text** — the GM's to play |
+| Secret-Keeper | Fallen Hounds | Reaction | **scripted** — runs as an ability |
 | Shark | Terrifying | Passive | **read** — read off the stat block |
 | Shark | Rending Bite | Passive | **scripted** — runs as an ability |
 | Shark | Blood in the Water | Reaction | **text** — the GM's to play |
@@ -363,7 +368,7 @@ Read: 73. Scripted: 97. Text: 247.
 | Head Vampire | Terrifying | Passive | **read** — read off the stat block |
 | Head Vampire | Look into My Eyes | Passive | **text** — the GM's to play |
 | Head Vampire | Feed on Followers | Action | **text** — the GM's to play |
-| Head Vampire | The Hunt Is On | Action | **text** — the GM's to play |
+| Head Vampire | The Hunt Is On | Action | **scripted** — runs as an ability |
 | Head Vampire | Lifesuck | Reaction | **text** — the GM's to play |
 | Treant Sapling | Minion (6) | Passive | **read** — read off the stat block |
 | Treant Sapling | Group Attack | Action | **scripted** — runs as an ability |
@@ -388,7 +393,7 @@ Read: 73. Scripted: 97. Text: 247.
 | Young Ice Dragon | Momentum | Reaction | **read** — read off the stat block |
 | Arch-Necromancer | Dance of Death | Action | **text** — the GM's to play |
 | Arch-Necromancer | Beam of Decay | Action | **scripted** — runs as an ability |
-| Arch-Necromancer | Open the Gates of Death | Action | **text** — the GM's to play |
+| Arch-Necromancer | Open the Gates of Death | Action | **scripted** — runs as an ability |
 | Arch-Necromancer | Not Today, My Dears | Reaction | **text** — the GM's to play |
 | Arch-Necromancer | Your Life Is Mine | Reaction: Countdown (Loop 2d6) | **text** — the GM's to play |
 | Fallen Shock Troop | Minion (12) | Passive | **read** — read off the stat block |
@@ -407,7 +412,7 @@ Read: 73. Scripted: 97. Text: 247.
 | Fallen Warlord: Undefeated Champion | Relentless (3) | Passive | **read** — read off the stat block |
 | Fallen Warlord: Undefeated Champion | Faltering Armor | Passive | **scripted** — runs as an ability |
 | Fallen Warlord: Undefeated Champion | Shattering Strike | Action | **text** — the GM's to play |
-| Fallen Warlord: Undefeated Champion | Endless Legions | Action | **text** — the GM's to play |
+| Fallen Warlord: Undefeated Champion | Endless Legions | Action | **scripted** — runs as an ability |
 | Fallen Warlord: Undefeated Champion | Circle of Defilement | Reaction: Countdown (1d8) | **text** — the GM's to play |
 | Fallen Warlord: Undefeated Champion | Momentum | Reaction | **read** — read off the stat block |
 | Fallen Warlord: Undefeated Champion | Doombringer | Reaction | **text** — the GM's to play |

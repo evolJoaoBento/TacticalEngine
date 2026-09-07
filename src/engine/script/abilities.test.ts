@@ -182,6 +182,110 @@ describe('selectors', () => {
   });
 });
 
+describe('what a block calls onto the map', () => {
+  /** The band a tile stands in, from the one who summoned. */
+  const bandOf = (built: ReturnType<typeof scene>, id: string): string => {
+    const from = built.state.entity('husk-1')!.tile;
+    const to = built.state.entity(id)!.tile;
+    const tiles = Math.ceil(built.grid.euclideanDistance(from, to));
+    return tiles <= 1 ? 'melee' : tiles <= 2 ? 'veryClose' : tiles <= 4 ? 'close' : tiles <= 8 ? 'far' : 'veryFar';
+  };
+
+  it('stands them in the band it named, and gives each one an id of its own', () => {
+    const built = scene();
+    built.scenario.actorId = 'husk-1';
+    const journal = runScript(
+      [{ kind: 'summon', adversary: 'soft-husk', count: '2', range: 'far' }],
+      built.world,
+      scripted([]),
+      { rollAs: 'actor' },
+    );
+    const summoned = journal.find((e) => e.kind === 'summoned') as { ids: readonly string[]; spotlight: boolean };
+    expect(summoned.ids).toEqual(['soft-husk-s1', 'soft-husk-s2']);
+    expect(summoned.spotlight).toBe(false);
+    for (const id of summoned.ids) {
+      expect(built.state.entity(id)!.alive).toBe(true);
+      expect(bandOf(built, id)).toBe('far');
+    }
+    // They are adversaries on the map, which is all it takes to be in the
+    // fight: nothing keeps a roster.
+    expect(built.state.entitiesOf('adversary').map((e) => e.id)).toContain('soft-husk-s1');
+  });
+
+  it('multiplies by the party still standing when the text counts PCs', () => {
+    const built = scene();
+    built.scenario.actorId = 'husk-1';
+    // "A number equal to twice the number of PCs": Kara and Mira, so four.
+    const journal = runScript(
+      [{ kind: 'summon', adversary: 'soft-husk', count: '2', perPc: true, range: 'close' }],
+      built.world,
+      scripted([]),
+      { rollAs: 'actor' },
+    );
+    expect((journal.find((e) => e.kind === 'summoned') as { ids: readonly string[] }).ids).toHaveLength(4);
+
+    // One of them down, and the next summons counts three.
+    const fewer = scene();
+    fewer.scenario.actorId = 'husk-1';
+    fewer.state.entity('mira')!.alive = false;
+    const second = runScript(
+      [{ kind: 'summon', adversary: 'soft-husk', count: '2', perPc: true, range: 'close' }],
+      fewer.world,
+      scripted([]),
+      { rollAs: 'actor' },
+    );
+    expect((second.find((e) => e.kind === 'summoned') as { ids: readonly string[] }).ids).toHaveLength(2);
+  });
+
+  it('falls inward rather than summoning nobody, and takes what room there is', () => {
+    const built = scene();
+    built.scenario.actorId = 'husk-1';
+    // More than the Far ring of a corridor can hold: the rest stand closer.
+    const journal = runScript(
+      [{ kind: 'summon', adversary: 'soft-husk', count: '20', range: 'far' }],
+      built.world,
+      scripted([]),
+      { rollAs: 'actor' },
+    );
+    const ids = (journal.find((e) => e.kind === 'summoned') as { ids: readonly string[] }).ids;
+    expect(ids.length).toBeGreaterThan(4);
+    expect(ids.some((id) => bandOf(built, id) !== 'far')).toBe(true);
+    // Nobody is standing on anybody.
+    const tiles = built.state.entitiesOf('adversary').map((e) => e.tile);
+    expect(new Set(tiles).size).toBe(tiles.length);
+  });
+
+  it('refuses a stat block nothing ships, and says which', () => {
+    const built = scene();
+    built.scenario.actorId = 'husk-1';
+    const journal = runScript(
+      [{ kind: 'summon', adversary: 'unwritten-horror', range: 'close' }],
+      built.world,
+      scripted([]),
+      { rollAs: 'actor' },
+    );
+    expect(refusals(journal)[0]).toContain('unwritten-horror');
+    expect(journal.some((e) => e.kind === 'summoned')).toBe(false);
+  });
+
+  it('never reuses the id of something already in the room, fallen or not', () => {
+    const built = scene();
+    built.scenario.actorId = 'husk-1';
+    const first = runScript([{ kind: 'summon', adversary: 'soft-husk', range: 'close' }], built.world, scripted([]), {
+      rollAs: 'actor',
+    });
+    const one = (first.find((e) => e.kind === 'summoned') as { ids: readonly string[] }).ids[0]!;
+    built.state.entity(one)!.alive = false;
+
+    const second = runScript([{ kind: 'summon', adversary: 'soft-husk', range: 'close' }], built.world, scripted([]), {
+      rollAs: 'actor',
+    });
+    const two = (second.find((e) => e.kind === 'summoned') as { ids: readonly string[] }).ids[0]!;
+    // A corpse is still an entity, so its name is not handed to the next one.
+    expect(two).not.toBe(one);
+  });
+});
+
 describe('a swarm that piles in', () => {
   /**
    * "Spend a Fear to choose a target and spotlight all Giant Rats within Close
