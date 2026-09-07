@@ -1907,13 +1907,13 @@ const RAW: Input[] = [
     effects: [
       { kind: 'log', text: 'The Soldier falls in beside one of their own.', tone: 'combat' },
       // The nearest of its own side, which is the one a soldier reinforces.
-      { kind: 'move', how: 'toward', of: { kind: 'adversaries', range: 'far', nearest: 1 }, range: 'melee' },
+      { kind: 'move', how: 'toward', of: { kind: 'adversaries', range: 'far', nearest: 1, except: 'actor' }, range: 'melee' },
       {
         kind: 'attack',
         range: 'veryClose',
         damage: '2d10+2',
         target: { kind: 'target' },
-        onHit: [{ kind: 'clearStress', target: { kind: 'adversaries', range: 'melee', nearest: 1 } }],
+        onHit: [{ kind: 'clearStress', target: { kind: 'adversaries', range: 'melee', nearest: 1, except: 'actor' } }],
       },
     ],
   },
@@ -1996,8 +1996,11 @@ const RAW: Input[] = [
     trigger: 'tookDamage',
     action: false,
     target: { kind: 'none' },
-    // A blow with nobody behind it has nothing to get away from, and the
-    // Sorcerer stands where they are.
+    // Simplified: "they can teleport" is the GM's choice at the table and a
+    // rule here - the Sorcerer backs off from every wound, because the fight
+    // plays every reaction it can afford and this one is free. A blow with
+    // nobody behind it has nothing to get away from, so a trap or a countdown
+    // leaves them standing.
     effects: [{ kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'far' }],
   },
   // ---- what the two of them make of each other ---------------------------

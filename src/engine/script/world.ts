@@ -867,7 +867,12 @@ export class SceneScriptWorld implements ScriptWorld {
       case 'adversaries': {
         const origin = selector.around === 'target' ? bindings.targets[0] : this.scenario.actorId;
         if (origin === undefined || origin === null) return [];
-        const left = selector.except === 'target' ? new Set(bindings.targets) : null;
+        const left =
+          selector.except === 'target'
+            ? new Set(bindings.targets)
+            : selector.except === 'actor' && this.scenario.actorId !== null
+              ? new Set([this.scenario.actorId])
+              : null;
         // "All Giant Rats", not "all adversaries": the same stat block as the
         // one acting. A creature with no block — a party member running a
         // card — names nobody, which is what "the rest of its kind" means

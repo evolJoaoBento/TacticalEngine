@@ -650,6 +650,42 @@ describe('a creature that walks before it swings', () => {
     expect(demo.state.entity('foe')!.tile).toBe(after);
   });
 
+  it('walks to an ally rather than to itself', () => {
+    // "Mark a Stress to move into Melee range of an ally and make a standard
+    // attack." A creature is within Melee of itself, so a selector that counts
+    // the one acting would have the Soldier reinforce nobody at all.
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'line', name: 'The line' })));
+    s.run(addAdversary('hall', 'line', { id: 'soldier', adversary: 'elite-soldier', position: { x: 8, y: 4 } }));
+    s.run(addAdversary('hall', 'line', { id: 'mate', adversary: 'elite-soldier', position: { x: 4, y: 4 } }));
+    const demo = buildProjectScene(s.project, 'reinforce');
+    demo.askDefender = false;
+    startEncounter(demo, 'line');
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.entity('kara')!.hitPoints = { max: 60, marked: 0 };
+    demo.state.entity('mate')!.stress = { max: 4, marked: 2 };
+
+    // The selector the feature walks at, read from the Soldier's own chair.
+    demo.scenario.actorId = 'soldier';
+    const ally = demo.world.resolveTargets(
+      { kind: 'adversaries', range: 'far', nearest: 1, except: 'actor' },
+      { targets: [], hit: [] },
+    );
+    expect(ally).toEqual(['mate']);
+    // Without leaving itself out it would name itself, and a creature is
+    // always within Melee of itself: the Soldier would reinforce nobody.
+    expect(
+      demo.world.resolveTargets({ kind: 'adversaries', range: 'far', nearest: 1 }, { targets: [], hit: [] }),
+    ).toEqual(['soldier']);
+    demo.scenario.actorId = null;
+
+    const stood = demo.state.entity('soldier')!.tile;
+    for (let i = 0; i < 4 && demo.state.entity('soldier')!.tile === stood; i++) endTurn(demo);
+    expect(demo.log.some((l) => l.text.includes('falls in beside one of their own'))).toBe(true);
+  });
+
   it('cannot walk while something is holding it, either way', () => {
     const demo = hall('knight-of-the-realm', { x: 9, y: 4 }, 'held');
     const foe = demo.state.entity('foe')!;

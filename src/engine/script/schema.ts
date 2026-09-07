@@ -113,8 +113,13 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
     kind: z.literal('adversaries'),
     range: rangeBandSchema,
     around: z.enum(['actor', 'target']).optional(),
-    /** Leave the chosen target out: "all other targets within range". */
-    except: z.enum(['target']).optional(),
+    /**
+     * Leave somebody out: the chosen target ("all other targets within
+     * range"), or the one acting - which a selector otherwise counts, because
+     * a creature is within Melee of itself. "Move into Melee range of an ally"
+     * means one of the others.
+     */
+    except: z.enum(['target', 'actor']).optional(),
     /** Only the closest few, measured from whoever the band is read around. */
     nearest: z.number().int().positive().optional(),
     /**
