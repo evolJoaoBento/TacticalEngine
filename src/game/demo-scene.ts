@@ -1028,7 +1028,18 @@ export function runGmTurn(demo: DemoScene): number {
     // before the Fear is read: a Leader that spent its last Fear rallying the
     // room would otherwise end the turn before anyone it rallied could move.
     const granted = turn.granted.delete(id);
-    if (!granted && (again ? !encounter.canSpotlightAgain(id) : !encounter.canSpotlight(id))) break;
+    if (!granted && again && !encounter.canSpotlightAgain(id)) {
+      // Relentless is an option the GM pays for, not an obligation: one the
+      // pool cannot afford another turn for steps aside, and the rest of the
+      // room - which may be standing on spotlights a feature already bought -
+      // still acts.
+      turn.remaining.shift();
+      continue;
+    }
+    // A fresh creature the GM cannot pay for does end the turn: everything
+    // behind it in the queue costs the same, and a granted spotlight is always
+    // at the head.
+    if (!granted && !again && !encounter.canSpotlight(id)) break;
     if (granted) encounter.grantSpotlight(id);
     else if (again) encounter.spotlightAgain(id);
     else encounter.spotlight(id);
@@ -1040,6 +1051,10 @@ export function runGmTurn(demo: DemoScene): number {
     const allowed = adversaryTraits(statBlock(demo, id)).spotlights;
     if (turn.spotlights[id]! >= allowed) turn.remaining.shift();
     adversaryTurn(demo, id);
+    // "While spotlighted in this way": the half is the price of the turn the
+    // Leader handed over, and it is over when that turn is. A second spotlight
+    // the GM paid for in the ordinary way swings at full strength.
+    turn.halved.delete(id);
   }
   // Still waiting on a defender: the turn keeps its place.
   if (demo.pending !== null) return turn.acted;
@@ -1463,6 +1478,9 @@ function afterAdversaryScript(demo: DemoScene, journal: readonly JournalEntry[])
  */
 function spotlightAllies(demo: DemoScene, journal: readonly JournalEntry[]): void {
   const turn = demo.gmTurn;
+  // Nothing to hand out when nobody is taking a GM turn: a countdown that
+  // fires on a player's roll, or a scene script, has no queue to put anyone at
+  // the head of, and the creatures named simply wait for the next turn.
   if (turn === null) return;
   for (const entry of journal) {
     if (entry.kind !== 'spotlighted') continue;
@@ -1490,7 +1508,12 @@ function spotlightArrivals(demo: DemoScene, journal: readonly JournalEntry[]): v
   if (turn === null) return;
   for (const entry of journal) {
     if (entry.kind !== 'summoned' || !entry.spotlight) continue;
-    turn.remaining.unshift(...entry.ids.filter((id) => !turn.remaining.includes(id)));
+    const arriving = entry.ids.filter((id) => !turn.remaining.includes(id));
+    turn.remaining.unshift(...arriving);
+    // The feature's own cost brought them and gave them the spotlight, so the
+    // GM is not billed again for the turn they walk into - and the turn does
+    // not stop for want of Fear it never owed.
+    for (const id of arriving) turn.granted.add(id);
   }
 }
 
@@ -1650,7 +1673,7 @@ function halveIfRallied(
   outcome: ReturnType<typeof resolveAttack>,
 ): ReturnType<typeof resolveAttack> {
   const turn = demo.gmTurn;
-  if (turn === null || !turn.halved.delete(adversaryId) || outcome.damageRoll === undefined) return outcome;
+  if (turn === null || !turn.halved.has(adversaryId) || outcome.damageRoll === undefined) return outcome;
   const total = Math.ceil(outcome.damageRoll.total / 2);
   note(demo, `${nameOf(demo, adversaryId)} strikes on somebody else's word, for half.`, 'combat');
   return { ...outcome, damageRoll: { ...outcome.damageRoll, total } };

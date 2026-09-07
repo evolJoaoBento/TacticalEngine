@@ -288,6 +288,67 @@ describe('a Leader buying its own side a turn', () => {
   });
 });
 
+describe('a Demon rallying Relentless allies', () => {
+  /** A Demon of Hubris and two Minor Demons, who can each be spotlighted twice. */
+  const pit = (fear: number, seed: string) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'pit', name: 'The pit' })));
+    s.run(addAdversary('hall', 'pit', { id: 'hubris', adversary: 'demon-of-hubris', position: { x: 7, y: 4 } }));
+    s.run(addAdversary('hall', 'pit', { id: 'imp-1', adversary: 'minor-demon', position: { x: 7, y: 3 } }));
+    s.run(addAdversary('hall', 'pit', { id: 'imp-2', adversary: 'minor-demon', position: { x: 7, y: 5 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'pit');
+    demo.state.fear = { ...demo.state.fear, value: fear };
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('lets the second one act, though the first could have been spotlighted again', () => {
+    // Exactly the Fear the feature costs. A Relentless ally keeps its place at
+    // the head of the queue after its granted spotlight, and the GM cannot
+    // afford the second one - which must not end the turn while somebody
+    // behind it is standing on a spotlight the Demon already paid for.
+    const demo = pit(1, 'hubris');
+    endTurn(demo);
+
+    expect(demo.log.some((l) => l.text.includes('uses The Root of Villainy'))).toBe(true);
+    const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string }[];
+    expect(acted.filter((e) => e.id === 'imp-1')).toHaveLength(1);
+    expect(acted.filter((e) => e.id === 'imp-2')).toHaveLength(1);
+  });
+});
+
+describe('what a feature calls in and spotlights', () => {
+  it('acts on the turn it arrived, on the Fear the feature already spent', () => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'crypt', name: 'The crypt' })));
+    s.run(addAdversary('hall', 'crypt', { id: 'lord', adversary: 'head-vampire', position: { x: 7, y: 4 } }));
+    const demo = buildProjectScene(s.project, 'the-hunt');
+    demo.askDefender = false;
+    startEncounter(demo, 'crypt');
+    // Exactly what "The Hunt Is On" costs, and not a Fear more: what it calls
+    // in was paid for by the feature, so the turn must not stop billing for it.
+    demo.state.fear = { ...demo.state.fear, value: 2 };
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+    endTurn(demo);
+
+    expect(demo.log.some((l) => l.text.includes('uses The Hunt Is On'))).toBe(true);
+    const arrivals = demo.state.entitiesOf('adversary').filter((e) => e.definition === 'vampire');
+    expect(arrivals.length).toBeGreaterThan(0);
+    const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string; fearSpent: number }[];
+    for (const arrival of arrivals) {
+      expect(acted.filter((e) => e.id === arrival.id)).toHaveLength(1);
+      expect(acted.find((e) => e.id === arrival.id)!.fearSpent).toBe(0);
+    }
+  });
+});
+
 describe('a Necromancer who buys their troops a turn', () => {
   /**
    * "Attacks they make while spotlighted in this way deal half damage."
@@ -339,11 +400,41 @@ describe('a Necromancer who buys their troops a turn', () => {
     );
   });
 
-  it('is spent on the swing it paid for, so the next one is at full strength', () => {
-    const demo = gates(true);
-    // The set is cleared as each ally acts: nothing is left holding a
-    // half-damage mark into a turn nobody rallied them for.
-    expect(demo.gmTurn).toBeNull();
+  it('carries the half through the turn it bought and no further', () => {
+    // A Necromancer rallies two Minor Demons, who are Relentless (2): each
+    // takes the spotlight it was handed and then a second the GM pays a Fear
+    // for. The whole turn, on one seed, because the claim is about which of
+    // the four swings is at half strength and which is not.
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'gates', name: 'The gates' })));
+    s.run(addAdversary('hall', 'gates', { id: 'necromancer', adversary: 'arch-necromancer', position: { x: 7, y: 4 } }));
+    s.run(addAdversary('hall', 'gates', { id: 'imp-1', adversary: 'minor-demon', position: { x: 6, y: 3 } }));
+    s.run(addAdversary('hall', 'gates', { id: 'imp-2', adversary: 'minor-demon', position: { x: 6, y: 5 } }));
+    const demo = buildProjectScene(s.project, 'dance');
+    demo.askDefender = false;
+    startEncounter(demo, 'gates');
+    demo.state.fear = { ...demo.state.fear, value: 3 };
+    demo.state.entity('kara')!.hitPoints = { max: 60, marked: 0 };
+    endTurn(demo);
+
+    expect(demo.log.map((l) => l.text)).toEqual([
+      'The Arch-Necromancer uses Dance of Death.',
+      'Minor Demon, Minor Demon are called into the fight, striking for half.',
+      "The Minor Demon's Claws misses Kara.",
+      'The GM gains 1 Fear.',
+      "The Minor Demon's Claws hits Kara: 1 Hit Point.",
+      "The Minor Demon's Claws misses Kara.",
+      "The Minor Demon's Claws misses Kara.",
+    ]);
+    // Four swings for two demons: the two the Necromancer bought, and one
+    // more each that the GM paid a Fear for. The hit landed on a paid
+    // spotlight, so nothing says it struck for half.
+    const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string; fearSpent: number }[];
+    expect(acted.filter((e) => e.id === 'imp-1')).toHaveLength(2);
+    expect(acted.filter((e) => e.id === 'imp-2')).toHaveLength(2);
+    expect(acted.filter((e) => e.fearSpent > 0)).toHaveLength(2);
   });
 });
 
