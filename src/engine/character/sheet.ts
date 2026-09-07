@@ -213,10 +213,24 @@ export function deriveCharacter(
   const modifiers = held
     .flatMap((ability) => ability.modifiers)
     .filter((m) => m.requires === undefined || m.requires === 'meleeWeapon' || (m.requires === 'armored') === (armor !== undefined));
+  // Proficiency first, because a modifier may add it to something else: Rise
+  // Up's Severe threshold is "equal to your Proficiency", and a card that
+  // raised the Proficiency itself has to be counted before that is read.
+  const proficiency = Math.max(
+    1,
+    sheet.proficiency +
+      modifiers
+        .filter((m) => m.stat === 'proficiency' && m.when === undefined && m.requires !== 'meleeWeapon')
+        .reduce((sum, m) => sum + m.bonus, 0),
+  );
   const folded = (stat: AbilityModifier['stat']): number =>
     modifiers
       .filter((m) => m.stat === stat && m.when === undefined && m.requires !== 'meleeWeapon')
-      .reduce((sum, m) => sum + m.bonus + (m.plusTrait === undefined ? 0 : traits[m.plusTrait]), 0);
+      .reduce(
+        (sum, m) =>
+          sum + m.bonus + (m.plusTrait === undefined ? 0 : traits[m.plusTrait]) + (m.plusProficiency === true ? proficiency : 0),
+        0,
+      );
 
   // "A PC's damage thresholds are calculated by adding their level to the listed
   // damage thresholds of their equipped armor." Unarmoured is level / twice level —
@@ -235,7 +249,7 @@ export function deriveCharacter(
     cards,
     features,
     modifiers,
-    proficiency: Math.max(1, sheet.proficiency + folded('proficiency')),
+    proficiency,
     traits,
     experiences,
     evasion: (klass?.startingEvasion ?? 10) + (bonuses.evasion ?? 0) + grown.evasion + folded('evasion'),

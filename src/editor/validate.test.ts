@@ -609,7 +609,7 @@ describe('quests', () => {
 });
 
 describe('what only a stat block has', () => {
-  it('warns when a card asks for Fear, changes a standard attack, or answers its own swing', () => {
+  it('warns when a card asks for Fear or changes a standard attack', () => {
     const project = projectSchema.parse({
       ...build(),
       abilities: [
@@ -637,7 +637,7 @@ describe('what only a stat block has', () => {
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'dealtDamage',
-          effects: [],
+          effects: [{ kind: 'log', text: 'A rider on the swing.' }],
         },
         {
           id: 'on-a-block',
@@ -674,10 +674,10 @@ describe('what only a stat block has', () => {
       '"greedy" costs Fear, which only the GM spends: nobody holding it can use it.',
     );
     expect(said).toContain('"sharp" changes a standard attack, which only a stat block has.');
-    expect(said).toContain(
-      '"rider" answers its holder' + String.fromCharCode(39) + 's own attack, which only a stat block' +
-        String.fromCharCode(39) + 's swing reports.',
-    );
+    // A card that rides its holder's own swing is no longer a mistake: the
+    // party's attacks report `dealtHit` and `dealtDamage` the way a stat
+    // block's do, and Healing Strike is written on exactly that.
+    expect(said.some((m) => m.includes('"rider"'))).toBe(false);
     // A reduction nothing can read reduces nothing, silently.
     expect(said).toContain('"thick-hide" reduces damage by "three", which is not dice.');
     // And one that reads backwards would hand the attacker damage back.

@@ -859,6 +859,20 @@ const RAW: Input[] = [
 
   // ---- Splendor --------------------------------------------------------------
   {
+    id: 'healing-strike',
+    name: 'Healing Strike',
+    source: card('healing-strike'),
+    kind: 'reaction',
+    trigger: 'dealtDamage',
+    cost: { hope: 2 },
+    action: false,
+    target: { kind: 'ally', range: 'close' },
+    // Simplified: the nearest ally rather than a chosen one. The card is
+    // played in answer to a swing that has already landed, and the question
+    // put to the player is whether to spend the Hope, not who to aim it at.
+    effects: [{ kind: 'heal', amount: 1, target: { kind: 'allies', range: 'close', nearest: 1 } }],
+  },
+  {
     id: 'second-wind',
     name: 'Second Wind',
     source: card('second-wind'),
@@ -982,6 +996,28 @@ const RAW: Input[] = [
   },
 
   // ---- Valor -----------------------------------------------------------------
+  // A card that answers something which has already happened, rather than
+  // damage on its way in. The fight raises `tookHitPoints` and `dealtDamage`
+  // for the party the way it does for a stat block; a card that costs
+  // something is offered to the player, and a free one that asks nothing runs
+  // on its own.
+  {
+    id: 'rise-up-guard',
+    name: 'Rise Up',
+    source: card('rise-up'),
+    kind: 'passive',
+    action: false,
+    modifiers: [{ stat: 'severeThreshold', plusProficiency: true }],
+  },
+  {
+    id: 'rise-up',
+    name: 'Rise Up',
+    source: card('rise-up'),
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    effects: [{ kind: 'clearStress', target: { kind: 'actor' } }],
+  },
   {
     id: 'armorer',
     name: 'Armorer',

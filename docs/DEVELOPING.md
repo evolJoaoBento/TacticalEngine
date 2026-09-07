@@ -109,7 +109,7 @@ adapter: the rest of the core does not know it exists.
 | `script/countdowns.ts` | The board a scenario carries: `RunningCountdown` (a clock plus what it is counting towards), `advanceBoard`, `reapBoard`, `endCreatureCountdowns`, and the snapshot schema a save uses. |
 | `script/hooks.ts` | Running project code: `HookContext`, `runHook`, `SAFE_MATH`. |
 | `content/types.ts` | `AdversaryDef`, `AdversaryFeature`, `ContentIssue`, `ImportResult`, `toContentId`. |
-| `content/abilities.ts` | `AbilityDef` and its sub-schemas; `abilitiesFor`, `loadoutOf`, `isScripted`, `isAutomatic`, `readsATarget`. A modifier's `advantage` stat is a signed count of dice, and `against: true` puts it on rolls made at the holder. |
+| `content/abilities.ts` | `AbilityDef` and its sub-schemas; `abilitiesFor`, `loadoutOf`, `isScripted`, `isAutomatic`, `readsATarget`. A modifier's `advantage` stat is a signed count of dice, `against: true` puts it on rolls made at the holder, and `plusProficiency` adds the holder's Proficiency to the bonus. |
 | `content/conditions.ts` | `ConditionDef` — what a *status* on a creature does. `SRD_CONDITIONS`. |
 | `content/items.ts`, `content/quests.ts` | Item and quest content shapes. |
 | `content/srd/daggersearch.ts` | Normalises the vendored SRD 1.0 character data (470 lines). |
@@ -268,6 +268,16 @@ playGmTurn / runGmTurn (demo-scene.ts:938, :959)
                  plan !== null → resolveDefensePlan               (the player decided)
                  then applyAttack against a rebuilt AttackOutcome
 ```
+
+Once the blow is resolved, whoever it happened to gets to answer it. `playDamageReactions`
+drains the notes and reads them for both sides: a stat block's reactions run on their own, and
+so does a party card that costs nothing and asks nothing (Rise Up's "clear a Stress"). A card
+with a price — "you can spend 2 Hope to…" — is put to the player as a third kind of
+`demo.pending`, a `PendingReaction`, whose first option is always letting it pass. The same
+happens on the party's own swing: `playAttackRiders` reads `dealtHit` and `dealtDamage` for
+whoever swung, so Healing Strike is offered after a player's attack the way a stat block's rider
+runs after the GM's. Every note is read before anyone is asked, because `drainDamage` clears as
+it reports; what is not asked now is queued behind the question that is up.
 
 Both defence functions use the same arithmetic in the same order: **dice off the damage** (a Rune
 Ward's d8, and the passive reduction rolled once), then **Armor Slots** (the one, plus any

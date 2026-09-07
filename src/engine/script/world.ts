@@ -588,7 +588,14 @@ export class SceneScriptWorld implements ScriptWorld {
 
   private sumModifiers(id: string, modifiers: readonly AbilityModifier[]): number {
     const character = this.characters.get(id);
-    return modifiers.reduce((sum, m) => sum + m.bonus + (m.plusTrait === undefined || character === undefined ? 0 : character.traits[m.plusTrait]), 0);
+    return modifiers.reduce(
+      (sum, m) =>
+        sum +
+        m.bonus +
+        (m.plusTrait === undefined || character === undefined ? 0 : character.traits[m.plusTrait]) +
+        (m.plusProficiency === true ? this.proficiencyOf(id) : 0),
+      0,
+    );
   }
 
   /** The bonus a creature's modifiers add to a roll of this kind. */

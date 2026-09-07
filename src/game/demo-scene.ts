@@ -276,7 +276,41 @@ export interface RollShow {
  * on. That nesting is why this is one object rather than two fields — the outer
  * runner has to be kept alive across the whole conversation.
  */
-export type Pending = PendingScript | PendingDefense;
+export type Pending = PendingScript | PendingDefense | PendingReaction;
+
+/**
+ * A card of the party's that answers something which has already happened: a
+ * wound they took, a wound they dealt.
+ *
+ * The interrupt shape, not the automatic one. "You can spend 2 Hope to clear a
+ * Hit Point on an ally" is a decision, and the SRD gives it to the player, so
+ * the fight stops and asks. A free reaction with nothing to weigh - Rise Up's
+ * "clear a Stress" - never reaches here: it simply happens.
+ */
+export interface PendingReaction {
+  kind: 'reaction';
+  /** A choice prompt, so a UI that can draw a script's choice can draw this. */
+  prompt: Prompt;
+  /** What this character can play, in the order offered. Index 0 declines. */
+  offers: readonly ReactionOffer[];
+  /**
+   * Offers still to be put to somebody once this question is answered. A blow
+   * can leave several people with something to say, and the queue is built
+   * before the first is asked: `drainDamage` empties as it reports, so what is
+   * not carried here is gone.
+   */
+  queued: readonly (readonly ReactionOffer[])[];
+}
+
+/** One card, ready to run, with everything the blow left behind. */
+export interface ReactionOffer {
+  by: string;
+  ability: AbilityDef;
+  /** Who the card is aimed at: whoever struck, or whoever was struck. */
+  targets: readonly string[];
+  counts: Partial<Record<CountName, number>>;
+  lastDamage?: { total: number; types: readonly DamageType[] };
+}
 
 /** The waiting script, when what is waiting is a script and not a defender. */
 export function scriptPending(demo: DemoScene): PendingScript | null {
@@ -999,6 +1033,10 @@ export function attackWithSelected(
   if (outcome.hit) {
     playDamageReactions(demo);
     playDefeatReactions(demo);
+    // "When you deal damage to an adversary, you can spend 2 Hope to…": the
+    // player's own rider on their own swing, offered after the blow is in the
+    // log and before the turn is spent.
+    playAttackRiders(demo, id!, targetId, applied.hitPointsMarked);
   }
   if (inCombat(demo)) demo.encounter!.act(id!, { spotlightToGm: outcome.spotlightToGm });
   settleFight(demo);
@@ -1653,27 +1691,177 @@ function spendSwarmSpotlights(demo: DemoScene, journal: readonly JournalEntry[])
  * reach the feature names is read against where that creature is standing.
  */
 function playDamageReactions(demo: DemoScene): void {
+  const asked: ReactionOffer[][] = [];
   for (const note of demo.world.drainDamage()) {
     const entity = demo.state.entity(note.id);
-    if (entity === undefined || !entity.alive || entity.faction !== 'adversary') continue;
+    if (entity === undefined || !entity.alive) continue;
     const attacker = note.attacker !== null && demo.state.entity(note.attacker)?.alive === true ? note.attacker : null;
     const triggers: NonNullable<AbilityDef['trigger']>[] = ['tookDamage'];
     if (note.hitPoints > 0) triggers.push('tookHitPoints');
     if (note.severe) triggers.push('tookSevere');
     const counts = { hitPointsTaken: note.hitPoints };
+    const bound = attacker === null ? [] : [attacker];
+    const lastDamage = { total: note.damage, types: note.types };
+
+    // The party's half of the same rule. A card they can afford and would
+    // choose is offered; one that costs nothing and asks nothing simply runs.
+    if (entity.faction === 'party') {
+      const offers = offersFor(demo, note.id, triggers, bound, counts, lastDamage);
+      if (offers.length > 0) asked.push(offers);
+      continue;
+    }
+    if (entity.faction !== 'adversary') continue;
+
     for (const trigger of triggers) {
-      const bound = attacker === null ? [] : [attacker];
       for (const ability of demo.world.reactionsFor(note.id, trigger, { targets: bound, hit: bound, counts })) {
         if (ability.effects.length === 0) continue;
         if (!affordableReaction(demo, note.id, ability)) continue;
         spendFeatureCost(demo, note.id, ability, 'reaction');
-        runAdversaryScript(demo, note.id, ability, bound, bound, {
-          counts,
-          lastDamage: { total: note.damage, types: note.types },
-        });
+        runAdversaryScript(demo, note.id, ability, bound, bound, { counts, lastDamage });
       }
     }
   }
+  // Every note is read before anyone is asked: `drainDamage` clears as it
+  // reports, so an offer left behind a question would never be made.
+  offerReactions(demo, asked);
+}
+
+/**
+ * What a party member can play about something that has already happened, and
+ * what they simply do.
+ *
+ * The free reactions run here - "when you mark 1 or more Hit Points from an
+ * attack, clear a Stress" is not a decision - and what is left is handed back
+ * to be put to the player.
+ */
+function offersFor(
+  demo: DemoScene,
+  id: string,
+  triggers: readonly NonNullable<AbilityDef['trigger']>[],
+  bound: readonly string[],
+  counts: Partial<Record<CountName, number>>,
+  lastDamage?: { total: number; types: readonly DamageType[] },
+): ReactionOffer[] {
+  const offers: ReactionOffer[] = [];
+  const seen = new Set<string>();
+  for (const trigger of triggers) {
+    for (const ability of demo.world.reactionsFor(id, trigger, { targets: [...bound], hit: [...bound], counts })) {
+      if (ability.effects.length === 0 || seen.has(ability.id)) continue;
+      seen.add(ability.id);
+      const holder = defenderFor(demo, id);
+      if (holder === null || !canPayFor(holder, ability)) continue;
+      const offer: ReactionOffer = {
+        by: id,
+        ability,
+        targets: [...bound],
+        counts,
+        ...(lastDamage === undefined ? {} : { lastDamage }),
+      };
+      // Free and automatic is not a question: it happens, the way a stat
+      // block's own reactions do.
+      if (ability.auto && (ability.cost.hope ?? 0) === 0 && (ability.cost.stress ?? 0) === 0) {
+        playReaction(demo, offer);
+        continue;
+      }
+      offers.push(offer);
+    }
+  }
+  return offers;
+}
+
+/**
+ * Put the first group of offers to the player and keep the rest for after.
+ *
+ * With nobody at the table to ask - a test, or the demo deciding for the party
+ * - an optional card is simply not played: spending someone's Hope for them is
+ * worse than letting the moment pass.
+ */
+function offerReactions(demo: DemoScene, groups: readonly (readonly ReactionOffer[])[]): void {
+  const waiting = groups.filter((group) => group.length > 0);
+  if (waiting.length === 0 || !demo.askDefender) return;
+  const pending = demo.pending;
+  if (pending !== null) {
+    // Somebody is already being asked something: queue behind them rather
+    // than drop the card, which is what the blow that raised this deserves.
+    if (pending.kind === 'reaction') demo.pending = { ...pending, queued: [...pending.queued, ...waiting] };
+    return;
+  }
+  const [first, ...queued] = waiting;
+  askReaction(demo, first!, queued);
+}
+
+/** The question itself: one character, their cards, and letting it pass. */
+function askReaction(demo: DemoScene, offers: readonly ReactionOffer[], queued: readonly (readonly ReactionOffer[])[]): void {
+  const who = nameOf(demo, offers[0]!.by);
+  demo.pending = {
+    kind: 'reaction',
+    offers,
+    queued,
+    prompt: {
+      kind: 'choice',
+      title: `${who} can answer that`,
+      body: offers.map((offer) => offer.ability.name).join(', '),
+      options: [
+        { index: 0, label: 'Let it pass' },
+        ...offers.map((offer, index) => ({
+          index: index + 1,
+          label: `${offer.ability.name}${costOf(offer.ability) === '' ? '' : ` (${costOf(offer.ability)})`}`,
+        })),
+      ],
+    },
+  };
+}
+
+/**
+ * Run one of the party's reactions: pay for it, then play its script with the
+ * numbers the blow left behind.
+ *
+ * A card that stops to ask something keeps the floor, exactly as an interrupt
+ * does, and whatever was queued behind it is asked when it finishes.
+ */
+function playReaction(demo: DemoScene, offer: ReactionOffer, queued: readonly (readonly ReactionOffer[])[] = []): void {
+  if (!payFor(demo, offer.by, offer.ability)) return;
+  note(demo, `${nameOf(demo, offer.by)}: ${offer.ability.name}.`, 'hope');
+  const was = demo.scenario.actorId;
+  demo.scenario.actorId = offer.by;
+  const runner = new ScriptRunner(demo.world, demo.rng, {
+    targets: [...offer.targets],
+    hit: [...offer.targets],
+    rollAs: 'actor',
+    counts: offer.counts,
+    ...(offer.lastDamage === undefined ? {} : { lastDamage: offer.lastDamage }),
+  });
+  const result = runner.run(offer.ability.effects);
+  record(demo, result.journal);
+  if (result.status === 'waiting') {
+    demo.pending = {
+      kind: 'script',
+      runner,
+      prompt: result.prompt,
+      interactable: null,
+      recorded: result.journal.length,
+      dialogue: null,
+      onDone: () => {
+        demo.scenario.actorId = was;
+        afterReaction(demo, queued);
+      },
+    };
+    return;
+  }
+  demo.scenario.actorId = was;
+  afterReaction(demo, queued);
+}
+
+/** Ask the next character what they make of it, or let the fight carry on. */
+function afterReaction(demo: DemoScene, queued: readonly (readonly ReactionOffer[])[]): void {
+  if (demo.pending !== null) return;
+  const waiting = queued.filter((group) => group.length > 0);
+  if (waiting.length > 0) {
+    const [first, ...rest] = waiting;
+    askReaction(demo, first!, rest);
+    return;
+  }
+  if (demo.gmTurn !== null) runGmTurn(demo);
 }
 
 /** Whether the GM can pay for a stat block's reaction right now. */
@@ -1906,8 +2094,9 @@ function landedFeatures(demo: DemoScene, attack: IncomingAttack, hitPointsMarked
  * `dealtDamage` only fires when a Hit Point was actually marked, which is the
  * difference between "on a successful attack" and "targets who mark HP". Both
  * run with the one it hit bound as the target and as the hit, so a rider can
- * be written either way — and only for the GM's swing: a card with one would
- * be read by nothing, because a player's attack goes down its own path.
+ * be written either way. A stat block's rider runs on its own; a card's is
+ * offered to the player, because "you can spend 2 Hope to…" is theirs to
+ * decide - and a free one that asks nothing simply happens.
  *
  * Nothing rides a blow that put its target down: pushing a body or taking a
  * Hope off someone lying unconscious reads as noise in the log, and the rules
@@ -1917,8 +2106,12 @@ function landedFeatures(demo: DemoScene, attack: IncomingAttack, hitPointsMarked
 function playAttackRiders(demo: DemoScene, attackerId: string, defenderId: string, hitPointsMarked: number): void {
   if (demo.state.entity(defenderId)?.alive !== true) return;
   const triggers: NonNullable<AbilityDef['trigger']>[] = hitPointsMarked > 0 ? ['dealtHit', 'dealtDamage'] : ['dealtHit'];
+  const counts = { hitPointsDealt: hitPointsMarked };
+  if (demo.state.entity(attackerId)?.faction === 'party') {
+    offerReactions(demo, [offersFor(demo, attackerId, triggers, [defenderId], counts)]);
+    return;
+  }
   for (const trigger of triggers) {
-    const counts = { hitPointsDealt: hitPointsMarked };
     for (const ability of demo.world.reactionsFor(attackerId, trigger, { targets: [defenderId], hit: [defenderId], counts })) {
       if (ability.effects.length === 0) continue;
       runAdversaryScript(demo, attackerId, ability, [defenderId], [defenderId], { counts });
@@ -2325,6 +2518,19 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
     // An interrupt may have opened another question; otherwise the GM's turn
     // picks up where it stopped.
     if (demo.pending === null) runGmTurn(demo);
+    return settle(demo, demo.log.slice(before));
+  }
+
+  // A card of the party's, offered because something already happened. The
+  // first option is always letting it pass, and stepping back from the
+  // question is choosing it.
+  if (waiting.kind === 'reaction') {
+    const index = response.kind === 'choose' ? response.index : 0;
+    const chosen = index > 0 ? waiting.offers[index - 1] : undefined;
+    const before = demo.log.length;
+    demo.pending = null;
+    if (chosen === undefined) afterReaction(demo, waiting.queued);
+    else playReaction(demo, chosen, waiting.queued);
     return settle(demo, demo.log.slice(before));
   }
 

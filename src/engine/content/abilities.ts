@@ -114,6 +114,12 @@ export const abilityModifierSchema = z.object({
   ]),
   bonus: z.number().int().default(0),
   plusTrait: traitSchema.optional(),
+  /**
+   * Add the holder's Proficiency as well - Rise Up's "gain a bonus to your
+   * Severe threshold equal to your Proficiency". A stat block has none, and
+   * reads it as one.
+   */
+  plusProficiency: z.boolean().optional(),
   requires: z.enum(['unarmored', 'armored', 'meleeWeapon']).optional(),
   when: conditionSchema.optional(),
   /**

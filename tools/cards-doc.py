@@ -24,7 +24,17 @@ for c in cards:
     for b in blocks:
         seg=lib[lib.rfind('  {\n',0,b):lib.find('\n  },',b)]
         nm=re.search(r"name: (['\"])(.*?)\1", seg).group(2)
-        how='action' if 'effects: [' in seg else 'reaction' if 'reaction: {' in seg else 'passive' if 'modifiers: [' in seg else 'text'
+        # A card that answers something is a reaction however it says what it
+        # does: `reaction: {` is the defence shape, `kind: 'reaction'` a script
+        # that runs when the fight raises its trigger.
+        if "kind: 'reaction'" in seg or 'reaction: {' in seg:
+            how = 'reaction'
+        elif 'effects: [' in seg:
+            how = 'action'
+        elif 'modifiers: [' in seg:
+            how = 'passive'
+        else:
+            how = 'text'
         names.append((nm,how))
     entries.append((c['domain'].title(), c['level'], t(c['name']), c['type'].title(), names))
 entries.sort(key=lambda e:(e[0],e[1],e[2]))
@@ -44,6 +54,7 @@ out.append("- **Chain Lightning** strikes the first ring; the chain onward from 
 out.append("- **Cruel Precision** adds Finesse rather than the better of Finesse and Agility; **Voice of Reason**'s Proficiency bonus applies wherever Proficiency is read, not to damage alone; **Second Wind** does not branch on Hope, so the ally's share of it is text.")
 out.append("- **Inspirational Words** and **Restoration** spend one token at a time. **Fire Flies** is one of Conjure Swarm's two swarms; the beetles that soak a blow are text.")
 out.append("- Four of the nine **-Touched** cards carry a bonus the sheet can hold (Arcana, Blade, Splendor, Valor); the rest ask for something the engine has no number for and stay text.")
+out.append("- **Healing Strike** clears a Hit Point on the nearest ally rather than a chosen one: it answers a swing that has already landed, and what the player is asked is whether to spend the Hope.")
 out.append("- **Enrapture** is text: what a fixed attention does to an adversary is the table's call.")
 out.append("- Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.\n")
 count_s=sum(1 for e in entries if e[4])

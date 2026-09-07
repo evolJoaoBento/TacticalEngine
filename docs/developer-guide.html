@@ -702,6 +702,18 @@ footer {
                  plan !== null → resolveDefensePlan               (the player decided)
                  then applyAttack against a rebuilt AttackOutcome</code></pre>
 
+  <p>Once the blow is resolved, whoever it happened to gets to answer it.
+  <code>playDamageReactions</code> drains the notes and reads them for both sides: a stat
+  block's reactions run on their own, and so does a party card that costs nothing and asks
+  nothing (Rise Up's &ldquo;clear a Stress&rdquo;). A card with a price &mdash; &ldquo;you can
+  spend 2 Hope to&hellip;&rdquo; &mdash; is put to the player as a third kind of
+  <code>demo.pending</code>, a <code>PendingReaction</code>, whose first option is always letting
+  it pass. The same happens on the party's own swing: <code>playAttackRiders</code> reads
+  <code>dealtHit</code> and <code>dealtDamage</code> for whoever swung, so Healing Strike is
+  offered after a player's attack the way a stat block's rider runs after the GM's. Every note is
+  read before anyone is asked, because <code>drainDamage</code> clears as it reports; what is not
+  asked now is queued behind the question that is up.</p>
+
   <p>Both defence functions use the same arithmetic in the same order: <strong>dice off the
   damage</strong> — a Rune Ward's d8, and the passive reduction, rolled once — then <strong>Armor
   Slots</strong>, the one plus any an <code>extraArmor</code> reaction adds, then <strong>the band

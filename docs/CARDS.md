@@ -16,10 +16,11 @@ Known simplifications in the scripted ones:
 - **Cruel Precision** adds Finesse rather than the better of Finesse and Agility; **Voice of Reason**'s Proficiency bonus applies wherever Proficiency is read, not to damage alone; **Second Wind** does not branch on Hope, so the ally's share of it is text.
 - **Inspirational Words** and **Restoration** spend one token at a time. **Fire Flies** is one of Conjure Swarm's two swarms; the beetles that soak a blow are text.
 - Four of the nine **-Touched** cards carry a bonus the sheet can hold (Arcana, Blade, Splendor, Valor); the rest ask for something the engine has no number for and stay text.
+- **Healing Strike** clears a Hit Point on the nearest ally rather than a chosen one: it answers a swing that has already landed, and what the player is asked is whether to spend the Hope.
 - **Enrapture** is text: what a fixed attention does to an adversary is the table's call.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 53 of 189 cards.
+Scripted: 55 of 189 cards.
 
 
 ## Arcana
@@ -98,7 +99,7 @@ Scripted: 53 of 189 cards.
 | 9 | On the Brink | Ability | **reaction** |
 | 9 | Splintering Strike | Ability | text |
 | 10 | Deathrun | Ability | text |
-| 10 | Swift Step | Ability | **action** |
+| 10 | Swift Step | Ability | **reaction** |
 
 ## Codex
 
@@ -170,7 +171,7 @@ Scripted: 53 of 189 cards.
 | 6 | Dark Whispers | Spell | text |
 | 6 | Mass Disguise | Spell | text |
 | 7 | Midnight-Touched | Ability | text |
-| 7 | Vanishing Dodge | Spell | **action** |
+| 7 | Vanishing Dodge | Spell | **reaction** |
 | 8 | Shadowhunter | Ability | text |
 | 8 | Spellcharge | Spell | text |
 | 9 | Night Terror | Spell | text |
@@ -221,7 +222,7 @@ Scripted: 53 of 189 cards.
 | 5 | Smite | Spell | text |
 | 6 | Restoration | Spell | **action** |
 | 6 | Zone of Protection | Spell | text |
-| 7 | Healing Strike | Spell | text |
+| 7 | Healing Strike | Spell | **reaction** |
 | 7 | Splendor-Touched | Ability | **passive** |
 | 8 | Shield Aura | Spell | text |
 | 8 | Stunning Sunlight | Spell | **action** |
@@ -246,7 +247,7 @@ Scripted: 53 of 189 cards.
 | 5 | Armorer | Ability | **passive** |
 | 5 | Rousing Strike | Ability | text |
 | 6 | Inevitable | Ability | text |
-| 6 | Rise Up | Ability | text |
+| 6 | Rise Up | Ability | **passive**, **reaction** |
 | 7 | Shrug It Off | Ability | **reaction** |
 | 7 | Valor-Touched | Ability | **passive** |
 | 8 | Full Surge | Ability | text |

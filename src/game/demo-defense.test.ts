@@ -879,3 +879,134 @@ describe('the Burrower\'s scripted attacks', () => {
     expect(after.hitPoints.marked + after.armorSlots.marked).toBeGreaterThan(before);
   });
 });
+
+/** What is waiting on the player right now, if anything. */
+const asked = (demo: DemoScene): string | null => demo.pending?.kind ?? null;
+
+describe("the party's own answer to a blow", () => {
+  /**
+   * Kara holding a card, in a fight, with the party asked rather than decided
+   * for. The cards are put straight into the loadout: what is under test is
+   * the card firing, not how it was earned.
+   */
+  const holding = (cards: readonly string[], seed: string): DemoScene => {
+    const demo = standoff(seed);
+    demo.askDefender = true;
+    const sheet = demo.sheets.get('kara')!;
+    const grown = { ...sheet, domainCards: [...cards], loadout: [...cards] };
+    demo.sheets.set('kara', grown);
+    demo.characters.set('kara', deriveCharacter(grown, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    syncPools(demo);
+    return demo;
+  };
+
+  /** The husk Kara is standing next to, given enough Hit Points to be hit. */
+  const foeOf = (demo: DemoScene): string => {
+    const foe = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    foe.hitPoints = { max: 40, marked: 0 };
+    return foe.id;
+  };
+
+  it('asks before it spends the Hope, and spends it only when the answer is yes', () => {
+    // "When you deal damage to an adversary, you can spend 2 Hope to clear a
+    // Hit Point on an ally within Close range."
+    const demo = holding(['healing-strike'], 'healing-yes');
+    const foe = foeOf(demo);
+    const mira = demo.state.entity('mira')!;
+    mira.hitPoints = { max: mira.hitPoints.max, marked: 2 };
+    standBehind(demo, 'mira', demo.state.entity(foe)!.tile);
+    const kara = demo.state.entity('kara')!;
+    kara.hope = { max: 6, value: 6 };
+
+    for (let i = 0; i < 20 && demo.pending === null; i++) {
+      if (!demo.encounter!.canAct('kara')) endTurn(demo);
+      while (asked(demo) === 'defense') answerPending(demo, { kind: 'choose', index: 0 });
+      demo.state.entity(foe)!.hitPoints = { max: 40, marked: 0 };
+      attackWithSelected(demo, foe);
+    }
+    const waiting = demo.pending;
+    expect(waiting?.kind).toBe('reaction');
+    if (waiting?.kind !== 'reaction') throw new Error('nothing was offered');
+    expect(waiting.offers.map((o) => o.ability.id)).toEqual(['healing-strike']);
+    // Nothing has been spent while the question stands.
+    expect(demo.state.entity('kara')!.hope!.value).toBe(6);
+
+    answerPending(demo, { kind: 'choose', index: 1 });
+    expect(demo.state.entity('kara')!.hope!.value).toBe(4);
+    expect(demo.state.entity('mira')!.hitPoints.marked).toBe(1);
+    expect(demo.pending).toBeNull();
+  });
+
+  it('lets it pass without spending anything', () => {
+    const demo = holding(['healing-strike'], 'healing-no');
+    const foe = foeOf(demo);
+    const mira = demo.state.entity('mira')!;
+    mira.hitPoints = { max: mira.hitPoints.max, marked: 2 };
+    standBehind(demo, 'mira', demo.state.entity(foe)!.tile);
+    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+
+    for (let i = 0; i < 20 && demo.pending === null; i++) {
+      if (!demo.encounter!.canAct('kara')) endTurn(demo);
+      while (asked(demo) === 'defense') answerPending(demo, { kind: 'choose', index: 0 });
+      demo.state.entity(foe)!.hitPoints = { max: 40, marked: 0 };
+      attackWithSelected(demo, foe);
+    }
+    expect(demo.pending?.kind).toBe('reaction');
+    answerPending(demo, { kind: 'choose', index: 0 });
+    expect(demo.state.entity('kara')!.hope!.value).toBe(6);
+    expect(demo.state.entity('mira')!.hitPoints.marked).toBe(2);
+    expect(demo.pending).toBeNull();
+  });
+
+  it('never offers a card the table is not being asked about', () => {
+    // The demo deciding for the party: an optional card is not played, because
+    // spending somebody's Hope for them is worse than letting the moment pass.
+    const demo = holding(['healing-strike'], 'healing-quiet');
+    demo.askDefender = false;
+    const foe = foeOf(demo);
+    const mira = demo.state.entity('mira')!;
+    mira.hitPoints = { max: mira.hitPoints.max, marked: 2 };
+    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    for (let i = 0; i < 6; i++) {
+      if (!demo.encounter!.canAct('kara')) endTurn(demo);
+      demo.state.entity(foe)!.hitPoints = { max: 40, marked: 0 };
+      attackWithSelected(demo, foe);
+    }
+    expect(demo.pending?.kind).not.toBe('reaction');
+    expect(demo.state.entity('kara')!.hope!.value).toBe(6);
+    expect(demo.state.entity('mira')!.hitPoints.marked).toBe(2);
+  });
+
+  it('clears the Stress on its own, because nothing about it is a decision', () => {
+    // "Gain a bonus to your Severe threshold equal to your Proficiency. When
+    // you mark 1 or more Hit Points from an attack, clear a Stress."
+    const demo = holding(['rise-up'], 'rise-up');
+    demo.askDefender = false;
+    const kara = demo.state.entity('kara')!;
+    kara.stress = { max: kara.stress.max, marked: 2 };
+    kara.armorSlots = { max: kara.armorSlots.max, marked: kara.armorSlots.max };
+
+    demo.scenario.actorId = 'mira';
+    runScript([{ kind: 'damage', dice: '12 phy', target: { kind: 'entity', id: 'kara' } }], demo.world, demo.rng);
+    expect(kara.hitPoints.marked).toBeGreaterThan(0);
+    settleFight(demo);
+
+    expect(kara.stress.marked).toBe(1);
+    expect(demo.pending).toBeNull();
+  });
+
+  it('reads the Severe threshold the card raises', () => {
+    // The same sheet twice, the second holding the card: the only difference
+    // between them is "a bonus to your Severe threshold equal to your
+    // Proficiency".
+    const demo = scene('sheet');
+    const cards = demo.project.abilities;
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: [], loadout: [] };
+    const plain = deriveCharacter(sheet, SRD_CHARACTERS, cards).character;
+    const risen = deriveCharacter({ ...sheet, domainCards: ['rise-up'], loadout: ['rise-up'] }, SRD_CHARACTERS, cards).character;
+    expect(risen.proficiency).toBeGreaterThan(0);
+    expect(risen.thresholds.severe).toBe(plain.thresholds.severe + risen.proficiency);
+    expect(risen.thresholds.major).toBe(plain.thresholds.major);
+  });
+});
