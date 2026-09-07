@@ -46,6 +46,26 @@ export const hookArgsSchema = z.record(z.string().min(1), z.union([z.string(), z
 /** A value a scenario variable can hold. */
 export const scriptValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 
+/**
+ * Numbers a script can read instead of a written one.
+ *
+ * A feature that answers a blow is told about the blow: how much of it landed
+ * ("cause the attacker to mark the same number of HP"), and what its own swing
+ * has marked so far ("clear a number of Stress equal to the HP marked by the
+ * target from this attack"). `targetsHit` is how many creatures the last roll
+ * beat - "you gain a Fear for each target that marks HP".
+ *
+ * They are counts, never damage: a count marks Hit Points or Stress outright.
+ * Damage carried over from a blow is `dice: 'same'`, which keeps its dice and
+ * its type and goes through thresholds the way the original did.
+ */
+export const COUNT_NAMES = ['hitPointsTaken', 'hitPointsDealt', 'targetsHit'] as const;
+export type CountName = (typeof COUNT_NAMES)[number];
+const countNameSchema = z.enum(COUNT_NAMES);
+
+/** A written number, or one the script reads off what has just happened. */
+const amountSchema = z.union([z.number().int().positive(), countNameSchema]);
+
 export const compareOpSchema = z.enum(['==', '!=', '<', '<=', '>', '>=']);
 
 /** Log styling the narrative pane understands. */
@@ -81,6 +101,13 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
     /** Living party members within this band of the actor. Everywhere when left out. */
     range: rangeBandSchema.optional(),
     includeSelf: z.boolean().optional(),
+    /**
+     * Only the closest few - "deal 2d10+6 direct magic damage to a target
+     * within Close range". A stat block that names one target rather than the
+     * band means the one it is standing over, and the GM's turn already picks
+     * that way when it chooses whom to swing at.
+     */
+    nearest: z.number().int().positive().optional(),
   }),
   z.object({
     kind: z.literal('adversaries'),
@@ -117,6 +144,17 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     get of() {
       return z.array(conditionSchema);
     },
+  }),
+  /**
+   * A number the blow that started this script left behind - "when the Brawler
+   * marks 2 or more HP from an attack". The counts are read from the bindings,
+   * so a feature's `available` gate and its effects see the same numbers.
+   */
+  z.object({
+    kind: z.literal('count'),
+    of: countNameSchema,
+    op: compareOpSchema,
+    value: z.number().int(),
   }),
   z.object({ kind: z.literal('flag'), flag: z.string().min(1) }),
   z.object({ kind: z.literal('hasKey'), key: z.string().min(1) }),
@@ -305,7 +343,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z
     .object({
       kind: z.literal('damage'),
-      amount: z.number().int().positive().optional(),
+      amount: amountSchema.optional(),
       /**
        * "d8+2", "2d6"; `weapon` for the actor's own weapon; or `same` to reuse
        * the damage already rolled in this script rather than rolling again.
@@ -328,7 +366,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
     .object({
       kind: z.literal('heal'),
       /** Hit Points cleared outright. */
-      amount: z.number().int().positive().optional(),
+      amount: amountSchema.optional(),
       /** Or rolled for — "clear 1d4 Hit Points". Rolled once for everyone. */
       dice: z.string().min(1).optional(),
       target: targetSelectorSchema.optional(),
@@ -386,8 +424,8 @@ export const effectSchema = z.discriminatedUnion('kind', [
     },
   }),
   // ---- what an ability can do to a creature ---------------------------------
-  z.object({ kind: z.literal('markStress'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
-  z.object({ kind: z.literal('clearStress'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
+  z.object({ kind: z.literal('markStress'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
+  z.object({ kind: z.literal('clearStress'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
   z.object({ kind: z.literal('clearArmor'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
   /**
    * Mark Armor Slots without their benefit — the SRD's "must mark an Armor
@@ -396,7 +434,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
    */
   z.object({ kind: z.literal('markArmor'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
   /** The GM gains Fear. */
-  z.object({ kind: z.literal('gainFear'), amount: z.number().int().positive().optional() }),
+  z.object({ kind: z.literal('gainFear'), amount: amountSchema.optional() }),
   z.object({ kind: z.literal('gainHope'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
   /** The actor spends Hope. Refused, and journalled as such, when they cannot. */
   z.object({ kind: z.literal('spendHope'), amount: z.number().int().positive().optional() }),
@@ -406,7 +444,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * SRD's "if they can't lose a Hope they mark 2 Stress instead" is a branch
    * on how much was taken, which is the GM's to read.
    */
-  z.object({ kind: z.literal('loseHope'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
+  z.object({ kind: z.literal('loseHope'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
   z.object({
     kind: z.literal('applyCondition'),
     condition: z.string().min(1),

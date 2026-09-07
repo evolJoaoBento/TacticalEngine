@@ -26,6 +26,7 @@ import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-f
 import { deriveCharacter } from '../engine/character/sheet';
 import { domainsOf, heldCards } from '../engine/character/progression';
 import type { SrdCharacterContent } from '../engine/content/srd/daggersearch';
+import type { AbilityDef } from '../engine/content/abilities';
 import { parseDice } from '../engine/rules/dice';
 import { compileHooks } from '../engine/script/hooks';
 import { projectSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
@@ -297,6 +298,15 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // A number read off a blow needs a blow: an action nobody triggers is run
+    // out of nowhere, and every count it asks for reads zero.
+    if (ability.trigger === undefined && readsTheBlow(ability)) {
+      add(
+        'warning',
+        `"${ability.id}" reads a number off the blow that called for it, but nothing triggers it.`,
+        ability.id,
+      );
+    }
     walkEffects(ability.effects, inspect(ability.id));
     walkConditionsIn(ability.effects, asked(ability.id));
     inspectCondition(ability.id, ability.available);
@@ -308,6 +318,28 @@ function checkAbilitiesAndCode(
   for (const entry of project.code) {
     if (!used.has(entry.id)) add('warning', `Code "${entry.id}" is never run by anything.`, entry.id);
   }
+}
+
+/**
+ * Whether anything in an ability asks about the blow that called for it - an
+ * amount written as `hitPointsTaken`, or a gate comparing it.
+ *
+ * The other counts are the script's own bookkeeping: how much its damage has
+ * marked, how many creatures its last roll beat. An action is free to read
+ * those, because it made them itself.
+ */
+function readsTheBlow(ability: AbilityDef): boolean {
+  let reads = false;
+  const amount = (effect: Effect): void => {
+    if ('amount' in effect && effect.amount === 'hitPointsTaken') reads = true;
+  };
+  const compares = (condition: Condition): void => {
+    if (condition.kind === 'count' && condition.of === 'hitPointsTaken') reads = true;
+  };
+  walkEffects(ability.effects, amount);
+  walkConditionsIn(ability.effects, compares);
+  if (ability.available !== undefined) walkCondition(ability.available, compares);
+  return reads;
 }
 
 /** What using an item can do names content too. */

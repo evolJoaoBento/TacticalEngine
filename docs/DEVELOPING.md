@@ -101,9 +101,9 @@ adapter: the rest of the core does not know it exists.
 | `grid/los.ts` | Line of sight, and the house rule for partial vs total obstruction. |
 | `grid/pathfinding.ts` | `Pathfinder`, reachable fields (509 lines). |
 | `grid/terrain.ts` | Terrain types and their movement cost. |
-| `script/schema.ts` | **The one vocabulary.** `conditionSchema`, `effectSchema`, `checkRequestSchema`, `targetSelectorSchema`, and the `walk*` visitors. |
+| `script/schema.ts` | **The one vocabulary.** `conditionSchema`, `effectSchema`, `checkRequestSchema`, `targetSelectorSchema`, `COUNT_NAMES`, and the `walk*` visitors. |
 | `script/effects.ts` | Behaviour over those shapes: `outcomeEffects` (the five-outcome fallback) and TypeScript constructors. Re-exports the types from `schema.ts`. |
-| `script/conditions.ts` | Evaluating a `Condition` against a `ConditionContext`; `TargetBindings`, `NO_BINDINGS`. |
+| `script/conditions.ts` | Evaluating a `Condition` against a `ConditionContext`; `TargetBindings` (`targets`, `hit`, and the optional `counts`), `NO_BINDINGS`, `countOf`. |
 | `script/runner.ts` | `ScriptRunner` (the stepper), `ScriptWorld` (what the world must provide), `JournalEntry`, `Prompt`, `Response`, `RunStatus`. |
 | `script/world.ts` | `SceneScriptWorld` — the only writer of scene state (1330 lines). `ScenarioState`, `worldOptions`' counterpart types. |
 | `script/countdowns.ts` | The board a scenario carries: `RunningCountdown` (a clock plus what it is counting towards), `advanceBoard`, `reapBoard`, `endCreatureCountdowns`, and the snapshot schema a save uses. |

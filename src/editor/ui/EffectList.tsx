@@ -14,10 +14,11 @@
  * authoring error cannot be made here at all.
  */
 
-import type { Effect, TargetSelector } from '../../engine/script/schema';
+import type { CountName, Effect, TargetSelector } from '../../engine/script/schema';
+import { COUNT_NAMES } from '../../engine/script/schema';
 import type { QuestDef } from '../../engine/content/quests';
 import { RANGE_BANDS, type RangeBand } from '../../engine/rules/range';
-import { ConditionEditor } from './ConditionEditor';
+import { ConditionEditor, COUNT_LABELS } from './ConditionEditor';
 import { CheckEditor } from './CheckEditor';
 import { TargetEditor } from './TargetEditor';
 
@@ -400,6 +401,33 @@ function renderBody(
     />
   );
 
+  /**
+   * A written number, or one read off the blow that called for the feature:
+   * "cause the attacker to mark the same number of HP". Picking a count hides
+   * the number, because the two are alternatives rather than a pair.
+   */
+  const amount = (value: number | CountName, set: (n: number | CountName) => Effect): preact.JSX.Element => (
+    <>
+      <select
+        style={{ ...field, flex: 'none', width: '124px' }}
+        data-role="amount-source"
+        value={typeof value === 'number' ? '' : value}
+        onChange={(e) => {
+          const picked = (e.target as HTMLSelectElement).value;
+          onChange(set(picked === '' ? 1 : (picked as CountName)));
+        }}
+      >
+        <option value="">a number</option>
+        {COUNT_NAMES.map((name) => (
+          <option key={name} value={name}>
+            {COUNT_LABELS[name]}
+          </option>
+        ))}
+      </select>
+      {typeof value === 'number' ? count(value, set) : null}
+    </>
+  );
+
   const flag = (label: string, hint: string, on: boolean, set: (v: boolean) => Effect): preact.JSX.Element => (
     <label style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }} title={hint}>
       <input type="checkbox" checked={on} onChange={(e) => onChange(set((e.target as HTMLInputElement).checked))} />
@@ -458,7 +486,7 @@ function renderBody(
           </select>
           {rolled
             ? text(effect.dice ?? '', (dice) => ({ ...effect, dice }), '1d4')
-            : count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))}
+            : amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }))}
           {who(effect.target, 'the actor', (target) => ({ ...effect, target }))}
         </>
       );
@@ -496,7 +524,7 @@ function renderBody(
               onInput={(e) => onChange({ ...effect, dice: (e.target as HTMLInputElement).value })}
             />
           ) : (
-            count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))
+            amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }))
           )}
           {rolled ? (
             <select
@@ -526,18 +554,25 @@ function renderBody(
     }
     case 'markStress':
     case 'clearStress':
+    case 'loseHope':
+      return (
+        <>
+          {amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }))}
+          {who(effect.target, 'everyone it hit', (target) => ({ ...effect, target }))}
+        </>
+      );
     case 'markArmor':
     case 'clearArmor':
     case 'gainHope':
-    case 'loseHope':
       return (
         <>
           {count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))}
           {who(effect.target, effect.kind === 'gainHope' ? 'the actor' : 'everyone it hit', (target) => ({ ...effect, target }))}
         </>
       );
-    case 'spendHope':
     case 'gainFear':
+      return amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }));
+    case 'spendHope':
       return count(effect.amount ?? 1, (amount) => ({ ...effect, amount }));
     case 'applyCondition':
       return (

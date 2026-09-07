@@ -8,7 +8,8 @@
  * the caller decides what edit that becomes.
  */
 
-import type { Condition } from '../../engine/script/schema';
+import type { Condition, CountName } from '../../engine/script/schema';
+import { COUNT_NAMES } from '../../engine/script/schema';
 import type { QuestDef } from '../../engine/content/quests';
 
 export interface ConditionEditorProps {
@@ -24,6 +25,17 @@ export interface ConditionEditorProps {
   depth?: number;
 }
 
+/**
+ * The numbers a feature can read off the blow that called for it, in the words
+ * a designer would use. Shared with the effect rows, which offer the same list
+ * wherever an amount is written.
+ */
+export const COUNT_LABELS: Record<CountName, string> = {
+  hitPointsTaken: 'HP it marked on me',
+  hitPointsDealt: 'HP I have marked',
+  targetsHit: 'how many it hit',
+};
+
 const KINDS: readonly { kind: Condition['kind']; label: string }[] = [
   { kind: 'always', label: 'always' },
   { kind: 'never', label: 'never' },
@@ -38,6 +50,7 @@ const KINDS: readonly { kind: Condition['kind']; label: string }[] = [
   { kind: 'partyAlive', label: 'party alive' },
   { kind: 'adversariesAlive', label: 'adversaries alive' },
   { kind: 'pool', label: 'a pool compares' },
+  { kind: 'count', label: 'the blow compares' },
   { kind: 'inCombat', label: 'in a fight' },
   { kind: 'loadout', label: "a domain's cards in the loadout" },
   { kind: 'hasCondition', label: 'the target has a condition' },
@@ -98,6 +111,8 @@ export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEdi
       return { kind, op: '>', value: 0 };
     case 'pool':
       return { kind, pool: 'stress', op: '>=', value: 1 };
+    case 'count':
+      return { kind, of: 'hitPointsTaken', op: '>=', value: 2 };
     case 'inCombat':
       return { kind };
     case 'hasCondition':
@@ -209,6 +224,14 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
       case 'adversariesAlive':
         return (
           <>
+            {select(condition.op, ops.map((id) => ({ id })), (op) => onChange({ ...condition, op }))}
+            {number(condition.value, (value) => onChange({ ...condition, value }))}
+          </>
+        );
+      case 'count':
+        return (
+          <>
+            {select(condition.of, COUNT_NAMES.map((id) => ({ id, label: COUNT_LABELS[id] })), (of) => onChange({ ...condition, of }))}
             {select(condition.op, ops.map((id) => ({ id })), (op) => onChange({ ...condition, op }))}
             {number(condition.value, (value) => onChange({ ...condition, value }))}
           </>

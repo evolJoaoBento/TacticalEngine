@@ -5,6 +5,7 @@ import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/s
 import { addVar, log, setFlag, type Effect } from './effects';
 import { ScriptRunner, runScript, type ScriptWorld } from './runner';
 import { SceneScriptWorld, createScenarioState } from './world';
+import { evaluate, NO_BINDINGS } from './conditions';
 
 /**
  * A world that does nothing, for testing what the runner asks of it rather
@@ -438,6 +439,99 @@ describe('check', () => {
     if (check?.kind !== 'check') throw new Error('expected a check entry');
     expect(check.roll.advantageDie).toBe(6);
     expect(check.roll.total).toBe(17);
+  });
+});
+
+describe('numbers a script can read', () => {
+  it('marks what the blow marked, and nothing at all when it marked nothing', () => {
+    const marked: number[] = [];
+    const stub = stubWorld({
+      resolveTargets: () => ['kara'],
+      markStress: (_id, amount) => {
+        marked.push(amount);
+        return { stressMarked: amount, hpMarked: 0, isFull: false, fell: false };
+      },
+    });
+
+    const answering = new ScriptRunner(stub, createRng('counts'), { counts: { hitPointsTaken: 3 } });
+    answering.run([{ kind: 'markStress', amount: 'hitPointsTaken', target: { kind: 'target' } }]);
+    expect(marked).toEqual([3]);
+
+    // A feature run out of nowhere reads zero, and a zero is quiet: nothing
+    // marked, nothing journalled, no refusal.
+    const cold = new ScriptRunner(stub, createRng('counts'));
+    const result = cold.run([{ kind: 'markStress', amount: 'hitPointsTaken', target: { kind: 'target' } }]);
+    expect(marked).toEqual([3]);
+    expect(result.journal).toEqual([]);
+  });
+
+  it('keeps count of what its own damage marked', () => {
+    const cleared: number[] = [];
+    const stub = stubWorld({
+      resolveTargets: (selector) => (selector.kind === 'actor' ? ['husk'] : ['kara', 'finn']),
+      dealDamage: () => ({ incoming: 9, reduced: 0, hpMarked: 2, armorSlotsSpent: 0, fell: false, reactions: [] }),
+      heal: (_target, amount) => {
+        cleared.push(amount);
+        return amount;
+      },
+    });
+    const runner = new ScriptRunner(stub, createRng('dealt'));
+    runner.run([
+      { kind: 'damage', dice: '2d6', target: { kind: 'hit' } },
+      { kind: 'heal', amount: 'hitPointsDealt', target: { kind: 'actor' } },
+    ]);
+    // Two targets, two Hit Points each: the Necromancer drinks back four.
+    expect(cleared).toEqual([4]);
+  });
+
+  it('counts the creatures the last roll beat', () => {
+    let fear = 0;
+    const stub = stubWorld({
+      resolveTargets: () => ['kara', 'finn', 'husk'],
+      rollReaction: (id) => ({ success: id === 'kara', total: 12 }),
+      gainFear: () => {
+        fear += 1;
+        return true;
+      },
+    });
+    const runner = new ScriptRunner(stub, createRng('fear'));
+    runner.run([
+      {
+        kind: 'reactionRoll',
+        difficulty: 14,
+        trait: 'instinct',
+        targets: { kind: 'allies' },
+        onFail: [{ kind: 'gainFear', amount: 'targetsHit' }],
+      },
+    ]);
+    // Two failed, so two Fear - not one for each of the three who rolled.
+    expect(fear).toBe(2);
+  });
+
+  it('carries a blow it was handed rather than one it rolled', () => {
+    const dealt: number[] = [];
+    const stub = stubWorld({
+      resolveTargets: () => ['kara'],
+      dealDamage: (_id, damage) => {
+        dealt.push(damage.amount);
+        return { incoming: damage.amount, reduced: 0, hpMarked: 1, armorSlotsSpent: 0, fell: false, reactions: [] };
+      },
+    });
+    const runner = new ScriptRunner(stub, createRng('reflect'), {
+      lastDamage: { total: 11, types: ['magic'] },
+    });
+    runner.run([{ kind: 'damage', dice: 'same', half: true, target: { kind: 'target' } }]);
+    // Half of eleven, rounded up, and still magic.
+    expect(dealt).toEqual([6]);
+  });
+
+  it('reads a count in a gate the same way an amount does', () => {
+    const stub = stubWorld();
+    const bindings = { targets: [], hit: [], counts: { hitPointsTaken: 2 } };
+    expect(evaluate({ kind: 'count', of: 'hitPointsTaken', op: '>=', value: 2 }, stub, bindings)).toBe(true);
+    expect(evaluate({ kind: 'count', of: 'hitPointsTaken', op: '>=', value: 3 }, stub, bindings)).toBe(false);
+    // A script nobody handed a number to compares against zero.
+    expect(evaluate({ kind: 'count', of: 'hitPointsTaken', op: '>=', value: 1 }, stub, NO_BINDINGS)).toBe(false);
   });
 });
 

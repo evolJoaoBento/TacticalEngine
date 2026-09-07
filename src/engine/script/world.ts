@@ -237,6 +237,14 @@ export interface DamageNote {
   attacker: string | null;
   /** Hit Points it actually marked, after armor and reactions. */
   hitPoints: number;
+  /**
+   * The damage rolled, before armor took anything off it: what "half the
+   * damage they dealt" is half of. Hit Points are what landed; this is what
+   * was thrown.
+   */
+  damage: number;
+  /** What kind it was, so damage sent back is the same kind. */
+  types: readonly DamageType[];
   /** Whether any part of it was Severe. */
   severe: boolean;
 }
@@ -838,11 +846,13 @@ export class SceneScriptWorld implements ScriptWorld {
         );
       case 'allies': {
         const actor = this.scenario.actorId;
-        return this.state
+        const standing = this.state
           .entitiesOf('party')
           .filter((e) => e.alive && (selector.includeSelf === true || e.id !== actor))
           .filter((e) => selector.range === undefined || actor === null || this.within(actor, e.id, selector.range))
           .map((e) => e.id);
+        if (selector.nearest === undefined || actor === null) return standing;
+        return this.nearestFirst(actor, standing).slice(0, selector.nearest);
       }
       case 'adversaries': {
         const origin = selector.around === 'target' ? bindings.targets[0] : this.scenario.actorId;
@@ -1119,7 +1129,12 @@ export class SceneScriptWorld implements ScriptWorld {
     // creature breathes. It is noted so the features that answer *being* hurt
     // fire, with nobody named, so the ones that hit back have nobody to hit.
     if (resolved.hpMarked > 0 || resolved.severity !== 'none') {
-      this.noteDamage(id, { hitPoints: resolved.hpMarked, severe: resolved.severity === 'severe' });
+      this.noteDamage(id, {
+        hitPoints: resolved.hpMarked,
+        damage: resolved.incoming,
+        types: damage.types ?? [],
+        severe: resolved.severity === 'severe',
+      });
     }
     return {
       incoming: resolved.incoming,
@@ -1223,10 +1238,15 @@ export class SceneScriptWorld implements ScriptWorld {
    * out of a script has no attacker, and a feature that only answers *being*
    * hurt should still fire.
    */
-  noteDamage(id: string, note: { attacker?: string; hitPoints?: number; severe?: boolean } = {}): void {
+  noteDamage(
+    id: string,
+    note: { attacker?: string; hitPoints?: number; damage?: number; types?: readonly DamageType[]; severe?: boolean } = {},
+  ): void {
     const already = this.damaged.find((d) => d.id === id && d.attacker === (note.attacker ?? null));
-    const entry = already ?? { id, attacker: note.attacker ?? null, hitPoints: 0, severe: false };
+    const entry: DamageNote = already ?? { id, attacker: note.attacker ?? null, hitPoints: 0, damage: 0, types: [], severe: false };
     entry.hitPoints += note.hitPoints ?? 0;
+    entry.damage += note.damage ?? 0;
+    if (note.types !== undefined && note.types.length > 0) entry.types = [...note.types];
     entry.severe = entry.severe || note.severe === true;
     if (already === undefined) this.damaged.push(entry);
   }
@@ -1343,6 +1363,8 @@ export class SceneScriptWorld implements ScriptWorld {
       this.noteDamage(request.target, {
         attacker: request.attacker,
         hitPoints: applied.hitPointsMarked,
+        damage: outcome.damageRoll?.total ?? 0,
+        types: profile.damage.types ?? [],
         severe: outcome.damage?.severity === 'severe',
       });
     }

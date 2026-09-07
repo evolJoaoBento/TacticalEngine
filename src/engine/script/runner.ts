@@ -48,7 +48,8 @@ import {
   type LogTone,
   type TargetSelector,
 } from './effects';
-import type { CheckTrait, ConditionDuration } from './schema';
+import type { CheckTrait, ConditionDuration, CountName } from './schema';
+import { COUNT_NAMES } from './schema';
 
 /** What one damage event did to one creature. */
 export interface DealtDamage {
@@ -357,6 +358,17 @@ export interface ScriptRunnerOptions {
    * the party's best; an ability's is the actor's own.
    */
   rollAs?: 'party' | 'actor';
+  /**
+   * Numbers the blow that started this script left behind - how many Hit
+   * Points it marked on whoever is answering it. A count nobody passes reads
+   * as zero, which is what a feature run out of nowhere should see.
+   */
+  counts?: Partial<Record<CountName, number>>;
+  /**
+   * The damage that blow rolled, so `dice: 'same'` can carry it over: "deal an
+   * amount of damage to the attacker equal to half the damage they dealt".
+   */
+  lastDamage?: { total: number; types?: readonly DamageType[] };
 }
 
 /** A list of effects part-way through, and what `hit` meant when it was pushed. */
@@ -388,6 +400,12 @@ export class ScriptRunner {
   private lastRoll: DualityRoll | null = null;
   /** The last damage rolled in this script, for `dice: 'same'`. */
   private lastDamage: { total: number; dice: string; types: readonly DamageType[] } | null = null;
+  /**
+   * The numbers a written amount can be swapped for. What came in is seeded by
+   * whoever started the script; what went out this script keeps for itself, as
+   * its damage lands.
+   */
+  private readonly counts: Record<CountName, number> = { hitPointsTaken: 0, hitPointsDealt: 0, targetsHit: 0 };
 
   /** Whether any action roll in this script hands the spotlight to the GM. */
   spotlightToGm = false;
@@ -403,6 +421,22 @@ export class ScriptRunner {
     this.targets = [...(options.targets ?? [])];
     this.hit = [...(options.hit ?? [])];
     this.rollAs = options.rollAs ?? 'party';
+    for (const name of COUNT_NAMES) this.counts[name] = options.counts?.[name] ?? 0;
+    if (options.lastDamage !== undefined) {
+      this.lastDamage = { total: options.lastDamage.total, dice: '', types: options.lastDamage.types ?? [] };
+    }
+  }
+
+  /**
+   * A written amount, or the count it names. `targetsHit` is read when it is
+   * asked for rather than kept, because the roll that bound `hit` may have
+   * happened since this script started.
+   */
+  private amountOf(amount: number | CountName | undefined, fallback = 1): number {
+    if (amount === undefined) return fallback;
+    if (typeof amount === 'number') return amount;
+    if (amount === 'targetsHit') return this.hit.length;
+    return this.counts[amount];
   }
 
   /** Start a script. Returns as soon as it finishes or needs an answer. */
@@ -434,7 +468,7 @@ export class ScriptRunner {
 
   /** What `target` and `hit` mean right now. */
   bindings(): TargetBindings {
-    return { targets: this.targets, hit: this.hit };
+    return { targets: this.targets, hit: this.hit, counts: { ...this.counts, targetsHit: this.hit.length } };
   }
 
   private resolve(selector: TargetSelector): string[] {
@@ -691,12 +725,16 @@ export class ScriptRunner {
       case 'heal': {
         // "Clear 1d4 Hit Points": rolled once, then the same number for each,
         // the way rolled damage lands the one total on every target.
-        let amount = effect.amount;
+        let amount = effect.amount === undefined ? undefined : this.amountOf(effect.amount);
         if (amount === undefined) {
           const expression = parseDice(effect.dice ?? '');
           if (expression === null) return this.refuse(`cannot read healing dice "${effect.dice}"`);
           amount = Math.max(1, rollDamage(this.rng, expression, { proficiency: 1, critical: false }).total);
         }
+        // A count that came to nothing clears nothing, and says nothing: "clear
+        // a number of Stress equal to the HP marked" with none marked is a
+        // quiet zero, not a refusal.
+        if (amount <= 0) return null;
         const cleared = world.heal(effect.target ?? { kind: 'actor' }, amount, this.bindings());
         this.journal.push({ kind: 'heal', amount, cleared });
         return null;
@@ -764,7 +802,8 @@ export class ScriptRunner {
         };
       }
       case 'markStress': {
-        const amount = effect.amount ?? 1;
+        const amount = this.amountOf(effect.amount);
+        if (amount <= 0) return null;
         for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
           const result = world.markStress(id, amount);
           this.journal.push({ kind: 'stress', id, marked: result.stressMarked, cleared: 0, hitPoints: result.hpMarked });
@@ -772,7 +811,8 @@ export class ScriptRunner {
         return null;
       }
       case 'clearStress': {
-        const amount = effect.amount ?? 1;
+        const amount = this.amountOf(effect.amount);
+        if (amount <= 0) return null;
         for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
           const cleared = world.clearStress(id, amount);
           if (cleared > 0) this.journal.push({ kind: 'stress', id, marked: 0, cleared, hitPoints: 0 });
@@ -797,7 +837,8 @@ export class ScriptRunner {
         return null;
       }
       case 'loseHope': {
-        const amount = effect.amount ?? 1;
+        const amount = this.amountOf(effect.amount);
+        if (amount <= 0) return null;
         for (const id of this.resolve(effect.target ?? { kind: 'hit' })) {
           const lost = this.world.loseHope(id, amount);
           if (lost > 0) this.journal.push({ kind: 'hopeLost', lost, id });
@@ -949,7 +990,8 @@ export class ScriptRunner {
         return null;
       }
       case 'gainFear': {
-        for (let i = 0; i < (effect.amount ?? 1); i++) {
+        // "You gain a Fear for each target that failed": none failed, none gained.
+        for (let i = 0; i < this.amountOf(effect.amount); i++) {
           if (world.gainFear()) this.journal.push({ kind: 'fear', gained: 1 });
         }
         return null;
@@ -1010,8 +1052,10 @@ export class ScriptRunner {
 
   private applyFlatDamage(effect: Extract<Effect, { kind: 'damage' }>): null {
     const target = effect.target ?? { kind: 'actor' as const };
-    const amount = effect.amount ?? 1;
+    const amount = this.amountOf(effect.amount);
+    if (amount <= 0) return null;
     const marked = this.world.damage(target, amount, effect.source, this.bindings());
+    this.counts.hitPointsDealt += marked;
     this.journal.push({
       kind: 'damage',
       amount,
@@ -1086,6 +1130,7 @@ export class ScriptRunner {
     for (const id of targets) {
       const dealt = world.dealDamage(id, { amount, types, ...(effect.direct === undefined ? {} : { direct: effect.direct }) }, this.rng);
       marked += dealt.hpMarked;
+      this.counts.hitPointsDealt += dealt.hpMarked;
       reduced += dealt.reduced;
       for (const r of dealt.reactions) {
         defended.push({ kind: 'defended', id, ability: r.name, hopeSpent: r.hopeSpent, stressMarked: r.stressMarked, ...(r.rolled === undefined ? {} : { rolled: r.rolled }) });
@@ -1138,6 +1183,7 @@ export class ScriptRunner {
       }
       swung = true;
       this.rolled = true;
+      this.counts.hitPointsDealt += summary.hitPointsMarked;
       this.spotlightToGm = this.spotlightToGm || summary.spotlightToGm;
       if (summary.roll !== undefined) this.lastRoll = summary.roll;
       if (summary.damage !== undefined) {

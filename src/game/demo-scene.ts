@@ -21,7 +21,8 @@ import { compileHooks, mergeHooks, type HookMap } from '../engine/script/hooks';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES } from './demo-code';
 import { SRD_CONDITIONS, type ConditionDef } from '../engine/content/conditions';
 import { MAX_SLOTS } from '../engine/rules/resources';
-import { walkCheck, type TargetSelector } from '../engine/script/schema';
+import { walkCheck, type CountName, type TargetSelector } from '../engine/script/schema';
+import type { DamageType } from '../engine/rules/dice';
 import type { ItemDef, LootTable } from '../engine/content/items';
 import type { QuestDef } from '../engine/content/quests';
 import type { Currency, MarkPool } from '../engine/rules/resources';
@@ -1512,13 +1513,25 @@ function runAdversaryScript(
   ability: AbilityDef,
   targets: readonly string[] = [],
   hit: readonly string[] = [],
+  /**
+   * What the blow that called for this feature left behind: the Hit Points it
+   * marked, and the damage it rolled so `dice: 'same'` can throw it back. A
+   * feature nobody hit reads zero, which is what it should see.
+   */
+  from: { counts?: Partial<Record<CountName, number>>; lastDamage?: { total: number; types?: readonly DamageType[] } } = {},
 ): void {
   const stress = ability.cost.stress ?? 0;
   if (stress > 0) demo.world.markStress(adversaryId, stress);
   note(demo, `The ${nameOf(demo, adversaryId)} uses ${ability.name}.`, 'combat');
   const was = demo.scenario.actorId;
   demo.scenario.actorId = adversaryId;
-  const runner = new ScriptRunner(demo.world, demo.rng, { targets: [...targets], hit: [...hit], rollAs: 'actor' });
+  const runner = new ScriptRunner(demo.world, demo.rng, {
+    targets: [...targets],
+    hit: [...hit],
+    rollAs: 'actor',
+    ...(from.counts === undefined ? {} : { counts: from.counts }),
+    ...(from.lastDamage === undefined ? {} : { lastDamage: from.lastDamage }),
+  });
   const result = runner.run(ability.effects);
   record(demo, result.journal);
   demo.scenario.actorId = was;
@@ -1647,13 +1660,17 @@ function playDamageReactions(demo: DemoScene): void {
     const triggers: NonNullable<AbilityDef['trigger']>[] = ['tookDamage'];
     if (note.hitPoints > 0) triggers.push('tookHitPoints');
     if (note.severe) triggers.push('tookSevere');
+    const counts = { hitPointsTaken: note.hitPoints };
     for (const trigger of triggers) {
       const bound = attacker === null ? [] : [attacker];
-      for (const ability of demo.world.reactionsFor(note.id, trigger, { targets: bound, hit: bound })) {
+      for (const ability of demo.world.reactionsFor(note.id, trigger, { targets: bound, hit: bound, counts })) {
         if (ability.effects.length === 0) continue;
         if (!affordableReaction(demo, note.id, ability)) continue;
         spendFeatureCost(demo, note.id, ability, 'reaction');
-        runAdversaryScript(demo, note.id, ability, bound, bound);
+        runAdversaryScript(demo, note.id, ability, bound, bound, {
+          counts,
+          lastDamage: { total: note.damage, types: note.types },
+        });
       }
     }
   }
@@ -1901,9 +1918,10 @@ function playAttackRiders(demo: DemoScene, attackerId: string, defenderId: strin
   if (demo.state.entity(defenderId)?.alive !== true) return;
   const triggers: NonNullable<AbilityDef['trigger']>[] = hitPointsMarked > 0 ? ['dealtHit', 'dealtDamage'] : ['dealtHit'];
   for (const trigger of triggers) {
-    for (const ability of demo.world.reactionsFor(attackerId, trigger)) {
+    const counts = { hitPointsDealt: hitPointsMarked };
+    for (const ability of demo.world.reactionsFor(attackerId, trigger, { targets: [defenderId], hit: [defenderId], counts })) {
       if (ability.effects.length === 0) continue;
-      runAdversaryScript(demo, attackerId, ability, [defenderId], [defenderId]);
+      runAdversaryScript(demo, attackerId, ability, [defenderId], [defenderId], { counts });
     }
   }
 }

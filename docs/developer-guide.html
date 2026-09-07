@@ -443,9 +443,9 @@ footer {
       <tr><td><code>grid/los.ts</code></td><td>Line of sight, and the house rule for partial versus total obstruction.</td></tr>
       <tr><td><code>grid/pathfinding.ts</code></td><td><code>Pathfinder</code> and reachable fields (509 lines).</td></tr>
       <tr><td><code>grid/terrain.ts</code></td><td>Terrain types and their movement cost.</td></tr>
-      <tr><td><code>script/schema.ts</code></td><td><strong>The one vocabulary.</strong> <code>conditionSchema</code>, <code>effectSchema</code>, <code>checkRequestSchema</code>, <code>targetSelectorSchema</code>, and the <code>walk*</code> visitors.</td></tr>
+      <tr><td><code>script/schema.ts</code></td><td><strong>The one vocabulary.</strong> <code>conditionSchema</code>, <code>effectSchema</code>, <code>checkRequestSchema</code>, <code>targetSelectorSchema</code>, <code>COUNT_NAMES</code>, and the <code>walk*</code> visitors.</td></tr>
       <tr><td><code>script/effects.ts</code></td><td>Behaviour over those shapes: <code>outcomeEffects</code> (the five-outcome fallback) and TypeScript constructors. Re-exports the types from <code>schema.ts</code>.</td></tr>
-      <tr><td><code>script/conditions.ts</code></td><td>Evaluating a <code>Condition</code> against a <code>ConditionContext</code>; <code>TargetBindings</code>, <code>NO_BINDINGS</code>.</td></tr>
+      <tr><td><code>script/conditions.ts</code></td><td>Evaluating a <code>Condition</code> against a <code>ConditionContext</code>; <code>TargetBindings</code> (<code>targets</code>, <code>hit</code>, and the optional <code>counts</code>), <code>NO_BINDINGS</code>, <code>countOf</code>.</td></tr>
       <tr><td><code>script/runner.ts</code></td><td><code>ScriptRunner</code> (the stepper), <code>ScriptWorld</code>, <code>JournalEntry</code>, <code>Prompt</code>, <code>Response</code>, <code>RunStatus</code>.</td></tr>
       <tr><td><code>script/world.ts</code></td><td><code>SceneScriptWorld</code> — the only writer of scene state (1330 lines).</td></tr>
       <tr><td><code>script/countdowns.ts</code></td><td>The board a scenario carries: <code>RunningCountdown</code> (a clock plus what it is counting towards), <code>advanceBoard</code>, <code>reapBoard</code>, <code>endCreatureCountdowns</code>, and the snapshot schema a save uses.</td></tr>
@@ -801,6 +801,18 @@ footer {
   and <code>difficulty: 'roll'</code>; and <code>lastDamage</code>, for <code>dice: 'same'</code>. A
   <code>Frame</code> may carry its own <code>hit</code>, so a reaction roll's failures and its
   successes each read the right list however the next roll goes.</p>
+
+  <p>It carries numbers as well as creatures. Wherever an amount is written &mdash;
+  <code>damage.amount</code>, <code>markStress</code>, <code>clearStress</code>,
+  <code>heal</code>, <code>loseHope</code>, <code>gainFear</code> &mdash; a count may stand in
+  its place: <code>hitPointsTaken</code>, the Hit Points the blow that called for this script
+  marked on whoever is answering it; <code>hitPointsDealt</code>, what this script's own damage
+  has marked; <code>targetsHit</code>, how many creatures its last roll beat. A
+  <code>count</code> condition compares one, so a feature's <code>available</code> gate and its
+  effects read the same numbers &mdash; "when the Brawler marks 2 or more HP". A count nobody
+  seeded is zero, and a zero does nothing quietly rather than refusing. Damage is never a count:
+  "half the damage they dealt" is <code>dice: 'same'</code> with <code>half</code>, which keeps
+  the blow's own dice and type and goes through thresholds the way the original did.</p>
 
   <p>The awkward part of scripting a CRPG is that most effects are instantaneous and a few need the
   player. The legacy prototype solved that with <code>await</code> all the way down, which pulled the

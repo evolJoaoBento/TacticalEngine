@@ -36,11 +36,15 @@ engine has no place to put:
   and that is two parties; a third is not something a modifier can name.
 - **a token on the stat block**, teleporting,
   or ground that stays dangerous after the feature ends.
-- **a rider on a number the script cannot see** — "for each target who marked HP", "if
-  they used armor", "equal to the HP they marked", "up to three targets". A wound is
-  answered by trigger - `tookDamage`, `tookHitPoints`, `tookSevere`, each with whoever
-  dealt it bound as the target - but how much of it landed is not a number a script can
-  read, so "when it marks 2 or more HP" stays here.
+- **a number the blow does not carry** - how much of a wound landed is now read: an
+  amount can be written as a count (`hitPointsTaken`, `hitPointsDealt`, `targetsHit`)
+  and a feature can be gated on one, which is what "when the Brawler marks 2 or more
+  HP" was waiting for. Damage sent back is `dice: 'same'`, which keeps the blow's own
+  dice and type. What stays text is every other number: one the block keeps rather than
+  the blow (handfuls of gold, the Assassin's unmarked Stress), one spent per target
+  rather than in total ("lose a number of Hope equal to the HP they marked"), dice
+  rolled one per Hit Point, and a Fear cost that is a number rather than a price - the
+  vocabulary gains Fear and never spends it.
 - **a condition the SRD prints once** — Entranced, Poisoned, Cursed, Deathlock and the
   rest: written into that one block rather than into the rules.
 - **a social beat** — a bargain, a rumour, a scapegoat: a scene rather than a grid.
@@ -69,7 +73,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 146. Text: 198.
+Read: 73. Scripted: 152. Text: 192.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -134,7 +138,7 @@ Read: 73. Scripted: 146. Text: 198.
 | Minor Chaos Elemental | Arcane Form | Passive | **scripted** — runs as an ability |
 | Minor Chaos Elemental | Sickening Flux | Action | **scripted** — runs as an ability |
 | Minor Chaos Elemental | Remake Reality | Action | **scripted** — runs as an ability |
-| Minor Chaos Elemental | Magical reflection | Reaction | **text** — the GM's to play |
+| Minor Chaos Elemental | Magical reflection | Reaction | **scripted** — runs as an ability |
 | Minor Chaos Elemental | Momentum | Reaction | **read** — read off the stat block |
 | Minor Fire Elemental | Relentless (2) | Passive | **read** — read off the stat block |
 | Minor Fire Elemental | Scorched Earth | Action | **scripted** — runs as an ability |
@@ -248,7 +252,7 @@ Read: 73. Scripted: 146. Text: 198.
 | Demonic Hound Pack | Dreadhowl | Action | **scripted** — runs as an ability |
 | Demonic Hound Pack | Momentum | Reaction | **read** — read off the stat block |
 | Electric Eels | Horde (2d4+1) | Passive | **read** — read off the stat block |
-| Electric Eels | Paralyzing Shock | Action | **text** — the GM's to play |
+| Electric Eels | Paralyzing Shock | Action | **scripted** — runs as an ability |
 | Elite Soldier | Reinforce | Action | **text** — the GM's to play |
 | Elite Soldier | Vassal's Loyalty | Reaction | **text** — the GM's to play |
 | Failed Experiment | Warped Fortitude | Passive | **scripted** — runs as an ability |
@@ -258,7 +262,7 @@ Read: 73. Scripted: 146. Text: 198.
 | Giant Beastmaster | Pinning Strike | Action | **scripted** — runs as an ability |
 | Giant Beastmaster | Deadly Companion | Action | **scripted** — runs as an ability |
 | Giant Brawler | Battering Ram | Action | **text** — the GM's to play |
-| Giant Brawler | Bloody Reprisal | Reaction | **text** — the GM's to play |
+| Giant Brawler | Bloody Reprisal | Reaction | **scripted** — runs as an ability |
 | Giant Brawler | Momentum | Reaction | **read** — read off the stat block |
 | Giant Recruit | Minion (7) | Passive | **read** — read off the stat block |
 | Giant Recruit | Group Attack | Action | **scripted** — runs as an ability |
@@ -273,7 +277,7 @@ Read: 73. Scripted: 146. Text: 198.
 | Gorgon | Momentum | Reaction | **read** — read off the stat block |
 | Juvenile Flickerfly | Relentless (3) | Passive | **read** — read off the stat block |
 | Juvenile Flickerfly | Peerless Accuracy | Passive | **text** — the GM's to play |
-| Juvenile Flickerfly | Mind Dance | Action | **text** — the GM's to play |
+| Juvenile Flickerfly | Mind Dance | Action | **scripted** — runs as an ability |
 | Juvenile Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **scripted** — runs as an ability |
 | Knight of the Realm | Chevalier | Passive | **scripted** — runs as an ability |
 | Knight of the Realm | Heavily Armored | Passive | **scripted** — runs as an ability |
@@ -325,7 +329,7 @@ Read: 73. Scripted: 146. Text: 198.
 | Adult Flickerfly | Never Misses | Passive | **text** — the GM's to play |
 | Adult Flickerfly | Deadly Flight | Passive | **text** — the GM's to play |
 | Adult Flickerfly | Whirlwind | Action | **scripted** — runs as an ability |
-| Adult Flickerfly | Mind Dance | Action | **text** — the GM's to play |
+| Adult Flickerfly | Mind Dance | Action | **scripted** — runs as an ability |
 | Adult Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **scripted** — runs as an ability |
 | Adult Flickerfly | Uncanny Reflexes | Reaction | **text** — the GM's to play |
 | Demon of Avarice | Money Talks | Passive | **scripted** — runs as an ability |
@@ -412,7 +416,7 @@ Read: 73. Scripted: 146. Text: 198.
 | Arch-Necromancer | Beam of Decay | Action | **scripted** — runs as an ability |
 | Arch-Necromancer | Open the Gates of Death | Action | **scripted** — runs as an ability |
 | Arch-Necromancer | Not Today, My Dears | Reaction | **text** — the GM's to play |
-| Arch-Necromancer | Your Life Is Mine | Reaction: Countdown (Loop 2d6) | **text** — the GM's to play |
+| Arch-Necromancer | Your Life Is Mine | Reaction: Countdown (Loop 2d6) | **scripted** — runs as an ability |
 | Fallen Shock Troop | Minion (12) | Passive | **read** — read off the stat block |
 | Fallen Shock Troop | Aura of Doom | Passive | **scripted** — runs as an ability |
 | Fallen Shock Troop | Group Attack | Action | **scripted** — runs as an ability |

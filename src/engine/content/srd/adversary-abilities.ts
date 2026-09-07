@@ -1643,6 +1643,157 @@ const RAW: Input[] = [
     inCombatOnly: true,
     effects: [{ kind: 'replace', adversary: 'volcanic-dragon-ashen-tyrant', spotlight: true }],
   },
+  // ---- numbers the blow leaves behind -------------------------------------
+  // A feature that answers a wound can now be told how big it was. `amount`
+  // takes a count instead of a written number - the Hit Points the blow marked
+  // on the one answering, the Hit Points that answer has marked back, how many
+  // creatures the last roll beat - and `available` compares one, which is what
+  // "when the Brawler marks 2 or more HP" was waiting for.
+  //
+  // Damage is not one of them. "Half the damage they dealt" is `dice: 'same'`
+  // with `half`, carrying the blow's own dice and type through the thresholds
+  // the way the original went; a count marks Hit Points outright and would
+  // walk past armor and severity both.
+  //
+  // What still waits: a number the block keeps rather than the blow (the
+  // Demon's handfuls of gold, the Assassin's unmarked Stress), a count spent
+  // per target rather than in total (the Champion's "lose a number of Hope
+  // equal to the HP they marked"), dice rolled one per Hit Point, and a Fear
+  // cost that is a number rather than a price - the vocabulary gains Fear and
+  // never spends it, which is why the Demon of Jealousy's My Turn is text.
+  {
+    id: 'minor-chaos-elemental-magical-reflection',
+    name: 'Magical reflection',
+    source: from('minor-chaos-elemental'),
+    text: 'When the Elemental takes damage from an attack within Close range, deal an amount of damage to the attacker equal to half the damage they dealt.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    available: { kind: 'withinRange', range: 'close' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The blow bends back on itself.', tone: 'fear' },
+      // `same` is the blow that just landed, half of it, in the kind it came
+      // in: it goes through the attacker's thresholds the way it went through
+      // the Elemental's.
+      { kind: 'damage', dice: 'same', half: true, target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'giant-brawler-bloody-reprisal',
+    name: 'Bloody Reprisal',
+    source: from('giant-brawler'),
+    text: 'When the Brawler marks 2 or more HP from an attack within Very Close range, you can make a standard attack against the attacker. On a success, the Brawler deals 2d6+15 physical damage instead of their standard damage.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'veryClose' },
+        { kind: 'count', of: 'hitPointsTaken', op: '>=', value: 2 },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The Brawler answers the wound with the hammer.', tone: 'fear' },
+      { kind: 'attack', damage: '2d6+15', target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'electric-eels-paralyzing-shock',
+    name: 'Paralyzing Shock',
+    source: from('electric-eels'),
+    text: 'Mark a Stress to make a standard attack against all targets within Very Close range. You gain a Fear for each target that marks HP.',
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'veryClose' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'The water goes white with current.', tone: 'combat' },
+      { kind: 'attack', range: 'veryClose', target: { kind: 'allies', range: 'veryClose' } },
+      // Simplified: a Fear for each target the shock beat rather than for each
+      // one that marked HP. The two part only when armor or a threshold eats a
+      // hit that landed, and `hit` is the count the swing already keeps.
+      { kind: 'gainFear', amount: 'targetsHit' },
+    ],
+  },
+  {
+    id: 'juvenile-flickerfly-mind-dance',
+    name: 'Mind Dance',
+    source: from('juvenile-flickerfly'),
+    text: "Mark a Stress to create a magically dazzling display that grapples the minds of nearby foes. All targets within Close range must make an Instinct Reaction Roll. For each target who failed, you gain a Fear and the Flickerfly learns one of the target's fears.",
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    // Simplified: what the Flickerfly learns is the table's to remember. The
+    // clock it feeds - Hallucinatory Breath's disadvantage for a target whose
+    // fears are known - was already left out there for the same reason.
+    effects: [
+      { kind: 'log', text: 'Wings strobe in a pattern the eye cannot leave.', tone: 'combat' },
+      {
+        kind: 'reactionRoll',
+        difficulty: 14,
+        trait: 'instinct',
+        targets: { kind: 'allies', range: 'close' },
+        onFail: [
+          { kind: 'log', text: 'Their thoughts come loose.', tone: 'fear' },
+          { kind: 'gainFear', amount: 'targetsHit' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'adult-flickerfly-mind-dance',
+    name: 'Mind Dance',
+    source: from('adult-flickerfly'),
+    text: "Mark a Stress to create a magically dazzling display that grapples the minds of nearby foes. All targets within Close range must make an Instinct Reaction Roll. For each target who failed, you gain a Fear and the Flickerfly learns one of the target's fears.",
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'Wings strobe in a pattern the eye cannot leave.', tone: 'combat' },
+      {
+        kind: 'reactionRoll',
+        difficulty: 17,
+        trait: 'instinct',
+        targets: { kind: 'allies', range: 'close' },
+        onFail: [
+          { kind: 'log', text: 'Their thoughts come loose.', tone: 'fear' },
+          { kind: 'gainFear', amount: 'targetsHit' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'arch-necromancer-your-life-is-mine',
+    name: 'Your Life Is Mine',
+    source: from('arch-necromancer'),
+    text: 'When the Necromancer has marked 6 or more of their HP, activate the countdown. When it triggers, deal 2d10+6 direct magic damage to a target within Close range. The Necromancer then clears a number of Stress or HP equal to the number of HP marked by the target from this attack.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    uses: { count: 1, per: 'scene' },
+    available: { kind: 'pool', pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked', op: '>=', value: 6 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'arch-necromancer-your-life-is-mine',
+        name: 'Your Life Is Mine',
+        start: '2d6',
+        loop: 'reset',
+        // Simplified: Stress or HP is the GM's choice at the table; the
+        // Necromancer takes the Hit Points back, which is what the wound it
+        // just answered cost it.
+        effects: [
+          { kind: 'log', text: 'The Necromancer drinks the wound back.', tone: 'fear' },
+          { kind: 'damage', dice: '2d10+6', type: 'magic', direct: true, target: { kind: 'allies', range: 'close', nearest: 1 } },
+          { kind: 'heal', amount: 'hitPointsDealt', target: { kind: 'actor' } },
+        ],
+      },
+    ],
+  },
   // ---- what the two of them make of each other ---------------------------
   // A passive that moves a roll rather than a pool. `advantage` is a signed
   // count of dice, and `against: true` puts it on the rolls made at the one

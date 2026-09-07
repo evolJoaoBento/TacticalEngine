@@ -493,6 +493,75 @@ describe('a wound that answers back', () => {
   });
 });
 
+describe('a wound big enough to be counted', () => {
+  /** Kara toe to toe with something, the fight already on. */
+  const duel = (adversary: string, seed: string) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+    demo.state.entity('foe')!.hitPoints = { max: 40, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('throws half of the blow back, off the damage rather than the Hit Points', () => {
+    // "Deal an amount of damage to the attacker equal to half the damage they
+    // dealt." Twenty magic damage marks the Elemental once or twice; what
+    // comes back is ten, which is half of the swing and not half of that.
+    const demo = duel('minor-chaos-elemental', 'reflect');
+    demo.world.noteDamage('foe', { attacker: 'kara', hitPoints: 2, damage: 20, types: ['magic'] });
+    settleFight(demo);
+
+    expect(demo.log.some((l) => l.text.includes('The blow bends back on itself.'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('10 damage to Kara'))).toBe(true);
+  });
+
+  it('answers only a wound of the size the block names', () => {
+    // "When the Brawler marks 2 or more HP from an attack within Very Close
+    // range." One Hit Point is a scratch, and the hammer stays down.
+    const light = duel('giant-brawler', 'brawler-light');
+    light.world.noteDamage('foe', { attacker: 'kara', hitPoints: 1, damage: 5, types: ['physical'] });
+    settleFight(light);
+    expect(light.log.some((l) => l.text.includes('answers the wound with the hammer'))).toBe(false);
+
+    const heavy = duel('giant-brawler', 'brawler-heavy');
+    heavy.world.noteDamage('foe', { attacker: 'kara', hitPoints: 2, damage: 30, types: ['physical'] });
+    settleFight(heavy);
+    expect(heavy.log.some((l) => l.text.includes('answers the wound with the hammer'))).toBe(true);
+  });
+
+  it('drinks back exactly what its own clock took out of somebody', () => {
+    // "The Necromancer then clears a number of Stress or HP equal to the
+    // number of HP marked by the target from this attack."
+    const demo = duel('arch-necromancer', 'life-is-mine');
+    const foe = demo.state.entity('foe')!;
+    foe.hitPoints = { max: 12, marked: 6 };
+    demo.world.noteDamage('foe', { attacker: 'kara', hitPoints: 1, damage: 8, types: ['physical'] });
+    settleFight(demo);
+    const clock = demo.scenario.countdowns.get('arch-necromancer-your-life-is-mine');
+    expect(clock).toBeDefined();
+
+    clock!.value = 1;
+    const marked = foe.hitPoints.marked;
+    const hurt = demo.state.entity('kara')!.hitPoints.marked;
+    if (!demo.encounter!.canAct('kara')) endTurn(demo);
+    attackWithSelected(demo, 'foe');
+
+    expect(demo.log.some((l) => l.text.includes('drinks the wound back'))).toBe(true);
+    const took = demo.state.entity('kara')!.hitPoints.marked - hurt;
+    expect(took).toBeGreaterThan(0);
+    // What it cleared is what the blast marked, less whatever Kara's own swing
+    // put back on it.
+    expect(foe.hitPoints.marked).toBeLessThanOrEqual(marked - took + 1);
+  });
+});
+
 describe('a Demon rallying Relentless allies', () => {
   /** A Demon of Hubris and two Minor Demons, who can each be spotlighted twice. */
   const pit = (fear: number, seed: string) => {

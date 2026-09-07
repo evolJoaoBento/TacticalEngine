@@ -22,7 +22,7 @@
 export type { Condition, CompareOp, ScriptValue } from './schema';
 export { conditionSchema } from './schema';
 
-import type { Condition, CompareOp, HookArgs, PoolName, ScriptValue, TargetSelector } from './schema';
+import type { Condition, CompareOp, CountName, HookArgs, PoolName, ScriptValue, TargetSelector } from './schema';
 import type { QuestQuery } from '../content/quests';
 import type { HookFn, HookReads } from './hooks';
 import { runHook } from './hooks';
@@ -35,9 +35,20 @@ import { reaches, type RangeBand } from '../rules/range';
 export interface TargetBindings {
   targets: readonly string[];
   hit: readonly string[];
+  /**
+   * Numbers the thing that started this script left behind: how much of a blow
+   * landed, how much its answer has marked. Left out by everything that is not
+   * answering a blow, and a count nobody wrote reads as zero.
+   */
+  counts?: Partial<Record<CountName, number>>;
 }
 
 export const NO_BINDINGS: TargetBindings = { targets: [], hit: [] };
+
+/** A count as a number: the one the bindings carry, or nothing at all. */
+export function countOf(bindings: TargetBindings, name: CountName): number {
+  return bindings.counts?.[name] ?? 0;
+}
 
 /** What a condition is evaluated against. Read-only: conditions never mutate. */
 export interface ConditionContext {
@@ -157,6 +168,8 @@ export function evaluate(
       const value = context.poolValue(id, condition.pool, condition.measure ?? 'available');
       return value !== null && compare(value, condition.op, condition.value);
     }
+    case 'count':
+      return compare(countOf(bindings, condition.of), condition.op, condition.value);
     case 'inCombat':
       return context.inCombat();
     case 'loadout': {
