@@ -49,9 +49,9 @@ engine has no place to put:
   rest: written into that one block rather than into the rules.
 - **a social beat** — a bargain, a rumour, a scapegoat: a scene rather than a grid.
 - **a passive on a number the engine does not have** — "deal 1d6+5 instead of their
-  standard damage when another Wolf is in Melee range" (a damage swap on a condition),
-  "when this adversary is attacked, the attacker marks a Stress" (a rider on *being*
-  attacked, which is the other side of the two triggers the swing already carries).
+  standard damage when another Wolf is in Melee range": a damage swap on a condition.
+  A rider on *being* attacked now runs - a swing raises `attacked` on whoever it was
+  aimed at, hit or miss, and the Swashbucklers gate on how little the blow marked.
 - **an ally on the other side** — the GM's turn aims a feature at the party, so a
   feature that shields or heals one of its own has no way to be pointed at it.
 
@@ -73,7 +73,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 152. Text: 192.
+Read: 73. Scripted: 155. Text: 189.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -164,13 +164,13 @@ Read: 73. Scripted: 152. Text: 192.
 | Petty Noble | My Land, My Rules | Passive | **text** — the GM's to play |
 | Petty Noble | Guards, Seize Them! | Action | **scripted** — runs as an ability |
 | Petty Noble | Exile | Action | **text** — the GM's to play |
-| Pirate Captain | Swashbuckler | Passive | **text** — the GM's to play |
+| Pirate Captain | Swashbuckler | Passive | **scripted** — runs as an ability |
 | Pirate Captain | Reinforcements | Action | **scripted** — runs as an ability |
 | Pirate Captain | No Quarter | Action | **text** — the GM's to play |
 | Pirate Captain | Momentum | Reaction | **read** — read off the stat block |
 | Pirate Raiders | Horde (1d4+1) | Passive | **read** — read off the stat block |
-| Pirate Raiders | Swashbuckler | Passive | **text** — the GM's to play |
-| Pirate Tough | Swashbuckler | Passive | **text** — the GM's to play |
+| Pirate Raiders | Swashbuckler | Passive | **scripted** — runs as an ability |
+| Pirate Tough | Swashbuckler | Passive | **scripted** — runs as an ability |
 | Pirate Tough | Clear the Decks | Action | **text** — the GM's to play |
 | Sellsword | Minion (4) | Passive | **read** — read off the stat block |
 | Sellsword | Group Attack | Action | **scripted** — runs as an ability |

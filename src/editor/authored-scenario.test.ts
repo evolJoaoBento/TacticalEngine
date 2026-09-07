@@ -562,6 +562,41 @@ describe('a wound big enough to be counted', () => {
   });
 });
 
+describe('a wound too small to be worth taking', () => {
+  const duel = (adversary: string, seed: string) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+    demo.state.entity('foe')!.hitPoints = { max: 40, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('costs the attacker a Stress for a blow the Captain shrugs off, and nothing for a real one', () => {
+    // "When the Captain marks 2 or fewer HP from an attack within Melee range,
+    // the attacker must mark a Stress."
+    const small = duel('pirate-captain', 'swash-small');
+    const before = small.state.entity('kara')!.stress.marked;
+    small.world.noteDamage('foe', { attacker: 'kara', hitPoints: 1, damage: 6, types: ['physical'] });
+    settleFight(small);
+    expect(small.log.some((l) => l.text.includes('Turned aside with a laugh.'))).toBe(true);
+    expect(small.state.entity('kara')!.stress.marked).toBe(before + 1);
+
+    const big = duel('pirate-captain', 'swash-big');
+    const was = big.state.entity('kara')!.stress.marked;
+    big.world.noteDamage('foe', { attacker: 'kara', hitPoints: 3, damage: 24, types: ['physical'] });
+    settleFight(big);
+    expect(big.log.some((l) => l.text.includes('Turned aside with a laugh.'))).toBe(false);
+    expect(big.state.entity('kara')!.stress.marked).toBe(was);
+  });
+});
+
 describe('a Demon rallying Relentless allies', () => {
   /** A Demon of Hubris and two Minor Demons, who can each be spotlighted twice. */
   const pit = (fear: number, seed: string) => {

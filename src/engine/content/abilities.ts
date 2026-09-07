@@ -126,7 +126,9 @@ export const abilityModifierSchema = z.object({
    *
    * Tokens are scene state rather than sheet state, so a modifier written this
    * way is never folded into a derived character: it is read where it is used,
-   * every time, and reads zero the moment the card is empty.
+   * every time, and reads zero the moment the card is empty. With a `when` as
+   * well it is the bonus times the tokens while that holds, and nothing while
+   * it does not: the two are read in that order.
    */
   perToken: contentIdSchema.optional(),
   requires: z.enum(['unarmored', 'armored', 'meleeWeapon']).optional(),

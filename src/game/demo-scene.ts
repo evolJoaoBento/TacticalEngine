@@ -1039,6 +1039,9 @@ export function attackWithSelected(
     // nothing up - the GM's turn is started by the player pressing pass, never
     // by the swing that ended theirs.
     playAttackRiders(demo, id!, targetId, applied.hitPointsMarked);
+    // And the other side of it: whoever was swung at counts the swing, the
+    // same way the party does when the GM swings at them.
+    playAttackedOn(demo, targetId, id!);
   }
   if (inCombat(demo)) demo.encounter!.act(id!, { spotlightToGm: outcome.spotlightToGm });
   settleFight(demo);

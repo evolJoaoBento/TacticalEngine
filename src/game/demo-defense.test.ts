@@ -1102,6 +1102,31 @@ describe('a bonus the card counts out for itself', () => {
     expect(demo.world.rollBonus('kara', 'damageRoll', { melee: true })).toBe(0);
   });
 
+  it('places a token for each Hit Point the swing marked, once the Hope is spent', () => {
+    // "When you cause an adversary to mark 1 or more Hit Points, you can spend
+    // 2 Hope to increase your Evasion by the number of Hit Points they marked."
+    const demo = holding(['ferocity'], 'ferocity-placed');
+    const foe = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+
+    let marked = 0;
+    for (let i = 0; i < 20 && asked(demo) !== 'reaction'; i++) {
+      if (!demo.encounter!.canAct('kara')) endTurn(demo);
+      while (asked(demo) === 'defense') answerPending(demo, { kind: 'choose', index: 0 });
+      demo.state.entity(foe.id)!.hitPoints = { max: 60, marked: 0 };
+      const result = attackWithSelected(demo, foe.id);
+      if (result !== null && result.hitPointsMarked > 0) marked = result.hitPointsMarked;
+    }
+    expect(asked(demo)).toBe('reaction');
+    expect(marked).toBeGreaterThan(0);
+
+    answerPending(demo, { kind: 'choose', index: 1 });
+    expect(demo.world.tokensOn('kara', 'ferocity')).toBe(marked);
+    expect(demo.state.entity('kara')!.hope!.value).toBe(4);
+    // Which is the Evasion the card promised, for as long as it lasts.
+    expect(demo.world.poolBonus('kara', 'evasion')).toBe(marked);
+  });
+
   it('spends the Ferocity the moment the next attack is over, hit or miss', () => {
     const demo = holding(['ferocity'], 'ferocity-spent');
     demo.askDefender = false;

@@ -1794,6 +1794,74 @@ const RAW: Input[] = [
       },
     ],
   },
+  // The other half of a counted wound: a gate that fires when the blow was
+  // *small*. "When the Captain marks 2 or fewer HP from an attack within Melee
+  // range, the attacker must mark a Stress" - which includes a hit that marked
+  // none at all, and is why the trigger is `tookDamage` rather than
+  // `tookHitPoints`.
+  {
+    id: 'pirate-captain-swashbuckler',
+    name: 'Swashbuckler',
+    source: from('pirate-captain'),
+    text: 'When the Captain marks 2 or fewer HP from an attack within Melee range, the attacker must mark a Stress.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'melee' },
+        { kind: 'count', of: 'hitPointsTaken', op: '<=', value: 2 },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Turned aside with a laugh.', tone: 'fear' },
+      { kind: 'markStress', target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'pirate-raiders-swashbuckler',
+    name: 'Swashbuckler',
+    source: from('pirate-raiders'),
+    text: 'When the Raiders marks 2 or fewer HP from an attack within Melee range, the attacker must mark a Stress.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'melee' },
+        { kind: 'count', of: 'hitPointsTaken', op: '<=', value: 2 },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Turned aside with a laugh.', tone: 'fear' },
+      { kind: 'markStress', target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'pirate-tough-swashbuckler',
+    name: 'Swashbuckler',
+    source: from('pirate-tough'),
+    text: 'When the Tough marks 2 or fewer HP from an attack within Melee range, the attacker must mark a Stress.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'melee' },
+        { kind: 'count', of: 'hitPointsTaken', op: '<=', value: 2 },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Turned aside with a laugh.', tone: 'fear' },
+      { kind: 'markStress', target: { kind: 'target' } },
+    ],
+  },
   // ---- what the two of them make of each other ---------------------------
   // A passive that moves a roll rather than a pool. `advantage` is a signed
   // count of dice, and `against: true` puts it on the rolls made at the one
