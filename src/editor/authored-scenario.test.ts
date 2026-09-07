@@ -200,6 +200,29 @@ describe('a block that shrugs the party off', () => {
   });
 });
 
+describe('a Treant that puts its roots down', () => {
+  it('roots once and then fights, rather than rooting and tearing free forever', () => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 3, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'grove', name: 'The grove' })));
+    s.run(addAdversary('hall', 'grove', { id: 'treant-1', adversary: 'oak-treant', position: { x: 4, y: 4 } }));
+
+    const demo = buildProjectScene(s.project, 'grove');
+    demo.askDefender = false;
+    startEncounter(demo, 'grove');
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    for (let i = 0; i < 4 && demo.encounter?.outcome === 'ongoing'; i++) endTurn(demo);
+
+    const said = demo.log.map((l) => l.text);
+    // Once, because a Treant already rooted has nothing to gain by rooting
+    // again — and then it uses its turns on the party.
+    expect(said.filter((t) => t.includes('uses Take Root')).length).toBe(1);
+    expect(said.some((t) => t.includes('Kara'))).toBe(true);
+    expect(demo.world.hasCondition('treant-1', 'rooted')).toBe(true);
+  });
+});
+
 describe('a scenario built with nothing but the editor', () => {
   it('passes the validator the Check button runs', () => {
     expect(validateProject(author().project)).toEqual([]);

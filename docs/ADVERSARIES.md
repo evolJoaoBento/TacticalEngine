@@ -36,6 +36,10 @@ damage type is a `defenses` line, and the blocks that print one have it.
 
 A scripted feature says as much of its text as the vocabulary carries; where it says
 less, the entry in `adversary-abilities.ts` carries a line saying what was left out.
+The text shown at the table is the block's own, printed as written, so when a script
+departs from it rather than merely doing less, what the engine actually does is in the
+condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
+it still, because a creature this engine holds still spends its next turn tearing free.
 
 Read: 73. Scripted: 62. Text: 282.
 
