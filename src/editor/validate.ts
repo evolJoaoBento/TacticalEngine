@@ -52,6 +52,8 @@ export interface ValidationOptions {
   knownModels?: ReadonlySet<string>;
   /** Hooks the engine registers natively, so content may name them without carrying code. */
   knownHooks?: ReadonlySet<string>;
+  /** Conditions the engine ships, which a project inherits without writing them down. */
+  knownConditions?: ReadonlySet<string>;
   /**
    * The SRD content a sheet's ids are checked against. Omit to skip the party
    * check — a headless caller that has not loaded the content is not wrong.
@@ -166,7 +168,12 @@ function checkAbilitiesAndCode(
   add: (severity: ProblemSeverity, message: string, entity?: string) => void,
 ): void {
   const hooks = new Set<string>([...(options.knownHooks ?? []), ...project.code.map((c) => c.id)]);
-  const conditionIds = new Set(project.conditionDefs.map((c) => c.id));
+  // The engine's own conditions are there whether or not a project writes
+  // them down, so applying Vulnerable is not a mistake.
+  const conditionIds = new Set([
+    ...project.conditionDefs.map((c) => c.id),
+    ...(options.knownConditions ?? []),
+  ]);
   for (const issue of compileHooks(project.code).issues) {
     add('error', `Code "${issue.id}" does not compile: ${issue.message}`, issue.id);
   }

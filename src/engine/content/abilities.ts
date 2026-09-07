@@ -104,11 +104,28 @@ export const abilityModifierSchema = z.object({
     'hitPoints',
     'stress',
     'bareBones',
+    /**
+     * Advantage dice, as a signed count: `+1` is "they have advantage", `-1`
+     * is "…disadvantage". They cancel one for one and never stack past a
+     * single die, which the roll itself sees to; this only says which way the
+     * scales tip.
+     */
+    'advantage',
   ]),
   bonus: z.number().int().default(0),
   plusTrait: traitSchema.optional(),
   requires: z.enum(['unarmored', 'armored', 'meleeWeapon']).optional(),
   when: conditionSchema.optional(),
+  /**
+   * Whether this reads on rolls made *against* the one holding it rather than
+   * on their own: "creatures within Melee range of the Gaoler have
+   * disadvantage on attack rolls against them".
+   *
+   * A two-party rule, and only that. "Disadvantage on attacks against targets
+   * other than the Swarm" and "attacks against a creature this one stands next
+   * to have advantage" are about a third creature, and stay text.
+   */
+  against: z.boolean().optional(),
 });
 
 /**

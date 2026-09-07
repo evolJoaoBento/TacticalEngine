@@ -376,6 +376,64 @@ describe('a creature that does not stay the same creature', () => {
   });
 });
 
+describe('what the two of them make of each other', () => {
+  /** Kara and one creature, at the distance the test asks for. */
+  const facing = (adversary: string, at: { x: number; y: number }, seed: string) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'yard', name: 'The yard' })));
+    s.run(addAdversary('hall', 'yard', { id: 'foe', adversary, position: at }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'yard');
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('puts a shield in the way of anyone standing close enough to be blocked', () => {
+    // "Creatures within Melee range of the Gaoler have disadvantage on attack
+    // rolls against them."
+    const near = facing('vault-guardian-gaoler', { x: 3, y: 4 }, 'shield');
+    expect(near.world.advantageFor('kara', 'foe')).toEqual({ advantage: 0, disadvantage: 1 });
+
+    // And a shield only reaches as far as the arm holding it.
+    const far = facing('vault-guardian-gaoler', { x: 8, y: 4 }, 'shield-far');
+    expect(far.world.advantageFor('kara', 'foe')).toEqual({ advantage: 0, disadvantage: 0 });
+  });
+
+  it('hands the Assassin the advantage its own passive names, and only while it holds', () => {
+    const demo = facing('assassin-poisoner', { x: 3, y: 4 }, 'assassin');
+    expect(demo.world.advantageFor('foe', 'kara')).toEqual({ advantage: 0, disadvantage: 0 });
+
+    // "The Assassin has advantage on attacks if they are Hidden."
+    demo.state.entity('foe')!.conditions.add('hidden');
+    expect(demo.world.advantageFor('foe', 'kara')).toEqual({ advantage: 1, disadvantage: 0 });
+    // It is the Assassin's own advantage: nothing about swinging at them.
+    expect(demo.world.advantageFor('kara', 'foe').advantage).toBe(0);
+  });
+
+  it('reads a bonus to Difficulty straight off a passive nobody had written down', () => {
+    const demo = facing('dire-bat', { x: 3, y: 4 }, 'bat');
+    const bat = demo.state.entity('foe')!;
+    // "While flying, the Bat gains a +3 bonus to their Difficulty."
+    expect(demo.world.defenderOf(bat).difficulty).toBe(14 + 3);
+  });
+
+  it('chills whoever gets close enough to cut it, and a Chilled arm swings worse', () => {
+    const demo = facing('young-ice-dragon', { x: 3, y: 4 }, 'chill');
+    demo.state.entity('foe')!.hitPoints = { max: 40, marked: 0 };
+    for (let i = 0; i < 4 && !demo.state.entity('kara')!.conditions.has('chilled'); i++) {
+      if (!demo.encounter!.canAct('kara')) endTurn(demo);
+      attackWithSelected(demo, 'foe');
+    }
+    expect(demo.state.entity('kara')!.conditions.has('chilled')).toBe(true);
+    // The condition carries the disadvantage, so it follows her to any target.
+    expect(demo.world.advantageFor('kara', 'foe').disadvantage).toBeGreaterThan(0);
+  });
+});
+
 describe('a wound that answers back', () => {
   /** Kara toe to toe with something, the fight already on. */
   const duel = (adversary: string, seed: string) => {

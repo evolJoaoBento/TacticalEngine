@@ -451,7 +451,7 @@ footer {
       <tr><td><code>script/countdowns.ts</code></td><td>The board a scenario carries: <code>RunningCountdown</code> (a clock plus what it is counting towards), <code>advanceBoard</code>, <code>reapBoard</code>, <code>endCreatureCountdowns</code>, and the snapshot schema a save uses.</td></tr>
       <tr><td><code>script/hooks.ts</code></td><td>Running project code: <code>HookContext</code>, <code>runHook</code>, <code>SAFE_MATH</code>.</td></tr>
       <tr><td><code>content/types.ts</code></td><td><code>AdversaryDef</code>, <code>AdversaryFeature</code>, <code>ContentIssue</code>, <code>ImportResult</code>, <code>toContentId</code>.</td></tr>
-      <tr><td><code>content/abilities.ts</code></td><td><code>AbilityDef</code> and its sub-schemas; <code>abilitiesFor</code>, <code>loadoutOf</code>, <code>isScripted</code>, <code>isAutomatic</code>, <code>readsATarget</code>.</td></tr>
+      <tr><td><code>content/abilities.ts</code></td><td>A modifier's <code>advantage</code> stat is a signed count of dice and <code>against: true</code> puts it on rolls made at the holder. <code>AbilityDef</code> and its sub-schemas; <code>abilitiesFor</code>, <code>loadoutOf</code>, <code>isScripted</code>, <code>isAutomatic</code>, <code>readsATarget</code>.</td></tr>
       <tr><td><code>content/conditions.ts</code></td><td><code>ConditionDef</code> — what a <em>status</em> on a creature does. <code>SRD_CONDITIONS</code>.</td></tr>
       <tr><td><code>content/items.ts</code>, <code>content/quests.ts</code></td><td>Item and quest content shapes.</td></tr>
       <tr><td><code>content/srd/daggersearch.ts</code></td><td>Normalises the vendored character data (470 lines).</td></tr>

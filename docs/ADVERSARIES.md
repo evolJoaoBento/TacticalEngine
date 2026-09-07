@@ -30,7 +30,11 @@ engine has no place to put:
   a creature the block counts as one of its own, an extra spotlight for the one acting.
 - **a point on the map** — "choose a point within Far range; everyone within Close range
   of *that*": selectors read bands around the creature that is acting, not around a spot.
-- **a token on the stat block**, flight, teleporting,
+- **a rule about a third creature** - "disadvantage on attacks against targets other
+  than the Swarm", "attacks against a creature this one stands beside have advantage". A
+  passive can move the dice for its holder or against them (`advantage`, with `against`)
+  and that is two parties; a third is not something a modifier can name.
+- **a token on the stat block**, teleporting,
   or ground that stays dangerous after the feature ends.
 - **a rider on a number the script cannot see** — "for each target who marked HP", "if
   they used armor", "equal to the HP they marked", "up to three targets". A wound is
@@ -65,7 +69,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 136. Text: 208.
+Read: 73. Scripted: 146. Text: 198.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -92,7 +96,7 @@ Read: 73. Scripted: 136. Text: 208.
 | Dire Wolf | Pack Tactics | Passive | **text** — the GM's to play |
 | Dire Wolf | Hobbling Strike | Action | **scripted** — runs as an ability |
 | Giant Mosquitoes | Horde (1d4+1) | Passive | **read** — read off the stat block |
-| Giant Mosquitoes | Flying | Passive | **text** — the GM's to play |
+| Giant Mosquitoes | Flying | Passive | **scripted** — runs as an ability |
 | Giant Mosquitoes | Bloodsucker | Reaction | **text** — the GM's to play |
 | Giant Rat | Minion (3) | Passive | **read** — read off the stat block |
 | Giant Rat | Group Attack | Action | **scripted** — runs as an ability |
@@ -215,7 +219,7 @@ Read: 73. Scripted: 136. Text: 208.
 | Apprentice Assassin | Minion (6) | Passive | **read** — read off the stat block |
 | Apprentice Assassin | Group Attack | Action | **scripted** — runs as an ability |
 | Assassin Poisoner | Grindletooth Venom | Passive | **scripted** — runs as an ability |
-| Assassin Poisoner | Out of Nowhere | Passive | **text** — the GM's to play |
+| Assassin Poisoner | Out of Nowhere | Passive | **scripted** — runs as an ability |
 | Assassin Poisoner | Fumigation | Action | **text** — the GM's to play |
 | Master Assassin | Won't See It Coming | Passive | **text** — the GM's to play |
 | Master Assassin | Strike as One | Action | **text** — the GM's to play |
@@ -258,7 +262,7 @@ Read: 73. Scripted: 136. Text: 208.
 | Giant Brawler | Momentum | Reaction | **read** — read off the stat block |
 | Giant Recruit | Minion (7) | Passive | **read** — read off the stat block |
 | Giant Recruit | Group Attack | Action | **scripted** — runs as an ability |
-| Giant Eagle | Flight | Passive | **text** — the GM's to play |
+| Giant Eagle | Flight | Passive | **scripted** — runs as an ability |
 | Giant Eagle | Deadly Dive | Action | **scripted** — runs as an ability |
 | Giant Eagle | Take Off- Action | — | **text** — the GM's to play |
 | Giant Eagle | Deadly Drop | Action | **text** — the GM's to play |
@@ -271,7 +275,7 @@ Read: 73. Scripted: 136. Text: 208.
 | Juvenile Flickerfly | Peerless Accuracy | Passive | **text** — the GM's to play |
 | Juvenile Flickerfly | Mind Dance | Action | **text** — the GM's to play |
 | Juvenile Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **scripted** — runs as an ability |
-| Knight of the Realm | Chevalier | Passive | **text** — the GM's to play |
+| Knight of the Realm | Chevalier | Passive | **scripted** — runs as an ability |
 | Knight of the Realm | Heavily Armored | Passive | **scripted** — runs as an ability |
 | Knight of the Realm | Cavalry Charge | Action | **text** — the GM's to play |
 | Knight of the Realm | For the Realm! | Action | **scripted** — runs as an ability |
@@ -324,7 +328,7 @@ Read: 73. Scripted: 136. Text: 208.
 | Adult Flickerfly | Mind Dance | Action | **text** — the GM's to play |
 | Adult Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **scripted** — runs as an ability |
 | Adult Flickerfly | Uncanny Reflexes | Reaction | **text** — the GM's to play |
-| Demon of Avarice | Money Talks | Passive | **text** — the GM's to play |
+| Demon of Avarice | Money Talks | Passive | **scripted** — runs as an ability |
 | Demon of Avarice | Numbers Must Go Up | Passive | **text** — the GM's to play |
 | Demon of Avarice | Money Is Time | Action | **scripted** — runs as an ability |
 | Demon of Despair | Depths of Despair | Passive | **text** — the GM's to play |
@@ -344,7 +348,7 @@ Read: 73. Scripted: 136. Text: 208.
 | Demon of Wrath | Battle Lust | Action | **text** — the GM's to play |
 | Demon of Wrath | Retaliation | Reaction | **scripted** — runs as an ability |
 | Demon of Wrath | Blood and Souls | Reaction: Countdown (Loop 6) | **scripted** — runs as an ability |
-| Dire Bat | Flying | Passive | **text** — the GM's to play |
+| Dire Bat | Flying | Passive | **scripted** — runs as an ability |
 | Dire Bat | Screech | Action | **text** — the GM's to play |
 | Dire Bat | Guardian | Reaction | **text** — the GM's to play |
 | Dryad | Bramble Patch | Action | **text** — the GM's to play |
@@ -387,7 +391,7 @@ Read: 73. Scripted: 136. Text: 208.
 | Treant Sapling | Group Attack | Action | **scripted** — runs as an ability |
 | Vampire | Draining Bite | Action | **scripted** — runs as an ability |
 | Vampire | Mistform | Reaction | **text** — the GM's to play |
-| Vault Guardian Gaoler | Blocking Shield | Passive | **text** — the GM's to play |
+| Vault Guardian Gaoler | Blocking Shield | Passive | **scripted** — runs as an ability |
 | Vault Guardian Gaoler | Lock Up | Action | **scripted** — runs as an ability |
 | Vault Guardian Sentinel | Kinetic Slam | Passive | **scripted** — runs as an ability |
 | Vault Guardian Sentinel | Box In | Action | **text** — the GM's to play |
@@ -402,7 +406,7 @@ Read: 73. Scripted: 136. Text: 208.
 | Young Ice Dragon | No Hope | Passive | **text** — the GM's to play |
 | Young Ice Dragon | Blizzard Breath | Action | **text** — the GM's to play |
 | Young Ice Dragon | Avalanche | Action | **scripted** — runs as an ability |
-| Young Ice Dragon | Frozen Scales | Reaction | **text** — the GM's to play |
+| Young Ice Dragon | Frozen Scales | Reaction | **scripted** — runs as an ability |
 | Young Ice Dragon | Momentum | Reaction | **read** — read off the stat block |
 | Arch-Necromancer | Dance of Death | Action | **scripted** — runs as an ability |
 | Arch-Necromancer | Beam of Decay | Action | **scripted** — runs as an ability |
@@ -459,7 +463,7 @@ Read: 73. Scripted: 136. Text: 208.
 | Outer Realms Thrall | Minion (13) | Passive | **read** — read off the stat block |
 | Outer Realms Thrall | Group Attack | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Relentless (2) | Passive | **read** — read off the stat block |
-| Volcanic Dragon: Obsidian Predator | Flying | Passive | **text** — the GM's to play |
+| Volcanic Dragon: Obsidian Predator | Flying | Passive | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Obsidian Scales | Passive | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Avalanche Tail | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Dive-Bomb | Action | **text** — the GM's to play |
@@ -473,7 +477,7 @@ Read: 73. Scripted: 136. Text: 208.
 | Volcanic Dragon: Molten Scourge | Ashen Vengeance (Phase Change) | Reaction | **scripted** — runs as an ability |
 | Volcanic Dragon: Ashen Tyrant | Relentless (4) | Passive | **read** — read off the stat block |
 | Volcanic Dragon: Ashen Tyrant | Cornered | Passive | **text** — the GM's to play |
-| Volcanic Dragon: Ashen Tyrant | Injured Wings | Passive | **text** — the GM's to play |
+| Volcanic Dragon: Ashen Tyrant | Injured Wings | Passive | **scripted** — runs as an ability |
 | Volcanic Dragon: Ashen Tyrant | Ashes to Ashes | Passive | **text** — the GM's to play |
 | Volcanic Dragon: Ashen Tyrant | Desperate Rampage | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Ashen Tyrant | Ashen Cloud | Action | **text** — the GM's to play |

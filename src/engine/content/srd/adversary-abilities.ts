@@ -1643,6 +1643,136 @@ const RAW: Input[] = [
     inCombatOnly: true,
     effects: [{ kind: 'replace', adversary: 'volcanic-dragon-ashen-tyrant', spotlight: true }],
   },
+  // ---- what the two of them make of each other ---------------------------
+  // A passive that moves a roll rather than a pool. `advantage` is a signed
+  // count of dice, and `against: true` puts it on the rolls made at the one
+  // holding it: "creatures within Melee range of the Gaoler have disadvantage
+  // on attack rolls against them".
+  //
+  // It is a two-party rule and only that. The Swarm of Rats giving
+  // disadvantage on attacks aimed at *anybody else*, and a Shambling Zombie
+  // lending advantage against the creature it is standing next to, are about a
+  // third creature, and stay text.
+  //
+  // The flight passives are older than any of this: "+3 to their Difficulty"
+  // is a plain Evasion bonus, and the only reason they were text is that
+  // nobody had written them down.
+  //
+  // Simplified, for all five: the creature is aloft. Whether it has landed is
+  // the table's to say, and nothing here can ask.
+  {
+    id: 'giant-mosquitoes-flying',
+    name: 'Flying',
+    source: from('giant-mosquitoes'),
+    text: 'While flying, the Mosquitoes have a +2 bonus to their Difficulty.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    modifiers: [{ stat: 'evasion', bonus: 2 }],
+  },
+  {
+    id: 'giant-eagle-flight',
+    name: 'Flight',
+    source: from('giant-eagle'),
+    text: 'While flying, the Eagle gains a +3 bonus to their Difficulty.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    modifiers: [{ stat: 'evasion', bonus: 3 }],
+  },
+  {
+    id: 'dire-bat-flying',
+    name: 'Flying',
+    source: from('dire-bat'),
+    text: 'While flying, the Bat gains a +3 bonus to their Difficulty.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    modifiers: [{ stat: 'evasion', bonus: 3 }],
+  },
+  {
+    id: 'volcanic-dragon-obsidian-predator-flying',
+    name: 'Flying',
+    source: from('volcanic-dragon-obsidian-predator'),
+    text: 'While flying, the Obsidian Predator gains a +3 bonus to their Difficulty.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    modifiers: [{ stat: 'evasion', bonus: 3 }],
+  },
+  {
+    id: 'volcanic-dragon-ashen-tyrant-injured-wings',
+    name: 'Injured Wings',
+    source: from('volcanic-dragon-ashen-tyrant'),
+    text: 'While flying, the Ashen Tyrant gains a +1 bonus to their Difficulty.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    modifiers: [{ stat: 'evasion', bonus: 1 }],
+  },
+  {
+    id: 'knight-of-the-realm-chevalier',
+    name: 'Chevalier',
+    source: from('knight-of-the-realm'),
+    text: 'While the Knight is on a mount, they gain a +2 bonus to their Difficulty. When they take Severe damage, they are knocked from their mount and lose this benefit until they are next spotlighted.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    // Simplified: the Knight stays mounted. Being knocked from the saddle on a
+    // Severe wound and climbing back on next spotlight is a state the block
+    // keeps, and the table keeps it here.
+    modifiers: [{ stat: 'evasion', bonus: 2 }],
+  },
+  {
+    id: 'vault-guardian-gaoler-blocking-shield',
+    name: 'Blocking Shield',
+    source: from('vault-guardian-gaoler'),
+    text: 'Creatures within Melee range of the Gaoler have disadvantage on attack rolls against them. Creatures trapped inside the Gaoler are immune to this feature.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    // Simplified: nothing is trapped inside a Gaoler here, so nothing is
+    // exempt from the shield.
+    modifiers: [{ stat: 'advantage', bonus: -1, against: true, when: { kind: 'withinRange', range: 'melee' } }],
+  },
+  {
+    id: 'demon-of-avarice-money-talks',
+    name: 'Money Talks',
+    source: from('demon-of-avarice'),
+    text: 'Attacks against the Demon are made with disadvantage unless the attacker spends a handful of gold. This Demon starts with a number of handfuls equal to the number of PCs. When a target marks HP from the Demon standard attack, they can spend a handful of gold instead of marking HP (1 handful per HP). Add a handful of gold to the Demon for each handful of gold spent by PCs on this feature.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    // Simplified: the gold is the table. The disadvantage stands, and buying
+    // it off - or buying off a Hit Point with a handful - is not a purse the
+    // engine keeps.
+    modifiers: [{ stat: 'advantage', bonus: -1, against: true }],
+  },
+  {
+    id: 'assassin-poisoner-out-of-nowhere',
+    name: 'Out of Nowhere',
+    source: from('assassin-poisoner'),
+    text: 'The Assassin has advantage on attacks if they are Hidden.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    modifiers: [{ stat: 'advantage', bonus: 1, when: { kind: 'hasCondition', condition: 'hidden', of: { kind: 'actor' } } }],
+  },
+  {
+    id: 'young-ice-dragon-frozen-scales',
+    name: 'Frozen Scales',
+    source: from('young-ice-dragon'),
+    text: 'When a creature makes a successful attack against the Dragon from within Very Close range, they must mark a Stress and become Chilled until their next rest or they clear a Stress. While they are Chilled, they have disadvantage on attack rolls.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    available: { kind: 'withinRange', range: 'veryClose' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'markStress', target: { kind: 'target' } },
+      { kind: 'applyCondition', condition: 'chilled', duration: 'scene', target: { kind: 'target' } },
+    ],
+  },
   // ---- what a wound answers with -----------------------------------------
   // "When the Knight takes damage from an attack within Melee range, mark a
   // Stress to deal 1d10+5 physical damage to the attacker." Whoever dealt the

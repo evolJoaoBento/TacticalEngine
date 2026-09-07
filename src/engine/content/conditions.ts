@@ -89,6 +89,15 @@ const RAW: ConditionInput[] = [
     name: 'On Fire',
     text: 'When you act while On Fire, you take an extra 2d6 magic damage if you are still On Fire at the end of your action.',
   },
+  // The Young Ice Dragon's. The SRD prints it on that one block: it lasts
+  // until a rest or until the creature clears a Stress, neither of which the
+  // engine can ask for mid-fight, so it runs to the end of the scene.
+  {
+    id: 'chilled',
+    name: 'Chilled',
+    text: 'While Chilled, you have disadvantage on attack rolls.',
+    modifiers: [{ stat: 'advantage', bonus: -1 }],
+  },
   { id: 'tavas-armor', name: "Tava's Armor", text: '+1 to your Armor Score until your next rest.', modifiers: [{ stat: 'armorScore', bonus: 1 }] },
   {
     id: 'dodging',

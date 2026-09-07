@@ -501,7 +501,7 @@ export class SceneScriptWorld implements ScriptWorld {
     return entity === undefined ? [] : this.abilitiesForAdversary(entity.definition);
   }
 
-  modifiersOf(id: string, scope: 'roll' | 'pool'): AbilityModifier[] {
+  modifiersOf(id: string, scope: 'roll' | 'pool', bindings: TargetBindings = { targets: [], hit: [] }): AbilityModifier[] {
     const entity = this.state.entity(id);
     if (entity === undefined) return [];
     const character = this.characters.get(id);
@@ -518,9 +518,12 @@ export class SceneScriptWorld implements ScriptWorld {
       // is only ever read from here, so all of them count.
       if (scope === 'pool' && m.when === undefined && character !== undefined) return false;
       if (m.when === undefined) return true;
+      // Read from the holder's chair: "while within Melee range" on a stat
+      // block means within Melee of *it*, and the bindings name whoever the
+      // question is about - the creature swinging at it, usually.
       const was = this.scenario.actorId;
       this.scenario.actorId = id;
-      const holds = evaluate(m.when, this, { targets: [], hit: [] });
+      const holds = evaluate(m.when, this, bindings);
       this.scenario.actorId = was;
       return holds;
     });
@@ -583,15 +586,50 @@ export class SceneScriptWorld implements ScriptWorld {
   /** The bonus a creature's modifiers add to a roll of this kind. */
   rollBonus(id: string, stat: RollStat, context: { melee?: boolean } = {}): number {
     const applicable = this.modifiersOf(id, 'roll').filter(
-      (m) => m.stat === stat && (m.requires !== 'meleeWeapon' || context.melee === true),
+      (m) => m.stat === stat && m.against !== true && (m.requires !== 'meleeWeapon' || context.melee === true),
     );
     return this.sumModifiers(id, applicable);
   }
 
   /** What a creature's scene-dependent modifiers add to a pool or a defence. */
   poolBonus(id: string, stat: PoolStat): number {
-    const applicable = this.modifiersOf(id, 'pool').filter((m) => m.stat === stat && m.requires !== 'meleeWeapon');
+    const applicable = this.modifiersOf(id, 'pool').filter(
+      (m) => m.stat === stat && m.against !== true && m.requires !== 'meleeWeapon',
+    );
     return this.sumModifiers(id, applicable);
+  }
+
+  /**
+   * The advantage and disadvantage dice a swing carries beyond what the
+   * target's conditions already say: what the attacker's own passives grant
+   * ("the Assassin has advantage on attacks if they are Hidden") and what the
+   * defender's take away ("creatures within Melee range of the Gaoler have
+   * disadvantage on attack rolls against them").
+   *
+   * Each side is read from its own chair, with the other bound as the target,
+   * so a range in either sentence measures from the creature the passive
+   * belongs to. They come back as counts because that is what the roll takes;
+   * a die of each still cancels there.
+   */
+  advantageFor(attacker: string, defender: string): { advantage: number; disadvantage: number } {
+    const mine = this.modifiersOf(attacker, 'roll', { targets: [defender], hit: [] }).filter(
+      (m) => m.stat === 'advantage' && m.against !== true,
+    );
+    const theirs = this.modifiersOf(defender, 'roll', { targets: [attacker], hit: [] }).filter(
+      (m) => m.stat === 'advantage' && m.against === true,
+    );
+    const net = this.sumModifiers(attacker, mine) + this.sumModifiers(defender, theirs);
+    return { advantage: Math.max(0, net), disadvantage: Math.max(0, -net) };
+  }
+
+  /**
+   * The same, with what the feature itself said folded in: "make an attack
+   * with advantage" is one more die on the scales, not a separate roll.
+   */
+  private advantageWith(attacker: string, defender: string, extra: number): { advantage: number; disadvantage: number } {
+    const passives = this.advantageFor(attacker, defender);
+    const net = passives.advantage - passives.disadvantage + extra;
+    return { advantage: Math.max(0, net), disadvantage: Math.max(0, -net) };
   }
 
   /** The reactions to incoming damage a creature holds. */
@@ -1288,12 +1326,12 @@ export class SceneScriptWorld implements ScriptWorld {
       defender: this.defenderOf(target),
       options: {
         ...(this.bandTiles === undefined ? {} : { bandTiles: this.bandTiles }),
-        ...(request.advantage === undefined ? {} : { advantage: request.advantage }),
         bonus: this.rollBonus(request.attacker, 'attackRoll', { melee }),
         damageBonus: (request.damageBonus ?? 0) + this.rollBonus(request.attacker, 'damageRoll', { melee }),
         // A party member attacked from a script defends the same way as from
         // an adversary; an adversary has no Armor Slots to mark.
         armorSlotsMarked: this.defense.armor === 'auto' ? Math.min(1, unmarked(target.armorSlots)) : 0,
+        ...this.advantageWith(request.attacker, request.target, request.advantage ?? 0),
       },
     });
     if (outcome.refused !== null) return { ...none, weapon: profile.name, refused: outcome.targeting.bandLabel + ': ' + outcome.refused };

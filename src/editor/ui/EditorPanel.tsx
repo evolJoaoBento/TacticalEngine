@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useState } from 'preact/hooks';
+import { SRD_CONDITIONS } from '../../engine/content/conditions';
 import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
 import { addDialogue, removeDialogue, removeInteractable, updateInteractable } from '../session';
@@ -141,6 +142,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         knownModels: props.knownModels,
         knownAdversaries: props.knownAdversaries,
         knownHooks: new Set(props.nativeHooks),
+        knownConditions: new Set(SRD_CONDITIONS.map((c) => c.id)),
         characterContent: props.characterContent,
       }),
     );

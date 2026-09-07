@@ -19,7 +19,7 @@ import { SRD_ADVERSARY_ABILITIES } from '../engine/content/srd/adversary-abiliti
 import { SRD_HOOKS } from '../engine/content/srd/hooks';
 import { compileHooks, mergeHooks, type HookMap } from '../engine/script/hooks';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES } from './demo-code';
-import { SRD_CONDITIONS } from '../engine/content/conditions';
+import { SRD_CONDITIONS, type ConditionDef } from '../engine/content/conditions';
 import { MAX_SLOTS } from '../engine/rules/resources';
 import { walkCheck, type TargetSelector } from '../engine/script/schema';
 import type { ItemDef, LootTable } from '../engine/content/items';
@@ -479,6 +479,20 @@ function withStatBlockFeatures(abilities: readonly AbilityDef[]): readonly Abili
   return [...abilities, ...SRD_ADVERSARY_ABILITIES.filter((feature) => !own.has(feature.id))];
 }
 
+/**
+ * The same for conditions: a project may write its own, and inherits the
+ * SRD's for everything it does not name.
+ *
+ * Without this an authored project knows no conditions at all — the schema
+ * defaults the list to empty — so Restrained would hold nobody in place and a
+ * Chilled arm would swing as well as a warm one. Only the demo, which seeds
+ * the list by hand, ever worked.
+ */
+function withSrdConditions(defs: readonly ConditionDef[]): readonly ConditionDef[] {
+  const own = new Set(defs.map((def) => def.id));
+  return [...defs, ...SRD_CONDITIONS.filter((def) => !own.has(def.id))];
+}
+
 export function worldOptions(
   characters: ReadonlyMap<string, DerivedCharacter>,
   lootTables?: ReadonlyMap<string, LootTable>,
@@ -491,7 +505,7 @@ export function worldOptions(
     adversaries: adversaryDefsFor(scene),
     bandTiles: DEMO_BAND_TILES,
     abilities: withStatBlockFeatures(project?.abilities ?? SRD_ABILITIES),
-    conditionDefs: project?.conditionDefs ?? SRD_CONDITIONS,
+    conditionDefs: withSrdConditions(project?.conditionDefs ?? []),
     // The engine's native hooks, then the project's own code, which may
     // override one of them by using the same id. Asked for each time: the
     // editor rewrites a hook in place, and the table plays what it now says.
@@ -947,6 +961,9 @@ export function attackWithSelected(
       bandTiles: DEMO_BAND_TILES,
       bonus: demo.world.rollBonus(id!, 'attackRoll', { melee }),
       damageBonus: demo.world.rollBonus(id!, 'damageRoll', { melee }),
+      // What the two of them say about each other: the Assassin's advantage
+      // while Hidden, the Gaoler's shield in the way.
+      ...demo.world.advantageFor(id!, targetId),
     },
   });
   if (outcome.refused !== null) return { hit: false, refused: outcome.refused, hitPointsMarked: 0 };
@@ -1739,7 +1756,7 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
     // plus whatever their conditions add; the defence step below decides the
     // Armor Slots and reactions, so none are marked here.
     defender: demo.world.defenderOf(target),
-    options: { bandTiles: DEMO_BAND_TILES, armorSlotsMarked: 0 },
+    options: { bandTiles: DEMO_BAND_TILES, armorSlotsMarked: 0, ...demo.world.advantageFor(adversaryId, targetId) },
   });
   if (rolled.refused !== null) return false;
   // "Attacks they make while spotlighted in this way deal half damage": the
