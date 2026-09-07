@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Rng } from '../core/rng';
 import { abilitySchema, type AbilityDef } from '../content/abilities';
-import { resolveDefense, type Defender } from './defense';
+import { previewPlan, resolveDefense, resolveDefensePlan, type Defender } from './defense';
 
 /**
  * The defender's automatic choices: the one Armor Slot, and the reactions a
@@ -71,6 +71,47 @@ function guardian(overrides: Partial<Defender> = {}): Defender {
 }
 
 const phys = (amount: number) => ({ amount, types: ['physical'] as const });
+
+describe('a defender who resists the damage', () => {
+  /**
+   * Resistance comes off the top: it halves before thresholds, before armour
+   * and before any reaction, which is what makes a Skeleton Warrior worth
+   * hitting with anything but a sword.
+   */
+  const bones = guardian({ defenses: { resistances: ['physical'] } });
+
+  it('halves before the thresholds, whichever way the defence is decided', () => {
+    // 20 physical is Severe on 8/16; halved to 10 it is Major, and one Armor
+    // Slot takes it to Minor.
+    expect(resolveDefense(scripted([]), phys(20), bones).resolved).toMatchObject({
+      severity: 'major',
+      finalSeverity: 'minor',
+      hpMarked: 1,
+    });
+    // The same hit on a defender without it is Severe, one slot short of it.
+    expect(resolveDefense(scripted([]), phys(20), guardian()).resolved).toMatchObject({ hpMarked: 2 });
+    // Magic is not what it resists.
+    expect(resolveDefense(scripted([]), { amount: 20, types: ['magic'] }, bones).resolved).toMatchObject({ hpMarked: 2 });
+  });
+
+  it('is in the numbers a player is offered when they are asked how they take it', () => {
+    const plan = { armorSlots: 0, reactions: [] };
+    expect(previewPlan(phys(20), bones, plan)).toBe(2);
+    expect(previewPlan(phys(20), guardian(), plan)).toBe(3);
+    // And what they chose resolves to the number they were shown.
+    expect(resolveDefensePlan(scripted([]), phys(20), bones, plan).resolved.hpMarked).toBe(2);
+  });
+
+  it('ignores damage entirely when it is an immunity, and halves mixed damage only for a creature that resists both', () => {
+    const immune = guardian({ defenses: { immunities: ['magic'] } });
+    expect(resolveDefense(scripted([]), { amount: 20, types: ['magic'] }, immune).resolved.hpMarked).toBe(0);
+    // "Considered both physical and magic": resisting one of the two is no help.
+    const both = { amount: 20, types: ['physical', 'magic'] as const };
+    expect(resolveDefense(scripted([]), both, bones).resolved.hpMarked).toBe(2);
+    const either = guardian({ defenses: { resistances: ['physical', 'magic'] } });
+    expect(resolveDefense(scripted([]), both, either).resolved.hpMarked).toBe(1);
+  });
+});
 
 describe('Armor Slots', () => {
   it('marks the one slot when it lowers the Hit Points, and not otherwise', () => {

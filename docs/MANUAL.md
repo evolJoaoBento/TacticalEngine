@@ -672,7 +672,11 @@ creature \| group, `range`), `available?` (a condition read with the card's *hol
 as the actor, so "when you have 2 or fewer Hit Points unmarked" is about them and not about
 whoever is swinging; a `modifier`'s `when` is read the same way), `inCombatOnly`,
 `action` (whether using it is the turn), `effects[]`, `modifiers[]` (`stat`, `bonus`,
-`plusTrait?`, `requires?` unarmored \| armored \| meleeWeapon, `when?`), `reaction?` (for a
+`plusTrait?`, `requires?` unarmored \| armored \| meleeWeapon, `when?` — a stat block's passives
+are read the same way, and unlike a character's they are not baked into the block's numbers
+first), `defenses?` (for a `passive`: `resistances[]` / `immunities[]` of physical \| magic —
+halving rounds up, and damage of two types is only halved by a creature that resists both, which
+is what the Spellblade's Arcane Steel exists to defeat), `reaction?` (for a
 reaction to damage: `reduceSeverity` `steps` `only?`, `reduceDamage` `dice`, `extraArmor` `slots`
 `only?`, `redirect`, `reroll` `what`), `tokens?` (`amount` — a number, a trait or `spellcast` —
 `minimum`, `refill` session \| longRest \| rest \| scene \| never — a `session` card refills on a
@@ -707,7 +711,8 @@ A character's abilities are the class's, the subclass's up to the stage reached,
 cards in the loadout (`sheet.loadout`, at most five; the first five held when unset).
 
 A **condition definition** (`project.conditionDefs[]`): `id`, `name`, `text`, `modifiers[]` (the
-same shape), `blocks[]` (act \| move \| reactions — an adversary that cannot act spends its
+same shape), `defenses?` (the same shape as a passive's: what carrying it does to damage coming
+in), `blocks[]` (act \| move \| reactions — an adversary that cannot act spends its
 spotlight shaking the condition off, or the GM spends a Fear to clear one that only ends on
 damage; one that cannot move tears free instead of closing in; `reactions` silences its damage
 reactions), `endsWhen?` (hit \| attacks \| damaged). `vulnerable` and `hidden` are read by the attack rules

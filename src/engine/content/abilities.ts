@@ -136,6 +136,20 @@ export const damageReactionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('reroll'), what: z.enum(['attack', 'damage', 'either']).default('either') }),
 ]);
 
+/**
+ * What holding this does to damage coming in: "the Warrior is resistant to
+ * physical damage", "immune to magic while Dazed".
+ *
+ * Halving rounds up, and damage of two types is only halved by a creature that
+ * resists both — which is what Arcane Steel ("considered both physical and
+ * magic") exists to defeat. The rule is in `rules/damage.ts`; this is where a
+ * creature says it has it.
+ */
+export const damageDefensesSchema = z.object({
+  resistances: z.array(z.enum(['physical', 'magic'])).optional(),
+  immunities: z.array(z.enum(['physical', 'magic'])).optional(),
+});
+
 export const abilitySchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
@@ -177,6 +191,8 @@ export const abilitySchema = z.object({
     return z.array(effectSchema).default([]);
   },
   modifiers: z.array(abilityModifierSchema).default([]),
+  /** For a `passive`: what holding it does to damage coming in. */
+  defenses: damageDefensesSchema.optional(),
   /** For a reaction to incoming damage: what it does. */
   reaction: damageReactionSchema.optional(),
   /** Tokens the card holds, if it is one of the cards that holds them. */
@@ -200,6 +216,7 @@ export type AbilitySource = z.infer<typeof abilitySourceSchema>;
 export type AbilityTarget = z.infer<typeof abilityTargetSchema>;
 export type AbilityModifier = z.infer<typeof abilityModifierSchema>;
 export type DamageReaction = z.infer<typeof damageReactionSchema>;
+export type AbilityDefenses = z.infer<typeof damageDefensesSchema>;
 
 /**
  * Whether anything in a script reads "the one that was picked".
@@ -236,7 +253,12 @@ export function readsATarget(effects: readonly Effect[]): boolean {
 
 /** Whether an ability has a script the engine can run, or is text only. */
 export function isScripted(ability: AbilityDef): boolean {
-  return ability.effects.length > 0 || ability.modifiers.length > 0 || ability.reaction !== undefined;
+  return (
+    ability.effects.length > 0 ||
+    ability.modifiers.length > 0 ||
+    ability.reaction !== undefined ||
+    ability.defenses !== undefined
+  );
 }
 
 /**

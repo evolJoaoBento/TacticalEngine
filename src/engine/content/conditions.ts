@@ -15,7 +15,7 @@
 
 import { z } from 'zod';
 import { contentIdSchema } from '../scene/primitives';
-import { abilityModifierSchema } from './abilities';
+import { abilityModifierSchema, damageDefensesSchema } from './abilities';
 
 /** What a condition can stop its bearer from doing. */
 export const conditionBlockSchema = z.enum(['act', 'move', 'reactions']);
@@ -27,6 +27,8 @@ export const conditionDefSchema = z.object({
   text: z.string().default(''),
   /** What it does to whoever bears it. */
   modifiers: z.array(abilityModifierSchema).default([]),
+  /** What carrying it does to damage coming in — a shroud's resistance. */
+  defenses: damageDefensesSchema.optional(),
   /**
    * What the bearer cannot do while it lasts. An adversary that cannot `act`
    * spends its spotlight shaking the condition off (or the GM spends a Fear
@@ -53,6 +55,14 @@ const RAW: ConditionInput[] = [
     name: 'Restrained',
     text: "You can't move until this condition is cleared, but you can still take actions from your current position.",
     blocks: ['move'],
+  },
+  // The Oak Treant's roots: what holds it still is also what answers a blade.
+  {
+    id: 'rooted',
+    name: 'Rooted',
+    text: 'Rooted in place: you cannot move, and physical damage is halved.',
+    blocks: ['move'],
+    defenses: { resistances: ['physical'] },
   },
   {
     id: 'stunned',

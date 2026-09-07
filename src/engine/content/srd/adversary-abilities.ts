@@ -997,6 +997,94 @@ const RAW: Input[] = [
       { kind: 'heal', amount: 1, target: { kind: 'actor' } },
     ],
   },
+
+  // ---- what a block does to damage coming in -------------------------------
+  //
+  // A passive that says "resistant to physical damage" is a `defenses` line and
+  // nothing else: the rule itself lives in `rules/damage.ts`, and halving
+  // rounds up. Damage of two types is only halved by a creature that resists
+  // both, which is what the Spellblade's Arcane Steel exists to defeat.
+  {
+    id: 'minor-chaos-elemental-arcane-form',
+    name: 'Arcane Form',
+    source: from('minor-chaos-elemental'),
+    text: 'The Elemental is resistant to magic damage.',
+    kind: 'passive',
+    action: false,
+    defenses: { resistances: ['magic'] },
+  },
+  {
+    id: 'chaos-skull-wards',
+    name: 'Wards',
+    source: from('chaos-skull'),
+    text: 'The Skull is resistant to magic damage.',
+    kind: 'passive',
+    action: false,
+    defenses: { resistances: ['magic'] },
+  },
+  {
+    id: 'skeleton-warrior-only-bones',
+    name: 'Only Bones',
+    source: from('skeleton-warrior'),
+    text: 'The Warrior is resistant to physical damage.',
+    kind: 'passive',
+    action: false,
+    defenses: { resistances: ['physical'] },
+  },
+  {
+    id: 'zombie-legion-unyielding',
+    name: 'Unyielding',
+    source: from('zombie-legion'),
+    text: 'The Legion has resistance to physical damage.',
+    kind: 'passive',
+    action: false,
+    defenses: { resistances: ['physical'] },
+  },
+  {
+    id: 'failed-experiment-warped-fortitude',
+    name: 'Warped Fortitude',
+    source: from('failed-experiment'),
+    text: 'The Experiment is resistant to physical damage.',
+    kind: 'passive',
+    action: false,
+    defenses: { resistances: ['physical'] },
+  },
+  {
+    id: 'volcanic-dragon-obsidian-predator-obsidian-scales',
+    name: 'Obsidian Scales',
+    source: from('volcanic-dragon-obsidian-predator'),
+    text: 'The Obsidian Predator is resistant to physical damage.',
+    kind: 'passive',
+    action: false,
+    defenses: { resistances: ['physical'] },
+  },
+  {
+    id: 'spectral-archer-ghost',
+    name: 'Ghost',
+    source: from('spectral-archer', 'spectral-captain', 'spectral-guardian'),
+    text: 'The Archer has resistance to physical damage. Mark a Stress to move up to Close range through solid objects.',
+    kind: 'passive',
+    action: false,
+    // Simplified: walking through solid objects is the table's.
+    defenses: { resistances: ['physical'] },
+  },
+  {
+    id: 'oak-treant-take-root',
+    name: 'Take Root',
+    source: from('oak-treant'),
+    text: 'Mark a Stress to Root the Treant in place. The Treant is Restrained while Rooted, and can end this effect instead of moving while they are spotlighted. While Rooted, the Treant has resistance to physical damage.',
+    cost: { stress: 1 },
+    target: { kind: 'self', range: 'melee' },
+    inCombatOnly: true,
+    // The roots hold it still and answer a blade: both are the condition,
+    // and 'temporary' is how it ends — an adversary that cannot move spends
+    // its spotlight tearing free, which is the SRD\'s "end this instead of
+    // moving".
+    effects: [
+      { kind: 'log', text: 'Roots go down into the stone.', tone: 'combat' },
+      { kind: 'applyCondition', condition: 'rooted', duration: 'temporary', target: { kind: 'actor' } },
+    ],
+  },
 ];
 
 export const SRD_ADVERSARY_ABILITIES: readonly AbilityDef[] = RAW.map((raw) => abilitySchema.parse(raw));

@@ -13,6 +13,7 @@ import type { Effect } from './schema';
 import { SRD_ABILITIES, SRD_ABILITY_MAP } from '../content/srd/abilities';
 import { SRD_HOOKS } from '../content/srd/hooks';
 import { SRD_CONDITIONS } from '../content/conditions';
+import { abilitySchema } from '../content/abilities';
 import { compileHooks, mergeHooks } from './hooks';
 
 /**
@@ -87,7 +88,16 @@ const bandTiles = { melee: 1, veryClose: 2, close: 4, far: 8, veryFar: 12 };
  * A corridor: Kara (a Guardian, no Spellcast trait) and Mira (a Wizard, who
  * casts with Knowledge +2), a soft husk two tiles east and a tough one four.
  */
-function scene(options: { fighting?: boolean; armor?: 'auto' | 'never'; content?: boolean; code?: { id: string; source: string }[] } = {}) {
+function scene(
+  options: {
+    fighting?: boolean;
+    armor?: 'auto' | 'never';
+    content?: boolean;
+    code?: { id: string; source: string }[];
+    /** Extra abilities the world knows about — a stat block's passive, say. */
+    abilities?: unknown[];
+  } = {},
+) {
   const grid = new TileGrid({ width: 14, height: 3 });
   const state = new SceneState({ id: 'corridor' }, grid);
   const sheets = [
@@ -135,6 +145,8 @@ function scene(options: { fighting?: boolean; armor?: 'auto' | 'never'; content?
     ...(options.armor === undefined ? {} : { armor: options.armor }),
     // The shipped cards and conditions, when a test plays the real ones.
     ...(options.content === true ? { abilities: SRD_ABILITIES, conditionDefs: SRD_CONDITIONS } : {}),
+    ...(options.abilities === undefined ? {} : { abilities: options.abilities.map((a) => abilitySchema.parse(a)) }),
+    ...(options.abilities === undefined ? {} : { conditionDefs: SRD_CONDITIONS }),
     hooks: mergeHooks(SRD_HOOKS, compileHooks((options.code ?? []).map((c) => ({ ...c, name: c.id }))).hooks),
   });
   return { grid, state, scenario, world, characters };
@@ -591,6 +603,74 @@ describe('a reaction roll', () => {
     expect(journal[0]).toMatchObject({ kind: 'reaction', id: 'kara', success: true, total: 12 });
     expect(journal[1]).toMatchObject({ kind: 'log', text: 'held' });
     expect(state.entity('kara')!.hope!.value).toBe(2);
+  });
+});
+
+describe('a creature that shrugs damage off', () => {
+  /** The husk's stat block, with a passive that halves what it is made of. */
+  const bones = {
+    id: 'only-bones',
+    name: 'Only Bones',
+    source: { kind: 'adversary' as const, adversaries: ['soft-husk'] },
+    text: 'The husk is resistant to physical damage.',
+    kind: 'passive' as const,
+    action: false,
+    defenses: { resistances: ['physical' as const] },
+  };
+
+  it("halves a script's damage, rounding up, and leaves the other type alone", () => {
+    // 12 physical is Severe on 7/12 and marks 3 Hit Points; halved to 6 it is
+    // Minor and marks one.
+    const plain = scene();
+    runScript([{ kind: 'damage', dice: '12 phy', target: { kind: 'entity', id: 'husk-1' } }], plain.world, scripted([]));
+    expect(plain.state.entity('husk-1')!.hitPoints.marked).toBe(3);
+
+    const heavy = scene({ abilities: [bones] });
+    runScript([{ kind: 'damage', dice: '12 phy', target: { kind: 'entity', id: 'husk-1' } }], heavy.world, scripted([]));
+    expect(heavy.state.entity('husk-1')!.hitPoints.marked).toBe(1);
+    // The same magic damage is not resisted at all.
+    const magic = scene({ abilities: [bones] });
+    runScript([{ kind: 'damage', dice: '12 mag', target: { kind: 'entity', id: 'husk-1' } }], magic.world, scripted([]));
+    expect(magic.state.entity('husk-1')!.hitPoints.marked).toBe(3);
+  });
+
+  it('halves a weapon swing too, on the attack path', () => {
+    const resisting = scene({ abilities: [bones] });
+    resisting.scenario.actorId = 'kara';
+    resisting.state.moveEntity('kara', resisting.grid.indexOf(2, 1));
+    // A stated 12 physical: Severe without the passive, Minor with it.
+    const journal = runScript(
+      [{ kind: 'attack', damage: '12 phy', target: { kind: 'entity', id: 'husk-1' } }],
+      resisting.world,
+      scripted([10, 2]),
+      { rollAs: 'actor' },
+    );
+    expect(journal.find((e) => e.kind === 'attack')).toMatchObject({ hit: true, hitPointsMarked: 1 });
+  });
+
+  it('reads a condition as well as a passive, and never halves twice', () => {
+    const { world, state } = scene({ abilities: [bones] });
+    state.entity('husk-1')!.conditions.add('rooted');
+    expect(world.defensesOf('husk-1')).toEqual({ resistances: ['physical'] });
+    runScript([{ kind: 'damage', dice: '12 phy', target: { kind: 'entity', id: 'husk-1' } }], world, scripted([]));
+    expect(state.entity('husk-1')!.hitPoints.marked).toBe(1);
+  });
+});
+
+describe("a passive printed on a stat block", () => {
+  it('changes the numbers on the block, the way a card changes a sheet', () => {
+    const wary = {
+      id: 'wary',
+      name: 'Wary',
+      source: { kind: 'adversary' as const, adversaries: ['soft-husk'] },
+      text: 'The husk is hard to catch.',
+      kind: 'passive' as const,
+      action: false,
+      modifiers: [{ stat: 'evasion' as const, bonus: 5 }],
+    };
+    // The soft husk's Difficulty is 10; the passive makes it 15.
+    expect(scene().world.difficultyOf('husk-1')).toBe(10);
+    expect(scene({ abilities: [wary] }).world.difficultyOf('husk-1')).toBe(15);
   });
 });
 

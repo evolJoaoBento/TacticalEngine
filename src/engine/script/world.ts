@@ -26,7 +26,7 @@ import {
   spend,
   unmarked,
 } from '../rules/resources';
-import { resolveDamage, type IncomingDamage } from '../rules/damage';
+import { resolveDamage, type DamageDefenses, type IncomingDamage } from '../rules/damage';
 import { rollDuality } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
 import { bandForDistance, bandIndex, reaches, type BandTiles, type RangeBand } from '../rules/range';
@@ -35,7 +35,7 @@ import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defe
 import { attackProfile, UNARMED, type DerivedCharacter } from '../character/sheet';
 import { abilitiesFor, loadoutOf, type AbilityDef, type AbilityModifier } from '../content/abilities';
 import type { ConditionBlock, ConditionDef } from '../content/conditions';
-import { formatDice, parseDice, type ParsedDamage } from '../rules/dice';
+import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
 import type { AdversaryDef } from '../content/types';
 import { NO_TILE } from '../grid/grid';
 import type { EntityState, SceneState } from '../scene/state';
@@ -373,12 +373,34 @@ export class SceneScriptWorld implements ScriptWorld {
    * Static ability modifiers are already in the derived numbers, so only the
    * `when`-gated ones count for pools; every one counts for a roll.
    */
+  /**
+   * The abilities a creature holds: a character's class, subclass and loadout,
+   * or the features printed on an adversary's stat block. One question, so
+   * that what a passive says holds on either side of the table.
+   */
+  heldBy(id: string): readonly AbilityDef[] {
+    const character = this.characters.get(id);
+    if (character !== undefined) return abilitiesFor(character, this.abilities);
+    const entity = this.state.entity(id);
+    return entity === undefined ? [] : this.abilitiesForAdversary(entity.definition);
+  }
+
   modifiersOf(id: string, scope: 'roll' | 'pool'): AbilityModifier[] {
     const entity = this.state.entity(id);
     if (entity === undefined) return [];
     const character = this.characters.get(id);
-    const own = (character?.modifiers ?? []).filter((m) => {
-      if (scope === 'pool' && m.when === undefined) return false;
+    // A character's are derived once, with the armour and the class in them; a
+    // stat block's are read off the passives it prints.
+    const mine =
+      character !== undefined
+        ? character.modifiers
+        : this.heldBy(id).filter((a) => a.kind === 'passive').flatMap((a) => a.modifiers);
+    const own = mine.filter((m) => {
+      // A character's unconditional modifiers are already in the numbers
+      // `deriveCharacter` worked out, so only the scene-dependent ones are
+      // added again here. A stat block is not derived: what its passives say
+      // is only ever read from here, so all of them count.
+      if (scope === 'pool' && m.when === undefined && character !== undefined) return false;
       if (m.when === undefined) return true;
       const was = this.scenario.actorId;
       this.scenario.actorId = id;
@@ -392,6 +414,30 @@ export class SceneScriptWorld implements ScriptWorld {
       if (def !== undefined) worn.push(...def.modifiers);
     }
     return [...own, ...worn];
+  }
+
+  /**
+   * The damage types a creature halves or ignores: what its passives say, plus
+   * what the conditions on it say. Nothing stacks — resisting physical twice
+   * halves it once, which is the SRD's rule and also the only sane reading.
+   */
+  defensesOf(id: string): DamageDefenses {
+    const resistances = new Set<DamageType>();
+    const immunities = new Set<DamageType>();
+    const take = (defenses: DamageDefenses | undefined): void => {
+      for (const type of defenses?.resistances ?? []) resistances.add(type);
+      for (const type of defenses?.immunities ?? []) immunities.add(type);
+    };
+    for (const ability of this.heldBy(id)) {
+      if (ability.kind === 'passive') take(ability.defenses);
+    }
+    for (const condition of this.state.entity(id)?.conditions ?? []) {
+      take(this.conditionDefs.get(condition)?.defenses);
+    }
+    return {
+      ...(resistances.size === 0 ? {} : { resistances: [...resistances] }),
+      ...(immunities.size === 0 ? {} : { immunities: [...immunities] }),
+    };
   }
 
   private sumModifiers(id: string, modifiers: readonly AbilityModifier[]): number {
@@ -809,7 +855,11 @@ export class SceneScriptWorld implements ScriptWorld {
    * How a creature is attacked: its sheet's Evasion and thresholds, or its
    * stat block's, with whatever its conditions and scene-gated features add.
    */
-  defenderOf(entity: EntityState): { difficulty: number; thresholds: { major: number; severe: number } } {
+  defenderOf(entity: EntityState): {
+    difficulty: number;
+    thresholds: { major: number; severe: number };
+    defenses?: DamageDefenses;
+  } {
     const character = this.characters.get(entity.id);
     const base =
       character !== undefined
@@ -819,12 +869,14 @@ export class SceneScriptWorld implements ScriptWorld {
             return def === undefined ? FALLBACK_DEFENDER : { difficulty: def.difficulty, thresholds: def.thresholds };
           })();
     const both = this.poolBonus(entity.id, 'thresholds');
+    const defenses = this.defensesOf(entity.id);
     return {
       difficulty: base.difficulty + this.poolBonus(entity.id, 'evasion'),
       thresholds: {
         major: base.thresholds.major + this.poolBonus(entity.id, 'majorThreshold') + both,
         severe: base.thresholds.severe + this.poolBonus(entity.id, 'severeThreshold') + both,
       },
+      ...(defenses.resistances === undefined && defenses.immunities === undefined ? {} : { defenses }),
     };
   }
 
@@ -839,11 +891,13 @@ export class SceneScriptWorld implements ScriptWorld {
     if (entity === undefined) {
       return { resolved: resolveDamage(damage, FALLBACK_DEFENDER.thresholds), armorSlotsMarked: 0, reactions: [], hopeSpent: 0, stressMarked: 0 };
     }
+    const against = this.defenderOf(entity);
     const defense = resolveDefense(
       rng,
       damage,
       {
-        thresholds: this.defenderOf(entity).thresholds,
+        thresholds: against.thresholds,
+        ...(against.defenses === undefined ? {} : { defenses: against.defenses }),
         armorSlots: entity.armorSlots,
         stress: entity.stress,
         ...(entity.hope === undefined ? {} : { hope: entity.hope }),

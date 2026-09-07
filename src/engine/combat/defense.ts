@@ -19,6 +19,7 @@ import {
   hpForSeverity,
   reduceSeverity,
   resolveDamage,
+  type DamageDefenses,
   type DamageThresholds,
   type IncomingDamage,
   type ResolvedDamage,
@@ -28,6 +29,8 @@ import { canAfford, canMarkStress, unmarked, type Currency, type MarkPool } from
 
 export interface Defender {
   thresholds: DamageThresholds;
+  /** Damage types this creature halves or ignores. */
+  defenses?: DamageDefenses;
   armorSlots: MarkPool;
   stress: MarkPool;
   hope?: Currency;
@@ -118,7 +121,11 @@ export function resolveDefense(
     ? defender.reactions.filter((a) => a.kind === 'reaction' && a.trigger === 'incomingDamage' && isAutomatic(a))
     : [];
   const hpFor = (amount: number, armor: number): number =>
-    resolveDamage({ ...damage, amount }, defender.thresholds, { armorSlotsMarked: armor, armorSlotsAvailable: unmarked(defender.armorSlots) }).hpMarked;
+    resolveDamage({ ...damage, amount }, defender.thresholds, {
+      armorSlotsMarked: armor,
+      armorSlotsAvailable: unmarked(defender.armorSlots),
+      ...(defender.defenses === undefined ? {} : { defenses: defender.defenses }),
+    }).hpMarked;
 
   // ---- dice off the damage --------------------------------------------------
   let amount = damage.amount;
@@ -157,6 +164,7 @@ export function resolveDefense(
   let resolved = resolveDamage({ ...damage, amount }, defender.thresholds, {
     armorSlotsMarked: armor,
     armorSlotsAvailable: unmarked(defender.armorSlots),
+    ...(defender.defenses === undefined ? {} : { defenses: defender.defenses }),
   });
 
   // ---- the band, stepped down ---------------------------------------------------
@@ -224,6 +232,7 @@ export function resolveDefensePlan(
   let resolved = resolveDamage({ ...damage, amount }, defender.thresholds, {
     armorSlotsMarked: armor,
     armorSlotsAvailable: available,
+    ...(defender.defenses === undefined ? {} : { defenses: defender.defenses }),
   });
 
   for (const ability of plan.reactions) {
@@ -251,7 +260,11 @@ export function previewPlan(damage: IncomingDamage, defender: Defender, plan: De
   for (const ability of plan.reactions) {
     if (ability.reaction?.kind === 'extraArmor') armor = Math.min(available, armor + ability.reaction.slots);
   }
-  let resolved = resolveDamage(damage, defender.thresholds, { armorSlotsMarked: armor, armorSlotsAvailable: available });
+  let resolved = resolveDamage(damage, defender.thresholds, {
+    armorSlotsMarked: armor,
+    armorSlotsAvailable: available,
+    ...(defender.defenses === undefined ? {} : { defenses: defender.defenses }),
+  });
   for (const ability of plan.reactions) {
     if (ability.reaction?.kind !== 'reduceSeverity') continue;
     const finalSeverity = reduceSeverity(resolved.finalSeverity, ability.reaction.steps);

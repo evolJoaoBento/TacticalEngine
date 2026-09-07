@@ -24,16 +24,20 @@ engine has no place to put:
 - **a condition the SRD prints once** — Entranced, Poisoned, Cursed, Deathlock and the
   rest: written into that one block rather than into the rules.
 - **a social beat** — a bargain, a rumour, a scapegoat: a scene rather than a grid.
+- **a rider on the standard attack** — "targets who mark HP must also mark a Stress",
+  "the Ogre's attacks deal direct damage", "reduce the damage by 1d10": a passive that
+  rewrites the swing the block already prints, rather than adding a feature to play.
+- **an ally on the other side** — the GM's turn aims a feature at the party, so a
+  feature that shields or heals one of its own has no way to be pointed at it.
 
-Two things are *not* reasons. Facing is not: "in front of the Burrower" is read as the
-whole band, as Spit Acid has been from the start. Nor is a passive that changes how
-damage lands — resistance, flat reduction, a standard attack that deals direct damage,
-a rider on every hit. Those are one shape, and the next pass over these blocks is theirs.
+Facing is *not* a reason: "in front of the Burrower" is read as the whole band, as Spit
+Acid has been from the start. Nor is resistance — a passive that halves or ignores a
+damage type is a `defenses` line, and the blocks that print one have it.
 
 A scripted feature says as much of its text as the vocabulary carries; where it says
 less, the entry in `adversary-abilities.ts` carries a line saying what was left out.
 
-Read: 73. Scripted: 52. Text: 292.
+Read: 73. Scripted: 62. Text: 282.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -95,7 +99,7 @@ Read: 73. Scripted: 52. Text: 292.
 | Jagged Knife Sniper | Unseen Strike | Passive | **text** — the GM's to play |
 | Merchant | Preferential Treatment | Passive | **text** — the GM's to play |
 | Merchant | The Runaround | Passive | **text** — the GM's to play |
-| Minor Chaos Elemental | Arcane Form | Passive | **text** — the GM's to play |
+| Minor Chaos Elemental | Arcane Form | Passive | **scripted** — runs as an ability |
 | Minor Chaos Elemental | Sickening Flux | Action | **scripted** — runs as an ability |
 | Minor Chaos Elemental | Remake Reality | Action | **scripted** — runs as an ability |
 | Minor Chaos Elemental | Magical reflection | Reaction | **text** — the GM's to play |
@@ -141,7 +145,7 @@ Read: 73. Scripted: 52. Text: 292.
 | Skeleton Knight | Terrifying | Passive | **read** — read off the stat block |
 | Skeleton Knight | Cut to the Bone | Action | **scripted** — runs as an ability |
 | Skeleton Knight | Dig Two Graves | Reaction | **text** — the GM's to play |
-| Skeleton Warrior | Only Bones | Passive | **text** — the GM's to play |
+| Skeleton Warrior | Only Bones | Passive | **scripted** — runs as an ability |
 | Skeleton Warrior | Won't Stay Dead | Reaction | **text** — the GM's to play |
 | Spellblade | Arcane Steel | Passive | **text** — the GM's to play |
 | Spellblade | Suppressing Blast | Action | **scripted** — runs as an ability |
@@ -194,7 +198,7 @@ Read: 73. Scripted: 52. Text: 292.
 | Battle Box | Overcharge | Reaction | **text** — the GM's to play |
 | Battle Box | Death Quake | Reaction | **text** — the GM's to play |
 | Chaos Skull | Levitation | Passive | **text** — the GM's to play |
-| Chaos Skull | Wards | Passive | **text** — the GM's to play |
+| Chaos Skull | Wards | Passive | **scripted** — runs as an ability |
 | Chaos Skull | Magic Burst | Action | **scripted** — runs as an ability |
 | Chaos Skull | Siphon Magic | Action | **text** — the GM's to play |
 | Conscript | Minion (6) | Passive | **read** — read off the stat block |
@@ -215,7 +219,7 @@ Read: 73. Scripted: 52. Text: 292.
 | Electric Eels | Paralyzing Shock | Action | **text** — the GM's to play |
 | Elite Soldier | Reinforce | Action | **text** — the GM's to play |
 | Elite Soldier | Vassal's Loyalty | Reaction | **text** — the GM's to play |
-| Failed Experiment | Warped Fortitude | Passive | **text** — the GM's to play |
+| Failed Experiment | Warped Fortitude | Passive | **scripted** — runs as an ability |
 | Failed Experiment | Overwhelm | Passive | **text** — the GM's to play |
 | Failed Experiment | Lurching Lunge | Action | **text** — the GM's to play |
 | Giant Beastmaster | Two as One | Passive | **text** — the GM's to play |
@@ -266,13 +270,13 @@ Read: 73. Scripted: 52. Text: 292.
 | Shark | Blood in the Water | Reaction | **text** — the GM's to play |
 | Siren | Captive Audience | Passive | **text** — the GM's to play |
 | Siren | Enchanting Song | Action | **text** — the GM's to play |
-| Spectral Archer | Ghost | Passive | **text** — the GM's to play |
+| Spectral Archer | Ghost | Passive | **scripted** — runs as an ability |
 | Spectral Archer | Pick Your Target | Action | **text** — the GM's to play |
-| Spectral Captain | Ghost | Passive | **text** — the GM's to play |
+| Spectral Captain | Ghost | Passive | **scripted** — runs as an ability |
 | Spectral Captain | Unending Battle | Action | **text** — the GM's to play |
 | Spectral Captain | Hold Fast | Reaction | **text** — the GM's to play |
 | Spectral Captain | Momentum | Reaction | **read** — read off the stat block |
-| Spectral Guardian | Ghost | Passive | **text** — the GM's to play |
+| Spectral Guardian | Ghost | Passive | **scripted** — runs as an ability |
 | Spectral Guardian | Grave Blade | Action | **scripted** — runs as an ability |
 | Spy | Gathering Secrets | Action | **text** — the GM's to play |
 | Spy | Fly on the Wall | Reaction | **text** — the GM's to play |
@@ -345,7 +349,7 @@ Read: 73. Scripted: 52. Text: 292.
 | Stag Knight | Thorny Armor | Reaction | **text** — the GM's to play |
 | Oak Treant | Just a Tree | Passive | **text** — the GM's to play |
 | Oak Treant | Seed Barrage | Action | **text** — the GM's to play |
-| Oak Treant | Take Root | Action | **text** — the GM's to play |
+| Oak Treant | Take Root | Action | **scripted** — runs as an ability |
 | Head Vampire | Terrifying | Passive | **read** — read off the stat block |
 | Head Vampire | Look into My Eyes | Passive | **text** — the GM's to play |
 | Head Vampire | Feed on Followers | Action | **text** — the GM's to play |
@@ -428,7 +432,7 @@ Read: 73. Scripted: 52. Text: 292.
 | Outer Realms Thrall | Group Attack | Action | **text** — the GM's to play |
 | Volcanic Dragon: Obsidian Predator | Relentless (2) | Passive | **read** — read off the stat block |
 | Volcanic Dragon: Obsidian Predator | Flying | Passive | **text** — the GM's to play |
-| Volcanic Dragon: Obsidian Predator | Obsidian Scales | Passive | **text** — the GM's to play |
+| Volcanic Dragon: Obsidian Predator | Obsidian Scales | Passive | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Avalanche Tail | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Dive-Bomb | Action | **text** — the GM's to play |
 | Volcanic Dragon: Obsidian Predator | Erupting Rage (Phase Change) | Reaction | **text** — the GM's to play |
@@ -451,6 +455,6 @@ Read: 73. Scripted: 52. Text: 292.
 | Perfected Zombie | Perfect Strike | Action | **scripted** — runs as an ability |
 | Perfected Zombie | Skilled Opportunist | Reaction | **text** — the GM's to play |
 | Zombie Legion | Horde (2d6+5) | Passive | **read** — read off the stat block |
-| Zombie Legion | Unyielding | Passive | **text** — the GM's to play |
+| Zombie Legion | Unyielding | Passive | **scripted** — runs as an ability |
 | Zombie Legion | Relentless (2) | Passive | **read** — read off the stat block |
 | Zombie Legion | Overwhelm | Reaction | **text** — the GM's to play |

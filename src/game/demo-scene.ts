@@ -1385,8 +1385,13 @@ function landedFeatures(demo: DemoScene, attack: IncomingAttack): void {
 function defenderFor(demo: DemoScene, id: string): Defender | null {
   const entity = demo.state.entity(id);
   if (entity === undefined) return null;
+  // The same defender the automatic path builds, resistances included: a
+  // player asked how they take a hit must not be offered worse numbers than
+  // the ones the engine would have used for them.
+  const against = demo.world.defenderOf(entity);
   return {
-    thresholds: demo.world.defenderOf(entity).thresholds,
+    thresholds: against.thresholds,
+    ...(against.defenses === undefined ? {} : { defenses: against.defenses }),
     armorSlots: entity.armorSlots,
     stress: entity.stress,
     ...(entity.hope === undefined ? {} : { hope: entity.hope }),
