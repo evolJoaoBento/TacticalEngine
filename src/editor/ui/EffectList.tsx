@@ -88,6 +88,7 @@ const ADDABLE = [
   'spendToken',
   'push',
   'summon',
+  'countdown',
   'reactionRoll',
   'run',
 ] as const;
@@ -138,6 +139,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   spendToken: 'Spend tokens on a card',
   push: 'Push them back',
   summon: 'Summon adversaries',
+  countdown: 'Start a countdown',
   reactionRoll: 'Ask for a reaction roll',
   run: 'Run code',
 };
@@ -254,6 +256,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, to: 'far' };
     case 'summon':
       return { kind, adversary: props.adversaryIds?.[0] ?? '', range: 'close' };
+    case 'countdown':
+      return { kind, countdown: 'countdown', name: 'Countdown', start: '4', effects: [] };
     case 'reactionRoll':
       return { kind, difficulty: 12, trait: 'agility' };
     case 'run':
@@ -279,6 +283,16 @@ function parseArgs(raw: string): Record<string, string | number | boolean> | und
   }
   return Object.keys(args).length === 0 ? undefined : args;
 }
+
+/** What moves a countdown, in the words a designer would use for it. */
+const ADVANCES: readonly (readonly [string, string])[] = [
+  ['standard', 'on any PC roll'],
+  ['attackRoll', 'on a PC attack roll'],
+  ['withFear', 'on a PC roll with Fear'],
+  ['hpMarked', 'by the HP they mark'],
+  ['progress', 'progress (dynamic)'],
+  ['consequence', 'consequence (dynamic)'],
+];
 
 /** A one-line summary of an effect this cannot edit. */
 function describe(effect: Effect): string {
@@ -745,6 +759,58 @@ function renderBody(
           <div data-outcome="onSuccess">
             <div style={{ color: '#8ea3b0', fontSize: '11px' }}>those who succeed</div>
             <EffectList {...props} testId={undefined} effects={effect.onSuccess ?? []} onChange={(onSuccess) => onChange({ ...effect, onSuccess: onSuccess.length === 0 ? undefined : onSuccess })} />
+          </div>
+        </div>
+      );
+    case 'countdown':
+      return (
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="countdown">
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {text(effect.name, (name) => ({ ...effect, name }), 'what it is called')}
+            {text(effect.countdown, (countdown) => ({ ...effect, countdown }), 'id')}
+            <input
+              style={{ ...field, flex: 'none', width: '72px' }}
+              data-role="countdown-start"
+              placeholder="6, 1d6"
+              title="Where it starts, as dice"
+              value={effect.start}
+              onInput={(e) => onChange({ ...effect, start: (e.target as HTMLInputElement).value })}
+            />
+            <select
+              style={{ ...field, flex: 'none', width: '116px' }}
+              data-role="countdown-advance"
+              value={effect.advance ?? 'standard'}
+              onChange={(e) => onChange({ ...effect, advance: (e.target as HTMLSelectElement).value as typeof effect.advance })}
+            >
+              {ADVANCES.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select
+              style={{ ...field, flex: 'none', width: '104px' }}
+              data-role="countdown-loop"
+              value={effect.loop ?? 'once'}
+              onChange={(e) => {
+                const loop = (e.target as HTMLSelectElement).value;
+                onChange({ ...effect, loop: loop === 'once' ? undefined : (loop as 'reset' | 'increasing' | 'decreasing') });
+              }}
+            >
+              <option value="once">once, then gone</option>
+              <option value="reset">loop</option>
+              <option value="increasing">loop, +1 each time</option>
+              <option value="decreasing">loop, -1 each time</option>
+            </select>
+            {/* "If the Tyrant is defeated while this countdown is active, trigger it immediately." */}
+            {flag('goes off if they fall', 'Otherwise it ends with the one counting it', effect.onDeath === 'trigger', (on) => ({
+              ...effect,
+              onDeath: on ? 'trigger' : undefined,
+            }))}
+          </div>
+          <div data-outcome="countdownEffects">
+            <div style={{ color: '#8ea3b0', fontSize: '11px' }}>when it triggers</div>
+            <EffectList {...props} testId={undefined} effects={effect.effects} onChange={(effects) => onChange({ ...effect, effects })} />
           </div>
         </div>
       );

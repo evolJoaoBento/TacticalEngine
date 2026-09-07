@@ -34,6 +34,8 @@ import { useInteractable } from '../engine/scene/interact';
 import type { Trait } from '../engine/scene/primitives';
 import type { CheckOutcome, LogTone } from '../engine/script/effects';
 import type { DualityRoll } from '../engine/rules/duality';
+import type { CountdownCue } from '../engine/rules/countdown';
+import type { CountdownMoved, RunningCountdown } from '../engine/script/countdowns';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
 import { createScenarioState, SceneScriptWorld, useKey, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
 import { NO_BINDINGS, evaluateOptional } from '../engine/script/conditions';
@@ -959,6 +961,15 @@ export function attackWithSelected(
   );
   if (inCombat(demo)) demo.encounter!.act(id!, { spotlightToGm: outcome.spotlightToGm });
   settleFight(demo);
+  // The swing is over before a clock moves: a countdown that goes off now is
+  // answering the roll that was just made, not interrupting it. This attack
+  // never goes through the runner, so its cues are raised by hand.
+  if (outcome.dualityRoll !== undefined) {
+    tickCountdowns(demo, { kind: 'actionRoll', attack: true, outcome: outcome.dualityRoll.outcome });
+  }
+  if (applied.hitPointsMarked > 0) {
+    tickCountdowns(demo, { kind: 'hpMarked', id: targetId, marked: applied.hitPointsMarked });
+  }
   return { hit: outcome.hit, refused: null, hitPointsMarked: applied.hitPointsMarked };
 }
 
@@ -1055,6 +1066,10 @@ const announced = new WeakSet<EncounterRunner>();
  */
 export function settleFight(demo: DemoScene): void {
   playSevereReactions(demo);
+  // "If the Gorgon is defeated, all petrification countdowns end" - and the
+  // Ashen Tyrant's death throes go off instead. Here because this is where a
+  // death is noticed, whoever dealt it.
+  for (const moved of demo.world.reapCountdowns()) playCountdown(demo, moved);
   const encounter = demo.encounter;
   if (encounter === null || encounter.outcome === 'ongoing' || announced.has(encounter)) return;
   announced.add(encounter);
@@ -1084,6 +1099,12 @@ export function settleFight(demo: DemoScene): void {
 function adversaryTurn(demo: DemoScene, adversaryId: string): void {
   const adversary = demo.state.entity(adversaryId);
   if (adversary === undefined || !adversary.alive) return;
+
+  // "When the Sorcerer is in the spotlight for the first time...": before
+  // anything else the turn does, and before the checks below, because the
+  // spotlight was handed over whether or not the creature can use it - one
+  // that spends its turn shaking off a hold was still spotlighted.
+  playSpotlightReactions(demo, adversaryId);
 
   // Unable to act — Stunned, Asleep: the spotlight goes on shaking it off. A
   // temporary condition clears; one that only ends on damage or a Fear
@@ -1177,7 +1198,7 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
       // by definition, and neither does a summons: what it puts on the map is
       // not on it yet. Whether either is worth a turn is what its cost, its
       // uses and `available` say.
-      if (ability.target.kind === 'self' || summonsSomething(ability)) {
+      if (ability.target.kind === 'self' || summonsSomething(ability) || armsCountdown(ability)) {
         if (itself === null) itself = { ability, targets: [] };
         continue;
       }
@@ -1192,6 +1213,15 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
 /** Whether a feature puts creatures on the map. */
 function summonsSomething(ability: AbilityDef): boolean {
   return ability.effects.some((effect) => effect.kind === 'summon');
+}
+
+/**
+ * Whether a feature arms a clock. Like a summons, it catches nobody when it is
+ * used — what it does happens later — so the picker has to be told that using
+ * it is the point.
+ */
+function armsCountdown(ability: AbilityDef): boolean {
+  return ability.effects.some((effect) => effect.kind === 'countdown');
 }
 
 /**
@@ -1241,6 +1271,13 @@ function featureFear(ability: AbilityDef): number {
 
 function useAdversaryFeature(demo: DemoScene, adversaryId: string, ability: AbilityDef, targets: readonly string[]): void {
   if (demo.gmTurn !== null) demo.gmTurn.features[adversaryId] = true;
+  spendFeatureCost(demo, adversaryId, ability);
+  runAdversaryScript(demo, adversaryId, ability, targets);
+  settleFight(demo);
+}
+
+/** What using a stat block's feature costs the GM: Fear out of the pool, a use off the card. */
+function spendFeatureCost(demo: DemoScene, adversaryId: string, ability: AbilityDef): void {
   const fear = featureFear(ability);
   if (fear > 0) {
     demo.state.fear = { ...demo.state.fear, value: Math.max(0, demo.state.fear.value - fear) };
@@ -1250,7 +1287,68 @@ function useAdversaryFeature(demo: DemoScene, adversaryId: string, ability: Abil
     const key = useKey(adversaryId, ability.id);
     demo.scenario.abilityUses.set(key, (demo.scenario.abilityUses.get(key) ?? 0) + 1);
   }
-  runAdversaryScript(demo, adversaryId, ability, targets);
+}
+
+/**
+ * "When the Hunter is in the spotlight for the first time, activate the
+ * countdown": the features that answer the spotlight itself.
+ *
+ * "For the first time" is `uses`, which every one of these carries, so nothing
+ * here has to remember whose turn it is — the card runs out after one. It is a
+ * reaction, so it does not spend the turn's one feature: the creature arms its
+ * clock and then still swings.
+ */
+function playSpotlightReactions(demo: DemoScene, adversaryId: string): void {
+  const entity = demo.state.entity(adversaryId);
+  if (entity === undefined) return;
+  for (const ability of demo.world.reactionsFor(adversaryId, 'spotlighted')) {
+    if (ability.effects.length === 0) continue;
+    if ((ability.cost.stress ?? 0) > unmarked(entity.stress)) continue;
+    if (featureFear(ability) > demo.state.fear.value) continue;
+    if (featureUsesLeft(demo, adversaryId, ability) <= 0) continue;
+    spendFeatureCost(demo, adversaryId, ability);
+    runAdversaryScript(demo, adversaryId, ability);
+  }
+}
+
+/**
+ * Advance every countdown this cue speaks to, and play the ones that reach 0.
+ *
+ * Countdowns are the one thing in a fight that nobody takes a turn to move:
+ * the party rolls, a clock ticks, and some turns later something goes off.
+ * This is where the table's events reach them.
+ */
+function tickCountdowns(demo: DemoScene, cue: CountdownCue): void {
+  for (const moved of demo.world.advanceCountdowns(cue, demo.rng)) playCountdown(demo, moved);
+}
+
+/** Say what a countdown did, and run its effects if it went off. */
+function playCountdown(demo: DemoScene, moved: CountdownMoved): void {
+  if (!moved.fired) {
+    note(demo, `${moved.countdown.name}: ${moved.value} to go.`, 'fear');
+    return;
+  }
+  note(demo, `${moved.countdown.name} triggers.`, 'fear');
+  runCountdown(demo, moved.countdown);
+}
+
+/**
+ * A countdown going off, with the creature that armed it acting.
+ *
+ * That creature may be dead — the Ashen Tyrant's death throes are a countdown
+ * that triggers *because* it fell — so nothing here asks whether it is still
+ * standing. Its effects otherwise run exactly as a feature's do, which is what
+ * lets a countdown summon something and have it act.
+ */
+function runCountdown(demo: DemoScene, countdown: RunningCountdown): void {
+  const was = demo.scenario.actorId;
+  demo.scenario.actorId = countdown.owner;
+  const runner = new ScriptRunner(demo.world, demo.rng, { targets: [], hit: [], rollAs: 'actor' });
+  const result = runner.run(countdown.effects);
+  record(demo, result.journal);
+  demo.scenario.actorId = was;
+  spendSwarmSpotlights(demo, result.journal);
+  spotlightArrivals(demo, result.journal);
   settleFight(demo);
 }
 
@@ -2160,7 +2258,42 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
   demo.log.push(...lines);
   // A condition a script put on or took off someone may move a pool's maximum.
   syncPools(demo);
+  // Clocks move on what the *party* does: "it ticks down when a PC makes an
+  // attack roll". A stat block's own roll is the GM's move, and a countdown
+  // fired by a countdown must not advance the one that fired it, so the cues
+  // are raised after the whole journal is in, never during it.
+  for (const cue of cuesFrom(demo, journal)) tickCountdowns(demo, cue);
   return lines;
+}
+
+/**
+ * What a script did that a countdown might be waiting for: a party member's
+ * action roll, and any Hit Points anyone marked.
+ *
+ * A check is rolled by whoever the script is acting as, so it counts as the
+ * party's only when the party is acting; an attack names its own roller. Hit
+ * Points are nobody's side - "when they mark HP, tick down this countdown by
+ * the number of HP marked" is written about the countdown's owner, and the
+ * board only hands the cue to the countdown whose owner marked them.
+ */
+function cuesFrom(demo: DemoScene, journal: readonly JournalEntry[]): CountdownCue[] {
+  const isParty = (id: string | null): boolean =>
+    id !== null && demo.state.entity(id)?.faction === 'party';
+  const cues: CountdownCue[] = [];
+  for (const entry of journal) {
+    if (entry.kind === 'check' && isParty(demo.scenario.actorId)) {
+      cues.push({ kind: 'actionRoll', attack: false, outcome: entry.roll.outcome });
+    }
+    if (entry.kind === 'attack') {
+      if (entry.roll !== undefined && isParty(entry.attacker)) {
+        cues.push({ kind: 'actionRoll', attack: true, outcome: entry.roll.outcome });
+      }
+      if (entry.hitPointsMarked > 0) {
+        cues.push({ kind: 'hpMarked', id: entry.target, marked: entry.hitPointsMarked });
+      }
+    }
+  }
+  return cues;
 }
 
 /** A creature's name for the log: the sheet's, the stat block's, or its id. */
@@ -2214,6 +2347,8 @@ function describeEntry(
         : { text: `${who(entry.id)} is no longer ${entry.condition}.`, tone: 'system' };
     case 'moved':
       return { text: `${who(entry.id)} is thrown back.`, tone: 'combat' };
+    case 'countdown':
+      return { text: `${entry.name} begins: ${entry.value}.`, tone: 'fear' };
     case 'summoned': {
       const first = entry.ids[0];
       if (first === undefined) return null;

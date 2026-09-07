@@ -238,6 +238,97 @@ describe('a Lieutenant with more where that came from', () => {
   });
 });
 
+describe('a clock the fight carries', () => {
+  /** One Sorcerer across the hall from Kara, and the fight already on. */
+  const ruin = (adversary: string, at: { x: number; y: number }, seed: string) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'ruin', name: 'The ruin' })));
+    s.run(addAdversary('hall', 'ruin', { id: 'foe', adversary, position: at }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'ruin');
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.party.select('kara');
+    // A level 1 Guardian does not live long in front of a Tier 4 block, and
+    // this test is about the clock rather than about Kara: give her the Hit
+    // Points to stand there while it runs down.
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+    return demo;
+  };
+
+  /** Kara swings, taking the spotlight back first if a roll with Fear lost it. */
+  const swing = (demo: ReturnType<typeof ruin>): void => {
+    if (!demo.encounter!.canAct('kara')) endTurn(demo);
+    attackWithSelected(demo, 'foe');
+  };
+
+  it('is armed on the Sorcerer first spotlight and goes off on a later roll', () => {
+    const demo = ruin('fallen-sorcerer', { x: 3, y: 4 }, 'shackles');
+    endTurn(demo);
+
+    // "When the Sorcerer is in the spotlight for the first time, activate the
+    // countdown."
+    expect(demo.log.some((l) => l.text.includes('Shackles of Guilt begins'))).toBe(true);
+    const clock = demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt');
+    expect(clock).toMatchObject({ owner: 'foe', advance: 'standard', loop: 'reset' });
+    expect(clock!.value).toBeGreaterThanOrEqual(2);
+
+    // A clock nobody spends a turn on: Kara swings, and it moves.
+    const started = demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value;
+    swing(demo);
+    expect(demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value).toBe(started - 1);
+
+    // Down to its last tick, and the next roll sets it off: everyone within
+    // Far range relives what they would rather not.
+    demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value = 1;
+    const stress = demo.state.entity('kara')!.stress.marked;
+    swing(demo);
+    expect(demo.log.some((l) => l.text.includes('Shackles of Guilt triggers'))).toBe(true);
+    expect(demo.state.entity('kara')!.conditions.has('vulnerable')).toBe(true);
+    expect(demo.state.entity('kara')!.stress.marked).toBeGreaterThan(stress);
+
+    // "Loop 2d6": it comes straight back, at a length nobody at the table knows.
+    const again = demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt');
+    expect(again).toBeDefined();
+    expect(again!.value).toBe(again!.start);
+  });
+
+  it('goes off as the Tyrant falls, because that is what their feature says', () => {
+    // Across the hall, so the Tyrant spends its first turn walking rather
+    // than eating a level 1 Guardian: the countdown is the point.
+    const demo = ruin('volcanic-dragon-ashen-tyrant', { x: 11, y: 4 }, 'tyrant');
+    endTurn(demo);
+    const id = 'volcanic-dragon-ashen-tyrant-apocalyptic-thrashing';
+    expect(demo.scenario.countdowns.get(id)).toMatchObject({ advance: 'withFear', onDeath: 'trigger' });
+
+    // "If the Ashen Tyrant is defeated while this countdown is active,
+    // trigger the countdown immediately as the destruction caused by their
+    // death throes."
+    const before = demo.state.entity('kara')!.hitPoints.marked;
+    demo.state.entity('foe')!.alive = false;
+    settleFight(demo);
+    expect(demo.log.some((l) => l.text.includes('Apocalyptic Thrashing triggers'))).toBe(true);
+    expect(demo.state.entity('kara')!.hitPoints.marked).toBeGreaterThan(before);
+    // Spent: a second death does not bring the mountain down twice.
+    expect(demo.scenario.countdowns.has(id)).toBe(false);
+    settleFight(demo);
+    expect(demo.log.filter((l) => l.text.includes('Apocalyptic Thrashing triggers')).length).toBe(1);
+  });
+
+  it('is armed once, however many turns the Sorcerer gets', () => {
+    const demo = ruin('fallen-sorcerer', { x: 3, y: 4 }, 'shackles-2');
+    endTurn(demo);
+    const first = demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value;
+    demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value = 2;
+    endTurn(demo);
+    // "For the first time": a second spotlight does not start it over.
+    expect(demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value).not.toBe(first);
+    expect(demo.log.filter((l) => l.text.includes('Shackles of Guilt begins')).length).toBe(1);
+  });
+});
+
 describe('a swarm of Giant Rats', () => {
   /** Rats loose in the hall, and Kara alone in the middle of it. */
   const hall = (rats: readonly { x: number; y: number }[], fear: number) => {

@@ -21,6 +21,7 @@ import { z } from 'zod';
 import { contentIdSchema, traitSchema } from '../scene/primitives';
 import { questQuerySchema } from '../content/quests';
 import { RANGE_BANDS } from '../rules/range';
+import { COUNTDOWN_ADVANCES, COUNTDOWN_LOOPS } from '../rules/countdown';
 
 /** A range band as content writes it: "within Close range". */
 export const rangeBandSchema = z.enum(RANGE_BANDS);
@@ -496,6 +497,41 @@ export const effectSchema = z.discriminatedUnion('kind', [
     spotlight: z.boolean().optional(),
   }),
   /**
+   * "Activate the countdown. It ticks down when a PC makes an attack roll.
+   * When it triggers, ...": a clock the fight carries between turns.
+   *
+   * Starting one that is already running restarts it rather than running two,
+   * so a feature that arms on its holder's first spotlight is written with
+   * `uses` and one that arms again is saying "start over".
+   *
+   * What it does when it triggers is `effects`, run with the creature that
+   * started it acting, however many turns later that is. Those effects travel
+   * with the countdown into a save: a clock is no use if loading a game loses
+   * what it was counting towards.
+   */
+  z.object({
+    kind: z.literal('countdown'),
+    /** Stable id for this clock, so restarting it is telling one from another. */
+    countdown: contentIdSchema,
+    /** What the table calls it: the feature's name, near enough always. */
+    name: z.string().min(1),
+    /** Starting value, as dice: "5", "1d6", "2d6". */
+    start: z.string().min(1),
+    /** What advances it. Standard - every action roll a player makes - by default. */
+    advance: z.enum(COUNTDOWN_ADVANCES).optional(),
+    /** Loop, increasing or decreasing. Left out, it is spent when it triggers. */
+    loop: z.enum(COUNTDOWN_LOOPS).optional(),
+    /**
+     * What the owner falling does to it. A countdown ends with the creature
+     * counting it ("if the Gorgon is defeated, all petrification countdowns
+     * end"); `trigger` is the Ashen Tyrant's death throes, which go off.
+     */
+    onDeath: z.enum(['end', 'trigger']).optional(),
+    get effects() {
+      return z.array(effectSchema).default([]);
+    },
+  }),
+  /**
    * The targets roll to avoid something: adversaries a d20, party members
    * their Duality Dice with `trait`. `onFail` runs with the ones who failed
    * bound to `hit`, then `onSuccess` with the ones who passed. `difficulty:
@@ -579,6 +615,9 @@ export function walkEffects(
       case 'reactionRoll':
         walkEffects(effect.onFail, visit);
         walkEffects(effect.onSuccess, visit);
+        break;
+      case 'countdown':
+        walkEffects(effect.effects, visit);
         break;
       default:
         break;

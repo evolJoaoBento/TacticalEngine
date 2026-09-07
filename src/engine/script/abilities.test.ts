@@ -182,6 +182,65 @@ describe('selectors', () => {
   });
 });
 
+describe('a clock a feature arms', () => {
+  it('starts at the value it rolled, owned by whoever armed it', () => {
+    const built = scene();
+    built.scenario.actorId = 'husk-1';
+    const journal = runScript(
+      [
+        {
+          kind: 'countdown',
+          countdown: 'ritual',
+          name: 'Summoning Ritual',
+          start: '6',
+          advance: 'hpMarked',
+          effects: [{ kind: 'log', text: 'It is done.' }],
+        },
+      ],
+      built.world,
+      scripted([]),
+      { rollAs: 'actor' },
+    );
+    expect(journal.find((e) => e.kind === 'countdown')).toMatchObject({ countdown: 'ritual', value: 6 });
+
+    const [running] = built.world.countdowns();
+    expect(running).toMatchObject({ id: 'ritual', owner: 'husk-1', value: 6, start: 6, advance: 'hpMarked' });
+    // The clock is on the scenario, not the scene: it outlives the turn that
+    // armed it, and a save carries it.
+    expect(built.scenario.countdowns.get('ritual')).toBe(running);
+  });
+
+  it('restarts the one already running under its id rather than keeping two', () => {
+    const built = scene();
+    built.scenario.actorId = 'husk-1';
+    const arm = () =>
+      runScript(
+        [{ kind: 'countdown', countdown: 'ritual', name: 'Summoning Ritual', start: '4', effects: [] }],
+        built.world,
+        scripted([]),
+        { rollAs: 'actor' },
+      );
+    arm();
+    built.scenario.countdowns.get('ritual')!.value = 1;
+    arm();
+    expect(built.world.countdowns()).toHaveLength(1);
+    expect(built.world.countdowns()[0]!.value).toBe(4);
+  });
+
+  it('refuses a length it cannot read', () => {
+    const built = scene();
+    built.scenario.actorId = 'husk-1';
+    const journal = runScript(
+      [{ kind: 'countdown', countdown: 'ritual', name: 'Ritual', start: 'soon', effects: [] }],
+      built.world,
+      scripted([]),
+      { rollAs: 'actor' },
+    );
+    expect(refusals(journal)[0]).toContain('soon');
+    expect(built.world.countdowns()).toEqual([]);
+  });
+});
+
 describe('what a block calls onto the map', () => {
   /** The band a tile stands in, from the one who summoned. */
   const bandOf = (built: ReturnType<typeof scene>, id: string): string => {

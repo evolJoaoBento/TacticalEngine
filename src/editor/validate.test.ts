@@ -687,6 +687,102 @@ describe('what only a stat block has', () => {
   });
 });
 
+describe('a countdown nobody can read', () => {
+  it('catches a length that is not dice, a clock already run out, and one counting towards nothing', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'soon',
+          name: 'Soon',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'countdown', countdown: 'soon', name: 'Soon', start: 'soon', effects: [{ kind: 'log', text: 'now' }] }],
+        },
+        {
+          id: 'already',
+          name: 'Already',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'countdown', countdown: 'already', name: 'Already', start: '0', effects: [{ kind: 'log', text: 'now' }] }],
+        },
+        {
+          id: 'pointless',
+          name: 'Pointless',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'countdown', countdown: 'pointless', name: 'Pointless', start: '4', effects: [] }],
+        },
+        {
+          id: 'in-a-hand',
+          name: 'In A Hand',
+          source: { kind: 'granted', characters: ['kara'] },
+          target: { kind: 'none' },
+          effects: [
+            {
+              kind: 'countdown',
+              countdown: 'in-a-hand',
+              name: 'In A Hand',
+              start: '6',
+              advance: 'hpMarked',
+              effects: [{ kind: 'log', text: 'now' }],
+            },
+          ],
+        },
+        {
+          id: 'fine',
+          name: 'Fine',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [
+            {
+              kind: 'countdown',
+              countdown: 'fine',
+              name: 'Fine',
+              start: '1d6',
+              loop: 'reset',
+              effects: [{ kind: 'summon', adversary: 'husk', range: 'close' }],
+            },
+          ],
+        },
+      ],
+    });
+    const said = messages(project, { knownAdversaries: new Set(['husk']) });
+    expect(said).toContain('"soon" starts a countdown at "soon", which is not dice.');
+    expect(said).toContain('"already" starts a countdown at "0", which has already run out.');
+    expect(said).toContain('"pointless" starts a countdown that does nothing when it triggers.');
+    expect(said).toContain('"in-a-hand" counts the Hit Points its owner marks, which only a stat block has.');
+    // A clock that reads, loops and does something is exactly what it should be.
+    expect(said.some((m) => m.includes('"fine"'))).toBe(false);
+  });
+
+  it('reads what a countdown will do, so a summons hidden inside one is still checked', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'ritual',
+          name: 'Ritual',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [
+            {
+              kind: 'countdown',
+              countdown: 'ritual',
+              name: 'Ritual',
+              start: '6',
+              effects: [{ kind: 'summon', adversary: 'nothing-like-it', range: 'close' }],
+            },
+          ],
+        },
+      ],
+    });
+    expect(messages(project, { knownAdversaries: new Set(['husk']) })).toContain(
+      '"ritual" summons "nothing-like-it", which is not an adversary.',
+    );
+  });
+});
+
 describe('logic in code', () => {
   it('reports a hook nobody defines, code that will not compile, and code nothing runs', () => {
     const project = projectSchema.parse({

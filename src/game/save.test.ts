@@ -163,6 +163,28 @@ describe('loading a game', () => {
     expect(back.scenario.variables).toEqual(demo.scenario.variables);
   });
 
+  it('carries a clock that was running, and what it was counting towards', () => {
+    const demo = scene();
+    demo.world.startCountdown({
+      id: 'ritual',
+      name: 'Summoning Ritual',
+      owner: null,
+      dice: '2d6',
+      value: 4,
+      start: 7,
+      advance: 'hpMarked',
+      loop: 'reset',
+      onDeath: 'trigger',
+      effects: [{ kind: 'log', text: 'The circle closes.' }],
+    });
+
+    const back = reload(demo);
+    // A clock is no use if loading a game loses what it was counting towards,
+    // so the effects travel with it.
+    expect(back.scenario.countdowns.get('ritual')).toEqual(demo.scenario.countdowns.get('ritual'));
+    expect(back.world.countdowns()).toHaveLength(1);
+  });
+
   it('refills the scenario in place, so the live room still reads it', () => {
     const demo = scene();
     const scenario = demo.scenario;

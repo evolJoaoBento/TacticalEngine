@@ -55,6 +55,15 @@ import type { CheckTrait, TargetSelector } from './schema';
 import type { Rng } from '../core/rng';
 import { rollLoot, type LootDrop, type LootTable } from '../content/items';
 import { questStatusSchema, type QuestProgress, type QuestQuery } from '../content/quests';
+import {
+  advanceBoard,
+  reapBoard,
+  runningCountdownSchema,
+  type CountdownBoard,
+  type CountdownMoved,
+  type RunningCountdown,
+} from './countdowns';
+import type { CountdownCue } from '../rules/countdown';
 import type { AttackSummary, DealtDamage, ScriptWorld } from './runner';
 import { evaluate, type TargetBindings } from './conditions';
 import type { HookFn, HookMap } from './hooks';
@@ -97,6 +106,13 @@ export interface ScenarioState {
   abilityUses: Map<string, number>;
   /** Tokens on a card, keyed the same way: "who/which-card". */
   abilityTokens: Map<string, number>;
+  /**
+   * Clocks the fight is carrying, by countdown id. On the scenario rather than
+   * the scene because a countdown outlives a defence prompt and a GM turn, and
+   * because a save that lost what a countdown was counting towards would be a
+   * save of a different fight.
+   */
+  countdowns: CountdownBoard;
 }
 
 /** The key `abilityUses` files a use under. */
@@ -119,6 +135,7 @@ export function createScenarioState(
     partyLevel: 1,
     abilityUses: new Map(),
     abilityTokens: new Map(),
+    countdowns: new Map(),
   };
 }
 
@@ -151,6 +168,8 @@ export const scenarioSnapshotSchema = z.object({
   partyLevel: z.number().int().min(1).max(10).default(1),
   abilityUses: z.array(z.tuple([z.string(), z.number().int().min(0)])).default([]),
   abilityTokens: z.array(z.tuple([z.string(), z.number().int().min(0)])).default([]),
+  /** Defaulted like the rest: a save written before countdowns existed loads. */
+  countdowns: z.array(runningCountdownSchema).default([]),
 });
 
 export type ScenarioSnapshot = z.infer<typeof scenarioSnapshotSchema>;
@@ -170,6 +189,10 @@ export function scenarioSnapshot(scenario: ScenarioState): ScenarioSnapshot {
     partyLevel: scenario.partyLevel,
     abilityUses: [...scenario.abilityUses].map(([key, used]) => [key, used] as [string, number]),
     abilityTokens: [...scenario.abilityTokens].map(([key, held]) => [key, held] as [string, number]),
+    countdowns: [...scenario.countdowns.values()].map((countdown) => ({
+      ...countdown,
+      effects: [...countdown.effects],
+    })),
   };
 }
 
@@ -201,6 +224,8 @@ export function restoreScenario(scenario: ScenarioState, snapshot: ScenarioSnaps
   for (const [key, used] of snapshot.abilityUses) scenario.abilityUses.set(key, used);
   scenario.abilityTokens.clear();
   for (const [key, held] of snapshot.abilityTokens ?? []) scenario.abilityTokens.set(key, held);
+  scenario.countdowns.clear();
+  for (const countdown of snapshot.countdowns ?? []) scenario.countdowns.set(countdown.id, countdown);
 }
 
 /** Thresholds for a creature nothing describes: the demo's stand-in numbers. */
@@ -338,6 +363,35 @@ export class SceneScriptWorld implements ScriptWorld {
 
   countAlive(faction: 'party' | 'adversary'): number {
     return this.state.entitiesOf(faction).filter((e) => e.alive).length;
+  }
+
+  startCountdown(countdown: RunningCountdown): void {
+    this.scenario.countdowns.set(countdown.id, countdown);
+  }
+
+  /** The clocks the fight is carrying, in the order they were armed. */
+  countdowns(): readonly RunningCountdown[] {
+    return [...this.scenario.countdowns.values()];
+  }
+
+  /**
+   * Something happened at the table: advance whatever was waiting on it.
+   *
+   * The countdowns that moved come back, the ones that reached 0 marked
+   * `fired`, and playing what those do is the caller's — the world has no
+   * runner and a countdown's effects are a script.
+   */
+  advanceCountdowns(cue: CountdownCue, rng: Rng): CountdownMoved[] {
+    return advanceBoard(this.scenario.countdowns, cue, rng);
+  }
+
+  /**
+   * Countdowns whose owner has fallen: ended, or set off where the feature
+   * says they go off. Safe to call after every death — a countdown leaves the
+   * board either way, so nothing fires twice.
+   */
+  reapCountdowns(): CountdownMoved[] {
+    return reapBoard(this.scenario.countdowns, (id) => this.state.entity(id)?.alive === true);
   }
 
   actorId(): string | null {

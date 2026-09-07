@@ -174,10 +174,12 @@ export const abilitySchema = z.object({
    * the table — what the holder's own standard attack did, which is how a
    * stat block says "targets who mark HP from the Zombie's attacks must also
    * mark a Stress". `dealtHit` fires on a hit however it is answered;
-   * `dealtDamage` only when a Hit Point was actually marked.
+   * `dealtDamage` only when a Hit Point was actually marked. `spotlighted` is
+   * the turn itself arriving: "when the Hunter is in the spotlight for the
+   * first time", where "the first time" is a `uses` of one.
    */
   trigger: z
-    .enum(['incomingDamage', 'attackHit', 'attackMissed', 'tookSevere', 'dealtHit', 'dealtDamage'])
+    .enum(['incomingDamage', 'attackHit', 'attackMissed', 'tookSevere', 'dealtHit', 'dealtDamage', 'spotlighted'])
     .optional(),
   /**
    * What using it costs its holder. `fear` is the GM's pool, so it belongs to

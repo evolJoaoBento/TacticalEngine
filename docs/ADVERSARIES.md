@@ -16,7 +16,11 @@ engine has no place to put:
   Minions", "Minions relevant to a personal nightmare": which stat block arrives is the
   GM to pick, and an engine that picked one would be writing the encounter. The ones
   that name what they call are scripted.
-- **a Countdown** — a clock that ticks on a trigger and goes off later.
+- **a countdown whose trigger or payoff the vocabulary cannot say** - the clock itself
+  runs (`src/engine/rules/countdown.ts`), so the ones that arm on a spotlight, tick on a
+  roll and then damage, summon or apply a condition are scripted. What stays text is the
+  payoff: a charge in a straight line through everyone, a circle of ground that stays
+  dangerous, allies made to attack, a clock somebody else winds.
 - **spotlighting allies** — a feature that hands the turn to other adversaries.
 - **a point on the map** — "choose a point within Far range; everyone within Close range
   of *that*": selectors read bands around the creature that is acting, not around a spot.
@@ -52,7 +56,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 105. Text: 239.
+Read: 73. Scripted: 110. Text: 234.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -278,7 +282,7 @@ Read: 73. Scripted: 105. Text: 239.
 | Royal Advisor | Scapegoat | Action | **text** — the GM's to play |
 | Secret-Keeper | Seize Your Moment | Action | **text** — the GM's to play |
 | Secret-Keeper | Our Master's Will | Reaction | **text** — the GM's to play |
-| Secret-Keeper | Summoning Ritual | Reaction: Countdown (6) | **text** — the GM's to play |
+| Secret-Keeper | Summoning Ritual | Reaction: Countdown (6) | **scripted** — runs as an ability |
 | Secret-Keeper | Fallen Hounds | Reaction | **scripted** — runs as an ability |
 | Shark | Terrifying | Passive | **read** — read off the stat block |
 | Shark | Rending Bite | Passive | **scripted** — runs as an ability |
@@ -330,7 +334,7 @@ Read: 73. Scripted: 105. Text: 239.
 | Demon of Wrath | Anger Unrelenting | Passive | **scripted** — runs as an ability |
 | Demon of Wrath | Battle Lust | Action | **text** — the GM's to play |
 | Demon of Wrath | Retaliation | Reaction | **text** — the GM's to play |
-| Demon of Wrath | Blood and Souls | Reaction: Countdown (Loop 6) | **text** — the GM's to play |
+| Demon of Wrath | Blood and Souls | Reaction: Countdown (Loop 6) | **scripted** — runs as an ability |
 | Dire Bat | Flying | Passive | **text** — the GM's to play |
 | Dire Bat | Screech | Action | **text** — the GM's to play |
 | Dire Bat | Guardian | Reaction | **text** — the GM's to play |
@@ -402,11 +406,11 @@ Read: 73. Scripted: 105. Text: 239.
 | Fallen Sorcerer | Conflagration | Action | **scripted** — runs as an ability |
 | Fallen Sorcerer | Nightmare Tableau | Action | **text** — the GM's to play |
 | Fallen Sorcerer | Slippery | Reaction | **text** — the GM's to play |
-| Fallen Sorcerer | Shackles of Guilt | Reaction: Countdown (Loop 2d6) | **text** — the GM's to play |
+| Fallen Sorcerer | Shackles of Guilt | Reaction: Countdown (Loop 2d6) | **scripted** — runs as an ability |
 | Fallen Warlord: Realm-Breaker | Relentless (2) | Passive | **read** — read off the stat block |
 | Fallen Warlord: Realm-Breaker | Firespite Plate Armor | Passive | **scripted** — runs as an ability |
 | Fallen Warlord: Realm-Breaker | Tormenting Lash | Action | **text** — the GM's to play |
-| Fallen Warlord: Realm-Breaker | All-Consuming Rage | Reaction: Countdown (Decreasing 8) | **text** — the GM's to play |
+| Fallen Warlord: Realm-Breaker | All-Consuming Rage | Reaction: Countdown (Decreasing 8) | **scripted** — runs as an ability |
 | Fallen Warlord: Realm-Breaker | Doombringer | Reaction | **text** — the GM's to play |
 | Fallen Warlord: Realm-Breaker | I Have Never Known Defeat (Phase Change) | Reaction | **text** — the GM's to play |
 | Fallen Warlord: Undefeated Champion | Relentless (3) | Passive | **read** — read off the stat block |
@@ -464,7 +468,7 @@ Read: 73. Scripted: 105. Text: 239.
 | Volcanic Dragon: Ashen Tyrant | Ashes to Ashes | Passive | **text** — the GM's to play |
 | Volcanic Dragon: Ashen Tyrant | Desperate Rampage | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Ashen Tyrant | Ashen Cloud | Action | **text** — the GM's to play |
-| Volcanic Dragon: Ashen Tyrant | Apocalyptic Thrashing | Action: Countdown (1d12) | **text** — the GM's to play |
+| Volcanic Dragon: Ashen Tyrant | Apocalyptic Thrashing | Action: Countdown (1d12) | **scripted** — runs as an ability |
 | Perfected Zombie | Terrifying | Passive | **read** — read off the stat block |
 | Perfected Zombie | Fearsome Presence | Passive | **text** — the GM's to play |
 | Perfected Zombie | Perfect Strike | Action | **scripted** — runs as an ability |

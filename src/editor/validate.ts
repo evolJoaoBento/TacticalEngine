@@ -214,6 +214,26 @@ function checkAbilitiesAndCode(
         add('error', `"${ability.id}" summons "${effect.count}" of them, which is not dice.`, ability.id);
       }
     });
+    // A clock that cannot be read never starts, and one counting towards
+    // nothing is a clock the table watches for no reason.
+    walkEffects(ability.effects, (effect) => {
+      if (effect.kind !== 'countdown') return;
+      const expression = parseDice(effect.start);
+      if (expression === null) {
+        add('error', `"${ability.id}" starts a countdown at "${effect.start}", which is not dice.`, ability.id);
+      } else if (expression.count === 0 && expression.modifier <= 0) {
+        add('error', `"${ability.id}" starts a countdown at "${effect.start}", which has already run out.`, ability.id);
+      }
+      if (effect.effects.length === 0) {
+        add('warning', `"${ability.id}" starts a countdown that does nothing when it triggers.`, ability.id);
+      }
+      // "When they mark HP, tick down this countdown by the number of HP
+      // marked" is read against the creature that armed it, so a card in a
+      // player's hand has nobody to read it against.
+      if (effect.advance === 'hpMarked' && ability.source.kind !== 'adversary') {
+        add('warning', `"${ability.id}" counts the Hit Points its owner marks, which only a stat block has.`, ability.id);
+      }
+    });
     // "Reduce it by three" is not a number: the reduction is a dice expression
     // and an unreadable one silently reduces nothing.
     for (const entry of ability.defenses?.reduce ?? []) {

@@ -25,6 +25,7 @@
 import type { Rng } from '../core/rng';
 import { rollDuality, type DualityRoll } from '../rules/duality';
 import { formatDice, parseDice, rollDice, type DamageType, type ParsedDamage } from '../rules/dice';
+import type { RunningCountdown } from './countdowns';
 import { hookReads } from './conditions';
 import { runHook, type HookContext } from './hooks';
 import { rollDamage, type IncomingDamage } from '../rules/damage';
@@ -199,6 +200,8 @@ export interface ScriptWorld extends ConditionContext {
   summon(definition: string, count: number, range: RangeBand): { ids: string[]; refused?: string };
   /** How many of a faction are still standing. */
   countAlive(faction: 'party' | 'adversary'): number;
+  /** Arm a countdown, replacing one already running under the same id. */
+  startCountdown(countdown: RunningCountdown): void;
   /** A reaction roll: a d20 for an adversary, Duality Dice for a party member. */
   rollReaction(
     id: string,
@@ -270,6 +273,8 @@ export type JournalEntry =
   | { kind: 'moved'; id: string; from: number; to: number }
   /** Creatures a feature put on the map, and whether they act at once. */
   | { kind: 'summoned'; adversary: string; ids: readonly string[]; spotlight: boolean }
+  /** A clock armed. Advancing it is the game's job, not the runner's. */
+  | { kind: 'countdown'; countdown: string; name: string; value: number }
   /** `roll` is set when a party member rolled it: an adversary's is a d20. */
   | { kind: 'reaction'; id: string; success: boolean; total: number; difficulty: number; roll?: DualityRoll }
   /** A defender's reaction to damage fired: Get Back Up, a Rune Ward. */
@@ -824,6 +829,29 @@ export class ScriptRunner {
           ids: arrived.ids,
           spotlight: effect.spotlight === true,
         });
+        return null;
+      }
+      case 'countdown': {
+        const expression = parseDice(effect.start);
+        if (expression === null) return this.refuse(`cannot read a countdown of "${effect.start}"`);
+        // Rolled here rather than in the world, because the runner is what
+        // holds the seeded rng: "Countdown (1d12)" is a different fight each
+        // time, but the same fight every time for a given seed.
+        const start = rollDice(this.rng, expression).total;
+        if (start <= 0) return this.refuse(`a countdown of "${effect.start}" starts at ${start}`);
+        world.startCountdown({
+          id: effect.countdown,
+          name: effect.name,
+          owner: world.actorId(),
+          dice: effect.start,
+          value: start,
+          start,
+          advance: effect.advance ?? 'standard',
+          onDeath: effect.onDeath ?? 'end',
+          ...(effect.loop === undefined ? {} : { loop: effect.loop }),
+          effects: effect.effects,
+        });
+        this.journal.push({ kind: 'countdown', countdown: effect.countdown, name: effect.name, value: start });
         return null;
       }
       case 'push': {

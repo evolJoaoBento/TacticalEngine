@@ -1551,6 +1551,172 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- clocks a fight carries -------------------------------------------
+  // "Activate the countdown. It ticks down when a PC makes an attack roll.
+  // When it triggers, ..." Five of the fourteen printed countdowns: the ones
+  // whose trigger and whose payoff the vocabulary can both say. The rest stay
+  // text - a countdown that moves a creature in a straight line through
+  // everyone, one that lays a circle on the ground, one that runs on the
+  // number of Hit Points somebody else marked.
+  //
+  // "In the spotlight for the first time" is a `spotlighted` reaction with one
+  // use: the turn arriving is the trigger, and the card running out is the
+  // "first time". Arming a clock is a reaction, so the creature still swings.
+  {
+    id: 'secret-keeper-summoning-ritual',
+    name: 'Summoning Ritual',
+    source: from('secret-keeper'),
+    text: 'When the Secret-Keeper is in the spotlight for the first time, activate the countdown. When they mark HP, tick down this countdown by the number of HP marked. When it triggers, summon a Minor Demon who appears at Close range.',
+    kind: 'reaction',
+    trigger: 'spotlighted',
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'secret-keeper-summoning-ritual',
+        name: 'Summoning Ritual',
+        start: '6',
+        advance: 'hpMarked',
+        effects: [{ kind: 'summon', adversary: 'minor-demon', range: 'close' }],
+      },
+    ],
+  },
+  {
+    id: 'fallen-sorcerer-shackles-of-guilt',
+    name: 'Shackles of Guilt',
+    source: from('fallen-sorcerer'),
+    text: 'When the Sorcerer is in the spotlight for the first time, activate the countdown. When it triggers, all targets within Far range become Vulnerable and must mark a Stress as they relive their greatest regrets. A target can break free from their regret with a successful Presence or Strength Roll. When a PC fails to break free, they lose a Hope.',
+    kind: 'reaction',
+    trigger: 'spotlighted',
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'fallen-sorcerer-shackles-of-guilt',
+        name: 'Shackles of Guilt',
+        start: '2d6',
+        loop: 'reset',
+        effects: [
+          { kind: 'log', text: 'Old regrets close around them.', tone: 'fear' },
+          // Simplified: the roll to break free is a move the party makes on
+          // their own turn, which nothing here can ask for, so the Vulnerable
+          // runs to the end of the scene and the Hope for failing to shake it
+          // is not taken.
+          { kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: { kind: 'allies', range: 'far' } },
+          { kind: 'markStress', target: { kind: 'allies', range: 'far' } },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'demon-of-wrath-blood-and-souls',
+    name: 'Blood and Souls',
+    source: from('demon-of-wrath'),
+    text: 'Activate the first time an attack is made within sight of the Demon. It ticks down when a PC takes a violent action. When it triggers, summon 1d4 Minor Demons, who appear at Close range.',
+    kind: 'reaction',
+    trigger: 'spotlighted',
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'demon-of-wrath-blood-and-souls',
+        name: 'Blood and Souls',
+        start: '6',
+        // "When a PC takes a violent action": an attack roll, which is the
+        // only violence the engine can recognise.
+        advance: 'attackRoll',
+        loop: 'reset',
+        // Simplified: it arms on the Demon's first spotlight rather than on
+        // the first attack made in its sight, which is not a trigger anything
+        // here raises. In a fight the Demon is in, the two are a turn apart.
+        effects: [{ kind: 'summon', adversary: 'minor-demon', count: '1d4', range: 'close' }],
+      },
+    ],
+  },
+  {
+    id: 'fallen-warlord-realm-breaker-all-consuming-rage',
+    name: 'All-Consuming Rage',
+    source: from('fallen-warlord-realm-breaker'),
+    text: 'When the Realm-Breaker is in the spotlight for the first time, activate the countdown. When it triggers, create a torrent of incarnate rage that rends flesh from bone. All targets within Far range must make a Presence Reaction Roll. Targets who fail take 2d6+10 direct magic damage. Targets who succeed take half damage. For each HP marked from this damage, summon a Fallen Shock Troop within Very Close range of the target who marked that HP. If the countdown ever decreases its maximum value to 0, the Realm-Breaker marks their remaining HP and all targets within Far range must mark all remaining HP and make a death move.',
+    kind: 'reaction',
+    trigger: 'spotlighted',
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'fallen-warlord-realm-breaker-all-consuming-rage',
+        name: 'All-Consuming Rage',
+        start: '8',
+        loop: 'decreasing',
+        effects: [
+          { kind: 'log', text: 'Rage takes shape and tears at everything standing.', tone: 'fear' },
+          {
+            kind: 'reactionRoll',
+            difficulty: 20,
+            trait: 'presence',
+            targets: { kind: 'allies', range: 'far' },
+            damage: { dice: '2d6+10', type: 'magic' },
+            onFail: [{ kind: 'damage', dice: 'same', direct: true }],
+            onSuccess: [{ kind: 'damage', dice: 'same', direct: true, half: true }],
+          },
+          // Simplified: "for each HP marked from this damage, summon a Fallen
+          // Shock Troop within Very Close range of the target who marked that
+          // HP" is a count nothing here holds, and the last sentence - what
+          // running the maximum down to 0 does - is a second feature the clock
+          // does not fire. Both are left to the table.
+        ],
+      },
+    ],
+  },
+  {
+    id: 'volcanic-dragon-ashen-tyrant-apocalyptic-thrashing',
+    name: 'Apocalyptic Thrashing',
+    source: from('volcanic-dragon-ashen-tyrant'),
+    text: 'Spend a Fear to activate. It ticks down when a PC rolls with Fear. When it triggers, the Ashen Tyrant thrashes about, causing environmental damage (such as an earthquake, avalanche, or collapsing walls). All targets within Far range must make a Strength Reaction Roll. Targets who fail take 2d10+10 physical damage and are Restrained by the rubble until they break free with a successful Strength Roll. Targets who succeed take half damage. If the Ashen Tyrant is defeated while this countdown is active, trigger the countdown immediately as the destruction caused by their death throes.',
+    cost: { fear: 1 },
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'volcanic-dragon-ashen-tyrant-apocalyptic-thrashing',
+        name: 'Apocalyptic Thrashing',
+        start: '1d12',
+        advance: 'withFear',
+        // "If the Ashen Tyrant is defeated while this countdown is active,
+        // trigger the countdown immediately": the one countdown printed that
+        // outlives the creature counting it.
+        onDeath: 'trigger',
+        effects: [
+          { kind: 'log', text: 'The mountain comes down around them.', tone: 'fear' },
+          {
+            kind: 'reactionRoll',
+            difficulty: 18,
+            trait: 'strength',
+            targets: { kind: 'allies', range: 'far' },
+            damage: { dice: '2d10+10', type: 'physical' },
+            // Simplified: Restrained runs to the end of the scene - the roll
+            // to break free is the party's own move, which nothing here asks
+            // for.
+            onFail: [
+              { kind: 'damage', dice: 'same' },
+              { kind: 'applyCondition', condition: 'restrained', duration: 'scene', target: { kind: 'hit' } },
+            ],
+            onSuccess: [{ kind: 'damage', dice: 'same', half: true }],
+          },
+        ],
+      },
+    ],
+  },
   // ---- what a block calls onto the map ----------------------------------
   // "Summon three Jagged Knife Lackeys, who appear at Far range." They stand
   // in the band the feature names and are in the fight from that moment: the
