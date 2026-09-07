@@ -317,6 +317,35 @@ describe('a clock the fight carries', () => {
     expect(demo.log.filter((l) => l.text.includes('Apocalyptic Thrashing triggers')).length).toBe(1);
   });
 
+  it('does not bring the mountain down in a room the Tyrant is not in', () => {
+    const demo = ruin('volcanic-dragon-ashen-tyrant', { x: 11, y: 4 }, 'tyrant-elsewhere');
+    endTurn(demo);
+    const id = 'volcanic-dragon-ashen-tyrant-apocalyptic-thrashing';
+    expect(demo.scenario.countdowns.has(id)).toBe(true);
+
+    // The clock is on the scenario, which outlives the room: walking out of
+    // the room the Tyrant is in is not the Tyrant being defeated.
+    demo.state.removeEntity('foe');
+    settleFight(demo);
+    expect(demo.log.some((l) => l.text.includes('Apocalyptic Thrashing triggers'))).toBe(false);
+    expect(demo.scenario.countdowns.has(id)).toBe(false);
+  });
+
+  it('stops when the fight does, so nothing ticks in the quiet afterwards', () => {
+    const demo = ruin('fallen-sorcerer', { x: 3, y: 4 }, 'shackles-3');
+    endTurn(demo);
+    expect(demo.scenario.countdowns.size).toBe(1);
+
+    // A script calls the fight off with the Sorcerer still standing - a truce,
+    // an objective met. The fight is over, so a clock a creature was counting
+    // has nothing left to count, and a chest opened afterwards must not tick
+    // it: countdowns advance on action rolls, in a fight or out of one.
+    demo.encounter!.end('victory');
+    settleFight(demo);
+    expect(demo.state.entity('foe')!.alive).toBe(true);
+    expect(demo.scenario.countdowns.size).toBe(0);
+  });
+
   it('is armed once, however many turns the Sorcerer gets', () => {
     const demo = ruin('fallen-sorcerer', { x: 3, y: 4 }, 'shackles-2');
     endTurn(demo);

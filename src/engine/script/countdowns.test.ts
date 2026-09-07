@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { createRng } from '../core/rng';
-import { advanceBoard, reapBoard, runningCountdownSchema, type CountdownBoard, type RunningCountdown } from './countdowns';
+import {
+  advanceBoard,
+  endCreatureCountdowns,
+  reapBoard,
+  runningCountdownSchema,
+  type CountdownBoard,
+  type OwnerStatus,
+  type RunningCountdown,
+} from './countdowns';
 
 const rng = () => createRng(7);
 
@@ -78,27 +86,44 @@ describe('advanceBoard', () => {
 });
 
 describe('reapBoard', () => {
-  const alive = (id: string) => id === 'keeper';
+  /** The keeper is standing; the tyrant is down; anyone else is elsewhere. */
+  const where = (id: string): OwnerStatus => (id === 'keeper' ? 'alive' : id === 'tyrant' ? 'fallen' : 'gone');
 
   it('ends a countdown with the creature counting it', () => {
-    const b = board(clock({ owner: 'gorgon' }));
-    expect(reapBoard(b, alive)).toEqual([]);
+    const b = board(clock({ owner: 'tyrant' }));
+    expect(reapBoard(b, where)).toEqual([]);
+    expect(b.size).toBe(0);
+  });
+
+  it('stops the clock of an owner who is simply somewhere else, and stops it quietly', () => {
+    // The scenario carries a countdown from room to room; the creature that
+    // armed it does not follow. Leaving is not dying, so no death throes.
+    const b = board(clock({ owner: 'left-behind', onDeath: 'trigger' }));
+    expect(reapBoard(b, where)).toEqual([]);
     expect(b.size).toBe(0);
   });
 
   it('sets off the one whose feature says it goes off when they fall', () => {
     const b = board(clock({ owner: 'tyrant', onDeath: 'trigger' }));
-    const fired = reapBoard(b, alive);
+    const fired = reapBoard(b, where);
     expect(fired.map((m) => m.fired)).toEqual([true]);
     // Off the board either way, so a second death does not fire it again.
     expect(b.size).toBe(0);
-    expect(reapBoard(b, alive)).toEqual([]);
+    expect(reapBoard(b, where)).toEqual([]);
   });
 
   it('leaves alone a standing owner, and a countdown nobody owns', () => {
     const b = board(clock(), clock({ id: 'scene-clock', owner: null }));
-    expect(reapBoard(b, alive)).toEqual([]);
+    expect(reapBoard(b, where)).toEqual([]);
     expect(b.size).toBe(2);
+  });
+});
+
+describe('endCreatureCountdowns', () => {
+  it('stops what a creature was counting and leaves the scene its own clock', () => {
+    const b = board(clock(), clock({ id: 'long-term', owner: null }));
+    endCreatureCountdowns(b);
+    expect([...b.keys()]).toEqual(['long-term']);
   });
 });
 

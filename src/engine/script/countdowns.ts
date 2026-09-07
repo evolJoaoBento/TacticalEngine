@@ -115,21 +115,43 @@ function rolledStart(countdown: RunningCountdown, worked: number, rng: Rng): num
   return Math.max(1, rollDice(rng, expression).total);
 }
 
+/** Where a countdown's owner is: standing, down, or not in this room at all. */
+export type OwnerStatus = 'alive' | 'fallen' | 'gone';
+
 /**
- * Countdowns whose owner has fallen. A countdown ends with the creature
+ * Countdowns whose owner is no longer standing. A countdown ends with the creature
  * counting it — "if the Gorgon is defeated, all petrification countdowns end"
  * — unless its feature says otherwise, in which case it goes off now: the
  * Ashen Tyrant's death throes.
  *
- * Everything is taken off the board either way, so this is safe to call after
- * every death and it never fires the same countdown twice.
+ * `gone` is not `fallen`. A countdown lives on the scenario, which outlives
+ * the room it was armed in, so its owner may simply be somewhere else by now:
+ * that clock stops, and stops quietly. Death throes are for the dead.
+ *
+ * Everything leaves the board either way, so this is safe to call after every
+ * death and it never fires the same countdown twice.
  */
-export function reapBoard(board: CountdownBoard, alive: (id: string) => boolean): CountdownMoved[] {
+export function reapBoard(board: CountdownBoard, status: (id: string) => OwnerStatus): CountdownMoved[] {
   const fired: CountdownMoved[] = [];
   for (const [id, countdown] of [...board]) {
-    if (countdown.owner === null || alive(countdown.owner)) continue;
+    if (countdown.owner === null) continue;
+    const where = status(countdown.owner);
+    if (where === 'alive') continue;
     board.delete(id);
-    if (countdown.onDeath === 'trigger') fired.push({ countdown: { ...countdown }, value: 0, fired: true });
+    if (where === 'fallen' && countdown.onDeath === 'trigger') {
+      fired.push({ countdown: { ...countdown }, value: 0, fired: true });
+    }
   }
   return fired;
+}
+
+/**
+ * End every countdown a creature was counting, without setting any of them
+ * off: the fight is over, and a clock armed in it has nothing left to count.
+ * Countdowns nobody owns are the scene's own, and keep running.
+ */
+export function endCreatureCountdowns(board: CountdownBoard): void {
+  for (const [id, countdown] of [...board]) {
+    if (countdown.owner !== null) board.delete(id);
+  }
 }

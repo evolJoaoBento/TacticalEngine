@@ -20,7 +20,10 @@ engine has no place to put:
   runs (`src/engine/rules/countdown.ts`), so the ones that arm on a spotlight, tick on a
   roll and then damage, summon or apply a condition are scripted. What stays text is the
   payoff: a charge in a straight line through everyone, a circle of ground that stays
-  dangerous, allies made to attack, a clock somebody else winds.
+  dangerous, allies made to attack, a clock somebody else winds. Two are the other way
+  round - the Flickerflies say what they do plainly enough, but "takes damage for the
+  first time" is not a trigger anything raises: the defence step answers damage with
+  shapes, not with a script.
 - **spotlighting allies** — a feature that hands the turn to other adversaries.
 - **a point on the map** — "choose a point within Far range; everyone within Close range
   of *that*": selectors read bands around the creature that is acting, not around a spot.

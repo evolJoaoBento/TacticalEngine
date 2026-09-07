@@ -57,6 +57,7 @@ import { rollLoot, type LootDrop, type LootTable } from '../content/items';
 import { questStatusSchema, type QuestProgress, type QuestQuery } from '../content/quests';
 import {
   advanceBoard,
+  endCreatureCountdowns,
   reapBoard,
   runningCountdownSchema,
   type CountdownBoard,
@@ -391,7 +392,18 @@ export class SceneScriptWorld implements ScriptWorld {
    * board either way, so nothing fires twice.
    */
   reapCountdowns(): CountdownMoved[] {
-    return reapBoard(this.scenario.countdowns, (id) => this.state.entity(id)?.alive === true);
+    return reapBoard(this.scenario.countdowns, (id) => {
+      const entity = this.state.entity(id);
+      // Not in this room is not the same as dead: the scenario carries a clock
+      // from room to room, and the creature that armed it does not follow.
+      if (entity === undefined) return 'gone';
+      return entity.alive ? 'alive' : 'fallen';
+    });
+  }
+
+  /** The fight is over: the clocks its creatures were counting stop. */
+  endCreatureCountdowns(): void {
+    endCreatureCountdowns(this.scenario.countdowns);
   }
 
   actorId(): string | null {

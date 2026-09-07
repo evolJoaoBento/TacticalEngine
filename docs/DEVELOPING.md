@@ -87,6 +87,7 @@ adapter: the rest of the core does not know it exists.
 | `rules/duality.ts` | `rollDuality` — a PC's two dice, the five outcomes, Hope/Fear/spotlight. |
 | `rules/gm-die.ts` | `rollGmDie` — the GM's single d20 against Evasion, natural-20 crit. |
 | `rules/damage.ts` | Thresholds, severity bands, Armor Slots, resistance/immunity/reduction, `rollDamage`, `resolveDamage`. |
+| `rules/countdown.ts` | The clock: `advanceCountdown`, `stepsFor`, `dynamicSteps` (the SRD's progress/consequence chart), loops. No effects, no rng. |
 | `rules/cover.ts` | SRD 2.0 cover: a partial obstruction costs the attacker a disadvantage die. |
 | `rules/range.ts` | `RANGE_BANDS`, `DEFAULT_BAND_TILES` (a house rule — see CONTEXT.md). |
 | `rules/resources.ts` | `MarkPool` and `Currency`: Hit Points, Stress, Armor Slots, Hope, Fear; `mark`, `unmarked`, `canAfford`, `markHitPoints`. |
@@ -105,6 +106,7 @@ adapter: the rest of the core does not know it exists.
 | `script/conditions.ts` | Evaluating a `Condition` against a `ConditionContext`; `TargetBindings`, `NO_BINDINGS`. |
 | `script/runner.ts` | `ScriptRunner` (the stepper), `ScriptWorld` (what the world must provide), `JournalEntry`, `Prompt`, `Response`, `RunStatus`. |
 | `script/world.ts` | `SceneScriptWorld` — the only writer of scene state (1330 lines). `ScenarioState`, `worldOptions`' counterpart types. |
+| `script/countdowns.ts` | The board a scenario carries: `RunningCountdown` (a clock plus what it is counting towards), `advanceBoard`, `reapBoard`, `endCreatureCountdowns`, and the snapshot schema a save uses. |
 | `script/hooks.ts` | Running project code: `HookContext`, `runHook`, `SAFE_MATH`. |
 | `content/types.ts` | `AdversaryDef`, `AdversaryFeature`, `ContentIssue`, `ImportResult`, `toContentId`. |
 | `content/abilities.ts` | `AbilityDef` and its sub-schemas; `abilitiesFor`, `loadoutOf`, `isScripted`, `isAutomatic`, `readsATarget`. |
@@ -283,6 +285,7 @@ AbilityDef.effects  (content/abilities.ts, shapes from script/schema.ts)
        run(effects) → step() → apply(effect)          — one switch, no default
             ├─ instantaneous effects journal and return null
             ├─ branch / choice / check / attack / reactionRoll push a Frame
+            ├─ countdown arms a clock on the scenario; the game layer ticks it
             └─ choice and check return a Prompt        — the runner stops
        caller answers with resume(response)            — 'choose' | 'roll' | 'continue' | 'cancel'
   └─ SceneScriptWorld (script/world.ts)                — the only writer of state

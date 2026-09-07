@@ -1074,6 +1074,11 @@ export function settleFight(demo: DemoScene): void {
   if (encounter === null || encounter.outcome === 'ongoing' || announced.has(encounter)) return;
   announced.add(encounter);
   demo.state.clearConditions('scene');
+  // The clocks stop with the fight: a countdown armed by a creature has
+  // nothing left to count once the encounter is over, and a standard one
+  // would otherwise keep ticking on a chest roll in the quiet afterwards. A
+  // countdown nobody owns is the scene's own and goes on running.
+  demo.world.endCreatureCountdowns();
   syncPools(demo);
   for (const key of [...demo.scenario.abilityUses.keys()]) {
     const ability = demo.project.abilities.find((a) => key.endsWith(`/${a.id}`));
@@ -1101,9 +1106,9 @@ function adversaryTurn(demo: DemoScene, adversaryId: string): void {
   if (adversary === undefined || !adversary.alive) return;
 
   // "When the Sorcerer is in the spotlight for the first time...": before
-  // anything else the turn does, and before the checks below, because the
-  // spotlight was handed over whether or not the creature can use it - one
-  // that spends its turn shaking off a hold was still spotlighted.
+  // anything else the turn does, so a creature that spends its whole turn
+  // tearing free of a hold has still had its spotlight. Something that cannot
+  // react at all - Stunned, Asleep - arms nothing: `reactionsFor` says so.
   playSpotlightReactions(demo, adversaryId);
 
   // Unable to act — Stunned, Asleep: the spotlight goes on shaking it off. A
