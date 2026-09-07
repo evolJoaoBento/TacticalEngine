@@ -202,6 +202,14 @@ export interface DemoScene {
    * choice to the defender and picks up again when they answer.
    */
   gmTurn: GmTurn | null;
+  /** Duality rolls the party has made and the view has not shown yet. */
+  rolls: RollShow[];
+  /**
+   * How long a die takes to settle, in milliseconds. The rules never wait for
+   * it — it is a view's business — so a test sets it to zero and reads the
+   * result the moment it is asked for.
+   */
+  diceMillis: number;
   /**
    * Whether a hit on a party member asks them how they take it. The demo
    * decides for them by default — a test wants no prompt — and `main.ts`
@@ -226,6 +234,24 @@ export interface GmTurn {
 export interface LogLine {
   text: string;
   tone: LogTone;
+}
+
+/**
+ * A Duality roll waiting to be shown: two dice the table watches settle.
+ *
+ * Only the party rolls these — an adversary rolls a d20, which has nothing to
+ * watch — so anything in this queue is a player's roll. The rules are already
+ * settled by the time one lands here: the faces are what was rolled, and the
+ * dice are shown landing on them rather than deciding anything.
+ */
+export interface RollShow {
+  /** Rising, so a view can tell a new roll from the same one re-rendered. */
+  id: number;
+  /** Who rolled it, ready to print. */
+  who: string;
+  /** What the roll was for: "the Broadsword", "Agility". */
+  what: string;
+  roll: DualityRoll;
 }
 
 /**
@@ -792,6 +818,8 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
     pending: null,
     encounter: null,
     gmTurn: null,
+    rolls: [],
+    diceMillis: DICE_MILLIS,
     askDefender: false,
   };
   bindTurn(demo);
@@ -917,6 +945,9 @@ export function attackWithSelected(
     demo.world.endsOnHit(targetId);
     if (applied.hitPointsMarked > 0) demo.world.endsOnDamage(targetId);
     defeatMinions(demo, targetId, outcome.damageRoll?.total ?? 0);
+  }
+  if (outcome.dualityRoll !== undefined) {
+    showRoll(demo, character.sheet.name, `the ${profile.name}`, outcome.dualityRoll);
   }
   if (outcome.hit) noteReduction(demo, nameOf(demo, targetId), outcome.damage);
   note(
@@ -2051,6 +2082,36 @@ export function note(demo: DemoScene, text: string, tone: LogTone): LogLine[] {
  * Only the entries with something to say become lines; a flag being set is real
  * but not news.
  */
+/** How long two dice take to tumble and settle, unless a view says otherwise. */
+export const DICE_MILLIS = 900;
+
+let rollCount = 0;
+
+/**
+ * Queue a Duality roll for whoever is drawing dice.
+ *
+ * There are exactly two places a party member's Duality roll reaches the game:
+ * a journal entry, for everything a script rolls — a card's attack, a check, a
+ * reaction roll — and `attackWithSelected`, which is the one swing that never
+ * goes through the runner. Anything else that shows dice would show them
+ * twice.
+ */
+function showRoll(demo: DemoScene, who: string, what: string, roll: DualityRoll): void {
+  demo.rolls.push({ id: ++rollCount, who, what, roll });
+}
+
+/** The faces a journal entry rolled, if a party member rolled them. */
+function rolledIn(entry: JournalEntry): { roll: DualityRoll; who: string; what: string } | null {
+  if (entry.kind === 'check') return { roll: entry.roll, who: '', what: 'the check' };
+  if (entry.kind === 'attack' && entry.roll !== undefined) {
+    return { roll: entry.roll, who: entry.attacker, what: entry.weapon };
+  }
+  if (entry.kind === 'reaction' && entry.roll !== undefined) {
+    return { roll: entry.roll, who: entry.id, what: 'the reaction' };
+  }
+  return null;
+}
+
 export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLine[] {
   const lines: LogLine[] = [];
   const names = new Map(demo.project.items.map((item) => [item.id, item.name]));
@@ -2060,6 +2121,13 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
     // Travel is remembered rather than taken: the rest of this script belongs to
     // the room it was asked in. `settleTravel` spends it once nothing waits.
     if (entry.kind === 'goto') demo.destination = entry.scene;
+    const rolled = rolledIn(entry);
+    if (rolled !== null) {
+      // A check is rolled by whoever the script is acting as; an attack and a
+      // reaction roll each name their own roller.
+      const roller = rolled.who === '' ? demo.scenario.actorId : rolled.who;
+      showRoll(demo, roller === null ? '' : who(roller), rolled.what, rolled.roll);
+    }
     const line = describeEntry(entry, names, quests, who);
     if (line !== null) lines.push(line);
   }

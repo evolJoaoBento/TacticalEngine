@@ -41,6 +41,7 @@ import { deriveCharacter } from './engine/character/sheet';
 import { ActionBar } from './game/ui/ActionBar';
 import { LoadoutPanel } from './game/ui/LoadoutPanel';
 import { RestPanel } from './game/ui/RestPanel';
+import { DiceTray } from './game/ui/DiceTray';
 import { abilityList, abilityTargets, abilitiesOf, loadoutView, rest, swapCard, useAbility, type RestPlan } from './game/demo-abilities';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
@@ -126,6 +127,10 @@ declare global {
       useInReach: () => string;
       answer: (response: Response) => string;
       log: () => { text: string; tone: string }[];
+      /** How long the Duality Dice take to settle. Zero for a test in a hurry. */
+      setDiceSpeed: (millis: number) => void;
+      /** The Duality rolls still waiting to be watched. */
+      dice: () => { hope: number; fear: number; total: number }[];
       pendingKind: () => string | null;
       objects: () => string[];
       dialogueOptions: () => string[];
@@ -818,7 +823,16 @@ function takeLevel(id: string, plan: LevelUpPlan): boolean {
 
 function renderPlayPanel(): void {
   render(
-    h(Fragment, null, h(PartyHud, {
+    h(Fragment, null, h(DiceTray, {
+      // One at a time, in the order they were rolled: a feature that catches
+      // the whole party rolls several in one burst, and they queue.
+      roll: demo.rolls[0] ?? null,
+      millis: demo.diceMillis,
+      onDone: (id: number) => {
+        demo.rolls = demo.rolls.filter((waiting) => waiting.id !== id);
+        refreshPlay();
+      },
+    }), h(PartyHud, {
       members: hudMembers(),
       fear: { ...demo.state.fear },
       round: demo.encounter?.round ?? null,
@@ -1267,6 +1281,12 @@ const state = {
     return result.status;
   },
   log: (): { text: string; tone: string }[] => demo.log.map((l) => ({ ...l })),
+  setDiceSpeed: (millis: number): void => {
+    demo.diceMillis = Math.max(0, millis);
+    refreshPlay();
+  },
+  dice: (): { hope: number; fear: number; total: number }[] =>
+    demo.rolls.map((shown) => ({ hope: shown.roll.hope, fear: shown.roll.fear, total: shown.roll.total })),
   pendingKind: (): string | null => demo.pending?.prompt.kind ?? null,
   objects: (): string[] => demo.scene.interactables.map((i) => i.id),
   dialogueOptions: (): string[] =>

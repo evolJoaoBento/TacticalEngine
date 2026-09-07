@@ -44,6 +44,8 @@ declare global {
           | { kind: 'continue' },
       ) => string;
       log: () => { text: string; tone: string }[];
+      setDiceSpeed: (millis: number) => void;
+      dice: () => { hope: number; fear: number; total: number }[];
       pendingKind: () => string | null;
       objects: () => string[];
       dialogueOptions: () => string[];
@@ -505,6 +507,62 @@ test('shows the narrative log and the roll prompt on the page', async ({ page })
 
   await roll.click();
   await expect(page.locator('[data-testid="log"]')).toContainText(/Hope|Fear|critical/i);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('shows the Duality Dice landing on the faces the roll rolled', async ({ page }) => {
+  const consoleErrors = await boot(page);
+
+  // Slow enough that the dice are still tumbling when the assertion runs: the
+  // tray is the one place the player watches, so it has to be there to watch.
+  await page.evaluate(() => window.__polyheart!.setDiceSpeed(4000));
+  const rolled = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.select(api.party()[0]!);
+    // The vault door is shut and blocks the way; pick it, then walk east until
+    // the trigger starts the fight. The same route the fight test walks.
+    const door = api.objects().find((id) => id.startsWith('door'))!;
+    api.standBeside(door);
+    for (let i = 0; i < 20 && !api.objectState(door).open; i++) {
+      if (api.use(door) === 'waiting') api.answer({ kind: 'roll' });
+    }
+    for (let i = 0; i < 15 && !api.inCombat(); i++) {
+      const tiles = api.reachable();
+      if (tiles.length === 0) break;
+      if (!api.moveTo(tiles.reduce((a, b) => (b % 22 > a % 22 ? b : a)))) break;
+    }
+    if (!api.inCombat()) return null;
+    const foe = api.adversaries()[0];
+    if (foe === undefined) return null;
+    // Close on it and swing; the swing is what rolls the Duality Dice.
+    for (let i = 0; i < 20; i++) {
+      const foeTile = api.tileOf(foe);
+      const tiles = api.reachable();
+      if (tiles.length > 0) {
+        const d = (t: number) => Math.abs((t % 22) - (foeTile % 22)) + Math.abs(Math.floor(t / 22) - Math.floor(foeTile / 22));
+        api.moveTo(tiles.reduce((a, b) => (d(b) < d(a) ? b : a)));
+      }
+      if (api.attack(foe)) break;
+      api.endGmTurn();
+      while (api.pendingKind() === 'choice') api.answer({ kind: 'choose', index: 0 });
+    }
+    return api.dice()[0] ?? null;
+  });
+  expect(rolled).not.toBeNull();
+
+  const tray = page.locator('[data-testid="dice-tray"]');
+  await expect(tray).toBeVisible();
+  // Two d12s, showing what the rules already decided.
+  await expect(tray).toHaveAttribute('data-hope', String(rolled!.hope));
+  await expect(tray).toHaveAttribute('data-fear', String(rolled!.fear));
+  await expect(tray).toHaveAttribute('data-settled', 'false');
+  await expect(tray.locator('svg')).toHaveCount(3); // two dice and the sheen defs
+
+  // Turn the settle time off and the dice finish and clear themselves.
+  await page.evaluate(() => window.__polyheart!.setDiceSpeed(0));
+  await expect(tray).toHaveCount(0);
+  expect(await page.evaluate(() => window.__polyheart!.dice().length)).toBe(0);
 
   expect(consoleErrors).toEqual([]);
 });

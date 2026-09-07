@@ -27,7 +27,7 @@ import {
   unmarked,
 } from '../rules/resources';
 import { resolveDamage, type DamageDefenses, type DamageReduction, type IncomingDamage } from '../rules/damage';
-import { rollDuality } from '../rules/duality';
+import { rollDuality, type DualityRoll } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
 import { bandForDistance, bandIndex, maxTilesForBand, reaches, type BandTiles, type RangeBand } from '../rules/range';
 import { applyAttack, resolveAttack, type AttackProfile } from '../combat/attack';
@@ -1315,7 +1315,12 @@ export class SceneScriptWorld implements ScriptWorld {
     return { from: start, to: tile };
   }
 
-  rollReaction(id: string, difficulty: number, trait: Trait, rng: Rng): { success: boolean; total: number } {
+  rollReaction(
+    id: string,
+    difficulty: number,
+    trait: Trait,
+    rng: Rng,
+  ): { success: boolean; total: number; roll?: DualityRoll } {
     const entity = this.state.entity(id);
     const character = this.characters.get(id);
     if (entity === undefined) return { success: false, total: 0 };
@@ -1324,7 +1329,9 @@ export class SceneScriptWorld implements ScriptWorld {
       const roll = rollGmDie(rng, { difficulty, reaction: true });
       return { success: roll.success, total: roll.total };
     }
+    // A party member rolls the Duality Dice, and hands back both faces: the
+    // table watches those land, and only a d20 has nothing to watch.
     const roll = rollDuality(rng, { difficulty, modifier: character.traits[trait], reaction: true });
-    return { success: roll.success, total: roll.total };
+    return { success: roll.success, total: roll.total, roll };
   }
 }

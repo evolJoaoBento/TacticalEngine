@@ -193,7 +193,12 @@ export interface ScriptWorld extends ConditionContext {
   /** Knock a creature away from another to a band. Null when it could not move at all. */
   pushBack(from: string, target: string, band: RangeBand): { from: number; to: number } | null;
   /** A reaction roll: a d20 for an adversary, Duality Dice for a party member. */
-  rollReaction(id: string, difficulty: number, trait: Trait, rng: Rng): { success: boolean; total: number };
+  rollReaction(
+    id: string,
+    difficulty: number,
+    trait: Trait,
+    rng: Rng,
+  ): { success: boolean; total: number; roll?: DualityRoll };
 }
 
 /** One thing that happened, in order. A UI renders these; a test asserts on them. */
@@ -256,7 +261,8 @@ export type JournalEntry =
       roll?: DualityRoll;
     }
   | { kind: 'moved'; id: string; from: number; to: number }
-  | { kind: 'reaction'; id: string; success: boolean; total: number; difficulty: number }
+  /** `roll` is set when a party member rolled it: an adversary's is a d20. */
+  | { kind: 'reaction'; id: string; success: boolean; total: number; difficulty: number; roll?: DualityRoll }
   /** A defender's reaction to damage fired: Get Back Up, a Rune Ward. */
   | { kind: 'defended'; id: string; ability: string; hopeSpent: number; stressMarked: number; rolled?: number };
 
@@ -877,7 +883,14 @@ export class ScriptRunner {
         const passed: string[] = [];
         for (const id of this.resolve(effect.targets ?? { kind: 'hit' })) {
           const result = world.rollReaction(id, difficulty, effect.trait ?? 'agility', this.rng);
-          this.journal.push({ kind: 'reaction', id, success: result.success, total: result.total, difficulty });
+          this.journal.push({
+            kind: 'reaction',
+            id,
+            success: result.success,
+            total: result.total,
+            difficulty,
+            ...(result.roll === undefined ? {} : { roll: result.roll }),
+          });
           (result.success ? passed : failed).push(id);
         }
         // Failures resolve first, so `onSuccess` is pushed first.

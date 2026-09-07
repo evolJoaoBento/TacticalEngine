@@ -64,6 +64,13 @@ Q/E) are ignored while a text field has focus; the other keys are not (see Limit
 
 ### The screen
 
+- **The Duality Dice** (over the map, when a party member rolls): two d12s — gold for Hope,
+  violet for Fear — tumbling and settling on the faces that were rolled, with the sum and the
+  outcome underneath. They are a view of a roll that has already happened, not the roll itself:
+  the rules resolve, and the dice are then told what to land on, so nothing waits for them and
+  a seeded replay shows the same faces. Only the party's Duality rolls are shown — an adversary
+  rolls a single d20, and the log says what it did. Several at once (a feature everyone has to
+  dodge) queue and are shown in the order they were rolled.
 - **HUD** (bottom left): one card per party member — name, class, and pips for HP, Stress,
   Armor, and Hope (each box one slot, filled when marked), any conditions, and a line naming
   what they wield and wear. The selected card has a blue border; a fallen member is dimmed.
