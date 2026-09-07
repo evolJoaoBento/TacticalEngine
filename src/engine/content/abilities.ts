@@ -126,7 +126,14 @@ export const abilityModifierSchema = z.object({
    * to have advantage" are about a third creature, and stay text.
    */
   against: z.boolean().optional(),
-});
+})
+  // The flag exists for the dice and nothing else. "+2 to their Difficulty" is
+  // an `evasion` bonus on the creature itself; a modifier that tried to say
+  // "attacks against me are made at +2" would otherwise be folded into the
+  // holder's own numbers, where a derived character sums by stat.
+  .refine((m) => m.against !== true || m.stat === 'advantage', {
+    message: 'against reads only on advantage',
+  });
 
 /**
  * What a reaction to incoming damage does, once its cost is paid. Applied in
