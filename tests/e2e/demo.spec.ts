@@ -46,6 +46,7 @@ declare global {
       log: () => { text: string; tone: string }[];
       setDiceSpeed: (millis: number) => void;
       dice: () => { hope: number; fear: number; total: number }[];
+      clearDice: () => void;
       pendingKind: () => string | null;
       objects: () => string[];
       dialogueOptions: () => string[];
@@ -535,6 +536,9 @@ test('shows the Duality Dice landing on the faces the roll rolled', async ({ pag
     if (!api.inCombat()) return null;
     const foe = api.adversaries()[0];
     if (foe === undefined) return null;
+    // The door was picked with a roll of its own; forget it, so what the tray
+    // is showing below is the swing.
+    api.clearDice();
     // Close on it and swing; the swing is what rolls the Duality Dice.
     for (let i = 0; i < 20; i++) {
       const foeTile = api.tileOf(foe);

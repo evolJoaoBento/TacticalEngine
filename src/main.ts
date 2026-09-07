@@ -131,6 +131,8 @@ declare global {
       setDiceSpeed: (millis: number) => void;
       /** The Duality rolls still waiting to be watched. */
       dice: () => { hope: number; fear: number; total: number }[];
+      /** Forget the rolls still waiting to be shown. */
+      clearDice: () => void;
       pendingKind: () => string | null;
       objects: () => string[];
       dialogueOptions: () => string[];
@@ -349,6 +351,10 @@ function rederiveParty(): void {
 function setMode(next: 'play' | 'edit'): void {
   mode = next;
   editor.end();
+  // The tray only lives in the play tree, so dice still tumbling when the
+  // editor opens have nowhere to land. Drop them rather than showing a roll
+  // from before the edit when play comes back.
+  if (mode === 'edit') demo.rolls.length = 0;
   // The editor may be pointed at a scene a load has since removed.
   if (!session.project.scenes.some((scene) => scene.id === editor.sceneId)) {
     editor.switchScene(demo.scene.id);
@@ -1287,6 +1293,10 @@ const state = {
   },
   dice: (): { hope: number; fear: number; total: number }[] =>
     demo.rolls.map((shown) => ({ hope: shown.roll.hope, fear: shown.roll.fear, total: shown.roll.total })),
+  clearDice: (): void => {
+    demo.rolls.length = 0;
+    refreshPlay();
+  },
   pendingKind: (): string | null => demo.pending?.prompt.kind ?? null,
   objects: (): string[] => demo.scene.interactables.map((i) => i.id),
   dialogueOptions: (): string[] =>
