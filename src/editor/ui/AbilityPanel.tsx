@@ -78,6 +78,29 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
     props.onChange();
   };
 
+  type Defenses = NonNullable<AbilityDef['defenses']>;
+  /**
+   * Write one part of what a passive does to damage without disturbing the
+   * others: the resisted types and the number taken off share one field.
+   */
+  const setDefenses = (next: Partial<Defenses>): void => {
+    const merged = { ...(open?.defenses ?? {}), ...next };
+    const resistances = merged.resistances ?? [];
+    const immunities = merged.immunities ?? [];
+    const reduce = merged.reduce ?? [];
+    edit({
+      defenses:
+        resistances.length === 0 && immunities.length === 0 && reduce.length === 0
+          ? undefined
+          : {
+              ...(resistances.length === 0 ? {} : { resistances }),
+              ...(immunities.length === 0 ? {} : { immunities }),
+              ...(reduce.length === 0 ? {} : { reduce }),
+            },
+    });
+  };
+  const reduction = open?.defenses?.reduce?.[0];
+
   // A card can put tokens on any card, and name any character's; the SRD's
   // library is part of that list because a project card may spend from one.
   const abilityIds = [
@@ -352,22 +375,57 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                     onChange={(e) => {
                       const on = (e.target as HTMLInputElement).checked;
                       const kept = (open.defenses?.resistances ?? []).filter((t) => t !== type);
-                      const resistances = on ? [...kept, type] : kept;
-                      const immunities = open.defenses?.immunities ?? [];
-                      edit({
-                        defenses:
-                          resistances.length === 0 && immunities.length === 0
-                            ? undefined
-                            : {
-                                ...(resistances.length === 0 ? {} : { resistances }),
-                                ...(immunities.length === 0 ? {} : { immunities }),
-                              },
-                      });
+                      setDefenses({ resistances: on ? [...kept, type] : kept });
                     }}
                   />
                   resists {type}
                 </label>
               ))}
+              {/*
+                And what it takes off the total before the thresholds are read:
+                "reduce it by 3" or "reduce it by 1d10", which is one number
+                either way. Empty means it reduces nothing.
+              */}
+              {label(
+                'reduces by',
+                <input
+                  style={{ ...field, width: '64px' }}
+                  data-testid="ability-reduce"
+                  placeholder="3, 1d10"
+                  value={reduction?.dice ?? ''}
+                  onInput={(e) => {
+                    const dice = (e.target as HTMLInputElement).value.trim();
+                    setDefenses({
+                      reduce:
+                        dice === ''
+                          ? []
+                          : [{ dice, ...(reduction?.only === undefined ? {} : { only: reduction.only }) }],
+                    });
+                  }}
+                />,
+              )}
+              {reduction === undefined
+                ? null
+                : label(
+                    'of',
+                    <select
+                      style={{ ...field, width: '92px' }}
+                      data-testid="ability-reduce-type"
+                      value={reduction.only ?? 'any'}
+                      onChange={(e) => {
+                        const picked = (e.target as HTMLSelectElement).value;
+                        setDefenses({
+                          reduce: [
+                            { dice: reduction.dice, ...(picked === 'any' ? {} : { only: picked as 'physical' | 'magic' }) },
+                          ],
+                        });
+                      }}
+                    >
+                      <option value="any">any damage</option>
+                      <option value="physical">physical</option>
+                      <option value="magic">magic</option>
+                    </select>,
+                  )}
               {/* The swing a stat block prints, which no card has. */}
               <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}>
                 <input

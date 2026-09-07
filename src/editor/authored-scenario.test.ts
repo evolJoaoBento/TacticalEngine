@@ -200,6 +200,66 @@ describe('a block that shrugs the party off', () => {
   });
 });
 
+describe('a block wearing enough plate to matter', () => {
+  /**
+   * The Knight's Heavily Armored and the Champion's Faltering Armor, at the
+   * button a player presses: a PC's swing at an adversary is resolved in
+   * `resolveAttack` and applied at once, with no defence step to catch it, so
+   * a passive that reduces damage has to be read there or it does nothing.
+   */
+  const swing = (
+    adversary: string,
+    feature: string,
+    quiet: boolean,
+    seed: string,
+  ): { marked: number; log: string[] } => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 1, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'guard', name: 'The guard' })));
+    s.run(addAdversary('hall', 'guard', { id: 'foe-1', adversary, position: { x: 3, y: 4 } }));
+    if (quiet) {
+      // The same override the resistance test uses for its control run: a
+      // project ability with the shipped feature's id, saying nothing.
+      s.project.abilities.push(
+        abilitySchema.parse({
+          id: feature,
+          name: 'Quiet',
+          source: { kind: 'adversary', adversaries: [adversary] },
+          kind: 'passive',
+          action: false,
+          text: 'Nothing, for the sake of the test.',
+        }),
+      );
+    }
+    const demo = buildProjectScene(s.project, seed);
+    startEncounter(demo, 'guard');
+    demo.state.moveEntity('kara', demo.grid.indexOf(2, 4));
+    demo.party.select('kara');
+    attackWithSelected(demo, 'foe-1');
+    return { marked: demo.state.entity('foe-1')!.hitPoints.marked, log: demo.log.map((l) => l.text) };
+  };
+
+  it('takes a flat 3 off the swing that lands, and rolls the dice kind', () => {
+    // One seed, so both runs roll the same broadsword: physical damage, which
+    // is what plate answers. 13/26 thresholds, and a swing in the low teens is
+    // Major until the plate takes three off it.
+    const knight = 'knight-of-the-realm';
+    expect(swing(knight, knight + '-heavily-armored', true, 'k12').marked).toBe(2);
+    const plated = swing(knight, knight + '-heavily-armored', false, 'k12');
+    expect(plated.marked).toBe(1);
+    expect(plated.log).toContain('Knight of the Realm turns aside 3 of it.');
+
+    // The Champion's 1d10 is rolled after the swing, so the swing itself is
+    // the same in both runs and only the armor differs.
+    const champion = 'fallen-warlord-undefeated-champion';
+    expect(swing(champion, champion + '-faltering-armor', true, 'c9').marked).toBe(1);
+    const rolled = swing(champion, champion + '-faltering-armor', false, 'c9');
+    expect(rolled.marked).toBe(0);
+    expect(rolled.log).toContain('Fallen Warlord: Undefeated Champion turns aside 7 of it.');
+  });
+});
+
 describe('a Treant that puts its roots down', () => {
   it('roots once and then fights, rather than rooting and tearing free forever', () => {
     const s = blank();

@@ -407,8 +407,8 @@ of the ones the engine ships (those live in `srd/abilities.ts` and are edited in
 is its name, the text as printed, the character ids that hold it, whether it is an action, a
 reaction (and what it answers) or passive, what it costs in Hope, Stress and Fear, who it can be
 aimed at and how far, whether using it is the character's action, whether it is only for a fight,
-whether it holds tokens and when they refill, what it resists, whether the swing its stat block
-prints goes through armour — and then the effect list, which
+whether it holds tokens and when they refill, what it resists, what it takes off the damage,
+whether the swing its stat block prints goes through armour — and then the effect list, which
 is the same one every other panel uses, including an attack's own reach and whether it goes
 through armor, and a reaction roll's damage, which is rolled once before anyone rolls to avoid
 it. A card with no effects is not broken: it is shown as text and the table
@@ -679,7 +679,9 @@ whoever is swinging; a `modifier`'s `when` is read the same way), `inCombatOnly`
 `plusTrait?`, `requires?` unarmored \| armored \| meleeWeapon, `when?` — a stat block's passives
 are read the same way, and unlike a character's they are not baked into the block's numbers
 first), `standardAttack?` (for a `passive`: `direct` — the swing the block prints goes through armour),
-`defenses?` (for a `passive`: `resistances[]` / `immunities[]` of physical \| magic —
+`defenses?` (for a `passive`: `reduce[]`, a number taken off the damage before the thresholds
+are read — `{ dice: '3' }` or `{ dice: '1d10' }`, with an optional `only` naming a damage type —
+and `resistances[]` / `immunities[]` of physical \| magic —
 halving rounds up, and damage of two types is only halved by a creature that resists both, which
 is what the Spellblade's Arcane Steel exists to defeat), `reaction?` (for a
 reaction to damage: `reduceSeverity` `steps` `only?`, `reduceDamage` `dice`, `extraArmor` `slots`

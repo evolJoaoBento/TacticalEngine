@@ -9,6 +9,7 @@
 import type { Rng } from '../core/rng';
 import {
   maxDice,
+  parseDice,
   rollDice,
   withProficiency,
   type DamageType,
@@ -122,11 +123,82 @@ export function armorScore(baseScore: number, bonus = 0): number {
   return Math.min(MAX_ARMOR_SCORE, Math.max(0, baseScore + bonus));
 }
 
+/**
+ * Damage taken off the total before thresholds: "when the Knight takes physical
+ * damage, reduce it by 3", "when the Undefeated Champion takes damage, reduce
+ * it by 1d10".
+ *
+ * One string carries both shapes, because the SRD prints them as one sentence
+ * with one number: "3" parses as a flat expression and "1d10" as a die. The
+ * flat part is arithmetic `resolveDamage` does alone; the dice have to be
+ * rolled, which is `rollReduction`, once per damage event.
+ */
+export interface DamageReduction {
+  /** "3", "1d10", "2d10+1". */
+  dice: string;
+  /**
+   * Only against damage of this type; omitted means every kind. Damage that
+   * carries the type at all is reduced: the SRD's "only if the target has it
+   * for both" is printed for resistance and immunity, and not for this.
+   */
+  only?: DamageType;
+}
+
 export interface DamageDefenses {
   /** Damage types halved before comparing to thresholds. Multiples do not stack. */
   resistances?: readonly DamageType[];
   /** Damage types ignored entirely. */
   immunities?: readonly DamageType[];
+  /**
+   * Damage taken off before thresholds. Entries stack. The flat half of each
+   * is applied by `resolveDamage` itself, so it reaches every path damage
+   * takes; the dice half is rolled by `rollReduction` and handed back as
+   * `rolledReduction`, so a caller with no `Rng` — a preview — gets a number
+   * that can only be too high, never too low.
+   */
+  reduce?: readonly DamageReduction[];
+}
+
+/** Whether a reduction answers damage of these types. */
+function reduces(entry: DamageReduction, types: readonly DamageType[]): boolean {
+  return entry.only === undefined || types.includes(entry.only);
+}
+
+/** The half of a creature's reduction that needs no dice. */
+export function flatReduction(types: readonly DamageType[], defenses: DamageDefenses = {}): number {
+  let total = 0;
+  for (const entry of defenses.reduce ?? []) {
+    if (!reduces(entry, types)) continue;
+    total += parseDice(entry.dice)?.modifier ?? 0;
+  }
+  return total;
+}
+
+/** Whether any reduction still has dice to roll, which a preview cannot know. */
+export function reductionRolls(defenses: DamageDefenses = {}): boolean {
+  return (defenses.reduce ?? []).some((entry) => (parseDice(entry.dice)?.count ?? 0) > 0);
+}
+
+/**
+ * Roll the dice half of a creature's reduction, once per damage event.
+ *
+ * Nothing comes off the stream when there is nothing to roll, so a seed
+ * replays the same way for every creature without one.
+ */
+export function rollReduction(
+  rng: Rng,
+  types: readonly DamageType[],
+  defenses: DamageDefenses = {},
+): number {
+  let total = 0;
+  for (const entry of defenses.reduce ?? []) {
+    if (!reduces(entry, types)) continue;
+    const expression = parseDice(entry.dice);
+    if (expression === null || expression.count === 0) continue;
+    // The modifier is the flat half and is applied elsewhere; only the dice.
+    total += rollDice(rng, { count: expression.count, sides: expression.sides, modifier: 0 }).total;
+  }
+  return total;
 }
 
 /**
@@ -223,11 +295,18 @@ export interface ResolveDamageOptions extends SeverityOptions {
   /** Armor Slots the defender actually has left. Defaults to what they chose. */
   armorSlotsAvailable?: number;
   defenses?: DamageDefenses;
+  /**
+   * The dice half of the defender's reduction, already rolled off an `Rng` by
+   * `rollReduction`. Left out, only the flat half applies.
+   */
+  rolledReduction?: number;
 }
 
 export interface ResolvedDamage {
-  /** Damage after resistance and immunity — the value compared to thresholds. */
+  /** Damage after resistance, immunity and reduction — the value compared to thresholds. */
   incoming: number;
+  /** Damage the defender's reduction took off, after any halving. */
+  reduced: number;
   /** Band before Armor Slots. */
   severity: DamageSeverity;
   /** Band after Armor Slots. */
@@ -250,7 +329,16 @@ export function resolveDamage(
   thresholds: DamageThresholds,
   options: ResolveDamageOptions = {},
 ): ResolvedDamage {
-  const incoming = applyDefenses(damage.amount, damage.types ?? [], options.defenses);
+  const types = damage.types ?? [];
+  const halved = applyDefenses(damage.amount, types, options.defenses);
+  // Resistance halves, and reduction comes off what is left. No stat block in
+  // the SRD has both, so the order is ours to pick; this one keeps the halving
+  // about the attack and the reduction about the armor answering it.
+  const reduction =
+    halved <= 0
+      ? 0
+      : flatReduction(types, options.defenses) + Math.max(0, Math.trunc(options.rolledReduction ?? 0));
+  const incoming = Math.max(0, halved - reduction);
   const severity = severityFor(incoming, thresholds, options);
 
   const wanted = damage.direct === true ? 0 : Math.max(0, Math.trunc(options.armorSlotsMarked ?? 0));
@@ -261,6 +349,7 @@ export function resolveDamage(
   const finalSeverity = reduceSeverity(severity, armorSlotsSpent);
   return {
     incoming,
+    reduced: halved - incoming,
     severity,
     finalSeverity,
     armorSlotsSpent,

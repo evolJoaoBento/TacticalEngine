@@ -18,7 +18,9 @@ import type { Rng } from '../core/rng';
 import {
   hpForSeverity,
   reduceSeverity,
+  reductionRolls,
   resolveDamage,
+  rollReduction,
   type DamageDefenses,
   type DamageThresholds,
   type IncomingDamage,
@@ -29,7 +31,7 @@ import { canAfford, canMarkStress, unmarked, type Currency, type MarkPool } from
 
 export interface Defender {
   thresholds: DamageThresholds;
-  /** Damage types this creature halves or ignores. */
+  /** Damage types this creature halves or ignores, and what it takes off the total. */
   defenses?: DamageDefenses;
   armorSlots: MarkPool;
   stress: MarkPool;
@@ -120,10 +122,14 @@ export function resolveDefense(
   const reactions = policy.reactions
     ? defender.reactions.filter((a) => a.kind === 'reaction' && a.trigger === 'incomingDamage' && isAutomatic(a))
     : [];
+  // A passive that reduces the damage costs nothing and is not a choice, so it
+  // is rolled once here and every sum below is made with it already taken off.
+  const rolledReduction = rollReduction(rng, damage.types ?? [], defender.defenses ?? {});
   const hpFor = (amount: number, armor: number): number =>
     resolveDamage({ ...damage, amount }, defender.thresholds, {
       armorSlotsMarked: armor,
       armorSlotsAvailable: unmarked(defender.armorSlots),
+      ...(rolledReduction === 0 ? {} : { rolledReduction }),
       ...(defender.defenses === undefined ? {} : { defenses: defender.defenses }),
     }).hpMarked;
 
@@ -164,6 +170,7 @@ export function resolveDefense(
   let resolved = resolveDamage({ ...damage, amount }, defender.thresholds, {
     armorSlotsMarked: armor,
     armorSlotsAvailable: unmarked(defender.armorSlots),
+    ...(rolledReduction === 0 ? {} : { rolledReduction }),
     ...(defender.defenses === undefined ? {} : { defenses: defender.defenses }),
   });
 
@@ -209,6 +216,7 @@ export function resolveDefensePlan(
     used.push(record);
   };
 
+  const rolledReduction = rollReduction(rng, damage.types ?? [], defender.defenses ?? {});
   let amount = damage.amount;
   for (const ability of plan.reactions) {
     const reaction = ability.reaction;
@@ -232,6 +240,7 @@ export function resolveDefensePlan(
   let resolved = resolveDamage({ ...damage, amount }, defender.thresholds, {
     armorSlotsMarked: armor,
     armorSlotsAvailable: available,
+    ...(rolledReduction === 0 ? {} : { rolledReduction }),
     ...(defender.defenses === undefined ? {} : { defenses: defender.defenses }),
   });
 
@@ -255,6 +264,9 @@ export function resolveDefensePlan(
  */
 export function previewPlan(damage: IncomingDamage, defender: Defender, plan: DefensePlan): number | null {
   if (plan.reactions.some((a) => a.reaction?.kind === 'reduceDamage')) return null;
+  // Nor does a passive whose reduction is dice: the same answer, for the same
+  // reason — nothing here rolls, so there is no number to show yet.
+  if (reductionRolls(defender.defenses)) return null;
   const available = unmarked(defender.armorSlots);
   let armor = damage.direct === true ? 0 : Math.min(plan.armorSlots, available);
   for (const ability of plan.reactions) {

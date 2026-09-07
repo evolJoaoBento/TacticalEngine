@@ -26,6 +26,7 @@ import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-f
 import { deriveCharacter } from '../engine/character/sheet';
 import { domainsOf, heldCards } from '../engine/character/progression';
 import type { SrdCharacterContent } from '../engine/content/srd/daggersearch';
+import { parseDice } from '../engine/rules/dice';
 import { compileHooks } from '../engine/script/hooks';
 import { projectSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
 
@@ -200,6 +201,13 @@ function checkAbilitiesAndCode(
     // written rather than when someone reaches for it.
     if ((ability.cost.fear ?? 0) > 0 && ability.source.kind !== 'adversary') {
       add('warning', `"${ability.id}" costs Fear, which only the GM spends: nobody holding it can use it.`, ability.id);
+    }
+    // "Reduce it by three" is not a number: the reduction is a dice expression
+    // and an unreadable one silently reduces nothing.
+    for (const entry of ability.defenses?.reduce ?? []) {
+      if (parseDice(entry.dice) === null) {
+        add('error', `"${ability.id}" reduces damage by "${entry.dice}", which is not dice.`, ability.id);
+      }
     }
     // The swing a stat block prints, and the two triggers that answer it, are
     // read on the GM's turn alone. On a card they are quietly dead.

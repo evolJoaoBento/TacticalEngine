@@ -26,7 +26,7 @@ import {
   spend,
   unmarked,
 } from '../rules/resources';
-import { resolveDamage, type DamageDefenses, type IncomingDamage } from '../rules/damage';
+import { resolveDamage, type DamageDefenses, type DamageReduction, type IncomingDamage } from '../rules/damage';
 import { rollDuality } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
 import { bandForDistance, bandIndex, reaches, type BandTiles, type RangeBand } from '../rules/range';
@@ -438,9 +438,13 @@ export class SceneScriptWorld implements ScriptWorld {
   defensesOf(id: string): DamageDefenses {
     const resistances = new Set<DamageType>();
     const immunities = new Set<DamageType>();
+    // Reduction stacks rather than merging: two passives that each take 3 off
+    // take 6, which is how a table reads two lines that both say "reduce it".
+    const reduce: DamageReduction[] = [];
     const take = (defenses: DamageDefenses | undefined): void => {
       for (const type of defenses?.resistances ?? []) resistances.add(type);
       for (const type of defenses?.immunities ?? []) immunities.add(type);
+      for (const entry of defenses?.reduce ?? []) reduce.push(entry);
     };
     for (const ability of this.heldBy(id)) {
       if (ability.kind === 'passive') take(ability.defenses);
@@ -451,6 +455,7 @@ export class SceneScriptWorld implements ScriptWorld {
     return {
       ...(resistances.size === 0 ? {} : { resistances: [...resistances] }),
       ...(immunities.size === 0 ? {} : { immunities: [...immunities] }),
+      ...(reduce.length === 0 ? {} : { reduce }),
     };
   }
 
@@ -889,7 +894,7 @@ export class SceneScriptWorld implements ScriptWorld {
         major: base.thresholds.major + this.poolBonus(entity.id, 'majorThreshold') + both,
         severe: base.thresholds.severe + this.poolBonus(entity.id, 'severeThreshold') + both,
       },
-      ...(defenses.resistances === undefined && defenses.immunities === undefined ? {} : { defenses }),
+      ...(Object.keys(defenses).length === 0 ? {} : { defenses }),
     };
   }
 

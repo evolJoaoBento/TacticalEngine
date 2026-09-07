@@ -72,6 +72,46 @@ function guardian(overrides: Partial<Defender> = {}): Defender {
 
 const phys = (amount: number) => ({ amount, types: ['physical'] as const });
 
+describe('a defender who takes a number off the damage', () => {
+  /** "When the Knight takes physical damage, reduce it by 3." */
+  const knight = guardian({ defenses: { reduce: [{ dice: '3', only: 'physical' }] } });
+  /** "When the Undefeated Champion takes damage, reduce it by 1d10." */
+  const champion = guardian({ defenses: { reduce: [{ dice: '1d10' }] } });
+
+  it('takes the flat number off however the defence is decided', () => {
+    // 10 physical is Major on 8/16; 3 off makes it Minor, and the one Armor
+    // Slot the policy marks then takes the Knight to nothing at all.
+    expect(resolveDefense(scripted([]), phys(10), knight).resolved).toMatchObject({
+      incoming: 7,
+      reduced: 3,
+      severity: 'minor',
+      armorSlotsSpent: 1,
+      hpMarked: 0,
+    });
+    expect(resolveDefense(scripted([]), phys(10), guardian()).resolved).toMatchObject({ hpMarked: 1, armorSlotsSpent: 1 });
+    // A plan the defender chose is the same arithmetic.
+    expect(
+      resolveDefensePlan(scripted([]), phys(10), knight, { armorSlots: 0, reactions: [] }).resolved,
+    ).toMatchObject({ incoming: 7, hpMarked: 1 });
+    // And so is the preview a player is offered, because nothing is rolled.
+    expect(previewPlan(phys(10), knight, { armorSlots: 0, reactions: [] })).toBe(1);
+  });
+
+  it('rolls the dice kind once for the whole hit', () => {
+    // One d10 for the event, not one per sum: the scripted stream holds a
+    // single 8, and running out of dice would throw.
+    const defense = resolveDefense(scripted([8]), phys(20), champion);
+    expect(defense.resolved).toMatchObject({ incoming: 12, reduced: 8, severity: 'major' });
+    const chosen = resolveDefensePlan(scripted([8]), phys(20), champion, { armorSlots: 1, reactions: [] });
+    expect(chosen.resolved).toMatchObject({ incoming: 12, finalSeverity: 'minor', hpMarked: 1 });
+  });
+
+  it('has no number to preview until those dice are rolled', () => {
+    // The same answer a Rune Ward gets, for the same reason.
+    expect(previewPlan(phys(20), champion, { armorSlots: 0, reactions: [] })).toBeNull();
+  });
+});
+
 describe('a defender who resists the damage', () => {
   /**
    * Resistance comes off the top: it halves before thresholds, before armour

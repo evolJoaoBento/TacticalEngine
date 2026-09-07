@@ -24,18 +24,19 @@ engine has no place to put:
 - **a condition the SRD prints once** — Entranced, Poisoned, Cursed, Deathlock and the
   rest: written into that one block rather than into the rules.
 - **a social beat** — a bargain, a rumour, a scapegoat: a scene rather than a grid.
-- **a passive on a number the engine does not have** — "reduce the damage by 1d10"
-  (reduction is not a typed defence), "deal 1d6+5 instead of their standard damage when
-  another Wolf is in Melee range" (a damage swap on a condition), "when this adversary
-  is attacked, the attacker marks a Stress" (a rider on *being* attacked, which is the
-  other side of the two triggers the swing already carries).
+- **a passive on a number the engine does not have** — "deal 1d6+5 instead of their
+  standard damage when another Wolf is in Melee range" (a damage swap on a condition),
+  "when this adversary is attacked, the attacker marks a Stress" (a rider on *being*
+  attacked, which is the other side of the two triggers the swing already carries).
 - **an ally on the other side** — the GM's turn aims a feature at the party, so a
   feature that shields or heals one of its own has no way to be pointed at it.
 
 Facing is *not* a reason: "in front of the Burrower" is read as the whole band, as Spit
 Acid has been from the start. Nor is resistance — a passive that halves or ignores a
-damage type is a `defenses` line, and neither is a rider that follows the swing the
-block already prints, which is a reaction to `dealtHit` or `dealtDamage`.
+damage type is a `defenses` line, and so is one that takes a number off the total
+before the thresholds are read ("reduce it by 3", "reduce it by 1d10"). Neither is a
+rider that follows the swing the block already prints, which is a reaction to
+`dealtHit` or `dealtDamage`.
 
 A scripted feature says as much of its text as the vocabulary carries; where it says
 less, the entry in `adversary-abilities.ts` carries a line saying what was left out.
@@ -44,7 +45,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 76. Text: 268.
+Read: 73. Scripted: 81. Text: 263.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -251,7 +252,7 @@ Read: 73. Scripted: 76. Text: 268.
 | Juvenile Flickerfly | Mind Dance | Action | **text** — the GM's to play |
 | Juvenile Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **text** — the GM's to play |
 | Knight of the Realm | Chevalier | Passive | **text** — the GM's to play |
-| Knight of the Realm | Heavily Armored | Passive | **text** — the GM's to play |
+| Knight of the Realm | Heavily Armored | Passive | **scripted** — runs as an ability |
 | Knight of the Realm | Cavalry Charge | Action | **text** — the GM's to play |
 | Knight of the Realm | For the Realm! | Action | **text** — the GM's to play |
 | Masked Thief | Quick Hands | Action | **text** — the GM's to play |
@@ -333,7 +334,7 @@ Read: 73. Scripted: 76. Text: 268.
 | Elemental Spark | Group Attack | Action | **text** — the GM's to play |
 | Greater Earth Elemental | Slow | Passive | **text** — the GM's to play |
 | Greater Earth Elemental | Crushing Blows | Passive | **scripted** — runs as an ability |
-| Greater Earth Elemental | Immovable Object | Passive | **text** — the GM's to play |
+| Greater Earth Elemental | Immovable Object | Passive | **scripted** — runs as an ability |
 | Greater Earth Elemental | Rockslide | Action | **scripted** — runs as an ability |
 | Greater Earth Elemental | Momentum | Reaction | **read** — read off the stat block |
 | Greater Water Elemental | Water Jet | Action | **scripted** — runs as an ability |
@@ -396,13 +397,13 @@ Read: 73. Scripted: 76. Text: 268.
 | Fallen Sorcerer | Slippery | Reaction | **text** — the GM's to play |
 | Fallen Sorcerer | Shackles of Guilt | Reaction: Countdown (Loop 2d6) | **text** — the GM's to play |
 | Fallen Warlord: Realm-Breaker | Relentless (2) | Passive | **read** — read off the stat block |
-| Fallen Warlord: Realm-Breaker | Firespite Plate Armor | Passive | **text** — the GM's to play |
+| Fallen Warlord: Realm-Breaker | Firespite Plate Armor | Passive | **scripted** — runs as an ability |
 | Fallen Warlord: Realm-Breaker | Tormenting Lash | Action | **text** — the GM's to play |
 | Fallen Warlord: Realm-Breaker | All-Consuming Rage | Reaction: Countdown (Decreasing 8) | **text** — the GM's to play |
 | Fallen Warlord: Realm-Breaker | Doombringer | Reaction | **text** — the GM's to play |
 | Fallen Warlord: Realm-Breaker | I Have Never Known Defeat (Phase Change) | Reaction | **text** — the GM's to play |
 | Fallen Warlord: Undefeated Champion | Relentless (3) | Passive | **read** — read off the stat block |
-| Fallen Warlord: Undefeated Champion | Faltering Armor | Passive | **text** — the GM's to play |
+| Fallen Warlord: Undefeated Champion | Faltering Armor | Passive | **scripted** — runs as an ability |
 | Fallen Warlord: Undefeated Champion | Shattering Strike | Action | **text** — the GM's to play |
 | Fallen Warlord: Undefeated Champion | Endless Legions | Action | **text** — the GM's to play |
 | Fallen Warlord: Undefeated Champion | Circle of Defilement | Reaction: Countdown (1d8) | **text** — the GM's to play |
@@ -432,7 +433,7 @@ Read: 73. Scripted: 76. Text: 268.
 | Outer Realms Abomination | Chaotic Form | Passive | **text** — the GM's to play |
 | Outer Realms Abomination | Disorienting Presence | Passive | **text** — the GM's to play |
 | Outer Realms Abomination | Reality Quake | Action | **text** — the GM's to play |
-| Outer Realms Abomination | Unreal Form | Reaction | **text** — the GM's to play |
+| Outer Realms Abomination | Unreal Form | Reaction | **scripted** — runs as an ability |
 | Outer Realms Corruptor | Will-Shattering Touch | Passive | **scripted** — runs as an ability |
 | Outer Realms Corruptor | Disgorge Reality Flotsam | Action | **scripted** — runs as an ability |
 | Outer Realms Thrall | Minion (13) | Passive | **read** — read off the stat block |

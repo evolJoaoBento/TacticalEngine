@@ -1978,8 +1978,11 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   await panel.locator('[data-testid="add-ability"]').click();
   // Fear is the GM's pool, which is what a stat block's feature spends.
   await panel.locator('[data-testid="ability-fear"]').fill('2');
-  // And what the block does with damage coming back at it.
+  // And what the block does with damage coming back at it: half of one type,
+  // and a flat number off the rest.
   await panel.locator('[data-testid="ability-resist-physical"]').check();
+  await panel.locator('[data-testid="ability-reduce"]').fill('1d10');
+  await panel.locator('[data-testid="ability-reduce-type"]').selectOption('magic');
   // The swing the block prints goes through armor, and this answers it landing:
   // two things a card has no use for.
   await panel.locator('[data-testid="ability-direct-attack"]').check();
@@ -2027,7 +2030,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
     // Only what the author touched: the Hope and Stress fields were left alone.
     cost: { fear: 2 },
     trigger: 'dealtDamage',
-    defenses: { resistances: ['physical'] },
+    defenses: { resistances: ['physical'], reduce: [{ dice: '1d10', only: 'magic' }] },
     standardAttack: { direct: true },
     effects: [
       {

@@ -8,8 +8,10 @@ import {
   parseThresholds,
   pcThresholds,
   reduceSeverity,
+  reductionRolls,
   resolveDamage,
   rollDamage,
+  rollReduction,
   severityFor,
   type DamageSeverity,
 } from './damage';
@@ -146,6 +148,82 @@ describe('applyDefenses', () => {
     expect(applyDefenses(7, [])).toBe(7);
     expect(applyDefenses(7, ['physical'])).toBe(7);
     expect(applyDefenses(-2, ['physical'])).toBe(0);
+  });
+});
+
+describe('damage a creature takes off before the thresholds', () => {
+  const plate = { reduce: [{ dice: '3', only: 'physical' as const }] };
+
+  it('takes the number off the total, and only from damage of the type it names', () => {
+    expect(resolveDamage({ amount: 10, types: ['physical'] }, thresholds, { defenses: plate })).toMatchObject({
+      incoming: 7,
+      reduced: 3,
+      severity: 'minor',
+    });
+    // Magic walks past armor that only answers steel.
+    expect(resolveDamage({ amount: 10, types: ['magic'] }, thresholds, { defenses: plate })).toMatchObject({
+      incoming: 10,
+      reduced: 0,
+      severity: 'major',
+    });
+    // Damage that is both carries physical, so the plate answers it: the
+    // SRD prints its "the defense against both types" rule for resistance
+    // and immunity, and says nothing of the kind here.
+    expect(
+      resolveDamage({ amount: 10, types: ['physical', 'magic'] }, thresholds, { defenses: plate }),
+    ).toMatchObject({ incoming: 7 });
+    // Untyped damage is answered only by a reduction that names no type.
+    expect(resolveDamage({ amount: 10 }, thresholds, { defenses: plate })).toMatchObject({ incoming: 10 });
+    expect(
+      resolveDamage({ amount: 10 }, thresholds, { defenses: { reduce: [{ dice: '4' }] } }),
+    ).toMatchObject({ incoming: 6, reduced: 4 });
+  });
+
+  it('stacks two lines that both say to reduce, and stops at nothing', () => {
+    expect(
+      resolveDamage({ amount: 5, types: ['physical'] }, thresholds, {
+        defenses: { reduce: [{ dice: '3' }, { dice: '7' }] },
+      }),
+    ).toMatchObject({ incoming: 0, reduced: 5, severity: 'none', hpMarked: 0 });
+  });
+
+  it('halves first and takes the number off what is left', () => {
+    // 20 halved to 10, then 3 off: Minor, where either alone leaves Major.
+    expect(
+      resolveDamage({ amount: 20, types: ['physical'] }, thresholds, {
+        defenses: { resistances: ['physical'], reduce: [{ dice: '3' }] },
+      }),
+    ).toMatchObject({ incoming: 7, severity: 'minor' });
+  });
+
+  it('adds the dice half only when a caller rolled it', () => {
+    const dice = { reduce: [{ dice: '1d10' }] };
+    // Nothing rolled: the number can only be too high, never too low.
+    expect(resolveDamage({ amount: 12 }, thresholds, { defenses: dice })).toMatchObject({
+      incoming: 12,
+      reduced: 0,
+    });
+    expect(
+      resolveDamage({ amount: 12 }, thresholds, { defenses: dice, rolledReduction: 7 }),
+    ).toMatchObject({ incoming: 5, reduced: 7 });
+  });
+
+  it('rolls the dice half and leaves the stream alone when there are none', () => {
+    const rolled = rollReduction(createRng('plate'), ['physical'], { reduce: [{ dice: '2d10' }] });
+    expect(rolled).toBeGreaterThanOrEqual(2);
+    expect(rolled).toBeLessThanOrEqual(20);
+    // A flat reduction is arithmetic, not a roll: it comes off inside
+    // `resolveDamage` and takes nothing from the stream, so a seed replays
+    // the same way for a creature that has one.
+    const flat = createRng('same');
+    expect(rollReduction(flat, ['physical'], { reduce: [{ dice: '3' }] })).toBe(0);
+    expect(flat.next()).toBe(createRng('same').next());
+    // And a reduction that names another type rolls nothing at all.
+    expect(rollReduction(createRng('x'), ['magic'], { reduce: [{ dice: '2d10', only: 'physical' }] })).toBe(0);
+
+    expect(reductionRolls({ reduce: [{ dice: '3' }] })).toBe(false);
+    expect(reductionRolls({ reduce: [{ dice: '3' }, { dice: '1d10' }] })).toBe(true);
+    expect(reductionRolls({})).toBe(false);
   });
 });
 

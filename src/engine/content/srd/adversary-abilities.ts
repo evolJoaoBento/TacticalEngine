@@ -1235,6 +1235,59 @@ const RAW: Input[] = [
     action: false,
     standardAttack: { direct: true },
   },
+  // ---- what a block takes off the damage before it meets the thresholds ----
+  // "Reduce it by 3", "reduce it by 1d10": one number, off the total, before
+  // the bands are read. The rule is in `rules/damage.ts`; the flat kind is
+  // arithmetic, and the dice kind is rolled once per hit.
+  {
+    id: 'knight-of-the-realm-heavily-armored',
+    name: 'Heavily Armored',
+    source: from('knight-of-the-realm'),
+    text: 'When the Knight takes physical damage, reduce it by 3.',
+    kind: 'passive',
+    action: false,
+    defenses: { reduce: [{ dice: '3', only: 'physical' }] },
+  },
+  {
+    id: 'greater-earth-elemental-immovable-object',
+    name: 'Immovable Object',
+    source: from('greater-earth-elemental'),
+    text: 'An attack that would move the Elemental moves them two fewer ranges (for example, Far becomes Very Close). When the Elemental takes physical damage, reduce it by 7.',
+    kind: 'passive',
+    action: false,
+    // Simplified: the damage only; nothing yet shortens a push.
+    defenses: { reduce: [{ dice: '7', only: 'physical' }] },
+  },
+  {
+    id: 'fallen-warlord-undefeated-champion-faltering-armor',
+    name: 'Faltering Armor',
+    source: from('fallen-warlord-undefeated-champion'),
+    text: 'When the Undefeated Champion takes damage, reduce it by 1d10.',
+    kind: 'passive',
+    action: false,
+    defenses: { reduce: [{ dice: '1d10' }] },
+  },
+  {
+    id: 'fallen-warlord-realm-breaker-firespite-plate-armor',
+    name: 'Firespite Plate Armor',
+    source: from('fallen-warlord-realm-breaker'),
+    text: 'When the Realm-Breaker takes damage, reduce it by 2d10.',
+    kind: 'passive',
+    action: false,
+    defenses: { reduce: [{ dice: '2d10' }] },
+  },
+  {
+    id: 'outer-realms-abomination-unreal-form',
+    name: 'Unreal Form',
+    source: from('outer-realms-abomination'),
+    text: 'When the Abomination takes damage, reduce it by 1d20. If the Abomination marks 1 or fewer Hit Points from a successful attack against them, you gain a Fear.',
+    kind: 'passive',
+    action: false,
+    // Simplified: the reduction only. It is printed as a reaction, but it costs
+    // nothing and is never declined, so it is held as a passive; the Fear for a
+    // hit that marks 1 or fewer Hit Points is the GM's.
+    defenses: { reduce: [{ dice: '1d20' }] },
+  },
 ];
 
 export const SRD_ADVERSARY_ABILITIES: readonly AbilityDef[] = RAW.map((raw) => abilitySchema.parse(raw));

@@ -21,6 +21,7 @@ import { rollDice, type DiceExpression, type ParsedDamage } from '../rules/dice'
 import {
   resolveDamage,
   rollDamage,
+  rollReduction,
   type DamageDefenses,
   type DamageRollOptions,
   type DamageRollResult,
@@ -247,6 +248,9 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
     bonus: options.damageBonus ?? 0,
   });
 
+  // A PC's swing at an adversary is resolved here and nowhere else — there is
+  // no defence step on that side — so the defender's reduction is rolled here.
+  const rolledReduction = rollReduction(rng, profile.damage.types ?? [], defender.defenses ?? {});
   const damage = resolveDamage(
     {
       amount: damageRoll.total,
@@ -257,6 +261,7 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
     {
       armorSlotsMarked: options.armorSlotsMarked ?? 0,
       armorSlotsAvailable: unmarked(target.armorSlots),
+      ...(rolledReduction === 0 ? {} : { rolledReduction }),
       ...(defender.defenses === undefined ? {} : { defenses: defender.defenses }),
       ...(options.massiveDamage === undefined ? {} : { massiveDamage: options.massiveDamage }),
     },

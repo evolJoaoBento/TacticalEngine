@@ -57,7 +57,7 @@ import {
 } from '../engine/combat/defense';
 import { readsATarget, type AbilityDef } from '../engine/content/abilities';
 import { gain, unmarked } from '../engine/rules/resources';
-import { rollDamage, type IncomingDamage } from '../engine/rules/damage';
+import { rollDamage, type IncomingDamage, type ResolvedDamage } from '../engine/rules/damage';
 import { EncounterRunner } from '../engine/combat/encounter';
 import {
   attackProfile,
@@ -903,6 +903,7 @@ export function attackWithSelected(
     if (applied.hitPointsMarked > 0) demo.world.endsOnDamage(targetId);
     defeatMinions(demo, targetId, outcome.damageRoll?.total ?? 0);
   }
+  if (outcome.hit) noteReduction(demo, nameOf(demo, targetId), outcome.damage);
   note(
     demo,
     outcome.hit
@@ -1452,6 +1453,16 @@ const costOf = (ability: AbilityDef): string =>
 const hitPointWord = (n: number): string => `${n} Hit Point${n === 1 ? '' : 's'}`;
 
 /**
+ * "The Knight turns aside 3 of it": the damage a passive took off before the
+ * thresholds were read. Without this the number in the next line is a mystery
+ * — a hit for 11 that marks nothing looks like a bug rather than plate armor.
+ */
+function noteReduction(demo: DemoScene, who: string, resolved: ResolvedDamage | undefined): void {
+  if (resolved === undefined || resolved.reduced <= 0) return;
+  note(demo, `${who} turns aside ${resolved.reduced} of it.`, 'combat');
+}
+
+/**
  * What the defender's side can do about this hit.
  *
  * The first is always "take it", so there is always an answer; the rest are
@@ -1464,8 +1475,14 @@ export function defenseChoices(demo: DemoScene, attack: IncomingAttack): Defense
   if (defender === null) return [];
   const damage = incomingOf(demo, attack);
   const bare: DefensePlan = { armorSlots: 0, reactions: [] };
-  const straight = previewPlan(damage, defender, bare) ?? 0;
-  const choices: DefenseChoice[] = [{ kind: 'plan', label: `Take it — ${hitPointWord(straight)}`, plan: bare }];
+  // Every plan is offered against this one. A defender whose own passive still
+  // has dice to roll has no number until the hit lands, so the label drops it
+  // rather than promising a nothing.
+  const bareHp = previewPlan(damage, defender, bare);
+  const straight = bareHp ?? 0;
+  const choices: DefenseChoice[] = [
+    { kind: 'plan', label: bareHp === null ? 'Take it' : `Take it — ${hitPointWord(bareHp)}`, plan: bare },
+  ];
 
   const room = unmarked(defender.armorSlots) > 0;
   const withArmor = room ? previewPlan(damage, defender, { armorSlots: 1, reactions: [] }) : null;
@@ -1617,6 +1634,7 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
   landedFeatures(demo, attack, final.hitPointsMarked);
   const ended = [...demo.world.endsOnHit(attack.defender), ...(final.hitPointsMarked > 0 ? demo.world.endsOnDamage(attack.defender) : [])];
   for (const condition of ended) note(demo, `${who} is no longer ${condition}.`, 'system');
+  noteReduction(demo, who, defense.resolved);
   note(
     demo,
     final.hitPointsMarked === 0

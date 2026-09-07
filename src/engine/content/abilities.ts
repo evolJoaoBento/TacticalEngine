@@ -148,6 +148,13 @@ export const damageReactionSchema = z.discriminatedUnion('kind', [
 export const damageDefensesSchema = z.object({
   resistances: z.array(z.enum(['physical', 'magic'])).optional(),
   immunities: z.array(z.enum(['physical', 'magic'])).optional(),
+  /**
+   * What comes off the total before thresholds: "reduce it by 3", "reduce it
+   * by 1d10". `only` names a damage type; without one it answers every kind.
+   */
+  reduce: z
+    .array(z.object({ dice: z.string().min(1), only: z.enum(['physical', 'magic']).optional() }))
+    .optional(),
 });
 
 export const abilitySchema = z.object({

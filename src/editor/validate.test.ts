@@ -646,6 +646,16 @@ describe('what only a stat block has', () => {
           target: { kind: 'none' },
           kind: 'passive',
           standardAttack: { direct: true },
+          defenses: { reduce: [{ dice: '1d10' }] },
+          effects: [],
+        },
+        {
+          id: 'thick-hide',
+          name: 'Thick Hide',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'passive',
+          defenses: { reduce: [{ dice: 'three' }] },
           effects: [],
         },
       ],
@@ -659,7 +669,9 @@ describe('what only a stat block has', () => {
       '"rider" answers its holder' + String.fromCharCode(39) + 's own attack, which only a stat block' +
         String.fromCharCode(39) + 's swing reports.',
     );
-    // The same passive on a stat block is exactly where it belongs.
+    // A reduction nothing can read reduces nothing, silently.
+    expect(said).toContain('"thick-hide" reduces damage by "three", which is not dice.');
+    // The same passives on a stat block are exactly where they belong.
     expect(said.some((m) => m.includes('on-a-block'))).toBe(false);
   });
 });
