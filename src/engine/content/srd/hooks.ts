@@ -77,12 +77,15 @@ export const SRD_HOOKS: HookMap = defineHooks({
   },
 
   /**
-   * Spit Acid's aftermath: "must mark an Armor Slot without receiving its
-   * benefits. If they can't, they must mark an additional HP and you gain a
-   * Fear." Which of the two happens is decided per target, which is why it is
-   * code: a branch decides for the whole list.
+   * "The target must mark an Armor Slot without receiving its benefits. If
+   * they can't mark an Armor Slot, they must mark an additional HP" — Spit
+   * Acid's aftermath, and the same sentence on four other blocks. Which of the
+   * two happens is decided per target, which is why it is code: an effect list
+   * branches for the whole list at once.
+   *
+   * `args.fear` adds the Fear that Spit Acid alone hands the GM.
    */
-  'spit-acid-armor': (ctx) => {
+  'mark-armor-or-hit-point': (ctx) => {
     for (const id of ctx.hit) {
       const room = ctx.pool(id, 'armorSlots') ?? 0;
       if (room > 0) {
@@ -90,7 +93,7 @@ export const SRD_HOOKS: HookMap = defineHooks({
       } else {
         ctx.queue([
           { kind: 'damage', amount: 1, direct: true, target: { kind: 'entity', id } },
-          { kind: 'gainFear' },
+          ...(ctx.args.fear === true ? [{ kind: 'gainFear' as const }] : []),
         ]);
       }
     }

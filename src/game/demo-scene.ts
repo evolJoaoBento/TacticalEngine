@@ -57,7 +57,7 @@ import {
 } from '../engine/combat/defense';
 import { readsATarget, type AbilityDef } from '../engine/content/abilities';
 import { gain, unmarked } from '../engine/rules/resources';
-import { rollDamage } from '../engine/rules/damage';
+import { rollDamage, type IncomingDamage } from '../engine/rules/damage';
 import { EncounterRunner } from '../engine/combat/encounter';
 import {
   attackProfile,
@@ -1176,13 +1176,19 @@ function useAdversaryFeature(demo: DemoScene, adversaryId: string, ability: Abil
   settleFight(demo);
 }
 
-function runAdversaryScript(demo: DemoScene, adversaryId: string, ability: AbilityDef, targets: readonly string[] = []): void {
+function runAdversaryScript(
+  demo: DemoScene,
+  adversaryId: string,
+  ability: AbilityDef,
+  targets: readonly string[] = [],
+  hit: readonly string[] = [],
+): void {
   const stress = ability.cost.stress ?? 0;
   if (stress > 0) demo.world.markStress(adversaryId, stress);
   note(demo, `The ${nameOf(demo, adversaryId)} uses ${ability.name}.`, 'combat');
   const was = demo.scenario.actorId;
   demo.scenario.actorId = adversaryId;
-  const runner = new ScriptRunner(demo.world, demo.rng, { targets: [...targets], rollAs: 'actor' });
+  const runner = new ScriptRunner(demo.world, demo.rng, { targets: [...targets], hit: [...hit], rollAs: 'actor' });
   const result = runner.run(ability.effects);
   record(demo, result.journal);
   demo.scenario.actorId = was;
@@ -1285,6 +1291,8 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
       range: def.attackRange,
       // A Horde's standard attack changes once half its Hit Points are marked.
       damage: attackDamageOf(def, adversary.hitPoints),
+      // "The Ogre's attacks deal direct damage": a passive on the block.
+      ...demo.world.standardAttackOf(def.id),
     },
     // The target defends with the Evasion and thresholds their sheet derives,
     // plus whatever their conditions add; the defence step below decides the
@@ -1347,9 +1355,18 @@ function defeatMinions(demo: DemoScene, targetId: string, damage: number): void 
 // The defender's choice
 // ---------------------------------------------------------------------------
 
-/** The damage a hit is carrying right now. */
-function incomingOf(attack: IncomingAttack): { amount: number; types: readonly ('physical' | 'magic')[] } {
-  return { amount: attack.outcome.damageRoll?.total ?? 0, types: attack.def.attackDamage.types ?? [] };
+/**
+ * The damage a hit is carrying right now — and whether armour has any answer
+ * to it, which a passive on the block decides ("the Ogre's attacks deal direct
+ * damage"). The defence is resolved a second time from this, so what the
+ * profile said about the swing has to be said again here or it is lost.
+ */
+function incomingOf(demo: DemoScene, attack: IncomingAttack): IncomingDamage {
+  return {
+    amount: attack.outcome.damageRoll?.total ?? 0,
+    types: attack.def.attackDamage.types ?? [],
+    ...demo.world.standardAttackOf(attack.def.id),
+  };
 }
 
 /**
@@ -1357,7 +1374,7 @@ function incomingOf(attack: IncomingAttack): { amount: number; types: readonly (
  * Fear, Terrifying costs every PC in Close range a Hope and hands over a Fear
  * as well.
  */
-function landedFeatures(demo: DemoScene, attack: IncomingAttack): void {
+function landedFeatures(demo: DemoScene, attack: IncomingAttack, hitPointsMarked: number): void {
   const traits = adversaryTraits(attack.def);
   let fear = 0;
   if (traits.momentum) fear += 1;
@@ -1378,6 +1395,28 @@ function landedFeatures(demo: DemoScene, attack: IncomingAttack): void {
     const gained = gain(demo.state.fear, fear);
     demo.state.fear = gained.currency;
     if (gained.applied > 0) note(demo, `The GM gains ${gained.applied} Fear.`, 'fear');
+  }
+  playAttackRiders(demo, attack.attacker, attack.defender, hitPointsMarked);
+}
+
+/**
+ * What a stat block hangs on its own standard attack: "targets who mark HP
+ * from the Zombie's attacks must also mark a Stress".
+ *
+ * `dealtHit` answers the swing landing, however the defender answered it;
+ * `dealtDamage` only fires when a Hit Point was actually marked, which is the
+ * difference between "on a successful attack" and "targets who mark HP". Both
+ * run with the one it hit bound as the target and as the hit, so a rider can
+ * be written either way — and only for the GM's swing: a card with one would
+ * be read by nothing, because a player's attack goes down its own path.
+ */
+function playAttackRiders(demo: DemoScene, attackerId: string, defenderId: string, hitPointsMarked: number): void {
+  const triggers: NonNullable<AbilityDef['trigger']>[] = hitPointsMarked > 0 ? ['dealtHit', 'dealtDamage'] : ['dealtHit'];
+  for (const trigger of triggers) {
+    for (const ability of demo.world.reactionsFor(attackerId, trigger)) {
+      if (ability.effects.length === 0) continue;
+      runAdversaryScript(demo, attackerId, ability, [defenderId], [defenderId]);
+    }
   }
 }
 
@@ -1417,7 +1456,7 @@ const hitPointWord = (n: number): string => `${n} Hit Point${n === 1 ? '' : 's'}
 export function defenseChoices(demo: DemoScene, attack: IncomingAttack): DefenseChoice[] {
   const defender = defenderFor(demo, attack.defender);
   if (defender === null) return [];
-  const damage = incomingOf(attack);
+  const damage = incomingOf(demo, attack);
   const bare: DefensePlan = { armorSlots: 0, reactions: [] };
   const straight = previewPlan(damage, defender, bare) ?? 0;
   const choices: DefenseChoice[] = [{ kind: 'plan', label: `Take it — ${hitPointWord(straight)}`, plan: bare }];
@@ -1517,7 +1556,7 @@ function offerOrLand(demo: DemoScene, attack: IncomingAttack): void {
   if (demo.askDefender) {
     const choices = defenseChoices(demo, attack);
     if (choices.length > 1) {
-      const damage = incomingOf(attack);
+      const damage = incomingOf(demo, attack);
       demo.pending = {
         kind: 'defense',
         attack,
@@ -1525,7 +1564,7 @@ function offerOrLand(demo: DemoScene, attack: IncomingAttack): void {
         prompt: {
           kind: 'choice',
           title: `${attack.def.attackName} on ${nameOf(demo, attack.defender)}`,
-          body: `${damage.amount} ${damage.types.join(' and ') || 'physical'} damage. How does it land?`,
+          body: `${damage.amount} ${(damage.types ?? []).join(' and ') || 'physical'} damage${damage.direct === true ? ', direct' : ''}. How does it land?`,
           options: choices.map((choice, index) => ({ index, label: choice.label })),
         },
       };
@@ -1545,7 +1584,7 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
   const defender = defenderFor(demo, attack.defender);
   if (target === undefined || defender === null) return;
   const who = nameOf(demo, attack.defender);
-  const damage = incomingOf(attack);
+  const damage = incomingOf(demo, attack);
 
   const defense =
     plan === null
@@ -1569,7 +1608,7 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
   };
   applyAttack(demo.state, final);
   demo.world.endsOnAttack(attack.attacker);
-  landedFeatures(demo, attack);
+  landedFeatures(demo, attack, final.hitPointsMarked);
   const ended = [...demo.world.endsOnHit(attack.defender), ...(final.hitPointsMarked > 0 ? demo.world.endsOnDamage(attack.defender) : [])];
   for (const condition of ended) note(demo, `${who} is no longer ${condition}.`, 'system');
   note(

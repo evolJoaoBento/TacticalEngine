@@ -161,8 +161,17 @@ export const abilitySchema = z.object({
    * `trigger` happens. `passive`: its `modifiers` apply while held.
    */
   kind: z.enum(['action', 'reaction', 'passive']).default('action'),
-  /** What a reaction answers. */
-  trigger: z.enum(['incomingDamage', 'attackHit', 'attackMissed', 'tookSevere']).optional(),
+  /**
+   * What a reaction answers. The first four are things that happen *to* the
+   * holder or near them; `dealtHit` and `dealtDamage` are the other side of
+   * the table — what the holder's own standard attack did, which is how a
+   * stat block says "targets who mark HP from the Zombie's attacks must also
+   * mark a Stress". `dealtHit` fires on a hit however it is answered;
+   * `dealtDamage` only when a Hit Point was actually marked.
+   */
+  trigger: z
+    .enum(['incomingDamage', 'attackHit', 'attackMissed', 'tookSevere', 'dealtHit', 'dealtDamage'])
+    .optional(),
   /**
    * What using it costs its holder. `fear` is the GM's pool, so it belongs to
    * a stat block's features — "Spend a Fear to…" is written on adversaries,
@@ -193,6 +202,12 @@ export const abilitySchema = z.object({
   modifiers: z.array(abilityModifierSchema).default([]),
   /** For a `passive`: what holding it does to damage coming in. */
   defenses: damageDefensesSchema.optional(),
+  /**
+   * For a `passive`: what holding it does to the creature's own standard
+   * attack — the swing its stat block prints, not a feature's. "The Ogre's
+   * attacks deal direct damage" is this and nothing else.
+   */
+  standardAttack: z.object({ direct: z.boolean().optional() }).optional(),
   /** For a reaction to incoming damage: what it does. */
   reaction: damageReactionSchema.optional(),
   /** Tokens the card holds, if it is one of the cards that holds them. */

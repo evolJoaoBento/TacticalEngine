@@ -24,15 +24,16 @@ engine has no place to put:
 - **a condition the SRD prints once** — Entranced, Poisoned, Cursed, Deathlock and the
   rest: written into that one block rather than into the rules.
 - **a social beat** — a bargain, a rumour, a scapegoat: a scene rather than a grid.
-- **a rider on the standard attack** — "targets who mark HP must also mark a Stress",
-  "the Ogre's attacks deal direct damage", "reduce the damage by 1d10": a passive that
-  rewrites the swing the block already prints, rather than adding a feature to play.
+- **a rider the swing cannot see** — "reduce the damage by 1d10", "deal 1d6+5 instead
+  of their standard damage when another Wolf is in Melee range": a passive that swaps
+  the damage or answers being attacked, rather than following the swing that landed.
 - **an ally on the other side** — the GM's turn aims a feature at the party, so a
   feature that shields or heals one of its own has no way to be pointed at it.
 
 Facing is *not* a reason: "in front of the Burrower" is read as the whole band, as Spit
 Acid has been from the start. Nor is resistance — a passive that halves or ignores a
-damage type is a `defenses` line, and the blocks that print one have it.
+damage type is a `defenses` line, and neither is a rider that follows the swing the
+block already prints, which is a reaction to `dealtHit` or `dealtDamage`.
 
 A scripted feature says as much of its text as the vocabulary carries; where it says
 less, the entry in `adversary-abilities.ts` carries a line saying what was left out.
@@ -41,7 +42,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 62. Text: 282.
+Read: 73. Scripted: 76. Text: 268.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -49,11 +50,11 @@ Read: 73. Scripted: 62. Text: 282.
 | Acid Burrower | Earth Eruption | Action | **scripted** — runs as an ability |
 | Acid Burrower | Spit Acid | Action | **scripted** — runs as an ability |
 | Acid Burrower | Acid Bath | Reaction | **scripted** — runs as an ability |
-| Bear | Overwhelming Force | Passive | **text** — the GM's to play |
+| Bear | Overwhelming Force | Passive | **scripted** — runs as an ability |
 | Bear | Bite | Action | **scripted** — runs as an ability |
 | Bear | Momentum | Reaction | **read** — read off the stat block |
 | Cave Ogre | Ramp Up | Passive | **text** — the GM's to play |
-| Cave Ogre | Bone Breaker | Passive | **text** — the GM's to play |
+| Cave Ogre | Bone Breaker | Passive | **scripted** — runs as an ability |
 | Cave Ogre | Hail of Boulders | Action | **scripted** — runs as an ability |
 | Cave Ogre | Rampaging Fury | Reaction | **text** — the GM's to play |
 | Construct | Relentless (2) | Passive | **read** — read off the stat block |
@@ -121,10 +122,10 @@ Read: 73. Scripted: 62. Text: 282.
 | Minor Treant | Minion (5) | Passive | **read** — read off the stat block |
 | Minor Treant | Group Attack | Action | **text** — the GM's to play |
 | Green Ooze | Slow | Passive | **text** — the GM's to play |
-| Green Ooze | Acidic Form | Passive | **text** — the GM's to play |
+| Green Ooze | Acidic Form | Passive | **scripted** — runs as an ability |
 | Green Ooze | Envelop | Action | **text** — the GM's to play |
 | Green Ooze | Split | Reaction | **text** — the GM's to play |
-| Tiny Green Ooze | Acidic Form | Passive | **text** — the GM's to play |
+| Tiny Green Ooze | Acidic Form | Passive | **scripted** — runs as an ability |
 | Red Ooze | Creeping Fire | Passive | **text** — the GM's to play |
 | Red Ooze | Ignite | Action | **text** — the GM's to play |
 | Red Ooze | Split | Reaction | **text** — the GM's to play |
@@ -182,7 +183,7 @@ Read: 73. Scripted: 62. Text: 282.
 | Rotted Zombie | Minion (3) | Passive | **read** — read off the stat block |
 | Rotted Zombie | Group Attack | Action | **text** — the GM's to play |
 | Shambling Zombie | Too Many to Handle | Passive | **text** — the GM's to play |
-| Shambling Zombie | Horrifying | Passive | **text** — the GM's to play |
+| Shambling Zombie | Horrifying | Passive | **scripted** — runs as an ability |
 | Zombie Pack | Horde (1d4+2) | Passive | **read** — read off the stat block |
 | Zombie Pack | Overwhelm | Reaction | **text** — the GM's to play |
 | Archer Squadron | Horde (1d6+3) | Passive | **read** — read off the stat block |
@@ -190,7 +191,7 @@ Read: 73. Scripted: 62. Text: 282.
 | Archer Squadron | Suppressing Fire | Action | **text** — the GM's to play |
 | Apprentice Assassin | Minion (6) | Passive | **read** — read off the stat block |
 | Apprentice Assassin | Group Attack | Action | **text** — the GM's to play |
-| Assassin Poisoner | Grindletooth Venom | Passive | **text** — the GM's to play |
+| Assassin Poisoner | Grindletooth Venom | Passive | **scripted** — runs as an ability |
 | Assassin Poisoner | Out of Nowhere | Passive | **text** — the GM's to play |
 | Assassin Poisoner | Fumigation | Action | **text** — the GM's to play |
 | Master Assassin | Won't See It Coming | Passive | **text** — the GM's to play |
@@ -270,7 +271,7 @@ Read: 73. Scripted: 62. Text: 282.
 | Secret-Keeper | Summoning Ritual | Reaction: Countdown (6) | **text** — the GM's to play |
 | Secret-Keeper | Fallen Hounds | Reaction | **text** — the GM's to play |
 | Shark | Terrifying | Passive | **read** — read off the stat block |
-| Shark | Rending Bite | Passive | **text** — the GM's to play |
+| Shark | Rending Bite | Passive | **scripted** — runs as an ability |
 | Shark | Blood in the Water | Reaction | **text** — the GM's to play |
 | Siren | Captive Audience | Passive | **text** — the GM's to play |
 | Siren | Enchanting Song | Action | **text** — the GM's to play |
@@ -312,11 +313,11 @@ Read: 73. Scripted: 62. Text: 282.
 | Demon of Hubris | Unparalleled Skill | Action | **scripted** — runs as an ability |
 | Demon of Hubris | The Root of Villainy | Action | **text** — the GM's to play |
 | Demon of Hubris | You Pale in Comparison | Reaction | **text** — the GM's to play |
-| Demon of Jealousy | Unprotected Mind | Passive | **text** — the GM's to play |
+| Demon of Jealousy | Unprotected Mind | Passive | **scripted** — runs as an ability |
 | Demon of Jealousy | My Turn | Reaction | **text** — the GM's to play |
 | Demon of Jealousy | Rivalry | Reaction | **text** — the GM's to play |
 | Demon of Jealousy | What's Yours Is Mine | Reaction | **text** — the GM's to play |
-| Demon of Wrath | Anger Unrelenting | Passive | **text** — the GM's to play |
+| Demon of Wrath | Anger Unrelenting | Passive | **scripted** — runs as an ability |
 | Demon of Wrath | Battle Lust | Action | **text** — the GM's to play |
 | Demon of Wrath | Retaliation | Reaction | **text** — the GM's to play |
 | Demon of Wrath | Blood and Souls | Reaction: Countdown (Loop 6) | **text** — the GM's to play |
@@ -329,7 +330,7 @@ Read: 73. Scripted: 62. Text: 282.
 | Elemental Spark | Minion (9) | Passive | **read** — read off the stat block |
 | Elemental Spark | Group Attack | Action | **text** — the GM's to play |
 | Greater Earth Elemental | Slow | Passive | **text** — the GM's to play |
-| Greater Earth Elemental | Crushing Blows | Passive | **text** — the GM's to play |
+| Greater Earth Elemental | Crushing Blows | Passive | **scripted** — runs as an ability |
 | Greater Earth Elemental | Immovable Object | Passive | **text** — the GM's to play |
 | Greater Earth Elemental | Rockslide | Action | **scripted** — runs as an ability |
 | Greater Earth Elemental | Momentum | Reaction | **read** — read off the stat block |
@@ -337,7 +338,7 @@ Read: 73. Scripted: 62. Text: 282.
 | Greater Water Elemental | Drowning Embrace | Action | **scripted** — runs as an ability |
 | Greater Water Elemental | High Tide | Reaction | **text** — the GM's to play |
 | Huge Green Ooze | Slow | Passive | **text** — the GM's to play |
-| Huge Green Ooze | Acidic Form | Passive | **text** — the GM's to play |
+| Huge Green Ooze | Acidic Form | Passive | **scripted** — runs as an ability |
 | Huge Green Ooze | Envelop | Action | **text** — the GM's to play |
 | Huge Green Ooze | Split | Reaction | **text** — the GM's to play |
 | Hydra | Many-Headed Menace | Passive | **text** — the GM's to play |
@@ -365,7 +366,7 @@ Read: 73. Scripted: 62. Text: 282.
 | Vampire | Mistform | Reaction | **text** — the GM's to play |
 | Vault Guardian Gaoler | Blocking Shield | Passive | **text** — the GM's to play |
 | Vault Guardian Gaoler | Lock Up | Action | **scripted** — runs as an ability |
-| Vault Guardian Sentinel | Kinetic Slam | Passive | **text** — the GM's to play |
+| Vault Guardian Sentinel | Kinetic Slam | Passive | **scripted** — runs as an ability |
 | Vault Guardian Sentinel | Box In | Action | **text** — the GM's to play |
 | Vault Guardian Sentinel | Mana Bolt | Action | **scripted** — runs as an ability |
 | Vault Guardian Sentinel | Momentum | Reaction | **read** — read off the stat block |
@@ -386,7 +387,7 @@ Read: 73. Scripted: 62. Text: 282.
 | Arch-Necromancer | Not Today, My Dears | Reaction | **text** — the GM's to play |
 | Arch-Necromancer | Your Life Is Mine | Reaction: Countdown (Loop 2d6) | **text** — the GM's to play |
 | Fallen Shock Troop | Minion (12) | Passive | **read** — read off the stat block |
-| Fallen Shock Troop | Aura of Doom | Passive | **text** — the GM's to play |
+| Fallen Shock Troop | Aura of Doom | Passive | **scripted** — runs as an ability |
 | Fallen Shock Troop | Group Attack | Action | **text** — the GM's to play |
 | Fallen Sorcerer | Conflagration | Action | **scripted** — runs as an ability |
 | Fallen Sorcerer | Nightmare Tableau | Action | **text** — the GM's to play |
@@ -430,7 +431,7 @@ Read: 73. Scripted: 62. Text: 282.
 | Outer Realms Abomination | Disorienting Presence | Passive | **text** — the GM's to play |
 | Outer Realms Abomination | Reality Quake | Action | **text** — the GM's to play |
 | Outer Realms Abomination | Unreal Form | Reaction | **text** — the GM's to play |
-| Outer Realms Corruptor | Will-Shattering Touch | Passive | **text** — the GM's to play |
+| Outer Realms Corruptor | Will-Shattering Touch | Passive | **scripted** — runs as an ability |
 | Outer Realms Corruptor | Disgorge Reality Flotsam | Action | **scripted** — runs as an ability |
 | Outer Realms Thrall | Minion (13) | Passive | **read** — read off the stat block |
 | Outer Realms Thrall | Group Attack | Action | **text** — the GM's to play |

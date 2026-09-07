@@ -417,6 +417,20 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /**
+   * What a stat block's passives say about the swing it prints — at the moment
+   * only whether it goes through armour. Read from the definition, because a
+   * block's passives belong to the block and not to one creature standing on
+   * the map.
+   */
+  standardAttackOf(definition: string): { direct?: boolean } {
+    let direct = false;
+    for (const ability of this.abilitiesForAdversary(definition)) {
+      if (ability.kind === 'passive' && ability.standardAttack?.direct === true) direct = true;
+    }
+    return direct ? { direct: true } : {};
+  }
+
+  /**
    * The damage types a creature halves or ignores: what its passives say, plus
    * what the conditions on it say. Nothing stacks — resisting physical twice
    * halves it once, which is the SRD's rule and also the only sane reading.
@@ -469,14 +483,13 @@ export class SceneScriptWorld implements ScriptWorld {
    * an interrupt like Not This Time. Stunned silences all of them.
    */
   reactionsFor(id: string, trigger: NonNullable<AbilityDef['trigger']>): AbilityDef[] {
-    const character = this.characters.get(id);
-    if (character === undefined || this.blocks(id, 'reactions')) return [];
+    if (this.blocks(id, 'reactions')) return [];
     // A card's own `available` is read with its holder as the actor, the same
     // way a passive's `when` is: "when you have 2 or fewer Hit Points
     // unmarked" is about the one holding the card, not whoever is swinging.
     const was = this.scenario.actorId;
     this.scenario.actorId = id;
-    const offered = abilitiesFor(character, this.abilities).filter(
+    const offered = this.heldBy(id).filter(
       (a) =>
         a.kind === 'reaction' &&
         a.trigger === trigger &&
@@ -1072,7 +1085,10 @@ export class SceneScriptWorld implements ScriptWorld {
     // A character swings their weapon; an adversary swings whatever its stat
     // block prints, so a feature can be written as an attack like any other.
     const stated = request.damage === undefined ? null : parseDice(request.damage);
-    const own = character !== undefined ? attackProfile(character, request.weapon) : this.adversaryProfile(attacker.definition);
+    const own =
+      character !== undefined
+        ? attackProfile(character, request.weapon)
+        : this.adversaryProfile(attacker.definition);
     if (own === null) return { ...none, refused: 'no weapon to attack with' };
     // A feature says its own reach and whether it goes through armor; what the
     // block prints is only the default for the creature's own teeth.
@@ -1138,6 +1154,8 @@ export class SceneScriptWorld implements ScriptWorld {
       modifier: def.attackModifier,
       range: def.attackRange,
       damage: def.attackDamage,
+      // "The Ogre's attacks deal direct damage": a passive on the block.
+      ...this.standardAttackOf(definition),
     };
   }
 

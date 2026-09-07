@@ -463,6 +463,107 @@ describe('answering a miss', () => {
   });
 });
 
+describe('what a block hangs on its own attack', () => {
+  /** Kara, but so hard to hurt that only the Armor Slot decides the outcome. */
+  function unhittable(demo: DemoScene): void {
+    demo.project.conditionDefs.push({
+      id: 'braced',
+      name: 'Braced',
+      text: 'Nothing gets through.',
+      modifiers: [
+        { stat: 'majorThreshold', bonus: 50, requires: undefined, plusTrait: undefined, when: undefined },
+        { stat: 'severeThreshold', bonus: 50, requires: undefined, plusTrait: undefined, when: undefined },
+      ],
+      blocks: [],
+    } as (typeof demo.project.conditionDefs)[number]);
+    demo.state.entity('kara')!.conditions.add('braced');
+    demo.state.entity('kara')!.conditionDurations.set('braced', 'scene');
+  }
+
+  function withRiders(seed: string): DemoScene {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const on = adversaryDefOf(demo, husk.id)!.id;
+    demo.project.abilities.push(
+      abilitySchema.parse({
+        id: 'on-hit',
+        name: 'On Hit',
+        source: { kind: 'adversary', adversaries: [on] },
+        text: 'When it lands.',
+        kind: 'reaction',
+        trigger: 'dealtHit',
+        action: false,
+        effects: [{ kind: 'log', text: 'the claws land', tone: 'combat' }],
+      }),
+      abilitySchema.parse({
+        id: 'on-damage',
+        name: 'On Damage',
+        source: { kind: 'adversary', adversaries: [on] },
+        text: 'When a Hit Point is marked.',
+        kind: 'reaction',
+        trigger: 'dealtDamage',
+        action: false,
+        effects: [{ kind: 'markStress', target: { kind: 'hit' } }],
+      }),
+    );
+    refreshWorld(demo);
+    return demo;
+  }
+
+  it('fires the hit rider on a blow the armor turns aside, and the damage rider only when a Hit Point is marked', () => {
+    // Armor to spare and nothing that can reach a threshold: the claws land
+    // and are turned aside, so only "on a successful attack" applies.
+    const turned = withRiders('turned');
+    unhittable(turned);
+    const kara = turned.state.entity('kara')!;
+    kara.armorSlots = { ...kara.armorSlots, marked: 0 };
+    const stressBefore = kara.stress.marked;
+    for (let i = 0; i < 4 && turned.encounter?.outcome === 'ongoing'; i++) endTurn(turned);
+    expect(turned.log.some((l) => l.text.includes('the claws land'))).toBe(true);
+    expect(turned.state.entity('kara')!.hitPoints.marked).toBe(0);
+    expect(turned.state.entity('kara')!.stress.marked).toBe(stressBefore);
+
+    // The same claws with no armor left mark a Hit Point, and then both fire.
+    const through = withRiders('through');
+    const hurt = through.state.entity('kara')!;
+    hurt.armorSlots = { ...hurt.armorSlots, marked: hurt.armorSlots.max };
+    for (let i = 0; i < 4 && through.encounter?.outcome === 'ongoing'; i++) endTurn(through);
+    expect(through.log.some((l) => l.text.includes('the claws land'))).toBe(true);
+    expect(through.state.entity('kara')!.stress.marked).toBeGreaterThan(0);
+  });
+
+  it("lets a passive make the block's own swing go through armor", () => {
+    const build = (direct: boolean): number => {
+      const demo = standoff('direct');
+      demo.askDefender = false;
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      if (direct) {
+        demo.project.abilities.push(
+          abilitySchema.parse({
+            id: 'bone-breaker',
+            name: 'Bone Breaker',
+            source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
+            text: 'Its attacks deal direct damage.',
+            kind: 'passive',
+            action: false,
+            standardAttack: { direct: true },
+          }),
+        );
+        refreshWorld(demo);
+      }
+      const kara = demo.state.entity('kara')!;
+      kara.armorSlots = { ...kara.armorSlots, marked: 0 };
+      endTurn(demo);
+      return demo.state.entity('kara')!.armorSlots.marked;
+    };
+    // The same swing off the same seed: armour answers the ordinary one and
+    // has no answer to the direct one.
+    expect(build(false)).toBeGreaterThan(0);
+    expect(build(true)).toBe(0);
+  });
+});
+
 describe("an adversary's own features", () => {
   it('erupts when it catches more than one of the party, and the ones who fail are Vulnerable', () => {
     const demo = standoff('eruption');

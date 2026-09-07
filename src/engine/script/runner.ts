@@ -289,6 +289,11 @@ export interface ScriptRunnerOptions {
   /** The creatures `target` names: what the player chose when using an ability. */
   targets?: readonly string[];
   /**
+   * The creatures `hit` names, for a script that answers a blow that has
+   * already landed: a stat block's "targets who mark HP from this attack…".
+   */
+  hit?: readonly string[];
+  /**
    * Whose hand rolls a plain trait check. An object's check has always been
    * the party's best; an ability's is the actor's own.
    */
@@ -337,6 +342,7 @@ export class ScriptRunner {
     this.rng = rng;
     this.subject = options.subject ?? null;
     this.targets = [...(options.targets ?? [])];
+    this.hit = [...(options.hit ?? [])];
     this.rollAs = options.rollAs ?? 'party';
   }
 

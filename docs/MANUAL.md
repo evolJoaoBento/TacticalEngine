@@ -664,7 +664,10 @@ An **ability** (`project.abilities[]`): `id`, `name`, `source` (`domainCard` `ca
 `classId` \| `classFeature` `classId` \| `subclass` `subclassId` + `stage` \| `granted`
 `characters[]` \| `adversary` `adversaries[]`), `text` (the card's SRD text when empty), `kind`
 (action \| reaction \| passive),
-`trigger?` (incomingDamage \| attackHit \| attackMissed \| tookSevere), `cost` (`hope?`, `stress?`,
+`trigger?` (incomingDamage \| attackHit \| attackMissed \| tookSevere — things that happen to the
+holder — plus `dealtHit` and `dealtDamage`, which answer the holder's *own* standard attack:
+`dealtHit` whenever it lands, `dealtDamage` only when a Hit Point was marked. Both are read on
+the GM's swing alone, so a card that carried one would be read by nothing), `cost` (`hope?`, `stress?`,
 `fear?` — the GM's pool, so it belongs to a stat block's features; a character ability that states
 one is refused at the table and warned about by **Check**), `uses?`
 (`count`, `per` rest \| longRest \| scene), `target` (`kind` none \| self \| adversary \| ally \|
@@ -674,7 +677,8 @@ whoever is swinging; a `modifier`'s `when` is read the same way), `inCombatOnly`
 `action` (whether using it is the turn), `effects[]`, `modifiers[]` (`stat`, `bonus`,
 `plusTrait?`, `requires?` unarmored \| armored \| meleeWeapon, `when?` — a stat block's passives
 are read the same way, and unlike a character's they are not baked into the block's numbers
-first), `defenses?` (for a `passive`: `resistances[]` / `immunities[]` of physical \| magic —
+first), `standardAttack?` (for a `passive`: `direct` — the swing the block prints goes through armour),
+`defenses?` (for a `passive`: `resistances[]` / `immunities[]` of physical \| magic —
 halving rounds up, and damage of two types is only halved by a creature that resists both, which
 is what the Spellblade's Arcane Steel exists to defeat), `reaction?` (for a
 reaction to damage: `reduceSeverity` `steps` `only?`, `reduceDamage` `dice`, `extraArmor` `slots`
@@ -687,6 +691,11 @@ for the SRD's cards and `docs/CARDS.md` lists what is scripted;
 `docs/ADVERSARIES.md`. Those come with the block: a project that places an Acid Burrower gets
 Spit Acid without writing it, and a project ability with the same id says something different
 with it.
+
+A stat block holds reactions the same way a character does: `reactionsFor` reads what the
+creature holds on either side of the table, so an adversary's `reaction` to incoming damage
+would be paid for and used exactly as a card's is. None ship yet — the shipped ones answer the
+block's own attack.
 
 **Adversary features.** The role features every third stat block shares are read straight off
 the block (`src/engine/combat/adversary-features.ts`): **Relentless (X)** spotlights it up to X
