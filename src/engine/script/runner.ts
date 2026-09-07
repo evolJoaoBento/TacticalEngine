@@ -53,6 +53,8 @@ import type { CheckTrait, ConditionDuration } from './schema';
 export interface DealtDamage {
   /** Damage after resistance and immunity. */
   incoming: number;
+  /** Damage the defender's own passives took off before the thresholds. */
+  reduced: number;
   hpMarked: number;
   armorSlotsSpent: number;
   fell: boolean;
@@ -65,6 +67,8 @@ export interface AttackSummary {
   refused: string | null;
   weapon: string;
   hit: boolean;
+  /** What the target's own passives took off the damage, if any. */
+  reduced?: number;
   critical: boolean;
   hitPointsMarked: number;
   roll?: DualityRoll;
@@ -195,7 +199,16 @@ export type JournalEntry =
   | { kind: 'interactable'; id: string; change: 'open' | 'removed' | 'used' }
   | { kind: 'loot'; table?: string; found: readonly { item: string; quantity: number }[] }
   /** `targets` and `dice` are set when the damage was rolled at someone. */
-  | { kind: 'damage'; amount: number; marked: number; source?: string; targets?: readonly string[]; dice?: string }
+  | {
+      kind: 'damage';
+      amount: number;
+      marked: number;
+      source?: string;
+      targets?: readonly string[];
+      dice?: string;
+      /** What the targets' own passives took off, added up. */
+      reduced?: number;
+    }
   | { kind: 'heal'; amount: number; cleared: number }
   | { kind: 'encounter'; id: string; change: 'started' | 'ended'; intro?: string }
   | { kind: 'goto'; scene: string }
@@ -227,6 +240,8 @@ export type JournalEntry =
       hit: boolean;
       critical: boolean;
       hitPointsMarked: number;
+      /** What the target's own passives took off before the thresholds. */
+      reduced?: number;
       roll?: DualityRoll;
     }
   | { kind: 'moved'; id: string; from: number; to: number }
@@ -935,10 +950,12 @@ export class ScriptRunner {
     const world = this.world;
     const types: readonly DamageType[] = effect.type === undefined ? (stated ?? []) : [effect.type];
     let marked = 0;
+    let reduced = 0;
     const defended: JournalEntry[] = [];
     for (const id of targets) {
       const dealt = world.dealDamage(id, { amount, types, ...(effect.direct === undefined ? {} : { direct: effect.direct }) }, this.rng);
       marked += dealt.hpMarked;
+      reduced += dealt.reduced;
       for (const r of dealt.reactions) {
         defended.push({ kind: 'defended', id, ability: r.name, hopeSpent: r.hopeSpent, stressMarked: r.stressMarked, ...(r.rolled === undefined ? {} : { rolled: r.rolled }) });
       }
@@ -949,6 +966,7 @@ export class ScriptRunner {
       marked,
       targets: [...targets],
       dice,
+      ...(reduced === 0 ? {} : { reduced }),
       ...(effect.source === undefined ? {} : { source: effect.source }),
     });
     this.journal.push(...defended);
@@ -998,6 +1016,7 @@ export class ScriptRunner {
         hit: summary.hit,
         critical: summary.critical,
         hitPointsMarked: summary.hitPointsMarked,
+        ...(summary.reduced === undefined || summary.reduced === 0 ? {} : { reduced: summary.reduced }),
         ...(summary.roll === undefined ? {} : { roll: summary.roll }),
       });
       if (summary.hopeGained > 0) this.journal.push({ kind: 'hope', gained: summary.hopeGained });

@@ -56,7 +56,7 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     hasCondition: () => false,
     poolValue: () => null,
     bandTo: () => null,
-    dealDamage: () => ({ incoming: 0, hpMarked: 0, armorSlotsSpent: 0, fell: false, reactions: [] }),
+    dealDamage: () => ({ incoming: 0, reduced: 0, hpMarked: 0, armorSlotsSpent: 0, fell: false, reactions: [] }),
     markStress: () => ({ stressMarked: 0, hpMarked: 0, fell: false }),
     clearStress: () => 0,
     clearArmor: () => 0,
@@ -516,7 +516,7 @@ describe('the runner as a whole', () => {
       }),
       dealDamage: (_id, request) => {
         dealt.push({ amount: request.amount, types: request.types });
-        return { incoming: request.amount, hpMarked: 1, armorSlotsSpent: 0, fell: false, reactions: [] };
+        return { incoming: request.amount, reduced: 0, hpMarked: 1, armorSlotsSpent: 0, fell: false, reactions: [] };
       },
     });
 

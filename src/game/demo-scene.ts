@@ -1361,6 +1361,11 @@ function defeatMinions(demo: DemoScene, targetId: string, damage: number): void 
  * to it, which a passive on the block decides ("the Ogre's attacks deal direct
  * damage"). The defence is resolved a second time from this, so what the
  * profile said about the swing has to be said again here or it is lost.
+ *
+ * The damage roll is *not* made again — this carries the one the swing rolled.
+ * A defender whose own passive reduces by dice does roll those twice on this
+ * path, once for the number the swing reported and once for the hit that
+ * lands; only the second is applied, and no shipped party member has one.
  */
 function incomingOf(demo: DemoScene, attack: IncomingAttack): IncomingDamage {
   return {
@@ -2035,7 +2040,9 @@ function describeEntry(
     case 'attack':
       return entry.hit
         ? {
-            text: `${who(entry.attacker)} ${entry.critical ? 'lands a critical with' : 'hits with'} the ${entry.weapon}: ${plural(entry.hitPointsMarked, 'Hit Point')} on ${who(entry.target)}.`,
+            // "3 turned aside" is the target's own armor, and without it a hit
+            // for 11 that marks nothing reads as a bug.
+            text: `${who(entry.attacker)} ${entry.critical ? 'lands a critical with' : 'hits with'} the ${entry.weapon}: ${plural(entry.hitPointsMarked, 'Hit Point')} on ${who(entry.target)}${entry.reduced === undefined ? '' : `, ${entry.reduced} turned aside`}.`,
             tone: 'combat',
           }
         : { text: `${who(entry.attacker)} swings the ${entry.weapon} at ${who(entry.target)} and misses.`, tone: 'combat' };
@@ -2105,7 +2112,7 @@ function describeEntry(
     case 'damage':
       if (entry.targets !== undefined) {
         return {
-          text: `${entry.dice ?? ''} → ${entry.amount} damage to ${entry.targets.map(who).join(', ')}: ${plural(entry.marked, 'Hit Point')}.`.replace(/^ → /, ''),
+          text: `${entry.dice ?? ''} → ${entry.amount} damage to ${entry.targets.map(who).join(', ')}: ${plural(entry.marked, 'Hit Point')}${entry.reduced === undefined ? '' : `, ${entry.reduced} turned aside`}.`.replace(/^ → /, ''),
           tone: 'combat',
         };
       }

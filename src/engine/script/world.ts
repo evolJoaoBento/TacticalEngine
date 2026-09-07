@@ -930,7 +930,7 @@ export class SceneScriptWorld implements ScriptWorld {
 
   dealDamage(id: string, damage: IncomingDamage, rng: Rng): DealtDamage {
     const entity = this.state.entity(id);
-    if (entity === undefined || !entity.alive) return { incoming: 0, hpMarked: 0, armorSlotsSpent: 0, fell: false, reactions: [] };
+    if (entity === undefined || !entity.alive) return { incoming: 0, reduced: 0, hpMarked: 0, armorSlotsSpent: 0, fell: false, reactions: [] };
     const defense = this.defend(id, damage, rng);
     const resolved = defense.resolved;
     if (resolved.armorSlotsSpent > 0) {
@@ -943,6 +943,7 @@ export class SceneScriptWorld implements ScriptWorld {
     if (resolved.severity === 'severe') this.noteSevere(id);
     return {
       incoming: resolved.incoming,
+      reduced: resolved.reduced,
       hpMarked: marked.hpMarked,
       armorSlotsSpent: resolved.armorSlotsSpent,
       fell: marked.fell,
@@ -1134,6 +1135,7 @@ export class SceneScriptWorld implements ScriptWorld {
       hit: outcome.hit,
       critical: outcome.critical,
       hitPointsMarked: applied.hitPointsMarked,
+      ...(outcome.damage === undefined || outcome.damage.reduced === 0 ? {} : { reduced: outcome.damage.reduced }),
       ...(outcome.damageRoll === undefined
         ? {}
         : {

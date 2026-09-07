@@ -205,8 +205,12 @@ function checkAbilitiesAndCode(
     // "Reduce it by three" is not a number: the reduction is a dice expression
     // and an unreadable one silently reduces nothing.
     for (const entry of ability.defenses?.reduce ?? []) {
-      if (parseDice(entry.dice) === null) {
+      const expression = parseDice(entry.dice);
+      if (expression === null) {
         add('error', `"${ability.id}" reduces damage by "${entry.dice}", which is not dice.`, ability.id);
+      } else if (expression.modifier < 0) {
+        // "1d10-2" would hand the attacker two damage back.
+        add('error', `"${ability.id}" reduces damage by "${entry.dice}", which adds damage.`, ability.id);
       }
     }
     // The swing a stat block prints, and the two triggers that answer it, are

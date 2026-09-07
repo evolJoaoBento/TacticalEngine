@@ -657,6 +657,54 @@ describe('a creature that shrugs damage off', () => {
   });
 });
 
+describe('a creature that takes a number off the damage', () => {
+  /** "When the husk takes physical damage, reduce it by 3." */
+  const plate = {
+    id: 'thick-hide',
+    name: 'Thick Hide',
+    source: { kind: 'adversary' as const, adversaries: ['soft-husk'] },
+    text: 'When the husk takes physical damage, reduce it by 3.',
+    kind: 'passive' as const,
+    action: false,
+    defenses: { reduce: [{ dice: '3', only: 'physical' as const }] },
+  };
+  /** And the kind that is rolled: "reduce it by 1d10". */
+  const rolled = { ...plate, id: 'unreal-form', defenses: { reduce: [{ dice: '1d10' }] } };
+
+  it("takes it off a script's damage, and says so in the log", () => {
+    // 12 physical is Severe on 7/12 and marks 3; 3 off leaves 9, which is
+    // Major, and marks 2.
+    const { world, state } = scene({ abilities: [plate] });
+    const journal = runScript(
+      [{ kind: 'damage', dice: '12 phy', target: { kind: 'entity', id: 'husk-1' } }],
+      world,
+      scripted([]),
+    );
+    expect(state.entity('husk-1')!.hitPoints.marked).toBe(2);
+    expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ marked: 2, reduced: 3 });
+    // Magic is not what this hide answers.
+    const magic = scene({ abilities: [plate] });
+    runScript([{ kind: 'damage', dice: '12 mag', target: { kind: 'entity', id: 'husk-1' } }], magic.world, scripted([]));
+    expect(magic.state.entity('husk-1')!.hitPoints.marked).toBe(3);
+  });
+
+  it('rolls the dice kind once for a swing, on the attack path', () => {
+    const swung = scene({ abilities: [rolled] });
+    swung.scenario.actorId = 'kara';
+    swung.state.moveEntity('kara', swung.grid.indexOf(2, 1));
+    // Two dice for the attack roll, then one d10 for the hide. A second roll
+    // would run the scripted stream out and throw.
+    const journal = runScript(
+      [{ kind: 'attack', damage: '12 phy', target: { kind: 'entity', id: 'husk-1' } }],
+      swung.world,
+      scripted([10, 2, 6]),
+      { rollAs: 'actor' },
+    );
+    // 12 less the 6 it rolled is 6: Minor on 7/12, where 12 was Severe.
+    expect(journal.find((e) => e.kind === 'attack')).toMatchObject({ hit: true, hitPointsMarked: 1, reduced: 6 });
+  });
+});
+
 describe("a passive printed on a stat block", () => {
   it('changes the numbers on the block, the way a card changes a sheet', () => {
     const wary = {

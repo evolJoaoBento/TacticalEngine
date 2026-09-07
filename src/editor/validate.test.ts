@@ -658,6 +658,15 @@ describe('what only a stat block has', () => {
           defenses: { reduce: [{ dice: 'three' }] },
           effects: [],
         },
+        {
+          id: 'backwards-hide',
+          name: 'Backwards Hide',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'passive',
+          defenses: { reduce: [{ dice: '1d10-2' }] },
+          effects: [],
+        },
       ],
     });
     const said = messages(project);
@@ -671,6 +680,8 @@ describe('what only a stat block has', () => {
     );
     // A reduction nothing can read reduces nothing, silently.
     expect(said).toContain('"thick-hide" reduces damage by "three", which is not dice.');
+    // And one that reads backwards would hand the attacker damage back.
+    expect(said).toContain('"backwards-hide" reduces damage by "1d10-2", which adds damage.');
     // The same passives on a stat block are exactly where they belong.
     expect(said.some((m) => m.includes('on-a-block'))).toBe(false);
   });
