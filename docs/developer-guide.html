@@ -1,0 +1,1464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PolyHeart Engine — Developer Guide</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f7f6f3;
+  --panel: #ffffff;
+  --ink: #1d2530;
+  --dim: #5d6b7a;
+  --faint: #8b98a5;
+  --line: #c3cdd8;
+  --rule: #e3e8ee;
+  --accent: #7a4b2a;
+  --accent-soft: #f0e3d8;
+  --code-bg: #f1f0ec;
+  --box: #ffffff;
+  --box-line: #c3cdd8;
+  --lane: #eef1f5;
+  --lane-line: #dbe2ea;
+  --engine-lane: #e9efe9;
+  --result: #e8f0e6;
+  --shadow: 0 1px 2px rgba(20, 30, 40, 0.07);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181d;
+    --panel: #1a1f26;
+    --ink: #dfe6ee;
+    --dim: #9fadbb;
+    --faint: #6f7d8b;
+    --line: #45525f;
+    --rule: #2a323b;
+    --accent: #d9a273;
+    --accent-soft: #33281f;
+    --code-bg: #10141a;
+    --box: #212832;
+    --box-line: #46525f;
+    --lane: #1d232b;
+    --lane-line: #2c353f;
+    --engine-lane: #1c2620;
+    --result: #22302a;
+    --shadow: none;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.62 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 40px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 28px 96px;
+}
+
+nav {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 100vh;
+  overflow-y: auto;
+  padding: 34px 0 40px;
+  font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  font-size: 13px;
+}
+
+nav .brand {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+nav .brand span { display: block; color: var(--faint); font-weight: 400; font-size: 11.5px; }
+
+nav ol { list-style: none; margin: 18px 0 0; padding: 0; }
+nav li { margin: 0 0 2px; }
+nav a {
+  display: block;
+  padding: 3px 8px 3px 10px;
+  color: var(--dim);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
+}
+nav a:hover { color: var(--ink); background: var(--rule); }
+nav .sub a { padding-left: 22px; font-size: 12.5px; color: var(--faint); }
+
+main { padding: 34px 0 0; min-width: 0; }
+
+header.title { margin: 0 0 40px; }
+header.title h1 { font-size: 34px; line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.01em; }
+header.title p { margin: 0; color: var(--dim); max-width: 62ch; }
+header.title .meta {
+  margin-top: 18px;
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+section { margin: 0 0 52px; scroll-margin-top: 24px; }
+h2 {
+  font-size: 23px;
+  margin: 0 0 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+  letter-spacing: -0.01em;
+}
+h2 .num { color: var(--faint); font-weight: 400; margin-right: 10px; }
+h3 { font-size: 17px; margin: 30px 0 8px; }
+h4 { font-size: 14.5px; margin: 22px 0 6px; font-family: ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.02em; text-transform: uppercase; color: var(--dim); }
+p { margin: 0 0 13px; max-width: 74ch; }
+ul, ol { max-width: 74ch; padding-left: 22px; }
+li { margin: 0 0 5px; }
+a { color: var(--accent); }
+
+code, kbd {
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  font-size: 0.87em;
+  background: var(--code-bg);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 13px 15px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+pre code { background: none; padding: 0; font-size: 12.5px; }
+
+table { border-collapse: collapse; width: 100%; margin: 12px 0 18px; font-size: 13.5px; }
+th, td { text-align: left; vertical-align: top; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--rule); }
+th { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); font-weight: 600; }
+td code { white-space: nowrap; }
+
+.scroll { overflow-x: auto; }
+
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 18px 0;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout strong { color: var(--ink); }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 16px 0;
+  box-shadow: var(--shadow);
+}
+.card h3 { margin-top: 0; }
+
+figure { margin: 22px 0 26px; }
+figcaption { color: var(--faint); font-size: 12.5px; margin-top: 8px; font-family: ui-sans-serif, system-ui, sans-serif; }
+
+svg.diagram { width: 100%; height: auto; display: block; }
+svg.diagram text { font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif; fill: var(--ink); }
+svg.diagram .t { font-size: 13px; font-weight: 600; text-anchor: middle; }
+svg.diagram .s { font-size: 11px; fill: var(--dim); text-anchor: middle; }
+svg.diagram .note { font-size: 11px; fill: var(--faint); text-anchor: middle; font-style: italic; }
+svg.diagram .lane-box { fill: var(--lane); stroke: var(--lane-line); }
+svg.diagram .lane.engine .lane-box { fill: var(--engine-lane); }
+svg.diagram .lane-box.dashed { stroke-dasharray: 5 4; }
+svg.diagram .lane-label { font-size: 11.5px; fill: var(--faint); letter-spacing: 0.03em; }
+svg.diagram .node rect { fill: var(--box); stroke: var(--box-line); }
+svg.diagram .node.accent rect { fill: var(--accent-soft); stroke: var(--accent); }
+svg.diagram .node.result rect { fill: var(--result); stroke: var(--box-line); }
+svg.diagram .node.muted rect { fill: none; stroke: var(--box-line); stroke-dasharray: 4 4; }
+svg.diagram .edge { stroke: var(--line); stroke-width: 1.5; fill: none; }
+svg.diagram .edge.dashed-edge { stroke-dasharray: 5 4; }
+
+footer {
+  margin-top: 60px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+  color: var(--faint);
+  font-size: 12.5px;
+}
+
+@media (max-width: 900px) {
+  .wrap { grid-template-columns: 1fr; gap: 0; padding: 0 18px 60px; }
+  nav { position: static; max-height: none; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+  nav ol { columns: 2; }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--line)" />
+    </marker>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<nav>
+  <div class="brand">PolyHeart Engine<span>Developer Guide</span></div>
+  <ol>
+    <li><a href="#orientation">1 · Orientation</a></li>
+    <li><a href="#layers">2 · The layers</a></li>
+    <li><a href="#map">3 · Directory map</a></li>
+    <li><a href="#boot">4 · The boot path</a></li>
+    <li><a href="#chains">5 · The three call chains</a></li>
+    <li class="sub"><a href="#chain-a">a · A PC attacks</a></li>
+    <li class="sub"><a href="#chain-b">b · An adversary attacks</a></li>
+    <li class="sub"><a href="#chain-c">c · A script runs</a></li>
+    <li><a href="#types">6 · The key types</a></li>
+    <li><a href="#project">7 · The project document</a></li>
+    <li><a href="#invariants">8 · Invariants</a></li>
+    <li><a href="#recipes">9 · Recipes</a></li>
+    <li class="sub"><a href="#recipe-a">a · A new effect</a></li>
+    <li class="sub"><a href="#recipe-b">b · A field on AbilityDef</a></li>
+    <li class="sub"><a href="#recipe-c">c · An SRD feature</a></li>
+    <li class="sub"><a href="#recipe-d">d · A condition</a></li>
+    <li><a href="#testing">10 · Testing</a></li>
+    <li><a href="#loop">11 · The working loop</a></li>
+    <li><a href="#content">12 · Content and licensing</a></li>
+    <li><a href="#gotchas">13 · Gotchas</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="title">
+  <h1>Extending the PolyHeart Engine</h1>
+  <p>Where things are, which way they point, what may not be broken, and the order to touch files in
+  for the changes that keep recurring. Written for whoever picks up work in this repository next.</p>
+  <div class="meta">D:\New folder\daggerheart game · SRD 2.0 · TypeScript 7 · Vite 8 · three.js 0.185 · Preact 10 · zod 4</div>
+</header>
+
+<section id="orientation">
+  <h2><span class="num">1</span>Orientation</h2>
+
+  <p>PolyHeart is a browser CRPG engine and editor running the Daggerheart SRD 2.0 rules. A
+  <em>project</em> is a JSON document — <code>projectSchema</code>,
+  <code>src/engine/scene/schema.ts:210</code> — holding scenes, dialogues, items, loot tables,
+  quests, assets, abilities, code, condition definitions and the party. The engine executes that
+  document directly; the editor writes it in the browser. There is one page, one canvas, one Preact
+  root, and a mode switch between play and edit.</p>
+
+  <h3>Which document covers what</h3>
+
+  <p>Three hand-written docs, and they do not overlap. This one is the only one about extending the
+  engine.</p>
+
+  <table>
+    <thead><tr><th>Doc</th><th>Covers</th></tr></thead>
+    <tbody>
+      <tr><td><code>docs/CONTEXT.md</code><br>122 lines</td><td>The goal, the hard constraints, the chosen stack, the SRD sourcing, and the house rules the engine adds where the SRD is silent. Read it first; it is the working agreement.</td></tr>
+      <tr><td><code>docs/MANUAL.md</code><br>922 lines</td><td>Playing the demo and authoring content in the editor. Every panel, every field, every verb. User-facing.</td></tr>
+      <tr><td><strong>this guide</strong><br><code>docs/DEVELOPING.md</code></td><td>Adding an effect, a condition, a passive on a stat block, an editor panel field, an SRD feature, a rule.</td></tr>
+    </tbody>
+  </table>
+
+  <p>Two further docs are <strong>generated</strong> and must never be hand-edited:
+  <code>docs/ADVERSARIES.md</code> (470 lines, from <code>python tools/adversaries-doc.py</code>) and
+  <code>docs/CARDS.md</code> (257 lines, from <code>python tools/cards-doc.py</code>).
+  <code>docs/CRPG-GAPS.md</code> (491 lines) is an honest audit against the CRPG goal — read it
+  before claiming a system exists. <code>docs/research/legacy-{game,campaign,editor-ui,models}.md</code>
+  are static-analysis notes on the legacy prototype with <code>file:line</code> anchors; read those
+  rather than re-reading <code>legacy/</code>.</p>
+
+  <p>The same material arranged for lookup rather than reading is <code>docs/DEVELOPING.md</code>,
+  which says the same things in the same order.</p>
+
+  <div class="callout">
+    <p><strong>Line counts and <code>file:line</code> anchors on this page are as of commit
+    <code>058c3af</code>, the current HEAD.</strong> A working tree part-way through a slice moves
+    them; the symbol name is the stable handle, and <code>grep -a</code> finds it.</p>
+  </div>
+
+  <h3>Where to start reading</h3>
+
+  <p>In this order, and no further until you need it.</p>
+
+  <ol>
+    <li><code>docs/CONTEXT.md</code> — the constraints.</li>
+    <li><code>src/engine/script/schema.ts</code> (624 lines) — the effect and condition vocabulary.
+      Everything content can say is in this one file.</li>
+    <li><code>src/engine/script/runner.ts</code> (1095 lines) — the stepper that runs it, and the
+      <code>ScriptWorld</code> interface it runs against.</li>
+    <li><code>src/engine/rules/damage.ts</code> (358 lines) — the shape of a rules module: an SRD
+      citation at the top, pure functions, an <code>Rng</code> passed in wherever dice are rolled.</li>
+    <li><code>src/game/demo-scene.ts</code> (2435 lines) — where the engine is actually wired into a
+      playable thing.</li>
+    <li><code>src/main.ts</code> (1578 lines) — the boot path, and the only DOM listeners in the
+      project.</li>
+  </ol>
+</section>
+
+<section id="layers">
+  <h2><span class="num">2</span>The layers, and which way they point</h2>
+
+  <figure>
+    <svg class="diagram" viewBox="0 0 940 470" role="img" aria-labelledby="d1title d1desc">
+      <title id="d1title">The layers, and which way they may point</title>
+      <desc id="d1desc">The browser layer holds the renderer, the editor UI and the game glue; underneath, the engine core is a pure rules library that never imports any of them.</desc>
+
+      <g class="lane">
+        <rect x="10" y="10" width="920" height="118" rx="10" class="lane-box" />
+        <text x="24" y="34" class="lane-label">the page — DOM, WebGL, three.js, Preact</text>
+      </g>
+      <g class="node"><rect x="24" y="48" width="212" height="64" rx="8" />
+        <text x="130" y="74" class="t">src/main.ts</text><text x="130" y="94" class="s">boots everything</text></g>
+      <g class="node"><rect x="256" y="48" width="212" height="64" rx="8" />
+        <text x="362" y="74" class="t">engine/render/</text><text x="362" y="94" class="s">state → three.js objects</text></g>
+      <g class="node"><rect x="488" y="48" width="212" height="64" rx="8" />
+        <text x="594" y="74" class="t">editor/ui/</text><text x="594" y="94" class="s">Preact panels</text></g>
+      <g class="node"><rect x="720" y="48" width="192" height="64" rx="8" />
+        <text x="816" y="74" class="t">window.__polyheart</text><text x="816" y="94" class="s">the e2e handle</text></g>
+
+      <g class="lane">
+        <rect x="10" y="146" width="920" height="118" rx="10" class="lane-box" />
+        <text x="24" y="170" class="lane-label">the glue — a scene someone can play, and a project someone can edit</text>
+      </g>
+      <g class="node"><rect x="24" y="184" width="440" height="64" rx="8" />
+        <text x="244" y="210" class="t">src/game/ — demo-scene.ts and friends</text>
+        <text x="244" y="230" class="s">turns, the GM's turn, prompts, the log</text></g>
+      <g class="node"><rect x="484" y="184" width="428" height="64" rx="8" />
+        <text x="698" y="210" class="t">src/editor/ — session.ts, validate.ts</text>
+        <text x="698" y="230" class="s">commands with undo, and the Check button</text></g>
+
+      <g class="lane engine">
+        <rect x="10" y="282" width="920" height="176" rx="10" class="lane-box" />
+        <text x="24" y="306" class="lane-label">src/engine/ — the core: no DOM, no WebGL, runs under Vitest in node</text>
+      </g>
+      <g class="node small"><rect x="24" y="322" width="140" height="44" rx="8" /><text x="94" y="349" class="t">rules/</text></g>
+      <g class="node small"><rect x="180" y="322" width="140" height="44" rx="8" /><text x="250" y="349" class="t">combat/</text></g>
+      <g class="node small"><rect x="336" y="322" width="140" height="44" rx="8" /><text x="406" y="349" class="t">script/</text></g>
+      <g class="node small"><rect x="492" y="322" width="140" height="44" rx="8" /><text x="562" y="349" class="t">content/</text></g>
+      <g class="node small"><rect x="648" y="322" width="140" height="44" rx="8" /><text x="718" y="349" class="t">scene/</text></g>
+      <g class="node small"><rect x="804" y="322" width="108" height="44" rx="8" /><text x="858" y="349" class="t">grid/</text></g>
+      <g class="node small"><rect x="24" y="382" width="140" height="44" rx="8" /><text x="94" y="409" class="t">character/</text></g>
+      <g class="node small"><rect x="180" y="382" width="140" height="44" rx="8" /><text x="250" y="409" class="t">dialogue/</text></g>
+      <g class="node small"><rect x="336" y="382" width="140" height="44" rx="8" /><text x="406" y="409" class="t">core/ (rng)</text></g>
+      <g class="node muted"><rect x="492" y="382" width="420" height="44" rx="8" />
+        <text x="702" y="409" class="s">engine/render/ lives here too, and is the one part allowed to touch WebGL</text></g>
+
+      <path d="M244,252 V278" class="edge" marker-end="url(#arrow)" />
+      <path d="M698,252 V278" class="edge" marker-end="url(#arrow)" />
+      <path d="M130,112 V180" class="edge" marker-end="url(#arrow)" />
+      <path d="M362,112 V144" class="edge" marker-end="url(#arrow)" />
+      <text x="470" y="272" class="note">imports point downwards only</text>
+    </svg>
+    <figcaption>D1 — The three layers. Nothing under <code>src/engine/</code> outside <code>render/</code> may import from the two layers above it, or from any browser library.</figcaption>
+  </figure>
+
+  <p>The engine core is a rules library. It takes plain data and an <code>Rng</code>, returns plain
+  data, and mutates only what it is handed. That is what makes a fight replayable from a seed,
+  testable in node in milliseconds, and usable on a server. Every slice so far has relied on it, so
+  the rule is a test rather than a comment.</p>
+
+  <div class="callout">
+    <p><strong><code>tests/unit/engine-is-headless.test.ts</code></strong> walks every non-test source
+    under <code>src/engine/</code> bar <code>render/</code> and fails on an import of
+    <code>three</code>, <code>three-mesh-bvh</code>, <code>cannon-es</code>, <code>preact</code> or
+    <code>@preact/signals</code>; on any use of <code>document</code>, <code>window</code>,
+    <code>navigator</code>, <code>localStorage</code> or <code>requestAnimationFrame</code>; and on
+    any call to <code>Math.random()</code>. Its last case runs the checks against a deliberately bad
+    source, so a regex that stopped matching cannot pass vacuously.</p>
+  </div>
+
+  <p><code>src/engine/render/</code> is the one part of the core allowed to touch WebGL, and it is a
+  one-way adapter — <code>scene-view.ts</code> says so in its own comment: the engine core never
+  knows it exists.</p>
+
+  <h3>The one wire that runs the other way</h3>
+
+  <p><code>SceneScriptWorld.spotlightSpent</code> (<code>src/engine/script/world.ts:263</code>) is a
+  callback the world holds and <code>src/game/demo-scene.ts:810</code> fills in:
+  <code>demo.world.spotlightSpent = (id) =&gt; (demo.gmTurn?.spotlights[id] ?? 0) &gt; 0</code>. The
+  world runs scripts and knows nothing about turns; the GM turn knows whose turn it is. Joining a
+  swarm's attack <em>is</em> being spotlighted, so a rat that has already bitten must not bite again
+  behind the next one — and the world cannot tell without asking.</p>
+
+  <p>It is a field with a default that answers <code>false</code>, not an import, so the core still
+  compiles and tests on its own: a world with nobody keeping turns says nobody has been spotlighted,
+  and everyone joins. It is the only wire of its kind, and anything that needs another should be this
+  shape rather than an import upwards.</p>
+
+  <h3>The game and editor split</h3>
+
+  <p>Both sides sit on the same <code>ProjectDoc</code> and the same <code>DemoScene</code>. The game
+  reads the document and runs it; the editor writes the document and asks the game to rebuild.
+  <code>buildProjectScene(project)</code> (<code>src/game/demo-scene.ts:759</code>) is the seam — a
+  real export used by the project loader, by the editor's reload and by tests alike. Export is
+  <code>JSON.stringify</code> into a <code>Blob</code> download; import is
+  <code>projectSchema.safeParse</code> then <code>buildProjectScene</code>, refused mid-prompt or
+  mid-fight.</p>
+</section>
+
+<section id="map">
+  <h2><span class="num">3</span>Directory map</h2>
+
+  <h3>src/engine/ — the core</h3>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Path</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td><code>core/rng.ts</code></td><td><code>Rng</code> (SplitMix32), <code>createRng</code>, <code>hashSeed</code>. <code>save</code>/<code>restore</code>/<code>fork</code> for replays.</td></tr>
+      <tr><td><code>rules/dice.ts</code></td><td><code>parseDice</code>, <code>rollDice</code>, <code>withProficiency</code>, <code>maxDice</code>, <code>formatDice</code>; <code>DiceExpression</code>, <code>ParsedDamage</code>, <code>DamageType</code>.</td></tr>
+      <tr><td><code>rules/duality.ts</code></td><td><code>rollDuality</code> — a PC's two dice, the five outcomes, Hope, Fear and the spotlight.</td></tr>
+      <tr><td><code>rules/gm-die.ts</code></td><td><code>rollGmDie</code> — the GM's single d20 against Evasion, natural-20 crit.</td></tr>
+      <tr><td><code>rules/damage.ts</code></td><td>Thresholds, severity bands, Armor Slots, resistance, immunity and reduction, <code>rollDamage</code>, <code>resolveDamage</code>.</td></tr>
+      <tr><td><code>rules/cover.ts</code></td><td>SRD 2.0 cover: a partial obstruction costs the attacker a disadvantage die.</td></tr>
+      <tr><td><code>rules/range.ts</code></td><td><code>RANGE_BANDS</code>, <code>DEFAULT_BAND_TILES</code> (a house rule — see CONTEXT.md).</td></tr>
+      <tr><td><code>rules/resources.ts</code></td><td><code>MarkPool</code> and <code>Currency</code>: Hit Points, Stress, Armor Slots, Hope, Fear; <code>mark</code>, <code>unmarked</code>, <code>canAfford</code>, <code>markHitPoints</code>.</td></tr>
+      <tr><td><code>combat/attack.ts</code></td><td><code>resolveAttack</code> (pure) and <code>applyAttack</code> (the only mutator here); <code>AttackProfile</code>, <code>DefenderProfile</code>, <code>AttackOutcome</code>.</td></tr>
+      <tr><td><code>combat/defense.ts</code></td><td>The defender's side: <code>Defender</code>, <code>resolveDefense</code>, <code>resolveDefensePlan</code>, <code>previewPlan</code>, <code>canPayFor</code>.</td></tr>
+      <tr><td><code>combat/targeting.ts</code></td><td><code>evaluateTarget</code> — range band, line of sight, cover, refusals.</td></tr>
+      <tr><td><code>combat/area.ts</code></td><td>SRD 2.0 Area of Effect and Movement Under Pressure, both new in 2.0.</td></tr>
+      <tr><td><code>combat/encounter.ts</code></td><td>Turn and spotlight order.</td></tr>
+      <tr><td><code>combat/adversary-features.ts</code></td><td>Role features read structurally off a stat block. <code>IMPLEMENTED_FEATURES = ['relentless', 'momentum', 'terrifying', 'horde', 'minion']</code>.</td></tr>
+      <tr><td><code>grid/grid.ts</code></td><td><code>TileGrid</code>, <code>NO_TILE</code>.</td></tr>
+      <tr><td><code>grid/los.ts</code></td><td>Line of sight, and the house rule for partial versus total obstruction.</td></tr>
+      <tr><td><code>grid/pathfinding.ts</code></td><td><code>Pathfinder</code> and reachable fields (509 lines).</td></tr>
+      <tr><td><code>grid/terrain.ts</code></td><td>Terrain types and their movement cost.</td></tr>
+      <tr><td><code>script/schema.ts</code></td><td><strong>The one vocabulary.</strong> <code>conditionSchema</code>, <code>effectSchema</code>, <code>checkRequestSchema</code>, <code>targetSelectorSchema</code>, and the <code>walk*</code> visitors.</td></tr>
+      <tr><td><code>script/effects.ts</code></td><td>Behaviour over those shapes: <code>outcomeEffects</code> (the five-outcome fallback) and TypeScript constructors. Re-exports the types from <code>schema.ts</code>.</td></tr>
+      <tr><td><code>script/conditions.ts</code></td><td>Evaluating a <code>Condition</code> against a <code>ConditionContext</code>; <code>TargetBindings</code>, <code>NO_BINDINGS</code>.</td></tr>
+      <tr><td><code>script/runner.ts</code></td><td><code>ScriptRunner</code> (the stepper), <code>ScriptWorld</code>, <code>JournalEntry</code>, <code>Prompt</code>, <code>Response</code>, <code>RunStatus</code>.</td></tr>
+      <tr><td><code>script/world.ts</code></td><td><code>SceneScriptWorld</code> — the only writer of scene state (1330 lines).</td></tr>
+      <tr><td><code>script/hooks.ts</code></td><td>Running project code: <code>HookContext</code>, <code>runHook</code>, <code>SAFE_MATH</code>.</td></tr>
+      <tr><td><code>content/types.ts</code></td><td><code>AdversaryDef</code>, <code>AdversaryFeature</code>, <code>ContentIssue</code>, <code>ImportResult</code>, <code>toContentId</code>.</td></tr>
+      <tr><td><code>content/abilities.ts</code></td><td><code>AbilityDef</code> and its sub-schemas; <code>abilitiesFor</code>, <code>loadoutOf</code>, <code>isScripted</code>, <code>isAutomatic</code>, <code>readsATarget</code>.</td></tr>
+      <tr><td><code>content/conditions.ts</code></td><td><code>ConditionDef</code> — what a <em>status</em> on a creature does. <code>SRD_CONDITIONS</code>.</td></tr>
+      <tr><td><code>content/items.ts</code>, <code>content/quests.ts</code></td><td>Item and quest content shapes.</td></tr>
+      <tr><td><code>content/srd/daggersearch.ts</code></td><td>Normalises the vendored character data (470 lines).</td></tr>
+      <tr><td><code>content/srd/seansbox-adversaries.ts</code></td><td>Normalises the 129 stringly-typed adversaries (300 lines).</td></tr>
+      <tr><td><code>content/srd/abilities.ts</code></td><td><code>SRD_ABILITIES</code>, <code>SRD_ABILITY_MAP</code> — hand-written domain cards (1131 lines).</td></tr>
+      <tr><td><code>content/srd/adversary-abilities.ts</code></td><td><code>SRD_ADVERSARY_ABILITIES</code> — hand-written stat-block features (1556 lines).</td></tr>
+      <tr><td><code>content/srd/hooks.ts</code></td><td><code>SRD_HOOKS</code> — native hooks for what the vocabulary cannot say.</td></tr>
+      <tr><td><code>scene/primitives.ts</code></td><td><code>contentIdSchema</code>, <code>traitSchema</code>, <code>pointSchema</code>. Exists to break an import cycle between the two zod modules.</td></tr>
+      <tr><td><code>scene/schema.ts</code></td><td>The authored document: <code>sceneSchema</code>, <code>projectSchema</code>, <code>ProjectDoc</code>, <code>codeSchema</code>.</td></tr>
+      <tr><td><code>scene/state.ts</code></td><td>The runtime overlay: <code>EntityState</code>, <code>SceneState</code>, <code>SceneStateSnapshot</code>, <code>sceneStateFromScene</code>.</td></tr>
+      <tr><td><code>scene/grid-from-scene.ts</code></td><td>Builds a <code>TileGrid</code> from a <code>SceneDoc</code>.</td></tr>
+      <tr><td><code>scene/party.ts</code></td><td>Selection and follower movement.</td></tr>
+      <tr><td><code>scene/interact.ts</code>, <code>scene/triggers.ts</code></td><td>Interactables and trigger cells.</td></tr>
+      <tr><td><code>scene/legacy-import.ts</code></td><td>Reads the legacy prototype's maps (482 lines).</td></tr>
+      <tr><td><code>character/sheet.ts</code>, <code>sheet-schema.ts</code></td><td>An authored <code>CharacterSheet</code> and the <code>DerivedCharacter</code> computed from it.</td></tr>
+      <tr><td><code>character/progression.ts</code></td><td>Levelling and subclass stages.</td></tr>
+      <tr><td><code>dialogue/</code></td><td><code>schema.ts</code>, <code>dialogue.ts</code>, <code>layout.ts</code> — conversation graphs and their editor layout.</td></tr>
+      <tr><td><code>render/scene-view.ts</code></td><td><code>SceneView</code> — engine state to three.js objects, one way (457 lines).</td></tr>
+      <tr><td><code>render/camera.ts</code></td><td><code>OrbitCamera</code>, plain data, deliberately not three's <code>OrbitControls</code> so it is testable headless.</td></tr>
+      <tr><td><code>render/assets.ts</code></td><td><code>AssetLibrary</code> — glTF and GLB loading.</td></tr>
+      <tr><td><code>render/layout.ts</code></td><td>The only place that knows tile-to-world scale.</td></tr>
+      <tr><td><code>render/terrain-mesh.ts</code></td><td>One <code>InstancedMesh</code> per terrain type.</td></tr>
+      <tr><td><code>render/procedural/</code></td><td><code>spec.ts</code>, <code>registry.ts</code> (falls back to a placeholder rather than throwing; <code>missing()</code> lists unresolved ids), <code>build.ts</code>, <code>library/{heroes,monsters,props}.ts</code>.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout">
+    <p><strong>There is no <code>src/engine/audio/</code> and no <code>src/engine/input/</code>.</strong>
+    <code>CONTEXT.md</code> and <code>engine-is-headless.test.ts</code> both name them as exemptions
+    from the headless rule, but neither directory exists: input is DOM listeners in
+    <code>src/main.ts</code>, and there is no audio system at all.</p>
+  </div>
+
+  <h3>src/game/ — a scene someone can play</h3>
+
+  <table>
+    <thead><tr><th>Path</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td><code>demo-scene.ts</code><br>2435 lines</td><td><code>DemoScene</code> and the roughly sixty functions over it: <code>buildDemoScene</code>, <code>buildProjectScene</code>, <code>worldOptions</code>, <code>attackWithSelected</code>, <code>playGmTurn</code>, <code>endTurn</code>, <code>defenseChoices</code>, <code>applyDefenseChoice</code>, <code>useSelectedOn</code>, <code>answerPending</code>, <code>travelTo</code>, <code>equipItem</code>, <code>applyLevelUp</code>.</td></tr>
+      <tr><td><code>demo-abilities.ts</code></td><td>Using a card: cost, targeting, the runner.</td></tr>
+      <tr><td><code>demo-code.ts</code>, <code>demo-dialogue.ts</code>, <code>demo-items.ts</code>, <code>demo-quests.ts</code>, <code>demo-scenes.ts</code></td><td>The demo project's own content.</td></tr>
+      <tr><td><code>save.ts</code></td><td><code>saveSchema</code>, <code>saveGame</code>, <code>loadGame</code>, <code>saveBlockedBy</code>. A save is state layered over a project, not a copy of it.</td></tr>
+      <tr><td><code>save-slots.ts</code></td><td><code>localStorage</code> when there is one, an in-memory store otherwise.</td></tr>
+      <tr><td><code>ui/</code></td><td><code>ActionBar</code>, <code>PartyHud</code>, <code>PlayPanel</code>, <code>LoadoutPanel</code>, <code>LevelUpPanel</code>, <code>RestPanel</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>src/editor/ — a project someone can edit</h3>
+
+  <table>
+    <thead><tr><th>Path</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td><code>session.ts</code><br>1590 lines</td><td>The command and undo model. An <code>Edit</code> is <code>{ label, apply, undo, mergeKey?, absorb?, isNoop? }</code>; <code>EditorSession.run</code> coalesces a brush drag into one undo step rather than snapshotting the grid. Commands grouped by domain: terrain and deco, interactables, encounters, scenes, dialogues, quests, assets, items and loot, party, abilities, code.</td></tr>
+      <tr><td><code>controller.ts</code></td><td>What a click means given the tool in hand; <code>CONTINUOUS</code> tools coalesce.</td></tr>
+      <tr><td><code>validate.ts</code><br>653 lines</td><td>The <strong>Check</strong> button. Reports playability problems a zod parse cannot: party, abilities, code, item uses, quests, then per scene the spawns, interactables, decos, encounters, reachability (pathfinding, run last because it is the expensive one), loot tables and dialogues.</td></tr>
+      <tr><td><code>ui/EffectList.tsx</code><br>930 lines</td><td>The largest panel: editing a list of effects, recursively. <code>ADDABLE</code> is the list of kinds it can build.</td></tr>
+      <tr><td><code>ui/AbilityPanel.tsx</code></td><td>An ability's fields, including <code>defenses</code> and <code>tokens</code>.</td></tr>
+      <tr><td><code>ui/ConditionEditor.tsx</code>, <code>ui/CheckEditor.tsx</code>, <code>ui/TargetEditor.tsx</code></td><td>The three sub-editors <code>EffectList</code> nests.</td></tr>
+      <tr><td><code>ui/EditorPanel.tsx</code></td><td>The editor shell and tool palette.</td></tr>
+      <tr><td><code>ui/Inspector.tsx</code>, <code>ui/DialogueGraph.tsx</code>, <code>ui/ItemPanel.tsx</code>, <code>ui/PartyPanel.tsx</code>, <code>ui/QuestEditor.tsx</code>, <code>ui/CodePanel.tsx</code></td><td>The rest of the panels.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>tests/ and tools/</h3>
+
+  <p><code>tests/unit/</code> holds the six tests that are about the repository rather than about a
+  module: <code>engine-is-headless.test.ts</code>, <code>srd-content-strings.test.ts</code>,
+  <code>demo-scene.test.ts</code>, <code>demo-map-fight.test.ts</code>,
+  <code>legacy-campaign-import.test.ts</code>, and <code>spike.test.ts</code>, which asserts three.js
+  resolves as ESM under Vitest. <code>tests/e2e/demo.spec.ts</code> is the only Playwright file.
+  <code>tests/fixtures/models/</code> holds <code>BoxTextured.glb</code>, <code>Duck.glb</code> and
+  <code>Fox.glb</code>.</p>
+
+  <p><code>tools/</code> holds exactly two Python scripts — <code>adversaries-doc.py</code> and
+  <code>cards-doc.py</code> — plus the vendored <code>tools/srd-sources/</code> tree. They are not npm
+  scripts; run them from the repository root.</p>
+</section>
+
+<section id="boot">
+  <h2><span class="num">4</span>The boot path</h2>
+
+  <p><code>index.html</code> holds a <code>&lt;canvas id="gl"&gt;</code> and a
+  <code>&lt;div id="app"&gt;</code> and loads <code>/src/main.ts</code>. That file does, in order:</p>
+
+  <ol>
+    <li><code>WebGLRenderer</code> over <code>#gl</code>.</li>
+    <li><code>buildDemoScene(demoMap())</code> — the <code>DemoScene</code>: scene document, grid,
+      state, pathfinder, party, sheets, derived characters, triggers, <code>Rng</code>,
+      <code>SceneScriptWorld</code>, scenario state, project, snapshots, dialogues, log, pending
+      prompt, encounter, GM turn, <code>askDefender</code>.</li>
+    <li><code>AssetLibrary</code>, then <code>SceneView</code> plus <code>setDecos</code> and
+      <code>syncTokens</code>.</li>
+    <li><code>EditorSession</code> and <code>EditorController</code> over <strong>the same live
+      project object</strong> — the editor never holds its own copy, because re-parsing would
+      silently fork the document.</li>
+    <li><code>PerspectiveCamera</code>, <code>OrbitCamera</code>, <code>frameCamera</code>.</li>
+    <li>Pointer and keyboard listeners.</li>
+    <li><code>refreshPlay()</code> renders the Preact HUD into <code>#app</code>.</li>
+    <li><code>window.__polyheart = state</code> — built inline at <code>src/main.ts:1198</code>–<code>1565</code>,
+      assigned at <code>:1565</code>.</li>
+    <li><code>frame()</code>: <code>steerCamera</code>, <code>view.tick</code>,
+      <code>orbit.update</code>, <code>renderer.render</code>, <code>requestAnimationFrame</code>.</li>
+  </ol>
+
+  <p>The render loop lives in <code>main.ts</code>, not in the render module.</p>
+</section>
+
+<section id="chains">
+  <h2><span class="num">5</span>The three call chains</h2>
+
+  <p>These three are worth knowing by heart. Almost every change touches one of them.</p>
+
+  <h3 id="chain-a">a · A PC attacks an adversary</h3>
+
+  <figure>
+    <svg class="diagram" viewBox="0 0 940 470" role="img" aria-labelledby="d2title d2desc">
+      <title id="d2title">How one hit is resolved</title>
+      <desc id="d2desc">An attack roll produces a damage roll, which passes through resistance, reduction, thresholds and Armor Slots before Hit Points are marked.</desc>
+
+      <g class="lane">
+        <rect x="10" y="10" width="920" height="96" rx="10" class="lane-box" />
+        <text x="24" y="34" class="lane-label">rules/duality.ts · rules/gm-die.ts · combat/attack.ts</text>
+      </g>
+
+      <g class="node">
+        <rect x="24" y="44" width="180" height="46" rx="8" />
+        <text x="114" y="66" class="t">action roll</text>
+        <text x="114" y="82" class="s">duality / GM d20</text>
+      </g>
+      <g class="node">
+        <rect x="248" y="44" width="180" height="46" rx="8" />
+        <text x="338" y="66" class="t">hit?</text>
+        <text x="338" y="82" class="s">vs Evasion / Difficulty</text>
+      </g>
+      <g class="node">
+        <rect x="472" y="44" width="200" height="46" rx="8" />
+        <text x="572" y="66" class="t">rollDamage</text>
+        <text x="572" y="82" class="s">proficiency, crit, bonus</text>
+      </g>
+      <g class="node accent">
+        <rect x="716" y="44" width="196" height="46" rx="8" />
+        <text x="814" y="72" class="t">damage total</text>
+      </g>
+      <path d="M204,67 H244" class="edge" marker-end="url(#arrow)" />
+      <path d="M428,67 H468" class="edge" marker-end="url(#arrow)" />
+      <path d="M672,67 H712" class="edge" marker-end="url(#arrow)" />
+
+      <g class="lane">
+        <rect x="10" y="124" width="920" height="200" rx="10" class="lane-box" />
+        <text x="24" y="148" class="lane-label">rules/damage.ts — resolveDamage(damage, thresholds, options)</text>
+      </g>
+
+      <g class="node">
+        <rect x="24" y="164" width="196" height="60" rx="8" />
+        <text x="122" y="188" class="t">applyDefenses</text>
+        <text x="122" y="204" class="s">resistance halves,</text>
+        <text x="122" y="218" class="s">immunity zeroes</text>
+      </g>
+      <g class="node">
+        <rect x="252" y="164" width="196" height="60" rx="8" />
+        <text x="350" y="188" class="t">reduction</text>
+        <text x="350" y="204" class="s">flat here + rolled dice</text>
+        <text x="350" y="218" class="s">handed in by the caller</text>
+      </g>
+      <g class="node">
+        <rect x="480" y="164" width="196" height="60" rx="8" />
+        <text x="578" y="188" class="t">severityFor</text>
+        <text x="578" y="204" class="s">none · minor · major</text>
+        <text x="578" y="218" class="s">severe · massive</text>
+      </g>
+      <g class="node">
+        <rect x="708" y="164" width="204" height="60" rx="8" />
+        <text x="810" y="188" class="t">Armor Slots</text>
+        <text x="810" y="204" class="s">one slot = one band</text>
+        <text x="810" y="218" class="s">down; never on direct</text>
+      </g>
+      <path d="M220,194 H248" class="edge" marker-end="url(#arrow)" />
+      <path d="M448,194 H476" class="edge" marker-end="url(#arrow)" />
+      <path d="M676,194 H704" class="edge" marker-end="url(#arrow)" />
+
+      <g class="node result">
+        <rect x="352" y="256" width="236" height="46" rx="8" />
+        <text x="470" y="284" class="t">Hit Points marked</text>
+      </g>
+      <path d="M810,224 V244 H470 V252" class="edge" marker-end="url(#arrow)" />
+
+      <g class="lane">
+        <rect x="10" y="342" width="920" height="116" rx="10" class="lane-box dashed" />
+        <text x="24" y="366" class="lane-label">combat/defense.ts — only when the defender gets a say</text>
+      </g>
+      <g class="node">
+        <rect x="24" y="382" width="212" height="58" rx="8" />
+        <text x="130" y="406" class="t">resolveDefense</text>
+        <text x="130" y="424" class="s">the engine decides</text>
+      </g>
+      <g class="node">
+        <rect x="264" y="382" width="212" height="58" rx="8" />
+        <text x="370" y="406" class="t">resolveDefensePlan</text>
+        <text x="370" y="424" class="s">the player decided</text>
+      </g>
+      <g class="node">
+        <rect x="504" y="382" width="212" height="58" rx="8" />
+        <text x="610" y="406" class="t">previewPlan</text>
+        <text x="610" y="424" class="s">labels, rolls nothing</text>
+      </g>
+      <g class="node muted">
+        <rect x="744" y="382" width="168" height="58" rx="8" />
+        <text x="828" y="406" class="t">reactions</text>
+        <text x="828" y="424" class="s">Rune Ward, armor</text>
+      </g>
+      <path d="M470,378 V302" class="edge dashed-edge" marker-end="url(#arrow)" />
+    </svg>
+    <figcaption>D2 — The hit pipeline. The dashed lane below only runs when the defender is a PC; a PC's own swing skips it entirely.</figcaption>
+  </figure>
+
+<pre><code>attackWithSelected (game/demo-scene.ts:884)
+  └─ resolveAttack (engine/combat/attack.ts)          — pure, rolls and reports
+       ├─ evaluateTarget (combat/targeting.ts)        — band, LOS, cover, refusal
+       ├─ rollDice(profile.modifier)                  — the attack modifier's own dice
+       ├─ rollDuality (rules/duality.ts)              — hit, crit, Hope, Fear, spotlight
+       ├─ rollDamage (rules/damage.ts)                — Proficiency, crit bonus, flat bonus
+       ├─ rollReduction (rules/damage.ts)             — the dice half of the defender's reduction
+       └─ resolveDamage (rules/damage.ts)             — resistance, reduction, band, Armor Slots
+  └─ applyAttack (combat/attack.ts)                   — the only mutation</code></pre>
+
+  <p>There is <strong>no defence step on this side</strong>. A PC's swing is resolved and applied at
+  once, so the defender's reduction has to live inside <code>DamageDefenses</code> and be applied by
+  <code>resolveDamage</code> itself. That is the whole reason <code>defenses</code> is a field on the
+  damage rather than a step in a pipeline, and it is the fact to reach for whenever a new
+  "when this creature takes damage" feature needs a home.</p>
+
+  <p>Dice leave the stream in a fixed order — modifier dice, attack roll, damage, reduction — and a
+  refused attack draws nothing at all, so a UI's range preview cannot shift the stream.</p>
+
+  <h3 id="chain-b">b · An adversary attacks a PC</h3>
+
+<pre><code>playGmTurn / runGmTurn (demo-scene.ts:938, :959)
+  └─ world.defenderOf(target)                          — Evasion and thresholds from the sheet,
+  └─ resolveAttack  ─ rollGmDie (rules/gm-die.ts)        plus whatever the conditions add
+       ├─ miss  → applyAttack at once, then offerMiss  — a card may answer a miss
+       └─ hit   → offerOrLand (demo-scene.ts:1643)
+            ├─ askDefender and more than one choice → demo.pending = a defence prompt
+            │     defenseChoices (:1538) labels them with previewPlan (combat/defense.ts)
+            │     applyDefenseChoice (:1718) → landAttack with the chosen DefensePlan
+            └─ otherwise → landAttack (:1670) with plan = null
+                 plan === null → world.defend → resolveDefense   (the engine decides)
+                 plan !== null → resolveDefensePlan               (the player decided)
+                 then applyAttack against a rebuilt AttackOutcome</code></pre>
+
+  <p>Both defence functions use the same arithmetic in the same order: <strong>dice off the
+  damage</strong> — a Rune Ward's d8, and the passive reduction, rolled once — then <strong>Armor
+  Slots</strong>, the one plus any an <code>extraArmor</code> reaction adds, then <strong>the band
+  stepped down</strong> by <code>reduceSeverity</code> reactions.</p>
+
+  <p><code>resolveDefense</code> weighs each up and spends nothing that would not lower the Hit
+  Points marked. <code>resolveDefensePlan</code> obeys instead: a Rune Ward the player asked for is
+  rolled and paid for even when the die comes up short, which is what happens at a table.
+  <code>previewPlan</code> rolls nothing and returns <code>null</code> whenever an honest answer
+  would need dice — for a <code>reduceDamage</code> reaction, and equally for a defender whose own
+  passive reduces by dice.</p>
+
+  <h3 id="chain-c">c · An ability is played through the script runner</h3>
+
+  <figure>
+    <svg class="diagram" viewBox="0 0 940 420" role="img" aria-labelledby="d3title d3desc">
+      <title id="d3title">How an ability is played</title>
+      <desc id="d3desc">An ability's effects are stepped by the ScriptRunner, which asks the SceneScriptWorld to change the scene and writes a journal the log reads.</desc>
+
+      <g class="node accent">
+        <rect x="24" y="24" width="220" height="70" rx="8" />
+        <text x="134" y="50" class="t">AbilityDef</text>
+        <text x="134" y="68" class="s">content/abilities.ts</text>
+        <text x="134" y="84" class="s">cost · target · effects[]</text>
+      </g>
+      <g class="node">
+        <rect x="24" y="120" width="220" height="70" rx="8" />
+        <text x="134" y="146" class="t">Effect / Condition</text>
+        <text x="134" y="164" class="s">script/schema.ts</text>
+        <text x="134" y="180" class="s">the one vocabulary</text>
+      </g>
+      <path d="M134,94 V116" class="edge" marker-end="url(#arrow)" />
+
+      <g class="node">
+        <rect x="330" y="24" width="280" height="166" rx="8" />
+        <text x="470" y="52" class="t">ScriptRunner</text>
+        <text x="470" y="74" class="s">a stepper, not a loop:</text>
+        <text x="470" y="94" class="s">frames of effects with bindings</text>
+        <text x="470" y="114" class="s">(targets, hit, lastRoll, lastDamage)</text>
+        <text x="470" y="140" class="s">pauses on a Prompt,</text>
+        <text x="470" y="160" class="s">resumes with an answer</text>
+        <text x="470" y="180" class="s">script/runner.ts</text>
+      </g>
+      <path d="M244,155 H326" class="edge" marker-end="url(#arrow)" />
+
+      <g class="node">
+        <rect x="696" y="24" width="220" height="70" rx="8" />
+        <text x="806" y="50" class="t">SceneScriptWorld</text>
+        <text x="806" y="68" class="s">script/world.ts</text>
+        <text x="806" y="84" class="s">the only writer of state</text>
+      </g>
+      <g class="node">
+        <rect x="696" y="120" width="220" height="70" rx="8" />
+        <text x="806" y="146" class="t">JournalEntry[]</text>
+        <text x="806" y="164" class="s">what happened,</text>
+        <text x="806" y="180" class="s">rendered into the log</text>
+      </g>
+      <path d="M610,80 H692" class="edge" marker-end="url(#arrow)" />
+      <path d="M692,140 H614" class="edge" marker-end="url(#arrow)" />
+
+      <g class="lane">
+        <rect x="24" y="230" width="892" height="166" rx="10" class="lane-box" />
+        <text x="40" y="254" class="lane-label">what the world reaches for</text>
+      </g>
+      <g class="node small"><rect x="44" y="270" width="196" height="44" rx="8" /><text x="142" y="297" class="t">combat/attack.ts</text></g>
+      <g class="node small"><rect x="264" y="270" width="196" height="44" rx="8" /><text x="362" y="297" class="t">combat/defense.ts</text></g>
+      <g class="node small"><rect x="484" y="270" width="196" height="44" rx="8" /><text x="582" y="297" class="t">rules/damage.ts</text></g>
+      <g class="node small"><rect x="704" y="270" width="196" height="44" rx="8" /><text x="802" y="297" class="t">combat/targeting.ts</text></g>
+      <g class="node small"><rect x="44" y="330" width="196" height="44" rx="8" /><text x="142" y="357" class="t">grid/ (paths, LOS)</text></g>
+      <g class="node small"><rect x="264" y="330" width="196" height="44" rx="8" /><text x="362" y="357" class="t">rules/resources.ts</text></g>
+      <g class="node small"><rect x="484" y="330" width="196" height="44" rx="8" /><text x="582" y="357" class="t">scene/state.ts</text></g>
+      <g class="node small"><rect x="704" y="330" width="196" height="44" rx="8" /><text x="802" y="357" class="t">content/conditions.ts</text></g>
+      <path d="M806,190 V226" class="edge" marker-end="url(#arrow)" />
+    </svg>
+    <figcaption>D3 — The runner is a stepper, not a loop. Nothing is async and nothing calls back, so a whole conversation is a pure function of (script, answers, seed).</figcaption>
+  </figure>
+
+<pre><code>AbilityDef.effects  (content/abilities.ts, shapes from script/schema.ts)
+  └─ new ScriptRunner(world, rng, { targets, hit, subject, rollAs })
+       run(effects) → step() → apply(effect)          — one switch, no default
+            ├─ instantaneous effects journal and return null
+            ├─ branch / choice / check / attack / reactionRoll push a Frame
+            └─ choice and check return a Prompt        — the runner stops
+       caller answers with resume(response)            — 'choose' | 'roll' | 'continue' | 'cancel'
+  └─ SceneScriptWorld (script/world.ts)                — the only writer of state
+       dealDamage → defend → resolveDefense
+       attack     → builds an AttackProfile, then resolveAttack + applyAttack
+       hooks (script/hooks.ts) queue more effects; they never write
+  └─ JournalEntry[]                                    — what happened; the log renders it,
+                                                         a test asserts on it</code></pre>
+
+  <p>The bindings the runner carries: <code>targets</code>, whom the player picked;
+  <code>hit</code>, whoever the last roll beat; <code>lastRoll</code>, for a critical's extra dice
+  and <code>difficulty: 'roll'</code>; and <code>lastDamage</code>, for <code>dice: 'same'</code>. A
+  <code>Frame</code> may carry its own <code>hit</code>, so a reaction roll's failures and its
+  successes each read the right list however the next roll goes.</p>
+
+  <p>The awkward part of scripting a CRPG is that most effects are instantaneous and a few need the
+  player. The legacy prototype solved that with <code>await</code> all the way down, which pulled the
+  DOM into its rules and made a scenario impossible to test or replay. The stepper is the answer to
+  that, and it is why the whole layer runs in node.</p>
+</section>
+
+<section id="types">
+  <h2><span class="num">6</span>The key types</h2>
+
+  <div class="callout">
+    <p><strong>Two pairs of names collide; keep them apart.</strong> <code>Condition</code>
+    (<code>script/schema.ts</code>) is a <em>predicate</em>; <code>ConditionDef</code>
+    (<code>content/conditions.ts</code>) is a <em>status on a creature</em>. And
+    <code>DefenderProfile</code> (<code>combat/attack.ts</code>) is the target as an attack sees it,
+    while <code>Defender</code> (<code>combat/defense.ts</code>) is the target as a defence sees it —
+    different types, different files, different jobs.</p>
+  </div>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Type</th><th>Where</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td><code>Effect</code></td><td><code>engine/script/schema.ts</code></td><td>The discriminated union of everything content can make happen. Inferred from <code>effectSchema</code>.</td></tr>
+      <tr><td><code>Condition</code></td><td><code>engine/script/schema.ts</code></td><td>A <strong>predicate</strong> — <code>flag</code>, <code>pool</code>, <code>hasItem</code>, <code>hasCondition</code>, <code>all</code>/<code>any</code>/<code>not</code>, <code>hook</code>. Read by a <code>branch</code>, a choice option's <code>available</code>, an ability's <code>available</code>.</td></tr>
+      <tr><td><code>ConditionDef</code></td><td><code>engine/content/conditions.ts</code></td><td>A <strong>status on a creature</strong> — <code>vulnerable</code>, <code>hidden</code>, <code>restrained</code>, <code>rooted</code>, <code>stunned</code>, <code>asleep</code>, <code>on-fire</code>, <code>tavas-armor</code>, <code>dodging</code>. Carries <code>modifiers</code>, <code>defenses</code>, <code>blocks</code> and <code>endsWhen</code>.</td></tr>
+      <tr><td><code>CheckRequest</code></td><td><code>engine/script/schema.ts</code></td><td>A roll and what each of the five outcomes does. The fallbacks are in <code>effects.ts:outcomeEffects</code>.</td></tr>
+      <tr><td><code>TargetSelector</code></td><td><code>engine/script/schema.ts</code></td><td><code>actor</code>, <code>party</code>, <code>entity</code>, <code>entities</code>, <code>target</code>, <code>hit</code>, <code>allies</code>, <code>adversaries</code>.</td></tr>
+      <tr><td><code>AbilityDef</code></td><td><code>engine/content/abilities.ts</code></td><td>A card, a class feature or a stat-block feature: <code>id</code>, <code>name</code>, <code>source</code>, <code>text</code>, <code>kind</code>, <code>trigger</code>, <code>cost</code>, <code>uses</code>, <code>target</code>, <code>available</code>, <code>inCombatOnly</code>, <code>action</code>, <code>effects</code>, <code>modifiers</code>, <code>defenses</code>, <code>standardAttack</code>, <code>reaction</code>, <code>tokens</code>, <code>auto</code>.</td></tr>
+      <tr><td><code>DamageDefenses</code></td><td><code>engine/rules/damage.ts</code></td><td><code>resistances</code>, <code>immunities</code>, <code>reduce[]</code>. Its content-side mirror is <code>damageDefensesSchema</code> in <code>content/abilities.ts</code>, used by both an ability and a <code>ConditionDef</code>.</td></tr>
+      <tr><td><code>IncomingDamage</code></td><td><code>engine/rules/damage.ts</code></td><td><code>amount</code>, <code>types</code>, <code>direct</code>. What arrives.</td></tr>
+      <tr><td><code>ResolvedDamage</code></td><td><code>engine/rules/damage.ts</code></td><td><code>incoming</code>, <code>reduced</code>, <code>severity</code>, <code>finalSeverity</code>, <code>armorSlotsSpent</code>, <code>hpMarked</code>. What it came to.</td></tr>
+      <tr><td><code>DamageThresholds</code></td><td><code>engine/rules/damage.ts</code></td><td><code>{ major, severe }</code>; <code>Infinity</code> means "None" on the stat block, which is every Minion.</td></tr>
+      <tr><td><code>AttackProfile</code></td><td><code>engine/combat/attack.ts</code></td><td>The attacker's side: <code>kind</code> (<code>pc</code> or <code>adversary</code>), <code>name</code>, <code>modifier</code>, <code>range</code>, <code>damage</code>, <code>proficiency</code>, <code>direct</code>.</td></tr>
+      <tr><td><code>DefenderProfile</code></td><td><code>engine/combat/attack.ts</code></td><td>The target as an attack sees it: <code>difficulty</code>, <code>thresholds</code>, <code>defenses</code>.</td></tr>
+      <tr><td><code>Defender</code></td><td><code>engine/combat/defense.ts</code></td><td>The target as a defence sees it: <code>thresholds</code>, <code>defenses</code>, <code>armorSlots</code>, <code>stress</code>, <code>hope</code>, <code>reactions</code>.</td></tr>
+      <tr><td><code>AttackOutcome</code></td><td><code>engine/combat/attack.ts</code></td><td>Everything one roll produced: <code>refused</code>, <code>dualityRoll</code> or <code>gmRoll</code>, <code>hit</code>, <code>critical</code>, <code>damageRoll</code>, <code>damage</code>, and the Hope, Fear and spotlight movement.</td></tr>
+      <tr><td><code>EntityState</code></td><td><code>engine/scene/state.ts</code></td><td>A creature on the map: <code>id</code>, <code>faction</code>, <code>definition</code>, <code>tile</code>, <code>hitPoints</code>, <code>stress</code>, <code>armorSlots</code>, <code>hope?</code>, <code>conditions</code>, <code>conditionDurations</code>, <code>alive</code>.</td></tr>
+      <tr><td><code>SceneState</code></td><td><code>engine/scene/state.ts</code></td><td>The whole runtime overlay, keyed by content id, plus the tile occupancy index and the GM's Fear. Serialises through <code>sceneSnapshotSchema</code>.</td></tr>
+      <tr><td><code>JournalEntry</code></td><td><code>engine/script/runner.ts</code></td><td>One thing that happened, as a tagged union of roughly thirty variants. A UI renders these; a test asserts on them.</td></tr>
+      <tr><td><code>Prompt</code></td><td><code>engine/script/runner.ts</code></td><td>What the runner is waiting for: <code>choice</code>, <code>check</code> or <code>dialogue</code>. Answered with a <code>Response</code>.</td></tr>
+      <tr><td><code>ProjectDoc</code></td><td><code>engine/scene/schema.ts</code></td><td>The authored document. <code>formatVersion</code> is a literal <code>1</code>, so an old file fails loudly rather than half-loading.</td></tr>
+      <tr><td><code>Rng</code></td><td><code>engine/core/rng.ts</code></td><td><code>next</code>, <code>nextInt</code>, <code>die</code>, <code>dice</code>, <code>pick</code>, <code>shuffle</code>, <code>fork</code>, <code>save</code>, <code>restore</code>.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>The document is immutable and the overlay is mutable. The legacy prototype wrote play state into
+  its content objects — <code>node.used</code>, <code>enemy.hp</code>, <code>trigger.fired</code> — so
+  a session could never be saved, replayed or restarted without re-parsing the source JSON. Here
+  nothing in a <code>SceneDoc</code> ever changes, and the overlay is plain data that serialises
+  as-is.</p>
+</section>
+
+<section id="project">
+  <h2><span class="num">7</span>The project document</h2>
+
+  <figure>
+    <svg class="diagram" viewBox="0 0 940 430" role="img" aria-labelledby="d5title d5desc">
+      <title id="d5title">The shape of a project document</title>
+      <desc id="d5desc">A ProjectDoc is a dozen arrays plus four scalars; the game builds a playable scene from it and the editor writes it in place, while the runtime overlay lives separately in SceneState.</desc>
+
+      <g class="lane">
+        <rect x="10" y="10" width="920" height="196" rx="10" class="lane-box" />
+        <text x="24" y="34" class="lane-label">ProjectDoc — scene/schema.ts:210 · formatVersion is a literal 1 · almost every array defaults to empty</text>
+      </g>
+      <g class="node"><rect x="24" y="48" width="167" height="44" rx="8" /><text x="107" y="69" class="t">scenes[]</text><text x="107" y="84" class="s">min 1</text></g>
+      <g class="node"><rect x="205" y="48" width="167" height="44" rx="8" /><text x="288" y="69" class="t">dialogues[]</text><text x="288" y="84" class="s">by id, not per scene</text></g>
+      <g class="node"><rect x="386" y="48" width="167" height="44" rx="8" /><text x="469" y="69" class="t">quests[]</text><text x="469" y="84" class="s">objectives</text></g>
+      <g class="node"><rect x="567" y="48" width="167" height="44" rx="8" /><text x="650" y="69" class="t">items[]</text><text x="650" y="84" class="s">what can be carried</text></g>
+      <g class="node"><rect x="748" y="48" width="167" height="44" rx="8" /><text x="831" y="69" class="t">lootTables[]</text><text x="831" y="84" class="s">what loot draws from</text></g>
+
+      <g class="node accent"><rect x="24" y="104" width="167" height="44" rx="8" /><text x="107" y="125" class="t">abilities[]</text><text x="107" y="140" class="s">AbilityDef</text></g>
+      <g class="node accent"><rect x="205" y="104" width="167" height="44" rx="8" /><text x="288" y="125" class="t">conditionDefs[]</text><text x="288" y="140" class="s">ConditionDef</text></g>
+      <g class="node"><rect x="386" y="104" width="167" height="44" rx="8" /><text x="469" y="125" class="t">code[]</text><text x="469" y="140" class="s">JS run as hooks</text></g>
+      <g class="node"><rect x="567" y="104" width="167" height="44" rx="8" /><text x="650" y="125" class="t">party[]</text><text x="650" y="140" class="s">CharacterSheet</text></g>
+      <g class="node"><rect x="748" y="104" width="167" height="44" rx="8" /><text x="831" y="125" class="t">assets[]</text><text x="831" y="140" class="s">imported models</text></g>
+
+      <g class="node muted"><rect x="24" y="158" width="891" height="36" rx="8" />
+        <text x="469" y="181" class="s">id · name · terrainPalette? · startScene — plus a superRefine that catches duplicate scene and dialogue ids</text></g>
+
+      <g class="node accent"><rect x="24" y="250" width="430" height="66" rx="8" />
+        <text x="239" y="274" class="t">buildProjectScene(project)</text>
+        <text x="239" y="292" class="s">src/game/demo-scene.ts:759</text>
+        <text x="239" y="308" class="s">→ DemoScene: grid, state, world, party, scenario</text></g>
+      <g class="node"><rect x="486" y="250" width="429" height="66" rx="8" />
+        <text x="700" y="274" class="t">EditorSession + EditorController</text>
+        <text x="700" y="292" class="s">src/editor/session.ts</text>
+        <text x="700" y="308" class="s">edits this same object in place — never a copy</text></g>
+      <path d="M239,210 V246" class="edge" marker-end="url(#arrow)" />
+      <path d="M700,246 V210" class="edge dashed-edge" marker-end="url(#arrow)" />
+
+      <g class="node result"><rect x="24" y="350" width="430" height="66" rx="8" />
+        <text x="239" y="374" class="t">SceneState — the runtime overlay</text>
+        <text x="239" y="392" class="s">everything that changes during play, keyed by content id</text>
+        <text x="239" y="408" class="s">the document itself never changes</text></g>
+      <path d="M239,316 V346" class="edge" marker-end="url(#arrow)" />
+      <text x="700" y="380" class="note">a save is this document plus a SceneState snapshot,</text>
+      <text x="700" y="398" class="note">layered over the project rather than copying it</text>
+    </svg>
+    <figcaption>D5 — Where a project lives. One object, two readers: the game builds a scene from it, the editor rewrites it in place.</figcaption>
+  </figure>
+
+  <p>Almost every array is <code>.default([])</code>, deliberately: a project written before quests,
+  abilities, code, conditions or an authored party existed is still a valid project. The exception is
+  <code>scenes</code>, which is <code>.min(1)</code> — a project with no scene is nothing to play.
+  <code>formatVersion</code> is a literal, so a file from a future format fails at the door rather
+  than half-loading.</p>
+</section>
+
+<section id="invariants">
+  <h2><span class="num">8</span>Invariants</h2>
+
+  <p>Each of these exists because breaking it once already cost something. They are rules, and each
+  carries its reason.</p>
+
+  <div class="card">
+    <h3>One effect and condition vocabulary, and never a second</h3>
+    <p><code>src/engine/script/schema.ts</code> is the only place either union is declared. There were
+    once two: a nine-variant one in <code>scene/schema.ts</code> that a document could hold, and the
+    full union in <code>effects.ts</code> that the runner could execute. Nothing converted between
+    them, so an interactable's authored check was imported, validated, saved — and never run.
+    <code>scene/schema.ts</code>, <code>dialogue/schema.ts</code> and <code>content/abilities.ts</code>
+    all import from <code>script/schema.ts</code> now. A converter would be a second vocabulary to
+    keep in step and the obvious place for the two to drift; add a variant to the one union instead.</p>
+  </div>
+
+  <div class="card">
+    <h3>The engine core stays headless</h3>
+    <p>No DOM, no WebGL, no <code>three</code>, no <code>preact</code> under <code>src/engine/**</code>
+    outside <code>render/</code>. It is what makes the rules testable in node, replayable from a
+    seed, and runnable without a browser. A single stray import would not fail a test on its own,
+    which is why <code>tests/unit/engine-is-headless.test.ts</code> exists to fail it.</p>
+  </div>
+
+  <div class="card">
+    <h3>Every roll comes from a seeded Rng; nothing in <code>src/engine/**</code> calls <code>Math.random()</code></h3>
+    <p>A run is reproducible from its seed, so a test pins an exact outcome and a save restores the
+    stream position. Project code cannot escape it either: <code>script/hooks.ts</code> shadows
+    <code>Math</code> with <code>SAFE_MATH</code>, whose <code>random</code> throws <em>"Math.random is
+    not available in a hook: roll off ctx.rng so replays stay in step"</em>, and shadows
+    <code>Date</code> so a stray <code>Date.now()</code> is a <code>TypeError</code> the author sees
+    at once.</p>
+  </div>
+
+  <div class="card">
+    <h3>Content ids are stable kebab or snake case; never rely on array order</h3>
+    <p><code>contentIdSchema</code> in <code>scene/primitives.ts</code> is
+    <code>/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/</code>, and <code>toContentId()</code> in
+    <code>content/types.ts</code> normalises a display name to it. Both Python doc generators
+    reimplement the same transform so a doc anchor matches a runtime id. Array order changes whenever
+    someone reorders a list in the editor; an id does not.</p>
+  </div>
+
+  <div class="card">
+    <h3>A project ability with the same id overrides an SRD one, whole</h3>
+    <p><code>withStatBlockFeatures</code> (<code>src/game/demo-scene.ts:438</code>) is
+    <code>[...abilities, ...SRD_ADVERSARY_ABILITIES.filter(f =&gt; !own.has(f.id))]</code>. A campaign
+    that places an Acid Burrower has not written Spit Acid — the SRD did, and the engine ships it —
+    so the shipped features are always there unless a project says something different with the same
+    id. The override replaces the definition entirely; it is not a field-by-field merge.
+    <code>worldOptions</code> in the same file composes <code>abilities</code>,
+    <code>conditionDefs</code> and <code>hooks</code> the same way.</p>
+  </div>
+
+  <div class="card">
+    <h3>Importers never throw</h3>
+    <p>A broken entry is skipped and reported as a <code>ContentIssue</code>, so one typo cannot take
+    down a whole project. Anything arriving from outside the process — a save file,
+    <code>localStorage</code>, an imported project — parses through a zod schema at the door, so a
+    corrupted file fails loudly there rather than as a crash three moves into play.</p>
+  </div>
+
+  <div class="card">
+    <h3>Generated docs are regenerated, never hand-edited</h3>
+    <p><code>docs/ADVERSARIES.md</code> and <code>docs/CARDS.md</code> come from
+    <code>python tools/adversaries-doc.py</code> and <code>python tools/cards-doc.py</code>. Both read
+    the vendored SRD JSON <em>and</em> the engine's own <code>.ts</code> content files, so a generated
+    doc cannot claim more than the code does. <code>adversaries-doc.py</code> regexes on the literal
+    name <code>IMPLEMENTED_FEATURES</code> in <code>combat/adversary-features.ts</code> and on the
+    <code>id:</code>, <code>name:</code>, <code>source: from(...)</code> shape of
+    <code>adversary-abilities.ts</code>: renaming either breaks the generator silently.</p>
+  </div>
+
+  <div class="card">
+    <h3>Optional rules stay opt-in</h3>
+    <p>Massive Damage (<code>SeverityOptions.massiveDamage</code>) is off by default because the SRD
+    prints it as optional, and the critical-damage rule is a flag
+    (<code>criticalRule: 'maxDicePlusRoll' | 'doubleDice'</code>) because the community summary
+    contradicts both official versions. Neither becomes the default without a citation.</p>
+  </div>
+
+  <div class="card">
+    <h3>applyAttack reports what actually happened</h3>
+    <p>Not what was asked for. Hope at its cap does not accrue; a target with one Hit Point left marks
+    one however severe the hit was. Anything that reads the result reads the truth, which is what
+    lets a log, a save and a test all read the same value.</p>
+  </div>
+</section>
+
+<section id="recipes">
+  <h2><span class="num">9</span>Recipes</h2>
+
+  <p>Four changes that keep recurring, in the order the files must be touched. Each is derived from a
+  commit that did exactly this.</p>
+
+  <h3 id="recipe-a">a · Add an effect to the script vocabulary, end to end</h3>
+
+  <p>Worked example: <code>loseHope</code> — the engine side in commit <code>8c80bc2</code>, the
+  editor row in <code>d19c101</code>.</p>
+
+  <ol>
+    <li><strong><code>src/engine/script/schema.ts</code></strong> — add a variant to
+      <code>effectSchema</code>'s discriminated union, with a doc comment giving the SRD sentence it
+      answers and how it departs from it. If it nests effects, use zod 4's getter form
+      (<code>get onHit() { return z.array(effectSchema).optional(); }</code>) and add the descent to
+      <code>walkEffects</code>; if it holds a condition, add it to <code>walkConditionsIn</code>. A
+      walk that forgets to descend reports a clean bill of health for a broken file.</li>
+    <li><strong><code>src/engine/script/runner.ts</code></strong> — three edits in one file: a method
+      on the <code>ScriptWorld</code> interface if the effect needs the world to do something new
+      (<code>loseHope(id: string, amount: number): number</code>); a <code>JournalEntry</code> variant
+      for what it did (<code>{ kind: 'hopeLost'; lost: number; id: string }</code>); and a
+      <code>case</code> in the <code>apply</code> switch at <code>runner.ts:549</code>.
+      <em>The switch has no <code>default</code></em>, and <code>apply</code> returns
+      <code>Prompt | null</code>, so a missing case is a <code>tsc --noEmit</code> error — that is
+      the check that a new variant was actually wired up.</li>
+    <li><strong><code>src/engine/script/world.ts</code></strong> — implement the method on
+      <code>SceneScriptWorld</code>. It is the only writer of state; nothing else may reach into an
+      <code>EntityState</code>.</li>
+    <li><strong><code>src/editor/ui/EffectList.tsx</code></strong> — add the kind to
+      <code>ADDABLE</code>, a human label to the label map
+      (<code>loseHope: 'Take their Hope'</code>), a <code>case</code> in the row renderer and a
+      <code>case</code> in the default-value builder. The panel shows what it cannot build rather
+      than hiding it, so this step can lag the engine by a commit — but it must land, or the effect
+      exists and nobody can author it.</li>
+    <li><strong><code>src/editor/validate.ts</code></strong> — if the effect names content that must
+      exist, or holds a string that must parse, report it there. Saying so while it is being written
+      beats saying so when someone reaches for it.</li>
+    <li><strong>Tests.</strong> <code>src/engine/script/runner.test.ts</code> for the stepper's
+      handling, <code>src/engine/script/abilities.test.ts</code> for it inside a real card,
+      <code>src/editor/ability-edits.test.ts</code> for the panel writing it, and
+      <code>tests/e2e/demo.spec.ts</code> if a person has to be able to click it.</li>
+    <li><strong>Docs.</strong> <code>docs/MANUAL.md</code> gains the row in the effect table. If the
+      effect lets a previously text-only SRD feature be scripted, rerun the relevant generator.</li>
+  </ol>
+
+
+  <div class="callout">
+    <p><strong>A second worked example, and the most recent.</strong> <code>attack.joinedBy</code>,
+    with <code>sameKind</code> on the <code>adversaries</code> selector, commit <code>058c3af</code>:
+    a Minion swarm walks into reach and swings on one roll, the damage counted once for each body
+    standing there when it lands. It is a <em>field on an existing effect</em> rather than a new kind,
+    so there is no new <code>case</code> in the switch and no new <code>JournalEntry</code>; it went
+    <code>schema.ts</code> → <code>runner.ts</code> → <code>world.ts</code> →
+    <code>EffectList.tsx</code> → tests → <code>python tools/adversaries-doc.py</code>, which is
+    steps 1, 2, 3, 4, 6 and 7 above, in order. Step 5 was skipped because the field names no content
+    that has to exist. One field scripted Group Attack on sixteen stat blocks, which is the shape to
+    aim for: a feature printed many times with one number changed is one field, not sixteen
+    entries.</p>
+  </div>
+
+  <h3 id="recipe-b">b · Add a field to <code>AbilityDef</code></h3>
+
+  <p>Worked example: <code>defenses.reduce</code>, commit <code>6ec74ef</code> — "a number off the
+  damage before the bands". Eighteen files, one sentence of Daggerheart.</p>
+
+  <ol>
+    <li><strong>Decide where it is read first; that decides the design.</strong> A PC's swing at an
+      adversary is resolved in <code>resolveAttack</code> and applied at once, with no defence step
+      to catch it. So reduction went into <code>DamageDefenses</code> and <code>resolveDamage</code>
+      does the flat half itself, which reaches every path damage takes without asking a caller for
+      anything.</li>
+    <li><strong><code>src/engine/rules/damage.ts</code></strong> — the rule.
+      <code>DamageReduction</code>, <code>flatReduction</code>, <code>reductionRolls</code>,
+      <code>rollReduction</code>, <code>ResolveDamageOptions.rolledReduction</code>, and the
+      arithmetic in <code>resolveDamage</code>. Comment the order you picked and why: resistance
+      halves first and the number comes off what is left, because no SRD block has both and the
+      order was ours to choose.</li>
+    <li><strong><code>src/engine/content/abilities.ts</code></strong> — the content side: the field
+      on <code>damageDefensesSchema</code>, with the SRD sentence it answers in the comment.</li>
+    <li><strong><code>src/engine/combat/attack.ts</code></strong> — roll the dice half once per swing
+      and hand it to <code>resolveDamage</code>.</li>
+    <li><strong><code>src/engine/combat/defense.ts</code></strong> — the same, once per hit, in
+      <code>resolveDefense</code> and <code>resolveDefensePlan</code>; and make
+      <code>previewPlan</code> return <code>null</code> when an honest answer would need dice.</li>
+    <li><strong><code>src/engine/script/world.ts</code></strong> — collect the field off everything
+      the creature holds. <code>defensesOf</code> reads passives <em>and</em> active conditions;
+      resistances and immunities dedupe, <code>reduce</code> entries stack.</li>
+    <li><strong><code>src/game/demo-scene.ts</code></strong> — report it. A hit for 11 that marks
+      nothing looks like a bug otherwise, so <code>reduced</code> travels into the log on every path
+      damage takes.</li>
+    <li><strong><code>src/editor/ui/AbilityPanel.tsx</code></strong> — a row for it
+      (<code>data-testid="ability-reduce"</code>, <code>ability-reduce-type</code>).</li>
+    <li><strong><code>src/editor/validate.ts</code></strong> — refuse what would silently do nothing.
+      Here: a reduction that is not dice, and a reduction whose modifier is negative, because
+      <code>"1d10-2"</code> would hand the attacker two damage back.</li>
+    <li><strong><code>src/engine/content/srd/adversary-abilities.ts</code></strong> — the features
+      that now have a home: Heavily Armored, Immovable Object, Faltering Armor, Firespite Plate
+      Armor, Unreal Form.</li>
+    <li><strong>Tests:</strong> <code>rules/damage.test.ts</code>, <code>combat/defense.test.ts</code>,
+      <code>editor/validate.test.ts</code>, <code>editor/authored-scenario.test.ts</code>, and a line
+      in <code>tests/e2e/demo.spec.ts</code>.</li>
+    <li><strong><code>python tools/adversaries-doc.py</code></strong>, then the prose in
+      <code>docs/MANUAL.md</code> and <code>docs/CRPG-GAPS.md</code>.</li>
+  </ol>
+
+  <h3 id="recipe-c">c · Script an SRD adversary feature</h3>
+
+  <ol>
+    <li><strong>Read the printed text.</strong> <code>docs/ADVERSARIES.md</code> lists every feature
+      and its state — <strong>read</strong> (a rule the fight obeys, from
+      <code>combat/adversary-features.ts</code>), <strong>scripted</strong>, or <strong>text</strong>.
+      Pick from the text list; the doc also names why each one is still text.</li>
+    <li><strong>Quote the rule from the official source.</strong>
+      <code>tools/srd-sources/official-2.0/srd-2.0.txt</code> and nothing else. The community JSON is
+      content, never a rule.</li>
+    <li><strong><code>src/engine/content/srd/adversary-abilities.ts</code></strong> — add an entry to
+      <code>RAW</code>: <code>id</code> in the form <code>&lt;adversary-id&gt;-&lt;feature-kebab&gt;</code>,
+      <code>name</code>, <code>source: from('adversary-id', …)</code>, <code>text</code> verbatim,
+      <code>kind</code>, <code>cost</code>, <code>target</code>, <code>inCombatOnly</code>, and
+      <code>effects</code> in the one vocabulary. <strong>Comment every departure from the printed
+      text</strong>, in the entry, next to the thing that departs.</li>
+    <li>If the vocabulary cannot say it, either add an effect (recipe a) or a native hook in
+      <code>src/engine/content/srd/hooks.ts</code>. If you do neither, leave the feature as text and
+      let the generated doc say so — an unscripted feature the GM narrates is honest; a half-scripted
+      one is not.</li>
+    <li><strong><code>src/engine/content/srd/library.test.ts</code></strong> — the whole-library
+      sanity check runs over the new entry automatically; add a case for anything specific.</li>
+    <li><strong><code>src/engine/script/abilities.test.ts</code></strong> — play the feature against a
+      real world and assert on the journal.</li>
+    <li><strong><code>python tools/adversaries-doc.py</code>.</strong> The counts at the top of
+      <code>docs/ADVERSARIES.md</code> move on their own; do not type them.</li>
+  </ol>
+
+  <h3 id="recipe-d">d · Add a condition (a status on a creature)</h3>
+
+  <p>There is no editor panel for <code>conditionDefs</code> — a project can carry them in its JSON,
+  and the shipped ones are code. So this is an engine change plus validation.</p>
+
+  <ol>
+    <li><strong><code>src/engine/content/conditions.ts</code></strong> — add an entry to
+      <code>RAW</code>: <code>id</code> in kebab case, <code>name</code>, <code>text</code> as
+      printed, and then whichever of <code>modifiers</code>, <code>defenses</code>,
+      <code>blocks</code> (<code>act</code> / <code>move</code> / <code>reactions</code>) and
+      <code>endsWhen</code> (<code>hit</code> / <code>attacks</code> / <code>damaged</code>) it needs.
+      <code>SRD_CONDITIONS</code> parses <code>RAW</code> through <code>conditionDefSchema</code>, so
+      a malformed entry fails at import.</li>
+    <li><strong>Only if the attack roll itself must change:</strong>
+      <code>src/engine/combat/attack.ts:conditionModifiers</code>. It hard-codes exactly two —
+      <code>vulnerable</code> gives advantage against the bearer, <code>hidden</code> gives
+      disadvantage — because those are the two the SRD puts on the roll. Everything else a condition
+      does belongs in <code>modifiers</code> or <code>defenses</code>, which
+      <code>world.modifiersOf</code> and <code>world.defensesOf</code> read.</li>
+    <li><strong><code>src/engine/script/world.ts</code></strong> — nothing, normally.
+      <code>applyCondition</code>, <code>clearCondition</code>, <code>blocks</code>,
+      <code>endsOnHit</code>, <code>endsOnAttack</code> and <code>endsOnDamage</code> are already
+      generic over the definition.</li>
+    <li><strong>Duration.</strong> A script applies it with
+      <code>{ kind: 'applyCondition', condition, duration }</code>, where duration is
+      <code>temporary</code>, <code>scene</code>, <code>rest</code> or <code>permanent</code>. A
+      <code>temporary</code> condition on the party is cleared once per GM turn inside
+      <code>playGmTurn</code>, past its guards, so it happens however the spotlight passed — which
+      means a <em>beneficial</em> condition must be <code>scene</code> or <code>rest</code>, never
+      <code>temporary</code>.</li>
+    <li><strong><code>src/editor/validate.ts</code></strong> — condition ids named by an effect are
+      checked against <code>project.conditionDefs</code> (<code>validate.ts:169</code> and
+      <code>:240</code>). A new shipped condition needs nothing there; a new <em>field</em> on
+      <code>ConditionDef</code> may.</li>
+    <li><strong>Tests:</strong> <code>src/engine/script/conditions.test.ts</code> and
+      <code>src/engine/script/abilities.test.ts</code>.</li>
+  </ol>
+</section>
+
+<section id="testing">
+  <h2><span class="num">10</span>Testing</h2>
+
+  <h3>Where a test goes</h3>
+
+  <p>A co-located <code>*.test.ts</code> next to the module is the default — every module ships with
+  one. <code>tests/unit/</code> is for tests <em>about the repository</em> rather than about a
+  module: the headless guard, the whole-SRD import check, the demo scene, the demo fight, the legacy
+  campaign import, and the toolchain spike. <code>tests/e2e/demo.spec.ts</code> is for anything that
+  needs a browser, a canvas or a click.</p>
+
+<pre><code>npm test                       # vitest run — 70 files, 1205 tests, ~6s
+npx vitest run &lt;path&gt;          # one file, while working
+npm run typecheck              # tsc --noEmit — the only static check there is
+npm run test:e2e               # playwright, 52 tests in one file; slow
+npm run check                  # all three</code></pre>
+
+  <p>Vitest's <code>include</code> is <code>tests/unit/**/*.test.{ts,tsx}</code> and
+  <code>src/**/*.test.{ts,tsx}</code>, environment <code>node</code>, <code>globals: false</code> —
+  import <code>describe</code>, <code>it</code> and <code>expect</code> from <code>vitest</code>
+  explicitly. <code>happy-dom</code> is available for a DOM test but is not the default.</p>
+
+  <h3>Seeded-RNG discipline</h3>
+
+  <p>Never <code>Math.random()</code>, and never a bare <code>createRng()</code> where the outcome
+  matters. Either pin a seed (<code>createRng('demo')</code>) or hand the rule a scripted double.</p>
+
+  <p>The double is declared <strong>locally in each test file that needs it</strong>, not shared: as
+  <code>scriptedRng(faces)</code> in <code>combat/attack.test.ts</code>,
+  <code>rules/duality.test.ts</code>, <code>rules/gm-die.test.ts</code>,
+  <code>script/runner.test.ts</code> and <code>dialogue/dialogue.test.ts</code>, and as
+  <code>scripted(values)</code> in <code>combat/defense.test.ts</code> and
+  <code>script/abilities.test.ts</code>. It returns the given faces in order and throws
+  <code>scriptedRng exhausted after N draws</code> when over-consumed — which is itself an assertion.
+  A test that hands the runner exactly one die proves the code rolls it exactly once;
+  <code>c9fdecc</code> used that to prove the script <code>attack</code> path does not roll a
+  defender's reduction twice.</p>
+
+  <p>Other per-file helpers by the same convention: <code>scene(seed)</code> wrapping
+  <code>buildDemoScene</code>, and <code>standoff(seed)</code> in
+  <code>src/game/demo-defense.test.ts</code>, which builds a fight already holding a pending defence
+  prompt.</p>
+
+  <h3>The e2e handle and the selectors</h3>
+
+  <p><code>window.__polyheart</code> is built inline in <code>src/main.ts</code> and assigned at
+  <code>:1565</code>. It exposes what a test cannot get at through the DOM: <code>frames</code>,
+  <code>webgl2</code>, <code>errors</code>, <code>tiles</code>, <code>entities</code>,
+  <code>decos</code>, <code>missingModels()</code>, <code>party()</code>, <code>selected()</code>,
+  <code>select(id)</code>, <code>selectNext()</code>, <code>tileOf(id)</code>, <code>inCombat()</code>,
+  <code>round()</code>, <code>adversaries()</code>, <code>hitPoints(id)</code>,
+  <code>moveTo(tile)</code>, <code>attack(id)</code>, <code>endGmTurn()</code>,
+  <code>highlighted()</code>, <code>reachable()</code>, <code>sample(x, y)</code>,
+  <code>setMode(mode)</code> and <code>exportProject()</code>. <code>sample</code> re-renders inside
+  the same task before reading pixels, because the drawing buffer is not preserved between frames. A
+  spec waits on <code>(window.__polyheart?.frames ?? 0) &gt; 5</code> before touching anything.</p>
+
+  <p><code>data-testid</code> is kebab-case prefixed by the owning panel — <code>ability-name</code>,
+  <code>item-kind</code>, <code>code-source</code>, <code>check-difficulty</code>. Actions are
+  <code>add-&lt;thing&gt;</code>, <code>open-&lt;panel&gt;</code>, <code>close-&lt;panel&gt;</code>,
+  and row ids interpolate the content id. There are 124 of them across the panels. Prefer a testid
+  over a text selector for anything the copy might change, and
+  <code>getByRole('button', { name })</code> for anything a player reads.</p>
+
+  <div class="callout">
+    <p><strong>A regression test must be shown to fail without its fix.</strong> Writing the test
+    after the fix is not enough — a test that passes both ways proves nothing. Revert the fix (stash
+    it, comment the line, <code>git checkout</code> the file), run the test, watch it fail with the
+    message you expect, restore the fix, run again. Then say so in the commit body, naming which way
+    it fails. <code>6ec74ef</code> records that its content test fails <em>both</em> ways: without
+    the roll in <code>resolveAttack</code> the dice half does nothing, and without
+    <code>defensesOf</code> collecting the field the flat half never reaches the defender.</p>
+  </div>
+</section>
+
+<section id="loop">
+  <h2><span class="num">11</span>The working loop</h2>
+
+  <h3>A slice</h3>
+
+  <p>One behaviour, complete: the rule, the content that uses it, the editor field that writes it,
+  the validation that refuses it when it is wrong, the tests that pin it, and the docs that describe
+  it. Not a layer at a time. Look at <code>6ec74ef</code> — eighteen files, one sentence of
+  Daggerheart. A slice that adds an engine capability with no way to author it, or a panel field
+  nothing reads, is half a slice, and will be finished by someone with less context than you have
+  now.</p>
+
+  <h3>The verification line</h3>
+
+  <p>Every commit body states what was run and what came back:</p>
+
+<pre><code>`npx tsc --noEmit` clean, 1205 unit tests across 70 files and 52 e2e pass.</code></pre>
+
+  <p>Then a sentence on how the new tests were shown to fail without their fix. If something could
+  not be verified, say that instead of implying it works.</p>
+
+  <h3>The message and the trailer</h3>
+
+  <p>The subject is a sentence about the behaviour, not about the files: <em>"Let a stat block wear
+  plate: a number off the damage before the bands"</em>. The body explains the design decision and
+  why the alternative was rejected. The trailer:</p>
+
+<pre><code>Co-Authored-By: Claude Opus 5 &lt;noreply@anthropic.com&gt;
+Claude-Session: https://claude.ai/code/session_01YW7ZQM2cmKNB9XJAbtx69u</code></pre>
+
+  <h3>Review, then follow up</h3>
+
+  <p>A slice lands, a review reads it, and what the review found lands as its own commit that says
+  so — <code>c9fdecc</code> opens "Follow-up to the reduction slice, from review". Three of the last
+  four commits are that pattern. Do not amend the reviewed commit; the pair is the record of what
+  was missed and what caught it.</p>
+</section>
+
+<section id="content">
+  <h2><span class="num">12</span>Content and licensing</h2>
+
+  <figure>
+    <svg class="diagram" viewBox="0 0 940 430" role="img" aria-labelledby="d4title d4desc">
+      <title id="d4title">Where content comes from</title>
+      <desc id="d4desc">Vendored SRD JSON is normalised into typed content, merged with a project's own abilities by id, and handed to the world; two Python scripts read the same sources to regenerate the coverage docs.</desc>
+
+      <g class="lane">
+        <rect x="10" y="10" width="920" height="112" rx="10" class="lane-box" />
+        <text x="24" y="34" class="lane-label">tools/srd-sources/ — vendored, DPCGL, never fetched at runtime</text>
+      </g>
+      <g class="node"><rect x="24" y="48" width="284" height="60" rx="8" />
+        <text x="166" y="72" class="t">official-2.0/srd-2.0.txt</text>
+        <text x="166" y="92" class="s">rules text — quote this one only</text></g>
+      <g class="node"><rect x="328" y="48" width="284" height="60" rx="8" />
+        <text x="470" y="72" class="t">daggersearch/core/*.json</text>
+        <text x="470" y="92" class="s">classes, cards, weapons, armor</text></g>
+      <g class="node"><rect x="632" y="48" width="280" height="60" rx="8" />
+        <text x="772" y="72" class="t">seansbox/*.json</text>
+        <text x="772" y="92" class="s">129 adversaries, environments</text></g>
+
+      <g class="node"><rect x="328" y="152" width="284" height="60" rx="8" />
+        <text x="470" y="176" class="t">content/srd/daggersearch.ts</text>
+        <text x="470" y="196" class="s">typed, validated by zod</text></g>
+      <g class="node"><rect x="632" y="152" width="280" height="60" rx="8" />
+        <text x="772" y="176" class="t">content/srd/seansbox-adversaries.ts</text>
+        <text x="772" y="196" class="s">"+3", "8/15", "1d12+2 phy" parsed</text></g>
+      <path d="M470,108 V148" class="edge" marker-end="url(#arrow)" />
+      <path d="M772,108 V148" class="edge" marker-end="url(#arrow)" />
+
+      <g class="node accent"><rect x="328" y="242" width="584" height="64" rx="8" />
+        <text x="620" y="268" class="t">content/srd/abilities.ts (cards) · adversary-abilities.ts (stat-block features)</text>
+        <text x="620" y="288" class="s">hand-written AbilityDefs: SRD text verbatim, one script each, every departure commented</text></g>
+      <path d="M470,212 V238" class="edge" marker-end="url(#arrow)" />
+      <path d="M772,212 V238" class="edge" marker-end="url(#arrow)" />
+
+      <g class="node result"><rect x="328" y="336" width="584" height="70" rx="8" />
+        <text x="620" y="362" class="t">withStatBlockFeatures(project?.abilities ?? SRD_ABILITIES)</text>
+        <text x="620" y="382" class="s">a project ability with the same id wins; the rest of the library is added</text>
+        <text x="620" y="398" class="s">src/game/demo-scene.ts → SceneScriptWorld</text></g>
+      <path d="M620,306 V332" class="edge" marker-end="url(#arrow)" />
+
+      <g class="node muted"><rect x="24" y="152" width="284" height="154" rx="8" />
+        <text x="166" y="184" class="t">tools/adversaries-doc.py</text>
+        <text x="166" y="204" class="s">tools/cards-doc.py</text>
+        <text x="166" y="232" class="s">read the same JSON *and*</text>
+        <text x="166" y="250" class="s">the .ts above, then rewrite</text>
+        <text x="166" y="268" class="s">docs/ADVERSARIES.md</text>
+        <text x="166" y="286" class="s">docs/CARDS.md</text></g>
+      <path d="M166,108 V148" class="edge" marker-end="url(#arrow)" />
+      <path d="M324,274 H312" class="edge dashed-edge" marker-end="url(#arrow)" />
+      <text x="166" y="330" class="note">so a doc cannot claim more than the code does</text>
+    </svg>
+    <figcaption>D4 — Content comes from three vendored sources and nowhere else. Nothing is fetched at runtime or at build time.</figcaption>
+  </figure>
+
+  <h3>The three sources</h3>
+
+  <table>
+    <thead><tr><th>Source</th><th>What it is</th><th>Use it for</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>official-2.0/srd-2.0.txt</code></td>
+        <td>The <strong>official SRD 2.0</strong> (ver 2026-08-25), extracted from the daggerheart.com PDF by <code>extract-pdf-text.mjs</code>. <code>===== PAGE n =====</code> markers preserved; sentences grep-able in one piece.</td>
+        <td><strong>Rules text. The only thing to quote.</strong> Cite the section in the code comment.</td>
+      </tr>
+      <tr>
+        <td><code>daggersearch/core/*.json</code></td>
+        <td>Community SRD <strong>1.0</strong>, well typed, with JSON Schemas in <code>_schemas/</code>: ancestries, armors, classes, communities, consumables, domain-cards, items, rules, subclasses, transformations, weapons. Names and descriptions are localized objects (<code>{"en-US": …}</code>). No adversaries, no environments.</td>
+        <td>Structured content only.</td>
+      </tr>
+      <tr>
+        <td><code>seansbox/*.json</code></td>
+        <td>Community SRD <strong>1.0</strong>, stringly typed (<code>"atk": "+3"</code>, <code>"thresholds": "8/15"</code>): 129 adversaries, environments, 24 beastforms, abilities, plus its own character data.</td>
+        <td>The adversaries and environments the other set lacks.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Which is authoritative</h3>
+
+  <p>For a <em>rule</em>, <code>official-2.0/srd-2.0.txt</code> and nothing else. The engine implements
+  SRD 2.0, and a section-by-section diff against 1.0 is recorded in <code>docs/CONTEXT.md</code>. The
+  two community sets are still 1.0, and neither upstream had updated as of 2026-09-05. They are fine
+  as <em>content</em> — stat blocks, weapon and armor tables are unaffected by the 2.0 changes — and
+  never as a rule.</p>
+
+  <h3>Known defects in the community data</h3>
+
+  <p><code>daggersearch/core/rules.json</code> is a terse summary with two errors that would propagate
+  if anyone quoted it: its Failure-with-Fear bullet swaps Hope and Fear, and its critical-damage line
+  ("double the total result of your damage dice") contradicts the verbatim text of both 1.0 and 2.0
+  ("add the maximum possible result of the damage dice"). The engine's default is the official one;
+  the other is selectable as <code>criticalRule: 'doubleDice'</code> for a table that plays it that
+  way, and <code>rules/damage.ts</code> says so in a comment above the flag.
+  <code>seansbox/adversaries.json</code> is stringly typed throughout, which is why
+  <code>content/srd/seansbox-adversaries.ts</code> exists; two stat blocks print
+  <code>"Horde (/HP)"</code> with the number missing.</p>
+
+  <h3>The two attributions</h3>
+
+  <p>The SRD 2.0 DPCGL attribution and the SRD 1.0 one the community sets carry are separate
+  obligations, and both are kept. The exact 2.0 wording is in <code>docs/CONTEXT.md</code>; the
+  per-source terms are in the three READMEs under
+  <code>tools/srd-sources/{official-2.0,daggersearch,seansbox}/README.md</code> — there is no
+  top-level one. Daggerheart is a trademark of Critical Role, LLC, and this project is unaffiliated.
+  More information: <a href="https://www.daggerheart.com">daggerheart.com</a>.</p>
+
+  <div class="callout">
+    <p><strong>The boundary.</strong> Only vendored SRD <em>text</em> enters the repository. The
+    source PDF is deliberately not committed; only the extracted text is, along with the script that
+    extracted it.</p>
+  </div>
+
+  <p>Adding a field to the normalised adversaries: <code>content/srd/seansbox-adversaries.ts</code>
+  normalises all 129, and <code>tests/unit/srd-content-strings.test.ts</code> asserts they all import
+  with zero issues. Add a case there before trusting a new field.</p>
+</section>
+
+<section id="gotchas">
+  <h2><span class="num">13</span>Gotchas</h2>
+
+  <ul>
+    <li><strong>The repository path contains a space:</strong> <code>D:\New folder\daggerheart game</code>,
+      Git Bash form <code>"D:/New folder/daggerheart game"</code>. Quote it everywhere. The repo has
+      moved between machines before, so prefer repo-relative paths in code, scripts and docs, and
+      never hardcode a home directory.</li>
+    <li><strong><code>legacy/</code> is never modified.</strong> It is the original prototype, kept
+      runnable via <code>legacy/start.bat</code>. It also serves on port 8420, so do not run it and
+      <code>npm run dev</code> at once. Read <code>docs/research/legacy-*.md</code> rather than the
+      sources.</li>
+    <li><strong>Ports.</strong> Vite dev and preview on <code>127.0.0.1:8420</code>; Playwright starts
+      its own on 8421 with <code>--strictPort</code>, and reuses an existing server if one is already
+      there.</li>
+    <li><strong>There is no lint and no format tooling.</strong> No ESLint, no Prettier.
+      <code>npx tsc --noEmit</code> is the only static check, and it is <code>strict</code> with
+      <code>noImplicitOverride</code>, <code>noFallthroughCasesInSwitch</code> and
+      <code>isolatedModules</code>. Match the surrounding style by reading it.</li>
+    <li><strong><code>grep</code> sees some sources as binary</strong> — <code>src/game/demo-scene.ts</code>
+      among them. Pass <code>grep -a</code>, or the match count comes back as
+      "Binary file … matches".</li>
+    <li><strong>Path aliases:</strong> <code>@engine/*</code>, <code>@editor/*</code> and
+      <code>@game/*</code> resolve. <code>@content/*</code> points at <code>content/*</code> and
+      <em>there is no <code>content/</code> directory at the repository root</em> — it is a dead
+      alias, imported nowhere. <code>docs/CONTEXT.md</code> lists all four without qualification. Content lives in <code>src/engine/content/</code> and in the project
+      document.</li>
+    <li><strong><code>fflate</code> is a dependency and is imported nowhere under <code>src/</code>.</strong>
+      <code>CONTEXT.md</code>'s "zip import and export of projects with assets" is not implemented;
+      export is <code>JSON.stringify</code> into a <code>Blob</code>.</li>
+    <li><strong>No frustum culling and no LOD.</strong> Instancing and geometry sharing exist
+      (<code>terrain-mesh.ts</code>, and <code>procedural/build.ts</code> with its
+      <code>PrimitiveCache</code> and <code>MaterialLibrary</code>); the rest of the efficiency goals
+      in <code>CONTEXT.md</code> are stated, not met. <code>docs/CRPG-GAPS.md</code> is the honest
+      list.</li>
+    <li><strong>No TTS, no speech synthesis, no "voice" features.</strong> A hard constraint from the
+      user; both previous attempts were removed.</li>
+    <li><strong>All content text is English.</strong></li>
+    <li><strong><code>docs/ADVERSARIES.md</code> and <code>docs/CARDS.md</code> are generated.</strong>
+      Editing them by hand is work the next <code>python tools/*-doc.py</code> throws away.</li>
+  </ul>
+</section>
+
+<footer>
+  <p>PolyHeart Engine developer guide. The same material, arranged for lookup, is
+  <code>docs/DEVELOPING.md</code>; the two do not disagree. Playing and authoring are
+  <code>docs/MANUAL.md</code>; the goal and the constraints are <code>docs/CONTEXT.md</code>.</p>
+  <p>This product includes materials from the Daggerheart System Reference Document 2.0,
+  © Critical Role, LLC, under the terms of the Darrington Press Community Gaming (DPCGL) License.
+  More information can be found at <a href="https://www.daggerheart.com">https://www.daggerheart.com</a>.
+  Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated. The vendored
+  community data sets are SRD 1.0 and carry their own 1.0 attribution, which is kept alongside
+  this one.</p>
+</footer>
+
+</main>
+</div>
+
+</body>
+</html>
