@@ -225,6 +225,9 @@ function checkAbilitiesAndCode(
       if (effect.count !== undefined && parseDice(effect.count) === null) {
         add('error', `"${ability.id}" replaces them with "${effect.count}" of them, which is not dice.`, ability.id);
       }
+      if (ability.source.kind !== 'adversary') {
+        add('warning', `"${ability.id}" replaces the creature using it, which only the GM does.`, ability.id);
+      }
     });
     // Handing the GM's turn to its own side is the GM's move: a card in a
     // player's hand has no turn to hand out, and play would refuse it.

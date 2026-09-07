@@ -1414,14 +1414,20 @@ export class SceneScriptWorld implements ScriptWorld {
    * no marked HP or Stress)" - and the one they replace is gone rather than
    * fallen, so nothing mourns it and no countdown of its goes off.
    */
-  replace(definition: string, count: number): { ids: string[]; refused?: string } {
+  replace(definition: string, count: number): { ids: string[]; was?: string; refused?: string } {
     const actor = this.scenario.actorId === null ? undefined : this.state.entity(this.scenario.actorId);
     const block = this.adversaries.get(definition);
     if (block === undefined) return { ids: [], refused: `nothing is a "${definition}"` };
     if (actor === undefined || actor.tile === NO_TILE) return { ids: [], refused: 'nobody to replace' };
+    // A card in a player's hand cannot take its holder off the map: this is
+    // the GM's move, and a party member replaced by a stat block is a bug
+    // rather than a feature.
+    if (actor.faction !== 'adversary') return { ids: [], refused: 'only the GM replaces a creature' };
     const wanted = Math.max(0, Math.trunc(count));
     if (wanted === 0) return { ids: [] };
 
+    // Its name before it goes: the log has nobody to ask afterwards.
+    const was = this.adversaries.get(actor.definition)?.name ?? actor.id;
     const tile = actor.tile;
     this.state.removeEntity(actor.id);
     const placed: string[] = [];
@@ -1434,7 +1440,7 @@ export class SceneScriptWorld implements ScriptWorld {
       );
       placed.push(id);
     }
-    return placed.length === 0 ? { ids: [], refused: `nowhere for a ${block.name} to stand` } : { ids: placed };
+    return placed.length === 0 ? { ids: [], refused: `nowhere for a ${block.name} to stand` } : { ids: placed, was };
   }
 
   /**

@@ -1110,8 +1110,14 @@ function clearPartyTemporary(demo: DemoScene): void {
 /** Fights whose end has already been announced. */
 const announced = new WeakSet<EncounterRunner>();
 
-/** Creatures whose fall has already been answered, by the room they fell in. */
-const mourned = new WeakMap<SceneState, Set<string>>();
+/**
+ * Creatures whose fall has already been answered.
+ *
+ * By the entity rather than by its id: a summons hands out the ids the room no
+ * longer holds, so the second `husk-s1` to stand up is a different creature
+ * and gets its own last word.
+ */
+const mourned = new WeakSet<EntityState>();
 
 /**
  * "When the Realm-Breaker marks their last HP, replace them with the
@@ -1123,14 +1129,9 @@ const mourned = new WeakMap<SceneState, Set<string>>();
  * who it has already answered so a second look does not play it twice.
  */
 function playDefeatReactions(demo: DemoScene): void {
-  let spent = mourned.get(demo.state);
-  if (spent === undefined) {
-    spent = new Set();
-    mourned.set(demo.state, spent);
-  }
   for (const entity of demo.state.entitiesOf('adversary')) {
-    if (entity.alive || spent.has(entity.id)) continue;
-    spent.add(entity.id);
+    if (entity.alive || mourned.has(entity)) continue;
+    mourned.add(entity);
     for (const ability of demo.world.reactionsFor(entity.id, 'defeated')) {
       if (ability.effects.length === 0) continue;
       if (!affordableReaction(demo, entity.id, ability)) continue;
@@ -1529,7 +1530,9 @@ function spotlightReplacements(demo: DemoScene, journal: readonly JournalEntry[]
   if (turn === null) return;
   for (const entry of journal) {
     if (entry.kind !== 'replaced') continue;
-    turn.remaining = turn.remaining.filter((waiting) => waiting !== entry.was);
+    // Whatever is no longer on the map has no turn coming: the one replaced,
+    // and anything else a script took away.
+    turn.remaining = turn.remaining.filter((waiting) => demo.state.entity(waiting) !== undefined);
     if (!entry.spotlight) continue;
     const arriving = entry.ids.filter((id) => !turn.remaining.includes(id));
     turn.remaining.unshift(...arriving);
@@ -2594,7 +2597,7 @@ function describeEntry(
       const first = entry.ids[0];
       if (first === undefined) return null;
       return {
-        text: `${who(entry.was)} is gone: ${entry.ids.length === 1 ? who(first) : `${entry.ids.length} ${who(first)}s`} in their place.`,
+        text: `${entry.was} is gone: ${entry.ids.length === 1 ? who(first) : `${entry.ids.length} ${who(first)}s`} in their place.`,
         tone: 'fear',
       };
     }

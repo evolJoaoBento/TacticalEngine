@@ -327,6 +327,12 @@ describe('a creature that does not stay the same creature', () => {
     expect(next[0]!.hitPoints.marked).toBe(0);
     // And the fight is not over: the party won nothing yet.
     expect(demo.encounter!.outcome).toBe('ongoing');
+    // One feature on the block, not two: the printed name carries "(Phase
+    // Change)" and the scripted one does not, and nothing merges by name.
+    const named = demo.world
+      .abilitiesForAdversary('volcanic-dragon-obsidian-predator')
+      .filter((a) => a.name.startsWith('Erupting Rage'));
+    expect(named).toHaveLength(1);
   });
 
   it('splits an Ooze in two, on the Fear that says so', () => {
@@ -337,6 +343,14 @@ describe('a creature that does not stay the same creature', () => {
     foe.hitPoints = { max: 8, marked: 2 };
     const fear = demo.state.fear.value;
     attackWithSelected(demo, 'foe');
+
+    // The log names what is gone, which nothing can look up once it is: the
+    // line comes after the swing that caused it, not before.
+    const said = demo.log.map((l) => l.text);
+    expect(said).toContain('Green Ooze is gone: 2 Tiny Green Oozes in their place.');
+    expect(said.indexOf('Green Ooze is gone: 2 Tiny Green Oozes in their place.')).toBeGreaterThan(
+      said.findIndex((t) => t.includes('Kara hits with the Broadsword')),
+    );
 
     const oozes = demo.state.entitiesOf('adversary').filter((e) => e.alive);
     expect(oozes.map((e) => e.definition)).toEqual(['tiny-green-ooze', 'tiny-green-ooze']);

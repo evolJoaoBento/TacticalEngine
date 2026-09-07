@@ -1559,6 +1559,12 @@ const RAW: Input[] = [
   //
   // A Split is the same move on a different trigger: the Ooze is gone and two
   // smaller ones stand where it did, off their own block with nothing marked.
+  //
+  // Simplified: "immediately spotlight them" lands only when the fall happens
+  // inside a GM turn - a countdown, another creature's feature. A creature put
+  // down on the party's turn is replaced at once, but what stands up waits for
+  // the GM's turn to act: the SRD's move interrupts the party, and the turn
+  // model here does not have an interrupt.
   {
     id: 'green-ooze-split',
     name: 'Split',
