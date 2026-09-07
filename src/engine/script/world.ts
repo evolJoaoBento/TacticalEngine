@@ -524,7 +524,9 @@ export class SceneScriptWorld implements ScriptWorld {
       // `deriveCharacter` worked out, so only the scene-dependent ones are
       // added again here. A stat block is not derived: what its passives say
       // is only ever read from here, so all of them count.
-      if (scope === 'pool' && m.when === undefined && character !== undefined) return false;
+      // …except one that counts tokens, which `deriveCharacter` deliberately
+      // left out: it is read here, with however many are on the card now.
+      if (scope === 'pool' && m.when === undefined && m.perToken === undefined && character !== undefined) return false;
       if (m.when === undefined) return true;
       // Read from the holder's chair: "while within Melee range" on a stat
       // block means within Melee of *it*, and the bindings name whoever the
@@ -588,14 +590,15 @@ export class SceneScriptWorld implements ScriptWorld {
 
   private sumModifiers(id: string, modifiers: readonly AbilityModifier[]): number {
     const character = this.characters.get(id);
-    return modifiers.reduce(
-      (sum, m) =>
-        sum +
+    return modifiers.reduce((sum, m) => {
+      const one =
         m.bonus +
         (m.plusTrait === undefined || character === undefined ? 0 : character.traits[m.plusTrait]) +
-        (m.plusProficiency === true ? this.proficiencyOf(id) : 0),
-      0,
-    );
+        (m.plusProficiency === true ? this.proficiencyOf(id) : 0);
+      // "A +5 bonus to your damage roll for each token on this card": the
+      // whole bonus, once per token, and nothing at all with an empty card.
+      return sum + (m.perToken === undefined ? one : one * this.tokensOn(id, m.perToken));
+    }, 0);
   }
 
   /** The bonus a creature's modifiers add to a roll of this kind. */

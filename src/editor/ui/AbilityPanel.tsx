@@ -264,6 +264,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                       <option value="tookDamage">it takes damage</option>
                       <option value="tookHitPoints">it marks a Hit Point</option>
                       <option value="tookSevere">Severe damage lands</option>
+                      <option value="attacked">it is attacked, hit or miss</option>
                       <option value="spotlighted">it takes the spotlight</option>
                       {/* The other side of the table: what its own swing did. */}
                       <option value="dealtHit">its attack hits</option>

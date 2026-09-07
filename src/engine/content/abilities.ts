@@ -120,6 +120,15 @@ export const abilityModifierSchema = z.object({
    * reads it as one.
    */
   plusProficiency: z.boolean().optional(),
+  /**
+   * Multiply the whole bonus by the tokens sitting on a card - "gain a +5
+   * bonus to your damage roll for each token on this card".
+   *
+   * Tokens are scene state rather than sheet state, so a modifier written this
+   * way is never folded into a derived character: it is read where it is used,
+   * every time, and reads zero the moment the card is empty.
+   */
+  perToken: contentIdSchema.optional(),
   requires: z.enum(['unarmored', 'armored', 'meleeWeapon']).optional(),
   when: conditionSchema.optional(),
   /**
@@ -227,6 +236,12 @@ export const abilitySchema = z.object({
       'defeated',
       'dealtHit',
       'dealtDamage',
+      /**
+       * An attack was made at the holder, however it went. "This bonus lasts
+       * until after the next attack made against you" - which a miss ends as
+       * surely as a hit, so this is raised by both.
+       */
+      'attacked',
       'spotlighted',
     ])
     .optional(),

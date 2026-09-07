@@ -109,7 +109,7 @@ adapter: the rest of the core does not know it exists.
 | `script/countdowns.ts` | The board a scenario carries: `RunningCountdown` (a clock plus what it is counting towards), `advanceBoard`, `reapBoard`, `endCreatureCountdowns`, and the snapshot schema a save uses. |
 | `script/hooks.ts` | Running project code: `HookContext`, `runHook`, `SAFE_MATH`. |
 | `content/types.ts` | `AdversaryDef`, `AdversaryFeature`, `ContentIssue`, `ImportResult`, `toContentId`. |
-| `content/abilities.ts` | `AbilityDef` and its sub-schemas; `abilitiesFor`, `loadoutOf`, `isScripted`, `isAutomatic`, `readsATarget`. A modifier's `advantage` stat is a signed count of dice, `against: true` puts it on rolls made at the holder, and `plusProficiency` adds the holder's Proficiency to the bonus. |
+| `content/abilities.ts` | `AbilityDef` and its sub-schemas; `abilitiesFor`, `loadoutOf`, `isScripted`, `isAutomatic`, `readsATarget`. A modifier's `advantage` stat is a signed count of dice, `against: true` puts it on rolls made at the holder, `plusProficiency` adds their Proficiency, and `perToken` multiplies the whole bonus by the tokens on a card — never folded into a derived character, because tokens are scene state. |
 | `content/conditions.ts` | `ConditionDef` — what a *status* on a creature does. `SRD_CONDITIONS`. |
 | `content/items.ts`, `content/quests.ts` | Item and quest content shapes. |
 | `content/srd/daggersearch.ts` | Normalises the vendored SRD 1.0 character data (470 lines). |
@@ -275,7 +275,8 @@ so does a party card that costs nothing and asks nothing (Rise Up's "clear a Str
 with a price — "you can spend 2 Hope to…" — is put to the player as a third kind of
 `demo.pending`, a `PendingReaction`, whose first option is always letting it pass. The line
 between the two is `auto && no cost`: a card that would be asked about anyway sets `auto: false`.
-The same
+A swing at somebody also raises `attacked` on them, hit or miss, which is how a bonus that lasts
+"until after the next attack made against you" knows when it is over. The same
 happens on the party's own swing: `playAttackRiders` reads `dealtHit` and `dealtDamage` for
 whoever swung, so Healing Strike is offered after a player's attack the way a stat block's rider
 runs after the GM's. Every note is read before anyone is asked, because `drainDamage` clears as

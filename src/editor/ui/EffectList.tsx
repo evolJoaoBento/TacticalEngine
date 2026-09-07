@@ -602,13 +602,27 @@ function renderBody(
         </>
       );
     case 'addToken':
+      return (
+        <>
+          {props.abilityIds === undefined || props.abilityIds.length === 0
+            ? text(effect.ability, (ability) => ({ ...effect, ability }), 'card id')
+            : pick(effect.ability, props.abilityIds, (ability) => ({ ...effect, ability }))}
+          {amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }))}
+          {who(effect.target, 'the actor', (target) => ({ ...effect, target }))}
+        </>
+      );
     case 'spendToken':
       return (
         <>
           {props.abilityIds === undefined || props.abilityIds.length === 0
             ? text(effect.ability, (ability) => ({ ...effect, ability }), 'card id')
             : pick(effect.ability, props.abilityIds, (ability) => ({ ...effect, ability }))}
-          {count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))}
+          {effect.all === true ? null : count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))}
+          {flag('all', 'Every token on the card', effect.all === true, (all) => ({
+            ...effect,
+            all: all ? true : undefined,
+            ...(all ? { amount: undefined } : {}),
+          }))}
           {who(effect.target, 'the actor', (target) => ({ ...effect, target }))}
         </>
       );

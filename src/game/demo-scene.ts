@@ -1881,6 +1881,29 @@ function afterReaction(demo: DemoScene, queued: readonly (readonly ReactionOffer
   if (demo.gmTurn !== null) runGmTurn(demo);
 }
 
+/**
+ * "This bonus lasts until after the next attack made against you."
+ *
+ * Raised once a swing at somebody is over, whether it landed or went wide -
+ * the card counts attacks, not wounds. It carries no numbers: what a blow did
+ * is what `tookDamage` and its two siblings are for.
+ */
+function playAttackedOn(demo: DemoScene, defenderId: string, attackerId: string): void {
+  const entity = demo.state.entity(defenderId);
+  if (entity === undefined || !entity.alive) return;
+  const bound = demo.state.entity(attackerId)?.alive === true ? [attackerId] : [];
+  if (entity.faction === 'party') {
+    offerReactions(demo, [offersFor(demo, defenderId, ['attacked'], bound, {})]);
+    return;
+  }
+  for (const ability of demo.world.reactionsFor(defenderId, 'attacked', { targets: bound, hit: bound })) {
+    if (ability.effects.length === 0) continue;
+    if (!affordableReaction(demo, defenderId, ability)) continue;
+    spendFeatureCost(demo, defenderId, ability, 'reaction');
+    runAdversaryScript(demo, defenderId, ability, bound, bound);
+  }
+}
+
 /** Whether the GM can pay for a stat block's reaction right now. */
 function affordableReaction(demo: DemoScene, adversaryId: string, ability: AbilityDef): boolean {
   const entity = demo.state.entity(adversaryId);
@@ -1994,6 +2017,7 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
     applyAttack(demo.state, outcome);
     demo.world.endsOnAttack(adversaryId);
     note(demo, `The ${def.name}'s ${def.attackName} misses ${character?.sheet.name ?? target.id}.`, 'combat');
+    playAttackedOn(demo, targetId, adversaryId);
     offerMiss(demo, { attacker: adversaryId, defender: targetId, outcome, def, used: [] });
     return true;
   }
@@ -2351,6 +2375,7 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
     severe: defense.resolved.severity === 'severe',
   });
   landedFeatures(demo, attack, final.hitPointsMarked);
+  playAttackedOn(demo, attack.defender, attack.attacker);
   const ended = [...demo.world.endsOnHit(attack.defender), ...(final.hitPointsMarked > 0 ? demo.world.endsOnDamage(attack.defender) : [])];
   for (const condition of ended) note(demo, `${who} is no longer ${condition}.`, 'system');
   noteReduction(demo, who, defense.resolved);

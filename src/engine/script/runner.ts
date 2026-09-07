@@ -997,16 +997,24 @@ export class ScriptRunner {
         return null;
       }
       case 'addToken': {
+        // No amount at all means the card's own count - "a number of tokens
+        // equal to your Spellcast trait" - which is not the same as a count
+        // that came to nothing.
+        const amount = effect.amount === undefined ? undefined : this.amountOf(effect.amount);
+        if (amount !== undefined && amount <= 0) return null;
         for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
           const before = world.tokensOn(id, effect.ability);
-          const left = world.addTokens(id, effect.ability, effect.amount);
+          const left = world.addTokens(id, effect.ability, amount);
           this.journal.push({ kind: 'tokens', id, ability: effect.ability, added: left - before, spent: 0, left });
         }
         return null;
       }
       case 'spendToken': {
-        const amount = effect.amount ?? 1;
         for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
+          // "Then clear all tokens": whatever is on the card, and an empty
+          // card is not a refusal - there was nothing to clear.
+          const amount = effect.all === true ? world.tokensOn(id, effect.ability) : (effect.amount ?? 1);
+          if (amount <= 0) continue;
           const spent = world.spendTokens(id, effect.ability, amount);
           if (spent < amount) {
             this.refuse(`not enough tokens on ${effect.ability}`);

@@ -606,6 +606,44 @@ const RAW: Input[] = [
     ],
   },
 
+  // ---- a bonus the card counts out for itself --------------------------------
+  // "Increase your Evasion by the number of Hit Points they marked", "a +5
+  // bonus to your damage roll for each token on this card": a modifier whose
+  // bonus is multiplied by the tokens on the card that carries it, so the
+  // number is whatever the fight has put there. The tokens are placed by a
+  // count off the blow, which is how the two halves meet.
+  {
+    id: 'ferocity',
+    name: 'Ferocity',
+    source: card('ferocity'),
+    kind: 'reaction',
+    trigger: 'dealtDamage',
+    cost: { hope: 2 },
+    action: false,
+    effects: [
+      { kind: 'log', text: 'The kill puts them somewhere else entirely.', tone: 'hope' },
+      { kind: 'addToken', ability: 'ferocity', amount: 'hitPointsDealt' },
+    ],
+  },
+  {
+    id: 'ferocity-evasion',
+    name: 'Ferocity',
+    source: card('ferocity'),
+    kind: 'passive',
+    action: false,
+    modifiers: [{ stat: 'evasion', bonus: 1, perToken: 'ferocity' }],
+  },
+  {
+    id: 'ferocity-spent',
+    name: 'Ferocity',
+    source: card('ferocity'),
+    kind: 'reaction',
+    // "This bonus lasts until after the next attack made against you": the
+    // attack ends it whether it landed or not, which is what `attacked` is.
+    trigger: 'attacked',
+    action: false,
+    effects: [{ kind: 'spendToken', ability: 'ferocity', all: true }],
+  },
   // ---- Bone ------------------------------------------------------------------
   {
     id: 'brace',
@@ -657,6 +695,39 @@ const RAW: Input[] = [
   },
 
   // ---- Grace -----------------------------------------------------------------
+  {
+    id: 'never-upstaged',
+    name: 'Never Upstaged',
+    source: card('never-upstaged'),
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    cost: { stress: 1 },
+    action: false,
+    effects: [
+      { kind: 'log', text: 'They will hear about this one.', tone: 'hope' },
+      { kind: 'addToken', ability: 'never-upstaged', amount: 'hitPointsTaken' },
+    ],
+  },
+  {
+    id: 'never-upstaged-damage',
+    name: 'Never Upstaged',
+    source: card('never-upstaged'),
+    kind: 'passive',
+    action: false,
+    modifiers: [{ stat: 'damageRoll', bonus: 5, perToken: 'never-upstaged' }],
+  },
+  {
+    id: 'never-upstaged-spent',
+    name: 'Never Upstaged',
+    source: card('never-upstaged'),
+    kind: 'reaction',
+    // "On your next successful attack… then clear all tokens." The bonus is
+    // read while the swing is rolled; this runs once it has landed.
+    trigger: 'dealtHit',
+    action: false,
+    effects: [{ kind: 'spendToken', ability: 'never-upstaged', all: true }],
+  },
+
   {
     id: 'inspirational-words',
     name: 'Inspirational Words',

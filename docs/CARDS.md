@@ -17,10 +17,11 @@ Known simplifications in the scripted ones:
 - **Inspirational Words** and **Restoration** spend one token at a time. **Fire Flies** is one of Conjure Swarm's two swarms; the beetles that soak a blow are text.
 - Four of the nine **-Touched** cards carry a bonus the sheet can hold (Arcana, Blade, Splendor, Valor); the rest ask for something the engine has no number for and stay text.
 - **Healing Strike** clears a Hit Point on the nearest ally rather than a chosen one: it answers a swing that has already landed, and what the player is asked is whether to spend the Hope.
+- **Ferocity** and **Never Upstaged** keep their bonus as tokens on the card, so the Evasion or the damage is whatever the fight put there; Ferocity is spent by the next attack made at its holder, hit or miss.
 - **Enrapture** is text: what a fixed attention does to an adversary is the table's call.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 55 of 189 cards.
+Scripted: 57 of 189 cards.
 
 
 ## Arcana
@@ -82,7 +83,7 @@ Scripted: 55 of 189 cards.
 | 1 | Deft Maneuvers | Ability | text |
 | 1 | I See It Coming | Ability | text |
 | 1 | Untouchable | Ability | **text** |
-| 2 | Ferocity | Ability | text |
+| 2 | Ferocity | Ability | **reaction**, **passive** |
 | 2 | Strategic Approach | Ability | text |
 | 3 | Brace | Ability | **reaction** |
 | 3 | Tactician | Ability | text |
@@ -142,7 +143,7 @@ Scripted: 55 of 189 cards.
 | 4 | Through Your Eyes | Spell | text |
 | 5 | Thought Delver | Spell | text |
 | 5 | Words of Discord | Spell | text |
-| 6 | Never Upstaged | Ability | text |
+| 6 | Never Upstaged | Ability | **reaction**, **passive** |
 | 6 | Share the Burden | Spell | text |
 | 7 | Endless Charisma | Ability | text |
 | 7 | Grace-Touched | Ability | text |

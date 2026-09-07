@@ -1037,3 +1037,85 @@ describe("the party's own answer to a blow", () => {
     expect(risen.thresholds.major).toBe(plain.thresholds.major);
   });
 });
+
+describe('a bonus the card counts out for itself', () => {
+  /** Kara holding a card, in a fight, the party asked rather than decided for. */
+  const holding = (cards: readonly string[], seed: string): DemoScene => {
+    const demo = standoff(seed);
+    demo.askDefender = true;
+    const sheet = demo.sheets.get('kara')!;
+    const grown = { ...sheet, domainCards: [...cards], loadout: [...cards] };
+    demo.sheets.set('kara', grown);
+    demo.characters.set('kara', deriveCharacter(grown, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    syncPools(demo);
+    return demo;
+  };
+
+  it('reads the tokens where they are used, and never off the sheet', () => {
+    const demo = holding(['ferocity'], 'ferocity-evasion');
+    const derived = demo.characters.get('kara')!.evasion;
+    expect(demo.world.poolBonus('kara', 'evasion')).toBe(0);
+
+    demo.world.addTokens('kara', 'ferocity', 3);
+    // "Increase your Evasion by the number of Hit Points they marked."
+    expect(demo.world.poolBonus('kara', 'evasion')).toBe(3);
+    // The sheet is where the fight is not: a token is scene state, and a
+    // character derived again finds the same Evasion it always had.
+    expect(deriveCharacter(demo.sheets.get('kara')!, SRD_CHARACTERS, demo.project.abilities).character.evasion).toBe(derived);
+  });
+
+  it('places a token for each Hit Point the blow marked, and none for a blow that marked nothing', () => {
+    const demo = holding(['never-upstaged'], 'upstaged-tokens');
+    const kara = demo.state.entity('kara')!;
+    kara.hitPoints = { max: 40, marked: 0 };
+
+    demo.world.noteDamage('kara', { attacker: 'husk', hitPoints: 3, damage: 14, types: ['physical'] });
+    settleFight(demo);
+    // "You can mark a Stress to place a number of tokens equal to the number
+    // of Hit Points you marked on this card": the Stress is a price, so it is
+    // asked about first.
+    expect(asked(demo)).toBe('reaction');
+    answerPending(demo, { kind: 'choose', index: 1 });
+    expect(demo.world.tokensOn('kara', 'never-upstaged')).toBe(3);
+    expect(kara.stress.marked).toBeGreaterThan(0);
+  });
+
+  it('adds five to the damage for each token, then clears the card', () => {
+    const demo = holding(['never-upstaged'], 'upstaged-damage');
+    demo.askDefender = false;
+    const foe = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    foe.hitPoints = { max: 60, marked: 0 };
+    demo.world.addTokens('kara', 'never-upstaged', 2);
+    expect(demo.world.rollBonus('kara', 'damageRoll', { melee: true })).toBe(10);
+
+    for (let i = 0; i < 20; i++) {
+      if (!demo.encounter!.canAct('kara')) endTurn(demo);
+      if (demo.state.entity(foe.id)?.alive !== true) break;
+      const result = attackWithSelected(demo, foe.id);
+      if (result?.hit === true) break;
+    }
+    // "On your next successful attack… then clear all tokens."
+    expect(demo.log.some((l) => /Kara (hits|lands a critical)/.test(l.text))).toBe(true);
+    expect(demo.world.tokensOn('kara', 'never-upstaged')).toBe(0);
+    // And with the card empty the bonus is gone with it.
+    expect(demo.world.rollBonus('kara', 'damageRoll', { melee: true })).toBe(0);
+  });
+
+  it('spends the Ferocity the moment the next attack is over, hit or miss', () => {
+    const demo = holding(['ferocity'], 'ferocity-spent');
+    demo.askDefender = false;
+    const kara = demo.state.entity('kara')!;
+    kara.hitPoints = { max: 40, marked: 0 };
+    demo.world.addTokens('kara', 'ferocity', 2);
+    expect(demo.world.poolBonus('kara', 'evasion')).toBe(2);
+
+    for (let i = 0; i < 12 && demo.world.tokensOn('kara', 'ferocity') > 0; i++) {
+      kara.armorSlots = { max: kara.armorSlots.max, marked: kara.armorSlots.max };
+      endTurn(demo);
+    }
+    // "This bonus lasts until after the next attack made against you."
+    expect(demo.world.tokensOn('kara', 'ferocity')).toBe(0);
+    expect(demo.world.poolBonus('kara', 'evasion')).toBe(0);
+  });
+});

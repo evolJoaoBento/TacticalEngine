@@ -220,12 +220,14 @@ export function deriveCharacter(
     1,
     sheet.proficiency +
       modifiers
-        .filter((m) => m.stat === 'proficiency' && m.when === undefined && m.requires !== 'meleeWeapon')
+        .filter((m) => m.stat === 'proficiency' && m.when === undefined && m.perToken === undefined && m.requires !== 'meleeWeapon')
         .reduce((sum, m) => sum + m.bonus, 0),
   );
+  // A bonus that counts tokens is never folded in: the tokens are on the table
+  // rather than on the sheet, and the number changes while the fight is on.
   const folded = (stat: AbilityModifier['stat']): number =>
     modifiers
-      .filter((m) => m.stat === stat && m.when === undefined && m.requires !== 'meleeWeapon')
+      .filter((m) => m.stat === stat && m.when === undefined && m.perToken === undefined && m.requires !== 'meleeWeapon')
       .reduce(
         (sum, m) =>
           sum + m.bonus + (m.plusTrait === undefined ? 0 : traits[m.plusTrait]) + (m.plusProficiency === true ? proficiency : 0),

@@ -36,7 +36,13 @@ for c in cards:
         else:
             how = 'text'
         names.append((nm,how))
-    entries.append((c['domain'].title(), c['level'], t(c['name']), c['type'].title(), names))
+    # One card, several abilities: a grimoire's pages each have their own name
+    # and all belong here, but a card written as a passive and two reactions
+    # under one name says each kind once.
+    seen=[]
+    for pair in names:
+        if pair not in seen: seen.append(pair)
+    entries.append((c['domain'].title(), c['level'], t(c['name']), c['type'].title(), seen))
 entries.sort(key=lambda e:(e[0],e[1],e[2]))
 out=[]
 out.append("# Domain cards: what the engine runs\n")
@@ -55,6 +61,7 @@ out.append("- **Cruel Precision** adds Finesse rather than the better of Finesse
 out.append("- **Inspirational Words** and **Restoration** spend one token at a time. **Fire Flies** is one of Conjure Swarm's two swarms; the beetles that soak a blow are text.")
 out.append("- Four of the nine **-Touched** cards carry a bonus the sheet can hold (Arcana, Blade, Splendor, Valor); the rest ask for something the engine has no number for and stay text.")
 out.append("- **Healing Strike** clears a Hit Point on the nearest ally rather than a chosen one: it answers a swing that has already landed, and what the player is asked is whether to spend the Hope.")
+out.append("- **Ferocity** and **Never Upstaged** keep their bonus as tokens on the card, so the Evasion or the damage is whatever the fight put there; Ferocity is spent by the next attack made at its holder, hit or miss.")
 out.append("- **Enrapture** is text: what a fixed attention does to an adversary is the table's call.")
 out.append("- Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.\n")
 count_s=sum(1 for e in entries if e[4])

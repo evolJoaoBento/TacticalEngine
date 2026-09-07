@@ -495,20 +495,25 @@ export const effectSchema = z.discriminatedUnion('kind', [
     },
   }),
   /**
-   * Put tokens on a card the actor holds, or take them off. `amount` defaults
+   * Put tokens on a card the actor holds, or take them off. The amount may be
+   * a count - "place a number of tokens equal to the number of Hit Points you
+   * marked" - and `all` takes every token off at once, which is what a card
+   * that spends its pile in one go asks for. Otherwise `amount` defaults
    * to the card's own count for `addToken` and to one for `spendToken`;
    * spending more than are there is refused and journalled as such.
    */
   z.object({
     kind: z.literal('addToken'),
     ability: contentIdSchema,
-    amount: z.number().int().positive().optional(),
+    amount: amountSchema.optional(),
     target: targetSelectorSchema.optional(),
   }),
   z.object({
     kind: z.literal('spendToken'),
     ability: contentIdSchema,
     amount: z.number().int().positive().optional(),
+    /** Every token on the card - "then clear all tokens". */
+    all: z.boolean().optional(),
     target: targetSelectorSchema.optional(),
   }),
   /** Knock the targets back, away from the actor, to this band. */
