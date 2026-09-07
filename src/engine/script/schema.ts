@@ -87,6 +87,12 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
     around: z.enum(['actor', 'target']).optional(),
     /** Leave the chosen target out: "all other targets within range". */
     except: z.enum(['target']).optional(),
+    /**
+     * Only creatures off the same stat block as the one acting: "all Giant
+     * Rats within Close range", said by a Giant Rat. Read against the actor,
+     * so it says nothing on a card and everything on a block.
+     */
+    sameKind: z.boolean().optional(),
   }),
 ]);
 
@@ -433,6 +439,15 @@ export const effectSchema = z.discriminatedUnion('kind', [
     range: rangeBandSchema.optional(),
     /** Damage no Armor Slot reduces — "deal 2d10+6 direct magic damage". */
     direct: z.boolean().optional(),
+    /**
+     * "Those Minions move into Melee range of the target and make one shared
+     * attack roll. On a success, they deal 2 physical damage each. Combine
+     * this damage." Everyone this names walks in and swings with the one
+     * making the attack: one roll, and the damage multiplied by how many are
+     * standing beside the target when it lands. Whoever cannot get there does
+     * not join, and does not count.
+     */
+    joinedBy: targetSelectorSchema.optional(),
     get onHit() {
       return z.array(effectSchema).optional();
     },

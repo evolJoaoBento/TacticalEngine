@@ -633,6 +633,16 @@ function renderBody(
               ...effect,
               direct: on ? true : undefined,
             }))}
+            {/*
+              "Spotlight all Giant Rats within Close range of them": the rest
+              of its kind walk in and the damage counts once for each. One
+              checkbox, because every block that prints this prints it the
+              same way.
+            */}
+            {flag('the rest of its kind join', 'They walk into reach and swing with it', effect.joinedBy !== undefined, (on) => ({
+              ...effect,
+              joinedBy: on ? { kind: 'adversaries' as const, range: 'close' as const, around: 'target' as const, sameKind: true } : undefined,
+            }))}
           </div>
           <div style={{ color: '#8ea3b0', fontSize: '11px' }}>on a hit</div>
           <EffectList {...props} testId={undefined} effects={effect.onHit ?? []} onChange={(onHit) => onChange({ ...effect, onHit: onHit.length === 0 ? undefined : onHit })} />

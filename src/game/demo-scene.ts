@@ -21,7 +21,7 @@ import { compileHooks, mergeHooks, type HookMap } from '../engine/script/hooks';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES } from './demo-code';
 import { SRD_CONDITIONS } from '../engine/content/conditions';
 import { MAX_SLOTS } from '../engine/rules/resources';
-import { walkCheck } from '../engine/script/schema';
+import { walkCheck, type TargetSelector } from '../engine/script/schema';
 import type { ItemDef, LootTable } from '../engine/content/items';
 import type { QuestDef } from '../engine/content/quests';
 import type { Currency, MarkPool } from '../engine/rules/resources';
@@ -544,6 +544,7 @@ export function refreshWorld(demo: DemoScene): void {
     demo.scenario,
     worldOptions(demo.characters, new Map(demo.project.lootTables.map((table) => [table.id, table])), demo.scene, demo.project),
   );
+  bindTurn(demo);
 }
 
 /** What each party member is carrying, pool-wise, right now. */
@@ -777,7 +778,7 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
   const lootTables = new Map(project.lootTables.map((table) => [table.id, table]));
   const runtime = buildRuntime(opening, characters, scenario, { lootTables, project });
 
-  return {
+  const demo: DemoScene = {
     ...runtime,
     sheets,
     characters,
@@ -793,6 +794,20 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
     gmTurn: null,
     askDefender: false,
   };
+  bindTurn(demo);
+  return demo;
+}
+
+/**
+ * Tell the world who has already acted this GM turn.
+ *
+ * The world runs the scripts and knows nothing about whose turn it is; the
+ * turn lives here. A swarm feature is the one thing that needs both, so this
+ * is the one wire between them, and it is re-tied whenever the world is
+ * rebuilt.
+ */
+function bindTurn(demo: DemoScene): void {
+  demo.world.spotlightSpent = (id) => (demo.gmTurn?.spotlights[id] ?? 0) > 0;
 }
 
 /** Whether a fight is currently running. */
@@ -1110,6 +1125,19 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
       // feature is worth using at all, read with the creature as the actor.
       if (!evaluateOptional(ability.available, demo.world, NO_BINDINGS)) continue;
       const caught = demo.world.resolveTargets({ kind: 'allies', range: ability.target.range }, NO_BINDINGS);
+      // "Spotlight all Giant Rats within Close range of them": worth a Fear
+      // when there is a swarm to call, and the same swing for nothing when
+      // there is not, so the GM only reaches for it when someone answers.
+      const swarm = swarmSelector(ability);
+      if (swarm !== null) {
+        if (caught.length === 0) continue;
+        const at = nearestOf(demo, adversaryId, caught);
+        const joining = demo.world
+          .resolveTargets(swarm, { targets: [at], hit: [] })
+          .filter((id) => id !== adversaryId && !demo.world.spotlightSpent(id));
+        if (joining.length > 0) return { ability, targets: [at] };
+        continue;
+      }
       if (readsATarget(ability.effects)) {
         if (aimed === null && caught.length > 0) aimed = { ability, targets: [nearestOf(demo, adversaryId, caught)] };
         continue;
@@ -1126,6 +1154,17 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
   } finally {
     demo.scenario.actorId = was;
   }
+}
+
+/**
+ * The selector a feature calls its own kind in with, if it has one: the
+ * `joinedBy` on the attack it makes.
+ */
+function swarmSelector(ability: AbilityDef): TargetSelector | null {
+  for (const effect of ability.effects) {
+    if (effect.kind === 'attack' && effect.joinedBy !== undefined) return effect.joinedBy;
+  }
+  return null;
 }
 
 /** The nearest of a list to a creature, by id on a tie: the same rule a swing uses. */
@@ -1193,6 +1232,27 @@ function runAdversaryScript(
   const result = runner.run(ability.effects);
   record(demo, result.journal);
   demo.scenario.actorId = was;
+  spendSwarmSpotlights(demo, result.journal);
+}
+
+/**
+ * A creature that swung with the swarm has taken its turn.
+ *
+ * "Spotlight all Giant Rats within Close range" hands them the spotlight for
+ * this attack and no other: without this the rats that piled in would each
+ * come round again on their own and swing a second time.
+ */
+function spendSwarmSpotlights(demo: DemoScene, journal: readonly JournalEntry[]): void {
+  const turn = demo.gmTurn;
+  if (turn === null) return;
+  for (const entry of journal) {
+    if (entry.kind !== 'attack' || entry.joined === undefined) continue;
+    for (const id of entry.joined) {
+      turn.remaining = turn.remaining.filter((waiting) => waiting !== id);
+      turn.spotlights[id] = (turn.spotlights[id] ?? 0) + 1;
+      demo.encounter?.spotlight(id);
+    }
+  }
 }
 
 /**
@@ -2042,7 +2102,7 @@ function describeEntry(
         ? {
             // "3 turned aside" is the target's own armor, and without it a hit
             // for 11 that marks nothing reads as a bug.
-            text: `${who(entry.attacker)} ${entry.critical ? 'lands a critical with' : 'hits with'} the ${entry.weapon}: ${plural(entry.hitPointsMarked, 'Hit Point')} on ${who(entry.target)}${entry.reduced === undefined ? '' : `, ${entry.reduced} turned aside`}.`,
+            text: `${who(entry.attacker)} ${entry.critical ? 'lands a critical with' : 'hits with'} the ${entry.weapon}${entry.joined === undefined ? '' : `, ${entry.joined.length + 1} of them at once`}: ${plural(entry.hitPointsMarked, 'Hit Point')} on ${who(entry.target)}${entry.reduced === undefined ? '' : `, ${entry.reduced} turned aside`}.`,
             tone: 'combat',
           }
         : { text: `${who(entry.attacker)} swings the ${entry.weapon} at ${who(entry.target)} and misses.`, tone: 'combat' };

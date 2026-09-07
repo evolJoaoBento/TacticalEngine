@@ -69,6 +69,8 @@ export interface AttackSummary {
   hit: boolean;
   /** What the target's own passives took off the damage, if any. */
   reduced?: number;
+  /** Who piled in and got there, if the swing asked anyone to. */
+  joined?: readonly string[];
   critical: boolean;
   hitPointsMarked: number;
   roll?: DualityRoll;
@@ -178,6 +180,13 @@ export interface ScriptWorld extends ConditionContext {
       range?: RangeBand;
       /** Damage no Armor Slot reduces. */
       direct?: boolean;
+      /**
+       * Creatures that pile in behind this one: they walk into reach and the
+       * damage is multiplied by how many are standing there. Resolved by the
+       * caller, because who they are is a selector read with the script's own
+       * bindings.
+       */
+      joinedBy?: readonly string[];
     },
     rng: Rng,
   ): AttackSummary;
@@ -242,6 +251,8 @@ export type JournalEntry =
       hitPointsMarked: number;
       /** What the target's own passives took off before the thresholds. */
       reduced?: number;
+      /** Who swung with them, when a feature called the rest of its kind in. */
+      joined?: readonly string[];
       roll?: DualityRoll;
     }
   | { kind: 'moved'; id: string; from: number; to: number }
@@ -980,6 +991,9 @@ export class ScriptRunner {
     if (attacker === null) return this.refuse('nobody to attack with');
     const targets = this.resolve(effect.target ?? { kind: 'target' });
     if (targets.length === 0) return this.refuse('nothing to attack');
+    // Read once, before the first swing: "all Giant Rats within Close range of
+    // them" is about where everyone stands now, not after the first one moved.
+    const joinedBy = effect.joinedBy === undefined ? undefined : this.resolve(effect.joinedBy);
 
     const hit: string[] = [];
     let swung = false;
@@ -994,6 +1008,7 @@ export class ScriptRunner {
           ...(effect.damage === undefined ? {} : { damage: effect.damage }),
           ...(effect.range === undefined ? {} : { range: effect.range }),
           ...(effect.direct === undefined ? {} : { direct: effect.direct }),
+          ...(joinedBy === undefined ? {} : { joinedBy }),
         },
         this.rng,
       );
@@ -1017,6 +1032,7 @@ export class ScriptRunner {
         critical: summary.critical,
         hitPointsMarked: summary.hitPointsMarked,
         ...(summary.reduced === undefined || summary.reduced === 0 ? {} : { reduced: summary.reduced }),
+        ...(summary.joined === undefined || summary.joined.length === 0 ? {} : { joined: [...summary.joined] }),
         ...(summary.roll === undefined ? {} : { roll: summary.roll }),
       });
       if (summary.hopeGained > 0) this.journal.push({ kind: 'hope', gained: summary.hopeGained });

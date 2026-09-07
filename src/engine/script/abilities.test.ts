@@ -182,6 +182,95 @@ describe('selectors', () => {
   });
 });
 
+describe('a swarm that piles in', () => {
+  /**
+   * "Spend a Fear to choose a target and spotlight all Giant Rats within Close
+   * range of them. Those Minions move into Melee range of the target and make
+   * one shared attack roll. On a success, they deal N damage each. Combine
+   * this damage."
+   */
+  const swarm: Effect[] = [
+    {
+      kind: 'attack',
+      target: { kind: 'entity', id: 'kara' },
+      joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+    },
+  ];
+
+  /**
+   * The corridor with more of husk-1's kind loose in it, and Kara a step
+   * further in so there is a free tile on every side of her: only four
+   * creatures can stand beside anyone, and Mira holds one of the four.
+   *
+   * Armor is left alone here so the arithmetic is the swarm's: Kara's
+   * thresholds are 8/16, and each husk deals 1d6+2.
+   */
+  function rats(where: readonly [number, number][]) {
+    const built = scene({ armor: 'never' });
+    built.state.moveEntity('kara', built.grid.indexOf(2, 1));
+    let n = 2;
+    for (const [x, y] of where) {
+      built.state.addEntity(
+        createAdversaryEntity(`rat-${++n}`, 'soft-husk', built.grid.indexOf(x, y), { hitPoints: 5, stress: 3 }),
+      );
+    }
+    built.scenario.actorId = 'husk-1';
+    return built;
+  }
+
+  const beside = (built: ReturnType<typeof rats>, id: string): boolean =>
+    built.grid.manhattanDistance(built.state.entity(id)!.tile, built.state.entity('kara')!.tile) <= 1;
+
+  it('walks its own kind into reach, swings once, and counts the damage for each', () => {
+    const built = rats([[4, 0], [4, 2], [5, 2]]);
+    // One d20 for the swing, then the damage: four husks at 1d6+2 each is
+    // 4d6+8, so four dice come off the stream rather than one.
+    const rng = scripted([18, 3, 3, 3, 3]);
+    const journal = runScript(swarm, built.world, rng, { rollAs: 'actor', targets: ['kara'] });
+    expect(journal.find((e) => e.kind === 'attack')).toMatchObject({
+      hit: true,
+      joined: ['rat-3', 'rat-4', 'rat-5'],
+    });
+    expect(rng.drawn()).toBe(5);
+    for (const id of ['husk-1', 'rat-3', 'rat-4', 'rat-5']) expect(beside(built, id)).toBe(true);
+    // 12 + 8 is 20: Severe, three Hit Points, where one husk's 3 + 2 is Minor.
+    expect(built.state.entity('kara')!.hitPoints.marked).toBe(3);
+  });
+
+  it('leaves out the one that cannot move, and the kind that is not its own', () => {
+    const built = rats([[4, 0], [4, 2]]);
+    // Restrained: it cannot walk in, so it does not swing.
+    built.state.entity('rat-3')!.conditions.add('restrained');
+    // The tough husk is a different block, so "all Giant Rats" never named it,
+    // even standing right here.
+    built.state.moveEntity('husk-2', built.grid.indexOf(3, 0));
+
+    const journal = runScript(swarm, built.world, scripted([18, 3, 3]), { rollAs: 'actor', targets: ['kara'] });
+    expect(journal.find((e) => e.kind === 'attack')).toMatchObject({ joined: ['rat-4'] });
+    // Two husks at 1d6+2: 3 + 3 + 4 is 10, Major rather than Severe.
+    expect(built.state.entity('kara')!.hitPoints.marked).toBe(2);
+  });
+
+  it('takes no more than can stand beside them', () => {
+    // Six of them, four tiles around Kara, and Mira on one of the four.
+    const built = rats([[4, 0], [4, 2], [5, 2], [5, 0], [6, 1], [6, 0]]);
+    const journal = runScript(swarm, built.world, scripted([18, 3, 3, 3, 3]), { rollAs: 'actor', targets: ['kara'] });
+    const attack = journal.find((e) => e.kind === 'attack') as { joined?: readonly string[] };
+    expect(attack.joined).toHaveLength(3);
+    // The ones who could not get there are still out in the corridor.
+    expect(['rat-6', 'rat-7', 'rat-8'].filter((id) => beside(built, id))).toHaveLength(0);
+  });
+
+  it('is a plain swing when nobody else is near', () => {
+    const built = rats([]);
+    const journal = runScript(swarm, built.world, scripted([18, 3]), { rollAs: 'actor', targets: ['kara'] });
+    const attack = journal.find((e) => e.kind === 'attack');
+    expect(attack).toMatchObject({ hit: true });
+    expect(attack).not.toHaveProperty('joined');
+    expect(built.state.entity('kara')!.hitPoints.marked).toBe(1);
+  });
+});
+
 describe('a check against targets', () => {
   const bolt: Effect = {
     kind: 'check',

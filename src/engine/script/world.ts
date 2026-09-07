@@ -29,7 +29,7 @@ import {
 import { resolveDamage, type DamageDefenses, type DamageReduction, type IncomingDamage } from '../rules/damage';
 import { rollDuality } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
-import { bandForDistance, bandIndex, reaches, type BandTiles, type RangeBand } from '../rules/range';
+import { bandForDistance, bandIndex, maxTilesForBand, reaches, type BandTiles, type RangeBand } from '../rules/range';
 import { applyAttack, resolveAttack, type AttackProfile } from '../combat/attack';
 import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
 import { attackProfile, UNARMED, type DerivedCharacter } from '../character/sheet';
@@ -38,6 +38,7 @@ import type { ConditionBlock, ConditionDef } from '../content/conditions';
 import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
 import type { AdversaryDef } from '../content/types';
 import { NO_TILE } from '../grid/grid';
+import { Pathfinder } from '../grid/pathfinding';
 import type { EntityState, SceneState } from '../scene/state';
 import type { Trait } from '../scene/schema';
 import { scriptValueSchema, type ConditionDuration, type PoolName, type ScriptValue } from './schema';
@@ -249,6 +250,17 @@ export class SceneScriptWorld implements ScriptWorld {
   private readonly characters: ReadonlyMap<string, DerivedCharacter>;
   private readonly adversaries: ReadonlyMap<string, AdversaryDef>;
   private readonly bandTiles: BandTiles | undefined;
+  /** Built the first time a script walks someone, and kept for the scene. */
+  private pathfinder: Pathfinder | null = null;
+  /**
+   * Whether a creature has already been given the spotlight this GM turn.
+   *
+   * Joining a swarm *is* being spotlighted — "spotlight all Giant Rats within
+   * Close range of them" — so a rat that has already bitten does not bite
+   * again behind the next one. Whoever is running the turn sets this; a world
+   * with nobody keeping turns says no, and everyone joins.
+   */
+  spotlightSpent: (id: string) => boolean = () => false;
   private readonly fighting: () => boolean;
   private readonly defense: DefensePolicy;
   private readonly abilities: readonly AbilityDef[];
@@ -682,9 +694,18 @@ export class SceneScriptWorld implements ScriptWorld {
         const origin = selector.around === 'target' ? bindings.targets[0] : this.scenario.actorId;
         if (origin === undefined || origin === null) return [];
         const left = selector.except === 'target' ? new Set(bindings.targets) : null;
+        // "All Giant Rats", not "all adversaries": the same stat block as the
+        // one acting. A creature with no block — a party member running a
+        // card — names nobody, which is what "the rest of its kind" means
+        // when there is no kind.
+        const kind =
+          selector.sameKind !== true
+            ? null
+            : (this.scenario.actorId === null ? undefined : this.state.entity(this.scenario.actorId)?.definition) ?? '';
         return this.state
           .entitiesOf('adversary')
-          .filter((e) => e.alive && !(left?.has(e.id) ?? false) && this.within(origin, e.id, selector.range))
+          .filter((e) => e.alive && !(left?.has(e.id) ?? false) && (kind === null || e.definition === kind))
+          .filter((e) => this.within(origin, e.id, selector.range))
           .map((e) => e.id);
       }
     }
@@ -1068,6 +1089,8 @@ export class SceneScriptWorld implements ScriptWorld {
       range?: RangeBand;
       /** Damage no Armor Slot reduces. */
       direct?: boolean;
+      /** Creatures that pile in behind this one, already resolved by the caller. */
+      joinedBy?: readonly string[];
     },
     rng: Rng,
   ): AttackSummary {
@@ -1104,6 +1127,22 @@ export class SceneScriptWorld implements ScriptWorld {
       ...(request.range === undefined ? {} : { range: request.range }),
       ...(request.direct === undefined ? {} : { direct: request.direct }),
     };
+    // The rest of its kind pile in before the roll: they walk in, and the ones
+    // standing in reach when it is thrown swing with it. One roll, and the
+    // damage counted once for each of them.
+    const joined =
+      request.joinedBy === undefined
+        ? []
+        : this.walkIn(request.joinedBy, request.attacker, request.target, profile.range);
+    if (joined.length > 0) {
+      const each = profile.damage;
+      const times = joined.length + 1;
+      profile.damage = {
+        ...each,
+        count: each.count * times,
+        modifier: each.modifier * times,
+      };
+    }
     const melee = profile.range === 'melee';
     const outcome = resolveAttack(rng, {
       grid: this.state.grid,
@@ -1136,6 +1175,7 @@ export class SceneScriptWorld implements ScriptWorld {
       critical: outcome.critical,
       hitPointsMarked: applied.hitPointsMarked,
       ...(outcome.damage === undefined || outcome.damage.reduced === 0 ? {} : { reduced: outcome.damage.reduced }),
+      ...(joined.length === 0 ? {} : { joined }),
       ...(outcome.damageRoll === undefined
         ? {}
         : {
@@ -1151,6 +1191,30 @@ export class SceneScriptWorld implements ScriptWorld {
     };
   }
 
+  /**
+   * Bring a swarm to the target: everyone named walks in, and the ones who get
+   * within reach are the ones who count.
+   *
+   * A creature that cannot move — Restrained, or with a wall in the way — is
+   * simply left out, which is what a table does with the one that could not
+   * get there. The attacker is never in this list: it is already swinging.
+   */
+  private walkIn(ids: readonly string[], attacker: string, target: string, reach: RangeBand): string[] {
+    const joined: string[] = [];
+    // The one swinging is one of them: "those Minions move into Melee range of
+    // the target" is the whole swarm, the spotlighted one included.
+    if (!this.within(attacker, target, reach)) this.drawIn(attacker, target, reach);
+    for (const id of ids) {
+      if (id === attacker || id === target) continue;
+      const entity = this.state.entity(id);
+      if (entity === undefined || !entity.alive || entity.tile === NO_TILE) continue;
+      if (this.blocks(id, 'act') || this.spotlightSpent(id)) continue;
+      if (!this.within(id, target, reach)) this.drawIn(id, target, reach);
+      if (this.within(id, target, reach)) joined.push(id);
+    }
+    return joined;
+  }
+
   /** What an adversary swings, from its stat block. */
   private adversaryProfile(definition: string): AttackProfile | null {
     const def = this.adversaries.get(definition);
@@ -1164,6 +1228,52 @@ export class SceneScriptWorld implements ScriptWorld {
       // "The Ogre's attacks deal direct damage": a passive on the block.
       ...this.standardAttackOf(definition),
     };
+  }
+
+  /**
+   * Walk a creature in: step by step straight towards `toward`, until it is
+   * within the band asked for or something is in the way.
+   *
+   * The mirror of `pushBack`, and as blunt: no path is searched, so a wall
+   * between them stops the walk where it stands. A swarm that cannot reach
+   * does not join the swing, which is the honest reading of "those Minions
+   * move into Melee range of the target".
+   */
+  drawIn(mover: string, toward: string, band: RangeBand): { from: number; to: number } | null {
+    const walking = this.state.entity(mover);
+    const goal = this.state.entity(toward);
+    if (walking === undefined || goal === undefined) return null;
+    if (walking.tile === NO_TILE || goal.tile === NO_TILE) return null;
+    if (this.blocks(mover, 'move')) return null;
+    if (this.within(mover, toward, band)) return null;
+
+    // The same walk the GM's turn makes: everywhere it could get to, then the
+    // tile closest to what it is walking at. Closer wins, and a tie goes to
+    // the lower index, so a swarm arrives in the same order every replay.
+    const grid = this.state.grid;
+    const start = walking.tile;
+    const field = this.paths().reachable(start, maxTilesForBand('close', this.bandTiles), {
+      isBlocked: this.state.blockedFor(mover),
+    });
+    let best = start;
+    let bestDistance = grid.euclideanDistance(start, goal.tile);
+    for (const tile of field.tiles()) {
+      if (tile === goal.tile) continue;
+      const distance = grid.euclideanDistance(tile, goal.tile);
+      if (distance < bestDistance || (distance === bestDistance && tile < best)) {
+        best = tile;
+        bestDistance = distance;
+      }
+    }
+    if (best === start) return null;
+    this.state.moveEntity(mover, best);
+    return { from: start, to: best };
+  }
+
+  /** The pathfinder this world walks with, built once for the scene's grid. */
+  private paths(): Pathfinder {
+    if (this.pathfinder === null) this.pathfinder = new Pathfinder(this.state.grid);
+    return this.pathfinder;
   }
 
   /**

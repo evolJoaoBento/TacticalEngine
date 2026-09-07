@@ -679,6 +679,8 @@ whoever is swinging; a `modifier`'s `when` is read the same way), `inCombatOnly`
 `plusTrait?`, `requires?` unarmored \| armored \| meleeWeapon, `when?` — a stat block's passives
 are read the same way, and unlike a character's they are not baked into the block's numbers
 first), `standardAttack?` (for a `passive`: `direct` — the swing the block prints goes through armour),
+`joinedBy?` on an `attack` effect (a target selector: everyone it names walks into reach and
+swings with the attacker, one roll, the damage counted once for each of them — a Minion swarm),
 `defenses?` (for a `passive`: `reduce[]`, a number taken off the damage before the thresholds
 are read — `{ dice: '3' }` or `{ dice: '1d10' }`, with an optional `only` naming a damage type —
 and `resistances[]` / `immunities[]` of physical \| magic —

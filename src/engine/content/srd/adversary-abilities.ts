@@ -1288,6 +1288,269 @@ const RAW: Input[] = [
     // hit that marks 1 or fewer Hit Points is the GM's.
     defenses: { reduce: [{ dice: '1d20' }] },
   },
+  // ---- the swarm that piles onto one target ----------------------------
+  // "Spend a Fear to choose a target and spotlight all Giant Rats within Close
+  // range of them." Sixteen Minion blocks print this with one number changed,
+  // and the number is always the block's own attack damage — so none of them
+  // states it: `joinedBy` walks the rest of the kind in and counts the swing
+  // once for each of them.
+  {
+    id: 'giant-rat-group-attack',
+    name: 'Group Attack',
+    source: from('giant-rat'),
+    text: 'Spend a Fear to choose a target and spotlight all Giant Rats within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 1 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'jagged-knife-lackey-group-attack',
+    name: 'Group Attack',
+    source: from('jagged-knife-lackey'),
+    text: 'Spend a Fear to choose a target and spotlight all Jagged Knife Lackeys within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 2 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'minor-treant-group-attack',
+    name: 'Group Attack',
+    source: from('minor-treant'),
+    text: 'Spend a Fear to choose a target and spotlight all Minor Treants within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 4 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'sellsword-group-attack',
+    name: 'Group Attack',
+    source: from('sellsword'),
+    text: 'Spend a Fear to choose a target and spotlight all Sellswords within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 3 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'skeleton-dredge-group-attack',
+    name: 'Group Attack',
+    source: from('skeleton-dredge'),
+    text: 'Spend a Fear to choose a target and spotlight all Dredges within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 1 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'tangle-bramble-group-attack',
+    name: 'Group Attack',
+    source: from('tangle-bramble'),
+    text: 'Spend a Fear to choose a target and spotlight all Tangle Brambles within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 2 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'rotted-zombie-group-attack',
+    name: 'Group Attack',
+    source: from('rotted-zombie'),
+    text: 'Spend a Fear to choose a target and spotlight all Rotted Zombies within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 2 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'apprentice-assassin-group-attack',
+    name: 'Group Attack',
+    source: from('apprentice-assassin'),
+    text: 'Spend a Fear to choose a target and spotlight all Apprentice Assassins within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 4 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'conscript-group-attack',
+    name: 'Group Attack',
+    source: from('conscript'),
+    text: 'Spend a Fear to choose a target and spotlight all Conscripts within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 6 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'cult-initiate-group-attack',
+    name: 'Group Attack',
+    source: from('cult-initiate'),
+    text: 'Spend a Fear to choose a target and spotlight all Cult Initiates within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 5 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'giant-recruit-group-attack',
+    name: 'Group Attack',
+    source: from('giant-recruit'),
+    text: 'Spend a Fear to choose a target and spotlight all Giant Recruits within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 5 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'elemental-spark-group-attack',
+    name: 'Group Attack',
+    source: from('elemental-spark'),
+    text: 'Spend a Fear to choose a target and spotlight all Elemental Sparks within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 5 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    // Simplified: the Spark's own attack is magic damage, and that is what the swarm deals; the feature as printed says physical.
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'treant-sapling-group-attack',
+    name: 'Group Attack',
+    source: from('treant-sapling'),
+    text: 'Spend a Fear to choose a target and spotlight all Treant Saplings within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 8 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'fallen-shock-troop-group-attack',
+    name: 'Group Attack',
+    source: from('fallen-shock-troop'),
+    text: 'Spend a Fear to choose a target and spotlight all Fallen Shock Troops within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 12 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'hallowed-soldier-group-attack',
+    name: 'Group Attack',
+    source: from('hallowed-soldier'),
+    text: 'Spend a Fear to choose a target and spotlight all Hallowed Soldiers within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 10 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
+  {
+    id: 'outer-realms-thrall-group-attack',
+    name: 'Group Attack',
+    source: from('outer-realms-thrall'),
+    text: 'Spend a Fear to choose a target and spotlight all Outer Realm Thralls within Close range of them. Those Minions move into Melee range of the target and make one shared attack roll. On a success, they deal 11 physical damage each. Combine this damage.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  },
 ];
 
 export const SRD_ADVERSARY_ABILITIES: readonly AbilityDef[] = RAW.map((raw) => abilitySchema.parse(raw));

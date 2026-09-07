@@ -200,6 +200,50 @@ describe('a block that shrugs the party off', () => {
   });
 });
 
+describe('a swarm of Giant Rats', () => {
+  /** Rats loose in the hall, and Kara alone in the middle of it. */
+  const hall = (rats: readonly { x: number; y: number }[], fear: number) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 4, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'vermin', name: 'Vermin' })));
+    rats.forEach((at, i) => {
+      s.run(addAdversary('hall', 'vermin', { id: `rat-${i + 1}`, adversary: 'giant-rat', position: at }));
+    });
+    const demo = buildProjectScene(s.project, 'rats');
+    demo.askDefender = false;
+    startEncounter(demo, 'vermin');
+    demo.state.fear = { ...demo.state.fear, value: fear };
+    return demo;
+  };
+
+  it('calls the rest of the pack in for one shared bite, and each rat swings once', () => {
+    // Four rats, none of them next to Kara: Close range of her, which is what
+    // the feature gathers.
+    const demo = hall([{ x: 7, y: 4 }, { x: 7, y: 3 }, { x: 7, y: 5 }, { x: 8, y: 4 }], 6);
+    endTurn(demo);
+
+    const said = demo.log.map((l) => l.text);
+    expect(said.filter((t) => t.includes('uses Group Attack')).length).toBe(1);
+    // One roll, and the bite counted for every rat that got there.
+    expect(said.some((t) => /of them at once/.test(t))).toBe(true);
+    // A rat that piled in has had its turn: four rats, and no more than four
+    // acts in the whole GM turn — without the spotlight bookkeeping the three
+    // that joined would each come round again and bite a second time.
+    const bites = said.filter((t) => t.includes('Bite') || t.includes('Group Attack')).length;
+    expect(bites).toBeLessThanOrEqual(4);
+  });
+
+  it('does not spend a Fear on a swarm of one', () => {
+    const demo = hall([{ x: 7, y: 4 }], 6);
+    const before = demo.state.fear.value;
+    endTurn(demo);
+    const said = demo.log.map((l) => l.text);
+    expect(said.some((t) => t.includes('uses Group Attack'))).toBe(false);
+    expect(demo.state.fear.value).toBe(before);
+  });
+});
+
 describe('a block wearing enough plate to matter', () => {
   /**
    * The Knight's Heavily Armored and the Champion's Faltering Armor, at the
