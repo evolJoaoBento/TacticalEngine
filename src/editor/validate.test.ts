@@ -687,6 +687,37 @@ describe('what only a stat block has', () => {
   });
 });
 
+describe('a replacement nothing ships', () => {
+  it('catches a stat block that does not exist, and a count that is not dice', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'phase',
+          name: 'Phase',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          kind: 'reaction',
+          trigger: 'defeated',
+          target: { kind: 'none' },
+          effects: [{ kind: 'replace', adversary: 'second-form', spotlight: true }],
+        },
+        {
+          id: 'split',
+          name: 'Split',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          kind: 'reaction',
+          trigger: 'tookHitPoints',
+          target: { kind: 'none' },
+          effects: [{ kind: 'replace', adversary: 'husk', count: 'a couple' }],
+        },
+      ],
+    });
+    const said = messages(project, { knownAdversaries: new Set(['husk']) });
+    expect(said).toContain('"phase" replaces them with "second-form", which is not an adversary.');
+    expect(said).toContain('"split" replaces them with "a couple" of them, which is not dice.');
+  });
+});
+
 describe('a spotlight in the wrong hands', () => {
   it('warns when a card hands out the GM turn, and catches a count that is not dice', () => {
     const project = projectSchema.parse({

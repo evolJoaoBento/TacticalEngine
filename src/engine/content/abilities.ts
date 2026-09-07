@@ -182,7 +182,9 @@ export const abilitySchema = z.object({
    * three ways - "when the Knight takes damage from an attack", "when the
    * Zombies mark HP from an attack", "when the Burrower takes Severe damage" -
    * and all three run with whoever dealt it bound as the target, because most
-   * of them hit back.
+   * of them hit back. `defeated` is the last of them: "when the Realm-Breaker
+   * marks their last HP", which fires once, as they fall, before anybody says
+   * the fight is over.
    */
   trigger: z
     .enum([
@@ -192,6 +194,7 @@ export const abilitySchema = z.object({
       'tookDamage',
       'tookHitPoints',
       'tookSevere',
+      'defeated',
       'dealtHit',
       'dealtDamage',
       'spotlighted',

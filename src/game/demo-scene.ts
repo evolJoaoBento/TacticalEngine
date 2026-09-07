@@ -974,6 +974,14 @@ export function attackWithSelected(
       : `${character.sheet.name} swings the ${profile.name} at ${nameOf(demo, targetId)} and misses.`,
     'combat',
   );
+  // After the swing is in the log and before `act`, which is where the
+  // encounter decides whether anyone is left standing: what answers a wound
+  // reads after the wound, and a phase change has to put its next form on the
+  // map or the party wins against a creature that was going to stand back up.
+  if (outcome.hit) {
+    playDamageReactions(demo);
+    playDefeatReactions(demo);
+  }
   if (inCombat(demo)) demo.encounter!.act(id!, { spotlightToGm: outcome.spotlightToGm });
   settleFight(demo);
   // The swing is over before a clock moves: a countdown that goes off now is
@@ -1102,12 +1110,43 @@ function clearPartyTemporary(demo: DemoScene): void {
 /** Fights whose end has already been announced. */
 const announced = new WeakSet<EncounterRunner>();
 
+/** Creatures whose fall has already been answered, by the room they fell in. */
+const mourned = new WeakMap<SceneState, Set<string>>();
+
+/**
+ * "When the Realm-Breaker marks their last HP, replace them with the
+ * Undefeated Champion and immediately spotlight them."
+ *
+ * The last thing a stat block does. It has to happen before anybody counts who
+ * is left standing - a fight the party has not won yet is not over - so this
+ * runs on the killing blow rather than at the end of the turn, and remembers
+ * who it has already answered so a second look does not play it twice.
+ */
+function playDefeatReactions(demo: DemoScene): void {
+  let spent = mourned.get(demo.state);
+  if (spent === undefined) {
+    spent = new Set();
+    mourned.set(demo.state, spent);
+  }
+  for (const entity of demo.state.entitiesOf('adversary')) {
+    if (entity.alive || spent.has(entity.id)) continue;
+    spent.add(entity.id);
+    for (const ability of demo.world.reactionsFor(entity.id, 'defeated')) {
+      if (ability.effects.length === 0) continue;
+      if (!affordableReaction(demo, entity.id, ability)) continue;
+      spendFeatureCost(demo, entity.id, ability, 'reaction');
+      runAdversaryScript(demo, entity.id, ability);
+    }
+  }
+}
+
 /**
  * What the end of a fight does, once: the scene's conditions end, the
  * abilities that refresh with the scene refresh, and the log says who won.
  */
 export function settleFight(demo: DemoScene): void {
   playDamageReactions(demo);
+  playDefeatReactions(demo);
   // "If the Gorgon is defeated, all petrification countdowns end" - and the
   // Ashen Tyrant's death throes go off instead. Here because this is where a
   // death is noticed, whoever dealt it.
@@ -1477,6 +1516,25 @@ function afterAdversaryScript(demo: DemoScene, journal: readonly JournalEntry[])
   spendSwarmSpotlights(demo, journal);
   spotlightArrivals(demo, journal);
   spotlightAllies(demo, journal);
+  spotlightReplacements(demo, journal);
+}
+
+/**
+ * "…and immediately spotlight them": what a phase change stands up acts at
+ * once, on the coin the feature already paid. The one it replaced is taken out
+ * of the queue - it is not on the map any more.
+ */
+function spotlightReplacements(demo: DemoScene, journal: readonly JournalEntry[]): void {
+  const turn = demo.gmTurn;
+  if (turn === null) return;
+  for (const entry of journal) {
+    if (entry.kind !== 'replaced') continue;
+    turn.remaining = turn.remaining.filter((waiting) => waiting !== entry.was);
+    if (!entry.spotlight) continue;
+    const arriving = entry.ids.filter((id) => !turn.remaining.includes(id));
+    turn.remaining.unshift(...arriving);
+    for (const id of arriving) turn.granted.add(id);
+  }
 }
 
 /**
@@ -2532,6 +2590,14 @@ function describeEntry(
       return { text: `${who(entry.id)} is thrown back.`, tone: 'combat' };
     case 'countdown':
       return { text: `${entry.name} begins: ${entry.value}.`, tone: 'fear' };
+    case 'replaced': {
+      const first = entry.ids[0];
+      if (first === undefined) return null;
+      return {
+        text: `${who(entry.was)} is gone: ${entry.ids.length === 1 ? who(first) : `${entry.ids.length} ${who(first)}s`} in their place.`,
+        tone: 'fear',
+      };
+    }
     case 'spotlighted': {
       const called = entry.ids.map(who).join(', ');
       return {

@@ -497,6 +497,24 @@ export const effectSchema = z.discriminatedUnion('kind', [
     spotlight: z.boolean().optional(),
   }),
   /**
+   * "When the Realm-Breaker marks their last HP, replace them with the
+   * Undefeated Champion and immediately spotlight them", "split them into two
+   * Tiny Green Oozes (with no marked HP or Stress)".
+   *
+   * The creature acting is taken off the map and what the feature names stands
+   * where it stood, fresh off its own stat block. Put it last in a feature:
+   * everything after it is read with an actor that is no longer there.
+   */
+  z.object({
+    kind: z.literal('replace'),
+    /** The stat block that stands up in its place. */
+    adversary: contentIdSchema,
+    /** How many of them, as dice. One when left out; a Split says two. */
+    count: z.string().min(1).optional(),
+    /** "…and immediately spotlight them": they act now, on the same coin. */
+    spotlight: z.boolean().optional(),
+  }),
+  /**
    * "Spend 2 Fear to spotlight the Head Guard and up to 2d4 allies within Far
    * range": the GM's turn handed to its own side.
    *

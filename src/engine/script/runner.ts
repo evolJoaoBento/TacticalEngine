@@ -206,6 +206,11 @@ export interface ScriptWorld extends ConditionContext {
   spotlightSpent(id: string): boolean;
   /** Creatures ordered by how close they are to another, ties by id. */
   nearestFirst(from: string, ids: readonly string[]): string[];
+  /**
+   * Take the creature acting off the map and stand this many of another stat
+   * block where it was: a phase change, a Split.
+   */
+  replace(definition: string, count: number): { ids: string[]; refused?: string };
   /** A reaction roll: a d20 for an adversary, Duality Dice for a party member. */
   rollReaction(
     id: string,
@@ -281,6 +286,8 @@ export type JournalEntry =
   | { kind: 'countdown'; countdown: string; name: string; value: number }
   /** The GM's turn handed to its own side. Paid for by whatever said so. */
   | { kind: 'spotlighted'; ids: readonly string[]; halfDamage: boolean }
+  /** One creature off the map and another in its place. */
+  | { kind: 'replaced'; was: string; adversary: string; ids: readonly string[]; spotlight: boolean }
   /** `roll` is set when a party member rolled it: an adversary's is a d20. */
   | { kind: 'reaction'; id: string; success: boolean; total: number; difficulty: number; roll?: DualityRoll }
   /** A defender's reaction to damage fired: Get Back Up, a Rune Ward. */
@@ -833,6 +840,24 @@ export class ScriptRunner {
           kind: 'summoned',
           adversary: effect.adversary,
           ids: arrived.ids,
+          spotlight: effect.spotlight === true,
+        });
+        return null;
+      }
+      case 'replace': {
+        const was = world.actorId();
+        if (was === null) return this.refuse('nobody to replace');
+        const expression = parseDice(effect.count ?? '1');
+        if (expression === null) return this.refuse(`cannot read "${effect.count ?? ''}" of them`);
+        const wanted = Math.max(0, rollDice(this.rng, expression).total);
+        if (wanted === 0) return this.refuse('nothing to replace them with');
+        const stood = world.replace(effect.adversary, wanted);
+        if (stood.ids.length === 0) return this.refuse(stood.refused ?? 'nothing took their place');
+        this.journal.push({
+          kind: 'replaced',
+          was,
+          adversary: effect.adversary,
+          ids: stood.ids,
           spotlight: effect.spotlight === true,
         });
         return null;

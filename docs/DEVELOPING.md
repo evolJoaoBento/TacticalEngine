@@ -287,6 +287,7 @@ AbilityDef.effects  (content/abilities.ts, shapes from script/schema.ts)
             ├─ branch / choice / check / attack / reactionRoll push a Frame
             ├─ countdown arms a clock on the scenario; the game layer ticks it
             ├─ spotlight journals who the GM's turn was handed to
+            ├─ replace takes the actor off the map and stands another block there
             └─ choice and check return a Prompt        — the runner stops
        caller answers with resume(response)            — 'choose' | 'roll' | 'continue' | 'cancel'
   └─ SceneScriptWorld (script/world.ts)                — the only writer of state

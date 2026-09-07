@@ -288,6 +288,80 @@ describe('a Leader buying its own side a turn', () => {
   });
 });
 
+describe('a creature that does not stay the same creature', () => {
+  const arena = (adversary: string, seed: string, fear: number) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'arena', name: 'The arena' })));
+    s.run(addAdversary('hall', 'arena', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'arena');
+    demo.state.fear = { ...demo.state.fear, value: fear };
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('stands the next form up before anybody says the fight is won', () => {
+    const demo = arena('volcanic-dragon-obsidian-predator', 'phase', 0);
+    const where = demo.state.entity('foe')!.tile;
+    // The killing blow, delivered by hand: the Predator marks its last HP.
+    demo.state.entity('foe')!.hitPoints = { max: 6, marked: 5 };
+    attackWithSelected(demo, 'foe');
+    if (demo.state.entity('foe')?.alive === true) {
+      // A miss: put it down directly, the way the fight would have.
+      const foe = demo.state.entity('foe')!;
+      foe.hitPoints = { max: 6, marked: 6 };
+      foe.alive = false;
+      settleFight(demo);
+    }
+
+    // "Replace them with the Molten Scourge and immediately spotlight them."
+    expect(demo.state.entity('foe')).toBeUndefined();
+    const next = demo.state.entitiesOf('adversary').filter((e) => e.alive);
+    expect(next.map((e) => e.definition)).toEqual(['volcanic-dragon-molten-scourge']);
+    // In the same place the fight left it, at full strength off its own block.
+    expect(next[0]!.tile).toBe(where);
+    expect(next[0]!.hitPoints.marked).toBe(0);
+    // And the fight is not over: the party won nothing yet.
+    expect(demo.encounter!.outcome).toBe('ongoing');
+  });
+
+  it('splits an Ooze in two, on the Fear that says so', () => {
+    const demo = arena('green-ooze', 'ooze', 3);
+    const foe = demo.state.entity('foe')!;
+    // "When the Ooze has 3 or more HP marked": one short, so the blow that
+    // lands is the one that splits it.
+    foe.hitPoints = { max: 8, marked: 2 };
+    const fear = demo.state.fear.value;
+    attackWithSelected(demo, 'foe');
+
+    const oozes = demo.state.entitiesOf('adversary').filter((e) => e.alive);
+    expect(oozes.map((e) => e.definition)).toEqual(['tiny-green-ooze', 'tiny-green-ooze']);
+    // "(with no marked HP or Stress)"
+    expect(oozes.every((e) => e.hitPoints.marked === 0 && e.stress.marked === 0)).toBe(true);
+    expect(demo.state.entity('foe')).toBeUndefined();
+    expect(fear - demo.state.fear.value).toBe(1);
+  });
+
+  it('leaves an Ooze whole while the wound is shallow, and while the pool is empty', () => {
+    const shallow = arena('green-ooze', 'ooze-shallow', 3);
+    shallow.state.entity('foe')!.hitPoints = { max: 8, marked: 0 };
+    attackWithSelected(shallow, 'foe');
+    expect(shallow.state.entity('foe')?.definition).toBe('green-ooze');
+
+    const broke = arena('green-ooze', 'ooze-broke', 0);
+    broke.state.entity('foe')!.hitPoints = { max: 8, marked: 2 };
+    // Damage rather than a swing, so no roll hands the GM the Fear back.
+    broke.world.dealDamage('foe', { amount: 4, types: ['physical'] }, broke.rng);
+    settleFight(broke);
+    // Nothing to spend: "spend a Fear to split them" is not a suggestion.
+    expect(broke.state.entity('foe')?.definition).toBe('green-ooze');
+  });
+});
+
 describe('a wound that answers back', () => {
   /** Kara toe to toe with something, the fight already on. */
   const duel = (adversary: string, seed: string) => {

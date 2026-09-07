@@ -1551,6 +1551,92 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- one creature off the map and another in its place ------------------
+  // "When the Realm-Breaker marks their last HP, replace them with the
+  // Undefeated Champion and immediately spotlight them." A phase change is the
+  // last feature a stat block plays, and it has to play before anybody counts
+  // who is left standing, or the party wins a fight that was not over.
+  //
+  // A Split is the same move on a different trigger: the Ooze is gone and two
+  // smaller ones stand where it did, off their own block with nothing marked.
+  {
+    id: 'green-ooze-split',
+    name: 'Split',
+    source: from('green-ooze'),
+    text: 'When the Ooze has 3 or more HP marked, you can spend a Fear to split them into two Tiny Green Oozes (with no marked HP or Stress). Immediately spotlight both of them.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    cost: { fear: 1 },
+    available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 3 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'replace', adversary: 'tiny-green-ooze', count: '2', spotlight: true }],
+  },
+  {
+    id: 'red-ooze-split',
+    name: 'Split',
+    source: from('red-ooze'),
+    text: 'When the Ooze has 3 or more HP marked, you can spend a Fear to split them into two Tiny Red Oozes (with no marked HP or Stress). Immediately spotlight both of them.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    cost: { fear: 1 },
+    available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 3 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'replace', adversary: 'tiny-red-ooze', count: '2', spotlight: true }],
+  },
+  {
+    id: 'huge-green-ooze-split',
+    name: 'Split',
+    source: from('huge-green-ooze'),
+    text: 'When the Ooze has 4 or more HP marked, you can spend a Fear to split them into two Green Oozes (with no marked HP or Stress). Immediately spotlight both of them.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    cost: { fear: 1 },
+    available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 4 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'replace', adversary: 'green-ooze', count: '2', spotlight: true }],
+  },
+  {
+    id: 'fallen-warlord-realm-breaker-i-have-never-known-defeat',
+    name: 'I Have Never Known Defeat',
+    source: from('fallen-warlord-realm-breaker'),
+    text: 'When the Realm-Breaker marks their last HP, replace them with the Undefeated Champion and immediately spotlight them.',
+    kind: 'reaction',
+    trigger: 'defeated',
+    action: false,
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'replace', adversary: 'fallen-warlord-undefeated-champion', spotlight: true }],
+  },
+  {
+    id: 'volcanic-dragon-obsidian-predator-erupting-rage',
+    name: 'Erupting Rage',
+    source: from('volcanic-dragon-obsidian-predator'),
+    text: 'When the Obsidian Predator marks their last HP, replace them with the Molten Scourge and immediately spotlight them.',
+    kind: 'reaction',
+    trigger: 'defeated',
+    action: false,
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'replace', adversary: 'volcanic-dragon-molten-scourge', spotlight: true }],
+  },
+  {
+    id: 'volcanic-dragon-molten-scourge-ashen-vengeance',
+    name: 'Ashen Vengeance',
+    source: from('volcanic-dragon-molten-scourge'),
+    text: 'When the Molten Scourge marks their last HP, replace them with the Ashen Tyrant and immediately spotlight them.',
+    kind: 'reaction',
+    trigger: 'defeated',
+    action: false,
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'replace', adversary: 'volcanic-dragon-ashen-tyrant', spotlight: true }],
+  },
   // ---- what a wound answers with -----------------------------------------
   // "When the Knight takes damage from an attack within Melee range, mark a
   // Stress to deal 1d10+5 physical damage to the attacker." Whoever dealt the

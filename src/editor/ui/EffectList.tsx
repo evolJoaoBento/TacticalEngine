@@ -88,6 +88,7 @@ const ADDABLE = [
   'spendToken',
   'push',
   'summon',
+  'replace',
   'spotlight',
   'countdown',
   'reactionRoll',
@@ -141,6 +142,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   push: 'Push them back',
   summon: 'Summon adversaries',
   countdown: 'Start a countdown',
+  replace: 'Replace with another',
   spotlight: 'Spotlight allies',
   reactionRoll: 'Ask for a reaction roll',
   run: 'Run code',
@@ -258,6 +260,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, to: 'far' };
     case 'summon':
       return { kind, adversary: props.adversaryIds?.[0] ?? '', range: 'close' };
+    case 'replace':
+      return { kind, adversary: props.adversaryIds?.[0] ?? '' };
     case 'spotlight':
       return { kind, targets: { kind: 'adversaries', range: 'far' } };
     case 'countdown':
@@ -765,6 +769,29 @@ function renderBody(
             <EffectList {...props} testId={undefined} effects={effect.onSuccess ?? []} onChange={(onSuccess) => onChange({ ...effect, onSuccess: onSuccess.length === 0 ? undefined : onSuccess })} />
           </div>
         </div>
+      );
+    case 'replace':
+      return (
+        <>
+          {props.adversaryIds === undefined || props.adversaryIds.length === 0
+            ? text(effect.adversary, (adversary) => ({ ...effect, adversary }), 'adversary id')
+            : pick(effect.adversary, props.adversaryIds, (adversary) => ({ ...effect, adversary }))}
+          <input
+            style={{ ...field, flex: 'none', width: '72px' }}
+            data-role="replace-count"
+            placeholder="1, 2"
+            title="How many stand up in its place, as dice"
+            value={effect.count ?? ''}
+            onInput={(e) => {
+              const rolled = (e.target as HTMLInputElement).value.trim();
+              onChange({ ...effect, count: rolled === '' ? undefined : rolled });
+            }}
+          />
+          {flag('acts at once', 'They take the spotlight as they stand up', effect.spotlight === true, (on) => ({
+            ...effect,
+            spotlight: on ? true : undefined,
+          }))}
+        </>
       );
     case 'spotlight':
       return (

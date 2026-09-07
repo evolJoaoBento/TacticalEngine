@@ -214,6 +214,18 @@ function checkAbilitiesAndCode(
         add('error', `"${ability.id}" summons "${effect.count}" of them, which is not dice.`, ability.id);
       }
     });
+    // A creature is replaced by another off a stat block; one nothing ships
+    // takes the first off the map and puts nothing in its place.
+    walkEffects(ability.effects, (effect) => {
+      if (effect.kind !== 'replace') return;
+      const known = options.knownAdversaries;
+      if (known !== undefined && !known.has(effect.adversary)) {
+        add('error', `"${ability.id}" replaces them with "${effect.adversary}", which is not an adversary.`, ability.id);
+      }
+      if (effect.count !== undefined && parseDice(effect.count) === null) {
+        add('error', `"${ability.id}" replaces them with "${effect.count}" of them, which is not dice.`, ability.id);
+      }
+    });
     // Handing the GM's turn to its own side is the GM's move: a card in a
     // player's hand has no turn to hand out, and play would refuse it.
     walkEffects(ability.effects, (effect) => {

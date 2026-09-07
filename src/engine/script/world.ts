@@ -1406,6 +1406,38 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /**
+   * Take the creature acting off the map and stand others where it was.
+   *
+   * The first of them takes its tile, so a phase change is in the same place
+   * the fight left it; the rest stand as close as there is room for. They come
+   * off their own stat block with nothing marked - "two Tiny Green Oozes (with
+   * no marked HP or Stress)" - and the one they replace is gone rather than
+   * fallen, so nothing mourns it and no countdown of its goes off.
+   */
+  replace(definition: string, count: number): { ids: string[]; refused?: string } {
+    const actor = this.scenario.actorId === null ? undefined : this.state.entity(this.scenario.actorId);
+    const block = this.adversaries.get(definition);
+    if (block === undefined) return { ids: [], refused: `nothing is a "${definition}"` };
+    if (actor === undefined || actor.tile === NO_TILE) return { ids: [], refused: 'nobody to replace' };
+    const wanted = Math.max(0, Math.trunc(count));
+    if (wanted === 0) return { ids: [] };
+
+    const tile = actor.tile;
+    this.state.removeEntity(actor.id);
+    const placed: string[] = [];
+    for (let i = 0; i < wanted; i++) {
+      const where = i === 0 ? tile : this.standingRoom(tile, 'melee');
+      if (where === null) break;
+      const id = this.freeId(definition);
+      this.state.addEntity(
+        createAdversaryEntity(id, definition, where, { hitPoints: block.hitPoints, stress: block.stress }),
+      );
+      placed.push(id);
+    }
+    return placed.length === 0 ? { ids: [], refused: `nowhere for a ${block.name} to stand` } : { ids: placed };
+  }
+
+  /**
    * A free tile in that band around a point, nearest first and lowest index on
    * a tie — the same rule the GM's walk uses, so a summons arrives in the same
    * places on every replay. Falls inward when the band itself is full or off

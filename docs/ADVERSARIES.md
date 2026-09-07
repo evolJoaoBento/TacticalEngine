@@ -30,7 +30,7 @@ engine has no place to put:
   a creature the block counts as one of its own, an extra spotlight for the one acting.
 - **a point on the map** — "choose a point within Far range; everyone within Close range
   of *that*": selectors read bands around the creature that is acting, not around a spot.
-- **a token on the stat block**, a transformation into another block, flight, teleporting,
+- **a token on the stat block**, flight, teleporting,
   or ground that stays dangerous after the feature ends.
 - **a rider on a number the script cannot see** — "for each target who marked HP", "if
   they used armor", "equal to the HP they marked", "up to three targets". A wound is
@@ -65,7 +65,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 130. Text: 214.
+Read: 73. Scripted: 136. Text: 208.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -147,11 +147,11 @@ Read: 73. Scripted: 130. Text: 214.
 | Green Ooze | Slow | Passive | **text** — the GM's to play |
 | Green Ooze | Acidic Form | Passive | **scripted** — runs as an ability |
 | Green Ooze | Envelop | Action | **text** — the GM's to play |
-| Green Ooze | Split | Reaction | **text** — the GM's to play |
+| Green Ooze | Split | Reaction | **scripted** — runs as an ability |
 | Tiny Green Ooze | Acidic Form | Passive | **scripted** — runs as an ability |
 | Red Ooze | Creeping Fire | Passive | **text** — the GM's to play |
 | Red Ooze | Ignite | Action | **text** — the GM's to play |
-| Red Ooze | Split | Reaction | **text** — the GM's to play |
+| Red Ooze | Split | Reaction | **scripted** — runs as an ability |
 | Tiny Red Ooze | Burning | Reaction | **text** — the GM's to play |
 | Petty Noble | My Land, My Rules | Passive | **text** — the GM's to play |
 | Petty Noble | Guards, Seize Them! | Action | **scripted** — runs as an ability |
@@ -363,7 +363,7 @@ Read: 73. Scripted: 130. Text: 214.
 | Huge Green Ooze | Slow | Passive | **text** — the GM's to play |
 | Huge Green Ooze | Acidic Form | Passive | **scripted** — runs as an ability |
 | Huge Green Ooze | Envelop | Action | **text** — the GM's to play |
-| Huge Green Ooze | Split | Reaction | **text** — the GM's to play |
+| Huge Green Ooze | Split | Reaction | **scripted** — runs as an ability |
 | Hydra | Many-Headed Menace | Passive | **text** — the GM's to play |
 | Hydra | Relentless (X) | Passive | **read** — read off the stat block |
 | Hydra | Regeneration | Action | **scripted** — runs as an ability |
@@ -421,7 +421,7 @@ Read: 73. Scripted: 130. Text: 214.
 | Fallen Warlord: Realm-Breaker | Tormenting Lash | Action | **text** — the GM's to play |
 | Fallen Warlord: Realm-Breaker | All-Consuming Rage | Reaction: Countdown (Decreasing 8) | **scripted** — runs as an ability |
 | Fallen Warlord: Realm-Breaker | Doombringer | Reaction | **text** — the GM's to play |
-| Fallen Warlord: Realm-Breaker | I Have Never Known Defeat (Phase Change) | Reaction | **text** — the GM's to play |
+| Fallen Warlord: Realm-Breaker | I Have Never Known Defeat (Phase Change) | Reaction | **scripted** — runs as an ability |
 | Fallen Warlord: Undefeated Champion | Relentless (3) | Passive | **read** — read off the stat block |
 | Fallen Warlord: Undefeated Champion | Faltering Armor | Passive | **scripted** — runs as an ability |
 | Fallen Warlord: Undefeated Champion | Shattering Strike | Action | **text** — the GM's to play |
@@ -463,14 +463,14 @@ Read: 73. Scripted: 130. Text: 214.
 | Volcanic Dragon: Obsidian Predator | Obsidian Scales | Passive | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Avalanche Tail | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Dive-Bomb | Action | **text** — the GM's to play |
-| Volcanic Dragon: Obsidian Predator | Erupting Rage (Phase Change) | Reaction | **text** — the GM's to play |
+| Volcanic Dragon: Obsidian Predator | Erupting Rage (Phase Change) | Reaction | **scripted** — runs as an ability |
 | Volcanic Dragon: Molten Scourge | Relentless (3) | Passive | **read** — read off the stat block |
 | Volcanic Dragon: Molten Scourge | Cracked Scales | Passive | **text** — the GM's to play |
 | Volcanic Dragon: Molten Scourge | Shattering Might | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Molten Scourge | Eruption | Action | **text** — the GM's to play |
 | Volcanic Dragon: Molten Scourge | Volcanic Breath | Reaction | **text** — the GM's to play |
 | Volcanic Dragon: Molten Scourge | Lava Splash | Reaction | **scripted** — runs as an ability |
-| Volcanic Dragon: Molten Scourge | Ashen Vengeance (Phase Change) | Reaction | **text** — the GM's to play |
+| Volcanic Dragon: Molten Scourge | Ashen Vengeance (Phase Change) | Reaction | **scripted** — runs as an ability |
 | Volcanic Dragon: Ashen Tyrant | Relentless (4) | Passive | **read** — read off the stat block |
 | Volcanic Dragon: Ashen Tyrant | Cornered | Passive | **text** — the GM's to play |
 | Volcanic Dragon: Ashen Tyrant | Injured Wings | Passive | **text** — the GM's to play |

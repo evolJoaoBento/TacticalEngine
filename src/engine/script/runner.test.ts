@@ -89,6 +89,7 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     startCountdown: () => {},
     spotlightSpent: () => false,
     nearestFirst: (_from: string, ids: readonly string[]) => [...ids],
+    replace: () => ({ ids: [] }),
   };
   return { ...base, ...overrides };
 }
