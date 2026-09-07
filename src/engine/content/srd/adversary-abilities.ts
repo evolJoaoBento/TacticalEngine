@@ -1862,6 +1862,144 @@ const RAW: Input[] = [
       { kind: 'markStress', target: { kind: 'target' } },
     ],
   },
+  // ---- creatures that walk before they swing ------------------------------
+  // `move` is the one acting crossing the ground: `toward` closes until the
+  // band it names is close enough, `away` puts as much between them as the
+  // walk allows. It is a walk, not a step through walls - the pathfinder
+  // decides what it can reach - and the ground it covers is a band, Close
+  // unless the feature says further.
+  //
+  // What stays text is a path rather than a destination: "move to a point
+  // within Close range and deal damage to all targets in their path" is a line
+  // drawn across the map, and selectors read bands around a creature. Dive-
+  // Bomb is not one of those - the SRD says move there and attack everyone
+  // within Very Close of where it lands, which is a destination and a band.
+  {
+    id: 'pirate-tough-clear-the-decks',
+    name: 'Clear the Decks',
+    source: from('pirate-tough'),
+    text: 'Make an attack against a target within Very Close range. On a success, mark a Stress to move into Melee range of the target, dealing 3d4 physical damage and knocking the target back to Close range.',
+    cost: { stress: 1 },
+    target: { kind: 'creature', range: 'veryClose' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'The Tough wades in swinging.', tone: 'combat' },
+      {
+        kind: 'attack',
+        range: 'veryClose',
+        target: { kind: 'target' },
+        onHit: [
+          { kind: 'move', how: 'toward', of: { kind: 'hit' }, range: 'melee' },
+          { kind: 'damage', dice: '3d4', type: 'physical', target: { kind: 'hit' } },
+          { kind: 'push', to: 'close', target: { kind: 'hit' } },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'elite-soldier-reinforce',
+    name: 'Reinforce',
+    source: from('elite-soldier'),
+    text: 'Mark a Stress to move into Melee range of an ally and make a standard attack against a target within Very Close range. On a success, deal 2d10+2 physical damage and the ally can clear a Stress.',
+    cost: { stress: 1 },
+    target: { kind: 'creature', range: 'veryClose' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'The Soldier falls in beside one of their own.', tone: 'combat' },
+      // The nearest of its own side, which is the one a soldier reinforces.
+      { kind: 'move', how: 'toward', of: { kind: 'adversaries', range: 'far', nearest: 1 }, range: 'melee' },
+      {
+        kind: 'attack',
+        range: 'veryClose',
+        damage: '2d10+2',
+        target: { kind: 'target' },
+        onHit: [{ kind: 'clearStress', target: { kind: 'adversaries', range: 'melee', nearest: 1 } }],
+      },
+    ],
+  },
+  {
+    id: 'knight-of-the-realm-cavalry-charge',
+    name: 'Cavalry Charge',
+    source: from('knight-of-the-realm'),
+    text: 'If the Knight is mounted, move up to Far range and make a standard attack against a target. On a success, deal 2d8+4 physical damage and the target must mark a Stress.',
+    target: { kind: 'creature', range: 'far' },
+    inCombatOnly: true,
+    // Simplified: the Knight is mounted, as the Chevalier passive already has
+    // it - whether they have been unhorsed is the table's to say.
+    effects: [
+      { kind: 'log', text: 'Hooves, and then the sword.', tone: 'combat' },
+      { kind: 'move', how: 'toward', of: { kind: 'target' }, range: 'melee', budget: 'far' },
+      {
+        kind: 'attack',
+        damage: '2d8+4',
+        target: { kind: 'target' },
+        onHit: [{ kind: 'markStress', target: { kind: 'hit' } }],
+      },
+    ],
+  },
+  {
+    id: 'volcanic-dragon-obsidian-predator-dive-bomb',
+    name: 'Dive-Bomb',
+    source: from('volcanic-dragon-obsidian-predator'),
+    text: 'If the Obsidian Predator is flying, mark a Stress to choose a point within Far range. Move to that point and make an attack against all targets within Very Close range. Targets the Obsidian Predator succeeds against take 2d10+6 physical damage and must mark a Stress.',
+    cost: { stress: 1 },
+    target: { kind: 'creature', range: 'far' },
+    inCombatOnly: true,
+    // Simplified: the point it dives at is whoever it aimed the feature at,
+    // which is the only point on the map anything here can name.
+    effects: [
+      { kind: 'log', text: 'It folds its wings and falls.', tone: 'fear' },
+      { kind: 'move', how: 'toward', of: { kind: 'target' }, range: 'melee', budget: 'far' },
+      {
+        kind: 'attack',
+        range: 'veryClose',
+        damage: '2d10+6',
+        target: { kind: 'allies', range: 'veryClose' },
+        onHit: [{ kind: 'markStress', target: { kind: 'hit' } }],
+      },
+    ],
+  },
+  {
+    id: 'harrier-maintain-distance',
+    name: 'Maintain Distance',
+    source: from('harrier'),
+    text: 'After making a standard attack, the Harrier can move anywhere within Far range.',
+    kind: 'reaction',
+    // Simplified: after a swing that landed. Nothing raises "I swung and
+    // missed" for the one swinging, so a Harrier whose javelin goes wide
+    // stands its ground.
+    trigger: 'dealtHit',
+    action: false,
+    target: { kind: 'none' },
+    effects: [{ kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'far' }],
+  },
+  {
+    id: 'war-wizard-battle-teleport',
+    name: 'Battle Teleport',
+    source: from('war-wizard'),
+    text: 'Before or after making a standard attack, you can mark a Stress to teleport to a location within Far range.',
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    cost: { stress: 1 },
+    action: false,
+    target: { kind: 'none' },
+    // Simplified: after the staff, never before it, and a walk rather than a
+    // step - the Wizard goes as far from what it just hit as the ground allows.
+    effects: [{ kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'far' }],
+  },
+  {
+    id: 'fallen-sorcerer-slippery',
+    name: 'Slippery',
+    source: from('fallen-sorcerer'),
+    text: 'When the Sorcerer takes damage from an attack, they can teleport up to Far range.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    target: { kind: 'none' },
+    // A blow with nobody behind it has nothing to get away from, and the
+    // Sorcerer stands where they are.
+    effects: [{ kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'far' }],
+  },
   // ---- what the two of them make of each other ---------------------------
   // A passive that moves a roll rather than a pool. `advantage` is a signed
   // count of dice, and `against: true` puts it on the rolls made at the one

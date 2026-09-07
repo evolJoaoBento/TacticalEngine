@@ -194,6 +194,10 @@ export interface ScriptWorld extends ConditionContext {
   ): AttackSummary;
   /** Knock a creature away from another to a band. Null when it could not move at all. */
   pushBack(from: string, target: string, band: RangeBand): { from: number; to: number } | null;
+  /** Walk towards a creature until within a band, as far as the budget allows. */
+  drawIn(mover: string, toward: string, band: RangeBand, budget?: RangeBand): { from: number; to: number } | null;
+  /** Walk away from a creature, as far as the budget allows. */
+  breakAway(mover: string, from: string, budget?: RangeBand): { from: number; to: number } | null;
   /**
    * Put creatures off a stat block onto the map, in the band named, around the
    * one summoning them. Returns the ones that found somewhere to stand.
@@ -280,7 +284,8 @@ export type JournalEntry =
       joined?: readonly string[];
       roll?: DualityRoll;
     }
-  | { kind: 'moved'; id: string; from: number; to: number }
+  /** `walked` is the creature crossing the ground itself; otherwise it was shoved. */
+  | { kind: 'moved'; id: string; from: number; to: number; walked?: boolean }
   /** Creatures a feature put on the map, and whether they act at once. */
   | { kind: 'summoned'; adversary: string; ids: readonly string[]; spotlight: boolean }
   /** A clock armed. Advancing it is the game's job, not the runner's. */
@@ -954,6 +959,23 @@ export class ScriptRunner {
         for (const id of this.resolve(effect.target ?? { kind: 'target' })) {
           const moved = world.pushBack(actor, id, effect.to);
           if (moved !== null) this.journal.push({ kind: 'moved', id, from: moved.from, to: moved.to });
+        }
+        return null;
+      }
+      case 'move': {
+        const actor = world.actorId();
+        if (actor === null) return this.refuse('nobody to move');
+        // Whoever the walk is measured against. A reaction with nobody behind
+        // the blow - a trap, a countdown - has nothing to close on or get away
+        // from, and standing still is the honest answer rather than a refusal.
+        const other = this.resolve(effect.of ?? { kind: 'target' })[0];
+        if (other === undefined) return null;
+        const walked =
+          effect.how === 'away'
+            ? world.breakAway(actor, other, effect.budget ?? 'close')
+            : world.drawIn(actor, other, effect.range ?? 'melee', effect.budget ?? 'close');
+        if (walked !== null) {
+          this.journal.push({ kind: 'moved', id: actor, from: walked.from, to: walked.to, walked: true });
         }
         return null;
       }

@@ -447,7 +447,7 @@ footer {
       <tr><td><code>script/effects.ts</code></td><td>Behaviour over those shapes: <code>outcomeEffects</code> (the five-outcome fallback) and TypeScript constructors. Re-exports the types from <code>schema.ts</code>.</td></tr>
       <tr><td><code>script/conditions.ts</code></td><td>Evaluating a <code>Condition</code> against a <code>ConditionContext</code>; <code>TargetBindings</code> (<code>targets</code>, <code>hit</code>, and the optional <code>counts</code>), <code>NO_BINDINGS</code>, <code>countOf</code>.</td></tr>
       <tr><td><code>script/runner.ts</code></td><td><code>ScriptRunner</code> (the stepper), <code>ScriptWorld</code>, <code>JournalEntry</code>, <code>Prompt</code>, <code>Response</code>, <code>RunStatus</code>.</td></tr>
-      <tr><td><code>script/world.ts</code></td><td><code>SceneScriptWorld</code> — the only writer of scene state (1330 lines).</td></tr>
+      <tr><td><code>script/world.ts</code></td><td><code>SceneScriptWorld</code> — the only writer of scene state (1330 lines). Movement lives here too: <code>drawIn</code> walks a creature towards another until it is within a band, <code>breakAway</code> walks it as far off as it can get — both inside a budget, both refused while something holds it.</td></tr>
       <tr><td><code>script/countdowns.ts</code></td><td>The board a scenario carries: <code>RunningCountdown</code> (a clock plus what it is counting towards), <code>advanceBoard</code>, <code>reapBoard</code>, <code>endCreatureCountdowns</code>, and the snapshot schema a save uses.</td></tr>
       <tr><td><code>script/hooks.ts</code></td><td>Running project code: <code>HookContext</code>, <code>runHook</code>, <code>SAFE_MATH</code>.</td></tr>
       <tr><td><code>content/types.ts</code></td><td><code>AdversaryDef</code>, <code>AdversaryFeature</code>, <code>ContentIssue</code>, <code>ImportResult</code>, <code>toContentId</code>.</td></tr>
@@ -808,6 +808,7 @@ footer {
        countdown arms a clock on the scenario; the game layer ticks it
        spotlight journals who the GM turn was handed to; the game layer queues them
        replace takes the actor off the map and stands another stat block there
+       move walks the actor across the ground: towards somebody, or away from them
   └─ JournalEntry[]                                    — what happened; the log renders it,
                                                          a test asserts on it</code></pre>
 

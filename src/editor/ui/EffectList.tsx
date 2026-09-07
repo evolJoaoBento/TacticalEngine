@@ -88,6 +88,7 @@ const ADDABLE = [
   'addToken',
   'spendToken',
   'push',
+  'move',
   'summon',
   'replace',
   'spotlight',
@@ -141,6 +142,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   addToken: 'Put tokens on a card',
   spendToken: 'Spend tokens on a card',
   push: 'Push them back',
+  move: 'Walk',
   summon: 'Summon adversaries',
   countdown: 'Start a countdown',
   replace: 'Replace with another',
@@ -259,6 +261,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, ability: props.abilityIds?.[0] ?? '', amount: 1 };
     case 'push':
       return { kind, to: 'far' };
+    case 'move':
+      return { kind, how: 'toward', range: 'melee' };
     case 'summon':
       return { kind, adversary: props.adversaryIds?.[0] ?? '', range: 'close' };
     case 'replace':
@@ -624,6 +628,49 @@ function renderBody(
             ...(all ? { amount: undefined } : {}),
           }))}
           {who(effect.target, 'the actor', (target) => ({ ...effect, target }))}
+        </>
+      );
+    case 'move':
+      return (
+        <>
+          <select
+            style={{ ...field, flex: 'none', width: '92px' }}
+            data-role="move-how"
+            value={effect.how ?? 'toward'}
+            onChange={(e) => onChange({ ...effect, how: (e.target as HTMLSelectElement).value as 'toward' | 'away' })}
+          >
+            <option value="toward">towards</option>
+            <option value="away">away from</option>
+          </select>
+          {who(effect.of, 'the chosen target', (of) => ({ ...effect, of }))}
+          {effect.how === 'away' ? null : (
+            <select
+              style={{ ...field, flex: 'none', width: '92px' }}
+              data-role="move-range"
+              title="The band to end up within"
+              value={effect.range ?? 'melee'}
+              onChange={(e) => onChange({ ...effect, range: (e.target as HTMLSelectElement).value as RangeBand })}
+            >
+              {BANDS.map((band) => (
+                <option key={band} value={band}>
+                  {band}
+                </option>
+              ))}
+            </select>
+          )}
+          <select
+            style={{ ...field, flex: 'none', width: '96px' }}
+            data-role="move-budget"
+            title="How far it may walk"
+            value={effect.budget ?? 'close'}
+            onChange={(e) => onChange({ ...effect, budget: (e.target as HTMLSelectElement).value as RangeBand })}
+          >
+            {BANDS.map((band) => (
+              <option key={band} value={band}>
+                up to {band}
+              </option>
+            ))}
+          </select>
         </>
       );
     case 'push':

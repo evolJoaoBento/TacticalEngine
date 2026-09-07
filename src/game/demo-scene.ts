@@ -2886,7 +2886,9 @@ function describeEntry(
         ? { text: `${who(entry.id)} is ${entry.condition}.`, tone: 'combat' }
         : { text: `${who(entry.id)} is no longer ${entry.condition}.`, tone: 'system' };
     case 'moved':
-      return { text: `${who(entry.id)} is thrown back.`, tone: 'combat' };
+      return entry.walked === true
+        ? { text: `${who(entry.id)} crosses the ground.`, tone: 'combat' }
+        : { text: `${who(entry.id)} is thrown back.`, tone: 'combat' };
     case 'countdown':
       return { text: `${entry.name} begins: ${entry.value}.`, tone: 'fear' };
     case 'replaced': {

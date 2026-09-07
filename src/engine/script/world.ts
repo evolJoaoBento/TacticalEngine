@@ -876,11 +876,13 @@ export class SceneScriptWorld implements ScriptWorld {
           selector.sameKind !== true
             ? null
             : (this.scenario.actorId === null ? undefined : this.state.entity(this.scenario.actorId)?.definition) ?? '';
-        return this.state
+        const standing = this.state
           .entitiesOf('adversary')
           .filter((e) => e.alive && !(left?.has(e.id) ?? false) && (kind === null || e.definition === kind))
           .filter((e) => this.within(origin, e.id, selector.range))
           .map((e) => e.id);
+        if (selector.nearest === undefined) return standing;
+        return this.nearestFirst(origin, standing).slice(0, selector.nearest);
       }
     }
   }
@@ -1564,7 +1566,7 @@ export class SceneScriptWorld implements ScriptWorld {
    * does not join the swing, which is the honest reading of "those Minions
    * move into Melee range of the target".
    */
-  drawIn(mover: string, toward: string, band: RangeBand): { from: number; to: number } | null {
+  drawIn(mover: string, toward: string, band: RangeBand, budget: RangeBand = 'close'): { from: number; to: number } | null {
     const walking = this.state.entity(mover);
     const goal = this.state.entity(toward);
     if (walking === undefined || goal === undefined) return null;
@@ -1577,7 +1579,7 @@ export class SceneScriptWorld implements ScriptWorld {
     // the lower index, so a swarm arrives in the same order every replay.
     const grid = this.state.grid;
     const start = walking.tile;
-    const field = this.paths().reachable(start, maxTilesForBand('close', this.bandTiles), {
+    const field = this.paths().reachable(start, maxTilesForBand(budget, this.bandTiles), {
       isBlocked: this.state.blockedFor(mover),
     });
     let best = start;
@@ -1586,6 +1588,40 @@ export class SceneScriptWorld implements ScriptWorld {
       if (tile === goal.tile) continue;
       const distance = grid.euclideanDistance(tile, goal.tile);
       if (distance < bestDistance || (distance === bestDistance && tile < best)) {
+        best = tile;
+        bestDistance = distance;
+      }
+    }
+    if (best === start) return null;
+    this.state.moveEntity(mover, best);
+    return { from: start, to: best };
+  }
+
+  /**
+   * The mirror of `drawIn`: as much ground between them as the walk allows.
+   *
+   * "Teleport up to Far range", "move anywhere within Far range" - a creature
+   * getting itself out of reach. The same field and the same tie-break, so a
+   * replay puts it on the same tile; the far side of a wall is not reachable,
+   * which is the honest reading of a walk rather than a step through stone.
+   */
+  breakAway(mover: string, from: string, budget: RangeBand = 'close'): { from: number; to: number } | null {
+    const walking = this.state.entity(mover);
+    const away = this.state.entity(from);
+    if (walking === undefined || away === undefined) return null;
+    if (walking.tile === NO_TILE || away.tile === NO_TILE) return null;
+    if (this.blocks(mover, 'move')) return null;
+
+    const grid = this.state.grid;
+    const start = walking.tile;
+    const field = this.paths().reachable(start, maxTilesForBand(budget, this.bandTiles), {
+      isBlocked: this.state.blockedFor(mover),
+    });
+    let best = start;
+    let bestDistance = grid.euclideanDistance(start, away.tile);
+    for (const tile of field.tiles()) {
+      const distance = grid.euclideanDistance(tile, away.tile);
+      if (distance > bestDistance || (distance === bestDistance && tile < best && distance > grid.euclideanDistance(start, away.tile))) {
         best = tile;
         bestDistance = distance;
       }

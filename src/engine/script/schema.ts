@@ -115,6 +115,8 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
     around: z.enum(['actor', 'target']).optional(),
     /** Leave the chosen target out: "all other targets within range". */
     except: z.enum(['target']).optional(),
+    /** Only the closest few, measured from whoever the band is read around. */
+    nearest: z.number().int().positive().optional(),
     /**
      * Only creatures off the same stat block as the one acting: "all Giant
      * Rats within Close range", said by a Giant Rat. Read against the actor,
@@ -556,6 +558,28 @@ export const effectSchema = z.discriminatedUnion('kind', [
     count: z.string().min(1).optional(),
     /** "…and immediately spotlight them": they act now, on the same coin. */
     spotlight: z.boolean().optional(),
+  }),
+  /**
+   * The creature acting walks: "move into Melee range of the target", "move up
+   * to Far range and make a standard attack", "teleport up to Far range".
+   *
+   * A walk rather than a step through walls - the pathfinder decides what it
+   * can reach - and the ground it covers is `budget`, Close by default, which
+   * is what a creature gets on its turn. `toward` stops as soon as `range` is
+   * close enough; `away` puts as much ground between them as it can.
+   *
+   * Somebody else being moved is `push`: this is only ever the one acting.
+   */
+  z.object({
+    kind: z.literal('move'),
+    /** Closing or breaking away. Closing by default. */
+    how: z.enum(['toward', 'away']).optional(),
+    /** Who the walk is measured against. The chosen target by default. */
+    of: targetSelectorSchema.optional(),
+    /** For `toward`: the band to end up within. Melee by default. */
+    range: rangeBandSchema.optional(),
+    /** How far it may walk. Close by default. */
+    budget: rangeBandSchema.optional(),
   }),
   /**
    * "Spend 2 Fear to spotlight the Head Guard and up to 2d4 allies within Far

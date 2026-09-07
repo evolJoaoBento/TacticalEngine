@@ -597,6 +597,81 @@ describe('a wound too small to be worth taking', () => {
   });
 });
 
+describe('a creature that walks before it swings', () => {
+  /** Kara at one end of the hall and something at the other. */
+  const hall = (adversary: string, at: { x: number; y: number }, seed: string) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'hall', name: 'The hall' })));
+    s.run(addAdversary('hall', 'hall', { id: 'foe', adversary, position: at }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'hall');
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+    demo.state.entity('foe')!.hitPoints = { max: 40, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  const bandTo = (demo: ReturnType<typeof hall>, a: string, b: string) => demo.world.bandTo(a, b);
+
+  it('closes the ground the feature says it can, and no further than it needs', () => {
+    // "If the Knight is mounted, move up to Far range and make a standard
+    // attack against a target."
+    const demo = hall('knight-of-the-realm', { x: 9, y: 4 }, 'charge');
+    expect(bandTo(demo, 'foe', 'kara')).not.toBe('melee');
+
+    for (let i = 0; i < 4 && bandTo(demo, 'foe', 'kara') !== 'melee'; i++) endTurn(demo);
+    expect(demo.log.some((l) => l.text.includes('Hooves, and then the sword.'))).toBe(true);
+    expect(bandTo(demo, 'foe', 'kara')).toBe('melee');
+  });
+
+  it('walks away from whoever wounded it, and stands still when nobody did', () => {
+    // "When the Sorcerer takes damage from an attack, they can teleport up to
+    // Far range."
+    const demo = hall('fallen-sorcerer', { x: 3, y: 4 }, 'slippery');
+    expect(bandTo(demo, 'kara', 'foe')).toBe('melee');
+    // Whether a given swing lands is the seed's business; that the wound moves
+    // the Sorcerer is not.
+    for (let i = 0; i < 8 && bandTo(demo, 'kara', 'foe') === 'melee'; i++) {
+      if (!demo.encounter!.canAct('kara')) endTurn(demo);
+      demo.world.drawIn('kara', 'foe', 'melee', 'far');
+      attackWithSelected(demo, 'foe');
+    }
+    const after = demo.state.entity('foe')!.tile;
+    expect(bandTo(demo, 'kara', 'foe')).not.toBe('melee');
+
+    // Damage out of a script has nobody behind it: there is nothing to get
+    // away from, and the Sorcerer does not move.
+    demo.world.dealDamage('foe', { amount: 9, types: ['magic'] }, demo.rng);
+    settleFight(demo);
+    expect(demo.state.entity('foe')!.tile).toBe(after);
+  });
+
+  it('cannot walk while something is holding it, either way', () => {
+    const demo = hall('knight-of-the-realm', { x: 9, y: 4 }, 'held');
+    const foe = demo.state.entity('foe')!;
+    const stood = foe.tile;
+    foe.conditions.add('restrained');
+    // Restrained is Restrained whether a feature says walk or the turn does,
+    // and it holds a creature closing in as firmly as one backing away.
+    expect(demo.world.drawIn('foe', 'kara', 'melee', 'far')).toBeNull();
+    expect(demo.world.breakAway('foe', 'kara', 'far')).toBeNull();
+    for (let i = 0; i < 3; i++) endTurn(demo);
+    expect(demo.state.entity('foe')!.tile).toBe(stood);
+
+    // Loose again, and the same walk crosses the hall.
+    foe.conditions.delete('restrained');
+    expect(demo.world.drawIn('foe', 'kara', 'melee', 'far')).not.toBeNull();
+    expect(demo.world.bandTo('foe', 'kara')).toBe('melee');
+    // And away goes as far the other way as the ground allows.
+    expect(demo.world.breakAway('foe', 'kara', 'far')).not.toBeNull();
+    expect(demo.world.bandTo('foe', 'kara')).not.toBe('melee');
+  });
+});
+
 describe('a Demon rallying Relentless allies', () => {
   /** A Demon of Hubris and two Minor Demons, who can each be spotlighted twice. */
   const pit = (fear: number, seed: string) => {
@@ -767,9 +842,14 @@ describe('a clock the fight carries', () => {
     return demo;
   };
 
-  /** Kara swings, taking the spotlight back first if a roll with Fear lost it. */
+  /**
+   * Kara swings, taking the spotlight back first if a roll with Fear lost it -
+   * and closing the ground again first, because a Sorcerer that answers a
+   * wound by teleporting away is a Sorcerer somebody has to walk back to.
+   */
   const swing = (demo: ReturnType<typeof ruin>): void => {
     if (!demo.encounter!.canAct('kara')) endTurn(demo);
+    demo.world.drawIn('kara', 'foe', 'melee', 'far');
     attackWithSelected(demo, 'foe');
   };
 

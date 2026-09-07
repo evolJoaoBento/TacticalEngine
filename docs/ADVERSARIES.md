@@ -34,8 +34,16 @@ engine has no place to put:
   than the Swarm", "attacks against a creature this one stands beside have advantage". A
   passive can move the dice for its holder or against them (`advantage`, with `against`)
   and that is two parties; a third is not something a modifier can name.
-- **a token on the stat block**, teleporting,
-  or ground that stays dangerous after the feature ends.
+- **a token on the stat block**, or ground that stays dangerous after the feature ends.
+- **a path rather than a destination** - a creature crossing the ground runs (`move`,
+  towards somebody or away from them, as far as the band it names allows), so what
+  stays text is the line it draws on the way: "move to a point within Close range and
+  deal damage to all targets in their path". A destination and a band around it is
+  scripted - the Dive-Bomb lands and hits everyone within Very Close of where it landed.
+  So is a walk on the way in or out of a swing; what is not is an interrupt before the
+  roll ("when a creature moves into Melee range to make an attack"), and the passives
+  about flight, stone and shadows, which are about where a creature may go rather than
+  about it going there.
 - **a number the blow does not carry** - how much of a wound landed is now read: an
   amount can be written as a count (`hitPointsTaken`, `hitPointsDealt`, `targetsHit`)
   and a feature can be gated on one, which is what "when the Brawler marks 2 or more
@@ -73,7 +81,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 155. Text: 189.
+Read: 73. Scripted: 162. Text: 182.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -110,7 +118,7 @@ Read: 73. Scripted: 155. Text: 189.
 | Glass Snake | Armor-Shredding Shards | Passive | **text** — the GM's to play |
 | Glass Snake | Spinning Serpent | Action | **scripted** — runs as an ability |
 | Glass Snake | Spitter | Action | **text** — the GM's to play |
-| Harrier | Maintain Distance | Passive | **text** — the GM's to play |
+| Harrier | Maintain Distance | Passive | **scripted** — runs as an ability |
 | Harrier | Fall Back | Reaction | **text** — the GM's to play |
 | Archer Guard | Hobbling Shot | Action | **scripted** — runs as an ability |
 | Bladed Guard | Shield Wall | Passive | **text** — the GM's to play |
@@ -171,7 +179,7 @@ Read: 73. Scripted: 155. Text: 189.
 | Pirate Raiders | Horde (1d4+1) | Passive | **read** — read off the stat block |
 | Pirate Raiders | Swashbuckler | Passive | **scripted** — runs as an ability |
 | Pirate Tough | Swashbuckler | Passive | **scripted** — runs as an ability |
-| Pirate Tough | Clear the Decks | Action | **text** — the GM's to play |
+| Pirate Tough | Clear the Decks | Action | **scripted** — runs as an ability |
 | Sellsword | Minion (4) | Passive | **read** — read off the stat block |
 | Sellsword | Group Attack | Action | **scripted** — runs as an ability |
 | Skeleton Archer | Opportunist | Passive | **text** — the GM's to play |
@@ -253,7 +261,7 @@ Read: 73. Scripted: 155. Text: 189.
 | Demonic Hound Pack | Momentum | Reaction | **read** — read off the stat block |
 | Electric Eels | Horde (2d4+1) | Passive | **read** — read off the stat block |
 | Electric Eels | Paralyzing Shock | Action | **scripted** — runs as an ability |
-| Elite Soldier | Reinforce | Action | **text** — the GM's to play |
+| Elite Soldier | Reinforce | Action | **scripted** — runs as an ability |
 | Elite Soldier | Vassal's Loyalty | Reaction | **text** — the GM's to play |
 | Failed Experiment | Warped Fortitude | Passive | **scripted** — runs as an ability |
 | Failed Experiment | Overwhelm | Passive | **text** — the GM's to play |
@@ -281,7 +289,7 @@ Read: 73. Scripted: 155. Text: 189.
 | Juvenile Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **scripted** — runs as an ability |
 | Knight of the Realm | Chevalier | Passive | **scripted** — runs as an ability |
 | Knight of the Realm | Heavily Armored | Passive | **scripted** — runs as an ability |
-| Knight of the Realm | Cavalry Charge | Action | **text** — the GM's to play |
+| Knight of the Realm | Cavalry Charge | Action | **scripted** — runs as an ability |
 | Knight of the Realm | For the Realm! | Action | **scripted** — runs as an ability |
 | Masked Thief | Quick Hands | Action | **text** — the GM's to play |
 | Masked Thief | Escape Plan | Action | **text** — the GM's to play |
@@ -320,7 +328,7 @@ Read: 73. Scripted: 155. Text: 189.
 | Stonewraith | Rocky Ambush | Action | **text** — the GM's to play |
 | Stonewraith | Avalanche Roar | Action | **scripted** — runs as an ability |
 | Stonewraith | Momentum | Reaction | **read** — read off the stat block |
-| War Wizard | Battle Teleport | Passive | **text** — the GM's to play |
+| War Wizard | Battle Teleport | Passive | **scripted** — runs as an ability |
 | War Wizard | Refresh Warding Sphere | Action | **text** — the GM's to play |
 | War Wizard | Eruption | Action | **text** — the GM's to play |
 | War Wizard | Arcane Artillery | Action | **scripted** — runs as an ability |
@@ -422,7 +430,7 @@ Read: 73. Scripted: 155. Text: 189.
 | Fallen Shock Troop | Group Attack | Action | **scripted** — runs as an ability |
 | Fallen Sorcerer | Conflagration | Action | **scripted** — runs as an ability |
 | Fallen Sorcerer | Nightmare Tableau | Action | **text** — the GM's to play |
-| Fallen Sorcerer | Slippery | Reaction | **text** — the GM's to play |
+| Fallen Sorcerer | Slippery | Reaction | **scripted** — runs as an ability |
 | Fallen Sorcerer | Shackles of Guilt | Reaction: Countdown (Loop 2d6) | **scripted** — runs as an ability |
 | Fallen Warlord: Realm-Breaker | Relentless (2) | Passive | **read** — read off the stat block |
 | Fallen Warlord: Realm-Breaker | Firespite Plate Armor | Passive | **scripted** — runs as an ability |
@@ -470,7 +478,7 @@ Read: 73. Scripted: 155. Text: 189.
 | Volcanic Dragon: Obsidian Predator | Flying | Passive | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Obsidian Scales | Passive | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Avalanche Tail | Action | **scripted** — runs as an ability |
-| Volcanic Dragon: Obsidian Predator | Dive-Bomb | Action | **text** — the GM's to play |
+| Volcanic Dragon: Obsidian Predator | Dive-Bomb | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Obsidian Predator | Erupting Rage (Phase Change) | Reaction | **scripted** — runs as an ability |
 | Volcanic Dragon: Molten Scourge | Relentless (3) | Passive | **read** — read off the stat block |
 | Volcanic Dragon: Molten Scourge | Cracked Scales | Passive | **text** — the GM's to play |

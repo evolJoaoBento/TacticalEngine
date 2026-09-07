@@ -85,6 +85,8 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
       spotlightToGm: false,
     }),
     pushBack: () => null,
+    drawIn: () => null,
+    breakAway: () => null,
     rollReaction: () => ({ success: false, total: 0 }),
     summon: () => ({ ids: [] }),
     startCountdown: () => {},
