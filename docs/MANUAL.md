@@ -407,10 +407,10 @@ of the ones the engine ships (those live in `srd/abilities.ts` and are edited in
 is its name, the text as printed, the character ids that hold it, whether it is an action, a
 reaction (and what it answers) or passive, what it costs in Hope, Stress and Fear, who it can be
 aimed at and how far, whether using it is the character's action, whether it is only for a fight,
-whether it holds tokens and when they refill — and then the effect list, which is the same one
-every other panel uses — including an attack's own reach and whether it goes through armor, and
-a reaction roll's damage, which is rolled once before anyone rolls to avoid it. A card with no
-effects is not broken: it is shown as text and the table
+whether it holds tokens and when they refill, what it resists — and then the effect list, which
+is the same one every other panel uses, including an attack's own reach and whether it goes
+through armor, and a reaction roll's damage, which is rolled once before anyone rolls to avoid
+it. A card with no effects is not broken: it is shown as text and the table
 decides, exactly as an unscripted SRD card is.
 
 ### Items and loot
@@ -839,8 +839,9 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
 - **A temporary condition on a party member ends when their turn does** — "until they next
   act", read as the moment the party hands the spotlight back. It is how a hold the SRD ends
   with a Strength Roll comes off at all, since nothing here can ask for that roll.
-- **Adversaries clear a temporary condition only when Restrained** (or with nothing in reach);
-  a PC's temporary conditions end with the scene. The SRD lets both roll or spend to clear them.
+- **Adversaries clear a temporary condition only when Restrained** (or with nothing in reach).
+  The SRD lets a creature roll or spend to clear one; here an adversary spends its spotlight,
+  and a party member's ends when their turn does.
 - **Quests have no stages**: steps can be hidden and revealed, but the summary is one string
   and is never rewritten.
 - **Domain-card and subclass features without a script are text**, shown on the action bar and

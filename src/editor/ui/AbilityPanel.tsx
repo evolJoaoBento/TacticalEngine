@@ -332,6 +332,39 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 />
                 only in a fight
               </label>
+              {/*
+                What holding it does to damage coming in. Halving rounds up, and
+                a creature that resists only one of two damage types resists
+                neither, so both boxes are worth having.
+              */}
+              {(['physical', 'magic'] as const).map((type) => (
+                <label
+                  key={type}
+                  style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}
+                >
+                  <input
+                    type="checkbox"
+                    data-testid={`ability-resist-${type}`}
+                    checked={open.defenses?.resistances?.includes(type) === true}
+                    onChange={(e) => {
+                      const on = (e.target as HTMLInputElement).checked;
+                      const kept = (open.defenses?.resistances ?? []).filter((t) => t !== type);
+                      const resistances = on ? [...kept, type] : kept;
+                      const immunities = open.defenses?.immunities ?? [];
+                      edit({
+                        defenses:
+                          resistances.length === 0 && immunities.length === 0
+                            ? undefined
+                            : {
+                                ...(resistances.length === 0 ? {} : { resistances }),
+                                ...(immunities.length === 0 ? {} : { immunities }),
+                              },
+                      });
+                    }}
+                  />
+                  resists {type}
+                </label>
+              ))}
               <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}>
                 <input
                   type="checkbox"

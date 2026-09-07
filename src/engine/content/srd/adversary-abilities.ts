@@ -1061,8 +1061,28 @@ const RAW: Input[] = [
   {
     id: 'spectral-archer-ghost',
     name: 'Ghost',
-    source: from('spectral-archer', 'spectral-captain', 'spectral-guardian'),
+    source: from('spectral-archer'),
     text: 'The Archer has resistance to physical damage. Mark a Stress to move up to Close range through solid objects.',
+    kind: 'passive',
+    action: false,
+    // Simplified: walking through solid objects is the table's.
+    defenses: { resistances: ['physical'] },
+  },
+  {
+    id: 'spectral-captain-ghost',
+    name: 'Ghost',
+    source: from('spectral-captain'),
+    text: 'The Captain has resistance to physical damage. Mark a Stress to move up to Close range through solid objects.',
+    kind: 'passive',
+    action: false,
+    // Simplified: walking through solid objects is the table's.
+    defenses: { resistances: ['physical'] },
+  },
+  {
+    id: 'spectral-guardian-ghost',
+    name: 'Ghost',
+    source: from('spectral-guardian'),
+    text: 'The Guardian has resistance to physical damage. Mark a Stress to move up to Close range through solid objects.',
     kind: 'passive',
     action: false,
     // Simplified: walking through solid objects is the table's.
@@ -1076,13 +1096,15 @@ const RAW: Input[] = [
     cost: { stress: 1 },
     target: { kind: 'self', range: 'melee' },
     inCombatOnly: true,
-    // The roots hold it still and answer a blade: both are the condition,
-    // and 'temporary' is how it ends — an adversary that cannot move spends
-    // its spotlight tearing free, which is the SRD\'s "end this instead of
-    // moving".
+    // Once: a Treant already rooted has nothing to gain by rooting again.
+    available: { kind: 'not', of: { kind: 'hasCondition', condition: 'rooted', of: { kind: 'actor' } } },
+    // Simplified: the Treant stays where it is by choice rather than by rule.
+    // An adversary the engine holds still spends its spotlight tearing free,
+    // so a creature that rooted itself would spend every other turn undoing
+    // it; what the condition keeps is the half that answers a blade.
     effects: [
       { kind: 'log', text: 'Roots go down into the stone.', tone: 'combat' },
-      { kind: 'applyCondition', condition: 'rooted', duration: 'temporary', target: { kind: 'actor' } },
+      { kind: 'applyCondition', condition: 'rooted', duration: 'scene', target: { kind: 'actor' } },
     ],
   },
 ];

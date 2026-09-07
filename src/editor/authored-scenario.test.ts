@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { encounterSchema, interactableSchema, projectSchema, sceneSchema } from '../engine/scene/schema';
 import { itemSchema, lootTableSchema } from '../engine/content/items';
+import { abilitySchema } from '../engine/content/abilities';
 import { blankSheet } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import {
@@ -153,6 +154,49 @@ describe("a room with a stat block the engine did not write", () => {
     const rolls = demo.log.map((l) => l.text).filter((t) => t.includes('reacts:'));
     expect(rolls.length).toBeGreaterThanOrEqual(2);
     expect(rolls[0]).toContain('against 14');
+  });
+});
+
+describe('a block that shrugs the party off', () => {
+  it('halves what it resists, at the button a player actually presses', () => {
+    const build = (silence: boolean, seed = 'bones') => {
+      const s = blank();
+      s.run(addSheet(KARA));
+      s.run(setSpawns('hall', [{ x: 1, y: 4 }]));
+      s.run(addEncounter('hall', encounterSchema.parse({ id: 'bones', name: 'Bones' })));
+      s.run(addAdversary('hall', 'bones', { id: 'warrior-1', adversary: 'skeleton-warrior', position: { x: 3, y: 4 } }));
+      if (silence) {
+        // A project ability with the shipped feature's id says something else
+        // with it — here, nothing at all. That is the override the manual
+        // promises, and it is also how this test gets its control run.
+        s.project.abilities.push(
+          abilitySchema.parse({
+            id: 'skeleton-warrior-only-bones',
+            name: 'Only Bones',
+            source: { kind: 'adversary', adversaries: ['skeleton-warrior'] },
+            kind: 'passive',
+            action: false,
+            text: 'Nothing, for the sake of the test.',
+          }),
+        );
+      }
+      const demo = buildProjectScene(s.project, seed);
+      startEncounter(demo, 'bones');
+      demo.state.moveEntity('kara', demo.grid.indexOf(2, 4));
+      demo.party.select('kara');
+      // Several swings off one seed: the same rolls in both runs, so the only
+      // thing that differs is what the bones do with the damage.
+      attackWithSelected(demo, 'warrior-1');
+      return demo.state.entity('warrior-1')!.hitPoints.marked;
+    };
+
+    // One seed, so both runs roll the same swing: Kara's broadsword deals
+    // physical damage, which is what a pile of bones shrugs off. Major on the
+    // Warrior's thresholds, and Minor once it is halved.
+    const plain = build(true, 's5');
+    const resisted = build(false, 's5');
+    expect(plain).toBe(3);
+    expect(resisted).toBe(2);
   });
 });
 

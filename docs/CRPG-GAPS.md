@@ -181,9 +181,11 @@ the engine runs).
 **Still open:** 53 of 189 cards are scripted (`docs/CARDS.md`); the rest are text, each for a
 reason the doc gives. On the stat blocks, 73 of 417 features are read off the block and 52 are
 scripted; the other 292 are the GM's to narrate, and `docs/ADVERSARIES.md` now groups the
-reasons rather than leaving them unsaid. The largest single group left is the passives that
-change how damage lands — resistance, flat reduction, a standard attack that deals direct
-damage, a rider on every hit — which is one shape and the next pass over these blocks. Damage
+reasons rather than leaving them unsaid. Resistance and immunity are now a `defenses` line on a passive
+or a condition, read wherever damage lands; what is left of that group is the passives that
+rewrite the standard attack itself — flat reduction, a swing that deals direct damage, a rider
+on every hit — and the features aimed at an ally, which the GM's turn has no way to point at
+one. Damage
 from a feature or a card resolves without asking the defender: the prompt covers an adversary's
 standard attack.
 

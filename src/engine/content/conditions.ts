@@ -56,12 +56,14 @@ const RAW: ConditionInput[] = [
     text: "You can't move until this condition is cleared, but you can still take actions from your current position.",
     blocks: ['move'],
   },
-  // The Oak Treant's roots: what holds it still is also what answers a blade.
+  // The Oak Treant's roots. The SRD's version also Restrains it, and an
+  // adversary that cannot move spends its spotlight tearing free — so a
+  // creature that roots itself would spend every other turn undoing it. The
+  // half the engine keeps is the half that answers a blade.
   {
     id: 'rooted',
     name: 'Rooted',
-    text: 'Rooted in place: you cannot move, and physical damage is halved.',
-    blocks: ['move'],
+    text: 'Rooted in place, so that physical damage is halved.',
     defenses: { resistances: ['physical'] },
   },
   {

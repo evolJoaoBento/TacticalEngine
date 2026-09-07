@@ -1263,7 +1263,22 @@ test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a sti
       member.at.y > barBox.y + barBox.height,
   );
   expect(clear, 'a party member the action bar does not cover').toBeDefined();
-  await page.mouse.move(clear!.at.x, clear!.at.y);
+
+  // Where that tile is on screen right now: the camera is still easing towards
+  // its framing, so the position read a moment ago is not where to click.
+  await expect
+    .poll(
+      async () => {
+        const first = await page.evaluate((tile) => JSON.stringify(window.__polyheart!.screenOf(tile)), clear!.tile);
+        await page.waitForTimeout(120);
+        const second = await page.evaluate((tile) => JSON.stringify(window.__polyheart!.screenOf(tile)), clear!.tile);
+        return first === second;
+      },
+      { timeout: 5000 },
+    )
+    .toBe(true);
+  const at = await page.evaluate((tile) => window.__polyheart!.screenOf(tile), clear!.tile);
+  await page.mouse.move(at.x, at.y);
   expect(await page.evaluate(() => window.__polyheart!.cursorTile())).toBe(clear!.tile);
   await page.mouse.down();
   await page.mouse.up();
@@ -1963,6 +1978,8 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   await panel.locator('[data-testid="add-ability"]').click();
   // Fear is the GM's pool, which is what a stat block's feature spends.
   await panel.locator('[data-testid="ability-fear"]').fill('2');
+  // And what the block does with damage coming back at it.
+  await panel.locator('[data-testid="ability-resist-physical"]').check();
 
   const effects = panel.locator('[data-testid="ability-effects"]');
 
@@ -1983,14 +2000,15 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
 
   const written = await page.evaluate(() => {
     const project = JSON.parse(window.__polyheart!.exportProject()) as {
-      abilities: { id: string; cost: unknown; effects: unknown[] }[];
+      abilities: { id: string; cost: unknown; defenses?: unknown; effects: unknown[] }[];
     };
     const ability = project.abilities.find((a) => a.id === 'eruption')!;
-    return { cost: ability.cost, effects: ability.effects };
+    return { cost: ability.cost, defenses: ability.defenses, effects: ability.effects };
   });
   expect(written).toEqual({
     // Only what the author touched: the Hope and Stress fields were left alone.
     cost: { fear: 2 },
+    defenses: { resistances: ['physical'] },
     effects: [
       {
         kind: 'reactionRoll',
