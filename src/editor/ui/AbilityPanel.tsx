@@ -259,7 +259,12 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                       <option value="incomingDamage">damage comes in</option>
                       <option value="attackHit">an attack hits</option>
                       <option value="attackMissed">an attack misses</option>
+                      {/* The same blow read three ways, all with whoever
+                          dealt it bound as the target. */}
+                      <option value="tookDamage">it takes damage</option>
+                      <option value="tookHitPoints">it marks a Hit Point</option>
                       <option value="tookSevere">Severe damage lands</option>
+                      <option value="spotlighted">it takes the spotlight</option>
                       {/* The other side of the table: what its own swing did. */}
                       <option value="dealtHit">its attack hits</option>
                       <option value="dealtDamage">its attack marks a Hit Point</option>

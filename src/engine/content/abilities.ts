@@ -177,9 +177,25 @@ export const abilitySchema = z.object({
    * `dealtDamage` only when a Hit Point was actually marked. `spotlighted` is
    * the turn itself arriving: "when the Hunter is in the spotlight for the
    * first time", where "the first time" is a `uses` of one.
+   *
+   * `tookDamage`, `tookHitPoints` and `tookSevere` are the same blow read
+   * three ways - "when the Knight takes damage from an attack", "when the
+   * Zombies mark HP from an attack", "when the Burrower takes Severe damage" -
+   * and all three run with whoever dealt it bound as the target, because most
+   * of them hit back.
    */
   trigger: z
-    .enum(['incomingDamage', 'attackHit', 'attackMissed', 'tookSevere', 'dealtHit', 'dealtDamage', 'spotlighted'])
+    .enum([
+      'incomingDamage',
+      'attackHit',
+      'attackMissed',
+      'tookDamage',
+      'tookHitPoints',
+      'tookSevere',
+      'dealtHit',
+      'dealtDamage',
+      'spotlighted',
+    ])
     .optional(),
   /**
    * What using it costs its holder. `fear` is the GM's pool, so it belongs to

@@ -288,6 +288,65 @@ describe('a Leader buying its own side a turn', () => {
   });
 });
 
+describe('a wound that answers back', () => {
+  /** Kara toe to toe with something, the fight already on. */
+  const duel = (adversary: string, seed: string) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('drives thorns back into the one who struck, and marks the Stress for it', () => {
+    const demo = duel('stag-knight', 'thorns');
+    const before = demo.state.entity('kara')!;
+    const wounds = before.hitPoints.marked + before.armorSlots.marked;
+    const stress = demo.state.entity('foe')!.stress.marked;
+
+    attackWithSelected(demo, 'foe');
+
+    // "When the Knight takes damage from an attack within Melee range, you can
+    // mark a Stress to deal 1d10+5 physical damage to the attacker."
+    expect(demo.log.some((l) => l.text.includes('Thorns drive back into the blow.'))).toBe(true);
+    expect(demo.state.entity('foe')!.stress.marked).toBe(stress + 1);
+    const after = demo.state.entity('kara')!;
+    expect(after.hitPoints.marked + after.armorSlots.marked).toBeGreaterThan(wounds);
+  });
+
+  it('stays quiet when the wound has nobody behind it', () => {
+    const demo = duel('stag-knight', 'thorns-nobody');
+    const stress = demo.state.entity('foe')!.stress.marked;
+    // Damage out of a script - a trap, a countdown, a spell with no attacker.
+    // "From an attack within Melee range" has nobody to measure to, so the
+    // armor answers nothing and the Stress stays unmarked.
+    demo.world.dealDamage('foe', { amount: 9, types: ['physical'] }, demo.rng);
+    settleFight(demo);
+    expect(demo.log.some((l) => l.text.includes('Thorns drive back'))).toBe(false);
+    expect(demo.state.entity('foe')!.stress.marked).toBe(stress);
+  });
+
+  it('answers the first wound only, which is what arms a Flickerfly', () => {
+    const demo = duel('juvenile-flickerfly', 'flicker');
+    const foe = demo.state.entity('foe')!;
+    foe.hitPoints = { max: 40, marked: 0 };
+    for (let i = 0; i < 4; i++) {
+      if (!demo.encounter!.canAct('kara')) endTurn(demo);
+      attackWithSelected(demo, 'foe');
+    }
+    // "When the Flickerfly takes damage for the first time, activate the
+    // countdown": a `uses` of one, however many times Kara connects.
+    expect(demo.log.filter((l) => l.text.includes('Hallucinatory Breath begins')).length).toBe(1);
+    expect(demo.scenario.countdowns.has('juvenile-flickerfly-hallucinatory-breath')).toBe(true);
+  });
+});
+
 describe('a Demon rallying Relentless allies', () => {
   /** A Demon of Hubris and two Minor Demons, who can each be spotlighted twice. */
   const pit = (fear: number, seed: string) => {

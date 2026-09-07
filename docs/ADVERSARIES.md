@@ -33,7 +33,10 @@ engine has no place to put:
 - **a token on the stat block**, a transformation into another block, flight, teleporting,
   or ground that stays dangerous after the feature ends.
 - **a rider on a number the script cannot see** — "for each target who marked HP", "if
-  they used armor", "equal to the HP they marked", "up to three targets".
+  they used armor", "equal to the HP they marked", "up to three targets". A wound is
+  answered by trigger - `tookDamage`, `tookHitPoints`, `tookSevere`, each with whoever
+  dealt it bound as the target - but how much of it landed is not a number a script can
+  read, so "when it marks 2 or more HP" stays here.
 - **a condition the SRD prints once** — Entranced, Poisoned, Cursed, Deathlock and the
   rest: written into that one block rather than into the rules.
 - **a social beat** — a bargain, a rumour, a scapegoat: a scene rather than a grid.
@@ -62,7 +65,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 122. Text: 222.
+Read: 73. Scripted: 130. Text: 214.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -205,7 +208,7 @@ Read: 73. Scripted: 122. Text: 222.
 | Shambling Zombie | Too Many to Handle | Passive | **text** — the GM's to play |
 | Shambling Zombie | Horrifying | Passive | **scripted** — runs as an ability |
 | Zombie Pack | Horde (1d4+2) | Passive | **read** — read off the stat block |
-| Zombie Pack | Overwhelm | Reaction | **text** — the GM's to play |
+| Zombie Pack | Overwhelm | Reaction | **scripted** — runs as an ability |
 | Archer Squadron | Horde (1d6+3) | Passive | **read** — read off the stat block |
 | Archer Squadron | Focused Volley | Action | **text** — the GM's to play |
 | Archer Squadron | Suppressing Fire | Action | **text** — the GM's to play |
@@ -267,7 +270,7 @@ Read: 73. Scripted: 122. Text: 222.
 | Juvenile Flickerfly | Relentless (3) | Passive | **read** — read off the stat block |
 | Juvenile Flickerfly | Peerless Accuracy | Passive | **text** — the GM's to play |
 | Juvenile Flickerfly | Mind Dance | Action | **text** — the GM's to play |
-| Juvenile Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **text** — the GM's to play |
+| Juvenile Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **scripted** — runs as an ability |
 | Knight of the Realm | Chevalier | Passive | **text** — the GM's to play |
 | Knight of the Realm | Heavily Armored | Passive | **scripted** — runs as an ability |
 | Knight of the Realm | Cavalry Charge | Action | **text** — the GM's to play |
@@ -313,13 +316,13 @@ Read: 73. Scripted: 122. Text: 222.
 | War Wizard | Refresh Warding Sphere | Action | **text** — the GM's to play |
 | War Wizard | Eruption | Action | **text** — the GM's to play |
 | War Wizard | Arcane Artillery | Action | **scripted** — runs as an ability |
-| War Wizard | Warding Sphere | Reaction | **text** — the GM's to play |
+| War Wizard | Warding Sphere | Reaction | **scripted** — runs as an ability |
 | Adult Flickerfly | Relentless (4) | Passive | **read** — read off the stat block |
 | Adult Flickerfly | Never Misses | Passive | **text** — the GM's to play |
 | Adult Flickerfly | Deadly Flight | Passive | **text** — the GM's to play |
 | Adult Flickerfly | Whirlwind | Action | **scripted** — runs as an ability |
 | Adult Flickerfly | Mind Dance | Action | **text** — the GM's to play |
-| Adult Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **text** — the GM's to play |
+| Adult Flickerfly | Hallucinatory Breath | Reaction: Countdown (Loop 1d6) | **scripted** — runs as an ability |
 | Adult Flickerfly | Uncanny Reflexes | Reaction | **text** — the GM's to play |
 | Demon of Avarice | Money Talks | Passive | **text** — the GM's to play |
 | Demon of Avarice | Numbers Must Go Up | Passive | **text** — the GM's to play |
@@ -339,7 +342,7 @@ Read: 73. Scripted: 122. Text: 222.
 | Demon of Jealousy | What's Yours Is Mine | Reaction | **text** — the GM's to play |
 | Demon of Wrath | Anger Unrelenting | Passive | **scripted** — runs as an ability |
 | Demon of Wrath | Battle Lust | Action | **text** — the GM's to play |
-| Demon of Wrath | Retaliation | Reaction | **text** — the GM's to play |
+| Demon of Wrath | Retaliation | Reaction | **scripted** — runs as an ability |
 | Demon of Wrath | Blood and Souls | Reaction: Countdown (Loop 6) | **scripted** — runs as an ability |
 | Dire Bat | Flying | Passive | **text** — the GM's to play |
 | Dire Bat | Screech | Action | **text** — the GM's to play |
@@ -371,7 +374,7 @@ Read: 73. Scripted: 122. Text: 222.
 | Monarch | Casus Belli | Reaction: Long-Term Countdown (8) | **text** — the GM's to play |
 | Stag Knight | From Above | Passive | **text** — the GM's to play |
 | Stag Knight | Blade of the Forest | Action | **text** — the GM's to play |
-| Stag Knight | Thorny Armor | Reaction | **text** — the GM's to play |
+| Stag Knight | Thorny Armor | Reaction | **scripted** — runs as an ability |
 | Oak Treant | Just a Tree | Passive | **text** — the GM's to play |
 | Oak Treant | Seed Barrage | Action | **text** — the GM's to play |
 | Oak Treant | Take Root | Action | **scripted** — runs as an ability |
@@ -446,7 +449,7 @@ Read: 73. Scripted: 122. Text: 222.
 | Oracle of Doom | Pronounce Fate | Action | **scripted** — runs as an ability |
 | Oracle of Doom | Summon Tormentors | Action | **text** — the GM's to play |
 | Oracle of Doom | Ominous Knowledge | Reaction | **text** — the GM's to play |
-| Oracle of Doom | Vengeful Fate | Reaction | **text** — the GM's to play |
+| Oracle of Doom | Vengeful Fate | Reaction | **scripted** — runs as an ability |
 | Outer Realms Abomination | Chaotic Form | Passive | **text** — the GM's to play |
 | Outer Realms Abomination | Disorienting Presence | Passive | **text** — the GM's to play |
 | Outer Realms Abomination | Reality Quake | Action | **text** — the GM's to play |
@@ -466,7 +469,7 @@ Read: 73. Scripted: 122. Text: 222.
 | Volcanic Dragon: Molten Scourge | Shattering Might | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Molten Scourge | Eruption | Action | **text** — the GM's to play |
 | Volcanic Dragon: Molten Scourge | Volcanic Breath | Reaction | **text** — the GM's to play |
-| Volcanic Dragon: Molten Scourge | Lava Splash | Reaction | **text** — the GM's to play |
+| Volcanic Dragon: Molten Scourge | Lava Splash | Reaction | **scripted** — runs as an ability |
 | Volcanic Dragon: Molten Scourge | Ashen Vengeance (Phase Change) | Reaction | **text** — the GM's to play |
 | Volcanic Dragon: Ashen Tyrant | Relentless (4) | Passive | **read** — read off the stat block |
 | Volcanic Dragon: Ashen Tyrant | Cornered | Passive | **text** — the GM's to play |

@@ -954,7 +954,11 @@ export function attackWithSelected(
   const applied = applyAttack(demo.state, outcome);
   demo.world.endsOnAttack(id!);
   if (outcome.hit) {
-    if (outcome.damage?.severity === 'severe') demo.world.noteSevere(targetId);
+    demo.world.noteDamage(targetId, {
+      attacker: id!,
+      hitPoints: applied.hitPointsMarked,
+      severe: outcome.damage?.severity === 'severe',
+    });
     demo.world.endsOnHit(targetId);
     if (applied.hitPointsMarked > 0) demo.world.endsOnDamage(targetId);
     defeatMinions(demo, targetId, outcome.damageRoll?.total ?? 0);
@@ -1103,7 +1107,7 @@ const announced = new WeakSet<EncounterRunner>();
  * abilities that refresh with the scene refresh, and the log says who won.
  */
 export function settleFight(demo: DemoScene): void {
-  playSevereReactions(demo);
+  playDamageReactions(demo);
   // "If the Gorgon is defeated, all petrification countdowns end" - and the
   // Ashen Tyrant's death throes go off instead. Here because this is where a
   // death is noticed, whoever dealt it.
@@ -1342,13 +1346,17 @@ function featureUsesLeft(demo: DemoScene, adversaryId: string, ability: AbilityD
 /**
  * What the GM pays to use a feature.
  *
- * A block that says "Spend a Fear to…" is taken at its word. One that names no
- * cost at all still costs a Fear, because otherwise the best feature is simply
- * what the adversary does every turn and its teeth never come into it.
+ * A block that says "Spend a Fear to…" is taken at its word. An *action* that
+ * names no cost at all still costs a Fear, because otherwise the best feature
+ * is simply what the adversary does every turn and its teeth never come into
+ * it. A reaction is not chosen, so nothing is invented for it: "when the
+ * Burrower takes Severe damage, all creatures within Close range are bathed in
+ * acidic blood" happens, and an empty pool does not stop it.
  */
-function featureFear(ability: AbilityDef): number {
+function featureFear(ability: AbilityDef, as: 'action' | 'reaction' = 'action'): number {
   const stated = ability.cost.fear ?? 0;
   if (stated > 0) return stated;
+  if (as === 'reaction') return 0;
   return (ability.cost.stress ?? 0) === 0 && (ability.cost.hope ?? 0) === 0 ? 1 : 0;
 }
 
@@ -1360,8 +1368,13 @@ function useAdversaryFeature(demo: DemoScene, adversaryId: string, ability: Abil
 }
 
 /** What using a stat block's feature costs the GM: Fear out of the pool, a use off the card. */
-function spendFeatureCost(demo: DemoScene, adversaryId: string, ability: AbilityDef): void {
-  const fear = featureFear(ability);
+function spendFeatureCost(
+  demo: DemoScene,
+  adversaryId: string,
+  ability: AbilityDef,
+  as: 'action' | 'reaction' = 'action',
+): void {
+  const fear = featureFear(ability, as);
   if (fear > 0) {
     demo.state.fear = { ...demo.state.fear, value: Math.max(0, demo.state.fear.value - fear) };
     note(demo, `The GM spends ${fear} Fear.`, 'fear');
@@ -1386,14 +1399,12 @@ function playSpotlightReactions(demo: DemoScene, adversaryId: string): void {
   if (entity === undefined) return;
   for (const ability of demo.world.reactionsFor(adversaryId, 'spotlighted')) {
     if (ability.effects.length === 0) continue;
-    if ((ability.cost.stress ?? 0) > unmarked(entity.stress)) continue;
-    if (featureFear(ability) > demo.state.fear.value) continue;
-    if (featureUsesLeft(demo, adversaryId, ability) <= 0) continue;
+    if (!affordableReaction(demo, adversaryId, ability)) continue;
     // "When you spotlight the Lieutenant, mark a Stress to also spotlight two
     // allies": a Lieutenant standing alone would otherwise bleed a Stress
     // every turn for a rally nobody answers.
     if (spotlightsAllies(ability) && spotlightCandidates(demo, adversaryId, ability).length === 0) continue;
-    spendFeatureCost(demo, adversaryId, ability);
+    spendFeatureCost(demo, adversaryId, ability, 'reaction');
     runAdversaryScript(demo, adversaryId, ability);
   }
 }
@@ -1540,19 +1551,43 @@ function spendSwarmSpotlights(demo: DemoScene, journal: readonly JournalEntry[])
 }
 
 /**
- * "When the Burrower takes Severe damage…": the features that answer a wound,
- * played once for each creature that took one, whoever dealt it. The world
- * keeps the list; this is where it is spent.
+ * "When the Knight takes damage from an attack within Melee range, mark a
+ * Stress to deal 1d10+5 physical damage to the attacker": the features that
+ * answer a wound, played once for each blow that landed.
+ *
+ * Three triggers come off the same queue, in the order the SRD words them:
+ * `tookDamage` for anything that got through, `tookHitPoints` for the ones
+ * that say "when they mark HP", and `tookSevere` for a Severe wound. Whoever
+ * dealt it is bound as the target, because most of these hit back, and the
+ * reach the feature names is read against where that creature is standing.
  */
-function playSevereReactions(demo: DemoScene): void {
-  for (const id of demo.world.drainSevere()) {
-    const entity = demo.state.entity(id);
+function playDamageReactions(demo: DemoScene): void {
+  for (const note of demo.world.drainDamage()) {
+    const entity = demo.state.entity(note.id);
     if (entity === undefined || !entity.alive || entity.faction !== 'adversary') continue;
-    for (const ability of demo.world.abilitiesForAdversary(statBlock(demo, id).id)) {
-      if (ability.kind !== 'reaction' || ability.trigger !== 'tookSevere') continue;
-      runAdversaryScript(demo, id, ability);
+    const attacker = note.attacker !== null && demo.state.entity(note.attacker)?.alive === true ? note.attacker : null;
+    const triggers: NonNullable<AbilityDef['trigger']>[] = ['tookDamage'];
+    if (note.hitPoints > 0) triggers.push('tookHitPoints');
+    if (note.severe) triggers.push('tookSevere');
+    for (const trigger of triggers) {
+      const bound = attacker === null ? [] : [attacker];
+      for (const ability of demo.world.reactionsFor(note.id, trigger, { targets: bound, hit: bound })) {
+        if (ability.effects.length === 0) continue;
+        if (!affordableReaction(demo, note.id, ability)) continue;
+        spendFeatureCost(demo, note.id, ability, 'reaction');
+        runAdversaryScript(demo, note.id, ability, bound, bound);
+      }
     }
   }
+}
+
+/** Whether the GM can pay for a stat block's reaction right now. */
+function affordableReaction(demo: DemoScene, adversaryId: string, ability: AbilityDef): boolean {
+  const entity = demo.state.entity(adversaryId);
+  if (entity === undefined) return false;
+  if ((ability.cost.stress ?? 0) > unmarked(entity.stress)) return false;
+  if (featureFear(ability, 'reaction') > demo.state.fear.value) return false;
+  return featureUsesLeft(demo, adversaryId, ability) > 0;
 }
 
 /**

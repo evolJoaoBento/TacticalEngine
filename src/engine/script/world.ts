@@ -229,6 +229,18 @@ export function restoreScenario(scenario: ScenarioState, snapshot: ScenarioSnaps
   for (const countdown of snapshot.countdowns ?? []) scenario.countdowns.set(countdown.id, countdown);
 }
 
+/** A blow that landed, waiting for the features that answer it. */
+export interface DamageNote {
+  /** Who took it. */
+  id: string;
+  /** Who dealt it, when a creature did. */
+  attacker: string | null;
+  /** Hit Points it actually marked, after armor and reactions. */
+  hitPoints: number;
+  /** Whether any part of it was Severe. */
+  severe: boolean;
+}
+
 /** Thresholds for a creature nothing describes: the demo's stand-in numbers. */
 const FALLBACK_DEFENDER = { difficulty: 11, thresholds: { major: 6, severe: 12 } };
 
@@ -301,8 +313,8 @@ export class SceneScriptWorld implements ScriptWorld {
   private readonly abilities: readonly AbilityDef[];
   private readonly conditionDefs: ReadonlyMap<string, ConditionDef>;
   private readonly hooks: () => HookMap;
-  /** Creatures that have taken Severe damage since anyone last looked. */
-  private readonly severe: string[] = [];
+  /** Blows that landed since anyone last looked, and what they did. */
+  private readonly damaged: DamageNote[] = [];
 
   constructor(state: SceneState, scenario: ScenarioState, options: SceneScriptWorldOptions = {}) {
     this.state = state;
@@ -591,18 +603,30 @@ export class SceneScriptWorld implements ScriptWorld {
    * The reactions a creature holds that answer this trigger — a defence, or
    * an interrupt like Not This Time. Stunned silences all of them.
    */
-  reactionsFor(id: string, trigger: NonNullable<AbilityDef['trigger']>): AbilityDef[] {
+  reactionsFor(
+    id: string,
+    trigger: NonNullable<AbilityDef['trigger']>,
+    bindings?: TargetBindings,
+  ): AbilityDef[] {
     if (this.blocks(id, 'reactions')) return [];
     // A card's own `available` is read with its holder as the actor, the same
     // way a passive's `when` is: "when you have 2 or fewer Hit Points
     // unmarked" is about the one holding the card, not whoever is swinging.
+    //
+    // Bindings are for the reaction that answers somebody: a blow binds whoever
+    // dealt it, so "when the Knight takes damage from an attack within Melee
+    // range" is a plain `withinRange` on the target. Passing an empty binding
+    // is not the same as passing none: damage with nobody behind it leaves
+    // "the attacker" resolving to nobody, and a feature that asks how far away
+    // they are does not fire. Passing none binds the holder to itself, which
+    // is what every other trigger wants.
     const was = this.scenario.actorId;
     this.scenario.actorId = id;
     const offered = this.heldBy(id).filter(
       (a) =>
         a.kind === 'reaction' &&
         a.trigger === trigger &&
-        (a.available === undefined || evaluate(a.available, this, { targets: [id], hit: [] })),
+        (a.available === undefined || evaluate(a.available, this, bindings ?? { targets: [id], hit: [] })),
     );
     this.scenario.actorId = was;
     return offered;
@@ -1053,7 +1077,12 @@ export class SceneScriptWorld implements ScriptWorld {
     entity.hitPoints = marked.hitPoints;
     if (marked.fell) entity.alive = false;
     if (resolved.hpMarked > 0 || resolved.armorSlotsSpent > 0) this.endsOnDamage(id);
-    if (resolved.severity === 'severe') this.noteSevere(id);
+    // Damage out of a script is not an attack: a trap, a countdown, the gas a
+    // creature breathes. It is noted so the features that answer *being* hurt
+    // fire, with nobody named, so the ones that hit back have nobody to hit.
+    if (resolved.hpMarked > 0 || resolved.severity !== 'none') {
+      this.noteDamage(id, { hitPoints: resolved.hpMarked, severe: resolved.severity === 'severe' });
+    }
     return {
       incoming: resolved.incoming,
       reduced: resolved.reduced,
@@ -1146,18 +1175,33 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /**
-   * Note that a creature took Severe damage, so whoever runs the fight can
-   * play the features that answer it — Acid Bath. Kept as a queue rather than
-   * fired here: the world applies rules, it does not start scripts.
+   * Note that a blow landed, so whoever runs the fight can play the features
+   * that answer it — Acid Bath, Thorny Armor, a Flickerfly's first wound.
+   * Kept as a queue rather than fired here: the world applies rules, it does
+   * not start scripts.
+   *
+   * Who dealt it is recorded because most of these features hit back, and a
+   * retaliation with nobody to aim at is not one. It stays optional: damage
+   * out of a script has no attacker, and a feature that only answers *being*
+   * hurt should still fire.
    */
-  noteSevere(id: string): void {
-    if (!this.severe.includes(id)) this.severe.push(id);
+  noteDamage(id: string, note: { attacker?: string; hitPoints?: number; severe?: boolean } = {}): void {
+    const already = this.damaged.find((d) => d.id === id && d.attacker === (note.attacker ?? null));
+    const entry = already ?? { id, attacker: note.attacker ?? null, hitPoints: 0, severe: false };
+    entry.hitPoints += note.hitPoints ?? 0;
+    entry.severe = entry.severe || note.severe === true;
+    if (already === undefined) this.damaged.push(entry);
   }
 
-  /** Who has taken Severe damage since the last call. Clears as it reports. */
-  drainSevere(): string[] {
-    const took = [...this.severe];
-    this.severe.length = 0;
+  /** Severe damage with nobody named: the older half of `noteDamage`. */
+  noteSevere(id: string): void {
+    this.noteDamage(id, { severe: true });
+  }
+
+  /** What has landed since the last call. Clears as it reports. */
+  drainDamage(): DamageNote[] {
+    const took = [...this.damaged];
+    this.damaged.length = 0;
     return took;
   }
 
@@ -1258,7 +1302,11 @@ export class SceneScriptWorld implements ScriptWorld {
     if (outcome.hit) {
       this.endsOnHit(request.target);
       if (applied.hitPointsMarked > 0) this.endsOnDamage(request.target);
-      if (outcome.damage?.severity === 'severe') this.noteSevere(request.target);
+      this.noteDamage(request.target, {
+        attacker: request.attacker,
+        hitPoints: applied.hitPointsMarked,
+        severe: outcome.damage?.severity === 'severe',
+      });
     }
     return {
       refused: null,

@@ -1551,6 +1551,182 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- what a wound answers with -----------------------------------------
+  // "When the Knight takes damage from an attack within Melee range, mark a
+  // Stress to deal 1d10+5 physical damage to the attacker." Whoever dealt the
+  // blow is bound as the target, so the reach the text names is a plain
+  // `withinRange` on the ability and hitting back is the ordinary vocabulary.
+  //
+  // `tookDamage` is anything that got through, `tookHitPoints` the ones
+  // written "when they mark HP", and `tookSevere` a Severe wound. A feature
+  // that names a number of Hit Points - "2 or more", "2 or fewer" - stays
+  // text: how much of it landed is not something a script can read.
+  {
+    id: 'war-wizard-warding-sphere',
+    name: 'Warding Sphere',
+    source: from('war-wizard'),
+    text: 'When the Wizard takes damage from an attack within Close range, deal 2d6 magic damage to the attacker. This reaction can not be used again until the Wizard refreshes it with their "Refresh Warding Sphere" action.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    // Simplified: the Refresh Warding Sphere action that brings it back is a
+    // second feature spending the GM turn on nothing visible, so the sphere
+    // holds for one blow a scene.
+    uses: { count: 1, per: 'scene' },
+    available: { kind: 'withinRange', range: 'close' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The warding sphere answers.', tone: 'fear' },
+      { kind: 'damage', dice: '2d6', type: 'magic', target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'stag-knight-thorny-armor',
+    name: 'Thorny Armor',
+    source: from('stag-knight'),
+    text: 'When the Knight takes damage from an attack within Melee range, you can mark a Stress to deal 1d10+5 physical damage to the attacker.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    cost: { stress: 1 },
+    available: { kind: 'withinRange', range: 'melee' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Thorns drive back into the blow.', tone: 'fear' },
+      { kind: 'damage', dice: '1d10+5', type: 'physical', target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'demon-of-wrath-retaliation',
+    name: 'Retaliation',
+    source: from('demon-of-wrath'),
+    text: 'When the Demon takes damage from an attack within Close range, you can mark a Stress to make a standard attack against the attacker.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    cost: { stress: 1 },
+    available: { kind: 'withinRange', range: 'close' },
+    target: { kind: 'none' },
+    effects: [{ kind: 'attack', target: { kind: 'target' }, range: 'close' }],
+  },
+  {
+    id: 'zombie-pack-overwhelm',
+    name: 'Overwhelm',
+    source: from('zombie-pack'),
+    text: 'When the Zombies mark HP from an attack within Melee range, you can mark a Stress to make a standard attack against the attacker.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    cost: { stress: 1 },
+    available: { kind: 'withinRange', range: 'melee' },
+    target: { kind: 'none' },
+    effects: [{ kind: 'attack', target: { kind: 'target' } }],
+  },
+  {
+    id: 'oracle-of-doom-vengeful-fate',
+    name: 'Vengeful Fate',
+    source: from('oracle-of-doom'),
+    text: 'When the Oracle marks HP from an attack within Very Close range, you can mark a Stress to knock the attacker back to Far range and deal 2d10+4 physical damage.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    cost: { stress: 1 },
+    available: { kind: 'withinRange', range: 'veryClose' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'push', to: 'far', target: { kind: 'target' } },
+      { kind: 'damage', dice: '2d10+4', type: 'physical', target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'volcanic-dragon-molten-scourge-lava-splash',
+    name: 'Lava Splash',
+    source: from('volcanic-dragon-molten-scourge'),
+    text: 'When the Molten Scourge takes Severe damage from an attack within Very Close range, molten blood gushes from the wound and deals 2d10+4 direct physical damage to the attacker.',
+    kind: 'reaction',
+    trigger: 'tookSevere',
+    action: false,
+    available: { kind: 'withinRange', range: 'veryClose' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Molten blood gushes from the wound.', tone: 'fear' },
+      { kind: 'damage', dice: '2d10+4', type: 'physical', direct: true, target: { kind: 'target' } },
+    ],
+  },
+  // The two clocks that were waiting on a trigger rather than on a payoff:
+  // "when the Flickerfly takes damage for the first time" is `tookDamage`
+  // with a `uses` of one.
+  {
+    id: 'juvenile-flickerfly-hallucinatory-breath',
+    name: 'Hallucinatory Breath',
+    source: from('juvenile-flickerfly'),
+    text: 'When the Flickerfly takes damage for the first time, activate the countdown. When it triggers, the Flickerfly breathes hallucinatory gas on all targets in front of them up to Far range. Targets must succeed on an Instinct Reaction Roll or be tormented by fearful hallucinations. Targets whose fears are known to the Flickerfly have disadvantage on this roll. Targets who fail must mark a Stress and lose a Hope.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'juvenile-flickerfly-hallucinatory-breath',
+        name: 'Hallucinatory Breath',
+        start: '1d6',
+        loop: 'reset',
+        // Simplified: "all targets in front of them" is a facing nothing here
+        // keeps, so the gas fills the band; the disadvantage for a target
+        // whose fears are known is a fact about the fiction, not the map.
+        effects: [
+          { kind: 'log', text: 'Hallucinatory gas rolls out.', tone: 'fear' },
+          {
+            kind: 'reactionRoll',
+            difficulty: 14,
+            trait: 'instinct',
+            targets: { kind: 'allies', range: 'far' },
+            onFail: [
+              { kind: 'markStress', target: { kind: 'hit' } },
+              { kind: 'loseHope', target: { kind: 'hit' } },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'adult-flickerfly-hallucinatory-breath',
+    name: 'Hallucinatory Breath',
+    source: from('adult-flickerfly'),
+    text: 'When the Flickerfly takes damage for the first time, activate the countdown. When it triggers, the Flickerfly breathes hallucinatory gas on all targets in front of them up to Far range. Targets must make an Instinct Reaction Roll or be tormented by fearful hallucinations. Targets whose fears are known to the Flickerfly have disadvantage on this roll. Targets who fail lose 2 Hope and take 3d8+3 direct magic damage.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'adult-flickerfly-hallucinatory-breath',
+        name: 'Hallucinatory Breath',
+        start: '1d6',
+        loop: 'reset',
+        effects: [
+          { kind: 'log', text: 'Hallucinatory gas rolls out.', tone: 'fear' },
+          {
+            kind: 'reactionRoll',
+            difficulty: 17,
+            trait: 'instinct',
+            targets: { kind: 'allies', range: 'far' },
+            onFail: [
+              { kind: 'loseHope', amount: 2, target: { kind: 'hit' } },
+              { kind: 'damage', dice: '3d8+3', type: 'magic', direct: true, target: { kind: 'hit' } },
+            ],
+          },
+        ],
+      },
+    ],
+  },
   // ---- the turn handed to the other side ---------------------------------
   // "Spend 2 Fear to spotlight up to five allies within Far range." A Leader
   // buying its own side a turn is the GM's half of the action economy, and the
