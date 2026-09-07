@@ -87,6 +87,8 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     rollReaction: () => ({ success: false, total: 0 }),
     summon: () => ({ ids: [] }),
     startCountdown: () => {},
+    spotlightSpent: () => false,
+    nearestFirst: (_from: string, ids: readonly string[]) => [...ids],
   };
   return { ...base, ...overrides };
 }

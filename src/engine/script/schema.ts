@@ -497,6 +497,28 @@ export const effectSchema = z.discriminatedUnion('kind', [
     spotlight: z.boolean().optional(),
   }),
   /**
+   * "Spend 2 Fear to spotlight the Head Guard and up to 2d4 allies within Far
+   * range": the GM's turn handed to its own side.
+   *
+   * The spotlights are already paid for - the feature's cost bought them - so
+   * the creatures named act this turn without the GM being billed again. The
+   * one acting is never one of them: it is already in the spotlight, which is
+   * how it came to be using this.
+   */
+  z.object({
+    kind: z.literal('spotlight'),
+    /** Who to hand it to. Adversaries within Far of the actor by default. */
+    targets: targetSelectorSchema.optional(),
+    /** How many of them, as dice: "2", "1d4+1", "2d4". All of them when left out. */
+    count: z.string().min(1).optional(),
+    /**
+     * "Attacks they make while spotlighted in this way deal half damage."
+     * Reads on the standard attack the creature swings on the turn it was
+     * given, and comes off the moment it acts.
+     */
+    halfDamage: z.boolean().optional(),
+  }),
+  /**
    * "Activate the countdown. It ticks down when a PC makes an attack roll.
    * When it triggers, ...": a clock the fight carries between turns.
    *

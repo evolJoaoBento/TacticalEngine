@@ -687,6 +687,41 @@ describe('what only a stat block has', () => {
   });
 });
 
+describe('a spotlight in the wrong hands', () => {
+  it('warns when a card hands out the GM turn, and catches a count that is not dice', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'rally',
+          name: 'Rally',
+          source: { kind: 'granted', characters: ['kara'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' } }],
+        },
+        {
+          id: 'a-few',
+          name: 'A Few',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: 'a few' }],
+        },
+        {
+          id: 'proper',
+          name: 'Proper',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'close' }, count: '1d4+1', halfDamage: true }],
+        },
+      ],
+    });
+    const said = messages(project, { knownAdversaries: new Set(['husk']) });
+    expect(said).toContain('"rally" spotlights allies, which only the GM does.');
+    expect(said).toContain('"a-few" spotlights "a few" of them, which is not dice.');
+    expect(said.some((m) => m.includes('"proper"'))).toBe(false);
+  });
+});
+
 describe('a countdown nobody can read', () => {
   it('catches a length that is not dice, a clock already run out, and one counting towards nothing', () => {
     const project = projectSchema.parse({

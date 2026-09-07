@@ -88,6 +88,7 @@ const ADDABLE = [
   'spendToken',
   'push',
   'summon',
+  'spotlight',
   'countdown',
   'reactionRoll',
   'run',
@@ -140,6 +141,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   push: 'Push them back',
   summon: 'Summon adversaries',
   countdown: 'Start a countdown',
+  spotlight: 'Spotlight allies',
   reactionRoll: 'Ask for a reaction roll',
   run: 'Run code',
 };
@@ -256,6 +258,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, to: 'far' };
     case 'summon':
       return { kind, adversary: props.adversaryIds?.[0] ?? '', range: 'close' };
+    case 'spotlight':
+      return { kind, targets: { kind: 'adversaries', range: 'far' } };
     case 'countdown':
       return { kind, countdown: 'countdown', name: 'Countdown', start: '4', effects: [] };
     case 'reactionRoll':
@@ -761,6 +765,28 @@ function renderBody(
             <EffectList {...props} testId={undefined} effects={effect.onSuccess ?? []} onChange={(onSuccess) => onChange({ ...effect, onSuccess: onSuccess.length === 0 ? undefined : onSuccess })} />
           </div>
         </div>
+      );
+    case 'spotlight':
+      return (
+        <>
+          {who(effect.targets, 'adversaries within Far', (targets) => ({ ...effect, targets }))}
+          <input
+            style={{ ...field, flex: 'none', width: '78px' }}
+            data-role="spotlight-count"
+            placeholder="all, 1d4+1"
+            title="How many of them, as dice. Empty means every one of them."
+            value={effect.count ?? ''}
+            onInput={(e) => {
+              const rolled = (e.target as HTMLInputElement).value.trim();
+              onChange({ ...effect, count: rolled === '' ? undefined : rolled });
+            }}
+          />
+          {/* "Attacks they make while spotlighted in this way deal half damage." */}
+          {flag('for half', 'Their standard attack deals half damage this turn', effect.halfDamage === true, (on) => ({
+            ...effect,
+            halfDamage: on ? true : undefined,
+          }))}
+        </>
       );
     case 'countdown':
       return (

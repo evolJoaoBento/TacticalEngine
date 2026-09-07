@@ -230,6 +230,17 @@ export interface GmTurn {
   spotlights: Record<string, number>;
   /** Who has already played a stat-block feature this turn. */
   features: Record<string, boolean>;
+  /**
+   * Adversaries whose next spotlight a feature has already paid for: "spend 2
+   * Fear to spotlight up to five allies". They act without the GM being billed
+   * again, which also means the turn does not stop when the pool is empty.
+   */
+  granted: Set<string>;
+  /**
+   * Those whose attack deals half damage on the turn they were handed:
+   * "attacks they make while spotlighted in this way deal half damage".
+   */
+  halved: Set<string>;
 }
 
 /** A line in the narrative pane. */
@@ -987,7 +998,14 @@ export function playGmTurn(demo: DemoScene): number {
   // shakes one off on its spotlight. Without this a hold the SRD ends with a
   // Strength Roll, which nothing here can ask for, would last the whole fight.
   clearPartyTemporary(demo);
-  demo.gmTurn = { remaining: [...encounter.view().waiting], acted: 0, spotlights: {}, features: {} };
+  demo.gmTurn = {
+    remaining: [...encounter.view().waiting],
+    acted: 0,
+    spotlights: {},
+    features: {},
+    granted: new Set(),
+    halved: new Set(),
+  };
   return runGmTurn(demo);
 }
 
@@ -1006,8 +1024,13 @@ export function runGmTurn(demo: DemoScene): number {
   while (turn.remaining.length > 0 && demo.pending === null && encounter.outcome === 'ongoing') {
     const id = turn.remaining[0]!;
     const again = (turn.spotlights[id] ?? 0) > 0;
-    if (again ? !encounter.canSpotlightAgain(id) : !encounter.canSpotlight(id)) break;
-    if (again) encounter.spotlightAgain(id);
+    // A spotlight an ally was handed is already paid for, and has to be taken
+    // before the Fear is read: a Leader that spent its last Fear rallying the
+    // room would otherwise end the turn before anyone it rallied could move.
+    const granted = turn.granted.delete(id);
+    if (!granted && (again ? !encounter.canSpotlightAgain(id) : !encounter.canSpotlight(id))) break;
+    if (granted) encounter.grantSpotlight(id);
+    else if (again) encounter.spotlightAgain(id);
     else encounter.spotlight(id);
     turn.spotlights[id] = (turn.spotlights[id] ?? 0) + 1;
     turn.acted++;
@@ -1203,6 +1226,15 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
       // by definition, and neither does a summons: what it puts on the map is
       // not on it yet. Whether either is worth a turn is what its cost, its
       // uses and `available` say.
+      // "Spend a Fear to spotlight two other Demons within Far range": worth
+      // it only when there is somebody to hand a turn to, and never worth more
+      // Fear than the spotlights it buys - a plain spotlight costs one.
+      if (spotlightsAllies(ability)) {
+        const called = spotlightCandidates(demo, adversaryId, ability);
+        if (called.length === 0 || featureFear(ability) > called.length) continue;
+        if (itself === null) itself = { ability, targets: [] };
+        continue;
+      }
       if (ability.target.kind === 'self' || summonsSomething(ability) || armsCountdown(ability)) {
         if (itself === null) itself = { ability, targets: [] };
         continue;
@@ -1210,6 +1242,37 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
       if (caught.length >= 2) return { ability, targets: [] };
     }
     return aimed ?? itself;
+  } finally {
+    demo.scenario.actorId = was;
+  }
+}
+
+/** Whether a feature hands the GM's turn to its own side. */
+function spotlightsAllies(ability: AbilityDef): boolean {
+  return ability.effects.some((effect) => effect.kind === 'spotlight');
+}
+
+/**
+ * Who a feature that spotlights allies could actually hand a turn to.
+ *
+ * The same list the effect will draw from - everyone its selector catches,
+ * less the one acting and anyone who has already had this turn - so the GM
+ * never pays for a rally nobody answers. It rolls nothing: how many of them
+ * the feature takes is the effect's business, and rolling here would spend a
+ * seeded number twice.
+ */
+function spotlightCandidates(demo: DemoScene, adversaryId: string, ability: AbilityDef): string[] {
+  const was = demo.scenario.actorId;
+  demo.scenario.actorId = adversaryId;
+  try {
+    const called = new Set<string>();
+    for (const effect of ability.effects) {
+      if (effect.kind !== 'spotlight') continue;
+      for (const id of demo.world.resolveTargets(effect.targets ?? { kind: 'adversaries', range: 'far' }, NO_BINDINGS)) {
+        if (id !== adversaryId && !demo.world.spotlightSpent(id)) called.add(id);
+      }
+    }
+    return [...called];
   } finally {
     demo.scenario.actorId = was;
   }
@@ -1311,6 +1374,10 @@ function playSpotlightReactions(demo: DemoScene, adversaryId: string): void {
     if ((ability.cost.stress ?? 0) > unmarked(entity.stress)) continue;
     if (featureFear(ability) > demo.state.fear.value) continue;
     if (featureUsesLeft(demo, adversaryId, ability) <= 0) continue;
+    // "When you spotlight the Lieutenant, mark a Stress to also spotlight two
+    // allies": a Lieutenant standing alone would otherwise bleed a Stress
+    // every turn for a rally nobody answers.
+    if (spotlightsAllies(ability) && spotlightCandidates(demo, adversaryId, ability).length === 0) continue;
     spendFeatureCost(demo, adversaryId, ability);
     runAdversaryScript(demo, adversaryId, ability);
   }
@@ -1352,8 +1419,7 @@ function runCountdown(demo: DemoScene, countdown: RunningCountdown): void {
   const result = runner.run(countdown.effects);
   record(demo, result.journal);
   demo.scenario.actorId = was;
-  spendSwarmSpotlights(demo, result.journal);
-  spotlightArrivals(demo, result.journal);
+  afterAdversaryScript(demo, result.journal);
   settleFight(demo);
 }
 
@@ -1373,8 +1439,41 @@ function runAdversaryScript(
   const result = runner.run(ability.effects);
   record(demo, result.journal);
   demo.scenario.actorId = was;
-  spendSwarmSpotlights(demo, result.journal);
-  spotlightArrivals(demo, result.journal);
+  afterAdversaryScript(demo, result.journal);
+}
+
+/**
+ * What a stat block's script did to the GM's turn: who swung with a swarm, who
+ * arrived, and who was handed the spotlight. One place, because every caller
+ * that runs an adversary's effects owes all three.
+ */
+function afterAdversaryScript(demo: DemoScene, journal: readonly JournalEntry[]): void {
+  spendSwarmSpotlights(demo, journal);
+  spotlightArrivals(demo, journal);
+  spotlightAllies(demo, journal);
+}
+
+/**
+ * "Spend 2 Fear to spotlight up to five allies within Far range."
+ *
+ * They go to the head of the queue and act on this turn, and the Fear the
+ * feature cost is all the GM pays: `granted` tells `runGmTurn` not to charge
+ * for them. One that was already waiting further down is moved rather than
+ * added, or it would take two turns out of one spotlight.
+ */
+function spotlightAllies(demo: DemoScene, journal: readonly JournalEntry[]): void {
+  const turn = demo.gmTurn;
+  if (turn === null) return;
+  for (const entry of journal) {
+    if (entry.kind !== 'spotlighted') continue;
+    const called = entry.ids.filter((id) => demo.state.entity(id)?.alive === true);
+    turn.remaining = turn.remaining.filter((waiting) => !called.includes(waiting));
+    turn.remaining.unshift(...called);
+    for (const id of called) {
+      turn.granted.add(id);
+      if (entry.halfDamage) turn.halved.add(id);
+    }
+  }
 }
 
 /**
@@ -1410,7 +1509,9 @@ function spendSwarmSpotlights(demo: DemoScene, journal: readonly JournalEntry[])
     for (const id of entry.joined) {
       turn.remaining = turn.remaining.filter((waiting) => waiting !== id);
       turn.spotlights[id] = (turn.spotlights[id] ?? 0) + 1;
-      demo.encounter?.spotlight(id);
+      // The Fear the feature cost bought this swing: `grantSpotlight` marks
+      // them as having acted without billing the GM a second time.
+      demo.encounter?.grantSpotlight(id);
     }
   }
 }
@@ -1501,7 +1602,7 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   if (adversary === undefined || target === undefined) return false;
   const character = demo.characters.get(target.id);
   const def = statBlock(demo, adversaryId);
-  const outcome = resolveAttack(demo.rng, {
+  const rolled = resolveAttack(demo.rng, {
     grid: demo.grid,
     attacker: adversary,
     target,
@@ -1521,7 +1622,13 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
     defender: demo.world.defenderOf(target),
     options: { bandTiles: DEMO_BAND_TILES, armorSlotsMarked: 0 },
   });
-  if (outcome.refused !== null) return false;
+  if (rolled.refused !== null) return false;
+  // "Attacks they make while spotlighted in this way deal half damage": the
+  // price of a turn the Leader handed them. Halved before the defence step, so
+  // the thresholds and the Armor Slots are read against what actually lands,
+  // and spent on the way out - a Relentless second spotlight, paid for in the
+  // ordinary way, swings at full strength.
+  const outcome = halveIfRallied(demo, adversaryId, rolled);
 
   // A miss is usually over at once — unless the target holds a card that
   // answers one, like Vanishing Dodge.
@@ -1534,6 +1641,19 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   }
   offerOrLand(demo, { attacker: adversaryId, defender: targetId, outcome, def, used: [] });
   return true;
+}
+
+/** Half the damage of a swing the creature only got to make because an ally said so. */
+function halveIfRallied(
+  demo: DemoScene,
+  adversaryId: string,
+  outcome: ReturnType<typeof resolveAttack>,
+): ReturnType<typeof resolveAttack> {
+  const turn = demo.gmTurn;
+  if (turn === null || !turn.halved.delete(adversaryId) || outcome.damageRoll === undefined) return outcome;
+  const total = Math.ceil(outcome.damageRoll.total / 2);
+  note(demo, `${nameOf(demo, adversaryId)} strikes on somebody else's word, for half.`, 'combat');
+  return { ...outcome, damageRoll: { ...outcome.damageRoll, total } };
 }
 
 /**
@@ -2354,6 +2474,13 @@ function describeEntry(
       return { text: `${who(entry.id)} is thrown back.`, tone: 'combat' };
     case 'countdown':
       return { text: `${entry.name} begins: ${entry.value}.`, tone: 'fear' };
+    case 'spotlighted': {
+      const called = entry.ids.map(who).join(', ');
+      return {
+        text: `${called} ${entry.ids.length === 1 ? 'is' : 'are'} called into the fight${entry.halfDamage ? ', striking for half' : ''}.`,
+        tone: 'fear',
+      };
+    }
     case 'summoned': {
       const first = entry.ids[0];
       if (first === undefined) return null;

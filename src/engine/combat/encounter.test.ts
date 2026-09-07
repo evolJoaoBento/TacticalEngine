@@ -109,6 +109,32 @@ describe('the GM turn', () => {
     expect(state.fear.value).toBe(0);
   });
 
+  it('hands out a spotlight a feature already paid for, without billing again', () => {
+    const { state, encounter } = setup({}, 1);
+    encounter.start();
+    encounter.act('kara', { spotlightToGm: true });
+    encounter.spotlight('husk-a');
+
+    // A feature's own cost buys the spotlights it hands out: the GM is down to
+    // one Fear, which a second ordinary spotlight would take.
+    encounter.grantSpotlight('husk-b');
+    expect(state.fear.value).toBe(1);
+    expect(encounter.view().waiting).toEqual([]);
+    expect(encounter.log.filter((e) => e.kind === 'adversaryActed')).toHaveLength(2);
+  });
+
+  it('grants nothing to the fallen, and nothing while the party has the spotlight', () => {
+    const { state, encounter } = setup({}, 5);
+    encounter.start();
+    encounter.grantSpotlight('husk-a');
+    expect(encounter.log.filter((e) => e.kind === 'adversaryActed')).toHaveLength(0);
+
+    encounter.act('kara', { spotlightToGm: true });
+    fell(state, 'husk-a');
+    encounter.grantSpotlight('husk-a');
+    expect(encounter.log.filter((e) => e.kind === 'adversaryActed')).toHaveLength(0);
+  });
+
   it('will not spotlight the same adversary twice in one turn', () => {
     const { encounter } = setup({}, 5);
     encounter.start();

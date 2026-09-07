@@ -214,6 +214,17 @@ function checkAbilitiesAndCode(
         add('error', `"${ability.id}" summons "${effect.count}" of them, which is not dice.`, ability.id);
       }
     });
+    // Handing the GM's turn to its own side is the GM's move: a card in a
+    // player's hand has no turn to hand out, and play would refuse it.
+    walkEffects(ability.effects, (effect) => {
+      if (effect.kind !== 'spotlight') return;
+      if (ability.source.kind !== 'adversary') {
+        add('warning', `"${ability.id}" spotlights allies, which only the GM does.`, ability.id);
+      }
+      if (effect.count !== undefined && parseDice(effect.count) === null) {
+        add('error', `"${ability.id}" spotlights "${effect.count}" of them, which is not dice.`, ability.id);
+      }
+    });
     // A clock that cannot be read never starts, and one counting towards
     // nothing is a clock the table watches for no reason.
     walkEffects(ability.effects, (effect) => {

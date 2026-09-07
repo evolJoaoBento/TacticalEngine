@@ -202,6 +202,10 @@ export interface ScriptWorld extends ConditionContext {
   countAlive(faction: 'party' | 'adversary'): number;
   /** Arm a countdown, replacing one already running under the same id. */
   startCountdown(countdown: RunningCountdown): void;
+  /** Whether a creature has already been given the spotlight this GM turn. */
+  spotlightSpent(id: string): boolean;
+  /** Creatures ordered by how close they are to another, ties by id. */
+  nearestFirst(from: string, ids: readonly string[]): string[];
   /** A reaction roll: a d20 for an adversary, Duality Dice for a party member. */
   rollReaction(
     id: string,
@@ -275,6 +279,8 @@ export type JournalEntry =
   | { kind: 'summoned'; adversary: string; ids: readonly string[]; spotlight: boolean }
   /** A clock armed. Advancing it is the game's job, not the runner's. */
   | { kind: 'countdown'; countdown: string; name: string; value: number }
+  /** The GM's turn handed to its own side. Paid for by whatever said so. */
+  | { kind: 'spotlighted'; ids: readonly string[]; halfDamage: boolean }
   /** `roll` is set when a party member rolled it: an adversary's is a d20. */
   | { kind: 'reaction'; id: string; success: boolean; total: number; difficulty: number; roll?: DualityRoll }
   /** A defender's reaction to damage fired: Get Back Up, a Rune Ward. */
@@ -829,6 +835,28 @@ export class ScriptRunner {
           ids: arrived.ids,
           spotlight: effect.spotlight === true,
         });
+        return null;
+      }
+      case 'spotlight': {
+        const actor = world.actorId();
+        // Never the one acting: it is already in the spotlight, and never one
+        // that has already had this turn's - a Leader that could hand the same
+        // ally the spotlight twice would be handing out turns for nothing.
+        const standing = this.resolve(effect.targets ?? { kind: 'adversaries', range: 'far' }).filter(
+          (id) => id !== actor && !world.spotlightSpent(id),
+        );
+        if (standing.length === 0) return this.refuse('nobody left to spotlight');
+        let chosen = standing;
+        if (effect.count !== undefined) {
+          const expression = parseDice(effect.count);
+          if (expression === null) return this.refuse(`cannot read "${effect.count}" allies`);
+          const wanted = Math.max(0, rollDice(this.rng, expression).total);
+          if (wanted === 0) return this.refuse('nobody to spotlight');
+          // "Up to 2d4 allies": the nearest of them, which is the same rule
+          // the GM's own targeting uses, so a seeded fight replays.
+          chosen = (actor === null ? [...standing] : world.nearestFirst(actor, standing)).slice(0, wanted);
+        }
+        this.journal.push({ kind: 'spotlighted', ids: chosen, halfDamage: effect.halfDamage === true });
         return null;
       }
       case 'countdown': {

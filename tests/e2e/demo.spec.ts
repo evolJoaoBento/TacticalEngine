@@ -2075,10 +2075,16 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   await summon.locator('[data-role="summon-range"]').selectOption('far');
   await summon.locator('label:has-text("acts at once") input').check();
 
+  // The GM's turn handed to its own side.
+  await effects.locator(':scope > [data-role="add-effect"]').last().selectOption('spotlight');
+  const rally = effects.locator('[data-effect="3"]');
+  await rally.locator('[data-role="spotlight-count"]').fill('1d4+1');
+  await rally.locator('label:has-text("for half") input').check();
+
   // And a clock: what it does happens turns later, so its own effects are
   // written inside it.
   await effects.locator(':scope > [data-role="add-effect"]').last().selectOption('countdown');
-  const countdown = effects.locator('[data-effect="3"] [data-testid="countdown"]');
+  const countdown = effects.locator('[data-effect="4"] [data-testid="countdown"]');
   await countdown.locator('[data-role="countdown-start"]').fill('1d12');
   await countdown.locator('[data-role="countdown-advance"]').selectOption('withFear');
   await countdown.locator('[data-role="countdown-loop"]').selectOption('decreasing');
@@ -2121,6 +2127,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
       },
       { kind: 'attack', range: 'close', direct: true },
       { kind: 'summon', adversary: 'acid-burrower', count: '1d4', range: 'far', spotlight: true },
+      { kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '1d4+1', halfDamage: true },
       {
         kind: 'countdown',
         countdown: 'countdown',

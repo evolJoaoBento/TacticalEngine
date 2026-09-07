@@ -370,6 +370,23 @@ export class SceneScriptWorld implements ScriptWorld {
     this.scenario.countdowns.set(countdown.id, countdown);
   }
 
+  /**
+   * Creatures ordered by how close they are to another, ties by id.
+   *
+   * The same order the GM's own targeting uses, and for the same reason: a
+   * feature that takes "up to five allies" has to take the same five every
+   * time a seed is replayed.
+   */
+  nearestFirst(from: string, ids: readonly string[]): string[] {
+    const here = this.state.entity(from)?.tile ?? NO_TILE;
+    if (here === NO_TILE) return [...ids].sort((a, b) => a.localeCompare(b));
+    const away = (id: string): number => {
+      const tile = this.state.entity(id)?.tile ?? NO_TILE;
+      return tile === NO_TILE ? Infinity : this.state.grid.manhattanDistance(here, tile);
+    };
+    return [...ids].sort((a, b) => away(a) - away(b) || a.localeCompare(b));
+  }
+
   /** The clocks the fight is carrying, in the order they were armed. */
   countdowns(): readonly RunningCountdown[] {
     return [...this.scenario.countdowns.values()];

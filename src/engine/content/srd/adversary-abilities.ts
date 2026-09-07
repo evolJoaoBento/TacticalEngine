@@ -1551,6 +1551,158 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- the turn handed to the other side ---------------------------------
+  // "Spend 2 Fear to spotlight up to five allies within Far range." A Leader
+  // buying its own side a turn is the GM's half of the action economy, and the
+  // Fear it costs pays for every spotlight it hands out: the ones called act
+  // now, at the head of the queue, and the GM is not billed twice.
+  //
+  // Two simplifications run through the lot. "Attacks they make while
+  // spotlighted in this way deal half damage" reads on the standard attack
+  // they swing, not on a feature they play - a feature's attack is rolled by
+  // the script runner, which knows nothing about whose turn it is. And a
+  // feature that spotlights "the Guard and up to 2d4 allies" leaves the one
+  // acting out: it is already in the spotlight, which is how it came to be
+  // using this at all.
+  {
+    id: 'head-guard-rally-guards',
+    name: 'Rally Guards',
+    source: from('head-guard'),
+    text: 'Spend 2 Fear to spotlight the Head Guard and up to 2d4 allies within Far range.',
+    cost: { fear: 2 },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '2d4' }],
+  },
+  {
+    id: 'jagged-knife-lieutenant-tactician',
+    name: 'Tactician',
+    source: from('jagged-knife-lieutenant'),
+    text: 'When you spotlight the Lieutenant, mark a Stress to also spotlight two allies within Close range.',
+    kind: 'reaction',
+    trigger: 'spotlighted',
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'close' }, count: '2' }],
+  },
+  {
+    id: 'spellblade-move-as-a-unit',
+    name: 'Move as a Unit',
+    source: from('spellblade'),
+    text: 'Spend 2 Fear to spotlight up to five allies within Far range.',
+    cost: { fear: 2 },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '5' }],
+  },
+  {
+    id: 'young-dryad-voice-of-the-forest',
+    name: 'Voice of the Forest',
+    source: from('young-dryad'),
+    text: 'Mark a Stress to spotlight 1d4 allies within range of a target they can attack without moving. On a success, their attacks deal half damage.',
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    // Simplified: "within range of a target they can attack without moving" is
+    // a reach the selector cannot ask about; the nearest allies within Far are
+    // called instead, and the ones that cannot reach anybody simply swing at
+    // nothing.
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '1d4', halfDamage: true }],
+  },
+  {
+    id: 'knight-of-the-realm-for-the-realm',
+    name: 'For the Realm!',
+    source: from('knight-of-the-realm'),
+    text: 'Mark a Stress to spotlight 1d4+1 allies. Attacks they make while spotlighted in this way deal half damage.',
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '1d4+1', halfDamage: true }],
+  },
+  {
+    id: 'mortal-hunter-inevitable-death',
+    name: 'Inevitable Death',
+    source: from('mortal-hunter'),
+    text: 'Mark a Stress to spotlight 1d4 allies. Attacks they make while spotlighted in this way deal half damage.',
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '1d4', halfDamage: true }],
+  },
+  {
+    id: 'secret-keeper-seize-your-moment',
+    name: 'Seize Your Moment',
+    source: from('secret-keeper'),
+    text: 'Spend 2 Fear to spotlight 1d4 allies. Attacks they make while spotlighted in this way deal half damage.',
+    cost: { fear: 2 },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '1d4', halfDamage: true }],
+  },
+  {
+    id: 'demon-of-hubris-the-root-of-villainy',
+    name: 'The Root of Villainy',
+    source: from('demon-of-hubris'),
+    text: 'Spend a Fear to spotlight two other Demons within Far range.',
+    cost: { fear: 1 },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    // Simplified: "other Demons" - nothing selects a family of stat blocks, so
+    // the two nearest allies answer. `sameKind` would be too narrow: a Demon of
+    // Hubris rallies Demons of Avarice, not copies of itself.
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '2' }],
+  },
+  {
+    id: 'demon-of-avarice-money-is-time',
+    name: 'Money Is Time',
+    source: from('demon-of-avarice'),
+    text: 'Spend 3 handfuls of gold (or a Fear) to spotlight 1d4+1 allies.',
+    cost: { fear: 1 },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    // Simplified: the GM's purse is not a pool the engine keeps, so it pays the
+    // Fear the text offers as the alternative.
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '1d4+1' }],
+  },
+  {
+    id: 'arch-necromancer-dance-of-death',
+    name: 'Dance of Death',
+    source: from('arch-necromancer'),
+    text: 'Mark a Stress to spotlight 1d4 allies. Attacks they make while spotlighted in this way deal half damage, or full damage if you spend a Fear.',
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    // Simplified: the Fear that would buy full damage is a choice made after
+    // the allies are named, which nothing here asks; it takes the half.
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '1d4', halfDamage: true }],
+  },
+  {
+    id: 'high-seraph-we-are-one',
+    name: 'We Are One',
+    source: from('high-seraph'),
+    text: 'Once per scene, spend a Fear to spotlight all other adversaries within Far range. Attacks they make while spotlighted in this way deal half damage.',
+    cost: { fear: 1 },
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    // No count: all of them, which is what the text says.
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, halfDamage: true }],
+  },
+  {
+    id: 'giant-beastmaster-two-as-one',
+    name: 'Two as One',
+    source: from('giant-beastmaster'),
+    text: 'When the Beastmaster is spotlighted, you can also spotlight a Tier 1 animal adversary currently under their control.',
+    kind: 'reaction',
+    trigger: 'spotlighted',
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    // Simplified: nothing records which creature a Beastmaster brought, so the
+    // nearest ally within Close answers - which, on the turn after Deadly
+    // Companion, is the animal it summoned.
+    effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'close' }, count: '1' }],
+  },
   // ---- clocks a fight carries -------------------------------------------
   // "Activate the countdown. It ticks down when a PC makes an attack roll.
   // When it triggers, ..." Five of the fourteen printed countdowns: the ones

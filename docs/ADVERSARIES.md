@@ -24,7 +24,10 @@ engine has no place to put:
   round - the Flickerflies say what they do plainly enough, but "takes damage for the
   first time" is not a trigger anything raises: the defence step answers damage with
   shapes, not with a script.
-- **spotlighting allies** — a feature that hands the turn to other adversaries.
+- **a spotlight nothing can aim** - a Leader handing the GM turn to its own side runs
+  (a `spotlight` effect, paid for by the feature that said so), so what stays text is the
+  aiming: allies chosen by what they could reach without moving,
+  a creature the block counts as one of its own, an extra spotlight for the one acting.
 - **a point on the map** — "choose a point within Far range; everyone within Close range
   of *that*": selectors read bands around the creature that is acting, not around a spot.
 - **a token on the stat block**, a transformation into another block, flight, teleporting,
@@ -59,7 +62,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 110. Text: 234.
+Read: 73. Scripted: 122. Text: 222.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -101,7 +104,7 @@ Read: 73. Scripted: 110. Text: 234.
 | Archer Guard | Hobbling Shot | Action | **scripted** — runs as an ability |
 | Bladed Guard | Shield Wall | Passive | **text** — the GM's to play |
 | Bladed Guard | Detain | Action | **scripted** — runs as an ability |
-| Head Guard | Rally Guards | Action | **text** — the GM's to play |
+| Head Guard | Rally Guards | Action | **scripted** — runs as an ability |
 | Head Guard | On My Signal | Reaction: Countdown (5) | **text** — the GM's to play |
 | Head Guard | Momentum | Reaction | **read** — read off the stat block |
 | Jagged Knife Bandit | Climber | Passive | **text** — the GM's to play |
@@ -112,7 +115,7 @@ Read: 73. Scripted: 110. Text: 234.
 | Jagged Knife Kneebreaker | Hold Them Down | Action | **text** — the GM's to play |
 | Jagged Knife Lackey | Minion (3) | Passive | **read** — read off the stat block |
 | Jagged Knife Lackey | Group Attack | Action | **scripted** — runs as an ability |
-| Jagged Knife Lieutenant | Tactician | Action | **text** — the GM's to play |
+| Jagged Knife Lieutenant | Tactician | Action | **scripted** — runs as an ability |
 | Jagged Knife Lieutenant | More Where That Came From | Action | **scripted** — runs as an ability |
 | Jagged Knife Lieutenant | Coup de Grace | Action | **text** — the GM's to play |
 | Jagged Knife Lieutenant | Momentum | Reaction | **read** — read off the stat block |
@@ -171,7 +174,7 @@ Read: 73. Scripted: 110. Text: 234.
 | Skeleton Warrior | Won't Stay Dead | Reaction | **text** — the GM's to play |
 | Spellblade | Arcane Steel | Passive | **text** — the GM's to play |
 | Spellblade | Suppressing Blast | Action | **scripted** — runs as an ability |
-| Spellblade | Move as a Unit | Action | **text** — the GM's to play |
+| Spellblade | Move as a Unit | Action | **scripted** — runs as an ability |
 | Spellblade | Momentum | Reaction | **read** — read off the stat block |
 | Swarm of Rats | Horde (1d4+1) | Passive | **read** — read off the stat block |
 | Swarm of Rats | In Your Face | Passive | **text** — the GM's to play |
@@ -187,7 +190,7 @@ Read: 73. Scripted: 110. Text: 234.
 | Weaponmaster | Goading Strike | Action | **text** — the GM's to play |
 | Weaponmaster | Adrenaline Burst | Action | **scripted** — runs as an ability |
 | Weaponmaster | Momentum | Reaction | **read** — read off the stat block |
-| Young Dryad | Voice of the Forest | Action | **text** — the GM's to play |
+| Young Dryad | Voice of the Forest | Action | **scripted** — runs as an ability |
 | Young Dryad | Thorny Cage | Action | **text** — the GM's to play |
 | Young Dryad | Momentum | Reaction | **read** — read off the stat block |
 | Brawny Zombie | Slow | Passive | **text** — the GM's to play |
@@ -244,7 +247,7 @@ Read: 73. Scripted: 110. Text: 234.
 | Failed Experiment | Warped Fortitude | Passive | **scripted** — runs as an ability |
 | Failed Experiment | Overwhelm | Passive | **text** — the GM's to play |
 | Failed Experiment | Lurching Lunge | Action | **text** — the GM's to play |
-| Giant Beastmaster | Two as One | Passive | **text** — the GM's to play |
+| Giant Beastmaster | Two as One | Passive | **scripted** — runs as an ability |
 | Giant Beastmaster | Pinning Strike | Action | **scripted** — runs as an ability |
 | Giant Beastmaster | Deadly Companion | Action | **scripted** — runs as an ability |
 | Giant Brawler | Battering Ram | Action | **text** — the GM's to play |
@@ -268,7 +271,7 @@ Read: 73. Scripted: 110. Text: 234.
 | Knight of the Realm | Chevalier | Passive | **text** — the GM's to play |
 | Knight of the Realm | Heavily Armored | Passive | **scripted** — runs as an ability |
 | Knight of the Realm | Cavalry Charge | Action | **text** — the GM's to play |
-| Knight of the Realm | For the Realm! | Action | **text** — the GM's to play |
+| Knight of the Realm | For the Realm! | Action | **scripted** — runs as an ability |
 | Masked Thief | Quick Hands | Action | **text** — the GM's to play |
 | Masked Thief | Escape Plan | Action | **text** — the GM's to play |
 | Merchant Baron | Everyone Has a Price | Action | **text** — the GM's to play |
@@ -278,12 +281,12 @@ Read: 73. Scripted: 110. Text: 234.
 | Minotaur Wrecker | Gore | Action | **scripted** — runs as an ability |
 | Mortal Hunter | Terrifying | Passive | **read** — read off the stat block |
 | Mortal Hunter | Deathlock | Action | **text** — the GM's to play |
-| Mortal Hunter | Inevitable Death | Action | **text** — the GM's to play |
+| Mortal Hunter | Inevitable Death | Action | **scripted** — runs as an ability |
 | Mortal Hunter | Rampage | Reaction: Countdown (Loop 1d6) | **text** — the GM's to play |
 | Royal Advisor | Devastating Retort | Passive | **text** — the GM's to play |
 | Royal Advisor | Bend Ears | Action | **text** — the GM's to play |
 | Royal Advisor | Scapegoat | Action | **text** — the GM's to play |
-| Secret-Keeper | Seize Your Moment | Action | **text** — the GM's to play |
+| Secret-Keeper | Seize Your Moment | Action | **scripted** — runs as an ability |
 | Secret-Keeper | Our Master's Will | Reaction | **text** — the GM's to play |
 | Secret-Keeper | Summoning Ritual | Reaction: Countdown (6) | **scripted** — runs as an ability |
 | Secret-Keeper | Fallen Hounds | Reaction | **scripted** — runs as an ability |
@@ -320,7 +323,7 @@ Read: 73. Scripted: 110. Text: 234.
 | Adult Flickerfly | Uncanny Reflexes | Reaction | **text** — the GM's to play |
 | Demon of Avarice | Money Talks | Passive | **text** — the GM's to play |
 | Demon of Avarice | Numbers Must Go Up | Passive | **text** — the GM's to play |
-| Demon of Avarice | Money Is Time | Action | **text** — the GM's to play |
+| Demon of Avarice | Money Is Time | Action | **scripted** — runs as an ability |
 | Demon of Despair | Depths of Despair | Passive | **text** — the GM's to play |
 | Demon of Despair | Your Struggle Is Pointless | Action | **text** — the GM's to play |
 | Demon of Despair | Your Friends Will Fail You | Reaction | **text** — the GM's to play |
@@ -328,7 +331,7 @@ Read: 73. Scripted: 110. Text: 234.
 | Demon of Hubris | Terrifying | Passive | **read** — read off the stat block |
 | Demon of Hubris | Double or Nothing | Passive | **text** — the GM's to play |
 | Demon of Hubris | Unparalleled Skill | Action | **scripted** — runs as an ability |
-| Demon of Hubris | The Root of Villainy | Action | **text** — the GM's to play |
+| Demon of Hubris | The Root of Villainy | Action | **scripted** — runs as an ability |
 | Demon of Hubris | You Pale in Comparison | Reaction | **text** — the GM's to play |
 | Demon of Jealousy | Unprotected Mind | Passive | **scripted** — runs as an ability |
 | Demon of Jealousy | My Turn | Reaction | **text** — the GM's to play |
@@ -398,7 +401,7 @@ Read: 73. Scripted: 110. Text: 234.
 | Young Ice Dragon | Avalanche | Action | **scripted** — runs as an ability |
 | Young Ice Dragon | Frozen Scales | Reaction | **text** — the GM's to play |
 | Young Ice Dragon | Momentum | Reaction | **read** — read off the stat block |
-| Arch-Necromancer | Dance of Death | Action | **text** — the GM's to play |
+| Arch-Necromancer | Dance of Death | Action | **scripted** — runs as an ability |
 | Arch-Necromancer | Beam of Decay | Action | **scripted** — runs as an ability |
 | Arch-Necromancer | Open the Gates of Death | Action | **scripted** — runs as an ability |
 | Arch-Necromancer | Not Today, My Dears | Reaction | **text** — the GM's to play |
@@ -432,7 +435,7 @@ Read: 73. Scripted: 110. Text: 234.
 | High Seraph | Divine Flight | Passive | **text** — the GM's to play |
 | High Seraph | Judgment | Action | **text** — the GM's to play |
 | High Seraph | God Rays | Action | **scripted** — runs as an ability |
-| High Seraph | We Are One | Action | **text** — the GM's to play |
+| High Seraph | We Are One | Action | **scripted** — runs as an ability |
 | Kraken | Relentless (3) | Passive | **read** — read off the stat block |
 | Kraken | Many Tentacles | Passive | **text** — the GM's to play |
 | Kraken | Grapple and Drown | Action | **text** — the GM's to play |

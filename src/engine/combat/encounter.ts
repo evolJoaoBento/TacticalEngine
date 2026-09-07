@@ -200,6 +200,25 @@ export class EncounterRunner {
   }
 
   /**
+   * Spotlight an adversary the GM has already paid for.
+   *
+   * "Spend a Fear to choose a target and spotlight all Giant Rats within Close
+   * range of them", "spend 2 Fear to spotlight the Head Guard and up to 2d4
+   * allies": the feature's cost buys the spotlights it hands out, so charging
+   * again here would bill the GM twice for the same move - and, once the pool
+   * ran dry, quietly refuse the rest of what the feature said it did.
+   */
+  grantSpotlight(id: string): EncounterView {
+    if (this.outcome !== 'ongoing' || this.side !== 'gm') return this.view();
+    const entity = this.state.entity(id);
+    if (entity === undefined || !entity.alive || entity.faction !== 'adversary') return this.view();
+    this.actedThisGmTurn.add(id);
+    this.events.push({ kind: 'adversaryActed', id, fearSpent: 0 });
+    this.checkEnd();
+    return this.view();
+  }
+
+  /**
    * Relentless: "can be spotlighted up to X times per GM turn. Spend Fear as
    * usual to spotlight them." The cap is the adversary's own business — the
    * caller counts — but the Fear is spent here, like any other spotlight past

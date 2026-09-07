@@ -182,6 +182,86 @@ describe('selectors', () => {
   });
 });
 
+describe('the turn handed to the other side', () => {
+  /** The corridor, with two more husks further east. */
+  const crowd = () => {
+    const built = scene();
+    built.state.addEntity(createAdversaryEntity('husk-3', 'soft-husk', built.grid.indexOf(7, 1), { hitPoints: 5, stress: 3 }));
+    built.state.addEntity(createAdversaryEntity('husk-4', 'soft-husk', built.grid.indexOf(9, 1), { hitPoints: 5, stress: 3 }));
+    built.scenario.actorId = 'husk-1';
+    return built;
+  };
+
+  const called = (journal: readonly JournalEntry[]): { ids: readonly string[]; halfDamage: boolean } =>
+    journal.find((e) => e.kind === 'spotlighted') as { ids: readonly string[]; halfDamage: boolean };
+
+  it('calls its own side and never itself', () => {
+    const built = crowd();
+    const journal = runScript(
+      [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' } }],
+      built.world,
+      scripted([]),
+      { rollAs: 'actor' },
+    );
+    // Everything the selector caught except the one already in the spotlight,
+    // and no party member: `adversaries` names a faction, not a side.
+    expect([...called(journal).ids].sort()).toEqual(['husk-2', 'husk-3', 'husk-4']);
+    expect(called(journal).halfDamage).toBe(false);
+  });
+
+  it('takes the nearest when the feature counts them, and rolls that count', () => {
+    const built = crowd();
+    // "Up to 2d4 allies": one 2, one 1, so three - the three nearest, which in
+    // a corridor is the order they stand in.
+    const journal = runScript(
+      [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '2d4', halfDamage: true }],
+      built.world,
+      scripted([2, 1]),
+      { rollAs: 'actor' },
+    );
+    expect(called(journal).ids).toEqual(['husk-2', 'husk-3', 'husk-4']);
+    expect(called(journal).halfDamage).toBe(true);
+
+    const fewer = crowd();
+    const two = runScript(
+      [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '2' }],
+      fewer.world,
+      scripted([]),
+      { rollAs: 'actor' },
+    );
+    expect(called(two).ids).toEqual(['husk-2', 'husk-3']);
+  });
+
+  it('passes over anyone who has already had this turn', () => {
+    const built = crowd();
+    built.world.spotlightSpent = (id) => id === 'husk-2';
+    const journal = runScript(
+      [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '1' }],
+      built.world,
+      scripted([]),
+      { rollAs: 'actor' },
+    );
+    // A Leader that could hand the same ally the spotlight twice would be
+    // handing out turns for nothing.
+    expect(called(journal).ids).toEqual(['husk-3']);
+  });
+
+  it('refuses when there is nobody left to call, and draws no dice doing it', () => {
+    const built = scene();
+    built.scenario.actorId = 'husk-1';
+    built.world.spotlightSpent = () => true;
+    const rng = scripted([]);
+    const journal = runScript(
+      [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '2d4' }],
+      built.world,
+      rng,
+      { rollAs: 'actor' },
+    );
+    expect(refusals(journal)[0]).toContain('nobody left to spotlight');
+    expect(rng.drawn()).toBe(0);
+  });
+});
+
 describe('a clock a feature arms', () => {
   it('starts at the value it rolled, owned by whoever armed it', () => {
     const built = scene();

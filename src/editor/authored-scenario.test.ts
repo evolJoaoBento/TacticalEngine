@@ -238,6 +238,115 @@ describe('a Lieutenant with more where that came from', () => {
   });
 });
 
+describe('a Leader buying its own side a turn', () => {
+  /** A Lieutenant and two Lackeys down the hall from Kara. */
+  const gang = (seed: string, fear: number) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'thieves', name: 'Thieves' })));
+    s.run(addAdversary('hall', 'thieves', { id: 'boss', adversary: 'jagged-knife-lieutenant', position: { x: 7, y: 4 } }));
+    s.run(addAdversary('hall', 'thieves', { id: 'knife-1', adversary: 'jagged-knife-lackey', position: { x: 7, y: 3 } }));
+    s.run(addAdversary('hall', 'thieves', { id: 'knife-2', adversary: 'jagged-knife-lackey', position: { x: 7, y: 5 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'thieves');
+    demo.state.fear = { ...demo.state.fear, value: fear };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('hands the spotlight to two allies on its own turn, with no Fear in the pool', () => {
+    // Not a single Fear: an ordinary second spotlight would be refused, and
+    // the turn would stop. "Mark a Stress to also spotlight two allies within
+    // Close range" pays in Stress, and what it buys has to be honoured.
+    const demo = gang('tactician', 0);
+    const stress = demo.state.entity('boss')!.stress.marked;
+    endTurn(demo);
+
+    expect(demo.log.some((l) => l.text.includes('uses Tactician'))).toBe(true);
+    expect(demo.state.entity('boss')!.stress.marked).toBe(stress + 1);
+
+    // Both Lackeys acted, this turn, exactly once each.
+    const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string }[];
+    expect(acted.filter((e) => e.id === 'knife-1')).toHaveLength(1);
+    expect(acted.filter((e) => e.id === 'knife-2')).toHaveLength(1);
+    // And the GM was billed for none of it beyond the first, free spotlight.
+    expect(acted.every((e) => (e as unknown as { fearSpent: number }).fearSpent === 0)).toBe(true);
+  });
+
+  it('says nothing and spends nothing when there is nobody to rally', () => {
+    const demo = gang('tactician-alone', 0);
+    demo.state.entity('knife-1')!.alive = false;
+    demo.state.entity('knife-2')!.alive = false;
+    const stress = demo.state.entity('boss')!.stress.marked;
+    endTurn(demo);
+    // A Lieutenant standing alone would otherwise bleed a Stress every turn
+    // for a rally nobody answers.
+    expect(demo.log.some((l) => l.text.includes('uses Tactician'))).toBe(false);
+    expect(demo.state.entity('boss')!.stress.marked).toBe(stress);
+  });
+});
+
+describe('a Necromancer who buys their troops a turn', () => {
+  /**
+   * "Attacks they make while spotlighted in this way deal half damage."
+   *
+   * Two runs of the same seed, the second with the shipped feature overridden
+   * by one that rallies without the rider, so the only difference between them
+   * is the halving. A Fallen Shock Troop hits for 12, which crosses a level 1
+   * Guardian's Major threshold going full and does not going half.
+   */
+  const gates = (half: boolean) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'lists', name: 'The gates' })));
+    s.run(addAdversary('hall', 'lists', { id: 'necromancer', adversary: 'arch-necromancer', position: { x: 7, y: 4 } }));
+    s.run(addAdversary('hall', 'lists', { id: 'troop-1', adversary: 'fallen-shock-troop', position: { x: 6, y: 3 } }));
+    s.run(addAdversary('hall', 'lists', { id: 'troop-2', adversary: 'fallen-shock-troop', position: { x: 6, y: 5 } }));
+    if (!half) {
+      s.project.abilities.push(
+        abilitySchema.parse({
+          id: 'arch-necromancer-dance-of-death',
+          name: 'Dance of Death',
+          source: { kind: 'adversary', adversaries: ['arch-necromancer'] },
+          cost: { stress: 1 },
+          target: { kind: 'none', range: 'far' },
+          inCombatOnly: true,
+          effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '1d4+1' }],
+        }),
+      );
+    }
+    const demo = buildProjectScene(s.project, 'the-lists');
+    demo.askDefender = false;
+    startEncounter(demo, 'lists');
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+    endTurn(demo);
+    return demo;
+  };
+
+  it('halves what they deal on the turn they were handed', () => {
+    const halved = gates(true);
+    expect(halved.log.some((l) => l.text.includes('uses Dance of Death'))).toBe(true);
+    expect(halved.log.filter((l) => l.text.includes("somebody else's word")).length).toBeGreaterThan(0);
+
+    const full = gates(false);
+    expect(full.log.some((l) => l.text.includes("somebody else's word"))).toBe(false);
+    // Same seed, same swings; the rider is the whole difference.
+    expect(halved.state.entity('kara')!.hitPoints.marked).toBeLessThan(
+      full.state.entity('kara')!.hitPoints.marked,
+    );
+  });
+
+  it('is spent on the swing it paid for, so the next one is at full strength', () => {
+    const demo = gates(true);
+    // The set is cleared as each ally acts: nothing is left holding a
+    // half-damage mark into a turn nobody rallied them for.
+    expect(demo.gmTurn).toBeNull();
+  });
+});
+
 describe('a clock the fight carries', () => {
   /** One Sorcerer across the hall from Kara, and the fight already on. */
   const ruin = (adversary: string, at: { x: number; y: number }, seed: string) => {
@@ -390,6 +499,19 @@ describe('a swarm of Giant Rats', () => {
     // that joined would each come round again and bite a second time.
     const bites = said.filter((t) => t.includes('Bite') || t.includes('Group Attack')).length;
     expect(bites).toBeLessThanOrEqual(4);
+  });
+
+  it('spends the one Fear the feature costs, not one for every rat that piles in', () => {
+    // Three rats, all of them close enough to join: the whole pack acts on the
+    // one feature, so nothing else in the turn is left to spend Fear on.
+    const demo = hall([{ x: 7, y: 4 }, { x: 7, y: 3 }, { x: 7, y: 5 }], 6);
+    const before = demo.state.fear.value;
+    endTurn(demo);
+    expect(demo.log.some((l) => l.text.includes('3 of them at once'))).toBe(true);
+    // "Spend a Fear to choose a target and spotlight all Giant Rats within
+    // Close range": the Fear buys the whole pack's one shared bite. The rats
+    // that joined have had their spotlight, and the GM pays for it once.
+    expect(before - demo.state.fear.value).toBe(1);
   });
 
   it('does not spend a Fear on a swarm of one', () => {
