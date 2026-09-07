@@ -1153,9 +1153,9 @@ const RAW: Input[] = [
     kind: 'reaction',
     trigger: 'dealtDamage',
     action: false,
-    // Simplified: it lasts the fight rather than until they clear a Hit Point.
+    // Simplified: it lasts until their next turn rather than until they clear a Hit Point.
     effects: [
-      { kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: { kind: 'hit' } },
+      { kind: 'applyCondition', condition: 'vulnerable', duration: 'temporary', target: { kind: 'hit' } },
     ],
   },
   {

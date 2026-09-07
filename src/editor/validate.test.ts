@@ -608,6 +608,62 @@ describe('quests', () => {
   });
 });
 
+describe('what only a stat block has', () => {
+  it('warns when a card asks for Fear, changes a standard attack, or answers its own swing', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'greedy',
+          name: 'Greedy',
+          source: { kind: 'granted', characters: ['kara'] },
+          target: { kind: 'self' },
+          cost: { fear: 1 },
+          effects: [],
+        },
+        {
+          id: 'sharp',
+          name: 'Sharp',
+          source: { kind: 'granted', characters: ['kara'] },
+          target: { kind: 'none' },
+          kind: 'passive',
+          standardAttack: { direct: true },
+          effects: [],
+        },
+        {
+          id: 'rider',
+          name: 'Rider',
+          source: { kind: 'granted', characters: ['kara'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'dealtDamage',
+          effects: [],
+        },
+        {
+          id: 'on-a-block',
+          name: 'On A Block',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'passive',
+          standardAttack: { direct: true },
+          effects: [],
+        },
+      ],
+    });
+    const said = messages(project);
+    expect(said).toContain(
+      '"greedy" costs Fear, which only the GM spends: nobody holding it can use it.',
+    );
+    expect(said).toContain('"sharp" changes a standard attack, which only a stat block has.');
+    expect(said).toContain(
+      '"rider" answers its holder' + String.fromCharCode(39) + 's own attack, which only a stat block' +
+        String.fromCharCode(39) + 's swing reports.',
+    );
+    // The same passive on a stat block is exactly where it belongs.
+    expect(said.some((m) => m.includes('on-a-block'))).toBe(false);
+  });
+});
+
 describe('logic in code', () => {
   it('reports a hook nobody defines, code that will not compile, and code nothing runs', () => {
     const project = projectSchema.parse({

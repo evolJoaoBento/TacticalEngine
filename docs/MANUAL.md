@@ -407,7 +407,8 @@ of the ones the engine ships (those live in `srd/abilities.ts` and are edited in
 is its name, the text as printed, the character ids that hold it, whether it is an action, a
 reaction (and what it answers) or passive, what it costs in Hope, Stress and Fear, who it can be
 aimed at and how far, whether using it is the character's action, whether it is only for a fight,
-whether it holds tokens and when they refill, what it resists — and then the effect list, which
+whether it holds tokens and when they refill, what it resists, whether the swing its stat block
+prints goes through armour — and then the effect list, which
 is the same one every other panel uses, including an attack's own reach and whether it goes
 through armor, and a reaction roll's damage, which is rolled once before anyone rolls to avoid
 it. A card with no effects is not broken: it is shown as text and the table

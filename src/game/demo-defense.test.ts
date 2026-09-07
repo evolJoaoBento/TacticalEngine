@@ -533,6 +533,19 @@ describe('what a block hangs on its own attack', () => {
     expect(through.state.entity('kara')!.stress.marked).toBeGreaterThan(0);
   });
 
+  it('hangs nothing on the blow that puts its target down', () => {
+    // One Hit Point left and no armour: whatever lands fells her. A rider that
+    // fired here would push a body around or take Hope off someone who is
+    // already out of the fight.
+    const demo = withRiders('felled');
+    const kara = demo.state.entity('kara')!;
+    kara.armorSlots = { ...kara.armorSlots, marked: kara.armorSlots.max };
+    kara.hitPoints = { ...kara.hitPoints, marked: kara.hitPoints.max - 1 };
+    for (let i = 0; i < 4 && demo.state.entity('kara')!.alive; i++) endTurn(demo);
+    expect(demo.state.entity('kara')!.alive).toBe(false);
+    expect(demo.log.some((l) => l.text.includes('the claws land'))).toBe(false);
+  });
+
   it("lets a passive make the block's own swing go through armor", () => {
     const build = (direct: boolean): number => {
       const demo = standoff('direct');

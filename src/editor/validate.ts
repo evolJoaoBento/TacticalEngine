@@ -201,6 +201,25 @@ function checkAbilitiesAndCode(
     if ((ability.cost.fear ?? 0) > 0 && ability.source.kind !== 'adversary') {
       add('warning', `"${ability.id}" costs Fear, which only the GM spends: nobody holding it can use it.`, ability.id);
     }
+    // The swing a stat block prints, and the two triggers that answer it, are
+    // read on the GM's turn alone. On a card they are quietly dead.
+    if (ability.standardAttack !== undefined && ability.source.kind !== 'adversary') {
+      add(
+        'warning',
+        `"${ability.id}" changes a standard attack, which only a stat block has.`,
+        ability.id,
+      );
+    }
+    if (
+      (ability.trigger === 'dealtHit' || ability.trigger === 'dealtDamage') &&
+      ability.source.kind !== 'adversary'
+    ) {
+      add(
+        'warning',
+        `"${ability.id}" answers its holder's own attack, which only a stat block's swing reports.`,
+        ability.id,
+      );
+    }
     walkEffects(ability.effects, inspect(ability.id));
     walkConditionsIn(ability.effects, asked(ability.id));
     inspectCondition(ability.id, ability.available);

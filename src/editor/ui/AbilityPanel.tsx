@@ -235,6 +235,9 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                       <option value="attackHit">an attack hits</option>
                       <option value="attackMissed">an attack misses</option>
                       <option value="tookSevere">Severe damage lands</option>
+                      {/* The other side of the table: what its own swing did. */}
+                      <option value="dealtHit">its attack hits</option>
+                      <option value="dealtDamage">its attack marks a Hit Point</option>
                     </select>,
                   )
                 : null}
@@ -365,6 +368,20 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                   resists {type}
                 </label>
               ))}
+              {/* The swing a stat block prints, which no card has. */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}>
+                <input
+                  type="checkbox"
+                  data-testid="ability-direct-attack"
+                  checked={open.standardAttack?.direct === true}
+                  onChange={(e) =>
+                    edit({
+                      standardAttack: (e.target as HTMLInputElement).checked ? { direct: true } : undefined,
+                    })
+                  }
+                />
+                its attacks are direct
+              </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}>
                 <input
                   type="checkbox"

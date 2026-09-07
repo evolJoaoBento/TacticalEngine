@@ -24,9 +24,11 @@ engine has no place to put:
 - **a condition the SRD prints once** — Entranced, Poisoned, Cursed, Deathlock and the
   rest: written into that one block rather than into the rules.
 - **a social beat** — a bargain, a rumour, a scapegoat: a scene rather than a grid.
-- **a rider the swing cannot see** — "reduce the damage by 1d10", "deal 1d6+5 instead
-  of their standard damage when another Wolf is in Melee range": a passive that swaps
-  the damage or answers being attacked, rather than following the swing that landed.
+- **a passive on a number the engine does not have** — "reduce the damage by 1d10"
+  (reduction is not a typed defence), "deal 1d6+5 instead of their standard damage when
+  another Wolf is in Melee range" (a damage swap on a condition), "when this adversary
+  is attacked, the attacker marks a Stress" (a rider on *being* attacked, which is the
+  other side of the two triggers the swing already carries).
 - **an ally on the other side** — the GM's turn aims a feature at the party, so a
   feature that shields or heals one of its own has no way to be pointed at it.
 

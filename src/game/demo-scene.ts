@@ -1409,8 +1409,14 @@ function landedFeatures(demo: DemoScene, attack: IncomingAttack, hitPointsMarked
  * run with the one it hit bound as the target and as the hit, so a rider can
  * be written either way — and only for the GM's swing: a card with one would
  * be read by nothing, because a player's attack goes down its own path.
+ *
+ * Nothing rides a blow that put its target down: pushing a body or taking a
+ * Hope off someone lying unconscious reads as noise in the log, and the rules
+ * hang these on what the target does about the damage, which a fallen creature
+ * no longer does.
  */
 function playAttackRiders(demo: DemoScene, attackerId: string, defenderId: string, hitPointsMarked: number): void {
+  if (demo.state.entity(defenderId)?.alive !== true) return;
   const triggers: NonNullable<AbilityDef['trigger']>[] = hitPointsMarked > 0 ? ['dealtHit', 'dealtDamage'] : ['dealtHit'];
   for (const trigger of triggers) {
     for (const ability of demo.world.reactionsFor(attackerId, trigger)) {

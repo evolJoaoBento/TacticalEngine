@@ -1980,6 +1980,11 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   await panel.locator('[data-testid="ability-fear"]').fill('2');
   // And what the block does with damage coming back at it.
   await panel.locator('[data-testid="ability-resist-physical"]').check();
+  // The swing the block prints goes through armor, and this answers it landing:
+  // two things a card has no use for.
+  await panel.locator('[data-testid="ability-direct-attack"]').check();
+  await panel.locator('[data-testid="ability-kind"]').selectOption('reaction');
+  await panel.locator('[data-testid="ability-trigger"]').selectOption('dealtDamage');
 
   const effects = panel.locator('[data-testid="ability-effects"]');
 
@@ -2000,15 +2005,30 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
 
   const written = await page.evaluate(() => {
     const project = JSON.parse(window.__polyheart!.exportProject()) as {
-      abilities: { id: string; cost: unknown; defenses?: unknown; effects: unknown[] }[];
+      abilities: {
+        id: string;
+        cost: unknown;
+        trigger?: unknown;
+        defenses?: unknown;
+        standardAttack?: unknown;
+        effects: unknown[];
+      }[];
     };
     const ability = project.abilities.find((a) => a.id === 'eruption')!;
-    return { cost: ability.cost, defenses: ability.defenses, effects: ability.effects };
+    return {
+      cost: ability.cost,
+      trigger: ability.trigger,
+      defenses: ability.defenses,
+      standardAttack: ability.standardAttack,
+      effects: ability.effects,
+    };
   });
   expect(written).toEqual({
     // Only what the author touched: the Hope and Stress fields were left alone.
     cost: { fear: 2 },
+    trigger: 'dealtDamage',
     defenses: { resistances: ['physical'] },
+    standardAttack: { direct: true },
     effects: [
       {
         kind: 'reactionRoll',
