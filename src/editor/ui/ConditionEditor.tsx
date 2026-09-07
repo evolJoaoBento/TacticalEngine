@@ -51,6 +51,7 @@ const KINDS: readonly { kind: Condition['kind']; label: string }[] = [
   { kind: 'adversariesAlive', label: 'adversaries alive' },
   { kind: 'pool', label: 'a pool compares' },
   { kind: 'count', label: 'the blow compares' },
+  { kind: 'rolled', label: 'the roll was' },
   { kind: 'inCombat', label: 'in a fight' },
   { kind: 'loadout', label: "a domain's cards in the loadout" },
   { kind: 'hasCondition', label: 'the target has a condition' },
@@ -113,6 +114,8 @@ export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEdi
       return { kind, pool: 'stress', op: '>=', value: 1 };
     case 'count':
       return { kind, of: 'hitPointsTaken', op: '>=', value: 2 };
+    case 'rolled':
+      return { kind, is: 'failure' };
     case 'inCombat':
       return { kind };
     case 'hasCondition':
@@ -227,6 +230,12 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
             {select(condition.op, ops.map((id) => ({ id })), (op) => onChange({ ...condition, op }))}
             {number(condition.value, (value) => onChange({ ...condition, value }))}
           </>
+        );
+      case 'rolled':
+        return select(
+          condition.is,
+          (['failure', 'success', 'withFear', 'withHope', 'critical'] as const).map((id) => ({ id })),
+          (is) => onChange({ ...condition, is }),
         );
       case 'count':
         return (

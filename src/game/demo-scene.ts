@@ -34,7 +34,7 @@ import { DEMO_DIALOGUES, PILLAR_DIALOGUE_ID } from './demo-dialogue';
 import { useInteractable } from '../engine/scene/interact';
 import type { Trait } from '../engine/scene/primitives';
 import type { CheckOutcome, LogTone } from '../engine/script/effects';
-import type { DualityRoll } from '../engine/rules/duality';
+import type { DualityRoll, RollOutcome } from '../engine/rules/duality';
 import type { CountdownCue } from '../engine/rules/countdown';
 import type { CountdownMoved, RunningCountdown } from '../engine/script/countdowns';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
@@ -1043,6 +1043,10 @@ export function attackWithSelected(
     // same way the party does when the GM swings at them.
     playAttackedOn(demo, targetId, id!);
   }
+  // What the room makes of the roll itself: "when a PC rolls with Fear while
+  // within Far range of the Dragon". Before `act`, so anything it costs them
+  // is settled by the same `settleFight` as the swing.
+  if (outcome.dualityRoll !== undefined) playPartyRolled(demo, id!, outcome.dualityRoll);
   if (inCombat(demo)) demo.encounter!.act(id!, { spotlightToGm: outcome.spotlightToGm });
   settleFight(demo);
   // The swing is over before a clock moves: a countdown that goes off now is
@@ -1561,7 +1565,11 @@ function runAdversaryScript(
    * marked, and the damage it rolled so `dice: 'same'` can throw it back. A
    * feature nobody hit reads zero, which is what it should see.
    */
-  from: { counts?: Partial<Record<CountName, number>>; lastDamage?: { total: number; types?: readonly DamageType[] } } = {},
+  from: {
+    counts?: Partial<Record<CountName, number>>;
+    lastDamage?: { total: number; types?: readonly DamageType[] };
+    roll?: { total: number; outcome: RollOutcome };
+  } = {},
 ): void {
   const stress = ability.cost.stress ?? 0;
   if (stress > 0) demo.world.markStress(adversaryId, stress);
@@ -1574,6 +1582,7 @@ function runAdversaryScript(
     rollAs: 'actor',
     ...(from.counts === undefined ? {} : { counts: from.counts }),
     ...(from.lastDamage === undefined ? {} : { lastDamage: from.lastDamage }),
+    ...(from.roll === undefined ? {} : { roll: from.roll }),
   });
   const result = runner.run(ability.effects);
   record(demo, result.journal);
@@ -1882,6 +1891,51 @@ function afterReaction(demo: DemoScene, queued: readonly (readonly ReactionOffer
     return;
   }
   if (demo.gmTurn !== null) runGmTurn(demo);
+}
+
+/**
+ * What the room makes of a roll the party made.
+ *
+ * "When a PC rolls a failure with Fear while within Close range of the Demon,
+ * they lose a Hope." The one who rolled is bound as the target - which is how
+ * a feature measures the distance to them - and what the roll was is read by a
+ * `rolled` condition on the feature's own gate.
+ *
+ * Only the GM's side answers a roll: a card of the party's that did would be
+ * answering its own holder, and nothing in the SRD is written that way.
+ */
+function playPartyRolled(demo: DemoScene, roller: string, roll: DualityRoll): void {
+  if (demo.state.entity(roller)?.faction !== 'party') return;
+  const bindings = { targets: [roller], hit: [roller], roll: { total: roll.total, outcome: roll.outcome } };
+  for (const entity of [...demo.state.entitiesOf('adversary')]) {
+    if (!entity.alive) continue;
+    for (const ability of demo.world.reactionsFor(entity.id, 'partyRolled', bindings)) {
+      if (ability.effects.length === 0) continue;
+      if (!affordableReaction(demo, entity.id, ability)) continue;
+      spendFeatureCost(demo, entity.id, ability, 'reaction');
+      runAdversaryScript(demo, entity.id, ability, [roller], [roller], { roll: bindings.roll });
+    }
+  }
+}
+
+/**
+ * The rolls a script made on the party's behalf, in the order they were made.
+ *
+ * The same two entries the countdown cues read: a check is rolled by whoever
+ * the script is acting as, and an attack names its own roller.
+ */
+function rollsFrom(demo: DemoScene, journal: readonly JournalEntry[]): { roller: string; roll: DualityRoll }[] {
+  const rolls: { roller: string; roll: DualityRoll }[] = [];
+  for (const entry of journal) {
+    if (entry.kind === 'check') {
+      const roller = demo.scenario.actorId;
+      if (roller !== null && demo.state.entity(roller)?.faction === 'party') rolls.push({ roller, roll: entry.roll });
+    }
+    if (entry.kind === 'attack' && entry.roll !== undefined) {
+      if (demo.state.entity(entry.attacker)?.faction === 'party') rolls.push({ roller: entry.attacker, roll: entry.roll });
+    }
+  }
+  return rolls;
 }
 
 /**
@@ -2802,6 +2856,7 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
   // attack roll". A stat block's own roll is the GM's move, and a countdown
   // fired by a countdown must not advance the one that fired it, so the cues
   // are raised after the whole journal is in, never during it.
+  for (const { roller, roll } of rollsFrom(demo, journal)) playPartyRolled(demo, roller, roll);
   for (const cue of cuesFrom(demo, journal)) tickCountdowns(demo, cue);
   return lines;
 }

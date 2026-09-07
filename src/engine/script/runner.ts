@@ -23,7 +23,7 @@
  */
 
 import type { Rng } from '../core/rng';
-import { rollDuality, type DualityRoll } from '../rules/duality';
+import { rollDuality, type DualityRoll, type RollOutcome } from '../rules/duality';
 import { formatDice, parseDice, rollDice, type DamageType, type ParsedDamage } from '../rules/dice';
 import type { RunningCountdown } from './countdowns';
 import { hookReads } from './conditions';
@@ -374,6 +374,12 @@ export interface ScriptRunnerOptions {
    * amount of damage to the attacker equal to half the damage they dealt".
    */
   lastDamage?: { total: number; types?: readonly DamageType[] };
+  /**
+   * The roll that called for this script, for a feature that answers one: "when
+   * a PC rolls a failure with Fear". Read by a `rolled` condition, wherever one
+   * is asked inside it.
+   */
+  roll?: { total: number; outcome: RollOutcome };
 }
 
 /** A list of effects part-way through, and what `hit` meant when it was pushed. */
@@ -411,6 +417,8 @@ export class ScriptRunner {
    * its damage lands.
    */
   private readonly counts: Record<CountName, number> = { hitPointsTaken: 0, hitPointsDealt: 0, targetsHit: 0 };
+  /** The roll that called for this script, when something did. */
+  private readonly answering: { total: number; outcome: RollOutcome } | null;
 
   /** Whether any action roll in this script hands the spotlight to the GM. */
   spotlightToGm = false;
@@ -426,6 +434,7 @@ export class ScriptRunner {
     this.targets = [...(options.targets ?? [])];
     this.hit = [...(options.hit ?? [])];
     this.rollAs = options.rollAs ?? 'party';
+    this.answering = options.roll ?? null;
     for (const name of COUNT_NAMES) this.counts[name] = options.counts?.[name] ?? 0;
     if (options.lastDamage !== undefined) {
       this.lastDamage = { total: options.lastDamage.total, dice: '', types: options.lastDamage.types ?? [] };
@@ -473,7 +482,12 @@ export class ScriptRunner {
 
   /** What `target` and `hit` mean right now. */
   bindings(): TargetBindings {
-    return { targets: this.targets, hit: this.hit, counts: { ...this.counts, targetsHit: this.hit.length } };
+    return {
+      targets: this.targets,
+      hit: this.hit,
+      counts: { ...this.counts, targetsHit: this.hit.length },
+      ...(this.answering === null ? {} : { roll: this.answering }),
+    };
   }
 
   private resolve(selector: TargetSelector): string[] {

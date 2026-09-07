@@ -27,6 +27,7 @@ import type { QuestQuery } from '../content/quests';
 import type { HookFn, HookReads } from './hooks';
 import { runHook } from './hooks';
 import { reaches, type RangeBand } from '../rules/range';
+import type { RollOutcome } from '../rules/duality';
 
 /**
  * What `target` and `hit` mean right now: the creatures an ability was used
@@ -41,6 +42,11 @@ export interface TargetBindings {
    * answering a blow, and a count nobody wrote reads as zero.
    */
   counts?: Partial<Record<CountName, number>>;
+  /**
+   * The roll that raised this, for a feature that answers one: "when a PC
+   * rolls a failure with Fear while within Close range of the Demon".
+   */
+  roll?: { total: number; outcome: RollOutcome };
 }
 
 export const NO_BINDINGS: TargetBindings = { targets: [], hit: [] };
@@ -170,6 +176,22 @@ export function evaluate(
     }
     case 'count':
       return compare(countOf(bindings, condition.of), condition.op, condition.value);
+    case 'rolled': {
+      const outcome = bindings.roll?.outcome;
+      if (outcome === undefined) return false;
+      switch (condition.is) {
+        case 'failure':
+          return outcome === 'failureWithHope' || outcome === 'failureWithFear';
+        case 'success':
+          return outcome !== 'failureWithHope' && outcome !== 'failureWithFear';
+        case 'withFear':
+          return outcome === 'successWithFear' || outcome === 'failureWithFear';
+        case 'withHope':
+          return outcome === 'successWithHope' || outcome === 'failureWithHope' || outcome === 'criticalSuccess';
+        case 'critical':
+          return outcome === 'criticalSuccess';
+      }
+    }
     case 'inCombat':
       return context.inCombat();
     case 'loadout': {

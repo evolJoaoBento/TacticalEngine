@@ -2003,6 +2003,145 @@ const RAW: Input[] = [
     // leaves them standing.
     effects: [{ kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'far' }],
   },
+  // ---- what the room makes of a roll --------------------------------------
+  // "When a PC rolls a failure with Fear while within Close range of the
+  // Demon, they lose a Hope." A trigger on the party's own dice: the one who
+  // rolled is bound as the target, so the distance is a plain `withinRange`,
+  // and what the roll was is a `rolled` gate. The five readings compose - a
+  // failure *with Fear* is an `all` of two of them.
+  //
+  // These are free and the GM plays every reaction it can afford, so they fire
+  // every time the dice say so. That is the SRD's rule rather than a
+  // simplification: standing near a Young Ice Dragon costs Hope.
+  //
+  // What stays text is an offer to the player - "they can choose to reroll
+  // their Fear Die" - and a roll made in conversation, which is a scene rather
+  // than a fight.
+  {
+    id: 'young-ice-dragon-no-hope',
+    name: 'No Hope',
+    source: from('young-ice-dragon'),
+    text: 'When a PC rolls with Fear while within Far range of the Dragon, they lose a Hope.',
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'far' },
+        { kind: 'rolled', is: 'withFear' },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The cold takes something out of them.', tone: 'fear' },
+      { kind: 'loseHope', target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'minor-demon-all-must-fall',
+    name: 'All Must Fall',
+    source: from('minor-demon'),
+    text: 'When a PC rolls a failure with Fear while within Close range of the Demon, they lose a Hope.',
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'close' },
+        { kind: 'rolled', is: 'failure' },
+        { kind: 'rolled', is: 'withFear' },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [{ kind: 'loseHope', target: { kind: 'target' } }],
+  },
+  {
+    id: 'demon-of-hubris-you-pale-in-comparison',
+    name: 'You Pale in Comparison',
+    source: from('demon-of-hubris'),
+    text: 'When a PC fails a roll within Close range of the Demon, they must mark a Stress.',
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'close' },
+        { kind: 'rolled', is: 'failure' },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [{ kind: 'markStress', target: { kind: 'target' } }],
+  },
+  {
+    id: 'cult-adept-fear-is-fuel',
+    name: 'Fear Is Fuel',
+    source: from('cult-adept'),
+    text: 'Twice per scene, when a PC rolls a failure with Fear, clear a Stress.',
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    uses: { count: 2, per: 'scene' },
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'rolled', is: 'failure' },
+        { kind: 'rolled', is: 'withFear' },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [{ kind: 'clearStress', target: { kind: 'actor' } }],
+  },
+  {
+    id: 'volcanic-dragon-ashen-tyrant-ashes-to-ashes',
+    name: 'Ashes to Ashes',
+    source: from('volcanic-dragon-ashen-tyrant'),
+    text: "When a PC rolls a failure while within Close range of the Ashen Tyrant, they lose a Hope and you gain a Fear. If the PC can't lose a Hope, they must mark a HP.",
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'close' },
+        { kind: 'rolled', is: 'failure' },
+      ],
+    },
+    target: { kind: 'none' },
+    // Simplified: the Hit Point for a PC with no Hope left is the table's -
+    // `loseHope` takes what is there and says how much it took, and nothing
+    // here branches on that.
+    effects: [
+      { kind: 'log', text: 'Ash settles in their lungs.', tone: 'fear' },
+      { kind: 'loseHope', target: { kind: 'target' } },
+      { kind: 'gainFear' },
+    ],
+  },
+  {
+    id: 'demon-of-despair-your-friends-will-fail-you',
+    name: 'Your Friends Will Fail You',
+    source: from('demon-of-despair'),
+    text: 'When a PC fails with Fear, you can mark a Stress to cause all other PCs within Close range to lose a Hope.',
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    cost: { stress: 1 },
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'rolled', is: 'failure' },
+        { kind: 'rolled', is: 'withFear' },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'It turns their failure on the people beside them.', tone: 'fear' },
+      // Everyone but the one who rolled: "all *other* PCs within Close range".
+      { kind: 'loseHope', target: { kind: 'allies', range: 'close', except: 'target' } },
+    ],
+  },
   // ---- what the two of them make of each other ---------------------------
   // A passive that moves a roll rather than a pool. `advantage` is a signed
   // count of dice, and `against: true` puts it on the rolls made at the one

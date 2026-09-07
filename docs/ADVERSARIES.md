@@ -56,6 +56,10 @@ engine has no place to put:
 - **a condition the SRD prints once** — Entranced, Poisoned, Cursed, Deathlock and the
   rest: written into that one block rather than into the rules.
 - **a social beat** — a bargain, a rumour, a scapegoat: a scene rather than a grid.
+- **an offer to the player** - "they can choose to reroll their Fear Die". What the room
+  makes of a roll the party made now runs (`partyRolled`, with a `rolled` gate reading
+  what the dice said and the one who rolled bound as the target), so what stays here is
+  a feature that hands the player a decision, and a roll made in conversation.
 - **a passive on a number the engine does not have** — "deal 1d6+5 instead of their
   standard damage when another Wolf is in Melee range": a damage swap on a condition.
   A rider on *being* attacked now runs - a swing raises `attacked` on whoever it was
@@ -81,7 +85,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 162. Text: 182.
+Read: 73. Scripted: 168. Text: 176.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -154,7 +158,7 @@ Read: 73. Scripted: 162. Text: 182.
 | Minor Fire Elemental | Consume Kindling | Reaction | **text** — the GM's to play |
 | Minor Fire Elemental | Momentum | Reaction | **read** — read off the stat block |
 | Minor Demon | Relentless (2) | Passive | **read** — read off the stat block |
-| Minor Demon | All Must Fall | Passive | **text** — the GM's to play |
+| Minor Demon | All Must Fall | Passive | **scripted** — runs as an ability |
 | Minor Demon | Hellfire | Action | **scripted** — runs as an ability |
 | Minor Demon | Reaper | Reaction | **text** — the GM's to play |
 | Minor Demon | Momentum | Reaction | **read** — read off the stat block |
@@ -251,7 +255,7 @@ Read: 73. Scripted: 162. Text: 182.
 | Cult Adept | Enervating Blast | Action | **text** — the GM's to play |
 | Cult Adept | Shroud of the Fallen | Action | **text** — the GM's to play |
 | Cult Adept | Shadow Shackles | Action | **text** — the GM's to play |
-| Cult Adept | Fear Is Fuel | Reaction | **text** — the GM's to play |
+| Cult Adept | Fear Is Fuel | Reaction | **scripted** — runs as an ability |
 | Cult Fang | Shadow's Embrace | Passive | **text** — the GM's to play |
 | Cult Fang | Pick Off the Straggler | Action | **text** — the GM's to play |
 | Cult Initiate | Minion (6) | Passive | **read** — read off the stat block |
@@ -345,13 +349,13 @@ Read: 73. Scripted: 162. Text: 182.
 | Demon of Avarice | Money Is Time | Action | **scripted** — runs as an ability |
 | Demon of Despair | Depths of Despair | Passive | **text** — the GM's to play |
 | Demon of Despair | Your Struggle Is Pointless | Action | **text** — the GM's to play |
-| Demon of Despair | Your Friends Will Fail You | Reaction | **text** — the GM's to play |
+| Demon of Despair | Your Friends Will Fail You | Reaction | **scripted** — runs as an ability |
 | Demon of Despair | Momentum | Reaction | **read** — read off the stat block |
 | Demon of Hubris | Terrifying | Passive | **read** — read off the stat block |
 | Demon of Hubris | Double or Nothing | Passive | **text** — the GM's to play |
 | Demon of Hubris | Unparalleled Skill | Action | **scripted** — runs as an ability |
 | Demon of Hubris | The Root of Villainy | Action | **scripted** — runs as an ability |
-| Demon of Hubris | You Pale in Comparison | Reaction | **text** — the GM's to play |
+| Demon of Hubris | You Pale in Comparison | Reaction | **scripted** — runs as an ability |
 | Demon of Jealousy | Unprotected Mind | Passive | **scripted** — runs as an ability |
 | Demon of Jealousy | My Turn | Reaction | **text** — the GM's to play |
 | Demon of Jealousy | Rivalry | Reaction | **text** — the GM's to play |
@@ -415,7 +419,7 @@ Read: 73. Scripted: 162. Text: 182.
 | Vault Guardian Turret | Detonation | Reaction | **text** — the GM's to play |
 | Young Ice Dragon | Relentless (3) | Passive | **read** — read off the stat block |
 | Young Ice Dragon | Rend and Crush | Passive | **text** — the GM's to play |
-| Young Ice Dragon | No Hope | Passive | **text** — the GM's to play |
+| Young Ice Dragon | No Hope | Passive | **scripted** — runs as an ability |
 | Young Ice Dragon | Blizzard Breath | Action | **text** — the GM's to play |
 | Young Ice Dragon | Avalanche | Action | **scripted** — runs as an ability |
 | Young Ice Dragon | Frozen Scales | Reaction | **scripted** — runs as an ability |
@@ -490,7 +494,7 @@ Read: 73. Scripted: 162. Text: 182.
 | Volcanic Dragon: Ashen Tyrant | Relentless (4) | Passive | **read** — read off the stat block |
 | Volcanic Dragon: Ashen Tyrant | Cornered | Passive | **text** — the GM's to play |
 | Volcanic Dragon: Ashen Tyrant | Injured Wings | Passive | **scripted** — runs as an ability |
-| Volcanic Dragon: Ashen Tyrant | Ashes to Ashes | Passive | **text** — the GM's to play |
+| Volcanic Dragon: Ashen Tyrant | Ashes to Ashes | Passive | **scripted** — runs as an ability |
 | Volcanic Dragon: Ashen Tyrant | Desperate Rampage | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Ashen Tyrant | Ashen Cloud | Action | **text** — the GM's to play |
 | Volcanic Dragon: Ashen Tyrant | Apocalyptic Thrashing | Action: Countdown (1d12) | **scripted** — runs as an ability |

@@ -856,9 +856,11 @@ export class SceneScriptWorld implements ScriptWorld {
         );
       case 'allies': {
         const actor = this.scenario.actorId;
+        const left = selector.except === 'target' ? new Set(bindings.targets) : null;
         const standing = this.state
           .entitiesOf('party')
           .filter((e) => e.alive && (selector.includeSelf === true || e.id !== actor))
+          .filter((e) => !(left?.has(e.id) ?? false))
           .filter((e) => selector.range === undefined || actor === null || this.within(actor, e.id, selector.range))
           .map((e) => e.id);
         if (selector.nearest === undefined || actor === null) return standing;

@@ -276,7 +276,11 @@ with a price — "you can spend 2 Hope to…" — is put to the player as a thir
 `demo.pending`, a `PendingReaction`, whose first option is always letting it pass. The line
 between the two is `auto && no cost`: a card that would be asked about anyway sets `auto: false`.
 A swing at somebody also raises `attacked` on them, hit or miss, which is how a bonus that lasts
-"until after the next attack made against you" knows when it is over. The same
+"until after the next attack made against you" knows when it is over. A roll the *party* makes
+raises `partyRolled` on every adversary standing: the one who rolled is bound as the target, so
+the distance is a plain `withinRange`, and what the dice said is a `rolled` condition — the five
+readings (`failure`, `success`, `withFear`, `withHope`, `critical`) compose, so "a failure with
+Fear" is an `all` of two. The same
 happens on the party's own swing: `playAttackRiders` reads `dealtHit` and `dealtDamage` for
 whoever swung, so Healing Strike is offered after a player's attack the way a stat block's rider
 runs after the GM's. Every note is read before anyone is asked, because `drainDamage` clears as

@@ -711,7 +711,11 @@ footer {
   it pass. The line between the two is <code>auto</code> and no cost: a card that should be asked
   about anyway sets <code>auto: false</code>. A swing at somebody also raises <code>attacked</code>
   on them, hit or miss, which is how a bonus that lasts &ldquo;until after the next attack made
-  against you&rdquo; knows when it is over. The same happens on the party's own swing: <code>playAttackRiders</code> reads
+  against you&rdquo; knows when it is over. A roll the <em>party</em> makes raises
+  <code>partyRolled</code> on every adversary standing: the one who rolled is bound as the target,
+  so the distance is a plain <code>withinRange</code>, and what the dice said is a
+  <code>rolled</code> condition &mdash; the five readings compose, so &ldquo;a failure with
+  Fear&rdquo; is an <code>all</code> of two. The same happens on the party's own swing: <code>playAttackRiders</code> reads
   <code>dealtHit</code> and <code>dealtDamage</code> for whoever swung, so Healing Strike is
   offered after a player's attack the way a stat block's rider runs after the GM's. Every note is
   read before anyone is asked, because <code>drainDamage</code> clears as it reports; what is not

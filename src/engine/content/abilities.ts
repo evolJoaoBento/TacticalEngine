@@ -244,6 +244,12 @@ export const abilitySchema = z.object({
        * surely as a hit, so this is raised by both.
        */
       'attacked',
+      /**
+       * A party member made an action roll: "when a PC rolls a failure with
+       * Fear while within Close range of the Demon". The one who rolled is
+       * bound as the target, and what the roll was is a `rolled` condition.
+       */
+      'partyRolled',
       'spotlighted',
     ])
     .optional(),

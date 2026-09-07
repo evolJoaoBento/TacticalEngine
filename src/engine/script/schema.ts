@@ -101,6 +101,8 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
     /** Living party members within this band of the actor. Everywhere when left out. */
     range: rangeBandSchema.optional(),
     includeSelf: z.boolean().optional(),
+    /** Leave the chosen target out: "all *other* PCs within Close range". */
+    except: z.enum(['target']).optional(),
     /**
      * Only the closest few - "deal 2d10+6 direct magic damage to a target
      * within Close range". A stat block that names one target rather than the
@@ -208,6 +210,18 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     measure: z.enum(['available', 'marked', 'max']).optional(),
     op: compareOpSchema,
     value: z.number().int(),
+  }),
+  /**
+   * What the roll that raised this was: "when a PC rolls a failure with Fear",
+   * "when a PC rolls with Fear". The five readings a stat block asks for, and
+   * they compose - a failure *with Fear* is an `all` of two of them.
+   *
+   * A script nobody handed a roll reads false for every one of them, which is
+   * what a feature run out of nowhere should see.
+   */
+  z.object({
+    kind: z.literal('rolled'),
+    is: z.enum(['failure', 'success', 'withFear', 'withHope', 'critical']),
   }),
   z.object({ kind: z.literal('inCombat') }),
   /**

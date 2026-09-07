@@ -708,6 +708,119 @@ describe('a creature that walks before it swings', () => {
   });
 });
 
+describe('what the room makes of a roll', () => {
+  /** Kara and something watching her roll, at the distance the test asks for. */
+  const watched = (adversary: string, at: { x: number; y: number }, seed: string) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'watch', name: 'The watch' })));
+    s.run(addAdversary('hall', 'watch', { id: 'foe', adversary, position: at }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'watch');
+    demo.state.entity('kara')!.hitPoints = { max: 60, marked: 0 };
+    demo.state.entity('foe')!.hitPoints = { max: 60, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  /** Swing until the dice come up with Fear, and say what they cost. */
+  const rollUntilFear = (demo: ReturnType<typeof watched>): { hope: number; fell: boolean } => {
+    for (let i = 0; i < 12; i++) {
+      const kara = demo.state.entity('kara')!;
+      // Patched up between swings: what is under test is what the dice cost
+      // her, and a Tier 3 dragon would otherwise put her down first.
+      kara.hope = { max: 6, value: 6 };
+      kara.hitPoints = { max: 60, marked: 0 };
+      kara.stress = { max: kara.stress.max, marked: 0 };
+      kara.alive = true;
+      if (!demo.encounter!.canAct('kara')) endTurn(demo);
+      demo.state.entity('foe')!.hitPoints = { max: 60, marked: 0 };
+      const before = demo.log.length;
+      attackWithSelected(demo, 'foe');
+      const rolled = demo.rolls.at(-1);
+      if (rolled === undefined) continue;
+      const withFear = rolled.roll.outcome === 'successWithFear' || rolled.roll.outcome === 'failureWithFear';
+      if (!withFear) continue;
+      return {
+        hope: demo.state.entity('kara')!.hope!.value,
+        fell: demo.log.slice(before).some((l) => l.text.includes('The cold takes something out of them.')),
+      };
+    }
+    throw new Error('the dice never came up with Fear');
+  };
+
+  it('takes a Hope off a roll with Fear made in front of the Dragon', () => {
+    // "When a PC rolls with Fear while within Far range of the Dragon, they
+    // lose a Hope."
+    const demo = watched('young-ice-dragon', { x: 3, y: 4 }, 'no-hope');
+    const { hope, fell } = rollUntilFear(demo);
+    expect(fell).toBe(true);
+    // Six going in, and the roll with Fear costs one of them.
+    expect(hope).toBe(5);
+  });
+
+  it('leaves a roll made across the room alone', () => {
+    // The same Dragon, out past Far range, with something in reach to swing
+    // at: the dice say the same thing and the Dragon is too far to hear it.
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'watch', name: 'The watch' })));
+    s.run(addAdversary('hall', 'watch', { id: 'foe', adversary: 'young-ice-dragon', position: { x: 11, y: 7 } }));
+    s.run(addAdversary('hall', 'watch', { id: 'husk', adversary: 'acid-burrower', position: { x: 3, y: 4 } }));
+    const demo = buildProjectScene(s.project, 'no-hope-far');
+    demo.askDefender = false;
+    startEncounter(demo, 'watch');
+    demo.party.select('kara');
+    expect(demo.world.bandTo('foe', 'kara')).toBe('veryFar');
+
+    for (let i = 0; i < 12; i++) {
+      const kara = demo.state.entity('kara')!;
+      kara.hope = { max: 6, value: 6 };
+      kara.hitPoints = { max: 60, marked: 0 };
+      kara.stress = { max: kara.stress.max, marked: 0 };
+      kara.alive = true;
+      // The Dragon stays where it was put: this is about the distance.
+      demo.state.moveEntity('foe', demo.grid.indexOf(11, 7));
+      if (!demo.encounter!.canAct('kara')) endTurn(demo);
+      demo.state.entity('husk')!.hitPoints = { max: 60, marked: 0 };
+      attackWithSelected(demo, 'husk');
+      const rolled = demo.rolls.at(-1);
+      if (rolled === undefined) continue;
+      const withFear = rolled.roll.outcome === 'successWithFear' || rolled.roll.outcome === 'failureWithFear';
+      if (!withFear) continue;
+      expect(demo.log.some((l) => l.text.includes('The cold takes something out of them.'))).toBe(false);
+      expect(demo.state.entity('kara')!.hope!.value).toBe(6);
+      return;
+    }
+    throw new Error('the dice never came up with Fear');
+  });
+
+  it('reads what the roll was, not merely that there was one', () => {
+    // The Demon answers a *failure* with Fear. A roll that succeeded with Fear
+    // is still a roll with Fear, and it costs nothing.
+    const demo = watched('minor-demon', { x: 3, y: 4 }, 'all-must-fall');
+    for (let i = 0; i < 12; i++) {
+      const kara = demo.state.entity('kara')!;
+      kara.hope = { max: 6, value: 6 };
+      kara.hitPoints = { max: 60, marked: 0 };
+      kara.stress = { max: kara.stress.max, marked: 0 };
+      kara.alive = true;
+      if (!demo.encounter!.canAct('kara')) endTurn(demo);
+      demo.state.entity('foe')!.hitPoints = { max: 60, marked: 0 };
+      attackWithSelected(demo, 'foe');
+      const rolled = demo.rolls.at(-1);
+      if (rolled === undefined) continue;
+      const hope = demo.state.entity('kara')!.hope!.value;
+      if (rolled.roll.outcome === 'failureWithFear') expect(hope).toBe(5);
+      if (rolled.roll.outcome === 'successWithFear') expect(hope).toBe(6);
+      if (rolled.roll.outcome === 'failureWithHope') expect(hope).toBe(6);
+    }
+  });
+});
+
 describe('a Demon rallying Relentless allies', () => {
   /** A Demon of Hubris and two Minor Demons, who can each be spotlighted twice. */
   const pit = (fear: number, seed: string) => {
