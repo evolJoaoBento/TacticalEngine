@@ -1035,7 +1035,9 @@ export function attackWithSelected(
     playDefeatReactions(demo);
     // "When you deal damage to an adversary, you can spend 2 Hope to…": the
     // player's own rider on their own swing, offered after the blow is in the
-    // log and before the turn is spent.
+    // log and before the turn is spent. A question left standing here holds
+    // nothing up - the GM's turn is started by the player pressing pass, never
+    // by the swing that ended theirs.
     playAttackRiders(demo, id!, targetId, applied.hitPointsMarked);
   }
   if (inCombat(demo)) demo.encounter!.act(id!, { spotlightToGm: outcome.spotlightToGm });
@@ -1781,8 +1783,10 @@ function offerReactions(demo: DemoScene, groups: readonly (readonly ReactionOffe
   if (waiting.length === 0 || !demo.askDefender) return;
   const pending = demo.pending;
   if (pending !== null) {
-    // Somebody is already being asked something: queue behind them rather
-    // than drop the card, which is what the blow that raised this deserves.
+    // Somebody is already being asked about a card of their own: queue behind
+    // them rather than drop this one. Behind any other question - a defence
+    // prompt, a script waiting on a roll - the offer is dropped, which nothing
+    // reaches today: the blows are all resolved by the time these are read.
     if (pending.kind === 'reaction') demo.pending = { ...pending, queued: [...pending.queued, ...waiting] };
     return;
   }
@@ -1819,7 +1823,20 @@ function askReaction(demo: DemoScene, offers: readonly ReactionOffer[], queued: 
  * A card that stops to ask something keeps the floor, exactly as an interrupt
  * does, and whatever was queued behind it is asked when it finishes.
  */
-function playReaction(demo: DemoScene, offer: ReactionOffer, queued: readonly (readonly ReactionOffer[])[] = []): void {
+function playReaction(
+  demo: DemoScene,
+  offer: ReactionOffer,
+  queued: readonly (readonly ReactionOffer[])[] = [],
+  /**
+   * Whether finishing this card is what the fight was waiting on.
+   *
+   * A free reaction runs in the middle of the blow that raised it - inside the
+   * GM's own turn - and must not pick that turn up again from there: the
+   * caller is still playing it. Only a card the player was asked about, or one
+   * that stopped to ask something of its own, resumes anything.
+   */
+  resume = false,
+): void {
   if (!payFor(demo, offer.by, offer.ability)) return;
   note(demo, `${nameOf(demo, offer.by)}: ${offer.ability.name}.`, 'hope');
   const was = demo.scenario.actorId;
@@ -1849,7 +1866,7 @@ function playReaction(demo: DemoScene, offer: ReactionOffer, queued: readonly (r
     return;
   }
   demo.scenario.actorId = was;
-  afterReaction(demo, queued);
+  if (resume) afterReaction(demo, queued);
 }
 
 /** Ask the next character what they make of it, or let the fight carry on. */
@@ -2323,6 +2340,16 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
   };
   applyAttack(demo.state, final);
   demo.world.endsOnAttack(attack.attacker);
+  // This path builds its own outcome rather than going through `world.attack`,
+  // so the blow is noted by hand - without it a card the defender holds for
+  // exactly this moment would never hear about it.
+  demo.world.noteDamage(attack.defender, {
+    attacker: attack.attacker,
+    hitPoints: final.hitPointsMarked,
+    damage: damage.amount,
+    types: damage.types,
+    severe: defense.resolved.severity === 'severe',
+  });
   landedFeatures(demo, attack, final.hitPointsMarked);
   const ended = [...demo.world.endsOnHit(attack.defender), ...(final.hitPointsMarked > 0 ? demo.world.endsOnDamage(attack.defender) : [])];
   for (const condition of ended) note(demo, `${who} is no longer ${condition}.`, 'system');
@@ -2530,7 +2557,7 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
     const before = demo.log.length;
     demo.pending = null;
     if (chosen === undefined) afterReaction(demo, waiting.queued);
-    else playReaction(demo, chosen, waiting.queued);
+    else playReaction(demo, chosen, waiting.queued, true);
     return settle(demo, demo.log.slice(before));
   }
 

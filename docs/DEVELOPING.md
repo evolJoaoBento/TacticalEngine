@@ -273,7 +273,9 @@ Once the blow is resolved, whoever it happened to gets to answer it. `playDamage
 drains the notes and reads them for both sides: a stat block's reactions run on their own, and
 so does a party card that costs nothing and asks nothing (Rise Up's "clear a Stress"). A card
 with a price — "you can spend 2 Hope to…" — is put to the player as a third kind of
-`demo.pending`, a `PendingReaction`, whose first option is always letting it pass. The same
+`demo.pending`, a `PendingReaction`, whose first option is always letting it pass. The line
+between the two is `auto && no cost`: a card that would be asked about anyway sets `auto: false`.
+The same
 happens on the party's own swing: `playAttackRiders` reads `dealtHit` and `dealtDamage` for
 whoever swung, so Healing Strike is offered after a player's attack the way a stat block's rider
 runs after the GM's. Every note is read before anyone is asked, because `drainDamage` clears as

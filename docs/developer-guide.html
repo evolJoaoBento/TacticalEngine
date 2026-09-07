@@ -708,7 +708,8 @@ footer {
   nothing (Rise Up's &ldquo;clear a Stress&rdquo;). A card with a price &mdash; &ldquo;you can
   spend 2 Hope to&hellip;&rdquo; &mdash; is put to the player as a third kind of
   <code>demo.pending</code>, a <code>PendingReaction</code>, whose first option is always letting
-  it pass. The same happens on the party's own swing: <code>playAttackRiders</code> reads
+  it pass. The line between the two is <code>auto</code> and no cost: a card that should be asked
+  about anyway sets <code>auto: false</code>. The same happens on the party's own swing: <code>playAttackRiders</code> reads
   <code>dealtHit</code> and <code>dealtDamage</code> for whoever swung, so Healing Strike is
   offered after a player's attack the way a stat block's rider runs after the GM's. Every note is
   read before anyone is asked, because <code>drainDamage</code> clears as it reports; what is not

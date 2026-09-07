@@ -996,6 +996,33 @@ describe("the party's own answer to a blow", () => {
     expect(demo.pending).toBeNull();
   });
 
+  it('answers a wound in the middle of the GM turn without taking the turn over', () => {
+    // The free half of Rise Up runs inside the GM's own swing, which is a
+    // place a script must not restart the turn it is standing in: the GM has
+    // adversaries left to spotlight, and they are the caller's to play.
+    const demo = holding(['rise-up'], 'rise-up-mid-turn');
+    demo.askDefender = false;
+    const kara = demo.state.entity('kara')!;
+    kara.hitPoints = { max: 40, marked: 0 };
+
+    for (let turn = 0; turn < 12 && kara.stress.marked === 0; turn++) {
+      kara.stress = { max: kara.stress.max, marked: 2 };
+      kara.armorSlots = { max: kara.armorSlots.max, marked: kara.armorSlots.max };
+      const before = kara.hitPoints.marked;
+      endTurn(demo);
+      if (kara.hitPoints.marked === before) continue;
+
+      // The Stress it clears is the card doing its work.
+      expect(kara.stress.marked).toBe(1);
+      // And the turn it did it in is over exactly once: the spotlight is back
+      // with the party, with nothing half-played behind it.
+      expect(demo.gmTurn).toBeNull();
+      expect(demo.encounter!.view().side).toBe('party');
+      return;
+    }
+    throw new Error('the husk never marked a Hit Point on Kara');
+  });
+
   it('reads the Severe threshold the card raises', () => {
     // The same sheet twice, the second holding the card: the only difference
     // between them is "a bonus to your Severe threshold equal to your
