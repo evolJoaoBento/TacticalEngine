@@ -831,6 +831,12 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /** A character's primary weapon dice (unarmed when they carry none); an adversary's attack. */
+  /** How far a character's weapon reaches, or nothing for anyone without one. */
+  weaponRange(id: string): RangeBand | null {
+    const character = this.characters.get(id);
+    return character === undefined ? null : attackProfile(character).range;
+  }
+
   weaponDamage(id: string): ParsedDamage | null {
     const character = this.characters.get(id);
     if (character !== undefined) return attackProfile(character).damage;
@@ -911,10 +917,13 @@ export class SceneScriptWorld implements ScriptWorld {
         return living(selector.ids);
       case 'target':
         return living(bindings.targets);
-      case 'hit':
-        return living(bindings.hit).filter(
+      case 'hit': {
+        const beaten = living(bindings.hit).filter(
           (id) => selector.having === undefined || this.state.entity(id)?.conditions.has(selector.having) === true,
         );
+        if (selector.nearest === undefined || this.scenario.actorId === null) return beaten;
+        return this.nearestFirst(this.scenario.actorId, beaten).slice(0, selector.nearest);
+      }
       case 'allies': {
         const actor = this.scenario.actorId;
         const left = selector.except === 'target' ? new Set(bindings.targets) : null;
@@ -944,10 +953,16 @@ export class SceneScriptWorld implements ScriptWorld {
           selector.sameKind !== true
             ? null
             : (this.scenario.actorId === null ? undefined : this.state.entity(this.scenario.actorId)?.definition) ?? '';
+        // "Within your weapon's range" is whatever the actor is holding; a
+        // creature the engine has no weapon for keeps the band the card named.
+        const reach =
+          selector.reach === 'weapon'
+            ? (this.scenario.actorId === null ? null : this.weaponRange(this.scenario.actorId)) ?? selector.range
+            : selector.range;
         const standing = this.state
           .entitiesOf('adversary')
           .filter((e) => e.alive && !(left?.has(e.id) ?? false) && (kind === null || e.definition === kind))
-          .filter((e) => this.within(origin, e.id, selector.range))
+          .filter((e) => this.within(origin, e.id, reach))
           .map((e) => e.id);
         if (selector.nearest === undefined) return standing;
         return this.nearestFirst(origin, standing).slice(0, selector.nearest);

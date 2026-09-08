@@ -386,6 +386,15 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // The same moment, and the same reason: the faces a blow came up are only
+    // there to be read while the blow is being held.
+    if (maxesADie(ability) && ability.trigger !== 'rollingDamage') {
+      add(
+        'warning',
+        `"${ability.id}" takes a damage die at its highest, which only its holder's own damage roll being counted has.`,
+        ability.id,
+      );
+    }
     if (namesABand(ability, true) && ability.source.kind === 'adversary') {
       add(
         'warning',
@@ -564,6 +573,15 @@ function takesAnotherSpotlight(ability: AbilityDef): boolean {
     if (effect.kind === 'spotlightAgain') again = true;
   });
   return again;
+}
+
+/** Whether anything in an ability lifts one of the blow's dice to its highest face. */
+function maxesADie(ability: AbilityDef): boolean {
+  let maxes = false;
+  walkEffects(ability.effects, (effect) => {
+    if (effect.kind === 'maxOneDie') maxes = true;
+  });
+  return maxes;
 }
 
 /** Whether anything in an ability sends its own card to the vault. */

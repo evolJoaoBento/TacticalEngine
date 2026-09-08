@@ -833,6 +833,24 @@ describe('what only a stat block has', () => {
           target: { kind: 'none' },
           effects: [{ kind: 'vaultCard' }],
         },
+        {
+          id: 'maxed-out-of-nowhere',
+          name: 'Maxed Out Of Nowhere',
+          source: { kind: 'domainCard', card: 'battle-cry' },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'tookDamage',
+          effects: [{ kind: 'maxOneDie' }],
+        },
+        {
+          id: 'maxed-mid-swing',
+          name: 'Maxed Mid Swing',
+          source: { kind: 'domainCard', card: 'battle-cry' },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'rollingDamage',
+          effects: [{ kind: 'maxOneDie' }],
+        },
       ],
     });
     const said = messages(project);
@@ -845,6 +863,9 @@ describe('what only a stat block has', () => {
     // And a stat block has no vault to put itself in.
     expect(said.some((m) => m.includes('"block-vaults-itself" places itself in the vault'))).toBe(true);
     expect(said.some((m) => m.includes('card-vaults-itself'))).toBe(false);
+    // A die is only there to be lifted while the blow is being held.
+    expect(said.some((m) => m.includes('"maxed-out-of-nowhere" takes a damage die at its highest'))).toBe(true);
+    expect(said.some((m) => m.includes('maxed-mid-swing'))).toBe(false);
     expect(said.some((m) => m.includes('thorns-in-time'))).toBe(false);
     expect(said.some((m) => m.includes('band-mid-swing'))).toBe(false);
     expect(said.some((m) => m.includes('forced-well'))).toBe(false);

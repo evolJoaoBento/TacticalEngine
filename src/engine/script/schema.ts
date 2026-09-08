@@ -146,8 +146,17 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
   /** Named creatures, in the order given: what a hook builds when it picks them itself. */
   z.object({ kind: z.literal('entities'), ids: z.array(z.string().min(1)) }),
   z.object({ kind: z.literal('target') }),
-  /** The creatures the last roll beat; `having` keeps only those with a condition. */
-  z.object({ kind: z.literal('hit'), having: z.string().min(1).optional() }),
+  /**
+   * The creatures the last roll beat; `having` keeps only those with a
+   * condition, and `nearest` only the closest few - "choose one of these
+   * targets", which the engine chooses the way every other automatic pick is
+   * made rather than asking.
+   */
+  z.object({
+    kind: z.literal('hit'),
+    having: z.string().min(1).optional(),
+    nearest: z.number().int().positive().optional(),
+  }),
   z.object({
     kind: z.literal('allies'),
     /** Living party members within this band of the actor. Everywhere when left out. */
@@ -166,6 +175,12 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('adversaries'),
     range: rangeBandSchema,
+    /**
+     * "All adversaries within your weapon's range": the reach of what the
+     * actor is holding, whatever that is, with `range` standing in for anyone
+     * holding nothing the engine can read - a stat block, an empty hand.
+     */
+    reach: z.literal('weapon').optional(),
     around: z.enum(['actor', 'target']).optional(),
     /**
      * Leave somebody out: the chosen target ("all other targets within
@@ -917,6 +932,15 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * no loadout, this does nothing.
    */
   z.object({ kind: z.literal('vaultCard') }),
+  /**
+   * "Use the maximum result of one of your damage dice instead of rolling it."
+   *
+   * A mid-swing effect, like `boostDamage` and `forceHitPoints`: it says
+   * nothing on its own and is read by whoever is holding the blow, because the
+   * faces the dice came up are not something a script can see. What it is
+   * worth is the difference between one die and what that die could have been.
+   */
+  z.object({ kind: z.literal('maxOneDie') }),
   /**
    * "Activate the countdown. It ticks down when a PC makes an attack roll.
    * When it triggers, ...": a clock the fight carries between turns.

@@ -8,7 +8,7 @@ import type { Rng } from '../engine/core/rng';
 import { rest, useAbility } from './demo-abilities';
 import { NO_TILE } from '../engine/grid/grid';
 import { adversaryTraits } from '../engine/combat/adversary-features';
-import type { DefenseChoice, PendingDeath, PendingDefense } from './demo-scene';
+import type { DefenseChoice, HeldSwing, PendingDeath, PendingDefense } from './demo-scene';
 import {
   SRD_CHARACTERS,
   adversaryDefOf,
@@ -2143,5 +2143,100 @@ describe('a swing that missed', () => {
     const dealt = journal.find((e) => e.kind === 'damage') as { dice: string } | undefined;
     expect(dealt).toBeDefined();
     expect(dealt!.dice.startsWith('3d')).toBe(true);
+  });
+});
+
+
+describe('a swing lifted, and a swing that names its own number', () => {
+  const hold = (demo: DemoScene, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it("lifts the lowest of the swing's dice to its highest face", () => {
+    // "Mark a Stress to use the maximum result of one of your damage dice
+    // instead of rolling it." The card is offered while the blow is held, and
+    // what it is worth is read off the faces the dice actually came up - which
+    // is why it journals nothing and the swing does the arithmetic.
+    const swing = (seed: string, play: boolean): { marked: number; lift: number; stress: number } | null => {
+      const demo = standoff(seed);
+      demo.askDefender = true;
+      hold(demo, ['versatile-fighter']);
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      husk.hitPoints = { max: 30, marked: 0 };
+      const result = attackWithSelected(demo, husk.id);
+      if (result === null || result.refused !== null || !result.hit) return null;
+      if (demo.pending?.kind !== 'reaction') return null;
+      const asked = demo.pending as { offers: readonly { ability: { id: string } }[]; landing?: HeldSwing };
+      if (asked.offers.map((o) => o.ability.id).join() !== 'versatile-fighter') return null;
+      const roll = asked.landing?.outcome.damageRoll;
+      if (roll === undefined) return null;
+      const lift = roll.expression.sides - Math.min(...roll.rolls);
+      answerPending(demo, { kind: 'choose', index: play ? 1 : 0 });
+      return { marked: husk.hitPoints.marked, lift, stress: demo.state.entity('kara')!.stress.marked };
+    };
+
+    for (let seed = 1; seed < 60; seed++) {
+      const name = `versatile-${seed}`;
+      const letPass = swing(name, false);
+      if (letPass === null || letPass.lift === 0) continue;
+      const played = swing(name, true);
+      if (played === null) continue;
+      // Only a lift that carries the blow over a threshold changes what is
+      // marked; when one does, it can only ever be upward.
+      expect(played.marked).toBeGreaterThanOrEqual(letPass.marked);
+      if (played.marked === letPass.marked) continue;
+      expect(played.marked).toBeGreaterThan(letPass.marked);
+      // And it cost a Stress, where letting it pass cost nothing.
+      expect(played.stress).toBe(letPass.stress + 1);
+      return;
+    }
+    throw new Error('no lifted die crossed a threshold in sixty tries');
+  });
+
+  it('reaps for five Hit Points, past thresholds and past armor', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = standoff(`reaper-${seed}`);
+      demo.askDefender = false;
+      hold(demo, ['reapers-strike']);
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      husk.hitPoints = { max: 30, marked: 0 };
+      husk.armorSlots = { max: 6, marked: 0 };
+      const hope = demo.state.entity('kara')!;
+      hope.hope = { max: 6, value: 3 };
+
+      expect(useAbility(demo, 'kara', 'reapers-strike', []).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (husk.hitPoints.marked === 0) continue;
+
+      // "Force them to mark 5 Hit Points": the number is the card's, so
+      // nothing about the husk - its thresholds, its armor - touches it.
+      expect(husk.hitPoints.marked).toBe(5);
+      expect(husk.armorSlots.marked).toBe(0);
+      // Paid for. What the roll itself gives back - a Hope on a success with
+      // Hope - is the action roll's business and not the card's.
+      expect(demo.log.some((l) => l.text.includes('Spends 1 Hope.'))).toBe(true);
+      // Once per long rest, counted the way an action card's uses are.
+      expect(demo.scenario.abilityUses.get(useKey('kara', 'reapers-strike'))).toBe(1);
+      return;
+    }
+    throw new Error('the reap never beat the husk in forty tries');
+  });
+
+  it("reads 'within your weapon's range' off the weapon, not off a band", () => {
+    const demo = standoff('reach');
+    // Kara swings a Melee weapon, so a selector that says `reach: 'weapon'`
+    // reaches Melee however wide a band it names as its fallback.
+    expect(demo.world.weaponRange('kara')).toBe('melee');
+    demo.scenario.actorId = 'kara';
+    const near = demo.world.resolveTargets({ kind: 'adversaries', range: 'far', reach: 'weapon' }, { targets: [], hit: [] });
+    const far = demo.world.resolveTargets({ kind: 'adversaries', range: 'far' }, { targets: [], hit: [] });
+    expect(near.length).toBeLessThanOrEqual(far.length);
+    for (const id of near) expect(demo.world.bandTo('kara', id)).toBe('melee');
+    // A stat block holds nothing the engine can read, so the band stands.
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    expect(demo.world.weaponRange(husk.id)).toBe(null);
   });
 });

@@ -489,6 +489,51 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // Simplified: "you can use a different character trait for an equipped
+  // weapon" is a choice made when the sheet is written rather than in a fight,
+  // and stays text. The half that belongs to a swing is scripted.
+  {
+    id: 'versatile-fighter',
+    name: 'Versatile Fighter',
+    source: card('versatile-fighter'),
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    auto: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The blow lands exactly where it was meant to.', tone: 'hope' },
+      { kind: 'maxOneDie' },
+    ],
+  },
+  // Simplified: "the GM tells you which targets it would succeed against.
+  // Choose one of these targets" is one roll read against every Difficulty in
+  // reach, and the choice among the ones it beat goes to the nearest - the
+  // same rule every other automatic pick here uses.
+  {
+    id: 'reapers-strike',
+    name: "Reaper's Strike",
+    source: card('reapers-strike'),
+    cost: { hope: 1 },
+    uses: { count: 1, per: 'longRest' },
+    inCombatOnly: true,
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'weapon',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'melee', reach: 'weapon' },
+          prompt: 'Reap: one roll, against everything the weapon reaches.',
+          // Five Hit Points, past thresholds and past armor: the number is the
+          // card's, not a blow's.
+          always: [{ kind: 'damage', amount: 5, target: { kind: 'hit', nearest: 1 } }],
+        },
+      },
+    ],
+  },
   // "Instead of making a death move": the other card that answers the fall, and
   // the cheaper of the two - a Hope rather than the card itself, for one Hit
   // Point rather than a d6 of them.

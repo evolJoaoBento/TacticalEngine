@@ -68,6 +68,7 @@ import {
   resolveDamage,
   rollDamage,
   rollReduction,
+  type DamageRollResult,
   type DamageSeverity,
   type IncomingDamage,
   type ResolvedDamage,
@@ -2669,6 +2670,11 @@ function asAnswered(landing: HeldSwing | undefined, journal: readonly JournalEnt
   let floor: DamageSeverity | undefined;
   for (const entry of journal) {
     if (entry.kind === 'damageBoosted') added += entry.by;
+    // "The maximum result of one of your damage dice instead of rolling it."
+    // Simplified: the lowest die of the roll is the one lifted, which is the
+    // one anybody would choose and saves asking. Read here rather than in the
+    // script because only the blow knows what the faces came up.
+    if (entry.kind === 'dieMaxed') added += liftLowest(landing.outcome.damageRoll);
     // Two cards forcing one blow is not a thing the SRD writes; the larger
     // wins, so the order they were played in decides nothing.
     if (entry.kind === 'hitPointsForced') forced = Math.max(forced ?? 0, entry.to);
@@ -2685,6 +2691,18 @@ function asAnswered(landing: HeldSwing | undefined, journal: readonly JournalEnt
     ...(band === undefined ? {} : { severity: worse(landing.severity, band) }),
     ...(floor === undefined ? {} : { floor: worse(landing.floor, floor) }),
   };
+}
+
+/**
+ * What lifting one die to its highest face is worth on a roll already made.
+ *
+ * The lowest of them, because that is the one a player would pick and there is
+ * nothing else to weigh. A roll with no dice in it - a flat weapon, a blow
+ * whose damage was forced - is worth nothing, which is the honest answer.
+ */
+function liftLowest(roll: DamageRollResult | undefined): number {
+  if (roll === undefined || roll.rolls.length === 0) return 0;
+  return Math.max(0, roll.expression.sides - Math.min(...roll.rolls));
 }
 
 /** The harder of two bands, for the same reason the larger of two forced numbers wins. */
