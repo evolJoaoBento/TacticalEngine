@@ -92,6 +92,13 @@ const RAW: ConditionInput[] = [
   // The Siren's song. "Until they mark 2 Stress" is a tally the engine does
   // not keep, so it runs to the end of the scene; what it does is let the
   // Siren's teeth find them, which is the Captive Audience passive.
+  // The Giant Scorpion's sting. The name is what the engine carries; the d6
+  // before every action roll is the block's own words and the table's to play.
+  {
+    id: 'poisoned',
+    name: 'Poisoned',
+    text: 'Venom is working through you.',
+  },
   // Breaking Blow. A crack in whatever it is wearing, waiting for the next
   // blow to go through it: a name and nothing else, spent by the blow it was
   // left for.

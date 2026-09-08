@@ -21,6 +21,8 @@ import {
 } from './session';
 import { validateProject } from './validate';
 import { SRD_ABILITIES } from '../engine/content/srd/abilities';
+import { runScript } from '../engine/script/runner';
+import type { Rng } from '../engine/core/rng';
 import { abilitiesOf, abilityTargets, useAbility } from '../game/demo-abilities';
 import {
   attackWithSelected,
@@ -1200,6 +1202,73 @@ describe("what the party puts behind its own blow", () => {
     ]);
     demo.state.entity('foe')!.conditions.delete('tolled');
     expect(demo.world.reactionsFor('vela', 'rollingDamage', { targets: ['foe'], hit: ['foe'] })).toEqual([]);
+  });
+});
+
+describe('a breath that only comes when the dice say so', () => {
+  /** Dice that always come up their best, for a feature whose gate is a d10. */
+  const everyDieHigh = (): Rng => {
+    const rng: Rng = {
+      next: () => 0.99,
+      nextInt: (max: number) => max - 1,
+      die: (sides: number) => sides,
+      dice: (count: number, sides: number) => Array.from({ length: count }, () => sides),
+      pick: <T,>(items: readonly T[]) => items[0]!,
+      shuffle: <T,>(items: T[]) => items,
+      fork: () => rng,
+      save: () => ({}) as ReturnType<Rng['save']>,
+      restore: () => {},
+    };
+    return rng;
+  };
+
+  const dragon = (seed: string) => {
+    const s = blank();
+    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(
+      addAdversary('hall', 'duel', {
+        id: 'foe',
+        adversary: 'volcanic-dragon-molten-scourge',
+        position: { x: 4, y: 4 },
+      }),
+    );
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('asks the d10 only when the wound was Major, and scorches the room when it comes up', () => {
+    const demo = dragon('lava');
+    const bound = { targets: [], hit: [] };
+
+    // "When the Molten Scourge takes Major damage": two Hit Points marked is
+    // the number the blow left behind, and one is not enough.
+    expect(demo.world.reactionsFor('foe', 'tookDamage', { ...bound, counts: { hitPointsTaken: 1 } })).toEqual([]);
+    expect(
+      demo.world
+        .reactionsFor('foe', 'tookDamage', { ...bound, counts: { hitPointsTaken: 2 } })
+        .map((a) => a.id),
+    ).toEqual(['volcanic-dragon-molten-scourge-volcanic-breath']);
+
+    // And with the d10 coming up, the lava reaches whoever is standing there.
+    const card = demo.world.reactionsFor('foe', 'tookDamage', { ...bound, counts: { hitPointsTaken: 2 } })[0]!;
+    const was = demo.scenario.actorId;
+    demo.scenario.actorId = 'foe';
+    const journal = runScript(card.effects, demo.world, everyDieHigh(), {
+      targets: [],
+      hit: [],
+      counts: { hitPointsTaken: 2 },
+    });
+    demo.scenario.actorId = was;
+    expect(journal.some((e) => e.kind === 'diceChecked' && e.passed)).toBe(true);
+    expect(journal.some((e) => e.kind === 'reaction')).toBe(true);
+    const kara = demo.state.entity('kara')!;
+    expect(kara.hitPoints.marked + kara.stress.marked).toBeGreaterThan(0);
   });
 });
 

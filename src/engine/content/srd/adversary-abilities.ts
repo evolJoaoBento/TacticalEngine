@@ -2642,6 +2642,247 @@ const RAW: Input[] = [
       { kind: 'forceSeverity', severity: 'severe' },
     ],
   },
+  // ---- a pass with the words the cards taught the vocabulary --------------
+  // Nine features that were text for no better reason than that nobody had
+  // written them: two blows that answer being defeated, a rider on a wound, a
+  // sting that leaves a name, and a breath that only comes if the dice say so.
+  {
+    id: 'vault-guardian-turret-detonation',
+    name: 'Detonation',
+    source: from('vault-guardian-turret'),
+    text: 'When the Turret is destroyed, they explode. All targets within Close range must make an Agility Reaction Roll. Targets who fail take 3d20 physical damage. Targets who succeed take half damage.',
+    kind: 'reaction',
+    trigger: 'defeated',
+    action: false,
+    effects: [
+      { kind: 'log', text: 'The Turret comes apart all at once.', tone: 'fear' },
+      {
+        kind: 'reactionRoll',
+        // The Turret's own Difficulty is what a reaction to it has to beat.
+        difficulty: 16,
+        trait: 'agility',
+        targets: { kind: 'allies', range: 'close' },
+        damage: { dice: '3d20', type: 'physical' },
+        onFail: [{ kind: 'damage', dice: 'same', target: { kind: 'hit' } }],
+        onSuccess: [{ kind: 'damage', dice: 'same', half: true, target: { kind: 'hit' } }],
+      },
+    ],
+  },
+  {
+    id: 'construct-death-quake',
+    name: 'Death Quake',
+    source: from('construct'),
+    text: 'When the Construct marks their last HP, the magic powering them ruptures in an explosion of force. Make an attack with advantage against all targets within Very Close range. Targets the Construct succeeds against take 1d12+2 magic damage.',
+    kind: 'reaction',
+    trigger: 'defeated',
+    action: false,
+    effects: [
+      { kind: 'log', text: 'The magic holding it together lets go.', tone: 'fear' },
+      {
+        kind: 'attack',
+        target: { kind: 'allies', range: 'veryClose' },
+        advantage: 1,
+        range: 'veryClose',
+        damage: '1d12+2',
+        onHit: [{ kind: 'damage', dice: 'same', type: 'magic', target: { kind: 'hit' } }],
+      },
+    ],
+  },
+  {
+    id: 'skeleton-knight-dig-two-graves',
+    name: 'Dig Two Graves',
+    source: from('skeleton-knight'),
+    text: 'When the Knight is defeated, they make an attack against a target within Very Close range (prioritizing the creature who killed them). On a success, the target takes 1d4+8 physical damage and loses 1d4 Hope.',
+    kind: 'reaction',
+    trigger: 'defeated',
+    action: false,
+    // Simplified: the swing goes to the nearest rather than to whoever struck
+    // the last blow - nothing hands a creature the name of the one who felled
+    // it - and the Hope lost is two rather than 1d4, because Hope is taken as
+    // a number.
+    effects: [
+      { kind: 'log', text: 'The Knight swings on the way down.', tone: 'fear' },
+      {
+        kind: 'attack',
+        target: { kind: 'allies', range: 'veryClose', nearest: 1 },
+        range: 'veryClose',
+        damage: '1d4+8',
+        onHit: [
+          { kind: 'damage', dice: 'same', target: { kind: 'hit' } },
+          { kind: 'loseHope', amount: 2, target: { kind: 'hit' } },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'tiny-red-ooze-burning',
+    name: 'Burning',
+    source: from('tiny-red-ooze'),
+    text: 'When a creature within Melee range deals damage to the Ooze, they take 1d6 direct magic damage.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    available: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } },
+    effects: [
+      { kind: 'log', text: 'The ooze burns whatever touches it.', tone: 'fear' },
+      { kind: 'damage', dice: '1d6', type: 'magic', direct: true, target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'giant-mosquitoes-bloodsucker',
+    name: 'Bloodsucker',
+    source: from('giant-mosquitoes'),
+    text: "When the Mosquitoes' attack causes a target to mark HP, you can mark a Stress to force the target to mark an additional HP.",
+    kind: 'reaction',
+    trigger: 'dealtDamage',
+    action: false,
+    cost: { stress: 1 },
+    effects: [
+      { kind: 'log', text: 'They drink, and keep drinking.', tone: 'fear' },
+      { kind: 'damage', amount: 1, target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'skeleton-archer-deadly-shot',
+    name: 'Deadly Shot',
+    source: from('skeleton-archer'),
+    text: 'Make an attack against a Vulnerable target within Far range. On a success, mark a Stress to deal 3d4+8 physical damage.',
+    cost: { stress: 1 },
+    target: { kind: 'creature', range: 'far', when: { kind: 'hasCondition', condition: 'vulnerable', of: { kind: 'target' } } },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'The Archer picks its shot.', tone: 'fear' },
+      {
+        kind: 'attack',
+        range: 'far',
+        damage: '3d4+8',
+        onHit: [{ kind: 'damage', dice: 'same', target: { kind: 'hit' } }],
+      },
+    ],
+  },
+  {
+    id: 'jagged-knife-lieutenant-coup-de-grace',
+    name: 'Coup de Grace',
+    source: from('jagged-knife-lieutenant'),
+    text: 'Spend a Fear to make an attack against a Vulnerable target within Close range. On a success, deal 2d6+12 physical damage and the target must mark a Stress.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close', when: { kind: 'hasCondition', condition: 'vulnerable', of: { kind: 'target' } } },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'The Lieutenant finishes what somebody else started.', tone: 'fear' },
+      {
+        kind: 'attack',
+        range: 'close',
+        damage: '2d6+12',
+        onHit: [
+          { kind: 'damage', dice: 'same', target: { kind: 'hit' } },
+          { kind: 'markStress', amount: 1, target: { kind: 'hit' } },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'jagged-knife-hexer-chaotic-flux',
+    name: 'Chaotic Flux',
+    source: from('jagged-knife-hexer'),
+    text: 'Make an attack against up to three targets within Very Close range. Mark a Stress to deal 2d6+3 magic damage to targets the Hexer succeeded against.',
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'veryClose' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'The air comes apart around them.', tone: 'fear' },
+      {
+        kind: 'attack',
+        target: { kind: 'allies', range: 'veryClose', nearest: 3 },
+        range: 'veryClose',
+        damage: '2d6+3',
+        onHit: [{ kind: 'damage', dice: 'same', type: 'magic', target: { kind: 'hit' } }],
+      },
+    ],
+  },
+  {
+    id: 'giant-scorpion-double-strike',
+    name: 'Double Strike',
+    source: from('giant-scorpion'),
+    text: 'Mark a Stress to make a standard attack against two targets within Melee range.',
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'melee' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'Both pincers, at once.', tone: 'fear' },
+      {
+        kind: 'attack',
+        target: { kind: 'allies', range: 'melee', nearest: 2 },
+        onHit: [{ kind: 'damage', dice: 'same', target: { kind: 'hit' } }],
+      },
+    ],
+  },
+  {
+    id: 'giant-scorpion-venomous-stinger',
+    name: 'Venomous Stinger',
+    source: from('giant-scorpion'),
+    text: 'Make an attack against a target within Very Close range. On a success, spend a Fear to deal 1d4+4 physical damage and Poison them until their next rest or they succeed on a Knowledge Roll (16).',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'veryClose' },
+    inCombatOnly: true,
+    // Simplified: the Fear is spent to make the sting rather than after it
+    // lands, and the venom is a name on them - the d6 before every action roll
+    // is the block's own words, and shaking it off is a roll out of a fight.
+    effects: [
+      { kind: 'log', text: 'The tail comes over the top.', tone: 'fear' },
+      {
+        kind: 'attack',
+        range: 'veryClose',
+        damage: '1d4+4',
+        onHit: [
+          { kind: 'damage', dice: 'same', target: { kind: 'hit' } },
+          { kind: 'applyCondition', condition: 'poisoned', duration: 'scene', target: { kind: 'hit' } },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'volcanic-dragon-molten-scourge-volcanic-breath',
+    name: 'Volcanic Breath',
+    source: from('volcanic-dragon-molten-scourge'),
+    text: 'When the Molten Scourge takes Major damage, roll a d10. On a result of 8 or higher, the Molten Scourge breathes a flow of lava in front of them within Far range. All targets in that area must make an Agility Reaction Roll. Targets who fail take 2d10+4 physical damage, mark 1d4 Stress, and are Vulnerable until they clear a Stress. Targets who succeed take half damage and must mark a Stress.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    // "Major damage" is two Hit Points marked, which is the number the blow
+    // left behind rather than a band anything reads.
+    available: { kind: 'count', of: 'hitPointsTaken', op: '>=', value: 2 },
+    // Simplified: the lava reaches the whole band rather than a flow in front
+    // of the Dragon, as Spit Acid has always done; the Stress marked is two
+    // rather than 1d4; and Vulnerable lasts the scene rather than until they
+    // clear a Stress.
+    effects: [
+      {
+        kind: 'diceCheck',
+        dice: '1d10',
+        atLeast: 8,
+        then: [
+          { kind: 'log', text: "Lava comes up the Dragon's throat.", tone: 'fear' },
+          {
+            kind: 'reactionRoll',
+            difficulty: 20,
+            trait: 'agility',
+            targets: { kind: 'allies', range: 'far' },
+            damage: { dice: '2d10+4', type: 'physical' },
+            onFail: [
+              { kind: 'damage', dice: 'same', target: { kind: 'hit' } },
+              { kind: 'markStress', amount: 2, target: { kind: 'hit' } },
+              { kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: { kind: 'hit' } },
+            ],
+            onSuccess: [
+              { kind: 'damage', dice: 'same', half: true, target: { kind: 'hit' } },
+              { kind: 'markStress', amount: 1, target: { kind: 'hit' } },
+            ],
+          },
+        ],
+      },
+    ],
+  },
   // ---- what the two of them make of each other ---------------------------
   // A passive that moves a roll rather than a pool. `advantage` is a signed
   // count of dice, and `against: true` puts it on the rolls made at the one

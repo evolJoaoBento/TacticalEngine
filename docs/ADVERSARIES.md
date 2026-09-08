@@ -82,8 +82,10 @@ engine has no place to put:
   much to do, one that decides how many creatures a spotlight reaches, and a Fear
   cost that is a number rather than a price - the vocabulary gains Fear and never
   spends it.
-- **a condition the SRD prints once** — Entranced, Poisoned, Cursed, Deathlock and the
-  rest: written into that one block rather than into the rules.
+- **a condition the SRD prints once** — Entranced, Cursed, Deathlock and the
+  rest: written into that one block rather than into the rules. A few have since been
+  written down as a name and nothing more - Poisoned is one - where what the name does
+  is the block's own words and the table's to play.
 - **a social beat** — a bargain, a rumour, a scapegoat: a scene rather than a grid.
 - **an offer to the player** - "they can choose to reroll their Fear Die". What the room
   makes of a roll the party made now runs (`partyRolled`, with a `rolled` gate reading
@@ -122,7 +124,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 192. Text: 152.
+Read: 73. Scripted: 203. Text: 141.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -141,7 +143,7 @@ Read: 73. Scripted: 192. Text: 152.
 | Construct | Weak Structure | Passive | **text** — the GM's to play |
 | Construct | Trample | Action | **text** — the GM's to play |
 | Construct | Overload | Reaction | **scripted** — runs as an ability |
-| Construct | Death Quake | Reaction | **text** — the GM's to play |
+| Construct | Death Quake | Reaction | **scripted** — runs as an ability |
 | Courtier | Mockery | Action | **scripted** — runs as an ability |
 | Courtier | Scapegoat | Action | **text** — the GM's to play |
 | Deeproot Defender | Ground Slam | Action | **scripted** — runs as an ability |
@@ -150,11 +152,11 @@ Read: 73. Scripted: 192. Text: 152.
 | Dire Wolf | Hobbling Strike | Action | **scripted** — runs as an ability |
 | Giant Mosquitoes | Horde (1d4+1) | Passive | **read** — read off the stat block |
 | Giant Mosquitoes | Flying | Passive | **scripted** — runs as an ability |
-| Giant Mosquitoes | Bloodsucker | Reaction | **text** — the GM's to play |
+| Giant Mosquitoes | Bloodsucker | Reaction | **scripted** — runs as an ability |
 | Giant Rat | Minion (3) | Passive | **read** — read off the stat block |
 | Giant Rat | Group Attack | Action | **scripted** — runs as an ability |
-| Giant Scorpion | Double Strike | Action | **text** — the GM's to play |
-| Giant Scorpion | Venomous Stinger | Action | **text** — the GM's to play |
+| Giant Scorpion | Double Strike | Action | **scripted** — runs as an ability |
+| Giant Scorpion | Venomous Stinger | Action | **scripted** — runs as an ability |
 | Giant Scorpion | Momentum | Reaction | **read** — read off the stat block |
 | Glass Snake | Armor-Shredding Shards | Passive | **text** — the GM's to play |
 | Glass Snake | Spinning Serpent | Action | **scripted** — runs as an ability |
@@ -170,14 +172,14 @@ Read: 73. Scripted: 192. Text: 152.
 | Jagged Knife Bandit | Climber | Passive | **text** — the GM's to play |
 | Jagged Knife Bandit | From Above | Passive | **text** — the GM's to play |
 | Jagged Knife Hexer | Curse | Action | **text** — the GM's to play |
-| Jagged Knife Hexer | Chaotic Flux | Action | **text** — the GM's to play |
+| Jagged Knife Hexer | Chaotic Flux | Action | **scripted** — runs as an ability |
 | Jagged Knife Kneebreaker | I've Got 'Em | Passive | **text** — the GM's to play |
 | Jagged Knife Kneebreaker | Hold Them Down | Action | **text** — the GM's to play |
 | Jagged Knife Lackey | Minion (3) | Passive | **read** — read off the stat block |
 | Jagged Knife Lackey | Group Attack | Action | **scripted** — runs as an ability |
 | Jagged Knife Lieutenant | Tactician | Action | **scripted** — runs as an ability |
 | Jagged Knife Lieutenant | More Where That Came From | Action | **scripted** — runs as an ability |
-| Jagged Knife Lieutenant | Coup de Grace | Action | **text** — the GM's to play |
+| Jagged Knife Lieutenant | Coup de Grace | Action | **scripted** — runs as an ability |
 | Jagged Knife Lieutenant | Momentum | Reaction | **read** — read off the stat block |
 | Jagged Knife Shadow | Backstab | Passive | **text** — the GM's to play |
 | Jagged Knife Shadow | Cloaked | Action | **text** — the GM's to play |
@@ -209,7 +211,7 @@ Read: 73. Scripted: 192. Text: 152.
 | Red Ooze | Creeping Fire | Passive | **text** — the GM's to play |
 | Red Ooze | Ignite | Action | **text** — the GM's to play |
 | Red Ooze | Split | Reaction | **scripted** — runs as an ability |
-| Tiny Red Ooze | Burning | Reaction | **text** — the GM's to play |
+| Tiny Red Ooze | Burning | Reaction | **scripted** — runs as an ability |
 | Petty Noble | My Land, My Rules | Passive | **text** — the GM's to play |
 | Petty Noble | Guards, Seize Them! | Action | **scripted** — runs as an ability |
 | Petty Noble | Exile | Action | **text** — the GM's to play |
@@ -224,12 +226,12 @@ Read: 73. Scripted: 192. Text: 152.
 | Sellsword | Minion (4) | Passive | **read** — read off the stat block |
 | Sellsword | Group Attack | Action | **scripted** — runs as an ability |
 | Skeleton Archer | Opportunist | Passive | **text** — the GM's to play |
-| Skeleton Archer | Deadly Shot | Action | **text** — the GM's to play |
+| Skeleton Archer | Deadly Shot | Action | **scripted** — runs as an ability |
 | Skeleton Dredge | Minion (4) | Passive | **read** — read off the stat block |
 | Skeleton Dredge | Group Attack | Action | **scripted** — runs as an ability |
 | Skeleton Knight | Terrifying | Passive | **read** — read off the stat block |
 | Skeleton Knight | Cut to the Bone | Action | **scripted** — runs as an ability |
-| Skeleton Knight | Dig Two Graves | Reaction | **text** — the GM's to play |
+| Skeleton Knight | Dig Two Graves | Reaction | **scripted** — runs as an ability |
 | Skeleton Warrior | Only Bones | Passive | **scripted** — runs as an ability |
 | Skeleton Warrior | Won't Stay Dead | Reaction | **text** — the GM's to play |
 | Spellblade | Arcane Steel | Passive | **text** — the GM's to play |
@@ -453,7 +455,7 @@ Read: 73. Scripted: 192. Text: 152.
 | Vault Guardian Turret | Slow Firing | Passive | **scripted** — runs as an ability |
 | Vault Guardian Turret | Mark Target | Action | **text** — the GM's to play |
 | Vault Guardian Turret | Concentrate Fire | Reaction | **scripted** — runs as an ability |
-| Vault Guardian Turret | Detonation | Reaction | **text** — the GM's to play |
+| Vault Guardian Turret | Detonation | Reaction | **scripted** — runs as an ability |
 | Young Ice Dragon | Relentless (3) | Passive | **read** — read off the stat block |
 | Young Ice Dragon | Rend and Crush | Passive | **text** — the GM's to play |
 | Young Ice Dragon | No Hope | Passive | **scripted** — runs as an ability |
@@ -525,7 +527,7 @@ Read: 73. Scripted: 192. Text: 152.
 | Volcanic Dragon: Molten Scourge | Cracked Scales | Passive | **text** — the GM's to play |
 | Volcanic Dragon: Molten Scourge | Shattering Might | Action | **scripted** — runs as an ability |
 | Volcanic Dragon: Molten Scourge | Eruption | Action | **text** — the GM's to play |
-| Volcanic Dragon: Molten Scourge | Volcanic Breath | Reaction | **text** — the GM's to play |
+| Volcanic Dragon: Molten Scourge | Volcanic Breath | Reaction | **scripted** — runs as an ability |
 | Volcanic Dragon: Molten Scourge | Lava Splash | Reaction | **scripted** — runs as an ability |
 | Volcanic Dragon: Molten Scourge | Ashen Vengeance (Phase Change) | Reaction | **scripted** — runs as an ability |
 | Volcanic Dragon: Ashen Tyrant | Relentless (4) | Passive | **read** — read off the stat block |
