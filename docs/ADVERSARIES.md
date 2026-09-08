@@ -73,11 +73,15 @@ engine has no place to put:
   amount can be written as a count (`hitPointsTaken`, `hitPointsDealt`, `targetsHit`)
   and a feature can be gated on one, which is what "when the Brawler marks 2 or more
   HP" was waiting for. Damage sent back is `dice: 'same'`, which keeps the blow's own
-  dice and type. What stays text is every other number: one the block keeps rather than
-  the blow (handfuls of gold, the Assassin's unmarked Stress), one spent per target
-  rather than in total ("lose a number of Hope equal to the HP they marked"), dice
-  rolled one per Hit Point, and a Fear cost that is a number rather than a price - the
-  vocabulary gains Fear and never spends it.
+  dice and type. An amount can also be read off a pool - a bonus equal to the
+  number of Hit Points a creature has marked - with the same three words the
+  `pool` condition asks with, so a gate and an amount read one number. What stays
+  text is every other number: one the block keeps rather than a pool (handfuls of
+  gold), one spent per target rather than in total ("lose a number of Hope equal
+  to the HP they marked"), one that says how many dice to roll rather than how
+  much to do, one that decides how many creatures a spotlight reaches, and a Fear
+  cost that is a number rather than a price - the vocabulary gains Fear and never
+  spends it.
 - **a condition the SRD prints once** — Entranced, Poisoned, Cursed, Deathlock and the
   rest: written into that one block rather than into the rules.
 - **a social beat** — a bargain, a rumour, a scapegoat: a scene rather than a grid.
@@ -114,7 +118,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 189. Text: 155.
+Read: 73. Scripted: 191. Text: 153.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -189,7 +193,7 @@ Read: 73. Scripted: 189. Text: 155.
 | Minor Demon | Relentless (2) | Passive | **read** — read off the stat block |
 | Minor Demon | All Must Fall | Passive | **scripted** — runs as an ability |
 | Minor Demon | Hellfire | Action | **scripted** — runs as an ability |
-| Minor Demon | Reaper | Reaction | **text** — the GM's to play |
+| Minor Demon | Reaper | Reaction | **scripted** — runs as an ability |
 | Minor Demon | Momentum | Reaction | **read** — read off the stat block |
 | Minor Treant | Minion (5) | Passive | **read** — read off the stat block |
 | Minor Treant | Group Attack | Action | **scripted** — runs as an ability |
@@ -386,7 +390,7 @@ Read: 73. Scripted: 189. Text: 155.
 | Demon of Hubris | The Root of Villainy | Action | **scripted** — runs as an ability |
 | Demon of Hubris | You Pale in Comparison | Reaction | **scripted** — runs as an ability |
 | Demon of Jealousy | Unprotected Mind | Passive | **scripted** — runs as an ability |
-| Demon of Jealousy | My Turn | Reaction | **text** — the GM's to play |
+| Demon of Jealousy | My Turn | Reaction | **scripted** — runs as an ability |
 | Demon of Jealousy | Rivalry | Reaction | **scripted** — runs as an ability |
 | Demon of Jealousy | What's Yours Is Mine | Reaction | **text** — the GM's to play |
 | Demon of Wrath | Anger Unrelenting | Passive | **scripted** — runs as an ability |

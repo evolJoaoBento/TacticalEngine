@@ -2142,6 +2142,52 @@ const RAW: Input[] = [
       { kind: 'loseHope', target: { kind: 'allies', range: 'close', except: 'target' } },
     ],
   },
+  // ---- a number read off a pool -------------------------------------------
+  // "A bonus to the damage roll equal to the Demon's current number of marked
+  // HP." An amount can now be a pool read - the same three words the `pool`
+  // condition asks with, so a feature's gate and its amount read the same
+  // number. Nobody there is a quiet zero rather than a refusal.
+  //
+  // What still stays text is a number a block keeps rather than a pool
+  // (handfuls of gold), one that decides how many dice to roll rather than how
+  // much to do, and one that has to be counted per target rather than across
+  // the swing.
+  {
+    id: 'minor-demon-reaper',
+    name: 'Reaper',
+    source: from('minor-demon'),
+    text: "Before rolling damage for the Demon's attack, you can mark a Stress to gain a bonus to the damage roll equal to the Demon's current number of marked HP.",
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    cost: { stress: 1 },
+    // Unhurt, the bonus is nothing, and a Stress for nothing is a Stress
+    // wasted: the Demon only reaps once something has been taken out of it.
+    available: { kind: 'pool', pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked', op: '>=', value: 1 },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Everything the Demon has lost, it puts behind the claws.', tone: 'fear' },
+      { kind: 'boostDamage', amount: { pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked' } },
+    ],
+  },
+  {
+    id: 'demon-of-jealousy-my-turn',
+    name: 'My Turn',
+    source: from('demon-of-jealousy'),
+    text: 'When the Demon marks HP from an attack, spend a number of Fear equal to the HP marked by the Demon to cause the attacker to mark the same number of HP.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    cost: { fear: 1 },
+    // Simplified: the Fear is one rather than one for each Hit Point. What it
+    // buys is exact - the wound the Demon took, handed back - because that is a
+    // count the blow carries.
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The Demon will not be the only one bleeding.', tone: 'fear' },
+      { kind: 'damage', amount: 'hitPointsTaken', target: { kind: 'target' } },
+    ],
+  },
   // ---- the blow that has landed and not yet been counted ------------------
   // "Before rolling damage for the Construct's attack, mark a Stress to gain a
   // +10 bonus to the damage roll." One moment, two halves: a block adding to

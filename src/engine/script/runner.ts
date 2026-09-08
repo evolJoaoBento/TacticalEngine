@@ -48,7 +48,7 @@ import {
   type LogTone,
   type TargetSelector,
 } from './effects';
-import type { CheckTrait, ConditionDuration, CountName } from './schema';
+import type { Amount, CheckTrait, ConditionDuration, CountName } from './schema';
 import { COUNT_NAMES } from './schema';
 
 /** What one damage event did to one creature. */
@@ -450,9 +450,17 @@ export class ScriptRunner {
    * asked for rather than kept, because the roll that bound `hit` may have
    * happened since this script started.
    */
-  private amountOf(amount: number | CountName | undefined, fallback = 1): number {
+  private amountOf(amount: Amount | undefined, fallback = 1): number {
     if (amount === undefined) return fallback;
     if (typeof amount === 'number') return amount;
+    if (typeof amount === 'object') {
+      // "Equal to the Demon's current number of marked HP": the actor's own
+      // when nothing says otherwise, and nobody there is a quiet zero rather
+      // than a refusal, the way an empty count is.
+      const who = this.resolve(amount.of ?? { kind: 'actor' })[0];
+      if (who === undefined) return 0;
+      return this.world.poolValue(who, amount.pool, amount.measure ?? 'marked') ?? 0;
+    }
     if (amount === 'targetsHit') return this.hit.length;
     return this.counts[amount];
   }

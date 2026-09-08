@@ -821,6 +821,55 @@ describe('what the room makes of a roll', () => {
   });
 });
 
+describe('a number read off a pool', () => {
+  /** Kara toe to toe with something, the fight already on. */
+  const facing = (adversary: string, seed: string) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.state.entity('kara')!.hitPoints = { max: 90, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('puts what the Demon has lost behind the claws, and nothing when it is whole', () => {
+    // "A bonus to the damage roll equal to the Demon's current number of
+    // marked HP." Two runs of the same fixture and the same seed, the only
+    // difference being what has been taken out of the Demon.
+    const reap = (marked: number): string => {
+      const demo = facing('minor-demon', 'reaper');
+      demo.state.entity('foe')!.hitPoints = { max: 8, marked };
+      demo.state.entity('foe')!.stress = { max: 4, marked: 0 };
+      endTurn(demo);
+      expect(demo.log.some((l) => l.text.includes('Claws'))).toBe(true);
+      return demo.log.map((l) => l.text).join(' | ');
+    };
+    expect(reap(3)).toContain('The blow lands harder by 3.');
+    // Whole, it says nothing at all - and keeps the Stress it would have paid.
+    const whole = reap(0);
+    expect(whole).not.toContain('lands harder');
+    expect(whole).not.toContain('behind the claws');
+  });
+
+  it('hands back exactly the wound it took', () => {
+    // "Cause the attacker to mark the same number of HP", which is a count the
+    // blow carries rather than a pool - but the Fear it costs is one either way.
+    const demo = facing('demon-of-jealousy', 'my-turn');
+    demo.state.entity('foe')!.hitPoints = { max: 90, marked: 0 };
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    const before = demo.state.entity('kara')!.hitPoints.marked;
+    demo.world.noteDamage('foe', { attacker: 'kara', hitPoints: 2, damage: 20, types: ['physical'] });
+    settleFight(demo);
+    expect(demo.log.some((l) => l.text.includes('will not be the only one bleeding'))).toBe(true);
+    expect(demo.state.entity('kara')!.hitPoints.marked - before).toBe(2);
+  });
+});
+
 describe('the blow that has landed and not yet been counted', () => {
   /** One thing swinging at Kara, and optionally somebody watching. */
   const swinging = (adversary: string, seed: string, bystander?: { id: string; adversary: string; at: { x: number; y: number } }) => {

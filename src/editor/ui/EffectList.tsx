@@ -14,7 +14,7 @@
  * authoring error cannot be made here at all.
  */
 
-import type { CountName, Effect, TargetSelector } from '../../engine/script/schema';
+import type { Amount, CountName, Effect, PoolName, TargetSelector } from '../../engine/script/schema';
 import { COUNT_NAMES } from '../../engine/script/schema';
 import type { QuestDef } from '../../engine/content/quests';
 import { RANGE_BANDS, type RangeBand } from '../../engine/rules/range';
@@ -157,6 +157,9 @@ const LABELS: Readonly<Record<Addable, string>> = {
 
 /** The bands a `push` can name. */
 const BANDS = RANGE_BANDS.filter((band) => band !== 'outOfRange');
+
+/** The pools an amount can be read off. */
+const POOL_NAMES: readonly string[] = ['hitPoints', 'stress', 'armorSlots', 'hope'];
 
 const row: Record<string, string | number> = {
   display: 'flex',
@@ -414,31 +417,47 @@ function renderBody(
   );
 
   /**
-   * A written number, or one read off the blow that called for the feature:
-   * "cause the attacker to mark the same number of HP". Picking a count hides
-   * the number, because the two are alternatives rather than a pair.
+   * A written number, one read off the blow that called for the feature
+   * ("cause the attacker to mark the same number of HP"), or one read off a
+   * pool ("equal to the Demon's current number of marked HP"). Picking one
+   * hides the others, because they are alternatives rather than a pair.
    */
-  const amount = (value: number | CountName, set: (n: number | CountName) => Effect): preact.JSX.Element => (
-    <>
-      <select
-        style={{ ...field, flex: 'none', width: '124px' }}
-        data-role="amount-source"
-        value={typeof value === 'number' ? '' : value}
-        onChange={(e) => {
-          const picked = (e.target as HTMLSelectElement).value;
-          onChange(set(picked === '' ? 1 : (picked as CountName)));
-        }}
-      >
-        <option value="">a number</option>
-        {COUNT_NAMES.map((name) => (
-          <option key={name} value={name}>
-            {COUNT_LABELS[name]}
-          </option>
-        ))}
-      </select>
-      {typeof value === 'number' ? count(value, set) : null}
-    </>
-  );
+  const amount = (value: Amount, set: (n: Amount) => Effect): preact.JSX.Element => {
+    const read = typeof value === 'object' ? value : null;
+    const source = typeof value === 'object' ? 'pool' : typeof value === 'number' ? '' : value;
+    return (
+      <>
+        <select
+          style={{ ...field, flex: 'none', width: '124px' }}
+          data-role="amount-source"
+          value={source}
+          onChange={(e) => {
+            const picked = (e.target as HTMLSelectElement).value;
+            if (picked === '') onChange(set(1));
+            else if (picked === 'pool') onChange(set({ pool: 'hitPoints', measure: 'marked' }));
+            else onChange(set(picked as CountName));
+          }}
+        >
+          <option value="">a number</option>
+          {COUNT_NAMES.map((name) => (
+            <option key={name} value={name}>
+              {COUNT_LABELS[name]}
+            </option>
+          ))}
+          <option value="pool">a pool of theirs</option>
+        </select>
+        {typeof value === 'number' ? count(value, set) : null}
+        {read === null ? null : (
+          <>
+            {pick(read.pool, POOL_NAMES, (pool) => set({ ...read, pool: pool as PoolName }))}
+            {pick(read.measure ?? 'marked', ['marked', 'available', 'max'], (measure) =>
+              set({ ...read, measure: measure as 'marked' | 'available' | 'max' }),
+            )}
+          </>
+        )}
+      </>
+    );
+  };
 
   const flag = (label: string, hint: string, on: boolean, set: (v: boolean) => Effect): preact.JSX.Element => (
     <label style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }} title={hint}>

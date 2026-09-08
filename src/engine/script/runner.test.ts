@@ -629,6 +629,36 @@ describe('the runner as a whole', () => {
     expect(dealt).toEqual([{ amount: 5, types: ['physical'] }]);
   });
 
+  it('reads an amount off a pool, and off nobody as a quiet zero', () => {
+    // "A bonus to the damage roll equal to the Demon's current number of
+    // marked HP": the actor's own pool when nothing says otherwise.
+    const asked: [string, string, string][] = [];
+    const stub = stubWorld({
+      actorId: () => 'demon',
+      resolveTargets: (selector) => (selector.kind === 'actor' ? ['demon'] : []),
+      poolValue: (id, pool, measure) => {
+        asked.push([id, pool, measure]);
+        return 3;
+      },
+    });
+    const journal = runScript(
+      [{ kind: 'boostDamage', amount: { pool: 'hitPoints', measure: 'marked' } }],
+      stub,
+      createRng(1),
+    );
+    expect(journal).toContainEqual({ kind: 'damageBoosted', id: 'demon', by: 3 });
+    expect(asked).toEqual([['demon', 'hitPoints', 'marked']]);
+
+    // Nobody to read it off is nothing added, not a refusal.
+    const nobody = runScript(
+      [{ kind: 'boostDamage', amount: { pool: 'hitPoints', of: { kind: 'target' } } }],
+      stub,
+      createRng(1),
+    );
+    expect(nobody.some((e) => e.kind === 'damageBoosted')).toBe(false);
+    expect(nobody.some((e) => e.kind === 'refused')).toBe(false);
+  });
+
   it('says the spotlight is over without stopping the script', () => {
     // `endSpotlight` is a note to the turn, not a bail: the effects after it
     // still run, and it names the creature whose turn it was.

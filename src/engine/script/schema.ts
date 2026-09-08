@@ -64,7 +64,25 @@ export type CountName = (typeof COUNT_NAMES)[number];
 const countNameSchema = z.enum(COUNT_NAMES);
 
 /** A written number, or one the script reads off what has just happened. */
-const amountSchema = z.union([z.number().int().positive(), countNameSchema]);
+/**
+ * A number read off somebody's pool: "a bonus equal to the Demon's current
+ * number of marked HP", "mark Hit Points equal to the number you have marked".
+ *
+ * The same three words the `pool` condition asks with, so an amount and a gate
+ * on the same number read the same. `of` is the actor when left out, and
+ * `measure` is what is marked - which is what every one of these means.
+ */
+export const amountReadSchema = z.object({
+  pool: poolNameSchema,
+  get of() {
+    return targetSelectorSchema.optional();
+  },
+  measure: z.enum(['available', 'marked', 'max']).optional(),
+});
+
+const amountSchema = z.union([z.number().int().positive(), countNameSchema, amountReadSchema]);
+
+export type Amount = z.infer<typeof amountSchema>;
 
 export const compareOpSchema = z.enum(['==', '!=', '<', '<=', '>', '>=']);
 
