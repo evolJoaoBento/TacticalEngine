@@ -3380,3 +3380,80 @@ describe('a shout the next one hears', () => {
     throw new Error('Kara was never offered the card in sixty tries');
   });
 });
+
+
+describe('one swing through all of them', () => {
+  /** Kara with the card in hand and two husks standing beside her. */
+  const surrounded = (seed: string, cards: string[]) => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 60, marked: 0 };
+    const other = demo.state.entitiesOf('adversary').find((e) => !e.alive)!;
+    other.alive = true;
+    other.hitPoints = { max: 60, marked: 0 };
+    const blocked = demo.state.blockedFor(other.id);
+    let stand = NO_TILE;
+    demo.grid.forEachNeighbor(demo.state.entity('kara')!.tile, false, (tile) => {
+      if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) stand = tile;
+    });
+    demo.state.moveEntity(other.id, stand);
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    return { demo, husk, other };
+  };
+
+  it('swings at everything within the weapon and spends a Hope for it', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const { demo, husk, other } = surrounded(`splinter-${seed}`, ['splintering-strike']);
+      const said = demo.log.length;
+      expect(useAbility(demo, 'kara', 'splintering-strike', []).status).not.toBe('refused');
+      let guard = 0;
+      while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
+      const after = demo.log.slice(said).map((l) => l.text);
+
+      // Both of them were swung at, whatever came of it.
+      const named = adversaryDefOf(demo, husk.id)!.name;
+      expect(after.filter((t) => t.includes(named)).length).toBeGreaterThanOrEqual(2);
+      // Read off the log rather than the pool: a success with Hope hands one
+      // straight back, so the number on the sheet says nothing about the cost.
+      expect(after.some((t) => t.includes('Spends 1 Hope.'))).toBe(true);
+      // "Once per long rest": the use is spent, and a short rest is not it.
+      expect(demo.scenario.abilityUses.get(useKey('kara', 'splintering-strike'))).toBe(1);
+      return;
+    }
+    throw new Error('the card never ran');
+  });
+
+  it('rolls one more of the weapon dice behind it', () => {
+    // The extra die shifts the stream, so the two runs cannot be compared at
+    // one seed: what is compared is the total they mark over many.
+    const total = (extra: boolean): number => {
+      let marked = 0;
+      for (let seed = 1; seed < 80; seed++) {
+        const { demo, husk, other } = surrounded(`splinter-die-${seed}`, ['splintering-strike']);
+        if (!extra) {
+          const plain = demo.project.abilities.map((a) =>
+            a.id !== 'splintering-strike'
+              ? a
+              : abilitySchema.parse({
+                  ...a,
+                  effects: a.effects.map((e) => (e.kind === 'attack' ? { ...e, damageDice: undefined } : e)),
+                }),
+          );
+          demo.project.abilities = plain;
+          refreshWorld(demo);
+        }
+        useAbility(demo, 'kara', 'splintering-strike', []);
+        let guard = 0;
+        while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
+        marked += husk.hitPoints.marked + other.hitPoints.marked;
+      }
+      return marked;
+    };
+    expect(total(true)).toBeGreaterThan(total(false));
+  });
+});

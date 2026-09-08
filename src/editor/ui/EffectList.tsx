@@ -908,7 +908,7 @@ function renderBody(
               style={{ ...field, flex: 'none', width: '80px' }}
               data-role="attack-behind"
               placeholder="extra dice"
-              title="Dice added to the damage roll, on top of the weapon's"
+              title="Dice added to the damage roll, on top of the weapon's. 'weaponDie' is one die of what they swing; 'weapon' is all of it."
               value={effect.damageDice ?? ''}
               onInput={(e) => {
                 const dice = (e.target as HTMLInputElement).value;

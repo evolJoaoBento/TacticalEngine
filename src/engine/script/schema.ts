@@ -643,6 +643,10 @@ export const effectSchema = z.discriminatedUnion('kind', [
      * "Add a d10 to the damage roll": dice behind the swing rather than a flat
      * number. Rolled once, before the first target, because a blow rolled once
      * lands the same total on everyone it beats.
+     *
+     * `weaponDie` is one die of whatever the actor swings - the SRD's "roll an
+     * additional damage die", which it says two dozen times - and `weapon` is
+     * the whole of their printed damage.
      */
     damageDice: z.string().min(1).optional(),
     /** Damage dice instead of the attacker's own — a feature's "2d6". */

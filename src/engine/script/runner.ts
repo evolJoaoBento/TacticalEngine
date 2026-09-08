@@ -25,7 +25,7 @@
 import type { Rng } from '../core/rng';
 import { NO_TILE } from '../grid/grid';
 import { rollDuality, type DualityRoll, type RollOutcome } from '../rules/duality';
-import { formatDice, parseDice, rollDice, type DamageType, type ParsedDamage } from '../rules/dice';
+import { formatDice, parseDice, rollDice, type DamageType, type DiceExpression, type ParsedDamage } from '../rules/dice';
 import type { RunningCountdown } from './countdowns';
 import { hookReads } from './conditions';
 import { runHook, type HookContext } from './hooks';
@@ -1466,6 +1466,23 @@ export class ScriptRunner {
   }
 
   /** A weapon attack from a script: one target, a full action roll. */
+  /**
+   * Dice written behind a swing: an expression, the whole of what somebody
+   * swings, or one die of it.
+   *
+   * "Roll an additional damage die" is the SRD's own phrase and means one of
+   * the weapon's, whatever the weapon turns out to be - a d12 in a greataxe
+   * and a d6 in a dagger. A creature with nothing the engine can read has no
+   * die to roll, which is a refusal rather than a silent zero.
+   */
+  private diceBehind(expression: string, actor: string | null): DiceExpression | null {
+    if (expression !== 'weapon' && expression !== 'weaponDie') return parseDice(expression);
+    const damage = actor === null ? null : this.world.weaponDamage(actor);
+    if (damage === null) return null;
+    if (expression === 'weapon') return { count: damage.count, sides: damage.sides, modifier: damage.modifier };
+    return damage.count === 0 ? null : { count: 1, sides: damage.sides, modifier: 0 };
+  }
+
   private applyAttack(effect: Extract<Effect, { kind: 'attack' }>): null {
     const world = this.world;
     // Whose swing it is: the one acting, or the one bound as the target when
@@ -1482,7 +1499,7 @@ export class ScriptRunner {
     // dice come off the same seeded stream as everything else.
     let extra = 0;
     if (effect.damageDice !== undefined) {
-      const expression = parseDice(effect.damageDice);
+      const expression = this.diceBehind(effect.damageDice, attacker);
       if (expression === null) return this.refuse(`cannot read damage dice "${effect.damageDice}"`);
       extra = rollDamage(this.rng, expression, { proficiency: 1, critical: false }).total;
     }

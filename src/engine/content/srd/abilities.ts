@@ -489,6 +489,37 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // "Spend a Hope and make an attack against all adversaries within your
+  // weapon's range. Once per long rest, on a success against any targets, roll
+  // your weapon's damage and distribute that damage however you wish between
+  // the targets you succeeded against. Before you deal damage to each target,
+  // roll an additional damage die and add its result to the damage you deal to
+  // them."
+  //
+  // Simplified the way every other blow against several targets here is: the
+  // damage is rolled once and lands whole on everyone the swing beat, rather
+  // than being divided among them. Dividing a pool is a decision the engine has
+  // no way to put to a player mid-swing, and the version that asks nothing is
+  // the more generous one - which is the right way round for a card that costs
+  // a Hope and a long rest. The additional die is rolled once with it, for the
+  // same reason.
+  {
+    id: 'splintering-strike',
+    name: 'Splintering Strike',
+    source: card('splintering-strike'),
+    cost: { hope: 1 },
+    uses: { count: 1, per: 'longRest' },
+    inCombatOnly: true,
+    target: { kind: 'none', range: 'melee' },
+    effects: [
+      { kind: 'log', text: 'One swing, and it goes through all of them.', tone: 'hope' },
+      {
+        kind: 'attack',
+        target: { kind: 'adversaries', reach: 'weapon', range: 'melee' },
+        damageDice: 'weaponDie',
+      },
+    ],
+  },
   // "When you deal damage to an adversary, you can mark a Stress and describe
   // how you encourage your allies. The next PC to make an attack against that
   // adversary can clear a Stress or gain a Hope."
