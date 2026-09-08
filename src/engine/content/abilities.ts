@@ -127,6 +127,12 @@ export const abilityModifierSchema = z.object({
   bonus: z.number().int().default(0),
   plusTrait: traitSchema.optional(),
   /**
+   * Half of it, rounded up - "a bonus to your Evasion equal to half your
+   * Agility". The SRD rounds up everywhere it divides, and a trait of nothing
+   * is half of nothing rather than one.
+   */
+  halveTrait: z.boolean().optional(),
+  /**
    * Add the holder's Proficiency as well - Rise Up's "gain a bonus to your
    * Severe threshold equal to your Proficiency". A stat block has none, and
    * reads it as one.

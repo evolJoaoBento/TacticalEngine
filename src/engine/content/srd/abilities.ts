@@ -177,13 +177,14 @@ const RAW: Input[] = [
     modifiers: [{ stat: 'damageRoll', plusTrait: 'strength', requires: 'meleeWeapon' }],
   },
   // ---- Bone ------------------------------------------------------------------
+  // "Gain a bonus to your Evasion equal to half your Agility."
   {
     id: 'untouchable',
     name: 'Untouchable',
     source: card('untouchable'),
     kind: 'passive',
     action: false,
-    // "Half your Agility": a modifier adds a whole trait, so this stays text.
+    modifiers: [{ stat: 'evasion', plusTrait: 'agility', halveTrait: true }],
   },
   // ---- Midnight --------------------------------------------------------------
   {

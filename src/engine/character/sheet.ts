@@ -237,7 +237,7 @@ export function deriveCharacter(
       .filter((m) => m.stat === stat && m.when === undefined && m.perToken === undefined && m.requires !== 'meleeWeapon')
       .reduce(
         (sum, m) =>
-          sum + m.bonus + (m.plusTrait === undefined ? 0 : traits[m.plusTrait]) + (m.plusProficiency === true ? proficiency : 0),
+          sum + m.bonus + traitPart(m, traits) + (m.plusProficiency === true ? proficiency : 0),
         0,
       );
 
@@ -373,6 +373,18 @@ export function attackProfile(
     damage: weapon.damage,
     proficiency: character.proficiency,
   };
+}
+
+/**
+ * What a modifier's trait half is worth: the trait, or half of it rounded up.
+ *
+ * Rounded up because the SRD rounds up wherever it divides, and read the same
+ * way here and in the world so a folded bonus and a scene-dependent one agree.
+ */
+export function traitPart(modifier: Pick<AbilityModifier, 'plusTrait' | 'halveTrait'>, traits: Traits): number {
+  if (modifier.plusTrait === undefined) return 0;
+  const value = traits[modifier.plusTrait];
+  return modifier.halveTrait === true ? Math.ceil(value / 2) : value;
 }
 
 /** How this character is attacked: Evasion, thresholds and their armor. */

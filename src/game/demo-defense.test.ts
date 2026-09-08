@@ -4090,3 +4090,44 @@ describe('a room put out', () => {
     throw new Error('the dark never fell in sixty tries');
   });
 });
+
+
+describe('half of what somebody is', () => {
+  /** Kara with an Agility of `agility`, holding these cards. */
+  const nimble = (agility: number, cards: string[]): DemoScene => {
+    const demo = standoff(`untouchable-${agility}-${cards.length}`);
+    const sheet = {
+      ...demo.sheets.get('kara')!,
+      traits: { ...demo.sheets.get('kara')!.traits, agility },
+      domainCards: cards,
+      loadout: cards,
+    };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    return demo;
+  };
+
+  it('adds half an Agility to Evasion, rounded up', () => {
+    // Three is two, four is two, five is three: the SRD rounds up wherever it
+    // divides, and the same number has to come out of the sheet and the scene.
+    for (const [agility, worth] of [
+      [3, 2],
+      [4, 2],
+      [5, 3],
+      [0, 0],
+    ] as const) {
+      const bare = nimble(agility, []).characters.get('kara')!.evasion;
+      const held = nimble(agility, ['untouchable']).characters.get('kara')!.evasion;
+      expect(held - bare).toBe(worth);
+    }
+  });
+
+  it('is read the same way by a roll made against her', () => {
+    const demo = nimble(5, ['untouchable']);
+    const kara = demo.state.entity('kara')!;
+    // What a swing at her has to beat, off the world rather than the sheet.
+    expect(demo.world.defenderOf(kara).difficulty).toBe(demo.characters.get('kara')!.evasion);
+    expect(demo.world.difficultyOf('kara')).toBe(demo.characters.get('kara')!.evasion);
+  });
+});

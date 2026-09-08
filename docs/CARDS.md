@@ -96,7 +96,7 @@ Scripted: 104 of 189 cards.
 |---|---|---|---|
 | 1 | Deft Maneuvers | Ability | **action** |
 | 1 | I See It Coming | Ability | **reaction** |
-| 1 | Untouchable | Ability | **text** |
+| 1 | Untouchable | Ability | **passive** |
 | 2 | Ferocity | Ability | **reaction**, **passive** |
 | 2 | Strategic Approach | Ability | text |
 | 3 | Brace | Ability | **reaction** |

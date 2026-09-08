@@ -49,7 +49,7 @@ import {
 } from '../rules/range';
 import { applyAttack, resolveAttack, type AttackProfile } from '../combat/attack';
 import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
-import { attackProfile, UNARMED, type DerivedCharacter } from '../character/sheet';
+import { attackProfile, traitPart, UNARMED, type DerivedCharacter } from '../character/sheet';
 import { abilitiesFor, loadoutOf, type AbilityDef, type AbilityModifier } from '../content/abilities';
 import type { ConditionBlock, ConditionDef } from '../content/conditions';
 import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
@@ -816,7 +816,7 @@ export class SceneScriptWorld implements ScriptWorld {
     return modifiers.reduce((sum, m) => {
       const one =
         m.bonus +
-        (m.plusTrait === undefined || character === undefined ? 0 : character.traits[m.plusTrait]) +
+        (character === undefined ? 0 : traitPart(m, character.traits)) +
         (m.plusProficiency === true ? this.proficiencyOf(id) : 0);
       // "A +5 bonus to your damage roll for each token on this card": the
       // whole bonus, once per token, and nothing at all with an empty card.
