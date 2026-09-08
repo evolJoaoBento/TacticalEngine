@@ -362,16 +362,76 @@ const RAW: Input[] = [
     cost: { fear: 1 },
     target: { kind: 'none', range: 'far' },
     inCombatOnly: true,
-    // Simplified: the Stress for answering it with armor is the table's.
+    // Simplified: the Stress for answering it with armor is the table's, and
+    // "any number of targets in a line" is the line the GM aims - which here
+    // is the one that runs at whoever is nearest, the same rule the Kraken's
+    // swing uses to choose whom to hit.
     effects: [
       { kind: 'log', text: 'A line of boiling water goes out across the deck.', tone: 'combat' },
       {
         kind: 'reactionRoll',
         difficulty: 20,
         trait: 'agility',
-        targets: { kind: 'allies', range: 'far' },
+        targets: { kind: 'inPath', side: 'allies' },
         damage: { dice: '4d6+9', type: 'physical' },
         onFail: [{ kind: 'damage', dice: 'same' }],
+      },
+    ],
+  },
+  // "Move the Ogre to a point within Close range and deal damage to all targets
+  // in their path": the charge itself, and everything it went through.
+  {
+    id: 'cave-ogre-rampaging-fury',
+    name: 'Rampaging Fury',
+    source: from('cave-ogre'),
+    text: 'When the Ogre marks 2 or more HP, they can rampage. Move the Ogre to a point within Close range and deal 2d6+3 direct physical damage to all targets in their path.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    available: { kind: 'count', of: 'hitPointsTaken', op: '>=', value: 2 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    // The damage is dealt before the run, because what the charge went through
+    // is measured from where it started: a line read after the Ogre arrived is
+    // a line from the wrong end.
+    effects: [
+      { kind: 'log', text: 'The Ogre puts its head down and goes.', tone: 'fear' },
+      { kind: 'damage', dice: '2d6+3', type: 'physical', direct: true, target: { kind: 'inPath', side: 'allies' } },
+      { kind: 'move', to: 'point', budget: 'close' },
+    ],
+  },
+  // "When it triggers, move the Hunter in a straight line to a point within Far
+  // range and make an attack against all targets in their path."
+  {
+    id: 'mortal-hunter-rampage',
+    name: 'Rampage',
+    source: from('mortal-hunter'),
+    text: 'Countdown (Loop 1d6). When the Hunter is in the spotlight for the first time, activate the countdown. When it triggers, move the Hunter in a straight line to a point within Far range and make an attack against all targets in their path. Targets the Hunter succeeds against take 2d8+2 physical damage.',
+    kind: 'reaction',
+    trigger: 'spotlighted',
+    action: false,
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'mortal-hunter-rampage',
+        name: 'Rampage',
+        start: '1d6',
+        loop: 'reset',
+        effects: [
+          { kind: 'log', text: 'The Hunter breaks into a run and does not turn.', tone: 'fear' },
+          {
+            kind: 'reactionRoll',
+            difficulty: 15,
+            trait: 'agility',
+            targets: { kind: 'inPath', side: 'allies' },
+            damage: { dice: '2d8+2', type: 'physical' },
+            onFail: [{ kind: 'damage', dice: 'same' }],
+          },
+          { kind: 'move', to: 'point', budget: 'far' },
+        ],
       },
     ],
   },

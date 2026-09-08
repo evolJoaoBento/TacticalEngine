@@ -124,7 +124,9 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 204. Text: 140.
+The three features that charge in a straight line - the Cave Ogre's Rampaging Fury, the Mortal Hunter's Rampage, the Kraken's Boiling Blast - run at the nearest party member: there is nobody at the GM's end of the table to click a tile, and that is the same rule their swing already uses to choose whom to hit. What the line goes through is what they catch, measured from where the run started.
+
+Read: 73. Scripted: 206. Text: 138.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -138,7 +140,7 @@ Read: 73. Scripted: 204. Text: 140.
 | Cave Ogre | Ramp Up | Passive | **text** — the GM's to play |
 | Cave Ogre | Bone Breaker | Passive | **scripted** — runs as an ability |
 | Cave Ogre | Hail of Boulders | Action | **scripted** — runs as an ability |
-| Cave Ogre | Rampaging Fury | Reaction | **text** — the GM's to play |
+| Cave Ogre | Rampaging Fury | Reaction | **scripted** — runs as an ability |
 | Construct | Relentless (2) | Passive | **read** — read off the stat block |
 | Construct | Weak Structure | Passive | **text** — the GM's to play |
 | Construct | Trample | Action | **text** — the GM's to play |
@@ -344,7 +346,7 @@ Read: 73. Scripted: 204. Text: 140.
 | Mortal Hunter | Terrifying | Passive | **read** — read off the stat block |
 | Mortal Hunter | Deathlock | Action | **text** — the GM's to play |
 | Mortal Hunter | Inevitable Death | Action | **scripted** — runs as an ability |
-| Mortal Hunter | Rampage | Reaction: Countdown (Loop 1d6) | **text** — the GM's to play |
+| Mortal Hunter | Rampage | Reaction: Countdown (Loop 1d6) | **scripted** — runs as an ability |
 | Royal Advisor | Devastating Retort | Passive | **text** — the GM's to play |
 | Royal Advisor | Bend Ears | Action | **text** — the GM's to play |
 | Royal Advisor | Scapegoat | Action | **text** — the GM's to play |

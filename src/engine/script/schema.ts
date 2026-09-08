@@ -728,6 +728,12 @@ export const effectSchema = z.discriminatedUnion('kind', [
     how: z.enum(['toward', 'away']).optional(),
     /** Who the walk is measured against. The chosen target by default. */
     of: targetSelectorSchema.optional(),
+    /**
+     * Or the tile the script was aimed at, for a run across the map rather
+     * than at somebody: "run a straight path to a point within Far range".
+     * With nothing aimed, nobody moves.
+     */
+    to: z.literal('point').optional(),
     /** For `toward`: the band to end up within. Melee by default. */
     range: rangeBandSchema.optional(),
     /** How far it may walk. Close by default. */

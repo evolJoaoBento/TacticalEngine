@@ -1765,12 +1765,26 @@ export class SceneScriptWorld implements ScriptWorld {
    * move into Melee range of the target".
    */
   drawIn(mover: string, toward: string, band: RangeBand, budget: RangeBand = 'close'): { from: number; to: number } | null {
+    return this.drawTo(mover, this.state.entity(toward)?.tile ?? NO_TILE, band, budget);
+  }
+
+  /**
+   * The same walk toward a place rather than toward a creature: "run a
+   * straight path to a point within Far range", "move the Ogre to a point
+   * within Close range".
+   *
+   * The path is still walked rather than teleported - what the ground allows
+   * is what happens - so a charge at a spot behind a wall stops where the wall
+   * is, and what the run passed on the way is what it passed.
+   */
+  drawTo(mover: string, goalTile: number, band: RangeBand, budget: RangeBand = 'close'): { from: number; to: number } | null {
     const walking = this.state.entity(mover);
-    const goal = this.state.entity(toward);
-    if (walking === undefined || goal === undefined) return null;
-    if (walking.tile === NO_TILE || goal.tile === NO_TILE) return null;
+    if (walking === undefined) return null;
+    if (walking.tile === NO_TILE || goalTile === NO_TILE) return null;
     if (this.blocks(mover, 'move')) return null;
-    if (this.within(mover, toward, band)) return null;
+    const already = this.bandBetween(walking.tile, goalTile);
+    if (already !== null && reaches(already, band)) return null;
+    const goal = { tile: goalTile };
 
     // The same walk the GM's turn makes: everywhere it could get to, then the
     // tile closest to what it is walking at. Closer wins, and a tie goes to

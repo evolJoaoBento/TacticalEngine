@@ -201,6 +201,8 @@ export interface ScriptWorld extends ConditionContext {
   pushBack(from: string, target: string, band: RangeBand): { from: number; to: number } | null;
   /** Walk towards a creature until within a band, as far as the budget allows. */
   drawIn(mover: string, toward: string, band: RangeBand, budget?: RangeBand): { from: number; to: number } | null;
+  /** The same, at a tile: a run across the map rather than at somebody. */
+  drawTo(mover: string, goalTile: number, band: RangeBand, budget?: RangeBand): { from: number; to: number } | null;
   /** Walk away from a creature, as far as the budget allows. */
   breakAway(mover: string, from: string, budget?: RangeBand): { from: number; to: number } | null;
   /**
@@ -1209,6 +1211,15 @@ export class ScriptRunner {
       case 'move': {
         const actor = world.actorId();
         if (actor === null) return this.refuse('nobody to move');
+        // A run at a place rather than at somebody. Nothing aimed is nobody
+        // moving, the same quiet answer a walk with nobody to close on gives.
+        if (effect.to === 'point') {
+          const at = this.point;
+          if (at === NO_TILE) return null;
+          const ran = world.drawTo(actor, at, effect.range ?? 'melee', effect.budget ?? 'close');
+          if (ran !== null) this.journal.push({ kind: 'moved', id: actor, from: ran.from, to: ran.to, walked: true });
+          return null;
+        }
         // Whoever the walk is measured against. A reaction with nobody behind
         // the blow - a trap, a countdown - has nothing to close on or get away
         // from, and standing still is the honest answer rather than a refusal.

@@ -884,6 +884,26 @@ footer {
   on the runner and whoever ran the card takes it out of the loadout &mdash; after which the
   Recall Cost is the way back.</p>
 
+  <p>A card can be aimed at the <em>ground</em>. Every selector until now measured a band around a
+  creature, so nothing the SRD writes as &ldquo;to a point within Far range&rdquo; could be said at
+  all &mdash; Deathrun, Salvation Beam, Zone of Protection, Eclipse, and the gallop-in-a-line
+  features four stat blocks print. An ability says <code>target.kind: 'point'</code>; the bar arms
+  for tiles rather than creatures; the tile comes down the same channel the targets do, as
+  <code>bindings.point</code>. Three shapes read it. <code>inPath</code> is everything the straight
+  line from the actor to that tile runs through &mdash; traced with the same walk sight uses, so a
+  charge and a look down a corridor agree about what is on it &mdash; and
+  <code>around: 'point'</code> on allies and adversaries measures the band from the ground rather
+  than from whoever happens to be standing on it. The one charging is never caught by their own
+  run; somebody standing on the spot being run to is.</p>
+
+  <p>The board draws it before the click. <code>shapeAt</code> asks who a card aimed at a tile
+  would catch, against a world nothing has changed, so the answer can be recomputed on every
+  pointer move and lit up under the cursor. A spot behind a wall is a legal thing to aim at &mdash;
+  &ldquo;a point within Far range&rdquo; is a place in the room &mdash; and the run that follows
+  still only goes where the ground allows. On the GM's side there is nobody to click a tile, so a
+  stat block's charge runs at the nearest party member: the same rule its swing already uses to
+  choose whom to hit.</p>
+
   <p>A swing that <em>misses</em> stops too, on <code>dealtMiss</code>. It is the other half of
   <code>dealtHit</code> and not the same thing as <code>attackMissed</code>, which is a swing that
   missed <em>you</em>; this one is your own that went wide, with whoever you swung at still bound

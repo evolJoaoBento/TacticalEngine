@@ -2224,6 +2224,12 @@ function runAdversaryScript(
     targets: [...targets],
     hit: [...hit],
     rollAs: 'actor',
+    // Where the GM aims a charge. There is nobody at that end of the table to
+    // click a tile, so a stat block that says "to a point within Far range"
+    // runs at the nearest party member - the same rule its swing already uses
+    // when it picks whom to hit. Bound whether or not the feature reads it: a
+    // script that never asks for a point never notices.
+    ...(aimedAt(demo, adversaryId) === NO_TILE ? {} : { point: aimedAt(demo, adversaryId) }),
     ...(from.counts === undefined ? {} : { counts: from.counts }),
     ...(from.lastDamage === undefined ? {} : { lastDamage: from.lastDamage }),
     ...(from.roll === undefined ? {} : { roll: from.roll }),
@@ -2233,6 +2239,17 @@ function runAdversaryScript(
   demo.scenario.actorId = was;
   afterAdversaryScript(demo, result.journal);
   return result.journal.some((entry) => entry.kind === 'spotlightEnded');
+}
+
+/**
+ * The tile a stat block's charge runs at: the nearest party member's, or
+ * nowhere when none of them is standing.
+ */
+function aimedAt(demo: DemoScene, adversaryId: string): number {
+  const standing = demo.state.entitiesOf('party').filter((e) => e.alive && e.tile !== NO_TILE);
+  if (standing.length === 0 || demo.state.entity(adversaryId)?.tile === NO_TILE) return NO_TILE;
+  const nearest = nearestOf(demo, adversaryId, standing.map((e) => e.id));
+  return demo.state.entity(nearest)?.tile ?? NO_TILE;
 }
 
 /**

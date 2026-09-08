@@ -2484,3 +2484,93 @@ describe('a card aimed at the ground', () => {
     expect(kara.conditions.has('focused')).toBe(true);
   });
 });
+
+
+describe('a run in a straight line', () => {
+  const hold = (demo: DemoScene, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('takes Deathrun through everything the path went past, and moves her there', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = standoff(`deathrun-${seed}`);
+      demo.askDefender = false;
+      hold(demo, ['deathrun']);
+      const kara = demo.state.entity('kara')!;
+      kara.hope = { max: 6, value: 6 };
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      husk.hitPoints = { max: 40, marked: 0 };
+
+      // A tile on the far side of the husk, so the run goes through it.
+      const past = demo.grid.indexOf(
+        Math.min(demo.grid.width - 1, demo.grid.xOf(husk.tile) + 2),
+        demo.grid.yOf(husk.tile),
+      );
+      const card = demo.project.abilities.find((a) => a.id === 'deathrun')!;
+      if (!pointTiles(demo, 'kara', card).includes(past)) continue;
+      if (!shapeAt(demo, 'kara', card, past).includes(husk.id)) continue;
+
+      const from = kara.tile;
+      expect(useAbility(demo, 'kara', 'deathrun', [], { point: past }).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+
+      // "Spend 3 Hope", and the run happened. What the roll gives back is the
+      // action roll's business, not the card's.
+      expect(demo.log.some((l) => l.text.includes('Spends 3 Hope.'))).toBe(true);
+      expect(kara.tile).not.toBe(from);
+      // On a success the husk is hurt; on a failure it is not, and either way
+      // the path was run.
+      if (husk.hitPoints.marked > 0) return;
+      expect(demo.log.some((l) => l.text.includes('straight line through the middle'))).toBe(true);
+      return;
+    }
+    throw new Error('the path never lined up in forty tries');
+  });
+
+  it('refuses Deathrun with nowhere to aim it', () => {
+    const demo = standoff('deathrun-nowhere');
+    hold(demo, ['deathrun']);
+    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    expect(useAbility(demo, 'kara', 'deathrun', []).status).toBe('refused');
+    expect(demo.log.some((l) => l.text.includes('needs somewhere to aim'))).toBe(true);
+  });
+
+  it("charges at the nearest of the party when nobody is there to click a tile", () => {
+    // A stat block cannot pick a point, so it runs at whoever is nearest - the
+    // same rule its swing already uses to choose whom to hit.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = standoff(`rampage-${seed}`);
+      demo.askDefender = false;
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      // Stand an Ogre in for it, and wound it enough to set the feature off.
+      const ogre = demo.project.abilities.find((a) => a.id === 'cave-ogre-rampaging-fury')!;
+      expect(ogre.trigger).toBe('tookHitPoints');
+      demo.state.entity('kara')!.hitPoints = { max: 12, marked: 0 };
+
+      // The Ogre's own script, run where the husk stands: the point is bound
+      // for it, so the charge has somewhere to go and a line to cut.
+      // Kara a few tiles off, so the charge has ground to cover.
+      const away = demo.grid.indexOf(
+        Math.min(demo.grid.width - 1, demo.grid.xOf(husk.tile) + 3),
+        demo.grid.yOf(husk.tile),
+      );
+      if (!demo.grid.isPassable(away) || demo.state.occupantsOf(away).length > 0) continue;
+      demo.state.moveEntity('kara', away);
+      const before = demo.state.entity('kara')!.hitPoints.marked;
+      const at = husk.tile;
+      demo.scenario.actorId = husk.id;
+      const journal = runScript(ogre.effects, demo.world, demo.rng, {
+        point: demo.state.entity('kara')!.tile,
+      });
+      expect(journal.some((e) => e.kind === 'damage')).toBe(true);
+      expect(demo.state.entity('kara')!.hitPoints.marked).toBeGreaterThan(before);
+      // And it ran: the charge ends where it was aimed, not where it started.
+      expect(husk.tile).not.toBe(at);
+      return;
+    }
+    throw new Error('the Ogre never got to charge');
+  });
+});

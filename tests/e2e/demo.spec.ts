@@ -90,6 +90,8 @@ declare global {
       useAbility: (id: string, ability: string, targets?: string[], point?: number) => string;
       aim: (ability: string) => number[];
       lit: () => number[];
+      shape: (ability: string, tile: number) => string[];
+      setHope: (id: string, value: number) => void;
       passToGm: () => number;
       loadout: (id: string) => { loadout: string[]; vault: string[] };
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
@@ -2340,5 +2342,57 @@ test('loads a project and restarts the game on it, but not in the middle of a fi
   expect(midFight.reason).toContain('fight');
   expect(midFight.fighting).not.toBeNull();
 
+  expect(consoleErrors).toEqual([]);
+});
+
+test('aims a card at the ground, and the board shows the run before it is made', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.select('kara');
+    api.setCards('kara', ['deathrun']);
+    api.setHope('kara', 6);
+    api.standNear(api.adversaries()[0]!);
+    api.startFight();
+  });
+
+  // The bar arms for ground rather than for a creature, and says so.
+  const armed = await page.evaluate(() => window.__polyheart!.aim('deathrun'));
+  expect(armed.length).toBeGreaterThan(0);
+  const bar = page.locator('[data-testid="action-bar"]');
+  await expect(bar).toContainText('click a spot on the board');
+  expect(await page.evaluate(() => window.__polyheart!.targeting())).toBe('deathrun');
+
+  // Every tile it may be aimed at is lit, and nothing is committed to yet.
+  expect((await page.evaluate(() => window.__polyheart!.lit())).length).toBe(armed.length);
+
+  // Escape puts the bar down without spending anything.
+  await page.keyboard.press('Escape');
+  expect(await page.evaluate(() => window.__polyheart!.targeting())).toBe(null);
+
+  // Armed again, and aimed for real: the run goes through the husk.
+  const done = await page.evaluate((tiles) => {
+    const api = window.__polyheart!;
+    const foe = api.adversaries()[0]!;
+    api.aim('deathrun');
+    // The furthest spot whose line still goes through the husk, so the run has
+    // ground to cover and something to cut on the way.
+    const through = tiles.filter((tile) => api.shape('deathrun', tile).includes(foe));
+    // Somewhere the line goes through the husk *and* the ground allows: a spot
+    // behind a wall is a legal thing to aim at and not a run anyone can make.
+    const walkable = api.reachable();
+    const open = through.filter((tile) => walkable.includes(tile));
+    const aimed = (open.length > 0 ? open : through)[Math.max(0, (open.length > 0 ? open : through).length - 1)]!;
+    const from = api.tileOf('kara');
+    const marked = api.hitPoints(foe).marked;
+    api.useAbility('kara', 'deathrun', [], aimed);
+    let guard = 0;
+    while (api.pendingKind() !== null && guard++ < 6) api.answer({ kind: 'roll' });
+    return { through: through.length, from, to: api.tileOf('kara'), marked, after: api.hitPoints(foe).marked };
+  }, armed);
+  expect(done.through).toBeGreaterThan(0);
+  // The path was run, whatever the dice said about the swing at the end of it.
+  expect(done.to).not.toBe(done.from);
+  expect(done.after).toBeGreaterThanOrEqual(done.marked);
   expect(consoleErrors).toEqual([]);
 });

@@ -189,6 +189,10 @@ declare global {
       aim: (ability: string) => number[];
       /** The tiles the board is lighting up right now. */
       lit: () => number[];
+      /** Who a card aimed at this tile would catch, without aiming it. */
+      shape: (ability: string, tile: number) => string[];
+      /** Fill somebody's Hope, for a test about a card that costs some. */
+      setHope: (id: string, value: number) => void;
       passToGm: () => number;
       loadout: (id: string) => { loadout: string[]; vault: string[] };
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
@@ -1404,6 +1408,17 @@ const state = {
     return targeting?.tiles ?? [];
   },
   lit: (): number[] => (targeting === null ? [] : aimingHighlights(targeting)),
+  setHope: (id: string, value: number): void => {
+    const entity = demo.state.entity(id);
+    if (entity?.hope === undefined) return;
+    entity.hope = { max: entity.hope.max, value: Math.max(0, Math.min(entity.hope.max, value)) };
+    refreshPlay();
+  },
+  shape: (ability: string, tile: number): string[] => {
+    const who = demo.party.selected;
+    const card = who === null ? undefined : abilitiesOf(demo, who).find((a) => a.id === ability);
+    return who === null || card === undefined ? [] : shapeAt(demo, who, card, tile);
+  },
   passToGm: (): number => {
     const acted = endTurn(demo);
     refreshPlay();

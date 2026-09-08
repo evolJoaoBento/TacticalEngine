@@ -169,6 +169,11 @@ out.append("The text shown at the table is the block's own, printed as written, 
 out.append('departs from it rather than merely doing less, what the engine actually does is in the')
 out.append("condition it applies: the Oak Treant's Rooted halves physical damage and does not hold")
 out.append('it still, because a creature this engine holds still spends its next turn tearing free.' + chr(10))
+out.append("The three features that charge in a straight line - the Cave Ogre's Rampaging Fury, the Mortal "
+           "Hunter's Rampage, the Kraken's Boiling Blast - run at the nearest party member: there is nobody at "
+           "the GM's end of the table to click a tile, and that is the same rule their swing already uses to "
+           "choose whom to hit. What the line goes through is what they catch, measured from where the run "
+           "started." + chr(10))
 out.append(f"Read: {counts['read']}. Scripted: {counts['scripted']}. Text: {counts['text']}.\n")
 out.append('| Adversary | Feature | Kind | Engine |')
 out.append('|---|---|---|---|')

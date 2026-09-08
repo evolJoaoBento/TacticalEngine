@@ -337,6 +337,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                   <option value="ally">an ally</option>
                   <option value="creature">any creature</option>
                   <option value="group">a group</option>
+                  <option value="point">a spot on the board</option>
                 </select>,
               )}
               {label(

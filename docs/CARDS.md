@@ -32,9 +32,10 @@ Known simplifications in the scripted ones:
 - **Battle-Hardened** is offered inside the death prompt beside Unbreakable, and **Glancing Blow** answers the holder's own miss before the turn is spent - a miss hands the spotlight over, and a question raised after that is one the player answers on somebody else's turn.
 - **Versatile Fighter** scripts the half that belongs to a swing: the trait swap is a choice made when the sheet is written and stays text, and the die lifted is the lowest of the roll, which is the one anybody would pick. **Reaper's Strike** reads its “which targets it would succeed against” as one roll against every Difficulty the weapon reaches, and the choice among the ones it beat goes to the nearest.
 - **Boost** treats the ally as a gate rather than a target: nothing is asked of them and nothing happens to them, so the card only has to know one is standing close enough to push off. **Deft Maneuvers** runs to an adversary and ends in Melee of them rather than to a point on the map, because the board picks creatures and not tiles; it is not the character's action, so the attack that follows still is.
+- **Deathrun** is the first card aimed at the ground rather than at anybody: the player picks a tile, the board shows what the line would go through before the click, and what the run passes is what it hits. Simplified: the ladder of shrinking damage rolls and the order to deal them in is one roll, the same damage to everyone it beat, which is what every other attack against several targets here does; the card's own +1 to Proficiency is kept.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 93 of 189 cards.
+Scripted: 94 of 189 cards.
 
 
 ## Arcana
@@ -112,7 +113,7 @@ Scripted: 93 of 189 cards.
 | 8 | Wrangle | Ability | text |
 | 9 | On the Brink | Ability | **reaction** |
 | 9 | Splintering Strike | Ability | text |
-| 10 | Deathrun | Ability | text |
+| 10 | Deathrun | Ability | **action** |
 | 10 | Swift Step | Ability | **reaction** |
 
 ## Codex

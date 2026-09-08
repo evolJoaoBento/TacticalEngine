@@ -489,6 +489,37 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // The first card in the SRD aimed at the ground rather than at anybody: the
+  // player picks a tile, and what the run passes on the way is what it hits.
+  //
+  // Simplified: "choose the order in which you deal damage... then remove a
+  // die from your damage roll and deal the remaining damage to the next
+  // target" is a ladder of shrinking rolls and an ordering question on top of
+  // it. The blow is rolled once and the same damage lands on everyone the roll
+  // beat, which is what every other attack against several targets here does,
+  // and the +1 to Proficiency is kept because it is the card's own number.
+  {
+    id: 'deathrun',
+    name: 'Deathrun',
+    source: card('deathrun'),
+    cost: { hope: 3 },
+    inCombatOnly: true,
+    target: { kind: 'point', range: 'far' },
+    effects: [
+      { kind: 'log', text: 'A straight line through the middle of it, and no stopping.', tone: 'hope' },
+      { kind: 'move', to: 'point', budget: 'far' },
+      {
+        kind: 'check',
+        check: {
+          trait: 'weapon',
+          difficulty: 'target',
+          targets: { kind: 'inPath', side: 'adversaries', reach: 'weapon' },
+          prompt: 'Deathrun: one roll, against everything the path went through.',
+          always: [{ kind: 'damage', dice: 'weapon', using: 'proficiency', target: { kind: 'hit' } }],
+        },
+      },
+    ],
+  },
   // The ally is a gate rather than a target: nothing is asked of them and
   // nothing happens to them, so the card only has to know one is standing
   // close enough to push off.

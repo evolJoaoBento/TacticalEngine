@@ -746,13 +746,18 @@ function renderBody(
           <select
             style={{ ...field, flex: 'none', width: '92px' }}
             data-role="move-how"
-            value={effect.how ?? 'toward'}
-            onChange={(e) => onChange({ ...effect, how: (e.target as HTMLSelectElement).value as 'toward' | 'away' })}
+            value={effect.to === 'point' ? 'point' : (effect.how ?? 'toward')}
+            onChange={(e) => {
+              const how = (e.target as HTMLSelectElement).value;
+              if (how === 'point') onChange({ ...effect, to: 'point', how: undefined, of: undefined });
+              else onChange({ ...effect, to: undefined, how: how as 'toward' | 'away' });
+            }}
           >
             <option value="toward">towards</option>
             <option value="away">away from</option>
+            <option value="point">to the spot aimed at</option>
           </select>
-          {who(effect.of, 'the chosen target', (of) => ({ ...effect, of }))}
+          {effect.to === 'point' ? null : who(effect.of, 'the chosen target', (of) => ({ ...effect, of }))}
           {effect.how === 'away' ? null : (
             <select
               style={{ ...field, flex: 'none', width: '92px' }}

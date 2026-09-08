@@ -34,6 +34,7 @@ const KINDS = [
   ['party', 'the whole party'],
   ['allies', 'allies in range'],
   ['adversaries', 'adversaries in range'],
+  ['inPath', 'everything the run went through'],
   ['entity', 'one named creature'],
   ['entities', 'named creatures'],
 ] as const;
@@ -58,6 +59,8 @@ function blank(kind: TargetSelector['kind']): TargetSelector {
       return { kind, ids: [] };
     case 'adversaries':
       return { kind, range: 'veryClose' };
+    case 'inPath':
+      return { kind, side: 'adversaries' };
     default:
       return { kind } as TargetSelector;
   }
@@ -115,15 +118,16 @@ export function TargetEditor(props: TargetEditorProps): preact.JSX.Element {
           <select
             style={field}
             data-role="target-around"
-            title="Measured from the one acting, or from the chosen target"
+            title="Measured from the one acting, from the chosen target, or from the tile that was aimed at"
             value={selector.around ?? 'actor'}
             onChange={(e) => {
-              const around = (e.target as HTMLSelectElement).value as 'actor' | 'target';
+              const around = (e.target as HTMLSelectElement).value as 'actor' | 'target' | 'point';
               onChange(around === 'actor' ? { ...selector, around: undefined } : { ...selector, around });
             }}
           >
             <option value="actor">around the actor</option>
             <option value="target">around the target</option>
+            <option value="point">around the spot aimed at</option>
           </select>
           {/* A creature is within Melee of itself, so "another one of these"
               has to say whom it is leaving out. */}
@@ -153,6 +157,60 @@ export function TargetEditor(props: TargetEditorProps): preact.JSX.Element {
             off the same stat block
           </label>
         </>
+      ) : null}
+
+      {selector?.kind === 'inPath' ? (
+        <>
+          <select
+            style={field}
+            data-role="path-side"
+            title="Which side the run catches"
+            value={selector.side ?? ''}
+            onChange={(e) => {
+              const side = (e.target as HTMLSelectElement).value;
+              onChange({ ...selector, side: side === '' ? undefined : (side as 'adversaries' | 'allies') });
+            }}
+          >
+            <option value="">everybody it passes</option>
+            <option value="adversaries">adversaries it passes</option>
+            <option value="allies">allies it passes</option>
+          </select>
+          <select
+            style={field}
+            data-role="path-reach"
+            title="How far off the line it reaches"
+            value={selector.reach === 'weapon' ? 'weapon' : (selector.range ?? '')}
+            onChange={(e) => {
+              const picked = (e.target as HTMLSelectElement).value;
+              if (picked === 'weapon') onChange({ ...selector, reach: 'weapon', range: undefined });
+              else onChange({ ...selector, reach: undefined, range: picked === '' ? undefined : (picked as RangeBand) });
+            }}
+          >
+            <option value="">the line and its edges</option>
+            {BANDS.map((band) => (
+              <option key={band} value={band}>
+                within {band} of the line
+              </option>
+            ))}
+            <option value="weapon">within the weapon's reach</option>
+          </select>
+        </>
+      ) : null}
+
+      {selector?.kind === 'allies' ? (
+        <select
+          style={field}
+          data-role="allies-around"
+          title="Measured from the one acting, or from the tile that was aimed at"
+          value={selector.around ?? 'actor'}
+          onChange={(e) => {
+            const around = (e.target as HTMLSelectElement).value as 'actor' | 'point';
+            onChange(around === 'actor' ? { ...selector, around: undefined } : { ...selector, around });
+          }}
+        >
+          <option value="actor">around the actor</option>
+          <option value="point">around the spot aimed at</option>
+        </select>
       ) : null}
 
       {selector?.kind === 'allies' ? (

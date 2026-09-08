@@ -27,7 +27,7 @@ import { evaluateOptional } from '../engine/script/conditions';
 import { ScriptRunner } from '../engine/script/runner';
 import { useKey } from '../engine/script/world';
 import { NO_TILE } from '../engine/grid/grid';
-import { walkEffects } from '../engine/script/schema';
+import { walkEffects, type TargetSelector } from '../engine/script/schema';
 import {
   SRD_CHARACTERS,
   inCombat,
@@ -172,10 +172,20 @@ export function shapeAt(demo: DemoScene, characterId: string, ability: AbilityDe
   demo.scenario.actorId = characterId;
   const caught = new Set<string>();
   walkEffects(ability.effects, (effect) => {
-    const selector = 'target' in effect ? effect.target : undefined;
-    if (selector === undefined) return;
-    if (selector.kind !== 'inPath' && !('around' in selector && selector.around === 'point')) return;
-    for (const id of demo.world.resolveTargets(selector, { targets: [], hit: [], point: tile })) caught.add(id);
+    // Every way an effect names who it is for: the plain `target`, the roll's
+    // `targets`, and a check's. A shape can be written in any of the three,
+    // and the preview has to find it wherever the card put it.
+    const named: unknown[] = [
+      'target' in effect ? effect.target : undefined,
+      'targets' in effect ? effect.targets : undefined,
+      effect.kind === 'check' ? effect.check.targets : undefined,
+    ];
+    for (const selector of named) {
+      if (selector === undefined || typeof selector !== 'object' || selector === null) continue;
+      const shape = selector as TargetSelector;
+      if (shape.kind !== 'inPath' && !('around' in shape && shape.around === 'point')) continue;
+      for (const id of demo.world.resolveTargets(shape, { targets: [], hit: [], point: tile })) caught.add(id);
+    }
   });
   demo.scenario.actorId = was;
   return [...caught];
