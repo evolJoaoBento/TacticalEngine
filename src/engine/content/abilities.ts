@@ -286,9 +286,24 @@ export const abilitySchema = z.object({
   /**
    * For a `passive`: what holding it does to the creature's own standard
    * attack — the swing its stat block prints, not a feature's. "The Ogre's
-   * attacks deal direct damage" is this and nothing else.
+   * attacks deal direct damage", "if the Sniper is Hidden… they deal 1d10+4
+   * physical damage instead of their standard damage", "the Demon deals
+   * double damage to PCs with 0 Hope".
+   *
+   * `when` is read from the attacker's chair with the target bound, so a
+   * condition on either of them is a plain `hasCondition`. Without one it
+   * always applies, which is what the older `direct` passives meant.
    */
-  standardAttack: z.object({ direct: z.boolean().optional() }).optional(),
+  standardAttack: z
+    .object({
+      direct: z.boolean().optional(),
+      /** Dice instead of the block's printed damage: "1d10+4 physical damage instead". */
+      damage: z.string().min(1).optional(),
+      /** Twice whatever was rolled — "the Archer deals double damage to…". */
+      double: z.boolean().optional(),
+      when: conditionSchema.optional(),
+    })
+    .optional(),
   /** For a reaction to incoming damage: what it does. */
   reaction: damageReactionSchema.optional(),
   /** Tokens the card holds, if it is one of the cards that holds them. */

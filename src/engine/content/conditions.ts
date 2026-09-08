@@ -89,6 +89,23 @@ const RAW: ConditionInput[] = [
     name: 'On Fire',
     text: 'When you act while On Fire, you take an extra 2d6 magic damage if you are still On Fire at the end of your action.',
   },
+  // The Siren's song. "Until they mark 2 Stress" is a tally the engine does
+  // not keep, so it runs to the end of the scene; what it does is let the
+  // Siren's teeth find them, which is the Captive Audience passive.
+  {
+    id: 'entranced',
+    name: 'Entranced',
+    text: "You are held by the Siren's song until you mark 2 Stress.",
+  },
+  // The High Seraph's judgment, which the Hallowed Archer can read as well.
+  // "Until the Seraph is defeated" is the scene; "the target doesn't gain Hope
+  // on a result with Hope" is a rule about the dice that nothing here reads,
+  // and stays at the table.
+  {
+    id: 'guilty',
+    name: 'Guilty',
+    text: "You are Guilty in the eyes of the Seraph's god: you gain no Hope on a result with Hope.",
+  },
   // The Young Ice Dragon's. The SRD prints it on that one block: it lasts
   // until a rest or until the creature clears a Stress, neither of which the
   // engine can ask for mid-fight, so it runs to the end of the scene.

@@ -54,6 +54,12 @@ export interface AttackProfile {
   proficiency?: number;
   /** Damage that cannot be reduced by marking Armor Slots. */
   direct?: boolean;
+  /**
+   * Twice what the dice said — "the Demon deals double damage to PCs with 0
+   * Hope". Doubled once the dice are in, so the thresholds read the number
+   * that actually landed.
+   */
+  double?: boolean;
 }
 
 export interface DefenderProfile {
@@ -240,13 +246,16 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
   if (gmRoll !== undefined) outcome.gmRoll = gmRoll;
   if (!hit) return outcome;
 
-  const damageRoll = rollDamage(rng, profile.damage, {
+  const rolled = rollDamage(rng, profile.damage, {
     // Only a PC's weapon damage scales with Proficiency.
     proficiency: profile.kind === 'pc' ? (profile.proficiency ?? 1) : 1,
     critical,
     ...(options.criticalRule === undefined ? {} : { criticalRule: options.criticalRule }),
     bonus: options.damageBonus ?? 0,
   });
+  // "Double damage": the total, twice, once the dice have settled - so a
+  // bonus doubles with them and the thresholds read what landed.
+  const damageRoll = profile.double === true ? { ...rolled, total: rolled.total * 2 } : rolled;
 
   // A PC's swing at an adversary is resolved here and nowhere else — there is
   // no defence step on that side — so the defender's reduction is rolled here.

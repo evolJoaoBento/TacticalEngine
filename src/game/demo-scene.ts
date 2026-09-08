@@ -2040,6 +2040,9 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   if (adversary === undefined || target === undefined) return false;
   const character = demo.characters.get(target.id);
   const def = statBlock(demo, adversaryId);
+  // What its passives make of this swing, at this target: "1d10+4 instead of
+  // their standard damage", "double damage to PCs with 0 Hope".
+  const swing = demo.world.standardAttackOf(def.id, { attacker: adversaryId, target: targetId });
   const rolled = resolveAttack(demo.rng, {
     grid: demo.grid,
     attacker: adversary,
@@ -2049,10 +2052,12 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
       name: def.attackName,
       modifier: def.attackModifier,
       range: def.attackRange,
-      // A Horde's standard attack changes once half its Hit Points are marked.
-      damage: attackDamageOf(def, adversary.hitPoints),
-      // "The Ogre's attacks deal direct damage": a passive on the block.
-      ...demo.world.standardAttackOf(def.id),
+      // A Horde's standard attack changes once half its Hit Points are
+      // marked; a passive that swaps the damage outright wins over that, the
+      // way the block's own words read.
+      damage: swing.damage ?? attackDamageOf(def, adversary.hitPoints),
+      ...(swing.direct === undefined ? {} : { direct: swing.direct }),
+      ...(swing.double === undefined ? {} : { double: swing.double }),
     },
     // The target defends with the Evasion and thresholds their sheet derives,
     // plus whatever their conditions add; the defence step below decides the
@@ -2147,10 +2152,13 @@ function defeatMinions(demo: DemoScene, targetId: string, damage: number): void 
  * lands; only the second is applied, and no shipped party member has one.
  */
 function incomingOf(demo: DemoScene, attack: IncomingAttack): IncomingDamage {
+  // Only whether it goes through armor: the dice a passive swapped in, and any
+  // doubling, are already in the number the swing reported.
+  const swing = demo.world.standardAttackOf(attack.def.id, { attacker: attack.attacker, target: attack.defender });
   return {
     amount: attack.outcome.damageRoll?.total ?? 0,
     types: attack.def.attackDamage.types ?? [],
-    ...demo.world.standardAttackOf(attack.def.id),
+    ...(swing.direct === undefined ? {} : { direct: swing.direct }),
   };
 }
 

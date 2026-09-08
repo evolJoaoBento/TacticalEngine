@@ -551,12 +551,40 @@ export class SceneScriptWorld implements ScriptWorld {
    * block's passives belong to the block and not to one creature standing on
    * the map.
    */
-  standardAttackOf(definition: string): { direct?: boolean } {
+  standardAttackOf(definition: string, between?: { attacker: string; target: string }): {
+    direct?: boolean;
+    damage?: ParsedDamage;
+    double?: boolean;
+  } {
     let direct = false;
+    let damage: ParsedDamage | undefined;
+    let double = false;
     for (const ability of this.abilitiesForAdversary(definition)) {
-      if (ability.kind === 'passive' && ability.standardAttack?.direct === true) direct = true;
+      const swing = ability.kind === 'passive' ? ability.standardAttack : undefined;
+      if (swing === undefined) continue;
+      // "If the Sniper is Hidden when they make a successful standard attack":
+      // read from the attacker's chair with the target bound, so a condition
+      // on either of them is a plain `hasCondition`. A passive that says
+      // nothing about when always applies, which is what `direct` meant.
+      if (swing.when !== undefined) {
+        if (between === undefined) continue;
+        const was = this.scenario.actorId;
+        this.scenario.actorId = between.attacker;
+        const holds = evaluate(swing.when, this, { targets: [between.target], hit: [between.target] });
+        this.scenario.actorId = was;
+        if (!holds) continue;
+      }
+      if (swing.direct === true) direct = true;
+      if (swing.double === true) double = true;
+      // Last one printed wins, which is only ever one of them: no block prints
+      // two swaps that could hold at once.
+      if (swing.damage !== undefined) damage = parseDice(swing.damage) ?? damage;
     }
-    return direct ? { direct: true } : {};
+    return {
+      ...(direct ? { direct: true } : {}),
+      ...(damage === undefined ? {} : { damage }),
+      ...(double ? { double: true } : {}),
+    };
   }
 
   /**
@@ -1330,7 +1358,7 @@ export class SceneScriptWorld implements ScriptWorld {
     const own =
       character !== undefined
         ? attackProfile(character, request.weapon)
-        : this.adversaryProfile(attacker.definition);
+        : this.adversaryProfile(attacker.definition, { attacker: request.attacker, target: request.target });
     if (own === null) return { ...none, refused: 'no weapon to attack with' };
     // A feature says its own reach and whether it goes through armor; what the
     // block prints is only the default for the creature's own teeth.
@@ -1435,17 +1463,21 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /** What an adversary swings, from its stat block. */
-  private adversaryProfile(definition: string): AttackProfile | null {
+  private adversaryProfile(definition: string, between?: { attacker: string; target: string }): AttackProfile | null {
     const def = this.adversaries.get(definition);
     if (def === undefined) return null;
+    // "The Ogre's attacks deal direct damage", "1d10+4 instead of their
+    // standard damage", "double damage to PCs with 0 Hope": passives on the
+    // block, read against whoever it is swinging at.
+    const swing = this.standardAttackOf(definition, between);
     return {
       kind: 'adversary',
       name: def.attackName,
       modifier: def.attackModifier,
       range: def.attackRange,
-      damage: def.attackDamage,
-      // "The Ogre's attacks deal direct damage": a passive on the block.
-      ...this.standardAttackOf(definition),
+      damage: swing.damage ?? def.attackDamage,
+      ...(swing.direct === undefined ? {} : { direct: swing.direct }),
+      ...(swing.double === undefined ? {} : { double: swing.double }),
     };
   }
 

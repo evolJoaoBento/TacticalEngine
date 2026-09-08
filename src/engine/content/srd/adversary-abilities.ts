@@ -2142,6 +2142,111 @@ const RAW: Input[] = [
       { kind: 'loseHope', target: { kind: 'allies', range: 'close', except: 'target' } },
     ],
   },
+  // ---- what a block's own teeth do to this target -------------------------
+  // A passive on the standard attack, read against whoever it is swinging at:
+  // "1d10+4 physical damage instead of their standard damage" while Hidden,
+  // "double damage to PCs with 0 Hope". The `when` is read from the
+  // attacker's chair with the target bound, so a condition on either of them
+  // is a plain `hasCondition` and a pool on the target is a plain `pool`.
+  //
+  // What stays text is a swap whose condition nothing here can ask: standing
+  // above somebody, a roll that had advantage, and the two Pack Tactics,
+  // which are about a third creature standing beside the target.
+  {
+    id: 'jagged-knife-sniper-unseen-strike',
+    name: 'Unseen Strike',
+    source: from('jagged-knife-sniper'),
+    text: 'If the Sniper is Hidden when they make a successful standard attack against a target, they deal 1d10+4 physical damage instead of their standard damage.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    standardAttack: {
+      damage: '1d10+4 phy',
+      when: { kind: 'hasCondition', condition: 'hidden', of: { kind: 'actor' } },
+    },
+  },
+  {
+    id: 'demon-of-despair-depths-of-despair',
+    name: 'Depths of Despair',
+    source: from('demon-of-despair'),
+    text: 'The Demon deals double damage to PCs with 0 Hope.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    standardAttack: {
+      double: true,
+      when: { kind: 'pool', pool: 'hope', of: { kind: 'target' }, measure: 'available', op: '<=', value: 0 },
+    },
+  },
+  {
+    id: 'hallowed-archer-punish-the-guilty',
+    name: 'Punish the Guilty',
+    source: from('hallowed-archer'),
+    text: 'The Archer deals double damage to targets marked Guilty by a High Seraph.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    standardAttack: {
+      double: true,
+      when: { kind: 'hasCondition', condition: 'guilty', of: { kind: 'target' } },
+    },
+  },
+  {
+    id: 'siren-captive-audience',
+    name: 'Captive Audience',
+    source: from('siren'),
+    text: 'If the Siren makes a standard attack against a target Entranced by their song, the attack deals 2d10+1 damage instead of their standard damage.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    standardAttack: {
+      damage: '2d10+1 phy',
+      when: { kind: 'hasCondition', condition: 'entranced', of: { kind: 'target' } },
+    },
+  },
+  {
+    id: 'siren-enchanting-song',
+    name: 'Enchanting Song',
+    source: from('siren'),
+    text: 'Spend a Fear to sing a song that affects all targets within Close range. Targets must succeed on an Instinct Reaction Roll or become Entranced until they mark 2 Stress. Other Sirens within Close range of the target can mark a Stress to each add a +1 bonus to the Difficulty of the reaction roll.',
+    cost: { fear: 1 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    // Simplified: the other Sirens do not chip in - a Difficulty other
+    // creatures pay to raise is a rule about a third creature - and the song
+    // holds to the end of the scene rather than until 2 Stress are marked.
+    effects: [
+      { kind: 'log', text: 'The song rises, and the water goes still.', tone: 'fear' },
+      {
+        kind: 'reactionRoll',
+        difficulty: 14,
+        trait: 'instinct',
+        targets: { kind: 'allies', range: 'close' },
+        onFail: [
+          { kind: 'log', text: 'They cannot look away.', tone: 'fear' },
+          { kind: 'applyCondition', condition: 'entranced', duration: 'scene', target: { kind: 'hit' } },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'high-seraph-judgment',
+    name: 'Judgment',
+    source: from('high-seraph'),
+    text: "Spend a Fear to make a target Guilty in the eyes of the Seraph's god until the Seraph is defeated. While Guilty, the target doesn't gain Hope on a result with Hope. When the Seraph succeeds on a standard attack against a Guilty target, they deal Severe damage instead of their standard damage.",
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'veryFar' },
+    inCombatOnly: true,
+    // Simplified: the mark itself is what runs. Losing Hope on a roll with
+    // Hope is a rule about the dice nothing here reads, and "Severe damage
+    // instead" is a number off the target's own thresholds rather than dice -
+    // both stay at the table. What the mark is for still bites: the Hallowed
+    // Archer deals double damage to whoever carries it.
+    effects: [
+      { kind: 'log', text: 'The Seraph names them, and the name sticks.', tone: 'fear' },
+      { kind: 'applyCondition', condition: 'guilty', duration: 'scene', target: { kind: 'target' } },
+    ],
+  },
   // ---- what the two of them make of each other ---------------------------
   // A passive that moves a roll rather than a pool. `advantage` is a signed
   // count of dice, and `against: true` puts it on the rolls made at the one

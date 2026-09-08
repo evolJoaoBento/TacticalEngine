@@ -822,6 +822,14 @@ footer {
   <code>Frame</code> may carry its own <code>hit</code>, so a reaction roll's failures and its
   successes each read the right list however the next roll goes.</p>
 
+  <p>A passive can change the block's own teeth rather than a number on it:
+  <code>standardAttack</code> carries <code>direct</code>, <code>damage</code> (dice instead of
+  the printed ones) and <code>double</code>, each under an optional <code>when</code> read from
+  the attacker's chair with the target bound &mdash; so &ldquo;while Hidden&rdquo; is a
+  <code>hasCondition</code> on the actor and &ldquo;against a PC with 0 Hope&rdquo; a
+  <code>pool</code> on the target. Doubling happens once the dice have settled, so a bonus
+  doubles with them and the thresholds read what actually landed.</p>
+
   <p>A modifier can count as well: <code>perToken</code> multiplies the whole bonus by the tokens
   sitting on a card, so &ldquo;a +5 bonus to your damage roll for each token on this card&rdquo;
   is one modifier and an <code>addToken</code> that places them. Tokens are scene state, so a

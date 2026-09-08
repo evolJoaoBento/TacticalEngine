@@ -60,8 +60,12 @@ engine has no place to put:
   makes of a roll the party made now runs (`partyRolled`, with a `rolled` gate reading
   what the dice said and the one who rolled bound as the target), so what stays here is
   a feature that hands the player a decision, and a roll made in conversation.
-- **a passive on a number the engine does not have** — "deal 1d6+5 instead of their
-  standard damage when another Wolf is in Melee range": a damage swap on a condition.
+- **a swap whose condition nothing can ask** - a passive can change what the block's own
+  teeth do to this target ("1d10+4 instead of their standard damage" while Hidden,
+  "double damage to PCs with 0 Hope"), read from the attacker's chair with the target
+  bound. What stays text is the asking: standing above somebody, a roll that had
+  advantage, and a third creature beside the target ("another Wolf within Melee range
+  of the target").
   A rider on *being* attacked now runs - a swing raises `attacked` on whoever it was
   aimed at, hit or miss, and the Swashbucklers gate on how little the blow marked.
 - **an ally on the other side** — the GM's turn aims a feature at the party, so a
@@ -85,7 +89,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 168. Text: 176.
+Read: 73. Scripted: 174. Text: 170.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -144,7 +148,7 @@ Read: 73. Scripted: 168. Text: 176.
 | Jagged Knife Lieutenant | Momentum | Reaction | **read** — read off the stat block |
 | Jagged Knife Shadow | Backstab | Passive | **text** — the GM's to play |
 | Jagged Knife Shadow | Cloaked | Action | **text** — the GM's to play |
-| Jagged Knife Sniper | Unseen Strike | Passive | **text** — the GM's to play |
+| Jagged Knife Sniper | Unseen Strike | Passive | **scripted** — runs as an ability |
 | Merchant | Preferential Treatment | Passive | **text** — the GM's to play |
 | Merchant | The Runaround | Passive | **text** — the GM's to play |
 | Minor Chaos Elemental | Arcane Form | Passive | **scripted** — runs as an ability |
@@ -316,8 +320,8 @@ Read: 73. Scripted: 168. Text: 176.
 | Shark | Terrifying | Passive | **read** — read off the stat block |
 | Shark | Rending Bite | Passive | **scripted** — runs as an ability |
 | Shark | Blood in the Water | Reaction | **text** — the GM's to play |
-| Siren | Captive Audience | Passive | **text** — the GM's to play |
-| Siren | Enchanting Song | Action | **text** — the GM's to play |
+| Siren | Captive Audience | Passive | **scripted** — runs as an ability |
+| Siren | Enchanting Song | Action | **scripted** — runs as an ability |
 | Spectral Archer | Ghost | Passive | **scripted** — runs as an ability |
 | Spectral Archer | Pick Your Target | Action | **text** — the GM's to play |
 | Spectral Captain | Ghost | Passive | **scripted** — runs as an ability |
@@ -347,7 +351,7 @@ Read: 73. Scripted: 168. Text: 176.
 | Demon of Avarice | Money Talks | Passive | **scripted** — runs as an ability |
 | Demon of Avarice | Numbers Must Go Up | Passive | **text** — the GM's to play |
 | Demon of Avarice | Money Is Time | Action | **scripted** — runs as an ability |
-| Demon of Despair | Depths of Despair | Passive | **text** — the GM's to play |
+| Demon of Despair | Depths of Despair | Passive | **scripted** — runs as an ability |
 | Demon of Despair | Your Struggle Is Pointless | Action | **text** — the GM's to play |
 | Demon of Despair | Your Friends Will Fail You | Reaction | **scripted** — runs as an ability |
 | Demon of Despair | Momentum | Reaction | **read** — read off the stat block |
@@ -449,14 +453,14 @@ Read: 73. Scripted: 168. Text: 176.
 | Fallen Warlord: Undefeated Champion | Circle of Defilement | Reaction: Countdown (1d8) | **text** — the GM's to play |
 | Fallen Warlord: Undefeated Champion | Momentum | Reaction | **read** — read off the stat block |
 | Fallen Warlord: Undefeated Champion | Doombringer | Reaction | **text** — the GM's to play |
-| Hallowed Archer | Punish the Guilty | Passive | **text** — the GM's to play |
+| Hallowed Archer | Punish the Guilty | Passive | **scripted** — runs as an ability |
 | Hallowed Archer | Divine Volley | Action | **text** — the GM's to play |
 | Hallowed Soldier | Minion (13) | Passive | **read** — read off the stat block |
 | Hallowed Soldier | Divine Flight | Passive | **text** — the GM's to play |
 | Hallowed Soldier | Group Attack | Action | **scripted** — runs as an ability |
 | High Seraph | Relentless (3) | Passive | **read** — read off the stat block |
 | High Seraph | Divine Flight | Passive | **text** — the GM's to play |
-| High Seraph | Judgment | Action | **text** — the GM's to play |
+| High Seraph | Judgment | Action | **scripted** — runs as an ability |
 | High Seraph | God Rays | Action | **scripted** — runs as an ability |
 | High Seraph | We Are One | Action | **scripted** — runs as an ability |
 | Kraken | Relentless (3) | Passive | **read** — read off the stat block |

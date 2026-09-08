@@ -821,6 +821,77 @@ describe('what the room makes of a roll', () => {
   });
 });
 
+describe("what a block's own teeth do to this target", () => {
+  /** Kara in reach of something, the fight already on. */
+  const facing = (adversary: string, seed: string) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.state.entity('kara')!.hitPoints = { max: 60, marked: 0 };
+    demo.state.entity('foe')!.hitPoints = { max: 60, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('swaps the dice for the ones the passive names, and only while it holds', () => {
+    // "If the Sniper is Hidden when they make a successful standard attack,
+    // they deal 1d10+4 physical damage instead of their standard damage."
+    const demo = facing('jagged-knife-sniper', 'unseen');
+    const plain = demo.world.standardAttackOf('jagged-knife-sniper', { attacker: 'foe', target: 'kara' });
+    expect(plain.damage).toBeUndefined();
+
+    demo.state.entity('foe')!.conditions.add('hidden');
+    const hidden = demo.world.standardAttackOf('jagged-knife-sniper', { attacker: 'foe', target: 'kara' });
+    expect(hidden.damage).toMatchObject({ count: 1, sides: 10, modifier: 4 });
+  });
+
+  it('doubles what the dice said against a target with nothing left to hope for', () => {
+    // "The Demon deals double damage to PCs with 0 Hope."
+    const demo = facing('demon-of-despair', 'despair');
+    const kara = demo.state.entity('kara')!;
+    kara.hope = { max: 6, value: 3 };
+    expect(demo.world.standardAttackOf('demon-of-despair', { attacker: 'foe', target: 'kara' }).double).toBeUndefined();
+
+    kara.hope = { max: 6, value: 0 };
+    expect(demo.world.standardAttackOf('demon-of-despair', { attacker: 'foe', target: 'kara' }).double).toBe(true);
+
+    // And what lands is twice what the dice said: the same fixture and the
+    // same seed twice over, the only difference being the Hope left in her.
+    const swing = (hope: number): number => {
+      const twin = facing('demon-of-despair', 'despair-twin');
+      twin.state.entity('kara')!.hope = { max: 6, value: hope };
+      twin.scenario.actorId = 'foe';
+      const summary = twin.world.attack({ attacker: 'foe', target: 'kara', weapon: 'primary' }, twin.rng);
+      expect(summary.refused).toBeNull();
+      return summary.damage ?? 0;
+    };
+    const hopeful = swing(3);
+    expect(hopeful).toBeGreaterThan(0);
+    expect(swing(0)).toBe(hopeful * 2);
+  });
+
+  it('marks a target for the Seraph, and the Archer reads the mark', () => {
+    // "Spend a Fear to make a target Guilty…" and "the Archer deals double
+    // damage to targets marked Guilty by a High Seraph".
+    const demo = facing('high-seraph', 'judgment');
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    for (let i = 0; i < 4 && !demo.state.entity('kara')!.conditions.has('guilty'); i++) {
+      demo.state.entity('kara')!.hitPoints = { max: 60, marked: 0 };
+      demo.state.entity('kara')!.alive = true;
+      endTurn(demo);
+    }
+    expect(demo.log.some((l) => l.text.includes('The Seraph names them'))).toBe(true);
+    expect(demo.state.entity('kara')!.conditions.has('guilty')).toBe(true);
+    // A different block, the same mark: what the Seraph named, the Archer punishes.
+    expect(demo.world.standardAttackOf('hallowed-archer', { attacker: 'foe', target: 'kara' }).double).toBe(true);
+  });
+});
+
 describe('a Demon rallying Relentless allies', () => {
   /** A Demon of Hubris and two Minor Demons, who can each be spotlighted twice. */
   const pit = (fear: number, seed: string) => {
