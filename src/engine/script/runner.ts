@@ -306,6 +306,10 @@ export type JournalEntry =
   | { kind: 'blowSoftened'; id: string | null; by: number }
   /** That blow arrives and does nothing at all. */
   | { kind: 'blowAvoided'; id: string | null }
+  /** That blow steps down a band, after whatever the armor did. */
+  | { kind: 'severityStepped'; id: string | null; steps: number }
+  /** The Difficulty that blow was rolled against, raised after the fact. */
+  | { kind: 'evasionRaised'; id: string | null; by: number }
   /** That blow lands in this band instead of being rolled for, or no lower than it. */
   | { kind: 'severityForced'; id: string | null; severity: DamageSeverity; least?: boolean }
   /** One creature off the map and another in its place. `was` is its name. */
@@ -1066,6 +1070,21 @@ export class ScriptRunner {
       }
       case 'avoidBlow': {
         this.journal.push({ kind: 'blowAvoided', id: world.actorId() });
+        return null;
+      }
+      case 'stepSeverity': {
+        this.journal.push({ kind: 'severityStepped', id: world.actorId(), steps: effect.steps ?? 1 });
+        return null;
+      }
+      case 'dodgeBy': {
+        let by = effect.amount === undefined ? 0 : this.amountOf(effect.amount, 0);
+        if (effect.dice !== undefined) {
+          const expression = parseDice(effect.dice);
+          if (expression === null) return this.refuse(`cannot read dice "${effect.dice}"`);
+          by += rollDice(this.rng, expression).total;
+        }
+        if (by <= 0) return null;
+        this.journal.push({ kind: 'evasionRaised', id: world.actorId(), by });
         return null;
       }
       case 'forceSeverity': {

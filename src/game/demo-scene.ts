@@ -63,6 +63,7 @@ import { gain, unmarked } from '../engine/rules/resources';
 import {
   hpForSeverity,
   isSevere,
+  reduceSeverity,
   SEVERITY_ORDER,
   resolveDamage,
   rollDamage,
@@ -401,6 +402,8 @@ export interface IncomingAttack {
    * carried here.
    */
   severity?: DamageSeverity;
+  /** Bands a card of the defender's stepped it down, after the armor. */
+  stepped?: number;
 }
 
 /** Something the defender's side can do about a hit. */
@@ -2913,11 +2916,30 @@ function offerOrLand(demo: DemoScene, attack: IncomingAttack): void {
 function answeredWith(demo: DemoScene, attack: IncomingAttack, journal: readonly JournalEntry[]): void {
   let softened = 0;
   let avoided = false;
+  let stepped = 0;
+  let raised = 0;
   for (const entry of journal) {
     if (entry.kind === 'blowSoftened') softened += entry.by;
     if (entry.kind === 'blowAvoided') avoided = true;
+    if (entry.kind === 'severityStepped') stepped += entry.steps;
+    if (entry.kind === 'evasionRaised') raised += entry.by;
   }
   const who = nameOf(demo, attack.defender);
+
+  // "A bonus to your Evasion equal to the result against the attack": the d20
+  // is measured again against a Difficulty that just went up. A natural 20 is
+  // past arguing with, and a bonus that was not enough changes nothing.
+  const gm = attack.outcome.gmRoll;
+  if (raised > 0 && gm !== undefined) {
+    note(demo, `${who} sees it coming: ${raised} more to beat.`, 'hope');
+    if (!gm.critical && gm.total < gm.difficulty + raised) {
+      demo.world.endsOnAttack(attack.attacker);
+      note(demo, `The ${attack.def.name}'s ${attack.def.attackName} misses ${who}.`, 'combat');
+      playAttackedOn(demo, attack.defender, attack.attacker);
+      settleFight(demo);
+      return;
+    }
+  }
   if (avoided) {
     demo.world.endsOnAttack(attack.attacker);
     note(demo, `The ${attack.def.name}'s ${attack.def.attackName} finds nothing where ${who} was.`, 'combat');
@@ -2931,7 +2953,7 @@ function answeredWith(demo: DemoScene, attack: IncomingAttack, journal: readonly
       ? attack
       : { ...attack, outcome: { ...attack.outcome, damageRoll: { ...roll, total: Math.max(0, roll.total - softened) } } };
   if (softened > 0) note(demo, `${who} turns aside ${softened} of it.`, 'hope');
-  offerOrLand(demo, softer);
+  offerOrLand(demo, stepped <= 0 ? softer : { ...softer, stepped: (softer.stepped ?? 0) + stepped });
 }
 
 /**
@@ -2960,11 +2982,21 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
     note(demo, `${who}: ${used.ability.name}${used.rolled === undefined ? '' : ` (${used.rolled})`}${cost === '' ? '' : `, ${cost}`}.`, 'hope');
   }
 
+  // A card that steps the band does it after the armor, because what it is
+  // paying for is the step the armor did not make.
+  const resolved =
+    attack.stepped === undefined || attack.stepped <= 0
+      ? defense.resolved
+      : (() => {
+          const band = reduceSeverity(defense.resolved.finalSeverity, attack.stepped);
+          note(demo, `${who} rides it down to ${band === 'none' ? 'nothing' : band}.`, 'hope');
+          return { ...defense.resolved, finalSeverity: band, hpMarked: hpForSeverity(band) };
+        })();
   const final: AttackOutcome = {
     ...attack.outcome,
     targetId: attack.defender,
-    damage: defense.resolved,
-    hitPointsMarked: defense.resolved.hpMarked,
+    damage: resolved,
+    hitPointsMarked: resolved.hpMarked,
   };
   applyAttack(demo.state, final);
   demo.world.endsOnAttack(attack.attacker);
@@ -2976,13 +3008,13 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
     hitPoints: final.hitPointsMarked,
     damage: damage.amount,
     types: damage.types,
-    severe: isSevere(defense.resolved.severity),
+    severe: isSevere(resolved.finalSeverity),
   });
   landedFeatures(demo, attack, final.hitPointsMarked);
   playAttackedOn(demo, attack.defender, attack.attacker);
   const ended = [...demo.world.endsOnHit(attack.defender), ...(final.hitPointsMarked > 0 ? demo.world.endsOnDamage(attack.defender) : [])];
   for (const condition of ended) note(demo, `${who} is no longer ${condition}.`, 'system');
-  noteReduction(demo, who, defense.resolved);
+  noteReduction(demo, who, resolved);
   note(
     demo,
     final.hitPointsMarked === 0

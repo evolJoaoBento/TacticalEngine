@@ -399,6 +399,55 @@ const RAW: Input[] = [
       { kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'close' },
     ],
   },
+  // ---- the last two things a defender can say to a blow -------------------
+  {
+    id: 'unyielding-armor',
+    name: 'Unyielding Armor',
+    source: card('unyielding-armor'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    auto: false,
+    target: { kind: 'none' },
+    // Simplified: offered against any blow the defender is asked about rather
+    // than at the moment they would mark an Armor Slot, which is a decision
+    // they have not made yet when the question is put; and the step comes
+    // after whatever armor did rather than in place of a slot.
+    effects: [
+      {
+        kind: 'diceCheck',
+        dice: '1d6',
+        times: { trait: 'proficiency' },
+        atLeast: 6,
+        then: [
+          { kind: 'log', text: 'The plate holds where it had no business holding.', tone: 'hope' },
+          { kind: 'stepSeverity', steps: 1 },
+        ],
+        otherwise: [{ kind: 'log', text: 'The plate gives.', tone: 'system' }],
+      },
+    ],
+  },
+  {
+    id: 'i-see-it-coming',
+    name: 'I See It Coming',
+    source: card('i-see-it-coming'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    auto: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    // "When you're targeted by an attack made from beyond Melee range."
+    available: { kind: 'not', of: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } } },
+    // Simplified: asked once the swing has landed rather than as it is aimed,
+    // because that is where the defender is asked anything at all - so a blow
+    // that was going to miss anyway is never worth a Stress, and one that beat
+    // the new Difficulty by enough is a Stress spent for nothing, as the card
+    // intends.
+    effects: [
+      { kind: 'dodgeBy', dice: '1d4' },
+    ],
+  },
   // ---- a handful of dice, and what comes up on them -----------------------
   // "If any roll a 6": three cards ask it, each counting out a different pile
   // of dice, and none of them could be written until something could roll a

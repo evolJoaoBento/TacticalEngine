@@ -1434,6 +1434,63 @@ describe('a card that answers the blow in its own words', () => {
     expect(dealt?.kind === 'damage' ? dealt.amount : 0).toBe(claws.count * claws.sides + claws.modifier);
   });
 
+  it('rides the blow down a band when the plate holds', () => {
+    // "Roll a number of d6s equal to your Proficiency. If any roll a 6, reduce
+    // the severity by one threshold without marking an Armor Slot."
+    for (let seed = 1; seed < 30; seed++) {
+      const demo = standoff(`plate-${seed}`);
+      holding(demo, ['unyielding-armor']);
+      const asked = untilChoice(demo, 'script');
+      if (asked === null) continue;
+      const index = asked.choices.findIndex((c) => c.kind === 'script');
+      expect(asked.choices[index]!.label).toContain('Unyielding Armor');
+
+      // The same blow taken plainly, off the same seed.
+      const cold = standoff(`plate-${seed}`);
+      holding(cold, ['unyielding-armor']);
+      untilChoice(cold, 'script');
+      answerPending(cold, { kind: 'choose', index: 0 });
+      const plain = cold.state.entity('kara')!.hitPoints.marked;
+
+      answerPending(demo, { kind: 'choose', index });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      if (!demo.log.some((l) => l.text.includes('no business holding'))) continue;
+      expect(demo.state.entity('kara')!.hitPoints.marked).toBeLessThan(plain);
+      return;
+    }
+    throw new Error('no seed rolled a six on the plate in thirty tries');
+  });
+
+  it('adds to the Difficulty after the fact, and the blow goes wide', () => {
+    // "Mark a Stress to roll a d4 and gain a bonus to your Evasion equal to
+    // the result against the attack": the swing has been rolled, so what is
+    // measured again is the d20 that made it.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = standoff(`seen-${seed}`);
+      holding(demo, ['i-see-it-coming']);
+      // Standing off from it: the card answers a swing from beyond Melee, and
+      // the Burrower's claws reach Very Close without closing the ground.
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      demo.state.moveEntity('kara', demo.grid.indexOf(demo.grid.xOf(husk.tile) + 2, demo.grid.yOf(husk.tile)));
+      const asked = untilChoice(demo, 'script');
+      if (asked === null) continue;
+      const index = asked.choices.findIndex((c) => c.kind === 'script');
+      expect(asked.choices[index]!.label).toContain('I See It Coming');
+
+      const said = demo.log.length;
+      answerPending(demo, { kind: 'choose', index });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const after = demo.log.slice(said).map((t) => t.text);
+      expect(after.some((t) => t.includes('sees it coming'))).toBe(true);
+      if (!after.some((t) => t.includes('misses Kara'))) continue;
+      // The d4 was enough: the swing that had landed no longer has.
+      expect(after.some((t) => /Claws (hits|tears into) Kara/.test(t))).toBe(false);
+      expect(demo.state.entity('kara')!.stress.marked).toBeGreaterThanOrEqual(1);
+      return;
+    }
+    throw new Error('no seed put a blow inside a d4 in forty tries');
+  });
+
   it('is not there when the blow arrives, and the swing is spent on nothing', () => {
     const demo = standoff('scramble');
     holding(demo, ['scramble']);

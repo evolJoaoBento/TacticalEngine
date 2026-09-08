@@ -98,6 +98,8 @@ const ADDABLE = [
   'forceSeverity',
   'softenBlow',
   'avoidBlow',
+  'stepSeverity',
+  'dodgeBy',
   'diceCheck',
   'howMany',
   'countdown',
@@ -161,6 +163,8 @@ const LABELS: Readonly<Record<Addable, string>> = {
   forceSeverity: 'Force the damage band',
   softenBlow: 'Take some off the blow',
   avoidBlow: 'Avoid the blow entirely',
+  stepSeverity: 'Step the blow down a band',
+  dodgeBy: 'Raise the Difficulty it was rolled against',
   diceCheck: 'Roll dice and see',
   howMany: 'Ask how many',
   reactionRoll: 'Ask for a reaction roll',
@@ -300,6 +304,10 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, dice: '1d6' };
     case 'diceCheck':
       return { kind, dice: '1d6', atLeast: 6, then: [] };
+    case 'stepSeverity':
+      return { kind, steps: 1 };
+    case 'dodgeBy':
+      return { kind, dice: '1d4' };
     case 'avoidBlow':
       return { kind };
     case 'howMany':
@@ -1032,6 +1040,32 @@ function renderBody(
             rolled
           </span>
           {amount(effect.times ?? 1, (times) => ({ ...effect, times: times === 1 ? undefined : times }))}
+        </>
+      );
+    case 'stepSeverity':
+      return (
+        <>
+          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="Bands down, after whatever the armor did">
+            down
+          </span>
+          {count(effect.steps ?? 1, (steps) => ({ ...effect, steps }))}
+        </>
+      );
+    case 'dodgeBy':
+      return (
+        <>
+          <input
+            style={{ ...field, flex: 'none', width: '72px' }}
+            data-role="dodge-dice"
+            placeholder="1d4"
+            title="Dice to roll and add to the Difficulty the blow was rolled against"
+            value={effect.dice ?? ''}
+            onInput={(e) => {
+              const dice = (e.target as HTMLInputElement).value.trim();
+              onChange({ ...effect, dice: dice === '' ? undefined : dice });
+            }}
+          />
+          {amount(effect.amount ?? 0, (value) => ({ ...effect, amount: value === 0 ? undefined : value }))}
         </>
       );
     case 'softenBlow':

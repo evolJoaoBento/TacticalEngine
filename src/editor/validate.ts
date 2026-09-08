@@ -505,7 +505,14 @@ function boostsABlow(ability: AbilityDef): boolean {
 function answersABlow(ability: AbilityDef): boolean {
   let answers = false;
   walkEffects(ability.effects, (effect) => {
-    if (effect.kind === 'softenBlow' || effect.kind === 'avoidBlow') answers = true;
+    if (
+      effect.kind === 'softenBlow' ||
+      effect.kind === 'avoidBlow' ||
+      effect.kind === 'stepSeverity' ||
+      effect.kind === 'dodgeBy'
+    ) {
+      answers = true;
+    }
   });
   return answers;
 }

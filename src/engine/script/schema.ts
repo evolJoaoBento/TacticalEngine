@@ -748,6 +748,32 @@ export const effectSchema = z.discriminatedUnion('kind', [
    */
   z.object({ kind: z.literal('avoidBlow') }),
   /**
+   * "Reduce the severity of the damage by one threshold": the blow is counted
+   * as it was, armor and all, and then steps down a band.
+   *
+   * Not the same as taking a number off it - a step is a step whatever the
+   * dice said - and read after the armor rather than instead of it, because
+   * the cards that say it are paying for something the armor did not do.
+   */
+  z.object({
+    kind: z.literal('stepSeverity'),
+    steps: z.number().int().positive().optional(),
+  }),
+  /**
+   * "Roll a d4 and gain a bonus to your Evasion equal to the result against
+   * the attack": a blow that has already been rolled, measured again against
+   * a Difficulty that just went up.
+   *
+   * The swing is the GM's, so what is compared is the d20 it was made with. A
+   * natural 20 is past arguing with - "your roll automatically succeeds" - and
+   * a bonus that is not enough changes nothing at all.
+   */
+  z.object({
+    kind: z.literal('dodgeBy'),
+    dice: z.string().min(1).optional(),
+    amount: amountSchema.optional(),
+  }),
+  /**
    * "Roll a number of d6s equal to your Proficiency. If any roll a 6...": a
    * handful of dice, and what happens if one of them comes up.
    *
