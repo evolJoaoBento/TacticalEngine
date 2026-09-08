@@ -15,7 +15,7 @@
 
 import { z } from 'zod';
 import { contentIdSchema } from '../scene/primitives';
-import { effectSchema } from '../script/schema';
+import { conditionSchema, effectSchema } from '../script/schema';
 import { abilityModifierSchema, damageDefensesSchema } from './abilities';
 
 /** What a condition can stop its bearer from doing. */
@@ -64,6 +64,18 @@ export const conditionDefSchema = z.object({
     .object({
       /** `attacked`: somebody swung at the bearer, hit or miss. */
       on: z.literal('attacked'),
+      /**
+       * And only when this holds - read with whoever swung acting, the bearer
+       * bound as the target and the roll they made bound too, so "when you
+       * succeed with Hope against an adversary in this shadow" is a pair of
+       * `rolled` gates and nothing else.
+       */
+      when: conditionSchema.optional(),
+      /**
+       * Whether it simply happens. A debt somebody may decline is offered;
+       * "the target must mark a Stress" is not a decision anybody makes.
+       */
+      auto: z.boolean().optional(),
       get effects() {
         return z.array(effectSchema).default([]);
       },
@@ -159,6 +171,35 @@ const RAW: ConditionInput[] = [
     id: 'zone-of-protection',
     name: 'Zone of Protection',
     text: 'Damage taken here is reduced by the value of the die on the card.',
+  },
+  // Eclipse, read from either side of it. The dark is one spell and two
+  // zones, because what it does to the party and what it does to everything
+  // else are two different rules over the same ground.
+  {
+    id: 'in-shadow',
+    name: 'In Shadow',
+    text: 'Attack rolls have disadvantage when targeting you.',
+    modifiers: [{ stat: 'advantage', bonus: -1, against: true }],
+  },
+  {
+    id: 'shadowed',
+    name: 'Shadowed',
+    text: 'When somebody succeeds with Hope against you here, you must mark a Stress.',
+    payout: {
+      on: 'attacked',
+      when: {
+        kind: 'all',
+        of: [
+          { kind: 'rolled', is: 'success' },
+          { kind: 'rolled', is: 'withHope' },
+        ],
+      },
+      auto: true,
+      effects: [
+        { kind: 'log', text: 'The dark closes on them.', tone: 'hope' },
+        { kind: 'markStress', amount: 1, target: { kind: 'target' } },
+      ],
+    },
   },
   {
     id: 'stunned',

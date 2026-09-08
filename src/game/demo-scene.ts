@@ -21,7 +21,7 @@ import { compileHooks, mergeHooks, type HookMap } from '../engine/script/hooks';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES } from './demo-code';
 import { SRD_CONDITIONS, type ConditionDef } from '../engine/content/conditions';
 import { MAX_SLOTS } from '../engine/rules/resources';
-import { walkCheck, walkEffects, type CountName, type Effect, type TargetSelector } from '../engine/script/schema';
+import { walkCheck, walkEffects, type Condition, type CountName, type Effect, type TargetSelector } from '../engine/script/schema';
 import type { DamageType } from '../engine/rules/dice';
 import type { ItemDef, LootTable } from '../engine/content/items';
 import type { QuestDef } from '../engine/content/quests';
@@ -1324,7 +1324,7 @@ function landPartyAttack(
   }
   // "The next PC to make an attack against that adversary can clear a Stress
   // or gain a Hope": hit or miss, and paid to whoever swung.
-  playPayouts(demo, id!, targetId, owed);
+  playPayouts(demo, id!, targetId, owed, outcome.dualityRoll);
   // What the room makes of the roll itself: "when a PC rolls with Fear while
   // within Far range of the Dragon". Before `act`, so anything it costs them
   // is settled by the same `settleFight` as the swing.
@@ -2320,11 +2320,26 @@ function playPayouts(
   demo: DemoScene,
   attacker: string,
   target: string,
-  owed: readonly { condition: string; effects: readonly Effect[] }[],
+  owed: readonly { condition: string; effects: readonly Effect[]; when?: Condition; auto?: boolean }[],
+  roll?: { total: number; outcome: RollOutcome },
 ): void {
   const asked: ReactionOffer[][] = [];
   for (const debt of owed) {
     if (!demo.state.entity(target)?.conditions.has(debt.condition)) continue;
+    // "When you succeed with Hope against an adversary in this shadow": read
+    // with the one who swung acting, the bearer bound and the roll they made
+    // bound too, so the gate is the same `rolled` every card asks with.
+    if (debt.when !== undefined) {
+      const was = demo.scenario.actorId;
+      demo.scenario.actorId = attacker;
+      const holds = evaluate(debt.when, demo.world, {
+        targets: [target],
+        hit: [target],
+        ...(roll === undefined ? {} : { roll }),
+      });
+      demo.scenario.actorId = was;
+      if (!holds) continue;
+    }
     const name = demo.world.conditionName(debt.condition);
     const ability = abilitySchema.parse({
       id: `payout-${debt.condition}`,
@@ -2335,10 +2350,17 @@ function playPayouts(
       text: 'What somebody else left you.',
       kind: 'reaction',
       action: false,
-      auto: false,
+      // "The target must mark a Stress" is nobody's decision; a debt somebody
+      // may decline is offered.
+      auto: debt.auto === true,
       effects: [...debt.effects, { kind: 'clearCondition', condition: debt.condition, target: { kind: 'target' } }],
     });
-    asked.push([{ by: attacker, ability, targets: [target], counts: {} }]);
+    const offer: ReactionOffer = { by: attacker, ability, targets: [target], counts: {} };
+    if (debt.auto === true) {
+      playReaction(demo, offer, [], false);
+      continue;
+    }
+    asked.push([offer]);
   }
   if (asked.length > 0) offerReactions(demo, asked);
 }

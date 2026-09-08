@@ -3973,3 +3973,120 @@ describe('ground worth standing on', () => {
     throw new Error('the spell never landed in sixty tries');
   });
 });
+
+
+describe('a room put out', () => {
+  /** Mira with the spell in hand, the party and the husk all within Far. */
+  const dark = (seed: string) => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['eclipse'], loadout: ['eclipse'] };
+    demo.sheets.set('mira', sheet);
+    demo.characters.set('mira', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    // The dark reaches Far from where she stands, so she stands with them.
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    standBehind(demo, 'mira', husk.tile);
+    demo.party.select('mira');
+    return demo;
+  };
+
+  /** Cast it; true when the roll got there. */
+  const cast = (demo: DemoScene): boolean => {
+    if (useAbility(demo, 'mira', 'eclipse', []).status === 'refused') return false;
+    for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+      const prompt = demo.pending.prompt;
+      if (prompt.kind === 'choice') answerPending(demo, { kind: 'choose', index: 0 });
+      else answerPending(demo, { kind: 'roll' });
+    }
+    return demo.world.zones().length > 0;
+  };
+
+  it('turns attacks against the party and marks whoever is beaten with Hope', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = dark(`eclipse-${seed}`);
+      if (!cast(demo)) continue;
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+
+      // Two patches of ground over the same tiles, one rule each.
+      expect(demo.state.entity('kara')!.conditions.has('in-shadow')).toBe(true);
+      expect(demo.state.entity('kara')!.conditions.has('shadowed')).toBe(false);
+      expect(husk.conditions.has('shadowed')).toBe(true);
+      expect(husk.conditions.has('in-shadow')).toBe(false);
+
+      // Attacks against anyone in the party are made in the dark.
+      expect(demo.world.advantageFor(husk.id, 'kara').disadvantage).toBe(1);
+      expect(demo.world.advantageFor('kara', husk.id).disadvantage).toBe(0);
+      return;
+    }
+    throw new Error('the dark never fell in sixty tries');
+  });
+
+  it('takes a Stress from whoever is beaten with Hope in it, and only then', () => {
+    let withHope = false;
+    let otherwise = false;
+    for (let seed = 1; seed < 80 && !(withHope && otherwise); seed++) {
+      const demo = dark(`eclipse-stress-${seed}`);
+      if (!cast(demo)) continue;
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      husk.hitPoints = { max: 60, marked: 0 };
+      husk.stress = { max: 6, marked: 0 };
+
+      demo.party.select('kara');
+      const said = demo.log.length;
+      attackWithSelected(demo, husk.id);
+      let guard = 0;
+      while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'choose', index: 0 });
+      const after = demo.log.slice(said).map((t) => t.text);
+      // What the dice said, off the roll the table saw rather than the log.
+      const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
+      if (rolled === undefined) continue;
+
+      if (rolled === 'successWithHope' || rolled === 'criticalSuccess') {
+        // "The target must mark a Stress": nobody is asked about it.
+        expect(husk.stress.marked).toBe(1);
+        expect(after.some((t) => t.includes('The dark closes on them'))).toBe(true);
+        withHope = true;
+      } else {
+        // Any other roll leaves them alone, and the dark still over them.
+        expect(husk.stress.marked).toBe(0);
+        expect(demo.state.entity(husk.id)!.conditions.has('shadowed')).toBe(true);
+        otherwise = true;
+      }
+    }
+    expect(withHope).toBe(true);
+    expect(otherwise).toBe(true);
+  });
+
+  it('breaks when the one who cast it takes Severe damage', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = dark(`eclipse-break-${seed}`);
+      if (!cast(demo)) continue;
+      const mira = demo.state.entity('mira')!;
+      mira.hitPoints = { max: 12, marked: 0 };
+
+      // Three Hit Points at once is Severe, and the card answers that.
+      demo.world.damage({ kind: 'entity', id: 'mira' }, 3);
+      settleFight(demo);
+      expect(demo.log.some((l) => l.text.includes('The dark breaks'))).toBe(true);
+      expect(demo.world.zones().length).toBe(0);
+      expect(demo.state.entity('kara')!.conditions.has('in-shadow')).toBe(false);
+      expect(demo.state.entitiesOf('adversary').every((e) => !e.conditions.has('shadowed'))).toBe(true);
+      return;
+    }
+    throw new Error('the dark never fell in sixty tries');
+  });
+
+  it('goes out with the one who cast it', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = dark(`eclipse-fall-${seed}`);
+      if (!cast(demo)) continue;
+      demo.state.entity('mira')!.alive = false;
+      demo.world.refreshZones();
+      expect(demo.world.zones().length).toBe(0);
+      expect(demo.state.entity('kara')!.conditions.has('in-shadow')).toBe(false);
+      return;
+    }
+    throw new Error('the dark never fell in sixty tries');
+  });
+});

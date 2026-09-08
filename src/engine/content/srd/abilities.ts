@@ -489,6 +489,118 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // "Make a Spellcast Roll (16). Once per long rest on a success, plunge the
+  // entire area within Far range into complete darkness only you and your
+  // allies can see through. Attack rolls have disadvantage when targeting you
+  // or an ally within this shadow. Additionally, when you or an ally succeeds
+  // with Hope against an adversary within this shadow, the target must mark a
+  // Stress. This spell lasts until the GM spends a Fear on their turn to clear
+  // this effect or you take Severe damage."
+  //
+  // One spell and two patches of ground, because what the dark does to the
+  // party and what it does to everything else are two different rules over the
+  // same tiles: allies bear a condition that turns attacks against them, and
+  // adversaries bear one that owes a Stress to whoever beats them with Hope.
+  //
+  // Simplified: the GM's half of the ending is not modelled. Nothing at that
+  // end of the table decides to spend a Fear on clearing an effect - the GM's
+  // turn spends Fear on spotlights and on the features a stat block prints -
+  // so the shadow lasts until the one who cast it takes Severe damage, which
+  // is the half the engine can decide, or until they fall.
+  {
+    id: 'eclipse',
+    name: 'Eclipse',
+    source: card('eclipse'),
+    uses: { count: 1, per: 'longRest' },
+    inCombatOnly: true,
+    target: { kind: 'none', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 16,
+          prompt: 'Eclipse: put the room out.',
+          onCriticalSuccess: [
+              {
+                kind: 'zone',
+                zone: 'eclipse-allies',
+                name: 'Eclipse',
+                condition: 'in-shadow',
+                band: 'far',
+                side: 'allies',
+                onDeath: 'end',
+              },
+              {
+                kind: 'zone',
+                zone: 'eclipse-adversaries',
+                name: 'Eclipse',
+                condition: 'shadowed',
+                band: 'far',
+                side: 'adversaries',
+                onDeath: 'end',
+              },
+              { kind: 'log', text: 'The room goes out, and only your own can see through it.', tone: 'fear' },
+            ],
+          onSuccessWithHope: [
+              {
+                kind: 'zone',
+                zone: 'eclipse-allies',
+                name: 'Eclipse',
+                condition: 'in-shadow',
+                band: 'far',
+                side: 'allies',
+                onDeath: 'end',
+              },
+              {
+                kind: 'zone',
+                zone: 'eclipse-adversaries',
+                name: 'Eclipse',
+                condition: 'shadowed',
+                band: 'far',
+                side: 'adversaries',
+                onDeath: 'end',
+              },
+              { kind: 'log', text: 'The room goes out, and only your own can see through it.', tone: 'fear' },
+            ],
+          onSuccessWithFear: [
+              {
+                kind: 'zone',
+                zone: 'eclipse-allies',
+                name: 'Eclipse',
+                condition: 'in-shadow',
+                band: 'far',
+                side: 'allies',
+                onDeath: 'end',
+              },
+              {
+                kind: 'zone',
+                zone: 'eclipse-adversaries',
+                name: 'Eclipse',
+                condition: 'shadowed',
+                band: 'far',
+                side: 'adversaries',
+                onDeath: 'end',
+              },
+              { kind: 'log', text: 'The room goes out, and only your own can see through it.', tone: 'fear' },
+            ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'eclipse-ends',
+    name: 'Eclipse',
+    source: card('eclipse'),
+    kind: 'reaction',
+    trigger: 'tookSevere',
+    action: false,
+    effects: [
+      { kind: 'endZone', zone: 'eclipse-allies' },
+      { kind: 'endZone', zone: 'eclipse-adversaries' },
+      { kind: 'log', text: 'The dark breaks, and the room comes back.', tone: 'fear' },
+    ],
+  },
   // "Make a Spellcast Roll (16). Once per long rest on a success, choose a
   // point within Far range and create a visible zone of protection there for
   // all allies within Very Close range of that point. When you do, place a d6
