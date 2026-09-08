@@ -845,6 +845,17 @@ footer {
   not even shaking off a hold. Anywhere but a <code>spotlighted</code> reaction on a stat block
   it is a silent no-op, and the validator says so.</p>
 
+  <p>A blow stops once between landing and being counted. <code>rollingDamage</code> is raised on the
+  creature swinging and <code>allyRollingDamage</code> on every other adversary still
+  standing, both with the one being hit bound as the target &mdash; so &ldquo;within Far range
+  of the Turret&rdquo; is a plain <code>withinRange</code> from the reactor to the defender.
+  What they add is <code>boostDamage</code>: a flat <code>amount</code>, <code>dice</code> to
+  roll, or <code>dice: 'weapon'</code> for the reactor's own printed attack. Like
+  <code>endSpotlight</code> it journals rather than writes; the game layer sums what the
+  moment reported and adds it before the defence, so thresholds and Armor Slots read what
+  actually arrives. Only the GM's own swing raises it &mdash; a scripted <code>attack</code>
+  inside a feature keeps its outcome inside the world.</p>
+
   <p>A condition can count creatures, too. The selectors already say which ones and where
   &mdash; around the actor or around the chosen target, off the same stat block, everyone but
   the one asking &mdash; and <code>nearby</code> asks how many there are: &ldquo;another Dire

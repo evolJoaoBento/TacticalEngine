@@ -271,6 +271,10 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                       {/* The other side of the table: what its own swing did. */}
                       <option value="dealtHit">its attack hits</option>
                       <option value="dealtDamage">its attack marks a Hit Point</option>
+                      {/* Between the hit and the counting: what the room adds
+                          to a blow before the defence reads it. */}
+                      <option value="rollingDamage">its own damage is being counted</option>
+                      <option value="allyRollingDamage">an ally's damage is being counted</option>
                     </select>,
                   )
                 : null}

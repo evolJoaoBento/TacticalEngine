@@ -258,6 +258,20 @@ export const abilitySchema = z.object({
        * bound as the target, and what the roll was is a `rolled` condition.
        */
       'partyRolled',
+      /**
+       * The holder's own blow has landed and its damage has not been counted
+       * yet: "before rolling damage for the Construct's attack".
+       */
+      'rollingDamage',
+      /**
+       * Somebody else's has: "when another adversary deals damage to a target
+       * within Far range of the Turret". Two triggers rather than one, because
+       * every feature here is written as one or the other and a Demon that
+       * cannot bear to be outdone must not be outdone by itself. The one being
+       * hit is bound as the target for both, so a feature's reach is read
+       * against where they are standing.
+       */
+      'allyRollingDamage',
       'spotlighted',
     ])
     .optional(),

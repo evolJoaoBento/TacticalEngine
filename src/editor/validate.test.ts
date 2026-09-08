@@ -686,6 +686,54 @@ describe('what only a stat block has', () => {
     expect(said.some((m) => m.includes('on-a-block'))).toBe(false);
   });
 
+  it('warns when something adds to a blow nobody is throwing', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'out-of-nowhere',
+          name: 'Out Of Nowhere',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'boostDamage', amount: 5 }],
+        },
+        {
+          id: 'wrong-moment',
+          name: 'Wrong Moment',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'dealtDamage',
+          effects: [{ kind: 'boostDamage', amount: 5 }],
+        },
+        {
+          id: 'mid-swing',
+          name: 'Mid Swing',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'rollingDamage',
+          effects: [{ kind: 'boostDamage', amount: 5 }],
+        },
+        {
+          id: 'somebody-elses',
+          name: "Somebody Else's",
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'allyRollingDamage',
+          effects: [{ kind: 'boostDamage', dice: 'weapon' }],
+        },
+      ],
+    });
+    const said = messages(project);
+    // A blow already counted is as useless as no blow at all.
+    expect(said.some((m) => m.includes('"out-of-nowhere" adds to a blow'))).toBe(true);
+    expect(said.some((m) => m.includes('"wrong-moment" adds to a blow'))).toBe(true);
+    expect(said.some((m) => m.includes('mid-swing'))).toBe(false);
+    expect(said.some((m) => m.includes('somebody-elses'))).toBe(false);
+  });
+
   it('warns when a gate on the target has no target to narrow', () => {
     const project = projectSchema.parse({
       ...build(),

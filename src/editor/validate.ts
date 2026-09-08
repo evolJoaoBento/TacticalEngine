@@ -307,6 +307,19 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // Adding to a blow needs a blow in the air. The two triggers that stop
+    // mid-swing are the only place anything is listening.
+    if (
+      boostsABlow(ability) &&
+      ability.trigger !== 'rollingDamage' &&
+      ability.trigger !== 'allyRollingDamage'
+    ) {
+      add(
+        'warning',
+        `"${ability.id}" adds to a blow, which only a damage roll being counted has.`,
+        ability.id,
+      );
+    }
     walkEffects(ability.effects, inspect(ability.id));
     walkConditionsIn(ability.effects, asked(ability.id));
     inspectCondition(ability.id, ability.available);
@@ -351,6 +364,15 @@ function readsTheBlow(ability: AbilityDef): boolean {
   walkConditionsIn(ability.effects, compares);
   if (ability.available !== undefined) walkCondition(ability.available, compares);
   return reads;
+}
+
+/** Whether anything in an ability adds to a blow that has already landed. */
+function boostsABlow(ability: AbilityDef): boolean {
+  let boosts = false;
+  walkEffects(ability.effects, (effect) => {
+    if (effect.kind === 'boostDamage') boosts = true;
+  });
+  return boosts;
 }
 
 /** Whether anything in an ability spends the turn it is running in. */

@@ -2146,7 +2146,7 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   // the thresholds and the Armor Slots are read against what actually lands,
   // and spent on the way out - a Relentless second spotlight, paid for in the
   // ordinary way, swings at full strength.
-  const outcome = halveIfRallied(demo, adversaryId, rolled);
+  const outcome = boostDamage(demo, adversaryId, targetId, halveIfRallied(demo, adversaryId, rolled));
 
   // A miss is usually over at once — unless the target holds a card that
   // answers one, like Vanishing Dodge.
@@ -2173,6 +2173,64 @@ function halveIfRallied(
   const total = Math.ceil(outcome.damageRoll.total / 2);
   note(demo, `${nameOf(demo, adversaryId)} strikes on somebody else's word, for half.`, 'combat');
   return { ...outcome, damageRoll: { ...outcome.damageRoll, total } };
+}
+
+/**
+ * "Before rolling damage for the Construct's attack, mark a Stress to gain a
+ * +10 bonus to the damage roll": what the room adds to a blow that has landed
+ * and has not been counted yet.
+ *
+ * Raised as `rollingDamage` on the one swinging and as `allyRollingDamage` on
+ * every other adversary still standing, because half of these are about
+ * somebody else's hit - "when another adversary deals damage to a target within
+ * Far range of the Turret" - and a Demon that cannot bear to be outdone must
+ * not be outdone by itself. The one being hit is bound as the target for both,
+ * so a feature's `withinRange` is read from the reactor to the defender, which
+ * is the reach every one of them names.
+ *
+ * It lands after a Horde's swap and after doubling, both of which are on the
+ * profile the dice were rolled from, and before the defence, so thresholds and
+ * Armor Slots read what actually arrives. Only the GM's own swing raises it:
+ * a scripted `attack` inside a feature keeps its outcome inside the world, and
+ * nothing there asks the room for a bonus yet.
+ */
+function boostDamage(
+  demo: DemoScene,
+  attackerId: string,
+  targetId: string,
+  outcome: ReturnType<typeof resolveAttack>,
+): ReturnType<typeof resolveAttack> {
+  if (!outcome.hit || outcome.damageRoll === undefined) return outcome;
+  const bound = { targets: [targetId], hit: [targetId] };
+  const standing = demo.state
+    .entitiesOf('adversary')
+    .filter((e) => e.alive && e.id !== attackerId)
+    .map((e) => e.id);
+  let added = 0;
+  const answering: [string, 'rollingDamage' | 'allyRollingDamage'][] = [
+    [attackerId, 'rollingDamage'],
+    ...standing.map((id): [string, 'allyRollingDamage'] => [id, 'allyRollingDamage']),
+  ];
+  for (const [id, trigger] of answering) {
+    for (const ability of demo.world.reactionsFor(id, trigger, bound)) {
+      if (ability.effects.length === 0) continue;
+      if (!affordableReaction(demo, id, ability)) continue;
+      spendFeatureCost(demo, id, ability, 'reaction');
+      const was = demo.scenario.actorId;
+      demo.scenario.actorId = id;
+      const runner = new ScriptRunner(demo.world, demo.rng, { targets: [targetId], hit: [targetId], rollAs: 'actor' });
+      const result = runner.run(ability.effects);
+      record(demo, result.journal);
+      demo.scenario.actorId = was;
+      for (const entry of result.journal) {
+        if (entry.kind === 'damageBoosted') added += entry.by;
+      }
+      afterAdversaryScript(demo, result.journal);
+    }
+  }
+  if (added <= 0) return outcome;
+  note(demo, `The blow lands harder by ${added}.`, 'fear');
+  return { ...outcome, damageRoll: { ...outcome.damageRoll, total: outcome.damageRoll.total + added } };
 }
 
 /**

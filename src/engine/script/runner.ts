@@ -294,6 +294,8 @@ export type JournalEntry =
   | { kind: 'spotlighted'; ids: readonly string[]; halfDamage: boolean }
   /** The spotlight this script is running in ends without its creature acting. */
   | { kind: 'spotlightEnded'; id: string | null }
+  /** Added to a blow that has landed and not yet been counted. */
+  | { kind: 'damageBoosted'; id: string | null; by: number }
   /** One creature off the map and another in its place. `was` is its name. */
   | { kind: 'replaced'; was: string; adversary: string; ids: readonly string[]; spotlight: boolean }
   /** `roll` is set when a party member rolled it: an adversary's is a d20. */
@@ -944,6 +946,21 @@ export class ScriptRunner {
           chosen = (actor === null ? [...standing] : world.nearestFirst(actor, standing)).slice(0, wanted);
         }
         this.journal.push({ kind: 'spotlighted', ids: chosen, halfDamage: effect.halfDamage === true });
+        return null;
+      }
+      case 'boostDamage': {
+        // "Add the Turret's standard attack damage to the damage roll": the
+        // block's own printed dice, the same `weapon` the damage effect reads.
+        const actor = world.actorId();
+        let by = effect.amount === undefined ? 0 : this.amountOf(effect.amount, 0);
+        if (effect.dice !== undefined) {
+          const expression =
+            effect.dice === 'weapon' ? (actor === null ? null : world.weaponDamage(actor)) : parseDice(effect.dice);
+          if (expression === null) return this.refuse(`cannot read damage dice "${effect.dice}"`);
+          by += rollDamage(this.rng, expression, { proficiency: 1, critical: false }).total;
+        }
+        if (by <= 0) return null;
+        this.journal.push({ kind: 'damageBoosted', id: actor, by });
         return null;
       }
       case 'endSpotlight': {

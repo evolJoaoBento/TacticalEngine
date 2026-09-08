@@ -2142,6 +2142,100 @@ const RAW: Input[] = [
       { kind: 'loseHope', target: { kind: 'allies', range: 'close', except: 'target' } },
     ],
   },
+  // ---- the blow that has landed and not yet been counted ------------------
+  // "Before rolling damage for the Construct's attack, mark a Stress to gain a
+  // +10 bonus to the damage roll." One moment, two halves: a block adding to
+  // its own swing, and a block adding to somebody else's. Both are the
+  // `rollingDamage` trigger, which the GM's swing raises on the one swinging
+  // and then on everyone else still standing, with the one being hit bound as
+  // the target - so the reach each of these names is a plain `withinRange`.
+  //
+  // What stays text is the amount Reaper wants: a bonus equal to the Demon's
+  // own marked Hit Points is a number read off a pool, which no amount can
+  // say yet.
+  {
+    id: 'construct-overload',
+    name: 'Overload',
+    source: from('construct'),
+    text: "Before rolling damage for the Construct's attack, you can mark a Stress to gain a +10 bonus to the damage roll. The Construct can then take the spotlight again.",
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    // Simplified: the second spotlight stays at the table. A creature cannot
+    // hand itself the turn it is already taking - the `spotlight` effect
+    // leaves the one acting out on purpose - and Relentless is how a block
+    // says "again" here.
+    effects: [
+      { kind: 'log', text: 'The Construct overloads, and the fist comes down heavier.', tone: 'fear' },
+      { kind: 'boostDamage', amount: 10 },
+    ],
+  },
+  {
+    id: 'battle-box-overcharge',
+    name: 'Overcharge',
+    source: from('battle-box'),
+    text: "Before rolling damage for the Box's attack, you can mark a Stress to add a d6 to the damage roll. Additionally, you gain a Fear.",
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The Box overcharges.', tone: 'fear' },
+      { kind: 'boostDamage', dice: '1d6' },
+      { kind: 'gainFear', amount: 1 },
+    ],
+  },
+  {
+    id: 'demon-of-jealousy-rivalry',
+    name: 'Rivalry',
+    source: from('demon-of-jealousy'),
+    text: 'When a creature within Close range takes damage from a different adversary, you can mark a Stress to add a d4 to the damage roll.',
+    kind: 'reaction',
+    trigger: 'allyRollingDamage',
+    action: false,
+    cost: { stress: 1 },
+    available: { kind: 'withinRange', range: 'close' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The Demon cannot bear to be outdone.', tone: 'fear' },
+      { kind: 'boostDamage', dice: '1d4' },
+    ],
+  },
+  {
+    id: 'vault-guardian-turret-concentrate-fire',
+    name: 'Concentrate Fire',
+    source: from('vault-guardian-turret'),
+    text: "When another adversary deals damage to a target within Far range of the Turret, you can mark a Stress to add the Turret's standard attack damage to the damage roll.",
+    kind: 'reaction',
+    trigger: 'allyRollingDamage',
+    action: false,
+    cost: { stress: 1 },
+    available: { kind: 'withinRange', range: 'far' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The Turret swings around and fires into the same spot.', tone: 'fear' },
+      { kind: 'boostDamage', dice: 'weapon' },
+    ],
+  },
+  {
+    id: 'perfected-zombie-skilled-opportunist',
+    name: 'Skilled Opportunist',
+    source: from('perfected-zombie'),
+    text: "When another adversary deals damage to a target within Very Close range of the Zombie, you can spend a Fear to add the Zombie's standard attack damage to the damage roll.",
+    kind: 'reaction',
+    trigger: 'allyRollingDamage',
+    action: false,
+    cost: { fear: 1 },
+    available: { kind: 'withinRange', range: 'veryClose' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The Zombie steps into the opening and swings.', tone: 'fear' },
+      { kind: 'boostDamage', dice: 'weapon' },
+    ],
+  },
   // ---- one of its own, standing beside the target -------------------------
   // "Another Dire Wolf is within Melee range of the target." The selectors
   // could already say which creatures and where - around the target rather

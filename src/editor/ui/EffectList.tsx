@@ -93,6 +93,7 @@ const ADDABLE = [
   'replace',
   'spotlight',
   'endSpotlight',
+  'boostDamage',
   'countdown',
   'reactionRoll',
   'run',
@@ -149,6 +150,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   replace: 'Replace with another',
   spotlight: 'Spotlight allies',
   endSpotlight: 'End this spotlight',
+  boostDamage: 'Add to the blow landing',
   reactionRoll: 'Ask for a reaction roll',
   run: 'Run code',
 };
@@ -273,6 +275,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, targets: { kind: 'adversaries', range: 'far' } };
     case 'endSpotlight':
       return { kind };
+    case 'boostDamage':
+      return { kind, dice: '1d6' };
     case 'countdown':
       return { kind, countdown: 'countdown', name: 'Countdown', start: '4', effects: [] };
     case 'reactionRoll':
@@ -920,6 +924,23 @@ function renderBody(
         <span style={{ ...field, color: '#8ea3b0' }}>
           the creature acts no further this turn
         </span>
+      );
+    case 'boostDamage':
+      return (
+        <>
+          <input
+            style={{ ...field, flex: 'none', width: '86px' }}
+            data-role="boost-dice"
+            placeholder="1d6, weapon"
+            title="Dice to roll and add, or 'weapon' for its own printed damage. Empty for a flat number."
+            value={effect.dice ?? ''}
+            onInput={(e) => {
+              const dice = (e.target as HTMLInputElement).value.trim();
+              onChange({ ...effect, dice: dice === '' ? undefined : dice });
+            }}
+          />
+          {amount(effect.amount ?? 0, (value) => ({ ...effect, amount: value === 0 ? undefined : value }))}
+        </>
       );
     case 'countdown':
       return (

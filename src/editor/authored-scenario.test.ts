@@ -821,6 +821,84 @@ describe('what the room makes of a roll', () => {
   });
 });
 
+describe('the blow that has landed and not yet been counted', () => {
+  /** One thing swinging at Kara, and optionally somebody watching. */
+  const swinging = (adversary: string, seed: string, bystander?: { id: string; adversary: string; at: { x: number; y: number } }) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    if (bystander !== undefined) {
+      s.run(addAdversary('hall', 'duel', { id: bystander.id, adversary: bystander.adversary, position: bystander.at }));
+    }
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.state.entity('kara')!.hitPoints = { max: 90, marked: 0 };
+    demo.state.entity('foe')!.hitPoints = { max: 90, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('adds the ten only when there is a Stress to pay for it', () => {
+    // "Before rolling damage for the Construct's attack, mark a Stress to gain
+    // a +10 bonus." The same fixture and the same seed twice over, the only
+    // difference being whether the Construct can afford the Stress.
+    const swing = (stress: number): { marked: number; overloaded: boolean } => {
+      const demo = swinging('construct', 'overload');
+      demo.state.entity('foe')!.stress = { max: 4, marked: stress };
+      const before = demo.state.entity('kara')!.hitPoints.marked;
+      endTurn(demo);
+      expect(demo.log.some((l) => l.text.includes('Fist Slam hits'))).toBe(true);
+      return {
+        marked: demo.state.entity('kara')!.hitPoints.marked - before,
+        overloaded: demo.log.some((l) => l.text.includes('The blow lands harder by 10')),
+      };
+    };
+    const spent = swing(0);
+    const broke = swing(4);
+    expect(spent.overloaded).toBe(true);
+    // Nothing left to mark, nothing added: the same hit, ten lighter.
+    expect(broke.overloaded).toBe(false);
+    // A Fist Slam is 1d20; ten more of it is worth at least one more threshold.
+    expect(spent.marked).toBeGreaterThan(broke.marked);
+  });
+
+  it("lets a Turret fire into somebody else's hit, but never into its own", () => {
+    // "When another adversary deals damage to a target within Far range of the
+    // Turret." The Turret is standing off, the Zombie does the hitting.
+    const demo = swinging('brawny-zombie', 'concentrate', {
+      id: 'turret',
+      adversary: 'vault-guardian-turret',
+      at: { x: 6, y: 4 },
+    });
+    demo.state.entity('turret')!.hitPoints = { max: 90, marked: 0 };
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    for (let i = 0; i < 6 && !demo.log.some((l) => l.text.includes('swings around and fires')); i++) {
+      demo.state.entity('kara')!.hitPoints = { max: 90, marked: 0 };
+      demo.state.entity('kara')!.stress = { max: 6, marked: 0 };
+      demo.state.entity('kara')!.alive = true;
+      demo.world.addTokens('foe', 'slow', 1);
+      endTurn(demo);
+    }
+    expect(demo.log.some((l) => l.text.includes('swings around and fires'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('The blow lands harder by'))).toBe(true);
+
+    // And on its own Magitech Cannon it says nothing: the feature is about
+    // another adversary's blow, and the trigger it answers is the other one.
+    const alone = swinging('vault-guardian-turret', 'turret-alone');
+    for (let i = 0; i < 4; i++) {
+      alone.state.entity('kara')!.hitPoints = { max: 90, marked: 0 };
+      alone.state.entity('kara')!.alive = true;
+      alone.world.addTokens('foe', 'slow-firing', 1);
+      endTurn(alone);
+    }
+    expect(alone.log.some((l) => l.text.includes("Magitech Cannon"))).toBe(true);
+    expect(alone.log.some((l) => l.text.includes('swings around and fires'))).toBe(false);
+  });
+});
+
 describe('one of its own, standing beside the target', () => {
   /** Kara with two of a kind on her, or one of them standing off. */
   const pack = (adversary: string, seed: string, together = true) => {

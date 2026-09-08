@@ -637,6 +637,27 @@ export const effectSchema = z.discriminatedUnion('kind', [
     halfDamage: z.boolean().optional(),
   }),
   /**
+   * "Before rolling damage for the Construct's attack, mark a Stress to gain a
+   * +10 bonus to the damage roll": what a creature adds to a blow that has
+   * already landed but has not yet been counted.
+   *
+   * The blow may be its own or somebody else's - the Turret adds its cannon to
+   * an ally's hit - so nothing here says whose it is. Like `endSpotlight`, this
+   * journals rather than writes: the swing is the game layer's to finish, and
+   * it adds up every boost the moment reported before the defence begins.
+   */
+  z.object({
+    kind: z.literal('boostDamage'),
+    /**
+     * Dice to roll and add ("d6", "2d4"), or `weapon` for the actor's own
+     * printed attack damage - "add the Turret's standard attack damage" - the
+     * same word the `damage` effect uses for it.
+     */
+    dice: z.string().min(1).optional(),
+    /** Or a flat number: "a +10 bonus to the damage roll". */
+    amount: amountSchema.optional(),
+  }),
+  /**
    * "When you spotlight the Ooze and they don't have a token on their stat
    * block, they can't act yet": the spotlight ends without the creature acting.
    *

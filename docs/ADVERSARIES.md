@@ -42,8 +42,15 @@ engine has no place to put:
   against targets other than the Swarm", "the next time the Taunted target attacks".
   A passive can move the dice for its holder or against them (`advantage`, with
   `against`) and that is two parties; a third is not something a modifier can name.
-  Nor is a trigger about what another creature did - a Turret answering somebody
-  else's damage roll, a Shark answering somebody else's hit.
+  A trigger about what another creature did is no longer one of them: a blow that has
+  landed and not yet been counted now stops for the room. `rollingDamage` is raised on
+  the one swinging and `allyRollingDamage` on everyone else still standing, with the
+  one being hit bound as the target, and `boostDamage` is what they add - a flat
+  number, dice, or the reactor's own printed attack. So the Turret fires into an
+  ally's hit and the Demon of Jealousy cannot bear to be outdone. What stays text
+  there is the amount Reaper wants, a bonus equal to the Demon's own marked Hit
+  Points, which is a number read off a pool; and a Shark that answers somebody
+  else's hit by taking a turn of its own.
 - **a token nobody else can count** - tokens run, on a stat block as well as on a card.
   The store is keyed by creature and card, so a passive keeps a count on itself (Slow
   is one `spotlighted` reaction branching on its own tokens, placing one on the turn it
@@ -107,7 +114,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 184. Text: 160.
+Read: 73. Scripted: 189. Text: 155.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -125,7 +132,7 @@ Read: 73. Scripted: 184. Text: 160.
 | Construct | Relentless (2) | Passive | **read** — read off the stat block |
 | Construct | Weak Structure | Passive | **text** — the GM's to play |
 | Construct | Trample | Action | **text** — the GM's to play |
-| Construct | Overload | Reaction | **text** — the GM's to play |
+| Construct | Overload | Reaction | **scripted** — runs as an ability |
 | Construct | Death Quake | Reaction | **text** — the GM's to play |
 | Courtier | Mockery | Action | **scripted** — runs as an ability |
 | Courtier | Scapegoat | Action | **text** — the GM's to play |
@@ -265,7 +272,7 @@ Read: 73. Scripted: 184. Text: 160.
 | Master Assassin | Momentum | Reaction | **read** — read off the stat block |
 | Battle Box | Relentless (2) | Passive | **read** — read off the stat block |
 | Battle Box | Randomized Tactics | Action | **text** — the GM's to play |
-| Battle Box | Overcharge | Reaction | **text** — the GM's to play |
+| Battle Box | Overcharge | Reaction | **scripted** — runs as an ability |
 | Battle Box | Death Quake | Reaction | **text** — the GM's to play |
 | Chaos Skull | Levitation | Passive | **text** — the GM's to play |
 | Chaos Skull | Wards | Passive | **scripted** — runs as an ability |
@@ -380,7 +387,7 @@ Read: 73. Scripted: 184. Text: 160.
 | Demon of Hubris | You Pale in Comparison | Reaction | **scripted** — runs as an ability |
 | Demon of Jealousy | Unprotected Mind | Passive | **scripted** — runs as an ability |
 | Demon of Jealousy | My Turn | Reaction | **text** — the GM's to play |
-| Demon of Jealousy | Rivalry | Reaction | **text** — the GM's to play |
+| Demon of Jealousy | Rivalry | Reaction | **scripted** — runs as an ability |
 | Demon of Jealousy | What's Yours Is Mine | Reaction | **text** — the GM's to play |
 | Demon of Wrath | Anger Unrelenting | Passive | **scripted** — runs as an ability |
 | Demon of Wrath | Battle Lust | Action | **text** — the GM's to play |
@@ -437,7 +444,7 @@ Read: 73. Scripted: 184. Text: 160.
 | Vault Guardian Sentinel | Momentum | Reaction | **read** — read off the stat block |
 | Vault Guardian Turret | Slow Firing | Passive | **scripted** — runs as an ability |
 | Vault Guardian Turret | Mark Target | Action | **text** — the GM's to play |
-| Vault Guardian Turret | Concentrate Fire | Reaction | **text** — the GM's to play |
+| Vault Guardian Turret | Concentrate Fire | Reaction | **scripted** — runs as an ability |
 | Vault Guardian Turret | Detonation | Reaction | **text** — the GM's to play |
 | Young Ice Dragon | Relentless (3) | Passive | **read** — read off the stat block |
 | Young Ice Dragon | Rend and Crush | Passive | **text** — the GM's to play |
@@ -523,7 +530,7 @@ Read: 73. Scripted: 184. Text: 160.
 | Perfected Zombie | Terrifying | Passive | **read** — read off the stat block |
 | Perfected Zombie | Fearsome Presence | Passive | **text** — the GM's to play |
 | Perfected Zombie | Perfect Strike | Action | **scripted** — runs as an ability |
-| Perfected Zombie | Skilled Opportunist | Reaction | **text** — the GM's to play |
+| Perfected Zombie | Skilled Opportunist | Reaction | **scripted** — runs as an ability |
 | Zombie Legion | Horde (2d6+5) | Passive | **read** — read off the stat block |
 | Zombie Legion | Unyielding | Passive | **scripted** — runs as an ability |
 | Zombie Legion | Relentless (2) | Passive | **read** — read off the stat block |
