@@ -1860,6 +1860,44 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /**
+   * Put a creature on a tile without walking them to it: a blink, not a run.
+   *
+   * Only the band between where they stand and where they are going is read -
+   * no path, so a wall between the two is no argument. The tile itself when it
+   * is free, and otherwise the nearest free passable one to it, so two
+   * creatures arriving together do not end up on top of each other.
+   */
+  blinkTo(mover: string, goalTile: number, band: RangeBand = 'far'): { from: number; to: number } | null {
+    const walking = this.state.entity(mover);
+    if (walking === undefined || walking.tile === NO_TILE || goalTile === NO_TILE) return null;
+    if (this.blocks(mover, 'move')) return null;
+    const reach = this.bandBetween(walking.tile, goalTile);
+    if (reach === null || !reaches(reach, band)) return null;
+
+    const grid = this.state.grid;
+    const blocked = this.state.blockedFor(mover);
+    const free = (tile: number): boolean => grid.isTile(tile) && grid.isPassable(tile) && !blocked(tile);
+    let best = free(goalTile) ? goalTile : NO_TILE;
+    if (best === NO_TILE) {
+      // The nearest free ground to where they were aiming. Closer wins and a
+      // tie goes to the lower index, so a replay lands them on the same tile.
+      let bestDistance = Infinity;
+      for (let tile = 0; tile < grid.width * grid.height; tile++) {
+        if (!free(tile)) continue;
+        const distance = grid.euclideanDistance(tile, goalTile);
+        if (distance < bestDistance || (distance === bestDistance && tile < best)) {
+          best = tile;
+          bestDistance = distance;
+        }
+      }
+    }
+    if (best === NO_TILE || best === walking.tile) return null;
+    const from = walking.tile;
+    this.state.moveEntity(mover, best);
+    return { from, to: best };
+  }
+
+  /**
    * The mirror of `drawIn`: as much ground between them as the walk allows.
    *
    * "Teleport up to Far range", "move anywhere within Far range" - a creature

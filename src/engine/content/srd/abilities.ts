@@ -489,6 +489,142 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // "Make a Spellcast Roll (12). On a success, spend a Hope to teleport to
+  // another point you can see within Far range. If any willing creatures are
+  // within Very Close range, spend an additional Hope for each creature to
+  // bring them with you."
+  //
+  // The first spell that puts somebody somewhere rather than walking them
+  // there: `teleport` reads the band between the two tiles and nothing else,
+  // so a wall in the way is no argument, and a tile somebody is standing on is
+  // not one to arrive on.
+  //
+  // Simplified twice. "An additional Hope for each creature" is one Hope for
+  // all of them: paying a head at a time means asking which of them is left
+  // behind when the Hope runs out, and that is a decision the engine has no
+  // way to put mid-spell. And they arrive before she does, so that "any
+  // willing creatures within Very Close range" is read from where they were
+  // all standing rather than from where she has already gone - which leaves
+  // her beside the spot rather than on it when she brings somebody.
+  {
+    id: 'blink-out',
+    name: 'Blink Out',
+    source: card('blink-out'),
+    cost: { hope: 1 },
+    target: { kind: 'point', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 12,
+          prompt: 'Blink Out: step across the room without crossing it.',
+          onCriticalSuccess: [
+              {
+                kind: 'choice',
+                title: 'Blink out',
+                body: 'Anyone standing with you can come.',
+                options: [
+                  { label: 'Go alone', effects: [] },
+                  {
+                    label: 'Take them with you (1 Hope)',
+                    available: {
+                      kind: 'all',
+                      of: [
+                        { kind: 'nearby', of: { kind: 'allies', range: 'veryClose' }, op: '>=', value: 1 },
+                        { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+                      ],
+                    },
+                    // They arrive first, so that who is standing with her is
+                    // read from where they were all standing rather than from
+                    // where she has already gone.
+                    effects: [
+                      { kind: 'spendHope', amount: 1 },
+                      {
+                        kind: 'move',
+                        who: { kind: 'allies', range: 'veryClose' },
+                        to: 'point',
+                        teleport: true,
+                        budget: 'far',
+                      },
+                    ],
+                  },
+                ],
+              },
+              { kind: 'move', to: 'point', teleport: true, budget: 'far' },
+            ],
+          onSuccessWithHope: [
+              {
+                kind: 'choice',
+                title: 'Blink out',
+                body: 'Anyone standing with you can come.',
+                options: [
+                  { label: 'Go alone', effects: [] },
+                  {
+                    label: 'Take them with you (1 Hope)',
+                    available: {
+                      kind: 'all',
+                      of: [
+                        { kind: 'nearby', of: { kind: 'allies', range: 'veryClose' }, op: '>=', value: 1 },
+                        { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+                      ],
+                    },
+                    // They arrive first, so that who is standing with her is
+                    // read from where they were all standing rather than from
+                    // where she has already gone.
+                    effects: [
+                      { kind: 'spendHope', amount: 1 },
+                      {
+                        kind: 'move',
+                        who: { kind: 'allies', range: 'veryClose' },
+                        to: 'point',
+                        teleport: true,
+                        budget: 'far',
+                      },
+                    ],
+                  },
+                ],
+              },
+              { kind: 'move', to: 'point', teleport: true, budget: 'far' },
+            ],
+          onSuccessWithFear: [
+              {
+                kind: 'choice',
+                title: 'Blink out',
+                body: 'Anyone standing with you can come.',
+                options: [
+                  { label: 'Go alone', effects: [] },
+                  {
+                    label: 'Take them with you (1 Hope)',
+                    available: {
+                      kind: 'all',
+                      of: [
+                        { kind: 'nearby', of: { kind: 'allies', range: 'veryClose' }, op: '>=', value: 1 },
+                        { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+                      ],
+                    },
+                    // They arrive first, so that who is standing with her is
+                    // read from where they were all standing rather than from
+                    // where she has already gone.
+                    effects: [
+                      { kind: 'spendHope', amount: 1 },
+                      {
+                        kind: 'move',
+                        who: { kind: 'allies', range: 'veryClose' },
+                        to: 'point',
+                        teleport: true,
+                        budget: 'far',
+                      },
+                    ],
+                  },
+                ],
+              },
+              { kind: 'move', to: 'point', teleport: true, budget: 'far' },
+            ],
+        },
+      },
+    ],
+  },
   // "Spend a Hope and make an attack against all adversaries within your
   // weapon's range. Once per long rest, on a success against any targets, roll
   // your weapon's damage and distribute that damage however you wish between

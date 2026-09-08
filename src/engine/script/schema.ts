@@ -752,6 +752,18 @@ export const effectSchema = z.discriminatedUnion('kind', [
    */
   z.object({
     kind: z.literal('move'),
+    /**
+     * Who moves. The one acting when left out, which is what every walk in the
+     * SRD means; a selector is for a spell that takes somebody with it.
+     */
+    who: targetSelectorSchema.optional(),
+    /**
+     * Put them there rather than walk them: no path, no ground crossed, only
+     * the band between where they stand and where they are going. A tile
+     * somebody is already on is not one to arrive on, so the nearest free one
+     * is taken instead - which is what a crowded landing looks like.
+     */
+    teleport: z.boolean().optional(),
     /** Closing or breaking away. Closing by default. */
     how: z.enum(['toward', 'away']).optional(),
     /** Who the walk is measured against. The chosen target by default. */

@@ -203,6 +203,7 @@ export interface ScriptWorld extends ConditionContext {
   drawIn(mover: string, toward: string, band: RangeBand, budget?: RangeBand): { from: number; to: number } | null;
   /** The same, at a tile: a run across the map rather than at somebody. */
   drawTo(mover: string, goalTile: number, band: RangeBand, budget?: RangeBand): { from: number; to: number } | null;
+  blinkTo(mover: string, goalTile: number, band?: RangeBand): { from: number; to: number } | null;
   /** Walk away from a creature, as far as the budget allows. */
   breakAway(mover: string, from: string, budget?: RangeBand): { from: number; to: number } | null;
   /**
@@ -1219,16 +1220,27 @@ export class ScriptRunner {
       }
       case 'move': {
         const actor = world.actorId();
-        if (actor === null) return this.refuse('nobody to move');
+        // Whoever is moving: the one acting, or everybody a selector names -
+        // a spell that takes the room with it moves all of them.
+        const movers = effect.who === undefined ? (actor === null ? [] : [actor]) : this.resolve(effect.who);
+        if (movers.length === 0) return effect.who === undefined ? this.refuse('nobody to move') : null;
         // A run at a place rather than at somebody. Nothing aimed is nobody
         // moving, the same quiet answer a walk with nobody to close on gives.
         if (effect.to === 'point') {
           const at = this.point;
           if (at === NO_TILE) return null;
-          const ran = world.drawTo(actor, at, effect.range ?? 'melee', effect.budget ?? 'close');
-          if (ran !== null) this.journal.push({ kind: 'moved', id: actor, from: ran.from, to: ran.to, walked: true });
+          for (const mover of movers) {
+            const ran =
+              effect.teleport === true
+                ? world.blinkTo(mover, at, effect.budget ?? 'far')
+                : world.drawTo(mover, at, effect.range ?? 'melee', effect.budget ?? 'close');
+            if (ran !== null) {
+              this.journal.push({ kind: 'moved', id: mover, from: ran.from, to: ran.to, walked: effect.teleport !== true });
+            }
+          }
           return null;
         }
+        if (actor === null) return this.refuse('nobody to move');
         // Whoever the walk is measured against. A reaction with nobody behind
         // the blow - a trap, a countdown - has nothing to close on or get away
         // from, and standing still is the honest answer rather than a refusal.

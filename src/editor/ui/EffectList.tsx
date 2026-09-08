@@ -758,6 +758,22 @@ function renderBody(
             <option value="point">to the spot aimed at</option>
           </select>
           {effect.to === 'point' ? null : who(effect.of, 'the chosen target', (of) => ({ ...effect, of }))}
+          {effect.to === 'point' ? (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }}>
+              <input
+                type="checkbox"
+                data-role="move-teleport"
+                title="Put them there rather than walk them: no path, only the band between the two tiles"
+                checked={effect.teleport === true}
+                onChange={(e) => onChange({ ...effect, teleport: (e.target as HTMLInputElement).checked ? true : undefined })}
+              />
+              in one step
+            </label>
+          ) : null}
+          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="Who moves. The one acting when left out.">
+            moving
+          </span>
+          {who(effect.who, 'the one acting', (target) => ({ ...effect, who: target }))}
           {effect.how === 'away' ? null : (
             <select
               style={{ ...field, flex: 'none', width: '92px' }}

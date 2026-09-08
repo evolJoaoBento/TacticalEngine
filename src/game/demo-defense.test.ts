@@ -7,6 +7,7 @@ import { formatDice } from '../engine/rules/dice';
 import type { Rng } from '../engine/core/rng';
 import { pointTiles, rest, shapeAt, useAbility } from './demo-abilities';
 import { NO_TILE } from '../engine/grid/grid';
+import { reaches } from '../engine/rules/range';
 import { adversaryTraits } from '../engine/combat/adversary-features';
 import type { DefenseChoice, HeldSwing, PendingDeath, PendingDefense } from './demo-scene';
 import {
@@ -3455,5 +3456,120 @@ describe('one swing through all of them', () => {
       return marked;
     };
     expect(total(true)).toBeGreaterThan(total(false));
+  });
+});
+
+
+describe('a step across the room without crossing it', () => {
+  /** Mira beside Kara with the card in hand, both beside the husk. */
+  const blinking = (seed: string) => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    standBehind(demo, 'mira', husk.tile);
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['blink-out'], loadout: ['blink-out'] };
+    demo.sheets.set('mira', sheet);
+    demo.characters.set('mira', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    demo.state.entity('mira')!.hope = { max: 6, value: 6 };
+    demo.party.select('mira');
+    return { demo, husk };
+  };
+
+  /**
+   * Answer whatever is being asked: a roll is rolled, and a choice takes the
+   * option at `pick` - clamped, because "how many Hope" lists one per Hope.
+   */
+  const answerAll = (demo: DemoScene, pick: number): void => {
+    for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+      const prompt = demo.pending.prompt;
+      if (prompt.kind !== 'choice') {
+        answerPending(demo, { kind: 'roll' });
+        continue;
+      }
+      answerPending(demo, { kind: 'choose', index: Math.min(pick, prompt.options.length - 1) });
+    }
+  };
+
+  /**
+   * Somewhere the card may be aimed that everybody named can be put: free
+   * ground, and within Far of each of them - somebody standing beside the
+   * caster is a step further out than she is, and the spell carries them too.
+   */
+  const somewhereElse = (demo: DemoScene, who: readonly string[]): number => {
+    const card = demo.project.abilities.find((a) => a.id === 'blink-out')!;
+    const taken = new Set(demo.state.entitiesOf('party').concat(demo.state.entitiesOf('adversary')).map((e) => e.tile));
+    for (const tile of pointTiles(demo, 'mira', card)) {
+      if (taken.has(tile) || !demo.grid.isPassable(tile)) continue;
+      if (who.some((id) => demo.state.blockedFor(id)(tile))) continue;
+      if (who.some((id) => demo.world.bandBetween(demo.state.entity(id)!.tile, tile) === null)) continue;
+      if (who.some((id) => !reaches(demo.world.bandBetween(demo.state.entity(id)!.tile, tile)!, 'far'))) continue;
+      return tile;
+    }
+    return NO_TILE;
+  };
+
+  it('puts her on the spot she aimed at, whatever is in the way', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const { demo } = blinking(`blink-${seed}`);
+      const at = somewhereElse(demo, ['mira']);
+      if (at === NO_TILE) continue;
+      const mira = demo.state.entity('mira')!;
+      const from = mira.tile;
+
+      expect(useAbility(demo, 'mira', 'blink-out', [], { point: at }).status).not.toBe('refused');
+      answerAll(demo, 0);
+      if (!demo.log.some((l) => /Success|Critical/.test(l.text))) continue;
+
+      // Not a walk: she is on the tile itself, not as near to it as a walk got.
+      expect(mira.tile).toBe(at);
+      expect(mira.tile).not.toBe(from);
+      return;
+    }
+    throw new Error('the blink never took in forty tries');
+  });
+
+  it('takes whoever is standing with her when the Hope goes in', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo } = blinking(`blink-with-${seed}`);
+      const at = somewhereElse(demo, ['mira', 'kara']);
+      if (at === NO_TILE) continue;
+      const kara = demo.state.entity('kara')!;
+      const stood = kara.tile;
+
+      expect(useAbility(demo, 'mira', 'blink-out', [], { point: at }).status).not.toBe('refused');
+      // Option 1 is "take them with you"; option 0 is going alone.
+      answerAll(demo, 1);
+      if (!demo.log.some((l) => /Success|Critical/.test(l.text))) continue;
+      if (demo.state.entity('mira')!.tile === stood) continue;
+
+      // Kara came too. Whoever is brought arrives first, so she has the spot
+      // itself and the caster is standing next to her.
+      expect(kara.tile).not.toBe(stood);
+      expect(kara.tile).toBe(at);
+      expect(demo.world.bandBetween(demo.state.entity('mira')!.tile, at)).toBe('melee');
+      return;
+    }
+    throw new Error('nobody was ever brought along');
+  });
+
+  it('leaves them where they stand when no Hope goes in', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo } = blinking(`blink-alone-${seed}`);
+      const at = somewhereElse(demo, ['mira', 'kara']);
+      if (at === NO_TILE) continue;
+      const kara = demo.state.entity('kara')!;
+      const stood = kara.tile;
+
+      expect(useAbility(demo, 'mira', 'blink-out', [], { point: at }).status).not.toBe('refused');
+      // Option 0 is going alone.
+      answerAll(demo, 0);
+      if (!demo.log.some((l) => /Success|Critical/.test(l.text))) continue;
+      if (demo.state.entity('mira')!.tile !== at) continue;
+
+      expect(kara.tile).toBe(stood);
+      return;
+    }
+    throw new Error('the blink never took in sixty tries');
   });
 });
