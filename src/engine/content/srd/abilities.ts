@@ -489,6 +489,26 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // The only card in the SRD that answers a death move, and the only reason
+  // the `defeated` trigger means anything on this side of the table.
+  {
+    id: 'unbreakable',
+    name: 'Unbreakable',
+    source: card('unbreakable'),
+    kind: 'reaction',
+    trigger: 'defeated',
+    action: false,
+    // A decision, not a reflex: "you can", and the two moves it is standing
+    // against are ones a player may want.
+    auto: false,
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Not today.', tone: 'hope' },
+      { kind: 'heal', dice: '1d6', target: { kind: 'actor' } },
+      // "Then place this card in your vault", which is the whole cost of it.
+      { kind: 'vaultCard' },
+    ],
+  },
   {
     id: 'unyielding-armor',
     name: 'Unyielding Armor',

@@ -28,9 +28,10 @@ Known simplifications in the scripted ones:
 - **Rage Up** is asked once per attack rather than twice, and after the swing lands rather than before it is made - which spends its Stress only on a blow that is going to be counted. **Onslaught** floors a blow at the Major band rather than reading the target's own Major threshold as a number, which is the same two Hit Points; its second half answers an area blow that caught its holder as well as an ally.
 - **Breaking Blow** leaves its crack for the holder's own next hit: nothing raises a party member's blow to the rest of the party, so an ally's swing does not cash the mark. **Rapid Riposte** hits back with the primary weapon rather than a choice of active ones.
 - **Battle Monster** throws the damage roll away and marks the Hit Points the caster is carrying, past thresholds, resistance and Armor Slots - which is what "instead of rolling for damage" asks for.
+- **Unbreakable** is offered as one of the death move's own options rather than before the question is put, which is what "instead of making a death move" comes to; the card goes to the vault afterwards, as it says, and the Recall Cost brings it back.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 86 of 189 cards.
+Scripted: 87 of 189 cards.
 
 
 ## Arcana
@@ -264,5 +265,5 @@ Scripted: 86 of 189 cards.
 | 8 | Ground Pound | Ability | **action** |
 | 9 | Hold the Line | Ability | text |
 | 9 | Lead by Example | Ability | text |
-| 10 | Unbreakable | Ability | text |
+| 10 | Unbreakable | Ability | **reaction** |
 | 10 | Unyielding Armor | Ability | **reaction** |

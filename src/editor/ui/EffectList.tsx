@@ -95,6 +95,7 @@ const ADDABLE = [
   'spotlight',
   'endSpotlight',
   'spotlightAgain',
+  'vaultCard',
   'boostDamage',
   'forceHitPoints',
   'forceSeverity',
@@ -162,6 +163,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   spotlight: 'Spotlight allies',
   endSpotlight: 'End this spotlight',
   spotlightAgain: 'Take the spotlight again',
+  vaultCard: 'Place this card in the vault',
   boostDamage: 'Add to the blow landing',
   forceHitPoints: 'Force Hit Points marked',
   forceSeverity: 'Force the damage band',
@@ -299,6 +301,7 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, targets: { kind: 'adversaries', range: 'far' } };
     case 'endSpotlight':
     case 'spotlightAgain':
+    case 'vaultCard':
       return { kind };
     case 'boostDamage':
       return { kind, dice: '1d6' };

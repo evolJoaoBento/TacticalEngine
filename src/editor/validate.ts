@@ -321,6 +321,15 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // A vault is something only a character has. A stat block's feature that
+    // said this would spend nothing and go on working every turn.
+    if (vaultsItself(ability) && ability.source.kind !== 'domainCard') {
+      add(
+        'warning',
+        `"${ability.id}" places itself in the vault, which only a domain card has to go to.`,
+        ability.id,
+      );
+    }
     // Ending a spotlight is something only a spotlight can do: it is read by
     // the GM's turn, on the creature whose turn it is, at the moment the turn
     // begins. Anywhere else it is a silent no-op.
@@ -555,6 +564,15 @@ function takesAnotherSpotlight(ability: AbilityDef): boolean {
     if (effect.kind === 'spotlightAgain') again = true;
   });
   return again;
+}
+
+/** Whether anything in an ability sends its own card to the vault. */
+function vaultsItself(ability: AbilityDef): boolean {
+  let vaults = false;
+  walkEffects(ability.effects, (effect) => {
+    if (effect.kind === 'vaultCard') vaults = true;
+  });
+  return vaults;
 }
 
 /** Whether anything in an ability spends the turn it is running in. */

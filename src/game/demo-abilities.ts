@@ -37,6 +37,7 @@ import {
   settleFight,
   settleTravel,
   syncPools,
+  vaultAfter,
   worthAiming,
   type DemoScene,
   type LogLine,
@@ -245,6 +246,7 @@ export function useAbility(demo: DemoScene, characterId: string, abilityId: stri
     if (fighting && ability.action && inCombat(demo) && demo.encounter!.canAct(characterId)) {
       demo.encounter!.act(characterId, { spotlightToGm: runner.spotlightToGm });
     }
+    vaultAfter(demo, characterId, ability, runner);
     settleFight(demo);
   };
 

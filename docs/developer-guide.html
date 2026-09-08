@@ -872,6 +872,18 @@ footer {
   The question is asked before anybody counts who is left standing, which is why a lone
   character who risks it and wins is still in a fight that is going on.</p>
 
+  <p>One card answers that question instead of answering it with a move: Unbreakable, which
+  clears a d6 of Hit Points and then goes to the vault. It is offered inside the same prompt,
+  after the three, because &ldquo;instead of making a death move&rdquo; is a fourth thing to
+  choose rather than a question asked before the choice; a card that is played and leaves the
+  character on the floor has spent itself and bought nothing, so the three moves are put again
+  without it. The trigger is <code>defeated</code>, which a stat block already uses for the last
+  thing it does. <code>vaultCard</code> is the effect that spends it: six of the SRD's cards end
+  with &ldquo;then place this card in your vault&rdquo;, and for three of them that is the only
+  cost they have. The script does not know which card it is running, so the effect raises a flag
+  on the runner and whoever ran the card takes it out of the loadout &mdash; after which the
+  Recall Cost is the way back.</p>
+
   <p>A blow stops once between landing and being counted. <code>rollingDamage</code> is raised on the
   creature swinging and <code>allyRollingDamage</code> on every other adversary still
   standing, both with the one being hit bound as the target &mdash; so &ldquo;within Far range

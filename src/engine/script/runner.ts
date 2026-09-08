@@ -463,6 +463,9 @@ export class ScriptRunner {
   /** Whether a roll it asked for was declined. */
   cancelled = false;
 
+  /** "Then place this card in your vault": whether this script said so. */
+  vaulted = false;
+
   constructor(world: ScriptWorld, rng: Rng, options: ScriptRunnerOptions = {}) {
     this.world = world;
     this.rng = rng;
@@ -1132,6 +1135,13 @@ export class ScriptRunner {
           options,
         };
         this.stack.push({ effects: [asking], index: 0 });
+        return null;
+      }
+      case 'vaultCard': {
+        // Read off the runner by whoever ran the card, the way `spotlightToGm`
+        // and `cancelled` are: the script does not know which card it is, and
+        // the loadout is not the world's to write.
+        this.vaulted = true;
         return null;
       }
       case 'spotlightAgain': {

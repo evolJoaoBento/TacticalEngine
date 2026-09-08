@@ -58,7 +58,7 @@ import {
   type Defender,
   type DefensePlan,
 } from '../engine/combat/defense';
-import { readsATarget, type AbilityDef } from '../engine/content/abilities';
+import { loadoutOf, readsATarget, type AbilityDef } from '../engine/content/abilities';
 import { gain, unmarked } from '../engine/rules/resources';
 import {
   hpForSeverity,
@@ -308,6 +308,15 @@ export interface PendingDeath {
   who: string;
   /** The moves on offer, in the order the prompt lists them. */
   moves: readonly DeathMove[];
+  /**
+   * Cards that answer the fall itself, offered after the three moves.
+   *
+   * "When you mark your last Hit Point, instead of making a death move, you
+   * can roll a d6 and clear a number of Hit Points equal to the result": a
+   * card in place of the move, so it belongs in the same question rather than
+   * in one asked before or after it.
+   */
+  offers: readonly ReactionOffer[];
 }
 
 /**
@@ -1491,17 +1500,30 @@ function playDeathMoves(demo: DemoScene): void {
       applyDeathMove(demo, entity.id, 'avoid');
       continue;
     }
-    askDeathMove(demo, entity.id);
+    askDeathMove(demo, entity.id, deathOffers(demo, entity.id));
     return;
   }
 }
 
-/** The question itself: one character, and the three ways out of it. */
-function askDeathMove(demo: DemoScene, id: string): void {
+/**
+ * The cards a character holds that answer their own fall.
+ *
+ * The `defeated` trigger, which a stat block already uses for the last thing
+ * it does; on a card it is the one thing that happens *instead* of a death
+ * move. Nobody is bound but the holder: the blow that did it has been read and
+ * counted by now, and what these say is about the character, not the knife.
+ */
+function deathOffers(demo: DemoScene, id: string): ReactionOffer[] {
+  return offersFor(demo, id, ['defeated'], [id], {});
+}
+
+/** The question itself: one character, the three ways out of it, and any card. */
+function askDeathMove(demo: DemoScene, id: string, offers: readonly ReactionOffer[]): void {
   demo.pending = {
     kind: 'death',
     who: id,
     moves: DEATH_MOVES,
+    offers,
     prompt: {
       kind: 'choice',
       title: `${nameOf(demo, id)} must make a death move`,
@@ -1521,6 +1543,14 @@ function askDeathMove(demo: DemoScene, id: string): void {
           label: 'Risk It All',
           detail: 'Roll the Duality Dice. Hope higher and you stay up; Fear higher and you die; matching and you stand with everything cleared.',
         },
+        // "Instead of making a death move": after the three, because stepping
+        // back from a question takes its first option and that has to be the
+        // one which changes nothing.
+        ...offers.map((offer, at) => ({
+          index: DEATH_MOVES.length + at,
+          label: offer.ability.name,
+          detail: offer.ability.text,
+        })),
       ],
     },
   };
@@ -1681,6 +1711,22 @@ function blazeOfGlory(demo: DemoScene, id: string): void {
   }
   note(demo, `${character.sheet.name} looks for one last swing and finds nothing in reach.`, 'system');
   veil(demo, id);
+}
+
+/**
+ * A card played in place of the death move, and what happens if it was not
+ * enough.
+ *
+ * "Instead of making a death move" is a trade, not a reprieve: a card that
+ * leaves the character on the floor has spent itself and bought nothing, so
+ * the three moves are put again - without the cards this time, because the one
+ * that was going to work has been played.
+ */
+function playDeathCard(demo: DemoScene, id: string, offer: ReactionOffer): void {
+  playReaction(demo, offer, [], false);
+  if (demo.pending !== null) return;
+  if (demo.state.entity(id)?.alive === true) return;
+  askDeathMove(demo, id, []);
 }
 
 /** Crossing through: down, and past anything that clears a Hit Point. */
@@ -2567,7 +2613,33 @@ function playReaction(
     return;
   }
   demo.scenario.actorId = was;
+  vaultAfter(demo, offer.by, offer.ability, runner);
   if (resume) afterReaction(demo, queued, asAnswered(landing, result.journal));
+}
+
+/**
+ * "Then place this card in your vault."
+ *
+ * Out of the loadout and into the vault, which is where the SRD puts a card
+ * that has spent itself - and is the whole limit on the three that cost
+ * nothing else. Getting it back is `swapCard` and the Recall Cost, like any
+ * other card down there.
+ *
+ * The sheet is rewritten, so the world is rebuilt over it: a card that is no
+ * longer in the loadout is no longer offering its reactions or its modifiers.
+ */
+export function vaultAfter(demo: DemoScene, id: string, ability: AbilityDef, runner: ScriptRunner): void {
+  if (!runner.vaulted || ability.source.kind !== 'domainCard') return;
+  const sheet = demo.sheets.get(id);
+  const character = demo.characters.get(id);
+  if (sheet === undefined || character === undefined) return;
+  const cardId = ability.source.card;
+  const loadout = loadoutOf(character);
+  if (!loadout.includes(cardId)) return;
+  setSheet(demo, { ...sheet, loadout: loadout.filter((held) => held !== cardId) });
+  refreshWorld(demo);
+  syncPools(demo);
+  note(demo, `${nameOf(demo, id)} places ${ability.name} in the vault.`, 'system');
 }
 
 /**
@@ -3615,10 +3687,11 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
   // question is the first move on the list, which is Avoid Death.
   if (waiting.kind === 'death') {
     const index = response.kind === 'choose' ? response.index : 0;
-    const move = waiting.moves[index] ?? waiting.moves[0]!;
+    const card = waiting.offers[index - waiting.moves.length];
     const before = demo.log.length;
     demo.pending = null;
-    applyDeathMove(demo, waiting.who, move);
+    if (card === undefined) applyDeathMove(demo, waiting.who, waiting.moves[index] ?? waiting.moves[0]!);
+    else playDeathCard(demo, waiting.who, card);
     // Somebody else may have gone down to the same blow.
     playDeathMoves(demo);
     if (demo.pending === null) runGmTurn(demo);

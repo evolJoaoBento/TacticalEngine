@@ -900,6 +900,19 @@ export const effectSchema = z.discriminatedUnion('kind', [
    */
   z.object({ kind: z.literal('spotlightAgain') }),
   /**
+   * "Then place this card in your vault."
+   *
+   * Six of the SRD's cards spend themselves this way, and for three of them -
+   * Unbreakable among them - the vaulting is the whole limit on the card: it
+   * costs nothing and does something enormous, once, and then it is out of the
+   * loadout until somebody pays the Recall Cost to bring it back.
+   *
+   * The card that vaults is the one whose script this is, so nothing names it:
+   * the caller that ran it knows which one it was. On a stat block, which has
+   * no loadout, this does nothing.
+   */
+  z.object({ kind: z.literal('vaultCard') }),
+  /**
    * "Activate the countdown. It ticks down when a PC makes an attack roll.
    * When it triggers, ...": a clock the fight carries between turns.
    *

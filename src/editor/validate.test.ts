@@ -819,6 +819,20 @@ describe('what only a stat block has', () => {
           trigger: 'allyTookDamage',
           effects: [{ kind: 'gainFear', amount: 1 }],
         },
+        {
+          id: 'block-vaults-itself',
+          name: 'Block Vaults Itself',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'vaultCard' }],
+        },
+        {
+          id: 'card-vaults-itself',
+          name: 'Card Vaults Itself',
+          source: { kind: 'domainCard', card: 'battle-cry' },
+          target: { kind: 'none' },
+          effects: [{ kind: 'vaultCard' }],
+        },
       ],
     });
     const said = messages(project);
@@ -828,6 +842,9 @@ describe('what only a stat block has', () => {
     expect(said.some((m) => m.includes('"thorns-out-of-nowhere" answers a blow arriving'))).toBe(true);
     // A card has no queue to go back to the head of.
     expect(said.some((m) => m.includes('"card-takes-a-turn" takes the spotlight again'))).toBe(true);
+    // And a stat block has no vault to put itself in.
+    expect(said.some((m) => m.includes('"block-vaults-itself" places itself in the vault'))).toBe(true);
+    expect(said.some((m) => m.includes('card-vaults-itself'))).toBe(false);
     expect(said.some((m) => m.includes('thorns-in-time'))).toBe(false);
     expect(said.some((m) => m.includes('band-mid-swing'))).toBe(false);
     expect(said.some((m) => m.includes('forced-well'))).toBe(false);

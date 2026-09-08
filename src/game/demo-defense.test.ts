@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
-import { abilitySchema } from '../engine/content/abilities';
+import { abilitySchema, loadoutOf } from '../engine/content/abilities';
 import { runScript } from '../engine/script/runner';
 import { formatDice } from '../engine/rules/dice';
 import type { Rng } from '../engine/core/rng';
@@ -1845,6 +1845,71 @@ describe('a death move', () => {
       return;
     }
     throw new Error('the Hope Die never read 1 in sixty seeds');
+  });
+
+  /** Put a card in Kara's hands and in her loadout. */
+  const carrying = (demo: DemoScene, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('offers Unbreakable in place of the three, and the card goes to the vault after it', () => {
+    const demo = lastStand('unbreakable');
+    carrying(demo, ['unbreakable']);
+    const kara = demo.state.entity('kara')!;
+
+    felled(demo);
+    const asked = demo.pending as PendingDeath;
+    expect(asked.kind).toBe('death');
+    // After the three moves, because the first option is the one that changes
+    // nothing.
+    expect(asked.offers.map((o) => o.ability.id)).toEqual(['unbreakable']);
+
+    choose(demo, 'Unbreakable');
+    // "Roll a d6 and clear a number of Hit Points equal to the result."
+    expect(kara.alive).toBe(true);
+    expect(kara.hitPoints.marked).toBeLessThan(kara.hitPoints.max);
+    // "Then place this card in your vault": out of the loadout, and no longer
+    // offering anything.
+    expect(said(demo, 'places Unbreakable in the vault')).toBe(true);
+    expect(loadoutOf(demo.characters.get('kara')!)).not.toContain('unbreakable');
+    expect(demo.world.reactionsFor('kara', 'defeated')).toEqual([]);
+
+    // The next time she goes down there is nothing but the three moves.
+    felled(demo);
+    expect((demo.pending as PendingDeath).offers).toEqual([]);
+  });
+
+  it('puts the three moves again when the card played instead of them left her down', () => {
+    const demo = lastStand('not-enough');
+    demo.project.abilities.push(
+      abilitySchema.parse({
+        id: 'last-words',
+        name: 'Last Words',
+        source: { kind: 'granted', characters: ['kara'] },
+        text: 'When you mark your last Hit Point, say something.',
+        kind: 'reaction',
+        trigger: 'defeated',
+        action: false,
+        auto: false,
+        effects: [{ kind: 'log', text: 'She says something bitter.', tone: 'fear' }],
+      }),
+    );
+    refreshWorld(demo);
+    const kara = demo.state.entity('kara')!;
+
+    felled(demo);
+    choose(demo, 'Last Words');
+    expect(said(demo, 'She says something bitter.')).toBe(true);
+    // It bought nothing, so the question comes back - with the moves alone.
+    const again = demo.pending as PendingDeath;
+    expect(again.kind).toBe('death');
+    expect(again.offers).toEqual([]);
+    choose(demo, 'Avoid Death');
+    expect(kara.alive).toBe(false);
+    expect(demo.pending).toBe(null);
   });
 
   it('avoids death by itself when there is nobody at the table to ask', () => {
