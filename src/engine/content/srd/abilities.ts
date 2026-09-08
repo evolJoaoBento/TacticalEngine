@@ -329,6 +329,60 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- what a blow leaves behind, and what answers one that went wide ------
+  {
+    id: 'breaking-blow',
+    name: 'Breaking Blow',
+    source: card('breaking-blow'),
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    // A Stress and a wait is a decision, not a rider.
+    auto: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    // Simplified: "the next successful attack against that same target" is the
+    // holder's own next one. Nothing raises a party member's blow to the rest
+    // of the party, so an ally's hit does not cash the mark.
+    effects: [
+      { kind: 'log', text: 'Something in their guard gives way.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'broken', duration: 'scene', target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'breaking-blow-paid',
+    name: 'Breaking Blow',
+    source: card('breaking-blow'),
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    // Nothing is asked and nothing is spent: the crack was paid for already.
+    available: { kind: 'hasCondition', condition: 'broken', of: { kind: 'target' } },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'boostDamage', dice: '2d12' },
+      { kind: 'clearCondition', condition: 'broken', target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'rapid-riposte',
+    name: 'Rapid Riposte',
+    source: card('rapid-riposte'),
+    kind: 'reaction',
+    trigger: 'attackMissed',
+    action: false,
+    auto: false,
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'melee' },
+    inCombatOnly: true,
+    // "An attack made against you from within Melee range": read from the one
+    // who missed, who is bound as the target for both the gate and the blow.
+    available: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } },
+    effects: [
+      { kind: 'log', text: 'The blade comes back the way it went.', tone: 'hope' },
+      { kind: 'damage', dice: 'weapon', using: 'proficiency', target: { kind: 'target' } },
+    ],
+  },
   // ---- what the party puts behind its own blow, part two -------------------
   // Battle Monster does not add to the roll: it throws it away. Sigil of
   // Retribution adds a die for every blow the marked creature landed on the

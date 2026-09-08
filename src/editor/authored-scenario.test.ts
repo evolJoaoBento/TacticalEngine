@@ -1001,6 +1001,46 @@ describe("what the party puts behind its own blow", () => {
     ]);
   });
 
+  it('leaves a crack in one blow and goes through it with the next', () => {
+    // "Mark a Stress to make the next successful attack against that same
+    // target deal an extra 2d12 damage": one card, two moments, and the second
+    // half pays out on its own.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = swinging(['breaking-blow'], `break-${seed}`);
+      const cold = swinging(['breaking-blow'], `break-${seed}`);
+      demo.askDefender = true;
+      cold.askDefender = true;
+      const first = attackWithSelected(demo, 'foe');
+      const same = attackWithSelected(cold, 'foe');
+      if (first === null || !first.hit || same === null || !same.hit) continue;
+
+      // The offer is the card; the control lets it pass, at the same cost in
+      // dice, so the two swings that follow are rolled off the same seed.
+      expect(demo.pending?.kind).toBe('reaction');
+      answerPending(demo, { kind: 'choose', index: 1 });
+      answerPending(cold, { kind: 'choose', index: 0 });
+      expect(demo.state.entity('foe')!.conditions.has('broken')).toBe(true);
+      expect(cold.state.entity('foe')!.conditions.has('broken')).toBe(false);
+
+      const marked = demo.state.entity('foe')!.hitPoints.marked;
+      const plain = cold.state.entity('foe')!.hitPoints.marked;
+      const again = attackWithSelected(demo, 'foe');
+      attackWithSelected(cold, 'foe');
+      if (again === null || !again.hit) continue;
+
+      // The crack is spent by the blow that went through it, and what is being
+      // asked now is the card again, on the new hit. Let it pass.
+      expect(demo.state.entity('foe')!.conditions.has('broken')).toBe(false);
+      if (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      if (cold.pending !== null) answerPending(cold, { kind: 'choose', index: 0 });
+      const through = demo.state.entity('foe')!.hitPoints.marked - marked;
+      const without = cold.state.entity('foe')!.hitPoints.marked - plain;
+      if (through <= without) continue;
+      return;
+    }
+    throw new Error('no seed landed two swings in forty tries');
+  });
+
   it('will not call in a toll on somebody who is not carrying one', () => {
     const demo = swinging(['twilight-toll'], 'toll');
     demo.askDefender = true;

@@ -66,9 +66,16 @@ describe('the shipped library, structurally', () => {
 
   it('asks the player for a target whenever a card reads one', () => {
     // An adversary's feature is aimed by whoever plays the stat block, so its
-    // `target` describes reach rather than a prompt.
+    // `target` describes reach rather than a prompt. A reaction is not aimed
+    // either: the moment that raised it binds the creature - whoever swung and
+    // missed, whoever was just hit - and asking would be asking about a
+    // creature the card is already looking at.
     const wrong = EVERY.filter(
-      (a) => a.source.kind !== 'adversary' && needsAPick(a.effects) && a.target.kind === 'none',
+      (a) =>
+        a.source.kind !== 'adversary' &&
+        a.kind !== 'reaction' &&
+        needsAPick(a.effects) &&
+        a.target.kind === 'none',
     ).map((a) => a.id);
     expect(wrong).toEqual([]);
   });

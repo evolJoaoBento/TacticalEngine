@@ -20,10 +20,11 @@ Known simplifications in the scripted ones:
 - **Ferocity** and **Never Upstaged** keep their bonus as tokens on the card, so the Evasion or the damage is whatever the fight put there; Ferocity is spent by the next attack made at its holder, hit or miss.
 - **Enrapture** and **Mass Enrapture** put the name on the target and let the condition carry it: a creature whose attention is fixed on one person is two Evasion easier to hit, and whom it attacks is still the table's call. **Glyph of Nightfall** is worth a flat two rather than the caster's Knowledge, because a condition carries one number rather than the number of whoever applied it. **Death Grip** offers the pull and the constriction, not the vines catching everyone in between: that is a line across the map, and a selector reads bands around a creature.
 - **Spellcharge** takes any wound rather than magic damage alone and is not capped at the caster's Spellcast trait; **Twilight Toll** is worth one die rather than growing with every success that rolled no damage. **Sigil of Retribution** holds a die for every blow without the cap of the caster's level, and recasting it moves the sigil while leaving the dice already on the card - the card clears them when they are rolled and nowhere else.
+- **Breaking Blow** leaves its crack for the holder's own next hit: nothing raises a party member's blow to the rest of the party, so an ally's swing does not cash the mark. **Rapid Riposte** hits back with the primary weapon rather than a choice of active ones.
 - **Battle Monster** throws the damage roll away and marks the Hit Points the caster is carrying, past thresholds, resistance and Armor Slots - which is what "instead of rolling for damage" asks for.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 67 of 189 cards.
+Scripted: 69 of 189 cards.
 
 
 ## Arcana
@@ -93,11 +94,11 @@ Scripted: 67 of 189 cards.
 | 4 | Redirect | Ability | text |
 | 5 | Know Thy Enemy | Ability | text |
 | 5 | Signature Move | Ability | text |
-| 6 | Rapid Riposte | Ability | text |
+| 6 | Rapid Riposte | Ability | **reaction** |
 | 6 | Recovery | Ability | text |
 | 7 | Bone-Touched | Ability | text |
 | 7 | Cruel Precision | Ability | **passive** |
-| 8 | Breaking Blow | Ability | text |
+| 8 | Breaking Blow | Ability | **reaction** |
 | 8 | Wrangle | Ability | text |
 | 9 | On the Brink | Ability | **reaction** |
 | 9 | Splintering Strike | Ability | text |

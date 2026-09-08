@@ -92,6 +92,14 @@ const RAW: ConditionInput[] = [
   // The Siren's song. "Until they mark 2 Stress" is a tally the engine does
   // not keep, so it runs to the end of the scene; what it does is let the
   // Siren's teeth find them, which is the Captive Audience passive.
+  // Breaking Blow. A crack in whatever it is wearing, waiting for the next
+  // blow to go through it: a name and nothing else, spent by the blow it was
+  // left for.
+  {
+    id: 'broken',
+    name: 'Broken',
+    text: 'Something in your guard has given way, and the next blow knows where.',
+  },
   // Sigil of Retribution. Like a toll, a name and nothing else: the card that
   // set it is the only thing that reads it, and it counts what the marked
   // creature does to the party.

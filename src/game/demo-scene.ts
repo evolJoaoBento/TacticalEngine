@@ -2765,7 +2765,9 @@ function offerMiss(demo: DemoScene, attack: IncomingAttack): void {
   const holder = defenderFor(demo, attack.defender);
   if (holder === null) return;
   const cards = demo.world
-    .reactionsFor(attack.defender, 'attackMissed')
+    // The one who swung is bound as the target: a card that hits back names
+    // them, and one that asks how close they are reads the same binding.
+    .reactionsFor(attack.defender, 'attackMissed', { targets: [attack.attacker], hit: [attack.attacker] })
     .filter((ability) => ability.effects.length > 0 && canPayFor(holder, ability));
   if (cards.length === 0) return;
   const choices: DefenseChoice[] = [

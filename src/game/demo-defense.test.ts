@@ -1254,3 +1254,51 @@ describe('a blow that names its band', () => {
     expect(ordinary!).toBeLessThanOrEqual(1);
   });
 });
+
+/**
+ * A card that answers a swing that went wide. The one who missed is bound as
+ * the target, which is both how the card measures the distance to them and
+ * what it hits back at.
+ */
+describe('answering a miss', () => {
+  it('hits back at whatever swung and missed from within reach', () => {
+    const demo = standoff('riposte');
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: ['rapid-riposte'], loadout: ['rapid-riposte'] };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+
+    // A second card of Kara's, gated on a mark the attacker does not carry.
+    // She does carry it, so a card offered on a self-binding would be offered
+    // here - which is the thing being ruled out.
+    demo.project.abilities.push(
+      abilitySchema.parse({
+        id: 'grudge',
+        name: 'Grudge',
+        source: { kind: 'granted', characters: ['kara'] },
+        kind: 'reaction',
+        trigger: 'attackMissed',
+        action: false,
+        auto: false,
+        target: { kind: 'none' },
+        available: { kind: 'hasCondition', condition: 'guilty', of: { kind: 'target' } },
+        effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }],
+      }),
+    );
+    refreshWorld(demo);
+    demo.state.entity('kara')!.conditions.add('guilty');
+
+    const asked = untilChoice(demo, 'react');
+    expect(asked).not.toBeNull();
+    const index = asked!.choices.findIndex((c) => c.kind === 'react');
+    expect(asked!.choices[index]!.label).toContain('Rapid Riposte');
+    expect(asked!.choices.some((c) => c.label.includes('Grudge'))).toBe(false);
+
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const before = husk.hitPoints.marked;
+    const stress = demo.state.entity('kara')!.stress.marked;
+    answerPending(demo, { kind: 'choose', index });
+    expect(husk.hitPoints.marked).toBeGreaterThan(before);
+    expect(demo.state.entity('kara')!.stress.marked).toBe(stress + 1);
+  });
+});
