@@ -166,10 +166,10 @@ export const abilityModifierSchema = z.object({
    * "your next action roll has advantage" against "your attacks have
    * advantage".
    *
-   * Almost everything printed about advantage is about a swing - Vulnerable,
-   * Hidden, being Chilled - so the flag is off by default and the attack path
-   * is the only one that reads them. A check reads the ones that say this.
-   * A reaction roll reads neither: nothing spends a carried die on one, so
+   * Off by default, so nothing a creature already carries into a swing moves:
+   * a card that says "your attacks have advantage" stays read by the attack
+   * path alone, and a check reads only the ones that say otherwise. A
+   * reaction roll reads neither: nothing spends a carried die on one, so
    * nothing may pay it into one either.
    */
   anyRoll: z.boolean().optional(),
@@ -181,10 +181,11 @@ export const abilityModifierSchema = z.object({
   .refine((m) => m.against !== true || m.stat === 'advantage', {
     message: 'against reads only on advantage',
   })
-  // The other side of it - "attack rolls against you have advantage while you
-  // are Vulnerable" - is still only read by the attack path, so a modifier
-  // that asked for both would quietly do nothing. Refused until there is a
-  // path that honours it.
+  // Not because the other side is about swings - the SRD's Vulnerable is "all
+  // rolls targeting them", and Hidden is "any rolls against" - but because a
+  // check has no one defender to read it from: it may name many targets or
+  // none, and `against` measures from a creature. Refused rather than left to
+  // do nothing quietly, until the check path can say who it is rolling at.
   .refine((m) => m.anyRoll !== true || (m.stat === 'advantage' && m.against !== true), {
     message: 'anyRoll reads only on advantage the roller has themselves',
   });
