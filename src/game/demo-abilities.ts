@@ -26,6 +26,8 @@ import { deriveCharacter } from '../engine/character/sheet';
 import { evaluateOptional } from '../engine/script/conditions';
 import { ScriptRunner } from '../engine/script/runner';
 import { useKey } from '../engine/script/world';
+import { NO_TILE } from '../engine/grid/grid';
+import { walkEffects } from '../engine/script/schema';
 import {
   SRD_CHARACTERS,
   inCombat,
@@ -115,6 +117,9 @@ export function abilityTargets(demo: DemoScene, characterId: string, ability: Ab
   const kind = ability.target.kind;
   if (kind === 'none') return scriptTargets(demo, characterId, ability) ?? [];
   if (kind === 'self') return [characterId];
+  // A card aimed at the ground names no creature to pick: `pointTiles` is the
+  // list, and what it catches is not known until one is chosen.
+  if (kind === 'point') return [];
   const within = (id: string, range: RangeBand): boolean => {
     const band = demo.world.bandTo(characterId, id);
     return band !== null && reaches(band, range);
@@ -129,6 +134,51 @@ export function abilityTargets(demo: DemoScene, characterId: string, ability: Ab
     .filter((e) => within(e.id, ability.target.range))
     .filter((e) => worthAiming(demo, characterId, ability, e.id))
     .map((e) => e.id);
+}
+
+/**
+ * The tiles a card aimed at the ground may be aimed at.
+ *
+ * Everything within the band the card names, whether or not anybody is
+ * standing there and whether or not the ground can be walked on: "a point
+ * within Far range" is a place in the room, and a spell dropped on a wall is
+ * the fiction's problem rather than the rules'. A run that ends somewhere the
+ * mover cannot reach still passes what it passes.
+ */
+export function pointTiles(demo: DemoScene, characterId: string, ability: AbilityDef): number[] {
+  if (ability.target.kind !== 'point') return [];
+  const here = demo.state.entity(characterId)?.tile ?? NO_TILE;
+  if (here === NO_TILE) return [];
+  const tiles: number[] = [];
+  for (let tile = 0; tile < demo.grid.size; tile++) {
+    if (tile === here) continue;
+    const band = demo.world.bandBetween(here, tile);
+    if (band !== null && reaches(band, ability.target.range)) tiles.push(tile);
+  }
+  return tiles;
+}
+
+/**
+ * Who a card aimed at this tile would catch, without aiming it.
+ *
+ * The shapes are read against a world nothing has changed, which is what lets
+ * the board draw a preview under the pointer: every selector a card's effects
+ * name is resolved with the tile bound as the point, and the creatures they
+ * come back with are the ones about to be in it.
+ */
+export function shapeAt(demo: DemoScene, characterId: string, ability: AbilityDef, tile: number): string[] {
+  if (ability.target.kind !== 'point' || tile === NO_TILE) return [];
+  const was = demo.scenario.actorId;
+  demo.scenario.actorId = characterId;
+  const caught = new Set<string>();
+  walkEffects(ability.effects, (effect) => {
+    const selector = 'target' in effect ? effect.target : undefined;
+    if (selector === undefined) return;
+    if (selector.kind !== 'inPath' && !('around' in selector && selector.around === 'point')) return;
+    for (const id of demo.world.resolveTargets(selector, { targets: [], hit: [], point: tile })) caught.add(id);
+  });
+  demo.scenario.actorId = was;
+  return [...caught];
 }
 
 /** Whether an ability can be used now, and if not, why. */
@@ -156,7 +206,9 @@ export function canUseAbility(
   if (left !== null && left <= 0) return { ok: false, reason: `used until the next ${ability.uses!.per === 'longRest' ? 'long rest' : ability.uses!.per === 'scene' ? 'fight' : 'rest'}` };
   demo.scenario.actorId = characterId;
   if (!evaluateOptional(ability.available, demo.world, { targets, hit: [] })) return { ok: false, reason: 'not now' };
-  if (ability.target.kind !== 'none') {
+  if (ability.target.kind === 'point') {
+    if (pointTiles(demo, characterId, ability).length === 0) return { ok: false, reason: 'nowhere to aim it' };
+  } else if (ability.target.kind !== 'none') {
     const valid = abilityTargets(demo, characterId, ability);
     if (valid.length === 0) return { ok: false, reason: 'nothing in range' };
     if (targets.length > 0 && !targets.every((id) => valid.includes(id))) return { ok: false, reason: 'that target is out of range' };
@@ -191,7 +243,14 @@ export function abilityList(demo: DemoScene, characterId: string): AbilityView[]
  * made, puts the card down again: the price comes back and the turn is still
  * theirs.
  */
-export function useAbility(demo: DemoScene, characterId: string, abilityId: string, targets: readonly string[] = []): UseOutcome {
+export function useAbility(
+  demo: DemoScene,
+  characterId: string,
+  abilityId: string,
+  targets: readonly string[] = [],
+  /** The tile a card aimed at the ground was aimed at. */
+  options: { point?: number } = {},
+): UseOutcome {
   const ability = demo.project.abilities.find((a) => a.id === abilityId);
   if (ability === undefined) return { status: 'missing', lines: [] };
   if (!abilitiesOf(demo, characterId).some((a) => a.id === abilityId)) return { status: 'missing', lines: [] };
@@ -206,7 +265,10 @@ export function useAbility(demo: DemoScene, characterId: string, abilityId: stri
   }
   const can = canUseAbility(demo, characterId, ability, chosen);
   if (!can.ok) return { status: 'refused', lines: note(demo, `${nameOf(demo, characterId)} cannot use ${ability.name}: ${can.reason}.`, 'system') };
-  if (ability.target.kind !== 'none' && chosen.length === 0) {
+  if (ability.target.kind === 'point' && (options.point === undefined || options.point === NO_TILE)) {
+    return { status: 'refused', lines: note(demo, `${ability.name} needs somewhere to aim.`, 'system') };
+  }
+  if (ability.target.kind !== 'none' && ability.target.kind !== 'point' && chosen.length === 0) {
     return { status: 'refused', lines: note(demo, `${ability.name} needs a target.`, 'system') };
   }
   // A group is everyone Very Close to the one picked; the script's selectors
@@ -250,7 +312,11 @@ export function useAbility(demo: DemoScene, characterId: string, abilityId: stri
     settleFight(demo);
   };
 
-  const runner = new ScriptRunner(demo.world, demo.rng, { targets: chosen, rollAs: 'actor' });
+  const runner = new ScriptRunner(demo.world, demo.rng, {
+    targets: chosen,
+    rollAs: 'actor',
+    ...(options.point === undefined || options.point === NO_TILE ? {} : { point: options.point }),
+  });
   const result = runner.run(ability.effects);
   lines.push(...record(demo, result.journal));
   if (result.status === 'waiting') {

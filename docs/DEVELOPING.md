@@ -293,7 +293,11 @@ however it was dealt: `world.damage` marks Hit Points outright — past the thre
 any armor, which is what "force them to mark 5 Hit Points" asks for — and notes it exactly as a
 rolled blow does, with nobody named.
 
-A script can be aimed at a **tile** as well as at a creature. `TargetBindings.point` carries it,
+An ability says it wants one with `target.kind: 'point'`, and the board arms for ground rather
+than for creatures: `pointTiles` is what may be aimed at, `shapeAt` is who a shape would catch
+from a tile without aiming it — a pure read, so the board can redraw it under the pointer — and
+`useAbility(demo, id, card, [], { point })` is the click. A script can be aimed at a **tile** as
+well as at a creature. `TargetBindings.point` carries it,
 the same channel `targets` and `hit` come down, and three selectors read it: `inPath` is
 everything the straight line from the actor to that tile runs through (`traceLine`, the same walk
 sight uses, so a charge and a look down a corridor agree about what is on it), and

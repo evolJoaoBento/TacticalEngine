@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
-import { abilitySchema, loadoutOf } from '../engine/content/abilities';
+import { abilitySchema, loadoutOf, type AbilityDef } from '../engine/content/abilities';
 import { runScript } from '../engine/script/runner';
 import { formatDice } from '../engine/rules/dice';
 import type { Rng } from '../engine/core/rng';
-import { rest, useAbility } from './demo-abilities';
+import { pointTiles, rest, shapeAt, useAbility } from './demo-abilities';
 import { NO_TILE } from '../engine/grid/grid';
 import { adversaryTraits } from '../engine/combat/adversary-features';
 import type { DefenseChoice, HeldSwing, PendingDeath, PendingDefense } from './demo-scene';
@@ -2382,5 +2382,105 @@ describe('a card that moves before it swings', () => {
     }
     expect(landed).toBeGreaterThan(10);
     expect(boostedTotal).toBeGreaterThan(bareTotal);
+  });
+});
+
+
+describe('a card aimed at the ground', () => {
+  /** Kara alone with two husks in a row, and a card that runs a path. */
+  const room = (seed: string): DemoScene => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    demo.project.abilities.push(
+      abilitySchema.parse({
+        id: 'charge',
+        name: 'Charge',
+        source: { kind: 'granted', characters: ['kara'] },
+        text: 'Run a straight path to a point within Far range and strike everything along it.',
+        cost: { stress: 1 },
+        target: { kind: 'point', range: 'far' },
+        effects: [
+          { kind: 'damage', amount: 2, target: { kind: 'inPath', side: 'adversaries' } },
+          { kind: 'move', how: 'toward', of: { kind: 'target' }, budget: 'far' },
+        ],
+      }),
+      abilitySchema.parse({
+        id: 'drop-a-ward',
+        name: 'Drop A Ward',
+        source: { kind: 'granted', characters: ['kara'] },
+        text: 'Choose a point within Far range and shelter everyone near it.',
+        target: { kind: 'point', range: 'far' },
+        effects: [{ kind: 'applyCondition', condition: 'focused', target: { kind: 'allies', range: 'close', around: 'point', includeSelf: true } }],
+      }),
+    );
+    refreshWorld(demo);
+    return demo;
+  };
+
+  const charge = (demo: DemoScene): AbilityDef =>
+    demo.project.abilities.find((a) => a.id === 'charge')!;
+
+  it('offers ground rather than creatures, out to the band the card names', () => {
+    const demo = room('aim');
+    const here = demo.state.entity('kara')!.tile;
+    const tiles = pointTiles(demo, 'kara', charge(demo));
+
+    expect(tiles.length).toBeGreaterThan(0);
+    // Never the tile the character is standing on, and never past the band.
+    expect(tiles).not.toContain(here);
+    for (const tile of tiles) {
+      const band = demo.world.bandBetween(here, tile);
+      expect(band).not.toBe(null);
+      expect(['melee', 'veryClose', 'close', 'far']).toContain(band);
+    }
+    // A card that picks a creature offers no ground at all.
+    expect(pointTiles(demo, 'kara', demo.project.abilities.find((a) => a.id === 'drop-a-ward')!).length).toBeGreaterThan(0);
+  });
+
+  it('shows what the shape would catch before it is committed to', () => {
+    const demo = room('preview');
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    // Aimed past the husk: it is on the line, so the preview names it.
+    const beyond = demo.grid.indexOf(
+      Math.min(demo.grid.width - 1, demo.grid.xOf(husk.tile) + 2),
+      demo.grid.yOf(husk.tile),
+    );
+    expect(shapeAt(demo, 'kara', charge(demo), beyond)).toContain(husk.id);
+    // Nothing at all is a legal answer: the preview is a question about a
+    // tile, not a promise that something is there.
+    expect(shapeAt(demo, 'kara', charge(demo), NO_TILE)).toEqual([]);
+    // And reading it changes nothing - the actor is put back where it was.
+    expect(demo.scenario.actorId).not.toBe('kara');
+    expect(husk.hitPoints.marked).toBe(0);
+  });
+
+  it('runs the path it was aimed at, and refuses when nobody aimed it', () => {
+    const demo = room('run');
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const beyond = demo.grid.indexOf(
+      Math.min(demo.grid.width - 1, demo.grid.xOf(husk.tile) + 2),
+      demo.grid.yOf(husk.tile),
+    );
+    expect(shapeAt(demo, 'kara', charge(demo), beyond)).toContain(husk.id);
+
+    // No point, no card: it needs somewhere to aim.
+    expect(useAbility(demo, 'kara', 'charge', []).status).toBe('refused');
+    expect(demo.log.some((l) => l.text.includes('needs somewhere to aim'))).toBe(true);
+    expect(husk.hitPoints.marked).toBe(0);
+
+    const stress = demo.state.entity('kara')!.stress.marked;
+    expect(useAbility(demo, 'kara', 'charge', [], { point: beyond }).status).not.toBe('refused');
+    expect(demo.state.entity('kara')!.stress.marked).toBe(stress + 1);
+    expect(husk.hitPoints.marked).toBe(2);
+  });
+
+  it('drops a ward on a spot and shelters whoever is standing near it', () => {
+    const demo = room('ward');
+    const ward = demo.project.abilities.find((a) => a.id === 'drop-a-ward')!;
+    const kara = demo.state.entity('kara')!;
+    expect(shapeAt(demo, 'kara', ward, kara.tile)).toContain('kara');
+
+    expect(useAbility(demo, 'kara', 'drop-a-ward', [], { point: kara.tile }).status).not.toBe('refused');
+    expect(kara.conditions.has('focused')).toBe(true);
   });
 });

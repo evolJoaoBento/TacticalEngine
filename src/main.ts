@@ -42,7 +42,18 @@ import { ActionBar } from './game/ui/ActionBar';
 import { LoadoutPanel } from './game/ui/LoadoutPanel';
 import { RestPanel } from './game/ui/RestPanel';
 import { DiceTray } from './game/ui/DiceTray';
-import { abilityList, abilityTargets, abilitiesOf, loadoutView, rest, swapCard, useAbility, type RestPlan } from './game/demo-abilities';
+import {
+  abilityList,
+  abilityTargets,
+  abilitiesOf,
+  loadoutView,
+  pointTiles,
+  rest,
+  shapeAt,
+  swapCard,
+  useAbility,
+  type RestPlan,
+} from './game/demo-abilities';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
 import { AssetLibrary, modelAssetSchema, type ModelAsset } from './engine/render/assets';
@@ -173,7 +184,11 @@ declare global {
       placeProp: (tile: number, model: string) => void;
       awaitingLevel: () => string[];
       abilities: (id: string) => { id: string; usable: boolean; reason: string | null; targets: string[] }[];
-      useAbility: (id: string, ability: string, targets?: string[]) => string;
+      useAbility: (id: string, ability: string, targets?: string[], point?: number) => string;
+      /** Arm the bar the way clicking the card does, for a test that then clicks the board. */
+      aim: (ability: string) => number[];
+      /** The tiles the board is lighting up right now. */
+      lit: () => number[];
       passToGm: () => number;
       loadout: (id: string) => { loadout: string[]; vault: string[] };
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
@@ -634,7 +649,7 @@ function refreshPlay(): void {
     // A target to pick lights the creatures it could be; otherwise the walk.
     view.showHighlights(
       targeting !== null
-        ? targeting.valid.map((id) => demo.state.entity(id)?.tile ?? NO_TILE).filter((t) => t !== NO_TILE)
+        ? aimingHighlights(targeting)
         : demo.party.selected === null
           ? []
           : reachableTiles(demo).tiles(),
@@ -643,6 +658,24 @@ function refreshPlay(): void {
     view.clearHighlights();
   }
   renderPlayPanel();
+}
+
+/**
+ * What lights up while the bar is armed.
+ *
+ * For a creature pick, the ones that could be chosen. For a point, the ground
+ * it may be aimed at - and, once the pointer is over a legal tile, whoever the
+ * shape would catch from there, so the player sees the line before they commit
+ * to it rather than after.
+ */
+function aimingHighlights(armed: NonNullable<typeof targeting>): number[] {
+  const tileOf = (id: string): number => demo.state.entity(id)?.tile ?? NO_TILE;
+  if (armed.tiles === undefined) return armed.valid.map(tileOf).filter((t) => t !== NO_TILE);
+  const ability = abilitiesOf(demo, armed.characterId).find((a) => a.id === armed.abilityId);
+  const aimed = armed.aimed;
+  if (ability === undefined || aimed === undefined || !armed.tiles.includes(aimed)) return armed.tiles;
+  const caught = shapeAt(demo, armed.characterId, ability, aimed).map(tileOf).filter((t) => t !== NO_TILE);
+  return [...armed.tiles, ...caught];
 }
 
 /** The party's pack, joined to the project's item names. */
@@ -773,7 +806,21 @@ let levelling: string | null = null;
 let levelIssues: LevelUpIssue[] = [];
 
 /** An ability waiting for its target to be clicked on the board. */
-let targeting: { characterId: string; abilityId: string; name: string; valid: string[] } | null = null;
+/**
+ * The ability the bar is armed with, and what the next click on the board is
+ * for. `valid` is creature ids for a card that picks somebody; `tiles` is the
+ * ground a card aimed at a point may be aimed at, and the two are never both
+ * set. `aimed` is the tile under the pointer while a point is being chosen,
+ * so the board can show what the shape would catch before it is committed.
+ */
+let targeting: {
+  characterId: string;
+  abilityId: string;
+  name: string;
+  valid: string[];
+  tiles?: number[];
+  aimed?: number;
+} | null = null;
 /** Whose loadout is open, and why the last swap was refused. */
 let loadoutOpen: string | null = null;
 let loadoutIssue: string | null = null;
@@ -785,6 +832,13 @@ function beginAbility(abilityId: string): void {
   if (who === null) return;
   const ability = abilitiesOf(demo, who).find((a) => a.id === abilityId);
   if (ability === undefined) return;
+  if (ability.target.kind === 'point') {
+    const tiles = pointTiles(demo, who, ability);
+    if (tiles.length === 0) note(demo, `${ability.name}: nowhere to aim it.`, 'system');
+    else targeting = { characterId: who, abilityId, name: ability.name, valid: [], tiles };
+    refreshPlay();
+    return;
+  }
   const wantsPick = ability.target.kind !== 'none' && ability.target.kind !== 'self';
   if (wantsPick) {
     const valid = abilityTargets(demo, who, ability);
@@ -805,6 +859,18 @@ function beginAbility(abilityId: string): void {
 /** The board was clicked while an ability waits for a target. */
 function pickTarget(tile: number): void {
   if (targeting === null) return;
+  // A card aimed at the ground takes the tile itself, whoever is standing on
+  // it: "a point within Far range" is a place in the room.
+  if (targeting.tiles !== undefined) {
+    if (!targeting.tiles.includes(tile)) {
+      note(demo, `${targeting.name}: that is out of range.`, 'system');
+      return;
+    }
+    const aimed = targeting;
+    targeting = null;
+    useAbility(demo, aimed.characterId, aimed.abilityId, [], { point: tile });
+    return;
+  }
   const occupant = entityOn(tile);
   if (occupant === null || !targeting.valid.includes(occupant)) {
     note(demo, `${targeting.name}: that is not a target it can reach.`, 'system');
@@ -858,7 +924,10 @@ function renderPlayPanel(): void {
       abilities: demo.party.selected === null ? [] : abilityList(demo, demo.party.selected),
       fighting: inCombat(demo),
       side: inCombat(demo) ? demo.encounter!.view().side : null,
-      targeting: targeting === null ? null : { abilityId: targeting.abilityId, name: targeting.name },
+      targeting:
+        targeting === null
+          ? null
+          : { abilityId: targeting.abilityId, name: targeting.name, ...(targeting.tiles === undefined ? {} : { spot: true }) },
       onUse: beginAbility,
       onCancelTargeting: () => {
         targeting = null;
@@ -1106,7 +1175,15 @@ canvas.addEventListener('pointermove', (event) => {
     return;
   }
   // Hover: mark the tile under the pointer so a click has a visible target.
-  view.showCursor(tileUnderPointer(event));
+  const over = tileUnderPointer(event);
+  view.showCursor(over);
+  // A card aimed at the ground redraws its shape as the pointer moves, so what
+  // it would catch is on the board before the click rather than in the log
+  // after it.
+  if (targeting?.tiles !== undefined && targeting.aimed !== over) {
+    targeting = { ...targeting, aimed: over };
+    refreshPlay();
+  }
 });
 
 canvas.addEventListener('pointerleave', () => view.showCursor(NO_TILE));
@@ -1317,11 +1394,16 @@ const state = {
 
   abilities: (id: string) =>
     abilityList(demo, id).map((v) => ({ id: v.ability.id, usable: v.usable, reason: v.reason, targets: v.targets })),
-  useAbility: (id: string, ability: string, targets: string[] = []): string => {
-    const result = useAbility(demo, id, ability, targets);
+  useAbility: (id: string, ability: string, targets: string[] = [], point?: number): string => {
+    const result = useAbility(demo, id, ability, targets, point === undefined ? {} : { point });
     refreshPlay();
     return result.status;
   },
+  aim: (ability: string): number[] => {
+    beginAbility(ability);
+    return targeting?.tiles ?? [];
+  },
+  lit: (): number[] => (targeting === null ? [] : aimingHighlights(targeting)),
   passToGm: (): number => {
     const acted = endTurn(demo);
     refreshPlay();

@@ -46,8 +46,12 @@ export const abilityTargetSchema = z.object({
    * What the player picks when using it. `none` needs no pick; `self` is the
    * actor; `creature` is anyone. A `group` is every adversary within Very
    * Close range of a chosen point — the SRD's group — picked as one of them.
+   *
+   * `point` is a tile rather than a creature: "run a straight path to a point
+   * within Far range", "choose a point within Far range". It binds
+   * `bindings.point`, which the shapes read, and nothing binds `target`.
    */
-  kind: z.enum(['none', 'self', 'adversary', 'ally', 'creature', 'group']).default('none'),
+  kind: z.enum(['none', 'self', 'adversary', 'ally', 'creature', 'group', 'point']).default('none'),
   /** The furthest the pick may be from the actor. */
   range: rangeBandSchema.default('melee'),
   /**

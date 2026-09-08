@@ -21,8 +21,8 @@ export interface ActionBarProps {
   /** Whether a fight is on, and whose turn it is. */
   fighting: boolean;
   side: 'party' | 'gm' | null;
-  /** The ability waiting for a target, if any. */
-  targeting: { abilityId: string; name: string } | null;
+  /** The ability waiting for a target, if any. `spot` when it wants ground rather than a creature. */
+  targeting: { abilityId: string; name: string; spot?: boolean } | null;
   onUse: (abilityId: string) => void;
   onCancelTargeting: () => void;
   onPassToGm: () => void;
@@ -99,7 +99,7 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
       <div style={wrap} data-testid="action-bar" data-targeting={props.targeting.abilityId}>
         <div style={{ ...row, border: '1px solid #ffe08a' }}>
           <span style={{ padding: '5px 4px' }}>
-            {props.targeting.name}: click a target on the board
+            {props.targeting.name}: click {props.targeting.spot === true ? 'a spot' : 'a target'} on the board
           </span>
           <button style={chip('armed', true)} data-testid="cancel-targeting" onClick={props.onCancelTargeting}>
             Cancel (Esc)

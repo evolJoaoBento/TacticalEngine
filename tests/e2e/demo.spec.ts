@@ -87,7 +87,9 @@ declare global {
       placeProp: (tile: number, model: string) => void;
       awaitingLevel: () => string[];
       abilities: (id: string) => { id: string; usable: boolean; reason: string | null; targets: string[] }[];
-      useAbility: (id: string, ability: string, targets?: string[]) => string;
+      useAbility: (id: string, ability: string, targets?: string[], point?: number) => string;
+      aim: (ability: string) => number[];
+      lit: () => number[];
       passToGm: () => number;
       loadout: (id: string) => { loadout: string[]; vault: string[] };
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
