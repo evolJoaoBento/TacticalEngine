@@ -92,6 +92,18 @@ export const amountReadSchema = z.union([
     },
     measure: z.enum(['available', 'marked', 'max']).optional(),
   }),
+  /**
+   * Or how many creatures a selector names: "an additional Hope for each
+   * creature", "a bonus equal to the number of allies within Close range".
+   *
+   * The same question the `nearby` condition asks as a gate, asked here as a
+   * number. Nobody named is nothing, which is the honest answer.
+   */
+  z.object({
+    get count() {
+      return targetSelectorSchema;
+    },
+  }),
   /** Or the tokens sitting on a card somebody holds. */
   z.object({
     tokens: contentIdSchema,
@@ -349,7 +361,21 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     kind: z.literal('nearby'),
     of: targetSelectorSchema,
     op: compareOpSchema,
-    value: z.number().int(),
+    /**
+     * A written number, or a pool read off somebody - "as many Hope as there
+     * are creatures standing with you", which is a price asked as a gate. Only
+     * a pool: it is the one read a condition can make on its own.
+     */
+    value: z.union([
+      z.number().int(),
+      z.object({
+        pool: poolNameSchema,
+        get of() {
+          return targetSelectorSchema.optional();
+        },
+        measure: z.enum(['available', 'marked', 'max']).optional(),
+      }),
+    ]),
   }),
   /** How many tokens sit on a card the actor holds. */
   z.object({

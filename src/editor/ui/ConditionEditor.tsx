@@ -307,7 +307,23 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
               }
             />
             {select(condition.op, ops.map((id) => ({ id })), (op) => onChange({ ...condition, op }))}
-            {number(condition.value, (value) => onChange({ ...condition, value }))}
+            {/* A written number, or as many as somebody holds of a pool. */}
+            {select(
+              typeof condition.value === 'number' ? 'number' : condition.value.pool,
+              [{ id: 'number' }, { id: 'hope' }, { id: 'stress' }, { id: 'hitPoints' }, { id: 'armorSlots' }],
+              (pick) =>
+                onChange({
+                  ...condition,
+                  value:
+                    pick === 'number'
+                      ? 1
+                      : { pool: pick as 'hope' | 'stress' | 'hitPoints' | 'armorSlots', measure: 'available' },
+                }),
+              'cond-nearby-value',
+            )}
+            {typeof condition.value === 'number'
+              ? number(condition.value, (value) => onChange({ ...condition, value }))
+              : null}
           </>
         );
       case 'hook':

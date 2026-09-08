@@ -580,13 +580,15 @@ const RAW: Input[] = [
   // so a wall in the way is no argument, and a tile somebody is standing on is
   // not one to arrive on.
   //
-  // Simplified twice. "An additional Hope for each creature" is one Hope for
-  // all of them: paying a head at a time means asking which of them is left
-  // behind when the Hope runs out, and that is a decision the engine has no
-  // way to put mid-spell. And they arrive before she does, so that "any
-  // willing creatures within Very Close range" is read from where they were
-  // all standing rather than from where she has already gone - which leaves
-  // her beside the spot rather than on it when she brings somebody.
+  // Simplified once: everybody standing with her comes or nobody does, at the
+  // printed price of a Hope each. Which of them is left behind when there is
+  // not enough Hope for all is a decision the engine has no way to put
+  // mid-spell, so the offer is simply not made unless she can pay for the room.
+  //
+  // They arrive before she does, so that "any willing creatures within Very
+  // Close range" is read from where they were all standing rather than from
+  // where she has already gone - which leaves her beside the spot rather than
+  // on it when she brings somebody.
   {
     id: 'blink-out',
     name: 'Blink Out',
@@ -608,19 +610,26 @@ const RAW: Input[] = [
                 options: [
                   { label: 'Go alone', effects: [] },
                   {
-                    label: 'Take them with you (1 Hope)',
+                    label: 'Take them with you (a Hope each)',
+                    // Offered only when she can pay for all of them: a count
+                    // measured against the Hope she is holding.
                     available: {
                       kind: 'all',
                       of: [
                         { kind: 'nearby', of: { kind: 'allies', range: 'veryClose' }, op: '>=', value: 1 },
-                        { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+                        {
+                          kind: 'nearby',
+                          of: { kind: 'allies', range: 'veryClose' },
+                          op: '<=',
+                          value: { pool: 'hope', measure: 'available' },
+                        },
                       ],
                     },
                     // They arrive first, so that who is standing with her is
                     // read from where they were all standing rather than from
                     // where she has already gone.
                     effects: [
-                      { kind: 'spendHope', amount: 1 },
+                      { kind: 'spendHope', amount: { count: { kind: 'allies', range: 'veryClose' } } },
                       {
                         kind: 'move',
                         who: { kind: 'allies', range: 'veryClose' },
@@ -642,19 +651,26 @@ const RAW: Input[] = [
                 options: [
                   { label: 'Go alone', effects: [] },
                   {
-                    label: 'Take them with you (1 Hope)',
+                    label: 'Take them with you (a Hope each)',
+                    // Offered only when she can pay for all of them: a count
+                    // measured against the Hope she is holding.
                     available: {
                       kind: 'all',
                       of: [
                         { kind: 'nearby', of: { kind: 'allies', range: 'veryClose' }, op: '>=', value: 1 },
-                        { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+                        {
+                          kind: 'nearby',
+                          of: { kind: 'allies', range: 'veryClose' },
+                          op: '<=',
+                          value: { pool: 'hope', measure: 'available' },
+                        },
                       ],
                     },
                     // They arrive first, so that who is standing with her is
                     // read from where they were all standing rather than from
                     // where she has already gone.
                     effects: [
-                      { kind: 'spendHope', amount: 1 },
+                      { kind: 'spendHope', amount: { count: { kind: 'allies', range: 'veryClose' } } },
                       {
                         kind: 'move',
                         who: { kind: 'allies', range: 'veryClose' },
@@ -676,19 +692,26 @@ const RAW: Input[] = [
                 options: [
                   { label: 'Go alone', effects: [] },
                   {
-                    label: 'Take them with you (1 Hope)',
+                    label: 'Take them with you (a Hope each)',
+                    // Offered only when she can pay for all of them: a count
+                    // measured against the Hope she is holding.
                     available: {
                       kind: 'all',
                       of: [
                         { kind: 'nearby', of: { kind: 'allies', range: 'veryClose' }, op: '>=', value: 1 },
-                        { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+                        {
+                          kind: 'nearby',
+                          of: { kind: 'allies', range: 'veryClose' },
+                          op: '<=',
+                          value: { pool: 'hope', measure: 'available' },
+                        },
                       ],
                     },
                     // They arrive first, so that who is standing with her is
                     // read from where they were all standing rather than from
                     // where she has already gone.
                     effects: [
-                      { kind: 'spendHope', amount: 1 },
+                      { kind: 'spendHope', amount: { count: { kind: 'allies', range: 'veryClose' } } },
                       {
                         kind: 'move',
                         who: { kind: 'allies', range: 'veryClose' },

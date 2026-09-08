@@ -219,8 +219,15 @@ export function evaluate(
       return context
         .resolveTargets(condition.of ?? { kind: 'target' }, bindings)
         .some((id) => context.hasCondition(id, condition.condition));
-    case 'nearby':
-      return compare(context.resolveTargets(condition.of, bindings).length, condition.op, condition.value);
+    case 'nearby': {
+      const many = context.resolveTargets(condition.of, bindings).length;
+      if (typeof condition.value === 'number') return compare(many, condition.op, condition.value);
+      // Against a pool of somebody's: the actor's unless the gate says whose.
+      const who = context.resolveTargets(condition.value.of ?? { kind: 'actor' }, bindings)[0];
+      if (who === undefined) return false;
+      const held = context.poolValue(who, condition.value.pool, condition.value.measure ?? 'marked');
+      return held !== null && compare(many, condition.op, held);
+    }
     case 'tokens': {
       const ids = context.resolveTargets(condition.of ?? { kind: 'actor' }, bindings);
       return ids.some((id) => compare(context.tokensOn(id, condition.ability), condition.op, condition.value));

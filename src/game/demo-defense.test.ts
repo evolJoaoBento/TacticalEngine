@@ -3553,6 +3553,64 @@ describe('a step across the room without crossing it', () => {
     throw new Error('nobody was ever brought along');
   });
 
+  it('asks a Hope a head, and does not offer what she cannot pay for', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const { demo } = blinking(`blink-price-${seed}`);
+      const mira = demo.state.entity('mira')!;
+      // Kara and Finn both standing with her, so the crossing costs two.
+      const blocked = demo.state.blockedFor('finn');
+      let stand = NO_TILE;
+      demo.grid.forEachNeighbor(mira.tile, false, (tile) => {
+        if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+      });
+      if (stand === NO_TILE) continue;
+      demo.state.moveEntity('finn', stand);
+      const at = somewhereElse(demo, ['mira', 'kara', 'finn']);
+      if (at === NO_TILE) continue;
+
+      // A Hope for the spell and nothing over. A success with Hope hands one
+      // back before the choice is put, so even then there is one for one of
+      // them and not for both.
+      mira.hope = { max: 6, value: 1 };
+      expect(useAbility(demo, 'mira', 'blink-out', [], { point: at }).status).not.toBe('refused');
+      let offered: string[] = [];
+      for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+        const prompt = demo.pending.prompt;
+        if (prompt.kind !== 'choice') {
+          answerPending(demo, { kind: 'roll' });
+          continue;
+        }
+        offered = prompt.options.map((o) => o.label);
+        answerPending(demo, { kind: 'choose', index: 0 });
+      }
+      if (!demo.log.some((l) => /Success|Critical/.test(l.text))) continue;
+      expect(offered).toEqual(['Go alone']);
+      expect(demo.state.entity('kara')!.tile).not.toBe(at);
+
+      // With a Hope for each of them it is offered, and each of them is paid for.
+      const { demo: rich } = blinking(`blink-price-${seed}`);
+      rich.state.moveEntity('finn', stand);
+      const richMira = rich.state.entity('mira')!;
+      richMira.hope = { max: 6, value: 4 };
+      expect(useAbility(rich, 'mira', 'blink-out', [], { point: at }).status).not.toBe('refused');
+      let took: string[] = [];
+      for (let guard = 0; guard < 8 && rich.pending !== null; guard++) {
+        const prompt = rich.pending.prompt;
+        if (prompt.kind !== 'choice') {
+          answerPending(rich, { kind: 'roll' });
+          continue;
+        }
+        took = prompt.options.map((o) => o.label);
+        answerPending(rich, { kind: 'choose', index: Math.min(1, prompt.options.length - 1) });
+      }
+      if (!rich.log.some((l) => /Success|Critical/.test(l.text))) continue;
+      expect(took.length).toBe(2);
+      expect(rich.log.some((l) => l.text.includes('Spends 2 Hope'))).toBe(true);
+      return;
+    }
+    throw new Error('no seed put two of the party beside her');
+  });
+
   it('leaves them where they stand when no Hope goes in', () => {
     for (let seed = 1; seed < 60; seed++) {
       const { demo } = blinking(`blink-alone-${seed}`);

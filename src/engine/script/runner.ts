@@ -514,6 +514,8 @@ export class ScriptRunner {
       // "Equal to the Demon's current number of marked HP": the actor's own
       // when nothing says otherwise, and nobody there is a quiet zero rather
       // than a refusal, the way an empty count is.
+      // How many a selector names, rather than a number read off one of them.
+      if ('count' in amount) return this.resolve(amount.count).length;
       const who = this.resolve(amount.of ?? { kind: 'actor' })[0];
       if (who === undefined) return 0;
       if ('tokens' in amount) return this.world.tokensOn(who, amount.tokens);

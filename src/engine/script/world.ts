@@ -1910,17 +1910,19 @@ export class SceneScriptWorld implements ScriptWorld {
     const free = (tile: number): boolean => grid.isTile(tile) && grid.isPassable(tile) && !blocked(tile);
     let best = free(goalTile) ? goalTile : NO_TILE;
     if (best === NO_TILE) {
-      // The nearest free ground to where they were aiming. Closer wins and a
-      // tie goes to the lower index, so a replay lands them on the same tile.
+      // Somebody is standing there, so the next tile along - and only the next
+      // one. A search of the whole map would put them across the room, or
+      // through a wall, for want of a foot of floor; a spell with nowhere to
+      // land is one that fizzles.
       let bestDistance = Infinity;
-      for (let tile = 0; tile < grid.width * grid.height; tile++) {
-        if (!free(tile)) continue;
+      grid.forEachNeighbor(goalTile, true, (tile) => {
+        if (!free(tile)) return;
         const distance = grid.euclideanDistance(tile, goalTile);
         if (distance < bestDistance || (distance === bestDistance && tile < best)) {
           best = tile;
           bestDistance = distance;
         }
-      }
+      });
     }
     if (best === NO_TILE || best === walking.tile) return null;
     const from = walking.tile;
