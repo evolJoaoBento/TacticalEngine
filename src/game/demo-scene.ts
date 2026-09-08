@@ -1533,6 +1533,17 @@ function playDeathMoves(demo: DemoScene): void {
     if (character === undefined) continue;
     fallen.add(entity);
     note(demo, `${character.sheet.name} marks their last Hit Point.`, 'fear');
+    // "When this ally would make a death move, they clear a Hit Point
+    // instead": read before the question is put, because a character the sigil
+    // catches never makes the move at all.
+    const sigil = demo.world.insteadOfDeath(entity.id);
+    if (sigil !== null) {
+      demo.world.clearCondition(entity.id, sigil.condition);
+      demo.world.heal({ kind: 'entity', id: entity.id }, sigil.clears);
+      fallen.delete(entity);
+      note(demo, `${character.sheet.name}: ${sigil.says}`, 'hope');
+      continue;
+    }
     // With nobody at the table to ask - every test that predates the prompt,
     // and the engine driving itself - the move is Avoid Death, which is what
     // falling did before there was a choice about it.

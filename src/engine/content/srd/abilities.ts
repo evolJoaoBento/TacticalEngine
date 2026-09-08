@@ -177,6 +177,29 @@ const RAW: Input[] = [
     modifiers: [{ stat: 'damageRoll', plusTrait: 'strength', requires: 'meleeWeapon' }],
   },
   // ---- Bone ------------------------------------------------------------------
+  // "Spend 3 Hope and choose an ally within Close range. They are marked with
+  // a glowing sigil of protection. When this ally would make a death move,
+  // they clear a Hit Point instead. This effect ends when it saves the target
+  // from a death move, you cast Life Ward on another target, or you take a
+  // long rest."
+  //
+  // Simplified in one place: it lasts until a rest rather than until a long
+  // one, because a short rest and a long one are the same scope to a condition
+  // here. The other two endings are the card's own - casting it again takes it
+  // off whoever was carrying it, and the sigil spends itself the moment it
+  // catches somebody.
+  {
+    id: 'life-ward',
+    name: 'Life Ward',
+    source: card('life-ward'),
+    cost: { hope: 3 },
+    target: { kind: 'ally', range: 'close' },
+    effects: [
+      { kind: 'clearCondition', condition: 'life-ward', target: { kind: 'party' } },
+      { kind: 'applyCondition', condition: 'life-ward', duration: 'rest', target: { kind: 'target' } },
+      { kind: 'log', text: 'A sigil closes over them, and holds.', tone: 'hope' },
+    ],
+  },
   // "Gain a bonus to your Evasion equal to half your Agility."
   {
     id: 'untouchable',

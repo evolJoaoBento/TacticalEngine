@@ -4131,3 +4131,82 @@ describe('half of what somebody is', () => {
     expect(demo.world.difficultyOf('kara')).toBe(demo.characters.get('kara')!.evasion);
   });
 });
+
+
+describe('a sigil that answers a fall', () => {
+  /** Mira with the ward in hand, standing with the rest of the party. */
+  const warded = (seed: string, on: string | null) => {
+    const demo = standoff(seed);
+    demo.askDefender = true;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    standBehind(demo, 'mira', husk.tile);
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['life-ward'], loadout: ['life-ward'] };
+    demo.sheets.set('mira', sheet);
+    demo.characters.set('mira', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    demo.state.entity('mira')!.hope = { max: 6, value: 6 };
+    if (on !== null) {
+      demo.party.select('mira');
+      expect(useAbility(demo, 'mira', 'life-ward', [on]).status).not.toBe('refused');
+      expect(demo.state.entity(on)!.conditions.has('life-ward')).toBe(true);
+    }
+    return demo;
+  };
+
+  /** Put somebody's last Hit Point down and let the fall be answered. */
+  const fell = (demo: DemoScene, id: string): void => {
+    const who = demo.state.entity(id)!;
+    who.hitPoints = { max: 4, marked: 3 };
+    demo.world.damage({ kind: 'entity', id }, 1);
+    settleFight(demo);
+  };
+
+  it('clears a Hit Point in place of the death move, and goes out doing it', () => {
+    const demo = warded('ward-catch', 'kara');
+    const kara = demo.state.entity('kara')!;
+    const said = demo.log.length;
+    fell(demo, 'kara');
+
+    const after = demo.log.slice(said).map((l) => l.text);
+    expect(after.some((t) => t.includes('The sigil takes it, and goes out'))).toBe(true);
+    // She is standing, nothing was asked of her, and the sigil is spent.
+    expect(kara.alive).toBe(true);
+    expect(kara.hitPoints.marked).toBe(3);
+    expect(demo.pending).toBeNull();
+    expect(kara.conditions.has('life-ward')).toBe(false);
+  });
+
+  it('leaves the death move to somebody it is not on', () => {
+    const demo = warded('ward-elsewhere', 'kara');
+    const said = demo.log.length;
+    fell(demo, 'finn');
+    const after = demo.log.slice(said).map((l) => l.text);
+    expect(after.some((t) => t.includes('The sigil takes it'))).toBe(false);
+    // Finn is asked what he does about it, the way anybody would be.
+    expect(demo.pending?.kind).toBe('death');
+    // And Kara still has hers.
+    expect(demo.state.entity('kara')!.conditions.has('life-ward')).toBe(true);
+  });
+
+  it('hangs over one at a time', () => {
+    const demo = warded('ward-one', 'kara');
+    // The card again, on somebody else. Run rather than played, because the
+    // first casting spent her turn and what is under test is the card's own
+    // first line rather than the turn economy.
+    const card = demo.project.abilities.find((a) => a.id === 'life-ward')!;
+    demo.scenario.actorId = 'mira';
+    runScript(card.effects, demo.world, demo.rng, { targets: ['finn'], hit: ['finn'] });
+    expect(demo.state.entity('finn')!.conditions.has('life-ward')).toBe(true);
+    expect(demo.state.entity('kara')!.conditions.has('life-ward')).toBe(false);
+  });
+
+  it('catches one fall and no more', () => {
+    const demo = warded('ward-once', 'kara');
+    const kara = demo.state.entity('kara')!;
+    fell(demo, 'kara');
+    expect(kara.alive).toBe(true);
+    // Down again with the sigil spent: this time the question is put to her.
+    fell(demo, 'kara');
+    expect(demo.pending?.kind).toBe('death');
+  });
+});

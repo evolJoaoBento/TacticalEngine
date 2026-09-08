@@ -402,6 +402,18 @@ export class SceneScriptWorld implements ScriptWorld {
     return { started: s.started, ended: s.ended, triggered: s.triggered };
   }
 
+  /**
+   * What a creature bears that answers a fall in place of a death move, and
+   * the name of the condition spent doing it.
+   */
+  insteadOfDeath(id: string): { condition: string; clears: number; says: string } | null {
+    for (const name of [...(this.state.entity(id)?.conditions ?? [])].sort()) {
+      const instead = this.conditionDefs.get(name)?.insteadOfDeath;
+      if (instead !== undefined) return { condition: name, ...instead };
+    }
+    return null;
+  }
+
   /** What a condition is called, for a line the log writes about it. */
   conditionName(condition: string): string {
     return this.conditionDefs.get(condition)?.name ?? condition;

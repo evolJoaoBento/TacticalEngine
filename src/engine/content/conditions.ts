@@ -81,6 +81,21 @@ export const conditionDefSchema = z.object({
       },
     })
     .optional(),
+  /**
+   * "When this ally would make a death move, they clear a Hit Point instead":
+   * a sigil that answers a fall, spending itself to do it.
+   *
+   * Read where the death move is put, before the question is asked, so nobody
+   * is offered a choice they are not going to be making.
+   */
+  insteadOfDeath: z
+    .object({
+      /** Hit Points cleared in place of the move. */
+      clears: z.number().int().positive(),
+      /** What the log says when it goes off. */
+      says: z.string().min(1),
+    })
+    .optional(),
   armor: z
     .object({
       /** Bands off the severity, over and above the one the slot itself took. */
@@ -200,6 +215,13 @@ const RAW: ConditionInput[] = [
         { kind: 'markStress', amount: 1, target: { kind: 'target' } },
       ],
     },
+  },
+  // Life Ward's sigil. It does nothing at all until the moment it is for.
+  {
+    id: 'life-ward',
+    name: 'Life Ward',
+    text: 'When you would make a death move, you clear a Hit Point instead.',
+    insteadOfDeath: { clears: 1, says: 'The sigil takes it, and goes out.' },
   },
   {
     id: 'stunned',
