@@ -308,6 +308,8 @@ AbilityDef.effects  (content/abilities.ts, shapes from script/schema.ts)
             ├─ boostDamage journals what to add to the blow being counted
             ├─ forceHitPoints journals the Hit Points it marks instead of rolling
             ├─ forceSeverity journals the band it lands in instead of rolling
+            ├─ softenBlow / avoidBlow journal what the defender's card did to it
+            ├─ diceCheck rolls a handful and pushes one of two frames
             ├─ howMany builds a choice, one option per number, and pushes it
             ├─ replace takes the actor off the map and stands another block there
             ├─ move walks the actor across the ground: towards somebody, or away

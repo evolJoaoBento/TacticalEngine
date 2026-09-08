@@ -399,6 +399,79 @@ const RAW: Input[] = [
       { kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'close' },
     ],
   },
+  // ---- a handful of dice, and what comes up on them -----------------------
+  // "If any roll a 6": three cards ask it, each counting out a different pile
+  // of dice, and none of them could be written until something could roll a
+  // handful and look at the faces.
+  {
+    id: 'arcane-reflection',
+    name: 'Arcane Reflection',
+    source: card('arcane-reflection'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    auto: false,
+    available: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+    target: { kind: 'none' },
+    // Simplified: it answers any blow the defender is asked about rather than
+    // magic damage alone - nothing at this moment asks what type a blow is -
+    // and the damage sent back is the number that arrived, without the
+    // attack's own `direct`, which the blow does not carry this far.
+    effects: [
+      {
+        kind: 'howMany',
+        most: { pool: 'hope', measure: 'available' },
+        title: 'Arcane Reflection',
+        body: 'How much of it goes into the mirror?',
+        each: [
+          { kind: 'spendHope', amount: 'spent' },
+          {
+            kind: 'diceCheck',
+            dice: '1d6',
+            times: 'spent',
+            atLeast: 6,
+            then: [
+              { kind: 'log', text: 'The spell turns in the air and goes home.', tone: 'hope' },
+              { kind: 'avoidBlow' },
+              { kind: 'damage', dice: 'same', target: { kind: 'target' } },
+            ],
+            otherwise: [{ kind: 'log', text: 'The mirror holds nothing.', tone: 'system' }],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'redirect',
+    name: 'Redirect',
+    source: card('redirect'),
+    kind: 'reaction',
+    trigger: 'attackMissed',
+    action: false,
+    auto: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    // "An attack made against you from beyond Melee range": read from the one
+    // who swung, who is bound as the target.
+    available: { kind: 'not', of: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } } },
+    // Simplified: the Stress is spent on the attempt rather than after the
+    // dice come up, and the blow goes to the nearest adversary within Very
+    // Close rather than one the player picks.
+    effects: [
+      {
+        kind: 'diceCheck',
+        dice: '1d6',
+        times: { trait: 'proficiency' },
+        atLeast: 6,
+        then: [
+          { kind: 'log', text: 'The shot is caught and sent somewhere else.', tone: 'hope' },
+          { kind: 'damage', dice: 'theirs', target: { kind: 'adversaries', range: 'veryClose', nearest: 1 } },
+        ],
+        otherwise: [{ kind: 'log', text: 'Nothing about it can be caught.', tone: 'system' }],
+      },
+    ],
+  },
   // ---- what the dice said, once the blow has landed -----------------------
   // Four cards answer a critical success, and until the roll reached the cards
   // that answer a hit none of them could ask. The gate is a plain `rolled`,

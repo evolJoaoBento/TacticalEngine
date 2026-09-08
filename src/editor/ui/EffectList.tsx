@@ -98,6 +98,7 @@ const ADDABLE = [
   'forceSeverity',
   'softenBlow',
   'avoidBlow',
+  'diceCheck',
   'howMany',
   'countdown',
   'reactionRoll',
@@ -160,6 +161,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   forceSeverity: 'Force the damage band',
   softenBlow: 'Take some off the blow',
   avoidBlow: 'Avoid the blow entirely',
+  diceCheck: 'Roll dice and see',
   howMany: 'Ask how many',
   reactionRoll: 'Ask for a reaction roll',
   run: 'Run code',
@@ -296,6 +298,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, severity: 'severe' };
     case 'softenBlow':
       return { kind, dice: '1d6' };
+    case 'diceCheck':
+      return { kind, dice: '1d6', atLeast: 6, then: [] };
     case 'avoidBlow':
       return { kind };
     case 'howMany':
@@ -343,6 +347,8 @@ function describe(effect: Effect): string {
   switch (effect.kind) {
     case 'branch':
       return `If ${effect.when.kind}: ${effect.then.length} effect(s), else ${effect.otherwise?.length ?? 0}`;
+    case 'diceCheck':
+      return `Roll ${effect.dice} for a ${effect.atLeast}: ${effect.then.length} effect(s), else ${effect.otherwise?.length ?? 0}`;
     case 'choice':
       return `Ask the player (${effect.options.length} options)`;
     case 'check':
@@ -656,7 +662,7 @@ function renderBody(
     case 'gainFear':
       return amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }));
     case 'spendHope':
-      return count(effect.amount ?? 1, (amount) => ({ ...effect, amount }));
+      return amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }));
     case 'applyCondition':
       return (
         <>
@@ -1310,6 +1316,41 @@ function renderBody(
           >
             + Option
           </button>
+        </div>
+      );
+    case 'diceCheck':
+      // A handful of dice under a gate of their own: what to roll, how many,
+      // what counts as coming up, and what each answer runs.
+      return (
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="dice-check">
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              style={{ ...field, flex: 'none', width: '72px' }}
+              data-role="check-dice"
+              placeholder="1d6"
+              title="The die to roll, once for each"
+              value={effect.dice}
+              onInput={(e) => onChange({ ...effect, dice: (e.target as HTMLInputElement).value })}
+            />
+            <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="How many of them">
+              &times;
+            </span>
+            {amount(effect.times ?? 1, (times) => ({ ...effect, times: times === 1 ? undefined : times }))}
+            <span style={{ color: '#8ea3b0', fontSize: '11px' }}>needs</span>
+            {count(effect.needed ?? 1, (needed) => ({ ...effect, needed: needed === 1 ? undefined : needed }))}
+            <span style={{ color: '#8ea3b0', fontSize: '11px' }}>showing</span>
+            {count(effect.atLeast, (atLeast) => ({ ...effect, atLeast }))}
+            <span style={{ color: '#8ea3b0', fontSize: '11px' }}>or better</span>
+          </div>
+          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>then</div>
+          <EffectList {...props} testId={undefined} effects={effect.then} onChange={(then) => onChange({ ...effect, then })} />
+          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>otherwise</div>
+          <EffectList
+            {...props}
+            testId={undefined}
+            effects={effect.otherwise ?? []}
+            onChange={(otherwise) => onChange({ ...effect, ...(otherwise.length === 0 ? { otherwise: undefined } : { otherwise }) })}
+          />
         </div>
       );
     case 'branch':

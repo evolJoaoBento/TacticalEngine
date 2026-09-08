@@ -111,6 +111,7 @@ const EXPECTED_REFUSALS: ReadonlyMap<string, string> = new Map([
   ['unleash-chaos', 'no tokens on the card until a session places them'],
   ['spellcharge', 'no tokens on the card until a wound charges it'],
   ['minor-chaos-elemental-magical-reflection', 'nothing to reflect until a blow has landed on the Elemental'],
+  ['arcane-reflection', 'nothing to send back until a blow is arriving, which is the only moment it is offered'],
   ['share-the-burden', 'nobody in the fixture is carrying Stress to take on'],
 ]);
 

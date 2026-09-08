@@ -870,8 +870,9 @@ export class SceneScriptWorld implements ScriptWorld {
    * A trait off a creature's sheet, or the one they cast with. A stat block has
    * no traits and reads null, which every caller turns into nothing happening.
    */
-  traitValue(id: string, trait: Trait | 'spellcast'): number | null {
+  traitValue(id: string, trait: Trait | 'spellcast' | 'proficiency'): number | null {
     if (trait === 'spellcast') return this.spellcastValue(id);
+    if (trait === 'proficiency') return this.characters.has(id) ? this.proficiencyOf(id) : null;
     return this.characters.get(id)?.traits[trait] ?? null;
   }
 

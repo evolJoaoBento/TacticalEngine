@@ -106,7 +106,7 @@ export const amountReadSchema = z.union([
    * reads as nothing rather than refusing.
    */
   z.object({
-    trait: z.union([traitSchema, z.literal('spellcast')]),
+    trait: z.union([traitSchema, z.literal('spellcast'), z.literal('proficiency')]),
     get of() {
       return targetSelectorSchema.optional();
     },
@@ -432,8 +432,11 @@ export const effectSchema = z.discriminatedUnion('kind', [
       kind: z.literal('damage'),
       amount: amountSchema.optional(),
       /**
-       * "d8+2", "2d6"; `weapon` for the actor's own weapon; or `same` to reuse
-       * the damage already rolled in this script rather than rolling again.
+       * "d8+2", "2d6"; `weapon` for the actor's own weapon; `theirs` for the
+       * weapon of whoever is bound as the target - "redirect the attack to
+       * damage an adversary instead", where the attack is theirs and not the
+       * holder's; or `same` to reuse the damage already rolled in this script
+       * rather than rolling again.
        */
       dice: z.string().min(1).optional(),
       type: z.enum(['physical', 'magic']).optional(),
@@ -524,7 +527,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('gainFear'), amount: amountSchema.optional() }),
   z.object({ kind: z.literal('gainHope'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
   /** The actor spends Hope. Refused, and journalled as such, when they cannot. */
-  z.object({ kind: z.literal('spendHope'), amount: z.number().int().positive().optional() }),
+  z.object({ kind: z.literal('spendHope'), amount: amountSchema.optional() }),
   /**
    * "They lose a Hope" — what a stat block takes rather than what a card
    * spends: nothing is refused, a creature with none simply loses none. The
@@ -745,6 +748,32 @@ export const effectSchema = z.discriminatedUnion('kind', [
    */
   z.object({ kind: z.literal('avoidBlow') }),
   /**
+   * "Roll a number of d6s equal to your Proficiency. If any roll a 6...": a
+   * handful of dice, and what happens if one of them comes up.
+   *
+   * Three cards ask this and no two of them ask it the same way - one rolls
+   * per Hope spent, one per point of Proficiency, one per token - so `times`
+   * is an amount like any other. No dice at all is no roll: `otherwise` runs
+   * and nothing is journalled, because a card whose holder spent nothing has
+   * not rolled and failed, it has not rolled.
+   */
+  z.object({
+    kind: z.literal('diceCheck'),
+    /** The die to roll, once per `times`: "1d6". */
+    dice: z.string().min(1),
+    times: amountSchema.optional(),
+    /** A die showing this or better is one that came up. */
+    atLeast: z.number().int().positive(),
+    /** How many have to come up. One - "if any roll a 6" - unless said. */
+    needed: z.number().int().positive().optional(),
+    get then() {
+      return z.array(effectSchema);
+    },
+    get otherwise() {
+      return z.array(effectSchema).optional();
+    },
+  }),
+  /**
    * "Force the target to mark a number of Hit Points equal to the number of
    * Hit Points you currently have marked instead of rolling for damage": the
    * blow arrives as a flat number of Hit Points, past thresholds, resistance
@@ -952,6 +981,10 @@ export function walkEffects(
         break;
       case 'howMany':
         walkEffects(effect.each, visit);
+        break;
+      case 'diceCheck':
+        walkEffects(effect.then, visit);
+        if (effect.otherwise !== undefined) walkEffects(effect.otherwise, visit);
         break;
       default:
         break;

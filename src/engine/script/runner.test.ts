@@ -794,6 +794,63 @@ describe('the runner as a whole', () => {
     expect(nothing.some((e) => e.kind === 'refused')).toBe(false);
   });
 
+  it('rolls a handful of dice and takes the branch one of them earned', () => {
+    // "Roll a number of d6s equal to your Proficiency. If any roll a 6."
+    const stub = stubWorld({ actorId: () => 'kara', resolveTargets: () => ['kara'], traitValue: () => 3 });
+    const lucky = runScript(
+      [
+        {
+          kind: 'diceCheck',
+          dice: '1d6',
+          times: { trait: 'proficiency' },
+          atLeast: 6,
+          then: [log('caught it')],
+          otherwise: [log('missed it')],
+        },
+      ],
+      stub,
+      scriptedRng([2, 6, 3]),
+    );
+    expect(lucky).toContainEqual({ kind: 'diceChecked', id: 'kara', dice: '1d6', results: [2, 6, 3], passed: true });
+    expect(lucky.some((e) => e.kind === 'log' && e.text === 'caught it')).toBe(true);
+
+    const flat = runScript(
+      [
+        {
+          kind: 'diceCheck',
+          dice: '1d6',
+          times: { trait: 'proficiency' },
+          atLeast: 6,
+          then: [log('caught it')],
+          otherwise: [log('missed it')],
+        },
+      ],
+      stub,
+      scriptedRng([1, 2, 5]),
+    );
+    expect(flat.some((e) => e.kind === 'log' && e.text === 'missed it')).toBe(true);
+
+    // No dice at all is not a failed roll: nothing is rolled and nothing is
+    // said about it, though what would have happened otherwise still does.
+    const none = stubWorld({ actorId: () => 'kara', resolveTargets: () => ['kara'], traitValue: () => 0 });
+    const empty = runScript(
+      [
+        {
+          kind: 'diceCheck',
+          dice: '1d6',
+          times: { trait: 'proficiency' },
+          atLeast: 6,
+          then: [log('caught it')],
+          otherwise: [log('missed it')],
+        },
+      ],
+      none,
+      scriptedRng([]),
+    );
+    expect(empty.some((e) => e.kind === 'diceChecked')).toBe(false);
+    expect(empty.some((e) => e.kind === 'log' && e.text === 'missed it')).toBe(true);
+  });
+
   it('names the band a blow lands in', () => {
     const stub = stubWorld({ actorId: () => 'assassin' });
     const journal = runScript([{ kind: 'forceSeverity', severity: 'severe' }], stub, createRng(1));

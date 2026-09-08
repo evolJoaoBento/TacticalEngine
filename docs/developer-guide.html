@@ -921,6 +921,15 @@ footer {
   A card that stops to ask something of its own holds the blow while it asks, exactly as the
   party's own swing does.</p>
 
+  <p>Some cards ask a question the dice answer: &ldquo;roll a number of d6s equal to your
+  Proficiency &mdash; if any roll a 6&rdquo;. <code>diceCheck</code> is that shape:
+  <code>dice</code> rolled <code>times</code> over, <code>needed</code> of them showing
+  <code>atLeast</code>, then one of two lists. Every card that asks it counts out a different
+  pile &mdash; one per Hope spent, one per point of Proficiency, one per token &mdash; so
+  <code>times</code> is an amount like any other, and <code>proficiency</code> joins the
+  traits an amount can read. No dice at all is not a failed roll: <code>otherwise</code> runs
+  and nothing is journalled, because a holder who spent nothing has not rolled and lost.</p>
+
   <p>A card can ask what the dice said. <code>rolled</code> has always been able to read a
   roll &mdash; it is how a stat block answers &ldquo;when a PC rolls a failure with
   Fear&rdquo; &mdash; but the moment a swing lands carried no roll with it, so a card asking
@@ -938,7 +947,8 @@ footer {
 
   <p>An amount can be read off a sheet as well as off a pool or a card:
   <code>{ trait: 'strength', times: 2 }</code> is &ldquo;equal to twice your Strength&rdquo;,
-  and <code>trait: 'spellcast'</code> is the one the holder casts with. A creature with no
+  <code>trait: 'spellcast'</code> is the one the holder casts with, and
+  <code>trait: 'proficiency'</code> is the number their weapon multiplies by. A creature with no
   sheet &mdash; every stat block &mdash; reads it as nothing rather than refusing, which is
   the same quiet zero a pool nobody has gives.</p>
 

@@ -167,7 +167,7 @@ export interface ScriptWorld extends ConditionContext {
   /** The value of the creature's Spellcast trait, or null when it has none. */
   spellcastValue(id: string): number | null;
   /** A trait off a sheet, for an amount that reads one. Null for a stat block. */
-  traitValue(id: string, trait: Trait | 'spellcast'): number | null;
+  traitValue(id: string, trait: Trait | 'spellcast' | 'proficiency'): number | null;
   /** The creature's primary weapon dice (an adversary's attack), or null when it has none. */
   weaponDamage(id: string): ParsedDamage | null;
   /** A weapon attack, rolled and applied. */
@@ -300,6 +300,8 @@ export type JournalEntry =
   | { kind: 'damageBoosted'; id: string | null; by: number }
   /** That blow marks this many Hit Points instead of being rolled for. */
   | { kind: 'hitPointsForced'; id: string | null; to: number }
+  /** A handful of dice rolled to see whether something happens at all. */
+  | { kind: 'diceChecked'; id: string | null; dice: string; results: readonly number[]; passed: boolean }
   /** Taken off a blow that is arriving, by a card the defender played. */
   | { kind: 'blowSoftened'; id: string | null; by: number }
   /** That blow arrives and does nothing at all. */
@@ -502,7 +504,11 @@ export class ScriptRunner {
    */
   private answered(effects: readonly Effect[], n: number): Effect[] {
     const rewrite = (value: unknown, key: string): unknown => {
-      if (typeof value === 'string') return key === 'amount' && value === 'spent' ? n : value.replaceAll('{n}', String(n));
+      // `spent` is the number wherever a number was asked for - an amount, or
+      // how many times to roll something. Every other string takes it as text.
+      if (typeof value === 'string') {
+        return (key === 'amount' || key === 'times') && value === 'spent' ? n : value.replaceAll('{n}', String(n));
+      }
       if (Array.isArray(value)) return value.map((item) => rewrite(item, key));
       if (value !== null && typeof value === 'object') {
         return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, rewrite(v, k)]));
@@ -924,7 +930,7 @@ export class ScriptRunner {
         return null;
       }
       case 'spendHope': {
-        const amount = effect.amount ?? 1;
+        const amount = this.amountOf(effect.amount);
         const actor = world.actorId();
         if (actor === null || !world.spendHope(actor, amount)) return this.refuse(`not enough Hope to spend ${amount}`);
         this.journal.push({ kind: 'hopeSpent', amount });
@@ -1021,6 +1027,27 @@ export class ScriptRunner {
         }
         if (by <= 0) return null;
         this.journal.push({ kind: 'damageBoosted', id: actor, by });
+        return null;
+      }
+      case 'diceCheck': {
+        const times = effect.times === undefined ? 1 : this.amountOf(effect.times, 0);
+        const expression = parseDice(effect.dice);
+        if (expression === null) return this.refuse(`cannot read dice "${effect.dice}"`);
+        if (times <= 0) {
+          // Nothing was rolled, so nothing came up and nothing is said about
+          // it: a card whose holder spent nothing has not failed a roll.
+          if (effect.otherwise !== undefined && effect.otherwise.length > 0) {
+            this.stack.push({ effects: effect.otherwise, index: 0 });
+          }
+          return null;
+        }
+        const results: number[] = [];
+        for (let n = 0; n < times; n++) results.push(rollDice(this.rng, expression).total);
+        const came = results.filter((result) => result >= effect.atLeast).length;
+        const passed = came >= (effect.needed ?? 1);
+        this.journal.push({ kind: 'diceChecked', id: world.actorId(), dice: effect.dice, results, passed });
+        const taken = passed ? effect.then : effect.otherwise;
+        if (taken !== undefined && taken.length > 0) this.stack.push({ effects: taken, index: 0 });
         return null;
       }
       case 'softenBlow': {
@@ -1278,10 +1305,19 @@ export class ScriptRunner {
       return this.dealTo(targets, amount, effect, last.dice, last.types);
     }
 
-    // `weapon` is whatever the actor swings.
-    const expression = effect.dice === 'weapon' ? (actor === null ? null : world.weaponDamage(actor)) : parseDice(effect.dice ?? '');
+    // `weapon` is whatever the actor swings; `theirs` is what the one bound as
+    // the target swings, which is the blow being turned onto somebody else.
+    const swinging = effect.dice === 'theirs' ? this.resolve({ kind: 'target' })[0] : actor;
+    const expression =
+      effect.dice === 'weapon' || effect.dice === 'theirs'
+        ? (swinging === undefined || swinging === null ? null : world.weaponDamage(swinging))
+        : parseDice(effect.dice ?? '');
     if (expression === null) {
-      return this.refuse(effect.dice === 'weapon' ? 'no weapon to roll damage with' : `cannot read damage dice "${effect.dice}"`);
+      return this.refuse(
+        effect.dice === 'weapon' || effect.dice === 'theirs'
+          ? 'no weapon to roll damage with'
+          : `cannot read damage dice "${effect.dice}"`,
+      );
     }
     const targets = this.resolve(effect.target ?? { kind: 'hit' });
     if (targets.length === 0) return null;

@@ -3,6 +3,8 @@ import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { abilitySchema } from '../engine/content/abilities';
 import { runScript } from '../engine/script/runner';
+import { formatDice } from '../engine/rules/dice';
+import type { Rng } from '../engine/core/rng';
 import { rest, useAbility } from './demo-abilities';
 import { NO_TILE } from '../engine/grid/grid';
 import { adversaryTraits } from '../engine/combat/adversary-features';
@@ -1303,6 +1305,22 @@ describe('answering a miss', () => {
   });
 });
 
+/** Dice that always come up six: what Redirect is asking about, answered yes. */
+function scriptedSixes(): Rng {
+  const rng: Rng = {
+    next: () => 0.99,
+    nextInt: (max: number) => max - 1,
+    die: (sides: number) => sides,
+    dice: (count: number, sides: number) => Array.from({ length: count }, () => sides),
+    pick: <T,>(items: readonly T[]) => items[0]!,
+    shuffle: <T,>(items: T[]) => items,
+    fork: () => rng,
+    save: () => ({}) as ReturnType<Rng['save']>,
+    restore: () => {},
+  };
+  return rng;
+}
+
 /**
  * The defence step answers a blow with shapes — dice off the total, a slot
  * marked, the severity stepped. These two answer it with a script, which is
@@ -1346,6 +1364,74 @@ describe('a card that answers the blow in its own words', () => {
     expect(demo.log.some((l) => l.text.includes('turns aside'))).toBe(true);
     expect(husk.hitPoints.marked).toBeGreaterThan(0);
     expect(demo.state.entity('kara')!.hitPoints.marked).toBeLessThan(plain);
+  });
+
+  it('sends the blow back at whoever cast it when the dice come up', () => {
+    // "Spend any number of Hope to roll that many d6s. If any roll a 6, the
+    // attack is reflected back, dealing the damage to them instead."
+    for (let seed = 1; seed < 20; seed++) {
+      const demo = standoff(`mirror-${seed}`);
+      holding(demo, ['arcane-reflection']);
+      const asked = untilChoice(demo, 'script');
+      if (asked === null) continue;
+      const index = asked.choices.findIndex((c) => c.kind === 'script');
+      expect(asked.choices[index]!.label).toContain('Arcane Reflection');
+
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      const before = husk.hitPoints.marked;
+      const said = demo.log.length;
+      answerPending(demo, { kind: 'choose', index });
+      // Every Hope she has goes into it; the prompt lists one option per Hope.
+      const prompt = demo.pending?.prompt;
+      const most = prompt?.kind === 'choice' ? prompt.options.length - 1 : 0;
+      answerPending(demo, { kind: 'choose', index: most });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+      const after = demo.log.slice(said).map((l) => l.text);
+      if (!after.some((t) => t.includes('turns in the air and goes home'))) continue;
+      // The blow found nobody, and the Burrower took it instead.
+      expect(after.some((t) => t.includes('finds nothing where Kara was'))).toBe(true);
+      expect(husk.hitPoints.marked).toBeGreaterThan(before);
+      expect(demo.state.entity('kara')!.hitPoints.marked).toBe(0);
+      return;
+    }
+    throw new Error('no seed reflected a blow in twenty tries');
+  });
+
+  it('turns a shot that went wide onto somebody else, with the shooter\'s own dice', () => {
+    // Redirect reads how far away the one who swung is, so a Burrower standing
+    // over her is not something it can answer at all.
+    const demo = standoff('redirect');
+    holding(demo, ['redirect']);
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const bound = { targets: [husk.id], hit: [husk.id] };
+    expect(demo.world.reactionsFor('kara', 'attackMissed', bound)).toEqual([]);
+
+    // Stood off from it, the card has something to say. Far enough that the
+    // claws are not in reach, near enough that the fight is one room.
+    const stand = demo.grid.indexOf(demo.grid.xOf(husk.tile) + 3, demo.grid.yOf(husk.tile));
+    demo.state.moveEntity('kara', stand);
+    expect(demo.world.reactionsFor('kara', 'attackMissed', bound).map((a) => a.id)).toEqual(['redirect']);
+
+    // And what it says is the Burrower's own claws, in the nearest of them.
+    const other = demo.state.entitiesOf('adversary').find((e) => e.id !== husk.id)!;
+    other.alive = true;
+    other.hitPoints = { max: 12, marked: 0 };
+    demo.state.moveEntity(other.id, demo.grid.indexOf(demo.grid.xOf(stand) + 1, demo.grid.yOf(stand)));
+    const card = demo.world.reactionsFor('kara', 'attackMissed', bound)[0]!;
+    const was = demo.scenario.actorId;
+    demo.scenario.actorId = 'kara';
+    const journal = runScript(card.effects, demo.world, scriptedSixes(), { targets: [husk.id], hit: [husk.id] });
+    demo.scenario.actorId = was;
+    expect(journal.some((e) => e.kind === 'diceChecked' && e.passed)).toBe(true);
+    expect(other.hitPoints.marked).toBeGreaterThan(0);
+    // The dice are the Burrower's, not Kara's: it is their attack, turned.
+    const dealt = journal.find((e) => e.kind === 'damage');
+    const claws = adversaryDefOf(demo, husk.id)!.attackDamage;
+    expect(dealt?.kind === 'damage' ? dealt.dice : '').toBe(formatDice(claws));
+    // Every die came up its best, so the blow is the most those dice can do -
+    // which is not a number Kara's own weapon could have rolled.
+    expect(dealt?.kind === 'damage' ? dealt.amount : 0).toBe(claws.count * claws.sides + claws.modifier);
   });
 
   it('is not there when the blow arrives, and the swing is spent on nothing', () => {
