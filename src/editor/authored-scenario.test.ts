@@ -914,6 +914,64 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
     expect(demo!.state.entity('foe')!.conditions.has('enraptured')).toBe(false);
   });
 
+  it('goes up around the one it hit, not around the one who threw it', () => {
+    // "The target and all creatures within Very Close range of them must make
+    // a Reaction Roll": the ring is read around the target of the check, which
+    // is what `around: 'target'` means inside what the check succeeded at.
+    for (let seed = 1; seed < 40; seed++) {
+      const s = blank();
+      for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+      s.run(
+        addSheet(
+          characterSheetSchema.parse(
+            blankSheet('vela', 'wizard', {
+              name: 'Vela',
+              traits: { agility: 0, strength: -1, finesse: 1, instinct: 1, presence: 0, knowledge: 2 },
+              ancestryId: 'faerie',
+              armorId: 'gambeson-armor',
+              primaryWeaponId: 'greatstaff',
+              subclassId: 'school-of-knowledge',
+              domainCards: ['book-of-norai'],
+            }),
+          ),
+        ),
+      );
+      s.run(setSpawns('hall', [{ x: 1, y: 1 }]));
+      s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+      // Both of them together, and both far from Vela: a ring read around her
+      // would catch neither.
+      s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'acid-burrower', position: { x: 9, y: 6 } }));
+      s.run(addAdversary('hall', 'duel', { id: 'beside', adversary: 'acid-burrower', position: { x: 10, y: 6 } }));
+      const demo = buildProjectScene(s.project, `fireball-${seed}`);
+      demo.askDefender = false;
+      startEncounter(demo, 'duel');
+      demo.party.select('vela');
+      for (const id of ['foe', 'beside']) demo.state.entity(id)!.hitPoints = { max: 90, marked: 0 };
+
+      if (useAbility(demo, 'vela', 'fireball', ['foe']).status === 'waiting') answerPending(demo, { kind: 'roll' });
+      if (!demo.log.some((l) => l.text.includes('goes up on impact'))) continue;
+      const said = demo.log.map((l) => l.text).join(' | ');
+      expect(said).toContain('Acid Burrower');
+      // Both of them answered the blast, not just the one it was thrown at.
+      expect(demo.state.entity('foe')!.hitPoints.marked + demo.state.entity('beside')!.hitPoints.marked).toBeGreaterThan(0);
+      expect(demo.state.entity('beside')!.hitPoints.marked).toBeGreaterThan(0);
+      return;
+    }
+    throw new Error('no seed landed a Fireball in forty tries');
+  });
+
+  it('leaves a glyph on for one of their spotlights, and no longer', () => {
+    // "Temporarily" is the creature's next spotlight: it acts under whatever
+    // was put on it, and sheds it at the end of the turn - so a caster who
+    // spends their turn on a debuff buys the party exactly one round of it.
+    const demo = landed(['glyph-of-nightfall'], 'glyph-of-nightfall', (d) =>
+      d.state.entity('foe')!.conditions.has('glyphed'),
+    );
+    expect(demo).not.toBeNull();
+    endTurn(demo!);
+    expect(demo!.state.entity('foe')!.conditions.has('glyphed')).toBe(false);
+  });
+
   it('will not tighten a song nobody is under', () => {
     // The second half of Enrapture is aimed at whoever is already held, which
     // is a gate on the target rather than on the card.

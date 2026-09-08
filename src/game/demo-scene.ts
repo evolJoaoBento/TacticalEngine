@@ -1261,6 +1261,18 @@ function adversaryTurn(demo: DemoScene, adversaryId: string): void {
   // shaking off what is holding it.
   if (playSpotlightReactions(demo, adversaryId)) return;
 
+  takeSpotlight(demo, adversaryId, adversary);
+
+  // "Temporarily" is one spotlight. Whatever the creature did with the turn -
+  // tore free, swung, erupted - what was put on it comes off at the end of it,
+  // so a debuff that blocks nothing still costs the party's caster a turn and
+  // still buys the party a round. A creature that spent its whole spotlight
+  // gathering itself (Slow, above) never reaches here, and keeps what it has.
+  clearTemporaryConditions(demo, adversaryId);
+}
+
+/** What the creature does with the spotlight, once it is sure it has one. */
+function takeSpotlight(demo: DemoScene, adversaryId: string, adversary: EntityState): void {
   // Unable to act — Stunned, Asleep: the spotlight goes on shaking it off. A
   // temporary condition clears; one that only ends on damage or a Fear
   // (Asleep) costs the GM a Fear, if they have one, else the turn is lost.
@@ -1293,10 +1305,7 @@ function adversaryTurn(demo: DemoScene, adversaryId: string): void {
 
   const def = SRD_ADVERSARIES.get(adversary.definition) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
   approach(demo, adversary.id, target.tile, def.attackRange);
-  const attacked = attackPartyMember(demo, adversaryId, target.id);
-  // Nothing in reach even after moving: an adversary with something to shake
-  // off shakes it off, which is at least a move.
-  if (!attacked && adversary.conditions.size > 0) clearTemporaryConditions(demo, adversaryId);
+  attackPartyMember(demo, adversaryId, target.id);
 }
 
 /**
