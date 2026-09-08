@@ -178,7 +178,7 @@ export function TargetEditor(props: TargetEditorProps): preact.JSX.Element {
           <select
             style={field}
             data-role="path-reach"
-            title="How far off the line it reaches"
+            title="How far off the line it reaches. The line starts a tile along: what stands beside the one charging is behind them, not in the way."
             value={selector.reach === 'weapon' ? 'weapon' : (selector.range ?? '')}
             onChange={(e) => {
               const picked = (e.target as HTMLSelectElement).value;

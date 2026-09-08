@@ -181,9 +181,11 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
    * range along that path", the Warden's gallop, the Kraken's line of boiling
    * water.
    *
-   * The one acting is never caught by their own charge. Whoever else is
-   * standing within `range` of any tile the line passes through is, endpoints
-   * included - somebody standing on the spot being run to is in the path.
+   * The one acting is never caught by their own charge, and neither is
+   * anything standing beside the tile they left: the run leaves that tile, so
+   * it is not on the path. Whoever else is standing within `range` of any tile
+   * the line passes through is caught, the far endpoint included - somebody
+   * standing on the spot being run to is in the path.
    *
    * With no point bound it catches nobody, which is a charge with nowhere to
    * go rather than a mistake.
