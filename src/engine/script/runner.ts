@@ -292,6 +292,8 @@ export type JournalEntry =
   | { kind: 'countdown'; countdown: string; name: string; value: number }
   /** The GM's turn handed to its own side. Paid for by whatever said so. */
   | { kind: 'spotlighted'; ids: readonly string[]; halfDamage: boolean }
+  /** The spotlight this script is running in ends without its creature acting. */
+  | { kind: 'spotlightEnded'; id: string | null }
   /** One creature off the map and another in its place. `was` is its name. */
   | { kind: 'replaced'; was: string; adversary: string; ids: readonly string[]; spotlight: boolean }
   /** `roll` is set when a party member rolled it: an adversary's is a d20. */
@@ -942,6 +944,12 @@ export class ScriptRunner {
           chosen = (actor === null ? [...standing] : world.nearestFirst(actor, standing)).slice(0, wanted);
         }
         this.journal.push({ kind: 'spotlighted', ids: chosen, halfDamage: effect.halfDamage === true });
+        return null;
+      }
+      case 'endSpotlight': {
+        // Nothing here stops the script: the rest of the list still runs, and
+        // it is the turn that reads this once the script is done.
+        this.journal.push({ kind: 'spotlightEnded', id: world.actorId() });
         return null;
       }
       case 'countdown': {

@@ -304,6 +304,7 @@ AbilityDef.effects  (content/abilities.ts, shapes from script/schema.ts)
             ├─ branch / choice / check / attack / reactionRoll push a Frame
             ├─ countdown arms a clock on the scenario; the game layer ticks it
             ├─ spotlight journals who the GM's turn was handed to
+            ├─ endSpotlight journals that this creature's turn is spent
             ├─ replace takes the actor off the map and stands another block there
             ├─ move walks the actor across the ground: towards somebody, or away
             └─ choice and check return a Prompt        — the runner stops

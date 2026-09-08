@@ -685,6 +685,45 @@ describe('what only a stat block has', () => {
     // The same passives on a stat block are exactly where they belong.
     expect(said.some((m) => m.includes('on-a-block'))).toBe(false);
   });
+
+  it('warns when anything but a spotlight tries to end one', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'card-stops-a-turn',
+          name: 'Card Stops A Turn',
+          source: { kind: 'granted', characters: ['kara'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'endSpotlight' }],
+        },
+        {
+          id: 'wrong-trigger',
+          name: 'Wrong Trigger',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'dealtDamage',
+          effects: [{ kind: 'endSpotlight' }],
+        },
+        {
+          id: 'winding-up',
+          name: 'Winding Up',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'spotlighted',
+          effects: [{ kind: 'endSpotlight' }],
+        },
+      ],
+    });
+    const said = messages(project);
+    // A card has no spotlight of its own to spend, and a reaction to a blow is
+    // running in somebody else's turn.
+    expect(said.some((m) => m.includes('"card-stops-a-turn" ends a spotlight'))).toBe(true);
+    expect(said.some((m) => m.includes('"wrong-trigger" ends a spotlight'))).toBe(true);
+    expect(said.some((m) => m.includes('winding-up'))).toBe(false);
+  });
 });
 
 describe('a replacement nothing ships', () => {

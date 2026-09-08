@@ -1256,7 +1256,10 @@ function adversaryTurn(demo: DemoScene, adversaryId: string): void {
   // anything else the turn does, so a creature that spends its whole turn
   // tearing free of a hold has still had its spotlight. Something that cannot
   // react at all - Stunned, Asleep - arms nothing: `reactionsFor` says so.
-  playSpotlightReactions(demo, adversaryId);
+  // "They can't act yet": Slow spends the whole spotlight on a token, and the
+  // creature does nothing else with it - no feature, no swing, not even
+  // shaking off what is holding it.
+  if (playSpotlightReactions(demo, adversaryId)) return;
 
   // Unable to act — Stunned, Asleep: the spotlight goes on shaking it off. A
   // temporary condition clears; one that only ends on damage or a Fear
@@ -1499,9 +1502,13 @@ function spendFeatureCost(
  * reaction, so it does not spend the turn's one feature: the creature arms its
  * clock and then still swings.
  */
-function playSpotlightReactions(demo: DemoScene, adversaryId: string): void {
+function playSpotlightReactions(demo: DemoScene, adversaryId: string): boolean {
   const entity = demo.state.entity(adversaryId);
-  if (entity === undefined) return;
+  if (entity === undefined) return false;
+  // Every one of them runs even once the turn is spent: a creature that spends
+  // its spotlight gathering itself has still been spotlighted, and a clock that
+  // arms on that is armed.
+  let ended = false;
   for (const ability of demo.world.reactionsFor(adversaryId, 'spotlighted')) {
     if (ability.effects.length === 0) continue;
     if (!affordableReaction(demo, adversaryId, ability)) continue;
@@ -1510,8 +1517,9 @@ function playSpotlightReactions(demo: DemoScene, adversaryId: string): void {
     // every turn for a rally nobody answers.
     if (spotlightsAllies(ability) && spotlightCandidates(demo, adversaryId, ability).length === 0) continue;
     spendFeatureCost(demo, adversaryId, ability, 'reaction');
-    runAdversaryScript(demo, adversaryId, ability);
+    if (runAdversaryScript(demo, adversaryId, ability)) ended = true;
   }
+  return ended;
 }
 
 /**
@@ -1570,7 +1578,7 @@ function runAdversaryScript(
     lastDamage?: { total: number; types?: readonly DamageType[] };
     roll?: { total: number; outcome: RollOutcome };
   } = {},
-): void {
+): boolean {
   const stress = ability.cost.stress ?? 0;
   if (stress > 0) demo.world.markStress(adversaryId, stress);
   note(demo, `The ${nameOf(demo, adversaryId)} uses ${ability.name}.`, 'combat');
@@ -1588,6 +1596,7 @@ function runAdversaryScript(
   record(demo, result.journal);
   demo.scenario.actorId = was;
   afterAdversaryScript(demo, result.journal);
+  return result.journal.some((entry) => entry.kind === 'spotlightEnded');
 }
 
 /**

@@ -92,6 +92,7 @@ const ADDABLE = [
   'summon',
   'replace',
   'spotlight',
+  'endSpotlight',
   'countdown',
   'reactionRoll',
   'run',
@@ -147,6 +148,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   countdown: 'Start a countdown',
   replace: 'Replace with another',
   spotlight: 'Spotlight allies',
+  endSpotlight: 'End this spotlight',
   reactionRoll: 'Ask for a reaction roll',
   run: 'Run code',
 };
@@ -269,6 +271,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, adversary: props.adversaryIds?.[0] ?? '' };
     case 'spotlight':
       return { kind, targets: { kind: 'adversaries', range: 'far' } };
+    case 'endSpotlight':
+      return { kind };
     case 'countdown':
       return { kind, countdown: 'countdown', name: 'Countdown', start: '4', effects: [] };
     case 'reactionRoll':
@@ -910,6 +914,12 @@ function renderBody(
             halfDamage: on ? true : undefined,
           }))}
         </>
+      );
+    case 'endSpotlight':
+      return (
+        <span style={{ ...field, color: '#8ea3b0' }}>
+          the creature acts no further this turn
+        </span>
       );
     case 'countdown':
       return (

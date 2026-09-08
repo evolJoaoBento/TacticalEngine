@@ -836,6 +836,15 @@ footer {
   <code>perToken</code> modifier is deliberately left out of <code>deriveCharacter</code> and read
   where it is used, every time.</p>
 
+  <p>A stat block can keep a count on itself the same way. The token store is keyed by
+  creature and card, so nothing says a card has to be one a player holds: the four Slow blocks
+  share one <code>spotlighted</code> reaction that branches on its own tokens, placing one on
+  the turn the creature gathers itself and spending it on the turn it acts. What pays for the
+  wait is <code>endSpotlight</code>, which does not stop the script &mdash; the effects after it
+  still run &mdash; but tells the GM's turn that this creature is done: no feature, no swing,
+  not even shaking off a hold. Anywhere but a <code>spotlighted</code> reaction on a stat block
+  it is a silent no-op, and the validator says so.</p>
+
   <p>It carries numbers as well as creatures. Wherever an amount is written &mdash;
   <code>damage.amount</code>, <code>markStress</code>, <code>clearStress</code>,
   <code>heal</code>, <code>loseHope</code>, <code>gainFear</code> &mdash; a count may stand in

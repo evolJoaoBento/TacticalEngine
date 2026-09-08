@@ -623,6 +623,18 @@ export const effectSchema = z.discriminatedUnion('kind', [
     halfDamage: z.boolean().optional(),
   }),
   /**
+   * "When you spotlight the Ooze and they don't have a token on their stat
+   * block, they can't act yet": the spotlight ends without the creature acting.
+   *
+   * This does not stop the script - the effects after it still run, and it is
+   * the *turn* that reads it once the script is done. So it can sit anywhere in
+   * a list, and a `spotlighted` reaction that journals it costs the creature
+   * everything the turn would have done: no feature, no swing, no shaking a
+   * condition off. Anywhere but a `spotlighted` reaction on an adversary it is
+   * a silent no-op, because nothing else has a spotlight to end.
+   */
+  z.object({ kind: z.literal('endSpotlight') }),
+  /**
    * "Activate the countdown. It ticks down when a PC makes an attack roll.
    * When it triggers, ...": a clock the fight carries between turns.
    *

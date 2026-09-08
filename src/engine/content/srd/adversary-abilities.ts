@@ -2142,6 +2142,70 @@ const RAW: Input[] = [
       { kind: 'loseHope', target: { kind: 'allies', range: 'close', except: 'target' } },
     ],
   },
+  // ---- a token on the stat block ------------------------------------------
+  // "When you spotlight the Ooze and they don't have a token on their stat
+  // block, they can't act yet." The token store is keyed by creature and card,
+  // so a passive can keep a count on itself: one `spotlighted` reaction that
+  // branches on its own tokens, placing one on the turn it gathers and
+  // spending it on the turn it acts. `endSpotlight` is what spends the turn -
+  // no feature, no swing, not even shaking off a hold.
+  //
+  // One card for four blocks, because each creature counts its own tokens: two
+  // Zombies gathering themselves do not share a turn between them.
+  {
+    id: 'slow',
+    name: 'Slow',
+    source: from('green-ooze', 'huge-green-ooze', 'brawny-zombie', 'greater-earth-elemental'),
+    text: "When you spotlight this adversary and they don't have a token on their stat block, they can't act yet. Place a token on their stat block and describe what they're preparing to do. When you spotlight them and they have a token on their stat block, clear the token and they can act.",
+    kind: 'reaction',
+    trigger: 'spotlighted',
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'branch',
+        when: { kind: 'tokens', ability: 'slow', of: { kind: 'actor' }, op: '>=', value: 1 },
+        then: [
+          { kind: 'spendToken', ability: 'slow', all: true },
+          { kind: 'log', text: 'What it has been gathering itself for, it does now.', tone: 'fear' },
+        ],
+        otherwise: [
+          { kind: 'addToken', ability: 'slow', amount: 1 },
+          { kind: 'log', text: 'It gathers itself, slowly, and does nothing else.', tone: 'fear' },
+          { kind: 'endSpotlight' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'slow-firing',
+    name: 'Slow Firing',
+    source: from('vault-guardian-turret'),
+    text: "When you spotlight the Turret and they don't have a token on their stat block, they can't make a standard attack. Place a token on their stat block and describe what they're preparing to do. When you spotlight the Turret and they have a token on their stat block, clear the token and they can attack.",
+    kind: 'reaction',
+    trigger: 'spotlighted',
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    // Simplified: the winding turn costs the Turret everything, where the block
+    // only takes its standard attack away. Nothing here can forbid the swing
+    // and leave the rest of the turn standing, so a Turret that is winding up
+    // does not reach for Mark Target either.
+    effects: [
+      {
+        kind: 'branch',
+        when: { kind: 'tokens', ability: 'slow-firing', of: { kind: 'actor' }, op: '>=', value: 1 },
+        then: [
+          { kind: 'spendToken', ability: 'slow-firing', all: true },
+          { kind: 'log', text: 'The barrel comes to rest, and the Turret fires.', tone: 'fear' },
+        ],
+        otherwise: [
+          { kind: 'addToken', ability: 'slow-firing', amount: 1 },
+          { kind: 'log', text: 'The Turret grinds around, winding up.', tone: 'fear' },
+          { kind: 'endSpotlight' },
+        ],
+      },
+    ],
+  },
   // ---- what a block's own teeth do to this target -------------------------
   // A passive on the standard attack, read against whoever it is swinging at:
   // "1d10+4 physical damage instead of their standard damage" while Hidden,

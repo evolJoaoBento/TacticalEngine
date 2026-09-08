@@ -821,6 +821,79 @@ describe('what the room makes of a roll', () => {
   });
 });
 
+describe('a token on the stat block', () => {
+  /** A slow thing standing next to Kara, the fight already on. */
+  const winding = (adversary: string, seed: string, second = false) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    if (second) s.run(addAdversary('hall', 'duel', { id: 'other', adversary, position: { x: 2, y: 5 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.state.entity('kara')!.hitPoints = { max: 60, marked: 0 };
+    demo.state.entity('foe')!.hitPoints = { max: 60, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  /** Every line the GM's turn wrote, and the tokens left behind. */
+  const spotlight = (demo: ReturnType<typeof winding>): { said: string; tokens: number } => {
+    const at = demo.log.length;
+    endTurn(demo);
+    return {
+      said: demo.log.slice(at).map((l) => l.text).join(' '),
+      tokens: demo.world.tokensOn('foe', 'slow'),
+    };
+  };
+
+  it('spends one spotlight winding up and the next one swinging', () => {
+    // "When you spotlight the Zombie and they don't have a token on their stat
+    // block, they can't act yet." The Zombie's attack is its Slam, so whether
+    // it swung is whether Slam is in the log - a miss says so as loudly as a
+    // hit, which a Hit Point count would not.
+    const demo = winding('brawny-zombie', 'slow-zombie');
+    const first = spotlight(demo);
+    expect(first.tokens).toBe(1);
+    expect(first.said).toContain('gathers itself');
+    expect(first.said).not.toContain('Slam');
+
+    const second = spotlight(demo);
+    expect(second.tokens).toBe(0);
+    expect(second.said).toContain('Slam');
+
+    // And it is a cycle, not a one-off toll at the door.
+    const third = spotlight(demo);
+    expect(third.tokens).toBe(1);
+    expect(third.said).not.toContain('Slam');
+  });
+
+  it('counts the token on the creature, not on the card', () => {
+    // One card for four stat blocks: two Zombies winding up separately do not
+    // hand each other a turn.
+    const demo = winding('brawny-zombie', 'two-zombies', true);
+    demo.state.entity('other')!.hitPoints = { max: 60, marked: 0 };
+    demo.world.addTokens('other', 'slow', 1);
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    endTurn(demo);
+    expect(demo.world.tokensOn('foe', 'slow')).toBe(1);
+    expect(demo.world.tokensOn('other', 'slow')).toBe(0);
+  });
+
+  it('takes the whole turn, not just the swing', () => {
+    // Simplified, and worth pinning: the Turret's block only forbids its
+    // standard attack while it winds, but nothing here can take the swing away
+    // and leave the turn standing, so Mark Target waits too.
+    const demo = winding('vault-guardian-turret', 'turret');
+    const first = spotlight(demo);
+    expect(demo.world.tokensOn('foe', 'slow-firing')).toBe(1);
+    expect(first.said).toContain('winding up');
+    expect(first.said).not.toContain('Magitech Cannon');
+  });
+});
+
 describe("what a block's own teeth do to this target", () => {
   /** Kara in reach of something, the fight already on. */
   const facing = (adversary: string, seed: string) => {

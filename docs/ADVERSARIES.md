@@ -34,7 +34,13 @@ engine has no place to put:
   than the Swarm", "attacks against a creature this one stands beside have advantage". A
   passive can move the dice for its holder or against them (`advantage`, with `against`)
   and that is two parties; a third is not something a modifier can name.
-- **a token on the stat block**, or ground that stays dangerous after the feature ends.
+- **a token nobody else can count** - a token on the stat block runs. The store is keyed
+  by creature and card, so a passive keeps a count on itself: Slow is one `spotlighted`
+  reaction that branches on its own tokens, placing one on the turn it gathers and
+  spending it on the turn it acts, with `endSpotlight` paying for the wait. What stays
+  text is a token another creature carries and other cards read - the bramble tokens a
+  Swarm hands out, which every one of its features asks a different question about -
+  and ground that stays dangerous after the feature ends.
 - **a path rather than a destination** - a creature crossing the ground runs (`move`,
   towards somebody or away from them, as far as the band it names allows), so what
   stays text is the line it draws on the way: "move to a point within Close range and
@@ -89,7 +95,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 174. Text: 170.
+Read: 73. Scripted: 179. Text: 165.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -168,7 +174,7 @@ Read: 73. Scripted: 174. Text: 170.
 | Minor Demon | Momentum | Reaction | **read** — read off the stat block |
 | Minor Treant | Minion (5) | Passive | **read** — read off the stat block |
 | Minor Treant | Group Attack | Action | **scripted** — runs as an ability |
-| Green Ooze | Slow | Passive | **text** — the GM's to play |
+| Green Ooze | Slow | Passive | **scripted** — runs as an ability |
 | Green Ooze | Acidic Form | Passive | **scripted** — runs as an ability |
 | Green Ooze | Envelop | Action | **text** — the GM's to play |
 | Green Ooze | Split | Reaction | **scripted** — runs as an ability |
@@ -220,7 +226,7 @@ Read: 73. Scripted: 174. Text: 170.
 | Young Dryad | Voice of the Forest | Action | **scripted** — runs as an ability |
 | Young Dryad | Thorny Cage | Action | **text** — the GM's to play |
 | Young Dryad | Momentum | Reaction | **read** — read off the stat block |
-| Brawny Zombie | Slow | Passive | **text** — the GM's to play |
+| Brawny Zombie | Slow | Passive | **scripted** — runs as an ability |
 | Brawny Zombie | Rend Asunder | Action | **text** — the GM's to play |
 | Brawny Zombie | Rip and Tear | Reaction | **text** — the GM's to play |
 | Patchwork Zombie Hulk | Destructible | Passive | **text** — the GM's to play |
@@ -376,7 +382,7 @@ Read: 73. Scripted: 174. Text: 170.
 | Dryad | We Are All One | Reaction | **text** — the GM's to play |
 | Elemental Spark | Minion (9) | Passive | **read** — read off the stat block |
 | Elemental Spark | Group Attack | Action | **scripted** — runs as an ability |
-| Greater Earth Elemental | Slow | Passive | **text** — the GM's to play |
+| Greater Earth Elemental | Slow | Passive | **scripted** — runs as an ability |
 | Greater Earth Elemental | Crushing Blows | Passive | **scripted** — runs as an ability |
 | Greater Earth Elemental | Immovable Object | Passive | **scripted** — runs as an ability |
 | Greater Earth Elemental | Rockslide | Action | **scripted** — runs as an ability |
@@ -384,7 +390,7 @@ Read: 73. Scripted: 174. Text: 170.
 | Greater Water Elemental | Water Jet | Action | **scripted** — runs as an ability |
 | Greater Water Elemental | Drowning Embrace | Action | **scripted** — runs as an ability |
 | Greater Water Elemental | High Tide | Reaction | **text** — the GM's to play |
-| Huge Green Ooze | Slow | Passive | **text** — the GM's to play |
+| Huge Green Ooze | Slow | Passive | **scripted** — runs as an ability |
 | Huge Green Ooze | Acidic Form | Passive | **scripted** — runs as an ability |
 | Huge Green Ooze | Envelop | Action | **text** — the GM's to play |
 | Huge Green Ooze | Split | Reaction | **scripted** — runs as an ability |
@@ -417,7 +423,7 @@ Read: 73. Scripted: 174. Text: 170.
 | Vault Guardian Sentinel | Box In | Action | **text** — the GM's to play |
 | Vault Guardian Sentinel | Mana Bolt | Action | **scripted** — runs as an ability |
 | Vault Guardian Sentinel | Momentum | Reaction | **read** — read off the stat block |
-| Vault Guardian Turret | Slow Firing | Passive | **text** — the GM's to play |
+| Vault Guardian Turret | Slow Firing | Passive | **scripted** — runs as an ability |
 | Vault Guardian Turret | Mark Target | Action | **text** — the GM's to play |
 | Vault Guardian Turret | Concentrate Fire | Reaction | **text** — the GM's to play |
 | Vault Guardian Turret | Detonation | Reaction | **text** — the GM's to play |

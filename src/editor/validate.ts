@@ -297,6 +297,16 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // Ending a spotlight is something only a spotlight can do: it is read by
+    // the GM's turn, on the creature whose turn it is, at the moment the turn
+    // begins. Anywhere else it is a silent no-op.
+    if (endsASpotlight(ability) && !(ability.source.kind === 'adversary' && ability.trigger === 'spotlighted')) {
+      add(
+        'warning',
+        `"${ability.id}" ends a spotlight, which only a stat block's ‘when spotlighted’ reaction has.`,
+        ability.id,
+      );
+    }
     walkEffects(ability.effects, inspect(ability.id));
     walkConditionsIn(ability.effects, asked(ability.id));
     inspectCondition(ability.id, ability.available);
@@ -330,6 +340,15 @@ function readsTheBlow(ability: AbilityDef): boolean {
   walkConditionsIn(ability.effects, compares);
   if (ability.available !== undefined) walkCondition(ability.available, compares);
   return reads;
+}
+
+/** Whether anything in an ability spends the turn it is running in. */
+function endsASpotlight(ability: AbilityDef): boolean {
+  let ends = false;
+  walkEffects(ability.effects, (effect) => {
+    if (effect.kind === 'endSpotlight') ends = true;
+  });
+  return ends;
 }
 
 /** What using an item can do names content too. */

@@ -629,6 +629,15 @@ describe('the runner as a whole', () => {
     expect(dealt).toEqual([{ amount: 5, types: ['physical'] }]);
   });
 
+  it('says the spotlight is over without stopping the script', () => {
+    // `endSpotlight` is a note to the turn, not a bail: the effects after it
+    // still run, and it names the creature whose turn it was.
+    const stub = stubWorld({ actorId: () => 'ooze' });
+    const journal = runScript([{ kind: 'endSpotlight' }, log('and still speaks')], stub, createRng(1));
+    expect(journal).toContainEqual({ kind: 'spotlightEnded', id: 'ooze' });
+    expect(journal.some((e) => e.kind === 'log' && e.text === 'and still speaks')).toBe(true);
+  });
+
   it('works against a stub world, not just a scene', () => {
     // The runner talks to an interface, which is what lets a replay drive it.
     const seen = new Set<string>();
