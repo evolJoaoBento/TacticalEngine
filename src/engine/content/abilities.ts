@@ -247,6 +247,14 @@ export const abilitySchema = z.object({
       'dealtHit',
       'dealtDamage',
       /**
+       * The holder's own swing missed: "when you fail an attack, you can mark
+       * a Stress to deal weapon damage using half your Proficiency". The other
+       * side of `dealtHit`, and not the same thing as `attackMissed`, which is
+       * a swing that missed *them*. Whoever was swung at is bound as the
+       * target, so a card can still reach them.
+       */
+      'dealtMiss',
+      /**
        * An attack was made at the holder, however it went. "This bonus lasts
        * until after the next attack made against you" - which a miss ends as
        * surely as a hit, so this is raised by both.

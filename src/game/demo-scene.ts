@@ -1291,6 +1291,8 @@ function landPartyAttack(
     // And the other side of it: whoever was swung at counts the swing, the
     // same way the party does when the GM swings at them.
     playAttackedOn(demo, targetId, id!);
+  } else {
+    playMissRiders(demo, id!, targetId, outcome.dualityRoll);
   }
   // What the room makes of the roll itself: "when a PC rolls with Fear while
   // within Far range of the Dragon". Before `act`, so anything it costs them
@@ -3143,6 +3145,28 @@ function playAttackRiders(
       runAdversaryScript(demo, attackerId, ability, [defenderId], [defenderId], { counts });
     }
   }
+}
+
+/**
+ * "When you fail an attack, you can mark a Stress to deal weapon damage using
+ * half your Proficiency."
+ *
+ * The other half of `playAttackRiders`, and it belongs here rather than after
+ * the turn is spent: a miss hands the spotlight to the GM, and a question
+ * raised on the far side of that is one the player answers on somebody else's
+ * turn. Whoever was swung at is bound as the target, so a card that still
+ * reaches them can.
+ *
+ * Only the party's side. Nothing in the SRD gives a stat block something to do
+ * about its own miss, and a GM swing that misses already has `offerMiss` for
+ * what the *defender* makes of it.
+ */
+function playMissRiders(demo: DemoScene, attackerId: string, defenderId: string, roll?: DualityRoll): void {
+  if (demo.state.entity(attackerId)?.alive !== true) return;
+  if (demo.state.entity(defenderId)?.alive !== true) return;
+  if (demo.state.entity(attackerId)?.faction !== 'party') return;
+  const said = roll === undefined ? {} : { roll: { total: roll.total, outcome: roll.outcome } };
+  offerReactions(demo, [offersFor(demo, attackerId, ['dealtMiss'], [defenderId], {}, said)]);
 }
 
 /** Everything the defence rules need to know about whoever is taking the hit. */

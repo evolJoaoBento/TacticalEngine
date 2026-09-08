@@ -628,15 +628,19 @@ function renderBody(
             <select
               style={{ ...field, flex: 'none', width: '92px' }}
               data-role="damage-using"
-              title="Multiply the dice by the actor's Proficiency or Spellcast trait"
+              title="Multiply the dice by the actor's Proficiency, half of it, or their Spellcast trait"
               value={effect.using ?? ''}
               onChange={(e) => {
                 const using = (e.target as HTMLSelectElement).value;
-                onChange({ ...effect, using: using === '' ? undefined : (using as 'proficiency' | 'spellcast') });
+                onChange({
+                  ...effect,
+                  using: using === '' ? undefined : (using as NonNullable<typeof effect.using>),
+                });
               }}
             >
               <option value="">×1</option>
               <option value="proficiency">× Proficiency</option>
+              <option value="halfProficiency">× half Proficiency</option>
               <option value="spellcast">× Spellcast</option>
             </select>
           ) : null}

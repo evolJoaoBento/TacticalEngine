@@ -29,9 +29,10 @@ Known simplifications in the scripted ones:
 - **Breaking Blow** leaves its crack for the holder's own next hit: nothing raises a party member's blow to the rest of the party, so an ally's swing does not cash the mark. **Rapid Riposte** hits back with the primary weapon rather than a choice of active ones.
 - **Battle Monster** throws the damage roll away and marks the Hit Points the caster is carrying, past thresholds, resistance and Armor Slots - which is what "instead of rolling for damage" asks for.
 - **Unbreakable** is offered as one of the death move's own options rather than before the question is put, which is what "instead of making a death move" comes to; the card goes to the vault afterwards, as it says, and the Recall Cost brings it back.
+- **Battle-Hardened** is offered inside the death prompt beside Unbreakable, and **Glancing Blow** answers the holder's own miss before the turn is spent - a miss hands the spotlight over, and a question raised after that is one the player answers on somebody else's turn.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 87 of 189 cards.
+Scripted: 89 of 189 cards.
 
 
 ## Arcana
@@ -75,10 +76,10 @@ Scripted: 87 of 189 cards.
 | 4 | Fortified Armor | Ability | **passive** |
 | 5 | Champion's Edge | Ability | **reaction** |
 | 5 | Vitality | Ability | text |
-| 6 | Battle-Hardened | Ability | text |
+| 6 | Battle-Hardened | Ability | **reaction** |
 | 6 | Rage Up | Ability | **reaction** |
 | 7 | Blade-Touched | Ability | **passive** |
-| 7 | Glancing Blow | Ability | text |
+| 7 | Glancing Blow | Ability | **reaction** |
 | 8 | Battle Cry | Ability | **action** |
 | 8 | Frenzy | Ability | **action** |
 | 9 | Gore and Glory | Ability | **reaction** |

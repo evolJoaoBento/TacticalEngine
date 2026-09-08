@@ -489,6 +489,42 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // "Instead of making a death move": the other card that answers the fall, and
+  // the cheaper of the two - a Hope rather than the card itself, for one Hit
+  // Point rather than a d6 of them.
+  {
+    id: 'battle-hardened',
+    name: 'Battle-Hardened',
+    source: card('battle-hardened'),
+    kind: 'reaction',
+    trigger: 'defeated',
+    action: false,
+    auto: false,
+    cost: { hope: 1 },
+    uses: { count: 1, per: 'longRest' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Not while there is breath left.', tone: 'hope' },
+      { kind: 'heal', amount: 1, target: { kind: 'actor' } },
+    ],
+  },
+  // The one card that answers the holder's own miss, and the whole reason
+  // `dealtMiss` exists.
+  {
+    id: 'glancing-blow',
+    name: 'Glancing Blow',
+    source: card('glancing-blow'),
+    kind: 'reaction',
+    trigger: 'dealtMiss',
+    action: false,
+    auto: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The swing goes wide, and still finds something.', tone: 'combat' },
+      { kind: 'damage', dice: 'weapon', using: 'halfProficiency', target: { kind: 'target' } },
+    ],
+  },
   // The only card in the SRD that answers a death move, and the only reason
   // the `defeated` trigger means anything on this side of the table.
   {

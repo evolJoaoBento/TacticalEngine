@@ -1373,6 +1373,9 @@ export class ScriptRunner {
 
     let multiplier = 1;
     if (effect.using === 'proficiency') multiplier = actor === null ? 1 : world.proficiencyOf(actor);
+    if (effect.using === 'halfProficiency') {
+      multiplier = actor === null ? 1 : Math.max(1, Math.ceil(world.proficiencyOf(actor) / 2));
+    }
     if (effect.using === 'spellcast') {
       const value = actor === null ? null : world.spellcastValue(actor);
       if (value === null) return this.refuse('no Spellcast trait to deal damage with');

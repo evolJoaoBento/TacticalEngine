@@ -73,6 +73,7 @@ out.append("- **Rage Up** is asked once per attack rather than twice, and after 
 out.append("- **Breaking Blow** leaves its crack for the holder's own next hit: nothing raises a party member's blow to the rest of the party, so an ally's swing does not cash the mark. **Rapid Riposte** hits back with the primary weapon rather than a choice of active ones.")
 out.append("- **Battle Monster** throws the damage roll away and marks the Hit Points the caster is carrying, past thresholds, resistance and Armor Slots - which is what \"instead of rolling for damage\" asks for.")
 out.append("- **Unbreakable** is offered as one of the death move's own options rather than before the question is put, which is what \"instead of making a death move\" comes to; the card goes to the vault afterwards, as it says, and the Recall Cost brings it back.")
+out.append("- **Battle-Hardened** is offered inside the death prompt beside Unbreakable, and **Glancing Blow** answers the holder's own miss before the turn is spent - a miss hands the spotlight over, and a question raised after that is one the player answers on somebody else's turn.")
 out.append("- Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.\n")
 count_s=sum(1 for e in entries if e[4])
 out.append(f"Scripted: {count_s} of {len(entries)} cards.\n")

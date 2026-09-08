@@ -1915,6 +1915,34 @@ describe('a death move', () => {
     expect((demo.pending as PendingDeath).offers).toEqual([]);
   });
 
+  it('spends a Hope on Battle-Hardened, and has none of it left this long rest', () => {
+    const demo = lastStand('battle-hardened');
+    carrying(demo, ['battle-hardened']);
+    const kara = demo.state.entity('kara')!;
+    kara.hope = { max: 6, value: 3 };
+
+    felled(demo);
+    expect((demo.pending as PendingDeath).offers.map((o) => o.ability.id)).toEqual(['battle-hardened']);
+    choose(demo, 'Battle-Hardened');
+
+    // "Spend a Hope to clear a Hit Point instead."
+    expect(kara.alive).toBe(true);
+    expect(kara.hitPoints.marked).toBe(kara.hitPoints.max - 1);
+    expect(kara.hope!.value).toBe(2);
+
+    // "Once per long rest": down again, and there is nothing to answer with.
+    felled(demo);
+    expect((demo.pending as PendingDeath).offers).toEqual([]);
+  });
+
+  it('is not offered a card whose Hope the fallen character cannot pay', () => {
+    const demo = lastStand('no-hope');
+    carrying(demo, ['battle-hardened']);
+    demo.state.entity('kara')!.hope = { max: 6, value: 0 };
+    felled(demo);
+    expect((demo.pending as PendingDeath).offers).toEqual([]);
+  });
+
   it('puts the three moves again when the card played instead of them left her down', () => {
     const demo = lastStand('not-enough');
     demo.project.abilities.push(
@@ -2041,5 +2069,79 @@ describe('a wound marked outright', () => {
     // Three Hit Points is what a Severe blow marks, whoever counted them.
     runScript([{ kind: 'damage', amount: 3, target: { kind: 'entity', id: 'mira' } }], demo.world, demo.rng);
     expect(demo.world.drainDamage().find((n) => n.id === 'mira')!.severe).toBe(true);
+  });
+});
+
+
+describe('a swing that missed', () => {
+  const hold = (demo: DemoScene, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** Swing at the husk beside Kara until the dice go one way or the other. */
+  const swingUntil = (seed: string, cards: string[], hit: boolean): DemoScene | null => {
+    for (let n = 1; n < 40; n++) {
+      const demo = standoff(`${seed}-${n}`);
+      demo.askDefender = true;
+      hold(demo, cards);
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      const result = attackWithSelected(demo, husk.id);
+      if (result === null || result.refused !== null) continue;
+      if (result.hit !== hit) continue;
+      return demo;
+    }
+    return null;
+  };
+
+  it('offers Glancing Blow on a miss and nothing on a hit', () => {
+    // "When you fail an attack, you can mark a Stress to deal weapon damage
+    // using half your Proficiency."
+    const missed = swingUntil('glancing-miss', ['glancing-blow'], false);
+    expect(missed, 'a swing missed').not.toBeNull();
+    const demo = missed!;
+    expect(demo.pending?.kind).toBe('reaction');
+    const asked = demo.pending as { offers: readonly { ability: { id: string } }[] };
+    expect(asked.offers.map((o) => o.ability.id)).toEqual(['glancing-blow']);
+
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const before = husk.hitPoints.marked;
+    const kara = demo.state.entity('kara')!;
+    const stress = kara.stress.marked;
+    answerPending(demo, { kind: 'choose', index: 1 });
+    expect(kara.stress.marked).toBe(stress + 1);
+    expect(husk.hitPoints.marked).toBeGreaterThan(before);
+
+    // The same card says nothing about a swing that landed: `dealtHit` and
+    // `dealtMiss` are the two halves, and this one only answers the second.
+    const landed = swingUntil('glancing-hit', ['glancing-blow'], true);
+    expect(landed, 'a swing landed').not.toBeNull();
+    expect(landed!.pending).toBe(null);
+  });
+
+  it('rolls the weapon at half Proficiency, rounded up and never under one die', () => {
+    const demo = scene('half-prof');
+    const sheet = demo.sheets.get('kara')!;
+    // Proficiency 1 halves to 1: a die is a die.
+    expect(demo.world.proficiencyOf('kara')).toBe(1);
+    const one = deriveCharacter({ ...sheet, proficiency: 5 }, SRD_CHARACTERS, demo.project.abilities).character;
+    demo.characters.set('kara', one);
+    demo.sheets.set('kara', one.sheet);
+    refreshWorld(demo);
+    expect(demo.world.proficiencyOf('kara')).toBe(5);
+
+    // Five halves to three, so three of the weapon's dice rather than five.
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    demo.scenario.actorId = 'kara';
+    const journal = runScript(
+      [{ kind: 'damage', dice: 'weapon', using: 'halfProficiency', target: { kind: 'entity', id: husk.id } }],
+      demo.world,
+      demo.rng,
+    );
+    const dealt = journal.find((e) => e.kind === 'damage') as { dice: string } | undefined;
+    expect(dealt).toBeDefined();
+    expect(dealt!.dice.startsWith('3d')).toBe(true);
   });
 });

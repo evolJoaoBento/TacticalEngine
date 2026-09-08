@@ -276,7 +276,11 @@ with a price — "you can spend 2 Hope to…" — is put to the player as a thir
 `demo.pending`, a `PendingReaction`, whose first option is always letting it pass. The line
 between the two is `auto && no cost`: a card that would be asked about anyway sets `auto: false`.
 A swing at somebody also raises `attacked` on them, hit or miss, which is how a bonus that lasts
-"until after the next attack made against you" knows when it is over. A roll the *party* makes
+"until after the next attack made against you" knows when it is over. A swing of the party's that
+*misses* raises `dealtMiss` on whoever threw it, offered before `act` spends the turn: a miss
+hands the spotlight to the GM, and a question raised on the far side of that is one the player
+answers on somebody else's turn. It is not `attackMissed`, which is a swing that missed *them*.
+A roll the *party* makes
 raises `partyRolled` on every adversary standing: the one who rolled is bound as the target, so
 the distance is a plain `withinRange`, and what the dice said is a `rolled` condition — the five
 readings (`failure`, `success`, `withFear`, `withHope`, `critical`) compose, so "a failure with

@@ -440,8 +440,13 @@ export const effectSchema = z.discriminatedUnion('kind', [
        */
       dice: z.string().min(1).optional(),
       type: z.enum(['physical', 'magic']).optional(),
-      /** Multiply the dice by the actor's Proficiency, or by their Spellcast trait. */
-      using: z.enum(['proficiency', 'spellcast']).optional(),
+      /**
+       * Multiply the dice by the actor's Proficiency, by half of it - Glancing
+       * Blow's "weapon damage using half your Proficiency", rounded up as the
+       * SRD rounds everything, and never less than one die - or by their
+       * Spellcast trait.
+       */
+      using: z.enum(['proficiency', 'halfProficiency', 'spellcast']).optional(),
       /** Cannot be reduced by Armor Slots. */
       direct: z.boolean().optional(),
       /** Half damage, rounded up — "targets who succeed take half damage". */
