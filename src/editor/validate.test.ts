@@ -734,6 +734,35 @@ describe('what only a stat block has', () => {
     expect(said.some((m) => m.includes('somebody-elses'))).toBe(false);
   });
 
+  it("warns when a card waits for a moment only the GM's turn reaches", () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'card-mid-swing',
+          name: 'Card Mid Swing',
+          source: { kind: 'granted', characters: ['kara'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'allyRollingDamage',
+          effects: [{ kind: 'log', text: 'Nobody asks.' }],
+        },
+        {
+          id: 'card-in-the-light',
+          name: 'Card In The Light',
+          source: { kind: 'granted', characters: ['kara'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'spotlighted',
+          effects: [{ kind: 'log', text: 'Nobody asks this either.' }],
+        },
+      ],
+    });
+    const said = messages(project);
+    expect(said).toContain('"card-mid-swing" answers a blow being counted, which only a stat block is asked about.');
+    expect(said).toContain('"card-in-the-light" answers a spotlight, which only a stat block is asked about.');
+  });
+
   it('warns when a gate on the target has no target to narrow', () => {
     const project = projectSchema.parse({
       ...build(),

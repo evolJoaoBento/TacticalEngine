@@ -288,6 +288,21 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // Three of the triggers are raised on the GM's turn and nowhere else: a
+    // creature taking the spotlight, and the two halves of a blow stopping to
+    // be counted. On a card they are quietly dead.
+    if (
+      ability.source.kind !== 'adversary' &&
+      (ability.trigger === 'spotlighted' ||
+        ability.trigger === 'rollingDamage' ||
+        ability.trigger === 'allyRollingDamage')
+    ) {
+      add(
+        'warning',
+        `"${ability.id}" answers ${ability.trigger === 'spotlighted' ? 'a spotlight' : 'a blow being counted'}, which only a stat block is asked about.`,
+        ability.id,
+      );
+    }
     // A number read off a blow needs a blow: an action nobody triggers is run
     // out of nowhere, and every count it asks for reads zero.
     if (ability.trigger === undefined && readsTheBlow(ability)) {

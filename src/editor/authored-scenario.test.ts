@@ -885,6 +885,26 @@ describe('the blow that has landed and not yet been counted', () => {
     expect(demo.log.some((l) => l.text.includes('swings around and fires'))).toBe(true);
     expect(demo.log.some((l) => l.text.includes('The blow lands harder by'))).toBe(true);
 
+    // Parked out past Far, the same Turret says nothing: the gate is read from
+    // the Turret's chair to whoever is being hit, not from the attacker's -
+    // where everyone is always in range, a hit having just landed.
+    const distant = swinging('brawny-zombie', 'concentrate-far', {
+      id: 'turret',
+      adversary: 'vault-guardian-turret',
+      at: { x: 18, y: 16 },
+    });
+    distant.state.entity('turret')!.hitPoints = { max: 90, marked: 0 };
+    distant.state.fear = { ...distant.state.fear, value: distant.state.fear.max };
+    for (let i = 0; i < 6; i++) {
+      distant.state.entity('kara')!.hitPoints = { max: 90, marked: 0 };
+      distant.state.entity('kara')!.stress = { max: 6, marked: 0 };
+      distant.state.entity('kara')!.alive = true;
+      distant.world.addTokens('foe', 'slow', 1);
+      endTurn(distant);
+    }
+    expect(distant.log.some((l) => l.text.includes('Slam'))).toBe(true);
+    expect(distant.log.some((l) => l.text.includes('swings around and fires'))).toBe(false);
+
     // And on its own Magitech Cannon it says nothing: the feature is about
     // another adversary's blow, and the trigger it answers is the other one.
     const alone = swinging('vault-guardian-turret', 'turret-alone');

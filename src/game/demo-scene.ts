@@ -2146,7 +2146,7 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   // the thresholds and the Armor Slots are read against what actually lands,
   // and spent on the way out - a Relentless second spotlight, paid for in the
   // ordinary way, swings at full strength.
-  const outcome = boostDamage(demo, adversaryId, targetId, halveIfRallied(demo, adversaryId, rolled));
+  const outcome = halveIfRallied(demo, adversaryId, boostDamage(demo, adversaryId, targetId, rolled));
 
   // A miss is usually over at once — unless the target holds a card that
   // answers one, like Vanishing Dodge.
@@ -2190,7 +2190,10 @@ function halveIfRallied(
  *
  * It lands after a Horde's swap and after doubling, both of which are on the
  * profile the dice were rolled from, and before the defence, so thresholds and
- * Armor Slots read what actually arrives. Only the GM's own swing raises it:
+ * Armor Slots read what actually arrives. A rally's half comes after it rather
+ * than before: "attacks they make while spotlighted in this way deal half
+ * damage" is about the attack, and what the room adds to its damage roll is
+ * part of that roll. Only the GM's own swing raises it:
  * a scripted `attack` inside a feature keeps its outcome inside the world, and
  * nothing there asks the room for a bonus yet.
  */
