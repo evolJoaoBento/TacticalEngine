@@ -1890,7 +1890,28 @@ function afterAdversaryScript(demo: DemoScene, journal: readonly JournalEntry[])
   spendSwarmSpotlights(demo, journal);
   spotlightArrivals(demo, journal);
   spotlightAllies(demo, journal);
+  spotlightSelf(demo, journal);
   spotlightReplacements(demo, journal);
+}
+
+/**
+ * "The Construct can then take the spotlight again."
+ *
+ * Back to the head of the queue, and granted: whatever said so has paid for
+ * the turn, so the GM is not billed and the turn does not stop for want of
+ * Fear it never owed. It is filtered out first because a creature with a
+ * Relentless spotlight still to come is already standing there.
+ */
+function spotlightSelf(demo: DemoScene, journal: readonly JournalEntry[]): void {
+  const turn = demo.gmTurn;
+  if (turn === null) return;
+  for (const entry of journal) {
+    if (entry.kind !== 'spotlightedAgain' || entry.id === null) continue;
+    if (demo.state.entity(entry.id)?.alive !== true) continue;
+    turn.remaining = turn.remaining.filter((waiting) => waiting !== entry.id);
+    turn.remaining.unshift(entry.id);
+    turn.granted.add(entry.id);
+  }
 }
 
 /**
@@ -2022,6 +2043,7 @@ function playDamageReactions(demo: DemoScene): void {
         const theirs = offersFor(demo, other.id, ['allyTookDamage'], bound, counts, { lastDamage });
         if (theirs.length > 0) asked.push(theirs);
       }
+      asked.push(...nearbyOffers(demo, note.id, bound, counts, lastDamage));
       continue;
     }
     if (entity.faction !== 'adversary') continue;
@@ -2034,10 +2056,48 @@ function playDamageReactions(demo: DemoScene): void {
         runAdversaryScript(demo, note.id, ability, bound, bound, { counts, lastDamage });
       }
     }
+    asked.push(...nearbyOffers(demo, note.id, bound, counts, lastDamage));
   }
   // Every note is read before anyone is asked: `drainDamage` clears as it
   // reports, so an offer left behind a question would never be made.
   offerReactions(demo, asked);
+}
+
+/**
+ * What everybody else in the room makes of somebody being hurt.
+ *
+ * Whoever dealt it is bound as the target and whoever took it as the hit, so a
+ * feature can ask how far away either of them is: the Shark smells blood at
+ * Close range from the one bleeding, not from the one who cut them. A stat
+ * block's own runs where it stands; a card comes back to be offered.
+ */
+function nearbyOffers(
+  demo: DemoScene,
+  wounded: string,
+  dealer: readonly string[],
+  counts: Partial<Record<CountName, number>>,
+  lastDamage: { total: number; types: readonly DamageType[] },
+): ReactionOffer[][] {
+  const asked: ReactionOffer[][] = [];
+  for (const other of [...demo.state.entitiesOf('party'), ...demo.state.entitiesOf('adversary')]) {
+    if (other.id === wounded || !other.alive) continue;
+    if (other.faction === 'party') {
+      const theirs = offersFor(demo, other.id, ['nearbyTookDamage'], dealer, counts, { lastDamage });
+      if (theirs.length > 0) asked.push(theirs);
+      continue;
+    }
+    if (other.faction !== 'adversary') continue;
+    for (const ability of demo.world.reactionsFor(other.id, 'nearbyTookDamage', {
+      targets: [...dealer],
+      hit: [wounded],
+      counts,
+    })) {
+      if (ability.effects.length === 0 || !affordableReaction(demo, other.id, ability)) continue;
+      spendFeatureCost(demo, other.id, ability, 'reaction');
+      runAdversaryScript(demo, other.id, ability, dealer, [wounded], { counts, lastDamage });
+    }
+  }
+  return asked;
 }
 
 /**

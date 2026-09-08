@@ -266,6 +266,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                       <option value="tookHitPoints">it marks a Hit Point</option>
                       <option value="tookSevere">Severe damage lands</option>
                       <option value="allyTookDamage">someone on its side takes damage</option>
+                      <option value="nearbyTookDamage">anyone else takes damage</option>
                       <option value="attacked">it is attacked, hit or miss</option>
                       <option value="partyRolled">a PC makes a roll</option>
                       <option value="spotlighted">it takes the spotlight</option>

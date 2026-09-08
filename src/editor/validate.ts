@@ -312,6 +312,15 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // Taking another one is the same rule read the other way: a card has no
+    // queue to go back to the head of.
+    if (takesAnotherSpotlight(ability) && ability.source.kind !== 'adversary') {
+      add(
+        'warning',
+        `"${ability.id}" takes the spotlight again, which only a stat block has to take.`,
+        ability.id,
+      );
+    }
     // Ending a spotlight is something only a spotlight can do: it is read by
     // the GM's turn, on the creature whose turn it is, at the moment the turn
     // begins. Anywhere else it is a silent no-op.
@@ -537,6 +546,15 @@ function forcesHitPoints(ability: AbilityDef): boolean {
     if (effect.kind === 'forceHitPoints') forces = true;
   });
   return forces;
+}
+
+/** Whether anything in an ability hands its creature another turn. */
+function takesAnotherSpotlight(ability: AbilityDef): boolean {
+  let again = false;
+  walkEffects(ability.effects, (effect) => {
+    if (effect.kind === 'spotlightAgain') again = true;
+  });
+  return again;
 }
 
 /** Whether anything in an ability spends the turn it is running in. */

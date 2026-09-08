@@ -845,6 +845,20 @@ footer {
   not even shaking off a hold. Anywhere but a <code>spotlighted</code> reaction on a stat block
   it is a silent no-op, and the validator says so.</p>
 
+  <p>The other way round is <code>spotlightAgain</code>: the creature acting goes back to the
+  head of the GM's queue, granted, because whatever said so has already paid for the turn.
+  That is the Construct's Overload &mdash; a Stress buys ten damage and another spotlight
+  &mdash; and it is read where every other spotlight entry is read, once the script is done,
+  so the blow it is standing over lands first. A stat block with a Relentless spotlight still
+  coming is filtered out of the queue before it is put back, so it stands there once.</p>
+
+  <p>A wound is heard three ways. <code>tookDamage</code> is the one who took it,
+  <code>allyTookDamage</code> is everyone on their side, and <code>nearbyTookDamage</code> is
+  everybody else in the room whichever side they are on &mdash; the Shark smelling blood.
+  For the last one the dealer is bound as the target and the wounded as the hit, so a feature
+  can ask how far away either of them is: Close range to the blood is not the same question as
+  Close range to the knife.</p>
+
   <p>A blow stops once between landing and being counted. <code>rollingDamage</code> is raised on the
   creature swinging and <code>allyRollingDamage</code> on every other adversary still
   standing, both with the one being hit bound as the target &mdash; so &ldquo;within Far range

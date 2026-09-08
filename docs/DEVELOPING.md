@@ -305,6 +305,7 @@ AbilityDef.effects  (content/abilities.ts, shapes from script/schema.ts)
             ├─ countdown arms a clock on the scenario; the game layer ticks it
             ├─ spotlight journals who the GM's turn was handed to
             ├─ endSpotlight journals that this creature's turn is spent
+            ├─ spotlightAgain journals that it takes another, already paid for
             ├─ boostDamage journals what to add to the blow being counted
             ├─ forceHitPoints journals the Hit Points it marks instead of rolling
             ├─ forceSeverity journals the band it lands in instead of rolling

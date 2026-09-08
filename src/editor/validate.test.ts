@@ -766,6 +766,15 @@ describe('what only a stat block has', () => {
           effects: [{ kind: 'forceHitPoints', amount: 3 }],
         },
         {
+          id: 'card-takes-a-turn',
+          name: 'Card Takes A Turn',
+          source: { kind: 'domainCard', card: 'battle-cry' },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'rollingDamage',
+          effects: [{ kind: 'spotlightAgain' }],
+        },
+        {
           id: 'thorns-out-of-nowhere',
           name: 'Thorns Out Of Nowhere',
           source: { kind: 'domainCard', card: 'thorn-skin' },
@@ -817,6 +826,8 @@ describe('what only a stat block has', () => {
     expect(said.some((m) => m.includes('"band-out-of-nowhere" names the band a blow lands in'))).toBe(true);
     // A blow is answered while it is arriving, and `tookDamage` is after.
     expect(said.some((m) => m.includes('"thorns-out-of-nowhere" answers a blow arriving'))).toBe(true);
+    // A card has no queue to go back to the head of.
+    expect(said.some((m) => m.includes('"card-takes-a-turn" takes the spotlight again'))).toBe(true);
     expect(said.some((m) => m.includes('thorns-in-time'))).toBe(false);
     expect(said.some((m) => m.includes('band-mid-swing'))).toBe(false);
     expect(said.some((m) => m.includes('forced-well'))).toBe(false);

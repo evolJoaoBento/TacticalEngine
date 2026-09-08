@@ -1208,6 +1208,36 @@ const RAW: Input[] = [
     action: false,
     effects: [{ kind: 'run', hook: 'mark-armor-or-hit-point' }],
   },
+  // The one feature in the SRD that answers somebody else's wound from the
+  // outside: not an ally's and not its own, just blood in the water.
+  {
+    id: 'shark-blood-in-the-water',
+    name: 'Blood in the Water',
+    source: from('shark'),
+    text: "When a creature within Close range of the Shark marks HP from another creature's attack, you can mark a Stress to immediately spotlight the Shark, moving them into Melee range of the target and making a standard attack against them.",
+    kind: 'reaction',
+    trigger: 'nearbyTookDamage',
+    action: false,
+    cost: { stress: 1 },
+    // The one bleeding is the hit; the one who cut them is the target. Close
+    // range is measured to the blood.
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'close', of: { kind: 'hit' } },
+        { kind: 'count', of: 'hitPointsTaken', op: '>=', value: 1 },
+      ],
+    },
+    // Simplified: the Shark strikes where it stands in the moment rather than
+    // being handed a spotlight of its own, which is the same swing with none
+    // of the turn's bookkeeping; and it goes for the one bleeding, which is
+    // what "the target" means here.
+    effects: [
+      { kind: 'log', text: 'The water goes red, and something turns toward it.', tone: 'fear' },
+      { kind: 'move', how: 'toward', of: { kind: 'hit' }, range: 'melee', budget: 'close' },
+      { kind: 'attack', target: { kind: 'hit' } },
+    ],
+  },
   {
     id: 'demon-of-wrath-anger-unrelenting',
     name: 'Anger Unrelenting',
@@ -2209,13 +2239,14 @@ const RAW: Input[] = [
     action: false,
     cost: { stress: 1 },
     target: { kind: 'none' },
-    // Simplified: the second spotlight stays at the table. A creature cannot
-    // hand itself the turn it is already taking - the `spotlight` effect
-    // leaves the one acting out on purpose - and Relentless is how a block
-    // says "again" here.
+    // The second spotlight is paid for by the Stress that bought the bonus, so
+    // the Construct goes back to the head of the queue without the GM being
+    // billed - and the blow it is standing over lands first, because the turn
+    // is only read once this script is done.
     effects: [
       { kind: 'log', text: 'The Construct overloads, and the fist comes down heavier.', tone: 'fear' },
       { kind: 'boostDamage', amount: 10 },
+      { kind: 'spotlightAgain' },
     ],
   },
   {

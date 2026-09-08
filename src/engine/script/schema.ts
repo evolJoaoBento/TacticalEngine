@@ -889,6 +889,17 @@ export const effectSchema = z.discriminatedUnion('kind', [
    */
   z.object({ kind: z.literal('endSpotlight') }),
   /**
+   * "The Construct can then take the spotlight again": the creature acting
+   * goes back to the head of the GM's queue, with the turn it is about to take
+   * already paid for by whatever said so.
+   *
+   * The mirror of `endSpotlight`, and read the same way - by the turn, once
+   * the script is done. Outside a GM turn there is no queue to stand at the
+   * head of and nothing happens, which is what a card doing this would come
+   * to.
+   */
+  z.object({ kind: z.literal('spotlightAgain') }),
+  /**
    * "Activate the countdown. It ticks down when a PC makes an attack roll.
    * When it triggers, ...": a clock the fight carries between turns.
    *

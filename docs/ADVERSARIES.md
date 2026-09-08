@@ -124,7 +124,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 203. Text: 141.
+Read: 73. Scripted: 204. Text: 140.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -354,7 +354,7 @@ Read: 73. Scripted: 203. Text: 141.
 | Secret-Keeper | Fallen Hounds | Reaction | **scripted** — runs as an ability |
 | Shark | Terrifying | Passive | **read** — read off the stat block |
 | Shark | Rending Bite | Passive | **scripted** — runs as an ability |
-| Shark | Blood in the Water | Reaction | **text** — the GM's to play |
+| Shark | Blood in the Water | Reaction | **scripted** — runs as an ability |
 | Siren | Captive Audience | Passive | **scripted** — runs as an ability |
 | Siren | Enchanting Song | Action | **scripted** — runs as an ability |
 | Spectral Archer | Ghost | Passive | **scripted** — runs as an ability |

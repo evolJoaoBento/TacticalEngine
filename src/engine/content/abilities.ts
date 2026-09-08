@@ -281,6 +281,14 @@ export const abilitySchema = z.object({
        * it is for the one who took it, so a gate can ask who swung.
        */
       'allyTookDamage',
+      /**
+       * Anybody else's, whichever side they are on: "when a creature within
+       * Close range of the Shark marks HP from another creature's attack".
+       * Whoever dealt it is bound as the target and whoever took it as the
+       * hit, so a feature can ask how far away either of them is - which is
+       * the difference between smelling blood and being told about it.
+       */
+      'nearbyTookDamage',
       'spotlighted',
     ])
     .optional(),

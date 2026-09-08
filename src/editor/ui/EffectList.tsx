@@ -94,6 +94,7 @@ const ADDABLE = [
   'replace',
   'spotlight',
   'endSpotlight',
+  'spotlightAgain',
   'boostDamage',
   'forceHitPoints',
   'forceSeverity',
@@ -160,6 +161,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   replace: 'Replace with another',
   spotlight: 'Spotlight allies',
   endSpotlight: 'End this spotlight',
+  spotlightAgain: 'Take the spotlight again',
   boostDamage: 'Add to the blow landing',
   forceHitPoints: 'Force Hit Points marked',
   forceSeverity: 'Force the damage band',
@@ -296,6 +298,7 @@ function blank(kind: Addable, props: EffectListProps): Effect {
     case 'spotlight':
       return { kind, targets: { kind: 'adversaries', range: 'far' } };
     case 'endSpotlight':
+    case 'spotlightAgain':
       return { kind };
     case 'boostDamage':
       return { kind, dice: '1d6' };

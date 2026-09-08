@@ -300,6 +300,8 @@ export type JournalEntry =
   | { kind: 'spotlighted'; ids: readonly string[]; halfDamage: boolean }
   /** The spotlight this script is running in ends without its creature acting. */
   | { kind: 'spotlightEnded'; id: string | null }
+  /** The creature acting takes another spotlight, already paid for. */
+  | { kind: 'spotlightedAgain'; id: string | null }
   /** Added to a blow that has landed and not yet been counted. */
   | { kind: 'damageBoosted'; id: string | null; by: number }
   /** That blow marks this many Hit Points instead of being rolled for. */
@@ -1130,6 +1132,10 @@ export class ScriptRunner {
           options,
         };
         this.stack.push({ effects: [asking], index: 0 });
+        return null;
+      }
+      case 'spotlightAgain': {
+        this.journal.push({ kind: 'spotlightedAgain', id: world.actorId() });
         return null;
       }
       case 'endSpotlight': {

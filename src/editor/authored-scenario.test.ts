@@ -1205,6 +1205,71 @@ describe("what the party puts behind its own blow", () => {
   });
 });
 
+describe('a creature that acts again, and one that acts out of turn', () => {
+  /** Kara, and whatever is standing over her. */
+  const room = (seed: string, blocks: readonly { id: string; adversary: string; x: number }[]) => {
+    const s = blank();
+    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 4, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    for (const block of blocks) {
+      s.run(addAdversary('hall', 'duel', { id: block.id, adversary: block.adversary, position: { x: block.x, y: 4 } }));
+    }
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.party.select('kara');
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+    return demo;
+  };
+
+  it('overloads, and takes the turn again on the Stress that paid for it', () => {
+    // "The Construct can then take the spotlight again." With no Fear in the
+    // pool, a second spotlight is something only the feature can buy.
+    for (let seed = 1; seed < 30; seed++) {
+      const demo = room(`overload-${seed}`, [{ id: 'foe', adversary: 'construct', x: 5 }]);
+      demo.state.fear = { ...demo.state.fear, value: 0 };
+      const acted = endTurn(demo);
+      if (!demo.log.some((l) => l.text.includes('The Construct overloads'))) continue;
+      expect(acted).toBeGreaterThanOrEqual(2);
+
+      // The same fight with nothing left to mark: it overloads nothing, and
+      // takes the one turn the pool can pay for.
+      const spent = room(`overload-${seed}`, [{ id: 'foe', adversary: 'construct', x: 5 }]);
+      spent.state.fear = { ...spent.state.fear, value: 0 };
+      const foe = spent.state.entity('foe')!;
+      foe.stress = { ...foe.stress, marked: foe.stress.max };
+      expect(endTurn(spent)).toBe(1);
+      return;
+    }
+    throw new Error('the Construct never landed a blow to overload in thirty tries');
+  });
+
+  it('smells blood in the water and comes for whoever is bleeding', () => {
+    // "When a creature within Close range of the Shark marks HP from another
+    // creature's attack": the Burrower does the cutting, and the Shark answers
+    // a wound that was never aimed at it.
+    for (let seed = 1; seed < 30; seed++) {
+      const demo = room(`shark-${seed}`, [
+        { id: 'foe', adversary: 'acid-burrower', x: 5 },
+        { id: 'shark', adversary: 'shark', x: 6 },
+      ]);
+      const shark = demo.state.entity('shark')!;
+      const before = shark.stress.marked;
+      for (let turn = 0; turn < 3 && demo.encounter?.outcome === 'ongoing'; turn++) endTurn(demo);
+      if (!demo.log.some((l) => l.text.includes('uses Blood in the Water'))) continue;
+
+      expect(demo.log.some((l) => l.text.includes('The water goes red'))).toBe(true);
+      expect(shark.stress.marked).toBeGreaterThan(before);
+      // It came to the blood: the Shark is standing over Kara now.
+      expect(demo.world.bandTo('shark', 'kara')).toBe('melee');
+      return;
+    }
+    throw new Error('nothing bled near the Shark in thirty tries');
+  });
+});
+
 describe('a breath that only comes when the dice say so', () => {
   /** Dice that always come up their best, for a feature whose gate is a d10. */
   const everyDieHigh = (): Rng => {
