@@ -489,6 +489,28 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // "When you deal damage to an adversary, you can mark a Stress and describe
+  // how you encourage your allies. The next PC to make an attack against that
+  // adversary can clear a Stress or gain a Hope."
+  //
+  // The payoff belongs to somebody the card has never heard of, so it is
+  // written onto the adversary instead: a condition that owes whoever swings
+  // at them next, and is paid and spent the first time one of them does.
+  {
+    id: 'lead-by-example',
+    name: 'Lead by Example',
+    source: card('lead-by-example'),
+    kind: 'reaction',
+    trigger: 'dealtDamage',
+    action: false,
+    auto: false,
+    cost: { stress: 1 },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'They shout something, and the room hears it.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'led-by-example', duration: 'scene', target: { kind: 'target' } },
+    ],
+  },
   // "Whisper words of discord to an adversary within Melee range and make a
   // Spellcast Roll (13). On a success, the target must mark a Stress and make
   // an attack against another adversary instead of against you or your allies.

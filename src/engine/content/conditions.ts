@@ -15,6 +15,7 @@
 
 import { z } from 'zod';
 import { contentIdSchema } from '../scene/primitives';
+import { effectSchema } from '../script/schema';
 import { abilityModifierSchema, damageDefensesSchema } from './abilities';
 
 /** What a condition can stop its bearer from doing. */
@@ -50,6 +51,24 @@ export const conditionDefSchema = z.object({
    * Read only when a slot was actually marked: an aura over somebody with
    * nothing left to mark does nothing, which is what the spell says.
    */
+  /**
+   * What the bearer owes whoever does this to them, and to whom.
+   *
+   * Lead by Example marks an adversary and pays the *next* PC to swing at
+   * them - somebody the card that marked them has never heard of. A condition
+   * can carry the debt instead: it sits on the one who was marked, and the
+   * script runs with whoever attacked them acting and the bearer bound as the
+   * target. It is paid once and the condition goes with it.
+   */
+  payout: z
+    .object({
+      /** `attacked`: somebody swung at the bearer, hit or miss. */
+      on: z.literal('attacked'),
+      get effects() {
+        return z.array(effectSchema).default([]);
+      },
+    })
+    .optional(),
   armor: z
     .object({
       /** Bands off the severity, over and above the one the slot itself took. */
@@ -110,6 +129,28 @@ const RAW: ConditionInput[] = [
     id: 'wise-to-discord',
     name: 'Wise to Discord',
     text: 'They have been whispered to once, and are harder to whisper to again.',
+  },
+  // Lead by Example, on whoever was encouraged against. What it pays is a
+  // choice, and it is put to the one who swung rather than to the one who
+  // marked them - which is the whole difficulty of the card.
+  {
+    id: 'led-by-example',
+    name: 'Led by Example',
+    text: 'The next PC to attack them can clear a Stress or gain a Hope.',
+    payout: {
+      on: 'attacked',
+      effects: [
+        {
+          kind: 'choice',
+          title: 'They led by example',
+          body: 'Take heart from it.',
+          options: [
+            { label: 'Clear a Stress', effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }] },
+            { label: 'Gain a Hope', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
+          ],
+        },
+      ],
+    },
   },
   {
     id: 'stunned',

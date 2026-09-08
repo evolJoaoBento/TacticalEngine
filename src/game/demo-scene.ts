@@ -1267,6 +1267,10 @@ function landPartyAttack(
   const character = demo.characters.get(id)!;
   const profile = { name: weapon };
   const outcome = counted(demo, held);
+  // What the one being swung at already owed, read before this blow's own
+  // riders run: a card that marks an adversary here must not pay its holder on
+  // the very swing that marked them.
+  const owed = demo.world.payoutsOn(targetId, 'attacked');
 
   const applied = applyAttack(demo.state, outcome);
   demo.world.endsOnAttack(id!);
@@ -1315,6 +1319,9 @@ function landPartyAttack(
   } else {
     playMissRiders(demo, id!, targetId, outcome.dualityRoll);
   }
+  // "The next PC to make an attack against that adversary can clear a Stress
+  // or gain a Hope": hit or miss, and paid to whoever swung.
+  playPayouts(demo, id!, targetId, owed);
   // What the room makes of the roll itself: "when a PC rolls with Fear while
   // within Far range of the Dragon". Before `act`, so anything it costs them
   // is settled by the same `settleFight` as the swing.
@@ -2284,6 +2291,55 @@ function aimedAt(demo: DemoScene, adversaryId: string): number {
   if (standing.length === 0 || demo.state.entity(adversaryId)?.tile === NO_TILE) return NO_TILE;
   const nearest = nearestOf(demo, adversaryId, standing.map((e) => e.id));
   return demo.state.entity(nearest)?.tile ?? NO_TILE;
+}
+
+/**
+ * What a creature owed whoever swung at them, paid once and taken off.
+ *
+ * The debt sits on the one who was marked and the script runs with the one who
+ * swung acting, because the card that wrote it has never heard of them: Lead
+ * by Example pays "the next PC", whoever that turns out to be. A question it
+ * stops on holds nothing up, for the same reason a rider's does - the GM's
+ * turn is started by the player pressing pass, never by the swing that ended
+ * theirs.
+ *
+ * Only the party's weapon swing reaches this. A card that swings through the
+ * runner is a second path and does not pay yet.
+ */
+function playPayouts(
+  demo: DemoScene,
+  attacker: string,
+  target: string,
+  owed: readonly { condition: string; effects: readonly Effect[] }[],
+): void {
+  for (const debt of owed) {
+    // Taken off first: whatever the script does, the debt is settled once.
+    if (!demo.world.clearCondition(target, debt.condition)) continue;
+    const was = demo.scenario.actorId;
+    demo.scenario.actorId = attacker;
+    const runner = new ScriptRunner(demo.world, demo.rng, {
+      targets: [target],
+      hit: [target],
+      rollAs: 'actor',
+    });
+    const result = runner.run([...debt.effects]);
+    record(demo, result.journal);
+    if (result.status === 'waiting') {
+      demo.pending = {
+        kind: 'script',
+        runner,
+        prompt: result.prompt,
+        interactable: null,
+        recorded: result.journal.length,
+        dialogue: null,
+        onDone: () => {
+          demo.scenario.actorId = was;
+        },
+      };
+      return;
+    }
+    demo.scenario.actorId = was;
+  }
 }
 
 /**

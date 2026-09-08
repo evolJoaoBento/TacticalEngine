@@ -60,7 +60,7 @@ import { Pathfinder } from '../grid/pathfinding';
 import { createAdversaryEntity, type EntityState, type SceneState } from '../scene/state';
 import type { Trait } from '../scene/schema';
 import { scriptValueSchema, type ConditionDuration, type PoolName, type ScriptValue } from './schema';
-import type { CheckTrait, TargetSelector } from './schema';
+import type { CheckTrait, Effect, TargetSelector } from './schema';
 import type { Rng } from '../core/rng';
 import { rollLoot, type LootDrop, type LootTable } from '../content/items';
 import { questStatusSchema, type QuestProgress, type QuestQuery } from '../content/quests';
@@ -389,6 +389,22 @@ export class SceneScriptWorld implements ScriptWorld {
   encounterState(id: string): { started: boolean; ended: boolean; triggered: boolean } {
     const s = this.state.encounter(id);
     return { started: s.started, ended: s.ended, triggered: s.triggered };
+  }
+
+  /**
+   * What the conditions on a creature owe whoever just did this to them: the
+   * condition's name and the script it carries, in a stable order.
+   */
+  payoutsOn(id: string, on: 'attacked'): { condition: string; effects: readonly Effect[] }[] {
+    const entity = this.state.entity(id);
+    if (entity === undefined) return [];
+    const owed: { condition: string; effects: readonly Effect[] }[] = [];
+    for (const name of [...entity.conditions].sort()) {
+      const payout = this.conditionDefs.get(name)?.payout;
+      if (payout === undefined || payout.on !== on || payout.effects.length === 0) continue;
+      owed.push({ condition: name, effects: payout.effects });
+    }
+    return owed;
   }
 
   /**

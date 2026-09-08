@@ -3176,3 +3176,145 @@ describe('a word in the wrong ear', () => {
     throw new Error('the compelled blow never landed a kill');
   });
 });
+
+
+describe('a shout the next one hears', () => {
+  /** Kara beside the husk with the card in hand, Finn beside it as well. */
+  const rallying = (seed: string) => {
+    const demo = standoff(seed);
+    demo.askDefender = true;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 60, marked: 0 };
+    const blocked = demo.state.blockedFor('finn');
+    let stand = NO_TILE;
+    demo.grid.forEachNeighbor(husk.tile, false, (tile) => {
+      if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+    });
+    demo.state.moveEntity('finn', stand);
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: ['lead-by-example'], loadout: ['lead-by-example'] };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    return { demo, husk };
+  };
+
+  /** Kara swings and plays the card if she is offered it; true when she did. */
+  const shout = (demo: DemoScene, husk: string): boolean => {
+    demo.party.select('kara');
+    attackWithSelected(demo, husk);
+    for (let guard = 0; guard < 6 && demo.pending !== null; guard++) {
+      const pending = demo.pending;
+      if (pending.kind === 'reaction' && pending.prompt.kind === 'choice') {
+        const at = pending.prompt.options.findIndex((o) => o.label.includes('Lead by Example'));
+        answerPending(demo, { kind: 'choose', index: at < 0 ? 0 : at });
+        continue;
+      }
+      answerPending(demo, { kind: 'choose', index: 0 });
+    }
+    return demo.state.entity(husk)!.conditions.has('led-by-example');
+  };
+
+  it('pays the next one to swing at them, and not the one who shouted', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk } = rallying(`rally-${seed}`);
+      const before = demo.state.entity('kara')!.stress.marked;
+      if (!shout(demo, husk.id)) continue;
+
+      // She paid a Stress for it, and collected nothing on her own swing.
+      expect(demo.state.entity('kara')!.stress.marked).toBeGreaterThan(before);
+      expect(demo.log.some((l) => l.text.includes('Take heart from it'))).toBe(false);
+      expect(demo.pending).toBeNull();
+
+      // Finn swings at the same one, and is the one who takes heart from it.
+      const finn = demo.state.entity('finn')!;
+      finn.stress = { max: 6, marked: 3 };
+      demo.party.select('finn');
+      attackWithSelected(demo, husk.id);
+      const asked = demo.pending;
+      expect(asked?.prompt.kind).toBe('choice');
+      expect(asked?.prompt.kind === 'choice' ? asked.prompt.title : '').toContain('led by example');
+      answerPending(demo, { kind: 'choose', index: 0 });
+      expect(finn.stress.marked).toBe(2);
+      // Paid once: the mark is gone with it.
+      expect(demo.state.entity(husk.id)!.conditions.has('led-by-example')).toBe(false);
+      return;
+    }
+    throw new Error('Kara was never offered the card in sixty tries');
+  });
+
+  it('pays on a swing that misses, because a swing is a swing', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk } = rallying(`rally-miss-${seed}`);
+      if (!shout(demo, husk.id)) continue;
+      demo.party.select('finn');
+      const said = demo.log.length;
+      attackWithSelected(demo, husk.id);
+      const after = demo.log.slice(said).map((l) => l.text);
+      if (!after.some((t) => t.includes('and misses'))) continue;
+      // "The next PC to make an attack against that adversary" - the card says
+      // nothing about landing it.
+      expect(demo.pending?.prompt.kind).toBe('choice');
+      return;
+    }
+    throw new Error('Finn never missed after a shout');
+  });
+
+  it('does not pay the one who marked them on the swing that marked them', () => {
+    // The offered card cannot show this: the mark goes on when the player
+    // answers, which is after the swing is over. A card that runs on its own
+    // marks them mid-blow, and that is the one the order has to hold for.
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk } = rallying(`rally-self-${seed}`);
+      demo.project.abilities.push(
+        abilitySchema.parse({
+          id: 'rallying-cry',
+          name: 'Rallying Cry',
+          source: { kind: 'domainCard', card: 'lead-by-example' },
+          text: 'When you deal damage, the room takes heart at once.',
+          kind: 'reaction',
+          trigger: 'dealtDamage',
+          action: false,
+          effects: [{ kind: 'applyCondition', condition: 'led-by-example', duration: 'scene', target: { kind: 'target' } }],
+        }),
+      );
+      refreshWorld(demo);
+
+      demo.party.select('kara');
+      const marked = demo.state.entity(husk.id)!.hitPoints.marked;
+      attackWithSelected(demo, husk.id);
+      let guard = 0;
+      while (demo.pending !== null && guard++ < 6) answerPending(demo, { kind: 'choose', index: 0 });
+      if (demo.state.entity(husk.id)!.hitPoints.marked === marked) continue;
+
+      expect(demo.state.entity(husk.id)!.conditions.has('led-by-example')).toBe(true);
+      expect(demo.log.some((l) => l.text.includes('Take heart from it'))).toBe(false);
+      return;
+    }
+    throw new Error('Kara never landed a blow in sixty tries');
+  });
+
+  it('is not offered to somebody swinging at anybody else', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk } = rallying(`rally-elsewhere-${seed}`);
+      if (!shout(demo, husk.id)) continue;
+      // Another one on its feet, standing where Finn can reach it.
+      const other = demo.state.entitiesOf('adversary').find((e) => !e.alive)!;
+      other.alive = true;
+      other.hitPoints = { max: 40, marked: 0 };
+      const blocked = demo.state.blockedFor(other.id);
+      let stand = NO_TILE;
+      demo.grid.forEachNeighbor(demo.state.entity('finn')!.tile, false, (tile) => {
+        if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+      });
+      if (stand === NO_TILE) continue;
+      demo.state.moveEntity(other.id, stand);
+
+      demo.party.select('finn');
+      attackWithSelected(demo, other.id);
+      expect(demo.log.some((l) => l.text.includes('Take heart from it'))).toBe(false);
+      expect(demo.state.entity(husk.id)!.conditions.has('led-by-example')).toBe(true);
+      return;
+    }
+    throw new Error('Kara was never offered the card in sixty tries');
+  });
+});
