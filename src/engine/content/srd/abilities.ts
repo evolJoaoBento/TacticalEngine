@@ -187,6 +187,34 @@ const RAW: Input[] = [
     modifiers: [{ stat: 'damageRoll', plusTrait: 'strength', requires: 'meleeWeapon' }],
   },
   // ---- Bone ------------------------------------------------------------------
+  // "Once per long rest, when you console or inspire an ally who failed an
+  // action roll, you can both clear 2 Stress."
+  //
+  // The other side of `self`: this one answers an ally's roll and never its
+  // holder's own. The consoling is the player's to describe; what the engine
+  // owes them is the two Stress each.
+  {
+    id: 'lean-on-me',
+    name: 'Lean on Me',
+    source: card('lean-on-me'),
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    auto: false,
+    uses: { count: 1, per: 'longRest' },
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'not', of: { kind: 'self' } },
+        { kind: 'rolled', is: 'failure' },
+      ],
+    },
+    effects: [
+      { kind: 'log', text: 'A word in their ear, and they both stand straighter.', tone: 'hope' },
+      { kind: 'clearStress', amount: 2, target: { kind: 'actor' } },
+      { kind: 'clearStress', amount: 2, target: { kind: 'target' } },
+    ],
+  },
   // "When you fail an action roll, your next action roll has advantage."
   //
   // The first card written against `partyRolled` from the party's own side of

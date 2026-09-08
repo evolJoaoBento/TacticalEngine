@@ -35,7 +35,7 @@ Known simplifications in the scripted ones:
 - **Deathrun** is the first card aimed at the ground rather than at anybody: the player picks a tile, the board shows what the line would go through before the click, and what the run passes is what it hits. Simplified: the ladder of shrinking damage rolls and the order to deal them in is one roll, the same damage to everyone it beat, which is what every other attack against several targets here does; the card's own +1 to Proficiency is kept.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 106 of 189 cards.
+Scripted: 107 of 189 cards.
 
 
 ## Arcana
@@ -256,7 +256,7 @@ Scripted: 106 of 189 cards.
 | 2 | Body Basher | Ability | **passive** |
 | 2 | Bold Presence | Ability | text |
 | 3 | Critical Inspiration | Ability | **reaction** |
-| 3 | Lean on Me | Ability | text |
+| 3 | Lean on Me | Ability | **reaction** |
 | 4 | Goad Them On | Ability | text |
 | 4 | Support Tank | Ability | text |
 | 5 | Armorer | Ability | **passive** |

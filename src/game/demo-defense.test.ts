@@ -4349,6 +4349,62 @@ describe('the next one', () => {
     throw new Error('Kara never failed a roll in sixty tries');
   });
 
+  it('leans on an ally who failed, and never on herself', () => {
+    let helped = false;
+    let alone = false;
+    for (let seed = 1; seed < 80 && !(helped && alone); seed++) {
+      const { demo, husk } = trying(`lean-${seed}`, ['lean-on-me']);
+      const kara = demo.state.entity('kara')!;
+      const finn = demo.state.entity('finn')!;
+      kara.stress = { max: 6, marked: 4 };
+      finn.stress = { max: 6, marked: 4 };
+
+      // Finn swings and fails: the card is Kara's to offer.
+      demo.party.select('finn');
+      attackWithSelected(demo, husk.id);
+      const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
+      const failed = rolled === 'failureWithHope' || rolled === 'failureWithFear';
+      const pending = demo.pending;
+      const at =
+        pending !== null && pending.kind === 'reaction' && pending.prompt.kind === 'choice'
+          ? pending.prompt.options.findIndex((o) => o.label.includes('Lean on Me'))
+          : -1;
+
+      if (failed && at > 0) {
+        answerPending(demo, { kind: 'choose', index: at });
+        let guard = 0;
+        while (demo.pending !== null && guard++ < 6) answerPending(demo, { kind: 'choose', index: 0 });
+        expect(kara.stress.marked).toBe(2);
+        expect(finn.stress.marked).toBe(2);
+        expect(demo.scenario.abilityUses.get(useKey('kara', 'lean-on-me'))).toBe(1);
+        helped = true;
+        continue;
+      }
+      if (!failed) {
+        // A roll that landed is not one to console anybody about.
+        expect(at).toBe(-1);
+        alone = true;
+      }
+    }
+    expect(helped).toBe(true);
+    expect(alone).toBe(true);
+  });
+
+  it('is not offered to the one who failed the roll', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk } = trying(`lean-self-${seed}`, ['lean-on-me']);
+      demo.state.entity('kara')!.stress = { max: 6, marked: 4 };
+      // Kara's own failure: "an ally who failed an action roll" is not her.
+      attackWithSelected(demo, husk.id);
+      const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
+      if (rolled !== 'failureWithHope' && rolled !== 'failureWithFear') continue;
+      expect(JSON.stringify(demo.pending ?? {})).not.toContain('Lean on Me');
+      expect(demo.state.entity('kara')!.stress.marked).toBe(4);
+      return;
+    }
+    throw new Error('Kara never failed a roll in sixty tries');
+  });
+
   it("answers her own roll and not an ally's", () => {
     for (let seed = 1; seed < 60; seed++) {
       const { demo, husk } = trying(`inevitable-mine-${seed}`, ['inevitable']);
