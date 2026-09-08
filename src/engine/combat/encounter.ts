@@ -257,6 +257,19 @@ export class EncounterRunner {
     return this.policy === 'tracker' ? (this.tokens.get(id) ?? 0) : Infinity;
   }
 
+  /**
+   * Settle the fight now if it is already decided.
+   *
+   * Normally nobody has to ask: acting and spotlighting both count who is left
+   * standing, and one of the two happens after every blow. The exception is a
+   * blow struck by somebody who cannot act - a character taking one final
+   * action on their way through the veil - whose swing `act` refuses and
+   * therefore never counts. Returns whether the fight is over.
+   */
+  settleIfDecided(): boolean {
+    return this.checkEnd();
+  }
+
   get outcome(): EncounterOutcome {
     return this.finished;
   }

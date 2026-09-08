@@ -1296,7 +1296,14 @@ function landPartyAttack(
   // within Far range of the Dragon". Before `act`, so anything it costs them
   // is settled by the same `settleFight` as the swing.
   if (outcome.dualityRoll !== undefined) playPartyRolled(demo, id!, outcome.dualityRoll);
-  if (inCombat(demo)) demo.encounter!.act(id!, { spotlightToGm: outcome.spotlightToGm });
+  if (inCombat(demo)) {
+    // A swing from somebody who cannot act is refused, and `act` is where the
+    // encounter counts who is left standing - so a Blaze of Glory that fells
+    // the last adversary would leave a fight nobody had won. The fight is
+    // asked outright instead.
+    if (demo.encounter!.canAct(id!)) demo.encounter!.act(id!, { spotlightToGm: outcome.spotlightToGm });
+    else demo.encounter!.settleIfDecided();
+  }
   settleFight(demo);
   // The swing is over before a clock moves: a countdown that goes off now is
   // answering the roll that was just made, not interrupting it. This attack
@@ -1596,12 +1603,14 @@ function scar(demo: DemoScene, id: string, rolled: number): void {
   const character = demo.characters.get(id);
   const entity = demo.state.entity(id);
   if (character === undefined || entity === undefined) return;
-  character.sheet.scars = (character.sheet.scars ?? 0) + 1;
+  // Through `setSheet`, so the project's copy of the party carries it too and
+  // the character is re-derived over it: `deriveCharacter` folds scars into
+  // the Hope pool's maximum, so nothing here has to write that by hand.
+  const sheet = demo.sheets.get(id) ?? character.sheet;
+  setSheet(demo, { ...sheet, scars: (sheet.scars ?? 0) + 1 });
   const held = entity.hope ?? character.hope;
   const max = Math.max(0, held.max - 1);
-  const left: Currency = { max, value: Math.min(held.value, max) };
-  entity.hope = left;
-  character.hope = { ...left };
+  entity.hope = { max, value: Math.min(held.value, max) };
   note(
     demo,
     `The Hope Die reads ${rolled}. ${character.sheet.name} takes a scar: a Hope slot crossed out for good.`,
@@ -3116,6 +3125,10 @@ function playAttackRiders(
    */
   roll?: DualityRoll,
 ): void {
+  // Nothing is put to somebody who is no longer there: the one swing a dead
+  // character makes is Blaze of Glory's, and its critical would otherwise be
+  // offered to them as something to answer.
+  if (demo.state.entity(attackerId)?.alive !== true) return;
   if (demo.state.entity(defenderId)?.alive !== true) return;
   const triggers: NonNullable<AbilityDef['trigger']>[] = hitPointsMarked > 0 ? ['dealtHit', 'dealtDamage'] : ['dealtHit'];
   const counts = { hitPointsDealt: hitPointsMarked };

@@ -297,10 +297,13 @@ until an ally clears a Hit Point, then the Hope Die against the character's leve
 `options.automatic: 'criticalSuccess'`, and then the veil), **Risk It All** (the Duality Dice
 rolled as a reaction rolls them — Hope high stands them up, Fear high does not, matching clears
 everything). Avoid Death is offered first because stepping back from a question always takes its
-first option, and it is the one that leaves the fight where it stands. A scar is written to
+first option, and it is the one that leaves the fight where it stands. A scar is written through `setSheet` to
 `sheet.scars`, which `deriveCharacter` folds into the Hope pool's maximum, so it outlives the
 scene; crossing out the last slot sets `entity.dead`, which is the one thing `world.heal` will
-not stand back up.
+not stand back up. Blaze of Glory is also the one swing whose attacker cannot `act` — and `act`
+is where the encounter counts who is left standing — so `landPartyAttack` asks the encounter
+outright with `settleIfDecided()` whenever the swing came from somebody who was not allowed to
+make it.
 
 Both defence functions use the same arithmetic in the same order: **dice off the damage** (a Rune
 Ward's d8, and the passive reduction rolled once), then **Armor Slots** (the one, plus any

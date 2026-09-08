@@ -1743,6 +1743,13 @@ describe('a death move', () => {
       // she walks into starts a Hope short.
       expect(kara.hope!.max).toBe(slots - 1);
       expect(demo.characters.get('kara')!.sheet.scars).toBe(1);
+      // On the sheets a save writes, and on the project's own copy of the
+      // party: the scar outlives this fight either way it is reloaded.
+      expect(demo.sheets.get('kara')!.scars).toBe(1);
+      expect(demo.project.party.find((member) => member.id === 'kara')!.scars).toBe(1);
+      // And the character was re-derived over it, so a fresh scene is short a
+      // Hope without anybody writing the pool by hand.
+      expect(demo.characters.get('kara')!.hope.max).toBe(slots - 1);
       expect(deriveCharacter({ ...sheet, scars: 1 }, SRD_CHARACTERS, demo.project.abilities).character.hope.max).toBe(slots - 1);
 
       // "They return to consciousness when an ally clears 1 or more of their
@@ -1807,6 +1814,30 @@ describe('a death move', () => {
     // "And then you cross through the veil of death."
     expect(kara.dead).toBe(true);
     expect(kara.alive).toBe(false);
+  });
+
+  it('wins the fight with the last swing, though nobody was allowed to make it', () => {
+    const demo = lastStand('blaze-win');
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: husk.hitPoints.max, marked: husk.hitPoints.max - 1 };
+    // One of the party back on their feet behind her, so the fight this swing
+    // ends is one somebody is left to have won.
+    const ally = demo.state.entitiesOf('party').find((member) => member.id !== 'kara')!;
+    ally.alive = true;
+    ally.dead = false;
+    ally.hitPoints = { ...ally.hitPoints, marked: 0 };
+    standBehind(demo, ally.id, husk.tile);
+
+    felled(demo);
+    choose(demo, 'Blaze of Glory');
+
+    // `act` refuses a swing from somebody who cannot act, and `act` is where
+    // the encounter usually counts who is left standing.
+    expect(demo.state.entitiesOf('adversary').some((foe) => foe.alive)).toBe(false);
+    expect(demo.encounter!.outcome).toBe('victory');
+    expect(said(demo, 'The last of them falls.')).toBe(true);
+    // And the critical is not offered back to the one who is no longer there.
+    expect(said(demo, 'can answer that')).toBe(false);
   });
 
   it('crosses anyway when the last swing has nobody to reach', () => {
