@@ -20,6 +20,7 @@ Known simplifications in the scripted ones:
 - **Ferocity** and **Never Upstaged** keep their bonus as tokens on the card, so the Evasion or the damage is whatever the fight put there; Ferocity is spent by the next attack made at its holder, hit or miss.
 - **Enrapture** and **Mass Enrapture** put the name on the target and let the condition carry it: a creature whose attention is fixed on one person is two Evasion easier to hit, and whom it attacks is still the table's call. **Glyph of Nightfall** is worth a flat two rather than the caster's Knowledge, because a condition carries one number rather than the number of whoever applied it. **Death Grip** offers the pull and the constriction, not the vines catching everyone in between: that is a line across the map, and a selector reads bands around a creature.
 - **Spellcharge** takes any wound rather than magic damage alone and is not capped at the caster's Spellcast trait; **Twilight Toll** is worth one die rather than growing with every success that rolled no damage. **Sigil of Retribution** holds a die for every blow without the cap of the caster's level, and recasting it moves the sigil while leaving the dice already on the card - the card clears them when they are rolled and nowhere else.
+- The cards that last are conditions: **Frenzy** lasts the fight rather than "until there are no more adversaries within sight"; **Deadly Focus** lasts it too, because nothing tells a condition who it was about; **Battle Cry** reaches Far and its advantage lasts the fight, where the card ends it on a failure with Fear that no card is told about; and **Night Terror**'s Horrified is Vulnerable and nothing else.
 - **Unyielding Armor** is offered against any blow the defender is asked about rather than at the moment they would mark an Armor Slot, which is a decision they have not made when the question is put, and its step comes after whatever the armor did. **I See It Coming** is asked once the swing has landed rather than as it is aimed, so a blow that was going to miss anyway never costs a Stress.
 - **Arcane Reflection** answers any blow the defender is asked about rather than magic damage alone, and what it sends back is the number that arrived without the attack's own directness. **Redirect** spends its Stress on the attempt rather than after the dice come up, and turns the blow onto the nearest adversary within Very Close rather than one the player picks.
 - **Thorn Skin** and **Scramble** answer the blow the defender is asked about, which is a standard attack: damage dealt by a feature's own script arrives without a question, so neither of them hears it. **Scramble** leaves the ground it was standing on but a creature that follows is the table's, and the swing it avoided earns its attacker nothing - no rider, no Momentum.
@@ -29,7 +30,7 @@ Known simplifications in the scripted ones:
 - **Battle Monster** throws the damage roll away and marks the Hit Points the caster is carrying, past thresholds, resistance and Armor Slots - which is what "instead of rolling for damage" asks for.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 81 of 189 cards.
+Scripted: 86 of 189 cards.
 
 
 ## Arcana
@@ -69,7 +70,7 @@ Scripted: 81 of 189 cards.
 | 2 | Reckless | Ability | **action** |
 | 3 | Scramble | Ability | **reaction** |
 | 3 | Versatile Fighter | Ability | text |
-| 4 | Deadly Focus | Ability | text |
+| 4 | Deadly Focus | Ability | **action** |
 | 4 | Fortified Armor | Ability | **passive** |
 | 5 | Champion's Edge | Ability | **reaction** |
 | 5 | Vitality | Ability | text |
@@ -77,8 +78,8 @@ Scripted: 81 of 189 cards.
 | 6 | Rage Up | Ability | **reaction** |
 | 7 | Blade-Touched | Ability | **passive** |
 | 7 | Glancing Blow | Ability | text |
-| 8 | Battle Cry | Ability | text |
-| 8 | Frenzy | Ability | text |
+| 8 | Battle Cry | Ability | **action** |
+| 8 | Frenzy | Ability | **action** |
 | 9 | Gore and Glory | Ability | **reaction** |
 | 9 | Reaper's Strike | Ability | text |
 | 10 | Battle Monster | Ability | **reaction** |
@@ -183,10 +184,10 @@ Scripted: 81 of 189 cards.
 | 7 | Vanishing Dodge | Spell | **reaction** |
 | 8 | Shadowhunter | Ability | text |
 | 8 | Spellcharge | Spell | **reaction** |
-| 9 | Night Terror | Spell | text |
+| 9 | Night Terror | Spell | **action** |
 | 9 | Twilight Toll | Ability | **action**, **reaction** |
 | 10 | Eclipse | Spell | text |
-| 10 | Specter of the Dark | Spell | text |
+| 10 | Specter of the Dark | Spell | **action** |
 
 ## Sage
 

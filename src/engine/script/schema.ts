@@ -525,6 +525,12 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('markArmor'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
   /** The GM gains Fear. */
   z.object({ kind: z.literal('gainFear'), amount: amountSchema.optional() }),
+  /**
+   * "Steal a number of Fear from the GM equal to the number of targets that
+   * are Horrified (up to the number of Fear in the GM's pool)": the pool comes
+   * down, and an empty one is simply nothing taken.
+   */
+  z.object({ kind: z.literal('loseFear'), amount: amountSchema.optional() }),
   z.object({ kind: z.literal('gainHope'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
   /** The actor spends Hope. Refused, and journalled as such, when they cannot. */
   z.object({ kind: z.literal('spendHope'), amount: amountSchema.optional() }),

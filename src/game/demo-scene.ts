@@ -2721,7 +2721,7 @@ function defenderFor(demo: DemoScene, id: string): Defender | null {
   return {
     thresholds: against.thresholds,
     ...(against.defenses === undefined ? {} : { defenses: against.defenses }),
-    armorSlots: entity.armorSlots,
+    armorSlots: demo.world.armorFor(id),
     stress: entity.stress,
     ...(entity.hope === undefined ? {} : { hope: entity.hope }),
     reactions: demo.world.reactionsOf(id),
@@ -3607,6 +3607,8 @@ function describeEntry(
       return entry.id === undefined ? null : { text: `${who(entry.id)} gains ${plural(entry.gained, 'Hope')}.`, tone: 'hope' };
     case 'hopeLost':
       return { text: `${who(entry.id)} loses ${plural(entry.lost, 'Hope')}.`, tone: 'fear' };
+    case 'fearLost':
+      return { text: `The GM loses ${plural(entry.lost, 'Fear')}.`, tone: 'hope' };
     // Quest events are news, unlike the flags underneath them: the journal
     // changed, and the player should hear it without opening the journal.
     case 'quest': {

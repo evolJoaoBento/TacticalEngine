@@ -399,6 +399,95 @@ const RAW: Input[] = [
       { kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'close' },
     ],
   },
+  // ---- what a card leaves on its holder, and how long it stays ------------
+  // A bonus that has to outlive the moment it was bought in lives on a
+  // condition, which is where the engine already keeps every other number that
+  // hangs on somebody.
+  {
+    id: 'frenzy',
+    name: 'Frenzy',
+    source: card('frenzy'),
+    uses: { count: 1, per: 'longRest' },
+    target: { kind: 'self' },
+    inCombatOnly: true,
+    // Simplified: it lasts the fight rather than "until there are no more
+    // adversaries within sight", which is the same thing said with eyes.
+    effects: [
+      { kind: 'log', text: 'Something in them lets go of the reins.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'frenzied', duration: 'scene', target: { kind: 'actor' } },
+    ],
+  },
+  {
+    id: 'deadly-focus',
+    name: 'Deadly Focus',
+    source: card('deadly-focus'),
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'adversary', range: 'far' },
+    inCombatOnly: true,
+    action: false,
+    // Simplified: the focus lasts the fight rather than ending when they swing
+    // at somebody else or the one they were watching goes down - nothing tells
+    // a condition who it was about.
+    effects: [
+      { kind: 'log', text: 'Everything else in the room goes quiet.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'focused', duration: 'scene', target: { kind: 'actor' } },
+    ],
+  },
+  {
+    id: 'specter-of-the-dark',
+    name: 'Specter of the Dark',
+    source: card('specter-of-the-dark'),
+    cost: { stress: 1 },
+    target: { kind: 'self' },
+    action: false,
+    // The condition ends itself the moment they swing, which is what "until
+    // you make an action roll targeting another creature" comes to in a fight.
+    effects: [
+      { kind: 'log', text: 'They go thin, and the dark comes through them.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'spectral', duration: 'scene', target: { kind: 'actor' } },
+    ],
+  },
+  {
+    id: 'battle-cry',
+    name: 'Battle Cry',
+    source: card('battle-cry'),
+    uses: { count: 1, per: 'longRest' },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    // Simplified: the advantage lasts the fight rather than until somebody
+    // rolls a failure with Fear, which is a roll no card is told about.
+    effects: [
+      { kind: 'log', text: 'The call goes up, and the room answers it.', tone: 'hope' },
+      { kind: 'clearStress', amount: 1, target: { kind: 'allies', range: 'far', includeSelf: true } },
+      { kind: 'gainHope', amount: 1, target: { kind: 'allies', range: 'far', includeSelf: true } },
+      { kind: 'applyCondition', condition: 'inspired', duration: 'scene', target: { kind: 'allies', range: 'far' } },
+    ],
+  },
+  {
+    id: 'night-terror',
+    name: 'Night Terror',
+    source: card('night-terror'),
+    uses: { count: 1, per: 'longRest' },
+    target: { kind: 'none', range: 'veryClose' },
+    inCombatOnly: true,
+    // Simplified: Horrified is Vulnerable and nothing else, and it lasts the
+    // scene rather than being shaken off.
+    effects: [
+      { kind: 'log', text: 'What they are looking at is no longer a person.', tone: 'hope' },
+      {
+        kind: 'reactionRoll',
+        difficulty: 16,
+        trait: 'presence',
+        targets: { kind: 'adversaries', range: 'veryClose' },
+        onFail: [
+          { kind: 'applyCondition', condition: 'horrified', duration: 'scene', target: { kind: 'hit' } },
+          // "Steal a number of Fear from the GM equal to the number of targets
+          // that are Horrified", and an empty pool is nothing stolen.
+          { kind: 'loseFear', amount: 'targetsHit' },
+        ],
+      },
+    ],
+  },
   // ---- the last two things a defender can say to a blow -------------------
   {
     id: 'unyielding-armor',

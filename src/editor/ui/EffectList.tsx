@@ -83,6 +83,7 @@ const ADDABLE = [
   'spendHope',
   'loseHope',
   'gainFear',
+  'loseFear',
   'applyCondition',
   'clearCondition',
   'addToken',
@@ -147,6 +148,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   spendHope: 'Spend Hope',
   loseHope: 'Take their Hope',
   gainFear: 'GM gains Fear',
+  loseFear: 'GM loses Fear',
   applyCondition: 'Apply a condition',
   clearCondition: 'Clear a condition',
   addToken: 'Put tokens on a card',
@@ -274,6 +276,7 @@ function blank(kind: Addable, props: EffectListProps): Effect {
     case 'spendHope':
     case 'loseHope':
     case 'gainFear':
+    case 'loseFear':
       return { kind, amount: 1 };
     case 'applyCondition':
       return { kind, condition: 'vulnerable', duration: 'temporary' };
@@ -668,6 +671,7 @@ function renderBody(
         </>
       );
     case 'gainFear':
+    case 'loseFear':
       return amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }));
     case 'spendHope':
       return amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }));

@@ -18,7 +18,7 @@ import { contentIdSchema } from '../scene/primitives';
 import { abilityModifierSchema, damageDefensesSchema } from './abilities';
 
 /** What a condition can stop its bearer from doing. */
-export const conditionBlockSchema = z.enum(['act', 'move', 'reactions']);
+export const conditionBlockSchema = z.enum(['act', 'move', 'reactions', 'armor']);
 export type ConditionBlock = z.infer<typeof conditionBlockSchema>;
 
 export const conditionDefSchema = z.object({
@@ -33,7 +33,8 @@ export const conditionDefSchema = z.object({
    * What the bearer cannot do while it lasts. An adversary that cannot `act`
    * spends its spotlight shaking the condition off (or the GM spends a Fear
    * to clear one that only ends on damage); one that cannot `move` tears
-   * free instead of closing in; `reactions` silences its damage reactions.
+   * free instead of closing in; `reactions` silences its damage reactions;
+   * `armor` leaves them nothing to mark, which is what a rage costs.
    */
   blocks: z.array(conditionBlockSchema).default([]),
   /**
@@ -92,6 +93,44 @@ const RAW: ConditionInput[] = [
   // The Siren's song. "Until they mark 2 Stress" is a tally the engine does
   // not keep, so it runs to the end of the scene; what it does is let the
   // Siren's teeth find them, which is the Captive Audience passive.
+  // What the cards that last leave on their holder. Each is a name and a
+  // number or two: a condition is where the engine keeps a bonus that has to
+  // outlive the moment it was bought in.
+  {
+    id: 'frenzied',
+    name: 'Frenzied',
+    text: 'You cannot use Armor Slots, you deal ten more damage, and you are far harder to put down.',
+    modifiers: [
+      { stat: 'damageRoll', bonus: 10 },
+      { stat: 'severeThreshold', bonus: 8 },
+    ],
+    blocks: ['armor'],
+  },
+  {
+    id: 'spectral',
+    name: 'Spectral',
+    text: 'You are barely here: physical damage passes through you.',
+    defenses: { immunities: ['physical'] },
+    endsWhen: 'attacks',
+  },
+  {
+    id: 'focused',
+    name: 'Focused',
+    text: 'All of your attention is on one creature, and your weapon knows it.',
+    modifiers: [{ stat: 'proficiency', bonus: 1 }],
+  },
+  {
+    id: 'inspired',
+    name: 'Inspired',
+    text: 'Somebody called out, and you believe them: your attacks have advantage.',
+    modifiers: [{ stat: 'advantage', bonus: 1 }],
+  },
+  {
+    id: 'horrified',
+    name: 'Horrified',
+    text: 'What you are looking at cannot be looked away from. You are Vulnerable.',
+    modifiers: [{ stat: 'advantage', bonus: 1, against: true }],
+  },
   // The Giant Scorpion's sting. The name is what the engine carries; the d6
   // before every action roll is the block's own words and the table's to play.
   {

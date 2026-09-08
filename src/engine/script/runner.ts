@@ -166,6 +166,8 @@ export interface ScriptWorld extends ConditionContext {
   spendTokens(id: string, ability: string, amount: number): number;
   /** The value of the creature's Spellcast trait, or null when it has none. */
   spellcastValue(id: string): number | null;
+  /** Take one Fear off the GM's pool; false when there is none to take. */
+  loseFear(): boolean;
   /** A trait off a sheet, for an amount that reads one. Null for a stat block. */
   traitValue(id: string, trait: Trait | 'spellcast' | 'proficiency'): number | null;
   /** The creature's primary weapon dice (an adversary's attack), or null when it has none. */
@@ -260,6 +262,8 @@ export type JournalEntry =
   | { kind: 'hopeLost'; lost: number; id: string }
   | { kind: 'hopeSpent'; amount: number }
   | { kind: 'fear'; gained: number }
+  /** Fear taken off the GM's pool, which a card can do and a stat block cannot. */
+  | { kind: 'fearLost'; lost: number }
   | { kind: 'objective'; quest: string; objective: string }
   | { kind: 'revealed'; quest: string; objective: string }
   | { kind: 'chose'; label: string; index: number }
@@ -1220,6 +1224,16 @@ export class ScriptRunner {
         for (let i = 0; i < this.amountOf(effect.amount); i++) {
           if (world.gainFear()) this.journal.push({ kind: 'fear', gained: 1 });
         }
+        return null;
+      }
+      case 'loseFear': {
+        // "Up to the number of Fear in the GM's pool": an empty pool is
+        // nothing taken rather than a refusal.
+        let taken = 0;
+        for (let i = 0; i < this.amountOf(effect.amount); i++) {
+          if (world.loseFear()) taken += 1;
+        }
+        if (taken > 0) this.journal.push({ kind: 'fearLost', lost: taken });
         return null;
       }
       case 'addToken': {

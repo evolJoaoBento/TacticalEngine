@@ -72,6 +72,7 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     addTokens: () => 0,
     spendTokens: () => 0,
     spellcastValue: () => null,
+    loseFear: () => false,
     traitValue: () => null,
     weaponDamage: () => null,
     attack: () => ({

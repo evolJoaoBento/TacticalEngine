@@ -785,6 +785,17 @@ export class SceneScriptWorld implements ScriptWorld {
     return [...entity.conditions].filter((c) => this.conditionDefs.get(c)?.blocks.includes(what) ?? false);
   }
 
+  /**
+   * The Armor Slots a creature can actually mark. A condition that forbids
+   * armor - Frenzy's rage - leaves them all marked as far as the defence is
+   * concerned, so nothing offers a slot that cannot be spent.
+   */
+  armorFor(id: string): { max: number; marked: number } {
+    const entity = this.state.entity(id);
+    if (entity === undefined) return { max: 0, marked: 0 };
+    return this.blocks(id, 'armor') ? { ...entity.armorSlots, marked: entity.armorSlots.max } : entity.armorSlots;
+  }
+
   blocks(id: string, what: ConditionBlock): boolean {
     return this.blocking(id, what).length > 0;
   }
@@ -1000,6 +1011,16 @@ export class SceneScriptWorld implements ScriptWorld {
     return id !== null && this.gainHopeFor(id, 1) > 0;
   }
 
+  /**
+   * "Steal a number of Fear from the GM": the pool goes down rather than up,
+   * and an empty pool is nothing stolen rather than a refusal.
+   */
+  loseFear(): boolean {
+    if (this.state.fear.value <= 0) return false;
+    this.state.fear = { ...this.state.fear, value: this.state.fear.value - 1 };
+    return true;
+  }
+
   gainFear(): boolean {
     const result = gain(this.state.fear);
     this.state.fear = result.currency;
@@ -1169,7 +1190,7 @@ export class SceneScriptWorld implements ScriptWorld {
       {
         thresholds: against.thresholds,
         ...(against.defenses === undefined ? {} : { defenses: against.defenses }),
-        armorSlots: entity.armorSlots,
+        armorSlots: this.armorFor(id),
         stress: entity.stress,
         ...(entity.hope === undefined ? {} : { hope: entity.hope }),
         reactions: this.reactionsOf(id),

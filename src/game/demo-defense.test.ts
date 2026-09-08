@@ -1511,3 +1511,110 @@ describe('a card that answers the blow in its own words', () => {
     expect(kara.tile).not.toBe(stood);
   });
 });
+
+/**
+ * Cards whose whole point is what they leave behind. Each of them is a
+ * condition on somebody, because a condition is where the engine keeps a
+ * number that has to outlive the moment it was bought in.
+ */
+describe('what a card leaves on its holder', () => {
+  const holding = (demo: DemoScene, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** A blow big enough that the defence would spend armor on it if it could. */
+  const struck = (demo: DemoScene): void => {
+    const was = demo.scenario.actorId;
+    demo.scenario.actorId = 'mira';
+    runScript([{ kind: 'damage', dice: '30 phy', target: { kind: 'entity', id: 'kara' } }], demo.world, demo.rng);
+    demo.scenario.actorId = was;
+  };
+
+  it('rages: ten more damage, a harder creature to fell, and no armor to hide behind', () => {
+    const demo = standoff('frenzy');
+    holding(demo, ['frenzy']);
+    const kara = demo.state.entity('kara')!;
+    kara.armorSlots = { max: 4, marked: 0 };
+    kara.hitPoints = { max: 12, marked: 0 };
+    const before = demo.world.defenderOf(kara).thresholds.severe;
+
+    // Without it, the engine spends a slot on a blow like that.
+    struck(demo);
+    expect(kara.armorSlots.marked).toBeGreaterThan(0);
+    kara.armorSlots = { max: 4, marked: 0 };
+    kara.hitPoints = { max: 12, marked: 0 };
+
+    expect(useAbility(demo, 'kara', 'frenzy', []).status).toBe('done');
+    expect(kara.conditions.has('frenzied')).toBe(true);
+    expect(demo.world.rollBonus('kara', 'damageRoll', { melee: true })).toBe(10);
+    expect(demo.world.defenderOf(kara).thresholds.severe).toBe(before + 8);
+
+    // The armor is still on her; it is simply not something she will use.
+    expect(demo.world.armorFor('kara')).toEqual({ max: 4, marked: 4 });
+    struck(demo);
+    expect(kara.armorSlots.marked).toBe(0);
+    expect(kara.hitPoints.marked).toBeGreaterThan(0);
+  });
+
+  it('goes spectral until they swing, and physical damage passes through', () => {
+    const demo = standoff('specter');
+    holding(demo, ['specter-of-the-dark']);
+    const kara = demo.state.entity('kara')!;
+    kara.hitPoints = { max: 6, marked: 0 };
+
+    expect(useAbility(demo, 'kara', 'specter-of-the-dark', []).status).toBe('done');
+    expect(kara.conditions.has('spectral')).toBe(true);
+    expect(kara.stress.marked).toBe(1);
+
+    struck(demo);
+    expect(kara.hitPoints.marked).toBe(0);
+
+    // Swinging is the end of it, which is what "until you make an action roll
+    // targeting another creature" comes to in a fight.
+    demo.world.endsOnAttack('kara');
+    expect(kara.conditions.has('spectral')).toBe(false);
+    struck(demo);
+    expect(kara.hitPoints.marked).toBeGreaterThan(0);
+  });
+
+  it('calls the room together, and the room swings harder for it', () => {
+    const demo = standoff('cry');
+    holding(demo, ['battle-cry']);
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const finn = demo.state.entity('finn')!;
+    // Within earshot: Kara went to meet the husk, and the rest of the party
+    // spawned across the room.
+    standBehind(demo, 'finn', husk.tile);
+    finn.stress = { max: 6, marked: 2 };
+    if (finn.hope !== undefined) finn.hope = { max: 6, value: 0 };
+    expect(demo.world.advantageFor('finn', husk.id).advantage).toBe(0);
+
+    expect(useAbility(demo, 'kara', 'battle-cry', []).status).toBe('done');
+    expect(finn.stress.marked).toBe(1);
+    expect(finn.hope?.value).toBe(1);
+    expect(finn.conditions.has('inspired')).toBe(true);
+    expect(demo.world.advantageFor('finn', husk.id).advantage).toBe(1);
+    // The one who called it is not the one it inspires.
+    expect(demo.state.entity('kara')!.conditions.has('inspired')).toBe(false);
+  });
+
+  it("horrifies what it can, and takes the GM's Fear for each of them", () => {
+    for (let seed = 1; seed < 30; seed++) {
+      const demo = standoff(`terror-${seed}`);
+      holding(demo, ['night-terror']);
+      demo.state.fear = { ...demo.state.fear, value: 4 };
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+
+      expect(useAbility(demo, 'kara', 'night-terror', []).status).toBe('done');
+      if (!husk.conditions.has('horrified')) continue;
+      // Vulnerable in all but name: rolls against them have advantage.
+      expect(demo.world.advantageFor('kara', husk.id).advantage).toBe(1);
+      expect(demo.state.fear.value).toBe(3);
+      return;
+    }
+    throw new Error('nothing failed a Presence Reaction Roll in thirty tries');
+  });
+});
