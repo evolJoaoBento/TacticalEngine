@@ -72,6 +72,7 @@ export const characterSheetSchema = z.object({
   domainCards: z.array(z.string()).optional(),
   loadout: z.array(z.string()).optional(),
   levels: z.array(levelRecordSchema).optional(),
+  scars: z.number().int().min(0).optional(),
 });
 
 /** Parse an untrusted sheet. The return type is the interface, so the schema cannot drift. */

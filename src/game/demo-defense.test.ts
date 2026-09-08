@@ -8,7 +8,7 @@ import type { Rng } from '../engine/core/rng';
 import { rest, useAbility } from './demo-abilities';
 import { NO_TILE } from '../engine/grid/grid';
 import { adversaryTraits } from '../engine/combat/adversary-features';
-import type { DefenseChoice, PendingDefense } from './demo-scene';
+import type { DefenseChoice, PendingDeath, PendingDefense } from './demo-scene';
 import {
   SRD_CHARACTERS,
   adversaryDefOf,
@@ -1616,5 +1616,264 @@ describe('what a card leaves on its holder', () => {
       return;
     }
     throw new Error('nothing failed a Presence Reaction Roll in thirty tries');
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// The death move
+// ---------------------------------------------------------------------------
+
+/**
+ * "When a PC marks their last Hit Point, they must make a death move by
+ * choosing one of the following options."
+ *
+ * The three moves, what each of them costs, and the ordering the whole thing
+ * rests on: the question is asked before anybody counts who is left standing,
+ * because two of the three put the character back on their feet.
+ */
+describe('a death move', () => {
+  /** Kara alone against however many husks, with a player at the table. */
+  const lastStand = (seed: string, foes = 1): DemoScene => {
+    const demo = scene(seed);
+    demo.askDefender = true;
+    const kara = demo.state.entity('kara')!;
+    // The rest of the party is off the map and past the veil already, so this
+    // is about the one character and nobody else is asked anything.
+    for (const member of demo.state.entitiesOf('party')) {
+      if (member.id === 'kara') continue;
+      demo.state.moveEntity(member.id, NO_TILE);
+      member.hitPoints = { ...member.hitPoints, marked: member.hitPoints.max };
+      member.alive = false;
+      member.dead = true;
+    }
+    const standing = demo.state
+      .entitiesOf('adversary')
+      .filter((e) => e.alive)
+      .sort((a, b) => demo.grid.manhattanDistance(kara.tile, a.tile) - demo.grid.manhattanDistance(kara.tile, b.tile));
+    for (const extra of standing.slice(foes)) {
+      extra.hitPoints = { ...extra.hitPoints, marked: extra.hitPoints.max };
+      extra.alive = false;
+    }
+    // Kara beside the nearest of them, so its swing reaches her.
+    const blocked = demo.state.blockedFor('kara');
+    let stand = NO_TILE;
+    demo.grid.forEachNeighbor(standing[0]!.tile, false, (tile) => {
+      if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+    });
+    demo.state.moveEntity('kara', stand);
+    demo.party.select('kara');
+    startEncounter(demo, demo.scene.encounters[0]!.id);
+    return demo;
+  };
+
+  /** Put her down where the engine would have: her last Hit Point marked. */
+  const felled = (demo: DemoScene): void => {
+    const kara = demo.state.entity('kara')!;
+    kara.hitPoints = { ...kara.hitPoints, marked: kara.hitPoints.max };
+    kara.alive = false;
+    settleFight(demo);
+  };
+
+  /** Choose one of the three, by the label the prompt shows. */
+  const choose = (demo: DemoScene, label: string): void => {
+    const waiting = demo.pending as PendingDeath;
+    const option = waiting.prompt.kind === 'choice' ? waiting.prompt.options.find((o) => o.label === label) : undefined;
+    expect(option).toBeDefined();
+    answerPending(demo, { kind: 'choose', index: option!.index });
+  };
+
+  const said = (demo: DemoScene, text: string): boolean => demo.log.some((line) => line.text.includes(text));
+
+  it('is asked before the encounter counts anybody out, so Risk It All can save the fight', () => {
+    // Two husks: without a question to stop it, the GM's turn rolls straight
+    // on to the second, and spotlighting it is where the encounter notices
+    // that nobody on the party's side is standing.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = lastStand(`risk-up-${seed}`, 2);
+      demo.state.fear = { ...demo.state.fear, value: 6 };
+      const kara = demo.state.entity('kara')!;
+      kara.hitPoints = { max: 6, marked: 5 };
+      kara.armorSlots = { ...kara.armorSlots, marked: kara.armorSlots.max };
+
+      endTurn(demo);
+      // Take every hit as it comes until the fight stops to ask about her.
+      let guard = 0;
+      while (demo.pending !== null && demo.pending.kind !== 'death' && guard++ < 10) {
+        answerPending(demo, { kind: 'choose', index: 0 });
+      }
+      if (demo.pending?.kind !== 'death') continue;
+
+      // She is down, and the fight has not been called.
+      expect(kara.alive).toBe(false);
+      expect(demo.encounter!.outcome).toBe('ongoing');
+      choose(demo, 'Risk It All');
+      if (!said(demo, 'stays on their feet') && !said(demo, 'stands up with nothing marked')) continue;
+
+      expect(kara.alive).toBe(true);
+      expect(kara.hitPoints.marked).toBeLessThan(kara.hitPoints.max);
+      expect(demo.encounter!.outcome).not.toBe('defeat');
+      expect(said(demo, 'The party falls.')).toBe(false);
+      return;
+    }
+    throw new Error('the Hope Die never came up in forty seeds');
+  });
+
+  it('drops her unconscious on Avoid Death, and the Hope Die decides the scar', () => {
+    // Level 1: a scar needs the Hope Die to read exactly 1.
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = lastStand(`scar-${seed}`);
+      const kara = demo.state.entity('kara')!;
+      const sheet = demo.sheets.get('kara')!;
+      expect(sheet.level).toBe(1);
+      const slots = kara.hope!.max;
+
+      felled(demo);
+      expect(demo.pending?.kind).toBe('death');
+      choose(demo, 'Avoid Death');
+      expect(kara.alive).toBe(false);
+      expect(demo.pending).toBe(null);
+      if (!said(demo, 'takes a scar')) {
+        // The die read above her level: nothing permanent happened.
+        expect(kara.hope!.max).toBe(slots);
+        expect(demo.characters.get('kara')!.sheet.scars).toBeUndefined();
+        continue;
+      }
+      // "Permanently cross out a Hope slot": on the sheet, so the next scene
+      // she walks into starts a Hope short.
+      expect(kara.hope!.max).toBe(slots - 1);
+      expect(demo.characters.get('kara')!.sheet.scars).toBe(1);
+      expect(deriveCharacter({ ...sheet, scars: 1 }, SRD_CHARACTERS, demo.project.abilities).character.hope.max).toBe(slots - 1);
+
+      // "They return to consciousness when an ally clears 1 or more of their
+      // marked Hit Points."
+      expect(demo.world.heal({ kind: 'entity', id: 'kara' }, 1)).toBe(1);
+      expect(kara.alive).toBe(true);
+      return;
+    }
+    throw new Error('the Hope Die never read 1 in sixty seeds');
+  });
+
+  it('crosses her through the veil when Risk It All comes up Fear, past any healing', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = lastStand(`risk-down-${seed}`);
+      const kara = demo.state.entity('kara')!;
+      felled(demo);
+      choose(demo, 'Risk It All');
+      if (!said(demo, 'crosses through the veil')) continue;
+
+      expect(kara.alive).toBe(false);
+      expect(kara.dead).toBe(true);
+      // A heal reaches a fallen creature - that is how one gets up - and
+      // reaches nothing here.
+      expect(demo.world.heal({ kind: 'entity', id: 'kara' }, 4)).toBeGreaterThan(0);
+      expect(kara.alive).toBe(false);
+      return;
+    }
+    throw new Error('the Fear Die never won in sixty seeds');
+  });
+
+  it('stands her up with nothing marked at all when the dice match', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const demo = lastStand(`risk-match-${seed}`);
+      const kara = demo.state.entity('kara')!;
+      kara.stress = { max: 6, marked: 4 };
+      felled(demo);
+      choose(demo, 'Risk It All');
+      if (!said(demo, 'stands up with nothing marked')) continue;
+
+      expect(kara.alive).toBe(true);
+      expect(kara.hitPoints.marked).toBe(0);
+      expect(kara.stress.marked).toBe(0);
+      return;
+    }
+    throw new Error('the Duality Dice never matched in two hundred seeds');
+  });
+
+  it('takes one last swing on Blaze of Glory, and it lands as a critical', () => {
+    const demo = lastStand('blaze');
+    const kara = demo.state.entity('kara')!;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const before = husk.hitPoints.marked;
+
+    felled(demo);
+    choose(demo, 'Blaze of Glory');
+
+    // "It automatically critically succeeds": no roll, and the damage counted
+    // as a critical's.
+    expect(said(demo, 'goes out in a blaze of glory')).toBe(true);
+    expect(said(demo, 'lands a critical with')).toBe(true);
+    expect(husk.hitPoints.marked).toBeGreaterThan(before);
+    // "And then you cross through the veil of death."
+    expect(kara.dead).toBe(true);
+    expect(kara.alive).toBe(false);
+  });
+
+  it('crosses anyway when the last swing has nobody to reach', () => {
+    const demo = lastStand('blaze-alone');
+    const kara = demo.state.entity('kara')!;
+    for (const foe of demo.state.entitiesOf('adversary')) {
+      foe.hitPoints = { ...foe.hitPoints, marked: foe.hitPoints.max };
+      foe.alive = false;
+    }
+    felled(demo);
+    choose(demo, 'Blaze of Glory');
+
+    expect(said(demo, 'finds nothing in reach')).toBe(true);
+    expect(kara.dead).toBe(true);
+  });
+
+  it('ends the journey when the scar crosses out the last Hope slot', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = lastStand(`journey-${seed}`);
+      const kara = demo.state.entity('kara')!;
+      // Five scars already: this one is the last slot.
+      const sheet = { ...demo.sheets.get('kara')!, scars: kara.hope!.max - 1 };
+      demo.sheets.set('kara', sheet);
+      demo.characters.get('kara')!.sheet = sheet;
+      kara.hope = { max: 1, value: 1 };
+
+      felled(demo);
+      choose(demo, 'Avoid Death');
+      if (!said(demo, 'takes a scar')) continue;
+
+      expect(said(demo, 'journey ends here')).toBe(true);
+      expect(kara.hope!.max).toBe(0);
+      expect(kara.dead).toBe(true);
+      expect(demo.world.heal({ kind: 'entity', id: 'kara' }, 4)).toBeGreaterThan(0);
+      expect(kara.alive).toBe(false);
+      return;
+    }
+    throw new Error('the Hope Die never read 1 in sixty seeds');
+  });
+
+  it('avoids death by itself when there is nobody at the table to ask', () => {
+    const demo = lastStand('unasked');
+    demo.askDefender = false;
+    const kara = demo.state.entity('kara')!;
+
+    felled(demo);
+    expect(demo.pending).toBe(null);
+    expect(said(demo, 'drops unconscious')).toBe(true);
+    expect(kara.alive).toBe(false);
+    expect(kara.dead).toBeUndefined();
+  });
+
+  it('asks again the next time she goes down, once an ally has stood her up', () => {
+    const demo = lastStand('twice');
+    const kara = demo.state.entity('kara')!;
+    felled(demo);
+    choose(demo, 'Avoid Death');
+    expect(demo.pending).toBe(null);
+
+    // An ally clears a Hit Point on her. Every path that can do that settles
+    // the fight afterwards, and settling is where standing back up is noticed.
+    demo.world.heal({ kind: 'entity', id: 'kara' }, 2);
+    settleFight(demo);
+    expect(kara.alive).toBe(true);
+
+    felled(demo);
+    // "When a PC marks their last Hit Point" is every time they do.
+    expect(demo.pending?.kind).toBe('death');
   });
 });

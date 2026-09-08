@@ -23,7 +23,9 @@ import { armorScore, pcThresholds, type DamageThresholds } from '../rules/damage
 import type { ParsedDamage } from '../rules/dice';
 import type { RangeBand } from '../rules/range';
 import {
+  MAX_HOPE,
   MAX_SLOTS,
+  STARTING_HOPE,
   createHope,
   createMarkPool,
   STARTING_STRESS_SLOTS,
@@ -74,6 +76,11 @@ export interface CharacterSheet {
   loadout?: readonly string[];
   /** Every level taken since 1, in order. `progression.ts` reads and writes this. */
   levels?: readonly LevelRecord[];
+  /**
+   * Hope slots crossed out for good, one per scar taken on Avoid Death.
+   * "If you ever cross out your last Hope slot, your character's journey ends."
+   */
+  scars?: number;
   /** Flat adjustments from advancements, features or items. */
   bonuses?: {
     evasion?: number;
@@ -263,7 +270,9 @@ export function deriveCharacter(
       (klass?.startingHitPoints ?? 5) + (bonuses.hitPoints ?? 0) + grown.hitPoints + folded('hitPoints'),
     ),
     stress: Math.min(MAX_SLOTS, STARTING_STRESS_SLOTS + (bonuses.stress ?? 0) + grown.stress + folded('stress')),
-    hope: createHope(),
+    // A scar is permanent, so it is the sheet that carries it and every scene
+    // the character walks into starts a Hope short.
+    hope: createHope(STARTING_HOPE, Math.max(0, MAX_HOPE - (sheet.scars ?? 0))),
     ...(primaryWeapon === undefined ? {} : { primaryWeapon }),
     ...(secondaryWeapon === undefined ? {} : { secondaryWeapon }),
   };

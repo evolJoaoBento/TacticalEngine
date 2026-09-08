@@ -51,6 +51,14 @@ export interface EntityState {
   conditionDurations: Map<string, ConditionDuration>;
   /** False once the entity has fallen. */
   alive: boolean;
+  /**
+   * Past the veil: a character who crossed through it on a death move, or one
+   * whose last Hope slot was crossed out. `alive` is false either way, and the
+   * difference is that clearing a Hit Point brings the unconscious back and
+   * does nothing for these. Absent on everything else, which is what a save
+   * written before death moves existed says.
+   */
+  dead?: boolean;
 }
 
 /** When a condition ends. The SRD's "temporary" plus the engine's scopes. */
@@ -103,6 +111,7 @@ export const sceneSnapshotSchema = z.object({
         .record(z.string(), z.enum(['temporary', 'scene', 'rest', 'permanent']))
         .default({}),
       alive: z.boolean(),
+      dead: z.boolean().optional(),
     }),
   ),
   interactables: z.record(

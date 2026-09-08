@@ -286,6 +286,22 @@ whoever swung, so Healing Strike is offered after a player's attack the way a st
 runs after the GM's. Every note is read before anyone is asked, because `drainDamage` clears as
 it reports; what is not asked now is queued behind the question that is up.
 
+A blow that marks a character's **last Hit Point** stops the fight for a fourth kind of
+`demo.pending`, a `PendingDeath`, raised by `playDeathMoves` from `settleFight`. Where it sits
+in the order is the whole rule: `EncounterRunner.checkEnd` only runs when the encounter is asked
+to `act` or to `spotlight`, and `runGmTurn` will not ask for either while a question is standing,
+so a lone character who Risks It All and wins is one the fight never counted out. The three moves
+are the SRD's, and two of them can put the character back on their feet: **Avoid Death** (down
+until an ally clears a Hit Point, then the Hope Die against the character's level for a scar),
+**Blaze of Glory** (one final swing at the nearest adversary in reach, resolved with
+`options.automatic: 'criticalSuccess'`, and then the veil), **Risk It All** (the Duality Dice
+rolled as a reaction rolls them — Hope high stands them up, Fear high does not, matching clears
+everything). Avoid Death is offered first because stepping back from a question always takes its
+first option, and it is the one that leaves the fight where it stands. A scar is written to
+`sheet.scars`, which `deriveCharacter` folds into the Hope pool's maximum, so it outlives the
+scene; crossing out the last slot sets `entity.dead`, which is the one thing `world.heal` will
+not stand back up.
+
 Both defence functions use the same arithmetic in the same order: **dice off the damage** (a Rune
 Ward's d8, and the passive reduction rolled once), then **Armor Slots** (the one, plus any
 `extraArmor` reaction), then **the band stepped down** (`reduceSeverity` reactions).

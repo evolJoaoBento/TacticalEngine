@@ -34,7 +34,7 @@ import { DEMO_DIALOGUES, PILLAR_DIALOGUE_ID } from './demo-dialogue';
 import { useInteractable } from '../engine/scene/interact';
 import type { Trait } from '../engine/scene/primitives';
 import type { CheckOutcome, LogTone } from '../engine/script/effects';
-import type { DualityRoll, RollOutcome } from '../engine/rules/duality';
+import { HOPE_DIE_SIDES, rollDuality, type DualityRoll, type RollOutcome } from '../engine/rules/duality';
 import type { CountdownCue } from '../engine/rules/countdown';
 import type { CountdownMoved, RunningCountdown } from '../engine/script/countdowns';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
@@ -288,7 +288,40 @@ export interface RollShow {
  * on. That nesting is why this is one object rather than two fields — the outer
  * runner has to be kept alive across the whole conversation.
  */
-export type Pending = PendingScript | PendingDefense | PendingReaction;
+export type Pending = PendingScript | PendingDefense | PendingReaction | PendingDeath;
+
+/**
+ * "When a PC marks their last Hit Point, they must make a death move by
+ * choosing one of the following options."
+ *
+ * The one question in the fight the engine cannot answer for the player, and
+ * the fight stops for it: the GM's turn keeps its place, the queue behind it
+ * does not move, and nobody counts who is left standing until it is answered -
+ * which is the whole point, because two of the three moves can put the
+ * character back on their feet.
+ */
+export interface PendingDeath {
+  kind: 'death';
+  /** A choice prompt, so a UI that can draw a script's choice can draw this. */
+  prompt: Prompt;
+  /** Who marked their last Hit Point. */
+  who: string;
+  /** The moves on offer, in the order the prompt lists them. */
+  moves: readonly DeathMove[];
+}
+
+/**
+ * The SRD's three, and the order they are offered in.
+ *
+ * Not the order the SRD prints them: stepping back from a question is always
+ * its first option here, and the one that leaves the fight standing where it
+ * is - the one the engine took before there was anything to ask - is Avoid
+ * Death. Blaze of Glory and Risk It All both end a character on a bad day, and
+ * neither should be what a closed prompt picks.
+ */
+export type DeathMove = 'avoid' | 'blaze' | 'risk';
+
+const DEATH_MOVES: readonly DeathMove[] = ['avoid', 'blaze', 'risk'];
 
 /**
  * A card of the party's that answers something which has already happened: a
@@ -1414,12 +1447,262 @@ function playDefeatReactions(demo: DemoScene): void {
 }
 
 /**
+ * Characters who are down and have already made their death move.
+ *
+ * By the entity, like `mourned`, so a summons handing out an id the room no
+ * longer holds cannot confuse it. Standing back up clears the mark: "when a PC
+ * marks their last Hit Point" is every time they do, so an ally who clears a
+ * Hit Point on the unconscious has bought them a second death move as well as
+ * a second wind.
+ */
+const fallen = new WeakSet<EntityState>();
+
+/**
+ * "When a PC marks their last Hit Point, they must make a death move."
+ *
+ * Raised wherever a blow is settled, and before anybody counts who is left
+ * standing - `checkEnd` only runs when the encounter is asked to spotlight or
+ * to act, and a question left standing here stops the GM's turn before it asks
+ * for either. So a lone character who Risks It All and wins is still in a
+ * fight that is going on.
+ *
+ * One at a time. A blow that puts two of the party down asks about the first,
+ * and the second is asked once that answer is in.
+ */
+function playDeathMoves(demo: DemoScene): void {
+  if (demo.pending !== null) return;
+  for (const entity of demo.state.entitiesOf('party')) {
+    // Standing back up is noticed here, because settling a blow is the last
+    // thing every path that can heal one does.
+    if (entity.alive) {
+      fallen.delete(entity);
+      continue;
+    }
+    // Nobody asks a character who is already past the veil for a death move.
+    if (entity.dead === true || fallen.has(entity)) continue;
+    const character = demo.characters.get(entity.id);
+    if (character === undefined) continue;
+    fallen.add(entity);
+    note(demo, `${character.sheet.name} marks their last Hit Point.`, 'fear');
+    // With nobody at the table to ask - every test that predates the prompt,
+    // and the engine driving itself - the move is Avoid Death, which is what
+    // falling did before there was a choice about it.
+    if (!demo.askDefender) {
+      applyDeathMove(demo, entity.id, 'avoid');
+      continue;
+    }
+    askDeathMove(demo, entity.id);
+    return;
+  }
+}
+
+/** The question itself: one character, and the three ways out of it. */
+function askDeathMove(demo: DemoScene, id: string): void {
+  demo.pending = {
+    kind: 'death',
+    who: id,
+    moves: DEATH_MOVES,
+    prompt: {
+      kind: 'choice',
+      title: `${nameOf(demo, id)} must make a death move`,
+      options: [
+        {
+          index: 0,
+          label: 'Avoid Death',
+          detail: 'Drop unconscious until an ally clears a Hit Point. Roll the Hope Die: on your level or under, a scar.',
+        },
+        {
+          index: 1,
+          label: 'Blaze of Glory',
+          detail: 'One final action. It automatically critically succeeds, and then you cross through the veil.',
+        },
+        {
+          index: 2,
+          label: 'Risk It All',
+          detail: 'Roll the Duality Dice. Hope higher and you stay up; Fear higher and you die; matching and you stand with everything cleared.',
+        },
+      ],
+    },
+  };
+}
+
+/** Do what was chosen. Each move is the SRD's own, and each is final. */
+function applyDeathMove(demo: DemoScene, id: string, move: DeathMove): void {
+  if (move === 'avoid') return avoidDeath(demo, id);
+  if (move === 'risk') return riskItAll(demo, id);
+  return blazeOfGlory(demo, id);
+}
+
+/**
+ * "They temporarily drop unconscious... After your character falls
+ * unconscious, roll your Hope Die. If its value is equal to or less than your
+ * character's level, they gain a scar."
+ *
+ * Being unconscious is what a fallen entity already is: it cannot act and
+ * cannot be targeted, and clearing one of its marked Hit Points brings it
+ * back. The scar is the part that was missing, and it is rolled here rather
+ * than on waking because that is where the SRD puts it.
+ */
+function avoidDeath(demo: DemoScene, id: string): void {
+  const character = demo.characters.get(id);
+  if (character === undefined) return;
+  note(demo, `${character.sheet.name} drops unconscious.`, 'system');
+  const hope = demo.rng.die(HOPE_DIE_SIDES);
+  if (hope > character.sheet.level) {
+    note(demo, `The Hope Die reads ${hope}: no scar this time.`, 'system');
+    return;
+  }
+  scar(demo, id, hope);
+}
+
+/**
+ * "Permanently cross out a Hope slot."
+ *
+ * On the sheet, because it outlives the scene: the next fight this character
+ * walks into is derived from the sheet and starts a Hope short. The pool they
+ * are carrying right now loses the slot too, and whatever was sitting in it.
+ */
+function scar(demo: DemoScene, id: string, rolled: number): void {
+  const character = demo.characters.get(id);
+  const entity = demo.state.entity(id);
+  if (character === undefined || entity === undefined) return;
+  character.sheet.scars = (character.sheet.scars ?? 0) + 1;
+  const held = entity.hope ?? character.hope;
+  const max = Math.max(0, held.max - 1);
+  const left: Currency = { max, value: Math.min(held.value, max) };
+  entity.hope = left;
+  character.hope = { ...left };
+  note(
+    demo,
+    `The Hope Die reads ${rolled}. ${character.sheet.name} takes a scar: a Hope slot crossed out for good.`,
+    'fear',
+  );
+  // "If you ever cross out your last Hope slot, your character's journey ends."
+  if (max > 0) return;
+  entity.dead = true;
+  note(demo, `That was the last slot. ${character.sheet.name}'s journey ends here.`, 'fear');
+}
+
+/**
+ * "Roll your Duality Dice. If the Hope Die is higher, your character stays on
+ * their feet and clears a number of Hit Points or Stress equal to the value of
+ * the Hope Die... If the Fear Die is higher, your character crosses through
+ * the veil of death. If the Duality Dice show matching results, your character
+ * stays up and clears all Hit Points and Stress."
+ *
+ * Nothing is being beaten and a death move is not an action roll, so the dice
+ * are rolled the way a reaction rolls them: no Hope gained, no Fear for the
+ * GM, no move handed over off the back of it.
+ *
+ * Simplified: "you can divide the Hope Die value between Hit Points and Stress
+ * however you'd prefer" is one more question than the moment can carry, and a
+ * character at zero Hit Points wants Hit Points. They are cleared first, and
+ * whatever the die has left over goes on Stress.
+ */
+function riskItAll(demo: DemoScene, id: string): void {
+  const character = demo.characters.get(id);
+  const entity = demo.state.entity(id);
+  if (character === undefined || entity === undefined) return;
+  const who = character.sheet.name;
+  const roll = rollDuality(demo.rng, { difficulty: 0, reaction: true });
+  note(demo, `${who} risks it all: Hope ${roll.hope}, Fear ${roll.fear}.`, roll.fear > roll.hope ? 'fear' : 'hope');
+  if (roll.fear > roll.hope) return veil(demo, id);
+
+  const target: TargetSelector = { kind: 'entity', id };
+  if (roll.hope === roll.fear) {
+    demo.world.heal(target, entity.hitPoints.max);
+    demo.world.clearStress(id, entity.stress.max);
+    note(demo, `The dice match. ${who} stands up with nothing marked at all.`, 'hope');
+    return;
+  }
+  const hitPoints = demo.world.heal(target, roll.hope);
+  const stress = demo.world.clearStress(id, roll.hope - hitPoints);
+  note(
+    demo,
+    `${who} stays on their feet: ${hitPointWord(hitPoints)} cleared${stress > 0 ? ` and ${stress} Stress` : ''}.`,
+    'hope',
+  );
+}
+
+/**
+ * "Take one final action. It automatically critically succeeds (with GM
+ * approval), and then you cross through the veil of death."
+ *
+ * The final action is a swing, at the nearest adversary the character's weapon
+ * can still reach - by id on a tie, the same rule every other swing here uses.
+ * It costs nothing: the character is dying on the GM's turn, out of sequence,
+ * and `act` refuses a fallen creature anyway, so no token and no spotlight is
+ * spent on it.
+ *
+ * A character with nobody in reach still crosses. There is no rule that hands
+ * the action back.
+ */
+function blazeOfGlory(demo: DemoScene, id: string): void {
+  const character = demo.characters.get(id);
+  const attacker = demo.state.entity(id);
+  if (character === undefined || attacker === undefined) return;
+  note(demo, `${character.sheet.name} goes out in a blaze of glory.`, 'hope');
+
+  const profile = attackProfile(character);
+  const melee = profile.range === 'melee';
+  const foes = demo.state.entitiesOf('adversary').filter((foe) => foe.alive).map((foe) => foe.id);
+  for (const targetId of byDistance(demo, id, foes)) {
+    const target = demo.state.entity(targetId)!;
+    const outcome = resolveAttack(demo.rng, {
+      grid: demo.grid,
+      attacker,
+      target,
+      profile,
+      defender: demo.world.defenderOf(target),
+      options: {
+        bandTiles: DEMO_BAND_TILES,
+        automatic: 'criticalSuccess',
+        bonus: demo.world.rollBonus(id, 'attackRoll', { melee }),
+        damageBonus: demo.world.rollBonus(id, 'damageRoll', { melee }),
+        ...demo.world.advantageFor(id, targetId),
+      },
+    });
+    // Out of reach, or behind something: the next one along is asked.
+    if (outcome.refused !== null) continue;
+    // The veil first, so whatever the blow sets off - a phase change, a death
+    // throe, the fight ending - is read in a room this character has already
+    // left. The swing still lands: it was thrown before they crossed.
+    veil(demo, id);
+    landPartyAttack(demo, {
+      attacker: id,
+      target: targetId,
+      outcome,
+      weapon: profile.name,
+      melee,
+      damage: profile.damage,
+      ...(profile.direct === undefined ? {} : { direct: profile.direct }),
+    });
+    return;
+  }
+  note(demo, `${character.sheet.name} looks for one last swing and finds nothing in reach.`, 'system');
+  veil(demo, id);
+}
+
+/** Crossing through: down, and past anything that clears a Hit Point. */
+function veil(demo: DemoScene, id: string): void {
+  const entity = demo.state.entity(id);
+  if (entity === undefined) return;
+  entity.alive = false;
+  entity.dead = true;
+  note(demo, `${nameOf(demo, id)} crosses through the veil of death.`, 'fear');
+}
+
+/**
  * What the end of a fight does, once: the scene's conditions end, the
  * abilities that refresh with the scene refresh, and the log says who won.
  */
 export function settleFight(demo: DemoScene): void {
   playDamageReactions(demo);
   playDefeatReactions(demo);
+  // The party's half of the same moment, and the reason it is here rather than
+  // at the end of the turn: a character who Risks It All and stands is one the
+  // encounter must never have counted out.
+  playDeathMoves(demo);
   // "If the Gorgon is defeated, all petrification countdowns end" - and the
   // Ashen Tyrant's death throes go off instead. Here because this is where a
   // death is noticed, whoever dealt it.
@@ -1712,14 +1995,19 @@ function swarmSelector(ability: AbilityDef): TargetSelector | null {
   return null;
 }
 
-/** The nearest of a list to a creature, by id on a tie: the same rule a swing uses. */
-function nearestOf(demo: DemoScene, from: string, ids: readonly string[]): string {
+/** A list ordered by how far it is from a creature, by id on a tie. */
+function byDistance(demo: DemoScene, from: string, ids: readonly string[]): string[] {
   const here = demo.state.entity(from)!.tile;
   return [...ids].sort(
     (a, b) =>
       demo.grid.manhattanDistance(here, demo.state.entity(a)!.tile) -
         demo.grid.manhattanDistance(here, demo.state.entity(b)!.tile) || a.localeCompare(b),
-  )[0]!;
+  );
+}
+
+/** The nearest of a list to a creature, by id on a tie: the same rule a swing uses. */
+function nearestOf(demo: DemoScene, from: string, ids: readonly string[]): string {
+  return byDistance(demo, from, ids)[0]!;
 }
 
 /**
@@ -2337,6 +2625,8 @@ function afterReaction(
   }
   // Whatever was said about it, the blow still lands.
   if (landing !== undefined) landPartyAttack(demo, landing);
+  // A fall that happened behind this queue was held until the queue drained.
+  playDeathMoves(demo);
   if (demo.gmTurn !== null) runGmTurn(demo);
 }
 
@@ -3318,6 +3608,20 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
     demo.pending = null;
     if (chosen === undefined) afterReaction(demo, waiting.queued, waiting.landing);
     else playReaction(demo, chosen, waiting.queued, true, waiting.landing);
+    return settle(demo, demo.log.slice(before));
+  }
+
+  // A character who marked their last Hit Point. Stepping back from the
+  // question is the first move on the list, which is Avoid Death.
+  if (waiting.kind === 'death') {
+    const index = response.kind === 'choose' ? response.index : 0;
+    const move = waiting.moves[index] ?? waiting.moves[0]!;
+    const before = demo.log.length;
+    demo.pending = null;
+    applyDeathMove(demo, waiting.who, move);
+    // Somebody else may have gone down to the same blow.
+    playDeathMoves(demo);
+    if (demo.pending === null) runGmTurn(demo);
     return settle(demo, demo.log.slice(before));
   }
 

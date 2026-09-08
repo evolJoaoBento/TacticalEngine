@@ -101,6 +101,14 @@ export interface AttackOptions extends TargetingOptions {
   criticalRule?: DamageRollOptions['criticalRule'];
   /** The optional Massive Damage rule. */
   massiveDamage?: boolean;
+  /**
+   * A swing that is not rolled at all: Blaze of Glory's "take one final
+   * action. It automatically critically succeeds (with GM approval)". The
+   * targeting is still read - a final action still has to reach somebody - and
+   * the damage is counted as a critical's, but there is no duality roll, so
+   * there is no Hope, no Fear and no move handed to the GM off the back of it.
+   */
+  automatic?: 'criticalSuccess';
 }
 
 export interface AttackOutcome {
@@ -209,7 +217,10 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
   let stressCleared = 0;
   let spotlightToGm = false;
 
-  if (profile.kind === 'pc') {
+  if (options.automatic === 'criticalSuccess') {
+    hit = true;
+    critical = true;
+  } else if (profile.kind === 'pc') {
     dualityRoll = rollDuality(rng, {
       difficulty,
       modifier,

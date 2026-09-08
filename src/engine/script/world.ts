@@ -1118,8 +1118,11 @@ export class SceneScriptWorld implements ScriptWorld {
     for (const entity of this.entitiesFor(target, bindings)) {
       const result = clearPool(entity.hitPoints, amount);
       entity.hitPoints = result.pool;
-      // Clearing a Hit Point brings an unconscious character back up.
-      if (result.applied > 0 && entity.hitPoints.marked < entity.hitPoints.max) entity.alive = true;
+      // "They return to consciousness when an ally clears 1 or more of their
+      // marked Hit Points." One who crossed through the veil does not.
+      if (result.applied > 0 && entity.hitPoints.marked < entity.hitPoints.max && entity.dead !== true) {
+        entity.alive = true;
+      }
       total += result.applied;
     }
     return total;
