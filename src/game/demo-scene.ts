@@ -58,7 +58,7 @@ import {
   type Defender,
   type DefensePlan,
 } from '../engine/combat/defense';
-import { loadoutOf, readsATarget, type AbilityDef } from '../engine/content/abilities';
+import { abilitySchema, loadoutOf, readsATarget, type AbilityDef } from '../engine/content/abilities';
 import { gain, unmarked } from '../engine/rules/resources';
 import {
   hpForSeverity,
@@ -2294,14 +2294,18 @@ function aimedAt(demo: DemoScene, adversaryId: string): number {
 }
 
 /**
- * What a creature owed whoever swung at them, paid once and taken off.
+ * What a creature owed whoever swung at them, put to them as a card would be.
  *
- * The debt sits on the one who was marked and the script runs with the one who
- * swung acting, because the card that wrote it has never heard of them: Lead
- * by Example pays "the next PC", whoever that turns out to be. A question it
- * stops on holds nothing up, for the same reason a rider's does - the GM's
- * turn is started by the player pressing pass, never by the swing that ended
- * theirs.
+ * The debt sits on the one who was marked and is collected by the one who
+ * swung, because the card that wrote it has never heard of them: Lead by
+ * Example pays "the next PC", whoever that turns out to be. It is offered
+ * rather than taken, both because the SRD says *can* and because a bare script
+ * written into `demo.pending` here would sit on top of whatever the swing's
+ * own riders were already asking.
+ *
+ * Spending it is the last thing the script does, so a debt let pass is left
+ * standing for the next one to swing - and with nobody at the table to ask, it
+ * is simply not collected, the way every other optional card is not.
  *
  * Only the party's weapon swing reaches this. A card that swings through the
  * runner is a second path and does not pay yet.
@@ -2312,34 +2316,25 @@ function playPayouts(
   target: string,
   owed: readonly { condition: string; effects: readonly Effect[] }[],
 ): void {
+  const asked: ReactionOffer[][] = [];
   for (const debt of owed) {
-    // Taken off first: whatever the script does, the debt is settled once.
-    if (!demo.world.clearCondition(target, debt.condition)) continue;
-    const was = demo.scenario.actorId;
-    demo.scenario.actorId = attacker;
-    const runner = new ScriptRunner(demo.world, demo.rng, {
-      targets: [target],
-      hit: [target],
-      rollAs: 'actor',
+    if (!demo.state.entity(target)?.conditions.has(debt.condition)) continue;
+    const name = demo.world.conditionName(debt.condition);
+    const ability = abilitySchema.parse({
+      id: `payout-${debt.condition}`,
+      name,
+      // Not a card of theirs: a debt handed to whoever swung, which is what
+      // `granted` says and what keeps it out of the vault.
+      source: { kind: 'granted', characters: [attacker] },
+      text: 'What somebody else left you.',
+      kind: 'reaction',
+      action: false,
+      auto: false,
+      effects: [...debt.effects, { kind: 'clearCondition', condition: debt.condition, target: { kind: 'target' } }],
     });
-    const result = runner.run([...debt.effects]);
-    record(demo, result.journal);
-    if (result.status === 'waiting') {
-      demo.pending = {
-        kind: 'script',
-        runner,
-        prompt: result.prompt,
-        interactable: null,
-        recorded: result.journal.length,
-        dialogue: null,
-        onDone: () => {
-          demo.scenario.actorId = was;
-        },
-      };
-      return;
-    }
-    demo.scenario.actorId = was;
+    asked.push([{ by: attacker, ability, targets: [target], counts: {} }]);
   }
+  if (asked.length > 0) offerReactions(demo, asked);
 }
 
 /**

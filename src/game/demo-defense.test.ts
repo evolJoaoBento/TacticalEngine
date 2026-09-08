@@ -2898,6 +2898,16 @@ describe('a smite held back for the next blow', () => {
     expect(demo.log.slice(said).some((l) => l.text.includes('used until the next rest'))).toBe(true);
   });
 
+  it('keeps the charge as long as the use it cost', () => {
+    const { demo } = charged('smite-lasts', true);
+    // The fight ending does not put it out: the card is spent until a rest,
+    // and a charge that went out with the fight would be spent for nothing.
+    demo.state.clearConditions('scene');
+    expect(demo.state.entity('kara')!.conditions.has('smiting')).toBe(true);
+    demo.state.clearConditions('rest');
+    expect(demo.state.entity('kara')!.conditions.has('smiting')).toBe(false);
+  });
+
   it('keeps the charge through a swing that misses', () => {
     for (let seed = 1; seed < 40; seed++) {
       const { demo, husk } = charged(`smite-miss-${seed}`, true);
@@ -3230,9 +3240,15 @@ describe('a shout the next one hears', () => {
       finn.stress = { max: 6, marked: 3 };
       demo.party.select('finn');
       attackWithSelected(demo, husk.id);
+      // Offered the way a card is, so it queues behind anything else Finn was
+      // already being asked about rather than sitting on top of it.
       const asked = demo.pending;
-      expect(asked?.prompt.kind).toBe('choice');
-      expect(asked?.prompt.kind === 'choice' ? asked.prompt.title : '').toContain('led by example');
+      expect(asked?.kind).toBe('reaction');
+      const at = asked?.prompt.kind === 'choice' ? asked.prompt.options.findIndex((o) => o.label.includes('Led by Example')) : -1;
+      expect(at).toBeGreaterThan(0);
+      answerPending(demo, { kind: 'choose', index: at });
+      // Then the card's own question: clear a Stress, or gain a Hope.
+      expect(demo.pending?.prompt.kind === 'choice' ? demo.pending.prompt.title : '').toContain('led by example');
       answerPending(demo, { kind: 'choose', index: 0 });
       expect(finn.stress.marked).toBe(2);
       // Paid once: the mark is gone with it.
@@ -3253,7 +3269,8 @@ describe('a shout the next one hears', () => {
       if (!after.some((t) => t.includes('and misses'))) continue;
       // "The next PC to make an attack against that adversary" - the card says
       // nothing about landing it.
-      expect(demo.pending?.prompt.kind).toBe('choice');
+      expect(demo.pending?.kind).toBe('reaction');
+      expect(JSON.stringify(demo.pending)).toContain('Led by Example');
       return;
     }
     throw new Error('Finn never missed after a shout');
@@ -3291,6 +3308,51 @@ describe('a shout the next one hears', () => {
       return;
     }
     throw new Error('Kara never landed a blow in sixty tries');
+  });
+
+  it('queues behind a card of the one collecting it, rather than over it', () => {
+    // Both questions belong to Finn, and both have to reach him: a payout
+    // written straight into the pending slot would take the place of the card
+    // he was already being offered.
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk } = rallying(`rally-queue-${seed}`);
+      demo.project.abilities.push(
+        abilitySchema.parse({
+          id: 'follow-through',
+          name: 'Follow Through',
+          source: { kind: 'domainCard', card: 'rune-ward' },
+          text: 'When you deal damage, you can say something about it.',
+          kind: 'reaction',
+          trigger: 'dealtDamage',
+          action: false,
+          auto: false,
+          effects: [{ kind: 'log', text: 'Finn follows through.', tone: 'hope' }],
+        }),
+      );
+      const his = { ...demo.sheets.get('finn')!, domainCards: ['rune-ward'], loadout: ['rune-ward'] };
+      demo.sheets.set('finn', his);
+      demo.characters.set('finn', deriveCharacter(his, SRD_CHARACTERS, demo.project.abilities).character);
+      refreshWorld(demo);
+      if (!shout(demo, husk.id)) continue;
+
+      demo.party.select('finn');
+      const marked = demo.state.entity(husk.id)!.hitPoints.marked;
+      attackWithSelected(demo, husk.id);
+      if (demo.state.entity(husk.id)!.hitPoints.marked === marked) continue;
+
+      const seen: string[] = [];
+      for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+        const pending = demo.pending;
+        if (pending.kind === 'reaction' && pending.prompt.kind === 'choice') {
+          seen.push(...pending.prompt.options.map((o) => o.label));
+        }
+        answerPending(demo, { kind: 'choose', index: 0 });
+      }
+      expect(seen.some((label) => label.includes('Follow Through'))).toBe(true);
+      expect(seen.some((label) => label.includes('Led by Example'))).toBe(true);
+      return;
+    }
+    throw new Error('Finn never landed a blow after a shout');
   });
 
   it('is not offered to somebody swinging at anybody else', () => {

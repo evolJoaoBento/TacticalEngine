@@ -391,6 +391,11 @@ export class SceneScriptWorld implements ScriptWorld {
     return { started: s.started, ended: s.ended, triggered: s.triggered };
   }
 
+  /** What a condition is called, for a line the log writes about it. */
+  conditionName(condition: string): string {
+    return this.conditionDefs.get(condition)?.name ?? condition;
+  }
+
   /**
    * What the conditions on a creature owe whoever just did this to them: the
    * condition's name and the script it carries, in a stable order.

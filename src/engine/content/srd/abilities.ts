@@ -657,7 +657,9 @@ const RAW: Input[] = [
     available: { kind: 'not', of: { kind: 'hasCondition', condition: 'smiting', of: { kind: 'actor' } } },
     effects: [
       { kind: 'log', text: 'The blade takes on a light that is not the room’s.', tone: 'hope' },
-      { kind: 'applyCondition', condition: 'smiting', target: { kind: 'actor' } },
+      // As long as the use it cost: a charge cleared when the fight ended
+      // would leave the card spent until a rest and nothing to show for it.
+      { kind: 'applyCondition', condition: 'smiting', duration: 'rest', target: { kind: 'actor' } },
     ],
   },
   {
