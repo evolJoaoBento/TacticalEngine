@@ -843,7 +843,9 @@ describe('what only a stat block has', () => {
       ],
     });
     const said = messages(project);
-    expect(said).toContain('"card-mid-swing" answers a blow being counted, which only a stat block is asked about.');
+    expect(said).toContain(
+      '"card-mid-swing" answers somebody else\'s blow being counted, which only a stat block is asked about.',
+    );
     expect(said).toContain('"card-in-the-light" answers a spotlight, which only a stat block is asked about.');
   });
 

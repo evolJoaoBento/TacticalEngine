@@ -60,7 +60,8 @@ import {
 } from '../engine/combat/defense';
 import { readsATarget, type AbilityDef } from '../engine/content/abilities';
 import { gain, unmarked } from '../engine/rules/resources';
-import { rollDamage, type IncomingDamage, type ResolvedDamage } from '../engine/rules/damage';
+import { resolveDamage, rollDamage, rollReduction, type IncomingDamage, type ResolvedDamage } from '../engine/rules/damage';
+import type { ParsedDamage } from '../engine/rules/dice';
 import { EncounterRunner } from '../engine/combat/encounter';
 import {
   attackProfile,
@@ -294,6 +295,12 @@ export interface PendingReaction {
   /** What this character can play, in the order offered. Index 0 declines. */
   offers: readonly ReactionOffer[];
   /**
+   * A swing waiting on this answer. The party's own blow stops between the
+   * roll and the counting - "spend any number of tokens to add a d6 for each"
+   * - and lands once the question is done with, whichever way it was answered.
+   */
+  landing?: HeldSwing;
+  /**
    * Offers still to be put to somebody once this question is answered. A blow
    * can leave several people with something to say, and the queue is built
    * before the first is asked: `drainDamage` empties as it reports, so what is
@@ -331,6 +338,28 @@ export interface PendingDefense {
   prompt: Prompt;
   attack: IncomingAttack;
   choices: readonly DefenseChoice[];
+}
+
+/**
+ * A swing of the party's that has hit and not yet been counted, held while the
+ * one who threw it decides what to put behind it.
+ *
+ * The same moment the GM's swing stops at, and held the same way a hit is held
+ * while its defender decides: as data, not as a closure, because everything
+ * else about a paused fight is data too.
+ */
+export interface HeldSwing {
+  attacker: string;
+  target: string;
+  outcome: AttackOutcome;
+  /** The weapon's name, for the line the log writes when it lands. */
+  weapon: string;
+  melee: boolean;
+  /** What the weapon's damage is, for a blow that has to be counted again. */
+  damage: ParsedDamage;
+  direct?: boolean;
+  /** What the room put behind it while it was held. */
+  boost?: number;
 }
 
 /** One hit, as it stands while the defender decides. */
@@ -974,7 +1003,7 @@ export function startEncounter(demo: DemoScene, encounterId: string): EncounterR
 export function attackWithSelected(
   demo: DemoScene,
   targetId: string,
-): { hit: boolean; refused: string | null; hitPointsMarked: number } | null {
+): { hit: boolean; refused: string | null; hitPointsMarked: number; waiting?: boolean } | null {
   if (demo.pending !== null) return null;
   const id = demo.party.selected;
   const character = id === null ? undefined : demo.characters.get(id);
@@ -1002,6 +1031,78 @@ export function attackWithSelected(
     },
   });
   if (outcome.refused !== null) return { hit: false, refused: outcome.refused, hitPointsMarked: 0 };
+
+  // The blow has landed and has not been counted: the party's half of the
+  // moment the GM's swing already stops at. A card that adds to its own damage
+  // roll is asked here, before the thresholds read anything, and the swing is
+  // held until the question is done with.
+  const held: HeldSwing = {
+    attacker: id!,
+    target: targetId,
+    outcome,
+    weapon: profile.name,
+    melee,
+    damage: profile.damage,
+    ...(profile.direct === undefined ? {} : { direct: profile.direct }),
+  };
+  if (outcome.hit && outcome.damageRoll !== undefined) {
+    const offers = offersFor(demo, id!, ['rollingDamage'], [targetId], {}, {
+      total: outcome.damageRoll.total,
+      types: profile.damage.types ?? ['physical'],
+    });
+    if (offers.length > 0 && demo.askDefender && demo.pending === null) {
+      askReaction(demo, offers, [], held);
+      return { hit: outcome.hit, refused: null, hitPointsMarked: 0, waiting: true };
+    }
+  }
+  return landPartyAttack(demo, held);
+}
+
+/**
+ * The blow as it finally arrives, once the room has spoken.
+ *
+ * A swing nobody added to is the one that was rolled. One that grew has to be
+ * counted again from the top - thresholds, resistance, Armor Slots - because
+ * what the attack rules resolved was the smaller number. The defender's own
+ * reduction is rolled again with it: they are rolling against the blow that
+ * arrived, not the one that was on its way.
+ */
+function counted(demo: DemoScene, held: HeldSwing): AttackOutcome {
+  const { outcome, boost } = held;
+  const target = demo.state.entity(held.target);
+  if (boost === undefined || boost <= 0 || outcome.damageRoll === undefined || target === undefined) return outcome;
+  const defender = demo.world.defenderOf(target);
+  const total = outcome.damageRoll.total + boost;
+  const types = held.damage.types ?? [];
+  const damage = resolveDamage(
+    { amount: total, types, ...(held.direct === undefined ? {} : { direct: held.direct }) },
+    defender.thresholds,
+    {
+      armorSlotsMarked: 0,
+      armorSlotsAvailable: unmarked(target.armorSlots),
+      ...(defender.defenses === undefined ? {} : { defenses: defender.defenses }),
+      ...(() => {
+        const rolled = rollReduction(demo.rng, types, defender.defenses ?? {});
+        return rolled === 0 ? {} : { rolledReduction: rolled };
+      })(),
+    },
+  );
+  return { ...outcome, damageRoll: { ...outcome.damageRoll, total }, damage, hitPointsMarked: damage.hpMarked };
+}
+
+/**
+ * The rest of the party's swing, once nobody has anything more to put behind
+ * it: the damage lands, the log says so, and everything that answers a wound
+ * gets its turn.
+ */
+function landPartyAttack(
+  demo: DemoScene,
+  held: HeldSwing,
+): { hit: boolean; refused: string | null; hitPointsMarked: number } {
+  const { attacker: id, target: targetId, weapon } = held;
+  const character = demo.characters.get(id)!;
+  const profile = { name: weapon };
+  const outcome = counted(demo, held);
 
   const applied = applyAttack(demo.state, outcome);
   demo.world.endsOnAttack(id!);
@@ -1891,12 +1992,18 @@ function offerReactions(demo: DemoScene, groups: readonly (readonly ReactionOffe
 }
 
 /** The question itself: one character, their cards, and letting it pass. */
-function askReaction(demo: DemoScene, offers: readonly ReactionOffer[], queued: readonly (readonly ReactionOffer[])[]): void {
+function askReaction(
+  demo: DemoScene,
+  offers: readonly ReactionOffer[],
+  queued: readonly (readonly ReactionOffer[])[],
+  landing?: HeldSwing,
+): void {
   const who = nameOf(demo, offers[0]!.by);
   demo.pending = {
     kind: 'reaction',
     offers,
     queued,
+    ...(landing === undefined ? {} : { landing }),
     prompt: {
       kind: 'choice',
       title: `${who} can answer that`,
@@ -1932,8 +2039,13 @@ function playReaction(
    * that stopped to ask something of its own, resumes anything.
    */
   resume = false,
+  /** A swing of theirs waiting on this card, to be landed once it is done. */
+  landing?: HeldSwing,
 ): void {
-  if (!payFor(demo, offer.by, offer.ability)) return;
+  if (!payFor(demo, offer.by, offer.ability)) {
+    if (resume) afterReaction(demo, queued, landing);
+    return;
+  }
   note(demo, `${nameOf(demo, offer.by)}: ${offer.ability.name}.`, 'hope');
   const was = demo.scenario.actorId;
   demo.scenario.actorId = offer.by;
@@ -1954,26 +2066,48 @@ function playReaction(
       interactable: null,
       recorded: result.journal.length,
       dialogue: null,
-      onDone: () => {
+      onDone: (done) => {
         demo.scenario.actorId = was;
-        afterReaction(demo, queued);
+        afterReaction(demo, queued, heavier(landing, done.entries));
       },
     };
     return;
   }
   demo.scenario.actorId = was;
-  if (resume) afterReaction(demo, queued);
+  if (resume) afterReaction(demo, queued, heavier(landing, result.journal));
+}
+
+/**
+ * The swing, with whatever the card put behind it.
+ *
+ * The same sum the GM's side makes, read off the same journal entries; the
+ * total is rewritten before the blow is counted, so the thresholds and the
+ * Armor Slots read what actually arrives.
+ */
+function heavier(landing: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
+  if (landing === undefined || landing.outcome.damageRoll === undefined) return landing;
+  let added = 0;
+  for (const entry of journal) {
+    if (entry.kind === 'damageBoosted') added += entry.by;
+  }
+  return added <= 0 ? landing : { ...landing, boost: (landing.boost ?? 0) + added };
 }
 
 /** Ask the next character what they make of it, or let the fight carry on. */
-function afterReaction(demo: DemoScene, queued: readonly (readonly ReactionOffer[])[]): void {
+function afterReaction(
+  demo: DemoScene,
+  queued: readonly (readonly ReactionOffer[])[],
+  landing?: HeldSwing,
+): void {
   if (demo.pending !== null) return;
   const waiting = queued.filter((group) => group.length > 0);
   if (waiting.length > 0) {
     const [first, ...rest] = waiting;
-    askReaction(demo, first!, rest);
+    askReaction(demo, first!, rest, landing);
     return;
   }
+  // Whatever was said about it, the blow still lands.
+  if (landing !== undefined) landPartyAttack(demo, landing);
   if (demo.gmTurn !== null) runGmTurn(demo);
 }
 
@@ -2795,8 +2929,8 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
     const chosen = index > 0 ? waiting.offers[index - 1] : undefined;
     const before = demo.log.length;
     demo.pending = null;
-    if (chosen === undefined) afterReaction(demo, waiting.queued);
-    else playReaction(demo, chosen, waiting.queued, true);
+    if (chosen === undefined) afterReaction(demo, waiting.queued, waiting.landing);
+    else playReaction(demo, chosen, waiting.queued, true, waiting.landing);
     return settle(demo, demo.log.slice(before));
   }
 

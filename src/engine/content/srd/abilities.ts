@@ -237,6 +237,98 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- what the party puts behind its own blow ----------------------------
+  // The party's half of the moment a blow stops at. `rollingDamage` is raised
+  // on the one swinging after the roll and before the counting, so a card can
+  // ask for tokens and put dice behind the hit the way a stat block does.
+  {
+    id: 'spellcharge-store',
+    name: 'Spellcharge',
+    source: card('spellcharge'),
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    target: { kind: 'none' },
+    // Simplified: any wound charges it, not magic damage alone - nothing here
+    // asks what type a blow was - and the store is not capped at the caster's
+    // Spellcast trait.
+    effects: [
+      { kind: 'log', text: 'The wound goes into the card.', tone: 'hope' },
+      { kind: 'addToken', ability: 'spellcharge-store', amount: 'hitPointsTaken' },
+    ],
+  },
+  {
+    id: 'spellcharge',
+    name: 'Spellcharge',
+    source: card('spellcharge'),
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    // "You can spend any number of tokens": a decision, so it is offered
+    // rather than taken.
+    auto: false,
+    action: false,
+    available: { kind: 'tokens', ability: 'spellcharge-store', op: '>=', value: 1 },
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'howMany',
+        most: { tokens: 'spellcharge-store' },
+        title: 'Spellcharge',
+        body: 'How much of it goes into the blow?',
+        each: [
+          { kind: 'spendToken', ability: 'spellcharge-store', amount: 'spent' },
+          { kind: 'boostDamage', dice: '{n}d6' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'twilight-toll',
+    name: 'Twilight Toll',
+    source: card('twilight-toll'),
+    target: { kind: 'adversary', range: 'far' },
+    // Simplified: the toll is set on one creature and worth one die, where the
+    // card grows a die for every success against them that rolled no damage -
+    // a roll nothing here raises. Setting it again moves it, as the card says.
+    effects: [
+      { kind: 'clearCondition', condition: 'tolled', target: { kind: 'adversaries', range: 'veryFar' } },
+      { kind: 'spendToken', ability: 'twilight-toll', all: true },
+      { kind: 'log', text: 'The toll is set, and it will be paid.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'tolled', duration: 'scene', target: { kind: 'target' } },
+      { kind: 'addToken', ability: 'twilight-toll', amount: 1 },
+    ],
+  },
+  {
+    id: 'twilight-toll-paid',
+    name: 'Twilight Toll',
+    source: card('twilight-toll'),
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    // "You can spend any number of tokens": a decision, so it is offered
+    // rather than taken.
+    auto: false,
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'tokens', ability: 'twilight-toll', op: '>=', value: 1 },
+        { kind: 'hasCondition', condition: 'tolled', of: { kind: 'target' } },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'howMany',
+        most: { tokens: 'twilight-toll' },
+        title: 'Twilight Toll',
+        body: 'Call it in?',
+        each: [
+          { kind: 'spendToken', ability: 'twilight-toll', amount: 'spent' },
+          { kind: 'boostDamage', dice: '{n}d12' },
+        ],
+      },
+    ],
+  },
   // ---- a Spellcast Roll against a target, and what it leaves on them ------
   // The shape the SRD prints over and over: a Spellcast Roll against a
   // creature's own Difficulty, and on a success something that stays. Nothing

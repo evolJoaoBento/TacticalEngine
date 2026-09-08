@@ -856,6 +856,14 @@ footer {
   actually arrives. Only the GM's own swing raises it &mdash; a scripted <code>attack</code>
   inside a feature keeps its outcome inside the world.</p>
 
+  <p>The party's swing stops at the same moment, and this is the one place a prompt sits
+  between a roll and its counting. A card on <code>rollingDamage</code> is offered after the
+  attack has hit and before anything is marked; the swing is held on the pending question as
+  data (the same way an incoming hit is held while its defender decides) and lands once the
+  question is done with, whichever way it was answered. A blow that grew is counted again from
+  the top &mdash; thresholds, resistance, Armor Slots, and the defender's own reduction rolled
+  afresh &mdash; because what the attack rules resolved was the smaller number.</p>
+
   <p>A condition can count creatures, too. The selectors already say which ones and where
   &mdash; around the actor or around the chosen target, off the same stat block, everyone but
   the one asking &mdash; and <code>nearby</code> asks how many there are: &ldquo;another Dire

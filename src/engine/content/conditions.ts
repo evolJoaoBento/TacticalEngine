@@ -92,6 +92,13 @@ const RAW: ConditionInput[] = [
   // The Siren's song. "Until they mark 2 Stress" is a tally the engine does
   // not keep, so it runs to the end of the scene; what it does is let the
   // Siren's teeth find them, which is the Captive Audience passive.
+  // Twilight Toll. The card holds one creature at a time, and the mark is how
+  // the payout knows which: a name on them, doing nothing on its own.
+  {
+    id: 'tolled',
+    name: 'Tolled',
+    text: 'A toll hangs over you, and the one who set it is counting.',
+  },
   // Enrapture and Mass Enrapture. "Their attention is fixed on you, narrowing
   // their field of view": a creature looking at one person is not looking at
   // anyone else, which is worth a step of Difficulty either way - here, the

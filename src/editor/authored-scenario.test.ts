@@ -824,6 +824,116 @@ describe('what the room makes of a roll', () => {
   });
 });
 
+describe("what the party puts behind its own blow", () => {
+  /** A caster holding one card, standing over something. */
+  const swinging = (cards: readonly string[], seed: string) => {
+    const s = blank();
+    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+    s.run(
+      addSheet(
+        characterSheetSchema.parse(
+          blankSheet('vela', 'wizard', {
+            name: 'Vela',
+            traits: { agility: 0, strength: -1, finesse: 2, instinct: 1, presence: 0, knowledge: 2 },
+            ancestryId: 'faerie',
+            armorId: 'gambeson-armor',
+            primaryWeaponId: 'greatstaff',
+            subclassId: 'school-of-knowledge',
+            domainCards: [...cards],
+          }),
+        ),
+      ),
+    );
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'acid-burrower', position: { x: 3, y: 4 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.state.entity('foe')!.hitPoints = { max: 90, marked: 0 };
+    demo.party.select('vela');
+    return demo;
+  };
+
+  it('stops the swing to ask, and counts nothing until it is answered', () => {
+    // "Spend any number of tokens to add a d6 for each to your damage roll":
+    // asked after the roll and before the thresholds read anything.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = swinging(['spellcharge'], `charge-${seed}`);
+      demo.askDefender = true;
+      demo.world.addTokens('vela', 'spellcharge-store', 2);
+      const swung = attackWithSelected(demo, 'foe');
+      if (swung === null || !swung.hit) continue;
+
+      // The blow is in the air: nothing has been marked, and the question is up.
+      expect(swung.waiting).toBe(true);
+      expect(swung.hitPointsMarked).toBe(0);
+      expect(demo.pending?.kind).toBe('reaction');
+      expect(demo.state.entity('foe')!.hitPoints.marked).toBe(0);
+
+      // Two tokens in: they go, and the blow lands heavier than it rolled.
+      answerPending(demo, { kind: 'choose', index: 1 });
+      if (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 1 });
+      expect(demo.pending).toBeNull();
+      expect(demo.world.tokensOn('vela', 'spellcharge-store')).toBe(0);
+      expect(demo.state.entity('foe')!.hitPoints.marked).toBeGreaterThan(0);
+      expect(demo.log.some((l) => /hits with|lands a critical with/.test(l.text))).toBe(true);
+
+      // And the dice went into the blow: the same seed and the same swing,
+      // the only difference being whether the card was played.
+      const cold = swinging(['spellcharge'], `charge-${seed}`);
+      cold.askDefender = true;
+      cold.world.addTokens('vela', 'spellcharge-store', 2);
+      attackWithSelected(cold, 'foe');
+      answerPending(cold, { kind: 'choose', index: 0 });
+      if (demo.state.entity('foe')!.hitPoints.marked <= cold.state.entity('foe')!.hitPoints.marked) continue;
+      return;
+    }
+    throw new Error('no seed landed a charged swing in forty tries');
+  });
+
+  it('lands the blow when the card is let pass, and swings straight through without one', () => {
+    // Declining is still an answer, and the swing it was holding still lands.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = swinging(['spellcharge'], `pass-${seed}`);
+      demo.askDefender = true;
+      demo.world.addTokens('vela', 'spellcharge-store', 2);
+      const swung = attackWithSelected(demo, 'foe');
+      if (swung === null || !swung.hit) continue;
+      expect(swung.waiting).toBe(true);
+      answerPending(demo, { kind: 'choose', index: 0 });
+      expect(demo.pending).toBeNull();
+      expect(demo.world.tokensOn('vela', 'spellcharge-store')).toBe(2);
+      expect(demo.state.entity('foe')!.hitPoints.marked).toBeGreaterThan(0);
+
+      // And a caster with nothing to say swings in one call, as always.
+      const plain = swinging([], `plain-${seed}`);
+      plain.askDefender = true;
+      const straight = attackWithSelected(plain, 'foe');
+      expect(straight?.waiting).toBeUndefined();
+      expect(plain.pending).toBeNull();
+      if (straight?.hit === true) expect(straight.hitPointsMarked).toBeGreaterThanOrEqual(0);
+      return;
+    }
+    throw new Error('no seed landed a swing in forty tries');
+  });
+
+  it('will not call in a toll on somebody who is not carrying one', () => {
+    const demo = swinging(['twilight-toll'], 'toll');
+    demo.askDefender = true;
+    demo.world.addTokens('vela', 'twilight-toll', 1);
+    // Nobody is marked yet, so the payout has nothing to answer.
+    const card = abilitiesOf(demo, 'vela').find((a) => a.id === 'twilight-toll-paid')!;
+    expect(card.available).toBeDefined();
+    demo.state.entity('foe')!.conditions.add('tolled');
+    expect(demo.world.reactionsFor('vela', 'rollingDamage', { targets: ['foe'], hit: ['foe'] }).map((a) => a.id)).toEqual([
+      'twilight-toll-paid',
+    ]);
+    demo.state.entity('foe')!.conditions.delete('tolled');
+    expect(demo.world.reactionsFor('vela', 'rollingDamage', { targets: ['foe'], hit: ['foe'] })).toEqual([]);
+  });
+});
+
 describe('asking the player how many', () => {
   /** A caster and a wounded friend, both holding one card. */
   const twoOfThem = (cards: readonly string[], seed: string) => {

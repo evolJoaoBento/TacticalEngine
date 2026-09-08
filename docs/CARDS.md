@@ -21,7 +21,7 @@ Known simplifications in the scripted ones:
 - **Enrapture** and **Mass Enrapture** put the name on the target and let the condition carry it: a creature whose attention is fixed on one person is two Evasion easier to hit, and whom it attacks is still the table's call. **Glyph of Nightfall** is worth a flat two rather than the caster's Knowledge, because a condition carries one number rather than the number of whoever applied it. **Death Grip** offers the pull and the constriction, not the vines catching everyone in between: that is a line across the map, and a selector reads bands around a creature.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 63 of 189 cards.
+Scripted: 65 of 189 cards.
 
 
 ## Arcana
@@ -174,9 +174,9 @@ Scripted: 63 of 189 cards.
 | 7 | Midnight-Touched | Ability | text |
 | 7 | Vanishing Dodge | Spell | **reaction** |
 | 8 | Shadowhunter | Ability | text |
-| 8 | Spellcharge | Spell | text |
+| 8 | Spellcharge | Spell | **reaction** |
 | 9 | Night Terror | Spell | text |
-| 9 | Twilight Toll | Ability | text |
+| 9 | Twilight Toll | Ability | **action**, **reaction** |
 | 10 | Eclipse | Spell | text |
 | 10 | Specter of the Dark | Spell | text |
 
