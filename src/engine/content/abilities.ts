@@ -272,6 +272,15 @@ export const abilitySchema = z.object({
        * against where they are standing.
        */
       'allyRollingDamage',
+      /**
+       * A blow that landed on somebody on the holder's own side: "when the
+       * marked adversary deals damage to you or your allies". The pair of
+       * `tookDamage`, and split from it for the same reason the two above are
+       * split - a card that answers its holder's own wound must not answer
+       * every wound in the party. Whoever dealt it is bound as the target, as
+       * it is for the one who took it, so a gate can ask who swung.
+       */
+      'allyTookDamage',
       'spotlighted',
     ])
     .optional(),

@@ -296,6 +296,8 @@ export type JournalEntry =
   | { kind: 'spotlightEnded'; id: string | null }
   /** Added to a blow that has landed and not yet been counted. */
   | { kind: 'damageBoosted'; id: string | null; by: number }
+  /** That blow marks this many Hit Points instead of being rolled for. */
+  | { kind: 'hitPointsForced'; id: string | null; to: number }
   /** One creature off the map and another in its place. `was` is its name. */
   | { kind: 'replaced'; was: string; adversary: string; ids: readonly string[]; spotlight: boolean }
   /** `roll` is set when a party member rolled it: an adversary's is a d20. */
@@ -1000,10 +1002,24 @@ export class ScriptRunner {
           const expression =
             effect.dice === 'weapon' ? (actor === null ? null : world.weaponDamage(actor)) : parseDice(effect.dice);
           if (expression === null) return this.refuse(`cannot read damage dice "${effect.dice}"`);
-          by += rollDamage(this.rng, expression, { proficiency: 1, critical: false }).total;
+          // "Roll the dice on this card": one roll for each of them, rolled
+          // separately because that is what a handful of dice is.
+          const times = effect.times === undefined ? 1 : this.amountOf(effect.times, 0);
+          for (let n = 0; n < times; n++) {
+            by += rollDamage(this.rng, expression, { proficiency: 1, critical: false }).total;
+          }
         }
         if (by <= 0) return null;
         this.journal.push({ kind: 'damageBoosted', id: actor, by });
+        return null;
+      }
+      case 'forceHitPoints': {
+        // "Force the target to mark a number of Hit Points equal to the number
+        // you have marked": journalled the way a boost is, and obeyed by the
+        // swing that is waiting to be counted.
+        const to = this.amountOf(effect.amount, 0);
+        if (to <= 0) return null;
+        this.journal.push({ kind: 'hitPointsForced', id: world.actorId(), to });
         return null;
       }
       case 'howMany': {

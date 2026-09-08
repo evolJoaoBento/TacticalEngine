@@ -713,6 +713,60 @@ describe('the runner as a whole', () => {
     expect(nobody.some((e) => e.kind === 'refused')).toBe(false);
   });
 
+  it('rolls a die for each of the ones on the card', () => {
+    // "Roll the dice on this card and add the total to your damage roll": the
+    // count is what the fight put there, and none of them is nothing added.
+    const stub = stubWorld({ actorId: () => 'mira', resolveTargets: () => ['mira'], tokensOn: () => 4 });
+    const journal = runScript(
+      [{ kind: 'boostDamage', dice: 'd8', times: { tokens: 'sigil-of-retribution' } }],
+      stub,
+      createRng(1),
+    );
+    const boosted = journal.find((e) => e.kind === 'damageBoosted');
+    expect(boosted?.kind === 'damageBoosted' ? boosted.by : 0).toBeGreaterThanOrEqual(4);
+    expect(boosted?.kind === 'damageBoosted' ? boosted.by : 0).toBeLessThanOrEqual(32);
+
+    // An empty card adds nothing, and does not refuse.
+    const empty = stubWorld({ actorId: () => 'mira', resolveTargets: () => ['mira'], tokensOn: () => 0 });
+    const nothing = runScript(
+      [{ kind: 'boostDamage', dice: 'd8', times: { tokens: 'sigil-of-retribution' } }],
+      empty,
+      createRng(1),
+    );
+    expect(nothing.some((e) => e.kind === 'damageBoosted')).toBe(false);
+    expect(nothing.some((e) => e.kind === 'refused')).toBe(false);
+  });
+
+  it('forces the Hit Points a blow marks, read off a pool', () => {
+    // "Force the target to mark a number of Hit Points equal to the number of
+    // Hit Points you currently have marked": journalled for the swing to obey.
+    const stub = stubWorld({
+      actorId: () => 'kara',
+      resolveTargets: (selector) => (selector.kind === 'actor' ? ['kara'] : []),
+      poolValue: () => 3,
+    });
+    const journal = runScript(
+      [{ kind: 'forceHitPoints', amount: { pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked' } }],
+      stub,
+      createRng(1),
+    );
+    expect(journal).toContainEqual({ kind: 'hitPointsForced', id: 'kara', to: 3 });
+
+    // Nothing marked is nothing forced: a zero would be a blow that does
+    // nothing, which is not what the card meant.
+    const clean = stubWorld({
+      actorId: () => 'kara',
+      resolveTargets: (selector) => (selector.kind === 'actor' ? ['kara'] : []),
+      poolValue: () => 0,
+    });
+    const none = runScript(
+      [{ kind: 'forceHitPoints', amount: { pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked' } }],
+      clean,
+      createRng(1),
+    );
+    expect(none.some((e) => e.kind === 'hitPointsForced')).toBe(false);
+  });
+
   it('says the spotlight is over without stopping the script', () => {
     // `endSpotlight` is a note to the turn, not a bail: the effects after it
     // still run, and it names the creature whose turn it was.

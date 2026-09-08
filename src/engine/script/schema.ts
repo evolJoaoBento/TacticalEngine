@@ -695,6 +695,29 @@ export const effectSchema = z.discriminatedUnion('kind', [
     dice: z.string().min(1).optional(),
     /** Or a flat number: "a +10 bonus to the damage roll". */
     amount: amountSchema.optional(),
+    /**
+     * How many times to roll `dice`, when the count is something the fight
+     * decided: "roll the dice on this card", where what is on the card is a d8
+     * for every blow the marked adversary landed. A count of nothing adds
+     * nothing, which is a card with an empty pile rather than a mistake.
+     */
+    times: amountSchema.optional(),
+  }),
+  /**
+   * "Force the target to mark a number of Hit Points equal to the number of
+   * Hit Points you currently have marked instead of rolling for damage": the
+   * blow arrives as a flat number of Hit Points, past thresholds, resistance
+   * and Armor Slots.
+   *
+   * The moment is the same one `boostDamage` answers - a hit that has not been
+   * counted - and like it this journals rather than writes. It wins over
+   * anything added to the roll, because a blow that is not being rolled for
+   * cannot be added to. Only the party's own swing obeys it today; on a stat
+   * block's blow it is a silent no-op.
+   */
+  z.object({
+    kind: z.literal('forceHitPoints'),
+    amount: amountSchema,
   }),
   /**
    * "Spend any number of Hope to roll that many d6s", "mark any number of

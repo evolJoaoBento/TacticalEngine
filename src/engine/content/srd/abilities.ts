@@ -329,6 +329,88 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- what the party puts behind its own blow, part two -------------------
+  // Battle Monster does not add to the roll: it throws it away. Sigil of
+  // Retribution adds a die for every blow the marked creature landed on the
+  // party, which is why half of it lives on the other side of the fight.
+  {
+    id: 'battle-monster',
+    name: 'Battle Monster',
+    source: card('battle-monster'),
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    // Four Stress and a blow thrown away is a decision, not a rider.
+    auto: false,
+    cost: { stress: 4 },
+    // Nothing marked is nothing forced, and the Stress would be wasted.
+    available: { kind: 'pool', pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked', op: '>=', value: 1 },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Everything it has done comes back the other way.', tone: 'hope' },
+      { kind: 'forceHitPoints', amount: { pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked' } },
+    ],
+  },
+  {
+    id: 'sigil-of-retribution',
+    name: 'Sigil of Retribution',
+    source: card('sigil-of-retribution'),
+    target: { kind: 'adversary', range: 'close' },
+    // Simplified: the card holds a d8 for every blow without the cap of the
+    // caster's level, and casting it again moves the sigil while leaving the
+    // dice already on the card - the card clears them when they are rolled and
+    // says nothing about clearing them otherwise.
+    effects: [
+      { kind: 'clearCondition', condition: 'sigiled', target: { kind: 'adversaries', range: 'veryFar' } },
+      { kind: 'log', text: 'The sigil is set, and it will be answered for.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'sigiled', duration: 'scene', target: { kind: 'target' } },
+      { kind: 'gainFear', amount: 1 },
+    ],
+  },
+  {
+    id: 'sigil-of-retribution-mark',
+    name: 'Sigil of Retribution',
+    source: card('sigil-of-retribution'),
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    available: { kind: 'hasCondition', condition: 'sigiled', of: { kind: 'target' } },
+    target: { kind: 'none' },
+    effects: [{ kind: 'addToken', ability: 'sigil-of-retribution', amount: 1 }],
+  },
+  {
+    id: 'sigil-of-retribution-ally',
+    name: 'Sigil of Retribution',
+    source: card('sigil-of-retribution'),
+    kind: 'reaction',
+    trigger: 'allyTookDamage',
+    action: false,
+    available: { kind: 'hasCondition', condition: 'sigiled', of: { kind: 'target' } },
+    target: { kind: 'none' },
+    effects: [{ kind: 'addToken', ability: 'sigil-of-retribution', amount: 1 }],
+  },
+  {
+    id: 'sigil-of-retribution-paid',
+    name: 'Sigil of Retribution',
+    source: card('sigil-of-retribution'),
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    // "Roll the dice on this card and add the total to your damage roll":
+    // nothing is asked and nothing is spent, so it simply happens.
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'tokens', ability: 'sigil-of-retribution', op: '>=', value: 1 },
+        { kind: 'hasCondition', condition: 'sigiled', of: { kind: 'target' } },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'boostDamage', dice: 'd8', times: { tokens: 'sigil-of-retribution' } },
+      { kind: 'spendToken', ability: 'sigil-of-retribution', all: true },
+    ],
+  },
   // ---- a Spellcast Roll against a target, and what it leaves on them ------
   // The shape the SRD prints over and over: a Spellcast Roll against a
   // creature's own Difficulty, and on a success something that stays. Nothing

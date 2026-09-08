@@ -335,6 +335,32 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // Forcing the Hit Points is narrower still: the swing has to be the
+    // holder's own, and the party's swing is the only one that stops to be
+    // told what it does.
+    if (forcesHitPoints(ability) && ability.trigger !== 'rollingDamage') {
+      add(
+        'warning',
+        `"${ability.id}" forces the Hit Points marked, which only its holder's own damage roll being counted has.`,
+        ability.id,
+      );
+    }
+    if (forcesHitPoints(ability) && ability.source.kind === 'adversary') {
+      add(
+        'warning',
+        `"${ability.id}" forces the Hit Points marked, which only the party's own swing obeys.`,
+        ability.id,
+      );
+    }
+    // The other half of the same rule: an ally taking a hit is something the
+    // party hears about and a stat block does not.
+    if (ability.trigger === 'allyTookDamage' && ability.source.kind === 'adversary') {
+      add(
+        'warning',
+        `"${ability.id}" answers somebody on its own side being hurt, which only a card is asked about.`,
+        ability.id,
+      );
+    }
     // `spent` and `{n}` are words only a `howMany` writes into: outside one,
     // the amount reads as zero and the dice keep the braces.
     if (readsAnAnswer(ability.effects)) {
@@ -443,6 +469,15 @@ function boostsABlow(ability: AbilityDef): boolean {
     if (effect.kind === 'boostDamage') boosts = true;
   });
   return boosts;
+}
+
+/** Whether anything in an ability sets the Hit Points a blow marks outright. */
+function forcesHitPoints(ability: AbilityDef): boolean {
+  let forces = false;
+  walkEffects(ability.effects, (effect) => {
+    if (effect.kind === 'forceHitPoints') forces = true;
+  });
+  return forces;
 }
 
 /** Whether anything in an ability spends the turn it is running in. */

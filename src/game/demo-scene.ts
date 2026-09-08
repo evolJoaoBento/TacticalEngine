@@ -60,7 +60,14 @@ import {
 } from '../engine/combat/defense';
 import { readsATarget, type AbilityDef } from '../engine/content/abilities';
 import { gain, unmarked } from '../engine/rules/resources';
-import { resolveDamage, rollDamage, rollReduction, type IncomingDamage, type ResolvedDamage } from '../engine/rules/damage';
+import {
+  resolveDamage,
+  rollDamage,
+  rollReduction,
+  type DamageSeverity,
+  type IncomingDamage,
+  type ResolvedDamage,
+} from '../engine/rules/damage';
 import type { ParsedDamage } from '../engine/rules/dice';
 import { EncounterRunner } from '../engine/combat/encounter';
 import {
@@ -360,6 +367,8 @@ export interface HeldSwing {
   direct?: boolean;
   /** What the room put behind it while it was held. */
   boost?: number;
+  /** Hit Points a card fixed outright, in place of counting the damage at all. */
+  forced?: number;
 }
 
 /** One hit, as it stands while the defender decides. */
@@ -1046,14 +1055,24 @@ export function attackWithSelected(
     ...(profile.direct === undefined ? {} : { direct: profile.direct }),
   };
   if (outcome.hit && outcome.damageRoll !== undefined) {
-    const offers = offersFor(demo, id!, ['rollingDamage'], [targetId], {}, {
-      total: outcome.damageRoll.total,
-      types: profile.damage.types ?? ['physical'],
-    });
-    if (offers.length > 0 && demo.askDefender && demo.pending === null) {
-      askReaction(demo, offers, [], held);
+    const box = { held };
+    const offers = offersFor(
+      demo,
+      id!,
+      ['rollingDamage'],
+      [targetId],
+      {},
+      { total: outcome.damageRoll.total, types: profile.damage.types ?? ['physical'] },
+      box,
+    );
+    // A card that stopped to ask something of its own is holding the blow now,
+    // and lands it when it is answered.
+    if (demo.pending !== null) return { hit: outcome.hit, refused: null, hitPointsMarked: 0, waiting: true };
+    if (offers.length > 0 && demo.askDefender) {
+      askReaction(demo, offers, [], box.held);
       return { hit: outcome.hit, refused: null, hitPointsMarked: 0, waiting: true };
     }
+    return landPartyAttack(demo, box.held);
   }
   return landPartyAttack(demo, held);
 }
@@ -1066,10 +1085,27 @@ export function attackWithSelected(
  * what the attack rules resolved was the smaller number. The defender's own
  * reduction is rolled again with it: they are rolling against the blow that
  * arrived, not the one that was on its way.
+ *
+ * A blow that was forced is counted least of all: "instead of rolling for
+ * damage" means the Hit Points are the number the card named, and nothing -
+ * thresholds, resistance, Armor Slots - stands between it and the target. The
+ * dice the attack already rolled are thrown away, which costs the fight
+ * nothing: they were rolled from the seed and never read.
  */
 function counted(demo: DemoScene, held: HeldSwing): AttackOutcome {
-  const { outcome, boost } = held;
+  const { outcome, boost, forced } = held;
   const target = demo.state.entity(held.target);
+  if (forced !== undefined && forced > 0) {
+    const damage: ResolvedDamage = {
+      incoming: 0,
+      reduced: 0,
+      severity: severityOfHitPoints(forced),
+      finalSeverity: severityOfHitPoints(forced),
+      armorSlotsSpent: 0,
+      hpMarked: forced,
+    };
+    return { ...outcome, damage, hitPointsMarked: forced };
+  }
   if (boost === undefined || boost <= 0 || outcome.damageRoll === undefined || target === undefined) return outcome;
   const defender = demo.world.defenderOf(target);
   const total = outcome.damageRoll.total + boost;
@@ -1088,6 +1124,18 @@ function counted(demo: DemoScene, held: HeldSwing): AttackOutcome {
     },
   );
   return { ...outcome, damageRoll: { ...outcome.damageRoll, total }, damage, hitPointsMarked: damage.hpMarked };
+}
+
+/**
+ * What band a blow that skipped the thresholds counts as.
+ *
+ * The severity is not decoration: a stat block reacts to Severe damage, and a
+ * feature that answers one has to hear about a forced blow as well. The rules
+ * read the same table backwards - one Hit Point is Minor, two Major, three
+ * Severe, four Massive - so this is the crossing, not a guess.
+ */
+function severityOfHitPoints(marked: number): DamageSeverity {
+  return marked >= 4 ? 'massive' : marked >= 3 ? 'severe' : marked >= 2 ? 'major' : 'minor';
 }
 
 /**
@@ -1907,6 +1955,15 @@ function playDamageReactions(demo: DemoScene): void {
     if (entity.faction === 'party') {
       const offers = offersFor(demo, note.id, triggers, bound, counts, lastDamage);
       if (offers.length > 0) asked.push(offers);
+      // And what the rest of the party makes of one of their own being hit.
+      // Everyone standing hears it, wherever they are: a card that cares how
+      // far away it happened says so in its own gate, the way the reach on a
+      // stat block's feature is read from the reactor.
+      for (const other of demo.state.entitiesOf('party')) {
+        if (other.id === note.id || !other.alive) continue;
+        const theirs = offersFor(demo, other.id, ['allyTookDamage'], bound, counts, lastDamage);
+        if (theirs.length > 0) asked.push(theirs);
+      }
       continue;
     }
     if (entity.faction !== 'adversary') continue;
@@ -1940,6 +1997,14 @@ function offersFor(
   bound: readonly string[],
   counts: Partial<Record<CountName, number>>,
   lastDamage?: { total: number; types: readonly DamageType[] },
+  /**
+   * A swing of the holder's waiting on these cards, carried in a box because a
+   * card that runs on its own runs *here*, and what it said about the blow has
+   * to reach the caller that is still holding it. Without this the free half
+   * of a card - a Sigil rolling the dice it collected - would be written to the
+   * log and then thrown away.
+   */
+  landing?: { held: HeldSwing },
 ): ReactionOffer[] {
   const offers: ReactionOffer[] = [];
   const seen = new Set<string>();
@@ -1959,7 +2024,12 @@ function offersFor(
       // Free and automatic is not a question: it happens, the way a stat
       // block's own reactions do.
       if (ability.auto && (ability.cost.hope ?? 0) === 0 && (ability.cost.stress ?? 0) === 0) {
-        playReaction(demo, offer);
+        const ran: JournalEntry[] = [];
+        // The landing goes with it: a card that finishes at once is folded
+        // into the box below, and one that stops to ask something lands the
+        // blow itself when it is answered.
+        playReaction(demo, offer, [], false, landing?.held, ran);
+        if (landing !== undefined) landing.held = asAnswered(landing.held, ran) ?? landing.held;
         continue;
       }
       offers.push(offer);
@@ -2041,6 +2111,8 @@ function playReaction(
   resume = false,
   /** A swing of theirs waiting on this card, to be landed once it is done. */
   landing?: HeldSwing,
+  /** Where to report what the card did, for a caller still holding the blow. */
+  into?: JournalEntry[],
 ): void {
   if (!payFor(demo, offer.by, offer.ability)) {
     if (resume) afterReaction(demo, queued, landing);
@@ -2058,6 +2130,7 @@ function playReaction(
   });
   const result = runner.run(offer.ability.effects);
   record(demo, result.journal);
+  if (into !== undefined) into.push(...result.journal);
   if (result.status === 'waiting') {
     demo.pending = {
       kind: 'script',
@@ -2068,29 +2141,39 @@ function playReaction(
       dialogue: null,
       onDone: (done) => {
         demo.scenario.actorId = was;
-        afterReaction(demo, queued, heavier(landing, done.entries));
+        afterReaction(demo, queued, asAnswered(landing, done.entries));
       },
     };
     return;
   }
   demo.scenario.actorId = was;
-  if (resume) afterReaction(demo, queued, heavier(landing, result.journal));
+  if (resume) afterReaction(demo, queued, asAnswered(landing, result.journal));
 }
 
 /**
- * The swing, with whatever the card put behind it.
+ * The swing, with whatever the card said about it.
  *
- * The same sum the GM's side makes, read off the same journal entries; the
- * total is rewritten before the blow is counted, so the thresholds and the
- * Armor Slots read what actually arrives.
+ * The same sum the GM's side makes, read off the same journal entries, plus
+ * the one thing a card can say that is not a sum: a number of Hit Points to
+ * mark instead of rolling. Both are read here rather than written, so the
+ * thresholds and the Armor Slots read what actually arrives.
  */
-function heavier(landing: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
+function asAnswered(landing: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
   if (landing === undefined || landing.outcome.damageRoll === undefined) return landing;
   let added = 0;
+  let forced: number | undefined;
   for (const entry of journal) {
     if (entry.kind === 'damageBoosted') added += entry.by;
+    // Two cards forcing one blow is not a thing the SRD writes; the larger
+    // wins, so the order they were played in decides nothing.
+    if (entry.kind === 'hitPointsForced') forced = Math.max(forced ?? 0, entry.to);
   }
-  return added <= 0 ? landing : { ...landing, boost: (landing.boost ?? 0) + added };
+  if (added <= 0 && forced === undefined) return landing;
+  return {
+    ...landing,
+    ...(added <= 0 ? {} : { boost: (landing.boost ?? 0) + added }),
+    ...(forced === undefined ? {} : { forced: Math.max(landing.forced ?? 0, forced) }),
+  };
 }
 
 /** Ask the next character what they make of it, or let the fight carry on. */

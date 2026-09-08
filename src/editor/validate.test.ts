@@ -734,6 +734,61 @@ describe('what only a stat block has', () => {
     expect(said.some((m) => m.includes('somebody-elses'))).toBe(false);
   });
 
+  it('warns when a blow is forced somewhere nothing obeys it', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'forced-late',
+          name: 'Forced Late',
+          source: { kind: 'domainCard', card: 'battle-monster' },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'dealtDamage',
+          effects: [{ kind: 'forceHitPoints', amount: 3 }],
+        },
+        {
+          id: 'forced-well',
+          name: 'Forced Well',
+          source: { kind: 'domainCard', card: 'battle-monster' },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'rollingDamage',
+          effects: [{ kind: 'forceHitPoints', amount: 3 }],
+        },
+        {
+          id: 'forced-by-a-block',
+          name: 'Forced By A Block',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'rollingDamage',
+          effects: [{ kind: 'forceHitPoints', amount: 3 }],
+        },
+        {
+          id: 'block-hears-its-friends',
+          name: 'Block Hears Its Friends',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'allyTookDamage',
+          effects: [{ kind: 'gainFear', amount: 1 }],
+        },
+      ],
+    });
+    const said = messages(project);
+    expect(said.some((m) => m.includes('"forced-late" forces the Hit Points marked'))).toBe(true);
+    expect(said.some((m) => m.includes('forced-well'))).toBe(false);
+    // The right moment, the wrong side of the table: only the party's swing
+    // stops to be told what it marks.
+    expect(said).toContain(
+      '"forced-by-a-block" forces the Hit Points marked, which only the party\'s own swing obeys.',
+    );
+    expect(said).toContain(
+      '"block-hears-its-friends" answers somebody on its own side being hurt, which only a card is asked about.',
+    );
+  });
+
   it('warns when something reads an answer nobody asked for', () => {
     const project = projectSchema.parse({
       ...build(),

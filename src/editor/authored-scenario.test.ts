@@ -918,6 +918,70 @@ describe("what the party puts behind its own blow", () => {
     throw new Error('no seed landed a swing in forty tries');
   });
 
+  it('rolls the dice a sigil collected without stopping to ask, and they land', () => {
+    // "When you successfully attack the marked adversary, roll the dice on
+    // this card and add the total to your damage roll." Nothing is asked and
+    // nothing is spent, so the card runs on its own - and what it rolled has
+    // to reach the blow that is still being held, rather than the log alone.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = swinging(['sigil-of-retribution'], `sigil-${seed}`);
+      demo.askDefender = true;
+      demo.state.entity('foe')!.conditions.add('sigiled');
+      demo.world.addTokens('vela', 'sigil-of-retribution', 3);
+      const swung = attackWithSelected(demo, 'foe');
+      if (swung === null || !swung.hit) continue;
+
+      // It never became a question, and the dice are off the card.
+      expect(swung.waiting).toBeUndefined();
+      expect(demo.pending).toBeNull();
+      expect(demo.world.tokensOn('vela', 'sigil-of-retribution')).toBe(0);
+
+      // The same seed and the same swing, with nothing marked to pay for.
+      const cold = swinging(['sigil-of-retribution'], `sigil-${seed}`);
+      cold.askDefender = true;
+      cold.world.addTokens('vela', 'sigil-of-retribution', 3);
+      attackWithSelected(cold, 'foe');
+      expect(cold.world.tokensOn('vela', 'sigil-of-retribution')).toBe(3);
+      if (demo.state.entity('foe')!.hitPoints.marked <= cold.state.entity('foe')!.hitPoints.marked) continue;
+      return;
+    }
+    throw new Error('no seed landed a sigiled swing in forty tries');
+  });
+
+  it('forces the Hit Points a blow marks, whatever the dice said', () => {
+    // "Mark 4 Stress to force the target to mark a number of Hit Points equal
+    // to the number of Hit Points you currently have marked instead of rolling
+    // for damage": three marked on the caster is three marked on the target,
+    // past the thresholds and past whatever armor would have turned aside.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = swinging(['battle-monster'], `monster-${seed}`);
+      demo.askDefender = true;
+      demo.state.entity('vela')!.hitPoints = { max: 6, marked: 3 };
+      demo.state.entity('vela')!.stress = { max: 6, marked: 0 };
+      const swung = attackWithSelected(demo, 'foe');
+      if (swung === null || !swung.hit) continue;
+
+      expect(swung.waiting).toBe(true);
+      answerPending(demo, { kind: 'choose', index: 1 });
+      expect(demo.pending).toBeNull();
+      expect(demo.state.entity('foe')!.hitPoints.marked).toBe(3);
+      expect(demo.state.entity('vela')!.stress.marked).toBe(4);
+      return;
+    }
+    throw new Error('no seed landed a swing in forty tries');
+  });
+
+  it('will not force nothing: an unmarked caster is not offered the card', () => {
+    const demo = swinging(['battle-monster'], 'monster-clean');
+    demo.state.entity('vela')!.hitPoints = { max: 6, marked: 0 };
+    demo.state.entity('vela')!.stress = { max: 6, marked: 0 };
+    expect(demo.world.reactionsFor('vela', 'rollingDamage', { targets: ['foe'], hit: ['foe'] })).toEqual([]);
+    demo.state.entity('vela')!.hitPoints = { max: 6, marked: 1 };
+    expect(demo.world.reactionsFor('vela', 'rollingDamage', { targets: ['foe'], hit: ['foe'] }).map((a) => a.id)).toEqual([
+      'battle-monster',
+    ]);
+  });
+
   it('will not call in a toll on somebody who is not carrying one', () => {
     const demo = swinging(['twilight-toll'], 'toll');
     demo.askDefender = true;
@@ -931,6 +995,67 @@ describe("what the party puts behind its own blow", () => {
     ]);
     demo.state.entity('foe')!.conditions.delete('tolled');
     expect(demo.world.reactionsFor('vela', 'rollingDamage', { targets: ['foe'], hit: ['foe'] })).toEqual([]);
+  });
+});
+
+describe('what a card makes of somebody else being hit', () => {
+  /** The caster holding a sigil, a friend to stand in front of it, and a foe. */
+  const pair = (seed: string) => {
+    const s = blank();
+    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+    s.run(
+      addSheet(
+        characterSheetSchema.parse(
+          blankSheet('vela', 'wizard', {
+            name: 'Vela',
+            traits: { agility: 0, strength: -1, finesse: 1, instinct: 1, presence: 0, knowledge: 2 },
+            ancestryId: 'faerie',
+            armorId: 'gambeson-armor',
+            primaryWeaponId: 'greatstaff',
+            subclassId: 'school-of-knowledge',
+            domainCards: ['sigil-of-retribution'],
+          }),
+        ),
+      ),
+    );
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 8, y: 4 }, { x: 4, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'acid-burrower', position: { x: 5, y: 4 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.state.entity('foe')!.conditions.add('sigiled');
+    demo.party.select('vela');
+    return demo;
+  };
+
+  it('puts a die on the card when the marked creature hurts an ally', () => {
+    // "When the marked adversary deals damage to you or your allies, place a
+    // d8 on this card." Kara is the one standing in front of it; the card is
+    // Vela's, and it hears about her wound from across the room.
+    for (let seed = 1; seed < 30; seed++) {
+      const demo = pair(`ally-${seed}`);
+      const kara = demo.state.entity('kara')!;
+      for (let turn = 0; turn < 3 && kara.hitPoints.marked === 0; turn++) endTurn(demo);
+      if (kara.hitPoints.marked === 0) continue;
+      expect(demo.world.tokensOn('vela', 'sigil-of-retribution')).toBeGreaterThan(0);
+      return;
+    }
+    throw new Error('the burrower never landed a blow on Kara in thirty tries');
+  });
+
+  it('says nothing about a blow from something that carries no sigil', () => {
+    for (let seed = 1; seed < 30; seed++) {
+      const demo = pair(`plain-${seed}`);
+      demo.state.entity('foe')!.conditions.delete('sigiled');
+      const kara = demo.state.entity('kara')!;
+      for (let turn = 0; turn < 3 && kara.hitPoints.marked === 0; turn++) endTurn(demo);
+      if (kara.hitPoints.marked === 0) continue;
+      expect(demo.world.tokensOn('vela', 'sigil-of-retribution')).toBe(0);
+      return;
+    }
+    throw new Error('the burrower never landed a blow on Kara in thirty tries');
   });
 });
 

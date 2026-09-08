@@ -19,9 +19,11 @@ Known simplifications in the scripted ones:
 - **Healing Strike** clears a Hit Point on the nearest ally rather than a chosen one: it answers a swing that has already landed, and what the player is asked is whether to spend the Hope.
 - **Ferocity** and **Never Upstaged** keep their bonus as tokens on the card, so the Evasion or the damage is whatever the fight put there; Ferocity is spent by the next attack made at its holder, hit or miss.
 - **Enrapture** and **Mass Enrapture** put the name on the target and let the condition carry it: a creature whose attention is fixed on one person is two Evasion easier to hit, and whom it attacks is still the table's call. **Glyph of Nightfall** is worth a flat two rather than the caster's Knowledge, because a condition carries one number rather than the number of whoever applied it. **Death Grip** offers the pull and the constriction, not the vines catching everyone in between: that is a line across the map, and a selector reads bands around a creature.
+- **Spellcharge** takes any wound rather than magic damage alone and is not capped at the caster's Spellcast trait; **Twilight Toll** is worth one die rather than growing with every success that rolled no damage. **Sigil of Retribution** holds a die for every blow without the cap of the caster's level, and recasting it moves the sigil while leaving the dice already on the card - the card clears them when they are rolled and nowhere else.
+- **Battle Monster** throws the damage roll away and marks the Hit Points the caster is carrying, past thresholds, resistance and Armor Slots - which is what "instead of rolling for damage" asks for.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 65 of 189 cards.
+Scripted: 67 of 189 cards.
 
 
 ## Arcana
@@ -73,7 +75,7 @@ Scripted: 65 of 189 cards.
 | 8 | Frenzy | Ability | text |
 | 9 | Gore and Glory | Ability | text |
 | 9 | Reaper's Strike | Ability | text |
-| 10 | Battle Monster | Ability | text |
+| 10 | Battle Monster | Ability | **reaction** |
 | 10 | Onslaught | Ability | text |
 
 ## Bone
@@ -118,7 +120,7 @@ Scripted: 65 of 189 cards.
 | 5 | Manifest Wall | Spell | text |
 | 5 | Teleport | Spell | text |
 | 6 | Banish | Spell | text |
-| 6 | Sigil of Retribution | Spell | text |
+| 6 | Sigil of Retribution | Spell | **action**, **reaction** |
 | 7 | Book of Homet | Grimoire | text |
 | 7 | Codex-Touched | Ability | text |
 | 8 | Book of Vyola | Grimoire | text |

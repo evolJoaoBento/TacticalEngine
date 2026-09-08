@@ -94,6 +94,7 @@ const ADDABLE = [
   'spotlight',
   'endSpotlight',
   'boostDamage',
+  'forceHitPoints',
   'howMany',
   'countdown',
   'reactionRoll',
@@ -152,6 +153,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   spotlight: 'Spotlight allies',
   endSpotlight: 'End this spotlight',
   boostDamage: 'Add to the blow landing',
+  forceHitPoints: 'Force Hit Points marked',
   howMany: 'Ask how many',
   reactionRoll: 'Ask for a reaction roll',
   run: 'Run code',
@@ -282,6 +284,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind };
     case 'boostDamage':
       return { kind, dice: '1d6' };
+    case 'forceHitPoints':
+      return { kind, amount: { pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked' } };
     case 'howMany':
       return { kind, most: { pool: 'hope', measure: 'available' }, each: [] };
     case 'countdown':
@@ -995,6 +999,19 @@ function renderBody(
             }}
           />
           {amount(effect.amount ?? 0, (value) => ({ ...effect, amount: value === 0 ? undefined : value }))}
+          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="How many times to roll those dice">
+            rolled
+          </span>
+          {amount(effect.times ?? 1, (times) => ({ ...effect, times: times === 1 ? undefined : times }))}
+        </>
+      );
+    case 'forceHitPoints':
+      return (
+        <>
+          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="Marked outright, instead of rolling for damage">
+            marks
+          </span>
+          {amount(effect.amount, (value) => ({ ...effect, amount: value }))}
         </>
       );
     case 'countdown':

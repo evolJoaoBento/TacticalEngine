@@ -850,11 +850,22 @@ footer {
   standing, both with the one being hit bound as the target &mdash; so &ldquo;within Far range
   of the Turret&rdquo; is a plain <code>withinRange</code> from the reactor to the defender.
   What they add is <code>boostDamage</code>: a flat <code>amount</code>, <code>dice</code> to
-  roll, or <code>dice: 'weapon'</code> for the reactor's own printed attack. Like
+  roll, or <code>dice: 'weapon'</code> for the reactor's own printed attack, rolled
+  <code>times</code> over when the count is something the fight decided &mdash; &ldquo;roll
+  the dice on this card&rdquo; is one <code>d8</code> rolled once for every token on it. Like
   <code>endSpotlight</code> it journals rather than writes; the game layer sums what the
   moment reported and adds it before the defence, so thresholds and Armor Slots read what
   actually arrives. Only the GM's own swing raises it &mdash; a scripted <code>attack</code>
   inside a feature keeps its outcome inside the world.</p>
+
+  <p>The one thing a card can say at that moment which is not a sum is
+  <code>forceHitPoints</code>: &ldquo;force the target to mark a number of Hit Points equal to
+  the number you currently have marked <em>instead of rolling for damage</em>&rdquo;. It names
+  Hit Points rather than damage, so nothing stands between it and the target &mdash; no
+  threshold, no resistance, no Armor Slot &mdash; and the dice the attack already rolled are
+  thrown away. It wins over anything added to the same blow, because a blow that is not being
+  rolled for cannot be added to. Only the party's own swing obeys it today; the validator
+  warns on a stat block and outside <code>rollingDamage</code>.</p>
 
   <p>The party's swing stops at the same moment, and this is the one place a prompt sits
   between a roll and its counting. A card on <code>rollingDamage</code> is offered after the
@@ -863,6 +874,19 @@ footer {
   question is done with, whichever way it was answered. A blow that grew is counted again from
   the top &mdash; thresholds, resistance, Armor Slots, and the defender's own reduction rolled
   afresh &mdash; because what the attack rules resolved was the smaller number.</p>
+
+  <p>Not every card at that moment is a question. One that costs nothing and asks nothing runs
+  where it is found, inside the offer step, and what it said about the blow has to reach the
+  caller still holding it: the held swing travels into that step in a box, and is folded with
+  whatever ran on its own before the blow is either put to the player or landed. Without that,
+  a card rolling dice it had collected would write its total to the log and nowhere else.</p>
+
+  <p>The other side of a wound has a trigger of its own. <code>tookDamage</code> is the one
+  who was hit; <code>allyTookDamage</code> is everyone else on their side, raised with whoever
+  dealt it bound as the target, which is how a card set on one creature counts what that
+  creature does to the whole party. It is the pair of <code>allyRollingDamage</code> and split
+  from <code>tookDamage</code> for the same reason: a card that answers its holder's own wound
+  must not answer every wound in the party.</p>
 
   <p>A condition can count creatures, too. The selectors already say which ones and where
   &mdash; around the actor or around the chosen target, off the same stat block, everyone but

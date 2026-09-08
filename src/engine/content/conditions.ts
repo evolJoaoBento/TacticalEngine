@@ -92,6 +92,14 @@ const RAW: ConditionInput[] = [
   // The Siren's song. "Until they mark 2 Stress" is a tally the engine does
   // not keep, so it runs to the end of the scene; what it does is let the
   // Siren's teeth find them, which is the Captive Audience passive.
+  // Sigil of Retribution. Like a toll, a name and nothing else: the card that
+  // set it is the only thing that reads it, and it counts what the marked
+  // creature does to the party.
+  {
+    id: 'sigiled',
+    name: 'Sigiled',
+    text: 'A sigil of retribution is on you, and it is keeping count.',
+  },
   // Twilight Toll. The card holds one creature at a time, and the mark is how
   // the payout knows which: a name on them, doing nothing on its own.
   {
