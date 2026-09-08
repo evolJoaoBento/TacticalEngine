@@ -869,6 +869,19 @@ function renderBody(
         <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="attack">
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
             <select
+              style={{ ...field, flex: 'none', width: '96px' }}
+              data-role="attack-by"
+              title="Whose swing it is: the one acting, or the creature bound as the target"
+              value={effect.by ?? 'actor'}
+              onChange={(e) => {
+                const by = (e.target as HTMLSelectElement).value;
+                onChange({ ...effect, by: by === 'target' ? 'target' : undefined });
+              }}
+            >
+              <option value="actor">the actor swings</option>
+              <option value="target">the target swings</option>
+            </select>
+            <select
               style={{ ...field, flex: 'none', width: '86px' }}
               data-role="attack-weapon"
               value={effect.weapon ?? 'primary'}

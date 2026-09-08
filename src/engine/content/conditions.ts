@@ -103,6 +103,14 @@ const RAW: ConditionInput[] = [
     text: 'When you mark an Armor Slot, you reduce the severity of the attack by an additional threshold.',
     armor: { steps: 1, endsWhenItSaves: true },
   },
+  // Words of Discord, once. "The target realizes what happened. The next time
+  // you cast Words of Discord on them, gain a -5 penalty to the Spellcast
+  // Roll" - which the card reads as a Difficulty of 18 rather than 13.
+  {
+    id: 'wise-to-discord',
+    name: 'Wise to Discord',
+    text: 'They have been whispered to once, and are harder to whisper to again.',
+  },
   {
     id: 'stunned',
     name: 'Stunned',

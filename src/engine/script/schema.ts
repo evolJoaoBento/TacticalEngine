@@ -624,6 +624,14 @@ export const effectSchema = z.discriminatedUnion('kind', [
     kind: z.literal('attack'),
     weapon: z.enum(['primary', 'secondary']).optional(),
     /**
+     * Whose swing it is. The one acting, unless `target` - the creature bound
+     * as the target makes it instead, which is what Words of Discord turns an
+     * adversary's own attack into. Whom they swing at is `target` on the
+     * effect, read from the actor's chair as everything else is: the one who
+     * spoke names the neighbour, and the charmed creature does the rest.
+     */
+    by: z.literal('target').optional(),
+    /**
      * Who is swung at. More than one is swung at in turn — an adversary's
      * "make an attack against all targets in front of it" — each with its own
      * roll, and `onHit` runs once with everyone it beat bound to `hit`.

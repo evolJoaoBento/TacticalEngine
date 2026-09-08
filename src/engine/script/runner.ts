@@ -1468,9 +1468,11 @@ export class ScriptRunner {
   /** A weapon attack from a script: one target, a full action roll. */
   private applyAttack(effect: Extract<Effect, { kind: 'attack' }>): null {
     const world = this.world;
-    const attacker = world.actorId();
+    // Whose swing it is: the one acting, or the one bound as the target when
+    // the card is making somebody else swing. Nobody swings at themselves.
+    const attacker = effect.by === 'target' ? (this.resolve({ kind: 'target' })[0] ?? null) : world.actorId();
     if (attacker === null) return this.refuse('nobody to attack with');
-    const targets = this.resolve(effect.target ?? { kind: 'target' });
+    const targets = this.resolve(effect.target ?? { kind: 'target' }).filter((id) => id !== attacker);
     if (targets.length === 0) return this.refuse('nothing to attack');
     // Read once, before the first swing: "all Giant Rats within Close range of
     // them" is about where everyone stands now, not after the first one moved.

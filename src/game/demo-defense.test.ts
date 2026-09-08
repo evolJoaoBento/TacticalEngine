@@ -3053,3 +3053,126 @@ describe('a shell of light over somebody', () => {
     expect(demo.state.entity('kara')!.conditions.has('shield-aura')).toBe(false);
   });
 });
+
+
+describe('a word in the wrong ear', () => {
+  /**
+   * Mira beside one husk with the card in hand, and a second husk beside it.
+   * The whisper is a Spellcast Roll, so the one who says it is the wizard.
+   */
+  const whispering = (seed: string) => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 40, marked: 0 };
+    husk.stress = { max: 6, marked: 0 };
+    // A second one back on its feet, and Mira, both standing beside the first.
+    const other = demo.state.entitiesOf('adversary').find((e) => !e.alive)!;
+    other.alive = true;
+    other.hitPoints = { max: 40, marked: 0 };
+    const beside = (id: string): void => {
+      const blocked = demo.state.blockedFor(id);
+      let stand = NO_TILE;
+      demo.grid.forEachNeighbor(husk.tile, false, (tile) => {
+        if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+      });
+      if (stand !== NO_TILE) demo.state.moveEntity(id, stand);
+    };
+    beside(other.id);
+    beside('mira');
+
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['words-of-discord'], loadout: ['words-of-discord'] };
+    demo.sheets.set('mira', sheet);
+    demo.characters.set('mira', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    return { demo, husk, other };
+  };
+
+  const whisper = (demo: DemoScene, at: string): string[] => {
+    const said = demo.log.length;
+    demo.party.select('mira');
+    useAbility(demo, 'mira', 'words-of-discord', [at]);
+    let guard = 0;
+    while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
+    return demo.log.slice(said).map((l) => l.text);
+  };
+
+  it('turns an adversary on the one standing beside it', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk, other } = whispering(`discord-${seed}`);
+      const after = whisper(demo, husk.id);
+      if (!after.some((t) => /Success|Critical/.test(t))) continue;
+
+      // "The target must mark a Stress and make an attack against another
+      // adversary instead of against you or your allies."
+      expect(husk.stress.marked).toBeGreaterThan(0);
+      expect(after.some((t) => t.includes(`${adversaryDefOf(demo, husk.id)!.attackName}`))).toBe(true);
+      // Whatever the swing did, it was aimed at the other one and not the party.
+      expect(demo.state.entity('kara')!.hitPoints.marked).toBe(0);
+      expect(husk.hitPoints.marked).toBe(0);
+      expect(husk.conditions.has('wise-to-discord')).toBe(true);
+      // And the fight is left in one piece, whether or not the blow landed.
+      expect(demo.pending).toBeNull();
+      expect(other.alive || demo.encounter?.outcome === 'ongoing').toBe(true);
+      return;
+    }
+    throw new Error('the whisper never took in sixty tries');
+  });
+
+  it('is harder to say to somebody who has heard it before', () => {
+    const { demo, husk } = whispering('discord-again');
+    demo.world.applyCondition(husk.id, 'wise-to-discord', 'scene');
+    const after = whisper(demo, husk.id);
+    expect(after.some((t) => t.includes('heard this voice before'))).toBe(true);
+    expect(after.some((t) => t.includes('vs 18'))).toBe(true);
+    expect(after.some((t) => t.includes('vs 13'))).toBe(false);
+  });
+
+  it('says 13 to somebody who has not', () => {
+    const { demo, husk } = whispering('discord-first');
+    const after = whisper(demo, husk.id);
+    expect(after.some((t) => t.includes('vs 13'))).toBe(true);
+    expect(after.some((t) => t.includes('heard this voice before'))).toBe(false);
+  });
+
+  it('finds nobody to turn them on when they stand alone', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk, other } = whispering(`discord-alone-${seed}`);
+      other.alive = false;
+      const after = whisper(demo, husk.id);
+      if (!after.some((t) => /Success|Critical/.test(t))) continue;
+      // The Stress is marked and the whisper takes; there is simply nobody for
+      // them to turn on, which is a room with one creature in it, not a fault.
+      expect(husk.stress.marked).toBeGreaterThan(0);
+      expect(after.some((t) => t.includes('nothing to attack'))).toBe(true);
+      expect(demo.state.entity('kara')!.hitPoints.marked).toBe(0);
+      return;
+    }
+    throw new Error('the whisper never took in sixty tries');
+  });
+
+  it('leaves the fight in one piece when the compelled blow kills', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, husk, other } = whispering(`discord-kill-${seed}`);
+      // The other one is a blow from falling.
+      other.hitPoints = { max: 1, marked: 0 };
+      const after = whisper(demo, husk.id);
+      if (other.alive) continue;
+
+      expect(after.some((t) => /Success|Critical/.test(t))).toBe(true);
+      // A blow struck by an adversary inside a card of the party's is neither
+      // an action nor a spotlight, so nothing else counts the room: the one
+      // left standing is the one that was whispered to, and nothing waits.
+      expect(demo.pending).toBeNull();
+      expect(demo.encounter?.outcome).toBe('ongoing');
+      expect(demo.state.entitiesOf('adversary').filter((e) => e.alive).map((e) => e.id)).toEqual([husk.id]);
+
+      // And with that one down as well, the fight is over rather than hanging.
+      demo.world.damage({ kind: 'entity', id: husk.id }, husk.hitPoints.max);
+      settleFight(demo);
+      expect(demo.encounter?.outcome).not.toBe('ongoing');
+      return;
+    }
+    throw new Error('the compelled blow never landed a kill');
+  });
+});

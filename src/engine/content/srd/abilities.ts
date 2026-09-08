@@ -489,6 +489,110 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // "Whisper words of discord to an adversary within Melee range and make a
+  // Spellcast Roll (13). On a success, the target must mark a Stress and make
+  // an attack against another adversary instead of against you or your allies.
+  // Once this attack is over, the target realizes what happened. The next time
+  // you cast Words of Discord on them, gain a -5 penalty to the Spellcast
+  // Roll."
+  //
+  // Simplified twice. The penalty is written as a Difficulty of 18 rather than
+  // -5 on the roll: the two pass and fail identically, and what the number
+  // does not move is where Hope and Fear fall or what counts as a critical,
+  // because those read the dice rather than the total. And "another adversary"
+  // is the nearest one to them - the same rule the GM's own turn uses to
+  // choose whom to swing at, there being nobody at that end of the table to
+  // point at one.
+  {
+    id: 'words-of-discord',
+    name: 'Words of Discord',
+    source: card('words-of-discord'),
+    target: { kind: 'creature', range: 'melee' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'branch',
+        when: { kind: 'hasCondition', condition: 'wise-to-discord', of: { kind: 'target' } },
+        then: [
+          { kind: 'log', text: 'They have heard this voice before, and are ready for it.', tone: 'fear' },
+          {
+            kind: 'check',
+            // The three faces of "on a success", written out: a check's arms
+            // are the only place a script can read what its own roll did.
+            check: {
+              trait: 'spellcast',
+              difficulty: 18,
+              prompt: 'Words of Discord, against somebody who is wise to it.',
+              onCriticalSuccess: [
+                { kind: 'markStress', target: { kind: 'target' } },
+                {
+                  kind: 'attack',
+                  by: 'target',
+                  target: { kind: 'adversaries', range: 'far', around: 'target', except: 'target', nearest: 1 },
+                },
+                { kind: 'applyCondition', condition: 'wise-to-discord', duration: 'scene', target: { kind: 'target' } },
+              ],
+              onSuccessWithHope: [
+                { kind: 'markStress', target: { kind: 'target' } },
+                {
+                  kind: 'attack',
+                  by: 'target',
+                  target: { kind: 'adversaries', range: 'far', around: 'target', except: 'target', nearest: 1 },
+                },
+                { kind: 'applyCondition', condition: 'wise-to-discord', duration: 'scene', target: { kind: 'target' } },
+              ],
+              onSuccessWithFear: [
+                { kind: 'markStress', target: { kind: 'target' } },
+                {
+                  kind: 'attack',
+                  by: 'target',
+                  target: { kind: 'adversaries', range: 'far', around: 'target', except: 'target', nearest: 1 },
+                },
+                { kind: 'applyCondition', condition: 'wise-to-discord', duration: 'scene', target: { kind: 'target' } },
+              ],
+            },
+          },
+        ],
+        otherwise: [
+          {
+            kind: 'check',
+            check: {
+              trait: 'spellcast',
+              difficulty: 13,
+              prompt: 'Words of Discord: turn them on the one beside them.',
+              onCriticalSuccess: [
+                { kind: 'markStress', target: { kind: 'target' } },
+                {
+                  kind: 'attack',
+                  by: 'target',
+                  target: { kind: 'adversaries', range: 'far', around: 'target', except: 'target', nearest: 1 },
+                },
+                { kind: 'applyCondition', condition: 'wise-to-discord', duration: 'scene', target: { kind: 'target' } },
+              ],
+              onSuccessWithHope: [
+                { kind: 'markStress', target: { kind: 'target' } },
+                {
+                  kind: 'attack',
+                  by: 'target',
+                  target: { kind: 'adversaries', range: 'far', around: 'target', except: 'target', nearest: 1 },
+                },
+                { kind: 'applyCondition', condition: 'wise-to-discord', duration: 'scene', target: { kind: 'target' } },
+              ],
+              onSuccessWithFear: [
+                { kind: 'markStress', target: { kind: 'target' } },
+                {
+                  kind: 'attack',
+                  by: 'target',
+                  target: { kind: 'adversaries', range: 'far', around: 'target', except: 'target', nearest: 1 },
+                },
+                { kind: 'applyCondition', condition: 'wise-to-discord', duration: 'scene', target: { kind: 'target' } },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  },
   // "Mark a Stress to cast a protective aura on a target within Very Close
   // range. When the target marks an Armor Slot, they reduce the severity of
   // the attack by an additional threshold. If this spell causes a creature who
