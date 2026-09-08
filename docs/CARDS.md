@@ -18,10 +18,10 @@ Known simplifications in the scripted ones:
 - Four of the nine **-Touched** cards carry a bonus the sheet can hold (Arcana, Blade, Splendor, Valor); the rest ask for something the engine has no number for and stay text.
 - **Healing Strike** clears a Hit Point on the nearest ally rather than a chosen one: it answers a swing that has already landed, and what the player is asked is whether to spend the Hope.
 - **Ferocity** and **Never Upstaged** keep their bonus as tokens on the card, so the Evasion or the damage is whatever the fight put there; Ferocity is spent by the next attack made at its holder, hit or miss.
-- **Enrapture** is text: what a fixed attention does to an adversary is the table's call.
+- **Enrapture** and **Mass Enrapture** put the name on the target and let the condition carry it: a creature whose attention is fixed on one person is two Evasion easier to hit, and whom it attacks is still the table's call. **Glyph of Nightfall** is worth a flat two rather than the caster's Knowledge, because a condition carries one number rather than the number of whoever applied it. **Death Grip** offers the pull and the constriction, not the vines catching everyone in between: that is a line across the map, and a selector reads bands around a creature.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 57 of 189 cards.
+Scripted: 62 of 189 cards.
 
 
 ## Arcana
@@ -112,7 +112,7 @@ Scripted: 57 of 189 cards.
 | 2 | Book of Sitil | Grimoire | text |
 | 2 | Book of Vagras | Grimoire | text |
 | 3 | Book of Korvax | Grimoire | text |
-| 3 | Book of Norai | Grimoire | text |
+| 3 | Book of Norai | Grimoire | **action** (Mystic Tether), **action** (Fireball) |
 | 4 | Book of Exota | Grimoire | text |
 | 4 | Book of Grynn | Grimoire | text |
 | 5 | Manifest Wall | Spell | text |
@@ -133,7 +133,7 @@ Scripted: 57 of 189 cards.
 | Level | Card | Type | Engine |
 |---|---|---|---|
 | 1 | Deft Deceiver | Ability | text |
-| 1 | Enrapture | Spell | text |
+| 1 | Enrapture | Spell | **action** |
 | 1 | Inspirational Words | Ability | **action** |
 | 2 | Tell No Lies | Spell | text |
 | 2 | Troublemaker | Ability | text |
@@ -148,7 +148,7 @@ Scripted: 57 of 189 cards.
 | 7 | Endless Charisma | Ability | text |
 | 7 | Grace-Touched | Ability | text |
 | 8 | Astral Projection | Spell | text |
-| 8 | Mass Enrapture | Spell | text |
+| 8 | Mass Enrapture | Spell | **action** |
 | 9 | Copycat | Spell | text |
 | 9 | Master of the Craft | Ability | text |
 | 10 | Encore | Spell | text |
@@ -165,7 +165,7 @@ Scripted: 57 of 189 cards.
 | 2 | Shadowbind | Spell | **action** |
 | 3 | Chokehold | Ability | **action** |
 | 3 | Veil of Night | Spell | text |
-| 4 | Glyph of Nightfall | Spell | text |
+| 4 | Glyph of Nightfall | Spell | **action** |
 | 4 | Stealth Expertise | Ability | text |
 | 5 | Hush | Spell | text |
 | 5 | Phantom Retreat | Spell | text |
@@ -191,7 +191,7 @@ Scripted: 57 of 189 cards.
 | 2 | Natural Familiar | Spell | text |
 | 3 | Corrosive Projectile | Spell | **action** |
 | 3 | Towering Stalk | Spell | **action** |
-| 4 | Death Grip | Spell | text |
+| 4 | Death Grip | Spell | **action** |
 | 4 | Healing Field | Spell | **action** |
 | 5 | Thorn Skin | Spell | text |
 | 5 | Wild Fortress | Spell | text |

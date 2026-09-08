@@ -7,6 +7,7 @@ import { blankSheet } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import {
   EditorSession,
+  addAbility,
   addAdversary,
   addEncounter,
   addInteractable,
@@ -19,6 +20,8 @@ import {
   updateSheet,
 } from './session';
 import { validateProject } from './validate';
+import { SRD_ABILITIES } from '../engine/content/srd/abilities';
+import { abilitiesOf, abilityTargets, useAbility } from '../game/demo-abilities';
 import {
   attackWithSelected,
   answerPending,
@@ -818,6 +821,107 @@ describe('what the room makes of a roll', () => {
       if (rolled.roll.outcome === 'successWithFear') expect(hope).toBe(6);
       if (rolled.roll.outcome === 'failureWithHope') expect(hope).toBe(6);
     }
+  });
+});
+
+describe('a Spellcast Roll against a target, and what it leaves on them', () => {
+  /** A caster holding one card, with something to point it at. */
+  const casting = (cards: readonly string[], seed: string, at: { x: number; y: number } = { x: 3, y: 4 }) => {
+    const sheet = characterSheetSchema.parse(
+      blankSheet('vela', 'wizard', {
+        name: 'Vela',
+        traits: { agility: 0, strength: -1, finesse: 1, instinct: 1, presence: 0, knowledge: 2 },
+        ancestryId: 'faerie',
+        armorId: 'gambeson-armor',
+        primaryWeaponId: 'greatstaff',
+        subclassId: 'school-of-knowledge',
+        domainCards: [...cards],
+      }),
+    );
+    const s = blank();
+    // A blank project ships no cards: the SRD library is content the game
+    // folds in, and an authored project has to say it wants it.
+    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+    s.run(addSheet(sheet));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'acid-burrower', position: at }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.state.entity('vela')!.hitPoints = { max: 60, marked: 0 };
+    demo.state.entity('foe')!.hitPoints = { max: 60, marked: 0 };
+    demo.party.select('vela');
+    return demo;
+  };
+
+  /** Cast until the dice land it, and say whether they ever did. */
+  const landed = (
+    cards: readonly string[],
+    ability: string,
+    check: (demo: ReturnType<typeof casting>) => boolean,
+    targets?: readonly string[],
+  ): ReturnType<typeof casting> | null => {
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = casting(cards, `${ability}-${seed}`);
+      const used = useAbility(demo, 'vela', ability, targets);
+      if (used.status === 'refused') throw new Error(`${ability}: ${demo.log.at(-1)?.text ?? 'refused'}`);
+      if (used.status === 'waiting') answerPending(demo, { kind: 'roll' });
+      while (demo.pending?.kind === 'script') answerPending(demo, { kind: 'choose', index: 1 });
+      if (check(demo)) return demo;
+    }
+    return null;
+  };
+
+  it('binds them where they stand, and the binding lasts one spotlight', () => {
+    // "On a success, they're temporarily Restrained and must mark a Stress."
+    const demo = landed(['book-of-norai'], 'mystic-tether', (d) =>
+      d.state.entity('foe')!.conditions.has('restrained'),
+    );
+    expect(demo).not.toBeNull();
+    expect(demo!.state.entity('foe')!.stress.marked).toBe(1);
+    // "Temporarily" on an adversary is exactly one spotlight: it spends the
+    // turn tearing free rather than swinging.
+    endTurn(demo!);
+    expect(demo!.state.entity('foe')!.conditions.has('restrained')).toBe(false);
+  });
+
+  it('fixes their attention on the caster, which is worth two Evasion', () => {
+    // "They become temporarily Enraptured." What the condition does is on the
+    // condition, so the card only has to put the name on them.
+    const demo = landed(['enrapture'], 'enrapture', (d) => d.state.entity('foe')!.conditions.has('enraptured'));
+    expect(demo).not.toBeNull();
+    const held = demo!.world.defenderOf(demo!.state.entity('foe')!).difficulty;
+    const free = casting(['enrapture'], 'plain');
+    expect(held).toBe(free.world.defenderOf(free.state.entity('foe')!).difficulty - 2);
+  });
+
+  it('holds the whole room, and lets go of all of them at once', () => {
+    // A seed where the song lands *and* the spotlight stays with the party,
+    // so the second half is a move Vela can still make.
+    const demo = landed(
+      ['mass-enrapture'],
+      'mass-enrapture',
+      (d) => d.state.entity('foe')!.conditions.has('enraptured') && d.encounter!.view().side === 'party',
+    );
+    expect(demo).not.toBeNull();
+    // "Mark a Stress to force all Enraptured targets to mark a Stress, ending
+    // this spell": the spell ends because the condition comes off with it.
+    const before = demo!.state.entity('foe')!.stress.marked;
+    demo!.party.select('vela');
+    expect(useAbility(demo!, 'vela', 'mass-enrapture-hold').status).toBe('done');
+    expect(demo!.state.entity('foe')!.stress.marked).toBe(before + 1);
+    expect(demo!.state.entity('foe')!.conditions.has('enraptured')).toBe(false);
+  });
+
+  it('will not tighten a song nobody is under', () => {
+    // The second half of Enrapture is aimed at whoever is already held, which
+    // is a gate on the target rather than on the card.
+    const demo = casting(['enrapture'], 'not-yet');
+    const card = abilitiesOf(demo, 'vela').find((a) => a.id === 'enrapture-hold')!;
+    expect(abilityTargets(demo, 'vela', card)).toEqual([]);
+    demo.state.entity('foe')!.conditions.add('enraptured');
+    expect(abilityTargets(demo, 'vela', card)).toEqual(['foe']);
   });
 });
 

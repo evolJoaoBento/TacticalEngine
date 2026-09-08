@@ -92,6 +92,27 @@ const RAW: ConditionInput[] = [
   // The Siren's song. "Until they mark 2 Stress" is a tally the engine does
   // not keep, so it runs to the end of the scene; what it does is let the
   // Siren's teeth find them, which is the Captive Audience passive.
+  // Enrapture and Mass Enrapture. "Their attention is fixed on you, narrowing
+  // their field of view": a creature looking at one person is not looking at
+  // anyone else, which is worth a step of Difficulty either way - here, the
+  // easier they are to hit. What it does not do is choose their target for
+  // them; the GM's turn still aims at the nearest.
+  {
+    id: 'enraptured',
+    name: 'Enraptured',
+    text: 'Your attention is fixed on the one who enraptured you, and nothing else reaches you.',
+    modifiers: [{ stat: 'evasion', bonus: -2 }],
+  },
+  // Glyph of Nightfall. "Reducing the target's Difficulty by a value equal to
+  // your Knowledge (minimum 1)": a condition carries one number, not the
+  // caster's, so the glyph is worth a flat 2 - the Knowledge of somebody who
+  // took the card at the level it is printed at.
+  {
+    id: 'glyphed',
+    name: 'Glyphed',
+    text: 'A dark glyph on your body exposes your weak points.',
+    modifiers: [{ stat: 'evasion', bonus: -2 }],
+  },
   {
     id: 'entranced',
     name: 'Entranced',

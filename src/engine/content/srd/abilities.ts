@@ -213,6 +213,186 @@ const RAW: Input[] = [
     // Advantage on lock, trap and theft rolls: the check editor tags a roll;
     // the advantage is the next step. Text for the table.
   },
+  // ---- a Spellcast Roll against a target, and what it leaves on them ------
+  // The shape the SRD prints over and over: a Spellcast Roll against a
+  // creature's own Difficulty, and on a success something that stays. Nothing
+  // new was needed for these - a `check` at `difficulty: 'target'`, then an
+  // `applyCondition` with `duration: 'temporary'`, which on an adversary is
+  // exactly the SRD's "temporarily": it spends its next spotlight shaking the
+  // condition off rather than swinging.
+  {
+    id: 'mystic-tether',
+    name: 'Mystic Tether',
+    source: card('book-of-norai'),
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Bind them where they stand?',
+          onSuccessWithHope: [
+            { kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } },
+            { kind: 'markStress', amount: 1, target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'fireball',
+    name: 'Fireball',
+    source: card('book-of-norai'),
+    target: { kind: 'adversary', range: 'veryFar' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Hurl it?',
+          onSuccessWithHope: [
+            { kind: 'log', text: 'The sphere goes up on impact.', tone: 'combat' },
+            {
+              kind: 'reactionRoll',
+              difficulty: 13,
+              trait: 'agility',
+              targets: { kind: 'adversaries', range: 'veryClose', around: 'target' },
+              onFail: [{ kind: 'damage', dice: 'd20+5', type: 'magic', using: 'proficiency', target: { kind: 'hit' } }],
+              onSuccess: [
+                { kind: 'damage', dice: 'd20+5', type: 'magic', using: 'proficiency', half: true, target: { kind: 'hit' } },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'death-grip',
+    name: 'Death Grip',
+    source: card('death-grip'),
+    target: { kind: 'adversary', range: 'close' },
+    // Simplified: the third option - vines catching everyone standing between
+    // the caster and the target - is a line across the map, and a selector
+    // reads bands around a creature rather than the ground between two.
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Reach for them?',
+          onSuccessWithHope: [
+            { kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } },
+            {
+              kind: 'choice',
+              title: 'Death Grip',
+              options: [
+                {
+                  label: 'Haul yourself into Melee range of them',
+                  effects: [{ kind: 'move', how: 'toward', of: { kind: 'hit' }, range: 'melee', budget: 'close' }],
+                },
+                {
+                  label: 'Constrict them: they mark 2 Stress',
+                  effects: [{ kind: 'markStress', amount: 2, target: { kind: 'hit' } }],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'enrapture',
+    name: 'Enrapture',
+    source: card('enrapture'),
+    target: { kind: 'adversary', range: 'close' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Hold their attention?',
+          onSuccessWithHope: [
+            { kind: 'applyCondition', condition: 'enraptured', duration: 'temporary', target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'enrapture-hold',
+    name: 'Enrapture',
+    source: card('enrapture'),
+    // "Once per rest on a success, you can mark a Stress to force the
+    // Enraptured target to mark a Stress as well." A second use of the same
+    // card, and its own entry, because the spell is already on them.
+    cost: { stress: 1 },
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'adversary', range: 'close', when: { kind: 'hasCondition', condition: 'enraptured' } },
+    effects: [
+      { kind: 'log', text: 'The song tightens, and it costs them.', tone: 'hope' },
+      { kind: 'markStress', amount: 1, target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'mass-enrapture',
+    name: 'Mass Enrapture',
+    source: card('mass-enrapture'),
+    target: { kind: 'none', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'far' },
+          prompt: 'Hold the whole room?',
+          onSuccessWithHope: [
+            { kind: 'applyCondition', condition: 'enraptured', duration: 'temporary', target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'mass-enrapture-hold',
+    name: 'Mass Enrapture',
+    source: card('mass-enrapture'),
+    // "Mark a Stress to force all Enraptured targets to mark a Stress, ending
+    // this spell." The spell ends because the condition comes off with it.
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'far' },
+    effects: [
+      { kind: 'log', text: 'The song breaks, and every one of them feels it.', tone: 'hope' },
+      { kind: 'markStress', amount: 1, target: { kind: 'adversaries', range: 'far' } },
+      { kind: 'clearCondition', condition: 'enraptured', target: { kind: 'adversaries', range: 'far' } },
+    ],
+  },
+  {
+    id: 'glyph-of-nightfall',
+    name: 'Glyph of Nightfall',
+    source: card('glyph-of-nightfall'),
+    cost: { hope: 1 },
+    target: { kind: 'adversary', range: 'veryClose' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Mark their weak points?',
+          onSuccessWithHope: [
+            { kind: 'applyCondition', condition: 'glyphed', duration: 'temporary', target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
   {
     id: 'rain-of-blades',
     name: 'Rain of Blades',
