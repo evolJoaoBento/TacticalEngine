@@ -90,6 +90,8 @@ export interface ConditionContext {
   poolValue(id: string, pool: PoolName, measure: 'available' | 'marked' | 'max'): number | null;
   /** The range band between two creatures, or null when either is off the map. */
   bandTo(from: string, to: string): RangeBand | null;
+  /** Which side a creature is on, or null for one that is not in the scene. */
+  factionOf(id: string): 'party' | 'adversary' | null;
   /** What a roll against this creature must beat: Evasion, or a Difficulty. */
   difficultyOf(id: string): number | null;
   /** A hook by id — native or project code — or null when nothing defines it. */
@@ -118,6 +120,7 @@ export function hookReads(context: ConditionContext, bindings: TargetBindings, a
     flag: (name) => context.hasFlag(name),
     variable: (name) => context.getVar(name),
     countAlive: (faction) => context.countAlive(faction),
+    factionOf: (id) => context.factionOf(id),
     tokens: (id, ability) => context.tokensOn(id, ability),
   };
 }
@@ -229,6 +232,14 @@ export function evaluate(
       if (fn === null) return false;
       const result = runHook(fn, hookReads(context, bindings, condition.args ?? {}) as never);
       return result.ok && result.value === true;
+    }
+    case 'side': {
+      const actor = context.actorId();
+      const mine = actor === null ? null : context.factionOf(actor);
+      if (mine === null) return false;
+      const want = condition.is === 'ally' ? mine : mine === 'party' ? 'adversary' : 'party';
+      const named = context.resolveTargets(condition.of ?? { kind: 'target' }, bindings);
+      return named.length > 0 && named.every((id) => context.factionOf(id) === want);
     }
     case 'withinRange': {
       const actor = context.actorId();

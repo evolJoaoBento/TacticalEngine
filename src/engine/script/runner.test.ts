@@ -25,6 +25,7 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     interactableState: () => ({ used: false, open: false, removed: false }),
     encounterState: () => ({ started: false, ended: false, triggered: false }),
     countAlive: () => 1,
+    factionOf: () => 'party' as const,
     questStatus: () => 'inactive',
     objectiveDone: () => false,
     grantLevel: () => null,

@@ -369,6 +369,13 @@ export interface ReactionOffer {
   ability: AbilityDef;
   /** Who the card is aimed at: whoever struck, or whoever was struck. */
   targets: readonly string[];
+  /**
+   * The other one, when the moment has two: "when an ally deals damage to an
+   * adversary" binds the ally as the target and the adversary here, so a card
+   * can reach past the first to the second. Left out, the target is both,
+   * which is what every trigger with one creature in it means.
+   */
+  hit?: readonly string[];
   counts: Partial<Record<CountName, number>>;
   lastDamage?: { total: number; types: readonly DamageType[] };
   /**
@@ -1256,9 +1263,14 @@ function landPartyAttack(
   const applied = applyAttack(demo.state, outcome);
   demo.world.endsOnAttack(id!);
   if (outcome.hit) {
+    // How much it dealt as well as how much it marked: a card that answers
+    // somebody else's blow throws that number, and the party's own swing was
+    // the one thing in the fight that never said what it rolled.
     demo.world.noteDamage(targetId, {
       attacker: id!,
       hitPoints: applied.hitPointsMarked,
+      damage: outcome.damageRoll?.total ?? 0,
+      types: held.damage.types ?? ['physical'],
       severe: outcome.damage !== undefined && isSevere(outcome.damage.severity),
     });
     demo.world.endsOnHit(targetId);
@@ -2476,7 +2488,12 @@ function nearbyOffers(
   for (const other of [...demo.state.entitiesOf('party'), ...demo.state.entitiesOf('adversary')]) {
     if (other.id === wounded || !other.alive) continue;
     if (other.faction === 'party') {
-      const theirs = offersFor(demo, other.id, ['nearbyTookDamage'], dealer, counts, { lastDamage });
+      // The same two bindings the stat block's half of this gets: whoever
+      // dealt it as the target, whoever took it as the hit.
+      const theirs = offersFor(demo, other.id, ['nearbyTookDamage'], dealer, counts, {
+        lastDamage,
+        hit: [wounded],
+      });
       if (theirs.length > 0) asked.push(theirs);
       continue;
     }
@@ -2521,15 +2538,18 @@ function offersFor(
     landing?: { held: HeldSwing };
     /** The roll that raised the moment, for a card that asks what it was. */
     roll?: { total: number; outcome: RollOutcome };
+    /** Who else the moment names, when it names two - see `ReactionOffer`. */
+    hit?: readonly string[];
   } = {},
 ): ReactionOffer[] {
   const { lastDamage, landing, roll } = left;
+  const beaten = left.hit ?? bound;
   const offers: ReactionOffer[] = [];
   const seen = new Set<string>();
   for (const trigger of triggers) {
     const bindings = {
       targets: [...bound],
-      hit: [...bound],
+      hit: [...beaten],
       counts,
       ...(roll === undefined ? {} : { roll }),
     };
@@ -2542,6 +2562,7 @@ function offersFor(
         by: id,
         ability,
         targets: [...bound],
+        ...(left.hit === undefined ? {} : { hit: [...left.hit] }),
         counts,
         ...(lastDamage === undefined ? {} : { lastDamage }),
         ...(roll === undefined ? {} : { roll }),
@@ -2648,7 +2669,7 @@ function playReaction(
   demo.scenario.actorId = offer.by;
   const runner = new ScriptRunner(demo.world, demo.rng, {
     targets: [...offer.targets],
-    hit: [...offer.targets],
+    hit: [...(offer.hit ?? offer.targets)],
     rollAs: 'actor',
     counts: offer.counts,
     ...(offer.lastDamage === undefined ? {} : { lastDamage: offer.lastDamage }),
@@ -2667,6 +2688,11 @@ function playReaction(
       dialogue: null,
       onDone: (done) => {
         demo.scenario.actorId = was;
+        // "Then place this card in your vault" reads at the end of the card,
+        // and a card that stopped to roll something has its end here rather
+        // than above: without this a reaction that vaults only vaults when it
+        // had nothing to ask.
+        vaultAfter(demo, offer.by, offer.ability, runner);
         afterReaction(demo, queued, asAnswered(landing, done.entries));
       },
     };

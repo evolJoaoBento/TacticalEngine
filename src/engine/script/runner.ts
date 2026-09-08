@@ -212,6 +212,7 @@ export interface ScriptWorld extends ConditionContext {
   summon(definition: string, count: number, range: RangeBand): { ids: string[]; refused?: string };
   /** How many of a faction are still standing. */
   countAlive(faction: 'party' | 'adversary'): number;
+  factionOf(id: string): 'party' | 'adversary' | null;
   /** Arm a countdown, replacing one already running under the same id. */
   startCountdown(countdown: RunningCountdown): void;
   /** Whether a creature has already been given the spotlight this GM turn. */

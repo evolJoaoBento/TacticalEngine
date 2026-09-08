@@ -2703,3 +2703,125 @@ describe('what a charge runs over', () => {
     expect(missed).toBe(true);
   });
 });
+
+describe('the same blow again', () => {
+  const gives = (demo: DemoScene, id: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(id)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(id, sheet);
+    demo.characters.set(id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** Kara beside the husk, Mira a step behind her with the cards in hand. */
+  const stage = (seed: string, cards: string[]): DemoScene => {
+    const demo = standoff(seed);
+    demo.askDefender = true;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 60, marked: 0 };
+    standBehind(demo, 'mira', husk.tile);
+    gives(demo, 'mira', cards);
+    return demo;
+  };
+
+  /** The option on a reaction prompt whose label names this card, or null. */
+  const offerOf = (demo: DemoScene, name: string): number | null => {
+    const pending = demo.pending;
+    if (pending === null || pending.kind !== 'reaction' || pending.prompt.kind !== 'choice') return null;
+    const at = pending.prompt.options.findIndex((o) => o.label.includes(name));
+    return at < 0 ? null : at;
+  };
+
+  it('binds the one who was hurt, not only the one who hurt them', () => {
+    // A card that reads the hit. Without the second binding it reads the ally
+    // who swung, and answers a moment that never happened.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = stage(`bindings-${seed}`, ['rune-ward']);
+      demo.project.abilities.push(
+        abilitySchema.parse({
+          id: 'watching',
+          name: 'Watching',
+          source: { kind: 'domainCard', card: 'rune-ward' },
+          text: 'When somebody nearby is hurt, you note who.',
+          kind: 'reaction',
+          trigger: 'nearbyTookDamage',
+          action: false,
+          available: { kind: 'side', of: { kind: 'hit' }, is: 'adversary' },
+          effects: [{ kind: 'log', text: 'Mira marks the one that is bleeding.', tone: 'hope' }],
+        }),
+      );
+      gives(demo, 'mira', ['rune-ward']);
+
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      const before = husk.hitPoints.marked;
+      attackWithSelected(demo, husk.id);
+      if (husk.hitPoints.marked === before) continue;
+      expect(demo.log.some((l) => l.text.includes('marks the one that is bleeding'))).toBe(true);
+      return;
+    }
+    throw new Error('Kara never landed a blow for Mira to read');
+  });
+
+  it('offers Encore when an ally lands one, and carries their damage over', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = stage(`encore-${seed}`, ['encore']);
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      attackWithSelected(demo, husk.id);
+      const at = offerOf(demo, 'Encore');
+      if (at === null) continue;
+
+      const before = husk.hitPoints.marked;
+      const said = demo.log.length;
+      answerPending(demo, { kind: 'choose', index: at });
+      let guard = 0;
+      while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
+      const after = demo.log.slice(said).map((l) => l.text);
+
+      expect(after.some((t) => t.includes('Mira: Encore'))).toBe(true);
+      // A roll that beat the husk carries Kara's own damage over; one that did
+      // not carries nothing, and the card is spent either way.
+      if (husk.hitPoints.marked === before) continue;
+      const carried = /(\d+) damage to/.exec(after.find((t) => t.includes('damage to')) ?? '');
+      expect(carried).not.toBeNull();
+      return;
+    }
+    throw new Error('Encore never landed in sixty tries');
+  });
+
+  it('puts Encore in the vault when the roll succeeds with Fear', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = stage(`encore-fear-${seed}`, ['encore']);
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      attackWithSelected(demo, husk.id);
+      const at = offerOf(demo, 'Encore');
+      if (at === null) continue;
+      const said = demo.log.length;
+      answerPending(demo, { kind: 'choose', index: at });
+      let guard = 0;
+      while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
+      const after = demo.log.slice(said).map((l) => l.text);
+      if (!after.some((t) => t.includes('Success, with Fear'))) continue;
+      // "Then place this card in your vault": out of the loadout, and no
+      // longer offering the reaction it was just played for.
+      expect(loadoutOf(demo.characters.get('mira')!)).not.toContain('encore');
+      return;
+    }
+    throw new Error('no seed put Encore through a success with Fear');
+  });
+
+  it('holds Encore back when the one bleeding is one of the party', () => {
+    // The card reads "an ally deals damage to an adversary". A blow the other
+    // way round names an adversary as the dealer and an ally as the hit, and
+    // both gates say no.
+    const demo = stage('encore-wrong-way', ['encore']);
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    for (let i = 0; i < 8 && demo.encounter?.outcome === 'ongoing'; i++) {
+      endTurn(demo);
+      let guard = 0;
+      while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'choose', index: 0 });
+      if (demo.state.entity('kara')!.hitPoints.marked > 0) break;
+    }
+    expect(demo.state.entity('kara')!.hitPoints.marked).toBeGreaterThan(0);
+    expect(demo.log.some((l) => l.text.includes('Mira: Encore'))).toBe(false);
+    expect(husk.hitPoints.marked).toBe(0);
+  });
+});

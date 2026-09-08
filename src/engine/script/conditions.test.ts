@@ -26,6 +26,7 @@ function context(overrides: Partial<ConditionContext> = {}): ConditionContext {
     interactableState: () => ({ used: false, open: false, removed: false }),
     encounterState: () => ({ started: false, ended: false, triggered: false }),
     countAlive: () => 0,
+    factionOf: () => 'party' as const,
     difficultyOf: () => null,
     hook: () => null,
     tokensOn: () => 0,

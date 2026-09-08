@@ -364,6 +364,20 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     condition: z.string().min(1),
     of: targetSelectorSchema.optional(),
   }),
+  /**
+   * Which side of the fight somebody is on, read from the actor's chair: "when
+   * an ally within Close range deals damage to an adversary" is two of these
+   * and a range.
+   *
+   * `ally` is the actor's own faction and `adversary` the other one, so the
+   * same card reads correctly whichever end of the table is holding it. Every
+   * creature `of` names has to be on that side; naming nobody is not a yes.
+   */
+  z.object({
+    kind: z.literal('side'),
+    of: targetSelectorSchema.optional(),
+    is: z.enum(['ally', 'adversary']),
+  }),
   /** Whether any of `of` (the chosen target unless said) stands within this band of the actor. */
   z.object({
     kind: z.literal('withinRange'),

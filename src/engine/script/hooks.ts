@@ -61,6 +61,7 @@ export interface HookReads {
   flag(name: string): boolean;
   variable(name: string): ScriptValue;
   countAlive(faction: 'party' | 'adversary'): number;
+  factionOf(id: string): 'party' | 'adversary' | null;
   /** Tokens sitting on a card a creature holds. */
   tokens(id: string, ability: string): number;
 }

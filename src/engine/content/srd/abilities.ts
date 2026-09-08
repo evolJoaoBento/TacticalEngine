@@ -489,6 +489,46 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // The first card written against `nearbyTookDamage` from the party's side of
+  // it. An ally's blow raises the moment with the one who dealt it bound as
+  // the target and the one who took it as the hit, so the card reaches past
+  // the first to the second: the roll is made against the adversary, and the
+  // damage carried over is the ally's, not a fresh roll of anything.
+  {
+    id: 'encore',
+    name: 'Encore',
+    source: card('encore'),
+    kind: 'reaction',
+    trigger: 'nearbyTookDamage',
+    action: false,
+    // Asked, not taken: a Spellcast Roll that succeeds with Fear costs the
+    // card, so whether to answer an ally's blow is the player's to say.
+    auto: false,
+    inCombatOnly: true,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'side', of: { kind: 'target' }, is: 'ally' },
+        { kind: 'side', of: { kind: 'hit' }, is: 'adversary' },
+        { kind: 'withinRange', range: 'close', of: { kind: 'target' } },
+      ],
+    },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'hit' },
+          prompt: 'Encore: the same blow again, on the same target.',
+          // `always` with `hit` is the idiom for "on a success": a roll that
+          // beat nobody leaves nobody bound, and the damage lands on no one.
+          always: [{ kind: 'damage', dice: 'same', target: { kind: 'hit' } }],
+          onSuccessWithFear: [{ kind: 'vaultCard' }],
+        },
+      },
+    ],
+  },
   // The first card in the SRD aimed at the ground rather than at anybody: the
   // player picks a tile, and what the run passes on the way is what it hits.
   //

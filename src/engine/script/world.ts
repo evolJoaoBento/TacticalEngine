@@ -391,6 +391,11 @@ export class SceneScriptWorld implements ScriptWorld {
     return { started: s.started, ended: s.ended, triggered: s.triggered };
   }
 
+  factionOf(id: string): 'party' | 'adversary' | null {
+    const faction = this.state.entity(id)?.faction;
+    return faction === 'party' || faction === 'adversary' ? faction : null;
+  }
+
   countAlive(faction: 'party' | 'adversary'): number {
     return this.state.entitiesOf(faction).filter((e) => e.alive).length;
   }

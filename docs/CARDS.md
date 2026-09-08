@@ -35,7 +35,7 @@ Known simplifications in the scripted ones:
 - **Deathrun** is the first card aimed at the ground rather than at anybody: the player picks a tile, the board shows what the line would go through before the click, and what the run passes is what it hits. Simplified: the ladder of shrinking damage rolls and the order to deal them in is one roll, the same damage to everyone it beat, which is what every other attack against several targets here does; the card's own +1 to Proficiency is kept.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 94 of 189 cards.
+Scripted: 95 of 189 cards.
 
 
 ## Arcana
@@ -165,7 +165,7 @@ Scripted: 94 of 189 cards.
 | 8 | Mass Enrapture | Spell | **action** |
 | 9 | Copycat | Spell | text |
 | 9 | Master of the Craft | Ability | text |
-| 10 | Encore | Spell | text |
+| 10 | Encore | Spell | **reaction** |
 | 10 | Notorious | Ability | text |
 
 ## Midnight

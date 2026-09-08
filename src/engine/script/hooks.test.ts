@@ -19,6 +19,7 @@ const reads = (overrides: Partial<ConditionContext> = {}): ConditionContext => (
   interactableState: () => ({ used: false, open: false, removed: false }),
   encounterState: () => ({ started: false, ended: false, triggered: false }),
   countAlive: () => 2,
+  factionOf: () => 'party' as const,
   questStatus: () => 'inactive',
   objectiveDone: () => false,
   actorId: () => 'kara',
