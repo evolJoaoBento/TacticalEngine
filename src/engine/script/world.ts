@@ -27,6 +27,7 @@ import {
   unmarked,
 } from '../rules/resources';
 import {
+  hpForSeverity,
   isSevere,
   resolveDamage,
   type DamageDefenses,
@@ -1102,12 +1103,29 @@ export class SceneScriptWorld implements ScriptWorld {
     this.state.encounter(id).ended = true;
   }
 
+  /**
+   * Hit Points marked outright: "force them to mark 5 Hit Points", the vines
+   * that squeeze, a trap. Past the thresholds and past any armor, because the
+   * number is what the card said rather than what a blow rolled.
+   *
+   * Heard the same way a rolled wound is. A wound is a wound however it was
+   * dealt: the Shark still smells the blood, and a stat block that answers
+   * being hurt still answers. Nobody is named, like damage out of any other
+   * script, so the ones that hit back have nobody to hit.
+   */
   damage(target: TargetSelector, amount: number, _source?: string, bindings: TargetBindings = { targets: [], hit: [] }): number {
     let total = 0;
     for (const entity of this.entitiesFor(target, bindings)) {
       const result = markHitPoints(entity.hitPoints, amount);
       entity.hitPoints = result.hitPoints;
       if (result.fell) entity.alive = false;
+      if (result.hpMarked > 0) {
+        this.noteDamage(entity.id, {
+          hitPoints: result.hpMarked,
+          damage: amount,
+          severe: result.hpMarked >= hpForSeverity('severe'),
+        });
+      }
       total += result.hpMarked;
     }
     return total;

@@ -284,7 +284,16 @@ Fear" is an `all` of two. The same
 happens on the party's own swing: `playAttackRiders` reads `dealtHit` and `dealtDamage` for
 whoever swung, so Healing Strike is offered after a player's attack the way a stat block's rider
 runs after the GM's. Every note is read before anyone is asked, because `drainDamage` clears as
-it reports; what is not asked now is queued behind the question that is up.
+it reports; what is not asked now is queued behind the question that is up. A wound is heard
+however it was dealt: `world.damage` marks Hit Points outright — past the thresholds and past
+any armor, which is what "force them to mark 5 Hit Points" asks for — and notes it exactly as a
+rolled blow does, with nobody named.
+
+What a card of the party's costs to answer with is `canPlay`, not `canPayFor`: the engine's
+version reads the pools and knows nothing about how many times a card has been played this rest,
+so every offer on this side asks both questions together. `payFor` is the single funnel every
+play path goes through — an offered reaction, a defence chosen at the prompt, a card in place of
+a death move — so that is where the use is counted.
 
 A blow that marks a character's **last Hit Point** stops the fight for a fourth kind of
 `demo.pending`, a `PendingDeath`, raised by `playDeathMoves` from `settleFight`. Where it sits

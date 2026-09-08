@@ -15,6 +15,7 @@ import {
   answerPending,
   attackWithSelected,
   buildDemoScene,
+  defenseChoices,
   endTurn,
   refreshWorld,
   settleFight,
@@ -22,6 +23,7 @@ import {
   syncPools,
   type DemoScene,
 } from './demo-scene';
+import { useKey } from '../engine/script/world';
 
 /**
  * Passives and reactions in play: what a held card changes on the sheet,
@@ -1971,5 +1973,73 @@ describe('a death move', () => {
     felled(demo);
     // "When a PC marks their last Hit Point" is every time they do.
     expect(demo.pending?.kind).toBe('death');
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// What the engine counts and what it hears
+// ---------------------------------------------------------------------------
+
+describe('a card with a limit on it, answering something', () => {
+  const hold = (demo: DemoScene, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('is offered once and then not again, the way a stat block\'s feature already was', () => {
+    // Scramble is "once per rest", and until now nothing on the party's side
+    // of the table counted that: `canPayFor` reads the pools and knows nothing
+    // about how many times a card has been played.
+    const demo = standoff('scramble-once');
+    hold(demo, ['scramble']);
+
+    const first = untilChoice(demo, 'script');
+    expect(first, 'Scramble was offered').not.toBeNull();
+    const offered = (): boolean =>
+      // The blow it was first offered against, so the answer is about the
+      // card's own limit and not about having already answered this swing.
+      defenseChoices(demo, first!.attack).some((c) => c.kind === 'script' && c.ability.id === 'scramble');
+    expect(offered()).toBe(true);
+
+    const at = first!.choices.findIndex((c) => c.kind === 'script' && c.ability.id === 'scramble');
+    expect(at).toBeGreaterThan(0);
+    const stood = demo.state.entity('kara')!.tile;
+    answerPending(demo, { kind: 'choose', index: at });
+
+    // Back where she was standing, because the card's own gate is about being
+    // in Melee range and Scramble is what took her out of it: the question
+    // here is the limit on the card, not where the card left her.
+    demo.state.moveEntity('kara', stood);
+    expect(demo.world.reactionsFor('kara', 'incomingDamage', { targets: [first!.attack.attacker], hit: [] }).map((a) => a.id)).toContain('scramble');
+
+    // Played, counted, and gone until the party rests.
+    expect(demo.scenario.abilityUses.get(useKey('kara', 'scramble'))).toBe(1);
+    expect(offered()).toBe(false);
+  });
+});
+
+describe('a wound marked outright', () => {
+  it('is heard the same way a rolled one is', () => {
+    // "Force them to mark 5 Hit Points", the vines that squeeze, a trap: the
+    // number is the card's rather than a roll's, and until now nothing that
+    // answers being hurt heard it at all.
+    const demo = scene('flat-heard');
+    demo.scenario.actorId = 'mira';
+    runScript([{ kind: 'damage', amount: 2, target: { kind: 'entity', id: 'kara' } }], demo.world, demo.rng);
+
+    const notes = demo.world.drainDamage();
+    const heard = notes.find((n) => n.id === 'kara');
+    expect(heard, 'the wound was noted').toBeDefined();
+    expect(heard!.hitPoints).toBe(2);
+    // Nobody swung it, so nothing that hits back has anybody to hit.
+    expect(heard!.attacker).toBe(null);
+    expect(heard!.severe).toBe(false);
+
+    // Three Hit Points is what a Severe blow marks, whoever counted them.
+    runScript([{ kind: 'damage', amount: 3, target: { kind: 'entity', id: 'mira' } }], demo.world, demo.rng);
+    expect(demo.world.drainDamage().find((n) => n.id === 'mira')!.severe).toBe(true);
   });
 });

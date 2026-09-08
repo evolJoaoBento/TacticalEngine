@@ -2486,7 +2486,7 @@ function offersFor(
       if (ability.effects.length === 0 || seen.has(ability.id)) continue;
       seen.add(ability.id);
       const holder = defenderFor(demo, id);
-      if (holder === null || !canPayFor(holder, ability)) continue;
+      if (holder === null || !canPlay(demo, id, holder, ability)) continue;
       const offer: ReactionOffer = {
         by: id,
         ability,
@@ -3210,7 +3210,7 @@ export function defenseChoices(demo: DemoScene, attack: IncomingAttack): Defense
 
   const own = demo.world
     .reactionsFor(attack.defender, 'incomingDamage')
-    .filter((a) => a.reaction !== undefined && !attack.used.includes(a.id) && canPayFor(defender, a));
+    .filter((a) => a.reaction !== undefined && !attack.used.includes(a.id) && canPlay(demo, attack.defender, defender, a));
   for (const ability of own) {
     if (ability.reaction?.kind === 'redirect') continue; // an ally's card, offered below
     for (const slots of room ? [0, 1] : [0]) {
@@ -3235,7 +3235,7 @@ export function defenseChoices(demo: DemoScene, attack: IncomingAttack): Defense
     hit: [attack.attacker],
   })) {
     if (ability.reaction !== undefined || ability.effects.length === 0) continue;
-    if (attack.used.includes(ability.id) || !canPayFor(defender, ability)) continue;
+    if (attack.used.includes(ability.id) || !canPlay(demo, attack.defender, defender, ability)) continue;
     const cost = costOf(ability);
     choices.push({
       kind: 'script',
@@ -3252,13 +3252,13 @@ export function defenseChoices(demo: DemoScene, attack: IncomingAttack): Defense
     if (helper === null) continue;
     const name = nameOf(demo, entity.id);
     for (const ability of demo.world.reactionsFor(entity.id, 'incomingDamage')) {
-      if (ability.reaction?.kind !== 'redirect' || attack.used.includes(ability.id) || !canPayFor(helper, ability)) continue;
+      if (ability.reaction?.kind !== 'redirect' || attack.used.includes(ability.id) || !canPlay(demo, entity.id, helper, ability)) continue;
       const band = demo.world.bandTo(entity.id, attack.defender);
       if (band === null || !reaches(band, ability.target.range)) continue;
       choices.push({ kind: 'redirect', label: `${name}: ${ability.name} (${costOf(ability)})`, by: entity.id, ability });
     }
     for (const ability of demo.world.reactionsFor(entity.id, 'attackHit')) {
-      if (ability.reaction?.kind !== 'reroll' || attack.used.includes(ability.id) || !canPayFor(helper, ability)) continue;
+      if (ability.reaction?.kind !== 'reroll' || attack.used.includes(ability.id) || !canPlay(demo, entity.id, helper, ability)) continue;
       const band = demo.world.bandTo(entity.id, attack.attacker);
       if (band === null || !reaches(band, ability.target.range)) continue;
       const what = ability.reaction.what;
@@ -3289,7 +3289,7 @@ function offerMiss(demo: DemoScene, attack: IncomingAttack): void {
     // The one who swung is bound as the target: a card that hits back names
     // them, and one that asks how close they are reads the same binding.
     .reactionsFor(attack.defender, 'attackMissed', { targets: [attack.attacker], hit: [attack.attacker] })
-    .filter((ability) => ability.effects.length > 0 && canPayFor(holder, ability));
+    .filter((ability) => ability.effects.length > 0 && canPlay(demo, attack.defender, holder, ability));
   if (cards.length === 0) return;
   const choices: DefenseChoice[] = [
     { kind: 'none', label: 'Let it go wide' },
@@ -3592,7 +3592,37 @@ function payFor(demo: DemoScene, id: string, ability: AbilityDef): boolean {
   const stress = ability.cost.stress ?? 0;
   if (hope > 0 && !demo.world.spendHope(id, hope)) return false;
   if (stress > 0) demo.world.markStress(id, stress);
+  // "Once per rest" is part of the price. Every path that plays a card of the
+  // party's - a reaction they were offered, a defence they chose, a card in
+  // place of a death move - pays here, so this is the one place that has to
+  // count it. An action card is counted by `useAbility` instead, which knows
+  // it can also be put back down again.
+  spendUse(demo, id, ability);
   return true;
+}
+
+/** Take one use off a limited card, wherever it was played from. */
+function spendUse(demo: DemoScene, id: string, ability: AbilityDef): void {
+  if (ability.uses === undefined) return;
+  const key = useKey(id, ability.id);
+  demo.scenario.abilityUses.set(key, (demo.scenario.abilityUses.get(key) ?? 0) + 1);
+}
+
+/**
+ * Whether a character can play this card in answer to something right now.
+ *
+ * What it costs and what is left of it. `canPayFor` reads the pools alone -
+ * it is the engine's, and the engine has no idea how many times a card has
+ * been played this rest - so every offer on this side asks both questions
+ * together or a "once per rest" card is offered on every blow.
+ */
+function canPlay(
+  demo: DemoScene,
+  id: string,
+  defender: Pick<Defender, 'hope' | 'stress'>,
+  ability: AbilityDef,
+): boolean {
+  return canPayFor(defender, ability) && featureUsesLeft(demo, id, ability) > 0;
 }
 
 // ---------------------------------------------------------------------------
