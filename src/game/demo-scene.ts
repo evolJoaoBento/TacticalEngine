@@ -410,6 +410,13 @@ export type DefenseChoice =
   | { kind: 'none'; label: string }
   /** A card whose own effects answer the attack — Vanishing Dodge on a miss. */
   | { kind: 'react'; label: string; by: string; ability: AbilityDef }
+  /**
+   * A card that answers the blow with a script of its own: thorns that take
+   * dice off it, a step that gets out of its way. Offered without a number,
+   * because what it is worth is not known until it has been played, and the
+   * blow is put to the defender again once it has.
+   */
+  | { kind: 'script'; label: string; by: string; ability: AbilityDef }
   | { kind: 'redirect'; label: string; by: string; ability: AbilityDef }
   | { kind: 'reroll'; label: string; by: string; ability: AbilityDef; what: 'attack' | 'damage' };
 
@@ -2781,6 +2788,25 @@ export function defenseChoices(demo: DemoScene, attack: IncomingAttack): Defense
     }
   }
 
+  // And what the defender's own cards say in their own words. A script is not
+  // a plan: nothing can be previewed and nothing can be composed with an Armor
+  // Slot in advance, so it is offered on its own and the blow comes back round
+  // once it has been played.
+  for (const ability of demo.world.reactionsFor(attack.defender, 'incomingDamage', {
+    targets: [attack.attacker],
+    hit: [attack.attacker],
+  })) {
+    if (ability.reaction !== undefined || ability.effects.length === 0) continue;
+    if (attack.used.includes(ability.id) || !canPayFor(defender, ability)) continue;
+    const cost = costOf(ability);
+    choices.push({
+      kind: 'script',
+      label: `${ability.name}${cost === '' ? '' : ` (${cost})`}`,
+      by: attack.defender,
+      ability,
+    });
+  }
+
   // What the rest of the party can do about it.
   for (const entity of demo.state.entitiesOf('party')) {
     if (!entity.alive || entity.id === attack.defender) continue;
@@ -2873,6 +2899,42 @@ function offerOrLand(demo: DemoScene, attack: IncomingAttack): void {
 }
 
 /**
+ * The blow, with what the defender's own card said about it.
+ *
+ * Softening comes off the total the swing rolled, so everything downstream -
+ * thresholds, Armor Slots, the reduction a passive rolls - reads the number
+ * that actually arrived. Avoiding is not a miss and not a nothing: the attack
+ * roll succeeded and then found nobody, so the swing is spent and the riders
+ * that answer a landed blow never run.
+ *
+ * Either way the blow is put to the defender again, because a card and an
+ * Armor Slot are both answers and the SRD lets somebody give both.
+ */
+function answeredWith(demo: DemoScene, attack: IncomingAttack, journal: readonly JournalEntry[]): void {
+  let softened = 0;
+  let avoided = false;
+  for (const entry of journal) {
+    if (entry.kind === 'blowSoftened') softened += entry.by;
+    if (entry.kind === 'blowAvoided') avoided = true;
+  }
+  const who = nameOf(demo, attack.defender);
+  if (avoided) {
+    demo.world.endsOnAttack(attack.attacker);
+    note(demo, `The ${attack.def.name}'s ${attack.def.attackName} finds nothing where ${who} was.`, 'combat');
+    playAttackedOn(demo, attack.defender, attack.attacker);
+    settleFight(demo);
+    return;
+  }
+  const roll = attack.outcome.damageRoll;
+  const softer =
+    softened <= 0 || roll === undefined
+      ? attack
+      : { ...attack, outcome: { ...attack.outcome, damageRoll: { ...roll, total: Math.max(0, roll.total - softened) } } };
+  if (softened > 0) note(demo, `${who} turns aside ${softened} of it.`, 'hope');
+  offerOrLand(demo, softer);
+}
+
+/**
  * Take the hit: with the plan the defender chose, or — when `plan` is null —
  * with the one the engine decides, which is what happens when nobody is being
  * asked.
@@ -2940,6 +3002,45 @@ export function applyDefenseChoice(demo: DemoScene, attack: IncomingAttack, choi
   if (choice.kind === 'none') return;
   if (choice.kind === 'plan') {
     landAttack(demo, attack, choice.plan);
+    return;
+  }
+  if (choice.kind === 'script') {
+    if (!payFor(demo, choice.by, choice.ability)) return landAttack(demo, attack, null);
+    const damage = incomingOf(demo, attack);
+    const was = demo.scenario.actorId;
+    demo.scenario.actorId = choice.by;
+    const runner = new ScriptRunner(demo.world, demo.rng, {
+      targets: [attack.attacker],
+      hit: [attack.attacker],
+      rollAs: 'actor',
+      lastDamage: { total: damage.amount, types: damage.types ?? [] },
+    });
+    const result = runner.run(choice.ability.effects);
+    record(demo, result.journal);
+    const carried = { ...attack, used: [...attack.used, choice.ability.id] };
+    if (result.status === 'waiting') {
+      // The card stopped to ask something of its own - how many thorns to
+      // spend - and the blow waits with it, the way the party's own swing
+      // waits on a card that answers it.
+      demo.pending = {
+        kind: 'script',
+        runner,
+        prompt: result.prompt,
+        interactable: null,
+        recorded: result.journal.length,
+        dialogue: null,
+        onDone: (done) => {
+          demo.scenario.actorId = was;
+          answeredWith(demo, carried, done.entries);
+          // The question this card asked was the last thing the fight was
+          // waiting on, and nothing above resumes the GM's turn for it.
+          if (demo.pending === null && demo.gmTurn !== null) runGmTurn(demo);
+        },
+      };
+      return;
+    }
+    demo.scenario.actorId = was;
+    answeredWith(demo, carried, result.journal);
     return;
   }
   if (choice.kind === 'react') {

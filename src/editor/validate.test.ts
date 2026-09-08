@@ -766,6 +766,24 @@ describe('what only a stat block has', () => {
           effects: [{ kind: 'forceHitPoints', amount: 3 }],
         },
         {
+          id: 'thorns-out-of-nowhere',
+          name: 'Thorns Out Of Nowhere',
+          source: { kind: 'domainCard', card: 'thorn-skin' },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'tookDamage',
+          effects: [{ kind: 'softenBlow', dice: '1d6' }],
+        },
+        {
+          id: 'thorns-in-time',
+          name: 'Thorns In Time',
+          source: { kind: 'domainCard', card: 'thorn-skin' },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'incomingDamage',
+          effects: [{ kind: 'avoidBlow' }],
+        },
+        {
           id: 'band-out-of-nowhere',
           name: 'Band Out Of Nowhere',
           source: { kind: 'adversary', adversaries: ['husk'] },
@@ -797,6 +815,9 @@ describe('what only a stat block has', () => {
     const said = messages(project);
     expect(said.some((m) => m.includes('"forced-late" forces the Hit Points marked'))).toBe(true);
     expect(said.some((m) => m.includes('"band-out-of-nowhere" names the band a blow lands in'))).toBe(true);
+    // A blow is answered while it is arriving, and `tookDamage` is after.
+    expect(said.some((m) => m.includes('"thorns-out-of-nowhere" answers a blow arriving'))).toBe(true);
+    expect(said.some((m) => m.includes('thorns-in-time'))).toBe(false);
     expect(said.some((m) => m.includes('band-mid-swing'))).toBe(false);
     expect(said.some((m) => m.includes('forced-well'))).toBe(false);
     // The right moment, the wrong side of the table: only the party's swing

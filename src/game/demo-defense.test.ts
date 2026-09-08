@@ -1302,3 +1302,69 @@ describe('answering a miss', () => {
     expect(demo.state.entity('kara')!.stress.marked).toBe(stress + 1);
   });
 });
+
+/**
+ * The defence step answers a blow with shapes — dice off the total, a slot
+ * marked, the severity stepped. These two answer it with a script, which is
+ * offered without a number because what it is worth is not known until it has
+ * been played.
+ */
+describe('a card that answers the blow in its own words', () => {
+  const holding = (demo: DemoScene, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('takes dice off the blow and puts them back into whoever swung', () => {
+    const demo = standoff('thorns');
+    holding(demo, ['thorn-skin']);
+    demo.world.addTokens('kara', 'thorn-skin', 3);
+    const asked = untilChoice(demo, 'script');
+    expect(asked).not.toBeNull();
+    const index = asked!.choices.findIndex((c) => c.kind === 'script');
+    expect(asked!.choices[index]!.label).toContain('Thorn Skin');
+
+    // The same blow, taken plainly, off the same seed.
+    const cold = standoff('thorns');
+    holding(cold, ['thorn-skin']);
+    cold.world.addTokens('kara', 'thorn-skin', 3);
+    untilChoice(cold, 'script');
+    answerPending(cold, { kind: 'choose', index: 0 });
+    const plain = cold.state.entity('kara')!.hitPoints.marked;
+
+    // Three thorns: dice off the blow, and the same number back into the one
+    // standing over her.
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    answerPending(demo, { kind: 'choose', index });
+    expect(demo.pending?.kind).toBe('script');
+    answerPending(demo, { kind: 'choose', index: 2 });
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+    expect(demo.world.tokensOn('kara', 'thorn-skin')).toBe(0);
+    expect(demo.log.some((l) => l.text.includes('turns aside'))).toBe(true);
+    expect(husk.hitPoints.marked).toBeGreaterThan(0);
+    expect(demo.state.entity('kara')!.hitPoints.marked).toBeLessThan(plain);
+  });
+
+  it('is not there when the blow arrives, and the swing is spent on nothing', () => {
+    const demo = standoff('scramble');
+    holding(demo, ['scramble']);
+    const asked = untilChoice(demo, 'script');
+    expect(asked).not.toBeNull();
+    const index = asked!.choices.findIndex((c) => c.kind === 'script');
+    expect(asked!.choices[index]!.label).toContain('Scramble');
+
+    const kara = demo.state.entity('kara')!;
+    const stood = kara.tile;
+    const said = demo.log.length;
+    answerPending(demo, { kind: 'choose', index });
+    const after = demo.log.slice(said).map((l) => l.text);
+    expect(after.some((t) => t.includes('finds nothing where Kara was'))).toBe(true);
+    // The blow was not a miss and not a hit: nothing was marked for it, and
+    // Kara is no longer standing where it was aimed.
+    expect(after.some((t) => /Claws (hits|tears into) Kara/.test(t))).toBe(false);
+    expect(kara.tile).not.toBe(stood);
+  });
+});

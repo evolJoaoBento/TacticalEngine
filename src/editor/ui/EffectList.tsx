@@ -96,6 +96,8 @@ const ADDABLE = [
   'boostDamage',
   'forceHitPoints',
   'forceSeverity',
+  'softenBlow',
+  'avoidBlow',
   'howMany',
   'countdown',
   'reactionRoll',
@@ -156,6 +158,8 @@ const LABELS: Readonly<Record<Addable, string>> = {
   boostDamage: 'Add to the blow landing',
   forceHitPoints: 'Force Hit Points marked',
   forceSeverity: 'Force the damage band',
+  softenBlow: 'Take some off the blow',
+  avoidBlow: 'Avoid the blow entirely',
   howMany: 'Ask how many',
   reactionRoll: 'Ask for a reaction roll',
   run: 'Run code',
@@ -290,6 +294,10 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, amount: { pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked' } };
     case 'forceSeverity':
       return { kind, severity: 'severe' };
+    case 'softenBlow':
+      return { kind, dice: '1d6' };
+    case 'avoidBlow':
+      return { kind };
     case 'howMany':
       return { kind, most: { pool: 'hope', measure: 'available' }, each: [] };
     case 'countdown':
@@ -1018,6 +1026,23 @@ function renderBody(
             rolled
           </span>
           {amount(effect.times ?? 1, (times) => ({ ...effect, times: times === 1 ? undefined : times }))}
+        </>
+      );
+    case 'softenBlow':
+      return (
+        <>
+          <input
+            style={{ ...field, flex: 'none', width: '86px' }}
+            data-role="soften-dice"
+            placeholder="1d6"
+            title="Dice to roll and take off the blow. Empty for a flat number."
+            value={effect.dice ?? ''}
+            onInput={(e) => {
+              const dice = (e.target as HTMLInputElement).value.trim();
+              onChange({ ...effect, dice: dice === '' ? undefined : dice });
+            }}
+          />
+          {amount(effect.amount ?? 0, (value) => ({ ...effect, amount: value === 0 ? undefined : value }))}
         </>
       );
     case 'forceHitPoints':

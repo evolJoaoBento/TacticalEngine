@@ -329,6 +329,76 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- what the defender says in their own words --------------------------
+  // The defence step answers a blow with shapes - dice off the total, a slot
+  // marked, the severity stepped - and these two answer it with a script:
+  // thorns that roll for what they are worth, and a step that is simply not
+  // there any more.
+  {
+    id: 'thorn-skin',
+    name: 'Thorn Skin',
+    source: card('thorn-skin'),
+    cost: { hope: 1 },
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'self' },
+    action: false,
+    effects: [
+      { kind: 'log', text: 'Thorns break through the skin.', tone: 'hope' },
+      { kind: 'addToken', ability: 'thorn-skin', amount: { trait: 'spellcast' } },
+    ],
+  },
+  {
+    id: 'thorn-skin-turn',
+    name: 'Thorn Skin',
+    source: card('thorn-skin'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    auto: false,
+    available: { kind: 'tokens', ability: 'thorn-skin', op: '>=', value: 1 },
+    target: { kind: 'none' },
+    // Simplified: it answers a standard attack, which is the blow the defender
+    // is asked about. Damage from a feature's own script is dealt without a
+    // question, so the thorns never hear it.
+    effects: [
+      {
+        kind: 'howMany',
+        most: { tokens: 'thorn-skin' },
+        title: 'Thorn Skin',
+        body: 'How many thorns break off in it?',
+        each: [
+          { kind: 'spendToken', ability: 'thorn-skin', amount: 'spent' },
+          { kind: 'softenBlow', dice: '{n}d6' },
+          {
+            kind: 'branch',
+            when: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } },
+            then: [{ kind: 'damage', dice: 'same', target: { kind: 'target' } }],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'scramble',
+    name: 'Scramble',
+    source: card('scramble'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    auto: false,
+    uses: { count: 1, per: 'rest' },
+    // "When a creature within Melee range would deal damage to you."
+    available: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } },
+    target: { kind: 'none' },
+    // Simplified: the blow is avoided and the ground is left, but a creature
+    // that follows is the table's to play - the walk is measured away from the
+    // one who swung and stops where the map does.
+    effects: [
+      { kind: 'log', text: 'The blow closes on empty ground.', tone: 'hope' },
+      { kind: 'avoidBlow' },
+      { kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'close' },
+    ],
+  },
   // ---- what the dice said, once the blow has landed -----------------------
   // Four cards answer a critical success, and until the roll reached the cards
   // that answer a hit none of them could ask. The gate is a plain `rolled`,

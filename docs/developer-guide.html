@@ -903,6 +903,24 @@ footer {
   whatever ran on its own before the blow is either put to the player or landed. Without that,
   a card rolling dice it had collected would write its total to the log and nowhere else.</p>
 
+  <p>The defence step answers a blow with shapes &mdash; <code>reduceDamage</code>,
+  <code>extraArmor</code>, <code>reduceSeverity</code>, <code>redirect</code>,
+  <code>reroll</code> &mdash; because every option it offers is previewed with the Hit Points
+  it would cost. A card whose answer is a script cannot be previewed, so it is offered on its
+  own, without a number, next to the plans: <code>softenBlow</code> takes what it rolls off
+  the blow, and <code>avoidBlow</code> means the blow arrives and finds nobody. Both journal
+  rather than write, and the game layer folds them the way it folds a boost mid-swing &mdash;
+  softening comes off the total the swing rolled, so the thresholds and the Armor Slots read
+  what actually arrived.</p>
+
+  <p>Two things follow from that shape. The blow is put to the defender <em>again</em> once
+  the card has been played, with the card's id in <code>used</code>: marking an Armor Slot and
+  playing a card are both answers, and the SRD lets somebody give both. And an avoided blow is
+  neither a hit nor a miss &mdash; the attack roll succeeded and then found nobody &mdash; so
+  the swing is spent, nothing is marked, and the riders that answer a landed blow never run.
+  A card that stops to ask something of its own holds the blow while it asks, exactly as the
+  party's own swing does.</p>
+
   <p>A card can ask what the dice said. <code>rolled</code> has always been able to read a
   roll &mdash; it is how a stat block answers &ldquo;when a PC rolls a failure with
   Fear&rdquo; &mdash; but the moment a swing lands carried no roll with it, so a card asking

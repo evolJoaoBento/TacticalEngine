@@ -717,6 +717,34 @@ export const effectSchema = z.discriminatedUnion('kind', [
     times: amountSchema.optional(),
   }),
   /**
+   * "Spend any number of tokens to roll that number of d6s and reduce the
+   * incoming damage by that amount": what a card takes off a blow that is
+   * arriving, rolled by the card rather than named by the defence step.
+   *
+   * The mirror of `boostDamage`, and read the same way: journalled rather than
+   * written, and the game layer takes it off the blow before the thresholds
+   * are read. Only a blow somebody is being asked about hears it - the defence
+   * the engine decides on its own uses the shapes on the card, not its script.
+   *
+   * What it rolled becomes the script's last damage, so "deal that amount back
+   * to them" is a plain `damage` with `dice: 'same'`.
+   */
+  z.object({
+    kind: z.literal('softenBlow'),
+    /** Dice to roll and take off ("2d6"), or a flat number. */
+    dice: z.string().min(1).optional(),
+    amount: amountSchema.optional(),
+  }),
+  /**
+   * "You can avoid the attack": the blow arrives and does nothing at all.
+   *
+   * Not a miss and not a reduction - the attack roll succeeded, and then it
+   * found nobody. Whatever the swing would have done afterwards it does not
+   * do: no Hit Points, no rider on the hit, nothing for the block to be proud
+   * of.
+   */
+  z.object({ kind: z.literal('avoidBlow') }),
+  /**
    * "Force the target to mark a number of Hit Points equal to the number of
    * Hit Points you currently have marked instead of rolling for damage": the
    * blow arrives as a flat number of Hit Points, past thresholds, resistance

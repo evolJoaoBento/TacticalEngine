@@ -300,6 +300,10 @@ export type JournalEntry =
   | { kind: 'damageBoosted'; id: string | null; by: number }
   /** That blow marks this many Hit Points instead of being rolled for. */
   | { kind: 'hitPointsForced'; id: string | null; to: number }
+  /** Taken off a blow that is arriving, by a card the defender played. */
+  | { kind: 'blowSoftened'; id: string | null; by: number }
+  /** That blow arrives and does nothing at all. */
+  | { kind: 'blowAvoided'; id: string | null }
   /** That blow lands in this band instead of being rolled for, or no lower than it. */
   | { kind: 'severityForced'; id: string | null; severity: DamageSeverity; least?: boolean }
   /** One creature off the map and another in its place. `was` is its name. */
@@ -1017,6 +1021,24 @@ export class ScriptRunner {
         }
         if (by <= 0) return null;
         this.journal.push({ kind: 'damageBoosted', id: actor, by });
+        return null;
+      }
+      case 'softenBlow': {
+        let by = effect.amount === undefined ? 0 : this.amountOf(effect.amount, 0);
+        if (effect.dice !== undefined) {
+          const expression = parseDice(effect.dice);
+          if (expression === null) return this.refuse(`cannot read damage dice "${effect.dice}"`);
+          by += rollDice(this.rng, expression).total;
+        }
+        if (by <= 0) return null;
+        // What the thorns rolled is what the thorns are worth, both ways: the
+        // blow loses it, and a `damage` reading `same` deals it back.
+        this.lastDamage = { total: by, dice: effect.dice ?? '', types: [] };
+        this.journal.push({ kind: 'blowSoftened', id: world.actorId(), by });
+        return null;
+      }
+      case 'avoidBlow': {
+        this.journal.push({ kind: 'blowAvoided', id: world.actorId() });
         return null;
       }
       case 'forceSeverity': {

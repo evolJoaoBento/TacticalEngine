@@ -335,6 +335,16 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // Answering a blow in a script is read at the moment the defender is asked
+    // about one, and nowhere else: a card that softens or avoids anywhere else
+    // is talking to nobody.
+    if (answersABlow(ability) && ability.trigger !== 'incomingDamage') {
+      add(
+        'warning',
+        `"${ability.id}" answers a blow arriving, which only a card asked about incoming damage is.`,
+        ability.id,
+      );
+    }
     // A band named for a blow is read at the same moment a boost is, and
     // nowhere else.
     if (
@@ -489,6 +499,15 @@ function boostsABlow(ability: AbilityDef): boolean {
     if (effect.kind === 'boostDamage') boosts = true;
   });
   return boosts;
+}
+
+/** Whether anything in an ability softens or avoids a blow arriving. */
+function answersABlow(ability: AbilityDef): boolean {
+  let answers = false;
+  walkEffects(ability.effects, (effect) => {
+    if (effect.kind === 'softenBlow' || effect.kind === 'avoidBlow') answers = true;
+  });
+  return answers;
 }
 
 /**
