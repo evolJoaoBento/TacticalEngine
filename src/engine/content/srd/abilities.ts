@@ -489,6 +489,29 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // "Mark a Stress to cast a protective aura on a target within Very Close
+  // range. When the target marks an Armor Slot, they reduce the severity of
+  // the attack by an additional threshold. If this spell causes a creature who
+  // would be damaged to instead mark no Hit Points, the effect ends. You can
+  // only hold Shield Aura on one creature at a time."
+  //
+  // Simplified: the one-at-a-time clause is read as one aura in the room
+  // rather than one per caster - the condition is named, and a second casting
+  // takes it off whoever was carrying it. Two Splendor casters holding one
+  // each is not something the engine can tell apart today.
+  {
+    id: 'shield-aura',
+    name: 'Shield Aura',
+    source: card('shield-aura'),
+    cost: { stress: 1 },
+    target: { kind: 'creature', range: 'veryClose' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'clearCondition', condition: 'shield-aura', target: { kind: 'party' } },
+      { kind: 'applyCondition', condition: 'shield-aura', duration: 'scene', target: { kind: 'target' } },
+      { kind: 'log', text: 'A shell of light closes over them.', tone: 'hope' },
+    ],
+  },
   // "Once per rest, spend 3 Hope to charge your powerful smite. When you next
   // successfully attack with a weapon, double the result of your damage roll.
   // This attack deals magic damage regardless of the weapon's damage type."

@@ -2910,3 +2910,146 @@ describe('a smite held back for the next blow', () => {
     throw new Error('Kara never missed');
   });
 });
+
+describe('a shell of light over somebody', () => {
+  /**
+   * Mira beside Kara with the spell in hand, cast on her or not, and the husk
+   * swinging hard enough that an Armor Slot alone does not answer the blow.
+   */
+  const staged = (seed: string, cast: boolean, swing: Record<string, unknown> = { damage: '2d20+30' }): DemoScene => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    standBehind(demo, 'mira', husk.tile);
+    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities.push(
+      abilitySchema.parse({
+        id: 'heavy-claws',
+        name: 'Heavy Claws',
+        source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
+        text: 'The claws come down harder than the block prints.',
+        kind: 'passive',
+        // Hard enough that an Armor Slot alone cannot answer it: the aura is
+        // only ever worth anything on a blow the armor did not finish.
+        standardAttack: swing,
+      }),
+    );
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['shield-aura'], loadout: ['shield-aura'] };
+    demo.sheets.set('mira', sheet);
+    demo.characters.set('mira', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    // Kara's own cards come off: Iron Will and Get Back Up answer a blow the
+    // same way the aura does, and what is under test is the aura.
+    const hers = { ...demo.sheets.get('kara')!, domainCards: [], loadout: [] };
+    demo.sheets.set('kara', hers);
+    demo.characters.set('kara', deriveCharacter(hers, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.entity('kara')!.hitPoints = { max: 20, marked: 0 };
+    if (cast) {
+      expect(useAbility(demo, 'mira', 'shield-aura', ['kara']).status).not.toBe('refused');
+      expect(demo.state.entity('kara')!.conditions.has('shield-aura')).toBe(true);
+    }
+    return demo;
+  };
+
+  /** Turns until an Armor Slot answers a blow of Kara's, or null. */
+  const untilArmored = (demo: DemoScene): number | null => {
+    const kara = demo.state.entity('kara')!;
+    for (let turn = 1; turn <= 8 && demo.encounter?.outcome === 'ongoing'; turn++) {
+      endTurn(demo);
+      let guard = 0;
+      while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'choose', index: 0 });
+      if (kara.armorSlots.marked > 0) return turn;
+    }
+    return null;
+  };
+
+  it('takes one more threshold off a blow the armor answered', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const bare = staged(`aura-${seed}`, false);
+      const turns = untilArmored(bare);
+      const hurt = bare.state.entity('kara')!;
+      // A blow an Armor Slot was spent on that still marked Hit Points: the
+      // aura is only ever worth anything on one of those.
+      if (turns === null || hurt.hitPoints.marked === 0) continue;
+
+      // The same seed and the same turns, with the aura up. Nothing in casting
+      // it rolls anything, so up to that blow the fight runs the same way.
+      const lit = staged(`aura-${seed}`, true);
+      for (let turn = 0; turn < turns; turn++) {
+        endTurn(lit);
+        let guard = 0;
+        while (lit.pending !== null && guard++ < 8) answerPending(lit, { kind: 'choose', index: 0 });
+      }
+      const shielded = lit.state.entity('kara')!;
+      expect(shielded.armorSlots.marked).toBe(hurt.armorSlots.marked);
+      expect(shielded.hitPoints.marked).toBeLessThan(hurt.hitPoints.marked);
+      expect(lit.log.some((l) => l.text.includes('The aura around Kara takes it down to'))).toBe(true);
+      return;
+    }
+    throw new Error('no seed put a blow through the armor in sixty tries');
+  });
+
+  it('goes out on the blow it carries all the way down to nothing', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      // A blow that lands Major however the dice fall: two Hit Points, one off
+      // for the Armor Slot, one off for the aura, and nothing marked.
+      const lit = staged(`aura-out-${seed}`, true, { severity: 'major' });
+      // One slot left, so the armor takes one band and the aura the other.
+      const only = lit.state.entity('kara')!.armorSlots;
+      lit.state.entity('kara')!.armorSlots = { ...only, marked: only.max - 1 };
+      if (untilArmored(lit) === null) continue;
+      const kara = lit.state.entity('kara')!;
+      // A turn can hold more than one blow, so a Hit Point marked by the end
+      // of it says nothing about the first: only the turn that left her
+      // untouched is the one this is about.
+      if (kara.hitPoints.marked > 0) continue;
+      // "If this spell causes a creature who would be damaged to instead mark
+      // no Hit Points, the effect ends."
+      expect(lit.log.some((l) => l.text.includes('goes out'))).toBe(true);
+      expect(kara.conditions.has('shield-aura')).toBe(false);
+      // And the same blow without it marks the Hit Point it saved her from.
+      const bare = staged(`aura-out-${seed}`, false, { severity: 'major' });
+      const slots = bare.state.entity('kara')!.armorSlots;
+      bare.state.entity('kara')!.armorSlots = { ...slots, marked: slots.max - 1 };
+      untilArmored(bare);
+      expect(bare.state.entity('kara')!.hitPoints.marked).toBeGreaterThan(0);
+      return;
+    }
+    throw new Error('no seed let the aura save her outright');
+  });
+
+  it('does nothing for a blow no Armor Slot answered', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = staged(`aura-no-armor-${seed}`, true);
+      const kara = demo.state.entity('kara')!;
+      // Nothing left to mark, so nothing for the aura to add to.
+      kara.armorSlots = { ...kara.armorSlots, marked: kara.armorSlots.max };
+      for (let i = 0; i < 6 && demo.encounter?.outcome === 'ongoing' && kara.hitPoints.marked === 0; i++) {
+        endTurn(demo);
+        let guard = 0;
+        while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'choose', index: 0 });
+      }
+      if (kara.hitPoints.marked === 0) continue;
+      expect(demo.log.some((l) => l.text.includes('The aura around'))).toBe(false);
+      expect(kara.conditions.has('shield-aura')).toBe(true);
+      return;
+    }
+    throw new Error('nothing ever got through to Kara');
+  });
+
+  it('hangs over one creature at a time', () => {
+    const demo = staged('aura-one', true);
+    demo.state.entity('mira')!.stress = { max: 6, marked: 0 };
+    // Finn beside her, so the second casting has somebody in range to take it.
+    const blocked = demo.state.blockedFor('finn');
+    let stand = NO_TILE;
+    demo.grid.forEachNeighbor(demo.state.entity('mira')!.tile, false, (tile) => {
+      if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+    });
+    demo.state.moveEntity('finn', stand);
+    expect(useAbility(demo, 'mira', 'shield-aura', ['finn']).status).not.toBe('refused');
+    expect(demo.state.entity('finn')!.conditions.has('shield-aura')).toBe(true);
+    expect(demo.state.entity('kara')!.conditions.has('shield-aura')).toBe(false);
+  });
+});

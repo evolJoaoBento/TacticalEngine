@@ -3552,15 +3552,37 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
     note(demo, `${who}: ${used.ability.name}${used.rolled === undefined ? '' : ` (${used.rolled})`}${cost === '' ? '' : `, ${cost}`}.`, 'hope');
   }
 
+  // "When the target marks an Armor Slot, they reduce the severity of the
+  // attack by an additional threshold": read here rather than in the defence,
+  // because only the blow that has been answered knows whether a slot was
+  // marked for it. Whichever way the defence was decided - the plan a player
+  // chose, or the one the engine took on their behalf - it comes through here.
+  const aid = demo.world.armorAid(attack.defender);
+  const aided =
+    aid.steps <= 0 || defense.resolved.armorSlotsSpent <= 0 || defense.resolved.hpMarked <= 0
+      ? defense.resolved
+      : (() => {
+          const band = reduceSeverity(defense.resolved.finalSeverity, aid.steps);
+          note(demo, `The aura around ${who} takes it down to ${band === 'none' ? 'nothing' : band}.`, 'hope');
+          return { ...defense.resolved, finalSeverity: band, hpMarked: hpForSeverity(band) };
+        })();
+  // "If this spell causes a creature who would be damaged to instead mark no
+  // Hit Points, the effect ends." The blow it saved them from is the one that
+  // spends it; a blow it merely softened is not.
+  if (aid.endsWhenItSaves.length > 0 && defense.resolved.hpMarked > 0 && aided.hpMarked === 0) {
+    for (const name of aid.endsWhenItSaves) demo.world.clearCondition(attack.defender, name);
+    note(demo, `The aura around ${who} goes out.`, 'hope');
+  }
+
   // A card that steps the band does it after the armor, because what it is
   // paying for is the step the armor did not make.
   const resolved =
     attack.stepped === undefined || attack.stepped <= 0
-      ? defense.resolved
+      ? aided
       : (() => {
-          const band = reduceSeverity(defense.resolved.finalSeverity, attack.stepped);
+          const band = reduceSeverity(aided.finalSeverity, attack.stepped);
           note(demo, `${who} rides it down to ${band === 'none' ? 'nothing' : band}.`, 'hope');
-          return { ...defense.resolved, finalSeverity: band, hpMarked: hpForSeverity(band) };
+          return { ...aided, finalSeverity: band, hpMarked: hpForSeverity(band) };
         })();
   const final: AttackOutcome = {
     ...attack.outcome,

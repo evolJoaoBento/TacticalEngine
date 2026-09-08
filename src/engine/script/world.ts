@@ -391,6 +391,24 @@ export class SceneScriptWorld implements ScriptWorld {
     return { started: s.started, ended: s.ended, triggered: s.triggered };
   }
 
+  /**
+   * What the conditions on a creature add to an Armor Slot they just marked,
+   * and which of them are spent if that is what saved them.
+   */
+  armorAid(id: string): { steps: number; endsWhenItSaves: readonly string[] } {
+    const entity = this.state.entity(id);
+    if (entity === undefined) return { steps: 0, endsWhenItSaves: [] };
+    let steps = 0;
+    const spent: string[] = [];
+    for (const name of entity.conditions) {
+      const armor = this.conditionDefs.get(name)?.armor;
+      if (armor === undefined) continue;
+      steps += armor.steps;
+      if (armor.endsWhenItSaves === true) spent.push(name);
+    }
+    return { steps, endsWhenItSaves: spent };
+  }
+
   factionOf(id: string): 'party' | 'adversary' | null {
     const faction = this.state.entity(id)?.faction;
     return faction === 'party' || faction === 'adversary' ? faction : null;

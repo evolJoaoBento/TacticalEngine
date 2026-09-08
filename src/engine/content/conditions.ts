@@ -42,6 +42,26 @@ export const conditionDefSchema = z.object({
    * against them, they make an attack, or damage marks something of theirs.
    */
   endsWhen: z.enum(['hit', 'attacks', 'damaged']).optional(),
+  /**
+   * What marking an Armor Slot is worth while this is on - Shield Aura's
+   * "when the target marks an Armor Slot, they reduce the severity of the
+   * attack by an additional threshold".
+   *
+   * Read only when a slot was actually marked: an aura over somebody with
+   * nothing left to mark does nothing, which is what the spell says.
+   */
+  armor: z
+    .object({
+      /** Bands off the severity, over and above the one the slot itself took. */
+      steps: z.number().int().positive(),
+      /**
+       * "If this spell causes a creature who would be damaged to instead mark
+       * no Hit Points, the effect ends": spent by the blow it carried all the
+       * way down to nothing, and by no other.
+       */
+      endsWhenItSaves: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export type ConditionDef = z.infer<typeof conditionDefSchema>;
@@ -74,6 +94,14 @@ const RAW: ConditionInput[] = [
     id: 'smiting',
     name: 'Smiting',
     text: 'A smite is charged, and the next weapon attack that lands spends it.',
+  },
+  // Shield Aura, on whoever it was cast on. What it does is read where a blow
+  // is counted, because only the blow knows whether a slot was marked for it.
+  {
+    id: 'shield-aura',
+    name: 'Shield Aura',
+    text: 'When you mark an Armor Slot, you reduce the severity of the attack by an additional threshold.',
+    armor: { steps: 1, endsWhenItSaves: true },
   },
   {
     id: 'stunned',
