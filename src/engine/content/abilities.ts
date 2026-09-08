@@ -332,6 +332,12 @@ export const abilitySchema = z.object({
       damage: z.string().min(1).optional(),
       /** Twice whatever was rolled — "the Archer deals double damage to…". */
       double: z.boolean().optional(),
+      /**
+       * The band, in place of the dice: "when the Seraph succeeds on a
+       * standard attack against a Guilty target, they deal Severe damage
+       * instead of their standard damage".
+       */
+      severity: z.enum(['minor', 'major', 'severe', 'massive']).optional(),
       when: conditionSchema.optional(),
     })
     .optional(),

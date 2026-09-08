@@ -95,6 +95,7 @@ const ADDABLE = [
   'endSpotlight',
   'boostDamage',
   'forceHitPoints',
+  'forceSeverity',
   'howMany',
   'countdown',
   'reactionRoll',
@@ -154,6 +155,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   endSpotlight: 'End this spotlight',
   boostDamage: 'Add to the blow landing',
   forceHitPoints: 'Force Hit Points marked',
+  forceSeverity: 'Force the damage band',
   howMany: 'Ask how many',
   reactionRoll: 'Ask for a reaction roll',
   run: 'Run code',
@@ -286,6 +288,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind, dice: '1d6' };
     case 'forceHitPoints':
       return { kind, amount: { pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked' } };
+    case 'forceSeverity':
+      return { kind, severity: 'severe' };
     case 'howMany':
       return { kind, most: { pool: 'hope', measure: 'available' }, each: [] };
     case 'countdown':
@@ -1012,6 +1016,18 @@ function renderBody(
             marks
           </span>
           {amount(effect.amount, (value) => ({ ...effect, amount: value }))}
+        </>
+      );
+    case 'forceSeverity':
+      return (
+        <>
+          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="The band it lands in, instead of rolling for damage">
+            lands as
+          </span>
+          {pick(effect.severity, ['minor', 'major', 'severe', 'massive'], (severity) => ({
+            ...effect,
+            severity: severity as 'minor' | 'major' | 'severe' | 'massive',
+          }))}
         </>
       );
     case 'countdown':

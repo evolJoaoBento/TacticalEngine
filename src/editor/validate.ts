@@ -335,6 +335,19 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // A band named for a blow is read at the same moment a boost is, and
+    // nowhere else.
+    if (
+      namesABand(ability) &&
+      ability.trigger !== 'rollingDamage' &&
+      ability.trigger !== 'allyRollingDamage'
+    ) {
+      add(
+        'warning',
+        `"${ability.id}" names the band a blow lands in, which only a damage roll being counted has.`,
+        ability.id,
+      );
+    }
     // Forcing the Hit Points is narrower still: the swing has to be the
     // holder's own, and the party's swing is the only one that stops to be
     // told what it does.
@@ -469,6 +482,15 @@ function boostsABlow(ability: AbilityDef): boolean {
     if (effect.kind === 'boostDamage') boosts = true;
   });
   return boosts;
+}
+
+/** Whether anything in an ability names the band a blow lands in. */
+function namesABand(ability: AbilityDef): boolean {
+  let names = false;
+  walkEffects(ability.effects, (effect) => {
+    if (effect.kind === 'forceSeverity') names = true;
+  });
+  return names;
 }
 
 /** Whether anything in an ability sets the Hit Points a blow marks outright. */

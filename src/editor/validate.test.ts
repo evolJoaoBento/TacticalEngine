@@ -766,6 +766,24 @@ describe('what only a stat block has', () => {
           effects: [{ kind: 'forceHitPoints', amount: 3 }],
         },
         {
+          id: 'band-out-of-nowhere',
+          name: 'Band Out Of Nowhere',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'dealtHit',
+          effects: [{ kind: 'forceSeverity', severity: 'severe' }],
+        },
+        {
+          id: 'band-mid-swing',
+          name: 'Band Mid Swing',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          kind: 'reaction',
+          trigger: 'rollingDamage',
+          effects: [{ kind: 'forceSeverity', severity: 'severe' }],
+        },
+        {
           id: 'block-hears-its-friends',
           name: 'Block Hears Its Friends',
           source: { kind: 'adversary', adversaries: ['husk'] },
@@ -778,6 +796,8 @@ describe('what only a stat block has', () => {
     });
     const said = messages(project);
     expect(said.some((m) => m.includes('"forced-late" forces the Hit Points marked'))).toBe(true);
+    expect(said.some((m) => m.includes('"band-out-of-nowhere" names the band a blow lands in'))).toBe(true);
+    expect(said.some((m) => m.includes('band-mid-swing'))).toBe(false);
     expect(said.some((m) => m.includes('forced-well'))).toBe(false);
     // The right moment, the wrong side of the table: only the party's swing
     // stops to be told what it marks.

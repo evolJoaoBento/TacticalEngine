@@ -867,6 +867,20 @@ footer {
   rolled for cannot be added to. Only the party's own swing obeys it today; the validator
   warns on a stat block and outside <code>rollingDamage</code>.</p>
 
+  <p>Its softer sibling is <code>forceSeverity</code>, which names the band rather than the
+  Hit Points: &ldquo;spend a Fear to deal Severe damage instead of their standard damage&rdquo;.
+  A band is not a number of marks, so the defender's Armor Slots still step it down the way
+  they step down a Severe hit that was rolled for &mdash; what they cannot do is take damage
+  off a total, because there is no total left. Both sides of the fight obey it, and a stat
+  block can also name a band without a reaction at all: <code>standardAttack.severity</code>
+  is read off the block with the target bound, which is how the Seraph's Judgment strikes at
+  whoever carries its mark. Underneath both is one field, <code>IncomingDamage.severity</code>,
+  which <code>resolveDamage</code> uses in place of reading the thresholds.</p>
+
+  <p>Severe is a floor, not a bracket. &ldquo;When the Burrower takes Severe damage&rdquo;
+  answers a Massive blow too, so every place that reports a wound asks <code>isSevere</code>
+  rather than comparing to the one band.</p>
+
   <p>The party's swing stops at the same moment, and this is the one place a prompt sits
   between a roll and its counting. A card on <code>rollingDamage</code> is offered after the
   attack has hit and before anything is marked; the swing is held on the pending question as

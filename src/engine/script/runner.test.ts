@@ -767,6 +767,12 @@ describe('the runner as a whole', () => {
     expect(none.some((e) => e.kind === 'hitPointsForced')).toBe(false);
   });
 
+  it('names the band a blow lands in', () => {
+    const stub = stubWorld({ actorId: () => 'assassin' });
+    const journal = runScript([{ kind: 'forceSeverity', severity: 'severe' }], stub, createRng(1));
+    expect(journal).toContainEqual({ kind: 'severityForced', id: 'assassin', severity: 'severe' });
+  });
+
   it('says the spotlight is over without stopping the script', () => {
     // `endSpotlight` is a note to the turn, not a bail: the effects after it
     // still run, and it names the creature whose turn it was.

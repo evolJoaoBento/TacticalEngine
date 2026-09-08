@@ -720,6 +720,23 @@ export const effectSchema = z.discriminatedUnion('kind', [
     amount: amountSchema,
   }),
   /**
+   * "Spend a Fear to deal Severe damage instead of their standard damage": the
+   * blow lands in the band it names, whatever the dice said.
+   *
+   * The sibling of `forceHitPoints`, and the softer of the two: a band is not
+   * a number of Hit Points, so the defender's Armor Slots still step it down
+   * the way they step down a Severe hit that was rolled for. What they cannot
+   * do is take damage off a total, because there is no total any more - a die
+   * spent to soften the blow has nothing to soften.
+   *
+   * Read at the same moment `boostDamage` is, and it wins there: a blow that
+   * is not being rolled for cannot be added to.
+   */
+  z.object({
+    kind: z.literal('forceSeverity'),
+    severity: z.enum(['minor', 'major', 'severe', 'massive']),
+  }),
+  /**
    * "Spend any number of Hope to roll that many d6s", "mark any number of
    * Stress to make that many additional layers": the player is asked for a
    * number, and what they answer decides what runs.

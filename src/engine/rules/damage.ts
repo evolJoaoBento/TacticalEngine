@@ -19,7 +19,19 @@ import {
 
 /** Severity bands, ordered from harmless to worst. */
 export const SEVERITY_ORDER = ['none', 'minor', 'major', 'severe', 'massive'] as const;
+
 export type DamageSeverity = (typeof SEVERITY_ORDER)[number];
+
+/**
+ * Whether a blow lands as Severe or worse.
+ *
+ * "When the Burrower takes Severe damage" is a floor, not a bracket: a blow
+ * past twice the Severe threshold is worse than Severe, and everything written
+ * about Severe damage still answers it.
+ */
+export function isSevere(severity: DamageSeverity): boolean {
+  return SEVERITY_ORDER.indexOf(severity) >= SEVERITY_ORDER.indexOf('severe');
+}
 
 /** Hit Points marked per severity band. */
 export const HP_BY_SEVERITY: Readonly<Record<DamageSeverity, number>> = {
@@ -287,6 +299,15 @@ export interface IncomingDamage {
   types?: readonly DamageType[];
   /** "Direct damage is damage that can't be reduced by marking Armor Slots." */
   direct?: boolean;
+  /**
+   * The band, named outright: "they deal Severe damage instead of their
+   * standard damage". There is no number to compare, so the thresholds are not
+   * read and nothing that takes damage off a total - resistance, a reduction,
+   * a die spent to soften it - has anything to work on. Armor Slots still step
+   * the band down, which is how a table plays it: the blow is Severe, and the
+   * armor is what answers it.
+   */
+  severity?: DamageSeverity;
 }
 
 export interface ResolveDamageOptions extends SeverityOptions {
@@ -339,7 +360,7 @@ export function resolveDamage(
       ? 0
       : flatReduction(types, options.defenses) + Math.max(0, Math.trunc(options.rolledReduction ?? 0));
   const incoming = Math.max(0, halved - reduction);
-  const severity = severityFor(incoming, thresholds, options);
+  const severity = damage.severity ?? severityFor(incoming, thresholds, options);
 
   const wanted = damage.direct === true ? 0 : Math.max(0, Math.trunc(options.armorSlotsMarked ?? 0));
   const available = Math.max(0, Math.trunc(options.armorSlotsAvailable ?? wanted));

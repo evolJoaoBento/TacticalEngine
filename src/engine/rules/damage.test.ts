@@ -5,6 +5,7 @@ import {
   applyDefenses,
   armorScore,
   hpForSeverity,
+  isSevere,
   parseThresholds,
   pcThresholds,
   reduceSeverity,
@@ -37,6 +38,47 @@ describe('severityFor', () => {
     expect(severityFor(30, thresholds)).toBe('severe');
     expect(severityFor(30, thresholds, { massiveDamage: true })).toBe('massive');
     expect(severityFor(29, thresholds, { massiveDamage: true })).toBe('severe');
+  });
+});
+
+describe('a band named outright', () => {
+  it('lands in the band it names, whatever the thresholds say', () => {
+    // "They deal Severe damage instead of their standard damage": there is no
+    // number to compare, so the thresholds are not what decides it.
+    const named = resolveDamage({ amount: 0, severity: 'severe' }, thresholds);
+    expect(named.severity).toBe('severe');
+    expect(named.hpMarked).toBe(3);
+
+    // And a number that would have been Severe is still Minor when the band
+    // says so: the named band wins in both directions.
+    const soft = resolveDamage({ amount: 40, severity: 'minor' }, thresholds);
+    expect(soft.severity).toBe('minor');
+    expect(soft.hpMarked).toBe(1);
+  });
+
+  it('is still stepped down by Armor Slots, and untouched by resistance', () => {
+    const armored = resolveDamage({ amount: 0, severity: 'severe' }, thresholds, {
+      armorSlotsMarked: 1,
+      armorSlotsAvailable: 3,
+    });
+    expect(armored.finalSeverity).toBe('major');
+    expect(armored.hpMarked).toBe(2);
+
+    // Resistance halves a number, and there is none: the band is what arrived.
+    const resisted = resolveDamage({ amount: 0, types: ['physical'], severity: 'severe' }, thresholds, {
+      defenses: { resistances: ['physical'] },
+    });
+    expect(resisted.hpMarked).toBe(3);
+  });
+});
+
+describe('isSevere', () => {
+  it('reads Severe as a floor rather than a bracket', () => {
+    // "When the Burrower takes Severe damage" answers a Massive blow too.
+    expect(isSevere('severe')).toBe(true);
+    expect(isSevere('massive')).toBe(true);
+    expect(isSevere('major')).toBe(false);
+    expect(isSevere('none')).toBe(false);
   });
 });
 

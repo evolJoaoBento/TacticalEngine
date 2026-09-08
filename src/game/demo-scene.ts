@@ -61,6 +61,8 @@ import {
 import { readsATarget, type AbilityDef } from '../engine/content/abilities';
 import { gain, unmarked } from '../engine/rules/resources';
 import {
+  isSevere,
+  SEVERITY_ORDER,
   resolveDamage,
   rollDamage,
   rollReduction,
@@ -369,6 +371,8 @@ export interface HeldSwing {
   boost?: number;
   /** Hit Points a card fixed outright, in place of counting the damage at all. */
   forced?: number;
+  /** Or the band it lands in, which armor can still step down. */
+  severity?: DamageSeverity;
 }
 
 /** One hit, as it stands while the defender decides. */
@@ -381,6 +385,13 @@ export interface IncomingAttack {
   def: AdversaryDef;
   /** Cards already spent against this hit, so one card fires once. */
   used: string[];
+  /**
+   * The band a feature named for it mid-swing, in place of the dice: "spend a
+   * Fear to deal Severe damage instead of their standard damage". A band the
+   * block's own passive names is read off the stat block instead, so it is not
+   * carried here.
+   */
+  severity?: DamageSeverity;
 }
 
 /** Something the defender's side can do about a hit. */
@@ -1095,6 +1106,17 @@ export function attackWithSelected(
 function counted(demo: DemoScene, held: HeldSwing): AttackOutcome {
   const { outcome, boost, forced } = held;
   const target = demo.state.entity(held.target);
+  // A named band is counted like any other blow of that band: the thresholds
+  // are simply not the thing that named it, and armor still answers.
+  if (held.severity !== undefined && forced === undefined && target !== undefined) {
+    const defender = demo.world.defenderOf(target);
+    const damage = resolveDamage(
+      { amount: 0, types: held.damage.types ?? [], severity: held.severity, ...(held.direct === undefined ? {} : { direct: held.direct }) },
+      defender.thresholds,
+      { armorSlotsMarked: 0, armorSlotsAvailable: unmarked(target.armorSlots) },
+    );
+    return { ...outcome, damage, hitPointsMarked: damage.hpMarked };
+  }
   if (forced !== undefined && forced > 0) {
     const damage: ResolvedDamage = {
       incoming: 0,
@@ -1158,7 +1180,7 @@ function landPartyAttack(
     demo.world.noteDamage(targetId, {
       attacker: id!,
       hitPoints: applied.hitPointsMarked,
-      severe: outcome.damage?.severity === 'severe',
+      severe: outcome.damage !== undefined && isSevere(outcome.damage.severity),
     });
     demo.world.endsOnHit(targetId);
     if (applied.hitPointsMarked > 0) demo.world.endsOnDamage(targetId);
@@ -2162,18 +2184,27 @@ function asAnswered(landing: HeldSwing | undefined, journal: readonly JournalEnt
   if (landing === undefined || landing.outcome.damageRoll === undefined) return landing;
   let added = 0;
   let forced: number | undefined;
+  let band: DamageSeverity | undefined;
   for (const entry of journal) {
     if (entry.kind === 'damageBoosted') added += entry.by;
     // Two cards forcing one blow is not a thing the SRD writes; the larger
     // wins, so the order they were played in decides nothing.
     if (entry.kind === 'hitPointsForced') forced = Math.max(forced ?? 0, entry.to);
+    if (entry.kind === 'severityForced') band = worse(band, entry.severity);
   }
-  if (added <= 0 && forced === undefined) return landing;
+  if (added <= 0 && forced === undefined && band === undefined) return landing;
   return {
     ...landing,
     ...(added <= 0 ? {} : { boost: (landing.boost ?? 0) + added }),
     ...(forced === undefined ? {} : { forced: Math.max(landing.forced ?? 0, forced) }),
+    ...(band === undefined ? {} : { severity: worse(landing.severity, band) }),
   };
+}
+
+/** The harder of two bands, for the same reason the larger of two forced numbers wins. */
+function worse(a: DamageSeverity | undefined, b: DamageSeverity): DamageSeverity {
+  if (a === undefined) return b;
+  return SEVERITY_ORDER.indexOf(a) >= SEVERITY_ORDER.indexOf(b) ? a : b;
 }
 
 /** Ask the next character what they make of it, or let the fight carry on. */
@@ -2372,7 +2403,10 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   // the thresholds and the Armor Slots are read against what actually lands,
   // and spent on the way out - a Relentless second spotlight, paid for in the
   // ordinary way, swings at full strength.
-  const outcome = halveIfRallied(demo, adversaryId, boostDamage(demo, adversaryId, targetId, rolled));
+  const answered = boostDamage(demo, adversaryId, targetId, rolled);
+  // A blow that names its band is not halved either: half of Severe is not a
+  // number the rules know, and "deal Severe damage" is what the feature said.
+  const outcome = answered.severity === undefined ? halveIfRallied(demo, adversaryId, answered.outcome) : answered.outcome;
 
   // A miss is usually over at once — unless the target holds a card that
   // answers one, like Vanishing Dodge.
@@ -2384,7 +2418,14 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
     offerMiss(demo, { attacker: adversaryId, defender: targetId, outcome, def, used: [] });
     return true;
   }
-  offerOrLand(demo, { attacker: adversaryId, defender: targetId, outcome, def, used: [] });
+  offerOrLand(demo, {
+    attacker: adversaryId,
+    defender: targetId,
+    outcome,
+    def,
+    used: [],
+    ...(answered.severity === undefined ? {} : { severity: answered.severity }),
+  });
   return true;
 }
 
@@ -2428,14 +2469,15 @@ function boostDamage(
   attackerId: string,
   targetId: string,
   outcome: ReturnType<typeof resolveAttack>,
-): ReturnType<typeof resolveAttack> {
-  if (!outcome.hit || outcome.damageRoll === undefined) return outcome;
+): { outcome: ReturnType<typeof resolveAttack>; severity?: DamageSeverity } {
+  if (!outcome.hit || outcome.damageRoll === undefined) return { outcome };
   const bound = { targets: [targetId], hit: [targetId] };
   const standing = demo.state
     .entitiesOf('adversary')
     .filter((e) => e.alive && e.id !== attackerId)
     .map((e) => e.id);
   let added = 0;
+  let band: DamageSeverity | undefined;
   const answering: [string, 'rollingDamage' | 'allyRollingDamage'][] = [
     [attackerId, 'rollingDamage'],
     ...standing.map((id): [string, 'allyRollingDamage'] => [id, 'allyRollingDamage']),
@@ -2453,13 +2495,20 @@ function boostDamage(
       demo.scenario.actorId = was;
       for (const entry of result.journal) {
         if (entry.kind === 'damageBoosted') added += entry.by;
+        if (entry.kind === 'severityForced') band = worse(band, entry.severity);
       }
       afterAdversaryScript(demo, result.journal);
     }
   }
-  if (added <= 0) return outcome;
+  // A named band wins: a blow that is not being rolled for cannot be added to,
+  // so whatever was put behind it goes quiet rather than being counted twice.
+  if (band !== undefined) {
+    note(demo, `The blow lands as ${band} damage.`, 'fear');
+    return { outcome, severity: band };
+  }
+  if (added <= 0) return { outcome };
   note(demo, `The blow lands harder by ${added}.`, 'fear');
-  return { ...outcome, damageRoll: { ...outcome.damageRoll, total: outcome.damageRoll.total + added } };
+  return { outcome: { ...outcome, damageRoll: { ...outcome.damageRoll, total: outcome.damageRoll.total + added } } };
 }
 
 /**
@@ -2514,6 +2563,7 @@ function defeatMinions(demo: DemoScene, targetId: string, damage: number): void 
  * lands; only the second is applied, and no shipped party member has one.
  */
 function incomingOf(demo: DemoScene, attack: IncomingAttack): IncomingDamage {
+  // A band named mid-swing, or one the block's own passive names for it.
   // Only whether it goes through armor: the dice a passive swapped in, and any
   // doubling, are already in the number the swing reported. This is the second
   // read of `direct` for one attack, and it happens after the swing resolved:
@@ -2521,10 +2571,12 @@ function incomingOf(demo: DemoScene, attack: IncomingAttack): IncomingDamage {
   // differently here than it did there. No shipped block does, and the gate
   // belongs on the swing, not on the defence.
   const swing = demo.world.standardAttackOf(attack.def.id, { attacker: attack.attacker, target: attack.defender });
+  const severity = attack.severity ?? swing.severity;
   return {
     amount: attack.outcome.damageRoll?.total ?? 0,
     types: attack.def.attackDamage.types ?? [],
     ...(swing.direct === undefined ? {} : { direct: swing.direct }),
+    ...(severity === undefined ? {} : { severity }),
   };
 }
 
@@ -2751,7 +2803,7 @@ function offerOrLand(demo: DemoScene, attack: IncomingAttack): void {
         prompt: {
           kind: 'choice',
           title: `${attack.def.attackName} on ${nameOf(demo, attack.defender)}`,
-          body: `${damage.amount} ${(damage.types ?? []).join(' and ') || 'physical'} damage${damage.direct === true ? ', direct' : ''}. How does it land?`,
+          body: `${damage.severity ?? damage.amount} ${(damage.types ?? []).join(' and ') || 'physical'} damage${damage.direct === true ? ', direct' : ''}. How does it land?`,
           options: choices.map((choice, index) => ({ index, label: choice.label })),
         },
       };
@@ -2803,7 +2855,7 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
     hitPoints: final.hitPointsMarked,
     damage: damage.amount,
     types: damage.types,
-    severe: defense.resolved.severity === 'severe',
+    severe: isSevere(defense.resolved.severity),
   });
   landedFeatures(demo, attack, final.hitPointsMarked);
   playAttackedOn(demo, attack.defender, attack.attacker);

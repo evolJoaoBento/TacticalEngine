@@ -26,7 +26,14 @@ import {
   spend,
   unmarked,
 } from '../rules/resources';
-import { resolveDamage, type DamageDefenses, type DamageReduction, type IncomingDamage } from '../rules/damage';
+import {
+  isSevere,
+  resolveDamage,
+  type DamageDefenses,
+  type DamageReduction,
+  type DamageSeverity,
+  type IncomingDamage,
+} from '../rules/damage';
 import { rollDuality, type DualityRoll } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
 import {
@@ -555,10 +562,12 @@ export class SceneScriptWorld implements ScriptWorld {
     direct?: boolean;
     damage?: ParsedDamage;
     double?: boolean;
+    severity?: DamageSeverity;
   } {
     let direct = false;
     let damage: ParsedDamage | undefined;
     let double = false;
+    let severity: DamageSeverity | undefined;
     for (const ability of this.abilitiesForAdversary(definition)) {
       const swing = ability.kind === 'passive' ? ability.standardAttack : undefined;
       if (swing === undefined) continue;
@@ -576,6 +585,7 @@ export class SceneScriptWorld implements ScriptWorld {
       }
       if (swing.direct === true) direct = true;
       if (swing.double === true) double = true;
+      if (swing.severity !== undefined) severity = swing.severity;
       // Last one printed wins, which is only ever one of them: no block prints
       // two swaps that could hold at once.
       if (swing.damage !== undefined) damage = parseDice(swing.damage) ?? damage;
@@ -584,6 +594,7 @@ export class SceneScriptWorld implements ScriptWorld {
       ...(direct ? { direct: true } : {}),
       ...(damage === undefined ? {} : { damage }),
       ...(double ? { double: true } : {}),
+      ...(severity === undefined ? {} : { severity }),
     };
   }
 
@@ -1180,7 +1191,7 @@ export class SceneScriptWorld implements ScriptWorld {
         hitPoints: resolved.hpMarked,
         damage: resolved.incoming,
         types: damage.types ?? [],
-        severe: resolved.severity === 'severe',
+        severe: isSevere(resolved.severity),
       });
     }
     return {
@@ -1412,7 +1423,7 @@ export class SceneScriptWorld implements ScriptWorld {
         hitPoints: applied.hitPointsMarked,
         damage: outcome.damageRoll?.total ?? 0,
         types: profile.damage.types ?? [],
-        severe: outcome.damage?.severity === 'severe',
+        severe: outcome.damage !== undefined && isSevere(outcome.damage.severity),
       });
     }
     return {

@@ -307,6 +307,7 @@ AbilityDef.effects  (content/abilities.ts, shapes from script/schema.ts)
             ├─ endSpotlight journals that this creature's turn is spent
             ├─ boostDamage journals what to add to the blow being counted
             ├─ forceHitPoints journals the Hit Points it marks instead of rolling
+            ├─ forceSeverity journals the band it lands in instead of rolling
             ├─ howMany builds a choice, one option per number, and pushes it
             ├─ replace takes the actor off the map and stands another block there
             ├─ move walks the actor across the ground: towards somebody, or away

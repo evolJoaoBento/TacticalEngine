@@ -28,7 +28,7 @@ import { formatDice, parseDice, rollDice, type DamageType, type ParsedDamage } f
 import type { RunningCountdown } from './countdowns';
 import { hookReads } from './conditions';
 import { runHook, type HookContext } from './hooks';
-import { rollDamage, type IncomingDamage } from '../rules/damage';
+import { rollDamage, type DamageSeverity, type IncomingDamage } from '../rules/damage';
 import type { RangeBand } from '../rules/range';
 import type { Trait } from '../scene/primitives';
 import {
@@ -298,6 +298,8 @@ export type JournalEntry =
   | { kind: 'damageBoosted'; id: string | null; by: number }
   /** That blow marks this many Hit Points instead of being rolled for. */
   | { kind: 'hitPointsForced'; id: string | null; to: number }
+  /** That blow lands in this band instead of being rolled for. */
+  | { kind: 'severityForced'; id: string | null; severity: DamageSeverity }
   /** One creature off the map and another in its place. `was` is its name. */
   | { kind: 'replaced'; was: string; adversary: string; ids: readonly string[]; spotlight: boolean }
   /** `roll` is set when a party member rolled it: an adversary's is a d20. */
@@ -1011,6 +1013,12 @@ export class ScriptRunner {
         }
         if (by <= 0) return null;
         this.journal.push({ kind: 'damageBoosted', id: actor, by });
+        return null;
+      }
+      case 'forceSeverity': {
+        // "Deal Severe damage instead of their standard damage": the band is
+        // named, and the swing waiting to be counted is told which.
+        this.journal.push({ kind: 'severityForced', id: world.actorId(), severity: effect.severity });
         return null;
       }
       case 'forceHitPoints': {

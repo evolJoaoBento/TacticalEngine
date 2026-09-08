@@ -971,6 +971,25 @@ describe("what the party puts behind its own blow", () => {
     throw new Error('no seed landed a swing in forty tries');
   });
 
+  it('reads Severe as a floor when a forced blow lands past it', () => {
+    // Four Hit Points at once is worse than Severe, and "when the Burrower
+    // takes Severe damage" still answers it: the band is a floor, not a
+    // bracket, so Acid Bath fires.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = swinging(['battle-monster'], `massive-${seed}`);
+      demo.askDefender = true;
+      demo.state.entity('vela')!.hitPoints = { max: 8, marked: 4 };
+      demo.state.entity('vela')!.stress = { max: 6, marked: 0 };
+      const swung = attackWithSelected(demo, 'foe');
+      if (swung === null || !swung.hit) continue;
+      answerPending(demo, { kind: 'choose', index: 1 });
+      expect(demo.state.entity('foe')!.hitPoints.marked).toBe(4);
+      expect(demo.log.some((l) => l.text.includes('Acid blood sprays from the wound.'))).toBe(true);
+      return;
+    }
+    throw new Error('no seed landed a swing in forty tries');
+  });
+
   it('will not force nothing: an unmarked caster is not offered the card', () => {
     const demo = swinging(['battle-monster'], 'monster-clean');
     demo.state.entity('vela')!.hitPoints = { max: 6, marked: 0 };

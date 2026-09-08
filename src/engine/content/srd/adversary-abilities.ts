@@ -2595,14 +2595,51 @@ const RAW: Input[] = [
     cost: { fear: 1 },
     target: { kind: 'creature', range: 'veryFar' },
     inCombatOnly: true,
-    // Simplified: the mark itself is what runs. Losing Hope on a roll with
-    // Hope is a rule about the dice nothing here reads, and "Severe damage
-    // instead" is a number off the target's own thresholds rather than dice -
-    // both stay at the table. What the mark is for still bites: the Hallowed
-    // Archer deals double damage to whoever carries it.
+    // Simplified: losing Hope on a roll with Hope is a rule about the dice
+    // nothing here reads, and the mark lasts the scene rather than until the
+    // Seraph is defeated. What the mark is for is the half below, and the
+    // Hallowed Archer's double damage still reads it.
     effects: [
       { kind: 'log', text: 'The Seraph names them, and the name sticks.', tone: 'fear' },
       { kind: 'applyCondition', condition: 'guilty', duration: 'scene', target: { kind: 'target' } },
+    ],
+  },
+  // The other half of the same feature, and the reason the mark is worth
+  // spending a Fear on: what the Seraph's own swing does to whoever carries
+  // it. A band rather than dice, so the thresholds are not what decides it -
+  // the Armor Slots still are.
+  {
+    id: 'high-seraph-judgment-strike',
+    name: 'Judgment',
+    source: from('high-seraph'),
+    text: "When the Seraph succeeds on a standard attack against a Guilty target, they deal Severe damage instead of their standard damage.",
+    kind: 'passive',
+    action: false,
+    standardAttack: {
+      severity: 'severe',
+      when: { kind: 'hasCondition', condition: 'guilty', of: { kind: 'target' } },
+    },
+  },
+  // "Spend a Fear to deal Severe damage instead of their standard damage":
+  // said after the blow lands and before it is counted, which is the moment a
+  // stat block already has for adding to a damage roll.
+  //
+  // Simplified: the Fear is spent whenever the Assassin can afford it, even on
+  // a swing whose dice were going to be worse than Severe anyway - the GM's
+  // side plays its reactions rather than weighing them.
+  {
+    id: 'master-assassin-the-subtle-blade',
+    name: 'The Subtle Blade',
+    source: from('master-assassin'),
+    text: 'When the Assassin successfully makes a standard attack against a Vulnerable target, you can spend a Fear to deal Severe damage instead of their standard damage.',
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    cost: { fear: 1 },
+    available: { kind: 'hasCondition', condition: 'vulnerable', of: { kind: 'target' } },
+    effects: [
+      { kind: 'log', text: 'The blade goes exactly where it was always going to.', tone: 'fear' },
+      { kind: 'forceSeverity', severity: 'severe' },
     ],
   },
   // ---- what the two of them make of each other ---------------------------

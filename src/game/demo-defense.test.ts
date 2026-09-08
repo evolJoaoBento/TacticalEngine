@@ -1144,3 +1144,113 @@ describe('a bonus the card counts out for itself', () => {
     expect(demo.world.poolBonus('kara', 'evasion')).toBe(0);
   });
 });
+
+/**
+ * "They deal Severe damage instead of their standard damage": a blow that
+ * names the band it lands in rather than rolling for one. Kara's thresholds
+ * are pushed out of reach in both tests, so anything the dice could roll is
+ * Minor - and what lands is whatever named the band, not what was rolled.
+ */
+describe('a blow that names its band', () => {
+  const outOfReach = (demo: DemoScene): void => {
+    const kara = demo.characters.get('kara')!;
+    demo.characters.set('kara', { ...kara, thresholds: { major: 900, severe: 1000 } });
+    refreshWorld(demo);
+    // And no Armor Slots left to spend: armor steps a named band down the way
+    // it steps down a rolled one, and this is about what the band itself does.
+    const entity = demo.state.entity('kara')!;
+    entity.armorSlots = { ...entity.armorSlots, marked: entity.armorSlots.max };
+  };
+
+  /** The husk beside Kara with one feature of its own, and Fear to spend. */
+  const husking = (seed: string, ability: Record<string, unknown>): DemoScene => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    standBehind(demo, 'finn', husk.tile);
+    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities.push(
+      abilitySchema.parse({ ...ability, source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] } }),
+    );
+    refreshWorld(demo);
+    outOfReach(demo);
+    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    return demo;
+  };
+
+  /**
+   * Turns until the husk's claws land on Kara, and what that blow cost her,
+   * read off the line the log wrote for it. The first one is the one read: the
+   * Burrower swings more than once a turn, and a blow is what is under test.
+   */
+  const clawed = (demo: DemoScene): number | null => {
+    for (let i = 0; i < 8 && demo.encounter?.outcome === 'ongoing'; i++) {
+      endTurn(demo);
+      for (const line of demo.log) {
+        if (line.text.includes('Claws hits Kara, and is turned aside')) return 0;
+        const landed = /Claws (?:hits|tears into) Kara: (\d+) Hit/.exec(line.text);
+        if (landed !== null) return Number(landed[1]);
+      }
+    }
+    return null;
+  };
+
+  const subtleBlade = {
+    id: 'the-subtle-blade',
+    name: 'The Subtle Blade',
+    text: 'Spend a Fear to deal Severe damage instead of their standard damage.',
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    cost: { fear: 1 },
+    // The card reads Vulnerable; the mark here is one nothing else in this
+    // fight applies, so the run without it is a control rather than a race
+    // against the Burrower knocking somebody over.
+    available: { kind: 'hasCondition', condition: 'guilty', of: { kind: 'target' } },
+    effects: [{ kind: 'forceSeverity', severity: 'severe' }],
+  };
+
+  it('names the band mid-swing, and the thresholds have nothing to say about it', () => {
+    const demo = husking('subtle', subtleBlade);
+    demo.state.entity('kara')!.conditions.add('guilty');
+    const marked = clawed(demo);
+    expect(marked).not.toBeNull();
+    // Severe is three Hit Points; an Armor Slot steps it down to two, which is
+    // the one thing armor can still do about a blow that was not rolled for.
+    expect(marked!).toBeGreaterThanOrEqual(2);
+    expect(demo.log.some((l) => l.text.includes('lands as severe damage'))).toBe(true);
+
+    // Nobody Vulnerable, nothing named: the same claws, off the same seed, are
+    // as far beneath her thresholds as they always were.
+    const plain = husking('subtle', subtleBlade);
+    const ordinary = clawed(plain);
+    expect(ordinary).not.toBeNull();
+    expect(ordinary!).toBeLessThanOrEqual(1);
+  });
+
+  it('reads a band off the block itself, for the target it was named against', () => {
+    // Judgment's other half: a passive on the stat block rather than a
+    // reaction, gated on the mark the action left.
+    const judgment = {
+      id: 'judgment-strike',
+      name: 'Judgment',
+      text: 'When the Seraph succeeds on a standard attack against a Guilty target, they deal Severe damage instead.',
+      kind: 'passive',
+      action: false,
+      standardAttack: {
+        severity: 'severe',
+        when: { kind: 'hasCondition', condition: 'guilty', of: { kind: 'target' } },
+      },
+    };
+    const demo = husking('judged', judgment);
+    demo.state.entity('kara')!.conditions.add('guilty');
+    const marked = clawed(demo);
+    expect(marked).not.toBeNull();
+    expect(marked!).toBeGreaterThanOrEqual(2);
+
+    const plain = husking('judged', judgment);
+    const ordinary = clawed(plain);
+    expect(ordinary).not.toBeNull();
+    expect(ordinary!).toBeLessThanOrEqual(1);
+  });
+});

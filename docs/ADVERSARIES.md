@@ -92,7 +92,11 @@ engine has no place to put:
 - **a swap whose condition nothing can ask** - a passive can change what the block's own
   teeth do to this target ("1d10+4 instead of their standard damage" while Hidden,
   "double damage to PCs with 0 Hope"), read from the attacker's chair with the target
-  bound. What stays text is the asking: standing above somebody, a roll that had
+  bound. A band can be swapped in as well as dice: "they deal Severe damage instead of
+  their standard damage" names the band outright, either from a passive on the block or
+  from the moment a blow stops to be counted, and the thresholds have nothing to say
+  about it - the Armor Slots still do.
+  What stays text is the asking: standing above somebody, a roll that had
   advantage, and a third creature beside the target ("another Wolf within Melee range
   of the target").
   A rider on *being* attacked now runs - a swing raises `attacked` on whoever it was
@@ -118,7 +122,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 191. Text: 153.
+Read: 73. Scripted: 192. Text: 152.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -272,7 +276,7 @@ Read: 73. Scripted: 191. Text: 153.
 | Assassin Poisoner | Fumigation | Action | **text** — the GM's to play |
 | Master Assassin | Won't See It Coming | Passive | **text** — the GM's to play |
 | Master Assassin | Strike as One | Action | **text** — the GM's to play |
-| Master Assassin | The Subtle Blade | Reaction | **text** — the GM's to play |
+| Master Assassin | The Subtle Blade | Reaction | **scripted** — runs as an ability |
 | Master Assassin | Momentum | Reaction | **read** — read off the stat block |
 | Battle Box | Relentless (2) | Passive | **read** — read off the stat block |
 | Battle Box | Randomized Tactics | Action | **text** — the GM's to play |
