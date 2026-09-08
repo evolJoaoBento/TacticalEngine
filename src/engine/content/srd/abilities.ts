@@ -489,6 +489,77 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // "Make a Spellcast Roll (16). Once per long rest on a success, choose a
+  // point within Far range and create a visible zone of protection there for
+  // all allies within Very Close range of that point. When you do, place a d6
+  // on this card with the 1 value facing up. When an ally in this zone takes
+  // damage, they reduce it by the die's value. You then increase the die's
+  // value by one. When the die's value would exceed 6, this effect ends."
+  //
+  // The die is the zone's rather than the card's, which is the same thing said
+  // where the engine can read it: everybody standing in the light reads one
+  // number, it comes off any blow taken there, and it goes up each time it
+  // answers one. Past six the ground stops meaning anything.
+  {
+    id: 'zone-of-protection',
+    name: 'Zone of Protection',
+    source: card('zone-of-protection'),
+    uses: { count: 1, per: 'longRest' },
+    target: { kind: 'point', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 16,
+          prompt: 'Zone of Protection: ground worth standing on.',
+          onCriticalSuccess: [
+              {
+                kind: 'zone',
+                zone: 'zone-of-protection',
+                name: 'Zone of Protection',
+                condition: 'zone-of-protection',
+                at: 'point',
+                band: 'veryClose',
+                side: 'allies',
+                value: 1,
+                grows: { by: 1, until: 6 },
+              },
+              { kind: 'log', text: 'The air over that ground goes hard and bright.', tone: 'hope' },
+            ],
+          onSuccessWithHope: [
+              {
+                kind: 'zone',
+                zone: 'zone-of-protection',
+                name: 'Zone of Protection',
+                condition: 'zone-of-protection',
+                at: 'point',
+                band: 'veryClose',
+                side: 'allies',
+                value: 1,
+                grows: { by: 1, until: 6 },
+              },
+              { kind: 'log', text: 'The air over that ground goes hard and bright.', tone: 'hope' },
+            ],
+          onSuccessWithFear: [
+              {
+                kind: 'zone',
+                zone: 'zone-of-protection',
+                name: 'Zone of Protection',
+                condition: 'zone-of-protection',
+                at: 'point',
+                band: 'veryClose',
+                side: 'allies',
+                value: 1,
+                grows: { by: 1, until: 6 },
+              },
+              { kind: 'log', text: 'The air over that ground goes hard and bright.', tone: 'hope' },
+            ],
+        },
+      },
+    ],
+  },
   // "Make a Spellcast Roll (16). On a success, mark any number of Stress to
   // target a line of allies within Far range. You can clear Hit Points on the
   // targets equal to the number of Stress marked, divided among them however

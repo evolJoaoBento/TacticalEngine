@@ -315,6 +315,8 @@ export type JournalEntry =
   | { kind: 'spotlightedAgain'; id: string | null }
   /** One die of the blow being held comes up its highest face instead. */
   | { kind: 'dieMaxed' }
+  /** A patch of ground started or stopped meaning something. */
+  | { kind: 'zone'; id: string; name: string; standing: boolean }
   /** Added to a blow that has landed and not yet been counted. */
   | { kind: 'damageBoosted'; id: string | null; by: number }
   /** That blow's own total counts twice, before anything added to it. */
@@ -1216,6 +1218,34 @@ export class ScriptRunner {
         // Nothing here stops the script: the rest of the list still runs, and
         // it is the turn that reads this once the script is done.
         this.journal.push({ kind: 'spotlightEnded', id: world.actorId() });
+        return null;
+      }
+      case 'zone': {
+        const actor = world.actorId();
+        // Where it stands: the tile aimed at, or the one the caster is on.
+        // Nowhere to put it is nothing put there, the same quiet answer a run
+        // with nothing aimed gives.
+        const at = effect.at === 'point' ? this.point : actor === null ? NO_TILE : world.tileOf(actor);
+        if (at === NO_TILE) return null;
+        world.placeZone({
+          id: effect.zone,
+          name: effect.name,
+          owner: actor,
+          condition: effect.condition,
+          anchor: at,
+          band: effect.band,
+          ...(effect.side === undefined ? {} : { side: effect.side }),
+          onDeath: effect.onDeath ?? 'keep',
+          ...(effect.value === undefined ? {} : { value: effect.value }),
+          ...(effect.grows === undefined ? {} : { grows: effect.grows }),
+        });
+        this.journal.push({ kind: 'zone', id: effect.zone, name: effect.name, standing: true });
+        return null;
+      }
+      case 'endZone': {
+        if (world.endZone(effect.zone)) {
+          this.journal.push({ kind: 'zone', id: effect.zone, name: effect.zone, standing: false });
+        }
         return null;
       }
       case 'countdown': {

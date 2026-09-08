@@ -1083,6 +1083,36 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * with the countdown into a save: a clock is no use if loading a game loses
    * what it was counting towards.
    */
+  /**
+   * "Create a visible zone of protection there for all allies within Very
+   * Close range of that point": a patch of ground that means something.
+   *
+   * A zone names a condition and an area, and everybody standing in that area
+   * bears it - walk in and you have it, walk out and you do not. What the
+   * condition *does* is written where every other condition is written, so a
+   * zone invents no vocabulary of its own: it is geography, and the condition
+   * is the rules. Armed again under the same id it moves rather than doubling.
+   */
+  z.object({
+    kind: z.literal('zone'),
+    zone: contentIdSchema,
+    name: z.string().min(1),
+    /** What everybody standing in it bears. */
+    condition: z.string().min(1),
+    /** Where it stands: the tile that was aimed at, or the actor's own. */
+    at: z.enum(['point', 'actor']).optional(),
+    band: rangeBandSchema,
+    /** Which side it touches, read from the actor's chair. Everybody by default. */
+    side: z.enum(['allies', 'adversaries']).optional(),
+    /** What the one who cast it falling does to it. It stands by default. */
+    onDeath: z.enum(['end', 'keep']).optional(),
+    /** A number it holds, which comes off any damage taken inside it. */
+    value: z.number().int().min(0).optional(),
+    /** And what that number does each time it answers a blow. */
+    grows: z.object({ by: z.number().int().positive(), until: z.number().int().positive() }).optional(),
+  }),
+  /** "The spell ends": that patch of ground stops meaning anything. */
+  z.object({ kind: z.literal('endZone'), zone: contentIdSchema }),
   z.object({
     kind: z.literal('countdown'),
     /** Stable id for this clock, so restarting it is telling one from another. */

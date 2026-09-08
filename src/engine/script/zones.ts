@@ -38,6 +38,18 @@ export interface RunningZone {
   side?: 'allies' | 'adversaries';
   /** What the owner falling does to it. */
   onDeath: 'end' | 'keep';
+  /**
+   * A number the zone is holding, which comes off any damage taken inside it:
+   * Zone of Protection's "place a d6 on this card with the 1 value facing up.
+   * When an ally in this zone takes damage, they reduce it by the die's value."
+   */
+  value?: number;
+  /**
+   * And what that number does each time it answers a blow: "you then increase
+   * the die's value by one. When the die's value would exceed 6, this effect
+   * ends."
+   */
+  grows?: { by: number; until: number };
 }
 
 type RangeBandName = z.infer<typeof rangeBandSchema>;
@@ -51,6 +63,8 @@ export const runningZoneSchema = z.object({
   band: rangeBandSchema,
   side: z.enum(['allies', 'adversaries']).optional(),
   onDeath: z.enum(['end', 'keep']).default('keep'),
+  value: z.number().int().min(0).optional(),
+  grows: z.object({ by: z.number().int().positive(), until: z.number().int().positive() }).optional(),
 });
 
 /** The zones a scenario is carrying, keyed by zone id. */

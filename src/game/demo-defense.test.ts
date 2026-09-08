@@ -3872,3 +3872,104 @@ describe('ground that means something', () => {
     expect(kara.conditions.has('rooted')).toBe(true);
   });
 });
+
+
+describe('ground worth standing on', () => {
+  /** Mira with the spell in hand and Kara beside the husk, in reach of it. */
+  const warding = (seed: string) => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['zone-of-protection'], loadout: ['zone-of-protection'] };
+    demo.sheets.set('mira', sheet);
+    demo.characters.set('mira', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    // Kara's own cards come off: what is under test is what the ground does.
+    const hers = { ...demo.sheets.get('kara')!, domainCards: [], loadout: [] };
+    demo.sheets.set('kara', hers);
+    demo.characters.set('kara', deriveCharacter(hers, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    demo.party.select('mira');
+    return demo;
+  };
+
+  /** Cast it on Kara's ground; true when the roll got there. */
+  const cast = (demo: DemoScene): boolean => {
+    const at = demo.state.entity('kara')!.tile;
+    if (useAbility(demo, 'mira', 'zone-of-protection', [], { point: at }).status === 'refused') return false;
+    for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+      const prompt = demo.pending.prompt;
+      if (prompt.kind === 'choice') answerPending(demo, { kind: 'choose', index: 0 });
+      else answerPending(demo, { kind: 'roll' });
+    }
+    return demo.world.zones().some((z) => z.id === 'zone-of-protection');
+  };
+
+  it('stands over the party and takes its die off what they are hit for', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = warding(`ward-${seed}`);
+      if (!cast(demo)) continue;
+
+      const kara = demo.state.entity('kara')!;
+      expect(kara.conditions.has('zone-of-protection')).toBe(true);
+      // The husk is not one of theirs, so the light is nothing to it.
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      expect(husk.conditions.has('zone-of-protection')).toBe(false);
+      // A die of one, coming off any blow taken there.
+      expect(demo.world.defensesOf('kara').reduce).toEqual([{ dice: '1' }]);
+      expect(demo.world.defensesOf(husk.id).reduce ?? []).toEqual([]);
+      return;
+    }
+    throw new Error('the spell never landed in sixty tries');
+  });
+
+  it('turns the die up each time it answers a blow, and goes out past six', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = warding(`ward-grow-${seed}`);
+      if (!cast(demo)) continue;
+      const kara = demo.state.entity('kara')!;
+      kara.hitPoints = { max: 30, marked: 0 };
+
+      // Six blows, and the die climbs one for each: 1, 2, 3, 4, 5, 6.
+      const seen: number[] = [];
+      for (let blow = 0; blow < 6; blow++) {
+        seen.push(demo.world.zones()[0]?.value ?? 0);
+        demo.world.damage({ kind: 'entity', id: 'kara' }, 1);
+      }
+      expect(seen).toEqual([1, 2, 3, 4, 5, 6]);
+      // The seventh would take it past six, so the ground stops meaning
+      // anything and the light comes off her with it.
+      demo.world.damage({ kind: 'entity', id: 'kara' }, 1);
+      expect(demo.world.zones().length).toBe(0);
+      expect(kara.conditions.has('zone-of-protection')).toBe(false);
+      expect(demo.world.defensesOf('kara').reduce ?? []).toEqual([]);
+      return;
+    }
+    throw new Error('the spell never landed in sixty tries');
+  });
+
+  it('is nothing to somebody who walks out of it', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = warding(`ward-leave-${seed}`);
+      if (!cast(demo)) continue;
+      const kara = demo.state.entity('kara')!;
+      const anchor = demo.world.zones()[0]!.anchor;
+
+      let away = NO_TILE;
+      for (let tile = demo.grid.width * demo.grid.height - 1; tile >= 0; tile--) {
+        if (!demo.grid.isPassable(tile) || demo.state.blockedFor('kara')(tile)) continue;
+        const band = demo.world.bandBetween(anchor, tile);
+        if (band === null || reaches(band, 'veryClose')) continue;
+        away = tile;
+        break;
+      }
+      expect(away).not.toBe(NO_TILE);
+      demo.state.moveEntity('kara', away);
+      demo.world.refreshZones();
+      expect(kara.conditions.has('zone-of-protection')).toBe(false);
+      expect(demo.world.defensesOf('kara').reduce ?? []).toEqual([]);
+      // And the ground is still there for whoever is standing on it.
+      expect(demo.world.zones().length).toBe(1);
+      return;
+    }
+    throw new Error('the spell never landed in sixty tries');
+  });
+});

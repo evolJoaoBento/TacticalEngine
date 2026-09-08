@@ -35,7 +35,7 @@ Known simplifications in the scripted ones:
 - **Deathrun** is the first card aimed at the ground rather than at anybody: the player picks a tile, the board shows what the line would go through before the click, and what the run passes is what it hits. Simplified: the ladder of shrinking damage rolls and the order to deal them in is one roll, the same damage to everyone it beat, which is what every other attack against several targets here does; the card's own +1 to Proficiency is kept.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 102 of 189 cards.
+Scripted: 103 of 189 cards.
 
 
 ## Arcana
@@ -236,7 +236,7 @@ Scripted: 102 of 189 cards.
 | 5 | Shape Material | Spell | text |
 | 5 | Smite | Spell | **action**, **reaction** |
 | 6 | Restoration | Spell | **action** |
-| 6 | Zone of Protection | Spell | text |
+| 6 | Zone of Protection | Spell | **action** |
 | 7 | Healing Strike | Spell | **reaction** |
 | 7 | Splendor-Touched | Ability | **passive** |
 | 8 | Shield Aura | Spell | **action** |

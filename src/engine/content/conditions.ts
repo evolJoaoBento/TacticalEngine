@@ -152,6 +152,14 @@ const RAW: ConditionInput[] = [
       ],
     },
   },
+  // Zone of Protection's shell. It carries nothing itself: the die that comes
+  // off a blow lives on the zone, where everybody standing in it reads the
+  // same one, which is what one d6 on one card means.
+  {
+    id: 'zone-of-protection',
+    name: 'Zone of Protection',
+    text: 'Damage taken here is reduced by the value of the die on the card.',
+  },
   {
     id: 'stunned',
     name: 'Stunned',

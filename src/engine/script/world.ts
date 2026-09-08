@@ -556,6 +556,27 @@ export class SceneScriptWorld implements ScriptWorld {
     }
   }
 
+  /** The zones a creature is standing in, by the condition they are bearing. */
+  private zonesOver(id: string): RunningZone[] {
+    const entity = this.state.entity(id);
+    if (entity === undefined || this.scenario.zones.size === 0) return [];
+    return [...this.scenario.zones.values()].filter((zone) => entity.conditions.has(zone.condition));
+  }
+
+  /**
+   * A blow was answered by the ground somebody was standing on, so the ground
+   * is that much more spent: "you then increase the die's value by one. When
+   * the die's value would exceed 6, this effect ends."
+   */
+  private growZones(id: string): void {
+    for (const zone of this.zonesOver(id)) {
+      if (zone.grows === undefined || zone.value === undefined) continue;
+      const value = zone.value + zone.grows.by;
+      if (value > zone.grows.until) this.endZone(zone.id);
+      else this.scenario.zones.set(zone.id, { ...zone, value });
+    }
+  }
+
   /** Take one zone's condition off everybody, standing in one or not. */
   private stripZone(condition: string): void {
     for (const entity of [...this.state.entitiesOf('party'), ...this.state.entitiesOf('adversary')]) {
@@ -767,6 +788,13 @@ export class SceneScriptWorld implements ScriptWorld {
     }
     for (const condition of this.state.entity(id)?.conditions ?? []) {
       take(this.conditionDefs.get(condition)?.defenses);
+    }
+    // And what the ground they are standing on takes off it. Written as a
+    // flat reduction because that is what "reduce it by the die's value" is;
+    // the die itself lives on the zone, where everybody in it reads the same
+    // one.
+    for (const zone of this.zonesOver(id)) {
+      if (zone.value !== undefined && zone.value > 0) reduce.push({ dice: String(zone.value) });
     }
     return {
       ...(resistances.size === 0 ? {} : { resistances: [...resistances] }),
@@ -1638,6 +1666,9 @@ export class SceneScriptWorld implements ScriptWorld {
     if (note.types !== undefined && note.types.length > 0) entry.types = [...note.types];
     entry.severe = entry.severe || note.severe === true;
     if (already === undefined) this.damaged.push(entry);
+    // The one funnel every blow that landed on somebody passes through, which
+    // is where the ground that answered it is spent.
+    this.growZones(id);
   }
 
   /** Severe damage with nobody named: the older half of `noteDamage`. */
