@@ -50,6 +50,14 @@ export const abilityTargetSchema = z.object({
   kind: z.enum(['none', 'self', 'adversary', 'ally', 'creature', 'group']).default('none'),
   /** The furthest the pick may be from the actor. */
   range: rangeBandSchema.default('melee'),
+  /**
+   * What makes a creature worth aiming at: "a target with 3 or more bramble
+   * tokens". Read once for each candidate, with that candidate bound as the
+   * target, so it narrows the list the player is offered and the list the GM
+   * chooses from - which is what keeps a stat block from spending a Stress on
+   * somebody the feature cannot touch.
+   */
+  when: conditionSchema.optional(),
 });
 
 export const abilityUsesSchema = z.object({

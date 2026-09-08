@@ -845,6 +845,19 @@ footer {
   not even shaking off a hold. Anywhere but a <code>spotlighted</code> reaction on a stat block
   it is a silent no-op, and the validator says so.</p>
 
+  <p>A condition can count creatures, too. The selectors already say which ones and where
+  &mdash; around the actor or around the chosen target, off the same stat block, everyone but
+  the one asking &mdash; and <code>nearby</code> asks how many there are: &ldquo;another Dire
+  Wolf is within Melee range of the target&rdquo; is that selector and <code>&gt;= 1</code>.
+  A creature is within Melee of itself, so anything counting its own kind wants
+  <code>except: 'actor'</code>.</p>
+
+  <p>An ability can also say what makes a creature worth aiming at. <code>target.when</code>
+  is read once for each candidate, with that candidate bound as the target, and it narrows
+  both lists that matter: the creatures a player may click, and the ones the GM will spend a
+  Stress on. That is what keeps a feature reading &ldquo;a target with 3 or more bramble
+  tokens&rdquo; from being paid for and aimed at somebody carrying none.</p>
+
   <p>It carries numbers as well as creatures. Wherever an amount is written &mdash;
   <code>damage.amount</code>, <code>markStress</code>, <code>clearStress</code>,
   <code>heal</code>, <code>loseHope</code>, <code>gainFear</code> &mdash; a count may stand in

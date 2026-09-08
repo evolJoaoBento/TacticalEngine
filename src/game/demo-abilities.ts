@@ -37,6 +37,7 @@ import {
   settleFight,
   settleTravel,
   syncPools,
+  worthAiming,
   type DemoScene,
   type LogLine,
   type UseOutcome,
@@ -125,6 +126,7 @@ export function abilityTargets(demo: DemoScene, characterId: string, ability: Ab
       return true;
     })
     .filter((e) => within(e.id, ability.target.range))
+    .filter((e) => worthAiming(demo, characterId, ability, e.id))
     .map((e) => e.id);
 }
 

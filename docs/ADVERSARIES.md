@@ -30,10 +30,20 @@ engine has no place to put:
   a creature the block counts as one of its own, an extra spotlight for the one acting.
 - **a point on the map** — "choose a point within Far range; everyone within Close range
   of *that*": selectors read bands around the creature that is acting, not around a spot.
-- **a rule about a third creature** - "disadvantage on attacks against targets other
-  than the Swarm", "attacks against a creature this one stands beside have advantage". A
-  passive can move the dice for its holder or against them (`advantage`, with `against`)
-  and that is two parties; a third is not something a modifier can name.
+- **a rule about a third creature** - counting them runs. The selectors could already
+  say which creatures and where (around the target rather than the actor, off the same
+  stat block, everyone but the one asking); `nearby` is the question nothing could put
+  to them, which is how many. So both Pack Tactics read "another one of us is within
+  Melee range of the target", and the Vampire finds a follower to feed on. An ability
+  can also say what makes a creature worth aiming at (`target.when`, read once for each
+  candidate), which is what keeps the Swarm from spending a Stress crushing somebody
+  who is carrying no brambles.
+  What stays text is a rule that moves somebody else's dice: "disadvantage on attacks
+  against targets other than the Swarm", "the next time the Taunted target attacks".
+  A passive can move the dice for its holder or against them (`advantage`, with
+  `against`) and that is two parties; a third is not something a modifier can name.
+  Nor is a trigger about what another creature did - a Turret answering somebody
+  else's damage roll, a Shark answering somebody else's hit.
 - **a token nobody else can count** - tokens run, on a stat block as well as on a card.
   The store is keyed by creature and card, so a passive keeps a count on itself (Slow
   is one `spotlighted` reaction branching on its own tokens, placing one on the turn it
@@ -97,7 +107,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 180. Text: 164.
+Read: 73. Scripted: 184. Text: 160.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -121,7 +131,7 @@ Read: 73. Scripted: 180. Text: 164.
 | Courtier | Scapegoat | Action | **text** — the GM's to play |
 | Deeproot Defender | Ground Slam | Action | **scripted** — runs as an ability |
 | Deeproot Defender | Grab and Drag | Action | **text** — the GM's to play |
-| Dire Wolf | Pack Tactics | Passive | **text** — the GM's to play |
+| Dire Wolf | Pack Tactics | Passive | **scripted** — runs as an ability |
 | Dire Wolf | Hobbling Strike | Action | **scripted** — runs as an ability |
 | Giant Mosquitoes | Horde (1d4+1) | Passive | **read** — read off the stat block |
 | Giant Mosquitoes | Flying | Passive | **scripted** — runs as an ability |
@@ -213,11 +223,11 @@ Read: 73. Scripted: 180. Text: 164.
 | Spellblade | Momentum | Reaction | **read** — read off the stat block |
 | Swarm of Rats | Horde (1d4+1) | Passive | **read** — read off the stat block |
 | Swarm of Rats | In Your Face | Passive | **text** — the GM's to play |
-| Sylvan Soldier | Pack Tactics | Passive | **text** — the GM's to play |
+| Sylvan Soldier | Pack Tactics | Passive | **scripted** — runs as an ability |
 | Sylvan Soldier | Forest Control | Action | **text** — the GM's to play |
 | Sylvan Soldier | Blend In | Reaction | **text** — the GM's to play |
 | Tangle Bramble Swarm | Horde (1d4+2) | Passive | **read** — read off the stat block |
-| Tangle Bramble Swarm | Crush | Action | **text** — the GM's to play |
+| Tangle Bramble Swarm | Crush | Action | **scripted** — runs as an ability |
 | Tangle Bramble Swarm | Encumber | Reaction | **scripted** — runs as an ability |
 | Tangle Bramble | Minion (4) | Passive | **read** — read off the stat block |
 | Tangle Bramble | Group Attack | Action | **scripted** — runs as an ability |
@@ -412,7 +422,7 @@ Read: 73. Scripted: 180. Text: 164.
 | Oak Treant | Take Root | Action | **scripted** — runs as an ability |
 | Head Vampire | Terrifying | Passive | **read** — read off the stat block |
 | Head Vampire | Look into My Eyes | Passive | **text** — the GM's to play |
-| Head Vampire | Feed on Followers | Action | **text** — the GM's to play |
+| Head Vampire | Feed on Followers | Action | **scripted** — runs as an ability |
 | Head Vampire | The Hunt Is On | Action | **scripted** — runs as an ability |
 | Head Vampire | Lifesuck | Reaction | **text** — the GM's to play |
 | Treant Sapling | Minion (6) | Passive | **read** — read off the stat block |

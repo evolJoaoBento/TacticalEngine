@@ -236,6 +236,20 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     op: compareOpSchema,
     value: z.number().int(),
   }),
+  /**
+   * How many creatures a selector names: "another Dire Wolf is within Melee
+   * range of the target", "three or more Minions within Close range".
+   *
+   * The selectors already say which creatures and where - around the actor or
+   * around the target, off the same stat block, everyone but the one asking.
+   * This is the question nothing could put to them: how many.
+   */
+  z.object({
+    kind: z.literal('nearby'),
+    of: targetSelectorSchema,
+    op: compareOpSchema,
+    value: z.number().int(),
+  }),
   /** How many tokens sit on a card the actor holds. */
   z.object({
     kind: z.literal('tokens'),

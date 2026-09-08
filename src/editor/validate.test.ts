@@ -686,6 +686,31 @@ describe('what only a stat block has', () => {
     expect(said.some((m) => m.includes('on-a-block'))).toBe(false);
   });
 
+  it('warns when a gate on the target has no target to narrow', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'aimed-at-nobody',
+          name: 'Aimed At Nobody',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none', when: { kind: 'always' } },
+          effects: [{ kind: 'log', text: 'Nothing to pick.' }],
+        },
+        {
+          id: 'aimed-at-someone',
+          name: 'Aimed At Someone',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'creature', range: 'melee', when: { kind: 'always' } },
+          effects: [{ kind: 'log', text: 'Somebody to pick.' }],
+        },
+      ],
+    });
+    const said = messages(project);
+    expect(said).toContain('"aimed-at-nobody" says what is worth aiming at, but it is aimed at nobody.');
+    expect(said.some((m) => m.includes('aimed-at-someone'))).toBe(false);
+  });
+
   it('warns when anything but a spotlight tries to end one', () => {
     const project = projectSchema.parse({
       ...build(),

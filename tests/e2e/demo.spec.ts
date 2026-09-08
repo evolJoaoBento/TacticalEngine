@@ -2163,7 +2163,7 @@ test('writes a card that reuses one roll against every other adversary in reach'
   const check = attack.locator('[data-testid="check-editor"]').first();
   await check.locator('[data-testid="check-reuse"]').check();
   await check.locator('[data-testid="check-targets"] [data-role="target-kind"]').selectOption('adversaries');
-  await check.locator('[data-testid="check-targets"] [data-role="target-except"]').check();
+  await check.locator('[data-testid="check-targets"] [data-role="target-except"]').selectOption('target');
 
   const outcome = check.locator('[data-outcome="onSuccessWithHope"]');
   await outcome.locator('[data-role="add-effect"]').first().selectOption('damage');

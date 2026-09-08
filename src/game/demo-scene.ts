@@ -21,7 +21,7 @@ import { compileHooks, mergeHooks, type HookMap } from '../engine/script/hooks';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES } from './demo-code';
 import { SRD_CONDITIONS, type ConditionDef } from '../engine/content/conditions';
 import { MAX_SLOTS } from '../engine/rules/resources';
-import { walkCheck, type CountName, type TargetSelector } from '../engine/script/schema';
+import { walkCheck, walkEffects, type CountName, type Effect, type TargetSelector } from '../engine/script/schema';
 import type { DamageType } from '../engine/rules/dice';
 import type { ItemDef, LootTable } from '../engine/content/items';
 import type { QuestDef } from '../engine/content/quests';
@@ -39,7 +39,7 @@ import type { CountdownCue } from '../engine/rules/countdown';
 import type { CountdownMoved, RunningCountdown } from '../engine/script/countdowns';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
 import { createScenarioState, SceneScriptWorld, useKey, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
-import { NO_BINDINGS, evaluateOptional } from '../engine/script/conditions';
+import { NO_BINDINGS, evaluate, evaluateOptional } from '../engine/script/conditions';
 import { maxTilesForBand, reaches, type RangeBand } from '../engine/rules/range';
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
 import ancestryJson from '../../tools/srd-sources/daggersearch/core/ancestries.json';
@@ -1300,6 +1300,31 @@ function adversaryTurn(demo: DemoScene, adversaryId: string): void {
 }
 
 /**
+ * Whether one creature is what an ability is looking for: "a target with 3 or
+ * more bramble tokens".
+ *
+ * Read from the user's chair with the candidate bound as the target, which is
+ * the same pair of chairs every other gate is read from. One place, because
+ * the player's list of who they may click and the GM's list of who is worth a
+ * Stress have to agree.
+ */
+export function worthAiming(
+  demo: DemoScene,
+  userId: string,
+  ability: AbilityDef,
+  candidateId: string,
+): boolean {
+  if (ability.target.when === undefined) return true;
+  const was = demo.scenario.actorId;
+  demo.scenario.actorId = userId;
+  try {
+    return evaluate(ability.target.when, demo.world, { targets: [candidateId], hit: [candidateId] });
+  } finally {
+    demo.scenario.actorId = was;
+  }
+}
+
+/**
  * A feature this adversary would rather use than swing, and who it is aimed at.
  *
  * The bar is deliberately low and deliberately fixed. A feature that goes off
@@ -1331,7 +1356,12 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
       // "If the Hydra has any marked HP": what the block says about when the
       // feature is worth using at all, read with the creature as the actor.
       if (!evaluateOptional(ability.available, demo.world, NO_BINDINGS)) continue;
-      const caught = demo.world.resolveTargets({ kind: 'allies', range: ability.target.range }, NO_BINDINGS);
+      // "A target with 3 or more bramble tokens": asked of each of them in
+      // turn, before anything is spent, so a feature nobody qualifies for is
+      // one the GM never reaches for.
+      const caught = demo.world
+        .resolveTargets({ kind: 'allies', range: ability.target.range }, NO_BINDINGS)
+        .filter((id) => worthAiming(demo, adversaryId, ability, id));
       // "Spotlight all Giant Rats within Close range of them": worth a Fear
       // when there is a swarm to call, and the same swing for nothing when
       // there is not, so the GM only reaches for it when someone answers.
@@ -1362,7 +1392,12 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
         if (itself === null) itself = { ability, targets: [] };
         continue;
       }
-      if (ability.target.kind === 'self' || summonsSomething(ability) || armsCountdown(ability)) {
+      if (
+        ability.target.kind === 'self' ||
+        summonsSomething(ability) ||
+        armsCountdown(ability) ||
+        worksOnItsOwnSide(ability)
+      ) {
         if (itself === null) itself = { ability, targets: [] };
         continue;
       }
@@ -1408,6 +1443,34 @@ function spotlightCandidates(demo: DemoScene, adversaryId: string, ability: Abil
 /** Whether a feature puts creatures on the map. */
 function summonsSomething(ability: AbilityDef): boolean {
   return ability.effects.some((effect) => effect.kind === 'summon');
+}
+
+/**
+ * Whether a feature is aimed at its own side: the Vampire opening one of its
+ * followers to close its own wound.
+ *
+ * Like a heal or a summons it catches nobody, so the picker would otherwise
+ * wait for a crowd that never comes. Anything that names the party - a
+ * selector of theirs, or an effect that falls back to the chosen target -
+ * disqualifies it, so this only ever says yes to a feature the block does
+ * entirely among its own.
+ */
+function worksOnItsOwnSide(ability: AbilityDef): boolean {
+  let ownSide = false;
+  let outward = false;
+  const aimedByDefault = ['attack', 'applyCondition', 'clearCondition', 'push', 'markArmor', 'damage', 'heal'];
+  walkEffects(ability.effects, (effect: Effect) => {
+    const selector = (effect as { target?: TargetSelector }).target;
+    if (selector === undefined) {
+      if (aimedByDefault.includes(effect.kind)) outward = true;
+      return;
+    }
+    if (selector.kind === 'adversaries') ownSide = true;
+    if (selector.kind === 'allies' || selector.kind === 'party' || selector.kind === 'target' || selector.kind === 'hit') {
+      outward = true;
+    }
+  });
+  return ownSide && !outward;
 }
 
 /**

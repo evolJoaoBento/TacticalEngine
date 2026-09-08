@@ -204,6 +204,8 @@ export function evaluate(
       return context
         .resolveTargets(condition.of ?? { kind: 'target' }, bindings)
         .some((id) => context.hasCondition(id, condition.condition));
+    case 'nearby':
+      return compare(context.resolveTargets(condition.of, bindings).length, condition.op, condition.value);
     case 'tokens': {
       const ids = context.resolveTargets(condition.of ?? { kind: 'actor' }, bindings);
       return ids.some((id) => compare(context.tokensOn(id, condition.ability), condition.op, condition.value));

@@ -310,6 +310,17 @@ function checkAbilitiesAndCode(
     walkEffects(ability.effects, inspect(ability.id));
     walkConditionsIn(ability.effects, asked(ability.id));
     inspectCondition(ability.id, ability.available);
+    // "A target with 3 or more bramble tokens" narrows a pick, so it needs a
+    // pick to narrow: on a feature aimed at nobody it is read by neither the
+    // player's list nor the GM's.
+    if (ability.target.when !== undefined && (ability.target.kind === 'none' || ability.target.kind === 'self')) {
+      add(
+        'warning',
+        `"${ability.id}" says what is worth aiming at, but it is aimed at ${ability.target.kind === 'self' ? 'itself' : 'nobody'}.`,
+        ability.id,
+      );
+    }
+    inspectCondition(ability.id, ability.target.when);
     for (const modifier of ability.modifiers) inspectCondition(ability.id, modifier.when);
   }
   for (const def of project.conditionDefs) {

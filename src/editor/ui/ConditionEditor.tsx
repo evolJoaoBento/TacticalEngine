@@ -11,6 +11,7 @@
 import type { Condition, CountName } from '../../engine/script/schema';
 import { COUNT_NAMES } from '../../engine/script/schema';
 import type { QuestDef } from '../../engine/content/quests';
+import { TargetEditor } from './TargetEditor';
 
 export interface ConditionEditorProps {
   condition: Condition;
@@ -57,6 +58,7 @@ const KINDS: readonly { kind: Condition['kind']; label: string }[] = [
   { kind: 'hasCondition', label: 'the target has a condition' },
   { kind: 'withinRange', label: 'the target is within' },
   { kind: 'tokens', label: "a card's tokens compare" },
+  { kind: 'nearby', label: 'how many creatures are there' },
   { kind: 'hook', label: 'logic in code says' },
   { kind: 'not', label: 'not …' },
   { kind: 'all', label: 'all of …' },
@@ -126,6 +128,10 @@ export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEdi
       return { kind, hook: props.hookIds?.[0] ?? 'a-hook' };
     case 'tokens':
       return { kind, ability: 'a-card', op: '>=', value: 1 };
+    // "Another Dire Wolf within Melee range of the target": the shape this is
+    // almost always reached for, with the one asking left out of its own count.
+    case 'nearby':
+      return { kind, of: { kind: 'adversaries', range: 'melee', around: 'target', except: 'actor' }, op: '>=', value: 1 };
     case 'loadout':
       return { kind, domain: 'blade', op: '>=', value: 4 };
     case 'not':
@@ -276,6 +282,21 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
         return (
           <>
             {text(condition.ability, (ability) => onChange({ ...condition, ability }), 'card id')}
+            {select(condition.op, ops.map((id) => ({ id })), (op) => onChange({ ...condition, op }))}
+            {number(condition.value, (value) => onChange({ ...condition, value }))}
+          </>
+        );
+      case 'nearby':
+        return (
+          <>
+            <TargetEditor
+              selector={condition.of}
+              fallback="pick who"
+              testId="cond-nearby"
+              onChange={(of) =>
+                onChange({ ...condition, of: of ?? { kind: 'adversaries', range: 'melee', around: 'target', except: 'actor' } })
+              }
+            />
             {select(condition.op, ops.map((id) => ({ id })), (op) => onChange({ ...condition, op }))}
             {number(condition.value, (value) => onChange({ ...condition, value }))}
           </>

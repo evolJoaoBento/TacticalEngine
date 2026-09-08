@@ -821,6 +821,116 @@ describe('what the room makes of a roll', () => {
   });
 });
 
+describe('one of its own, standing beside the target', () => {
+  /** Kara with two of a kind on her, or one of them standing off. */
+  const pack = (adversary: string, seed: string, together = true) => {
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'pack-mate', adversary, position: together ? { x: 2, y: 5 } : { x: 12, y: 14 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.state.entity('kara')!.hitPoints = { max: 60, marked: 0 };
+    demo.state.entity('foe')!.hitPoints = { max: 60, marked: 0 };
+    demo.state.entity('pack-mate')!.hitPoints = { max: 60, marked: 0 };
+    demo.party.select('kara');
+    return demo;
+  };
+
+  it('swaps the dice only while another of its own is on the target', () => {
+    // "If the Wolf makes a successful standard attack and another Dire Wolf is
+    // within Melee range of the target, deal 1d6+5 instead."
+    const together = pack('dire-wolf', 'wolves');
+    expect(together.world.standardAttackOf('dire-wolf', { attacker: 'foe', target: 'kara' }).damage).toMatchObject({
+      count: 1,
+      sides: 6,
+      modifier: 5,
+    });
+
+    const alone = pack('dire-wolf', 'lone-wolf', false);
+    expect(alone.world.standardAttackOf('dire-wolf', { attacker: 'foe', target: 'kara' }).damage).toBeUndefined();
+  });
+
+  it('does not count the one asking', () => {
+    // A creature is within Melee of itself, so a Wolf with nobody beside it
+    // would otherwise be its own pack.
+    const alone = pack('dire-wolf', 'self-count', false);
+    alone.state.entity('pack-mate')!.alive = false;
+    expect(
+      alone.world.resolveTargets(
+        { kind: 'adversaries', range: 'melee', around: 'target', except: 'actor', sameKind: true },
+        { targets: ['kara'], hit: ['kara'] },
+      ),
+    ).toEqual([]);
+  });
+
+  it('counts its own kind, not whoever else is standing there', () => {
+    // "Another *Sylvan Soldier*": a Wolf beside the target is not a Soldier.
+    const s = blank();
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'sylvan-soldier', position: { x: 3, y: 4 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'stranger', adversary: 'dire-wolf', position: { x: 2, y: 5 } }));
+    const demo = buildProjectScene(s.project, 'mixed');
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.party.select('kara');
+    expect(demo.world.standardAttackOf('sylvan-soldier', { attacker: 'foe', target: 'kara' }).damage).toBeUndefined();
+  });
+
+  it('eats one of its own, but only with a wound to close', () => {
+    // "When the Vampire is within Melee range of an ally, they can cause the
+    // ally to mark a HP. The Vampire then clears a HP." Somebody beside it is
+    // a count of creatures; a reason to bite is a pool on itself.
+    const fed = (marked: number): ReturnType<typeof pack> => {
+      const demo = pack('head-vampire', `vampire-${marked}`);
+      // One Fear: enough to spotlight the second Vampire, not enough for The
+      // Hunt Is On, which would otherwise be the first thing it reaches for.
+      demo.state.fear = { ...demo.state.fear, value: 1 };
+      demo.state.entity('foe')!.hitPoints = { max: 12, marked };
+      demo.state.entity('pack-mate')!.hitPoints = { max: 12, marked: 0 };
+      demo.world.drawIn('pack-mate', 'foe', 'melee', 'far');
+      endTurn(demo);
+      return demo;
+    };
+
+    const hungry = fed(3);
+    expect(hungry.log.some((l) => l.text.includes('takes what it needs'))).toBe(true);
+    expect(hungry.state.entity('foe')!.hitPoints.marked).toBe(2);
+    expect(hungry.state.entity('pack-mate')!.hitPoints.marked).toBe(1);
+
+    // Whole, it has nothing to close, and its followers keep their blood.
+    const whole = fed(0);
+    expect(whole.log.some((l) => l.text.includes('takes what it needs'))).toBe(false);
+    expect(whole.state.entity('pack-mate')!.hitPoints.marked).toBe(0);
+  });
+
+  it('takes the Fear on the hit, and only with the pack there', () => {
+    // "…and you gain a Fear", which only the Wolf's half says. The Fear itself
+    // is hard to read off a finished turn - the GM spends it again to spotlight
+    // the second Wolf - so what is asserted is the rider running at all.
+    const closed = (demo: ReturnType<typeof pack>): boolean => {
+      for (let i = 0; i < 8; i++) {
+        const kara = demo.state.entity('kara')!;
+        kara.hitPoints = { max: 60, marked: 0 };
+        kara.stress = { max: 6, marked: 0 };
+        kara.alive = true;
+        endTurn(demo);
+      }
+      // A Wolf that never got its claws in says nothing either way, so the
+      // lone half only means something once it has swung.
+      expect(demo.log.some((l) => l.text.includes('Claws'))).toBe(true);
+      return demo.log.some((l) => l.text.includes('The pack closes'));
+    };
+    expect(closed(pack('dire-wolf', 'wolf-fear'))).toBe(true);
+    expect(closed(pack('dire-wolf', 'wolf-alone', false))).toBe(false);
+  });
+});
+
 describe('a token on the stat block', () => {
   /** A slow thing standing next to Kara, the fight already on. */
   const winding = (adversary: string, seed: string, second = false) => {
@@ -907,6 +1017,23 @@ describe('a token on the stat block', () => {
     expect(brambles()).toBe(0);
     expect(kara.conditions.has('restrained')).toBe(false);
     expect(kara.conditions.has('vulnerable')).toBe(false);
+  });
+
+  it('spends the Stress only on somebody carrying enough of them', () => {
+    // "Mark a Stress to deal 2d6+8 direct physical damage to a target with 3
+    // or more bramble tokens." The GM aims at the nearest creature in reach,
+    // so without a gate on the target it would pay for the wrong one.
+    const short = winding('tangle-bramble-swarm', 'crush-short');
+    short.world.addTokens('kara', 'tangle-bramble-swarm-encumber', 2);
+    const before = short.state.entity('foe')!.stress.marked;
+    endTurn(short);
+    expect(short.log.some((l) => l.text.includes('The brambles close and squeeze'))).toBe(false);
+    expect(short.state.entity('foe')!.stress.marked).toBe(before);
+
+    const ready = winding('tangle-bramble-swarm', 'crush-ready');
+    ready.world.addTokens('kara', 'tangle-bramble-swarm-encumber', 3);
+    endTurn(ready);
+    expect(ready.log.some((l) => l.text.includes('The brambles close and squeeze'))).toBe(true);
   });
 
   it('leaves the thorns on for a scratch', () => {

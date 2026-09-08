@@ -125,20 +125,32 @@ export function TargetEditor(props: TargetEditorProps): preact.JSX.Element {
             <option value="actor">around the actor</option>
             <option value="target">around the target</option>
           </select>
+          {/* A creature is within Melee of itself, so "another one of these"
+              has to say whom it is leaving out. */}
+          <select
+            style={field}
+            data-role="target-except"
+            title="Leave somebody out: the chosen target, or the one acting"
+            value={selector.except ?? ''}
+            onChange={(e) => {
+              const except = (e.target as HTMLSelectElement).value;
+              onChange({ ...selector, except: except === '' ? undefined : (except as 'target' | 'actor') });
+            }}
+          >
+            <option value="">everyone in the band</option>
+            <option value="target">all other than the target</option>
+            <option value="actor">all other than the one acting</option>
+          </select>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }}>
             <input
               type="checkbox"
-              data-role="target-except"
-              checked={selector.except === 'target'}
+              data-role="target-same-kind"
+              checked={selector.sameKind === true}
               onChange={(e) =>
-                onChange(
-                  (e.target as HTMLInputElement).checked
-                    ? { ...selector, except: 'target' }
-                    : { ...selector, except: undefined },
-                )
+                onChange({ ...selector, sameKind: (e.target as HTMLInputElement).checked ? true : undefined })
               }
             />
-            all <em>other</em>
+            off the same stat block
           </label>
         </>
       ) : null}

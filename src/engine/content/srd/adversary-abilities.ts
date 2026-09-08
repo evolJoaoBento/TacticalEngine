@@ -2142,6 +2142,91 @@ const RAW: Input[] = [
       { kind: 'loseHope', target: { kind: 'allies', range: 'close', except: 'target' } },
     ],
   },
+  // ---- one of its own, standing beside the target -------------------------
+  // "Another Dire Wolf is within Melee range of the target." The selectors
+  // could already say which creatures and where - around the target rather
+  // than the actor, off the same stat block, everyone but the one asking. What
+  // was missing was the question: how many. That is `nearby`, and it reads
+  // from the attacker's chair with the target bound, the same as any other
+  // gate on a standard attack.
+  {
+    id: 'dire-wolf-pack-tactics',
+    name: 'Pack Tactics',
+    source: from('dire-wolf'),
+    text: 'If the Wolf makes a successful standard attack and another Dire Wolf is within Melee range of the target, deal 1d6+5 physical damage instead of their standard damage and you gain a Fear.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    standardAttack: {
+      damage: '1d6+5 phy',
+      when: {
+        kind: 'nearby',
+        of: { kind: 'adversaries', range: 'melee', around: 'target', except: 'actor', sameKind: true },
+        op: '>=',
+        value: 1,
+      },
+    },
+  },
+  {
+    id: 'dire-wolf-pack-tactics-fear',
+    name: 'Pack Tactics',
+    source: from('dire-wolf'),
+    text: 'If the Wolf makes a successful standard attack and another Dire Wolf is within Melee range of the target, you gain a Fear.',
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    available: {
+      kind: 'nearby',
+      of: { kind: 'adversaries', range: 'melee', around: 'target', except: 'actor', sameKind: true },
+      op: '>=',
+      value: 1,
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The pack closes, and the GM takes something for it.', tone: 'fear' },
+      { kind: 'gainFear', amount: 1 },
+    ],
+  },
+  {
+    id: 'sylvan-soldier-pack-tactics',
+    name: 'Pack Tactics',
+    source: from('sylvan-soldier'),
+    text: 'If the Soldier makes a standard attack and another Sylvan Soldier is within Melee range of the target, deal 1d8+5 physical damage instead of their standard damage.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    standardAttack: {
+      damage: '1d8+5 phy',
+      when: {
+        kind: 'nearby',
+        of: { kind: 'adversaries', range: 'melee', around: 'target', except: 'actor', sameKind: true },
+        op: '>=',
+        value: 1,
+      },
+    },
+  },
+  {
+    id: 'head-vampire-feed-on-followers',
+    name: 'Feed on Followers',
+    source: from('head-vampire'),
+    text: 'When the Vampire is within Melee range of an ally, they can cause the ally to mark a HP. The Vampire then clears a HP.',
+    // Somebody to eat, and a wound worth eating for: a Vampire at full
+    // strength has no reason to open one of its own.
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'nearby', of: { kind: 'adversaries', range: 'melee', except: 'actor' }, op: '>=', value: 1 },
+        { kind: 'pool', pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked', op: '>=', value: 1 },
+      ],
+    },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'The Vampire takes what it needs from one of its own.', tone: 'fear' },
+      { kind: 'damage', amount: 1, target: { kind: 'adversaries', range: 'melee', except: 'actor', nearest: 1 } },
+      { kind: 'heal', amount: 1, target: { kind: 'actor' } },
+    ],
+  },
   // ---- a token on the stat block ------------------------------------------
   // "When you spotlight the Ooze and they don't have a token on their stat
   // block, they can't act yet." The token store is keyed by creature and card,
@@ -2210,6 +2295,27 @@ const RAW: Input[] = [
   // hit, keyed by that creature and this card, which is the same store Slow
   // keeps its own count in. Two cards under one name, because the block gives
   // the tokens on its own hit and loses them on somebody else's.
+  {
+    id: 'tangle-bramble-swarm-crush',
+    name: 'Crush',
+    source: from('tangle-bramble-swarm'),
+    text: 'Mark a Stress to deal 2d6+8 direct physical damage to a target with 3 or more bramble tokens.',
+    cost: { stress: 1 },
+    // The tokens are what makes somebody worth the Stress, so the gate is on
+    // the target rather than on the feature: the GM aims at the nearest
+    // creature in reach, and without this it would spend a Stress on whoever
+    // that happened to be.
+    target: {
+      kind: 'creature',
+      range: 'melee',
+      when: { kind: 'tokens', ability: 'tangle-bramble-swarm-encumber', of: { kind: 'target' }, op: '>=', value: 3 },
+    },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'The brambles close and squeeze.', tone: 'fear' },
+      { kind: 'damage', dice: '2d6+8', type: 'physical', direct: true, target: { kind: 'target' } },
+    ],
+  },
   {
     id: 'tangle-bramble-swarm-encumber',
     name: 'Encumber',

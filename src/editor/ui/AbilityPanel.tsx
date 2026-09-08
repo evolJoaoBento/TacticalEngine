@@ -19,6 +19,7 @@ import { abilitySchema, type AbilityDef } from '../../engine/content/abilities';
 import type { QuestDef } from '../../engine/content/quests';
 import { RANGE_BANDS, type RangeBand } from '../../engine/rules/range';
 import { EffectList } from './EffectList';
+import { ConditionEditor } from './ConditionEditor';
 
 /** What a card's token count can be: a number, a trait, or the Spellcast trait. */
 type TokenAmount = NonNullable<AbilityDef['tokens']>['amount'];
@@ -347,6 +348,43 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 </select>,
               )}
             </div>
+
+            {/* "A target with 3 or more bramble tokens": what makes a creature
+                worth aiming at, asked of each of them in turn. */}
+            {open.target.kind === 'none' || open.target.kind === 'self' ? null : (
+              <div style={{ display: 'flex', gap: '3px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <span style={{ color: '#8ea3b0', fontSize: '11px', paddingTop: '3px' }}>worth aiming at if</span>
+                {open.target.when === undefined ? (
+                  <button
+                    style={{ ...field, fontSize: '11px', cursor: 'pointer' }}
+                    data-testid="ability-target-gate"
+                    onClick={() => edit({ target: { ...open.target, when: { kind: 'always' } } })}
+                  >
+                    anyone…
+                  </button>
+                ) : (
+                  <>
+                    <ConditionEditor
+                      condition={open.target.when}
+                      quests={props.quests}
+                      encounterIds={props.encounterIds}
+                      hookIds={props.hookIds}
+                      onChange={(when) => edit({ target: { ...open.target, when } })}
+                    />
+                    <button
+                      style={{ ...field, fontSize: '11px', cursor: 'pointer' }}
+                      title="Aim at anyone in range"
+                      onClick={() => {
+                        const { when: _dropped, ...rest } = open.target;
+                        edit({ target: rest });
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}>
