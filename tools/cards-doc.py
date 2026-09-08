@@ -52,7 +52,7 @@ out.append("and run through the one effect vocabulary; the rest are **text**: th
 out.append("the action bar and the table adjudicates, as at a real one. A grimoire lists each spell.\n")
 out.append("Known simplifications in the scripted ones:\n")
 out.append("- **Rune Ward** never breaks on an 8; **Get Back Up**, **Iron Will**, **Brace**, **Shrug It Off**, **On the Brink** and the ward fire on their own when they lower the Hit Points marked (per-card `auto`, and an interrupt is always asked).")
-out.append("- **Arcane Barrage**, **Unleash Chaos**, **Falling Sky** and **Wild Flame** offer a short list of amounts rather than any number.")
+out.append("- **Arcane Barrage**, **Falling Sky** and **Wild Flame** offer a short list of amounts rather than any number; **Unleash Chaos** and **Share the Burden** ask outright, one button per number, up to twelve.")
 out.append("- **Slumber**'s sleeper loses its spotlight until damage marks a Hit Point or the GM spends a Fear, which the GM's turn does on its own when there is one.")
 out.append("- **Stunning Sunlight** rolls the damage for those who resist as its own roll, because the card prints different dice for it; **Earthquake** and **Ground Pound** roll once and halve that number, as the card asks.")
 out.append("- **Cinder Grasp** lights a target On Fire, but the extra damage for acting while alight is the condition's text and the table's to apply. **Chokehold** makes a target Vulnerable without the card's stronger version of it, and **Corrosive Projectile** deals its damage without the standing Corroded penalty.")

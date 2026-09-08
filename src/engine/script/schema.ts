@@ -61,7 +61,13 @@ export const scriptValueSchema = z.union([z.string(), z.number(), z.boolean(), z
  */
 export const COUNT_NAMES = ['hitPointsTaken', 'hitPointsDealt', 'targetsHit'] as const;
 export type CountName = (typeof COUNT_NAMES)[number];
-const countNameSchema = z.enum(COUNT_NAMES);
+/**
+ * `spent` is not one of them. It is a word only `howMany` understands: the
+ * number the player chose, written into a copy of the effects before they run,
+ * so nothing ever tracks a count by that name. The validator warns when it is
+ * written anywhere else, because there it reads as a quiet zero.
+ */
+const countNameSchema = z.enum([...COUNT_NAMES, 'spent']);
 
 /** A written number, or one the script reads off what has just happened. */
 /**
@@ -78,13 +84,22 @@ const countNameSchema = z.enum(COUNT_NAMES);
  * and a selector that names a crowd has no order worth relying on. The
  * validator says so.
  */
-export const amountReadSchema = z.object({
-  pool: poolNameSchema,
-  get of() {
-    return targetSelectorSchema.optional();
-  },
-  measure: z.enum(['available', 'marked', 'max']).optional(),
-});
+export const amountReadSchema = z.union([
+  z.object({
+    pool: poolNameSchema,
+    get of() {
+      return targetSelectorSchema.optional();
+    },
+    measure: z.enum(['available', 'marked', 'max']).optional(),
+  }),
+  /** Or the tokens sitting on a card somebody holds. */
+  z.object({
+    tokens: contentIdSchema,
+    get of() {
+      return targetSelectorSchema.optional();
+    },
+  }),
+]);
 
 const amountSchema = z.union([z.number().int().positive(), countNameSchema, amountReadSchema]);
 
@@ -494,7 +509,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('markArmor'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
   /** The GM gains Fear. */
   z.object({ kind: z.literal('gainFear'), amount: amountSchema.optional() }),
-  z.object({ kind: z.literal('gainHope'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
+  z.object({ kind: z.literal('gainHope'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
   /** The actor spends Hope. Refused, and journalled as such, when they cannot. */
   z.object({ kind: z.literal('spendHope'), amount: z.number().int().positive().optional() }),
   /**
@@ -570,7 +585,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('spendToken'),
     ability: contentIdSchema,
-    amount: z.number().int().positive().optional(),
+    amount: amountSchema.optional(),
     /** Every token on the card - "then clear all tokens". */
     all: z.boolean().optional(),
     target: targetSelectorSchema.optional(),
@@ -680,6 +695,36 @@ export const effectSchema = z.discriminatedUnion('kind', [
     dice: z.string().min(1).optional(),
     /** Or a flat number: "a +10 bonus to the damage roll". */
     amount: amountSchema.optional(),
+  }),
+  /**
+   * "Spend any number of Hope to roll that many d6s", "mark any number of
+   * Stress to make that many additional layers": the player is asked for a
+   * number, and what they answer decides what runs.
+   *
+   * It asks; it does not pay. What the number costs is written in `each`, the
+   * same way the card's own words do it - "spend any number of tokens *to*
+   * add a d6 for each" is a `spendToken` and a `boostDamage`, and both of them
+   * read the answer.
+   *
+   * The answer reaches them by substitution rather than by binding: for each
+   * number the player could give, a copy of `each` is made with `'spent'`
+   * wherever an amount is written, and `{n}` wherever dice are, replaced by
+   * that number. So the choice is an ordinary choice, drawn by anything that
+   * can draw one, and nothing downstream has to know where the number came
+   * from.
+   */
+  z.object({
+    kind: z.literal('howMany'),
+    /** The most that can be asked for: a number, a pool, or tokens on a card. */
+    most: amountSchema,
+    /** The least. Zero lets the player decline; one by default. */
+    least: z.number().int().min(0).optional(),
+    title: z.string().optional(),
+    body: z.string().optional(),
+    /** What one of them does, with `'spent'` and `{n}` reading the answer. */
+    get each() {
+      return z.array(effectSchema);
+    },
   }),
   /**
    * "When you spotlight the Ooze and they don't have a token on their stat
@@ -815,6 +860,9 @@ export function walkEffects(
         break;
       case 'countdown':
         walkEffects(effect.effects, visit);
+        break;
+      case 'howMany':
+        walkEffects(effect.each, visit);
         break;
       default:
         break;

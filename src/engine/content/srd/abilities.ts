@@ -213,6 +213,30 @@ const RAW: Input[] = [
     // Advantage on lock, trap and theft rolls: the check editor tags a roll;
     // the advantage is the next step. Text for the table.
   },
+  {
+    id: 'share-the-burden',
+    name: 'Share the Burden',
+    source: card('share-the-burden'),
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'ally', range: 'melee' },
+    // "Transfer any number of their marked Stress to you, then gain a Hope for
+    // each Stress transferred." What the number costs is written here rather
+    // than in the asking: the Stress comes off them and goes onto whoever is
+    // carrying it, and the Hope follows the same number.
+    effects: [
+      {
+        kind: 'howMany',
+        most: { pool: 'stress', of: { kind: 'target' }, measure: 'marked' },
+        title: 'Share the Burden',
+        body: 'How much of it do you take?',
+        each: [
+          { kind: 'clearStress', amount: 'spent', target: { kind: 'target' } },
+          { kind: 'markStress', amount: 'spent', target: { kind: 'actor' } },
+          { kind: 'gainHope', amount: 'spent', target: { kind: 'actor' } },
+        ],
+      },
+    ],
+  },
   // ---- a Spellcast Roll against a target, and what it leaves on them ------
   // The shape the SRD prints over and over: a Spellcast Roll against a
   // creature's own Difficulty, and on a success something that stays. Nothing
@@ -460,7 +484,28 @@ const RAW: Input[] = [
     // Spellcast trait on this card": a session refills on a long rest.
     tokens: { amount: 'spellcast', refill: 'session' },
     available: { kind: 'tokens', ability: 'unleash-chaos', op: '>=', value: 1 },
-    effects: [{ kind: 'run', hook: 'unleash-chaos' }],
+    // "Spend any number of tokens and roll a number of d10s equal to the
+    // tokens spent." This was code once, because the number of options
+    // depends on what is on the card; `howMany` asks that question now.
+    effects: [
+      {
+        kind: 'howMany',
+        most: { tokens: 'unleash-chaos' },
+        title: 'Unleash Chaos',
+        body: 'How much of it?',
+        each: [
+          { kind: 'spendToken', ability: 'unleash-chaos', amount: 'spent' },
+          {
+            kind: 'check',
+            check: {
+              trait: 'spellcast',
+              difficulty: 'target',
+              onSuccessWithHope: [{ kind: 'damage', dice: '{n}d10', type: 'magic' }],
+            },
+          },
+        ],
+      },
+    ],
   },
   // ---- Codex -----------------------------------------------------------------
   {

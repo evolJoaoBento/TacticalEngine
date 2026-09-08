@@ -869,7 +869,21 @@ footer {
   Stress on. That is what keeps a feature reading &ldquo;a target with 3 or more bramble
   tokens&rdquo; from being paid for and aimed at somebody carrying none.</p>
 
-  <p>An amount can also be read off somebody's pool: <code>{ pool, of, measure }</code>, the
+  <p>Some cards ask the player for a number rather than naming one: &ldquo;spend any number of
+  Hope to roll that many d6s&rdquo;, &ldquo;transfer any number of their marked Stress&rdquo;.
+  <code>howMany</code> is that question. It says the <code>most</code> that can be asked for
+  (a number, a pool, or tokens on a card), the <code>least</code> that may be answered, and
+  <code>each</code> &mdash; what one of them does. It asks; it does not pay: what the number
+  costs is written in <code>each</code>, the way the card's own words write it.</p>
+
+  <p>The answer arrives by substitution, not by binding. For every number the player could
+  give, a copy of <code>each</code> is made with <code>'spent'</code> (wherever an amount is
+  written) and <code>{n}</code> (wherever dice are) replaced by that number, and the whole
+  thing is pushed as an ordinary <code>choice</code>. So anything that can draw a choice can
+  draw this, nothing downstream has to know where the number came from, and the two words mean
+  nothing outside a <code>howMany</code> &mdash; which the validator says out loud.</p>
+
+  <p>An amount can also be read off somebody's pool: <code>{ pool, of, measure }</code>, or off the tokens on a card (<code>{ tokens, of }</code>). The pool read uses the
   same three words the <code>pool</code> condition asks with, so a feature's gate and its
   amount read one number. <code>of</code> is the actor when left out and <code>measure</code>
   is what is marked, which is what &ldquo;a bonus equal to the Demon's current number of marked

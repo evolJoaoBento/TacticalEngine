@@ -306,6 +306,7 @@ AbilityDef.effects  (content/abilities.ts, shapes from script/schema.ts)
             ├─ spotlight journals who the GM's turn was handed to
             ├─ endSpotlight journals that this creature's turn is spent
             ├─ boostDamage journals what to add to the blow being counted
+            ├─ howMany builds a choice, one option per number, and pushes it
             ├─ replace takes the actor off the map and stands another block there
             ├─ move walks the actor across the ground: towards somebody, or away
             └─ choice and check return a Prompt        — the runner stops

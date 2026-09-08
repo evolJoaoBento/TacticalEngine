@@ -175,7 +175,9 @@ export function evaluate(
       return value !== null && compare(value, condition.op, condition.value);
     }
     case 'count':
-      return compare(countOf(bindings, condition.of), condition.op, condition.value);
+      // `spent` is written into a copy of the effects before they run, so a
+      // gate that asks for it is asking about nothing: a quiet zero.
+      return compare(condition.of === 'spent' ? 0 : countOf(bindings, condition.of), condition.op, condition.value);
     case 'rolled': {
       const outcome = bindings.roll?.outcome;
       if (outcome === undefined) return false;

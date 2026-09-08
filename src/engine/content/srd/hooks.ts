@@ -43,40 +43,6 @@ export const SRD_HOOKS: HookMap = defineHooks({
   },
 
   /**
-   * Unleash Chaos: "spend any number of tokens … roll a number of d10s equal
-   * to the tokens you spent". The tokens actually on the card decide how many
-   * options there are, which is why this is code and not a list.
-   */
-  'unleash-chaos': (ctx) => {
-    const actor = ctx.actor;
-    const target = ctx.targets[0];
-    if (actor === null || target === undefined) return;
-    const held = ctx.tokens(actor, 'unleash-chaos');
-    if (held < 1) {
-      ctx.log('No chaos left to unleash.', 'system');
-      return;
-    }
-    const options: ChoiceOption[] = [];
-    for (let spent = 1; spent <= held; spent++) {
-      options.push({
-        label: `${spent} token${spent === 1 ? '' : 's'}: ${spent}d10 magic`,
-        effects: [
-          { kind: 'spendToken', ability: 'unleash-chaos', amount: spent },
-          {
-            kind: 'check',
-            check: {
-              trait: 'spellcast',
-              difficulty: 'target',
-              onSuccessWithHope: [{ kind: 'damage', dice: `${spent}d10`, type: 'magic' }],
-            },
-          },
-        ],
-      });
-    }
-    ctx.queue([{ kind: 'choice', title: 'Unleash Chaos', body: 'How much of it?', options }]);
-  },
-
-  /**
    * "The target must mark an Armor Slot without receiving its benefits. If
    * they can't mark an Armor Slot, they must mark an additional HP" — Spit
    * Acid's aftermath, and the same sentence on four other blocks. Which of the

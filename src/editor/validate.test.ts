@@ -734,6 +734,49 @@ describe('what only a stat block has', () => {
     expect(said.some((m) => m.includes('somebody-elses'))).toBe(false);
   });
 
+  it('warns when something reads an answer nobody asked for', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'stray-answer',
+          name: 'Stray Answer',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'damage', amount: 'spent', target: { kind: 'target' } }],
+        },
+        {
+          id: 'stray-braces',
+          name: 'Stray Braces',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'damage', dice: '{n}d6', target: { kind: 'target' } }],
+        },
+        {
+          id: 'a-question',
+          name: 'A Question',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [
+            {
+              kind: 'howMany',
+              most: { pool: 'stress', measure: 'available' },
+              each: [
+                { kind: 'markStress', amount: 'spent' },
+                // Nested inside the question, which is still inside it.
+                { kind: 'branch', when: { kind: 'always' }, then: [{ kind: 'damage', dice: '{n}d6', target: { kind: 'target' } }] },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const said = messages(project);
+    expect(said.some((m) => m.includes('"stray-answer" reads an answer nobody asked for'))).toBe(true);
+    expect(said.some((m) => m.includes('"stray-braces" reads an answer nobody asked for'))).toBe(true);
+    expect(said.some((m) => m.includes('a-question'))).toBe(false);
+  });
+
   it('warns when an amount reads a pool off a crowd', () => {
     const project = projectSchema.parse({
       ...build(),

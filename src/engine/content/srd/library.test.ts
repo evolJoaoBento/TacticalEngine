@@ -101,7 +101,9 @@ describe('the shipped library, structurally', () => {
 const EXPECTED_REFUSALS: ReadonlyMap<string, string> = new Map([
   ['inspirational-words', 'no tokens on the card until a long rest places them'],
   ['restoration', 'no tokens on the card until a long rest places them'],
+  ['unleash-chaos', 'no tokens on the card until a session places them'],
   ['minor-chaos-elemental-magical-reflection', 'nothing to reflect until a blow has landed on the Elemental'],
+  ['share-the-burden', 'nobody in the fixture is carrying Stress to take on'],
 ]);
 
 const husk = (id: string, difficulty: number): AdversaryDef => ({

@@ -629,6 +629,60 @@ describe('the runner as a whole', () => {
     expect(dealt).toEqual([{ amount: 5, types: ['physical'] }]);
   });
 
+  it('asks how many, and writes the answer into what it runs', () => {
+    // "Spend any number of tokens and roll that many d10s": one option per
+    // number, each carrying its own copy of the effects with the number
+    // already in them - so nothing downstream has to look it up.
+    const stub = stubWorld({ actorId: () => 'mira', resolveTargets: () => ['mira'], tokensOn: () => 3 });
+    const runner = new ScriptRunner(stub, createRng(1), { targets: [], hit: [] });
+    const waiting = runner.run([
+      {
+        kind: 'howMany',
+        most: { tokens: 'unleash-chaos' },
+        title: 'How much?',
+        each: [{ kind: 'log', text: 'chaos for {n}' }, { kind: 'gainFear', amount: 'spent' }],
+      },
+    ]);
+    expect(waiting.status).toBe('waiting');
+    expect(waiting.status === 'waiting' && waiting.prompt.kind).toBe('choice');
+    const options = waiting.status === 'waiting' && waiting.prompt.kind === 'choice' ? waiting.prompt.options : [];
+    expect(options.map((o) => o.label)).toEqual(['1', '2', '3']);
+
+    // Taking the third writes three into both halves of it.
+    let fear = 0;
+    const counting = stubWorld({
+      actorId: () => 'mira',
+      resolveTargets: () => ['mira'],
+      tokensOn: () => 3,
+      gainFear: () => {
+        fear += 1;
+        return true;
+      },
+    });
+    const again = new ScriptRunner(counting, createRng(1), { targets: [], hit: [] });
+    again.run([
+      {
+        kind: 'howMany',
+        most: { tokens: 'unleash-chaos' },
+        each: [{ kind: 'log', text: 'chaos for {n}' }, { kind: 'gainFear', amount: 'spent' }],
+      },
+    ]);
+    const done = again.resume({ kind: 'choose', index: 2 });
+    expect(done.status).toBe('done');
+    expect(done.journal.some((e) => e.kind === 'log' && e.text === 'chaos for 3')).toBe(true);
+    expect(fear).toBe(3);
+  });
+
+  it('refuses to ask when there is none of it', () => {
+    const stub = stubWorld({ actorId: () => 'mira', resolveTargets: () => ['mira'], tokensOn: () => 0 });
+    const journal = runScript(
+      [{ kind: 'howMany', most: { tokens: 'unleash-chaos' }, each: [{ kind: 'gainFear', amount: 'spent' }] }],
+      stub,
+      createRng(1),
+    );
+    expect(journal).toContainEqual({ kind: 'refused', reason: 'there is none of it to spend' });
+  });
+
   it('reads an amount off a pool, and off nobody as a quiet zero', () => {
     // "A bonus to the damage roll equal to the Demon's current number of
     // marked HP": the actor's own pool when nothing says otherwise.

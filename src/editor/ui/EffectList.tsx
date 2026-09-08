@@ -94,6 +94,7 @@ const ADDABLE = [
   'spotlight',
   'endSpotlight',
   'boostDamage',
+  'howMany',
   'countdown',
   'reactionRoll',
   'run',
@@ -151,6 +152,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
   spotlight: 'Spotlight allies',
   endSpotlight: 'End this spotlight',
   boostDamage: 'Add to the blow landing',
+  howMany: 'Ask how many',
   reactionRoll: 'Ask for a reaction roll',
   run: 'Run code',
 };
@@ -280,6 +282,8 @@ function blank(kind: Addable, props: EffectListProps): Effect {
       return { kind };
     case 'boostDamage':
       return { kind, dice: '1d6' };
+    case 'howMany':
+      return { kind, most: { pool: 'hope', measure: 'available' }, each: [] };
     case 'countdown':
       return { kind, countdown: 'countdown', name: 'Countdown', start: '4', effects: [] };
     case 'reactionRoll':
@@ -406,13 +410,13 @@ function renderBody(
   ): preact.JSX.Element => <TargetEditor selector={selector} fallback={fallback} onChange={(s) => onChange(set(s))} />;
 
   /** A small whole number, defaulting to one when the field is emptied. */
-  const count = (value: number, set: (n: number) => Effect): preact.JSX.Element => (
+  const count = (value: number, set: (n: number) => Effect, least = 1): preact.JSX.Element => (
     <input
       type="number"
-      min={1}
+      min={least}
       style={{ ...field, flex: 'none', width: '52px' }}
       value={value}
-      onInput={(e) => onChange(set(Math.max(1, Number((e.target as HTMLInputElement).value) || 1)))}
+      onInput={(e) => onChange(set(Math.max(least, Number((e.target as HTMLInputElement).value) || least)))}
     />
   );
 
@@ -424,7 +428,8 @@ function renderBody(
    */
   const amount = (value: Amount, set: (n: Amount) => Effect): preact.JSX.Element => {
     const read = typeof value === 'object' ? value : null;
-    const source = typeof value === 'object' ? 'pool' : typeof value === 'number' ? '' : value;
+    const source =
+      typeof value === 'object' ? ('tokens' in value ? 'tokens' : 'pool') : typeof value === 'number' ? '' : value;
     return (
       <>
         <select
@@ -435,6 +440,7 @@ function renderBody(
             const picked = (e.target as HTMLSelectElement).value;
             if (picked === '') onChange(set(1));
             else if (picked === 'pool') onChange(set({ pool: 'hitPoints', measure: 'marked' }));
+            else if (picked === 'tokens') onChange(set({ tokens: 'a-card' }));
             else onChange(set(picked as CountName));
           }}
         >
@@ -445,15 +451,26 @@ function renderBody(
             </option>
           ))}
           <option value="pool">a pool of theirs</option>
+          <option value="tokens">tokens on a card</option>
         </select>
         {typeof value === 'number' ? count(value, set) : null}
-        {read === null ? null : (
+        {read === null || !('pool' in read) ? null : (
           <>
             {pick(read.pool, POOL_NAMES, (pool) => set({ ...read, pool: pool as PoolName }))}
             {pick(read.measure ?? 'marked', ['marked', 'available', 'max'], (measure) =>
               set({ ...read, measure: measure as 'marked' | 'available' | 'max' }),
             )}
           </>
+        )}
+        {read === null || !('tokens' in read) ? null : (
+          <input
+            style={{ ...field, flex: 'none', width: '90px' }}
+            data-role="amount-tokens"
+            placeholder="card id"
+            title="Tokens sitting on this card"
+            value={read.tokens}
+            onInput={(e) => onChange(set({ ...read, tokens: (e.target as HTMLInputElement).value }))}
+          />
         )}
       </>
     );
@@ -592,13 +609,21 @@ function renderBody(
           {who(effect.target, 'everyone it hit', (target) => ({ ...effect, target }))}
         </>
       );
-    case 'markArmor':
-    case 'clearArmor':
     case 'gainHope':
       return (
         <>
-          {count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))}
-          {who(effect.target, effect.kind === 'gainHope' ? 'the actor' : 'everyone it hit', (target) => ({ ...effect, target }))}
+          {amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }))}
+          {who(effect.target, 'the actor', (target) => ({ ...effect, target }))}
+        </>
+      );
+    // Armor Slots are always a plain number: nothing marks or clears "as many
+    // as the blow took".
+    case 'markArmor':
+    case 'clearArmor':
+      return (
+        <>
+          {count(effect.amount ?? 1, (value) => ({ ...effect, amount: value }))}
+          {who(effect.target, 'everyone it hit', (target) => ({ ...effect, target }))}
         </>
       );
     case 'gainFear':
@@ -648,7 +673,7 @@ function renderBody(
           {props.abilityIds === undefined || props.abilityIds.length === 0
             ? text(effect.ability, (ability) => ({ ...effect, ability }), 'card id')
             : pick(effect.ability, props.abilityIds, (ability) => ({ ...effect, ability }))}
-          {effect.all === true ? null : count(effect.amount ?? 1, (amount) => ({ ...effect, amount }))}
+          {effect.all === true ? null : amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }))}
           {flag('all', 'Every token on the card', effect.all === true, (all) => ({
             ...effect,
             all: all ? true : undefined,
@@ -943,6 +968,17 @@ function renderBody(
         <span style={{ ...field, color: '#8ea3b0' }}>
           the creature acts no further this turn
         </span>
+      );
+    case 'howMany':
+      return (
+        <>
+          <span style={{ color: '#8ea3b0', fontSize: '11px' }}>up to</span>
+          {amount(effect.most, (most) => ({ ...effect, most }))}
+          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="Zero lets them decline">
+            from
+          </span>
+          {count(effect.least ?? 1, (least) => ({ ...effect, least }), 0)}
+        </>
       );
     case 'boostDamage':
       return (

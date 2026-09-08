@@ -336,6 +336,15 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // `spent` and `{n}` are words only a `howMany` writes into: outside one,
+    // the amount reads as zero and the dice keep the braces.
+    if (readsAnAnswer(ability.effects)) {
+      add(
+        'warning',
+        `"${ability.id}" reads an answer nobody asked for: 'spent' and "{n}" only mean something inside a "how many" question.`,
+        ability.id,
+      );
+    }
     // An amount reads one creature's pool - the first the selector names - so
     // pointing it at a crowd is asking which of them, and nothing answers.
     for (const crowd of amountsReadingACrowd(ability)) {
@@ -388,6 +397,28 @@ function readsTheBlow(ability: AbilityDef): boolean {
   walkEffects(ability.effects, amount);
   walkConditionsIn(ability.effects, compares);
   if (ability.available !== undefined) walkCondition(ability.available, compares);
+  return reads;
+}
+
+/**
+ * Whether anything outside a `howMany` says `spent` or `{n}`.
+ *
+ * Asked of one effect at a time and of its own fields only: a `howMany` holds
+ * the answers it wrote, and reading its children as its own would accuse every
+ * question of the words it just handed out.
+ */
+function readsAnAnswer(effects: readonly Effect[]): boolean {
+  const inside = new Set<Effect>();
+  walkEffects(effects, (effect) => {
+    if (effect.kind === 'howMany') walkEffects(effect.each, (child) => inside.add(child));
+  });
+  let reads = false;
+  walkEffects(effects, (effect) => {
+    if (effect.kind === 'howMany' || inside.has(effect)) return;
+    const amount = (effect as { amount?: unknown }).amount;
+    const own = Object.entries(effect).filter(([, v]) => typeof v === 'string');
+    if (amount === 'spent' || own.some(([, v]) => (v as string).includes('{n}'))) reads = true;
+  });
   return reads;
 }
 

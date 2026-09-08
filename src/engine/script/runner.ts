@@ -387,6 +387,12 @@ export interface ScriptRunnerOptions {
 }
 
 /** A list of effects part-way through, and what `hit` meant when it was pushed. */
+/**
+ * The longest list of numbers a `howMany` will offer. Nobody reads twenty
+ * buttons, and a pool that deep means the card wanted a different question.
+ */
+const HOW_MANY_LIMIT = 12;
+
 interface Frame {
   effects: readonly Effect[];
   index: number;
@@ -420,7 +426,11 @@ export class ScriptRunner {
    * whoever started the script; what went out this script keeps for itself, as
    * its damage lands.
    */
-  private readonly counts: Record<CountName, number> = { hitPointsTaken: 0, hitPointsDealt: 0, targetsHit: 0 };
+  private readonly counts: Record<(typeof COUNT_NAMES)[number], number> = {
+    hitPointsTaken: 0,
+    hitPointsDealt: 0,
+    targetsHit: 0,
+  };
   /** The roll that called for this script, when something did. */
   private readonly answering: { total: number; outcome: RollOutcome } | null;
 
@@ -459,10 +469,35 @@ export class ScriptRunner {
       // than a refusal, the way an empty count is.
       const who = this.resolve(amount.of ?? { kind: 'actor' })[0];
       if (who === undefined) return 0;
-      return this.world.poolValue(who, amount.pool, amount.measure ?? 'marked') ?? 0;
+      return 'tokens' in amount
+        ? this.world.tokensOn(who, amount.tokens)
+        : (this.world.poolValue(who, amount.pool, amount.measure ?? 'marked') ?? 0);
     }
     if (amount === 'targetsHit') return this.hit.length;
+    // `spent` never reaches here: `howMany` writes the number into a copy of
+    // its effects, so anything still carrying the word is asking about nothing.
+    if (amount === 'spent') return 0;
     return this.counts[amount];
+  }
+
+  /**
+   * A copy of an effect list with the player's answer written into it.
+   *
+   * `'spent'` wherever an amount is written becomes the number; `{n}` inside
+   * any string - dice, a countdown's start, a label - becomes the digits. This
+   * is why `howMany` needs no binding: by the time these effects run there is
+   * nothing left to look up.
+   */
+  private answered(effects: readonly Effect[], n: number): Effect[] {
+    const rewrite = (value: unknown, key: string): unknown => {
+      if (typeof value === 'string') return key === 'amount' && value === 'spent' ? n : value.replaceAll('{n}', String(n));
+      if (Array.isArray(value)) return value.map((item) => rewrite(item, key));
+      if (value !== null && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, rewrite(v, k)]));
+      }
+      return value;
+    };
+    return rewrite(effects, '') as Effect[];
   }
 
   /** Start a script. Returns as soon as it finishes or needs an answer. */
@@ -859,7 +894,7 @@ export class ScriptRunner {
         return null;
       }
       case 'gainHope': {
-        const amount = effect.amount ?? 1;
+        const amount = this.amountOf(effect.amount);
         const actor = world.actorId();
         for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
           const gained = world.gainHopeFor(id, amount);
@@ -969,6 +1004,27 @@ export class ScriptRunner {
         }
         if (by <= 0) return null;
         this.journal.push({ kind: 'damageBoosted', id: actor, by });
+        return null;
+      }
+      case 'howMany': {
+        // "Spend any number of Hope to roll that many d6s": one option per
+        // number they could give, each carrying its own copy of the effects.
+        // Pushed as an ordinary choice rather than answered here, so the
+        // prompt, the log line and the resume are the ones already written.
+        const least = effect.least ?? 1;
+        const most = Math.min(this.amountOf(effect.most, 0), HOW_MANY_LIMIT);
+        if (most < Math.max(least, 1)) return this.refuse('there is none of it to spend');
+        const options: ChoiceOption[] = [];
+        for (let n = least; n <= most; n++) {
+          options.push({ label: n === 0 ? 'None' : String(n), effects: this.answered(effect.each, n) });
+        }
+        const asking: Effect = {
+          kind: 'choice',
+          ...(effect.title === undefined ? {} : { title: effect.title }),
+          ...(effect.body === undefined ? {} : { body: effect.body }),
+          options,
+        };
+        this.stack.push({ effects: [asking], index: 0 });
         return null;
       }
       case 'endSpotlight': {
@@ -1082,7 +1138,7 @@ export class ScriptRunner {
         for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
           // "Then clear all tokens": whatever is on the card, and an empty
           // card is not a refusal - there was nothing to clear.
-          const amount = effect.all === true ? world.tokensOn(id, effect.ability) : (effect.amount ?? 1);
+          const amount = effect.all === true ? world.tokensOn(id, effect.ability) : this.amountOf(effect.amount);
           if (amount <= 0) continue;
           const spent = world.spendTokens(id, effect.ability, amount);
           if (spent < amount) {

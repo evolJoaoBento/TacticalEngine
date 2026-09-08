@@ -8,7 +8,7 @@ the action bar and the table adjudicates, as at a real one. A grimoire lists eac
 Known simplifications in the scripted ones:
 
 - **Rune Ward** never breaks on an 8; **Get Back Up**, **Iron Will**, **Brace**, **Shrug It Off**, **On the Brink** and the ward fire on their own when they lower the Hit Points marked (per-card `auto`, and an interrupt is always asked).
-- **Arcane Barrage**, **Unleash Chaos**, **Falling Sky** and **Wild Flame** offer a short list of amounts rather than any number.
+- **Arcane Barrage**, **Falling Sky** and **Wild Flame** offer a short list of amounts rather than any number; **Unleash Chaos** and **Share the Burden** ask outright, one button per number, up to twelve.
 - **Slumber**'s sleeper loses its spotlight until damage marks a Hit Point or the GM spends a Fear, which the GM's turn does on its own when there is one.
 - **Stunning Sunlight** rolls the damage for those who resist as its own roll, because the card prints different dice for it; **Earthquake** and **Ground Pound** roll once and halve that number, as the card asks.
 - **Cinder Grasp** lights a target On Fire, but the extra damage for acting while alight is the condition's text and the table's to apply. **Chokehold** makes a target Vulnerable without the card's stronger version of it, and **Corrosive Projectile** deals its damage without the standing Corroded penalty.
@@ -21,7 +21,7 @@ Known simplifications in the scripted ones:
 - **Enrapture** and **Mass Enrapture** put the name on the target and let the condition carry it: a creature whose attention is fixed on one person is two Evasion easier to hit, and whom it attacks is still the table's call. **Glyph of Nightfall** is worth a flat two rather than the caster's Knowledge, because a condition carries one number rather than the number of whoever applied it. **Death Grip** offers the pull and the constriction, not the vines catching everyone in between: that is a line across the map, and a selector reads bands around a creature.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 62 of 189 cards.
+Scripted: 63 of 189 cards.
 
 
 ## Arcana
@@ -144,7 +144,7 @@ Scripted: 62 of 189 cards.
 | 5 | Thought Delver | Spell | text |
 | 5 | Words of Discord | Spell | text |
 | 6 | Never Upstaged | Ability | **reaction**, **passive** |
-| 6 | Share the Burden | Spell | text |
+| 6 | Share the Burden | Spell | **action** |
 | 7 | Endless Charisma | Ability | text |
 | 7 | Grace-Touched | Ability | text |
 | 8 | Astral Projection | Spell | text |

@@ -824,6 +824,85 @@ describe('what the room makes of a roll', () => {
   });
 });
 
+describe('asking the player how many', () => {
+  /** A caster and a wounded friend, both holding one card. */
+  const twoOfThem = (cards: readonly string[], seed: string) => {
+    const s = blank();
+    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+    s.run(
+      addSheet(
+        characterSheetSchema.parse(
+          blankSheet('vela', 'wizard', {
+            name: 'Vela',
+            traits: { agility: 0, strength: -1, finesse: 1, instinct: 1, presence: 0, knowledge: 2 },
+            ancestryId: 'faerie',
+            armorId: 'gambeson-armor',
+            primaryWeaponId: 'greatstaff',
+            subclassId: 'school-of-knowledge',
+            domainCards: [...cards],
+          }),
+        ),
+      ),
+    );
+    s.run(addSheet(KARA));
+    s.run(setSpawns('hall', [{ x: 2, y: 4 }, { x: 3, y: 4 }]));
+    s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'acid-burrower', position: { x: 5, y: 4 } }));
+    const demo = buildProjectScene(s.project, seed);
+    demo.askDefender = false;
+    startEncounter(demo, 'duel');
+    demo.party.select('vela');
+    return demo;
+  };
+
+  it('offers one button per amount, and takes exactly what was pressed', () => {
+    // "Transfer any number of their marked Stress to you, then gain a Hope for
+    // each Stress transferred."
+    const demo = twoOfThem(['share-the-burden'], 'burden');
+    const kara = demo.state.entity('kara')!;
+    const vela = demo.state.entity('vela')!;
+    kara.stress = { max: 6, marked: 3 };
+    vela.stress = { max: 6, marked: 0 };
+    vela.hope = { max: 6, value: 0 };
+
+    const used = useAbility(demo, 'vela', 'share-the-burden', ['kara']);
+    expect(used.status).toBe('waiting');
+    const prompt = demo.pending!.prompt;
+    expect(prompt.kind).toBe('choice');
+    expect(prompt.kind === 'choice' ? prompt.options.map((o) => o.label) : []).toEqual(['1', '2', '3']);
+
+    // The second button: two off her, two onto Vela, two Hope for the carrying.
+    answerPending(demo, { kind: 'choose', index: 1 });
+    expect(kara.stress.marked).toBe(1);
+    expect(vela.stress.marked).toBe(2);
+    expect(vela.hope.value).toBe(2);
+  });
+
+  it('will not ask when there is nothing to take', () => {
+    const demo = twoOfThem(['share-the-burden'], 'burden-none');
+    demo.state.entity('kara')!.stress = { max: 6, marked: 0 };
+    useAbility(demo, 'vela', 'share-the-burden', ['kara']);
+    expect(demo.log.some((l) => l.text.includes('there is none of it to spend'))).toBe(true);
+  });
+
+  it('rolls as many dice as the tokens the player let go of', () => {
+    // Unleash Chaos was code once: the number of options depends on what is on
+    // the card, which is exactly the question `howMany` asks.
+    const demo = twoOfThem(['unleash-chaos'], 'chaos');
+    demo.world.addTokens('vela', 'unleash-chaos', 2);
+    const used = useAbility(demo, 'vela', 'unleash-chaos', ['foe']);
+    expect(used.status).toBe('waiting');
+    const prompt = demo.pending!.prompt;
+    expect(prompt.kind === 'choice' ? prompt.options.map((o) => o.label) : []).toEqual(['1', '2']);
+
+    answerPending(demo, { kind: 'choose', index: 1 });
+    expect(demo.world.tokensOn('vela', 'unleash-chaos')).toBe(0);
+    // Whatever the dice said, they were two d10s: the card's own words.
+    if (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+    expect(demo.log.some((l) => l.text.includes('2d10'))).toBe(true);
+  });
+});
+
 describe('a Spellcast Roll against a target, and what it leaves on them', () => {
   /** A caster holding one card, with something to point it at. */
   const casting = (cards: readonly string[], seed: string, at: { x: number; y: number } = { x: 3, y: 4 }) => {
