@@ -2153,7 +2153,11 @@ function defeatMinions(demo: DemoScene, targetId: string, damage: number): void 
  */
 function incomingOf(demo: DemoScene, attack: IncomingAttack): IncomingDamage {
   // Only whether it goes through armor: the dice a passive swapped in, and any
-  // doubling, are already in the number the swing reported.
+  // doubling, are already in the number the swing reported. This is the second
+  // read of `direct` for one attack, and it happens after the swing resolved:
+  // a passive gating `direct` on state its own hit changes would answer
+  // differently here than it did there. No shipped block does, and the gate
+  // belongs on the swing, not on the defence.
   const swing = demo.world.standardAttackOf(attack.def.id, { attacker: attack.attacker, target: attack.defender });
   return {
     amount: attack.outcome.damageRoll?.total ?? 0,
