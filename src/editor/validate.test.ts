@@ -734,6 +734,47 @@ describe('what only a stat block has', () => {
     expect(said.some((m) => m.includes('somebody-elses'))).toBe(false);
   });
 
+  it('warns when an amount reads a pool off a crowd', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      abilities: [
+        {
+          id: 'whose-hope',
+          name: 'Whose Hope',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [
+            { kind: 'gainFear', amount: { pool: 'hope', of: { kind: 'party' }, measure: 'available' } },
+          ],
+        },
+        {
+          id: 'the-nearest-one',
+          name: 'The Nearest One',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [
+            {
+              kind: 'gainFear',
+              amount: { pool: 'hope', of: { kind: 'allies', range: 'close', nearest: 1 }, measure: 'available' },
+            },
+          ],
+        },
+        {
+          id: 'its-own',
+          name: 'Its Own',
+          source: { kind: 'adversary', adversaries: ['husk'] },
+          target: { kind: 'none' },
+          effects: [{ kind: 'gainFear', amount: { pool: 'hitPoints', measure: 'marked' } }],
+        },
+      ],
+    });
+    const said = messages(project);
+    expect(said).toContain('"whose-hope" reads a pool off party, which is more than one creature.');
+    // One of them by name, or the actor's own, is a number with an answer.
+    expect(said.some((m) => m.includes('the-nearest-one'))).toBe(false);
+    expect(said.some((m) => m.includes('its-own'))).toBe(false);
+  });
+
   it("warns when a card waits for a moment only the GM's turn reaches", () => {
     const project = projectSchema.parse({
       ...build(),

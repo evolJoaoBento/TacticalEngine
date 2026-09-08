@@ -70,7 +70,13 @@ const countNameSchema = z.enum(COUNT_NAMES);
  *
  * The same three words the `pool` condition asks with, so an amount and a gate
  * on the same number read the same. `of` is the actor when left out, and
- * `measure` is what is marked - which is what every one of these means.
+ * `measure` is what is marked - which is what every one of these means. Hope
+ * is the exception worth knowing: marked Hope is Hope *spent*, so a feature
+ * about the Hope somebody still holds says `measure: 'available'`.
+ *
+ * `of` names one creature: the first the selector resolves to is the one read,
+ * and a selector that names a crowd has no order worth relying on. The
+ * validator says so.
  */
 export const amountReadSchema = z.object({
   pool: poolNameSchema,

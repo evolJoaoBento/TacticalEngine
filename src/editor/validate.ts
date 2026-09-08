@@ -21,6 +21,7 @@ import {
   walkEffects,
   type Condition,
   type Effect,
+  type TargetSelector,
 } from '../engine/script/schema';
 import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-from-scene';
 import { deriveCharacter } from '../engine/character/sheet';
@@ -335,6 +336,15 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    // An amount reads one creature's pool - the first the selector names - so
+    // pointing it at a crowd is asking which of them, and nothing answers.
+    for (const crowd of amountsReadingACrowd(ability)) {
+      add(
+        'warning',
+        `"${ability.id}" reads a pool off ${crowd}, which is more than one creature.`,
+        ability.id,
+      );
+    }
     walkEffects(ability.effects, inspect(ability.id));
     walkConditionsIn(ability.effects, asked(ability.id));
     inspectCondition(ability.id, ability.available);
@@ -379,6 +389,21 @@ function readsTheBlow(ability: AbilityDef): boolean {
   walkConditionsIn(ability.effects, compares);
   if (ability.available !== undefined) walkCondition(ability.available, compares);
   return reads;
+}
+
+/** The selectors an ability reads a pool off that could name a crowd. */
+function amountsReadingACrowd(ability: AbilityDef): string[] {
+  const crowds: string[] = [];
+  walkEffects(ability.effects, (effect) => {
+    const amount = (effect as { amount?: unknown }).amount;
+    if (typeof amount !== 'object' || amount === null) return;
+    const of = (amount as { of?: TargetSelector }).of;
+    if (of === undefined) return;
+    const many = of.kind === 'party' || of.kind === 'hit' || of.kind === 'entities';
+    const band = (of.kind === 'allies' || of.kind === 'adversaries') && of.nearest !== 1;
+    if (many || band) crowds.push(of.kind);
+  });
+  return crowds;
 }
 
 /** Whether anything in an ability adds to a blow that has already landed. */
