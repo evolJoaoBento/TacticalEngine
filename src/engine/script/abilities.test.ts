@@ -156,6 +156,73 @@ const kinds = (journal: readonly JournalEntry[]): string[] => journal.map((e) =>
 const refusals = (journal: readonly JournalEntry[]): string[] =>
   journal.filter((e): e is Extract<JournalEntry, { kind: 'refused' }> => e.kind === 'refused').map((e) => e.reason);
 
+describe('a shape aimed at a point', () => {
+  /**
+   * The corridor is 14x3 with Mira at (0,1), Kara at (1,1), husk-1 at (3,1)
+   * and husk-2 at (5,1) - so a line east from Mira runs through all of them,
+   * and a creature parked well off that row is a creature the charge misses.
+   */
+  it('catches everything the line runs through, and leaves the one charging out of it', () => {
+    const { world, grid } = scene();
+    // Mira is the actor. A path east to (7,1) crosses both husks and Kara.
+    const down = { targets: [], hit: [], point: grid.indexOf(7, 1) };
+    expect(world.resolveTargets({ kind: 'inPath' }, down)).toEqual(['kara', 'husk-1', 'husk-2']);
+    // "All adversaries along that path": the same line, one side of it.
+    expect(world.resolveTargets({ kind: 'inPath', side: 'adversaries' }, down)).toEqual(['husk-1', 'husk-2']);
+    expect(world.resolveTargets({ kind: 'inPath', side: 'allies' }, down)).toEqual(['kara']);
+    // Stopping short catches only what is passed on the way - and the ring
+    // around the line counts, so the husk one tile past the end is caught and
+    // the one three tiles past it is not.
+    expect(world.resolveTargets({ kind: 'inPath', side: 'adversaries' }, { targets: [], hit: [], point: grid.indexOf(2, 1) })).toEqual(['husk-1']);
+    // Somebody standing on the spot being run to is in the path.
+    expect(world.resolveTargets({ kind: 'inPath', side: 'adversaries' }, { targets: [], hit: [], point: grid.indexOf(3, 1) })).toEqual(['husk-1']);
+  });
+
+  it('reaches only as far off the line as it says', () => {
+    const { world, grid, state } = scene();
+    // Well off the row the charge runs down: Melee is the tiles it crosses and
+    // the ring around them, and this is neither.
+    state.moveEntity('husk-2', grid.indexOf(12, 0));
+    const down = { targets: [], hit: [], point: grid.indexOf(7, 1) };
+    expect(world.resolveTargets({ kind: 'inPath', side: 'adversaries' }, down)).toEqual(['husk-1']);
+    expect(world.resolveTargets({ kind: 'inPath', side: 'adversaries', range: 'far' }, down)).toEqual(['husk-1', 'husk-2']);
+  });
+
+  it('catches nobody when nobody aimed it', () => {
+    const { world } = scene();
+    expect(world.resolveTargets({ kind: 'inPath' }, { targets: [], hit: [] })).toEqual([]);
+    expect(world.resolveTargets({ kind: 'adversaries', range: 'far', around: 'point' }, { targets: [], hit: [] })).toEqual([]);
+    expect(world.resolveTargets({ kind: 'allies', around: 'point' }, { targets: [], hit: [] })).toEqual([]);
+  });
+
+  it('measures a band from the ground when the card aims at a spot', () => {
+    const { world, grid } = scene();
+    // A point on husk-2 at (5,1): husk-1 two tiles off is Close, not Melee.
+    const at = { targets: [], hit: [], point: grid.indexOf(5, 1) };
+    expect(world.resolveTargets({ kind: 'adversaries', range: 'melee', around: 'point' }, at)).toEqual(['husk-2']);
+    expect(world.resolveTargets({ kind: 'adversaries', range: 'close', around: 'point' }, at)).toEqual(['husk-1', 'husk-2']);
+    // Allies read the same way, and leave the one casting out unless asked.
+    const near = { targets: [], hit: [], point: grid.indexOf(1, 1) };
+    expect(world.resolveTargets({ kind: 'allies', range: 'melee', around: 'point' }, near)).toEqual(['kara']);
+    expect(world.resolveTargets({ kind: 'allies', range: 'melee', around: 'point', includeSelf: true }, near)).toEqual(['kara', 'mira']);
+  });
+
+  it("reads 'along that path within your weapon's range' off the weapon", () => {
+    const { world, grid, state, scenario } = scene();
+    state.moveEntity('husk-2', grid.indexOf(12, 0));
+    const down = { targets: [], hit: [], point: grid.indexOf(7, 1) };
+    // Mira's greatstaff reaches Very Far, so her path is wide enough to sweep
+    // in the husk standing well off it.
+    expect(world.weaponRange('mira')).toBe('veryFar');
+    expect(world.resolveTargets({ kind: 'inPath', side: 'adversaries', reach: 'weapon' }, down)).toEqual(['husk-1', 'husk-2']);
+    // Kara's broadsword reaches Melee, and the same run down the same line
+    // catches only what it passes.
+    scenario.actorId = 'kara';
+    expect(world.weaponRange('kara')).toBe('melee');
+    expect(world.resolveTargets({ kind: 'inPath', side: 'adversaries', reach: 'weapon' }, down)).toEqual(['husk-1']);
+  });
+});
+
 describe('selectors', () => {
   it('names the chosen target, the hit list, and creatures by range', () => {
     const { world } = scene();

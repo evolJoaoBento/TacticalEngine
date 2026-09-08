@@ -47,6 +47,16 @@ export interface TargetBindings {
    * rolls a failure with Fear while within Close range of the Demon".
    */
   roll?: { total: number; outcome: RollOutcome };
+  /**
+   * A tile the script is aimed at: "run a straight path to a point within Far
+   * range", "choose a point within Far range". Bound the same way a target is,
+   * because it is the same kind of thing - what the one acting picked - and a
+   * selector that reads it says so.
+   *
+   * `NO_TILE` or absent is nobody having picked, which every shape reads as
+   * catching nothing rather than as an error.
+   */
+  point?: number;
 }
 
 export const NO_BINDINGS: TargetBindings = { targets: [], hit: [] };

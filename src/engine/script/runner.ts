@@ -23,6 +23,7 @@
  */
 
 import type { Rng } from '../core/rng';
+import { NO_TILE } from '../grid/grid';
 import { rollDuality, type DualityRoll, type RollOutcome } from '../rules/duality';
 import { formatDice, parseDice, rollDice, type DamageType, type ParsedDamage } from '../rules/dice';
 import type { RunningCountdown } from './countdowns';
@@ -382,6 +383,12 @@ export interface ScriptRunnerOptions {
   /** The creatures `target` names: what the player chose when using an ability. */
   targets?: readonly string[];
   /**
+   * The tile `point` names: what the player aimed at, for a card that runs a
+   * path across the map or drops something on a spot. `NO_TILE` or nothing is
+   * a card nobody aimed, and every shape reads it as catching nobody.
+   */
+  point?: number;
+  /**
    * The creatures `hit` names, for a script that answers a blow that has
    * already landed: a stat block's "targets who mark HP from this attack…".
    */
@@ -465,6 +472,9 @@ export class ScriptRunner {
   /** Whether a roll it asked for was declined. */
   cancelled = false;
 
+  /** The tile this script was aimed at, or `NO_TILE`. */
+  private readonly point: number;
+
   /** "Then place this card in your vault": whether this script said so. */
   vaulted = false;
 
@@ -473,6 +483,7 @@ export class ScriptRunner {
     this.rng = rng;
     this.subject = options.subject ?? null;
     this.targets = [...(options.targets ?? [])];
+    this.point = options.point ?? NO_TILE;
     this.hit = [...(options.hit ?? [])];
     this.rollAs = options.rollAs ?? 'party';
     this.answering = options.roll ?? null;
@@ -566,6 +577,7 @@ export class ScriptRunner {
       targets: this.targets,
       hit: this.hit,
       counts: { ...this.counts, targetsHit: this.hit.length },
+      ...(this.point === NO_TILE ? {} : { point: this.point }),
       ...(this.answering === null ? {} : { roll: this.answering }),
     };
   }

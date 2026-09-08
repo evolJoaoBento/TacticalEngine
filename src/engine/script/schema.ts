@@ -161,6 +161,8 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
     kind: z.literal('allies'),
     /** Living party members within this band of the actor. Everywhere when left out. */
     range: rangeBandSchema.optional(),
+    /** Measured from the actor, or from the tile that was picked. */
+    around: z.enum(['actor', 'point']).optional(),
     includeSelf: z.boolean().optional(),
     /** Leave the chosen target out: "all *other* PCs within Close range". */
     except: z.enum(['target']).optional(),
@@ -172,16 +174,46 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
      */
     nearest: z.number().int().positive().optional(),
   }),
+  /**
+   * Everything the straight line from the actor to the picked point runs
+   * through: "run a straight path through the battlefield to a point within
+   * Far range, making an attack against all adversaries within your weapon's
+   * range along that path", the Warden's gallop, the Kraken's line of boiling
+   * water.
+   *
+   * The one acting is never caught by their own charge. Whoever else is
+   * standing within `range` of any tile the line passes through is, endpoints
+   * included - somebody standing on the spot being run to is in the path.
+   *
+   * With no point bound it catches nobody, which is a charge with nowhere to
+   * go rather than a mistake.
+   */
+  z.object({
+    kind: z.literal('inPath'),
+    /**
+     * How far off the line a creature can stand and still be caught. Melee by
+     * default, which is the tiles the line crosses and the ring around them.
+     */
+    range: rangeBandSchema.optional(),
+    /** Or the actor's own weapon reach, whatever they are holding. */
+    reach: z.literal('weapon').optional(),
+    /**
+     * Which side is caught. Everybody but the one charging when left out,
+     * which is what "all targets in their path" means.
+     */
+    side: z.enum(['adversaries', 'allies']).optional(),
+  }),
   z.object({
     kind: z.literal('adversaries'),
     range: rangeBandSchema,
+    /** Measured from the actor, the chosen target, or the tile that was picked. */
     /**
      * "All adversaries within your weapon's range": the reach of what the
      * actor is holding, whatever that is, with `range` standing in for anyone
      * holding nothing the engine can read - a stat block, an empty hand.
      */
     reach: z.literal('weapon').optional(),
-    around: z.enum(['actor', 'target']).optional(),
+    around: z.enum(['actor', 'target', 'point']).optional(),
     /**
      * Leave somebody out: the chosen target ("all other targets within
      * range"), or the one acting - which a selector otherwise counts, because

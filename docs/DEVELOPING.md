@@ -293,6 +293,16 @@ however it was dealt: `world.damage` marks Hit Points outright — past the thre
 any armor, which is what "force them to mark 5 Hit Points" asks for — and notes it exactly as a
 rolled blow does, with nobody named.
 
+A script can be aimed at a **tile** as well as at a creature. `TargetBindings.point` carries it,
+the same channel `targets` and `hit` come down, and three selectors read it: `inPath` is
+everything the straight line from the actor to that tile runs through (`traceLine`, the same walk
+sight uses, so a charge and a look down a corridor agree about what is on it), and
+`around: 'point'` on `adversaries` and `allies` measures the band from the ground rather than
+from anybody standing on it. `world.bandBetween(a, b)` is `bandTo` for two tiles instead of two
+creatures, which is what a shape with no creature at its origin needs. A script nobody aimed
+catches nobody — never an error, because a charge with nowhere to go is a charge with nowhere
+to go.
+
 What a card of the party's costs to answer with is `canPlay`, not `canPayFor`: the engine's
 version reads the pools and knows nothing about how many times a card has been played this rest,
 so every offer on this side asks both questions together. `payFor` is the single funnel every

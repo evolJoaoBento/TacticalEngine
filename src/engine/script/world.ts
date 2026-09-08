@@ -55,6 +55,7 @@ import type { ConditionBlock, ConditionDef } from '../content/conditions';
 import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
 import type { AdversaryDef } from '../content/types';
 import { NO_TILE } from '../grid/grid';
+import { traceLine } from '../grid/los';
 import { Pathfinder } from '../grid/pathfinding';
 import { createAdversaryEntity, type EntityState, type SceneState } from '../scene/state';
 import type { Trait } from '../scene/schema';
@@ -831,6 +832,15 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /** A character's primary weapon dice (unarmed when they carry none); an adversary's attack. */
+  /** The same order `nearestFirst` gives, measured from a tile rather than a creature. */
+  private nearestToTile(at: number, ids: readonly string[]): string[] {
+    return [...ids].sort(
+      (a, b) =>
+        this.state.grid.manhattanDistance(at, this.state.entity(a)?.tile ?? NO_TILE) -
+          this.state.grid.manhattanDistance(at, this.state.entity(b)?.tile ?? NO_TILE) || a.localeCompare(b),
+    );
+  }
+
   /** How far a character's weapon reaches, or nothing for anyone without one. */
   weaponRange(id: string): RangeBand | null {
     const character = this.characters.get(id);
@@ -871,13 +881,47 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   bandTo(from: string, to: string): RangeBand | null {
-    const a = this.state.entity(from)?.tile ?? NO_TILE;
-    const b = this.state.entity(to)?.tile ?? NO_TILE;
+    return this.bandBetween(this.state.entity(from)?.tile ?? NO_TILE, this.state.entity(to)?.tile ?? NO_TILE);
+  }
+
+  /**
+   * The same measure between two tiles rather than two creatures, which is
+   * what a shape aimed at a point needs: the ground has no entity to look up.
+   */
+  bandBetween(a: number, b: number): RangeBand | null {
     if (a === NO_TILE || b === NO_TILE) return null;
     // The same rule as targeting: a neighbouring tile is Melee, anything else
     // is measured as the crow flies.
     if (this.state.grid.manhattanDistance(a, b) <= 1) return 'melee';
     return bandForDistance(Math.ceil(this.state.grid.euclideanDistance(a, b)), this.bandTiles);
+  }
+
+  /**
+   * Every living creature standing within `range` of the straight line from a
+   * tile to a tile, endpoints included.
+   *
+   * The line is the one sight is traced along, so a charge and a look down the
+   * same corridor agree about what is on it. Nothing here asks whether the
+   * ground is passable: a gallop that ends in a wall is the map's business and
+   * the mover's, not the shape's.
+   */
+  alongPath(from: number, to: number, range: RangeBand, except: readonly string[] = []): string[] {
+    if (from === NO_TILE || to === NO_TILE) return [];
+    const line: number[] = [];
+    traceLine(this.state.grid, from, to, (tile) => {
+      line.push(tile);
+    });
+    const left = new Set(except);
+    const caught: string[] = [];
+    for (const entity of [...this.state.entitiesOf('party'), ...this.state.entitiesOf('adversary')]) {
+      if (!entity.alive || entity.tile === NO_TILE || left.has(entity.id)) continue;
+      const near = line.some((tile) => {
+        const band = this.bandBetween(tile, entity.tile);
+        return band !== null && reaches(band, range);
+      });
+      if (near) caught.push(entity.id);
+    }
+    return caught;
   }
 
   proficiencyOf(id: string): number {
@@ -926,6 +970,18 @@ export class SceneScriptWorld implements ScriptWorld {
       }
       case 'allies': {
         const actor = this.scenario.actorId;
+        if (selector.around === 'point') {
+          const at = bindings.point ?? NO_TILE;
+          if (at === NO_TILE) return [];
+          return this.state
+            .entitiesOf('party')
+            .filter((e) => e.alive && e.tile !== NO_TILE && (selector.includeSelf === true || e.id !== actor))
+            .filter((e) => {
+              const band = this.bandBetween(at, e.tile);
+              return band !== null && (selector.range === undefined || reaches(band, selector.range));
+            })
+            .map((e) => e.id);
+        }
         const left = selector.except === 'target' ? new Set(bindings.targets) : null;
         const standing = this.state
           .entitiesOf('party')
@@ -936,7 +992,32 @@ export class SceneScriptWorld implements ScriptWorld {
         if (selector.nearest === undefined || actor === null) return standing;
         return this.nearestFirst(actor, standing).slice(0, selector.nearest);
       }
+      case 'inPath': {
+        const actor = this.scenario.actorId;
+        const from = actor === null ? NO_TILE : (this.state.entity(actor)?.tile ?? NO_TILE);
+        const reach =
+          selector.reach === 'weapon' && actor !== null
+            ? (this.weaponRange(actor) ?? selector.range ?? 'melee')
+            : (selector.range ?? 'melee');
+        const caught = this.alongPath(from, bindings.point ?? NO_TILE, reach, actor === null ? [] : [actor]);
+        if (selector.side === undefined) return caught;
+        const want = selector.side === 'allies' ? 'party' : 'adversary';
+        return caught.filter((id) => this.state.entity(id)?.faction === want);
+      }
       case 'adversaries': {
+        // Around the tile that was picked, when the card aims at one: the band
+        // is measured from the ground rather than from anybody standing on it.
+        if (selector.around === 'point') {
+          const at = bindings.point ?? NO_TILE;
+          if (at === NO_TILE) return [];
+          const near = this.state.entitiesOf('adversary').filter((e) => {
+            if (!e.alive || e.tile === NO_TILE) return false;
+            const band = this.bandBetween(at, e.tile);
+            return band !== null && reaches(band, selector.range);
+          });
+          const ids = near.map((e) => e.id);
+          return selector.nearest === undefined ? ids : this.nearestToTile(at, ids).slice(0, selector.nearest);
+        }
         const origin = selector.around === 'target' ? bindings.targets[0] : this.scenario.actorId;
         if (origin === undefined || origin === null) return [];
         const left =
