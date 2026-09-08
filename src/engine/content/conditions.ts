@@ -67,6 +67,14 @@ const RAW: ConditionInput[] = [
     text: 'Rooted in place, so that physical damage is halved.',
     defenses: { resistances: ['physical'] },
   },
+  // Smite's charge, waiting on a swing. Nothing while it sits there: what it
+  // does is written on the card that spends it, which is the only thing that
+  // reads this.
+  {
+    id: 'smiting',
+    name: 'Smiting',
+    text: 'A smite is charged, and the next weapon attack that lands spends it.',
+  },
   {
     id: 'stunned',
     name: 'Stunned',

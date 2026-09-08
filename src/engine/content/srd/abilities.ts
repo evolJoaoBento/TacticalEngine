@@ -489,6 +489,43 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // "Once per rest, spend 3 Hope to charge your powerful smite. When you next
+  // successfully attack with a weapon, double the result of your damage roll.
+  // This attack deals magic damage regardless of the weapon's damage type."
+  //
+  // Two abilities on one card, the way the Sigil is written. The charge is
+  // what the player spends; the blow it is spent on is a reaction on
+  // `rollingDamage`, which is raised once a weapon swing has landed and before
+  // anything counts it - so "successfully" and "with a weapon" are both the
+  // trigger's own, and nothing here has to ask.
+  {
+    id: 'smite',
+    name: 'Smite',
+    source: card('smite'),
+    cost: { hope: 3 },
+    uses: { count: 1, per: 'rest' },
+    action: false,
+    available: { kind: 'not', of: { kind: 'hasCondition', condition: 'smiting', of: { kind: 'actor' } } },
+    effects: [
+      { kind: 'log', text: 'The blade takes on a light that is not the room’s.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'smiting', target: { kind: 'actor' } },
+    ],
+  },
+  {
+    id: 'smite-charged',
+    name: 'Smite',
+    source: card('smite'),
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    inCombatOnly: true,
+    available: { kind: 'hasCondition', condition: 'smiting', of: { kind: 'actor' } },
+    effects: [
+      { kind: 'log', text: 'The charge goes out of the blade and into the blow.', tone: 'hope' },
+      { kind: 'boostDamage', double: true, type: 'magic' },
+      { kind: 'clearCondition', condition: 'smiting', target: { kind: 'actor' } },
+    ],
+  },
   // The first card written against `nearbyTookDamage` from the party's side of
   // it. An ally's blow raises the moment with the one who dealt it bound as
   // the target and the one who took it as the hit, so the card reaches past

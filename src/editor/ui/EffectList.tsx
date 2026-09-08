@@ -1073,6 +1073,30 @@ function renderBody(
             rolled
           </span>
           {amount(effect.times ?? 1, (times) => ({ ...effect, times: times === 1 ? undefined : times }))}
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }}>
+            <input
+              type="checkbox"
+              data-role="boost-double"
+              title="Count the roll itself twice, before anything added here"
+              checked={effect.double === true}
+              onChange={(e) => onChange({ ...effect, double: (e.target as HTMLInputElement).checked ? true : undefined })}
+            />
+            doubled
+          </label>
+          <select
+            style={{ ...field, flex: 'none', width: '96px' }}
+            data-role="boost-type"
+            title="What the blow counts as from here, whatever the weapon was"
+            value={effect.type ?? ''}
+            onChange={(e) => {
+              const type = (e.target as HTMLSelectElement).value;
+              onChange({ ...effect, type: type === '' ? undefined : (type as 'physical' | 'magic') });
+            }}
+          >
+            <option value="">its own kind</option>
+            <option value="physical">as physical</option>
+            <option value="magic">as magic</option>
+          </select>
         </>
       );
     case 'stepSeverity':

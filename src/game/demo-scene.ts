@@ -427,6 +427,10 @@ export interface HeldSwing {
   direct?: boolean;
   /** What the room put behind it while it was held. */
   boost?: number;
+  /** The roll counts twice - Smite's charge, spent on this swing. */
+  doubled?: boolean;
+  /** And counts as this instead of the weapon's own kind of damage. */
+  types?: readonly DamageType[];
   /** Hit Points a card fixed outright, in place of counting the damage at all. */
   forced?: number;
   /** Or the band it lands in, which armor can still step down. */
@@ -1214,10 +1218,14 @@ function rolled(demo: DemoScene, held: HeldSwing): AttackOutcome {
     };
     return { ...outcome, damage, hitPointsMarked: forced };
   }
-  if (boost === undefined || boost <= 0 || outcome.damageRoll === undefined || target === undefined) return outcome;
+  // Nothing to recount unless something changed the blow's size or its kind.
+  const changed = (boost !== undefined && boost > 0) || held.doubled === true || held.types !== undefined;
+  if (!changed || outcome.damageRoll === undefined || target === undefined) return outcome;
   const defender = demo.world.defenderOf(target);
-  const total = outcome.damageRoll.total + boost;
-  const types = held.damage.types ?? [];
+  // Doubled first, then what the room added: "double the result of your damage
+  // roll" is about the roll, not about the card that came after it.
+  const total = outcome.damageRoll.total * (held.doubled === true ? 2 : 1) + (boost ?? 0);
+  const types = held.types ?? held.damage.types ?? [];
   const damage = resolveDamage(
     { amount: total, types, ...(held.direct === undefined ? {} : { direct: held.direct }) },
     defender.thresholds,
@@ -1270,7 +1278,7 @@ function landPartyAttack(
       attacker: id!,
       hitPoints: applied.hitPointsMarked,
       damage: outcome.damageRoll?.total ?? 0,
-      types: held.damage.types ?? ['physical'],
+      types: held.types ?? held.damage.types ?? ['physical'],
       severe: outcome.damage !== undefined && isSevere(outcome.damage.severity),
     });
     demo.world.endsOnHit(targetId);
@@ -2739,11 +2747,15 @@ export function vaultAfter(demo: DemoScene, id: string, ability: AbilityDef, run
 function asAnswered(landing: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
   if (landing === undefined || landing.outcome.damageRoll === undefined) return landing;
   let added = 0;
+  let doubled = false;
+  let types: readonly DamageType[] | undefined;
   let forced: number | undefined;
   let band: DamageSeverity | undefined;
   let floor: DamageSeverity | undefined;
   for (const entry of journal) {
     if (entry.kind === 'damageBoosted') added += entry.by;
+    if (entry.kind === 'damageDoubled') doubled = true;
+    if (entry.kind === 'damageRetyped') types = entry.types;
     // "The maximum result of one of your damage dice instead of rolling it."
     // Simplified: the lowest die of the roll is the one lifted, which is the
     // one anybody would choose and saves asking. Read here rather than in the
@@ -2757,10 +2769,14 @@ function asAnswered(landing: HeldSwing | undefined, journal: readonly JournalEnt
       else band = worse(band, entry.severity);
     }
   }
-  if (added <= 0 && forced === undefined && band === undefined && floor === undefined) return landing;
+  if (added <= 0 && !doubled && types === undefined && forced === undefined && band === undefined && floor === undefined) {
+    return landing;
+  }
   return {
     ...landing,
     ...(added <= 0 ? {} : { boost: (landing.boost ?? 0) + added }),
+    ...(doubled ? { doubled: true } : {}),
+    ...(types === undefined ? {} : { types }),
     ...(forced === undefined ? {} : { forced: Math.max(landing.forced ?? 0, forced) }),
     ...(band === undefined ? {} : { severity: worse(landing.severity, band) }),
     ...(floor === undefined ? {} : { floor: worse(landing.floor, floor) }),

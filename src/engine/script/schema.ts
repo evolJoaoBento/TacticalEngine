@@ -804,6 +804,18 @@ export const effectSchema = z.discriminatedUnion('kind', [
      * nothing, which is a card with an empty pile rather than a mistake.
      */
     times: amountSchema.optional(),
+    /**
+     * "Double the result of your damage roll." The blow's own total, twice,
+     * before anything this effect adds - the same order `standardAttack.double`
+     * reads in, so a doubled swing with a card behind it doubles the swing and
+     * not the card.
+     */
+    double: z.boolean().optional(),
+    /**
+     * "This attack deals magic damage regardless of the weapon's damage type":
+     * what the blow counts as from here, for the resistances that answer it.
+     */
+    type: z.enum(['physical', 'magic']).optional(),
   }),
   /**
    * "Spend any number of tokens to roll that number of d6s and reduce the

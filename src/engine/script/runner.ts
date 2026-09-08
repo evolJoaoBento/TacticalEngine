@@ -310,6 +310,10 @@ export type JournalEntry =
   | { kind: 'dieMaxed' }
   /** Added to a blow that has landed and not yet been counted. */
   | { kind: 'damageBoosted'; id: string | null; by: number }
+  /** That blow's own total counts twice, before anything added to it. */
+  | { kind: 'damageDoubled'; id: string | null }
+  /** And it counts as this kind of damage from here, whatever it was. */
+  | { kind: 'damageRetyped'; id: string | null; types: readonly DamageType[] }
   /** That blow marks this many Hit Points instead of being rolled for. */
   | { kind: 'hitPointsForced'; id: string | null; to: number }
   /** A handful of dice rolled to see whether something happens at all. */
@@ -1055,6 +1059,10 @@ export class ScriptRunner {
             by += rollDamage(this.rng, expression, { proficiency: 1, critical: false }).total;
           }
         }
+        // The blow's shape before its size: a card that doubles and retypes
+        // says so whether or not it also adds anything.
+        if (effect.double === true) this.journal.push({ kind: 'damageDoubled', id: actor });
+        if (effect.type !== undefined) this.journal.push({ kind: 'damageRetyped', id: actor, types: [effect.type] });
         if (by <= 0) return null;
         this.journal.push({ kind: 'damageBoosted', id: actor, by });
         return null;

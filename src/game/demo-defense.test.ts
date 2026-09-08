@@ -2825,3 +2825,88 @@ describe('the same blow again', () => {
     expect(husk.hitPoints.marked).toBe(0);
   });
 });
+
+
+describe('a smite held back for the next blow', () => {
+  /** Kara beside the husk with the card in hand and Hope to spend it. */
+  const charged = (seed: string, spend: boolean) => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    // The same sheet in both runs, charged or not: a loadout that differs is a
+    // character that differs, and the two blows would not be comparable.
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: ['smite'], loadout: ['smite'] };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 60, marked: 0 };
+    if (spend) expect(useAbility(demo, 'kara', 'smite', []).status).not.toBe('refused');
+    return { demo, husk };
+  };
+
+  it('doubles the next weapon blow that lands, and only that one', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const bare = charged(`smite-${seed}`, false);
+      attackWithSelected(bare.demo, bare.husk.id);
+      if (bare.husk.hitPoints.marked === 0) continue;
+
+      // The same seed, the same swing, with the charge spent on it. Nothing in
+      // the card rolls anything, so the dice fall the same way in both.
+      const lit = charged(`smite-${seed}`, true);
+      expect(lit.demo.state.entity('kara')!.hope!.value).toBe(3);
+      expect(lit.demo.state.entity('kara')!.conditions.has('smiting')).toBe(true);
+      attackWithSelected(lit.demo, lit.husk.id);
+
+      expect(lit.husk.hitPoints.marked).toBeGreaterThan(bare.husk.hitPoints.marked);
+      // Spent: the charge is gone and the swing after it is an ordinary one.
+      expect(lit.demo.state.entity('kara')!.conditions.has('smiting')).toBe(false);
+      return;
+    }
+    throw new Error('Kara never landed a blow to smite with');
+  });
+
+  it('lands as magic, whatever the weapon deals', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      // Rooted halves physical damage and does nothing to magic, so the same
+      // smited blow against a rooted husk and a standing one marks the same
+      // Hit Points - and would not, if the blow were still the sword's.
+      const open = charged(`smite-type-${seed}`, true);
+      attackWithSelected(open.demo, open.husk.id);
+      if (open.husk.hitPoints.marked === 0) continue;
+
+      const rooted = charged(`smite-type-${seed}`, true);
+      rooted.demo.world.applyCondition(rooted.husk.id, 'rooted', 'scene');
+      attackWithSelected(rooted.demo, rooted.husk.id);
+
+      expect(rooted.husk.hitPoints.marked).toBe(open.husk.hitPoints.marked);
+      return;
+    }
+    throw new Error('Kara never landed a smited blow');
+  });
+
+  it('charges once between rests, and not twice over', () => {
+    const { demo } = charged('smite-once', true);
+    // Already lit: the card has nothing to add to a charge that is waiting.
+    expect(useAbility(demo, 'kara', 'smite', []).status).toBe('refused');
+    expect(demo.log.some((l) => l.text.includes('already'))).toBe(false);
+    // And with the charge spent, the use is spent with it.
+    demo.world.clearCondition('kara', 'smiting');
+    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    const said = demo.log.length;
+    expect(useAbility(demo, 'kara', 'smite', []).status).toBe('refused');
+    expect(demo.log.slice(said).some((l) => l.text.includes('used until the next rest'))).toBe(true);
+  });
+
+  it('keeps the charge through a swing that misses', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const { demo, husk } = charged(`smite-miss-${seed}`, true);
+      attackWithSelected(demo, husk.id);
+      if (husk.hitPoints.marked > 0) continue;
+      // "When you next successfully attack": a miss is not that swing.
+      expect(demo.state.entity('kara')!.conditions.has('smiting')).toBe(true);
+      return;
+    }
+    throw new Error('Kara never missed');
+  });
+});
