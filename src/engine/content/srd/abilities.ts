@@ -489,6 +489,87 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // "Make a Spellcast Roll (16). On a success, mark any number of Stress to
+  // target a line of allies within Far range. You can clear Hit Points on the
+  // targets equal to the number of Stress marked, divided among them however
+  // you'd like."
+  //
+  // The line is the one every other run is measured along: from where she
+  // stands to the spot she aimed at, and whoever is standing on it. `spread`
+  // is what "divided among them however you'd like" comes to - a Hit Point at
+  // a time to whoever still has one marked, which is the even division and
+  // hands nobody healing they cannot use.
+  {
+    id: 'salvation-beam',
+    name: 'Salvation Beam',
+    source: card('salvation-beam'),
+    target: { kind: 'point', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 16,
+          prompt: 'Salvation Beam: a line of light down the room.',
+          onCriticalSuccess: [
+              {
+                kind: 'howMany',
+                most: { pool: 'stress', measure: 'available' },
+                least: 1,
+                title: 'Salvation Beam',
+                body: 'A Stress for each Hit Point the beam carries.',
+                each: [
+                  { kind: 'markStress', amount: 'spent' },
+                  {
+                    kind: 'heal',
+                    amount: 'spent',
+                    spread: true,
+                    target: { kind: 'inPath', side: 'allies' },
+                  },
+                ],
+              },
+            ],
+          onSuccessWithHope: [
+              {
+                kind: 'howMany',
+                most: { pool: 'stress', measure: 'available' },
+                least: 1,
+                title: 'Salvation Beam',
+                body: 'A Stress for each Hit Point the beam carries.',
+                each: [
+                  { kind: 'markStress', amount: 'spent' },
+                  {
+                    kind: 'heal',
+                    amount: 'spent',
+                    spread: true,
+                    target: { kind: 'inPath', side: 'allies' },
+                  },
+                ],
+              },
+            ],
+          onSuccessWithFear: [
+              {
+                kind: 'howMany',
+                most: { pool: 'stress', measure: 'available' },
+                least: 1,
+                title: 'Salvation Beam',
+                body: 'A Stress for each Hit Point the beam carries.',
+                each: [
+                  { kind: 'markStress', amount: 'spent' },
+                  {
+                    kind: 'heal',
+                    amount: 'spent',
+                    spread: true,
+                    target: { kind: 'inPath', side: 'allies' },
+                  },
+                ],
+              },
+            ],
+        },
+      },
+    ],
+  },
   // "Make a Spellcast Roll (12). On a success, spend a Hope to teleport to
   // another point you can see within Far range. If any willing creatures are
   // within Very Close range, spend an additional Hope for each creature to

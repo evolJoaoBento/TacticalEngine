@@ -588,6 +588,16 @@ function renderBody(
           {rolled
             ? text(effect.dice ?? '', (dice) => ({ ...effect, dice }), '1d4')
             : amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }))}
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }}>
+            <input
+              type="checkbox"
+              data-role="heal-spread"
+              title="Share it out among them rather than giving each of them all of it"
+              checked={effect.spread === true}
+              onChange={(e) => onChange({ ...effect, spread: (e.target as HTMLInputElement).checked ? true : undefined })}
+            />
+            divided
+          </label>
           {who(effect.target, 'the actor', (target) => ({ ...effect, target }))}
         </>
       );

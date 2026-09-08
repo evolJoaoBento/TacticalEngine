@@ -113,6 +113,7 @@ export interface ScriptWorld extends ConditionContext {
   damage(target: TargetSelector, amount: number, source?: string, bindings?: TargetBindings): number;
   /** Returns HP actually cleared. */
   heal(target: TargetSelector, amount: number, bindings?: TargetBindings): number;
+  healShared(target: TargetSelector, amount: number, bindings?: TargetBindings): number;
   /**
    * The modifier for a check. `party` is how an object's check has always been
    * rolled — the party's best hand at that trait — and `actor` is the acting
@@ -854,7 +855,10 @@ export class ScriptRunner {
         // a number of Stress equal to the HP marked" with none marked is a
         // quiet zero, not a refusal.
         if (amount <= 0) return null;
-        const cleared = world.heal(effect.target ?? { kind: 'actor' }, amount, this.bindings());
+        const cleared =
+          effect.spread === true
+            ? world.healShared(effect.target ?? { kind: 'actor' }, amount, this.bindings())
+            : world.heal(effect.target ?? { kind: 'actor' }, amount, this.bindings());
         this.journal.push({ kind: 'heal', amount, cleared });
         return null;
       }

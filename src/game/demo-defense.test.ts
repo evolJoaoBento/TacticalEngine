@@ -3573,3 +3573,109 @@ describe('a step across the room without crossing it', () => {
     throw new Error('the blink never took in sixty tries');
   });
 });
+
+
+describe('a line of light down the room', () => {
+  /**
+   * Mira with the beam in hand and the rest of the party wounded, standing in
+   * a row so a line from her runs over them.
+   */
+  const beaming = (seed: string): { demo: DemoScene; at: number } => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['salvation-beam'], loadout: ['salvation-beam'] };
+    demo.sheets.set('mira', sheet);
+    demo.characters.set('mira', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    demo.state.entity('mira')!.stress = { max: 6, marked: 0 };
+    demo.party.select('mira');
+
+    // A row: Mira, then Kara and Finn on the two tiles after her, and the beam
+    // aimed past them. A line drawn through a scattered party catches nobody,
+    // and where they happen to stand is not what is under test.
+    const grid = demo.grid;
+    const row = (y: number, x: number): number => grid.indexOf(x, y);
+    for (let y = 0; y < grid.height; y++) {
+      for (let x = 0; x + 4 < grid.width; x++) {
+        const tiles = [row(y, x), row(y, x + 1), row(y, x + 2), row(y, x + 4)];
+        if (tiles.some((tile) => !grid.isPassable(tile))) continue;
+        if (tiles.some((tile) => demo.state.entitiesOf('adversary').some((e) => e.alive && e.tile === tile))) continue;
+        demo.state.moveEntity('mira', tiles[0]!);
+        demo.state.moveEntity('kara', tiles[1]!);
+        demo.state.moveEntity('finn', tiles[2]!);
+        return { demo, at: tiles[3]! };
+      }
+    }
+    throw new Error('no room on this map for a row of three');
+  };
+
+  /** Everyone the beam would catch if it were aimed at this tile. */
+  const caught = (demo: DemoScene, tile: number): string[] => {
+    const was = demo.scenario.actorId;
+    demo.scenario.actorId = 'mira';
+    const found = demo.world.resolveTargets({ kind: 'inPath', side: 'allies' }, { targets: [], hit: [], point: tile });
+    demo.scenario.actorId = was;
+    return found;
+  };
+
+
+
+  it('clears Hit Points along the line, shared out rather than given to each', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, at } = beaming(`beam-${seed}`);
+      const along = caught(demo, at);
+      if (along.length < 2) continue;
+      // Two Hit Points on each of them, and three Stress in the beam: shared
+      // out that is three cleared in all, and one of them is still wounded.
+      for (const id of along) demo.state.entity(id)!.hitPoints = { max: 8, marked: 2 };
+      const before = along.reduce((sum, id) => sum + demo.state.entity(id)!.hitPoints.marked, 0);
+
+      expect(useAbility(demo, 'mira', 'salvation-beam', [], { point: at }).status).not.toBe('refused');
+      for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+        const prompt = demo.pending.prompt;
+        if (prompt.kind !== 'choice') {
+          answerPending(demo, { kind: 'roll' });
+          continue;
+        }
+        // "A Stress for each Hit Point": the options run from one upwards.
+        answerPending(demo, { kind: 'choose', index: Math.min(2, prompt.options.length - 1) });
+      }
+      if (!demo.log.some((l) => /Success|Critical/.test(l.text))) continue;
+
+      const after = along.reduce((sum, id) => sum + demo.state.entity(id)!.hitPoints.marked, 0);
+      const cleared = before - after;
+      expect(cleared).toBe(3);
+      expect(demo.state.entity('mira')!.stress.marked).toBe(3);
+      // Shared out: nobody was given all three, so both of them are better off.
+      for (const id of along) expect(demo.state.entity(id)!.hitPoints.marked).toBeLessThan(2);
+      return;
+    }
+    throw new Error('no seed put two of the party on one line');
+  });
+
+  it('runs out of wounds rather than of beam', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, at } = beaming(`beam-spare-${seed}`);
+      const along = caught(demo, at);
+      if (along.length < 2) continue;
+      // One Hit Point between them and every Stress she has in the beam.
+      for (const id of along) demo.state.entity(id)!.hitPoints = { max: 8, marked: 0 };
+      demo.state.entity(along[0]!)!.hitPoints = { max: 8, marked: 1 };
+
+      expect(useAbility(demo, 'mira', 'salvation-beam', [], { point: at }).status).not.toBe('refused');
+      for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+        const prompt = demo.pending.prompt;
+        if (prompt.kind !== 'choice') {
+          answerPending(demo, { kind: 'roll' });
+          continue;
+        }
+        answerPending(demo, { kind: 'choose', index: prompt.options.length - 1 });
+      }
+      if (!demo.log.some((l) => /Success|Critical/.test(l.text))) continue;
+
+      expect(demo.state.entity(along[0]!)!.hitPoints.marked).toBe(0);
+      return;
+    }
+    throw new Error('no seed put two of the party on one line');
+  });
+});

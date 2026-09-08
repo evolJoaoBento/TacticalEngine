@@ -527,6 +527,13 @@ export const effectSchema = z.discriminatedUnion('kind', [
       amount: amountSchema.optional(),
       /** Or rolled for — "clear 1d4 Hit Points". Rolled once for everyone. */
       dice: z.string().min(1).optional(),
+      /**
+       * "Divided among them however you'd like": the number is shared out
+       * rather than given to each of them whole. A Hit Point at a time, round
+       * by round, to whoever still has one marked - which is what dividing it
+       * evenly comes to, and nobody is handed healing they cannot use.
+       */
+      spread: z.boolean().optional(),
       target: targetSelectorSchema.optional(),
     })
     .refine((d) => (d.amount === undefined) !== (d.dice === undefined), {

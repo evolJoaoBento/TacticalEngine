@@ -47,6 +47,7 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     endEncounter: () => {},
     damage: () => 0,
     heal: () => 0,
+healShared: () => 0,
     checkModifier: () => 0,
     experiences: () => [],
     difficultyOf: () => null,

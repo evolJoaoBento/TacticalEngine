@@ -1277,6 +1277,37 @@ export class SceneScriptWorld implements ScriptWorld {
     return total;
   }
 
+  /**
+   * Share a number of Hit Points out among several creatures rather than
+   * giving each of them all of it: a Hit Point at a time, round by round, to
+   * whoever still has one marked.
+   *
+   * The order is the selector's, which is stable, so a replay heals the same
+   * people. What nobody can use is not spent: a beam with more in it than the
+   * room has wounds simply runs out of wounds.
+   */
+  healShared(target: TargetSelector, amount: number, bindings: TargetBindings = { targets: [], hit: [] }): number {
+    const among = this.entitiesFor(target, bindings);
+    let left = Math.max(0, Math.trunc(amount));
+    let total = 0;
+    let healing = true;
+    while (left > 0 && healing) {
+      healing = false;
+      for (const entity of among) {
+        if (left <= 0) break;
+        if (entity.hitPoints.marked <= 0) continue;
+        const result = clearPool(entity.hitPoints, 1);
+        if (result.applied <= 0) continue;
+        entity.hitPoints = result.pool;
+        if (entity.hitPoints.marked < entity.hitPoints.max && entity.dead !== true) entity.alive = true;
+        left -= result.applied;
+        total += result.applied;
+        healing = true;
+      }
+    }
+    return total;
+  }
+
   heal(target: TargetSelector, amount: number, bindings: TargetBindings = { targets: [], hit: [] }): number {
     let total = 0;
     for (const entity of this.entitiesFor(target, bindings)) {
