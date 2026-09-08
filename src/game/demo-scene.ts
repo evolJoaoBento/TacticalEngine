@@ -1458,7 +1458,10 @@ function summonsSomething(ability: AbilityDef): boolean {
 function worksOnItsOwnSide(ability: AbilityDef): boolean {
   let ownSide = false;
   let outward = false;
-  const aimedByDefault = ['attack', 'applyCondition', 'clearCondition', 'push', 'markArmor', 'damage', 'heal'];
+  // The effects that fall to the ones the roll beat when nothing is said.
+  // `heal` is not one of them: with no target it clears the actor's own, which
+  // is the whole point of a feature a block uses on itself.
+  const aimedByDefault = ['attack', 'applyCondition', 'clearCondition', 'push', 'markArmor', 'damage'];
   walkEffects(ability.effects, (effect: Effect) => {
     const selector = (effect as { target?: TargetSelector }).target;
     if (selector === undefined) {
