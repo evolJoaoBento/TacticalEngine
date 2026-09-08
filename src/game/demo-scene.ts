@@ -755,6 +755,9 @@ export function refreshWorld(demo: DemoScene): void {
     worldOptions(demo.characters, new Map(demo.project.lootTables.map((table) => [table.id, table])), demo.scene, demo.project),
   );
   bindTurn(demo);
+  // A rebuilt world reads the ground again: a save loaded back into the middle
+  // of a fight has zones on the board and creatures standing in them.
+  demo.world.refreshZones();
 }
 
 /** What each party member is carrying, pool-wise, right now. */
@@ -1782,6 +1785,9 @@ function veil(demo: DemoScene, id: string): void {
  * abilities that refresh with the scene refresh, and the log says who won.
  */
 export function settleFight(demo: DemoScene): void {
+  // Before anything answers a wound: whoever was moved, felled or stood back
+  // up during the turn is in or out of the zones on the board.
+  demo.world.refreshZones();
   playDamageReactions(demo);
   playDefeatReactions(demo);
   // The party's half of the same moment, and the reason it is here rather than

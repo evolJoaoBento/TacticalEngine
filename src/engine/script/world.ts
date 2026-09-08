@@ -73,6 +73,7 @@ import {
   type CountdownMoved,
   type RunningCountdown,
 } from './countdowns';
+import { runningZoneSchema, type RunningZone, type ZoneBoard } from './zones';
 import type { CountdownCue } from '../rules/countdown';
 import type { AttackSummary, DealtDamage, ScriptWorld } from './runner';
 import { evaluate, type TargetBindings } from './conditions';
@@ -123,6 +124,11 @@ export interface ScenarioState {
    * save of a different fight.
    */
   countdowns: CountdownBoard;
+  /**
+   * Patches of ground that mean something, by zone id. On the scenario for the
+   * same reason countdowns are: one outlives a defence prompt and a reload.
+   */
+  zones: ZoneBoard;
 }
 
 /** The key `abilityUses` files a use under. */
@@ -146,6 +152,7 @@ export function createScenarioState(
     abilityUses: new Map(),
     abilityTokens: new Map(),
     countdowns: new Map(),
+    zones: new Map(),
   };
 }
 
@@ -180,6 +187,7 @@ export const scenarioSnapshotSchema = z.object({
   abilityTokens: z.array(z.tuple([z.string(), z.number().int().min(0)])).default([]),
   /** Defaulted like the rest: a save written before countdowns existed loads. */
   countdowns: z.array(runningCountdownSchema).default([]),
+  zones: z.array(runningZoneSchema).default([]),
 });
 
 export type ScenarioSnapshot = z.infer<typeof scenarioSnapshotSchema>;
@@ -203,6 +211,7 @@ export function scenarioSnapshot(scenario: ScenarioState): ScenarioSnapshot {
       ...countdown,
       effects: [...countdown.effects],
     })),
+    zones: [...scenario.zones.values()].map((zone) => ({ ...zone })),
   };
 }
 
@@ -236,6 +245,8 @@ export function restoreScenario(scenario: ScenarioState, snapshot: ScenarioSnaps
   for (const [key, held] of snapshot.abilityTokens ?? []) scenario.abilityTokens.set(key, held);
   scenario.countdowns.clear();
   for (const countdown of snapshot.countdowns ?? []) scenario.countdowns.set(countdown.id, countdown);
+  scenario.zones.clear();
+  for (const zone of snapshot.zones ?? []) scenario.zones.set(zone.id, zone);
 }
 
 /** A blow that landed, waiting for the features that answer it. */
@@ -461,6 +472,97 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /** The clocks the fight is carrying, in the order they were armed. */
+  // ---- zones ----------------------------------------------------------------
+
+  /** Where a creature is standing, or `NO_TILE` for one that is nowhere. */
+  tileOf(id: string): number {
+    return this.state.entity(id)?.tile ?? NO_TILE;
+  }
+
+  zones(): readonly RunningZone[] {
+    return [...this.scenario.zones.values()];
+  }
+
+  /**
+   * Put a zone on the map, or move the one already standing under that id.
+   *
+   * Casting a spell again under the same id is the SRD's "or you cast it
+   * again": the old patch of ground goes and the new one takes its place, so
+   * whoever was standing in the first is no longer standing in anything.
+   */
+  placeZone(zone: RunningZone): void {
+    const standing = this.scenario.zones.get(zone.id);
+    if (standing !== undefined && standing.condition !== zone.condition) this.stripZone(standing.condition);
+    this.scenario.zones.set(zone.id, zone);
+    this.refreshZones();
+  }
+
+  /** Take a zone off the map, and its condition off everybody in it. */
+  endZone(id: string): boolean {
+    const zone = this.scenario.zones.get(id);
+    if (zone === undefined) return false;
+    this.scenario.zones.delete(id);
+    this.stripZone(zone.condition);
+    this.refreshZones();
+    return true;
+  }
+
+  /**
+   * Make what everybody bears match where they are standing.
+   *
+   * A zone is a condition applied by geography, so this is the whole of what a
+   * zone *does*: walk in and you have it, walk out and you do not. Called
+   * wherever somebody may have moved; it is cheap when the board is empty,
+   * which is nearly always, and it is written to be safe to call twice.
+   *
+   * A zone whose owner has fallen and does not outlive them comes off first,
+   * so nobody is left standing in a dead wizard's light.
+   */
+  refreshZones(): void {
+    const board = this.scenario.zones;
+    if (board.size === 0) return;
+    for (const zone of [...board.values()]) {
+      if (zone.onDeath !== 'end' || zone.owner === null) continue;
+      if (this.state.entity(zone.owner)?.alive === true) continue;
+      board.delete(zone.id);
+      this.stripZone(zone.condition);
+    }
+
+    const standing = [...this.state.entitiesOf('party'), ...this.state.entitiesOf('adversary')];
+    const inside = new Map<string, Set<string>>();
+    for (const zone of board.values()) {
+      const held = inside.get(zone.condition) ?? new Set<string>();
+      const mine = zone.owner === null ? 'party' : this.factionOf(zone.owner);
+      for (const entity of standing) {
+        if (!entity.alive || entity.tile === NO_TILE) continue;
+        if (zone.side !== undefined && mine !== null) {
+          const want = zone.side === 'allies' ? mine : mine === 'party' ? 'adversary' : 'party';
+          if (entity.faction !== want) continue;
+        }
+        const band = this.bandBetween(zone.anchor, entity.tile);
+        if (band === null || !reaches(band, zone.band)) continue;
+        held.add(entity.id);
+      }
+      inside.set(zone.condition, held);
+    }
+
+    for (const [condition, ids] of inside) {
+      for (const entity of standing) {
+        const should = ids.has(entity.id);
+        const has = entity.conditions.has(condition);
+        if (should && !has) this.applyCondition(entity.id, condition, 'scene');
+        else if (!should && has) this.clearCondition(entity.id, condition);
+      }
+    }
+  }
+
+  /** Take one zone's condition off everybody, standing in one or not. */
+  private stripZone(condition: string): void {
+    for (const entity of [...this.state.entitiesOf('party'), ...this.state.entitiesOf('adversary')]) {
+      this.clearCondition(entity.id, condition);
+    }
+  }
+
   countdowns(): readonly RunningCountdown[] {
     return [...this.scenario.countdowns.values()];
   }

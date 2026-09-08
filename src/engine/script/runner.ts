@@ -27,6 +27,7 @@ import { NO_TILE } from '../grid/grid';
 import { rollDuality, type DualityRoll, type RollOutcome } from '../rules/duality';
 import { formatDice, parseDice, rollDice, type DamageType, type DiceExpression, type ParsedDamage } from '../rules/dice';
 import type { RunningCountdown } from './countdowns';
+import type { RunningZone } from './zones';
 import { hookReads } from './conditions';
 import { runHook, type HookContext } from './hooks';
 import { rollDamage, type DamageSeverity, type IncomingDamage } from '../rules/damage';
@@ -217,6 +218,10 @@ export interface ScriptWorld extends ConditionContext {
   factionOf(id: string): 'party' | 'adversary' | null;
   /** Arm a countdown, replacing one already running under the same id. */
   startCountdown(countdown: RunningCountdown): void;
+  placeZone(zone: RunningZone): void;
+  endZone(id: string): boolean;
+  refreshZones(): void;
+  tileOf(id: string): number;
   /** Whether a creature has already been given the spotlight this GM turn. */
   spotlightSpent(id: string): boolean;
   /** Creatures ordered by how close they are to another, ties by id. */
@@ -712,6 +717,24 @@ export class ScriptRunner {
     this.stack.push({ effects: outcomeEffects(check, roll.outcome), index: 0, hit });
   }
 
+  /**
+   * Whether an effect can have put somebody on different ground.
+   *
+   * A zone is read from where creatures are standing, so anything that moves
+   * one - a walk, a shove, a blink, something arriving or being replaced - has
+   * to be followed by a look at who is in what. Listed here rather than at
+   * each case so a new way to move somebody is one line, not a hunt.
+   */
+  private moves(effect: Effect): boolean {
+    return (
+      effect.kind === 'move' ||
+      effect.kind === 'push' ||
+      effect.kind === 'summon' ||
+      effect.kind === 'replace' ||
+      effect.kind === 'attack'
+    );
+  }
+
   private step(): RunStatus {
     while (this.stack.length > 0) {
       const frame = this.stack[this.stack.length - 1]!;
@@ -724,6 +747,9 @@ export class ScriptRunner {
       if (frame.hit !== undefined) this.hit = frame.hit;
       const effect = frame.effects[frame.index++]!;
       const prompt = this.apply(effect);
+      // What everybody bears has to match where they are standing: a blow that
+      // knocked somebody out of a zone takes its light with them.
+      if (this.moves(effect)) this.world.refreshZones();
       if (prompt !== null) {
         this.pending = { effect };
         return { status: 'waiting', prompt, journal: this.journal };

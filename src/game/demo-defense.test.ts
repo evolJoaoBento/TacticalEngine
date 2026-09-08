@@ -24,7 +24,7 @@ import {
   syncPools,
   type DemoScene,
 } from './demo-scene';
-import { useKey } from '../engine/script/world';
+import { restoreScenario, scenarioSnapshot, useKey } from '../engine/script/world';
 
 /**
  * Passives and reactions in play: what a held card changes on the sheet,
@@ -3735,5 +3735,140 @@ describe('a line of light down the room', () => {
       return;
     }
     throw new Error('no seed put two of the party on one line');
+  });
+});
+
+
+describe('ground that means something', () => {
+  /** Kara beside the husk, and a zone she can be walked in and out of. */
+  const ground = (seed: string) => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const kara = demo.state.entity('kara')!;
+    // A patch of light on the tile Kara is standing on, reaching Very Close.
+    demo.world.placeZone({
+      id: 'light',
+      name: 'Light',
+      owner: 'mira',
+      condition: 'rooted',
+      anchor: kara.tile,
+      band: 'veryClose',
+      onDeath: 'keep',
+    });
+    return { demo, husk, kara };
+  };
+
+  /** A tile well away from everything, for walking out of the light. */
+  const outside = (demo: DemoScene, from: number): number => {
+    for (let tile = demo.grid.width * demo.grid.height - 1; tile >= 0; tile--) {
+      if (!demo.grid.isPassable(tile) || demo.state.blockedFor('kara')(tile)) continue;
+      const band = demo.world.bandBetween(from, tile);
+      if (band === null || reaches(band, 'veryClose')) continue;
+      return tile;
+    }
+    return NO_TILE;
+  };
+
+  it('puts its condition on whoever is standing in it, and takes it off whoever leaves', () => {
+    const { demo, kara } = ground('zone-walk');
+    expect(kara.conditions.has('rooted')).toBe(true);
+
+    const away = outside(demo, kara.tile);
+    expect(away).not.toBe(NO_TILE);
+    demo.state.moveEntity('kara', away);
+    demo.world.refreshZones();
+    expect(kara.conditions.has('rooted')).toBe(false);
+  });
+
+  it('takes it off everybody when the ground stops meaning anything', () => {
+    const { demo, kara } = ground('zone-end');
+    expect(kara.conditions.has('rooted')).toBe(true);
+    expect(demo.world.endZone('light')).toBe(true);
+    expect(kara.conditions.has('rooted')).toBe(false);
+    expect(demo.world.zones().length).toBe(0);
+  });
+
+  it('leaves somebody standing in the other one when one of two ends', () => {
+    const { demo, kara } = ground('zone-two');
+    demo.world.placeZone({
+      id: 'second-light',
+      name: 'Light',
+      owner: 'mira',
+      condition: 'rooted',
+      anchor: kara.tile,
+      band: 'veryClose',
+      onDeath: 'keep',
+    });
+    demo.world.endZone('light');
+    // Still standing in the second: the condition belongs to the ground, not
+    // to whichever spell was cast first.
+    expect(kara.conditions.has('rooted')).toBe(true);
+    demo.world.endZone('second-light');
+    expect(kara.conditions.has('rooted')).toBe(false);
+  });
+
+  it('touches only the side it was cast for', () => {
+    const demo = standoff('zone-side');
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    demo.world.placeZone({
+      id: 'ward',
+      name: 'Ward',
+      owner: 'mira',
+      condition: 'rooted',
+      anchor: demo.state.entity('kara')!.tile,
+      band: 'close',
+      side: 'allies',
+      onDeath: 'keep',
+    });
+    expect(demo.state.entity('kara')!.conditions.has('rooted')).toBe(true);
+    expect(husk.conditions.has('rooted')).toBe(false);
+  });
+
+  it('goes out with the one who cast it, when that is what it says', () => {
+    const { demo, kara } = ground('zone-death');
+    demo.world.placeZone({
+      id: 'light',
+      name: 'Light',
+      owner: 'mira',
+      condition: 'rooted',
+      anchor: kara.tile,
+      band: 'veryClose',
+      onDeath: 'end',
+    });
+    expect(kara.conditions.has('rooted')).toBe(true);
+    const mira = demo.state.entity('mira')!;
+    mira.alive = false;
+    demo.world.refreshZones();
+    expect(demo.world.zones().length).toBe(0);
+    expect(kara.conditions.has('rooted')).toBe(false);
+  });
+
+  it('follows a creature the GM shoved out of it', () => {
+    // Not a walk of her own: what matters is that the ground is read again
+    // after anything that moved somebody, whoever did the moving.
+    const { demo, kara, husk } = ground('zone-shoved');
+    expect(kara.conditions.has('rooted')).toBe(true);
+    const away = outside(demo, kara.tile);
+    expect(away).not.toBe(NO_TILE);
+
+    demo.scenario.actorId = husk.id;
+    runScript([{ kind: 'move', who: { kind: 'entity', id: 'kara' }, to: 'point', teleport: true, budget: 'veryFar' }], demo.world, demo.rng, {
+      targets: [kara.id],
+      hit: [kara.id],
+      point: away,
+    });
+    expect(kara.tile).not.toBe(demo.state.entity(husk.id)!.tile);
+    expect(kara.conditions.has('rooted')).toBe(false);
+  });
+
+  it('carries across a save and back', () => {
+    const { demo, kara } = ground('zone-save');
+    const snapshot = scenarioSnapshot(demo.scenario);
+    kara.conditions.delete('rooted');
+    restoreScenario(demo.scenario, snapshot);
+    refreshWorld(demo);
+    expect(demo.world.zones().map((z) => z.id)).toEqual(['light']);
+    expect(kara.conditions.has('rooted')).toBe(true);
   });
 });
