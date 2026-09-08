@@ -769,7 +769,7 @@ export class SceneScriptWorld implements ScriptWorld {
         ? tokens.amount
         : tokens.amount === 'spellcast'
           ? (this.spellcastValue(id) ?? 0)
-          : (this.characters.get(id)?.traits[tokens.amount] ?? 0);
+          : (this.traitValue(id, tokens.amount) ?? 0);
     return Math.max(tokens.minimum, amount);
   }
 
@@ -864,6 +864,15 @@ export class SceneScriptWorld implements ScriptWorld {
 
   proficiencyOf(id: string): number {
     return this.characters.get(id)?.sheet.proficiency ?? 1;
+  }
+
+  /**
+   * A trait off a creature's sheet, or the one they cast with. A stat block has
+   * no traits and reads null, which every caller turns into nothing happening.
+   */
+  traitValue(id: string, trait: Trait | 'spellcast'): number | null {
+    if (trait === 'spellcast') return this.spellcastValue(id);
+    return this.characters.get(id)?.traits[trait] ?? null;
   }
 
   spellcastValue(id: string): number | null {

@@ -61,6 +61,7 @@ import {
 import { readsATarget, type AbilityDef } from '../engine/content/abilities';
 import { gain, unmarked } from '../engine/rules/resources';
 import {
+  hpForSeverity,
   isSevere,
   SEVERITY_ORDER,
   resolveDamage,
@@ -373,6 +374,8 @@ export interface HeldSwing {
   forced?: number;
   /** Or the band it lands in, which armor can still step down. */
   severity?: DamageSeverity;
+  /** Or the band it lands in at worst: a floor under a blow counted as usual. */
+  floor?: DamageSeverity;
 }
 
 /** One hit, as it stands while the defender decides. */
@@ -1104,6 +1107,27 @@ export function attackWithSelected(
  * nothing: they were rolled from the seed and never read.
  */
 function counted(demo: DemoScene, held: HeldSwing): AttackOutcome {
+  return atLeast(held, rolled(demo, held));
+}
+
+/**
+ * "You never deal damage beneath a target's Major damage threshold (the target
+ * always marks a minimum of 2 Hit Points)."
+ *
+ * A floor, not a swap: the blow is counted as it was rolled - resistance,
+ * thresholds, whatever armor answered with - and only then lifted, because the
+ * card says what the target marks rather than what the attack rolled.
+ */
+function atLeast(held: HeldSwing, outcome: AttackOutcome): AttackOutcome {
+  const { floor } = held;
+  if (floor === undefined || outcome.damage === undefined) return outcome;
+  if (SEVERITY_ORDER.indexOf(outcome.damage.finalSeverity) >= SEVERITY_ORDER.indexOf(floor)) return outcome;
+  const damage: ResolvedDamage = { ...outcome.damage, finalSeverity: floor, hpMarked: hpForSeverity(floor) };
+  return { ...outcome, damage, hitPointsMarked: damage.hpMarked };
+}
+
+/** The blow as the dice and the cards left it, before any floor under it. */
+function rolled(demo: DemoScene, held: HeldSwing): AttackOutcome {
   const { outcome, boost, forced } = held;
   const target = demo.state.entity(held.target);
   // A named band is counted like any other blow of that band: the thresholds
@@ -2185,19 +2209,24 @@ function asAnswered(landing: HeldSwing | undefined, journal: readonly JournalEnt
   let added = 0;
   let forced: number | undefined;
   let band: DamageSeverity | undefined;
+  let floor: DamageSeverity | undefined;
   for (const entry of journal) {
     if (entry.kind === 'damageBoosted') added += entry.by;
     // Two cards forcing one blow is not a thing the SRD writes; the larger
     // wins, so the order they were played in decides nothing.
     if (entry.kind === 'hitPointsForced') forced = Math.max(forced ?? 0, entry.to);
-    if (entry.kind === 'severityForced') band = worse(band, entry.severity);
+    if (entry.kind === 'severityForced') {
+      if (entry.least === true) floor = worse(floor, entry.severity);
+      else band = worse(band, entry.severity);
+    }
   }
-  if (added <= 0 && forced === undefined && band === undefined) return landing;
+  if (added <= 0 && forced === undefined && band === undefined && floor === undefined) return landing;
   return {
     ...landing,
     ...(added <= 0 ? {} : { boost: (landing.boost ?? 0) + added }),
     ...(forced === undefined ? {} : { forced: Math.max(landing.forced ?? 0, forced) }),
     ...(band === undefined ? {} : { severity: worse(landing.severity, band) }),
+    ...(floor === undefined ? {} : { floor: worse(landing.floor, floor) }),
   };
 }
 

@@ -166,6 +166,8 @@ export interface ScriptWorld extends ConditionContext {
   spendTokens(id: string, ability: string, amount: number): number;
   /** The value of the creature's Spellcast trait, or null when it has none. */
   spellcastValue(id: string): number | null;
+  /** A trait off a sheet, for an amount that reads one. Null for a stat block. */
+  traitValue(id: string, trait: Trait | 'spellcast'): number | null;
   /** The creature's primary weapon dice (an adversary's attack), or null when it has none. */
   weaponDamage(id: string): ParsedDamage | null;
   /** A weapon attack, rolled and applied. */
@@ -298,8 +300,8 @@ export type JournalEntry =
   | { kind: 'damageBoosted'; id: string | null; by: number }
   /** That blow marks this many Hit Points instead of being rolled for. */
   | { kind: 'hitPointsForced'; id: string | null; to: number }
-  /** That blow lands in this band instead of being rolled for. */
-  | { kind: 'severityForced'; id: string | null; severity: DamageSeverity }
+  /** That blow lands in this band instead of being rolled for, or no lower than it. */
+  | { kind: 'severityForced'; id: string | null; severity: DamageSeverity; least?: boolean }
   /** One creature off the map and another in its place. `was` is its name. */
   | { kind: 'replaced'; was: string; adversary: string; ids: readonly string[]; spotlight: boolean }
   /** `roll` is set when a party member rolled it: an adversary's is a d20. */
@@ -473,9 +475,11 @@ export class ScriptRunner {
       // than a refusal, the way an empty count is.
       const who = this.resolve(amount.of ?? { kind: 'actor' })[0];
       if (who === undefined) return 0;
-      return 'tokens' in amount
-        ? this.world.tokensOn(who, amount.tokens)
-        : (this.world.poolValue(who, amount.pool, amount.measure ?? 'marked') ?? 0);
+      if ('tokens' in amount) return this.world.tokensOn(who, amount.tokens);
+      // "Twice your Strength": a trait nobody has is nothing added, which is
+      // what a stat block reading a card's amount should come to.
+      if ('trait' in amount) return (this.world.traitValue(who, amount.trait) ?? 0) * (amount.times ?? 1);
+      return this.world.poolValue(who, amount.pool, amount.measure ?? 'marked') ?? 0;
     }
     if (amount === 'targetsHit') return this.hit.length;
     // `spent` never reaches here: `howMany` writes the number into a copy of
@@ -1018,7 +1022,12 @@ export class ScriptRunner {
       case 'forceSeverity': {
         // "Deal Severe damage instead of their standard damage": the band is
         // named, and the swing waiting to be counted is told which.
-        this.journal.push({ kind: 'severityForced', id: world.actorId(), severity: effect.severity });
+        this.journal.push({
+          kind: 'severityForced',
+          id: world.actorId(),
+          severity: effect.severity,
+          ...(effect.least === true ? { least: true } : {}),
+        });
         return null;
       }
       case 'forceHitPoints': {

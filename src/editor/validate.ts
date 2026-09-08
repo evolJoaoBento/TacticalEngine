@@ -358,6 +358,13 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
+    if (namesABand(ability, true) && ability.source.kind === 'adversary') {
+      add(
+        'warning',
+        `"${ability.id}" puts a floor under a blow, which only the party's own swing obeys.`,
+        ability.id,
+      );
+    }
     if (forcesHitPoints(ability) && ability.source.kind === 'adversary') {
       add(
         'warning',
@@ -484,11 +491,15 @@ function boostsABlow(ability: AbilityDef): boolean {
   return boosts;
 }
 
-/** Whether anything in an ability names the band a blow lands in. */
-function namesABand(ability: AbilityDef): boolean {
+/**
+ * Whether anything in an ability names the band a blow lands in - or, with
+ * `floorsOnly`, names it as a floor under a blow that is still counted, which
+ * is the half of it the GM's swing does not read.
+ */
+function namesABand(ability: AbilityDef, floorsOnly = false): boolean {
   let names = false;
   walkEffects(ability.effects, (effect) => {
-    if (effect.kind === 'forceSeverity') names = true;
+    if (effect.kind === 'forceSeverity' && (!floorsOnly || effect.least === true)) names = true;
   });
   return names;
 }

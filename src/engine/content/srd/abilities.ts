@@ -329,6 +329,69 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- what a blow is worth before anything else is said about it ---------
+  {
+    id: 'rage-up',
+    name: 'Rage Up',
+    source: card('rage-up'),
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    // A Stress is a decision, and the card says "you can".
+    auto: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    // Simplified: once per attack rather than twice, and asked after the swing
+    // lands rather than before it is made - which spends the Stress only on a
+    // blow that is going to be counted, where the card would have spent it on
+    // a miss as well.
+    effects: [
+      { kind: 'log', text: 'Something gives, and it is not them.', tone: 'hope' },
+      { kind: 'boostDamage', amount: { trait: 'strength', times: 2 } },
+    ],
+  },
+  {
+    id: 'onslaught',
+    name: 'Onslaught',
+    source: card('onslaught'),
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    target: { kind: 'none' },
+    // Nothing is asked and nothing is spent: the floor is simply there.
+    effects: [{ kind: 'forceSeverity', severity: 'major', least: true }],
+  },
+  {
+    id: 'onslaught-answer',
+    name: 'Onslaught',
+    source: card('onslaught'),
+    kind: 'reaction',
+    trigger: 'allyTookDamage',
+    action: false,
+    auto: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    // "A creature within your weapon's range": read from the one holding the
+    // card to the one who dealt it, at Close - the reach of most of what the
+    // party swings, and a band a selector can name where a weapon's own range
+    // is not.
+    available: { kind: 'withinRange', range: 'close', of: { kind: 'target' } },
+    // Simplified: the floor is the Major band rather than the target's own
+    // Major threshold read as a number, which is the same two Hit Points the
+    // card promises; and an area blow that catches the holder as well as an
+    // ally still answers, where the card asks for an attack that did not
+    // include them.
+    effects: [
+      { kind: 'log', text: 'They are not finished with you.', tone: 'hope' },
+      {
+        kind: 'reactionRoll',
+        difficulty: 15,
+        targets: { kind: 'target' },
+        onFail: [{ kind: 'damage', amount: 1, target: { kind: 'hit' } }],
+      },
+    ],
+  },
   // ---- what a blow leaves behind, and what answers one that went wide ------
   {
     id: 'breaking-blow',

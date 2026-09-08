@@ -19,7 +19,7 @@ import { COUNT_NAMES } from '../../engine/script/schema';
 import type { QuestDef } from '../../engine/content/quests';
 import { RANGE_BANDS, type RangeBand } from '../../engine/rules/range';
 import { ConditionEditor, COUNT_LABELS } from './ConditionEditor';
-import { CheckEditor } from './CheckEditor';
+import { CheckEditor, TRAITS } from './CheckEditor';
 import { TargetEditor } from './TargetEditor';
 
 export interface EffectListProps {
@@ -449,6 +449,7 @@ function renderBody(
             if (picked === '') onChange(set(1));
             else if (picked === 'pool') onChange(set({ pool: 'hitPoints', measure: 'marked' }));
             else if (picked === 'tokens') onChange(set({ tokens: 'a-card' }));
+            else if (picked === 'trait') onChange(set({ trait: 'strength' }));
             else onChange(set(picked as CountName));
           }}
         >
@@ -460,6 +461,7 @@ function renderBody(
           ))}
           <option value="pool">a pool of theirs</option>
           <option value="tokens">tokens on a card</option>
+          <option value="trait">a trait of theirs</option>
         </select>
         {typeof value === 'number' ? count(value, set) : null}
         {read === null || !('pool' in read) ? null : (
@@ -468,6 +470,15 @@ function renderBody(
             {pick(read.measure ?? 'marked', ['marked', 'available', 'max'], (measure) =>
               set({ ...read, measure: measure as 'marked' | 'available' | 'max' }),
             )}
+          </>
+        )}
+        {read === null || !('trait' in read) ? null : (
+          <>
+            {pick(read.trait, [...TRAITS, 'spellcast'], (trait) => set({ ...read, trait: trait as typeof read.trait }))}
+            <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="How many times over">
+              &times;
+            </span>
+            {count(read.times ?? 1, (times) => set({ ...read, times: times === 1 ? undefined : times }))}
           </>
         )}
         {read === null || !('tokens' in read) ? null : (
@@ -1027,6 +1038,10 @@ function renderBody(
           {pick(effect.severity, ['minor', 'major', 'severe', 'massive'], (severity) => ({
             ...effect,
             severity: severity as 'minor' | 'major' | 'severe' | 'massive',
+          }))}
+          {flag('at worst', 'A floor under a blow counted as usual, rather than instead of it', effect.least === true, (least) => ({
+            ...effect,
+            least: least ? true : undefined,
           }))}
         </>
       );

@@ -99,6 +99,19 @@ export const amountReadSchema = z.union([
       return targetSelectorSchema.optional();
     },
   }),
+  /**
+   * Or a trait off their sheet: "a bonus to your damage roll equal to twice
+   * your Strength", "tokens equal to your Spellcast trait". `times` is the
+   * multiplier the card prints, and a creature with no sheet - a stat block -
+   * reads as nothing rather than refusing.
+   */
+  z.object({
+    trait: z.union([traitSchema, z.literal('spellcast')]),
+    get of() {
+      return targetSelectorSchema.optional();
+    },
+    times: z.number().int().positive().optional(),
+  }),
 ]);
 
 const amountSchema = z.union([z.number().int().positive(), countNameSchema, amountReadSchema]);
@@ -735,6 +748,12 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('forceSeverity'),
     severity: z.enum(['minor', 'major', 'severe', 'massive']),
+    /**
+     * A floor rather than a replacement: "you never deal damage beneath a
+     * target's Major damage threshold". The blow is counted as it was rolled,
+     * armor and all, and only then lifted if it came out under the band.
+     */
+    least: z.boolean().optional(),
   }),
   /**
    * "Spend any number of Hope to roll that many d6s", "mark any number of

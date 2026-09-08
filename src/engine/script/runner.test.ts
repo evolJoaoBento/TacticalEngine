@@ -72,6 +72,7 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     addTokens: () => 0,
     spendTokens: () => 0,
     spellcastValue: () => null,
+    traitValue: () => null,
     weaponDamage: () => null,
     attack: () => ({
       refused: 'nothing to attack',
@@ -765,6 +766,32 @@ describe('the runner as a whole', () => {
       createRng(1),
     );
     expect(none.some((e) => e.kind === 'hitPointsForced')).toBe(false);
+  });
+
+  it('reads an amount off a trait, times over, and off a stat block as nothing', () => {
+    // "A bonus to your damage roll equal to twice your Strength."
+    const asked: [string, string][] = [];
+    const stub = stubWorld({
+      actorId: () => 'kara',
+      resolveTargets: (selector) => (selector.kind === 'actor' ? ['kara'] : []),
+      traitValue: (id, trait) => {
+        asked.push([id, trait]);
+        return 2;
+      },
+    });
+    const journal = runScript(
+      [{ kind: 'boostDamage', amount: { trait: 'strength', times: 2 } }],
+      stub,
+      createRng(1),
+    );
+    expect(journal).toContainEqual({ kind: 'damageBoosted', id: 'kara', by: 4 });
+    expect(asked).toEqual([['kara', 'strength']]);
+
+    // A creature with no sheet has no traits: nothing added, and no refusal.
+    const block = stubWorld({ actorId: () => 'husk', resolveTargets: () => ['husk'], traitValue: () => null });
+    const nothing = runScript([{ kind: 'boostDamage', amount: { trait: 'strength' } }], block, createRng(1));
+    expect(nothing.some((e) => e.kind === 'damageBoosted')).toBe(false);
+    expect(nothing.some((e) => e.kind === 'refused')).toBe(false);
   });
 
   it('names the band a blow lands in', () => {

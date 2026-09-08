@@ -28,6 +28,7 @@ import {
   buildProjectScene,
   endTurn,
   moveSelectedTo,
+  refreshWorld,
   settleFight,
   startEncounter,
   useSelectedOn,
@@ -1041,6 +1042,57 @@ describe("what the party puts behind its own blow", () => {
     throw new Error('no seed landed two swings in forty tries');
   });
 
+  it('puts twice a trait behind the blow, once the blow is worth it', () => {
+    // "Mark a Stress to gain a bonus to your damage roll equal to twice your
+    // Strength": the number comes off the sheet, so a caster who has been
+    // lifting reads four where the printed card reads a trait.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = swinging(['rage-up'], `rage-${seed}`);
+      const cold = swinging(['rage-up'], `rage-${seed}`);
+      for (const scene of [demo, cold]) {
+        scene.askDefender = true;
+        const vela = scene.characters.get('vela')!;
+        scene.characters.set('vela', { ...vela, traits: { ...vela.traits, strength: 2 } });
+        refreshWorld(scene);
+        scene.state.entity('vela')!.stress = { max: 6, marked: 0 };
+      }
+      const swung = attackWithSelected(demo, 'foe');
+      const same = attackWithSelected(cold, 'foe');
+      if (swung === null || !swung.hit || same === null || !same.hit) continue;
+
+      expect(swung.waiting).toBe(true);
+      answerPending(demo, { kind: 'choose', index: 1 });
+      answerPending(cold, { kind: 'choose', index: 0 });
+      expect(demo.state.entity('vela')!.stress.marked).toBe(1);
+      expect(cold.state.entity('vela')!.stress.marked).toBe(0);
+      if (demo.state.entity('foe')!.hitPoints.marked <= cold.state.entity('foe')!.hitPoints.marked) continue;
+      return;
+    }
+    throw new Error('no seed landed a raging swing in forty tries');
+  });
+
+  it('never lets a blow land beneath the band the card floors it at', () => {
+    // "You never deal damage beneath a target's Major damage threshold (the
+    // target always marks a minimum of 2 Hit Points)": counted as rolled, then
+    // lifted. The seed hunted for is one where the blow really was smaller.
+    for (let seed = 1; seed < 60; seed++) {
+      const cold = swinging([], `floor-${seed}`);
+      cold.askDefender = true;
+      const plain = attackWithSelected(cold, 'foe');
+      if (plain === null || !plain.hit || plain.hitPointsMarked !== 1) continue;
+
+      const demo = swinging(['onslaught'], `floor-${seed}`);
+      demo.askDefender = true;
+      const swung = attackWithSelected(demo, 'foe');
+      expect(swung?.hit).toBe(true);
+      expect(demo.state.entity('foe')!.hitPoints.marked).toBe(2);
+      // And nothing was asked: the floor costs nothing and is not a decision.
+      expect(demo.pending).toBeNull();
+      return;
+    }
+    throw new Error('no seed landed a blow small enough to floor in sixty tries');
+  });
+
   it('will not call in a toll on somebody who is not carrying one', () => {
     const demo = swinging(['twilight-toll'], 'toll');
     demo.askDefender = true;
@@ -1059,7 +1111,7 @@ describe("what the party puts behind its own blow", () => {
 
 describe('what a card makes of somebody else being hit', () => {
   /** The caster holding a sigil, a friend to stand in front of it, and a foe. */
-  const pair = (seed: string) => {
+  const pair = (seed: string, cards: readonly string[] = ['sigil-of-retribution']) => {
     const s = blank();
     for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
     s.run(
@@ -1072,7 +1124,7 @@ describe('what a card makes of somebody else being hit', () => {
             armorId: 'gambeson-armor',
             primaryWeaponId: 'greatstaff',
             subclassId: 'school-of-knowledge',
-            domainCards: ['sigil-of-retribution'],
+            domainCards: [...cards],
           }),
         ),
       ),
@@ -1099,6 +1151,46 @@ describe('what a card makes of somebody else being hit', () => {
       for (let turn = 0; turn < 3 && kara.hitPoints.marked === 0; turn++) endTurn(demo);
       if (kara.hitPoints.marked === 0) continue;
       expect(demo.world.tokensOn('vela', 'sigil-of-retribution')).toBeGreaterThan(0);
+      return;
+    }
+    throw new Error('the burrower never landed a blow on Kara in thirty tries');
+  });
+
+  it('answers a blow that landed on somebody else, once it is offered', () => {
+    // "When a creature within your weapon's range deals damage to an ally with
+    // an attack that doesn't include you, mark a Stress to force them to make
+    // a Reaction Roll (15). On a failure, the target must mark a Hit Point."
+    for (let seed = 1; seed < 30; seed++) {
+      const demo = pair(`onslaught-${seed}`, ['onslaught']);
+      demo.askDefender = true;
+
+      // Turns until the card is the question on the table, answering every
+      // other question the fight asks with the plainest answer there is.
+      let offered = -1;
+      for (let turn = 0; turn < 4 && offered < 0 && demo.encounter?.outcome === 'ongoing'; turn++) {
+        endTurn(demo);
+        while (demo.pending !== null && offered < 0) {
+          const waiting = demo.pending;
+          if (waiting.kind === 'reaction') {
+            const found = waiting.offers.findIndex((o) => o.ability.id === 'onslaught-answer');
+            if (found >= 0) {
+              offered = found + 1;
+              break;
+            }
+          }
+          answerPending(demo, { kind: 'choose', index: 0 });
+        }
+      }
+      if (offered < 0) continue;
+
+      const foe = demo.state.entity('foe')!;
+      const before = { hp: foe.hitPoints.marked, stress: demo.state.entity('vela')!.stress.marked };
+      answerPending(demo, { kind: 'choose', index: offered });
+      expect(demo.state.entity('vela')!.stress.marked).toBe(before.stress + 1);
+      // The Burrower rolls its d20 against the 15 the card names; a failure
+      // costs it a Hit Point, and either way it was made to answer.
+      expect(demo.log.some((l) => /reacts: \d+ against 15/.test(l.text))).toBe(true);
+      expect(foe.hitPoints.marked).toBeGreaterThanOrEqual(before.hp);
       return;
     }
     throw new Error('the burrower never landed a blow on Kara in thirty tries');

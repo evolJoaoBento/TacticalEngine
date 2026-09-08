@@ -877,6 +877,14 @@ footer {
   whoever carries its mark. Underneath both is one field, <code>IncomingDamage.severity</code>,
   which <code>resolveDamage</code> uses in place of reading the thresholds.</p>
 
+  <p>A band can also be a floor rather than a swap: <code>forceSeverity</code> with
+  <code>least</code> counts the blow as it was rolled &mdash; resistance, thresholds, whatever
+  armor answered with &mdash; and lifts it only if it came out under the band. That is
+  Onslaught's &ldquo;you never deal damage beneath a target's Major damage threshold&rdquo;,
+  which is about what the target marks rather than what the attack rolled, so it is read
+  after the counting rather than instead of it. The party's swing obeys a floor; a stat
+  block's does not, and the validator says so.</p>
+
   <p>Severe is a floor, not a bracket. &ldquo;When the Burrower takes Severe damage&rdquo;
   answers a Massive blow too, so every place that reports a wound asks <code>isSevere</code>
   rather than comparing to the one band.</p>
@@ -901,6 +909,12 @@ footer {
   creature does to the whole party. It is the pair of <code>allyRollingDamage</code> and split
   from <code>tookDamage</code> for the same reason: a card that answers its holder's own wound
   must not answer every wound in the party.</p>
+
+  <p>An amount can be read off a sheet as well as off a pool or a card:
+  <code>{ trait: 'strength', times: 2 }</code> is &ldquo;equal to twice your Strength&rdquo;,
+  and <code>trait: 'spellcast'</code> is the one the holder casts with. A creature with no
+  sheet &mdash; every stat block &mdash; reads it as nothing rather than refusing, which is
+  the same quiet zero a pool nobody has gives.</p>
 
   <p>A condition can count creatures, too. The selectors already say which ones and where
   &mdash; around the actor or around the chosen target, off the same stat block, everyone but
