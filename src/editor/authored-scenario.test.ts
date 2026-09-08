@@ -1093,6 +1093,100 @@ describe("what the party puts behind its own blow", () => {
     throw new Error('no seed landed a blow small enough to floor in sixty tries');
   });
 
+  /**
+   * A seed whose swing comes up a critical, found once and used by everything
+   * that answers one. The dice are the same whichever of these cards is held:
+   * all four are reactions, and none of them touches the roll.
+   */
+  const critical = (): number => {
+    for (let seed = 1; seed < 400; seed++) {
+      const demo = swinging([], `crit-${seed}`);
+      const swung = attackWithSelected(demo, 'foe');
+      if (swung?.hit === true && demo.log.some((l) => l.text.includes('lands a critical with'))) return seed;
+    }
+    throw new Error('no seed rolled a critical in four hundred tries');
+  };
+
+  it('answers a critical, and says nothing about an ordinary hit', () => {
+    const seed = critical();
+    const demo = swinging(['gore-and-glory'], `crit-${seed}`);
+    demo.askDefender = true;
+    demo.state.entity('vela')!.stress = { max: 6, marked: 3 };
+    expect(attackWithSelected(demo, 'foe')?.hit).toBe(true);
+
+    // The card is free and not a decision, so it simply asks its question.
+    expect(demo.pending?.kind).toBe('script');
+    answerPending(demo, { kind: 'choose', index: 1 });
+    // Three marked, one cleared by the critical itself, one more by the card:
+    // "gain an additional Hope or clear an additional Stress".
+    expect(demo.state.entity('vela')!.stress.marked).toBe(1);
+
+    // An ordinary hit is not a critical, and the card has nothing to say.
+    for (let other = 1; other < 400; other++) {
+      if (other === seed) continue;
+      const plain = swinging(['gore-and-glory'], `crit-${other}`);
+      plain.askDefender = true;
+      const swung = attackWithSelected(plain, 'foe');
+      if (swung?.hit !== true || plain.log.some((l) => l.text.includes('lands a critical with'))) continue;
+      expect(plain.pending).toBeNull();
+      return;
+    }
+    throw new Error('no seed rolled an ordinary hit in four hundred tries');
+  });
+
+  it('asks for each Hope in turn, and spends only what was said yes to', () => {
+    // "Spend up to 3 Hope and choose one of the following options for each
+    // Hope spent. You can't choose the same option more than once."
+    const demo = swinging(['champions-edge'], `crit-${critical()}`);
+    demo.askDefender = true;
+    const vela = demo.state.entity('vela')!;
+    vela.hope = { max: 6, value: 3 };
+    vela.hitPoints = { max: 6, marked: 2 };
+    vela.armorSlots = { max: 3, marked: 2 };
+    const foe = demo.state.entity('foe')!;
+    expect(attackWithSelected(demo, 'foe')?.hit).toBe(true);
+    const marked = foe.hitPoints.marked;
+
+    // The card is a decision, so it is offered before anything is asked.
+    expect(demo.pending?.kind).toBe('reaction');
+    answerPending(demo, { kind: 'choose', index: 1 });
+
+    // Three questions in the order the card prints them: yes, no, yes.
+    answerPending(demo, { kind: 'choose', index: 0 });
+    answerPending(demo, { kind: 'choose', index: 1 });
+    answerPending(demo, { kind: 'choose', index: 0 });
+    expect(demo.pending).toBeNull();
+    expect(vela.hitPoints.marked).toBe(1);
+    expect(vela.armorSlots.marked).toBe(2);
+    expect(foe.hitPoints.marked).toBe(marked + 1);
+    // Three Hope, one more for the critical, two spent on the two yeses.
+    expect(vela.hope!.value).toBe(2);
+  });
+
+  it('hands the room a Hope or a Stress off one critical, once per rest', () => {
+    const seed = critical();
+    const demo = swinging(['critical-inspiration'], `crit-${seed}`);
+    demo.askDefender = true;
+    const vela = demo.state.entity('vela')!;
+    vela.stress = { max: 6, marked: 2 };
+    expect(attackWithSelected(demo, 'foe')?.hit).toBe(true);
+    expect(demo.pending?.kind).toBe('script');
+    // Nobody else is standing in this fixture, so what the card is worth here
+    // is the asking: the allies it clears for are read off the same selector
+    // every other card uses.
+    answerPending(demo, { kind: 'choose', index: 0 });
+    expect(demo.pending).toBeNull();
+
+    // Rousing Strike answers the same moment, and counts its holder in.
+    const roused = swinging(['rousing-strike'], `crit-${seed}`);
+    roused.askDefender = true;
+    roused.state.entity('vela')!.hitPoints = { max: 6, marked: 2 };
+    expect(attackWithSelected(roused, 'foe')?.hit).toBe(true);
+    expect(roused.pending?.kind).toBe('script');
+    answerPending(roused, { kind: 'choose', index: 0 });
+    expect(roused.state.entity('vela')!.hitPoints.marked).toBe(1);
+  });
+
   it('will not call in a toll on somebody who is not carrying one', () => {
     const demo = swinging(['twilight-toll'], 'toll');
     demo.askDefender = true;

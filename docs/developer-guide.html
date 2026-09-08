@@ -903,6 +903,14 @@ footer {
   whatever ran on its own before the blow is either put to the player or landed. Without that,
   a card rolling dice it had collected would write its total to the log and nowhere else.</p>
 
+  <p>A card can ask what the dice said. <code>rolled</code> has always been able to read a
+  roll &mdash; it is how a stat block answers &ldquo;when a PC rolls a failure with
+  Fear&rdquo; &mdash; but the moment a swing lands carried no roll with it, so a card asking
+  &ldquo;when you critically succeed on an attack&rdquo; read nothing and never fired. The
+  roll now travels with the offer: into the gate that decides whether the card is offered at
+  all, and into the script it runs, so an effect can branch on it as well. Four cards were
+  waiting on that one binding.</p>
+
   <p>The other side of a wound has a trigger of its own. <code>tookDamage</code> is the one
   who was hit; <code>allyTookDamage</code> is everyone else on their side, raised with whoever
   dealt it bound as the target, which is how a card set on one creature counts what that

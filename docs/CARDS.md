@@ -20,12 +20,13 @@ Known simplifications in the scripted ones:
 - **Ferocity** and **Never Upstaged** keep their bonus as tokens on the card, so the Evasion or the damage is whatever the fight put there; Ferocity is spent by the next attack made at its holder, hit or miss.
 - **Enrapture** and **Mass Enrapture** put the name on the target and let the condition carry it: a creature whose attention is fixed on one person is two Evasion easier to hit, and whom it attacks is still the table's call. **Glyph of Nightfall** is worth a flat two rather than the caster's Knowledge, because a condition carries one number rather than the number of whoever applied it. **Death Grip** offers the pull and the constriction, not the vines catching everyone in between: that is a line across the map, and a selector reads bands around a creature.
 - **Spellcharge** takes any wound rather than magic damage alone and is not capped at the caster's Spellcast trait; **Twilight Toll** is worth one die rather than growing with every success that rolled no damage. **Sigil of Retribution** holds a die for every blow without the cap of the caster's level, and recasting it moves the sigil while leaving the dice already on the card - the card clears them when they are rolled and nowhere else.
+- The four cards that answer a critical each make one choice for everyone rather than asking each person: **Critical Inspiration** and **Rousing Strike** hand the room one answer, **Rousing Strike** reads "who can see or hear you" as Far range and clears two Stress rather than 1d4, and **Champion's Edge** asks for its three in the order the card prints them. **Gore and Glory** answers the critical half only - nothing tells the one swinging that what they hit has fallen.
 - **Rage Up** is asked once per attack rather than twice, and after the swing lands rather than before it is made - which spends its Stress only on a blow that is going to be counted. **Onslaught** floors a blow at the Major band rather than reading the target's own Major threshold as a number, which is the same two Hit Points; its second half answers an area blow that caught its holder as well as an ally.
 - **Breaking Blow** leaves its crack for the holder's own next hit: nothing raises a party member's blow to the rest of the party, so an ally's swing does not cash the mark. **Rapid Riposte** hits back with the primary weapon rather than a choice of active ones.
 - **Battle Monster** throws the damage roll away and marks the Hit Points the caster is carrying, past thresholds, resistance and Armor Slots - which is what "instead of rolling for damage" asks for.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 71 of 189 cards.
+Scripted: 75 of 189 cards.
 
 
 ## Arcana
@@ -67,7 +68,7 @@ Scripted: 71 of 189 cards.
 | 3 | Versatile Fighter | Ability | text |
 | 4 | Deadly Focus | Ability | text |
 | 4 | Fortified Armor | Ability | **passive** |
-| 5 | Champion's Edge | Ability | text |
+| 5 | Champion's Edge | Ability | **reaction** |
 | 5 | Vitality | Ability | text |
 | 6 | Battle-Hardened | Ability | text |
 | 6 | Rage Up | Ability | **reaction** |
@@ -75,7 +76,7 @@ Scripted: 71 of 189 cards.
 | 7 | Glancing Blow | Ability | text |
 | 8 | Battle Cry | Ability | text |
 | 8 | Frenzy | Ability | text |
-| 9 | Gore and Glory | Ability | text |
+| 9 | Gore and Glory | Ability | **reaction** |
 | 9 | Reaper's Strike | Ability | text |
 | 10 | Battle Monster | Ability | **reaction** |
 | 10 | Onslaught | Ability | **reaction** |
@@ -245,12 +246,12 @@ Scripted: 71 of 189 cards.
 | 1 | I Am Your Shield | Ability | **reaction** |
 | 2 | Body Basher | Ability | **passive** |
 | 2 | Bold Presence | Ability | text |
-| 3 | Critical Inspiration | Ability | text |
+| 3 | Critical Inspiration | Ability | **reaction** |
 | 3 | Lean on Me | Ability | text |
 | 4 | Goad Them On | Ability | text |
 | 4 | Support Tank | Ability | text |
 | 5 | Armorer | Ability | **passive** |
-| 5 | Rousing Strike | Ability | text |
+| 5 | Rousing Strike | Ability | **reaction** |
 | 6 | Inevitable | Ability | text |
 | 6 | Rise Up | Ability | **passive**, **reaction** |
 | 7 | Shrug It Off | Ability | **reaction** |

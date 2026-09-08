@@ -329,6 +329,185 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- what the dice said, once the blow has landed -----------------------
+  // Four cards answer a critical success, and until the roll reached the cards
+  // that answer a hit none of them could ask. The gate is a plain `rolled`,
+  // read from the same bindings the blow already carried.
+  {
+    id: 'gore-and-glory',
+    name: 'Gore and Glory',
+    source: card('gore-and-glory'),
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    available: { kind: 'rolled', is: 'critical' },
+    target: { kind: 'none' },
+    // Simplified: the half that answers a critical runs; "when you deal enough
+    // damage to defeat an enemy" is text, because nothing tells the one
+    // swinging that what they hit has fallen.
+    effects: [
+      {
+        kind: 'choice',
+        title: 'Gore and Glory',
+        body: 'The blow tells.',
+        options: [
+          { label: 'Gain a Hope', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
+          { label: 'Clear a Stress', effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }] },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'champions-edge',
+    name: "Champion's Edge",
+    source: card('champions-edge'),
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    // "You can spend up to 3 Hope": spending is a decision, so the card is
+    // offered rather than taken.
+    auto: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'rolled', is: 'critical' },
+        { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+      ],
+    },
+    target: { kind: 'none' },
+    // Simplified: the three are asked in the order the card prints them rather
+    // than in any order the player likes. Each is asked once, each costs a
+    // Hope, and none can be taken twice - which is what the card's own last
+    // line is for.
+    effects: [
+      {
+        kind: 'branch',
+        when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+        then: [
+          {
+            kind: 'choice',
+            title: "Champion's Edge",
+            body: 'Spend a Hope to clear a Hit Point?',
+            options: [
+              {
+                label: 'Clear a Hit Point (1 Hope)',
+                effects: [
+                  { kind: 'spendHope', amount: 1 },
+                  { kind: 'heal', amount: 1, target: { kind: 'actor' } },
+                ],
+              },
+              { label: 'No' },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'branch',
+        when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+        then: [
+          {
+            kind: 'choice',
+            title: "Champion's Edge",
+            body: 'Spend a Hope to clear an Armor Slot?',
+            options: [
+              {
+                label: 'Clear an Armor Slot (1 Hope)',
+                effects: [
+                  { kind: 'spendHope', amount: 1 },
+                  { kind: 'clearArmor', amount: 1, target: { kind: 'actor' } },
+                ],
+              },
+              { label: 'No' },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'branch',
+        when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+        then: [
+          {
+            kind: 'choice',
+            title: "Champion's Edge",
+            body: 'Spend a Hope to make them mark another Hit Point?',
+            options: [
+              {
+                label: 'They mark a Hit Point (1 Hope)',
+                effects: [
+                  { kind: 'spendHope', amount: 1 },
+                  { kind: 'damage', amount: 1, direct: true, target: { kind: 'target' } },
+                ],
+              },
+              { label: 'No' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'critical-inspiration',
+    name: 'Critical Inspiration',
+    source: card('critical-inspiration'),
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    uses: { count: 1, per: 'rest' },
+    available: { kind: 'rolled', is: 'critical' },
+    target: { kind: 'none' },
+    // Simplified: one answer for the whole room rather than each ally choosing
+    // for themselves, which is a prompt per person for a card that fires on a
+    // critical.
+    effects: [
+      {
+        kind: 'choice',
+        title: 'Critical Inspiration',
+        body: 'What the sight of it is worth.',
+        options: [
+          {
+            label: 'Everyone nearby clears a Stress',
+            effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'allies', range: 'veryClose' } }],
+          },
+          {
+            label: 'Everyone nearby gains a Hope',
+            effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'allies', range: 'veryClose' } }],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'rousing-strike',
+    name: 'Rousing Strike',
+    source: card('rousing-strike'),
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    uses: { count: 1, per: 'rest' },
+    available: { kind: 'rolled', is: 'critical' },
+    target: { kind: 'none' },
+    // Simplified: "all allies who can see or hear you" is read as Far range,
+    // which is as far as this engine measures a room; the Stress cleared is
+    // two rather than 1d4, because a clear is a number rather than dice; and
+    // the choice is made once for everyone.
+    effects: [
+      {
+        kind: 'choice',
+        title: 'Rousing Strike',
+        body: 'What the room takes from it.',
+        options: [
+          {
+            label: 'Everyone clears a Hit Point',
+            effects: [{ kind: 'heal', amount: 1, target: { kind: 'allies', range: 'far', includeSelf: true } }],
+          },
+          {
+            label: 'Everyone clears 2 Stress',
+            effects: [{ kind: 'clearStress', amount: 2, target: { kind: 'allies', range: 'far', includeSelf: true } }],
+          },
+        ],
+      },
+    ],
+  },
   // ---- what a blow is worth before anything else is said about it ---------
   {
     id: 'rage-up',

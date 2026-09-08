@@ -327,6 +327,12 @@ export interface ReactionOffer {
   targets: readonly string[];
   counts: Partial<Record<CountName, number>>;
   lastDamage?: { total: number; types: readonly DamageType[] };
+  /**
+   * The roll that raised it, for a card that asks what the dice said: "when
+   * you critically succeed on an attack". Only a roll somebody watched land -
+   * an adversary's d20 is not one, and nothing on a card asks about it.
+   */
+  roll?: { total: number; outcome: RollOutcome };
 }
 
 /** The waiting script, when what is waiting is a script and not a defender. */
@@ -1070,15 +1076,11 @@ export function attackWithSelected(
   };
   if (outcome.hit && outcome.damageRoll !== undefined) {
     const box = { held };
-    const offers = offersFor(
-      demo,
-      id!,
-      ['rollingDamage'],
-      [targetId],
-      {},
-      { total: outcome.damageRoll.total, types: profile.damage.types ?? ['physical'] },
-      box,
-    );
+    const offers = offersFor(demo, id!, ['rollingDamage'], [targetId], {}, {
+      lastDamage: { total: outcome.damageRoll.total, types: profile.damage.types ?? ['physical'] },
+      landing: box,
+      ...(outcome.dualityRoll === undefined ? {} : { roll: outcome.dualityRoll }),
+    });
     // A card that stopped to ask something of its own is holding the blow now,
     // and lands it when it is answered.
     if (demo.pending !== null) return { hit: outcome.hit, refused: null, hitPointsMarked: 0, waiting: true };
@@ -1233,7 +1235,7 @@ function landPartyAttack(
     // log and before the turn is spent. A question left standing here holds
     // nothing up - the GM's turn is started by the player pressing pass, never
     // by the swing that ended theirs.
-    playAttackRiders(demo, id!, targetId, applied.hitPointsMarked);
+    playAttackRiders(demo, id!, targetId, applied.hitPointsMarked, outcome.dualityRoll);
     // And the other side of it: whoever was swung at counts the swing, the
     // same way the party does when the GM swings at them.
     playAttackedOn(demo, targetId, id!);
@@ -1999,7 +2001,7 @@ function playDamageReactions(demo: DemoScene): void {
     // The party's half of the same rule. A card they can afford and would
     // choose is offered; one that costs nothing and asks nothing simply runs.
     if (entity.faction === 'party') {
-      const offers = offersFor(demo, note.id, triggers, bound, counts, lastDamage);
+      const offers = offersFor(demo, note.id, triggers, bound, counts, { lastDamage });
       if (offers.length > 0) asked.push(offers);
       // And what the rest of the party makes of one of their own being hit.
       // Everyone standing hears it, wherever they are: a card that cares how
@@ -2007,7 +2009,7 @@ function playDamageReactions(demo: DemoScene): void {
       // stat block's feature is read from the reactor.
       for (const other of demo.state.entitiesOf('party')) {
         if (other.id === note.id || !other.alive) continue;
-        const theirs = offersFor(demo, other.id, ['allyTookDamage'], bound, counts, lastDamage);
+        const theirs = offersFor(demo, other.id, ['allyTookDamage'], bound, counts, { lastDamage });
         if (theirs.length > 0) asked.push(theirs);
       }
       continue;
@@ -2042,20 +2044,32 @@ function offersFor(
   triggers: readonly NonNullable<AbilityDef['trigger']>[],
   bound: readonly string[],
   counts: Partial<Record<CountName, number>>,
-  lastDamage?: { total: number; types: readonly DamageType[] },
-  /**
-   * A swing of the holder's waiting on these cards, carried in a box because a
-   * card that runs on its own runs *here*, and what it said about the blow has
-   * to reach the caller that is still holding it. Without this the free half
-   * of a card - a Sigil rolling the dice it collected - would be written to the
-   * log and then thrown away.
-   */
-  landing?: { held: HeldSwing },
+  /** Everything else the moment left behind, all of it optional. */
+  left: {
+    lastDamage?: { total: number; types: readonly DamageType[] };
+    /**
+     * A swing of the holder's waiting on these cards, carried in a box because
+     * a card that runs on its own runs *here*, and what it said about the blow
+     * has to reach the caller that is still holding it. Without this the free
+     * half of a card - a Sigil rolling the dice it collected - would be written
+     * to the log and then thrown away.
+     */
+    landing?: { held: HeldSwing };
+    /** The roll that raised the moment, for a card that asks what it was. */
+    roll?: { total: number; outcome: RollOutcome };
+  } = {},
 ): ReactionOffer[] {
+  const { lastDamage, landing, roll } = left;
   const offers: ReactionOffer[] = [];
   const seen = new Set<string>();
   for (const trigger of triggers) {
-    for (const ability of demo.world.reactionsFor(id, trigger, { targets: [...bound], hit: [...bound], counts })) {
+    const bindings = {
+      targets: [...bound],
+      hit: [...bound],
+      counts,
+      ...(roll === undefined ? {} : { roll }),
+    };
+    for (const ability of demo.world.reactionsFor(id, trigger, bindings)) {
       if (ability.effects.length === 0 || seen.has(ability.id)) continue;
       seen.add(ability.id);
       const holder = defenderFor(demo, id);
@@ -2066,6 +2080,7 @@ function offersFor(
         targets: [...bound],
         counts,
         ...(lastDamage === undefined ? {} : { lastDamage }),
+        ...(roll === undefined ? {} : { roll }),
       };
       // Free and automatic is not a question: it happens, the way a stat
       // block's own reactions do.
@@ -2173,6 +2188,7 @@ function playReaction(
     rollAs: 'actor',
     counts: offer.counts,
     ...(offer.lastDamage === undefined ? {} : { lastDamage: offer.lastDamage }),
+    ...(offer.roll === undefined ? {} : { roll: offer.roll }),
   });
   const result = runner.run(offer.ability.effects);
   record(demo, result.journal);
@@ -2656,16 +2672,28 @@ function landedFeatures(demo: DemoScene, attack: IncomingAttack, hitPointsMarked
  * hang these on what the target does about the damage, which a fallen creature
  * no longer does.
  */
-function playAttackRiders(demo: DemoScene, attackerId: string, defenderId: string, hitPointsMarked: number): void {
+function playAttackRiders(
+  demo: DemoScene,
+  attackerId: string,
+  defenderId: string,
+  hitPointsMarked: number,
+  /**
+   * The roll the swing was made with, when somebody watched it land. "When you
+   * critically succeed on a weapon attack" is a question about this, and a
+   * card asking it reads nothing without it.
+   */
+  roll?: DualityRoll,
+): void {
   if (demo.state.entity(defenderId)?.alive !== true) return;
   const triggers: NonNullable<AbilityDef['trigger']>[] = hitPointsMarked > 0 ? ['dealtHit', 'dealtDamage'] : ['dealtHit'];
   const counts = { hitPointsDealt: hitPointsMarked };
+  const said = roll === undefined ? {} : { roll: { total: roll.total, outcome: roll.outcome } };
   if (demo.state.entity(attackerId)?.faction === 'party') {
-    offerReactions(demo, [offersFor(demo, attackerId, triggers, [defenderId], counts)]);
+    offerReactions(demo, [offersFor(demo, attackerId, triggers, [defenderId], counts, said)]);
     return;
   }
   for (const trigger of triggers) {
-    for (const ability of demo.world.reactionsFor(attackerId, trigger, { targets: [defenderId], hit: [defenderId], counts })) {
+    for (const ability of demo.world.reactionsFor(attackerId, trigger, { targets: [defenderId], hit: [defenderId], counts, ...said })) {
       if (ability.effects.length === 0) continue;
       runAdversaryScript(demo, attackerId, ability, [defenderId], [defenderId], { counts });
     }
