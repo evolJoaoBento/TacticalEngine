@@ -2944,8 +2944,10 @@ function afterReaction(
  * a feature measures the distance to them - and what the roll was is read by a
  * `rolled` condition on the feature's own gate.
  *
- * Only the GM's side answers a roll: a card of the party's that did would be
- * answering its own holder, and nothing in the SRD is written that way.
+ * Both sides answer it. The GM's features read the party's rolls as they
+ * always did; the party's own cards hear them too, which is what "when you
+ * fail an action roll" and "when an ally fails an action roll" each need, and
+ * `self` is the question that tells those two apart.
  */
 function playPartyRolled(demo: DemoScene, roller: string, roll: DualityRoll): void {
   if (demo.state.entity(roller)?.faction !== 'party') return;

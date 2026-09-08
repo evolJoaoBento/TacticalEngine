@@ -161,6 +161,18 @@ export const abilityModifierSchema = z.object({
    * to have advantage" are about a third creature, and stay text.
    */
   against: z.boolean().optional(),
+  /**
+   * Whether this reads on any *action* roll rather than only on an attack:
+   * "your next action roll has advantage" against "your attacks have
+   * advantage".
+   *
+   * Almost everything printed about advantage is about a swing - Vulnerable,
+   * Hidden, being Chilled - so the flag is off by default and the attack path
+   * is the only one that reads them. A check reads the ones that say this.
+   * A reaction roll reads neither: nothing spends a carried die on one, so
+   * nothing may pay it into one either.
+   */
+  anyRoll: z.boolean().optional(),
 })
   // The flag exists for the dice and nothing else. "+2 to their Difficulty" is
   // an `evasion` bonus on the creature itself; a modifier that tried to say
@@ -168,6 +180,13 @@ export const abilityModifierSchema = z.object({
   // holder's own numbers, where a derived character sums by stat.
   .refine((m) => m.against !== true || m.stat === 'advantage', {
     message: 'against reads only on advantage',
+  })
+  // The other side of it - "attack rolls against you have advantage while you
+  // are Vulnerable" - is still only read by the attack path, so a modifier
+  // that asked for both would quietly do nothing. Refused until there is a
+  // path that honours it.
+  .refine((m) => m.anyRoll !== true || (m.stat === 'advantage' && m.against !== true), {
+    message: 'anyRoll reads only on advantage the roller has themselves',
   });
 
 /**

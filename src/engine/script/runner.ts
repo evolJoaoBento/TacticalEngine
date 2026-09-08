@@ -122,6 +122,11 @@ export interface ScriptWorld extends ConditionContext {
    * make that roll at all: a Spellcast Roll with no Spellcast trait.
    */
   checkModifier(trait: CheckTrait, as: 'party' | 'actor'): number | null;
+  /**
+   * The advantage the acting creature carries into any action roll, as against
+   * the advantage a swing carries: a check reads this and nothing else.
+   */
+  advantageRolling(): { advantage: number; disadvantage: number };
   /** The acting character's Experiences, spendable for a Hope each. */
   experiences(): readonly { name: string; modifier: number }[];
   /** What a roll against this creature must meet: Evasion, or an adversary's Difficulty. */
@@ -683,11 +688,17 @@ export class ScriptRunner {
         : [check.difficulty];
     const difficulty = difficulties.length === 0 ? Infinity : Math.min(...difficulties);
 
+    // What the roller was carrying for their next roll, and this is it. It
+    // goes on the same scales the table asked for, so a die of each still
+    // cancels rather than both being rolled.
+    const carried = this.world.advantageRolling();
+    const net =
+      (response.advantage ?? 0) - (response.disadvantage ?? 0) + carried.advantage - carried.disadvantage;
     const roll = rollDuality(this.rng, {
       difficulty,
       modifier,
-      ...(response.advantage === undefined ? {} : { advantage: response.advantage }),
-      ...(response.disadvantage === undefined ? {} : { disadvantage: response.disadvantage }),
+      ...(net > 0 ? { advantage: net } : {}),
+      ...(net < 0 ? { disadvantage: -net } : {}),
       ...(response.helpDice === undefined ? {} : { helpDice: response.helpDice }),
     });
     const hit =

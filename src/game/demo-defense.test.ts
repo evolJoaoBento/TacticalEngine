@@ -3108,6 +3108,25 @@ describe('a word in the wrong ear', () => {
     return demo.log.slice(said).map((l) => l.text);
   };
 
+  it('rolls it with what she was carrying for her next roll', () => {
+    const { demo, husk } = whispering('discord-carried');
+    demo.world.applyCondition('mira', 'inevitable', 'scene');
+    const before = demo.rolls.length;
+    whisper(demo, husk.id);
+    // The first roll of the whisper is the Spellcast Roll itself.
+    expect(demo.rolls[before]!.roll.advantageDie).toBeGreaterThan(0);
+    // And the roll it was carried into is the one that spends it.
+    expect(demo.state.entity('mira')!.conditions.has('inevitable')).toBe(false);
+  });
+
+  it('carries nothing that was only ever said about a swing', () => {
+    const { demo, husk } = whispering('discord-chilled');
+    demo.world.applyCondition('mira', 'chilled', 'scene');
+    const before = demo.rolls.length;
+    whisper(demo, husk.id);
+    expect(demo.rolls[before]!.roll.advantageDie).toBe(0);
+  });
+
   it('turns an adversary on the one standing beside it', () => {
     for (let seed = 1; seed < 60; seed++) {
       const { demo, husk, other } = whispering(`discord-${seed}`);

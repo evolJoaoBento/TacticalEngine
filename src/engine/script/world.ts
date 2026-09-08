@@ -885,6 +885,27 @@ export class SceneScriptWorld implements ScriptWorld {
     return { advantage: Math.max(0, net), disadvantage: Math.max(0, -net) };
   }
 
+  /**
+   * The scales the acting creature carries into a roll that is not a swing:
+   * the advantage a card gave them for their *next action roll*, whatever
+   * they roll it at.
+   *
+   * Only the modifiers that say so, and only their own: everything else
+   * printed about advantage is about an attack, and is read by `advantageFor`
+   * with a defender to measure from. Read from the same chair `rollsFrom`
+   * spends the condition from, so what pays for the die is what the die is
+   * taken off.
+   */
+  advantageRolling(): { advantage: number; disadvantage: number } {
+    const actor = this.scenario.actorId;
+    if (actor === null) return { advantage: 0, disadvantage: 0 };
+    const mine = this.modifiersOf(actor, 'roll').filter(
+      (m) => m.stat === 'advantage' && m.against !== true && m.anyRoll === true,
+    );
+    const net = this.sumModifiers(actor, mine);
+    return { advantage: Math.max(0, net), disadvantage: Math.max(0, -net) };
+  }
+
   /** The reactions to incoming damage a creature holds. */
   reactionsOf(id: string): AbilityDef[] {
     return this.reactionsFor(id, 'incomingDamage');

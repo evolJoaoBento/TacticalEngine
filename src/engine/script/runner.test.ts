@@ -4,6 +4,7 @@ import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
 import { addVar, log, setFlag, type Effect } from './effects';
 import { ScriptRunner, runScript, type ScriptWorld } from './runner';
+import { conditionDefSchema } from '../content/conditions';
 import { SceneScriptWorld, createScenarioState } from './world';
 import { evaluate, NO_BINDINGS } from './conditions';
 
@@ -49,6 +50,7 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     heal: () => 0,
 healShared: () => 0,
     checkModifier: () => 0,
+    advantageRolling: () => ({ advantage: 0, disadvantage: 0 }),
     experiences: () => [],
     difficultyOf: () => null,
     hook: () => null,
@@ -439,6 +441,54 @@ describe('check', () => {
     expect(after.status).toBe('done');
     expect(after.journal).toEqual([]);
     expect(w.getVar('cranks')).toBe(null);
+  });
+
+  /**
+   * The same room, with conditions to stand on somebody: one that speaks of
+   * any action roll, one that only ever spoke of a swing.
+   */
+  const carrying = (worn: string): SceneScriptWorld => {
+    const grid = new TileGrid({ width: 5, height: 3 });
+    const state = new SceneState({ id: 'room' }, grid);
+    state.addEntity({ ...createPartyEntity('kara', 'sentinel', 0), hitPoints: { max: 6, marked: 0 } });
+    const scenario = createScenarioState({}, 'kara');
+    const w = new SceneScriptWorld(state, scenario, {
+      traits: { finesse: 2, presence: 1 },
+      conditionDefs: [
+        conditionDefSchema.parse({
+          id: 'sure-of-it',
+          name: 'Sure of It',
+          text: 'Your next action roll has advantage.',
+          modifiers: [{ stat: 'advantage', bonus: 1, anyRoll: true }],
+        }),
+        conditionDefSchema.parse({
+          id: 'swinging-wide',
+          name: 'Swinging Wide',
+          text: 'Your attacks have disadvantage.',
+          modifiers: [{ stat: 'advantage', bonus: -1 }],
+        }),
+      ],
+    });
+    w.applyCondition('kara', worn, 'scene');
+    return w;
+  };
+
+  /** The die a check was rolled with, and nothing else about it. */
+  const advantageDie = (w: SceneScriptWorld): number => {
+    const runner = new ScriptRunner(w, scriptedRng([5, 4, 6]));
+    runner.run(search);
+    const entry = runner.resume({ kind: 'roll' }).journal.find((e) => e.kind === 'check');
+    if (entry?.kind !== 'check') throw new Error('expected a check entry');
+    return entry.roll.advantageDie;
+  };
+
+  it('rolls with the advantage the roller was already carrying', () => {
+    expect(advantageDie(carrying('sure-of-it'))).toBe(6);
+  });
+
+  it('leaves what only a swing reads to the swing', () => {
+    // "Disadvantage on attack rolls" is not a word about searching a piano.
+    expect(advantageDie(carrying('swinging-wide'))).toBe(0);
   });
 
   it('applies advantage the table grants', () => {

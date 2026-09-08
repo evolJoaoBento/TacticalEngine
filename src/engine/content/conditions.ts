@@ -229,7 +229,10 @@ const RAW: ConditionInput[] = [
     id: 'inevitable',
     name: 'Inevitable',
     text: 'Your next action roll has advantage.',
-    modifiers: [{ stat: 'advantage', bonus: 1 }],
+    // An action roll of any kind, not the next swing: `anyRoll` is what the
+    // check path reads, and without it the die would be spent on a check that
+    // never saw it.
+    modifiers: [{ stat: 'advantage', bonus: 1, anyRoll: true }],
     endsWhen: 'rolls',
   },
   {
