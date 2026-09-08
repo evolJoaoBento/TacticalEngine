@@ -884,6 +884,28 @@ footer {
   on the runner and whoever ran the card takes it out of the loadout &mdash; after which the
   Recall Cost is the way back.</p>
 
+  <p>A swing that <em>misses</em> stops too, on <code>dealtMiss</code>. It is the other half of
+  <code>dealtHit</code> and not the same thing as <code>attackMissed</code>, which is a swing that
+  missed <em>you</em>; this one is your own that went wide, with whoever you swung at still bound
+  as the target so a card can reach them anyway. It is raised before the turn is spent, because a
+  miss hands the spotlight to the GM and a question left on the far side of that is one the player
+  answers on somebody else's turn.</p>
+
+  <p>Three smaller things a card can now say. <code>maxOneDie</code> is Versatile Fighter's
+  &ldquo;the maximum result of one of your damage dice&rdquo;: it journals and does nothing, because
+  the faces a swing came up are not something a script can see, and the blow being held does the
+  arithmetic &mdash; the lowest die goes to its highest face, which is the one anybody would pick.
+  <code>reach: 'weapon'</code> on the adversaries selector is &ldquo;within your weapon's
+  range&rdquo;, whatever the actor is holding, with the named band standing in for anyone holding
+  nothing the engine can read. And <code>nearest</code> on the <code>hit</code> selector is
+  &ldquo;choose one of these targets&rdquo;, picked the way every other automatic choice here is.</p>
+
+  <p>A reaction's blow can be the one that ends a fight, and a reaction is neither an act nor a
+  spotlight &mdash; which are the only two things that count who is left standing. So settling a
+  blow asks the encounter outright once there is nothing left to answer. The order matters: the
+  death move goes first, because two of the three moves put the character back on their feet and
+  the fight must not be called over their head.</p>
+
   <p>A blow stops once between landing and being counted. <code>rollingDamage</code> is raised on the
   creature swinging and <code>allyRollingDamage</code> on every other adversary still
   standing, both with the one being hit bound as the target &mdash; so &ldquo;within Far range

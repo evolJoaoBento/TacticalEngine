@@ -1761,6 +1761,14 @@ export function settleFight(demo: DemoScene): void {
   // at the end of the turn: a character who Risks It All and stands is one the
   // encounter must never have counted out.
   playDeathMoves(demo);
+  // And then, with nothing left to ask, who is standing. The encounter counts
+  // that when somebody acts or is spotlighted, and a blow struck out of a
+  // reaction is neither - Glancing Blow answers a swing that has already
+  // passed the spotlight to a GM with nobody left to spotlight. The pending
+  // guard is what keeps a death move in front of it: two of the three moves
+  // put the character back on their feet, and the fight must not be called
+  // over their head.
+  if (demo.pending === null) demo.encounter?.settleIfDecided();
   // "If the Gorgon is defeated, all petrification countdowns end" - and the
   // Ashen Tyrant's death throes go off instead. Here because this is where a
   // death is noticed, whoever dealt it.
@@ -2726,8 +2734,11 @@ function afterReaction(
   }
   // Whatever was said about it, the blow still lands.
   if (landing !== undefined) landPartyAttack(demo, landing);
-  // A fall that happened behind this queue was held until the queue drained.
+  // A fall that happened behind this queue was held until the queue drained,
+  // and so was the reckoning: a card with no swing waiting on it reaches
+  // nothing else that settles the fight.
   playDeathMoves(demo);
+  if (demo.pending === null) settleFight(demo);
   if (demo.gmTurn !== null) runGmTurn(demo);
 }
 

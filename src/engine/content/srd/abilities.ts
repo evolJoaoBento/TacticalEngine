@@ -502,7 +502,9 @@ const RAW: Input[] = [
     available: { kind: 'withinRange', range: 'close', of: { kind: 'allies' } },
     // The walk comes first: "end your move within Melee range of the target"
     // is where the swing is thrown from, and a Melee weapon thrown from Far
-    // reaches nothing.
+    // reaches nothing. A leap the map will not allow - a wall, a crowd of
+    // creatures in the way - spends the Stress and lands nothing, which is the
+    // one place this is worse than a table, where you would not have tried.
     effects: [
       { kind: 'log', text: 'A shove off a shoulder, and the sky.', tone: 'hope' },
       { kind: 'move', how: 'toward', of: { kind: 'target' }, range: 'melee', budget: 'far' },

@@ -2121,6 +2121,32 @@ describe('a swing that missed', () => {
     expect(landed!.pending).toBe(null);
   });
 
+  it('ends the fight it wins, though the killing blow came out of a reaction', () => {
+    // A reaction's kill is neither an `act` nor a `spotlight`, and those are
+    // the only two things that count who is left standing. Glancing Blow is
+    // built to land one: the swing that raised it already passed the spotlight
+    // to a GM with nobody left to spotlight.
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = standoff(`glancing-win-${seed}`);
+      demo.askDefender = true;
+      hold(demo, ['glancing-blow']);
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      husk.hitPoints = { max: 3, marked: 2 };
+      husk.armorSlots = { max: 0, marked: 0 };
+
+      const result = attackWithSelected(demo, husk.id);
+      if (result === null || result.refused !== null || result.hit) continue;
+      if (demo.pending?.kind !== 'reaction') continue;
+      answerPending(demo, { kind: 'choose', index: 1 });
+      if (husk.alive) continue;
+
+      expect(demo.encounter!.outcome).toBe('victory');
+      expect(demo.log.some((l) => l.text.includes('The last of them falls.'))).toBe(true);
+      return;
+    }
+    throw new Error('no glancing blow felled the husk in sixty tries');
+  });
+
   it('rolls the weapon at half Proficiency, rounded up and never under one die', () => {
     const demo = scene('half-prof');
     const sheet = demo.sheets.get('kara')!;
