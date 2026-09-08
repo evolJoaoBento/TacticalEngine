@@ -2574,3 +2574,132 @@ describe('a run in a straight line', () => {
     throw new Error('the Ogre never got to charge');
   });
 });
+
+
+describe('what a charge runs over', () => {
+  const holds = (demo: DemoScene, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('lets whoever a charge ran down answer the wound it dealt', () => {
+    const demo = standoff('answered-charge');
+    demo.askDefender = true;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 40, marked: 0 };
+    const on = adversaryDefOf(demo, husk.id)!.id;
+    const fury = demo.project.abilities.find((a) => a.id === 'cave-ogre-rampaging-fury')!;
+    // The Ogre's charge on the husk, and one card in Kara's hands that answers
+    // a wound. Nothing else in the room reacts, so what she is asked about is
+    // the whole of the assertion.
+    // A card that answers a wound, carried on a real card of the SRD's so it
+    // resolves onto her sheet - the trigger is what is under test, not which
+    // card it was printed on, so that card's own ability comes off.
+    demo.project.abilities = demo.project.abilities.filter(
+      (a) => a.source.kind !== 'adversary' && a.id !== 'deathrun',
+    );
+    demo.project.abilities.push(
+      abilitySchema.parse({ ...fury, id: 'husk-fury', source: { kind: 'adversary', adversaries: [on] } }),
+      abilitySchema.parse({
+        id: 'flinch',
+        name: 'Flinch',
+        source: { kind: 'domainCard', card: 'deathrun' },
+        text: 'When you take damage, you can steady yourself.',
+        kind: 'reaction',
+        trigger: 'tookDamage',
+        action: false,
+        effects: [{ kind: 'log', text: 'Kara steadies herself.', tone: 'hope' }],
+      }),
+    );
+    holds(demo, ['deathrun']);
+    // Nobody is going to fall: a death move would be a question of its own.
+    for (const e of demo.state.entitiesOf('party')) e.hitPoints = { max: 20, marked: 0 };
+    const before = demo.state.entity('kara')!.hitPoints.marked;
+
+    // Two Hit Points on the husk is what sets the charge off.
+    demo.world.damage({ kind: 'entity', id: husk.id }, 2);
+    settleFight(demo);
+
+    expect(demo.log.some((l) => l.text.includes('puts its head down'))).toBe(true);
+    expect(demo.state.entity('kara')!.hitPoints.marked).toBeGreaterThan(before);
+    // The wound the charge dealt is heard in the same breath as the wound that
+    // set it off, not left in the queue for whatever lands next. The card costs
+    // nothing and asks nothing, so it runs where it would have been offered.
+    expect(demo.log.some((l) => l.text.includes('Kara steadies herself.'))).toBe(true);
+  });
+
+  it('aims a charge that comes off a countdown, with nobody there to aim it', () => {
+    const demo = standoff('clockwork-charge');
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 60, marked: 0 };
+    for (const e of demo.state.entitiesOf('party')) e.hitPoints = { max: 20, marked: 0 };
+    // "When it triggers, move in a straight line to a point within Far range
+    // and attack everything in the path": a clock with a charge on it, one
+    // tick from going off.
+    demo.scenario.countdowns.set('rampage', {
+      id: 'rampage',
+      name: 'Rampage',
+      owner: husk.id,
+      dice: '1',
+      value: 1,
+      start: 1,
+      advance: 'attackRoll',
+      onDeath: 'end',
+      effects: [
+        { kind: 'log', text: 'It breaks into a run and does not turn.', tone: 'fear' },
+        { kind: 'damage', dice: '4d12+20', type: 'physical', direct: true, target: { kind: 'inPath', side: 'allies' } },
+      ],
+    });
+    const before = demo.state.entity('kara')!.hitPoints.marked;
+
+    attackWithSelected(demo, husk.id);
+    let guard = 0;
+    while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
+
+    expect(demo.log.some((l) => l.text.includes('breaks into a run'))).toBe(true);
+    expect(demo.state.entity('kara')!.hitPoints.marked).toBeGreaterThan(before);
+  });
+
+  it('does not run over what is standing behind the one charging', () => {
+    const demo = standoff('behind-me');
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const card = demo.project.abilities.find((a) => a.id === 'deathrun')!;
+    holds(demo, ['deathrun']);
+    const tiles = pointTiles(demo, 'kara', card);
+    expect(tiles.length).toBeGreaterThan(0);
+
+    // The husk is at Kara's elbow. Aimed through it the run catches it; aimed
+    // the other way it does not, because the tile she started on is not on the
+    // path she ran.
+    const through = tiles.filter((tile) => shapeAt(demo, 'kara', card, tile).includes(husk.id));
+    const clear = tiles.filter((tile) => !shapeAt(demo, 'kara', card, tile).includes(husk.id));
+    expect(through.length).toBeGreaterThan(0);
+    expect(clear.length).toBeGreaterThan(0);
+  });
+
+  it('catches what the boiling line went over rather than everybody within Far', () => {
+    const demo = standoff('boiling-line');
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const kara = demo.state.entity('kara')!;
+    demo.scenario.actorId = husk.id;
+    const line = (): string[] =>
+      demo.world.resolveTargets({ kind: 'inPath', side: 'allies' }, { targets: [], hit: [], point: kara.tile });
+    const circle = (): string[] =>
+      demo.world.resolveTargets({ kind: 'allies', range: 'far' }, { targets: [], hit: [] });
+    expect(line()).toContain('kara');
+
+    // Somewhere within Far of it but off the line: the circle the Kraken used
+    // to throw caught them, and the line does not.
+    let missed = false;
+    const blocked = demo.state.blockedFor('finn');
+    for (let tile = 0; tile < demo.grid.width * demo.grid.height && !missed; tile++) {
+      if (!demo.grid.isPassable(tile) || blocked(tile)) continue;
+      demo.state.moveEntity('finn', tile);
+      if (circle().includes('finn') && !line().includes('finn')) missed = true;
+    }
+    expect(missed).toBe(true);
+  });
+});

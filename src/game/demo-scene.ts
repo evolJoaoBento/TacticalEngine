@@ -2190,7 +2190,21 @@ function playCountdown(demo: DemoScene, moved: CountdownMoved): void {
 function runCountdown(demo: DemoScene, countdown: RunningCountdown): void {
   const was = demo.scenario.actorId;
   demo.scenario.actorId = countdown.owner;
-  const runner = new ScriptRunner(demo.world, demo.rng, { targets: [], hit: [], rollAs: 'actor' });
+  // The same aim a stat block's own feature gets. "When it triggers, move the
+  // Hunter in a straight line to a point within Far range" is the GM's charge
+  // on a clock, and there is nobody at that end of the table to click a tile
+  // for it either. A countdown the party armed is left unaimed, the way it was:
+  // the nearest party member is the wrong end of the room for one of theirs.
+  const aim =
+    countdown.owner !== null && demo.state.entity(countdown.owner)?.faction === 'adversary'
+      ? aimedAt(demo, countdown.owner)
+      : NO_TILE;
+  const runner = new ScriptRunner(demo.world, demo.rng, {
+    targets: [],
+    hit: [],
+    rollAs: 'actor',
+    ...(aim === NO_TILE ? {} : { point: aim }),
+  });
   const result = runner.run(countdown.effects);
   record(demo, result.journal);
   demo.scenario.actorId = was;
@@ -2389,45 +2403,54 @@ function spendSwarmSpotlights(demo: DemoScene, journal: readonly JournalEntry[])
  */
 function playDamageReactions(demo: DemoScene): void {
   const asked: ReactionOffer[][] = [];
-  for (const note of demo.world.drainDamage()) {
-    const entity = demo.state.entity(note.id);
-    if (entity === undefined || !entity.alive) continue;
-    const attacker = note.attacker !== null && demo.state.entity(note.attacker)?.alive === true ? note.attacker : null;
-    const triggers: NonNullable<AbilityDef['trigger']>[] = ['tookDamage'];
-    if (note.hitPoints > 0) triggers.push('tookHitPoints');
-    if (note.severe) triggers.push('tookSevere');
-    const counts = { hitPointsTaken: note.hitPoints };
-    const bound = attacker === null ? [] : [attacker];
-    const lastDamage = { total: note.damage, types: note.types };
+  // A feature that answers a wound can deal one of its own - the Ogre's charge
+  // cuts through whoever hurt it - and that blow is noted behind the drain
+  // being read, because `drainDamage` clears as it reports. So the room is
+  // drained until it is quiet. The cap is for two creatures answering each
+  // other: a ring of counter-blows stops rather than hangs the fight.
+  for (let pass = 0; pass < 4; pass++) {
+    const took = demo.world.drainDamage();
+    if (took.length === 0) break;
+    for (const note of took) {
+      const entity = demo.state.entity(note.id);
+      if (entity === undefined || !entity.alive) continue;
+      const attacker = note.attacker !== null && demo.state.entity(note.attacker)?.alive === true ? note.attacker : null;
+      const triggers: NonNullable<AbilityDef['trigger']>[] = ['tookDamage'];
+      if (note.hitPoints > 0) triggers.push('tookHitPoints');
+      if (note.severe) triggers.push('tookSevere');
+      const counts = { hitPointsTaken: note.hitPoints };
+      const bound = attacker === null ? [] : [attacker];
+      const lastDamage = { total: note.damage, types: note.types };
 
-    // The party's half of the same rule. A card they can afford and would
-    // choose is offered; one that costs nothing and asks nothing simply runs.
-    if (entity.faction === 'party') {
-      const offers = offersFor(demo, note.id, triggers, bound, counts, { lastDamage });
-      if (offers.length > 0) asked.push(offers);
-      // And what the rest of the party makes of one of their own being hit.
-      // Everyone standing hears it, wherever they are: a card that cares how
-      // far away it happened says so in its own gate, the way the reach on a
-      // stat block's feature is read from the reactor.
-      for (const other of demo.state.entitiesOf('party')) {
-        if (other.id === note.id || !other.alive) continue;
-        const theirs = offersFor(demo, other.id, ['allyTookDamage'], bound, counts, { lastDamage });
-        if (theirs.length > 0) asked.push(theirs);
+      // The party's half of the same rule. A card they can afford and would
+      // choose is offered; one that costs nothing and asks nothing simply runs.
+      if (entity.faction === 'party') {
+        const offers = offersFor(demo, note.id, triggers, bound, counts, { lastDamage });
+        if (offers.length > 0) asked.push(offers);
+        // And what the rest of the party makes of one of their own being hit.
+        // Everyone standing hears it, wherever they are: a card that cares how
+        // far away it happened says so in its own gate, the way the reach on a
+        // stat block's feature is read from the reactor.
+        for (const other of demo.state.entitiesOf('party')) {
+          if (other.id === note.id || !other.alive) continue;
+          const theirs = offersFor(demo, other.id, ['allyTookDamage'], bound, counts, { lastDamage });
+          if (theirs.length > 0) asked.push(theirs);
+        }
+        asked.push(...nearbyOffers(demo, note.id, bound, counts, lastDamage));
+        continue;
+      }
+      if (entity.faction !== 'adversary') continue;
+
+      for (const trigger of triggers) {
+        for (const ability of demo.world.reactionsFor(note.id, trigger, { targets: bound, hit: bound, counts })) {
+          if (ability.effects.length === 0) continue;
+          if (!affordableReaction(demo, note.id, ability)) continue;
+          spendFeatureCost(demo, note.id, ability, 'reaction');
+          runAdversaryScript(demo, note.id, ability, bound, bound, { counts, lastDamage });
+        }
       }
       asked.push(...nearbyOffers(demo, note.id, bound, counts, lastDamage));
-      continue;
     }
-    if (entity.faction !== 'adversary') continue;
-
-    for (const trigger of triggers) {
-      for (const ability of demo.world.reactionsFor(note.id, trigger, { targets: bound, hit: bound, counts })) {
-        if (ability.effects.length === 0) continue;
-        if (!affordableReaction(demo, note.id, ability)) continue;
-        spendFeatureCost(demo, note.id, ability, 'reaction');
-        runAdversaryScript(demo, note.id, ability, bound, bound, { counts, lastDamage });
-      }
-    }
-    asked.push(...nearbyOffers(demo, note.id, bound, counts, lastDamage));
   }
   // Every note is read before anyone is asked: `drainDamage` clears as it
   // reports, so an offer left behind a question would never be made.

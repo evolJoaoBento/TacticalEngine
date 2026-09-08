@@ -898,7 +898,12 @@ export class SceneScriptWorld implements ScriptWorld {
 
   /**
    * Every living creature standing within `range` of the straight line from a
-   * tile to a tile, endpoints included.
+   * tile to a tile: the far endpoint included, the near one not.
+   *
+   * The run leaves the tile it started on, so what was standing beside the
+   * charger before it moved is behind it rather than in its way. Keeping that
+   * tile would make a charge with somebody at its elbow catch them whichever
+   * way it was aimed, which is not what "all targets in their path" means.
    *
    * The line is the one sight is traced along, so a charge and a look down the
    * same corridor agree about what is on it. Nothing here asks whether the
@@ -907,10 +912,11 @@ export class SceneScriptWorld implements ScriptWorld {
    */
   alongPath(from: number, to: number, range: RangeBand, except: readonly string[] = []): string[] {
     if (from === NO_TILE || to === NO_TILE) return [];
-    const line: number[] = [];
+    const walked: number[] = [];
     traceLine(this.state.grid, from, to, (tile) => {
-      line.push(tile);
+      walked.push(tile);
     });
+    const line = walked.filter((tile) => tile !== from);
     const left = new Set(except);
     const caught: string[] = [];
     for (const entity of [...this.state.entitiesOf('party'), ...this.state.entitiesOf('adversary')]) {
