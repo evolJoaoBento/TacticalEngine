@@ -1443,6 +1443,16 @@ export class ScriptRunner {
     // Read once, before the first swing: "all Giant Rats within Close range of
     // them" is about where everyone stands now, not after the first one moved.
     const joinedBy = effect.joinedBy === undefined ? undefined : this.resolve(effect.joinedBy);
+    // "Add a d10 to the damage roll." Rolled here, once, and handed over as a
+    // number: the attack rules take a bonus rather than an expression, and the
+    // dice come off the same seeded stream as everything else.
+    let extra = 0;
+    if (effect.damageDice !== undefined) {
+      const expression = parseDice(effect.damageDice);
+      if (expression === null) return this.refuse(`cannot read damage dice "${effect.damageDice}"`);
+      extra = rollDamage(this.rng, expression, { proficiency: 1, critical: false }).total;
+    }
+    const behind = (effect.damageBonus ?? 0) + extra;
 
     const hit: string[] = [];
     let swung = false;
@@ -1453,7 +1463,7 @@ export class ScriptRunner {
           target,
           weapon: effect.weapon ?? 'primary',
           ...(effect.advantage === undefined ? {} : { advantage: effect.advantage }),
-          ...(effect.damageBonus === undefined ? {} : { damageBonus: effect.damageBonus }),
+          ...(behind === 0 ? {} : { damageBonus: behind }),
           ...(effect.damage === undefined ? {} : { damage: effect.damage }),
           ...(effect.range === undefined ? {} : { range: effect.range }),
           ...(effect.direct === undefined ? {} : { direct: effect.direct }),

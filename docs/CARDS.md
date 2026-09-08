@@ -31,9 +31,10 @@ Known simplifications in the scripted ones:
 - **Unbreakable** is offered as one of the death move's own options rather than before the question is put, which is what "instead of making a death move" comes to; the card goes to the vault afterwards, as it says, and the Recall Cost brings it back.
 - **Battle-Hardened** is offered inside the death prompt beside Unbreakable, and **Glancing Blow** answers the holder's own miss before the turn is spent - a miss hands the spotlight over, and a question raised after that is one the player answers on somebody else's turn.
 - **Versatile Fighter** scripts the half that belongs to a swing: the trait swap is a choice made when the sheet is written and stays text, and the die lifted is the lowest of the roll, which is the one anybody would pick. **Reaper's Strike** reads its “which targets it would succeed against” as one roll against every Difficulty the weapon reaches, and the choice among the ones it beat goes to the nearest.
+- **Boost** treats the ally as a gate rather than a target: nothing is asked of them and nothing happens to them, so the card only has to know one is standing close enough to push off. **Deft Maneuvers** runs to an adversary and ends in Melee of them rather than to a point on the map, because the board picks creatures and not tiles; it is not the character's action, so the attack that follows still is.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 91 of 189 cards.
+Scripted: 93 of 189 cards.
 
 
 ## Arcana
@@ -92,14 +93,14 @@ Scripted: 91 of 189 cards.
 
 | Level | Card | Type | Engine |
 |---|---|---|---|
-| 1 | Deft Maneuvers | Ability | text |
+| 1 | Deft Maneuvers | Ability | **action** |
 | 1 | I See It Coming | Ability | **reaction** |
 | 1 | Untouchable | Ability | **text** |
 | 2 | Ferocity | Ability | **reaction**, **passive** |
 | 2 | Strategic Approach | Ability | text |
 | 3 | Brace | Ability | **reaction** |
 | 3 | Tactician | Ability | text |
-| 4 | Boost | Ability | text |
+| 4 | Boost | Ability | **action** |
 | 4 | Redirect | Ability | **reaction** |
 | 5 | Know Thy Enemy | Ability | text |
 | 5 | Signature Move | Ability | text |

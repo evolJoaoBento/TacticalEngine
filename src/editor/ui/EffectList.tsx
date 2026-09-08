@@ -886,6 +886,17 @@ function renderBody(
                 onChange({ ...effect, damage: damage === '' ? undefined : damage });
               }}
             />
+            <input
+              style={{ ...field, flex: 'none', width: '80px' }}
+              data-role="attack-behind"
+              placeholder="extra dice"
+              title="Dice added to the damage roll, on top of the weapon's"
+              value={effect.damageDice ?? ''}
+              onInput={(e) => {
+                const dice = (e.target as HTMLInputElement).value;
+                onChange({ ...effect, damageDice: dice === '' ? undefined : dice });
+              }}
+            />
             <select
               style={{ ...field, flex: 'none', width: '96px' }}
               data-role="attack-range"

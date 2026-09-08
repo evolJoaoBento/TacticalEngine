@@ -489,6 +489,46 @@ const RAW: Input[] = [
     ],
   },
   // ---- the last two things a defender can say to a blow -------------------
+  // The ally is a gate rather than a target: nothing is asked of them and
+  // nothing happens to them, so the card only has to know one is standing
+  // close enough to push off.
+  {
+    id: 'boost',
+    name: 'Boost',
+    source: card('boost'),
+    cost: { stress: 1 },
+    inCombatOnly: true,
+    target: { kind: 'adversary', range: 'far' },
+    available: { kind: 'withinRange', range: 'close', of: { kind: 'allies' } },
+    // The walk comes first: "end your move within Melee range of the target"
+    // is where the swing is thrown from, and a Melee weapon thrown from Far
+    // reaches nothing.
+    effects: [
+      { kind: 'log', text: 'A shove off a shoulder, and the sky.', tone: 'hope' },
+      { kind: 'move', how: 'toward', of: { kind: 'target' }, range: 'melee', budget: 'far' },
+      { kind: 'attack', target: { kind: 'target' }, advantage: 1, damageDice: '1d10' },
+    ],
+  },
+  // Simplified: "sprint anywhere within Far range" is a point on the map, and
+  // the board picks creatures rather than tiles - so the run is measured to an
+  // adversary and ends in Melee of them, which is the half of it the rest of
+  // the card is about. It is not the character's action: the attack that
+  // follows is.
+  {
+    id: 'deft-maneuvers',
+    name: 'Deft Maneuvers',
+    source: card('deft-maneuvers'),
+    cost: { stress: 1 },
+    uses: { count: 1, per: 'rest' },
+    action: false,
+    inCombatOnly: true,
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      { kind: 'log', text: 'A sprint nobody had to roll for.', tone: 'hope' },
+      { kind: 'move', how: 'toward', of: { kind: 'target' }, range: 'melee', budget: 'far' },
+      { kind: 'applyCondition', condition: 'poised', target: { kind: 'actor' } },
+    ],
+  },
   // Simplified: "you can use a different character trait for an equipped
   // weapon" is a choice made when the sheet is written rather than in a fight,
   // and stays text. The half that belongs to a swing is scripted.

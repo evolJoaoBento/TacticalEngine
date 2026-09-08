@@ -114,6 +114,17 @@ const RAW: ConditionInput[] = [
     endsWhen: 'attacks',
   },
   {
+    // Deft Maneuvers: "if you end this movement within Melee range of an
+    // adversary and immediately make an attack against them, gain a +1 bonus
+    // to the attack roll". "Immediately" is the next swing, whoever it is at,
+    // which is what `endsWhen: 'attacks'` says.
+    id: 'poised',
+    name: 'Poised',
+    text: 'You arrived exactly where you meant to. Your next attack is surer for it.',
+    modifiers: [{ stat: 'attackRoll', bonus: 1 }],
+    endsWhen: 'attacks',
+  },
+  {
     id: 'focused',
     name: 'Focused',
     text: 'All of your attention is on one creature, and your weapon knows it.',

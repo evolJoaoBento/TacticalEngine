@@ -2240,3 +2240,121 @@ describe('a swing lifted, and a swing that names its own number', () => {
     expect(demo.world.weaponRange(husk.id)).toBe(null);
   });
 });
+
+
+describe('a card that moves before it swings', () => {
+  const hold = (demo: DemoScene, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** Kara well back from the husk, with an ally beside her. */
+  const across = (seed: string): DemoScene => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    // Away from it, and out of Melee, with the run still inside Far range.
+    const blocked = demo.state.blockedFor('kara');
+    let back = NO_TILE;
+    demo.grid.forEachNeighbor(demo.state.entity('kara')!.tile, false, (tile) => {
+      if (back !== NO_TILE || !demo.grid.isPassable(tile) || blocked(tile)) return;
+      if (demo.grid.manhattanDistance(tile, husk.tile) <= 1) return;
+      back = tile;
+    });
+    if (back !== NO_TILE) demo.state.moveEntity('kara', back);
+    return demo;
+  };
+
+  it('boosts off an ally, crosses the room and swings with advantage', () => {
+    const demo = across('boost');
+    hold(demo, ['boost']);
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    // Mira beside her: the card only has to know somebody is close enough to
+    // push off, and nothing happens to them.
+    standBehind(demo, 'mira', husk.tile);
+    expect(demo.world.bandTo('kara', 'mira')).not.toBe(null);
+
+    const stress = demo.state.entity('kara')!.stress.marked;
+    expect(useAbility(demo, 'kara', 'boost', [husk.id]).status).not.toBe('refused');
+    expect(demo.state.entity('kara')!.stress.marked).toBe(stress + 1);
+    // "End your move within Melee range of the target."
+    expect(demo.world.bandTo('kara', husk.id)).toBe('melee');
+    expect(demo.log.some((l) => l.text.includes('A shove off a shoulder'))).toBe(true);
+  });
+
+  it('is not offered with nobody close enough to push off', () => {
+    const demo = across('boost-alone');
+    hold(demo, ['boost']);
+    // Everyone else off the map: "a willing ally within Close range" is a gate
+    // on the card, so it is not usable rather than usable and pointless.
+    for (const member of demo.state.entitiesOf('party')) {
+      if (member.id === 'kara') continue;
+      demo.state.moveEntity(member.id, NO_TILE);
+    }
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    expect(useAbility(demo, 'kara', 'boost', [husk.id]).status).toBe('refused');
+  });
+
+  it('sprints without a roll and leaves the next swing surer for it', () => {
+    const demo = across('deft');
+    hold(demo, ['deft-maneuvers']);
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    expect(demo.world.bandTo('kara', husk.id)).not.toBe('melee');
+    expect(demo.world.rollBonus('kara', 'attackRoll', { melee: true })).toBe(0);
+
+    expect(useAbility(demo, 'kara', 'deft-maneuvers', [husk.id]).status).not.toBe('refused');
+    expect(demo.world.bandTo('kara', husk.id)).toBe('melee');
+    // "Gain a +1 bonus to the attack roll" - on the next swing, and one only.
+    expect(demo.state.entity('kara')!.conditions.has('poised')).toBe(true);
+    expect(demo.world.rollBonus('kara', 'attackRoll', { melee: true })).toBe(1);
+
+    // It is not the character's action: the attack that follows is.
+    expect(demo.encounter!.canAct('kara')).toBe(true);
+    attackWithSelected(demo, husk.id);
+    expect(demo.state.entity('kara')!.conditions.has('poised')).toBe(false);
+    // Once per rest, counted like any other limited card.
+    expect(demo.scenario.abilityUses.get(useKey('kara', 'deft-maneuvers'))).toBe(1);
+  });
+
+  it('rolls the dice behind a swing once, and puts them into what lands', () => {
+    // "Add a d10 to the damage roll": the attack rules take a number, so the
+    // dice are rolled by the script and handed over as one. What a swing marks
+    // is banded, so the extra die shows up as a blow that never marks less and
+    // sometimes marks more.
+    const swing = (seed: string, dice: boolean): number | null => {
+      const demo = standoff(`behind-${seed}`);
+      demo.askDefender = false;
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      husk.hitPoints = { max: 40, marked: 0 };
+      demo.scenario.actorId = 'kara';
+      const journal = runScript(
+        [{ kind: 'attack', target: { kind: 'entity', id: husk.id }, ...(dice ? { damageDice: '1d10' } : {}) }],
+        demo.world,
+        demo.rng,
+      );
+      const landed = journal.find((e) => e.kind === 'attack') as { hit: boolean; hitPointsMarked: number } | undefined;
+      return landed?.hit === true ? landed.hitPointsMarked : null;
+    };
+
+    // Not blow by blow: the extra die comes off the same seeded stream as the
+    // attack roll, so asking for one moves every roll after it and the two
+    // swings on a seed are different swings. Across enough of them the die is
+    // simply worth something, and a card that ignored it would come to exactly
+    // the same total.
+    let bareTotal = 0;
+    let boostedTotal = 0;
+    let landed = 0;
+    for (let seed = 1; seed < 80; seed++) {
+      const bare = swing(String(seed), false);
+      const boosted = swing(String(seed), true);
+      if (bare === null || boosted === null) continue;
+      landed++;
+      bareTotal += bare;
+      boostedTotal += boosted;
+    }
+    expect(landed).toBeGreaterThan(10);
+    expect(boostedTotal).toBeGreaterThan(bareTotal);
+  });
+});

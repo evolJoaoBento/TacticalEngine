@@ -583,6 +583,12 @@ export const effectSchema = z.discriminatedUnion('kind', [
     target: targetSelectorSchema.optional(),
     advantage: z.number().int().optional(),
     damageBonus: z.number().int().optional(),
+    /**
+     * "Add a d10 to the damage roll": dice behind the swing rather than a flat
+     * number. Rolled once, before the first target, because a blow rolled once
+     * lands the same total on everyone it beats.
+     */
+    damageDice: z.string().min(1).optional(),
     /** Damage dice instead of the attacker's own — a feature's "2d6". */
     damage: z.string().min(1).optional(),
     /**
