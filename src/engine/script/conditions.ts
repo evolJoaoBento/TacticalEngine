@@ -240,6 +240,12 @@ export function evaluate(
       const result = runHook(fn, hookReads(context, bindings, condition.args ?? {}) as never);
       return result.ok && result.value === true;
     }
+    case 'self': {
+      const actor = context.actorId();
+      if (actor === null) return false;
+      const named = context.resolveTargets(condition.of ?? { kind: 'target' }, bindings);
+      return named.length > 0 && named.every((id) => id === actor);
+    }
     case 'side': {
       const actor = context.actorId();
       const mine = actor === null ? null : context.factionOf(actor);

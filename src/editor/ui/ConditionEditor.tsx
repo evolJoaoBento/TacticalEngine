@@ -58,6 +58,7 @@ const KINDS: readonly { kind: Condition['kind']; label: string }[] = [
   { kind: 'hasCondition', label: 'the target has a condition' },
   { kind: 'withinRange', label: 'the target is within' },
   { kind: 'side', label: 'the target is on the side of' },
+  { kind: 'self', label: 'the target is the one asking' },
   { kind: 'tokens', label: "a card's tokens compare" },
   { kind: 'nearby', label: 'how many creatures are there' },
   { kind: 'hook', label: 'logic in code says' },
@@ -127,6 +128,8 @@ export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEdi
       return { kind, range: 'close' };
     case 'side':
       return { kind, is: 'ally' };
+    case 'self':
+      return { kind };
     case 'hook':
       return { kind, hook: props.hookIds?.[0] ?? 'a-hook' };
     case 'tokens':
@@ -264,6 +267,7 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
           </>
         );
       case 'inCombat':
+      case 'self':
         return null;
       case 'hasCondition':
         return text(condition.condition, (name) => onChange({ ...condition, condition: name }), 'condition');

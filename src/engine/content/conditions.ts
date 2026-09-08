@@ -42,7 +42,7 @@ export const conditionDefSchema = z.object({
    * Ends on its own when this happens to the bearer: an attack succeeds
    * against them, they make an attack, or damage marks something of theirs.
    */
-  endsWhen: z.enum(['hit', 'attacks', 'damaged']).optional(),
+  endsWhen: z.enum(['hit', 'attacks', 'damaged', 'rolls']).optional(),
   /**
    * What marking an Armor Slot is worth while this is on - Shield Aura's
    * "when the target marks an Armor Slot, they reduce the severity of the
@@ -222,6 +222,15 @@ const RAW: ConditionInput[] = [
     name: 'Life Ward',
     text: 'When you would make a death move, you clear a Hit Point instead.',
     insteadOfDeath: { clears: 1, says: 'The sigil takes it, and goes out.' },
+  },
+  // Inevitable's next roll. It ends on whatever they roll next, which is what
+  // "your next action roll" means - not the next thing they swing at.
+  {
+    id: 'inevitable',
+    name: 'Inevitable',
+    text: 'Your next action roll has advantage.',
+    modifiers: [{ stat: 'advantage', bonus: 1 }],
+    endsWhen: 'rolls',
   },
   {
     id: 'stunned',

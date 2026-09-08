@@ -1011,6 +1011,15 @@ export class SceneScriptWorld implements ScriptWorld {
     return this.endConditions(id, 'attacks');
   }
 
+  /**
+   * Conditions that end when their bearer makes an action roll of any kind —
+   * "your *next* action roll has advantage", which is spent on whatever they
+   * roll next rather than on the next thing they swing at.
+   */
+  endsOnRoll(id: string): string[] {
+    return this.endConditions(id, 'rolls');
+  }
+
   private endConditions(id: string, when: NonNullable<ConditionDef['endsWhen']>): string[] {
     const entity = this.state.entity(id);
     if (entity === undefined) return [];

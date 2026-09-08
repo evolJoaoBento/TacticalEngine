@@ -187,6 +187,32 @@ const RAW: Input[] = [
     modifiers: [{ stat: 'damageRoll', plusTrait: 'strength', requires: 'meleeWeapon' }],
   },
   // ---- Bone ------------------------------------------------------------------
+  // "When you fail an action roll, your next action roll has advantage."
+  //
+  // The first card written against `partyRolled` from the party's own side of
+  // it. Everybody in the party hears about everybody's rolls, so the card says
+  // `self`: the one who rolled is bound as the target, and this one only
+  // answers its holder's own. Free and automatic, because there is nothing to
+  // decide.
+  {
+    id: 'inevitable',
+    name: 'Inevitable',
+    source: card('inevitable'),
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'self' },
+        { kind: 'rolled', is: 'failure' },
+      ],
+    },
+    effects: [
+      { kind: 'log', text: 'Not this time. The next one.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'inevitable', duration: 'scene', target: { kind: 'actor' } },
+    ],
+  },
   // "Spend 3 Hope and choose an ally within Close range. They are marked with
   // a glowing sigil of protection. When this ally would make a death move,
   // they clear a Hit Point instead. This effect ends when it saves the target

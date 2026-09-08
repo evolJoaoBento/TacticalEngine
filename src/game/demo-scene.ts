@@ -2950,6 +2950,19 @@ function afterReaction(
 function playPartyRolled(demo: DemoScene, roller: string, roll: DualityRoll): void {
   if (demo.state.entity(roller)?.faction !== 'party') return;
   const bindings = { targets: [roller], hit: [roller], roll: { total: roll.total, outcome: roll.outcome } };
+  // Spent before anybody is asked: what the roller was carrying for their next
+  // roll was carried into this one, and this is it.
+  demo.world.endsOnRoll(roller);
+  // The party's half of the same moment. Whoever rolled is bound as the
+  // target, so a card that only answers its holder's own roll says `self` and
+  // one that answers an ally's says nothing.
+  const asked: ReactionOffer[][] = [];
+  for (const member of demo.state.entitiesOf('party')) {
+    if (!member.alive) continue;
+    const theirs = offersFor(demo, member.id, ['partyRolled'], [roller], {}, { roll: bindings.roll });
+    if (theirs.length > 0) asked.push(theirs);
+  }
+  offerReactions(demo, asked);
   for (const entity of [...demo.state.entitiesOf('adversary')]) {
     if (!entity.alive) continue;
     for (const ability of demo.world.reactionsFor(entity.id, 'partyRolled', bindings)) {

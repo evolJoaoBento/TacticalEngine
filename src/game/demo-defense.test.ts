@@ -4270,3 +4270,98 @@ describe('a throw worth making again', () => {
     expect(total(true)).toBeGreaterThan(total(false));
   });
 });
+
+
+describe('the next one', () => {
+  /** Kara beside the husk holding these cards; Finn beside it too. */
+  const trying = (seed: string, cards: string[]) => {
+    const demo = standoff(seed);
+    demo.askDefender = true;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 90, marked: 0 };
+    const blocked = demo.state.blockedFor('finn');
+    let stand = NO_TILE;
+    demo.grid.forEachNeighbor(husk.tile, false, (tile) => {
+      if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+    });
+    demo.state.moveEntity('finn', stand);
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    demo.party.select('kara');
+    return { demo, husk };
+  };
+
+  /** Swing, and answer whatever is asked about it. */
+  const swing = (demo: DemoScene, at: string): void => {
+    attackWithSelected(demo, at);
+    for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+      const prompt = demo.pending.prompt;
+      if (prompt.kind === 'choice') answerPending(demo, { kind: 'choose', index: 0 });
+      else answerPending(demo, { kind: 'roll' });
+    }
+  };
+
+  it('carries advantage out of a failed roll and into the next one', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk } = trying(`inevitable-${seed}`, ['inevitable']);
+      const kara = demo.state.entity('kara')!;
+      const said = demo.log.length;
+      swing(demo, husk.id);
+      const after = demo.log.slice(said).map((l) => l.text);
+      const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
+      if (rolled === undefined) continue;
+
+      const failed = rolled === 'failureWithHope' || rolled === 'failureWithFear';
+      if (!failed) {
+        // Nothing to carry: a roll that landed leaves her as she was.
+        expect(kara.conditions.has('inevitable')).toBe(false);
+        continue;
+      }
+      expect(after.some((t) => t.includes('Not this time. The next one.'))).toBe(true);
+      expect(kara.conditions.has('inevitable')).toBe(true);
+      // And it is worth a die on the next roll she makes.
+      expect(demo.world.advantageFor('kara', husk.id).advantage).toBe(1);
+      return;
+    }
+    throw new Error('Kara never failed a roll in sixty tries');
+  });
+
+  it('is spent on the next roll, whether that one lands or not', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk } = trying(`inevitable-spend-${seed}`, ['inevitable']);
+      const kara = demo.state.entity('kara')!;
+      swing(demo, husk.id);
+      if (!kara.conditions.has('inevitable')) continue;
+
+      // Her turn again, and the die goes into it.
+      endTurn(demo);
+      for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+        answerPending(demo, { kind: 'choose', index: 0 });
+      }
+      if (!demo.state.entity('kara')!.alive) continue;
+      demo.party.select('kara');
+      swing(demo, husk.id);
+      expect(kara.conditions.has('inevitable')).toBe(false);
+      return;
+    }
+    throw new Error('Kara never failed a roll in sixty tries');
+  });
+
+  it("answers her own roll and not an ally's", () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk } = trying(`inevitable-mine-${seed}`, ['inevitable']);
+      const kara = demo.state.entity('kara')!;
+      demo.party.select('finn');
+      swing(demo, husk.id);
+      const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
+      if (rolled !== 'failureWithHope' && rolled !== 'failureWithFear') continue;
+      // Finn's failure is Finn's: "when *you* fail an action roll".
+      expect(kara.conditions.has('inevitable')).toBe(false);
+      expect(demo.state.entity('finn')!.conditions.has('inevitable')).toBe(false);
+      return;
+    }
+    throw new Error('Finn never failed a roll in sixty tries');
+  });
+});

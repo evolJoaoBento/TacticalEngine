@@ -391,6 +391,17 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     of: targetSelectorSchema.optional(),
   }),
   /**
+   * Whether the creature bound is the one asking: "when *you* fail an action
+   * roll", said by a card that hears about everybody's.
+   *
+   * Every creature `of` names has to be the actor, and naming nobody is not a
+   * yes - the same reading `side` gives.
+   */
+  z.object({
+    kind: z.literal('self'),
+    of: targetSelectorSchema.optional(),
+  }),
+  /**
    * Which side of the fight somebody is on, read from the actor's chair: "when
    * an ally within Close range deals damage to an adversary" is two of these
    * and a range.
