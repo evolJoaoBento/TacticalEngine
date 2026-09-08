@@ -875,6 +875,20 @@ export const effectSchema = z.discriminatedUnion('kind', [
     type: z.enum(['physical', 'magic']).optional(),
   }),
   /**
+   * "When you roll your damage dice, you can reroll any 1s or 2s": the faces
+   * the blow came up on, thrown again.
+   *
+   * Journalled rather than written, like everything else that answers a blow
+   * being held: only the game layer knows what the dice actually showed, and
+   * the new faces stand however they fall - a reroll is a reroll, not a pick
+   * of the better one.
+   */
+  z.object({
+    kind: z.literal('rerollDamage'),
+    /** Faces under this are thrown again. "Any 1s or 2s" is three. */
+    below: z.number().int().positive(),
+  }),
+  /**
    * "Spend any number of tokens to roll that number of d6s and reduce the
    * incoming damage by that amount": what a card takes off a blow that is
    * arriving, rolled by the card rather than named by the defence step.

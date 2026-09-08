@@ -4210,3 +4210,63 @@ describe('a sigil that answers a fall', () => {
     expect(demo.pending?.kind).toBe('death');
   });
 });
+
+
+describe('a throw worth making again', () => {
+  /** Kara beside the husk with these cards in hand. */
+  const swinging = (seed: string, cards: string[]) => {
+    const demo = standoff(seed);
+    demo.askDefender = true;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 90, marked: 0 };
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+    demo.party.select('kara');
+    return { demo, husk };
+  };
+
+  it('is offered on her own blow, before anything has counted it', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const { demo, husk } = swinging(`nge-${seed}`, ['not-good-enough']);
+      attackWithSelected(demo, husk.id);
+      const pending = demo.pending;
+      if (pending === null || pending.kind !== 'reaction' || pending.prompt.kind !== 'choice') continue;
+      const at = pending.prompt.options.findIndex((o) => o.label.includes('Not Good Enough'));
+      if (at < 0) continue;
+
+      const said = demo.log.length;
+      answerPending(demo, { kind: 'choose', index: at });
+      let guard = 0;
+      while (demo.pending !== null && guard++ < 6) answerPending(demo, { kind: 'choose', index: 0 });
+      expect(demo.log.slice(said).some((l) => l.text.includes('Not good enough. Again.'))).toBe(true);
+      // The blow was still being held: it lands after the card, once.
+      expect(demo.log.slice(said).filter((l) => /Kara (hits|lands a critical) with/.test(l.text)).length).toBe(1);
+      return;
+    }
+    throw new Error('the card was never offered in forty tries');
+  });
+
+  it('throws the low faces again, and it usually helps', () => {
+    // The reroll moves the stream, so two runs at one seed are not comparable:
+    // what is compared is the Hit Points marked over many.
+    const total = (holding: boolean): number => {
+      let marked = 0;
+      for (let seed = 1; seed < 80; seed++) {
+        const { demo, husk } = swinging(`nge-sum-${seed}`, holding ? ['not-good-enough'] : []);
+        attackWithSelected(demo, husk.id);
+        let guard = 0;
+        while (demo.pending !== null && guard++ < 6) {
+          const prompt = demo.pending.prompt;
+          const at =
+            prompt.kind === 'choice' ? prompt.options.findIndex((o) => o.label.includes('Not Good Enough')) : -1;
+          answerPending(demo, { kind: 'choose', index: at < 0 ? 0 : at });
+        }
+        marked += husk.hitPoints.marked;
+      }
+      return marked;
+    };
+    expect(total(true)).toBeGreaterThan(total(false));
+  });
+});

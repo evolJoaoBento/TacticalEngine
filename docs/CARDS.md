@@ -69,7 +69,7 @@ Scripted: 105 of 189 cards.
 | Level | Card | Type | Engine |
 |---|---|---|---|
 | 1 | Get Back Up | Ability | **reaction** |
-| 1 | Not Good Enough | Ability | **text** |
+| 1 | Not Good Enough | Ability | **reaction** |
 | 1 | Whirlwind | Ability | **action** |
 | 2 | A Soldier's Bond | Ability | **action** |
 | 2 | Reckless | Ability | **action** |

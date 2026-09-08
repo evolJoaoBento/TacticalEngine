@@ -315,6 +315,8 @@ export type JournalEntry =
   | { kind: 'spotlightedAgain'; id: string | null }
   /** One die of the blow being held comes up its highest face instead. */
   | { kind: 'dieMaxed' }
+  /** Every face of it under this one is thrown again. */
+  | { kind: 'damageRerolled'; below: number }
   /** A patch of ground started or stopped meaning something. */
   | { kind: 'zone'; id: string; name: string; standing: boolean }
   /** Added to a blow that has landed and not yet been counted. */
@@ -1195,6 +1197,12 @@ export class ScriptRunner {
           options,
         };
         this.stack.push({ effects: [asking], index: 0 });
+        return null;
+      }
+      case 'rerollDamage': {
+        // Journalled rather than rolled: the faces are the game layer's, and
+        // it throws them again where it can see them.
+        this.journal.push({ kind: 'damageRerolled', below: effect.below });
         return null;
       }
       case 'maxOneDie': {

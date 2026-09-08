@@ -22,6 +22,7 @@ import { DEMO_CODE, DEMO_PROJECT_ABILITIES } from './demo-code';
 import { SRD_CONDITIONS, type ConditionDef } from '../engine/content/conditions';
 import { MAX_SLOTS } from '../engine/rules/resources';
 import { walkCheck, walkEffects, type Condition, type CountName, type Effect, type TargetSelector } from '../engine/script/schema';
+import { rollDice } from '../engine/rules/dice';
 import type { DamageType } from '../engine/rules/dice';
 import type { ItemDef, LootTable } from '../engine/content/items';
 import type { QuestDef } from '../engine/content/quests';
@@ -2673,7 +2674,7 @@ function offersFor(
         // into the box below, and one that stops to ask something lands the
         // blow itself when it is answered.
         playReaction(demo, offer, [], false, landing?.held, ran);
-        if (landing !== undefined) landing.held = asAnswered(landing.held, ran) ?? landing.held;
+        if (landing !== undefined) landing.held = asAnswered(demo, landing.held, ran) ?? landing.held;
         continue;
       }
       offers.push(offer);
@@ -2791,14 +2792,14 @@ function playReaction(
         // than above: without this a reaction that vaults only vaults when it
         // had nothing to ask.
         vaultAfter(demo, offer.by, offer.ability, runner);
-        afterReaction(demo, queued, asAnswered(landing, done.entries));
+        afterReaction(demo, queued, asAnswered(demo, landing, done.entries));
       },
     };
     return;
   }
   demo.scenario.actorId = was;
   vaultAfter(demo, offer.by, offer.ability, runner);
-  if (resume) afterReaction(demo, queued, asAnswered(landing, result.journal));
+  if (resume) afterReaction(demo, queued, asAnswered(demo, landing, result.journal));
 }
 
 /**
@@ -2834,7 +2835,7 @@ export function vaultAfter(demo: DemoScene, id: string, ability: AbilityDef, run
  * mark instead of rolling. Both are read here rather than written, so the
  * thresholds and the Armor Slots read what actually arrives.
  */
-function asAnswered(landing: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
+function asAnswered(demo: DemoScene, landing: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
   if (landing === undefined || landing.outcome.damageRoll === undefined) return landing;
   let added = 0;
   let doubled = false;
@@ -2851,6 +2852,9 @@ function asAnswered(landing: HeldSwing | undefined, journal: readonly JournalEnt
     // one anybody would choose and saves asking. Read here rather than in the
     // script because only the blow knows what the faces came up.
     if (entry.kind === 'dieMaxed') added += liftLowest(landing.outcome.damageRoll);
+    // "You can reroll any 1s or 2s": thrown again where the faces can be seen,
+    // and what comes up stands - a reroll is a reroll, not a pick of the two.
+    if (entry.kind === 'damageRerolled') added += rerollLow(demo, landing.outcome.damageRoll, entry.below);
     // Two cards forcing one blow is not a thing the SRD writes; the larger
     // wins, so the order they were played in decides nothing.
     if (entry.kind === 'hitPointsForced') forced = Math.max(forced ?? 0, entry.to);
@@ -2879,6 +2883,24 @@ function asAnswered(landing: HeldSwing | undefined, journal: readonly JournalEnt
  * The lowest of them, because that is the one a player would pick and there is
  * nothing else to weigh. A roll with no dice in it - a flat weapon, a blow
  * whose damage was forced - is worth nothing, which is the honest answer.
+ */
+function rerollLow(demo: DemoScene, roll: DamageRollResult | undefined, below: number): number {
+  if (roll === undefined || roll.rolls.length === 0) return 0;
+  let moved = 0;
+  for (const face of roll.rolls) {
+    if (face >= below) continue;
+    const fresh = rollDice(demo.rng, { count: 1, sides: roll.expression.sides, modifier: 0 }).total;
+    moved += fresh - face;
+  }
+  return moved;
+}
+
+/**
+ * What throwing the low faces of a blow again is worth, for better or worse.
+ *
+ * The dice come off the same seeded stream as everything else, and what they
+ * come up is what stands: "reroll any 1s or 2s" is not "roll them again and
+ * keep the better", and a card that could only help would be a different card.
  */
 function liftLowest(roll: DamageRollResult | undefined): number {
   if (roll === undefined || roll.rolls.length === 0) return 0;

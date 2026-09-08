@@ -52,14 +52,24 @@ const RAW: Input[] = [
     action: false,
     reaction: { kind: 'reduceSeverity', steps: 1, only: 'severe' },
   },
+  // "When you roll your damage dice, you can reroll any 1s or 2s."
+  //
+  // Asked on the holder's own landed swing, before anything counts it, which
+  // is the moment `rollingDamage` is for. What the dice come up stands: the
+  // card says reroll, not reroll and keep the better, so a bad throw can cost
+  // them - which is the card as printed and the reason it is asked at all.
   {
     id: 'not-good-enough',
     name: 'Not Good Enough',
     source: card('not-good-enough'),
-    kind: 'passive',
+    kind: 'reaction',
+    trigger: 'rollingDamage',
     action: false,
-    // "You can reroll any 1s or 2s" on damage dice: text for the table until
-    // the damage roll learns rerolls.
+    auto: false,
+    effects: [
+      { kind: 'log', text: 'Not good enough. Again.', tone: 'hope' },
+      { kind: 'rerollDamage', below: 3 },
+    ],
   },
   {
     id: 'whirlwind',
