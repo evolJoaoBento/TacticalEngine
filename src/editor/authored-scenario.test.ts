@@ -887,19 +887,24 @@ describe('asking the player how many', () => {
 
   it('rolls as many dice as the tokens the player let go of', () => {
     // Unleash Chaos was code once: the number of options depends on what is on
-    // the card, which is exactly the question `howMany` asks.
-    const demo = twoOfThem(['unleash-chaos'], 'chaos');
-    demo.world.addTokens('vela', 'unleash-chaos', 2);
-    const used = useAbility(demo, 'vela', 'unleash-chaos', ['foe']);
-    expect(used.status).toBe('waiting');
-    const prompt = demo.pending!.prompt;
-    expect(prompt.kind === 'choice' ? prompt.options.map((o) => o.label) : []).toEqual(['1', '2']);
+    // the card, which is exactly the question `howMany` asks. Seeds until the
+    // Spellcast Roll lands, because a miss rolls no dice to count.
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = twoOfThem(['unleash-chaos'], `chaos-${seed}`);
+      demo.world.addTokens('vela', 'unleash-chaos', 2);
+      expect(useAbility(demo, 'vela', 'unleash-chaos', ['foe']).status).toBe('waiting');
+      const prompt = demo.pending!.prompt;
+      expect(prompt.kind === 'choice' ? prompt.options.map((o) => o.label) : []).toEqual(['1', '2']);
 
-    answerPending(demo, { kind: 'choose', index: 1 });
-    expect(demo.world.tokensOn('vela', 'unleash-chaos')).toBe(0);
-    // Whatever the dice said, they were two d10s: the card's own words.
-    if (demo.pending !== null) answerPending(demo, { kind: 'roll' });
-    expect(demo.log.some((l) => l.text.includes('2d10'))).toBe(true);
+      answerPending(demo, { kind: 'choose', index: 1 });
+      // Two tokens go whether the roll lands or not: the card spends them to
+      // make the attempt, which is what `each` says and the asking does not.
+      expect(demo.world.tokensOn('vela', 'unleash-chaos')).toBe(0);
+      if (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (!demo.log.some((l) => l.text.includes('2d10'))) continue;
+      return;
+    }
+    throw new Error('no seed landed an Unleash Chaos in forty tries');
   });
 });
 

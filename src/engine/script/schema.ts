@@ -707,9 +707,11 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * read the answer.
    *
    * The answer reaches them by substitution rather than by binding: for each
-   * number the player could give, a copy of `each` is made with `'spent'`
-   * wherever an amount is written, and `{n}` wherever dice are, replaced by
-   * that number. So the choice is an ordinary choice, drawn by anything that
+   * number the player could give, a copy of `each` is made with the number
+   * written into it. `{n}` is replaced in *every* string - dice, a label, a
+   * line of log - and `'spent'` only where an amount is written, so a nested
+   * question asking for `most: 'spent'` gets the word rather than the number
+   * and reads as nothing. So the choice is an ordinary choice, drawn by anything that
    * can draw one, and nothing downstream has to know where the number came
    * from.
    */
