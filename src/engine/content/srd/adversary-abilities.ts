@@ -2206,6 +2206,54 @@ const RAW: Input[] = [
       },
     ],
   },
+  // A token another creature carries: the Swarm's brambles sit on whoever it
+  // hit, keyed by that creature and this card, which is the same store Slow
+  // keeps its own count in. Two cards under one name, because the block gives
+  // the tokens on its own hit and loses them on somebody else's.
+  {
+    id: 'tangle-bramble-swarm-encumber',
+    name: 'Encumber',
+    source: from('tangle-bramble-swarm'),
+    text: 'When the Swarm succeeds on an attack, give the target a bramble token. If a target has any bramble tokens, they are Restrained. If a target has 3 or more bramble tokens, they are also Vulnerable. All bramble tokens can be removed by succeeding on a Finesse Roll (12 + the number of bramble tokens) or dealing Major or greater damage to the Swarm. If bramble tokens are removed from a target using a Finesse Roll, a number of Tangle Bramble Minions spawn within Melee range equal to the number of tokens removed.',
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    target: { kind: 'none' },
+    // Simplified: the Finesse Roll is the party's move to make, and nothing
+    // here asks a PC for one on their own turn, so the Minions it would spawn
+    // never arrive either. What runs is the half the Swarm does.
+    effects: [
+      { kind: 'addToken', ability: 'tangle-bramble-swarm-encumber', amount: 1, target: { kind: 'target' } },
+      { kind: 'log', text: 'Thorns wind tighter around them.', tone: 'fear' },
+      { kind: 'applyCondition', condition: 'restrained', duration: 'scene', target: { kind: 'target' } },
+      {
+        kind: 'branch',
+        when: { kind: 'tokens', ability: 'tangle-bramble-swarm-encumber', of: { kind: 'target' }, op: '>=', value: 3 },
+        then: [{ kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: { kind: 'target' } }],
+      },
+    ],
+  },
+  {
+    id: 'tangle-bramble-swarm-encumber-torn-free',
+    name: 'Encumber',
+    source: from('tangle-bramble-swarm'),
+    text: 'All bramble tokens can be removed by dealing Major or greater damage to the Swarm.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    // Major damage is 2 Hit Points, which is what the blow reports.
+    available: { kind: 'count', of: 'hitPointsTaken', op: '>=', value: 2 },
+    target: { kind: 'none' },
+    // Simplified: the brambles come off everyone at once, and with them the
+    // Restrained and the Vulnerable - so a PC held by something else is freed
+    // too. Nothing here can name "whoever is carrying tokens" as a target.
+    effects: [
+      { kind: 'log', text: 'The brambles come apart, and the thorns fall away.', tone: 'success' },
+      { kind: 'spendToken', ability: 'tangle-bramble-swarm-encumber', all: true, target: { kind: 'allies' } },
+      { kind: 'clearCondition', condition: 'restrained', target: { kind: 'allies' } },
+      { kind: 'clearCondition', condition: 'vulnerable', target: { kind: 'allies' } },
+    ],
+  },
   // ---- what a block's own teeth do to this target -------------------------
   // A passive on the standard attack, read against whoever it is swinging at:
   // "1d10+4 physical damage instead of their standard damage" while Hidden,

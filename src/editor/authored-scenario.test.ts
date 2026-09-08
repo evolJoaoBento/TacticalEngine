@@ -882,6 +882,42 @@ describe('a token on the stat block', () => {
     expect(demo.world.tokensOn('other', 'slow')).toBe(0);
   });
 
+  it('hands the token to whoever it hit, and takes it back when it is torn apart', () => {
+    // "Give the target a bramble token. If a target has any bramble tokens,
+    // they are Restrained. If a target has 3 or more, they are also
+    // Vulnerable." The same store, on a creature the block does not own.
+    const demo = winding('tangle-bramble-swarm', 'brambles');
+    const kara = demo.state.entity('kara')!;
+    const brambles = (): number => demo.world.tokensOn('kara', 'tangle-bramble-swarm-encumber');
+    for (let i = 0; i < 24 && brambles() < 3; i++) {
+      kara.hitPoints = { max: 60, marked: 0 };
+      kara.stress = { max: 6, marked: 0 };
+      kara.conditions.delete('restrained');
+      endTurn(demo);
+    }
+    expect(brambles()).toBe(3);
+    expect(kara.conditions.has('restrained')).toBe(true);
+    expect(kara.conditions.has('vulnerable')).toBe(true);
+
+    // "All bramble tokens can be removed by dealing Major or greater damage to
+    // the Swarm": two Hit Points is Major, and the thorns come off.
+    demo.world.noteDamage('foe', { attacker: 'kara', hitPoints: 2, damage: 8, types: ['physical'] });
+    settleFight(demo);
+    expect(demo.log.some((l) => l.text.includes('the thorns fall away'))).toBe(true);
+    expect(brambles()).toBe(0);
+    expect(kara.conditions.has('restrained')).toBe(false);
+    expect(kara.conditions.has('vulnerable')).toBe(false);
+  });
+
+  it('leaves the thorns on for a scratch', () => {
+    // One Hit Point is Minor, and Minor is not "Major or greater".
+    const demo = winding('tangle-bramble-swarm', 'brambles-scratch');
+    demo.world.addTokens('kara', 'tangle-bramble-swarm-encumber', 2);
+    demo.world.noteDamage('foe', { attacker: 'kara', hitPoints: 1, damage: 4, types: ['physical'] });
+    settleFight(demo);
+    expect(demo.world.tokensOn('kara', 'tangle-bramble-swarm-encumber')).toBe(2);
+  });
+
   it('takes the whole turn, not just the swing', () => {
     // Simplified, and worth pinning: the Turret's block only forbids its
     // standard attack while it winds, but nothing here can take the swing away

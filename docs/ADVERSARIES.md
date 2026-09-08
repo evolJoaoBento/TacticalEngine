@@ -34,13 +34,15 @@ engine has no place to put:
   than the Swarm", "attacks against a creature this one stands beside have advantage". A
   passive can move the dice for its holder or against them (`advantage`, with `against`)
   and that is two parties; a third is not something a modifier can name.
-- **a token nobody else can count** - a token on the stat block runs. The store is keyed
-  by creature and card, so a passive keeps a count on itself: Slow is one `spotlighted`
-  reaction that branches on its own tokens, placing one on the turn it gathers and
-  spending it on the turn it acts, with `endSpotlight` paying for the wait. What stays
-  text is a token another creature carries and other cards read - the bramble tokens a
-  Swarm hands out, which every one of its features asks a different question about -
-  and ground that stays dangerous after the feature ends.
+- **a token nobody else can count** - tokens run, on a stat block as well as on a card.
+  The store is keyed by creature and card, so a passive keeps a count on itself (Slow
+  is one `spotlighted` reaction branching on its own tokens, placing one on the turn it
+  gathers and spending it on the turn it acts, with `endSpotlight` paying for the wait)
+  or hangs one on somebody else (the Swarm's brambles, which Restrain whoever carries
+  them and come off when the Swarm takes Major damage). What stays text is the asking:
+  a roll a PC makes on their own turn to tear free, an action aimed at whoever is
+  carrying three of them - the GM takes the nearest creature in reach, not the one a
+  feature would rather have - and ground that stays dangerous after the feature ends.
 - **a path rather than a destination** - a creature crossing the ground runs (`move`,
   towards somebody or away from them, as far as the band it names allows), so what
   stays text is the line it draws on the way: "move to a point within Close range and
@@ -95,7 +97,7 @@ departs from it rather than merely doing less, what the engine actually does is 
 condition it applies: the Oak Treant's Rooted halves physical damage and does not hold
 it still, because a creature this engine holds still spends its next turn tearing free.
 
-Read: 73. Scripted: 179. Text: 165.
+Read: 73. Scripted: 180. Text: 164.
 
 | Adversary | Feature | Kind | Engine |
 |---|---|---|---|
@@ -216,7 +218,7 @@ Read: 73. Scripted: 179. Text: 165.
 | Sylvan Soldier | Blend In | Reaction | **text** — the GM's to play |
 | Tangle Bramble Swarm | Horde (1d4+2) | Passive | **read** — read off the stat block |
 | Tangle Bramble Swarm | Crush | Action | **text** — the GM's to play |
-| Tangle Bramble Swarm | Encumber | Reaction | **text** — the GM's to play |
+| Tangle Bramble Swarm | Encumber | Reaction | **scripted** — runs as an ability |
 | Tangle Bramble | Minion (4) | Passive | **read** — read off the stat block |
 | Tangle Bramble | Group Attack | Action | **scripted** — runs as an ability |
 | Tangle Bramble | Drain and Multiply | Reaction | **text** — the GM's to play |
