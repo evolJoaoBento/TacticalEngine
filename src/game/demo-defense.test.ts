@@ -4566,3 +4566,122 @@ describe('a card that charges the one who swings', () => {
     throw new Error('the roll was never made in sixty tries');
   });
 });
+
+
+/**
+ * Wrangle is the first card that puts *other people* on the spot the player
+ * picked: the ones its roll beat, and the party standing close.
+ */
+describe('a card that moves the room', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** A free tile a couple of steps off, for the card to be aimed at. */
+  const spotNear = (demo: DemoScene, from: number): number => {
+    const blocked = demo.state.blockedFor('kara');
+    for (let dx = 1; dx <= 3; dx++) {
+      for (const dy of [0, 1, -1]) {
+        const tile = demo.grid.indexOf(demo.grid.xOf(from) + dx, demo.grid.yOf(from) + dy);
+        if (tile !== NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) return tile;
+      }
+    }
+    return NO_TILE;
+  };
+
+  it('hauls the ones it beat onto the spot, and spends the Hope for it', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = standoff('wrangle-' + seed);
+      demo.askDefender = false;
+      hold(demo, 'kara', ['wrangle']);
+      const kara = demo.state.entity('kara')!;
+      kara.hope = { max: 6, value: 4 };
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      const was = husk.tile;
+      const spot = spotNear(demo, kara.tile);
+      if (spot === NO_TILE) continue;
+
+      expect(useAbility(demo, 'kara', 'wrangle', [], { point: spot }).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+
+      // Only a roll that beat it moves it, and only then is the Hope gone.
+      if (husk.tile === was) {
+        expect(kara.hope!.value).toBeLessThanOrEqual(4);
+        continue;
+      }
+      // Onto the spot, or the nearest free tile to it when somebody is there.
+      expect(demo.grid.chebyshevDistance(husk.tile, spot)).toBeLessThanOrEqual(1);
+      expect(kara.hope!.value).toBeLessThan(4);
+      return;
+    }
+    throw new Error('Wrangle never beat the husk in sixty tries');
+  });
+
+  it('takes the party standing close along with it', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = standoff('wrangle-allies-' + seed);
+      demo.askDefender = false;
+      hold(demo, 'kara', ['wrangle']);
+      const kara = demo.state.entity('kara')!;
+      kara.hope = { max: 6, value: 4 };
+      // Finn beside her, so he is one of the "willing allies within Close".
+      const finn = demo.state.entity('finn')!;
+      const beside = spotNear(demo, kara.tile);
+      if (beside === NO_TILE) continue;
+      demo.state.moveEntity('finn', beside);
+      const spot = spotNear(demo, finn.tile);
+      if (spot === NO_TILE || spot === finn.tile) continue;
+      const stood = kara.tile;
+
+      expect(useAbility(demo, 'kara', 'wrangle', [], { point: spot }).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+
+      // However the roll went against the husk, the ally moved: the Hope buys
+      // both halves of the card, and an ally is not rolled against.
+      expect(demo.grid.chebyshevDistance(finn.tile, spot)).toBeLessThanOrEqual(1);
+      // And the one who whistled stayed where they were: `allies` leaves the
+      // actor out, so a card that moves the party does not move the caster.
+      expect(kara.tile).toBe(stood);
+      return;
+    }
+    throw new Error('never found room to stand Finn in, in sixty tries');
+  });
+
+  it('moves nobody with no Hope to spend, and a roll with Hope pays for itself', () => {
+    let withFear = false;
+    let withHope = false;
+    for (let seed = 1; seed < 60 && !(withFear && withHope); seed++) {
+      const demo = standoff('wrangle-poor-' + seed);
+      demo.askDefender = false;
+      hold(demo, 'kara', ['wrangle']);
+      const kara = demo.state.entity('kara')!;
+      kara.hope = { max: 6, value: 0 };
+      const finn = demo.state.entity('finn')!;
+      const beside = spotNear(demo, kara.tile);
+      if (beside === NO_TILE) continue;
+      demo.state.moveEntity('finn', beside);
+      const spot = spotNear(demo, finn.tile);
+      if (spot === NO_TILE || spot === finn.tile) continue;
+      const stood = finn.tile;
+
+      expect(useAbility(demo, 'kara', 'wrangle', [], { point: spot }).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+
+      // A roll with Hope hands one over *before* the arms run, so the card
+      // pays for itself out of the roll that cast it; a roll with Fear leaves
+      // the pool as empty as it found it, and nobody moves.
+      const hoped = demo.rolls[demo.rolls.length - 1]!.roll.hopeGained > 0;
+      if (hoped) {
+        expect(demo.grid.chebyshevDistance(finn.tile, spot)).toBeLessThanOrEqual(1);
+        withHope = true;
+      } else {
+        expect(finn.tile).toBe(stood);
+        withFear = true;
+      }
+    }
+    expect({ withFear, withHope }).toEqual({ withFear: true, withHope: true });
+  });
+});

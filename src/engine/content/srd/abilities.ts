@@ -1375,6 +1375,57 @@ const RAW: Input[] = [
       },
     ],
   },
+  // "Make an Agility Roll against all targets within Close range. Spend a Hope
+  // to move targets you succeed against, and any willing allies within Close
+  // range, to another point within Close range."
+  //
+  // The second card aimed at the ground rather than at anybody, and the first
+  // that puts other people on the spot the player picked. Three simplifications:
+  // the Hope is spent whenever there is one rather than being offered, because
+  // a wrangle nobody wanted is a card nobody would have played; "willing" is
+  // every ally, there being nobody at that end of the table to ask; and the
+  // move is a blink rather than a walk, so a creature hauled across the room
+  // does not have to find a path - which is what being wrangled is.
+  //
+  // The Close range on the destination is the aiming, measured from the one
+  // casting it. What each creature crosses to get there is its own distance
+  // and may be further, so the budget stays the blink's own.
+  //
+  // A roll with Hope pays for its own wrangle: the check hands the Hope over
+  // before it runs its arms, so the pool the branch reads already has it. That
+  // is the ordering every card written this way inherits, and it is the right
+  // one - the Hope was earned by the roll being made.
+  {
+    id: 'wrangle',
+    name: 'Wrangle',
+    source: card('wrangle'),
+    inCombatOnly: true,
+    target: { kind: 'point', range: 'close' },
+    effects: [
+      { kind: 'log', text: 'A whistle, a gesture, and the room rearranges itself.', tone: 'hope' },
+      {
+        kind: 'check',
+        check: {
+          trait: 'agility',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'close' },
+          prompt: 'Wrangle: one roll, against everything standing close.',
+          always: [
+            {
+              kind: 'branch',
+              when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+              then: [
+                { kind: 'spendHope', amount: 1 },
+                { kind: 'move', who: { kind: 'hit' }, to: 'point', teleport: true },
+                { kind: 'move', who: { kind: 'allies', range: 'close' }, to: 'point', teleport: true },
+              ],
+              otherwise: [{ kind: 'log', text: 'Nobody moves: there is no Hope to spend on it.', tone: 'fear' }],
+            },
+          ],
+        },
+      },
+    ],
+  },
   // The ally is a gate rather than a target: nothing is asked of them and
   // nothing happens to them, so the card only has to know one is standing
   // close enough to push off.
