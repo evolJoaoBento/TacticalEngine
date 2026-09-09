@@ -3521,8 +3521,10 @@ function affordableReaction(demo: DemoScene, adversaryId: string, ability: Abili
 function approach(demo: DemoScene, adversaryId: string, targetTile: number, reach: RangeBand): void {
   const adversary = demo.state.entity(adversaryId);
   if (adversary === undefined || adversary.tile === NO_TILE) return;
-  const reachTiles = maxTilesForBand(reach, DEMO_BAND_TILES);
-  if (demo.grid.euclideanDistance(adversary.tile, targetTile) <= reachTiles) return;
+  // The same measure the swing will use: a corner-to-corner neighbour is
+  // already in Melee and does not walk to a side first.
+  const already = demo.world.bandBetween(adversary.tile, targetTile);
+  if (already !== null && reaches(already, reach)) return;
 
   const field = demo.pathfinder.reachable(adversary.tile, Infinity, {
     rules: DEMO_MOVEMENT,

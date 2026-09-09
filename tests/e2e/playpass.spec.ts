@@ -143,6 +143,7 @@ test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
       zones: a.zones(),
       floaters: a.floaters(),
       reacting: a.reacting(),
+      lit: a.highlighted(),
       mira: a.tileOf('mira'),
       log: a.log().slice(-6).map((l) => l.text),
     };
@@ -160,6 +161,8 @@ test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
   const circle = cast.zones.find((z) => z.name === 'Magic Circle')!;
   expect(circle.tiles).toContain(cast.mira);
   expect(circle.tiles).toContain(cast.foeWas);
+  // In a fight the Close-range walk round whoever is selected is lit.
+  expect(cast.lit).toBeGreaterThan(0);
 
   // And the wound rose over the Burrower's head as a number. Read through the
   // driver in the same tick as the cast: a floater lives 1.4 seconds, and the
