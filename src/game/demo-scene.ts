@@ -2441,10 +2441,16 @@ function playZoneEntries(demo: DemoScene): void {
 /** What the cards said about a roll, as the response that settles it. */
 function answerFrom(said: readonly JournalEntry[]): Response {
   let reroll: 'hope' | 'fear' | 'both' | undefined;
+  let name = false;
   for (const entry of said) {
     if (entry.kind === 'dualityRerolled') reroll = entry.which;
+    if (entry.kind === 'rollNamed') name = true;
   }
-  return reroll === undefined ? { kind: 'answered' } : { kind: 'answered', reroll };
+  return {
+    kind: 'answered',
+    ...(reroll === undefined ? {} : { reroll }),
+    ...(name ? { name: true } : {}),
+  };
 }
 
 /**
@@ -3087,10 +3093,12 @@ function asRerolled(demo: DemoScene, held: HeldSwing | undefined, journal: reado
   const roll = held.outcome.dualityRoll;
   if (roll === undefined) return held;
   let which: 'hope' | 'fear' | 'both' | null = null;
+  let named = false;
   for (const entry of journal) {
     if (entry.kind === 'dualityRerolled') which = entry.which;
+    if (entry.kind === 'rollNamed') named = true;
   }
-  if (which === null) return held;
+  if (which === null && !named) return held;
 
   const attacker = demo.state.entity(held.attacker);
   const target = demo.state.entity(held.target);
@@ -3099,9 +3107,13 @@ function asRerolled(demo: DemoScene, held: HeldSwing | undefined, journal: reado
 
   // Drawn in the printed order, so a seed replays a reroll exactly.
   const faces: { hope?: number; fear?: number } = {};
-  if (which !== 'fear') faces.hope = demo.rng.die(HOPE_DIE_SIDES);
-  if (which !== 'hope') faces.fear = demo.rng.die(FEAR_DIE_SIDES);
-  const thrown = withFaces(roll, faces);
+  if (which !== null && which !== 'fear') faces.hope = demo.rng.die(roll.hopeSides ?? HOPE_DIE_SIDES);
+  if (which !== null && which !== 'hope') faces.fear = demo.rng.die(FEAR_DIE_SIDES);
+  let thrown = withFaces(roll, faces);
+  // A named total moves the number and leaves the dice alone.
+  if (named && !thrown.success) {
+    thrown = withFaces({ ...thrown, modifier: thrown.modifier + (thrown.difficulty - thrown.total) }, {});
+  }
   note(
     demo,
     `${nameOf(demo, held.attacker)} throws again: ${describeRoll(thrown)}`,

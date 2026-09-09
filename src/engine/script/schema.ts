@@ -942,6 +942,22 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * stops a check after its dice whenever somebody is holding a card that
    * answers one, and settles it around whatever they said.
    */
+  /**
+   * "Change the numerical result of that roll to a result of your choice
+   * instead. The result must be plausible within the range of the dice."
+   *
+   * The other thing that can be done to a roll already read: not the dice
+   * again, but the number they came to. Journalled like the rerolls beside it,
+   * and answered where the roll is held.
+   *
+   * The *total* moves and the faces do not, which is what "numerical result"
+   * says: whether it was a roll with Hope or with Fear, and whether the dice
+   * matched, are properties of the throw and are left alone. And the number
+   * chosen is the one that saves the roll - the least that carries it over the
+   * Difficulty - because that is what anybody spending five Hope is spending
+   * them on, and there is nobody here to ask for a different one.
+   */
+  z.object({ kind: z.literal('nameRoll') }),
   z.object({
     kind: z.literal('rerollDuality'),
     /** Which of the two goes back in the cup. Both when left out. */

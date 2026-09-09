@@ -350,6 +350,12 @@ export type JournalEntry =
   /** A card put something behind a roll after it was read: what, and what it came to. */
   | { kind: 'lifted'; by: number; total: number }
   | { kind: 'dualityRerolled'; which: 'hope' | 'fear' | 'both' }
+  /**
+   * A card named the roll's total rather than throwing it again. Written twice:
+   * once by the card, with no number, as the asking; and once where the roll is
+   * held, with what it came to.
+   */
+  | { kind: 'rollNamed'; total?: number }
   /** Somebody put back on their feet at full strength. */
   | { kind: 'revived'; id: string }
   /** A patch of ground started or stopped meaning something. */
@@ -433,7 +439,7 @@ export type Response =
    * What the room did about a roll it was shown: nothing, or a die put back in
    * the cup. The check carries on from where it stopped either way.
    */
-  | { kind: 'answered'; reroll?: 'hope' | 'fear' | 'both' }
+  | { kind: 'answered'; reroll?: 'hope' | 'fear' | 'both'; name?: boolean }
   /** Decline the roll — the legacy dialog let a player back out, costing nothing. */
   | { kind: 'cancel' };
 
@@ -840,6 +846,12 @@ export class ScriptRunner {
       if (response.reroll !== 'hope') faces.fear = this.rng.die(FEAR_DIE_SIDES);
       roll = withFaces(roll, faces);
       this.journal.push({ kind: 'dualityRerolled', which: response.reroll });
+    }
+    // And the other thing that can be done to it: the total named rather than
+    // the dice thrown again. The faces stand, so a roll with Fear stays one.
+    if (response !== null && response.kind === 'answered' && response.name === true && !roll.success) {
+      roll = withFaces({ ...roll, modifier: roll.modifier + (roll.difficulty - roll.total) }, {});
+      this.journal.push({ kind: 'rollNamed', total: roll.total });
     }
     const hit =
       check.difficulty === 'target'
@@ -1362,6 +1374,12 @@ export class ScriptRunner {
         // Journalled rather than rolled: the faces are the game layer's, and
         // it throws them again where it can see them.
         this.journal.push({ kind: 'damageRerolled', below: effect.below });
+        return null;
+      }
+      case 'nameRoll': {
+        // Named here, applied where the roll is held - the same bargain the
+        // rerolls beside it make.
+        this.journal.push({ kind: 'rollNamed' });
         return null;
       }
       case 'rerollDuality': {

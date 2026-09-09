@@ -6302,3 +6302,99 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
     expect(demo.sheets.get('kara')!.loadout ?? []).not.toContain('vitality');
   });
 });
+
+
+/**
+ * The last card that was blocked rather than deliberately text: five Hope to
+ * name a roll's total instead of throwing the dice again.
+ */
+describe('reaching past the dice', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  const rolling = (seed: string): { demo: DemoScene; kara: EntityState; mira: EntityState; husk: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = true;
+    hold(demo, 'kara', ['know-thy-enemy']);
+    hold(demo, 'mira', ['adjust-reality']);
+    const kara = demo.state.entity('kara')!;
+    const mira = demo.state.entity('mira')!;
+    mira.hope = { max: 6, value: 6 };
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const blocked = demo.state.blockedFor('mira');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) demo.state.moveEntity('mira', tile);
+    });
+    return { demo, kara, mira, husk };
+  };
+
+  it('is offered only on a failure, and turns one into a success for five Hope', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, mira, husk } = rolling('adjust-' + seed);
+      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+      answerPending(demo, { kind: 'roll' });
+      if (demo.pending?.kind !== 'reaction') continue;
+
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['adjust-reality']);
+      // Never put on a roll that did not need it.
+      const thrown = demo.pending.offers[0]!.swing!;
+      expect(thrown.success).toBe(false);
+
+      answerPending(demo, { kind: 'choose', index: 1 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+      const settled = demo.rolls[demo.rolls.length - 1]!.roll;
+      // The number moved to exactly what was needed, and no further.
+      expect(settled.success).toBe(true);
+      expect(settled.total).toBe(thrown.difficulty);
+      // The dice did not: "the numerical result" is the total, not the throw.
+      expect({ hope: settled.hope, fear: settled.fear }).toEqual({ hope: thrown.hope, fear: thrown.fear });
+      expect(settled.withHope).toBe(thrown.withHope);
+      // Five Hope, out of the six she had.
+      expect(mira.hope!.value).toBeLessThanOrEqual(1);
+      return;
+    }
+    throw new Error('Adjust Reality was never offered in eighty tries');
+  });
+
+  it('leaves the roll alone when the room lets it pass', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, mira, husk } = rolling('adjust-pass-' + seed);
+      useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]);
+      answerPending(demo, { kind: 'roll' });
+      if (demo.pending?.kind !== 'reaction') continue;
+      const thrown = demo.pending.offers[0]!.swing!;
+
+      answerPending(demo, { kind: 'choose', index: 0 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const settled = demo.rolls[demo.rolls.length - 1]!.roll;
+      expect(settled.total).toBe(thrown.total);
+      expect(settled.success).toBe(false);
+      expect(mira.hope!.value).toBe(6);
+      return;
+    }
+    throw new Error('Adjust Reality was never offered in eighty tries');
+  });
+
+  it('is not offered to somebody who cannot pay the five', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const rich = rolling('adjust-purse-' + seed);
+      useAbility(rich.demo, 'kara', 'know-thy-enemy', [rich.husk.id]);
+      answerPending(rich.demo, { kind: 'roll' });
+      if (rich.demo.pending?.kind !== 'reaction') continue;
+
+      // The same seed, so the same roll; what changes is the purse.
+      const poor = rolling('adjust-purse-' + seed);
+      poor.mira.hope = { max: 6, value: 4 };
+      useAbility(poor.demo, 'kara', 'know-thy-enemy', [poor.husk.id]);
+      answerPending(poor.demo, { kind: 'roll' });
+      expect(poor.demo.pending?.kind).not.toBe('reaction');
+      return;
+    }
+    throw new Error('Adjust Reality was never offered in eighty tries');
+  });
+});

@@ -901,6 +901,39 @@ const RAW: Input[] = [
     lift: { each: 1, only: 'spellcast' },
   },
 
+  // "After you or a willing ally make any roll, you can spend 5 Hope to change
+  // the numerical result of that roll to a result of your choice instead. The
+  // result must be plausible within the range of the dice."
+  //
+  // The last card in the game that was blocked rather than deliberately text.
+  // The moment it needs - a roll held between its dice and its consequences -
+  // exists now for a swing and for a check, and what was missing was any way to
+  // name a number rather than throw the dice again. `nameRoll` is that.
+  //
+  // "Your choice" is decided rather than asked, the way every unattended choice
+  // here is: the least that carries the roll over the Difficulty. Five Hope is
+  // not spent to make a success prettier, so it is only offered on a failure -
+  // and the *total* moves while the faces stand, which is what "numerical
+  // result" says: whether the roll was with Hope or with Fear, and whether the
+  // dice matched, belong to the throw.
+  //
+  // "You or a willing ally" is anybody, so unlike Reassurance it answers its
+  // holder's own roll too.
+  {
+    id: 'adjust-reality',
+    name: 'Adjust Reality',
+    source: card('adjust-reality'),
+    kind: 'reaction',
+    trigger: 'partyRolling',
+    cost: { hope: 5 },
+    action: false,
+    auto: false,
+    available: { kind: 'rolled', is: 'failure' },
+    effects: [
+      { kind: 'log', text: 'They reach past the dice and put the number where it should have been.', tone: 'hope' },
+      { kind: 'nameRoll' },
+    ],
+  },
   // "Make a Spellcast Roll against a target within Far range. On a success, you
   // can use your mind to move them anywhere within Far range of their original
   // position. You can throw the lifted target as an attack by making an
