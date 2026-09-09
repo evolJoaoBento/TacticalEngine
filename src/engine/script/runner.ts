@@ -25,7 +25,7 @@
 import type { Rng } from '../core/rng';
 import { NO_TILE } from '../grid/grid';
 import { rollDuality, withFaces, type DualityRoll, type RollOutcome } from '../rules/duality';
-import { formatDice, parseDice, rollDice, type DamageType, type DiceExpression, type ParsedDamage } from '../rules/dice';
+import { formatDice, parseDice, rollDice, withProficiency, type DamageType, type DiceExpression, type ParsedDamage } from '../rules/dice';
 import type { RunningCountdown } from './countdowns';
 import type { RunningZone } from './zones';
 import { hookReads } from './conditions';
@@ -558,6 +558,21 @@ export class ScriptRunner {
       // than a refusal, the way an empty count is.
       // How many a selector names, rather than a number read off one of them.
       if ('count' in amount) return this.resolve(amount.count).length;
+      // The one amount that draws dice. Thrown here rather than read off
+      // anything, so it comes off the same seeded stream as everything else.
+      if ('dice' in amount) {
+        const actor = this.world.actorId();
+        const parsed = parseDice(amount.dice);
+        if (parsed === null) return 0;
+        const expr =
+          amount.using === 'proficiency' && actor !== null
+            ? withProficiency(parsed, this.world.proficiencyOf(actor))
+            : parsed;
+        const thrown = rollDice(this.rng, expr);
+        return amount.pick === 'highest'
+          ? (thrown.rolls.length === 0 ? 0 : Math.max(...thrown.rolls) + expr.modifier)
+          : thrown.total;
+      }
       const who = this.resolve(amount.of ?? { kind: 'actor' })[0];
       if (who === undefined) return 0;
       if ('tokens' in amount) return this.world.tokensOn(who, amount.tokens);

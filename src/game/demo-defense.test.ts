@@ -5921,3 +5921,111 @@ describe('coming at them well, and knowing them', () => {
     throw new Error('the watch never paid off in eighty tries');
   });
 });
+
+
+/**
+ * Grace, which I had written off as social and was not: a spell that takes an
+ * ally out of sight, and a taunt that rolls for what it costs.
+ */
+describe('out of sight, and under the skin', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** Mira beside Kara, holding a Grace card and the spotlight. */
+  const casting = (seed: string, card: string): { demo: DemoScene; mira: EntityState; kara: EntityState; husk: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    hold(demo, 'mira', [card]);
+    const mira = demo.state.entity('mira')!;
+    mira.hope = { max: 6, value: 6 };
+    mira.stress = { max: 6, marked: 0 };
+    const kara = demo.state.entity('kara')!;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 90, marked: 0 };
+    husk.stress = { max: 12, marked: 0 };
+    const blocked = demo.state.blockedFor('mira');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) demo.state.moveEntity('mira', tile);
+    });
+    demo.party.select('mira');
+    return { demo, mira, kara, husk };
+  };
+
+  it('Invisibility puts the die on anything aimed at the one it hid', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, mira, kara, husk } = casting('invis-' + seed, 'invisibility');
+      expect(useAbility(demo, 'mira', 'invisibility', ['kara']).status).toBe('waiting');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (!kara.conditions.has('invisible')) continue;
+
+      // A Stress from the caster, and tokens on the one who is hidden - not on
+      // the caster's card, so the creature spending them is the one they are
+      // about.
+      expect(mira.stress.marked).toBe(1);
+      expect(demo.world.tokensOn('kara', 'invisibility')).toBe(demo.characters.get('mira')!.traits.knowledge);
+      // Attacks against her are made with disadvantage; the caster is untouched.
+      expect(demo.world.advantageFor(husk.id, 'kara')).toEqual({ advantage: 0, disadvantage: 1 });
+      expect(demo.world.advantageFor(husk.id, 'mira')).toEqual({ advantage: 0, disadvantage: 0 });
+      return;
+    }
+    throw new Error('Invisibility never beat a 10 in sixty tries');
+  });
+
+  it('spends a token for every action she takes, and drops when the last one goes', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, kara, husk } = casting('invis-spend-' + seed, 'invisibility');
+      // The spell put on her by hand rather than cast: casting it is Mira's
+      // action, and the spotlight would be hers when Kara came to swing. What
+      // this test is about is the spending, which is Kara's own.
+      demo.world.applyCondition('kara', 'invisible', 'scene');
+      // Exactly two, so the second swing is the one that ends it.
+      demo.world.spendTokens('kara', 'invisibility', 99);
+      demo.world.addTokens('kara', 'invisibility', 2);
+      demo.party.select('kara');
+
+      attackWithSelected(demo, husk.id);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      expect(demo.world.tokensOn('kara', 'invisibility')).toBe(1);
+      expect(kara.conditions.has('invisible')).toBe(true);
+
+      // Her turn is spent, so the room takes one before she swings again.
+      kara.hitPoints = { max: 20, marked: 0 };
+      endTurn(demo);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      if (demo.encounter?.outcome !== 'ongoing' || !kara.alive) continue;
+
+      demo.party.select('kara');
+      attackWithSelected(demo, husk.id);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      expect(demo.world.tokensOn('kara', 'invisibility')).toBe(0);
+      expect(kara.conditions.has('invisible')).toBe(false);
+      return;
+    }
+    throw new Error('Invisibility never beat a 10 in sixty tries');
+  });
+
+  it('Troublemaker rolls d4s for the Stress it costs them', () => {
+    const marked: number[] = [];
+    for (let seed = 1; seed < 60 && marked.length < 6; seed++) {
+      const { demo, husk } = casting('trouble-' + seed, 'troublemaker');
+      // Presence is Mira's, and the taunt is aimed rather than cast.
+      expect(useAbility(demo, 'mira', 'troublemaker', [husk.id]).status).toBe('waiting');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (husk.stress.marked === 0) continue;
+      marked.push(husk.stress.marked);
+    }
+    expect(marked.length).toBeGreaterThan(0);
+    // One d4 at Proficiency 1: between one and four, never nothing and never
+    // five. That is the whole of "the highest result rolled".
+    for (const n of marked) {
+      expect(n).toBeGreaterThanOrEqual(1);
+      expect(n).toBeLessThanOrEqual(4);
+    }
+    // And it does vary, which a flat number would not.
+    expect(new Set(marked).size).toBeGreaterThan(1);
+  });
+});

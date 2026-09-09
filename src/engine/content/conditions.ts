@@ -237,6 +237,18 @@ const RAW: ConditionInput[] = [
       ],
     },
   },
+  // Invisibility, on whoever it was cast on. "An Invisible creature can't be
+  // seen except through magical means and attack rolls against them are made
+  // with disadvantage" - the not-being-seen is the table's, and the die is
+  // this. It lends the bearer the card's other half, because the one who is
+  // invisible is not the one holding the spell.
+  {
+    id: 'invisible',
+    name: 'Invisible',
+    text: 'Not there to look at: attack rolls against you are made with disadvantage.',
+    modifiers: [{ stat: 'advantage', bonus: -1, against: true }],
+    grants: { ability: 'invisibility-spends' },
+  },
   // Strategic Approach, declared and waiting on the swing it was declared for.
   // Two of its three options leave something behind; the third - steadying an
   // ally - happens as it is chosen and needs no condition.

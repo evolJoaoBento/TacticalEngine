@@ -50,9 +50,11 @@ Known simplifications in the scripted ones:
 - **Signature Move** is the only card that changes what is thrown rather than what is added to it: a d20 in place of the d12 Hope Die, which raises the floor of the roll and makes a critical rarer, both of which the card is buying deliberately. Declaring the move is a free thing done before rolling rather than folded into an action, the engine having no way to hear "as part of" an action that has not happened yet. **Tactician** says the same words about a Tag Team Roll, which this engine does not have, and stays text along with its half about lending an Experience to somebody else's roll.
 - **Strategic Approach** spends its token *before* the swing rather than during it, which is what keeps all three of its options: advantage has to be declared before the dice, so a card that asked afterwards could only ever have offered two of the three. Its gate - "the first time you move within Close range of an adversary" - is not tracked, nothing here remembering that a character walked before they swung; the cost of both is a player who picks their line and then cannot reach anybody, which is a wasted token rather than a wrong rule.
 - **Know Thy Enemy** leaves the Hope it costs and the Fear it can take. The information is the table's: the engine already shows every number on that list when you look at a creature, but the effect vocabulary cannot read those numbers into a sentence. The Fear is offered rather than taken, a Stress being a real price and "you can" the card's own word.
+- **Invisibility** keeps its die and its clock: attacks against the hidden creature are made with disadvantage, and every action they take spends one of the tokens the caster's Spellcast trait placed. Two simplifications. The tokens sit with the one who is invisible rather than on the caster's card, which is what lets an ally spend them at all; and "yourself or an ally" is an ally, because a caster who chose themselves would spend the first token on the Spellcast Roll that cast it. Not being seen except by magical means is the table's.
+- **Troublemaker** is the first card to roll dice for an *amount* rather than for damage: a number of d4s scaled by Proficiency, and the best single face of them, marked as Stress on whatever the taunt beat.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 127 of 189 cards.
+Scripted: 129 of 189 cards.
 
 
 ## Arcana
@@ -167,9 +169,9 @@ Scripted: 127 of 189 cards.
 | 1 | Enrapture | Spell | **action** |
 | 1 | Inspirational Words | Ability | **action** |
 | 2 | Tell No Lies | Spell | text |
-| 2 | Troublemaker | Ability | text |
+| 2 | Troublemaker | Ability | **action** |
 | 3 | Hypnotic Shimmer | Spell | **action** |
-| 3 | Invisibility | Spell | text |
+| 3 | Invisibility | Spell | **action**, **reaction** |
 | 4 | Soothing Speech | Ability | text |
 | 4 | Through Your Eyes | Spell | text |
 | 5 | Thought Delver | Spell | text |

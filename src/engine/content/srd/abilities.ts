@@ -131,6 +131,23 @@ const STORM = (dice: string, condition?: string): EffectInput => ({
   },
 });
 
+const PROVOKED: EffectInput[] = [
+  { kind: 'log', text: 'Whatever they said, it lands somewhere soft.', tone: 'hope' },
+  {
+    kind: 'markStress',
+    amount: { dice: '1d4', using: 'proficiency', pick: 'highest' },
+    target: { kind: 'hit' },
+  },
+];
+
+const UNSEEN: EffectInput[] = [
+  { kind: 'markStress', amount: 1, target: { kind: 'actor' } },
+  { kind: 'clearCondition', condition: 'invisible', target: { kind: 'allies', includeSelf: true } },
+  { kind: 'log', text: 'They stop being somewhere anyone is looking.', tone: 'hope' },
+  { kind: 'applyCondition', condition: 'invisible', duration: 'scene', target: { kind: 'target' } },
+  { kind: 'addToken', ability: 'invisibility', amount: { trait: 'spellcast' }, target: { kind: 'target' } },
+];
+
 const LEARNED: EffectInput[] = [
   { kind: 'log', text: 'They watch a while longer, and something about it gives.', tone: 'hope' },
   {
@@ -550,6 +567,95 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- Grace, which turned out not to be all text ----------------------------
+  //
+  // "When you taunt or provoke a target within Far range, make a Presence Roll
+  // against them. Once per rest on a success, roll a number of d4s equal to
+  // your Proficiency. The target must mark Stress equal to the highest result
+  // rolled."
+  //
+  // The first card to roll dice for an *amount* rather than for damage, which
+  // is why `markStress` can now take an expression: a number of d4s scaled by
+  // Proficiency, and the best single face of them.
+  {
+    id: 'troublemaker',
+    name: 'Troublemaker',
+    source: card('troublemaker'),
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'presence',
+          difficulty: 'target',
+          prompt: 'Troublemaker: say the thing that gets under it.',
+          onCriticalSuccess: PROVOKED,
+          onSuccessWithHope: PROVOKED,
+          onSuccessWithFear: PROVOKED,
+        },
+      },
+    ],
+  },
+  //
+  // "Make a Spellcast Roll (10). On a success, mark a Stress and choose
+  // yourself or an ally within Melee range to become Invisible... Place a
+  // number of tokens on this card equal to your Spellcast trait. When the
+  // Invisible creature takes an action, spend a token from this card. After the
+  // action that spends the last token is resolved, the effect ends. You can
+  // only hold Invisibility on one creature at a time."
+  //
+  // Simplified twice. The tokens sit with the one who is invisible rather than
+  // on the caster's card, so the creature spending them is the creature they
+  // are about - which is what lets an ally spend them at all. And "yourself or
+  // an ally" is an ally: a caster who chose themselves would spend the first
+  // token on the Spellcast Roll that cast it, which is not what the card means
+  // by an action taken while invisible.
+  //
+  // "Only one creature at a time" is the first line of the script, as it is for
+  // the Book of Sitil: the condition comes off everybody before it goes on
+  // anybody.
+  {
+    id: 'invisibility',
+    name: 'Invisibility',
+    source: card('invisibility'),
+    target: { kind: 'ally', range: 'melee' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 10,
+          prompt: 'Invisibility: take them out of sight.',
+          onCriticalSuccess: UNSEEN,
+          onSuccessWithHope: UNSEEN,
+          onSuccessWithFear: UNSEEN,
+        },
+      },
+    ],
+  },
+  // And the half the invisible creature holds, lent to them by the condition.
+  {
+    id: 'invisibility-spends',
+    name: 'Invisibility',
+    source: card('invisibility'),
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    available: { kind: 'all', of: [{ kind: 'self' }, { kind: 'hasCondition', condition: 'invisible', of: { kind: 'actor' } }] },
+    effects: [
+      { kind: 'spendToken', ability: 'invisibility', amount: 1, target: { kind: 'actor' } },
+      {
+        kind: 'branch',
+        when: { kind: 'tokens', ability: 'invisibility', of: { kind: 'actor' }, op: '<=', value: 0 },
+        then: [
+          { kind: 'log', text: 'The last of it goes, and there they are again.', tone: 'combat' },
+          { kind: 'clearCondition', condition: 'invisible', target: { kind: 'actor' } },
+        ],
+      },
+    ],
+  },
+
   // "After a long rest, place a number of tokens equal to your Knowledge on
   // this card (minimum 1). The first time you move within Close range of an
   // adversary and make an attack against them, you can spend one token to

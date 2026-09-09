@@ -104,6 +104,21 @@ export const amountReadSchema = z.union([
       return targetSelectorSchema;
     },
   }),
+  /**
+   * Or dice, thrown for it: "roll a number of d4s equal to your Proficiency;
+   * the target must mark Stress equal to the highest result rolled".
+   *
+   * The one amount that draws from the stream, so it is written as an
+   * expression rather than a number. `using: 'proficiency'` multiplies the
+   * count the way a damage roll does, and `pick: 'highest'` takes the best
+   * single face instead of the sum - which is the shape every card that rolls
+   * for an amount happens to want.
+   */
+  z.object({
+    dice: z.string().min(1),
+    using: z.literal('proficiency').optional(),
+    pick: z.literal('highest').optional(),
+  }),
   /** Or the tokens sitting on a card somebody holds. */
   z.object({
     tokens: contentIdSchema,
