@@ -74,6 +74,7 @@ import {
   type RunningCountdown,
 } from './countdowns';
 import { runningZoneSchema, type RunningZone, type ZoneBoard } from './zones';
+import { markKey, parseMarkKey } from './marks';
 import type { CountdownCue } from '../rules/countdown';
 import type { AttackSummary, DealtDamage, ScriptWorld } from './runner';
 import { evaluate, type TargetBindings } from './conditions';
@@ -1179,6 +1180,43 @@ export class SceneScriptWorld implements ScriptWorld {
    * that only answers an ally does not stop the ally-less roll and one that
    * wants a failure does not stop a success.
    */
+  markSpot(actor: string, mark: string): boolean {
+    const tile = this.state.entity(actor)?.tile ?? NO_TILE;
+    if (tile === NO_TILE) return false;
+    this.scenario.variables[markKey(mark, actor)] = tile;
+    return true;
+  }
+
+  recallSpot(actor: string, mark: string): number {
+    const value = this.scenario.variables[markKey(mark, actor)];
+    return typeof value === 'number' && this.state.grid.isTile(value) ? value : NO_TILE;
+  }
+
+  forgetSpot(actor: string, mark: string): boolean {
+    const key = markKey(mark, actor);
+    if (!(key in this.scenario.variables)) return false;
+    delete this.scenario.variables[key];
+    return true;
+  }
+
+  /** Every spot anybody has marked, for a board that draws them. */
+  marks(): { mark: string; owner: string; tile: number }[] {
+    const found: { mark: string; owner: string; tile: number }[] = [];
+    for (const [name, value] of Object.entries(this.scenario.variables)) {
+      const parsed = parseMarkKey(name);
+      if (parsed === null || typeof value !== 'number') continue;
+      found.push({ mark: parsed.mark, owner: parsed.actor, tile: value });
+    }
+    return found;
+  }
+
+  /** Forget every mark: the party rested, or left the room the tiles were in. */
+  forgetSpots(): void {
+    for (const name of Object.keys(this.scenario.variables)) {
+      if (parseMarkKey(name) !== null) delete this.scenario.variables[name];
+    }
+  }
+
   answersRoll(id: string, roll: { total: number; outcome: RollOutcome; tags?: readonly string[] }): boolean {
     if (this.state.entity(id)?.faction !== 'party') return false;
     const bindings: TargetBindings = { targets: [id], hit: [id], roll };
@@ -2370,8 +2408,12 @@ export class SceneScriptWorld implements ScriptWorld {
     const walking = this.state.entity(mover);
     if (walking === undefined || walking.tile === NO_TILE || goalTile === NO_TILE) return null;
     if (this.blocks(mover, 'move')) return null;
-    const reach = this.bandBetween(walking.tile, goalTile);
-    if (reach === null || !reaches(reach, band)) return null;
+    // `outOfRange` as the band is "however far": a rift back to a mark does
+    // not measure, where a door aimed at a point is as far as the card said.
+    if (band !== 'outOfRange') {
+      const reach = this.bandBetween(walking.tile, goalTile);
+      if (reach === null || !reaches(reach, band)) return null;
+    }
 
     const grid = this.state.grid;
     const blocked = this.state.blockedFor(mover);

@@ -150,6 +150,12 @@ export interface ScriptWorld extends ConditionContext {
    * would read every such gate as false.
    */
   answersRoll(id: string, roll: { total: number; outcome: RollOutcome; tags?: readonly string[] }): boolean;
+  /** Remember where a creature stands under a name. False for one not on the board. */
+  markSpot(actor: string, mark: string): boolean;
+  /** The tile a creature marked under a name, or `NO_TILE`. */
+  recallSpot(actor: string, mark: string): number;
+  /** Forget it. False when there was nothing to forget. */
+  forgetSpot(actor: string, mark: string): boolean;
   /** The acting character's Experiences, spendable for a Hope each. */
   experiences(): readonly { name: string; modifier: number }[];
   /** What a roll against this creature must meet: Evasion, or an adversary's Difficulty. */
@@ -359,6 +365,8 @@ export type JournalEntry =
    * held, with what it came to.
    */
   | { kind: 'rollNamed'; total?: number }
+  /** Somebody marked the ground where they stand. */
+  | { kind: 'marked'; id: string; mark: string }
   /** Somebody put back on their feet at full strength. */
   | { kind: 'revived'; id: string }
   /** Somebody killed outright, past what a heal can reach. */
@@ -1388,6 +1396,18 @@ export class ScriptRunner {
         this.journal.push({ kind: 'damageRerolled', below: effect.below });
         return null;
       }
+      case 'markSpot': {
+        const actor = world.actorId();
+        if (actor === null) return this.refuse('nobody to mark the ground');
+        if (!world.markSpot(actor, effect.mark)) return this.refuse('no ground to mark');
+        this.journal.push({ kind: 'marked', id: actor, mark: effect.mark });
+        return null;
+      }
+      case 'forgetSpot': {
+        const actor = world.actorId();
+        if (actor !== null) world.forgetSpot(actor, effect.mark);
+        return null;
+      }
       case 'nameRoll': {
         // Named here, applied where the roll is held - the same bargain the
         // rerolls beside it make.
@@ -1489,16 +1509,21 @@ export class ScriptRunner {
         // a spell that takes the room with it moves all of them.
         const movers = effect.who === undefined ? (actor === null ? [] : [actor]) : this.resolve(effect.who);
         if (movers.length === 0) return effect.who === undefined ? this.refuse('nobody to move') : null;
-        // A run at a place rather than at somebody. Nothing aimed is nobody
-        // moving, the same quiet answer a walk with nobody to close on gives.
-        if (effect.to === 'point') {
-          const at = this.point;
+        // A run at a place rather than at somebody: the tile aimed at, or the
+        // one the actor marked earlier. Nothing aimed, or nothing marked, is
+        // nobody moving, the same quiet answer a walk with nobody to close on
+        // gives. A mark is anywhere in the room - a rift does not measure -
+        // where a point is as far as the card said.
+        if (effect.to === 'point' || effect.to === 'mark') {
+          const at =
+            effect.to === 'point' ? this.point : actor === null ? NO_TILE : world.recallSpot(actor, effect.mark ?? '');
           if (at === NO_TILE) return null;
+          const budget = effect.budget ?? (effect.to === 'mark' ? 'outOfRange' : effect.teleport === true ? 'far' : 'close');
           for (const mover of movers) {
             const ran =
               effect.teleport === true
-                ? world.blinkTo(mover, at, effect.budget ?? 'far')
-                : world.drawTo(mover, at, effect.range ?? 'melee', effect.budget ?? 'close');
+                ? world.blinkTo(mover, at, budget)
+                : world.drawTo(mover, at, effect.range ?? 'melee', budget);
             if (ran !== null) {
               this.journal.push({ kind: 'moved', id: mover, from: ran.from, to: ran.to, walked: effect.teleport !== true });
             }

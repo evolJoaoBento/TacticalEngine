@@ -22,6 +22,7 @@
 export type { Condition, CompareOp, ScriptValue } from './schema';
 export { conditionSchema } from './schema';
 
+import { markKey } from './marks';
 import type { Condition, CompareOp, CountName, HookArgs, PoolName, ScriptValue, TargetSelector } from './schema';
 import type { QuestQuery } from '../content/quests';
 import type { HookFn, HookReads } from './hooks';
@@ -198,6 +199,10 @@ export function evaluate(
       return compare(condition.of === 'spent' ? 0 : countOf(bindings, condition.of), condition.op, condition.value);
     case 'rollTagged':
       return bindings.roll?.tags?.includes(condition.tag) === true;
+    case 'hasMark': {
+      const actor = context.actorId();
+      return actor !== null && context.getVar(markKey(condition.mark, actor)) !== null;
+    }
     case 'rolled': {
       const outcome = bindings.roll?.outcome;
       if (outcome === undefined) return false;

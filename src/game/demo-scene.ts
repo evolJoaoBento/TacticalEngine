@@ -974,6 +974,8 @@ export function travelTo(demo: DemoScene, sceneId: string): boolean {
     });
   }
 
+  // A marked spot is a tile, and a tile means nothing in another room.
+  demo.world.forgetSpots();
   install(demo, runtime, selected);
   // `SceneDoc.intro` has been an authored field nothing ever read.
   if (target.intro !== '') note(demo, target.intro, 'narration');
@@ -4909,6 +4911,8 @@ function describeEntry(
       return entry.walked === true
         ? { text: `${who(entry.id)} crosses the ground.`, tone: 'combat' }
         : { text: `${who(entry.id)} is thrown back.`, tone: 'combat' };
+    case 'marked':
+      return { text: `${who(entry.id)} marks the ground where they stand.`, tone: 'hope' };
     case 'countdown':
       return { text: `${entry.name} begins: ${entry.value}.`, tone: 'fear' };
     case 'replaced': {

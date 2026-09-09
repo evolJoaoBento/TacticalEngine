@@ -781,10 +781,14 @@ function refreshPlay(): void {
  * tomorrow still shows up.
  */
 function paintedZones(): { tiles: number[]; color: string }[] {
-  return demo.world.zoneFootprints().map((zone) => ({
-    tiles: zone.tiles,
-    color: demo.world.conditionDef(zone.condition)?.color ?? hueOf(zone.condition),
-  }));
+  return [
+    ...demo.world.zoneFootprints().map((zone) => ({
+      tiles: zone.tiles,
+      color: demo.world.conditionDef(zone.condition)?.color ?? hueOf(zone.condition),
+    })),
+    // A spot somebody marked to come back to: one tile, in the party's blue.
+    ...demo.world.marks().map((mark) => ({ tiles: [mark.tile], color: '#7fd1ff' })),
+  ];
 }
 
 

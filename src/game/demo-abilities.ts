@@ -536,6 +536,8 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
     if (per === 'rest' || per === 'scene' || (per === 'longRest' && kind === 'long')) demo.scenario.abilityUses.delete(key);
   }
   refillTokens(demo, kind === 'long' ? ['rest', 'longRest', 'scene', 'session'] : ['rest', 'scene']);
+  // A marked spot lasts "before your next rest", and a rest is where it goes.
+  demo.world.forgetSpots();
   const ended = demo.state.clearConditions('rest');
   for (const { id, condition } of ended) note(demo, `${nameOf(demo, id)} is no longer ${condition}.`, 'system');
   syncPools(demo);

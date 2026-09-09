@@ -364,6 +364,8 @@ export const conditionSchema = z.discriminatedUnion('kind', [
    * see. A roll nobody tagged reads false, the way an untagged everything does.
    */
   z.object({ kind: z.literal('rollTagged'), tag: z.string().min(1) }),
+  /** Whether the one acting has a spot marked under that name. */
+  z.object({ kind: z.literal('hasMark'), mark: contentIdSchema }),
   z.object({ kind: z.literal('inCombat') }),
   /**
    * How many of a domain's cards a character has in their loadout — the nine
@@ -864,7 +866,9 @@ export const effectSchema = z.discriminatedUnion('kind', [
      * than at somebody: "run a straight path to a point within Far range".
      * With nothing aimed, nobody moves.
      */
-    to: z.literal('point').optional(),
+    to: z.enum(['point', 'mark']).optional(),
+    /** For `to: 'mark'`: which of the actor's marks. Nothing marked is nobody moving. */
+    mark: contentIdSchema.optional(),
     /** For `toward`: the band to end up within. Melee by default. */
     range: rangeBandSchema.optional(),
     /** How far it may walk. Close by default. */
@@ -977,6 +981,14 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * them on, and there is nobody here to ask for a different one.
    */
   z.object({ kind: z.literal('nameRoll') }),
+  /**
+   * Remember where the one acting stands, under a name: "place an arcane
+   * marking on the ground where you currently stand". Read back by a `move`
+   * with `to: 'mark'` and a `hasMark` gate; forgotten by `forgetSpot`, by a
+   * rest, and by leaving the room, a tile meaning nothing in another one.
+   */
+  z.object({ kind: z.literal('markSpot'), mark: contentIdSchema }),
+  z.object({ kind: z.literal('forgetSpot'), mark: contentIdSchema }),
   z.object({
     kind: z.literal('rerollDuality'),
     /** Which of the two goes back in the cup. Both when left out. */

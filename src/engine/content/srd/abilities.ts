@@ -229,6 +229,33 @@ const RESUMES: EffectInput[] = [
   { kind: 'clearCondition', condition: 'time-jamming', target: { kind: 'actor' } },
 ];
 
+/** Rift Walker's success: back through the rift, or a marking laid where they stand. */
+const RIFT: EffectInput[] = [
+  {
+    kind: 'branch',
+    when: { kind: 'hasMark', mark: 'rift' },
+    then: [
+      {
+        kind: 'choice',
+        title: 'Rift Walker',
+        body: 'The marking is still on the ground somewhere behind them.',
+        options: [
+          {
+            label: 'Step through the rift',
+            effects: [
+              { kind: 'log', text: 'The air splits, and they walk back through it to the mark.', tone: 'hope' },
+              { kind: 'move', to: 'mark', mark: 'rift', teleport: true },
+              { kind: 'forgetSpot', mark: 'rift' },
+            ],
+          },
+          { label: 'Drop it and mark the ground here instead', effects: [{ kind: 'markSpot', mark: 'rift' }] },
+        ],
+      },
+    ],
+    otherwise: [{ kind: 'markSpot', mark: 'rift' }],
+  },
+];
+
 const RAW: Input[] = [
   // ---- Blade -----------------------------------------------------------------
   {
@@ -3925,6 +3952,64 @@ const RAW: Input[] = [
     // text; the bonus is a modifier that reads the loadout it is written about.
     modifiers: [
       { stat: 'spellcastRoll', bonus: 1, when: { kind: 'loadout', domain: 'arcana', op: '>=', value: 4 } },
+    ],
+  },
+
+  // "Make a Spellcast Roll (15). On a success, you place an arcane marking on
+  // the ground where you currently stand. The next time you successfully cast
+  // Rift Walker, a rift in space opens up, providing safe passage back to the
+  // exact spot where the marking was placed... You can drop the spell at any
+  // time to cast Rift Walker again and place the marking somewhere new."
+  //
+  // The first card to remember a place. A mark is a tile kept under the
+  // caster's name, and the second cast is a choice: step through to it, or
+  // mark here instead. Simplified: the rift is one step rather than a door
+  // that "stays open until you cast another spell", and the mark is forgotten
+  // on a rest or on leaving the room, a tile meaning nothing in another one.
+  {
+    id: 'rift-walker',
+    name: 'Rift Walker',
+    source: card('rift-walker'),
+    target: { kind: 'self' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 15,
+          prompt: 'Rift Walker: a marking on the ground, or the way back to one.',
+          onCriticalSuccess: RIFT,
+          onSuccessWithHope: RIFT,
+          onSuccessWithFear: RIFT,
+        },
+      },
+    ],
+  },
+  // "Spend a Hope to activate Phantom Retreat where you're currently standing.
+  // Spend another Hope at any time before your next rest to disappear from
+  // where you are and reappear where you were standing when you activated
+  // Phantom Retreat. This spell ends after you reappear."
+  //
+  // The same shape without the roll: a Hope to mark, a Hope to come back, and
+  // the mark goes with the rest, which is exactly what the card prints.
+  {
+    id: 'phantom-retreat',
+    name: 'Phantom Retreat',
+    source: card('phantom-retreat'),
+    cost: { hope: 1 },
+    target: { kind: 'self' },
+    action: false,
+    effects: [
+      {
+        kind: 'branch',
+        when: { kind: 'hasMark', mark: 'phantom' },
+        then: [
+          { kind: 'log', text: 'They are not there any more; they are where they were.', tone: 'hope' },
+          { kind: 'move', to: 'mark', mark: 'phantom', teleport: true },
+          { kind: 'forgetSpot', mark: 'phantom' },
+        ],
+        otherwise: [{ kind: 'markSpot', mark: 'phantom' }],
+      },
     ],
   },
 
