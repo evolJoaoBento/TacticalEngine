@@ -80,7 +80,7 @@ declare global {
       stressOf: (id: string) => { marked: number; max: number };
       gear: (id: string) => { weapon: string; armor: string };
       giveItem: (id: string, quantity?: number) => void;
-      journal: () => { id: string; status: string; done: string[] }[];
+      journal: () => { id: string; status: string; done: string[]; summary: string }[];
       camera: () => { yaw: number; pitch: number; distance: number; target: { x: number; z: number } };
       grantLevel: (level?: number) => number;
       addAsset: (asset: unknown) => boolean;
@@ -1182,7 +1182,9 @@ test('opens a quest in the journal when the pillar wakes', async ({ page }) => {
     return { before, after: api.journal(), log: api.log().map((l) => l.text) };
   });
   expect(journal.before).toEqual([]);
-  expect(journal.after).toEqual([{ id: 'the-wardens-word', status: 'active', done: [] }]);
+  expect(journal.after).toEqual([{ id: 'the-wardens-word', status: 'active', done: [], summary: expect.any(String) }]);
+  // Nothing done yet, so the journal reads the opening line: the pillar, not the pit.
+  expect(journal.after[0]!.summary).toContain('pillar');
   expect(journal.log.join(' ')).toContain("New quest: The Warden's Word");
 
   const panel = page.locator('[data-testid="journal"]');

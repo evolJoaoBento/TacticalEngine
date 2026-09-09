@@ -284,8 +284,14 @@ completed — so a quest unfolds rather than listing its plot on the first page.
 strongbox step stays out of the journal until the Warden has been talked round, and "New
 objective:" lands in the log when it appears. The quest form has a *hidden* box per step.
 
-**Still open:** stages with their own summary text — a BG3 journal rewrites the summary as the
-story turns; here the summary is one string.
+A step can carry the **summary the journal shows once it is done** (`QuestObjective.summary`;
+`journalSummary` picks the latest done step with one, in the quest's own order, and the opening
+summary until any is) — a BG3 journal rewriting itself as the story turns, without a second
+notion of "stage" beside the steps a designer already writes. The quest form has a "Then the
+journal says…" box under each step; the demo's quest stops describing the pillar and starts
+describing the pit once the word is won.
+
+**Still open:** nothing.
 
 The editor has a quest list and a form — name, summary, steps — because a quest is a list and a
 list is edited as a list; the graph was the right call for conversations, not for this. The

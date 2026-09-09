@@ -26,6 +26,13 @@ export const questObjectiveSchema = z.object({
    * whole plot on the first page.
    */
   hidden: z.boolean().default(false),
+  /**
+   * What the journal says about the quest once this step is done - the story
+   * having turned. The journal shows the summary of the latest done step that
+   * has one, and the quest's own summary until any does. Empty is "nothing
+   * changes here", which most steps are.
+   */
+  summary: z.string().default(''),
 });
 
 export const questSchema = z
@@ -59,6 +66,20 @@ export type QuestStatus = z.infer<typeof questStatusSchema>;
 /** The status a condition can ask about — the three above plus "not yet". */
 export const questQuerySchema = z.enum(['inactive', 'active', 'completed', 'failed']);
 export type QuestQuery = z.infer<typeof questQuerySchema>;
+
+/**
+ * The summary the journal shows for a quest as it stands: the latest done
+ * step's, in the quest's own order, that has one; the opening summary until
+ * then. A step done out of order still counts by its place in the list, so
+ * the journal reads as far into the story as the party has got.
+ */
+export function journalSummary(quest: QuestDef, progress: { done: ReadonlySet<string> }): string {
+  let summary = quest.summary;
+  for (const objective of quest.objectives) {
+    if (objective.summary !== '' && progress.done.has(objective.id)) summary = objective.summary;
+  }
+  return summary;
+}
 
 /** One quest's progress, as the campaign holds it. */
 export interface QuestProgress {

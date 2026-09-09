@@ -63,6 +63,7 @@ import { NO_TILE, type TileGrid } from './engine/grid/grid';
 import { mapExtent, tileAtWorld, tileCenter } from './engine/render/layout';
 import { MODELS } from './engine/render/procedural/registry';
 import { SceneView, hueOf } from './engine/render/scene-view';
+import { journalSummary } from './engine/content/quests';
 import { blankScene, gridFromScene } from './engine/scene/grid-from-scene';
 import { importLegacyScene } from './engine/scene/legacy-import';
 import {
@@ -179,7 +180,7 @@ declare global {
       stressOf: (id: string) => { marked: number; max: number };
       gear: (id: string) => { weapon: string; armor: string };
       giveItem: (id: string, quantity?: number) => void;
-      journal: () => { id: string; status: string; done: string[] }[];
+      journal: () => { id: string; status: string; done: string[]; summary: string }[];
       camera: () => { yaw: number; pitch: number; distance: number; target: { x: number; z: number } };
       grantLevel: (level?: number) => number;
       addAsset: (asset: unknown) => boolean;
@@ -893,7 +894,8 @@ function journalEntries(): JournalQuest[] {
     entries.push({
       id: quest.id,
       name: quest.name,
-      summary: quest.summary,
+      // As far into the story as the party has got, not the opening line.
+      summary: journalSummary(quest, progress),
       status: progress.status,
       objectives: quest.objectives
         // A hidden step stays out of the journal until revealed or done.
@@ -1773,11 +1775,12 @@ const state = {
   /** The numbers rising over heads right now, and whose. */
   floaters: (): { id: string; text: string }[] =>
     liveFloaters.map((f) => ({ id: f.el.dataset['entity'] ?? '', text: f.el.textContent ?? '' })),
-  journal: (): { id: string; status: string; done: string[] }[] =>
+  journal: (): { id: string; status: string; done: string[]; summary: string }[] =>
     journalEntries().map((q) => ({
       id: q.id,
       status: q.status,
       done: q.objectives.filter((o) => o.done).map((o) => o.id),
+      summary: q.summary,
     })),
   save: (): boolean => {
     const ok = saveNow();

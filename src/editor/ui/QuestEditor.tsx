@@ -73,7 +73,8 @@ export function QuestEditor(props: QuestEditorProps): preact.JSX.Element {
         onBlur={() => session.endGroup()}
       />
       {quest.objectives.map((objective, index) => (
-        <div key={objective.id} style={{ display: 'flex', gap: '4px', marginBottom: '3px' }} data-objective={objective.id}>
+        <div key={objective.id} style={{ marginBottom: '6px' }} data-objective={objective.id}>
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '3px' }}>
           <span style={{ color: '#8ea3b0', alignSelf: 'center', fontSize: '11px' }} title="Objective id">
             {objective.id}
           </span>
@@ -103,10 +104,20 @@ export function QuestEditor(props: QuestEditorProps): preact.JSX.Element {
             ✕
           </button>
         </div>
+        <textarea
+          style={{ ...field, minHeight: '30px', resize: 'vertical', fontSize: '11px', marginBottom: 0 }}
+          value={objective.summary}
+          placeholder="Then the journal says… (blank: nothing changes)"
+          title="What the journal's summary becomes once this step is done"
+          data-field="step-summary"
+          onInput={(e) => run(updateObjective(quest.id, index, { summary: (e.target as HTMLTextAreaElement).value }))}
+          onBlur={() => session.endGroup()}
+        />
+        </div>
       ))}
       <button
         style={small}
-        onClick={() => run(addObjective(quest.id, { id: nextObjectiveId(quest), text: 'Do the next thing.', hidden: false }))}
+        onClick={() => run(addObjective(quest.id, { id: nextObjectiveId(quest), text: 'Do the next thing.', hidden: false, summary: '' }))}
       >
         + Step
       </button>

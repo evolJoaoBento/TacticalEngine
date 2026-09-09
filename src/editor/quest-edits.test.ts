@@ -76,7 +76,7 @@ describe('quests in the project', () => {
   it('survives a round trip through the schema after every edit', () => {
     const s = session();
     s.run(updateQuest('word', { name: 'Renamed' }));
-    s.run(addObjective('word', { id: 'bring', text: 'Bring it back.', hidden: false }));
+    s.run(addObjective('word', { id: 'bring', text: 'Bring it back.', hidden: false, summary: '' }));
     expect(() => projectSchema.parse(JSON.parse(JSON.stringify(s.project)))).not.toThrow();
   });
 });
@@ -84,7 +84,7 @@ describe('quests in the project', () => {
 describe('objectives', () => {
   it('adds a step at the end, and undoes it', () => {
     const s = session();
-    s.run(addObjective('word', { id: 'bring', text: 'Bring it back.', hidden: false }));
+    s.run(addObjective('word', { id: 'bring', text: 'Bring it back.', hidden: false, summary: '' }));
     expect(word(s).objectives.map((o) => o.id)).toEqual(['ask', 'open', 'bring']);
     s.undo();
     expect(word(s).objectives.map((o) => o.id)).toEqual(['ask', 'open']);
@@ -113,6 +113,20 @@ describe('objectives', () => {
     expect(word(s).objectives[0]!.text).toBe('Ask.');
     s.undo();
     expect(word(s).objectives[1]!.text).toBe('Open it.');
+  });
+
+  it('gives a step the words the journal will use once it is done, undoably', () => {
+    const s = session();
+    s.run(updateObjective('word', 0, { summary: 'The word is' }));
+    s.run(updateObjective('word', 0, { summary: 'The word is won.' }));
+    expect(word(s).objectives[0]!.summary).toBe('The word is won.');
+    expect(word(s).objectives[1]!.summary).toBe('');
+    // Its own undo step, apart from the text's.
+    s.run(updateObjective('word', 0, { text: 'Ask again.' }));
+    s.undo();
+    expect(word(s).objectives[0]!.summary).toBe('The word is won.');
+    s.undo();
+    expect(word(s).objectives[0]!.summary).toBe('');
   });
 
   it('does not alias the original objective when editing', () => {

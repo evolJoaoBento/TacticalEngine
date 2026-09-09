@@ -20,7 +20,13 @@ export const DEMO_QUESTS: readonly QuestDef[] = [
     summary:
       'Something in the pillar has kept this vault for three hundred years. It knows a word that opens what is below.',
     objectives: [
-      { id: OBJECTIVE_WIN_THE_WORD, text: 'Get the word out of the Warden.' },
+      {
+        id: OBJECTIVE_WIN_THE_WORD,
+        text: 'Get the word out of the Warden.',
+        // The story turns here: the journal stops describing the pillar and
+        // starts describing what the word is for.
+        summary: 'The Warden gave up its word. Whatever it opens is below, in the pit.',
+      },
       // Not in the journal until the Warden has been talked round; the party
       // does not know what the word is for yet.
       { id: OBJECTIVE_OPEN_THE_STRONGBOX, text: 'Open the strongbox in the pit.', hidden: true },

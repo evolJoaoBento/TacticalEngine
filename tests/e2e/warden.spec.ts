@@ -84,6 +84,19 @@ test('the Warden talks, the quest starts, and the journal fills', async ({ page 
   expect(said.lines.length).toBeGreaterThan(1);
   expect(said.log.join(' ').length).toBeGreaterThan(0);
 
+  // The journal's summary turns with the story: once the word is won it
+  // describes the pit, not the pillar; until then it is the opening line.
+  const opening = started[0]!.summary;
+  const turned = said.journal.find((q) => q.id === started[0]!.id)!;
+  console.log('SUMMARY:', JSON.stringify({ opening, now: turned.summary, done: turned.done }));
+  if (turned.done.length > 0) {
+    expect(turned.summary).not.toBe(opening);
+    expect(turned.summary).toContain('pit');
+    await expect(page.locator('[data-testid="journal"]')).toContainText(turned.summary);
+  } else {
+    expect(turned.summary).toBe(opening);
+  }
+
   // And the readout rule this suite exists for: no content id on screen.
   const shown = await readAll(page);
   console.log('PANELS:', JSON.stringify(shown, null, 1));

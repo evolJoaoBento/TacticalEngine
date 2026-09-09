@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { TileGrid } from '../grid/grid';
 import { createRng } from '../core/rng';
 import { SceneState } from '../scene/state';
-import { questSchema } from '../content/quests';
+import { journalSummary, questSchema } from '../content/quests';
 import { evaluate } from './conditions';
 import { runScript, type JournalEntry } from './runner';
 import {
@@ -58,6 +58,36 @@ describe('the quest schema', () => {
         ],
       }),
     ).toThrow(/duplicate objective/);
+  });
+});
+
+describe('the summary as the story turns', () => {
+  const quest = questSchema.parse({
+    id: 'word',
+    name: 'The word',
+    summary: 'Something in the pillar knows a word.',
+    objectives: [
+      { id: 'ask', text: 'Ask.', summary: 'The Warden gave up its word.' },
+      { id: 'walk', text: 'Go down.' },
+      { id: 'open', text: 'Open it.', summary: 'The strongbox is open.' },
+    ],
+  });
+  const done = (...ids: string[]) => ({ done: new Set(ids) });
+
+  it('reads the opening line until a step with its own is done', () => {
+    expect(journalSummary(quest, done())).toBe('Something in the pillar knows a word.');
+    expect(journalSummary(quest, done('walk'))).toBe('Something in the pillar knows a word.');
+  });
+
+  it('reads the latest done step that says something', () => {
+    expect(journalSummary(quest, done('ask'))).toBe('The Warden gave up its word.');
+    // A step with nothing to say leaves the last one standing.
+    expect(journalSummary(quest, done('ask', 'walk'))).toBe('The Warden gave up its word.');
+    expect(journalSummary(quest, done('ask', 'walk', 'open'))).toBe('The strongbox is open.');
+  });
+
+  it('goes by the order of the steps, not the order they were done in', () => {
+    expect(journalSummary(quest, done('open', 'ask'))).toBe('The strongbox is open.');
   });
 });
 
