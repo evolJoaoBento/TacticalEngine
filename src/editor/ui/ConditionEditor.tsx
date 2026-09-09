@@ -53,6 +53,7 @@ const KINDS: readonly { kind: Condition['kind']; label: string }[] = [
   { kind: 'pool', label: 'a pool compares' },
   { kind: 'count', label: 'the blow compares' },
   { kind: 'rolled', label: 'the roll was' },
+  { kind: 'rollTagged', label: 'the roll was for' },
   { kind: 'inCombat', label: 'in a fight' },
   { kind: 'loadout', label: "a domain's cards in the loadout" },
   { kind: 'hasCondition', label: 'the target has a condition' },
@@ -120,6 +121,8 @@ export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEdi
       return { kind, of: 'hitPointsTaken', op: '>=', value: 2 };
     case 'rolled':
       return { kind, is: 'failure' };
+    case 'rollTagged':
+      return { kind, tag: 'social' };
     case 'inCombat':
       return { kind };
     case 'hasCondition':
@@ -249,6 +252,9 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
           (['failure', 'success', 'withFear', 'withHope', 'critical'] as const).map((id) => ({ id })),
           (is) => onChange({ ...condition, is }),
         );
+      case 'rollTagged':
+        // A word the check that made the roll put on itself: "social", "lock".
+        return text(condition.tag, (tag) => onChange({ ...condition, tag }));
       case 'count':
         return (
           <>

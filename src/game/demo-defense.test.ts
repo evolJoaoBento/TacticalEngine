@@ -6398,3 +6398,87 @@ describe('reaching past the dice', () => {
     throw new Error('Adjust Reality was never offered in eighty tries');
   });
 });
+
+
+/**
+ * A roll that knows what it was for. `tags` had been on a check since the
+ * schema was written and nothing had ever read one.
+ */
+describe('a roll with a purpose', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** Mira holding Endless Charisma, and a card of her own to roll with. */
+  const talking = (seed: string, cards: string[]): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = true;
+    hold(demo, 'mira', ['endless-charisma', ...cards]);
+    const mira = demo.state.entity('mira')!;
+    // Room above the six: a roll with Hope hands one over after the card has
+    // been paid for, and a full pool would swallow the difference.
+    mira.hope = { max: 12, value: 6 };
+    const kara = demo.state.entity('kara')!;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 90, marked: 0 };
+    const blocked = demo.state.blockedFor('mira');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) demo.state.moveEntity('mira', tile);
+    });
+    demo.party.select('mira');
+    return { demo, mira, husk };
+  };
+
+  it('is offered on a taunt and throws the Fear Die again', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, mira, husk } = talking('charisma-' + seed, ['troublemaker']);
+      expect(useAbility(demo, 'mira', 'troublemaker', [husk.id]).status).toBe('waiting');
+      answerPending(demo, { kind: 'roll' });
+      if (demo.pending?.kind !== 'reaction') continue;
+
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['endless-charisma']);
+      const thrown = demo.pending.offers[0]!.swing!;
+
+      answerPending(demo, { kind: 'choose', index: 1 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+      const settled = demo.rolls[demo.rolls.length - 1]!.roll;
+      // The Fear Die alone went back in the cup: "the Hope or Fear Die", and
+      // the Fear one is the pick anybody would make.
+      expect(settled.hope).toBe(thrown.hope);
+      // One Hope for the card, and whatever the settled roll handed back.
+      expect(mira.hope!.value).toBe(6 - 1 + settled.hopeGained);
+      return;
+    }
+    throw new Error('Endless Charisma was never offered on a taunt in eighty tries');
+  });
+
+  it('says nothing about a roll that was not persuasion', () => {
+    // Know Thy Enemy is an Instinct Roll to watch somebody, and carries no tag.
+    for (let seed = 1; seed < 40; seed++) {
+      const { demo, husk } = talking('charisma-quiet-' + seed, []);
+      hold(demo, 'kara', ['know-thy-enemy']);
+      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+      answerPending(demo, { kind: 'roll' });
+      // The card is in Mira's hand and the roll is not one it answers, so the
+      // check never stops at all.
+      expect(demo.pending?.kind).not.toBe('reaction');
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      return;
+    }
+    throw new Error('never got a roll away in forty tries');
+  });
+
+  it('and nothing about a swing, which carries no tags at all', () => {
+    const { demo, husk } = talking('charisma-swing', []);
+    demo.party.select('kara');
+    const first = attackWithSelected(demo, husk.id);
+    // A weapon swing is a swing; a card asking about persuasion should not hear
+    // it, and `answersRoll` is what keeps the moment from being raised.
+    expect(first?.waiting).not.toBe(true);
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+  });
+});

@@ -635,6 +635,40 @@ const RAW: Input[] = [
 
   // ---- Grace, which turned out not to be all text ----------------------------
   //
+  // "After you make an action roll to persuade, lie, or garner favor, you can
+  // spend a Hope to reroll the Hope or Fear Die."
+  //
+  // The card that needed a roll to know what it was *for*. `tags` had been on a
+  // check since the schema was written and nothing had ever read one; a
+  // `rollTagged` gate is what makes them worth writing, and the rolls that are
+  // persuasion say so now - Troublemaker's taunt, Goad Them On's, and the two
+  // halves of Words of Discord.
+  //
+  // Which die goes back in the cup is the Fear Die, always: it is the one
+  // anybody would pick, being the half that decides who holds the spotlight as
+  // well as whether the roll lands. The same call Support Tank makes.
+  {
+    id: 'endless-charisma',
+    name: 'Endless Charisma',
+    source: card('endless-charisma'),
+    kind: 'reaction',
+    trigger: 'partyRolling',
+    cost: { hope: 1 },
+    action: false,
+    auto: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'self' },
+        { kind: 'rollTagged', tag: 'social' },
+      ],
+    },
+    effects: [
+      { kind: 'log', text: 'They talk straight past the thing they just said.', tone: 'hope' },
+      { kind: 'rerollDuality', which: 'fear' },
+    ],
+  },
+  //
   // "When you taunt or provoke a target within Far range, make a Presence Roll
   // against them. Once per rest on a success, roll a number of d4s equal to
   // your Proficiency. The target must mark Stress equal to the highest result
@@ -655,6 +689,7 @@ const RAW: Input[] = [
         check: {
           trait: 'presence',
           difficulty: 'target',
+          tags: ['social'],
           prompt: 'Troublemaker: say the thing that gets under it.',
           onCriticalSuccess: PROVOKED,
           onSuccessWithHope: PROVOKED,
@@ -1749,6 +1784,7 @@ const RAW: Input[] = [
         check: {
           trait: 'presence',
           difficulty: 'target',
+          tags: ['social'],
           prompt: 'Goad Them On: make them want you.',
           onCriticalSuccess: GOADED,
           onSuccessWithHope: GOADED,
@@ -2352,6 +2388,7 @@ const RAW: Input[] = [
             check: {
               trait: 'spellcast',
               difficulty: 18,
+              tags: ['social'],
               prompt: 'Words of Discord, against somebody who is wise to it.',
               onCriticalSuccess: [
                 { kind: 'markStress', target: { kind: 'target' } },
@@ -2389,6 +2426,7 @@ const RAW: Input[] = [
             check: {
               trait: 'spellcast',
               difficulty: 13,
+              tags: ['social'],
               prompt: 'Words of Discord: turn them on the one beside them.',
               onCriticalSuccess: [
                 { kind: 'markStress', target: { kind: 'target' } },

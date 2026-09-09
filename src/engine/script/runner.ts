@@ -149,7 +149,7 @@ export interface ScriptWorld extends ConditionContext {
    * answers a failure must not stop a success, and asking without the dice
    * would read every such gate as false.
    */
-  answersRoll(id: string, roll: { total: number; outcome: RollOutcome }): boolean;
+  answersRoll(id: string, roll: { total: number; outcome: RollOutcome; tags?: readonly string[] }): boolean;
   /** The acting character's Experiences, spendable for a Hope each. */
   experiences(): readonly { name: string; modifier: number }[];
   /** What a roll against this creature must meet: Evasion, or an adversary's Difficulty. */
@@ -416,7 +416,7 @@ export type Prompt =
    * `answersRoll` - so every other check in the game runs exactly as it did,
    * straight from the dice to its arms. Answered with `answered`.
    */
-  | { kind: 'rolled'; roll: DualityRoll; targets: readonly string[] }
+  | { kind: 'rolled'; roll: DualityRoll; targets: readonly string[]; tags?: readonly string[] }
   /** Play this conversation out, then resume with `continue`. */
   | { kind: 'dialogue'; dialogue: string };
 
@@ -819,11 +819,12 @@ export class ScriptRunner {
     // answers a roll is actually in somebody's hand, so every other check goes
     // straight on to its arms exactly as it always did.
     const stopped: RolledCheck = { roll, targets, difficulties };
-    if (actor !== null && this.world.answersRoll(actor, { total: roll.total, outcome: roll.outcome })) {
+    const said = check.tags === undefined ? {} : { tags: check.tags };
+    if (actor !== null && this.world.answersRoll(actor, { total: roll.total, outcome: roll.outcome, ...said })) {
       // Waiting again, on the same effect and on the throw it stopped with, so
       // resuming settles these dice rather than reaching for new ones.
       this.pending = { effect: { kind: 'check', check }, rolled: stopped };
-      return { kind: 'rolled', roll, targets };
+      return { kind: 'rolled', roll, targets, ...said };
     }
     this.settleCheck(check, stopped, null);
     return null;

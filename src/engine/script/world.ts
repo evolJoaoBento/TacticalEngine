@@ -1153,7 +1153,7 @@ export class SceneScriptWorld implements ScriptWorld {
    * that only answers an ally does not stop the ally-less roll and one that
    * wants a failure does not stop a success.
    */
-  answersRoll(id: string, roll: { total: number; outcome: RollOutcome }): boolean {
+  answersRoll(id: string, roll: { total: number; outcome: RollOutcome; tags?: readonly string[] }): boolean {
     if (this.state.entity(id)?.faction !== 'party') return false;
     const bindings: TargetBindings = { targets: [id], hit: [id], roll };
     for (const member of this.state.entitiesOf('party')) {

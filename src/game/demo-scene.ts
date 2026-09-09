@@ -1235,9 +1235,11 @@ function rollingOffers(
   roller: string,
   roll: DualityRoll,
   landing?: { held: HeldSwing },
+  /** What the check said it was for, when the roll came from one. */
+  tags?: readonly string[],
 ): ReactionOffer[][] {
   const bound = {
-    roll: { total: roll.total, outcome: roll.outcome },
+    roll: { total: roll.total, outcome: roll.outcome, ...(tags === undefined ? {} : { tags }) },
     swing: roll,
     ...(landing === undefined ? {} : { landing }),
   };
@@ -2460,9 +2462,14 @@ function answerFrom(said: readonly JournalEntry[]): Response {
  * one - and only then, so every chest, door and conversation runs as it always
  * did. What comes back is offered here, and the check settles around it.
  */
-function offerOnRoll(demo: DemoScene, waiting: PendingScript, roll: DualityRoll): UseOutcome {
+function offerOnRoll(
+  demo: DemoScene,
+  waiting: PendingScript,
+  roll: DualityRoll,
+  tags?: readonly string[],
+): UseOutcome {
   const roller = demo.scenario.actorId;
-  const groups = roller === null ? [] : rollingOffers(demo, roller, roll);
+  const groups = roller === null ? [] : rollingOffers(demo, roller, roll, undefined, tags);
   if (groups.length === 0 || !demo.askDefender) return resumeRolled(demo, waiting, { kind: 'answered' });
   const said: JournalEntry[] = [];
   const [first, ...queued] = groups;
@@ -4332,7 +4339,7 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
     // answers rather than the player, so it is not put on screen as a question.
     if (result.prompt.kind === 'rolled') {
       demo.pending = null;
-      const asked = offerOnRoll(demo, held, result.prompt.roll);
+      const asked = offerOnRoll(demo, held, result.prompt.roll, result.prompt.tags);
       return { status: asked.status, lines: [...lines, ...asked.lines] };
     }
     demo.pending = held;

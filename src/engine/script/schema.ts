@@ -355,6 +355,15 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     kind: z.literal('rolled'),
     is: z.enum(['failure', 'success', 'withFear', 'withHope', 'critical']),
   }),
+  /**
+   * What the roll was *for*, rather than how it went: "after you make an action
+   * roll to persuade, lie, or garner favor".
+   *
+   * A check says so with `tags`, and nothing else does - a weapon swing is a
+   * swing and carries none, which is what a card asking about persuasion should
+   * see. A roll nobody tagged reads false, the way an untagged everything does.
+   */
+  z.object({ kind: z.literal('rollTagged'), tag: z.string().min(1) }),
   z.object({ kind: z.literal('inCombat') }),
   /**
    * How many of a domain's cards a character has in their loadout — the nine

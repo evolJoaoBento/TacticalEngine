@@ -53,8 +53,9 @@ Known simplifications in the scripted ones. Why each of the others is *not* scri
 - **Resurrection** is the one card that goes past the veil, so it is the one effect that does: a heal stands somebody up and stops there on purpose, and `revive` undoes the death itself. It is also the only card that can be aimed at somebody who is not standing there. Simplified twice, both about the d6: the card goes to the vault whatever it said, nothing here rolling a die into a gate, and "can't cast it again for a week" is a week this engine does not count, so a failure costs the roll and nothing else.
 - **Telekinesis** is two rolls: the first takes hold and moves them, the second throws them at the next one along. Simplified as Korvax's Lift is - "anywhere within Far of their original position" is away from the one lifting them, there being no way to aim the second half of a spell aimed at a creature - and the one thrown takes nothing for the landing, which the card does not give them either.
 - **Vitality** is the only card that changes what somebody *is* rather than what they can do: two of its three benefits, each a condition at the `permanent` duration, which is the one duration that outlives a scene and a rest. It asks twice and the second question leaves out what the first took.
+- **Endless Charisma** is the card that needed a roll to know what it was *for*. `tags` had been on a check since the schema was written and nothing had ever read one; a `rollTagged` gate is what makes them worth writing, and the rolls that are persuasion say so now - Troublemaker's taunt, Goad Them On's, and both halves of Words of Discord. Which die goes back in the cup is the Fear Die, always: the same call Support Tank makes, it being the half that decides who holds the spotlight as well as whether the roll lands.
 - **Adjust Reality** names a roll's total instead of throwing the dice again - the other thing that can be done to a roll already read, and the reason the post-roll moment was worth building twice. Two decisions of the engine's: "a result of your choice" is the least that carries the roll over its Difficulty, five Hope not being spent to make a success prettier, so it is only offered on a failure; and the *total* moves while the faces stand, which is what "the numerical result" says - whether the roll was with Hope or with Fear, and whether the dice matched, belong to the throw. Unlike Reassurance it answers its holder's own roll as well as an ally's, which is the card's "you or a willing ally".
-Scripted: 133 of 189 cards.
+Scripted: 134 of 189 cards.
 
 
 ## Arcana
@@ -178,7 +179,7 @@ Scripted: 133 of 189 cards.
 | 5 | Words of Discord | Spell | **action** |  |
 | 6 | Never Upstaged | Ability | **reaction**, **passive** |  |
 | 6 | Share the Burden | Spell | **action** |  |
-| 7 | Endless Charisma | Ability | text | rerolls a die after a roll to persuade or lie - the moment exists now, but a roll's *purpose* is not something the engine tags |
+| 7 | Endless Charisma | Ability | **reaction** |  |
 | 7 | Grace-Touched | Ability | text | swaps an Armor Slot for a Stress, and Hit Points for Stress, at moments nothing raises |
 | 8 | Astral Projection | Spell | text | puts a copy of you somewhere you have been; the board holds one room at a time |
 | 8 | Mass Enrapture | Spell | **action** |  |
@@ -199,7 +200,7 @@ Scripted: 133 of 189 cards.
 | 3 | Chokehold | Ability | **action** |  |
 | 3 | Veil of Night | Spell | text | hangs a curtain between two points and hides you behind it; the board aims at one tile, and being seen is not modelled |
 | 4 | Glyph of Nightfall | Spell | **action** |  |
-| 4 | Stealth Expertise | Ability | text | turns a roll with Fear into a roll with Hope while moving unnoticed; the moment exists, but moving unnoticed is not a roll the engine owns and the faces are the throw |
+| 4 | Stealth Expertise | Ability | text | turns a roll with Fear into a roll with Hope while moving unnoticed. The moment exists and a roll can now say what it was for - what is missing is a roll the engine itself makes about moving unnoticed, there being no stealth in the game to tag |
 | 5 | Hush | Spell | text | silences an area that follows a creature, and a zone here is anchored to a tile; Silenced would also need a condition that stops spellcasting |
 | 5 | Phantom Retreat | Spell | text | marks a spot to return to - the same missing thing as Rift Walker |
 | 6 | Dark Whispers | Spell | text | opens a channel into somebody's mind and asks the GM about it |

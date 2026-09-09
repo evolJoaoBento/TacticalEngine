@@ -46,7 +46,12 @@ export interface TargetBindings {
    * The roll that raised this, for a feature that answers one: "when a PC
    * rolls a failure with Fear while within Close range of the Demon".
    */
-  roll?: { total: number; outcome: RollOutcome };
+  /**
+   * The roll a script is answering: how it went, and - for a check that said so
+   * - what it was *for*. "An action roll to persuade, lie, or garner favor" is
+   * a question about the second, and `tags` is the only thing that answers it.
+   */
+  roll?: { total: number; outcome: RollOutcome; tags?: readonly string[] };
   /**
    * A tile the script is aimed at: "run a straight path to a point within Far
    * range", "choose a point within Far range". Bound the same way a target is,
@@ -191,6 +196,8 @@ export function evaluate(
       // `spent` is written into a copy of the effects before they run, so a
       // gate that asks for it is asking about nothing: a quiet zero.
       return compare(condition.of === 'spent' ? 0 : countOf(bindings, condition.of), condition.op, condition.value);
+    case 'rollTagged':
+      return bindings.roll?.tags?.includes(condition.tag) === true;
     case 'rolled': {
       const outcome = bindings.roll?.outcome;
       if (outcome === undefined) return false;
