@@ -108,6 +108,14 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
     against you", so a Spellcast Roll reads them as an attack does — but a check is *one* roll and may name a
     group. The engine takes the best any target grants and the worst any target imposes, added: one Vulnerable
     creature in the group gives the die, one Hidden creature costs it, and they cancel as dice always do.
+  - **When a check's own Hope is spendable by the check's own arms.** A check hands over the Hope it rolled
+    *before* it runs `onSuccess…`/`always`, so a card whose arm branches on the pool sees it — a roll with Hope
+    can pay for its own effect. Not a card quirk: every `branch` on a pool inside a check inherits it. Named on
+    `wrangle` in `src/engine/content/srd/abilities.ts`, where it first mattered.
+  - **What a card offers versus what it simply does**, where the SRD says "spend a Hope to…" inside an effect
+    rather than as a cost. Wrangle spends it whenever there is one, because a wrangle nobody wanted is a card
+    nobody would have played; Support Tank always throws the Fear Die rather than asking which, it being the one
+    anybody would pick. Both are decisions there is nobody at that end of the table to make.
 
   *(The 1.0-era house rule "cover raises an adversary's Difficulty" is gone: 2.0 puts cover on the attack
   roll as disadvantage, which applies identically to either side and needs no engine decision.)*

@@ -116,6 +116,13 @@ export interface AttackOptions extends TargetingOptions {
    * to the damage — which is rolled fresh, because a roll that has become a
    * critical needs a critical's dice and the old throw never had them.
    *
+   * The advantage and disadvantage counts are still worked out and reported,
+   * but nothing is drawn for them: the roll handed in already carries the
+   * advantage die it was thrown with, and drawing a second would be the same
+   * die counted twice. So a condition that has not been spent yet - Inevitable,
+   * in the moment between the throw and the end of it - does not pay twice
+   * here, and the numbers on the outcome are a report rather than a re-roll.
+   *
    * PC attacks only; the GM's Die has no such card behind it.
    */
   roll?: DualityRoll;
