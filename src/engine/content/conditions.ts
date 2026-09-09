@@ -264,6 +264,27 @@ const RAW: ConditionInput[] = [
     name: 'Strategic Approach',
     text: 'You have picked your moment: a d8 goes behind the next blow that lands.',
   },
+  // Vitality, which is not a spell but a permanent change to what somebody is.
+  // Three of these, two of which a character keeps for good: a condition at the
+  // `permanent` duration is the only thing here that outlives everything.
+  {
+    id: 'vitality-stress',
+    name: 'Hardened',
+    text: 'One more Stress than you had.',
+    modifiers: [{ stat: 'stress', bonus: 1 }],
+  },
+  {
+    id: 'vitality-hit-points',
+    name: 'Toughened',
+    text: 'One more Hit Point than you had.',
+    modifiers: [{ stat: 'hitPoints', bonus: 1 }],
+  },
+  {
+    id: 'vitality-thresholds',
+    name: 'Seasoned',
+    text: 'Blows land two points further up your thresholds.',
+    modifiers: [{ stat: 'thresholds', bonus: 2 }],
+  },
   // Signature Move, waiting on the roll it was declared for. The whole of it is
   // the die: a d20 in place of the d12, which raises the floor of the roll and
   // makes a critical rarer, both of which the card is buying deliberately.

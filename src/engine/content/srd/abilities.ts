@@ -179,6 +179,32 @@ const LEARNED: EffectInput[] = [
   },
 ];
 
+/** Lifted, put down somewhere else, and then thrown at the next one along. */
+const THROWN: EffectInput[] = [
+  { kind: 'log', text: 'They come off the ground with nothing holding them.', tone: 'combat' },
+  { kind: 'move', who: { kind: 'hit' }, how: 'away', of: { kind: 'actor' }, budget: 'far' },
+  {
+    kind: 'check',
+    check: {
+      trait: 'spellcast',
+      difficulty: 'target',
+      targets: { kind: 'adversaries', range: 'far', except: 'target', nearest: 1 },
+      prompt: 'Throw them at the next one along?',
+      always: [
+        { kind: 'damage', dice: 'd12+4', type: 'physical', using: 'proficiency', target: { kind: 'hit' } },
+      ],
+    },
+  },
+];
+
+/** One of Vitality's three, each kept for good. */
+const KEEPS = (condition: string, label: string) =>
+  ({
+    label,
+    available: { kind: 'not' as const, of: { kind: 'hasCondition' as const, condition, of: { kind: 'actor' as const } } },
+    effects: [{ kind: 'applyCondition' as const, condition, duration: 'permanent' as const, target: { kind: 'actor' as const } }],
+  });
+
 const RESUMES: EffectInput[] = [
   { kind: 'log', text: 'They move, and the room remembers how to.', tone: 'combat' },
   { kind: 'clearCondition', condition: 'time-stopped', target: { kind: 'adversaries', range: 'veryFar' } },
@@ -873,6 +899,84 @@ const RAW: Input[] = [
     action: false,
     tokens: { amount: 'domainCards', domain: 'sage', minimum: 1, refill: 'longRest' },
     lift: { each: 1, only: 'spellcast' },
+  },
+
+  // "Make a Spellcast Roll against a target within Far range. On a success, you
+  // can use your mind to move them anywhere within Far range of their original
+  // position. You can throw the lifted target as an attack by making an
+  // additional Spellcast Roll against the second target you're trying to
+  // attack. On a success, deal d12+4 physical damage to the second target using
+  // your Proficiency. This spell then ends."
+  //
+  // Two rolls, and the second one throws the first one's target at somebody
+  // else - which is the shape Korvax's Lift opened when `move` learned to walk
+  // whoever `who` named rather than always the caster.
+  //
+  // Simplified the same way Lift is: "anywhere within Far of their original
+  // position" is away from the one lifting them, there being no way to aim the
+  // second half of a spell aimed at a creature. The one thrown takes nothing
+  // for the landing, which the card does not give them either.
+  {
+    id: 'telekinesis',
+    name: 'Telekinesis',
+    source: card('telekinesis'),
+    target: { kind: 'adversary', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Telekinesis: take hold of them.',
+          onCriticalSuccess: THROWN,
+          onSuccessWithHope: THROWN,
+          onSuccessWithFear: THROWN,
+        },
+      },
+    ],
+  },
+  // "When you choose this card, permanently gain two of the following benefits:
+  // one Stress slot / one Hit Point slot / +2 bonus to your damage thresholds.
+  // Then place this card in your vault permanently."
+  //
+  // Not a spell but a change to what somebody *is*, and the only card that asks
+  // for one. A condition at the `permanent` duration is the thing here that
+  // outlives a scene, a rest and the fight; the pools read what it adds the next
+  // time they are squared up, and the thresholds read it as a blow arrives.
+  //
+  // Two of the three, so it asks twice and the second question leaves out what
+  // the first one took.
+  {
+    id: 'vitality',
+    name: 'Vitality',
+    source: card('vitality'),
+    target: { kind: 'self' },
+    action: false,
+    effects: [
+      { kind: 'log', text: 'Something about them settles, and stays settled.', tone: 'hope' },
+      {
+        kind: 'choice',
+        title: 'Vitality',
+        body: 'What does the training leave you with?',
+        options: [
+          KEEPS('vitality-stress', 'One more Stress'),
+          KEEPS('vitality-hit-points', 'One more Hit Point'),
+          KEEPS('vitality-thresholds', '+2 to your damage thresholds'),
+        ],
+      },
+      {
+        kind: 'choice',
+        title: 'Vitality',
+        body: 'And the other one.',
+        options: [
+          KEEPS('vitality-stress', 'One more Stress'),
+          KEEPS('vitality-hit-points', 'One more Hit Point'),
+          KEEPS('vitality-thresholds', '+2 to your damage thresholds'),
+        ],
+      },
+      { kind: 'vaultCard' },
+    ],
   },
 
   // ---- Sage's two capstones --------------------------------------------------

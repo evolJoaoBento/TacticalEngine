@@ -6208,3 +6208,97 @@ describe('a check the room can answer', () => {
     expect({ asked, quiet }).toEqual({ asked: true, quiet: true });
   });
 });
+
+
+/**
+ * Arcana and Blade, read at last: two of their thirteen run.
+ */
+describe('lifting somebody at somebody else, and keeping what you learned', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  const casting = (seed: string, card: string): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    hold(demo, 'mira', [card]);
+    const mira = demo.state.entity('mira')!;
+    mira.hope = { max: 6, value: 6 };
+    const kara = demo.state.entity('kara')!;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 90, marked: 0 };
+    const blocked = demo.state.blockedFor('mira');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) demo.state.moveEntity('mira', tile);
+    });
+    demo.party.select('mira');
+    return { demo, mira, husk };
+  };
+
+  it('Telekinesis lifts the one it took hold of and throws them at the next along', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, mira, husk } = casting('tk-' + seed, 'telekinesis');
+      // A second husk standing up, so there is somebody to be thrown at.
+      const spare = demo.state.entitiesOf('adversary').find((e) => !e.alive);
+      if (spare === undefined) continue;
+      spare.alive = true;
+      spare.hitPoints = { max: 90, marked: 0 };
+      const blocked = demo.state.blockedFor(spare.id);
+      demo.grid.forEachNeighbor(mira.tile, false, (tile) => {
+        if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) demo.state.moveEntity(spare.id, tile);
+      });
+      const stood = husk.tile;
+
+      expect(useAbility(demo, 'mira', 'telekinesis', [husk.id]).status).toBe('waiting');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (husk.tile === stood) continue;
+
+      // The one taken hold of moved; the one holding them did not.
+      expect(husk.tile).not.toBe(stood);
+      // And the second roll threw them at somebody, whether or not it landed.
+      expect(demo.log.some((l) => /come off the ground/.test(l.text))).toBe(true);
+      expect(demo.rolls.length).toBeGreaterThanOrEqual(2);
+      return;
+    }
+    throw new Error('Telekinesis never took hold in eighty tries');
+  });
+
+  it('Vitality asks twice, never for the same thing, and is kept for good', () => {
+    const demo = standoff('vitality');
+    demo.askDefender = false;
+    hold(demo, 'kara', ['vitality']);
+    const kara = demo.state.entity('kara')!;
+    const stress = kara.stress.max;
+
+    expect(useAbility(demo, 'kara', 'vitality', []).status).toBe('waiting');
+    if (demo.pending?.prompt.kind !== 'choice') throw new Error('expected the three benefits');
+    expect(demo.pending.prompt.options).toHaveLength(3);
+    answerPending(demo, { kind: 'choose', index: 0 });
+
+    // Asked again, and the one already taken is not offered a second time.
+    if (demo.pending?.prompt.kind !== 'choice') throw new Error('expected the second question');
+    expect(demo.pending.prompt.options).toHaveLength(2);
+    answerPending(demo, { kind: 'choose', index: 2 });
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+    expect(kara.conditions.has('vitality-stress')).toBe(true);
+    expect(kara.conditions.has('vitality-thresholds')).toBe(true);
+    expect(kara.conditions.has('vitality-hit-points')).toBe(false);
+
+    // What it leaves is read live: a threshold as a blow arrives, a pool when
+    // the pools are next squared up.
+    const base = deriveCharacter(demo.sheets.get('kara')!, SRD_CHARACTERS, demo.project.abilities).character;
+    expect(demo.world.defenderOf(kara).thresholds.major).toBe(base.thresholds.major + 2);
+    syncPools(demo);
+    expect(kara.stress.max).toBe(stress + 1);
+
+    // "Permanently": it outlives the scene, where every other card's condition does not.
+    demo.state.clearConditions('scene');
+    expect(kara.conditions.has('vitality-stress')).toBe(true);
+    // And the card is in the vault, as it says.
+    expect(demo.sheets.get('kara')!.loadout ?? []).not.toContain('vitality');
+  });
+});

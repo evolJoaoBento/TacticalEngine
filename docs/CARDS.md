@@ -54,9 +54,13 @@ Known simplifications in the scripted ones:
 - **Troublemaker** is the first card to roll dice for an *amount* rather than for damage: a number of d4s scaled by Proficiency, and the best single face of them, marked as Stress on whatever the taunt beat.
 - **Resurrection** is the one card that goes past the veil, so it is the one effect that does: a heal stands somebody up and stops there on purpose, and `revive` undoes the death itself. It is also the only card that can be aimed at somebody who is not standing there. Simplified twice, both about the d6: the card goes to the vault whatever it said, nothing here rolling a die into a gate, and "can't cast it again for a week" is a week this engine does not count, so a failure costs the roll and nothing else.
 - The rest of Splendor is the table's. **Divination** asks the GM a yes-or-no question about the future and **Final Words** asks a corpse; **Shape Material** reshapes stone; and **Invigoration** refreshes a spent once-per-rest feature, which would need a card to name which of somebody's features it meant, and the option lists here are written rather than gathered.
+- **Telekinesis** is two rolls: the first takes hold and moves them, the second throws them at the next one along. Simplified as Korvax's Lift is - "anywhere within Far of their original position" is away from the one lifting them, there being no way to aim the second half of a spell aimed at a creature - and the one thrown takes nothing for the landing, which the card does not give them either.
+- **Vitality** is the only card that changes what somebody *is* rather than what they can do: two of its three benefits, each a condition at the `permanent` duration, which is the one duration that outlives a scene and a rest. It asks twice and the second question leaves out what the first took.
+- Arcana keeps eleven of its own, and the reasons are its own too. **Counterspell** interrupts a magical effect nothing here raises and **Premonition** rescinds a move already made; **Cloaking Blast**, **Floating Eye**, **Sensory Projection** and **Wall Walk** are about being seen, seeing elsewhere, or walking where there is no floor; **Rift Walker** marks a spot to return to, which needs a remembered tile nothing can hold yet. **Flight** has a token clock this engine could run and nothing for it to mean - a creature's height is not a thing here - so running the clock without the flying would read worse than the card's own words. **Confusing Aura** rolls d6s per layer to decide whether a blow lands at all, and a damage reaction here picks from a fixed set of shapes rather than running a script. **Adjust Reality** is the closest miss in the game: the moment it needs now exists - a roll is held between its dice and its consequences - but nothing can name a total, only throw the dice again.
+- **Bold Presence** stays text in both halves: adding a trait to a roll for a Hope is a choice offered before the dice, where only Utilize an Experience lives, and avoiding a condition needs a moment nothing raises.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 130 of 189 cards.
+Scripted: 132 of 189 cards.
 
 
 ## Arcana
@@ -75,7 +79,7 @@ Scripted: 130 of 189 cards.
 | 5 | Chain Lightning | Spell | **action** |
 | 5 | Premonition | Spell | text |
 | 6 | Rift Walker | Spell | text |
-| 6 | Telekinesis | Spell | text |
+| 6 | Telekinesis | Spell | **action** |
 | 7 | Arcana-Touched | Ability | **passive** |
 | 7 | Cloaking Blast | Spell | text |
 | 8 | Arcane Reflection | Spell | **reaction** |
@@ -99,7 +103,7 @@ Scripted: 130 of 189 cards.
 | 4 | Deadly Focus | Ability | **action** |
 | 4 | Fortified Armor | Ability | **passive** |
 | 5 | Champion's Edge | Ability | **reaction** |
-| 5 | Vitality | Ability | text |
+| 5 | Vitality | Ability | **action** |
 | 6 | Battle-Hardened | Ability | **reaction** |
 | 6 | Rage Up | Ability | **reaction** |
 | 7 | Blade-Touched | Ability | **passive** |
