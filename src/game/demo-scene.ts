@@ -1874,6 +1874,11 @@ export function settleFight(demo: DemoScene): void {
   // Before anything answers a wound: whoever was moved, felled or stood back
   // up during the turn is in or out of the zones on the board.
   demo.world.refreshZones();
+  // And what the ground makes of anybody who has just walked onto it, before
+  // the wounds are answered - so a creature hurt by a circle is hurt in the
+  // same moment as one hurt by a blade, and everything that answers a wound
+  // hears about both together.
+  playZoneEntries(demo);
   playDamageReactions(demo);
   playDefeatReactions(demo);
   // The party's half of the same moment, and the reason it is here rather than
@@ -2383,6 +2388,39 @@ function aimedAt(demo: DemoScene, adversaryId: string): number {
   if (standing.length === 0 || demo.state.entity(adversaryId)?.tile === NO_TILE) return NO_TILE;
   const nearest = nearestOf(demo, adversaryId, standing.map((e) => e.id));
   return demo.state.entity(nearest)?.tile ?? NO_TILE;
+}
+
+/**
+ * What the ground does to somebody who has just walked onto it.
+ *
+ * The same trick `playPayouts` uses: the condition carries the script, and an
+ * ability is built around it so it runs down the one path every script runs
+ * down. The zone's owner acts, it being their spell - so a roll it makes hands
+ * *them* the Hope, and a `push` knocks the intruder away from *them*. Ground
+ * nobody owns runs with the one who walked in on both sides of it.
+ *
+ * Never a question: walking into a fire is not a decision anybody makes after
+ * the fact.
+ */
+function playZoneEntries(demo: DemoScene): void {
+  for (const crossing of demo.world.drainEntered()) {
+    const def = demo.world.conditionDef(crossing.condition);
+    if (def?.onEnter === undefined || def.onEnter.effects.length === 0) continue;
+    const walked = demo.state.entity(crossing.id);
+    if (walked === undefined || !walked.alive) continue;
+    const by = crossing.owner !== null && demo.state.entity(crossing.owner)?.alive === true ? crossing.owner : crossing.id;
+    const ability = abilitySchema.parse({
+      id: `zone-${crossing.condition}`,
+      name: def.name,
+      source: { kind: 'granted', characters: [by] },
+      text: 'The ground they just stepped onto.',
+      kind: 'reaction',
+      action: false,
+      auto: true,
+      effects: def.onEnter.effects,
+    });
+    playReaction(demo, { by, ability, targets: [crossing.id], counts: {} }, [], false);
+  }
 }
 
 /**

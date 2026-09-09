@@ -67,6 +67,11 @@ const AURA: EffectInput[] = [
   },
 ];
 
+const LIFTED: EffectInput[] = [
+  { kind: 'log', text: 'They come off the floor, turn over once, and are set down somewhere else.', tone: 'combat' },
+  { kind: 'move', who: { kind: 'hit' }, how: 'away', of: { kind: 'actor' }, budget: 'close' },
+];
+
 const RAW: Input[] = [
   // ---- Blade -----------------------------------------------------------------
   {
@@ -453,6 +458,89 @@ const RAW: Input[] = [
           { kind: 'boostDamage', dice: '{n}d6' },
         ],
       },
+    ],
+  },
+  // The Book of Korvax, two spells of its three.
+  //
+  // "Make a Spellcast Roll to temporarily lift a target you can see up into the
+  // air and move them within Close range of their original position." Lifted
+  // and set down up to Close away, which is the first content to move somebody
+  // other than the caster with a walk - `move`'s `who` had been ignored by
+  // everything except a run at a point until now.
+  //
+  // Simplified twice: "within Close of where they were" is any direction, and
+  // this is away from the one who lifted them, there being no way to aim the
+  // second half of a spell aimed at a creature; and they are set down on ground
+  // that can be walked to, so a lift does not carry anybody over a wall.
+  {
+    id: 'book-of-korvax-telekinesis',
+    name: 'Lift',
+    source: card('book-of-korvax'),
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Lift them off the ground?',
+          onCriticalSuccess: LIFTED,
+          onSuccessWithHope: LIFTED,
+          onSuccessWithFear: LIFTED,
+        },
+      },
+    ],
+  },
+  // "Mark a Stress to create a temporary magical circle on the ground where you
+  // stand. All adversaries within Melee range, or who enter Melee range, take
+  // 2d12+4 magic damage and are knocked back to Very Close range."
+  //
+  // The first zone that bites: ground whose condition carries an `onEnter`, so
+  // the crossing is the whole of the spell. Everybody standing in it when it is
+  // drawn is a crossing too - they were not in it a moment ago - and standing
+  // still afterwards is not, which is what "or who enter" distinguishes.
+  //
+  // "The second half of the card's own words", left as text: the Reaction Roll
+  // that makes somebody forget the last minute of a conversation is not a fight
+  // and has nothing here to change.
+  {
+    id: 'book-of-korvax-magic-circle',
+    name: 'Magic Circle',
+    source: card('book-of-korvax'),
+    cost: { stress: 1 },
+    target: { kind: 'self' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'A circle burns itself into the floor around their feet.', tone: 'hope' },
+      {
+        kind: 'zone',
+        zone: 'korvax-circle',
+        name: 'Magic Circle',
+        condition: 'korvax-circle',
+        at: 'actor',
+        band: 'melee',
+        side: 'adversaries',
+        onDeath: 'end',
+      },
+    ],
+  },
+  // "Once per long rest, mark 3 Stress to push your body to its limits. Gain a
+  // +2 bonus to all of your character traits until your next rest."
+  //
+  // The plainest use of `actionRoll` there is: all six traits at once is every
+  // roll, because a trait is the thing being rolled. It lasts to the next rest
+  // rather than the next long one, there being one rest a condition outlasts.
+  {
+    id: 'full-surge',
+    name: 'Full Surge',
+    source: card('full-surge'),
+    uses: { count: 1, per: 'longRest' },
+    cost: { stress: 3 },
+    target: { kind: 'self' },
+    action: false,
+    effects: [
+      { kind: 'log', text: 'They ask their body for everything, and it answers.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'full-surge', duration: 'rest', target: { kind: 'actor' } },
     ],
   },
   // "Once per long rest, mark a Stress to channel the natural world around you

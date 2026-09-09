@@ -4924,3 +4924,125 @@ describe('a bonus on every action roll', () => {
     expect(cost).toBe(1);
   });
 });
+
+
+/**
+ * Ground that bites: a zone whose condition carries a script, run once on
+ * whoever crosses into it and never on standing still.
+ */
+describe('a circle burnt into the floor', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('takes the ones already standing in it once, and not again for standing still', () => {
+    const demo = standoff('korvax-circle');
+    demo.askDefender = false;
+    hold(demo, 'kara', ['book-of-korvax']);
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 40, marked: 0 };
+    const kara = demo.state.entity('kara')!;
+
+    expect(useAbility(demo, 'kara', 'book-of-korvax-magic-circle', []).status).not.toBe('refused');
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    // Standing in Melee when the circle was drawn is a crossing: they were not
+    // in it a moment ago.
+    const bitten = husk.hitPoints.marked;
+    expect(bitten).toBeGreaterThan(0);
+    // 2d12+4 is between 6 and 28: a real blow, whatever the dice said.
+    expect(demo.log.some((l) => /circle takes them/.test(l.text))).toBe(true);
+    // And knocked back out of Melee, which is the other half of the card.
+    expect(demo.grid.chebyshevDistance(kara.tile, husk.tile)).toBeGreaterThan(1);
+
+    // The ground is settled twice more with nobody moving; it bites nobody.
+    settleFight(demo);
+    settleFight(demo);
+    expect(husk.hitPoints.marked).toBe(bitten);
+  });
+
+  it('takes an adversary that walks in on its own turn, with nobody swinging', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = standoff('korvax-walk-' + seed);
+      demo.askDefender = false;
+      hold(demo, 'kara', ['book-of-korvax']);
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      husk.hitPoints = { max: 60, marked: 0 };
+      // Well out of the circle when it is drawn, so casting it costs them
+      // nothing and only walking in can.
+      const away = demo.grid.indexOf(
+        Math.min(demo.grid.width - 1, demo.grid.xOf(demo.state.entity('kara')!.tile) + 5),
+        demo.grid.yOf(husk.tile),
+      );
+      if (away === NO_TILE || !demo.grid.isPassable(away)) continue;
+      demo.state.moveEntity(husk.id, away);
+
+      expect(useAbility(demo, 'kara', 'book-of-korvax-magic-circle', []).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      if (husk.hitPoints.marked > 0) continue;
+
+      // The GM's turn walks it back in to swing, and the floor answers before
+      // anybody on the party's side has done anything at all.
+      endTurn(demo);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      if (husk.hitPoints.marked === 0) continue;
+      expect(husk.hitPoints.marked).toBeGreaterThan(0);
+      expect(demo.log.some((l) => /circle takes them/.test(l.text))).toBe(true);
+      return;
+    }
+    throw new Error('nothing ever walked into the circle in forty tries');
+  });
+
+  it('does not touch the one who drew it, nor anybody on their side', () => {
+    const demo = standoff('korvax-side');
+    demo.askDefender = false;
+    hold(demo, 'kara', ['book-of-korvax']);
+    const kara = demo.state.entity('kara')!;
+    const finn = demo.state.entity('finn')!;
+    const blocked = demo.state.blockedFor('finn');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile) && finn.tile !== tile) demo.state.moveEntity('finn', tile);
+    });
+    const hurt = { kara: kara.hitPoints.marked, finn: finn.hitPoints.marked };
+
+    expect(useAbility(demo, 'kara', 'book-of-korvax-magic-circle', []).status).not.toBe('refused');
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    // `side: 'adversaries'` is read from the caster's chair, so the circle is
+    // only ever ground under somebody else's feet.
+    expect(kara.hitPoints.marked).toBe(hurt.kara);
+    expect(finn.hitPoints.marked).toBe(hurt.finn);
+  });
+
+  it('lifts somebody and sets them down away from the one who lifted them', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = standoff('korvax-lift-' + seed);
+      demo.askDefender = false;
+      // A Codex grimoire wants somebody with a Spellcast trait behind it.
+      hold(demo, 'mira', ['book-of-korvax']);
+      const mira = demo.state.entity('mira')!;
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      // Standing where she can see it, and holding the spotlight to cast.
+      const blocked = demo.state.blockedFor('mira');
+      demo.grid.forEachNeighbor(demo.state.entity('kara')!.tile, false, (tile) => {
+        if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) demo.state.moveEntity('mira', tile);
+      });
+      demo.party.select('mira');
+      const stood = mira.tile;
+      const was = demo.grid.chebyshevDistance(mira.tile, husk.tile);
+
+      expect(useAbility(demo, 'mira', 'book-of-korvax-telekinesis', [husk.id]).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (demo.grid.chebyshevDistance(mira.tile, husk.tile) === was) continue;
+
+      // The one lifted moved; the one lifting did not. Before this, `move`'s
+      // `who` was ignored outside a run at a point and the caster would have
+      // walked instead - which is the bug this card found.
+      expect(mira.tile).toBe(stood);
+      expect(demo.grid.chebyshevDistance(mira.tile, husk.tile)).toBeGreaterThan(was);
+      return;
+    }
+    throw new Error('the lift never landed in sixty tries');
+  });
+});

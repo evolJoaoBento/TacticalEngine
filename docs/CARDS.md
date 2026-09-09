@@ -37,9 +37,11 @@ Known simplifications in the scripted ones:
 - **Wrangle** spends the Hope whenever there is one rather than offering it, treats every ally as a willing one, and blinks what it moves rather than walking it - a creature hauled across the room does not have to find a path. The Close range is on the destination, measured from the caster.
 - **Reassurance** throws both Duality Dice again; **Support Tank** always throws the Fear Die, it being the one anybody would pick. Neither touches the advantage die or the Help dice, which belong to the roll rather than to the hands that threw it. Both answer the party's weapon swing only: a check made through the runner is not held anywhere it could be rerolled.
 - **Wild Surge**'s die grows on every action roll the engine hears about, which is the party's weapon swings and the rolls a script makes; a roll nothing raises does not feed it.
+- **Full Surge**'s "+2 bonus to all of your character traits" is +2 on every action roll, a trait being the thing you roll; a trait read anywhere that is not a roll does not move. It lasts to the next rest rather than the next long one, there being one rest a condition outlasts.
+- The **Book of Korvax** runs two of its three spells. Its circle is the first ground that bites: the crossing is the whole of the spell, so standing still in one sets nothing off, and recasting it leaves the people already inside bearing it rather than hitting them twice. **Lift** sets its target down away from the caster rather than anywhere within Close of where they were - there is no way to aim the second half of a spell aimed at a creature - and on ground that can be walked to, so a lift carries nobody over a wall. The Reaction Roll that makes somebody forget the last minute of a conversation stays text.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 113 of 189 cards.
+Scripted: 115 of 189 cards.
 
 
 ## Arcana
@@ -129,7 +131,7 @@ Scripted: 113 of 189 cards.
 | 1 | Book of Tyfar | Grimoire | **action** (Wild Flame) |
 | 2 | Book of Sitil | Grimoire | text |
 | 2 | Book of Vagras | Grimoire | text |
-| 3 | Book of Korvax | Grimoire | text |
+| 3 | Book of Korvax | Grimoire | **action** (Lift), **action** (Magic Circle) |
 | 3 | Book of Norai | Grimoire | **action** (Mystic Tether), **action** (Fireball) |
 | 4 | Book of Exota | Grimoire | text |
 | 4 | Book of Grynn | Grimoire | text |
@@ -269,7 +271,7 @@ Scripted: 113 of 189 cards.
 | 6 | Rise Up | Ability | **passive**, **reaction** |
 | 7 | Shrug It Off | Ability | **reaction** |
 | 7 | Valor-Touched | Ability | **passive** |
-| 8 | Full Surge | Ability | text |
+| 8 | Full Surge | Ability | **action** |
 | 8 | Ground Pound | Ability | **action** |
 | 9 | Hold the Line | Ability | text |
 | 9 | Lead by Example | Ability | **reaction** |

@@ -1347,12 +1347,20 @@ export class ScriptRunner {
         // from, and standing still is the honest answer rather than a refusal.
         const other = this.resolve(effect.of ?? { kind: 'target' })[0];
         if (other === undefined) return null;
-        const walked =
-          effect.how === 'away'
-            ? world.breakAway(actor, other, effect.budget ?? 'close')
-            : world.drawIn(actor, other, effect.range ?? 'melee', effect.budget ?? 'close');
-        if (walked !== null) {
-          this.journal.push({ kind: 'moved', id: actor, from: walked.from, to: walked.to, walked: true });
+        // Every mover walks it, not just the one acting: `who` said who moves,
+        // and a spell that lifts somebody else and sets them down is a walk
+        // measured from them. With no `who` the movers are the actor alone,
+        // which is what every walk in the SRD means and what this used to
+        // assume outright.
+        for (const mover of movers) {
+          if (mover === other) continue;
+          const walked =
+            effect.how === 'away'
+              ? world.breakAway(mover, other, effect.budget ?? 'close')
+              : world.drawIn(mover, other, effect.range ?? 'melee', effect.budget ?? 'close');
+          if (walked !== null) {
+            this.journal.push({ kind: 'moved', id: mover, from: walked.from, to: walked.to, walked: true });
+          }
         }
         return null;
       }

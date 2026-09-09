@@ -316,6 +316,15 @@ export type RollStat = 'attackRoll' | 'damageRoll' | 'spellcastRoll' | 'actionRo
 /** A stat a modifier can move on a pool or a defence. */
 export type PoolStat = 'evasion' | 'armorScore' | 'hitPoints' | 'stress' | 'majorThreshold' | 'severeThreshold' | 'thresholds';
 
+/** Somebody who has just come to stand in a zone whose condition bites. */
+export interface ZoneEntry {
+  /** Who walked in. */
+  id: string;
+  condition: string;
+  /** Whose spell the ground is, or nobody's. */
+  owner: string | null;
+}
+
 /** What a condition on the one who was swung at owes the one who swung. */
 export interface Payout {
   condition: string;
@@ -353,6 +362,8 @@ export class SceneScriptWorld implements ScriptWorld {
   private readonly hooks: () => HookMap;
   /** Blows that landed since anyone last looked, and what they did. */
   private readonly damaged: DamageNote[] = [];
+  /** Crossings into ground that bites, waiting for somebody with a runner. */
+  private readonly entered: ZoneEntry[] = [];
 
   constructor(state: SceneState, scenario: ScenarioState, options: SceneScriptWorldOptions = {}) {
     this.state = state;
@@ -427,6 +438,11 @@ export class SceneScriptWorld implements ScriptWorld {
   /** What a condition is called, for a line the log writes about it. */
   conditionName(condition: string): string {
     return this.conditionDefs.get(condition)?.name ?? condition;
+  }
+
+  /** The whole of what a condition says, for a caller that runs one of its scripts. */
+  conditionDef(condition: string): ConditionDef | undefined {
+    return this.conditionDefs.get(condition);
   }
 
   /**
@@ -561,8 +577,11 @@ export class SceneScriptWorld implements ScriptWorld {
 
     const standing = [...this.state.entitiesOf('party'), ...this.state.entitiesOf('adversary')];
     const inside = new Map<string, Set<string>>();
+    // Whose spell each patch of ground is, for the script a crossing may run.
+    const owners = new Map<string, string | null>();
     for (const zone of board.values()) {
       const held = inside.get(zone.condition) ?? new Set<string>();
+      if (!owners.has(zone.condition)) owners.set(zone.condition, zone.owner);
       const mine = zone.owner === null ? 'party' : this.factionOf(zone.owner);
       for (const entity of standing) {
         if (!entity.alive || entity.tile === NO_TILE) continue;
@@ -578,13 +597,33 @@ export class SceneScriptWorld implements ScriptWorld {
     }
 
     for (const [condition, ids] of inside) {
+      const bites = this.conditionDefs.get(condition)?.onEnter;
       for (const entity of standing) {
         const should = ids.has(entity.id);
         const has = entity.conditions.has(condition);
-        if (should && !has) this.applyCondition(entity.id, condition, 'scene');
-        else if (!should && has) this.clearCondition(entity.id, condition);
+        if (should && !has) {
+          this.applyCondition(entity.id, condition, 'scene');
+          // The crossing, for whoever drains it: the ground only bites the one
+          // who was not standing in it a moment ago.
+          if (bites !== undefined && bites.effects.length > 0) {
+            this.entered.push({ id: entity.id, condition, owner: owners.get(condition) ?? null });
+          }
+        } else if (!should && has) this.clearCondition(entity.id, condition);
       }
     }
+  }
+
+  /**
+   * Who has just walked into ground that means something, and what it says.
+   *
+   * Drained rather than run here: the world has no runner, and a script that
+   * damages somebody has to go through the same path every other script does.
+   * `settleFight` refreshes the zones and drains this in the same breath.
+   */
+  drainEntered(): ZoneEntry[] {
+    const crossed = [...this.entered];
+    this.entered.length = 0;
+    return crossed;
   }
 
   /** The zones a creature is standing in, by the condition they are bearing. */

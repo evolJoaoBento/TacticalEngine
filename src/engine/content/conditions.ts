@@ -91,6 +91,32 @@ export const conditionDefSchema = z.object({
     })
     .optional(),
   /**
+   * What happens to somebody the moment they come to bear this - "all
+   * adversaries within Melee range, *or who enter Melee range*, take 2d12+4
+   * magic damage and are knocked back".
+   *
+   * The other half of `payout`, and written the same way: a condition carrying
+   * a script the game layer runs, rather than a zone inventing a vocabulary of
+   * its own. A zone stays what it was - geography, plus the name of a condition
+   * - and this is where the biting is written.
+   *
+   * Run once, on the crossing. Standing still in a circle does not set it off
+   * again, because the condition is only applied to somebody who did not have
+   * it; and recasting a zone under the same id leaves everybody already inside
+   * bearing it, so they are not hit twice by the same spell moved a few feet.
+   *
+   * The zone's owner is the one acting, it being their spell, and whoever
+   * walked in is bound as the target. A zone nobody owns runs it with the one
+   * who walked in on both sides of the question.
+   */
+  onEnter: z
+    .object({
+      get effects() {
+        return z.array(effectSchema).default([]);
+      },
+    })
+    .optional(),
+  /**
    * "When this ally would make a death move, they clear a Hit Point instead":
    * a sigil that answers a fall, spending itself to do it.
    *
@@ -187,6 +213,35 @@ const RAW: ConditionInput[] = [
         },
       ],
     },
+  },
+  // The Book of Korvax's magic circle, on whoever is standing in it. The
+  // condition carries nothing while it is borne: the whole of the spell happens
+  // on the crossing, which is what the card says - "all adversaries within
+  // Melee range, or who enter Melee range, take 2d12+4 magic damage and are
+  // knocked back to Very Close range".
+  {
+    id: 'korvax-circle',
+    name: 'Magic Circle',
+    text: 'Ground that answers anybody who steps onto it: 2d12+4 magic damage, and knocked back.',
+    onEnter: {
+      effects: [
+        { kind: 'log', text: 'The circle takes them as they cross it.', tone: 'fear' },
+        { kind: 'damage', dice: '2d12+4', type: 'magic', target: { kind: 'target' } },
+        { kind: 'push', to: 'veryClose', target: { kind: 'target' } },
+      ],
+    },
+  },
+  // Full Surge, while the body will take it. "A +2 bonus to all of your
+  // character traits" is +2 on every action roll: a trait is the thing you
+  // roll, and a roll is where all six of them are read.
+  //
+  // Simplified: a trait read anywhere that is not a roll does not move - a card
+  // that adds your Strength to something, or the party's best hand at a trait.
+  {
+    id: 'full-surge',
+    name: 'Full Surge',
+    text: 'Pushed past what the body would usually allow: +2 to every action roll.',
+    modifiers: [{ stat: 'actionRoll', bonus: 2 }],
   },
   // Wild Surge, while the form holds. The value of the die is the tokens on
   // the card, so the modifier is worth one apiece and reads whatever the pile
