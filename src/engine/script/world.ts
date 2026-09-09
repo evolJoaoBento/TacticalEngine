@@ -1119,8 +1119,41 @@ export class SceneScriptWorld implements ScriptWorld {
         ? tokens.amount
         : tokens.amount === 'spellcast'
           ? (this.spellcastValue(id) ?? 0)
-          : (this.traitValue(id, tokens.amount) ?? 0);
+          : tokens.amount === 'domainCards'
+            ? (this.loadoutDomain(id, tokens.domain ?? '') ?? 0)
+            : (this.traitValue(id, tokens.amount) ?? 0);
     return Math.max(tokens.minimum, amount);
+  }
+
+  /**
+   * What the roller's own cards will put behind a roll they have just made, and
+   * what it costs them.
+   *
+   * Spent to save a roll that can be saved, and never otherwise: the least
+   * number of tokens that carries the total over the Difficulty, nothing when
+   * the roll already succeeds, and nothing when even the whole card would not
+   * be enough. That is the choice anybody holding it would make, and it is made
+   * here rather than asked because the question comes inside a roll, between
+   * the dice being read and the check knowing which arm to run.
+   *
+   * A critical is left alone: matched dice already succeed against anything.
+   */
+  liftRoll(id: string, trait: CheckTrait, total: number, difficulty: number, critical: boolean): number {
+    if (critical || total >= difficulty || !Number.isFinite(difficulty)) return 0;
+    let lifted = 0;
+    for (const ability of this.heldBy(id)) {
+      const lift = ability.lift;
+      if (lift === undefined) continue;
+      if (lift.only === 'spellcast' && trait !== 'spellcast') continue;
+      const held = this.tokensOn(id, ability.id);
+      if (held === 0) continue;
+      const short = difficulty - (total + lifted);
+      if (short <= 0) break;
+      const wanted = Math.ceil(short / lift.each);
+      if (wanted > held) continue;
+      lifted += this.spendTokens(id, ability.id, wanted) * lift.each;
+    }
+    return lifted;
   }
 
   /** Logic in code by id, or null when nothing defines it. */

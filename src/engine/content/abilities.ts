@@ -90,8 +90,14 @@ export const abilityUsesSchema = z.object({
  * pile comes back.
  */
 export const abilityTokensSchema = z.object({
-  /** How many arrive: a number, or the trait to read off the sheet. */
-  amount: z.union([z.number().int().min(0), traitSchema, z.literal('spellcast')]),
+  /**
+   * How many arrive: a number, the trait to read off the sheet, or
+   * `domainCards` - "a number of tokens equal to the number of Sage domain
+   * cards in your loadout", which reads `domain` below.
+   */
+  amount: z.union([z.number().int().min(0), traitSchema, z.literal('spellcast'), z.literal('domainCards')]),
+  /** Which domain `amount: 'domainCards'` counts. */
+  domain: contentIdSchema.optional(),
   /** At least this many, whatever the trait says — "(minimum 1)". */
   minimum: z.number().int().min(0).default(0),
   /**
@@ -418,6 +424,29 @@ export const abilitySchema = z.object({
   reaction: damageReactionSchema.optional(),
   /** Tokens the card holds, if it is one of the cards that holds them. */
   tokens: abilityTokensSchema.optional(),
+  /**
+   * What this puts behind a roll that has *already been made*: "when you would
+   * make a Spellcast Roll, you can spend any number of tokens after the roll to
+   * gain a +1 bonus for each token spent".
+   *
+   * Read by the check itself rather than offered, because the moment it belongs
+   * to is inside the roll: the dice are read, this is added, and only then does
+   * the check know which of its five arms to run. What gets spent is the least
+   * that turns a failure into a success and nothing at all otherwise, which is
+   * what anybody holding the card would do with it and saves asking.
+   *
+   * A swing is answered elsewhere - a weapon attack is held by the game layer,
+   * where a card can be *offered* the same moment. This is the half of that
+   * moment the runner owns.
+   */
+  lift: z
+    .object({
+      /** What one token off this card is worth on the roll. */
+      each: z.number().int().positive().default(1),
+      /** Which rolls it answers. A Spellcast Roll only, or any action roll. */
+      only: z.enum(['spellcast', 'any']).default('any'),
+    })
+    .optional(),
   /**
    * How a reaction is used: automatically whenever it helps, or never unless a
    * prompt asks. Automatic is the CRPG's default; a prompt is a later step.

@@ -24,7 +24,7 @@
 
 import type { Rng } from '../core/rng';
 import { NO_TILE } from '../grid/grid';
-import { rollDuality, type DualityRoll, type RollOutcome } from '../rules/duality';
+import { rollDuality, withFaces, type DualityRoll, type RollOutcome } from '../rules/duality';
 import { formatDice, parseDice, rollDice, type DamageType, type DiceExpression, type ParsedDamage } from '../rules/dice';
 import type { RunningCountdown } from './countdowns';
 import type { RunningZone } from './zones';
@@ -133,6 +133,11 @@ export interface ScriptWorld extends ConditionContext {
    * door a check is made on) count for nothing.
    */
   advantageAgainst(targets: readonly string[]): { advantage: number; disadvantage: number };
+  /**
+   * What the roller's own cards put behind a roll already made, and what that
+   * costs them. Nothing, for a roll that does not need saving or cannot be.
+   */
+  liftRoll(id: string, trait: CheckTrait, total: number, difficulty: number, critical: boolean): number;
   /** The acting character's Experiences, spendable for a Hope each. */
   experiences(): readonly { name: string; modifier: number }[];
   /** What a roll against this creature must meet: Evasion, or an adversary's Difficulty. */
@@ -328,6 +333,8 @@ export type JournalEntry =
   | { kind: 'dieMaxed' }
   /** Every face of it under this one is thrown again. */
   | { kind: 'damageRerolled'; below: number }
+  /** A card put something behind a roll after it was read: what, and what it came to. */
+  | { kind: 'lifted'; by: number; total: number }
   | { kind: 'dualityRerolled'; which: 'hope' | 'fear' | 'both' }
   /** A patch of ground started or stopped meaning something. */
   | { kind: 'zone'; id: string; name: string; standing: boolean }
@@ -720,13 +727,21 @@ export class ScriptRunner {
       carried.disadvantage +
       aimed.advantage -
       aimed.disadvantage;
-    const roll = rollDuality(this.rng, {
+    const thrown = rollDuality(this.rng, {
       difficulty,
       modifier,
       ...(net > 0 ? { advantage: net } : {}),
       ...(net < 0 ? { disadvantage: -net } : {}),
       ...(response.helpDice === undefined ? {} : { helpDice: response.helpDice }),
     });
+    // What the roller's own cards put behind a roll that has been read and has
+    // not yet decided anything - the one moment the runner owns that the game
+    // layer cannot reach. The dice stand; only the modifier moves, and the
+    // whole roll is read again around it, so a lift that carries the total over
+    // the Difficulty changes which arm runs.
+    const lifted = actor === null ? 0 : this.world.liftRoll(actor, check.trait, thrown.total, difficulty, thrown.critical);
+    const roll = lifted === 0 ? thrown : withFaces({ ...thrown, modifier: thrown.modifier + lifted }, {});
+    if (lifted > 0) this.journal.push({ kind: 'lifted', by: lifted, total: roll.total });
     const hit =
       check.difficulty === 'target'
         ? targets.filter((_, i) => roll.critical || roll.total >= difficulties[i]!)

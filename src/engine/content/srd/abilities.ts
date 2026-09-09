@@ -525,6 +525,34 @@ const RAW: Input[] = [
       },
     ],
   },
+  // "After a long rest, place a number of tokens equal to the number of Sage
+  // domain cards in your loadout and vault on this card. When you would make a
+  // Spellcast Roll, you can spend any number of tokens after the roll to gain a
+  // +1 bonus for each token spent. When you critically succeed on a Spellcast
+  // Roll for a Sage domain spell, gain a token. When you take a long rest,
+  // clear all unspent tokens."
+  //
+  // The first card that reaches a roll *after* it was read. A swing is held by
+  // the game layer, where a card can be offered that moment; a check belongs to
+  // the runner, and this is the half of it the runner owns - so the spend is
+  // made rather than asked: the least number of tokens that carries the total
+  // over the Difficulty, and none at all when the roll needs no saving or
+  // cannot be saved.
+  //
+  // Simplified: the tokens are the Sage cards in the loadout, the vault being a
+  // place a card goes rather than a number to count; and the token gained on a
+  // critical Sage spell is not there, nothing telling a card which domain the
+  // spell that just critted belonged to.
+  {
+    id: 'fane-of-the-wilds',
+    name: 'Fane of the Wilds',
+    source: card('fane-of-the-wilds'),
+    kind: 'passive',
+    action: false,
+    tokens: { amount: 'domainCards', domain: 'sage', minimum: 1, refill: 'longRest' },
+    lift: { each: 1, only: 'spellcast' },
+  },
+
   // ---- Sage's two capstones --------------------------------------------------
   //
   // "Choose one of the following tempests and make a Spellcast Roll against all

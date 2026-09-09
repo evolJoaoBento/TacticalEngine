@@ -5593,3 +5593,111 @@ describe('the weather, and the thing that wears it', () => {
     if (gained === 0) expect(demo.log.some((l) => /goes out of them/.test(l.text))).toBe(true);
   });
 });
+
+
+/**
+ * A roll reached after it was read. A swing is held by the game layer, where a
+ * card can be offered that moment; a check belongs to the runner, and this is
+ * the half of the moment the runner owns.
+ */
+describe('a card that saves a roll already made', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  const fane = (seed: string, tokens: number): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    hold(demo, 'mira', ['fane-of-the-wilds', 'book-of-norai']);
+    const mira = demo.state.entity('mira')!;
+    mira.hope = { max: 6, value: 6 };
+    const kara = demo.state.entity('kara')!;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 90, marked: 0 };
+    const blocked = demo.state.blockedFor('mira');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) demo.state.moveEntity('mira', tile);
+    });
+    demo.party.select('mira');
+    demo.world.spendTokens('mira', 'fane-of-the-wilds', 99);
+    demo.world.addTokens('mira', 'fane-of-the-wilds', tokens);
+    return { demo, mira, husk };
+  };
+
+  it('counts its tokens off the Sage cards in the loadout', () => {
+    const demo = standoff('fane-count');
+    // Two Sage cards beside it: the Fane itself is Sage, and so is Wild Surge.
+    hold(demo, 'mira', ['fane-of-the-wilds', 'wild-surge', 'book-of-norai']);
+    expect(demo.world.tokenCount('mira', 'fane-of-the-wilds')).toBe(2);
+    hold(demo, 'mira', ['fane-of-the-wilds', 'book-of-norai']);
+    expect(demo.world.tokenCount('mira', 'fane-of-the-wilds')).toBe(1);
+  });
+
+  it('spends the least that saves the roll, and nothing on one that did not need it', () => {
+    let saved = false;
+    let untouched = false;
+    for (let seed = 1; seed < 60 && !(saved && untouched); seed++) {
+      const { demo, husk } = fane('fane-' + seed, 6);
+      const before = demo.world.tokensOn('mira', 'fane-of-the-wilds');
+
+      // Mystic Tether is a Spellcast Roll against the husk's own Difficulty.
+      expect(useAbility(demo, 'mira', 'mystic-tether', [husk.id]).status).toBe('waiting');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      const roll = demo.rolls[demo.rolls.length - 1]!.roll;
+      const spent = before - demo.world.tokensOn('mira', 'fane-of-the-wilds');
+
+      if (spent === 0) {
+        // Either it did not need saving, or six tokens could not save it.
+        untouched = true;
+        continue;
+      }
+      // What it spent is exactly what it took: one fewer would have fallen short.
+      const difficulty = roll.difficulty;
+      expect(roll.total).toBeGreaterThanOrEqual(difficulty);
+      expect(roll.total - spent).toBeLessThan(difficulty);
+      expect(demo.log.some((l) => /Success/.test(l.text))).toBe(true);
+      saved = true;
+    }
+    expect({ saved, untouched }).toEqual({ saved: true, untouched: true });
+  });
+
+  it('will not throw tokens at a roll it cannot save', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      // One token: it can lift a roll by exactly one and no more.
+      const { demo, husk } = fane('fane-short-' + seed, 1);
+      expect(useAbility(demo, 'mira', 'mystic-tether', [husk.id]).status).toBe('waiting');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      const roll = demo.rolls[demo.rolls.length - 1]!.roll;
+      const left = demo.world.tokensOn('mira', 'fane-of-the-wilds');
+      if (roll.critical) continue;
+
+      // Two or more short: the token stays on the card rather than being
+      // thrown at a roll it was never going to reach.
+      if (roll.total + 1 < roll.difficulty) {
+        expect(left).toBe(1);
+        return;
+      }
+    }
+    throw new Error('never found a roll too far gone to save, in sixty tries');
+  });
+
+  it('answers a Spellcast Roll and leaves a plain trait check alone', () => {
+    // `only: 'spellcast'` is the card's own words, and a chest is not one.
+    expect(demo0().world.liftRoll('mira', 'spellcast', 10, 13, false)).toBe(3);
+    expect(demo0().world.liftRoll('mira', 'instinct', 10, 13, false)).toBe(0);
+    // Nor a roll that already got there, nor a critical.
+    expect(demo0().world.liftRoll('mira', 'spellcast', 13, 13, false)).toBe(0);
+    expect(demo0().world.liftRoll('mira', 'spellcast', 2, 13, true)).toBe(0);
+  });
+
+  const demo0 = (): DemoScene => {
+    const demo = standoff('fane-direct');
+    hold(demo, 'mira', ['fane-of-the-wilds', 'book-of-norai']);
+    demo.world.spendTokens('mira', 'fane-of-the-wilds', 99);
+    demo.world.addTokens('mira', 'fane-of-the-wilds', 6);
+    return demo;
+  };
+});
