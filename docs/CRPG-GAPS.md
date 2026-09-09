@@ -432,7 +432,11 @@ so a click has a visible target.
 instanced layer under the highlights, a colour per zone), and the tiles come from
 `world.zoneFootprint` - the same measure `refreshZones` uses to decide who is standing in it, so
 the picture is the rule. A zone's condition names its colour (`ConditionDef.color`); one that
-names none gets a hue spun from its id, so nothing scripted later is invisible.
+names none gets a hue spun from its id, so nothing scripted later is invisible. Each zone is
+outlined along its edge - a side with no tile of the same zone beyond it - so a Melee cross reads
+as a shape rather than five loose tiles, and two zones touching keep their own edges. The overlays
+(zone ground, zone edge, walk highlight, pointer, selection ring) draw in that fixed `renderOrder`
+rather than by whichever is nearer the camera.
 
 **The room has a sun.** The light rig is a sky (`HemisphereLight`), a little ambient, and a
 directional sun that casts, about fifty degrees up, with a shadow camera fitted to the map's

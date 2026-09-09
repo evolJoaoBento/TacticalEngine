@@ -48,21 +48,26 @@ const wrap: Record<string, string | number> = {
 
 function card(selected: boolean, alive: boolean): Record<string, string | number> {
   return {
-    minWidth: '150px',
-    padding: '8px 10px',
-    background: 'rgba(16,18,24,0.9)',
+    minWidth: '156px',
+    padding: '9px 11px',
+    // The selected card is lit from within as well as edged, so it reads as
+    // chosen from across the room and not only when the border is looked for.
+    background: selected ? 'rgba(24,40,52,0.92)' : 'rgba(16,18,24,0.9)',
     border: `1px solid ${selected ? '#69d2ff' : '#39404d'}`,
-    borderRadius: '6px',
+    borderRadius: '8px',
+    boxShadow: selected ? '0 0 0 1px rgba(105,210,255,0.25), 0 6px 18px rgba(0,0,0,0.5)' : '0 6px 18px rgba(0,0,0,0.45)',
+    backdropFilter: 'blur(6px)',
     opacity: alive ? 1 : 0.45,
     cursor: 'pointer',
+    transition: 'background 120ms, border-color 120ms',
   };
 }
 
 const rowStyle: Record<string, string | number> = {
   display: 'flex',
   alignItems: 'center',
-  gap: '2px',
-  marginTop: '2px',
+  gap: '3px',
+  marginTop: '3px',
 };
 
 /** Boxes: `marked` of `max` filled. */
@@ -74,18 +79,20 @@ function Pips(props: { label: string; marked: number; max: number; colour: strin
       <span
         key={i}
         style={{
-          width: '9px',
-          height: '9px',
+          width: '10px',
+          height: '10px',
           border: `1px solid ${props.colour}`,
           background: filled ? props.colour : 'transparent',
           borderRadius: '2px',
+          boxSizing: 'border-box',
+          boxShadow: filled ? `0 0 4px ${props.colour}66` : 'none',
         }}
       />,
     );
   }
   return (
     <div style={rowStyle} data-testid={props.testId} data-marked={props.marked} data-max={props.max}>
-      <span style={{ color: '#8ea3b0', width: '28px', fontSize: '10px' }}>{props.label}</span>
+      <span style={{ color: '#8ea3b0', width: '30px', fontSize: '10px', letterSpacing: '0.02em' }}>{props.label}</span>
       {boxes}
     </div>
   );
@@ -103,9 +110,9 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
           data-selected={member.selected}
           onClick={() => props.onSelect(member.id)}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <strong>{member.name}</strong>
-            <span style={{ color: '#8ea3b0', fontSize: '10px' }}>{member.role}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px', marginBottom: '2px' }}>
+            <strong style={{ fontSize: '13px' }}>{member.name}</strong>
+            <span style={{ color: '#8ea3b0', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{member.role}</span>
           </div>
           {member.canLevel ? (
             <button
@@ -136,7 +143,7 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
           {member.hope !== undefined ? (
             <Pips label="Hope" marked={member.hope.value} max={member.hope.max} colour="#7fd1ff" testId="hope" />
           ) : null}
-          <div style={{ color: '#8ea3b0', fontSize: '10px' }} data-testid="gear">
+          <div style={{ color: '#8ea3b0', fontSize: '10px', marginTop: '4px' }} data-testid="gear">
             {member.gear}
           </div>
           {member.conditions.length > 0 ? (

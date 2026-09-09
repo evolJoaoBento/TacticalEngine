@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Color, Matrix4, Vector3, type InstancedMesh } from 'three';
+import { Color, Matrix4, Vector3, type InstancedMesh, type LineSegments } from 'three';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
 import { mapExtent, surfaceHeight, tileCenter } from './layout';
@@ -509,6 +509,44 @@ describe('SceneView', () => {
 
     view.clearZones();
     expect(view.zonedCount).toBe(0);
+    view.dispose();
+  });
+
+  it('outlines a zone along its edge, not round every tile, in the zone\'s colour', () => {
+    const { grid, view } = setup();
+    // One tile has four edges; two side by side share one, so six; three in an
+    // L share two, so eight.
+    view.showZones([{ tiles: [grid.indexOf(1, 1)], color: '#ff7a3a' }]);
+    expect(view.zoneEdgeSegments).toBe(4);
+    view.showZones([{ tiles: [grid.indexOf(1, 1), grid.indexOf(2, 1)], color: '#ff7a3a' }]);
+    expect(view.zoneEdgeSegments).toBe(6);
+    view.showZones([{ tiles: [grid.indexOf(1, 1), grid.indexOf(2, 1), grid.indexOf(1, 2)], color: '#ff7a3a' }]);
+    expect(view.zoneEdgeSegments).toBe(8);
+    // Two zones touching keep their own edges: they are different ground.
+    view.showZones([
+      { tiles: [grid.indexOf(1, 1)], color: '#ff7a3a' },
+      { tiles: [grid.indexOf(2, 1)], color: '#b46cff' },
+    ]);
+    expect(view.zoneEdgeSegments).toBe(8);
+
+    const edges = view.root.children.find((c) => c.name === 'zone-edges') as LineSegments;
+    expect(edges.geometry.drawRange.count).toBe(16);
+    const colour = edges.geometry.getAttribute('color');
+    const drawn = new Color(colour.getX(8), colour.getY(8), colour.getZ(8));
+    expect(drawn.getHexString()).toBe('b46cff');
+
+    view.clearZones();
+    expect(view.zoneEdgeSegments).toBe(0);
+    view.dispose();
+  });
+
+  it('draws the overlays in a fixed order: ground, edge, walk, pointer, ring', () => {
+    const { view } = setup();
+    const order = ['zones', 'zone-edges', 'highlights', 'cursor', 'selection'].map(
+      (name) => view.root.children.find((c) => c.name === name)!.renderOrder,
+    );
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(new Set(order).size).toBe(order.length);
     view.dispose();
   });
 

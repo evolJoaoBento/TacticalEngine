@@ -138,8 +138,10 @@ const wrap: Record<string, string | number> = {
 const logBox: Record<string, string | number> = {
   overflowY: 'auto',
   background: 'rgba(16,18,24,0.9)',
-  borderRadius: '6px',
+  borderRadius: '8px',
   padding: '10px 12px',
+  boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+  backdropFilter: 'blur(6px)',
 };
 
 function button(primary: boolean): Record<string, string | number> {
