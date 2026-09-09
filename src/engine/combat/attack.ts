@@ -87,6 +87,8 @@ export interface AttackOptions extends TargetingOptions {
   disadvantage?: number;
   /** Help an Ally dice. PC attacks only — the GM cannot be helped. */
   helpDice?: number;
+  /** The attacker's Hope Die, when a card has made it something other than a d12. */
+  hopeDieSides?: number;
   /** Flat modifier on top of the profile's: an Experience, a feature, terrain. */
   bonus?: number;
   /**
@@ -246,6 +248,7 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
         advantage,
         disadvantage,
         helpDice: options.helpDice ?? 0,
+        ...(options.hopeDieSides === undefined ? {} : { hopeDieSides: options.hopeDieSides }),
       });
     hit = dualityRoll.success;
     critical = dualityRoll.critical;

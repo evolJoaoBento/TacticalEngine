@@ -5701,3 +5701,87 @@ describe('a card that saves a roll already made', () => {
     return demo;
   };
 });
+
+
+/**
+ * The one card that changes what is thrown rather than what is added to it.
+ */
+describe('a Hope Die that is not a d12', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  const armed = (seed: string): { demo: DemoScene; kara: EntityState; husk: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    hold(demo, 'kara', ['signature-move']);
+    const kara = demo.state.entity('kara')!;
+    kara.stress = { max: 6, marked: 3 };
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 90, marked: 0 };
+    return { demo, kara, husk };
+  };
+
+  it('is twelve until the move is declared, and twenty after', () => {
+    const { demo, kara } = armed('signature-sides');
+    expect(demo.world.hopeDieSides('kara')).toBe(12);
+    expect(useAbility(demo, 'kara', 'signature-move', []).status).not.toBe('refused');
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    expect(kara.conditions.has('signature-move')).toBe(true);
+    expect(demo.world.hopeDieSides('kara')).toBe(20);
+  });
+
+  it('throws a d20 for Hope on the swing it was declared for, and only that one', () => {
+    // Over enough seeds a d12 can never show 13 or more; a d20 can. Finding one
+    // face above twelve is the whole proof that a different die was thrown.
+    let sawBig = false;
+    for (let seed = 1; seed < 60 && !sawBig; seed++) {
+      const { demo, husk } = armed('signature-die-' + seed);
+      useAbility(demo, 'kara', 'signature-move', []);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+      demo.party.select('kara');
+      attackWithSelected(demo, husk.id);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const roll = demo.rolls[demo.rolls.length - 1]!.roll;
+      expect(roll.fear).toBeLessThanOrEqual(12);
+      if (roll.hope > 12) {
+        expect(roll.hopeSides).toBe(20);
+        sawBig = true;
+      }
+    }
+    expect(sawBig).toBe(true);
+  });
+
+  it('is spent by that roll, whatever it came to, and pays a Stress for a success', () => {
+    let onSuccess = false;
+    let onFailure = false;
+    for (let seed = 1; seed < 80 && !(onSuccess && onFailure); seed++) {
+      const { demo, kara, husk } = armed('signature-spent-' + seed);
+      useAbility(demo, 'kara', 'signature-move', []);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const stress = kara.stress.marked;
+
+      demo.party.select('kara');
+      attackWithSelected(demo, husk.id);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const roll = demo.rolls[demo.rolls.length - 1]!.roll;
+
+      // Spent either way: the move was made.
+      expect(kara.conditions.has('signature-move')).toBe(false);
+      expect(demo.world.hopeDieSides('kara')).toBe(12);
+      if (roll.success) {
+        // One for the card, and a critical clears one of its own on top.
+        expect(kara.stress.marked).toBe(stress - (roll.critical ? 2 : 1));
+        onSuccess = true;
+      } else {
+        expect(kara.stress.marked).toBe(stress);
+        onFailure = true;
+      }
+    }
+    expect({ onSuccess, onFailure }).toEqual({ onSuccess: true, onFailure: true });
+  });
+});

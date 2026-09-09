@@ -31,6 +31,16 @@ export const conditionDefSchema = z.object({
   /** What carrying it does to damage coming in — a shroud's resistance. */
   defenses: damageDefensesSchema.optional(),
   /**
+   * What the bearer's Hope Die is while this lasts: "you can roll a d20 as your
+   * Hope Die".
+   *
+   * A property of bearing it rather than a bonus, which is why it sits beside
+   * `defenses` and not in `modifiers` - a modifier adds a number to a roll, and
+   * this changes what is thrown. Only the Hope Die: the Fear Die belongs to the
+   * GM and nothing on a card reaches it.
+   */
+  hopeDie: z.object({ sides: z.number().int().min(2) }).optional(),
+  /**
    * What the bearer cannot do while it lasts. An adversary that cannot `act`
    * spends its spotlight shaking the condition off (or the GM spends a Fear
    * to clear one that only ends on damage); one that cannot `move` tears
@@ -226,6 +236,15 @@ const RAW: ConditionInput[] = [
         },
       ],
     },
+  },
+  // Signature Move, waiting on the roll it was declared for. The whole of it is
+  // the die: a d20 in place of the d12, which raises the floor of the roll and
+  // makes a critical rarer, both of which the card is buying deliberately.
+  {
+    id: 'signature-move',
+    name: 'Signature Move',
+    text: 'The move you are known for: your next action roll throws a d20 as its Hope Die.',
+    hopeDie: { sides: 20 },
   },
   // Tempest's third storm, on everything caught in it. "Attacks made from
   // beyond Melee range have disadvantage" is about where the attacker is

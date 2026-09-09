@@ -1137,6 +1137,7 @@ export function attackWithSelected(
       bandTiles: DEMO_BAND_TILES,
       bonus: demo.world.rollBonus(id!, 'attackRoll', { melee }),
       damageBonus: demo.world.rollBonus(id!, 'damageRoll', { melee }),
+      hopeDieSides: demo.world.hopeDieSides(id!),
       // What the two of them say about each other: the Assassin's advantage
       // while Hidden, the Gaoler's shield in the way.
       ...demo.world.advantageFor(id!, targetId),

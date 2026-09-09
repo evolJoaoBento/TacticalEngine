@@ -34,6 +34,15 @@ export interface DualityRollOptions {
    * features, items, conditions, a spent-Hope Experience, a Group Action Roll bonus.
    */
   modifier?: number;
+  /**
+   * The Hope Die's faces, for the one card that changes them: "you can roll a
+   * d20 as your Hope Die". Twelve unless something says otherwise.
+   *
+   * Only the Hope Die moves. The Fear Die is the GM's half of the pair and no
+   * card here touches it, and a critical is still the two showing the same
+   * face - which a bigger Hope Die makes rarer rather than impossible.
+   */
+  hopeDieSides?: number;
   /** Number of sources granting advantage (e.g. a Vulnerable target). */
   advantage?: number;
   /** Number of sources imposing disadvantage. */
@@ -56,6 +65,11 @@ export interface DualityRoll {
   hope: number;
   /** Face shown by the Fear die. */
   fear: number;
+  /**
+   * The Hope Die's faces, present only when they were not the usual twelve —
+   * so a roll thrown again knows which die to put back in the cup.
+   */
+  hopeSides?: number;
   /** Signed advantage/disadvantage contribution: +d6, -d6, or 0 when they cancel. */
   advantageDie: number;
   /** Every Help an Ally d6 rolled, in roll order (empty on a reaction roll). */
@@ -180,7 +194,8 @@ export function withFaces(roll: DualityRoll, faces: { hope?: number; fear?: numb
 export function rollDuality(rng: Rng, options: DualityRollOptions): DualityRoll {
   const { difficulty, modifier = 0, reaction = false } = options;
 
-  const hope = rng.die(HOPE_DIE_SIDES);
+  const hopeSides = options.hopeDieSides ?? HOPE_DIE_SIDES;
+  const hope = rng.die(hopeSides);
   const fear = rng.die(FEAR_DIE_SIDES);
 
   const direction = netAdvantage(options.advantage, options.disadvantage);
@@ -196,6 +211,7 @@ export function rollDuality(rng: Rng, options: DualityRollOptions): DualityRoll 
   return {
     hope,
     fear,
+    ...(hopeSides === HOPE_DIE_SIDES ? {} : { hopeSides }),
     advantageDie,
     helpDice,
     helpBonus,

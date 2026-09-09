@@ -35,7 +35,7 @@ import {
   type DamageSeverity,
   type IncomingDamage,
 } from '../rules/damage';
-import { rollDuality, type DualityRoll } from '../rules/duality';
+import { HOPE_DIE_SIDES, rollDuality, type DualityRoll } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
 import {
   bandForDistance,
@@ -1126,6 +1126,22 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /**
+   * The faces on a creature's Hope Die right now: twelve, unless something they
+   * are carrying says otherwise. The biggest wins, two cards saying it being a
+   * thing that could happen rather than a thing that adds up.
+   */
+  hopeDieSides(id: string): number {
+    const entity = this.state.entity(id);
+    if (entity === undefined) return HOPE_DIE_SIDES;
+    let sides = HOPE_DIE_SIDES;
+    for (const name of entity.conditions) {
+      const die = this.conditionDefs.get(name)?.hopeDie;
+      if (die !== undefined) sides = Math.max(sides, die.sides);
+    }
+    return sides;
+  }
+
+  /**
    * What the roller's own cards will put behind a roll they have just made, and
    * what it costs them.
    *
@@ -1987,6 +2003,7 @@ export class SceneScriptWorld implements ScriptWorld {
         // A party member attacked from a script defends the same way as from
         // an adversary; an adversary has no Armor Slots to mark.
         armorSlotsMarked: this.defense.armor === 'auto' ? Math.min(1, unmarked(target.armorSlots)) : 0,
+        hopeDieSides: this.hopeDieSides(request.attacker),
         ...this.advantageWith(request.attacker, request.target, request.advantage ?? 0),
       },
     });

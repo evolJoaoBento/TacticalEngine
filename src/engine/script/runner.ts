@@ -138,6 +138,8 @@ export interface ScriptWorld extends ConditionContext {
    * costs them. Nothing, for a roll that does not need saving or cannot be.
    */
   liftRoll(id: string, trait: CheckTrait, total: number, difficulty: number, critical: boolean): number;
+  /** The faces on this creature's Hope Die: twelve unless a card says otherwise. */
+  hopeDieSides(id: string): number;
   /** The acting character's Experiences, spendable for a Hope each. */
   experiences(): readonly { name: string; modifier: number }[];
   /** What a roll against this creature must meet: Evasion, or an adversary's Difficulty. */
@@ -733,6 +735,7 @@ export class ScriptRunner {
       ...(net > 0 ? { advantage: net } : {}),
       ...(net < 0 ? { disadvantage: -net } : {}),
       ...(response.helpDice === undefined ? {} : { helpDice: response.helpDice }),
+      ...(actor === null ? {} : { hopeDieSides: this.world.hopeDieSides(actor) }),
     });
     // What the roller's own cards put behind a roll that has been read and has
     // not yet decided anything - the one moment the runner owns that the game

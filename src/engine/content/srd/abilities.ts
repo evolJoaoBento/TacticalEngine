@@ -525,6 +525,53 @@ const RAW: Input[] = [
       },
     ],
   },
+  // "Name and describe your signature combat move. Once per rest, when you
+  // perform this signature move as part of an action you're taking, you can roll
+  // a d20 as your Hope Die. On a success, clear a Stress."
+  //
+  // The one card in the SRD that changes what is thrown rather than what is
+  // added, so it is the only thing that reads `hopeDie`. Tactician says the
+  // same words about a Tag Team Roll, which this engine does not have.
+  //
+  // Simplified: naming the move is the player's, and declaring it is a free
+  // thing you do before rolling rather than something folded into the action -
+  // the engine has no way to hear "as part of" an action that has not happened
+  // yet, and the card costs its once-per-rest either way.
+  {
+    id: 'signature-move',
+    name: 'Signature Move',
+    source: card('signature-move'),
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'self' },
+    action: false,
+    effects: [
+      { kind: 'log', text: 'They set themselves for the thing they are known for.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'signature-move', duration: 'scene', target: { kind: 'actor' } },
+    ],
+  },
+  // And the roll it was waiting for. The condition comes off whatever the dice
+  // said - it was spent on that roll - and the Stress goes only on a success.
+  {
+    id: 'signature-move-lands',
+    name: 'Signature Move',
+    source: card('signature-move'),
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    available: { kind: 'all', of: [{ kind: 'self' }, { kind: 'hasCondition', condition: 'signature-move', of: { kind: 'actor' } }] },
+    effects: [
+      { kind: 'clearCondition', condition: 'signature-move', target: { kind: 'actor' } },
+      {
+        kind: 'branch',
+        when: { kind: 'rolled', is: 'success' },
+        then: [
+          { kind: 'log', text: 'It goes exactly the way they practised it.', tone: 'hope' },
+          { kind: 'clearStress', amount: 1, target: { kind: 'actor' } },
+        ],
+      },
+    ],
+  },
+
   // "After a long rest, place a number of tokens equal to the number of Sage
   // domain cards in your loadout and vault on this card. When you would make a
   // Spellcast Roll, you can spend any number of tokens after the roll to gain a
