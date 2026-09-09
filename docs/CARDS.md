@@ -54,8 +54,9 @@ Known simplifications in the scripted ones. Why each of the others is *not* scri
 - **Telekinesis** is two rolls: the first takes hold and moves them, the second throws them at the next one along. Simplified as Korvax's Lift is - "anywhere within Far of their original position" is away from the one lifting them, there being no way to aim the second half of a spell aimed at a creature - and the one thrown takes nothing for the landing, which the card does not give them either.
 - **Vitality** is the only card that changes what somebody *is* rather than what they can do: two of its three benefits, each a condition at the `permanent` duration, which is the one duration that outlives a scene and a rest. It asks twice and the second question leaves out what the first took.
 - **Endless Charisma** is the card that needed a roll to know what it was *for*. `tags` had been on a check since the schema was written and nothing had ever read one; a `rollTagged` gate is what makes them worth writing, and the rolls that are persuasion say so now - Troublemaker's taunt, Goad Them On's, and both halves of Words of Discord. Which die goes back in the cup is the Fear Die, always: the same call Support Tank makes, it being the half that decides who holds the spotlight as well as whether the roll lands.
+- **Disintegration Wave** wanted a way to kill without hitting - no thresholds, no Armor Slot, nothing that answers a wound - and past the veil, so a heal cannot stand them back up. `slay` is that, and the mirror of the `revive` Resurrection needed. The roll is made once and laid against every Difficulty within Far, which is what the card gives the GM to announce, read off the roll instead; slightly generous when the roll beats 18 by a distance. "Each one you wish to hit" is all of them - which of a list to spare is a decision with nobody here to make it - and the Stress is one per target either way.
 - **Adjust Reality** names a roll's total instead of throwing the dice again - the other thing that can be done to a roll already read, and the reason the post-roll moment was worth building twice. Two decisions of the engine's: "a result of your choice" is the least that carries the roll over its Difficulty, five Hope not being spent to make a success prettier, so it is only offered on a failure; and the *total* moves while the faces stand, which is what "the numerical result" says - whether the roll was with Hope or with Fear, and whether the dice matched, belong to the throw. Unlike Reassurance it answers its holder's own roll as well as an ally's, which is the card's "you or a willing ally".
-Scripted: 134 of 189 cards.
+Scripted: 135 of 189 cards.
 
 
 ## Arcana
@@ -158,7 +159,7 @@ Scripted: 134 of 189 cards.
 | 8 | Book of Vyola | Grimoire | text | reads a memory the GM narrates; its other spell shares Stress between two creatures at a moment nothing raises |
 | 8 | Safe Haven | Spell | text | summons an interdimensional house to rest in |
 | 9 | Book of Ronin | Grimoire | **action** (Eternal Enervation) |  |
-| 9 | Disintegration Wave | Spell | text | is the closest miss left: the Difficulties are readable and the Stress is spendable, but nothing can kill a creature outright and stop it being brought back |
+| 9 | Disintegration Wave | Spell | **action** |  |
 | 10 | Book of Yarrow | Grimoire | **action** (Timejammer), **reaction** (Timejammer), **action** (Magic Immunity) |  |
 | 10 | Transcendent Union | Spell | text | lets connected creatures choose who marks Stress or Hit Points, at a moment nothing raises |
 

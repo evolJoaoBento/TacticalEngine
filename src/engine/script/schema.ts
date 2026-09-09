@@ -698,6 +698,16 @@ export const effectSchema = z.discriminatedUnion('kind', [
    */
   z.object({ kind: z.literal('revive'), target: targetSelectorSchema.optional() }),
   /**
+   * "They are killed and can't come back to life by any means": the mirror of
+   * `revive`, and the only thing here that kills without damage.
+   *
+   * Not a blow, so nothing about it is a blow: no thresholds, no Armor Slots,
+   * no reaction to it and nothing that answers a wound. It is the veil, put on
+   * somebody directly - which is what stops a heal standing them back up, and
+   * what `revive` is the only way past.
+   */
+  z.object({ kind: z.literal('slay'), target: targetSelectorSchema.optional() }),
+  /**
    * A weapon attack as an effect — "make an attack with your primary weapon".
    * A full action roll: Hope or Fear, the spotlight, a critical's extra dice.
    */

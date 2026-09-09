@@ -1741,6 +1741,26 @@ export class SceneScriptWorld implements ScriptWorld {
     return raised;
   }
 
+  /**
+   * Killed outright, and past the veil where a heal cannot reach.
+   *
+   * The mirror of `revive`: that one clears the death, this one writes it. What
+   * it does *not* do is deal damage - there are no thresholds to cross and no
+   * Armor Slot to mark, because the card that asks for this is not hitting
+   * anybody.
+   */
+  slay(target: TargetSelector, bindings: TargetBindings = { targets: [], hit: [] }): string[] {
+    const killed: string[] = [];
+    for (const entity of this.entitiesFor(target, bindings)) {
+      if (!entity.alive) continue;
+      entity.hitPoints = { max: entity.hitPoints.max, marked: entity.hitPoints.max };
+      entity.alive = false;
+      entity.dead = true;
+      killed.push(entity.id);
+    }
+    return killed;
+  }
+
   private entitiesFor(target: TargetSelector, bindings: TargetBindings): EntityState[] {
     // `damage` and `heal` reach fallen creatures too — a heal is how one gets up.
     if (target.kind === 'entity') {

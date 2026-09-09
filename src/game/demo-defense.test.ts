@@ -6482,3 +6482,91 @@ describe('a roll with a purpose', () => {
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
   });
 });
+
+
+/**
+ * The one effect that kills without hitting, and the card the audit called the
+ * closest miss left.
+ */
+describe('unmaking what you can reach', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('slay takes them past the veil, where a heal cannot follow', () => {
+    const demo = standoff('slay');
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+
+    expect(demo.world.slay({ kind: 'entity', id: husk.id })).toEqual([husk.id]);
+    expect(husk.alive).toBe(false);
+    expect(husk.dead).toBe(true);
+    // The line the effect exists to draw: a heal stands somebody up, and stops
+    // at the veil.
+    demo.world.heal({ kind: 'entity', id: husk.id }, 9);
+    expect(husk.alive).toBe(false);
+    // And nothing is slain twice.
+    expect(demo.world.slay({ kind: 'entity', id: husk.id })).toEqual([]);
+  });
+
+  it('Disintegration Wave unmakes what its roll reached, at a Stress apiece', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const demo = standoff('wave-' + seed);
+      demo.askDefender = false;
+      hold(demo, 'mira', ['disintegration-wave']);
+      const mira = demo.state.entity('mira')!;
+      mira.stress = { max: 12, marked: 0 };
+      // Two husks standing, both within Far of the caster.
+      const spare = demo.state.entitiesOf('adversary').find((e) => !e.alive);
+      if (spare === undefined) continue;
+      spare.alive = true;
+      spare.hitPoints = { max: 8, marked: 0 };
+      const kara = demo.state.entity('kara')!;
+      const blocked = demo.state.blockedFor('mira');
+      demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+        if (demo.grid.isPassable(tile) && !blocked(tile)) demo.state.moveEntity('mira', tile);
+      });
+      demo.party.select('mira');
+      // Only the ones standing when the wave came: the harness lays the rest
+      // out beforehand, and those were never slain by anything.
+      const before = demo.state.entitiesOf('adversary').filter((e) => e.alive).map((e) => e.id);
+
+      expect(useAbility(demo, 'mira', 'disintegration-wave', []).status).toBe('waiting');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      const taken = before.filter((id) => demo.state.entity(id)?.alive !== true);
+      if (taken.length === 0) continue;
+
+      // A Stress for each one taken, and each of them past the veil.
+      expect(mira.stress.marked).toBe(taken.length);
+      for (const id of taken) expect(demo.state.entity(id)!.dead).toBe(true);
+      expect(demo.log.some((l) => /not there afterwards/.test(l.text))).toBe(true);
+      return;
+    }
+    throw new Error('the wave never beat an 18 in two hundred tries');
+  });
+
+  it('and takes nothing at all on a roll that falls short', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const demo = standoff('wave-short-' + seed);
+      demo.askDefender = false;
+      hold(demo, 'mira', ['disintegration-wave']);
+      const mira = demo.state.entity('mira')!;
+      mira.stress = { max: 12, marked: 0 };
+      demo.party.select('mira');
+      const standing = demo.state.entitiesOf('adversary').filter((e) => e.alive).length;
+
+      useAbility(demo, 'mira', 'disintegration-wave', []);
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      const roll = demo.rolls[demo.rolls.length - 1]?.roll;
+      if (roll === undefined || roll.success) continue;
+
+      // Nothing unmade, and no Stress spent on a wave that did not come.
+      expect(demo.state.entitiesOf('adversary').filter((e) => e.alive).length).toBe(standing);
+      expect(mira.stress.marked).toBe(0);
+      return;
+    }
+    throw new Error('the wave never fell short in two hundred tries');
+  });
+});

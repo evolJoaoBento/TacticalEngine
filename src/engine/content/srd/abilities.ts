@@ -205,6 +205,24 @@ const KEEPS = (condition: string, label: string) =>
     effects: [{ kind: 'applyCondition' as const, condition, duration: 'permanent' as const, target: { kind: 'actor' as const } }],
   });
 
+/** What the wave takes: everything the roll reached, and a Stress apiece. */
+const WAVE: EffectInput[] = [
+  {
+    kind: 'check',
+    check: {
+      trait: 'spellcast',
+      difficulty: 'target',
+      roll: 'last',
+      targets: { kind: 'adversaries', range: 'far' },
+      always: [
+        { kind: 'markStress', amount: 'targetsHit', target: { kind: 'actor' } },
+        { kind: 'log', text: 'The air goes white, and what it touches is not there afterwards.', tone: 'fear' },
+        { kind: 'slay', target: { kind: 'hit' } },
+      ],
+    },
+  },
+];
+
 const RESUMES: EffectInput[] = [
   { kind: 'log', text: 'They move, and the room remembers how to.', tone: 'combat' },
   { kind: 'clearCondition', condition: 'time-stopped', target: { kind: 'adversaries', range: 'veryFar' } },
@@ -1044,6 +1062,48 @@ const RAW: Input[] = [
         ],
       },
       { kind: 'vaultCard' },
+    ],
+  },
+
+  // "Make a Spellcast Roll (18). Once per long rest on a success, the GM tells
+  // you which adversaries within Far range have a Difficulty of 18 or lower.
+  // Mark a Stress for each one you wish to hit with this spell. They are killed
+  // and can't come back to life by any means."
+  //
+  // The last card the audit called a near miss. What it wanted was a way to
+  // kill without hitting - no thresholds, no Armor Slot, nothing that answers a
+  // wound - and past the veil, so a heal cannot stand them back up. `slay` is
+  // that, and it is the mirror of the `revive` Resurrection needed.
+  //
+  // The roll is made once and laid against every Difficulty within Far, which
+  // is `roll: 'last'` doing the work the card gives the GM: "tells you which
+  // adversaries have a Difficulty of 18 or lower" is the same list, read off
+  // the roll rather than announced. Slightly generous when the roll beats 18 by
+  // a distance, and the same roll deciding either way.
+  //
+  // Simplified: "each one you wish to hit" is all of them. Which of a list to
+  // spare is a decision with nobody here to make it, and the Stress is marked
+  // one per target either way - a caster who cannot afford the whole wave marks
+  // what they have and takes the Hit Point the SRD gives a full Stress track.
+  {
+    id: 'disintegration-wave',
+    name: 'Disintegration Wave',
+    source: card('disintegration-wave'),
+    uses: { count: 1, per: 'longRest' },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 18,
+          prompt: 'Disintegration Wave: unmake what you can reach.',
+          onCriticalSuccess: WAVE,
+          onSuccessWithHope: WAVE,
+          onSuccessWithFear: WAVE,
+        },
+      },
     ],
   },
 

@@ -190,6 +190,8 @@ export interface ScriptWorld extends ConditionContext {
   clearCondition(id: string, condition: string): boolean;
   /** Back on their feet at full strength, past the veil if that is where they went. */
   revive(target: TargetSelector, bindings?: TargetBindings): string[];
+  /** Killed outright, past the veil. Returns who actually went. */
+  slay(target: TargetSelector, bindings?: TargetBindings): string[];
   proficiencyOf(id: string): number;
   /** Tokens sitting on a card this creature holds. */
   tokensOn(id: string, ability: string): number;
@@ -358,6 +360,8 @@ export type JournalEntry =
   | { kind: 'rollNamed'; total?: number }
   /** Somebody put back on their feet at full strength. */
   | { kind: 'revived'; id: string }
+  /** Somebody killed outright, past what a heal can reach. */
+  | { kind: 'slain'; id: string }
   /** A patch of ground started or stopped meaning something. */
   | { kind: 'zone'; id: string; name: string; standing: boolean }
   /** Added to a blow that has landed and not yet been counted. */
@@ -1181,6 +1185,11 @@ export class ScriptRunner {
           }
         }
         return null;
+      case 'slay': {
+        const killed = world.slay(effect.target ?? { kind: 'hit' }, this.bindings());
+        for (const id of killed) this.journal.push({ kind: 'slain', id });
+        return null;
+      }
       case 'revive': {
         const raised = world.revive(effect.target ?? { kind: 'target' }, this.bindings());
         for (const id of raised) this.journal.push({ kind: 'revived', id });
