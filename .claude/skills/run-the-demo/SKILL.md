@@ -32,6 +32,7 @@ it first and expect Playwright to use it.
 | aimed cards | `aim(ability)` for the legal tiles, `shape(ability, tile)` for what it catches |
 | answer a prompt | `pendingKind()`, `answer(response)` |
 | read the room | `log()`, `dice()`, `hitPoints(id)`, `stressOf(id)`, `conditionsOf(id)` |
+| read the board | `zones()` for the ground a spell holds (tiles per zone), `floaters()` for the numbers rising over heads right now (read them in the same tick - they live 1.4 s) |
 | objects | `objects()`, `use(id)`, `objectState(id)` |
 
 Always `setDiceSpeed(0)` first, or the dice animation makes everything
@@ -71,7 +72,11 @@ is right and the presentation is not.
 What should be on screen after a card is used: the action bar with the
 card and its cost, the party HUD (HP / Stress / Armor / Hope as pips, and
 any conditions under the gear line), the Fear track, and the narrative log
-bottom-right in tone colours.
+bottom-right in tone colours. On the board: a blue ring breathing under
+whoever is selected, shadows under walls and tokens, any zone painted on
+the tiles it holds (the Korvax circle is a purple cross at Melee), and a
+number - "-2 HP", "+1 Stress", a condition's name - rising over whoever it
+happened to for about a second.
 
 ## Related
 
