@@ -62,7 +62,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NO_TILE, type TileGrid } from './engine/grid/grid';
 import { mapExtent, tileAtWorld, tileCenter } from './engine/render/layout';
 import { MODELS } from './engine/render/procedural/registry';
-import { SceneView } from './engine/render/scene-view';
+import { SceneView, hueOf } from './engine/render/scene-view';
 import { blankScene, gridFromScene } from './engine/scene/grid-from-scene';
 import { importLegacyScene } from './engine/scene/legacy-import';
 import {
@@ -774,12 +774,6 @@ function paintedZones(): { tiles: number[]; color: string }[] {
   }));
 }
 
-/** A colour that is always the same for the same word. */
-function hueOf(word: string): string {
-  let hash = 0;
-  for (const ch of word) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  return `hsl(${hash % 360} 70% 60%)`;
-}
 
 /**
  * What lights up while the bar is armed.

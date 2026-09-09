@@ -4632,6 +4632,10 @@ function floatEntry(demo: DemoScene, entry: JournalEntry): void {
       }
       return;
     case 'heal':
+      // A shared healing is one total handed round a Hit Point at a time, and
+      // the journal has only the total; "+6" over each of five heads would be
+      // a lie, so it stays in the log.
+      if (entry.spread === true) return;
       for (const id of entry.ids ?? []) float(demo, id, `+${entry.amount}`, 'hope');
       return;
     case 'stress':

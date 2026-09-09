@@ -295,7 +295,7 @@ export type JournalEntry =
       reduced?: number;
     }
   /** `ids` is who was healed, for a view that shows it over their heads. */
-  | { kind: 'heal'; amount: number; cleared: number; ids?: readonly string[] }
+  | { kind: 'heal'; amount: number; cleared: number; ids?: readonly string[]; spread?: true }
   | { kind: 'encounter'; id: string; change: 'started' | 'ended'; intro?: string }
   | { kind: 'goto'; scene: string }
   | { kind: 'dialogue'; dialogue: string }
@@ -1064,7 +1064,7 @@ export class ScriptRunner {
           effect.spread === true
             ? world.healShared(healed, amount, this.bindings())
             : world.heal(healed, amount, this.bindings());
-        this.journal.push({ kind: 'heal', amount, cleared, ids: this.resolve(healed) });
+        this.journal.push({ kind: 'heal', amount, cleared, ids: this.resolve(healed), ...(effect.spread === true ? { spread: true } : {}) });
         return null;
       }
       case 'startEncounter':

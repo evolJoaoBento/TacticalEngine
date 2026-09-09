@@ -70,6 +70,15 @@ describe('what floats', () => {
     expect(demo.floaters).toEqual([{ id: 'kara', text: '+2', tone: 'hope' }]);
   });
 
+  it('keeps a shared healing in the log, since the journal has only the total', () => {
+    const demo = scene();
+    for (const id of ['kara', 'finn']) demo.state.entity(id)!.hitPoints.marked = 2;
+    const journal = runScript([{ kind: 'heal', amount: 3, spread: true, target: { kind: 'party' } }], demo.world, createRng(1));
+    expect(journal.find((e) => e.kind === 'heal')).toMatchObject({ kind: 'heal', spread: true });
+    record(demo, journal);
+    expect(demo.floaters).toEqual([]);
+  });
+
   it('floats over nobody who is not on the board', () => {
     const demo = scene();
     float(demo, 'nobody', '-1 HP', 'combat');

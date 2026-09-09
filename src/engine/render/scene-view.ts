@@ -70,6 +70,19 @@ export interface SceneViewOptions extends TerrainMeshOptions {
   assets?: AssetLibrary;
 }
 
+/**
+ * A colour that is always the same for the same word: the fallback for a zone
+ * whose condition names none, so it is painted rather than skipped. Hex, not
+ * an `hsl()` string - three's parser wants commas in one and the CSS of the
+ * day writes spaces, and the mismatch is silently white.
+ */
+export function hueOf(word: string): string {
+  let hash = 0;
+  for (const ch of word) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  const colour = new Color().setHSL((hash % 360) / 360, 0.7, 0.6);
+  return `#${colour.getHexString()}`;
+}
+
 export const DEFAULT_FACTION_COLORS: Readonly<Record<string, string>> = {
   party: '#f6c453',
   adversary: '#c0524a',

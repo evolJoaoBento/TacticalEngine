@@ -11,7 +11,7 @@ import { Color, Matrix4, Vector3, type InstancedMesh } from 'three';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
 import { mapExtent, surfaceHeight, tileCenter } from './layout';
-import { SceneView } from './scene-view';
+import { SceneView, hueOf } from './scene-view';
 import { DEFAULT_TERRAIN_COLORS, buildTerrainMesh, instanceCount } from './terrain-mesh';
 
 function makeGrid(rows: string[]): TileGrid {
@@ -331,6 +331,24 @@ describe('SceneView', () => {
 
     view.clearZones();
     expect(view.zonedCount).toBe(0);
+    view.dispose();
+  });
+
+  it('spins a colour from a word that three can read, the same one each time', () => {
+    const { view } = setup();
+    const a = hueOf('in-shadow');
+    expect(a).toBe(hueOf('in-shadow'));
+    expect(a).not.toBe(hueOf('shadowed'));
+    // Parsed, not silently white: the failure mode of an `hsl()` string with
+    // the wrong separators.
+    const parsed = new Color().set(a);
+    expect(parsed.getHexString()).not.toBe('ffffff');
+    expect(parsed.getHexString()).toBe(a.slice(1));
+    view.showZones([{ tiles: [0], color: a }]);
+    const layer = view.root.children.find((c) => c.name === 'zones') as InstancedMesh;
+    const drawn = new Color();
+    layer.getColorAt(0, drawn);
+    expect(drawn.getHexString()).toBe(a.slice(1));
     view.dispose();
   });
 
