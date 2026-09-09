@@ -220,8 +220,9 @@ test('selects between party members and moves the one in control', async ({ page
   expect(result.after).toBe(result.destination);
   // Out of combat the rest of the party follows, so nobody is left behind.
   expect(new Set(result.othersMoved).size).toBe(result.othersMoved.length);
-  // The preview follows the selection rather than going stale.
-  expect(result.highlighted).toBe(result.reachable);
+  // Out of a fight the floor is not lit: a walk goes anywhere the floor does.
+  expect(result.reachable).toBeGreaterThan(0);
+  expect(result.highlighted).toBe(0);
 
   expect(consoleErrors).toEqual([]);
 });

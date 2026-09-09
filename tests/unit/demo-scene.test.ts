@@ -12,7 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { SceneView } from '../../src/engine/render/scene-view';
-import { instanceCount } from '../../src/engine/render/terrain-mesh';
+import { tilesDrawn } from '../../src/engine/render/terrain-mesh';
 import { tileOf } from '../../src/engine/scene/grid-from-scene';
 import { attackProfile } from '../../src/engine/character/sheet';
 import {
@@ -346,7 +346,7 @@ describe('the demo renders', () => {
     view.setDecos(demo.scene.decos);
     view.syncTokens(demo.state);
 
-    expect(instanceCount(view.terrain)).toBe(demo.grid.size);
+    expect(tilesDrawn(view.terrain)).toBe(demo.grid.size);
     expect(view.terrain.meshes.length).toBeLessThanOrEqual(4);
     expect(view.decoCount).toBe(demo.scene.decos.length);
     for (const entity of demo.state.allEntities()) expect(view.tokenFor(entity.id)).toBeDefined();

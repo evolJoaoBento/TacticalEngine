@@ -20,6 +20,7 @@ import {
   Vector3,
   WebGLRenderer,
   type Intersection,
+  type Mesh,
   type Object3D,
 } from 'three';
 import { demoMap } from '../legacy/js/data.js';
@@ -722,6 +723,10 @@ function tileUnderPointer(event: PointerEvent | MouseEvent): number {
   const hits: Intersection<Object3D>[] = raycaster.intersectObjects(view.terrain.meshes, false);
   const hit = hits[0];
   if (hit === undefined) return NO_TILE;
+  // The face struck knows its tile, which a hit on a wall's side would
+  // otherwise round to whichever tile the wall's edge is nearer.
+  const faced = view.terrain.tileOf(hit.object as Mesh, hit.faceIndex ?? -1);
+  if (faced >= 0) return faced;
   groundPoint.copy(hit.point);
   return tileAtWorld(activeGrid, groundPoint.x, groundPoint.z, view.layout);
 }
@@ -782,11 +787,13 @@ function refreshPlay(): void {
     drainFloaters();
     view.showZones(paintedZones());
     view.showSelection(demo.party.selected === null ? NO_TILE : (demo.state.entity(demo.party.selected)?.tile ?? NO_TILE));
-    // A target to pick lights the creatures it could be; otherwise the walk.
+    // A target to pick lights the creatures it could be; otherwise, in a
+    // fight, the Close-range walk round whoever is selected. Out of a fight a
+    // walk goes anywhere the floor does, and the floor is not lit for it.
     view.showHighlights(
       targeting !== null
         ? aimingHighlights(targeting)
-        : demo.party.selected === null
+        : demo.party.selected === null || !inCombat(demo)
           ? []
           : reachableTiles(demo).tiles(),
     );

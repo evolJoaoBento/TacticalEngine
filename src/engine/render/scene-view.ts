@@ -19,6 +19,7 @@ import {
   BoxGeometry,
   BufferAttribute,
   BufferGeometry,
+  CircleGeometry,
   Color,
   DirectionalLight,
   Group,
@@ -193,6 +194,11 @@ export class SceneView {
   private highlight: InstancedMesh;
   private readonly highlightGeometry: BoxGeometry;
   private readonly highlightMaterial: MeshBasicMaterial;
+  /** The edge of the lit ground, so a walk reads as an area with a border and not as tiles. */
+  private highlightEdges: LineSegments;
+  private highlightEdgeGeometry: BufferGeometry;
+  private readonly highlightEdgeMaterial: LineBasicMaterial;
+  private highlightEdgeCount = 0;
   /** Ground a spell holds: one quad per tile, coloured per zone, under the highlights. */
   private zoneLayer: InstancedMesh;
   private readonly zoneMaterial: MeshBasicMaterial;
@@ -202,8 +208,9 @@ export class SceneView {
   private zoneEdgeGeometry: BufferGeometry;
   private readonly zoneEdgeMaterial: LineBasicMaterial;
   private zoneEdgeCount = 0;
-  /** The tile under the pointer: one quad, a different colour, or hidden. */
+  /** The spot under the pointer: a soft disc, a different colour, or hidden. */
   private readonly cursor: Mesh;
+  private readonly cursorGeometry: CircleGeometry;
   private readonly cursorMaterial: MeshBasicMaterial;
   private cursorTile = NO_TILE;
   /** A ring round whoever is selected, breathing so the eye finds it. */
@@ -248,14 +255,17 @@ export class SceneView {
     this.terrain = buildTerrainMesh(grid, options);
     for (const mesh of this.terrain.meshes) this.root.add(mesh);
 
-    // One flat quad per highlighted tile, hovering just above the surface.
-    this.highlightGeometry = new BoxGeometry(this.layout.tileSize * 0.92, 0.02, this.layout.tileSize * 0.92);
+    // One flat quad per lit tile, hovering just above the surface, the full
+    // width of the tile: the quads meet without a seam, so what is lit reads
+    // as one piece of ground, and the edge drawn round it is the only line.
+    this.highlightGeometry = new BoxGeometry(this.layout.tileSize, 0.02, this.layout.tileSize);
     this.highlightMaterial = new MeshBasicMaterial({
       color: new Color('#69d2ff'),
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.2,
       depthWrite: false,
     });
+    this.highlightEdgeMaterial = new LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false });
     // A zone is painted below a highlight, so a walk previewed across a wall
     // of flame shows both: the ground it is, and the ground it could be.
     this.zoneMaterial = new MeshBasicMaterial({
@@ -265,19 +275,29 @@ export class SceneView {
       depthWrite: false,
     });
     this.zoneEdgeMaterial = new LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false });
-    ({ highlight: this.highlight, zoneLayer: this.zoneLayer, zoneEdges: this.zoneEdges, zoneEdgeGeometry: this.zoneEdgeGeometry } =
-      this.buildOverlays(this.maxHighlights));
+    ({
+      highlight: this.highlight,
+      highlightEdges: this.highlightEdges,
+      highlightEdgeGeometry: this.highlightEdgeGeometry,
+      zoneLayer: this.zoneLayer,
+      zoneEdges: this.zoneEdges,
+      zoneEdgeGeometry: this.zoneEdgeGeometry,
+    } = this.buildOverlays(this.maxHighlights));
 
+    // A disc rather than a square: the pointer marks a spot on the ground,
+    // not a cell of it.
+    this.cursorGeometry = new CircleGeometry(this.layout.tileSize * 0.4, 32);
+    this.cursorGeometry.rotateX(-Math.PI / 2);
     this.cursorMaterial = new MeshBasicMaterial({
       color: new Color('#ffe08a'),
       transparent: true,
       opacity: 0.35,
       depthWrite: false,
     });
-    this.cursor = new Mesh(this.highlightGeometry, this.cursorMaterial);
+    this.cursor = new Mesh(this.cursorGeometry, this.cursorMaterial);
     this.cursor.name = 'cursor';
     this.cursor.visible = false;
-    this.cursor.renderOrder = 4;
+    this.cursor.renderOrder = 5;
     this.root.add(this.cursor);
 
     // The same blue the HUD card of whoever is selected is edged in, so the
@@ -293,7 +313,7 @@ export class SceneView {
     this.selection = new Mesh(this.selectionGeometry, this.selectionMaterial);
     this.selection.name = 'selection';
     this.selection.visible = false;
-    this.selection.renderOrder = 5;
+    this.selection.renderOrder = 6;
     this.root.add(this.selection);
 
     this.addLights();
@@ -307,6 +327,8 @@ export class SceneView {
    */
   private buildOverlays(capacity: number): {
     highlight: InstancedMesh;
+    highlightEdges: LineSegments;
+    highlightEdgeGeometry: BufferGeometry;
     zoneLayer: InstancedMesh;
     zoneEdges: LineSegments;
     zoneEdgeGeometry: BufferGeometry;
@@ -322,26 +344,71 @@ export class SceneView {
     zoneLayer.count = 0;
     zoneLayer.frustumCulled = false;
 
-    // Room for four edges on every tile, allocated once; `showZones` writes
-    // into it and sets the draw range, the way the instanced layers do.
-    const edgeCapacity = room * 4 * 2;
-    const zoneEdgeGeometry = new BufferGeometry();
-    zoneEdgeGeometry.setAttribute('position', new BufferAttribute(new Float32Array(edgeCapacity * 3), 3));
-    zoneEdgeGeometry.setAttribute('color', new BufferAttribute(new Float32Array(edgeCapacity * 3), 3));
-    zoneEdgeGeometry.setDrawRange(0, 0);
+    // Room for four edges on every tile, allocated once; the painters write
+    // into it and set the draw range, the way the instanced layers do.
+    const edgeGeometry = (): BufferGeometry => {
+      const edgeCapacity = room * 4 * 2;
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new BufferAttribute(new Float32Array(edgeCapacity * 3), 3));
+      geometry.setAttribute('color', new BufferAttribute(new Float32Array(edgeCapacity * 3), 3));
+      geometry.setDrawRange(0, 0);
+      return geometry;
+    };
+    const zoneEdgeGeometry = edgeGeometry();
     const zoneEdges = new LineSegments(zoneEdgeGeometry, this.zoneEdgeMaterial);
     zoneEdges.name = 'zone-edges';
     zoneEdges.frustumCulled = false;
+    const highlightEdgeGeometry = edgeGeometry();
+    const highlightEdges = new LineSegments(highlightEdgeGeometry, this.highlightEdgeMaterial);
+    highlightEdges.name = 'highlight-edges';
+    highlightEdges.frustumCulled = false;
 
     // The overlays are all transparent and none writes depth, so their order
     // is decided here rather than by whichever happens to be nearer the
-    // camera: ground first, the edge over it, then the walk, the pointer,
-    // and the ring round the selected on top of everything.
+    // camera: ground first, the edge over it, then the walk and its edge,
+    // the pointer, and the ring round the selected on top of everything.
     zoneLayer.renderOrder = 1;
     zoneEdges.renderOrder = 2;
     highlight.renderOrder = 3;
-    this.root.add(zoneLayer, zoneEdges, highlight);
-    return { highlight, zoneLayer, zoneEdges, zoneEdgeGeometry };
+    highlightEdges.renderOrder = 4;
+    this.root.add(zoneLayer, zoneEdges, highlight, highlightEdges);
+    return { highlight, highlightEdges, highlightEdgeGeometry, zoneLayer, zoneEdges, zoneEdgeGeometry };
+  }
+
+  /**
+   * Draw the border of a set of tiles into an edge geometry, from segment
+   * `from` on: a side with no tile of the same set beyond it is the edge.
+   * Returns how many segments the geometry now holds. What makes a footprint
+   * read as a shape rather than as loose squares.
+   */
+  private outline(held: ReadonlySet<number>, color: Color, geometry: BufferGeometry, from: number): number {
+    const positions = geometry.getAttribute('position') as BufferAttribute;
+    const colors = geometry.getAttribute('color') as BufferAttribute;
+    const half = this.layout.tileSize / 2;
+    let edges = from;
+    for (const tile of held) {
+      const centre = tileCenter(this.grid, tile, this.layout);
+      const top = surfaceHeight(this.grid.heightAt(tile), this.layout);
+      const x = this.grid.xOf(tile);
+      const y = this.grid.yOf(tile);
+      const sides: [number, number, [number, number], [number, number]][] = [
+        [x, y - 1, [-half, -half], [half, -half]],
+        [x + 1, y, [half, -half], [half, half]],
+        [x, y + 1, [half, half], [-half, half]],
+        [x - 1, y, [-half, half], [-half, -half]],
+      ];
+      for (const [nx, ny, a, b] of sides) {
+        if (this.grid.inBounds(nx, ny) && held.has(this.grid.indexOf(nx, ny))) continue;
+        if (edges * 2 + 1 >= positions.count) return edges;
+        const v = edges * 2;
+        positions.setXYZ(v, centre.x + a[0], top + 0.03, centre.z + a[1]);
+        positions.setXYZ(v + 1, centre.x + b[0], top + 0.03, centre.z + b[1]);
+        colors.setXYZ(v, color.r, color.g, color.b);
+        colors.setXYZ(v + 1, color.r, color.g, color.b);
+        edges++;
+      }
+    }
+    return edges;
   }
 
   /**
@@ -363,14 +430,22 @@ export class SceneView {
     this.rebuildTerrain(options.tints);
 
     if (grid.size > this.maxHighlights) {
-      this.root.remove(this.highlight, this.zoneLayer, this.zoneEdges);
+      this.root.remove(this.highlight, this.highlightEdges, this.zoneLayer, this.zoneEdges);
       this.highlight.dispose();
+      this.highlightEdgeGeometry.dispose();
       this.zoneLayer.dispose();
       this.zoneEdgeGeometry.dispose();
       this.maxHighlights = grid.size;
-      ({ highlight: this.highlight, zoneLayer: this.zoneLayer, zoneEdges: this.zoneEdges, zoneEdgeGeometry: this.zoneEdgeGeometry } =
-        this.buildOverlays(this.maxHighlights));
+      ({
+        highlight: this.highlight,
+        highlightEdges: this.highlightEdges,
+        highlightEdgeGeometry: this.highlightEdgeGeometry,
+        zoneLayer: this.zoneLayer,
+        zoneEdges: this.zoneEdges,
+        zoneEdgeGeometry: this.zoneEdgeGeometry,
+      } = this.buildOverlays(this.maxHighlights));
       this.highlightCount = 0;
+      this.highlightEdgeCount = 0;
       this.zoneCount = 0;
       this.zoneEdgeCount = 0;
     } else {
@@ -936,9 +1011,11 @@ export class SceneView {
    */
   showHighlights(tiles: Iterable<number>): void {
     let i = 0;
+    const held = new Set<number>();
     for (const tile of tiles) {
       if (i >= this.maxHighlights) break;
-      if (!this.grid.isTile(tile)) continue;
+      if (!this.grid.isTile(tile) || held.has(tile)) continue;
+      held.add(tile);
       const centre = tileCenter(this.grid, tile, this.layout);
       this.dummy.position.set(centre.x, surfaceHeight(this.grid.heightAt(tile), this.layout) + 0.02, centre.z);
       this.dummy.scale.set(1, 1, 1);
@@ -950,11 +1027,22 @@ export class SceneView {
     this.highlightCount = i;
     this.highlight.count = i;
     this.highlight.instanceMatrix.needsUpdate = true;
+    // The lit ground gets one border, in its own colour: an area, not tiles.
+    const edges = this.outline(held, this.highlightMaterial.color, this.highlightEdgeGeometry, 0);
+    this.highlightEdgeCount = edges;
+    this.highlightEdgeGeometry.setDrawRange(0, edges * 2);
+    (this.highlightEdgeGeometry.getAttribute('position') as BufferAttribute).needsUpdate = true;
+    (this.highlightEdgeGeometry.getAttribute('color') as BufferAttribute).needsUpdate = true;
   }
 
   /** How many tiles the highlight layer is currently drawing. */
   get highlightedCount(): number {
     return this.highlightCount;
+  }
+
+  /** How many edge segments border the lit ground. */
+  get highlightEdgeSegments(): number {
+    return this.highlightEdgeCount;
   }
 
   /**
@@ -966,13 +1054,11 @@ export class SceneView {
     let i = 0;
     let edges = 0;
     const color = new Color();
-    const positions = this.zoneEdgeGeometry.getAttribute('position') as BufferAttribute;
-    const colors = this.zoneEdgeGeometry.getAttribute('color') as BufferAttribute;
-    const half = this.layout.tileSize / 2;
     outer: for (const zone of zones) {
       color.set(zone.color);
       const held = new Set<number>();
       for (const tile of zone.tiles) if (this.grid.isTile(tile)) held.add(tile);
+      const painted = new Set<number>();
       for (const tile of held) {
         if (i >= this.maxHighlights) break outer;
         const centre = tileCenter(this.grid, tile, this.layout);
@@ -983,27 +1069,11 @@ export class SceneView {
         this.dummy.updateMatrix();
         this.zoneLayer.setMatrixAt(i, this.dummy.matrix);
         this.zoneLayer.setColorAt(i, color);
+        painted.add(tile);
         i++;
-        // A side with no tile of the same zone beyond it is the zone's edge.
-        const x = this.grid.xOf(tile);
-        const y = this.grid.yOf(tile);
-        const sides: [number, number, [number, number], [number, number]][] = [
-          [x, y - 1, [-half, -half], [half, -half]],
-          [x + 1, y, [half, -half], [half, half]],
-          [x, y + 1, [half, half], [-half, half]],
-          [x - 1, y, [-half, half], [-half, -half]],
-        ];
-        for (const [nx, ny, a, b] of sides) {
-          if (this.grid.inBounds(nx, ny) && held.has(this.grid.indexOf(nx, ny))) continue;
-          if (edges * 2 + 1 >= positions.count) break;
-          const v = edges * 2;
-          positions.setXYZ(v, centre.x + a[0], top + 0.02, centre.z + a[1]);
-          positions.setXYZ(v + 1, centre.x + b[0], top + 0.02, centre.z + b[1]);
-          colors.setXYZ(v, color.r, color.g, color.b);
-          colors.setXYZ(v + 1, color.r, color.g, color.b);
-          edges++;
-        }
       }
+      // A side with no tile of the same zone beyond it is the zone's edge.
+      edges = this.outline(painted, color, this.zoneEdgeGeometry, edges);
     }
     this.zoneCount = i;
     this.zoneLayer.count = i;
@@ -1011,8 +1081,8 @@ export class SceneView {
     if (this.zoneLayer.instanceColor !== null) this.zoneLayer.instanceColor.needsUpdate = true;
     this.zoneEdgeCount = edges;
     this.zoneEdgeGeometry.setDrawRange(0, edges * 2);
-    positions.needsUpdate = true;
-    colors.needsUpdate = true;
+    (this.zoneEdgeGeometry.getAttribute('position') as BufferAttribute).needsUpdate = true;
+    (this.zoneEdgeGeometry.getAttribute('color') as BufferAttribute).needsUpdate = true;
   }
 
   /** How many edge segments the zone outlines are currently drawing. */
@@ -1078,6 +1148,9 @@ export class SceneView {
     this.highlightGeometry.dispose();
     this.highlightMaterial.dispose();
     this.highlight.dispose();
+    this.highlightEdgeGeometry.dispose();
+    this.highlightEdgeMaterial.dispose();
+    this.cursorGeometry.dispose();
     this.zoneMaterial.dispose();
     this.zoneLayer.dispose();
     this.zoneEdgeGeometry.dispose();

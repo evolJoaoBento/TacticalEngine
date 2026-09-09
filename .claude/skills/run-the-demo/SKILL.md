@@ -75,8 +75,11 @@ What should be on screen after a card is used: the action bar with the
 card and its cost, the party HUD (HP / Stress / Armor / Hope as pips, and
 any conditions under the gear line), the Fear track, and the narrative log
 bottom-right in tone colours. On the board: a blue ring breathing under
-whoever is selected, shadows under walls and tokens, any zone painted on
-the tiles it holds (the Korvax circle is a purple cross at Melee), and a
+whoever is selected, shadows under walls and tokens, any zone painted as
+one shape with a border (the Korvax circle is a purple square of nine
+tiles at Melee - a diagonal is Melee too), in a fight the Close-range walk
+lit as a disc with an edge round whoever is selected (out of a fight
+nothing is lit: one click walks anywhere the floor goes), and a
 number - "-2 HP", "+1 Stress", a condition's name - rising over whoever it
 happened to for about a second.
 

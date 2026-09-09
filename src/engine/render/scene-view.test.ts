@@ -13,7 +13,7 @@ import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
 import { mapExtent, surfaceHeight, tileCenter } from './layout';
 import { SceneView, hueOf } from './scene-view';
-import { DEFAULT_TERRAIN_COLORS, buildTerrainMesh, instanceCount } from './terrain-mesh';
+import { DEFAULT_TERRAIN_COLORS, buildTerrainMesh, tilesDrawn, topColorOf } from './terrain-mesh';
 
 function makeGrid(rows: string[]): TileGrid {
   const grid = new TileGrid({ width: rows[0]!.length, height: rows.length });
@@ -28,13 +28,30 @@ function makeGrid(rows: string[]): TileGrid {
   return grid;
 }
 
+/** Every face of a mesh as its tile, its normal's y and the y of its three corners. */
+function faces(terrain: ReturnType<typeof buildTerrainMesh>): { tile: number; up: number; ys: number[] }[] {
+  const out: { tile: number; up: number; ys: number[] }[] = [];
+  for (const mesh of terrain.meshes) {
+    const positions = mesh.geometry.getAttribute('position');
+    const normals = mesh.geometry.getAttribute('normal');
+    for (let face = 0; face < positions.count / 3; face++) {
+      out.push({
+        tile: terrain.tileOf(mesh, face),
+        up: normals.getY(face * 3),
+        ys: [positions.getY(face * 3), positions.getY(face * 3 + 1), positions.getY(face * 3 + 2)],
+      });
+    }
+  }
+  return out;
+}
+
 describe('buildTerrainMesh', () => {
-  it('draws the whole map in one instanced mesh per terrain type', () => {
+  it('draws the whole map in one mesh per terrain type', () => {
     const grid = makeGrid(['..#.', '.~#.', '....']);
     const terrain = buildTerrainMesh(grid);
     // Three types appear: floor, difficult, wall. Not four — nothing is 'cover'.
     expect(terrain.meshes).toHaveLength(3);
-    expect(instanceCount(terrain)).toBe(grid.size);
+    expect(tilesDrawn(terrain)).toBe(grid.size);
     expect(terrain.meshes.map((m) => m.name).sort()).toEqual([
       'terrain:difficult',
       'terrain:floor',
@@ -47,68 +64,74 @@ describe('buildTerrainMesh', () => {
     const small = buildTerrainMesh(makeGrid(['..', '..']));
     const large = buildTerrainMesh(new TileGrid({ width: 60, height: 60 }));
     expect(large.meshes.length).toBeLessThanOrEqual(small.meshes.length);
-    expect(instanceCount(large)).toBe(3600);
+    expect(tilesDrawn(large)).toBe(3600);
     small.dispose();
     large.dispose();
   });
 
-  it('places every instance at its tile, scaled to the tile height', () => {
+  it('lays every tile\'s top at its surface height, and walls only where the ground drops', () => {
     const grid = makeGrid(['...', '.2.']);
     const terrain = buildTerrainMesh(grid);
-    const matrix = new Matrix4();
-    const position = new Vector3();
-    const scale = new Vector3();
+    const all = faces(terrain);
+    const tops = all.filter((f) => f.up > 0.5);
+    const walls = all.filter((f) => f.up < 0.5);
 
-    let checked = 0;
-    for (const mesh of terrain.meshes) {
-      for (let i = 0; i < mesh.count; i++) {
-        const tile = terrain.tileOf(mesh, i);
-        expect(tile).toBeGreaterThanOrEqual(0);
-        mesh.getMatrixAt(i, matrix);
-        position.setFromMatrixPosition(matrix);
-        scale.setFromMatrixScale(matrix);
-
-        // Instance matrices are stored as Float32, so six places is the real
-        // precision available here, not the ten used elsewhere.
-        const centre = tileCenter(grid, tile);
-        expect(position.x).toBeCloseTo(centre.x, 6);
-        expect(position.z).toBeCloseTo(centre.z, 6);
-        // The slab is anchored at the ground and scaled up to the surface.
-        expect(position.y).toBeCloseTo(0, 6);
-        expect(scale.y).toBeCloseTo(surfaceHeight(grid.heightAt(tile)), 6);
-        checked++;
-      }
+    // Two triangles per tile, flat at the tile's own height.
+    expect(tops).toHaveLength(grid.size * 2);
+    for (const top of tops) {
+      expect(top.tile).toBeGreaterThanOrEqual(0);
+      for (const y of top.ys) expect(y).toBeCloseTo(surfaceHeight(grid.heightAt(top.tile)), 6);
     }
-    expect(checked).toBe(grid.size);
+    // Ten edges of map round the outside (one of them the raised tile's own
+    // south side) and the raised tile's three other sides: thirteen walls of
+    // two triangles each. Nothing between two level tiles.
+    expect(walls).toHaveLength(13 * 2);
+    const raised = grid.indexOf(1, 1);
+    const inner = walls.filter((w) => w.tile === raised && Math.min(...w.ys) > 0);
+    // Three of the raised tile's walls stop at the neighbour's surface; the
+    // fourth, off the map's edge, goes to the ground.
+    expect(inner).toHaveLength(3 * 2);
+    for (const wall of inner) expect(Math.min(...wall.ys)).toBeCloseTo(surfaceHeight(0), 6);
     terrain.dispose();
   });
 
-  it('maps every instance back to a distinct tile', () => {
+  it('maps every face back to its tile, and a face that is not there to none', () => {
     const grid = makeGrid(['..#.', '.~#.']);
     const terrain = buildTerrainMesh(grid);
     const seen = new Set<number>();
-    for (const mesh of terrain.meshes) {
-      for (let i = 0; i < mesh.count; i++) seen.add(terrain.tileOf(mesh, i));
-    }
+    for (const face of faces(terrain)) seen.add(face.tile);
     expect(seen.size).toBe(grid.size);
-    expect(terrain.tileOf(terrain.meshes[0]!, 999)).toBe(-1);
+    expect(seen.has(-1)).toBe(false);
+    expect(terrain.tileOf(terrain.meshes[0]!, 99_999)).toBe(-1);
     terrain.dispose();
   });
 
-  it('prefers an authored tint over the terrain colour, and ignores a bad one', () => {
+  it('honours an authored tint, blends it into the ground beside it, and ignores a bad one', () => {
     const grid = makeGrid(['..']);
     const tints = ['#ff0000', 'not-a-colour'];
     const terrain = buildTerrainMesh(grid, { tints });
-    const mesh = terrain.meshes[0]!;
-    expect(mesh.instanceColor).not.toBeNull();
-
-    const colors = mesh.instanceColor!.array;
-    const tinted = terrain.tileOf(mesh, 0) === 0 ? 0 : 1;
-    expect(colors[tinted * 3]).toBeCloseTo(1, 5); // red channel of #ff0000
-    expect(colors[tinted * 3 + 1]).toBeCloseTo(0, 5);
-
-    // The bad tint fell back to the floor colour rather than throwing.
+    const red = topColorOf(terrain, 0)!;
+    const plain = topColorOf(terrain, 1)!;
+    // The red tile is red where it is on its own and halfway to the floor
+    // where it meets the next tile, so its top reads mostly red and the
+    // neighbour, whose bad tint fell back to the floor colour, catches some.
+    expect(red.r).toBeGreaterThan(0.7);
+    expect(red.r).toBeGreaterThan(plain.r);
+    expect(plain.r).toBeLessThan(0.5);
+    expect(plain.g).toBeGreaterThan(red.g);
     expect(DEFAULT_TERRAIN_COLORS['floor']).toBeDefined();
+    terrain.dispose();
+  });
+
+  it('keeps a step sharp: nothing blends across a change of height', () => {
+    const grid = makeGrid(['.2']);
+    const terrain = buildTerrainMesh(grid, { tints: ['#ff0000', '#0000ff'] });
+    const low = topColorOf(terrain, 0)!;
+    const high = topColorOf(terrain, 1)!;
+    expect(low.r).toBeCloseTo(new Color('#ff0000').r, 5);
+    expect(low.b).toBeCloseTo(0, 5);
+    expect(high.b).toBeCloseTo(new Color('#0000ff').b, 5);
+    expect(high.r).toBeCloseTo(0, 5);
     terrain.dispose();
   });
 });
@@ -200,7 +223,7 @@ describe('SceneView', () => {
     view.rebind(bigger, { decos: [] });
 
     expect(view.grid).toBe(bigger);
-    expect(instanceCount(view.terrain)).toBe(bigger.size);
+    expect(tilesDrawn(view.terrain)).toBe(bigger.size);
     expect(view.resources).toBe(resources);
     expect(view.highlightedCount).toBe(0);
     expect(view.zonedCount).toBe(0);
@@ -228,7 +251,7 @@ describe('SceneView', () => {
 
     // And back to a smaller room, which fits in what there is.
     view.rebind(grid);
-    expect(instanceCount(view.terrain)).toBe(grid.size);
+    expect(tilesDrawn(view.terrain)).toBe(grid.size);
     view.showHighlights([0, 1, 2]);
     expect(view.highlightedCount).toBe(3);
     view.dispose();
@@ -678,6 +701,21 @@ describe('SceneView', () => {
     view.dispose();
   });
 
+  it('borders the lit ground along its edge, so a walk reads as an area', () => {
+    const { grid, view } = setup();
+    view.showHighlights([grid.indexOf(1, 1)]);
+    expect(view.highlightEdgeSegments).toBe(4);
+    view.showHighlights([grid.indexOf(1, 1), grid.indexOf(2, 1)]);
+    expect(view.highlightEdgeSegments).toBe(6);
+    // A tile named twice is lit once and bordered once.
+    view.showHighlights([grid.indexOf(1, 1), grid.indexOf(1, 1)]);
+    expect(view.highlightedCount).toBe(1);
+    expect(view.highlightEdgeSegments).toBe(4);
+    view.clearHighlights();
+    expect(view.highlightEdgeSegments).toBe(0);
+    view.dispose();
+  });
+
   it('outlines a zone along its edge, not round every tile, in the zone\'s colour', () => {
     const { grid, view } = setup();
     // One tile has four edges; two side by side share one, so six; three in an
@@ -708,7 +746,7 @@ describe('SceneView', () => {
 
   it('draws the overlays in a fixed order: ground, edge, walk, pointer, ring', () => {
     const { view } = setup();
-    const order = ['zones', 'zone-edges', 'highlights', 'cursor', 'selection'].map(
+    const order = ['zones', 'zone-edges', 'highlights', 'highlight-edges', 'cursor', 'selection'].map(
       (name) => view.root.children.find((c) => c.name === name)!.renderOrder,
     );
     expect(order).toEqual([...order].sort((a, b) => a - b));

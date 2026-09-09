@@ -29,7 +29,7 @@ two thirds.
 | Content | SRD adversary importer; legacy map/campaign importer |
 | Scene | Authored document (zod), runtime state overlay, JSON save/restore |
 | Combat | One attack, end to end, seeded and replayable |
-| Render | Instanced terrain, procedural model library, click-to-move demo |
+| Render | Continuous ground per terrain type (vertex-coloured, a wall only where the ground drops), procedural model library, click-to-move demo |
 | Characters | SRD classes/ancestries/communities/armor/weapons; sheets deriving the real numbers |
 | Scripting | One schema for conditions and effects; a stepper that pauses for input |
 | Interaction | Use a thing: keys, locked text, an action roll, effects and prose per outcome |
