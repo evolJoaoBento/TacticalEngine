@@ -7,13 +7,14 @@ import {
   buildDemoScene,
   startEncounter,
   travelTo,
+  note,
   useSelectedOn,
   type DemoScene,
 } from './demo-scene';
 import { deriveCharacter } from '../engine/character/sheet';
 import type { LevelUpPlan } from '../engine/character/progression';
 import { PIT_SCENE_ID } from './demo-scenes';
-import { loadGame, loadGameText, saveBlockedBy, saveGame, saveSchema } from './save';
+import { SAVED_LOG_LINES, loadGame, loadGameText, saveBlockedBy, saveGame, saveSchema } from './save';
 import { applyLevelUp } from './demo-scene';
 
 /**
@@ -344,5 +345,39 @@ describe('loading a game', () => {
     expect(loadGame(playing, save).ok).toBe(true);
     expect(playing.pending).toBeNull();
     expect(playing.encounter).toBeNull();
+  });
+});
+
+describe('the scrollback a save carries', () => {
+  it('keeps the tail and no more, however long the campaign ran', () => {
+    const demo = scene();
+    // A campaign's worth of lines: a swing, a roll and a door apiece.
+    for (let i = 0; i < SAVED_LOG_LINES * 3; i++) note(demo, `line ${i}`, 'narration');
+    expect(demo.log.length).toBeGreaterThan(SAVED_LOG_LINES);
+
+    const save = saveGame(demo)!;
+    expect(save.log).toHaveLength(SAVED_LOG_LINES);
+    // The tail, in order: what a player picking the game up wants is the end.
+    expect(save.log[save.log.length - 1]!.text).toBe(`line ${SAVED_LOG_LINES * 3 - 1}`);
+    expect(save.log[0]!.text).toBe(`line ${SAVED_LOG_LINES * 2}`);
+  });
+
+  it('carries a short log whole', () => {
+    const demo = scene();
+    const before = demo.log.length;
+    note(demo, 'the vault door is ajar', 'narration');
+    const save = saveGame(demo)!;
+    expect(save.log).toHaveLength(before + 1);
+    expect(save.log[save.log.length - 1]!.text).toBe('the vault door is ajar');
+  });
+
+  it('and the live log is left alone, because four callers read it by index', () => {
+    const demo = scene();
+    for (let i = 0; i < SAVED_LOG_LINES * 2; i++) note(demo, `line ${i}`, 'narration');
+    const before = demo.log.length;
+    note(demo, 'one more', 'narration');
+    // `log.slice(before)` is how a use reports what it added; a log trimmed
+    // under that would hand back somebody else's lines.
+    expect(demo.log.slice(before).map((l) => l.text)).toEqual(['one more']);
   });
 });

@@ -247,7 +247,12 @@ newest first with where the party was. The autosave is written whenever the part
 detected in `refreshPlay` rather than hooked into `travelTo`, because a script's `goto` travels
 without passing through `main.ts` at all.
 
-**Still open:** the log grows without limit inside a save.
+**Still open:** nothing. A save carries the last `SAVED_LOG_LINES` of scrollback (`game/save.ts`)
+rather than every line the campaign ever wrote — the tail is what a player picking the game up
+wants, and it is the save that gets written to disk and rewritten every time the party changes
+rooms. The live log is deliberately not trimmed to match: four callers read it by index, a use
+reporting what it added as `log.slice(before)`, and trimming under them would hand back somebody
+else's lines.
 
 ### ~~7. Quests and journal~~ — done
 

@@ -53,8 +53,27 @@ export const saveSchema = z.object({
    * fighting unarmed by surprise.
    */
   sheets: z.array(characterSheetSchema).default([]),
+  /**
+   * The narrative log, most recent last and no longer than SAVED_LOG_LINES.
+   *
+   * A campaign writes a line for every swing, every roll and every door, and a
+   * save that carried all of them would grow without limit for the sake of
+   * scrollback nobody reads twice. The tail is what a player picking the game
+   * up wants: where they were and what just happened.
+   */
   log: z.array(z.object({ text: z.string(), tone: logToneSchema })),
 });
+
+/**
+ * How much scrollback a save carries.
+ *
+ * The live log is not trimmed to match: four callers read it by index - the
+ * lines a use added are `log.slice(before)` - and trimming under them would
+ * hand somebody else's lines back. Bounding the save is what was actually
+ * costing anything, a save being the thing that is written to disk and
+ * rewritten every time the party changes rooms.
+ */
+export const SAVED_LOG_LINES = 200;
 
 export type SaveGame = z.infer<typeof saveSchema>;
 
@@ -85,7 +104,7 @@ export function saveGame(demo: DemoScene): SaveGame | null {
     selected: demo.party.selected,
     // Parsed rather than spread: a deep copy in the save's own shape.
     sheets: [...demo.sheets.values()].map((sheet) => characterSheetSchema.parse(sheet)),
-    log: demo.log.map((line) => ({ ...line })),
+    log: demo.log.slice(-SAVED_LOG_LINES).map((line) => ({ ...line })),
   };
 }
 
