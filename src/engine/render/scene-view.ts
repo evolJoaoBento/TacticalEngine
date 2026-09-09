@@ -13,6 +13,7 @@
  */
 
 import {
+  AnimationAction,
   AnimationMixer,
   AmbientLight,
   BoxGeometry,
@@ -25,6 +26,8 @@ import {
   InstancedMesh,
   LineBasicMaterial,
   LineSegments,
+  LoopOnce,
+  LoopRepeat,
   Mesh,
   MeshBasicMaterial,
   Object3D,
@@ -53,6 +56,19 @@ interface Glide {
   thrown: boolean;
   /** The tile it ends on, so a ring can tell whose walk it is watching. */
   to: number;
+}
+
+/** What plays on a creature's imported model: the state each clip belongs to. */
+type ClipState = 'idle' | 'walk' | 'hit' | 'fallen';
+
+/** An imported model's clips, wired to the states the view moves it through. */
+interface ClipSet {
+  mixer: AnimationMixer;
+  actions: Map<string, AnimationAction>;
+  /** The clip name for each state, where the asset named one. */
+  states: Partial<Record<ClipState, string>>;
+  /** The name of the clip playing now. */
+  playing: string | null;
 }
 
 /** A token taking a blow, going down, getting up, or lunging at somebody. */
@@ -172,6 +188,8 @@ export class SceneView {
   private lastState: SceneState | null = null;
   /** One mixer per animated clone, advanced by `tick`. */
   private readonly mixers = new Map<Object3D, AnimationMixer>();
+  /** The clips of each imported token, by its group, and what plays on it. */
+  private readonly clipSets = new Map<Object3D, ClipSet>();
   private highlight: InstancedMesh;
   private readonly highlightGeometry: BoxGeometry;
   private readonly highlightMaterial: MeshBasicMaterial;
@@ -476,6 +494,7 @@ export class SceneView {
     for (const [id, token] of this.tokens) {
       if (seen.has(id)) continue;
       this.root.remove(token.group);
+      this.clipSets.delete(token.group);
       this.tokens.delete(id);
       this.tokenModels.delete(id);
       this.tokenTiles.delete(id);
@@ -520,6 +539,9 @@ export class SceneView {
     }
     const duration = kind === 'flinch' ? 0.35 : kind === 'lunge' ? 0.3 : 0.45;
     this.reactions.set(id, { token, kind, elapsed: 0, duration, ...(toward === undefined ? {} : { toward, offset: 0 }) });
+    if (kind === 'flinch') this.playState(token.group, 'hit');
+    else if (kind === 'fall') this.playState(token.group, 'fallen');
+    else if (kind === 'rise') this.playState(token.group, 'idle');
   }
 
   /** Move every reaction on by `dt` seconds. */
@@ -559,6 +581,9 @@ export class SceneView {
     if (reaction.kind === 'flinch') {
       group.scale.set(1, 1, 1);
       group.rotation.z = 0;
+      // Back to the idle, or to the walk if one is still under way.
+      const walking = [...this.glides.values()].some((glide) => glide.token === reaction.token && !glide.thrown);
+      this.playState(group, walking ? 'walk' : 'idle');
     } else if (reaction.kind === 'lunge') {
       // Whatever is still leaned out comes back.
       group.position.x -= reaction.toward!.x * (reaction.offset ?? 0);
@@ -589,6 +614,7 @@ export class SceneView {
       const end = glide.points[glide.points.length - 1]!;
       glide.token.group.position.set(end.x, end.y, end.z);
       this.glides.delete(id);
+      this.playState(glide.token.group, 'idle');
     }
     for (const [id, reaction] of this.reactions) {
       this.finishReaction(reaction);
@@ -624,8 +650,12 @@ export class SceneView {
     const start = token.group.position;
     const points = tiles.map(at);
     points[0] = { x: start.x, y: start.y, z: start.z };
-    const duration = thrown ? 0.25 : Math.min(1.2, 0.16 * (points.length - 1));
+    // A fixed time per tile whether the walk is a path or a straight line:
+    // a follower crossing five tiles in one segment takes five tiles' worth.
+    const crossed = joins ? points.length - 1 : Math.max(1, this.grid.chebyshevDistance(from, to));
+    const duration = thrown ? 0.25 : Math.min(1.2, 0.16 * crossed);
     this.glides.set(id, { token, points, elapsed: 0, duration, hop: thrown ? 0.35 : 0.12, thrown, to });
+    if (!thrown) this.playState(token.group, 'walk');
   }
 
   /** Move every glide on by `dt` seconds. */
@@ -647,6 +677,7 @@ export class SceneView {
         const end = glide.points[segments]!;
         glide.token.group.position.set(end.x, end.y, end.z);
         this.glides.delete(id);
+        this.playState(glide.token.group, 'idle');
       }
     }
   }
@@ -677,13 +708,29 @@ export class SceneView {
     const clone = cloneSkeleton(template);
     clone.scale.setScalar(spec.scale);
     clone.rotation.y = spec.rotationY;
-    // A file with clips plays its first one on a loop — an idle, in every
-    // sample set worth the name. Choosing clips per state is content's job later.
-    const clip = template.animations[0];
-    if (clip !== undefined) {
+    // A file with clips plays one on a loop - the one the asset names as its
+    // idle, or the first in the file, which is the idle in every sample set
+    // worth the name. The others play where the view walks, hits or fells it.
+    if (template.animations.length > 0) {
       const mixer = new AnimationMixer(clone);
-      mixer.clipAction(clip).play();
+      const actions = new Map<string, AnimationAction>();
+      for (const clip of template.animations) actions.set(clip.name, mixer.clipAction(clip));
+      const named = spec.clips ?? {};
+      const idle = named.idle !== undefined && actions.has(named.idle) ? named.idle : template.animations[0]!.name;
+      const set: ClipSet = {
+        mixer,
+        actions,
+        states: {
+          idle,
+          ...(named.walk === undefined ? {} : { walk: named.walk }),
+          ...(named.hit === undefined ? {} : { hit: named.hit }),
+          ...(named.fallen === undefined ? {} : { fallen: named.fallen }),
+        },
+        playing: null,
+      };
       this.mixers.set(clone, mixer);
+      this.clipSets.set(group, set);
+      this.playClip(set, 'idle');
     }
     clone.traverse((child) => {
       if ((child as Mesh).isMesh) {
@@ -706,6 +753,44 @@ export class SceneView {
     };
   }
 
+  /**
+   * Put an imported model into a state: its clip for that state, if it named
+   * one, faded in over whatever was playing. A hit plays once and hands back
+   * to the idle when the flinch ends; a fall plays once and stays on its last
+   * frame. A state with no clip keeps what is playing.
+   */
+  private playState(group: Object3D, state: ClipState): void {
+    const set = this.clipSets.get(group);
+    if (set !== undefined) this.playClip(set, state);
+  }
+
+  private playClip(set: ClipSet, state: ClipState): void {
+    const name = set.states[state];
+    if (name === undefined) return;
+    const next = set.actions.get(name);
+    if (next === undefined) return;
+    if (set.playing === name && state !== 'hit') return;
+    const current = set.playing === null ? undefined : set.actions.get(set.playing);
+    if (current !== undefined && current !== next) current.fadeOut(0.15);
+    next.reset();
+    if (state === 'hit' || state === 'fallen') {
+      next.setLoop(LoopOnce, 1);
+      next.clampWhenFinished = state === 'fallen';
+    } else {
+      next.setLoop(LoopRepeat, Infinity);
+      next.clampWhenFinished = false;
+    }
+    next.fadeIn(0.15).play();
+    set.playing = name;
+  }
+
+  /** The clip playing on a creature's imported model, or nothing for a procedural one. */
+  clipOf(entityId: string): string | null {
+    const token = this.tokens.get(entityId);
+    if (token === undefined) return null;
+    return this.clipSets.get(token.group)?.playing ?? null;
+  }
+
   /** Redraw whatever was drawn from an id whose asset just arrived or failed. */
   private assetChanged(id: string): void {
     let redraw = false;
@@ -715,7 +800,10 @@ export class SceneView {
     for (const [entityId, modelId] of this.tokenModels) {
       if (modelId !== id) continue;
       const token = this.tokens.get(entityId);
-      if (token !== undefined) this.root.remove(token.group);
+      if (token !== undefined) {
+        this.root.remove(token.group);
+        this.clipSets.delete(token.group);
+      }
       this.tokens.delete(entityId);
       this.tokenModels.delete(entityId);
     }
@@ -985,6 +1073,7 @@ export class SceneView {
     if (this.stopListening !== null) this.stopListening();
     for (const mixer of this.mixers.values()) mixer.stopAllAction();
     this.mixers.clear();
+    this.clipSets.clear();
     this.terrain.dispose();
     this.highlightGeometry.dispose();
     this.highlightMaterial.dispose();

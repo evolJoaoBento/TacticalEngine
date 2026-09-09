@@ -853,6 +853,32 @@ function roomBeside(demo: DemoScene): number {
   const selected = standing.find((e) => e.id === demo.party.selected);
   const spawn = demo.scene.spawns[0];
   const from = selected?.tile ?? standing[0]?.tile ?? (spawn === undefined ? NO_TILE : tileOf(demo.grid, spawn));
+  return freeTileNear(demo, from);
+}
+
+/**
+ * Stand the party around a tile: whoever is selected on it or as near as the
+ * floor allows, the rest on the nearest free tiles after them. What a
+ * designer pressing "play from here" means, and what a script that gathers
+ * the party somewhere means too. Nobody is walked: they are put down.
+ */
+export function gatherParty(demo: DemoScene, tile: number): void {
+  if (!demo.grid.isTile(tile)) return;
+  const living = demo.state.entitiesOf('party').filter((e) => e.alive);
+  const first = living.find((e) => e.id === demo.party.selected);
+  const order = first === undefined ? living : [first, ...living.filter((e) => e !== first)];
+  for (const member of order) {
+    // Off the board while the search runs, so their old tile is not "taken" and
+    // the one they stand on now is.
+    demo.state.moveEntity(member.id, NO_TILE);
+    const spot = freeTileNear(demo, tile);
+    if (spot !== NO_TILE) demo.state.moveEntity(member.id, spot);
+  }
+  demo.world.refreshZones();
+}
+
+/** The nearest free passable tile to `from`, `from` itself when it is one; `NO_TILE` for nowhere. */
+function freeTileNear(demo: DemoScene, from: number): number {
   if (from === NO_TILE) return NO_TILE;
   const grid = demo.grid;
   const free = (tile: number): boolean => grid.isPassable(tile) && demo.state.occupantsOf(tile).length === 0;

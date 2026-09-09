@@ -60,6 +60,7 @@ declare global {
       travelTo: (scene: string) => boolean;
       scenes: () => string[];
       editScene: () => string;
+      playAt: (tile: number | null) => boolean;
       switchScene: (id: string) => void;
       addScene: (name: string) => string;
       removeScene: (id: string) => boolean;
@@ -75,6 +76,7 @@ declare global {
       objectTile: (id: string) => number;
       inspect: (tile: number) => { kind: string; id: string; name: string; facts: string[] } | null;
       animating: () => number;
+      clipOf: (id: string) => string | null;
       wound: (id: string, marks: number) => void;
       markStress: (id: string, marks: number) => void;
       stressOf: (id: string) => { marked: number; max: number };
@@ -1739,6 +1741,34 @@ test('plays a skinned model\'s first clip once it arrives', async ({ page }) => 
   await page.waitForFunction(() => window.__polyheart!.assetStatus('fox') === 'ready', undefined, { timeout: 15000 });
   await page.waitForFunction(() => window.__polyheart!.animating() > 0, undefined, { timeout: 5000 });
   expect(await page.evaluate(() => window.__polyheart!.animating())).toBeGreaterThan(0);
+  expect(consoleErrors).toEqual([]);
+});
+
+test('a glTF that names its clips walks with the walk and idles after', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  // The fox as Finn's body: the asset id is the model id the rogue's token asks for.
+  await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.addAsset({ id: 'rogue', url: '/tests/fixtures/models/Fox.glb', scale: 0.012, clips: { idle: 'Survey', walk: 'Run' } });
+    // A prop naming it starts the load; the token is redrawn when the file lands.
+    api.setMode('edit');
+    api.placeProp(api.tileOf('finn') + 2, 'rogue');
+    api.setMode('play');
+    api.select('finn');
+  });
+  await page.waitForFunction(() => window.__polyheart!.clipOf('finn') === 'Survey', undefined, { timeout: 15000 });
+
+  const walked = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    const from = api.tileOf('finn');
+    const tiles = api.reachable().filter((t) => t !== from);
+    const far = tiles.reduce((x, y) => (Math.abs(y - from) > Math.abs(x - from) ? y : x));
+    return { moved: api.moveTo(far), clip: api.clipOf('finn') };
+  });
+  expect(walked.moved).toBe(true);
+  expect(walked.clip).toBe('Run');
+  await page.waitForFunction(() => window.__polyheart!.gliding() === 0, undefined, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__polyheart!.clipOf('finn'))).toBe('Survey');
   expect(consoleErrors).toEqual([]);
 });
 

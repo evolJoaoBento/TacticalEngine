@@ -389,6 +389,11 @@ what using them does, and the loot tables that hand them out — draws, entries,
 fixed count or a rolled range, and weights shown as the odds they work out to. Deleting an item
 leaves the references that named it alone, so the validator can report them.
 
+**Play from here** (`playAt`): the editor's "▶ Play here" enters the room being edited through
+`travelTo` and the party arrives on its spawns; Shift-clicking a tile in the editor gathers them
+round that tile instead (`gatherParty`: the selected one on it, the rest on the nearest free
+floor), so a room is tested from the spot in question rather than walked to from the vault door.
+
 A character added in the panel joins when Play is pressed (`syncRoster` in `game/demo-scene.ts`):
 derived from the sheet, given a fresh sheet's pools, stood beside the party on the nearest free
 tile, announced in the log - and in a fight if there is one, since the spotlight tracker reads
@@ -418,8 +423,13 @@ worth the name); `SceneView.tick` drives the mixers from the frame loop.
 The procedural tokens walk, flinch, fall and rise (above); an imported glTF plays its first clip
 on a loop and gets the same glides and falls as a whole.
 
-**Still open:** choosing clips per state (walk, attack, fallen) is content's job and there is no
-field for it yet; textures come with the file but nothing authors materials; there is no file
+An asset names **which clip plays for which state** (`ModelAsset.clips`: idle, walk, hit,
+fallen, by the clip's own name); the view plays the walk while a token glides, the hit once as
+it flinches, the fall to its last frame as it goes down, and the idle otherwise. A state with
+no clip named keeps what is playing, and a file with nothing named loops its first clip as
+before.
+
+**Still open:** textures come with the file but nothing authors materials; there is no file
 picker — a model is a URL the page can reach.
 
 ### ~~10. Presentation the prototype had and this does not~~ — mostly closed

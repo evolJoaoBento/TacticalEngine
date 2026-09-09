@@ -94,6 +94,7 @@ import {
   refreshWorld,
   syncPools,
   syncRoster,
+  gatherParty,
   scriptPending,
   reachableInteractable,
   travelTo,
@@ -160,6 +161,8 @@ declare global {
       travelTo: (scene: string) => boolean;
       scenes: () => string[];
       editScene: () => string;
+      /** Start playing in the room being edited, gathered round a tile, or on its spawns for null. */
+      playAt: (tile: number | null) => boolean;
       switchScene: (id: string) => void;
       addScene: (name: string) => string;
       removeScene: (id: string) => boolean;
@@ -175,6 +178,8 @@ declare global {
       objectTile: (id: string) => number;
       inspect: (tile: number) => { kind: string; id: string; name: string; facts: string[] } | null;
       animating: () => number;
+      /** The clip playing on a creature's imported model, or null for a procedural one. */
+      clipOf: (id: string) => string | null;
       wound: (id: string, marks: number) => void;
       markStress: (id: string, marks: number) => void;
       stressOf: (id: string) => { marked: number; max: number };
@@ -466,6 +471,23 @@ function rederiveParty(): void {
   syncPools(demo);
 }
 
+/**
+ * Play from here: the room being edited, at a tile of the designer's choosing.
+ *
+ * A designer testing a room walked the party to it from the vault door every
+ * time. This puts them in the room - through `travelTo`, so the room is
+ * entered the way play enters it - and, given a tile, gathers them round it
+ * before the mode switches. With no tile they arrive on the room's spawns.
+ */
+function playAt(sceneId: string, tile: number | null): boolean {
+  if (sceneId !== demo.scene.id && !travelTo(demo, sceneId)) return false;
+  if (tile !== null) gatherParty(demo, tile);
+  boundScene = '';
+  setMode('play');
+  frameParty();
+  return true;
+}
+
 function setMode(next: 'play' | 'edit'): void {
   mode = next;
   editor.end();
@@ -505,6 +527,7 @@ function renderPanel(): void {
       libraryAbilities: SRD_ABILITIES,
       characterContent: SRD_CHARACTERS,
       onPlay: () => setMode('play'),
+      onPlayHere: () => playAt(editor.sceneId, null),
       onSave: saveProject,
       onAssetsChanged: () => {
         for (const id of assets.ids()) assets.remove(id);
@@ -1196,6 +1219,11 @@ canvas.addEventListener('pointerdown', (event) => {
     }
     const tile = tileUnderPointer(event);
     if (tile === NO_TILE) return;
+    // Shift-click on the ground: play from this tile.
+    if (event.shiftKey) {
+      playAt(editor.sceneId, tile);
+      return;
+    }
     canvas.setPointerCapture(event.pointerId);
     editor.begin(pointOf(tile));
     renderPanel();
@@ -1657,6 +1685,7 @@ const state = {
   },
 
   editScene: (): string => editor.sceneId,
+  playAt: (tile: number | null): boolean => playAt(editor.sceneId, tile),
   switchScene: (id: string): void => {
     editor.switchScene(id);
     rebindScene();
@@ -1715,6 +1744,7 @@ const state = {
     return inspecting === null ? null : { kind: inspecting.kind, id: inspecting.id, name: inspecting.name, facts: [...inspecting.facts] };
   },
   animating: (): number => view.animationCount,
+  clipOf: (id: string): string | null => view.clipOf(id),
   objectTile: (id: string): number => demo.state.interactableTile(id),
   objectState: (id: string): { used: boolean; open: boolean; removed: boolean } => {
     const s = demo.state.interactable(id);

@@ -3,7 +3,7 @@ import { demoMap } from '../../legacy/js/data.js';
 import { blankSheet, startingPools } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { NO_TILE } from '../engine/grid/grid';
-import { buildDemoScene, startEncounter, syncRoster, type DemoScene } from './demo-scene';
+import { buildDemoScene, gatherParty, startEncounter, syncRoster, type DemoScene } from './demo-scene';
 import { loadGameText, saveGame } from './save';
 
 /**
@@ -81,6 +81,37 @@ describe('a character added to the project', () => {
     // And into the document, or the next Play would send them away again.
     expect(fresh.project.party.map((s) => s.id)).toContain('tamsin');
     expect(syncRoster(fresh)).toEqual({ joined: [], left: [] });
+  });
+});
+
+describe('gathering the party at a tile', () => {
+  it('puts the selected one on it and the rest on the nearest free floor, nobody on top of anybody', () => {
+    const demo = scene();
+    demo.party.select('mira');
+    const target = demo.grid.indexOf(10, 8);
+    expect(demo.grid.isPassable(target)).toBe(true);
+    gatherParty(demo, target);
+    expect(demo.state.entity('mira')!.tile).toBe(target);
+    const tiles = demo.party.members().map((id) => demo.state.entity(id)!.tile);
+    expect(new Set(tiles).size).toBe(tiles.length);
+    for (const tile of tiles) {
+      expect(tile).not.toBe(NO_TILE);
+      expect(demo.grid.chebyshevDistance(tile, target)).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('lands beside a wall rather than in it, and does nothing for a tile off the map', () => {
+    const demo = scene();
+    const wall = Array.from({ length: demo.grid.size }, (_, i) => i).find((t) => !demo.grid.isPassable(t))!;
+    gatherParty(demo, wall);
+    for (const id of demo.party.members()) {
+      const tile = demo.state.entity(id)!.tile;
+      expect(demo.grid.isPassable(tile)).toBe(true);
+      expect(demo.grid.chebyshevDistance(tile, wall)).toBeLessThanOrEqual(3);
+    }
+    const before = demo.party.members().map((id) => demo.state.entity(id)!.tile);
+    gatherParty(demo, -1);
+    expect(demo.party.members().map((id) => demo.state.entity(id)!.tile)).toEqual(before);
   });
 });
 

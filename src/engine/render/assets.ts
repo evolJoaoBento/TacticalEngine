@@ -30,6 +30,21 @@ export const modelAssetSchema = z.object({
   groundOffset: z.number().default(0),
   /** Turn the model so it faces the way the procedural library does. Radians. */
   rotationY: z.number().default(0),
+  /**
+   * Which of the file's clips plays for each state, by the clip's own name.
+   * Left out, the first clip in the file loops as the idle and nothing else
+   * changes what plays - which is what every sample set does. A state with
+   * no clip named keeps whatever is playing: a walk with no walk clip idles
+   * along, a fall with no fall clip lies down on its rotation alone.
+   */
+  clips: z
+    .object({
+      idle: z.string().min(1).optional(),
+      walk: z.string().min(1).optional(),
+      hit: z.string().min(1).optional(),
+      fallen: z.string().min(1).optional(),
+    })
+    .optional(),
 });
 
 export type ModelAsset = z.infer<typeof modelAssetSchema>;

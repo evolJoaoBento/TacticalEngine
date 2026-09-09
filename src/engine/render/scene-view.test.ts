@@ -7,7 +7,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Color, Matrix4, Vector3, type InstancedMesh, type LineSegments } from 'three';
+import { AnimationClip, Color, Group, Matrix4, Vector3, type InstancedMesh, type LineSegments } from 'three';
+import { AssetLibrary, modelAssetSchema } from './assets';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
 import { mapExtent, surfaceHeight, tileCenter } from './layout';
@@ -231,6 +232,78 @@ describe('SceneView', () => {
     view.showHighlights([0, 1, 2]);
     expect(view.highlightedCount).toBe(3);
     view.dispose();
+  });
+
+  /** A view whose party wears an imported model with these clips, already loaded. */
+  const imported = async (clips?: { idle?: string; walk?: string; hit?: string; fallen?: string }) => {
+    const template = new Group();
+    template.animations = [new AnimationClip('Survey', 1, []), new AnimationClip('Walk', 1, []), new AnimationClip('Run', 1, [])];
+    const library = new AssetLibrary(
+      () => Promise.resolve(template),
+      [modelAssetSchema.parse({ id: 'fox', url: '/fox.glb', scale: 1, ...(clips === undefined ? {} : { clips }) })],
+    );
+    library.request('fox');
+    await Promise.resolve();
+    await Promise.resolve();
+    const grid = makeGrid(['.....', '.....', '.....']);
+    const state = new SceneState({ id: 'room' }, grid);
+    state.addEntity(createPartyEntity('kara', 'sentinel', grid.indexOf(0, 0)));
+    const view = new SceneView(grid, { assets: library, modelForEntity: () => 'fox' });
+    view.syncTokens(state);
+    return { grid, state, view };
+  };
+
+  it('plays the named idle, the walk while it walks, and the idle again when it has', async () => {
+    const { grid, state, view } = await imported({ idle: 'Survey', walk: 'Run' });
+    expect(view.modelSource('fox')).toBe('asset');
+    expect(view.clipOf('kara')).toBe('Survey');
+    state.moveEntity('kara', grid.indexOf(3, 0));
+    view.syncTokens(state);
+    expect(view.clipOf('kara')).toBe('Run');
+    view.tick(0.2);
+    expect(view.clipOf('kara')).toBe('Run');
+    view.tick(2);
+    expect(view.clipOf('kara')).toBe('Survey');
+    // A throw is not a walk.
+    state.moveEntity('kara', grid.indexOf(1, 2));
+    view.throwBack('kara');
+    view.syncTokens(state);
+    expect(view.clipOf('kara')).toBe('Survey');
+    view.settle();
+    expect(view.clipOf('kara')).toBe('Survey');
+    view.dispose();
+  });
+
+  it('plays the hit once and the fall to its last frame, and keeps playing where no clip is named', async () => {
+    const { state, view } = await imported({ idle: 'Survey', hit: 'Walk', fallen: 'Run' });
+    view.flinch('kara');
+    expect(view.clipOf('kara')).toBe('Walk');
+    view.tick(1);
+    expect(view.clipOf('kara')).toBe('Survey');
+    state.entity('kara')!.alive = false;
+    view.syncTokens(state);
+    expect(view.clipOf('kara')).toBe('Run');
+    view.tick(2);
+    expect(view.clipOf('kara')).toBe('Run');
+    state.entity('kara')!.alive = true;
+    view.syncTokens(state);
+    expect(view.clipOf('kara')).toBe('Survey');
+    view.dispose();
+
+    // Nothing named: the first clip idles and nothing the view does changes it.
+    const bare = await imported();
+    expect(bare.view.clipOf('kara')).toBe('Survey');
+    bare.view.flinch('kara');
+    expect(bare.view.clipOf('kara')).toBe('Survey');
+    bare.state.moveEntity('kara', bare.grid.indexOf(2, 2));
+    bare.view.syncTokens(bare.state);
+    expect(bare.view.clipOf('kara')).toBe('Survey');
+    // And a procedural token has no clip to speak of.
+    const { view: plain } = setup();
+    plain.syncTokens(new SceneState({ id: 'r' }, makeGrid(['..'])));
+    expect(plain.clipOf('kara')).toBeNull();
+    bare.view.dispose();
+    plain.dispose();
   });
 
   it('creates one token per entity, standing on its tile', () => {

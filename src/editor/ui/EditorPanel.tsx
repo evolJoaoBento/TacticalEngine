@@ -41,6 +41,8 @@ export interface EditorPanelProps {
   adversaryIds: readonly string[];
   /** Switch back to playing. */
   onPlay: () => void;
+  /** Play in the room being edited, arriving on its spawns; Shift-click a tile to arrive there. */
+  onPlayHere?: () => void;
   onSwitchScene: (id: string) => void;
   onAddScene: (name: string) => void;
   onRenameScene: (id: string, name: string) => void;
@@ -237,6 +239,11 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         <button style={button(false)} onClick={props.onPlay}>
           ▶ Play
         </button>
+        {props.onPlayHere !== undefined ? (
+          <button style={button(false)} data-testid="play-here" title="Play in this room, from its spawns. Shift-click a tile to play from there." onClick={props.onPlayHere}>
+            ▶ Play here
+          </button>
+        ) : null}
         <button
           style={button(false)}
           disabled={!session.canUndo}

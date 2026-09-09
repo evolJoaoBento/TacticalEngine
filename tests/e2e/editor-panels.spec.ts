@@ -134,6 +134,45 @@ test('a scene added in the editor is in the project and can be switched to', asy
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
+test('play from here: the room being edited, gathered round a tile or on its spawns', async ({ page }) => {
+  const errors = await editing(page);
+
+  // A new room, and the party put down in it round tile 5, without walking there.
+  const there = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    const id = a.addScene('A cellar');
+    a.switchScene(id);
+    const ok = a.playAt(5);
+    return { id, ok, mode: a.mode(), playing: a.sceneId(), tiles: a.party().map((p) => a.tileOf(p)), selected: a.selected() };
+  });
+  console.log('THERE:', JSON.stringify(there));
+  expect(there.ok).toBe(true);
+  expect(there.mode).toBe('play');
+  expect(there.playing).toBe(there.id);
+  expect(there.tiles.every((t) => t >= 0)).toBe(true);
+  expect(new Set(there.tiles).size).toBe(there.tiles.length);
+  await page.screenshot({ path: 'test-results/play-here.png' });
+
+  // And the button: back in the editor looking at the first room, Play here
+  // takes the party there on its spawns.
+  const back = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    a.setMode('edit');
+    a.switchScene(a.scenes()[0]!);
+    return a.scenes()[0]!;
+  });
+  await page.locator('[data-testid="play-here"]').click();
+  const landed = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    return { mode: a.mode(), playing: a.sceneId(), tiles: a.party().map((p) => a.tileOf(p)) };
+  });
+  console.log('LANDED:', JSON.stringify(landed));
+  expect(landed.mode).toBe('play');
+  expect(landed.playing).toBe(back);
+  expect(landed.tiles.every((t) => t >= 0)).toBe(true);
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
 test('a character added in the Party panel is standing with the party when Play is pressed', async ({ page }) => {
   const errors = await editing(page);
   page.on('dialog', (d) => void d.accept('Tamsin'));
