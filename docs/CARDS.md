@@ -52,9 +52,11 @@ Known simplifications in the scripted ones:
 - **Know Thy Enemy** leaves the Hope it costs and the Fear it can take. The information is the table's: the engine already shows every number on that list when you look at a creature, but the effect vocabulary cannot read those numbers into a sentence. The Fear is offered rather than taken, a Stress being a real price and "you can" the card's own word.
 - **Invisibility** keeps its die and its clock: attacks against the hidden creature are made with disadvantage, and every action they take spends one of the tokens the caster's Spellcast trait placed. Two simplifications. The tokens sit with the one who is invisible rather than on the caster's card, which is what lets an ally spend them at all; and "yourself or an ally" is an ally, because a caster who chose themselves would spend the first token on the Spellcast Roll that cast it. Not being seen except by magical means is the table's.
 - **Troublemaker** is the first card to roll dice for an *amount* rather than for damage: a number of d4s scaled by Proficiency, and the best single face of them, marked as Stress on whatever the taunt beat.
+- **Resurrection** is the one card that goes past the veil, so it is the one effect that does: a heal stands somebody up and stops there on purpose, and `revive` undoes the death itself. It is also the only card that can be aimed at somebody who is not standing there. Simplified twice, both about the d6: the card goes to the vault whatever it said, nothing here rolling a die into a gate, and "can't cast it again for a week" is a week this engine does not count, so a failure costs the roll and nothing else.
+- The rest of Splendor is the table's. **Divination** asks the GM a yes-or-no question about the future and **Final Words** asks a corpse; **Shape Material** reshapes stone; and **Invigoration** refreshes a spent once-per-rest feature, which would need a card to name which of somebody's features it meant, and the option lists here are written rather than gathered.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 129 of 189 cards.
+Scripted: 130 of 189 cards.
 
 
 ## Arcana
@@ -263,7 +265,7 @@ Scripted: 129 of 189 cards.
 | 9 | Overwhelming Aura | Spell | **action** |
 | 9 | Salvation Beam | Spell | **action** |
 | 10 | Invigoration | Spell | text |
-| 10 | Resurrection | Spell | text |
+| 10 | Resurrection | Spell | **action** |
 
 ## Valor
 

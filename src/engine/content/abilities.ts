@@ -55,6 +55,15 @@ export const abilityTargetSchema = z.object({
   /** The furthest the pick may be from the actor. */
   range: rangeBandSchema.default('melee'),
   /**
+   * Whether somebody who is down can be picked. Off everywhere else: a fallen
+   * creature cannot be swung at or healed by a card that names a target,
+   * because it is not standing there to be named.
+   *
+   * A card that exists to bring somebody back has to be able to point at them,
+   * which is the whole of what this says.
+   */
+  fallen: z.boolean().optional(),
+  /**
    * What makes a creature worth aiming at: "a target with 3 or more bramble
    * tokens". Read once for each candidate, with that candidate bound as the
    * target, so it narrows the list the player is offered and the list the GM

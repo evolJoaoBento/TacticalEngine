@@ -1691,6 +1691,34 @@ export class SceneScriptWorld implements ScriptWorld {
     return total;
   }
 
+  /**
+   * On their feet at full strength, whatever put them down.
+   *
+   * A heal stands somebody up and stops at the veil, deliberately. This does
+   * not stop: every marked Hit Point cleared and the death undone, which is
+   * what 'restore one creature who has been dead no longer than 100 years to
+   * full strength' asks for and nothing else here does.
+   */
+  revive(target: TargetSelector, bindings: TargetBindings = { targets: [], hit: [] }): string[] {
+    // Every selector that reads the board drops the fallen on the way past,
+    // which is right for everything except this: the one it is aimed at is the
+    // one who is down. A creature named outright - the chosen target, an id,
+    // the actor - is taken as named.
+    const named =
+      target.kind === 'target'
+        ? bindings.targets.map((id) => this.state.entity(id)).filter((e): e is EntityState => e !== undefined)
+        : this.entitiesFor(target, bindings);
+    const raised: string[] = [];
+    for (const entity of named) {
+      if (entity.alive && entity.hitPoints.marked === 0) continue;
+      entity.hitPoints = { max: entity.hitPoints.max, marked: 0 };
+      delete entity.dead;
+      entity.alive = true;
+      raised.push(entity.id);
+    }
+    return raised;
+  }
+
   private entitiesFor(target: TargetSelector, bindings: TargetBindings): EntityState[] {
     // `damage` and `heal` reach fallen creatures too — a heal is how one gets up.
     if (target.kind === 'entity') {

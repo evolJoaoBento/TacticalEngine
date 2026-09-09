@@ -680,6 +680,15 @@ export const effectSchema = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal('clearCondition'), condition: z.string().min(1), target: targetSelectorSchema.optional() }),
   /**
+   * Back on their feet, and past the veil if that is where they went.
+   *
+   * A heal already stands somebody up - "they return to consciousness when an
+   * ally clears 1 or more of their marked Hit Points" - and deliberately will
+   * not reach one who crossed through the veil. This is the effect that does:
+   * every marked Hit Point cleared, and the death itself undone.
+   */
+  z.object({ kind: z.literal('revive'), target: targetSelectorSchema.optional() }),
+  /**
    * A weapon attack as an effect — "make an attack with your primary weapon".
    * A full action roll: Hope or Fear, the spotlight, a critical's extra dice.
    */

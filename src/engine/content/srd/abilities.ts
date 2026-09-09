@@ -131,6 +131,12 @@ const STORM = (dice: string, condition?: string): EffectInput => ({
   },
 });
 
+const RAISED: EffectInput[] = [
+  { kind: 'log', text: 'Whatever was holding them lets go, and they come back whole.', tone: 'hope' },
+  { kind: 'revive', target: { kind: 'target' } },
+  { kind: 'vaultCard' },
+];
+
 const PROVOKED: EffectInput[] = [
   { kind: 'log', text: 'Whatever they said, it lands somewhere soft.', tone: 'hope' },
   {
@@ -567,6 +573,40 @@ const RAW: Input[] = [
       },
     ],
   },
+  // "Make a Spellcast Roll (20). On a success, restore one creature who has
+  // been dead no longer than 100 years to full strength. Then roll a d6. On a
+  // result of 5 or lower, place this card in your vault permanently. On a
+  // failure, you can't cast Resurrection again for a week."
+  //
+  // A heal already stands somebody up and stops at the veil, on purpose. This
+  // is the one card that goes past it, so `revive` is the one effect that
+  // undoes a death - and `target.fallen` is what lets the card be aimed at
+  // somebody who is not standing there to be aimed at.
+  //
+  // Simplified twice, both about the d6. The card goes to the vault whatever it
+  // said, because nothing here rolls a die into a gate; and "can't cast it
+  // again for a week" after a failure is a week this engine does not count, so
+  // a failure costs the Spellcast Roll and nothing else.
+  {
+    id: 'resurrection',
+    name: 'Resurrection',
+    source: card('resurrection'),
+    target: { kind: 'ally', range: 'close', fallen: true },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 20,
+          prompt: 'Resurrection: ask for them back.',
+          onCriticalSuccess: RAISED,
+          onSuccessWithHope: RAISED,
+          onSuccessWithFear: RAISED,
+        },
+      },
+    ],
+  },
+
   // ---- Grace, which turned out not to be all text ----------------------------
   //
   // "When you taunt or provoke a target within Far range, make a Presence Roll

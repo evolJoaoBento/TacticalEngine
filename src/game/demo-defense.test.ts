@@ -5,7 +5,7 @@ import { abilitySchema, loadoutOf, type AbilityDef } from '../engine/content/abi
 import { runScript } from '../engine/script/runner';
 import { formatDice } from '../engine/rules/dice';
 import type { Rng } from '../engine/core/rng';
-import { pointTiles, rest, shapeAt, useAbility } from './demo-abilities';
+import { abilityTargets, pointTiles, rest, shapeAt, useAbility } from './demo-abilities';
 import { NO_TILE } from '../engine/grid/grid';
 import { reaches } from '../engine/rules/range';
 import { adversaryTraits } from '../engine/combat/adversary-features';
@@ -6027,5 +6027,73 @@ describe('out of sight, and under the skin', () => {
     }
     // And it does vary, which a flat number would not.
     expect(new Set(marked).size).toBeGreaterThan(1);
+  });
+});
+
+
+/**
+ * The one card that goes past the veil, and the one effect that does.
+ */
+describe('asking for somebody back', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  const mourning = (seed: string): { demo: DemoScene; mira: EntityState; kara: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    hold(demo, 'mira', ['resurrection']);
+    const mira = demo.state.entity('mira')!;
+    const kara = demo.state.entity('kara')!;
+    const blocked = demo.state.blockedFor('mira');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile)) demo.state.moveEntity('mira', tile);
+    });
+    demo.party.select('mira');
+    // Kara gone past the veil: down, and marked as not coming back by a heal.
+    kara.hitPoints = { max: kara.hitPoints.max, marked: kara.hitPoints.max };
+    kara.alive = false;
+    kara.dead = true;
+    return { demo, mira, kara };
+  };
+
+  it('a heal will not reach past the veil, and this does', () => {
+    const { demo, kara } = mourning('raise-heal');
+    // The rule the effect exists to break: a heal stands somebody up, but not
+    // one who crossed through.
+    demo.world.heal({ kind: 'entity', id: 'kara' }, 5);
+    expect(kara.alive).toBe(false);
+
+    expect(demo.world.revive({ kind: 'entity', id: 'kara' })).toEqual(['kara']);
+    expect(kara.alive).toBe(true);
+    expect(kara.dead).toBeUndefined();
+    expect(kara.hitPoints.marked).toBe(0);
+  });
+
+  it('can be aimed at somebody who is not standing there', () => {
+    const { demo } = mourning('raise-aim');
+    // Every other card names only what is standing; `fallen` is the opt-in.
+    expect(abilityTargets(demo, 'mira', demo.project.abilities.find((a) => a.id === 'resurrection')!)).toContain('kara');
+    expect(abilityTargets(demo, 'mira', demo.project.abilities.find((a) => a.id === 'book-of-ava-tavas-armor')!)).not.toContain('kara');
+  });
+
+  it('brings her back whole on a 20, and vaults itself for it', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const { demo, mira, kara } = mourning('raise-' + seed);
+      expect(useAbility(demo, 'mira', 'resurrection', ['kara']).status).toBe('waiting');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (!kara.alive) continue;
+
+      expect(kara.hitPoints.marked).toBe(0);
+      expect(kara.dead).toBeUndefined();
+      // "Then place this card in your vault permanently."
+      expect(demo.sheets.get('mira')!.loadout ?? []).not.toContain('resurrection');
+      expect(mira.hitPoints.marked).toBe(0);
+      return;
+    }
+    throw new Error('Resurrection never beat a 20 in two hundred tries');
   });
 });

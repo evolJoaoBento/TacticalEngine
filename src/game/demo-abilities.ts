@@ -124,7 +124,11 @@ export function abilityTargets(demo: DemoScene, characterId: string, ability: Ab
     const band = demo.world.bandTo(characterId, id);
     return band !== null && reaches(band, range);
   };
-  const living = demo.state.allEntities().filter((e) => e.alive);
+  // A card that brings somebody back has to be able to point at them; every
+  // other card names only what is standing.
+  const living = demo.state
+    .allEntities()
+    .filter((e) => e.alive || (ability.target.fallen === true && e.faction === 'party'));
   return living
     .filter((e) => {
       if (kind === 'adversary' || kind === 'group') return e.faction === 'adversary';
