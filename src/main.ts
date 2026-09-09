@@ -1384,7 +1384,19 @@ const state = {
     demo.rolls.length = 0;
     refreshPlay();
   },
-  pendingKind: (): string | null => demo.pending?.prompt.kind ?? null,
+  /**
+   * What is actually being asked, which is not always the outermost thing
+   * waiting: a reply that calls for a roll raises the check *inside* the
+   * conversation, and the panel reads it there. This read the outer prompt and
+   * answered 'dialogue' while a player was being shown a roll to make.
+   */
+  pendingKind: (): string | null => {
+    const pending = demo.pending;
+    if (pending === null) return null;
+    const talking = pending.kind === 'script' ? pending.dialogue : null;
+    if (talking !== null) return talking.prompt?.kind ?? 'dialogue';
+    return pending.prompt.kind;
+  },
   objects: (): string[] => demo.scene.interactables.map((i) => i.id),
   dialogueOptions: (): string[] =>
     scriptPending(demo)?.dialogue?.view?.options.map((o) => o.text) ?? [],

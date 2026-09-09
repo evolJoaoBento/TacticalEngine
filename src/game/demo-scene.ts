@@ -4713,8 +4713,14 @@ function describeEntry(
       return { text: entry.text, tone: entry.tone };
     case 'story':
       return { text: [entry.title, ...entry.paragraphs].join(' '), tone: 'narration' };
-    case 'key':
-      return { text: `You take the ${names.get(entry.key) ?? entry.key}.`, tone: 'success' };
+    case 'key': {
+      // "You take the The Warden's word": an item may carry its own article,
+      // and a sentence that adds one is written by somebody who has not read
+      // the item's name. If it starts with one, it does not need ours.
+      const named = names.get(entry.key) ?? entry.key;
+      const article = /^(the|a|an) /i.test(named) ? '' : 'the ';
+      return { text: `You take ${article}${named}.`, tone: 'success' };
+    }
     case 'loot':
       return entry.found.length === 0
         ? { text: 'Nothing worth taking.', tone: 'system' }
