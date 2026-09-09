@@ -3,9 +3,10 @@ import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { NO_TILE } from '../engine/grid/grid';
 import { rest, useAbility } from './demo-abilities';
-import { SRD_CHARACTERS, answerPending, buildDemoScene, refreshWorld, travelTo, type DemoScene } from './demo-scene';
+import { SRD_CHARACTERS, answerPending, buildDemoScene, refreshWorld, startEncounter, travelTo, type DemoScene } from './demo-scene';
 import { PIT_SCENE_ID } from './demo-scenes';
 import { loadGameText, saveGame } from './save';
+import type { EntityState } from '../engine/scene/state';
 
 /**
  * Cards that remember a place.
@@ -150,5 +151,158 @@ describe('Rift Walker', () => {
       return;
     }
     throw new Error('Rift Walker never succeeded twice in eighty tries');
+  });
+});
+
+/**
+ * Cards that put a trait behind a roll.
+ *
+ * Bold Presence, Codex-Touched and Sage-Touched are offered once the dice are
+ * down and the roll has come up short, and the price - a Hope, a Stress, the
+ * once-per-rest - buys the trait added to the total. The faces stand: a roll
+ * with Fear stays one; only whether it succeeds can change.
+ */
+
+/** Kara holding these cards, in a fight, beside a husk to roll against. */
+function karaHolding(seed: string, cards: string[]): { demo: DemoScene; kara: EntityState; husk: EntityState } {
+  const demo = scene(seed);
+  demo.askDefender = true;
+  const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
+  demo.sheets.set('kara', sheet);
+  demo.characters.set('kara', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+  refreshWorld(demo);
+  const kara = demo.state.entity('kara')!;
+  kara.hope = { max: 6, value: 6 };
+  const husk = demo.state
+    .entitiesOf('adversary')
+    .filter((e) => e.alive)
+    .sort((a, b) => demo.grid.manhattanDistance(kara.tile, a.tile) - demo.grid.manhattanDistance(kara.tile, b.tile))[0]!;
+  const blocked = demo.state.blockedFor('kara');
+  let stand = NO_TILE;
+  demo.grid.forEachNeighbor(husk.tile, false, (tile) => {
+    if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+  });
+  demo.state.moveEntity('kara', stand);
+  demo.party.select('kara');
+  startEncounter(demo, demo.scene.encounters[0]!.id);
+  return { demo, kara, husk };
+}
+
+/** Whether a card is on offer right now. */
+function offered(demo: DemoScene, id: string): boolean {
+  const pending = demo.pending;
+  return pending?.kind === 'reaction' && pending.offers.some((o) => o.ability.id === id);
+}
+
+describe('Bold Presence', () => {
+  it('is offered on a failed Presence Roll, and a Hope puts Strength behind it', () => {
+    for (let seed = 1; seed < 120; seed++) {
+      const { demo, kara, husk } = karaHolding('bold-' + seed, ['bold-presence', 'troublemaker']);
+      const strength = demo.characters.get('kara')!.sheet.traits.strength;
+      expect(useAbility(demo, 'kara', 'troublemaker', [husk.id]).status).toBe('waiting');
+      answerPending(demo, { kind: 'roll' });
+      if (demo.pending?.kind !== 'reaction') continue;
+
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['bold-presence']);
+      const thrown = demo.pending.offers[0]!.swing!;
+      expect(thrown.success).toBe(false);
+
+      answerPending(demo, { kind: 'choose', index: 1 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+      const settled = demo.rolls[demo.rolls.length - 1]!.roll;
+      expect(settled.total).toBe(thrown.total + strength);
+      // The dice did not move; only the number behind them did.
+      expect({ hope: settled.hope, fear: settled.fear }).toEqual({ hope: thrown.hope, fear: thrown.fear });
+      // A Hope for the card, and whatever the roll itself handed over (a failure with Hope is still a roll with Hope).
+      expect(kara.hope!.value).toBe(6 - 1 + settled.hopeGained);
+      expect(demo.log.some((l) => /shoulders into it/.test(l.text))).toBe(true);
+      return;
+    }
+    throw new Error('Bold Presence was never offered in a hundred and twenty tries');
+  });
+
+  it('is not offered on a roll made with another trait, nor on a success', () => {
+    let successes = 0;
+    for (let seed = 1; seed < 60; seed++) {
+      // Know Thy Enemy rolls Instinct: never a Presence Roll, whatever the dice.
+      const { demo, husk } = karaHolding('bold-other-' + seed, ['bold-presence', 'know-thy-enemy']);
+      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+      answerPending(demo, { kind: 'roll' });
+      expect(offered(demo, 'bold-presence')).toBe(false);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      if (demo.rolls[demo.rolls.length - 1]!.roll.success) successes++;
+    }
+    expect(successes).toBeGreaterThan(0);
+  });
+});
+
+describe('Codex-Touched', () => {
+  it('puts Proficiency behind a failed Spellcast Roll for a Stress, with four Codex cards held', () => {
+    const codex = ['codex-touched', 'book-of-ava', 'book-of-illiat', 'book-of-tyfar', 'rift-walker'];
+    for (let seed = 1; seed < 120; seed++) {
+      const demo = holding('codex-' + seed, codex);
+      const mira = demo.state.entity('mira')!;
+      demo.askDefender = true;
+      const proficiency = demo.characters.get('mira')!.proficiency;
+      expect(useAbility(demo, 'mira', 'rift-walker', []).status).toBe('waiting');
+      answerPending(demo, { kind: 'roll' });
+      if (demo.pending?.kind !== 'reaction') continue;
+
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['codex-touched']);
+      const thrown = demo.pending.offers[0]!.swing!;
+      answerPending(demo, { kind: 'choose', index: 1 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+      const settled = demo.rolls[demo.rolls.length - 1]!.roll;
+      expect(settled.total).toBe(thrown.total + proficiency);
+      expect(mira.stress.marked).toBe(1);
+      // And if the raise carried it over, the spell went off: a mark on the ground.
+      expect(demo.world.marks().length).toBe(settled.success ? 1 : 0);
+      return;
+    }
+    throw new Error('Codex-Touched was never offered in a hundred and twenty tries');
+  });
+
+  it('is not offered with three Codex cards in the loadout', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const demo = holding('codex-few-' + seed, ['codex-touched', 'book-of-ava', 'rift-walker', 'phantom-retreat']);
+      demo.askDefender = true;
+      useAbility(demo, 'mira', 'rift-walker', []);
+      answerPending(demo, { kind: 'roll' });
+      expect(demo.pending?.kind === 'reaction').toBe(false);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    }
+  });
+});
+
+describe('Sage-Touched', () => {
+  it('doubles Instinct on a failed Instinct Roll, once per rest', () => {
+    const sage = ['sage-touched', 'gifted-tracker', 'natures-tongue', 'natural-familiar', 'know-thy-enemy'];
+    for (let seed = 1; seed < 120; seed++) {
+      const { demo, husk } = karaHolding('sage-' + seed, sage);
+      // Know Thy Enemy is a Bone card: four Sage cards remain in the loadout of five.
+      const instinct = demo.characters.get('kara')!.sheet.traits.instinct;
+      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+      answerPending(demo, { kind: 'roll' });
+      if (demo.pending?.kind !== 'reaction') continue;
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['sage-touched']);
+      const thrown = demo.pending.offers[0]!.swing!;
+      answerPending(demo, { kind: 'choose', index: 1 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const settled = demo.rolls[demo.rolls.length - 1]!.roll;
+      expect(settled.total).toBe(thrown.total + instinct);
+
+      // Spent for the rest: a second failure is not offered it.
+      for (let again = 1; again < 60; again++) {
+        demo.scenario.abilityUses.delete([...demo.scenario.abilityUses.keys()].find((k) => k.endsWith('/know-thy-enemy')) ?? '');
+        useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]);
+        answerPending(demo, { kind: 'roll' });
+        expect(offered(demo, 'sage-touched')).toBe(false);
+        while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      }
+      return;
+    }
+    throw new Error('Sage-Touched was never offered in a hundred and twenty tries');
   });
 });

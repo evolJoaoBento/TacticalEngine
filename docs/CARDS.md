@@ -15,7 +15,8 @@ Known simplifications in the scripted ones. Why each of the others is *not* scri
 - **Chain Lightning** strikes the first ring; the chain onward from each wounded target is the table's. **Vicious Entangle** binds the one target, not the second bought with a Hope.
 - **Cruel Precision** adds Finesse rather than the better of Finesse and Agility; **Voice of Reason**'s Proficiency bonus applies wherever Proficiency is read, not to damage alone; **Second Wind** does not branch on Hope, so the ally's share of it is text.
 - **Inspirational Words** and **Restoration** spend one token at a time. **Fire Flies** is one of Conjure Swarm's two swarms; the beetles that soak a blow are text.
-- Four of the nine **-Touched** cards carry a bonus the sheet can hold (Arcana, Blade, Splendor, Valor); the rest ask for something the engine has no number for and stay text.
+- Four of the nine **-Touched** cards carry a bonus the sheet can hold (Arcana, Blade, Splendor, Valor); **Codex-Touched** and **Sage-Touched** put a trait behind a roll instead (below); the other three ask for something the engine has no number for and stay text.
+- **Bold Presence**, **Codex-Touched** and **Sage-Touched** each put a trait behind a roll - Strength on a Presence Roll for a Hope, Proficiency on a Spellcast Roll for a Stress, Agility or Instinct again once per rest - and all three are offered *after* the dice rather than before them, the Rage Up bargain: the price is paid only on a roll that needed it, so they are offered on a failure and nowhere else, a raise being unable to make a critical. A roll now knows which trait it was thrown with (a check's; a weapon swing does not say yet). The halves that stay text: Bold Presence's once-per-rest avoiding of a condition, Codex-Touched's swap out of the vault mid-fight, Sage-Touched's bonus in a natural environment.
 - **Healing Strike** clears a Hit Point on the nearest ally rather than a chosen one: it answers a swing that has already landed, and what the player is asked is whether to spend the Hope.
 - **Ferocity** and **Never Upstaged** keep their bonus as tokens on the card, so the Evasion or the damage is whatever the fight put there; Ferocity is spent by the next attack made at its holder, hit or miss.
 - **Enrapture** and **Mass Enrapture** put the name on the target and let the condition carry it: a creature whose attention is fixed on one person is two Evasion easier to hit, and whom it attacks is still the table's call. **Glyph of Nightfall** is worth a flat two rather than the caster's Knowledge, because a condition carries one number rather than the number of whoever applied it. **Death Grip** offers the pull and the constriction, not the vines catching everyone in between: that is a line across the map, and a selector reads bands around a creature.
@@ -57,7 +58,7 @@ Known simplifications in the scripted ones. Why each of the others is *not* scri
 - **Endless Charisma** is the card that needed a roll to know what it was *for*. `tags` had been on a check since the schema was written and nothing had ever read one; a `rollTagged` gate is what makes them worth writing, and the rolls that are persuasion say so now - Troublemaker's taunt, Goad Them On's, and both halves of Words of Discord. Which die goes back in the cup is the Fear Die, always: the same call Support Tank makes, it being the half that decides who holds the spotlight as well as whether the roll lands.
 - **Disintegration Wave** wanted a way to kill without hitting - no thresholds, no Armor Slot, nothing that answers a wound - and past the veil, so a heal cannot stand them back up. `slay` is that, and the mirror of the `revive` Resurrection needed. The roll is made once and laid against every Difficulty within Far, which is what the card gives the GM to announce, read off the roll instead; slightly generous when the roll beats 18 by a distance. "Each one you wish to hit" is all of them - which of a list to spare is a decision with nobody here to make it - and the Stress is one per target either way.
 - **Adjust Reality** names a roll's total instead of throwing the dice again - the other thing that can be done to a roll already read, and the reason the post-roll moment was worth building twice. Two decisions of the engine's: "a result of your choice" is the least that carries the roll over its Difficulty, five Hope not being spent to make a success prettier, so it is only offered on a failure; and the *total* moves while the faces stand, which is what "the numerical result" says - whether the roll was with Hope or with Fear, and whether the dice matched, belong to the throw. Unlike Reassurance it answers its holder's own roll as well as an ally's, which is the card's "you or a willing ally".
-Scripted: 137 of 189 cards.
+Scripted: 140 of 189 cards.
 
 
 ## Arcana
@@ -156,7 +157,7 @@ Scripted: 137 of 189 cards.
 | 6 | Banish | Spell | text | rolls a number of d20s and asks the target to beat the highest, which is a reaction roll against a Difficulty the spell itself rolled for |
 | 6 | Sigil of Retribution | Spell | **action**, **reaction** |  |
 | 7 | Book of Homet | Grimoire | text | walks through walls and opens a gate to another plane |
-| 7 | Codex-Touched | Ability | text | adds Proficiency to a Spellcast Roll for a Stress - a choice before the dice - and swaps a card out of the vault mid-fight |
+| 7 | Codex-Touched | Ability | **reaction** |  |
 | 8 | Book of Vyola | Grimoire | text | reads a memory the GM narrates; its other spell shares Stress between two creatures at a moment nothing raises |
 | 8 | Safe Haven | Spell | text | summons an interdimensional house to rest in |
 | 9 | Book of Ronin | Grimoire | **action** (Eternal Enervation) |  |
@@ -233,7 +234,7 @@ Scripted: 137 of 189 cards.
 | 5 | Wild Fortress | Spell | text | grows a dome with its own damage thresholds and Hit Points, which is a creature-shaped thing that is not a creature |
 | 6 | Conjured Steeds | Spell | text | conjures mounts, and the board has no notion of riding one |
 | 6 | Forager | Ability | text | is a downtime move |
-| 7 | Sage-Touched | Ability | text | reads on being in a natural environment, and doubles a trait for a roll chosen before it is made |
+| 7 | Sage-Touched | Ability | **reaction** |  |
 | 7 | Wild Surge | Spell | **action**, **reaction** |  |
 | 8 | Forest Sprites | Spell | text | places sprites that buff whoever is near them - a rule about a third creature |
 | 8 | Rejuvenation Barrier | Spell | **action** |  |
@@ -276,7 +277,7 @@ Scripted: 137 of 189 cards.
 | 1 | Forceful Push | Ability | **action** |  |
 | 1 | I Am Your Shield | Ability | **reaction** |  |
 | 2 | Body Basher | Ability | **passive** |  |
-| 2 | Bold Presence | Ability | text | adds a trait to a roll for a Hope, which is a choice offered before the dice where only Utilize an Experience lives; avoiding a condition needs a moment nothing raises |
+| 2 | Bold Presence | Ability | **reaction** |  |
 | 3 | Critical Inspiration | Ability | **reaction** |  |
 | 3 | Lean on Me | Ability | **reaction** |  |
 | 4 | Goad Them On | Ability | **action** |  |

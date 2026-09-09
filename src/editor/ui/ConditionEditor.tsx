@@ -55,6 +55,7 @@ const KINDS: readonly { kind: Condition['kind']; label: string }[] = [
   { kind: 'rolled', label: 'the roll was' },
   { kind: 'rollTagged', label: 'the roll was for' },
   { kind: 'hasMark', label: 'has a spot marked' },
+  { kind: 'rolledWith', label: 'the roll was with' },
   { kind: 'inCombat', label: 'in a fight' },
   { kind: 'loadout', label: "a domain's cards in the loadout" },
   { kind: 'hasCondition', label: 'the target has a condition' },
@@ -91,6 +92,9 @@ const small: Record<string, string | number> = {
   cursor: 'pointer',
 };
 
+/** What a roll can be thrown with: the six traits, a Spellcast trait, or the weapon's. */
+const ROLL_TRAITS = ['agility', 'strength', 'finesse', 'instinct', 'presence', 'knowledge', 'spellcast', 'weapon'] as const;
+
 /** A fresh condition of a kind, with the first sensible content id filled in. */
 export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEditorProps, 'quests' | 'encounterIds' | 'interactableIds' | 'hookIds'>): Condition {
   switch (kind) {
@@ -126,6 +130,8 @@ export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEdi
       return { kind, tag: 'social' };
     case 'hasMark':
       return { kind, mark: 'rift' };
+    case 'rolledWith':
+      return { kind, trait: 'presence' };
     case 'inCombat':
       return { kind };
     case 'hasCondition':
@@ -261,6 +267,12 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
       case 'hasMark':
         // The name a card marks the ground under: "rift", "phantom".
         return text(condition.mark, (mark) => onChange({ ...condition, mark }));
+      case 'rolledWith':
+        return select(
+          condition.trait,
+          ROLL_TRAITS.map((id) => ({ id })),
+          (trait) => onChange({ ...condition, trait }),
+        );
       case 'count':
         return (
           <>

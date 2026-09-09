@@ -23,7 +23,7 @@ export type { Condition, CompareOp, ScriptValue } from './schema';
 export { conditionSchema } from './schema';
 
 import { markKey } from './marks';
-import type { Condition, CompareOp, CountName, HookArgs, PoolName, ScriptValue, TargetSelector } from './schema';
+import type { CheckTrait, Condition, CompareOp, CountName, HookArgs, PoolName, ScriptValue, TargetSelector } from './schema';
 import type { QuestQuery } from '../content/quests';
 import type { HookFn, HookReads } from './hooks';
 import { runHook } from './hooks';
@@ -52,7 +52,7 @@ export interface TargetBindings {
    * - what it was *for*. "An action roll to persuade, lie, or garner favor" is
    * a question about the second, and `tags` is the only thing that answers it.
    */
-  roll?: { total: number; outcome: RollOutcome; tags?: readonly string[] };
+  roll?: { total: number; outcome: RollOutcome; tags?: readonly string[]; trait?: CheckTrait };
   /**
    * A tile the script is aimed at: "run a straight path to a point within Far
    * range", "choose a point within Far range". Bound the same way a target is,
@@ -199,6 +199,8 @@ export function evaluate(
       return compare(condition.of === 'spent' ? 0 : countOf(bindings, condition.of), condition.op, condition.value);
     case 'rollTagged':
       return bindings.roll?.tags?.includes(condition.tag) === true;
+    case 'rolledWith':
+      return bindings.roll?.trait === condition.trait;
     case 'hasMark': {
       const actor = context.actorId();
       return actor !== null && context.getVar(markKey(condition.mark, actor)) !== null;

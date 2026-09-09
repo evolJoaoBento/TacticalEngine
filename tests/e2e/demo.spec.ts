@@ -42,7 +42,7 @@ declare global {
           | { kind: 'choose'; index: number }
           | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number; experience?: string }
           | { kind: 'cancel' }
-          | { kind: 'answered'; reroll?: 'hope' | 'fear' | 'both'; name?: boolean }
+          | { kind: 'answered'; reroll?: 'hope' | 'fear' | 'both'; name?: boolean; raise?: number }
           | { kind: 'continue' },
       ) => string;
       log: () => { text: string; tone: string }[];

@@ -366,6 +366,15 @@ export const conditionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('rollTagged'), tag: z.string().min(1) }),
   /** Whether the one acting has a spot marked under that name. */
   z.object({ kind: z.literal('hasMark'), mark: contentIdSchema }),
+  /**
+   * Which trait the roll was thrown with: "when you make a Presence Roll",
+   * "add your Proficiency to a Spellcast Roll". A check says so; a weapon
+   * swing does not yet, and reads false the way an untagged roll does.
+   */
+  z.object({
+    kind: z.literal('rolledWith'),
+    trait: z.union([traitSchema, z.literal('spellcast'), z.literal('weapon')]),
+  }),
   z.object({ kind: z.literal('inCombat') }),
   /**
    * How many of a domain's cards a character has in their loadout — the nine
@@ -981,6 +990,14 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * them on, and there is nobody here to ask for a different one.
    */
   z.object({ kind: z.literal('nameRoll') }),
+  /**
+   * Put a number behind a roll that has been thrown and not yet read: "spend
+   * a Hope to add your Strength to the roll", "mark a Stress to add your
+   * Proficiency to a Spellcast Roll". The faces stand, so a roll with Fear
+   * stays one; only whether it succeeds can change. Journalled here and
+   * applied where the roll is held, the same bargain `nameRoll` makes.
+   */
+  z.object({ kind: z.literal('raiseRoll'), amount: amountSchema }),
   /**
    * Remember where the one acting stands, under a name: "place an arcane
    * marking on the ground where you currently stand". Read back by a `move`

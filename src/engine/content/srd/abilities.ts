@@ -4013,6 +4013,31 @@ const RAW: Input[] = [
     ],
   },
 
+  // "When you make a Presence Roll, you can spend a Hope to add your Strength
+  // to the roll." Offered after the dice rather than before them, which is the
+  // Rage Up bargain: a Hope spent only on a roll that needed it. Only on a
+  // failure, since a raise cannot make a critical - the dice have to match -
+  // and a success needs nothing. The second half, avoiding a condition once
+  // per rest, is a moment nothing raises and stays text.
+  {
+    id: 'bold-presence',
+    name: 'Bold Presence',
+    source: card('bold-presence'),
+    kind: 'reaction',
+    trigger: 'partyRolling',
+    cost: { hope: 1 },
+    action: false,
+    auto: false,
+    available: {
+      kind: 'all',
+      of: [{ kind: 'self' }, { kind: 'rolledWith', trait: 'presence' }, { kind: 'rolled', is: 'failure' }],
+    },
+    effects: [
+      { kind: 'log', text: 'They put their shoulders into it.', tone: 'hope' },
+      { kind: 'raiseRoll', amount: { trait: 'strength' } },
+    ],
+  },
+
   // ---- Blade -----------------------------------------------------------------
   {
     id: 'blade-touched',
@@ -4472,6 +4497,66 @@ const RAW: Input[] = [
         stat: 'proficiency',
         bonus: 1,
         when: { kind: 'pool', pool: 'stress', measure: 'available', op: '<=', value: 0 },
+      },
+    ],
+  },
+  // "You can mark a Stress to add your Proficiency to a Spellcast Roll." The
+  // same raise as Bold Presence, for a Stress, on a Spellcast Roll that came
+  // up short. Replacing this card with one from the vault mid-fight is text.
+  {
+    id: 'codex-touched',
+    name: 'Codex-Touched',
+    source: card('codex-touched'),
+    kind: 'reaction',
+    trigger: 'partyRolling',
+    cost: { stress: 1 },
+    action: false,
+    auto: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'self' },
+        { kind: 'loadout', domain: 'codex', op: '>=', value: 4 },
+        { kind: 'rolledWith', trait: 'spellcast' },
+        { kind: 'rolled', is: 'failure' },
+      ],
+    },
+    effects: [
+      { kind: 'log', text: 'They reach for what the codex taught them, and it costs them.', tone: 'hope' },
+      { kind: 'raiseRoll', amount: { trait: 'proficiency' } },
+    ],
+  },
+  // "Once per rest, you can double your Agility or Instinct when making a roll
+  // that uses that trait. You must choose to do this before you roll." Doubling
+  // a trait is adding it again, and the roll knows which of the two it was
+  // thrown with. Offered after the dice, on a failure, which the card forbids
+  // and every raise here allows - see Bold Presence. The +2 to Spellcast Rolls
+  // in a natural environment is a place the engine has no notion of.
+  {
+    id: 'sage-touched',
+    name: 'Sage-Touched',
+    source: card('sage-touched'),
+    kind: 'reaction',
+    trigger: 'partyRolling',
+    uses: { count: 1, per: 'rest' },
+    action: false,
+    auto: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'self' },
+        { kind: 'loadout', domain: 'sage', op: '>=', value: 4 },
+        { kind: 'rolled', is: 'failure' },
+        { kind: 'any', of: [{ kind: 'rolledWith', trait: 'agility' }, { kind: 'rolledWith', trait: 'instinct' }] },
+      ],
+    },
+    effects: [
+      { kind: 'log', text: 'The wild in them answers, and the roll is twice what it was.', tone: 'hope' },
+      {
+        kind: 'branch',
+        when: { kind: 'rolledWith', trait: 'agility' },
+        then: [{ kind: 'raiseRoll', amount: { trait: 'agility' } }],
+        otherwise: [{ kind: 'raiseRoll', amount: { trait: 'instinct' } }],
       },
     ],
   },

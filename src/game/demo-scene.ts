@@ -39,6 +39,7 @@ import { FEAR_DIE_SIDES, HOPE_DIE_SIDES, rollDuality, withFaces, type DualityRol
 import type { CountdownCue } from '../engine/rules/countdown';
 import type { CountdownMoved, RunningCountdown } from '../engine/script/countdowns';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
+import type { CheckTrait } from '../engine/script/schema';
 import { createScenarioState, SceneScriptWorld, useKey, type Payout, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
 import { NO_BINDINGS, evaluate, evaluateOptional } from '../engine/script/conditions';
 import { maxTilesForBand, reaches, type RangeBand } from '../engine/rules/range';
@@ -1381,9 +1382,16 @@ function rollingOffers(
   landing?: { held: HeldSwing },
   /** What the check said it was for, when the roll came from one. */
   tags?: readonly string[],
+  /** And which trait it was thrown with, for a card that asks. */
+  trait?: CheckTrait,
 ): ReactionOffer[][] {
   const bound = {
-    roll: { total: roll.total, outcome: roll.outcome, ...(tags === undefined ? {} : { tags }) },
+    roll: {
+      total: roll.total,
+      outcome: roll.outcome,
+      ...(tags === undefined ? {} : { tags }),
+      ...(trait === undefined ? {} : { trait }),
+    },
     swing: roll,
     ...(landing === undefined ? {} : { landing }),
   };
@@ -2593,14 +2601,17 @@ function playZoneEntries(demo: DemoScene): void {
 function answerFrom(said: readonly JournalEntry[]): Response {
   let reroll: 'hope' | 'fear' | 'both' | undefined;
   let name = false;
+  let raise = 0;
   for (const entry of said) {
     if (entry.kind === 'dualityRerolled') reroll = entry.which;
     if (entry.kind === 'rollNamed') name = true;
+    if (entry.kind === 'rollRaised') raise += entry.by;
   }
   return {
     kind: 'answered',
     ...(reroll === undefined ? {} : { reroll }),
     ...(name ? { name: true } : {}),
+    ...(raise > 0 ? { raise } : {}),
   };
 }
 
@@ -2616,9 +2627,10 @@ function offerOnRoll(
   waiting: PendingScript,
   roll: DualityRoll,
   tags?: readonly string[],
+  trait?: CheckTrait,
 ): UseOutcome {
   const roller = demo.scenario.actorId;
-  const groups = roller === null ? [] : rollingOffers(demo, roller, roll, undefined, tags);
+  const groups = roller === null ? [] : rollingOffers(demo, roller, roll, undefined, tags, trait);
   if (groups.length === 0 || !demo.askDefender) return resumeRolled(demo, waiting, { kind: 'answered' });
   const said: JournalEntry[] = [];
   const [first, ...queued] = groups;
@@ -2961,7 +2973,7 @@ function offersFor(
      */
     landing?: { held: HeldSwing };
     /** The roll that raised the moment, for a card that asks what it was. */
-    roll?: { total: number; outcome: RollOutcome };
+    roll?: { total: number; outcome: RollOutcome; tags?: readonly string[]; trait?: CheckTrait };
     /** And its dice, for a card that puts the same roll against somebody else. */
     swing?: DualityRoll;
     /** Who else the moment names, when it names two - see `ReactionOffer`. */
@@ -3250,11 +3262,13 @@ function asRerolled(demo: DemoScene, held: HeldSwing | undefined, journal: reado
   if (roll === undefined) return held;
   let which: 'hope' | 'fear' | 'both' | null = null;
   let named = false;
+  let raised = 0;
   for (const entry of journal) {
     if (entry.kind === 'dualityRerolled') which = entry.which;
     if (entry.kind === 'rollNamed') named = true;
+    if (entry.kind === 'rollRaised') raised += entry.by;
   }
-  if (which === null && !named) return held;
+  if (which === null && !named && raised === 0) return held;
 
   const attacker = demo.state.entity(held.attacker);
   const target = demo.state.entity(held.target);
@@ -3266,6 +3280,8 @@ function asRerolled(demo: DemoScene, held: HeldSwing | undefined, journal: reado
   if (which !== null && which !== 'fear') faces.hope = demo.rng.die(roll.hopeSides ?? HOPE_DIE_SIDES);
   if (which !== null && which !== 'hope') faces.fear = demo.rng.die(FEAR_DIE_SIDES);
   let thrown = withFaces(roll, faces);
+  // A number put behind it goes on first; a named total makes up the rest.
+  if (raised > 0) thrown = withFaces({ ...thrown, modifier: thrown.modifier + raised }, {});
   // A named total moves the number and leaves the dice alone.
   if (named && !thrown.success) {
     thrown = withFaces({ ...thrown, modifier: thrown.modifier + (thrown.difficulty - thrown.total) }, {});
@@ -4491,7 +4507,7 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
     // answers rather than the player, so it is not put on screen as a question.
     if (result.prompt.kind === 'rolled') {
       demo.pending = null;
-      const asked = offerOnRoll(demo, held, result.prompt.roll, result.prompt.tags);
+      const asked = offerOnRoll(demo, held, result.prompt.roll, result.prompt.tags, result.prompt.trait);
       return { status: asked.status, lines: [...lines, ...asked.lines] };
     }
     demo.pending = held;
@@ -4913,6 +4929,8 @@ function describeEntry(
         : { text: `${who(entry.id)} is thrown back.`, tone: 'combat' };
     case 'marked':
       return { text: `${who(entry.id)} marks the ground where they stand.`, tone: 'hope' };
+    case 'rollRaised':
+      return { text: `Another ${entry.by} goes behind the roll.`, tone: 'hope' };
     case 'countdown':
       return { text: `${entry.name} begins: ${entry.value}.`, tone: 'fear' };
     case 'replaced': {

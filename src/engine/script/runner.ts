@@ -149,7 +149,7 @@ export interface ScriptWorld extends ConditionContext {
    * answers a failure must not stop a success, and asking without the dice
    * would read every such gate as false.
    */
-  answersRoll(id: string, roll: { total: number; outcome: RollOutcome; tags?: readonly string[] }): boolean;
+  answersRoll(id: string, roll: { total: number; outcome: RollOutcome; tags?: readonly string[]; trait?: CheckTrait }): boolean;
   /** Remember where a creature stands under a name. False for one not on the board. */
   markSpot(actor: string, mark: string): boolean;
   /** The tile a creature marked under a name, or `NO_TILE`. */
@@ -365,6 +365,8 @@ export type JournalEntry =
    * held, with what it came to.
    */
   | { kind: 'rollNamed'; total?: number }
+  /** A card put a number behind the roll being read. */
+  | { kind: 'rollRaised'; by: number }
   /** Somebody marked the ground where they stand. */
   | { kind: 'marked'; id: string; mark: string }
   /** Somebody put back on their feet at full strength. */
@@ -429,7 +431,7 @@ export type Prompt =
    * `answersRoll` - so every other check in the game runs exactly as it did,
    * straight from the dice to its arms. Answered with `answered`.
    */
-  | { kind: 'rolled'; roll: DualityRoll; targets: readonly string[]; tags?: readonly string[] }
+  | { kind: 'rolled'; roll: DualityRoll; targets: readonly string[]; tags?: readonly string[]; trait?: CheckTrait }
   /** Play this conversation out, then resume with `continue`. */
   | { kind: 'dialogue'; dialogue: string };
 
@@ -452,7 +454,7 @@ export type Response =
    * What the room did about a roll it was shown: nothing, or a die put back in
    * the cup. The check carries on from where it stopped either way.
    */
-  | { kind: 'answered'; reroll?: 'hope' | 'fear' | 'both'; name?: boolean }
+  | { kind: 'answered'; reroll?: 'hope' | 'fear' | 'both'; name?: boolean; raise?: number }
   /** Decline the roll — the legacy dialog let a player back out, costing nothing. */
   | { kind: 'cancel' };
 
@@ -500,7 +502,7 @@ export interface ScriptRunnerOptions {
    * a PC rolls a failure with Fear". Read by a `rolled` condition, wherever one
    * is asked inside it.
    */
-  roll?: { total: number; outcome: RollOutcome };
+  roll?: { total: number; outcome: RollOutcome; tags?: readonly string[]; trait?: CheckTrait };
   /**
    * And the whole of that roll, when it was a swing, so a card answering it can
    * *reuse* it rather than only ask what it was: "they can hit an additional
@@ -832,7 +834,7 @@ export class ScriptRunner {
     // answers a roll is actually in somebody's hand, so every other check goes
     // straight on to its arms exactly as it always did.
     const stopped: RolledCheck = { roll, targets, difficulties };
-    const said = check.tags === undefined ? {} : { tags: check.tags };
+    const said = { ...(check.tags === undefined ? {} : { tags: check.tags }), trait: check.trait };
     if (actor !== null && this.world.answersRoll(actor, { total: roll.total, outcome: roll.outcome, ...said })) {
       // Waiting again, on the same effect and on the throw it stopped with, so
       // resuming settles these dice rather than reaching for new ones.
@@ -860,6 +862,12 @@ export class ScriptRunner {
       if (response.reroll !== 'hope') faces.fear = this.rng.die(FEAR_DIE_SIDES);
       roll = withFaces(roll, faces);
       this.journal.push({ kind: 'dualityRerolled', which: response.reroll });
+    }
+    // A number put behind it - a trait for a Hope - goes on before a named
+    // total, which then only has to make up whatever is still short.
+    if (response !== null && response.kind === 'answered' && response.raise !== undefined && response.raise > 0) {
+      roll = withFaces({ ...roll, modifier: roll.modifier + response.raise }, {});
+      this.journal.push({ kind: 'lifted', by: response.raise, total: roll.total });
     }
     // And the other thing that can be done to it: the total named rather than
     // the dice thrown again. The faces stand, so a roll with Fear stays one.
@@ -1406,6 +1414,12 @@ export class ScriptRunner {
       case 'forgetSpot': {
         const actor = world.actorId();
         if (actor !== null) world.forgetSpot(actor, effect.mark);
+        return null;
+      }
+      case 'raiseRoll': {
+        // Read here off the holder's sheet, applied where the roll is held.
+        const by = this.amountOf(effect.amount, 0);
+        if (by > 0) this.journal.push({ kind: 'rollRaised', by });
         return null;
       }
       case 'nameRoll': {

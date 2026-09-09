@@ -1217,7 +1217,7 @@ export class SceneScriptWorld implements ScriptWorld {
     }
   }
 
-  answersRoll(id: string, roll: { total: number; outcome: RollOutcome; tags?: readonly string[] }): boolean {
+  answersRoll(id: string, roll: { total: number; outcome: RollOutcome; tags?: readonly string[]; trait?: CheckTrait }): boolean {
     if (this.state.entity(id)?.faction !== 'party') return false;
     const bindings: TargetBindings = { targets: [id], hit: [id], roll };
     for (const member of this.state.entitiesOf('party')) {
