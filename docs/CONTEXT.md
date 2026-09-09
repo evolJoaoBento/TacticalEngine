@@ -103,6 +103,11 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
     own distances at 5 ft per tile.
   - Diagonal adjacency (`TargetingOptions.diagonalAdjacency`). It must follow the project's movement rules
     or a diagonal neighbour is out of Melee reach.
+  - Which target's scales a check reads when it names several
+    (`SceneScriptWorld.advantageAgainst`). Vulnerable is "all rolls targeting you" and Hidden is "any rolls
+    against you", so a Spellcast Roll reads them as an attack does — but a check is *one* roll and may name a
+    group. The engine takes the best any target grants and the worst any target imposes, added: one Vulnerable
+    creature in the group gives the die, one Hidden creature costs it, and they cancel as dice always do.
 
   *(The 1.0-era house rule "cover raises an adversary's Difficulty" is gone: 2.0 puts cover on the attack
   roll as disadvantage, which applies identically to either side and needs no engine decision.)*

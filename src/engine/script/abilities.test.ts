@@ -686,6 +686,75 @@ describe('a check against targets', () => {
     state.entity('mira')!.hope = { max: 6, value: 0 };
     expect(roll()).toBe(10);
   });
+
+  /**
+   * "All rolls targeting you" and "any rolls against you" are not sentences
+   * about swings, so a Spellcast Roll reads them the way an attack does. The
+   * shape here is the one most spells print: a fixed Difficulty and whoever
+   * the caster picked.
+   */
+  describe('reads the creatures it is aimed at', () => {
+    const bolt13: Effect = { kind: 'check', check: { trait: 'spellcast', difficulty: 13 } };
+
+    /** The roll's total and the signed advantage die that went into it. */
+    const cast = (
+      world: SceneScriptWorld,
+      faces: number[],
+      targets: string[],
+    ): { total: number; advantageDie: number; drawn: number } => {
+      const rng = scripted(faces);
+      const runner = new ScriptRunner(world, rng, { targets, rollAs: 'actor' });
+      runner.run([bolt13]);
+      const done = runner.resume({ kind: 'roll' });
+      const check = done.journal.find((e) => e.kind === 'check');
+      if (check?.kind !== 'check') throw new Error('no check');
+      return { total: check.roll.total, advantageDie: check.roll.advantageDie, drawn: rng.drawn() };
+    };
+
+    it('takes advantage against a Vulnerable target, and rolls no d6 without one', () => {
+      const { world, state } = scene();
+      // Hope 5 + Fear 4 + Knowledge 2 = 11, short of 13: no die drawn for it.
+      expect(cast(world, [5, 4], ['husk-1'])).toMatchObject({ total: 11, advantageDie: 0, drawn: 2 });
+      state.entity('husk-1')!.conditions.add('vulnerable');
+      // The same dice, plus a d6 of 3: 14, and the bolt lands.
+      expect(cast(world, [5, 4, 3], ['husk-1'])).toMatchObject({ total: 14, advantageDie: 3, drawn: 3 });
+    });
+
+    it('takes disadvantage against a Hidden one', () => {
+      const { world, state } = scene();
+      state.entity('husk-1')!.conditions.add('hidden');
+      expect(cast(world, [5, 4, 3], ['husk-1'])).toMatchObject({ total: 8, advantageDie: -3, drawn: 3 });
+    });
+
+    it('cancels one against the other, and reads the best and the worst of a group', () => {
+      const { world, state } = scene();
+      state.entity('husk-1')!.conditions.add('vulnerable');
+      // A roll that names a Vulnerable creature does target them, so it keeps
+      // the die even with a plain creature beside them.
+      expect(cast(world, [5, 4, 3], ['husk-1', 'husk-2'])).toMatchObject({ total: 14, advantageDie: 3 });
+      // One Hidden creature in the group costs it, and nothing is rolled.
+      state.entity('husk-2')!.conditions.add('hidden');
+      expect(cast(world, [5, 4], ['husk-1', 'husk-2'])).toMatchObject({ total: 11, advantageDie: 0, drawn: 2 });
+    });
+
+    it('tells "all rolls targeting you" from "attack rolls targeting you"', () => {
+      const { world, state } = scene({ content: true });
+      // Horrified is the SRD's Vulnerable in another name: a check reads it.
+      state.entity('husk-1')!.conditions.add('horrified');
+      expect(cast(world, [5, 4, 3], ['husk-1'])).toMatchObject({ total: 14, advantageDie: 3 });
+      // In Shadow says attack rolls, and a Spellcast Roll is not one.
+      state.entity('husk-1')!.conditions.delete('horrified');
+      state.entity('husk-1')!.conditions.add('in-shadow');
+      expect(cast(world, [5, 4], ['husk-1'])).toMatchObject({ total: 11, advantageDie: 0, drawn: 2 });
+    });
+
+    it('counts nothing for a check made on a door', () => {
+      const { world } = scene();
+      // An interactable's check binds its own id as the target; it is not a
+      // creature, and reading scales off it must neither throw nor draw a die.
+      expect(cast(world, [5, 4], ['vault-door'])).toMatchObject({ total: 11, advantageDie: 0, drawn: 2 });
+    });
+  });
 });
 
 describe('damage with dice', () => {

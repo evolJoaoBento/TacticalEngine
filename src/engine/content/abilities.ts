@@ -171,6 +171,12 @@ export const abilityModifierSchema = z.object({
    * path alone, and a check reads only the ones that say otherwise. A
    * reaction roll reads neither: nothing spends a carried die on one, so
    * nothing may pay it into one either.
+   *
+   * With `against` as well it is the other chair: not a die the roller carries
+   * but one every roll aimed at the *holder* takes, whatever kind of roll it
+   * is. That is the difference between Horrified ("you are Vulnerable", and
+   * the SRD's Vulnerable is "all rolls targeting you") and In Shadow ("attack
+   * rolls have disadvantage when targeting you"), which is `against` alone.
    */
   anyRoll: z.boolean().optional(),
 })
@@ -181,13 +187,11 @@ export const abilityModifierSchema = z.object({
   .refine((m) => m.against !== true || m.stat === 'advantage', {
     message: 'against reads only on advantage',
   })
-  // Not because the other side is about swings - the SRD's Vulnerable is "all
-  // rolls targeting them", and Hidden is "any rolls against" - but because a
-  // check has no one defender to read it from: it may name many targets or
-  // none, and `against` measures from a creature. Refused rather than left to
-  // do nothing quietly, until the check path can say who it is rolling at.
-  .refine((m) => m.anyRoll !== true || (m.stat === 'advantage' && m.against !== true), {
-    message: 'anyRoll reads only on advantage the roller has themselves',
+  // Still the dice and nothing else: "any action roll" is a sentence about
+  // advantage, and a flat bonus that applied to every roll a creature makes is
+  // an `attackRoll` or a trait bonus on the sheet instead.
+  .refine((m) => m.anyRoll !== true || m.stat === 'advantage', {
+    message: 'anyRoll reads only on advantage',
   });
 
 /**

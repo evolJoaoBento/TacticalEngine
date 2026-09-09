@@ -308,7 +308,10 @@ const RAW: ConditionInput[] = [
     id: 'horrified',
     name: 'Horrified',
     text: 'What you are looking at cannot be looked away from. You are Vulnerable.',
-    modifiers: [{ stat: 'advantage', bonus: 1, against: true }],
+    // Vulnerable is "all rolls targeting you", so `anyRoll`: a Spellcast Roll
+    // aimed at somebody Horrified takes the die as surely as a swing does.
+    // In Shadow says "attack rolls" and stays without it.
+    modifiers: [{ stat: 'advantage', bonus: 1, against: true, anyRoll: true }],
   },
   // The Giant Scorpion's sting. The name is what the engine carries; the d6
   // before every action roll is the block's own words and the table's to play.

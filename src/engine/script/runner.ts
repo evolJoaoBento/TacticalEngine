@@ -124,9 +124,15 @@ export interface ScriptWorld extends ConditionContext {
   checkModifier(trait: CheckTrait, as: 'party' | 'actor'): number | null;
   /**
    * The advantage the acting creature carries into any action roll, as against
-   * the advantage a swing carries: a check reads this and nothing else.
+   * the advantage a swing carries.
    */
   advantageRolling(): { advantage: number; disadvantage: number };
+  /**
+   * And what the creatures the roll is aimed at do to it — Vulnerable and
+   * Hidden are about rolls rather than swings. Ids that are not creatures (the
+   * door a check is made on) count for nothing.
+   */
+  advantageAgainst(targets: readonly string[]): { advantage: number; disadvantage: number };
   /** The acting character's Experiences, spendable for a Hope each. */
   experiences(): readonly { name: string; modifier: number }[];
   /** What a roll against this creature must meet: Evasion, or an adversary's Difficulty. */
@@ -688,12 +694,19 @@ export class ScriptRunner {
         : [check.difficulty];
     const difficulty = difficulties.length === 0 ? Infinity : Math.min(...difficulties);
 
-    // What the roller was carrying for their next roll, and this is it. It
-    // goes on the same scales the table asked for, so a die of each still
-    // cancels rather than both being rolled.
+    // What the roller was carrying for their next roll, and this is it, plus
+    // what the creatures it is aimed at do to any roll aimed at them. Both go
+    // on the same scales the table asked for, so a die of each still cancels
+    // rather than all of them being rolled.
     const carried = this.world.advantageRolling();
+    const aimed = this.world.advantageAgainst(targets);
     const net =
-      (response.advantage ?? 0) - (response.disadvantage ?? 0) + carried.advantage - carried.disadvantage;
+      (response.advantage ?? 0) -
+      (response.disadvantage ?? 0) +
+      carried.advantage -
+      carried.disadvantage +
+      aimed.advantage -
+      aimed.disadvantage;
     const roll = rollDuality(this.rng, {
       difficulty,
       modifier,

@@ -51,6 +51,7 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
 healShared: () => 0,
     checkModifier: () => 0,
     advantageRolling: () => ({ advantage: 0, disadvantage: 0 }),
+    advantageAgainst: () => ({ advantage: 0, disadvantage: 0 }),
     experiences: () => [],
     difficultyOf: () => null,
     hook: () => null,

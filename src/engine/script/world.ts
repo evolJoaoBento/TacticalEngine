@@ -47,7 +47,7 @@ import {
   type RangeBand,
   type TargetableRangeBand,
 } from '../rules/range';
-import { applyAttack, resolveAttack, type AttackProfile } from '../combat/attack';
+import { applyAttack, conditionModifiers, resolveAttack, type AttackProfile } from '../combat/attack';
 import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
 import { attackProfile, traitPart, UNARMED, type DerivedCharacter } from '../character/sheet';
 import { abilitiesFor, loadoutOf, type AbilityDef, type AbilityModifier } from '../content/abilities';
@@ -903,6 +903,46 @@ export class SceneScriptWorld implements ScriptWorld {
       (m) => m.stat === 'advantage' && m.against !== true && m.anyRoll === true,
     );
     const net = this.sumModifiers(actor, mine);
+    return { advantage: Math.max(0, net), disadvantage: Math.max(0, -net) };
+  }
+
+  /**
+   * The other chair of the same roll: what the creatures a check is aimed at
+   * do to it. Vulnerable is "all rolls targeting you" and Hidden is "any rolls
+   * against you", and neither of those says *attack* — so a Spellcast Roll at
+   * something Vulnerable takes the die the swing would have taken.
+   *
+   * The conditions the attack rules read directly come from the same function
+   * the attack path uses, so there is one place that knows those two names;
+   * everything else a creature carries is a modifier flagged `against` *and*
+   * `anyRoll`, which is what tells "all rolls targeting you" from "attack
+   * rolls have disadvantage when targeting you".
+   *
+   * **House rule** — a check is one roll and may name several creatures, which
+   * is the thing that stopped this being written. The answer: the best any
+   * target grants and the worst any target imposes, added. A roll that names a
+   * Vulnerable creature does target them, so it has the die; one Hidden
+   * creature in the group costs it; the two cancel, as dice always do here.
+   * Nothing stacks past a single die either way, and `rollDuality` would clamp
+   * it if it tried.
+   */
+  advantageAgainst(targets: readonly string[]): { advantage: number; disadvantage: number } {
+    const actor = this.scenario.actorId;
+    let best = 0;
+    let worst = 0;
+    for (const id of targets) {
+      const entity = this.state.entity(id);
+      if (entity === undefined) continue;
+      const theirs = this.modifiersOf(id, 'roll', {
+        targets: actor === null ? [] : [actor],
+        hit: [],
+      }).filter((m) => m.stat === 'advantage' && m.against === true && m.anyRoll === true);
+      const conditions = conditionModifiers(entity);
+      const net = conditions.advantage - conditions.disadvantage + this.sumModifiers(id, theirs);
+      best = Math.max(best, net);
+      worst = Math.min(worst, net);
+    }
+    const net = best + worst;
     return { advantage: Math.max(0, net), disadvantage: Math.max(0, -net) };
   }
 
