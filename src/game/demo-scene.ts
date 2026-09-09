@@ -4597,7 +4597,14 @@ function listItems(
 ): string {
   const parts = found.map((drop) => {
     const name = names.get(drop.item) ?? drop.item;
-    return drop.quantity > 1 ? `${drop.quantity} ${name}` : name;
+    if (drop.quantity <= 1) return name;
+    // "2 Healing draught" reads as a typo. An item name is written singular,
+    // so more than one of it takes an s - unless it already ends in one, or is
+    // a word that is its own plural, which is what gold and coin and armor all
+    // are and why the exceptions are worth listing rather than guessing.
+    const uncountable = /^(gold|silver|ammunition|armor|armour)$/i.test(name);
+    const plural = uncountable || /s$/i.test(name) ? name : `${name}s`;
+    return `${drop.quantity} ${plural}`;
   });
   if (parts.length <= 1) return parts[0] ?? 'nothing';
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]!}`;
