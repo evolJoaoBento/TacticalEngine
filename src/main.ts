@@ -91,6 +91,7 @@ import {
   startEncounter,
   refreshWorld,
   syncPools,
+  syncRoster,
   scriptPending,
   reachableInteractable,
   travelTo,
@@ -353,6 +354,9 @@ let mode: 'play' | 'edit' = 'play';
  * the old Evasion until something else happened to rederive it.
  */
 function rederiveParty(): void {
+  // Whoever the panel added since the last Play arrives now, and whoever it
+  // removed leaves - before the world is rebuilt, so it is built over them.
+  syncRoster(demo);
   // The document is the truth: an edit in the Party panel replaces the sheet
   // in `project.party`, so the game's copy is re-read rather than rederived
   // from what it happened to boot with.

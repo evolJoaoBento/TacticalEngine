@@ -133,3 +133,45 @@ test('a scene added in the editor is in the project and can be switched to', asy
   await page.screenshot({ path: 'test-results/editor-scene.png' });
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
+
+test('a character added in the Party panel is standing with the party when Play is pressed', async ({ page }) => {
+  const errors = await editing(page);
+  page.on('dialog', (d) => void d.accept('Tamsin'));
+
+  const before = await page.evaluate(() => window.__polyheart!.party());
+
+  await page.locator('[data-testid="open-party"]').click();
+  await expect(page.locator('[data-testid="party-panel"]')).toBeVisible();
+  await page.locator('[data-testid="add-character"]').first().click();
+  await page.waitForTimeout(150);
+  await page.locator('[data-testid="close-party"]').click();
+
+  // Nothing on the board yet: the panel wrote a sheet, and that is all it does.
+  expect(await page.evaluate(() => window.__polyheart!.party())).toEqual(before);
+
+  const played = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    a.setMode('play');
+    const party = a.party();
+    const anchor = a.selected() ?? party[0]!;
+    return {
+      party,
+      tile: a.tileOf('tamsin'),
+      anchorTile: a.tileOf(anchor),
+      log: a.log().slice(-3).map((l) => l.text),
+    };
+  });
+  console.log('PLAYED:', JSON.stringify(played));
+
+  expect(played.party, 'the newcomer is in the party').toEqual([...before, 'tamsin']);
+  expect(played.tile, 'and standing on the board').not.toBe(-1);
+  const away = Math.max(
+    Math.abs((played.tile % 22) - (played.anchorTile % 22)),
+    Math.abs(Math.floor(played.tile / 22) - Math.floor(played.anchorTile / 22)),
+  );
+  expect(away, 'beside whoever was selected').toBeLessThanOrEqual(1);
+  expect(played.log.join(' | '), 'the log says so').toContain('Tamsin joins the party.');
+
+  await page.screenshot({ path: 'test-results/editor-joined.png' });
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});

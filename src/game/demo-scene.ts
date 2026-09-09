@@ -742,6 +742,94 @@ export function setSheet(demo: DemoScene, sheet: CharacterSheet): void {
   demo.characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
 }
 
+/**
+ * Bring the party on the board into step with the party in the project.
+ *
+ * A character added in the Party panel has a sheet and nothing else: nobody
+ * derived them, nothing stood them on the map. Pressing Play is when they
+ * arrive - beside whoever the party is standing around, with the pools a fresh
+ * sheet starts with, and a line in the log saying so. The spotlight tracker
+ * reads the party off the board each time it asks who is ready, so a newcomer
+ * can walk into a fight and act in it.
+ *
+ * One removed from the panel walks off the same way, but not out of a fight:
+ * pulling a creature out from under a spotlight that may be on them is not an
+ * edit, so a leaver waits for the fight to end and goes on the next Play.
+ *
+ * Idempotent: the panel slugs a typed name into an id, and two Newcomers are
+ * one id, which the board already has.
+ */
+export function syncRoster(demo: DemoScene): { joined: string[]; left: string[] } {
+  const joined: string[] = [];
+  const left: string[] = [];
+
+  for (const sheet of demo.project.party) {
+    if (demo.state.entity(sheet.id) !== undefined) continue;
+    demo.sheets.set(sheet.id, sheet);
+    const character = deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character;
+    demo.characters.set(sheet.id, character);
+    const pools = startingPools(character);
+    demo.state.addEntity({
+      ...createPartyEntity(sheet.id, sheet.classId, roomBeside(demo)),
+      hitPoints: { ...pools.hitPoints },
+      stress: { ...pools.stress },
+      armorSlots: { ...pools.armorSlots },
+      ...(pools.hope === undefined ? {} : { hope: { ...pools.hope } }),
+    });
+    if (demo.party.selected === null) demo.party.select(sheet.id);
+    joined.push(sheet.id);
+    note(demo, `${nameOf(demo, sheet.id)} joins the party.`, 'system');
+  }
+
+  if (!inCombat(demo)) {
+    const listed = new Set(demo.project.party.map((s) => s.id));
+    for (const entity of demo.state.entitiesOf('party')) {
+      if (listed.has(entity.id)) continue;
+      // The name before the body goes, or the log would read an id.
+      const name = nameOf(demo, entity.id);
+      demo.state.removeEntity(entity.id);
+      demo.sheets.delete(entity.id);
+      demo.characters.delete(entity.id);
+      if (demo.party.selected === entity.id) demo.party.selectNext();
+      left.push(entity.id);
+      note(demo, `${name} leaves the party.`, 'system');
+    }
+  }
+
+  return { joined, left };
+}
+
+/**
+ * The nearest free tile to the party: next to whoever is selected, failing
+ * that next to anyone standing, failing that the room's first spawn. Off the
+ * board when the room has no floor to give, which is what a sheet without a
+ * scene gets at boot too.
+ */
+function roomBeside(demo: DemoScene): number {
+  const standing = demo.state.entitiesOf('party').filter((e) => e.tile !== NO_TILE);
+  const selected = standing.find((e) => e.id === demo.party.selected);
+  const spawn = demo.scene.spawns[0];
+  const from = selected?.tile ?? standing[0]?.tile ?? (spawn === undefined ? NO_TILE : tileOf(demo.grid, spawn));
+  if (from === NO_TILE) return NO_TILE;
+  const grid = demo.grid;
+  const free = (tile: number): boolean => grid.isPassable(tile) && demo.state.occupantsOf(tile).length === 0;
+  if (free(from)) return from;
+  // Breadth-first, so the first free tile found is the closest one.
+  const seen = new Set<number>([from]);
+  const queue = [from];
+  for (let i = 0; i < queue.length; i++) {
+    let found = NO_TILE;
+    grid.forEachNeighbor(queue[i]!, false, (next) => {
+      if (found !== NO_TILE || seen.has(next)) return;
+      seen.add(next);
+      if (free(next)) found = next;
+      else if (grid.isPassable(next)) queue.push(next);
+    });
+    if (found !== NO_TILE) return found;
+  }
+  return NO_TILE;
+}
+
 export function syncPools(demo: DemoScene): void {
   for (const entity of demo.state.entitiesOf('party')) {
     const character = demo.characters.get(entity.id);

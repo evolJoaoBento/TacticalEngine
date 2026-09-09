@@ -1379,9 +1379,9 @@ export function addSheet(sheet: PartySheet): Edit {
 /**
  * Remove a character.
  *
- * A running game keeps the party it booted with until it is restarted, the
- * same way it keeps the project it booted with: pulling somebody out from
- * under a fight they are standing in is not an edit, it is a crash.
+ * The document changes now; the board catches up when Play is pressed
+ * (`syncRoster`), and not in the middle of a fight: pulling somebody out from
+ * under a spotlight that may be on them is not an edit, it is a crash.
  */
 export function removeSheet(characterId: string): Edit {
   let removed: { index: number; sheet: PartySheet } | null = null;

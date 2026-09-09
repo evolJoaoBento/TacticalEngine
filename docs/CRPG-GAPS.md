@@ -377,8 +377,13 @@ what using them does, and the loot tables that hand them out — draws, entries,
 fixed count or a rolled range, and weights shown as the odds they work out to. Deleting an item
 leaves the references that named it alone, so the validator can report them.
 
-**Still open:** a character added in the panel joins when the project is next loaded, not
-mid-fight.
+A character added in the panel joins when Play is pressed (`syncRoster` in `game/demo-scene.ts`):
+derived from the sheet, given a fresh sheet's pools, stood beside the party on the nearest free
+tile, announced in the log - and in a fight if there is one, since the spotlight tracker reads
+the party off the board each time it asks who is ready. One removed leaves the same way, after
+the fight if there is one.
+
+**Still open:** nothing.
 
 ### ~~9. Asset import (glTF)~~ — done
 

@@ -140,14 +140,23 @@ export function loadGame(demo: DemoScene, save: SaveGame): LoadResult {
 
   restoreScenario(demo.scenario, save.scenario);
   for (const sheet of save.sheets) {
-    if (!demo.sheets.has(sheet.id)) continue;
     const derived = deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities);
     if (derived.issues.length > 0) {
       return { ok: false, reason: `${sheet.name}'s sheet: ${derived.issues[0]!.message}` };
     }
   }
   for (const sheet of save.sheets) {
-    if (!demo.sheets.has(sheet.id)) continue;
+    // Somebody who joined after the project was written - added in the Party
+    // panel, played, saved - is on the saved board with no sheet in this
+    // document. The save's sheet is the one they have, and the party is the
+    // list the game writes as well as reads, so they go into the document
+    // rather than being pulled off the board on the next Play.
+    if (!demo.sheets.has(sheet.id)) {
+      demo.sheets.set(sheet.id, sheet);
+      if (!demo.project.party.some((s) => s.id === sheet.id)) {
+        demo.project.party.push(characterSheetSchema.parse(sheet));
+      }
+    }
     setSheet(demo, sheet);
   }
   enterSavedScene(demo, save.sceneId, current);

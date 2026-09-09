@@ -2318,9 +2318,9 @@ test('loads a project and restarts the game on it, but not in the middle of a fi
     return { before: api.party(), reason: api.loadProjectText(text), after: api.party() };
   });
   expect(result.reason).toBe('');
-  expect(result.before).not.toContain('ilse');
-  // The new character is standing in the room, because the game restarted on
-  // the document rather than staying on the one it booted with.
+  // Pressing Play seated her (`editor-panels.spec.ts` is about that); loading
+  // the document restarts the game on it, and she is in the document.
+  expect(result.before).toContain('ilse');
   expect(result.after).toContain('ilse');
   expect(result.after).toContain('kara');
 
