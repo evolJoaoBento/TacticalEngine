@@ -227,6 +227,42 @@ const RAW: ConditionInput[] = [
       ],
     },
   },
+  // The Book of Grynn's wall, on whoever is standing in it. Like the Korvax
+  // circle, the whole of it happens on the crossing: "anything that
+  // subsequently passes through the wall takes 4d10+3 magic damage".
+  {
+    id: 'wall-of-flame',
+    name: 'Wall of Flame',
+    text: 'A standing sheet of magical fire: anything that passes through it takes 4d10+3 magic damage.',
+    onEnter: {
+      effects: [
+        { kind: 'log', text: 'They come through the flame, and the flame notices.', tone: 'fear' },
+        { kind: 'damage', dice: '4d10+3', type: 'magic', target: { kind: 'target' } },
+      ],
+    },
+  },
+  // The Book of Yarrow's first spell, on everybody it caught. Nothing but the
+  // stillness: what ends it is written on the card that cast it.
+  {
+    id: 'time-stopped',
+    name: 'Stopped in Time',
+    text: 'Time is not moving for you. You can do nothing at all until it starts again.',
+    blocks: ['act', 'move', 'reactions'],
+  },
+  // On the one who stopped the room, so the card that restarts it knows there
+  // is a room stopped. It does nothing else.
+  {
+    id: 'time-jamming',
+    name: 'Timejammer',
+    text: 'Time is held still around you, and your next action roll lets it go.',
+  },
+  // And its second, which is a defence rather than a spell that does anything.
+  {
+    id: 'magic-immune',
+    name: 'Immune to Magic',
+    text: 'Magic damage does nothing to you until your next rest.',
+    defenses: { immunities: ['magic'] },
+  },
   // The Book of Sitil's second spell, on whoever it was cast on. It carries
   // nothing while it waits: what it does is written on the reaction that
   // spends it, which is the only thing that reads this.

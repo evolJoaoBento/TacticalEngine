@@ -72,6 +72,50 @@ const LIFTED: EffectInput[] = [
   { kind: 'move', who: { kind: 'hit' }, how: 'away', of: { kind: 'actor' }, budget: 'close' },
 ];
 
+const DOORWAY: EffectInput[] = [
+  {
+    kind: 'branch',
+    when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+    then: [
+      { kind: 'spendHope', amount: 1 },
+      { kind: 'log', text: 'A door that was not there, and then neither are they.', tone: 'hope' },
+      { kind: 'move', to: 'point', teleport: true, budget: 'far' },
+    ],
+    otherwise: [{ kind: 'log', text: 'The way opens onto nothing: there is no Hope to hold it.', tone: 'fear' }],
+  },
+];
+
+const WALL: EffectInput[] = [
+  { kind: 'log', text: 'A sheet of fire stands up out of the floor.', tone: 'hope' },
+  {
+    kind: 'zone',
+    zone: 'wall-of-flame',
+    name: 'Wall of Flame',
+    condition: 'wall-of-flame',
+    at: 'point',
+    band: 'veryClose',
+    side: 'adversaries',
+    onDeath: 'end',
+  },
+];
+
+const ENERVATED: EffectInput[] = [
+  { kind: 'log', text: 'Something goes out of them that is not coming back.', tone: 'hope' },
+  { kind: 'applyCondition', condition: 'vulnerable', duration: 'permanent', target: { kind: 'hit' } },
+];
+
+const STOPPED: EffectInput[] = [
+  { kind: 'log', text: 'Every mote of dust in the room stops where it is.', tone: 'hope' },
+  { kind: 'applyCondition', condition: 'time-stopped', duration: 'scene', target: { kind: 'adversaries', range: 'far' } },
+  { kind: 'applyCondition', condition: 'time-jamming', duration: 'scene', target: { kind: 'actor' } },
+];
+
+const RESUMES: EffectInput[] = [
+  { kind: 'log', text: 'They move, and the room remembers how to.', tone: 'combat' },
+  { kind: 'clearCondition', condition: 'time-stopped', target: { kind: 'adversaries', range: 'veryFar' } },
+  { kind: 'clearCondition', condition: 'time-jamming', target: { kind: 'actor' } },
+];
+
 const RAW: Input[] = [
   // ---- Blade -----------------------------------------------------------------
   {
@@ -460,6 +504,222 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- the rest of the Codex grimoires ---------------------------------------
+  //
+  // Seven Books were left. Four of them have something a fight can use and are
+  // below; three - Exota, Homet and Vyola - have nothing this engine can hold,
+  // and the reasons are written on `docs/CARDS.md` rather than guessed at here.
+
+  // Book of Vagras. "When you have no adversaries within Melee range, make a
+  // Spellcast Roll (13). On a success, spend a Hope to create a portal from
+  // where you are to a point within Far range you can see. It closes once a
+  // creature has passed through it."
+  //
+  // Simplified: the one who opened it is the creature that passes through, so
+  // the portal is a blink they take themselves. A door somebody else walks
+  // into is a second zone and a second spell, and the card closes it after one
+  // crossing either way.
+  {
+    id: 'book-of-vagras-arcane-door',
+    name: 'Arcane Door',
+    source: card('book-of-vagras'),
+    target: { kind: 'point', range: 'far' },
+    available: { kind: 'not', of: { kind: 'withinRange', range: 'melee', of: { kind: 'adversaries', range: 'melee' } } },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 13,
+          prompt: 'Arcane Door: open a way to that spot.',
+          onCriticalSuccess: DOORWAY,
+          onSuccessWithHope: DOORWAY,
+          onSuccessWithFear: DOORWAY,
+        },
+      },
+    ],
+  },
+  // "Make a Spellcast Roll. If there is anything magically hidden within Close
+  // range the roll would succeed against, it is revealed."
+  //
+  // Hidden is a condition here rather than a fiction, so this is a real spell:
+  // one roll against everything standing Close, and whatever it beats stops
+  // being Hidden. Simplified: it reveals creatures, which is the only thing
+  // here that can be magically hidden - and it is rolled against all of them
+  // rather than only the ones already hiding, because taking the condition off
+  // somebody who has not got it is nothing happening, which is what the card
+  // says happens when there is nothing to find.
+  {
+    id: 'book-of-vagras-reveal',
+    name: 'Reveal',
+    source: card('book-of-vagras'),
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'close' },
+          prompt: 'Reveal: show what is hiding.',
+          always: [
+            { kind: 'log', text: 'The air goes thin, and what was not there is.', tone: 'hope' },
+            { kind: 'clearCondition', condition: 'hidden', target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+
+  // Book of Grynn. "Once per long rest, spend a Hope to negate the damage of an
+  // attack targeting you or an ally within Very Close range."
+  //
+  // Four steps of severity takes any blow to nothing, which is what negating it
+  // comes to without a vocabulary of its own. Simplified: the holder's own
+  // skin. A blow aimed at somebody else is answered by standing in front of
+  // them, which is a different card and already exists.
+  {
+    id: 'book-of-grynn-arcane-deflection',
+    name: 'Arcane Deflection',
+    source: card('book-of-grynn'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    uses: { count: 1, per: 'longRest' },
+    cost: { hope: 1 },
+    action: false,
+    auto: false,
+    reaction: { kind: 'reduceSeverity', steps: 4 },
+  },
+  // "Make a Spellcast Roll (15). On a success, create a temporary wall of
+  // magical flame between two points within Far range. All creatures in its
+  // path must choose a side to be on, and anything that subsequently passes
+  // through the wall takes 4d10+3 magic damage."
+  //
+  // The third card built on ground that bites, and the first aimed at a spot
+  // rather than at the caster's own feet. Simplified: a wall between two points
+  // is a line, and what is drawn here is the patch of ground around the one
+  // point the player picked - the board aims at a tile, not at a pair. Creatures
+  // standing in it when it goes up are through it, which is the card's "choose
+  // a side" resolved by the only side the engine can see them on.
+  {
+    id: 'book-of-grynn-wall-of-flame',
+    name: 'Wall of Flame',
+    source: card('book-of-grynn'),
+    target: { kind: 'point', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 15,
+          prompt: 'Wall of Flame: stand it up there.',
+          onCriticalSuccess: WALL,
+          onSuccessWithHope: WALL,
+          onSuccessWithFear: WALL,
+        },
+      },
+    ],
+  },
+
+  // Book of Ronin. "Once per long rest, make a Spellcast Roll against a target
+  // within Close range. On a success, they become permanently Vulnerable. They
+  // can't clear this condition by any means."
+  //
+  // "Permanently" is a duration the engine already has, and Vulnerable is a
+  // condition it already reads on every roll aimed at them - which, since the
+  // check path learned to read it, now includes a Spellcast Roll and not only
+  // a swing.
+  {
+    id: 'book-of-ronin-eternal-enervation',
+    name: 'Eternal Enervation',
+    source: card('book-of-ronin'),
+    uses: { count: 1, per: 'longRest' },
+    target: { kind: 'adversary', range: 'close' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Eternal Enervation: take something out of them for good.',
+          onCriticalSuccess: ENERVATED,
+          onSuccessWithHope: ENERVATED,
+          onSuccessWithFear: ENERVATED,
+        },
+      },
+    ],
+  },
+
+  // Book of Yarrow. "Make a Spellcast Roll (18). On a success, time temporarily
+  // slows to a halt for everyone within Far range except for you. It resumes
+  // the next time you make an action roll that targets another creature."
+  //
+  // Simplified once, and once not at all. "Everyone" is everyone who could act
+  // against them: a party member frozen out of their own turn is a player told
+  // to sit still, which is a worse game and not what the card is for.
+  //
+  // "The next time you make an action roll that targets another creature" is
+  // the caster's next attack, hit or miss - which is what an action roll aimed
+  // at somebody *is* here, and is nearer the card than "any roll" would be.
+  // It also has to be: a `partyRolled` release would hear the Spellcast Roll
+  // that cast the spell and let the room go in the same breath as stopping it.
+  {
+    id: 'book-of-yarrow-timejammer',
+    name: 'Timejammer',
+    source: card('book-of-yarrow'),
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 18,
+          prompt: 'Timejammer: stop the room.',
+          onCriticalSuccess: STOPPED,
+          onSuccessWithHope: STOPPED,
+          onSuccessWithFear: STOPPED,
+        },
+      },
+    ],
+  },
+  // Two entries because a swing that lands and a swing that misses are two
+  // triggers, and the card does not care which it was.
+  {
+    id: 'book-of-yarrow-timejammer-ends',
+    name: 'Timejammer',
+    source: card('book-of-yarrow'),
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    available: { kind: 'hasCondition', condition: 'time-jamming', of: { kind: 'actor' } },
+    effects: RESUMES,
+  },
+  {
+    id: 'book-of-yarrow-timejammer-ends-on-a-miss',
+    name: 'Timejammer',
+    source: card('book-of-yarrow'),
+    kind: 'reaction',
+    trigger: 'dealtMiss',
+    action: false,
+    available: { kind: 'hasCondition', condition: 'time-jamming', of: { kind: 'actor' } },
+    effects: RESUMES,
+  },
+  // "Spend 5 Hope to become immune to magic damage until your next rest."
+  {
+    id: 'book-of-yarrow-magic-immunity',
+    name: 'Magic Immunity',
+    source: card('book-of-yarrow'),
+    cost: { hope: 5 },
+    target: { kind: 'self' },
+    action: false,
+    effects: [
+      { kind: 'log', text: 'Whatever magic is for, it stops being for them.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'magic-immune', duration: 'rest', target: { kind: 'actor' } },
+    ],
+  },
+
   // The Book of Sitil, one spell of its three.
   //
   // "Spend 2 Hope to cast this spell on yourself or an ally within Close range.

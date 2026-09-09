@@ -41,9 +41,11 @@ Known simplifications in the scripted ones:
 - The **Book of Korvax** runs two of its three spells. Its circle is the first ground that bites: the crossing is the whole of the spell, so standing still in one sets nothing off, and recasting it leaves the people already inside bearing it rather than hitting them twice. **Lift** sets its target down away from the caster rather than anywhere within Close of where they were - there is no way to aim the second half of a spell aimed at a creature - and on ground that can be walked to, so a lift carries nobody over a wall. The Reaction Roll that makes somebody forget the last minute of a conversation stays text.
 - **Hold the Line** is the second card built on ground that bites, and of the three ways its stance ends only the failure with Fear is scripted: "until you move" needs a hook on the holder's own walk that nothing raises, and the GM spending 2 Fear to clear it is the GM's to spend. The stance otherwise stands until the fight ends or the one holding it falls, and the hold it leaves is the ordinary Restrained, shaken off on the creature's next spotlight.
 - The **Book of Sitil** runs one spell of its three: the echo that lets an ally's next attack reach a second target the same roll would have beaten. The additional target is the nearest other adversary the swing reaches, chosen the way every other automatic pick here is, and the mark is spent whether or not the roll beats them - the attack it was waiting for has been made. Shifting your appearance to avoid recognition and an illusion that holds up until somebody is within Melee of it are both about being looked at, which nothing here models, and stay text.
+- The remaining Codex grimoires, four of seven with something a fight can use. **Vagras**: Arcane Door is the caster's own blink to the spot they pointed at, the portal closing behind the one creature that went through it; Reveal takes Hidden off whatever its roll beat, creatures being the only thing here that can be magically hidden; Runic Lock stays text. **Grynn**: Arcane Deflection takes a blow four bands down, which is any blow to nothing, and answers only the holder's own skin - a blow aimed at somebody else is answered by standing in front of them, which is a different card; Wall of Flame is a patch of ground around the one point the player picked rather than a line between two, the board aiming at a tile and not at a pair; Time Lock stays text. **Ronin**: Eternal Enervation is Vulnerable at the `permanent` duration, which outlives the scene as the card asks. **Yarrow**: Timejammer stops every adversary within Far rather than literally everyone, a party member frozen out of their own turn being a worse game than the card intends, and it is released by the caster's next attack, hit or miss - which is what "an action roll that targets another creature" comes to here.
+- Three grimoires run nothing, and the reason is the same each time: they are about being looked at, being somewhere else, or asking the GM a question. **Exota** interrupts a magical effect nothing here raises, and animates a construct whose stat block is the caster's own traits, which `summon` cannot read off anybody. **Homet** passes through walls and opens a gate to another plane. **Vyola** reads a memory the GM narrates, and shares Stress between two creatures at a moment nothing raises.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 117 of 189 cards.
+Scripted: 121 of 189 cards.
 
 
 ## Arcana
@@ -132,11 +134,11 @@ Scripted: 117 of 189 cards.
 | 1 | Book of Illiat | Grimoire | **action** (Slumber), **action** (Arcane Barrage) |
 | 1 | Book of Tyfar | Grimoire | **action** (Wild Flame) |
 | 2 | Book of Sitil | Grimoire | **action** (Echoing Strike), **reaction** (Echoing Strike) |
-| 2 | Book of Vagras | Grimoire | text |
+| 2 | Book of Vagras | Grimoire | **action** (Arcane Door), **action** (Reveal) |
 | 3 | Book of Korvax | Grimoire | **action** (Lift), **action** (Magic Circle) |
 | 3 | Book of Norai | Grimoire | **action** (Mystic Tether), **action** (Fireball) |
 | 4 | Book of Exota | Grimoire | text |
-| 4 | Book of Grynn | Grimoire | text |
+| 4 | Book of Grynn | Grimoire | **reaction** (Arcane Deflection), **action** (Wall of Flame) |
 | 5 | Manifest Wall | Spell | text |
 | 5 | Teleport | Spell | text |
 | 6 | Banish | Spell | text |
@@ -145,9 +147,9 @@ Scripted: 117 of 189 cards.
 | 7 | Codex-Touched | Ability | text |
 | 8 | Book of Vyola | Grimoire | text |
 | 8 | Safe Haven | Spell | text |
-| 9 | Book of Ronin | Grimoire | text |
+| 9 | Book of Ronin | Grimoire | **action** (Eternal Enervation) |
 | 9 | Disintegration Wave | Spell | text |
-| 10 | Book of Yarrow | Grimoire | text |
+| 10 | Book of Yarrow | Grimoire | **action** (Timejammer), **reaction** (Timejammer), **action** (Magic Immunity) |
 | 10 | Transcendent Union | Spell | text |
 
 ## Grace

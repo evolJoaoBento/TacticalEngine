@@ -5273,3 +5273,202 @@ describe('a swing that reaches one more', () => {
     expect(kara.conditions.has('sitil-echo')).toBe(false);
   });
 });
+
+
+/**
+ * The rest of the Codex grimoires: four Books with something a fight can use,
+ * cast by the one member of the party who has a Spellcast trait.
+ */
+describe('the last of the Codex', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** Mira holding a Book, stood beside Kara and holding the spotlight. */
+  const casting = (seed: string, book: string): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    hold(demo, 'mira', [book]);
+    const mira = demo.state.entity('mira')!;
+    mira.hope = { max: 6, value: 6 };
+    const kara = demo.state.entity('kara')!;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 60, marked: 0 };
+    const blocked = demo.state.blockedFor('mira');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) demo.state.moveEntity('mira', tile);
+    });
+    demo.party.select('mira');
+    return { demo, mira, husk };
+  };
+
+  it('Eternal Enervation leaves them Vulnerable for good, and the next spell reads it', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, husk } = casting('ronin-' + seed, 'book-of-ronin');
+      expect(useAbility(demo, 'mira', 'book-of-ronin-eternal-enervation', [husk.id]).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (!husk.conditions.has('vulnerable')) continue;
+
+      // "They can't clear this condition by any means": permanent outlives the
+      // scene, where every other condition a card hands out does not.
+      demo.state.clearConditions('scene');
+      expect(husk.conditions.has('vulnerable')).toBe(true);
+      // And a Spellcast Roll aimed at them now carries the die, which is the
+      // half of Vulnerable a check only learned to read this week.
+      demo.scenario.actorId = 'mira';
+      expect(demo.world.advantageAgainst([husk.id])).toEqual({ advantage: 1, disadvantage: 0 });
+      return;
+    }
+    throw new Error('Eternal Enervation never landed in eighty tries');
+  });
+
+  it('Magic Immunity stops magic and lets a blade through', () => {
+    const { demo, mira } = casting('yarrow-immune', 'book-of-yarrow');
+    expect(useAbility(demo, 'mira', 'book-of-yarrow-magic-immunity', []).status).not.toBe('refused');
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    expect(mira.hope!.value).toBe(1);
+    expect(mira.conditions.has('magic-immune')).toBe(true);
+
+    const before = mira.hitPoints.marked;
+    demo.world.dealDamage(mira.id, { amount: 30, types: ['magic'] }, demo.rng);
+    expect(mira.hitPoints.marked).toBe(before);
+    demo.world.dealDamage(mira.id, { amount: 30, types: ['physical'] }, demo.rng);
+    expect(mira.hitPoints.marked).toBeGreaterThan(before);
+  });
+
+  it('Timejammer holds the room, and her next roll lets it go', () => {
+    for (let seed = 1; seed < 120; seed++) {
+      const { demo, mira, husk } = casting('yarrow-jam-' + seed, 'book-of-yarrow');
+      expect(useAbility(demo, 'mira', 'book-of-yarrow-timejammer', []).status).toBe('waiting');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      // The caster's own marker is what says the spell landed: it is the half
+      // that cannot be shaken off, where the stillness is a `blocks: act` and
+      // an adversary spends its very next spotlight getting out of one.
+      if (!mira.conditions.has('time-jamming')) continue;
+      expect(demo.log.some((l) => /mote of dust/.test(l.text))).toBe(true);
+
+      // Her next action roll lets it go - any roll, which is the simplification.
+      demo.party.select('mira');
+      attackWithSelected(demo, husk.id);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      expect(mira.conditions.has('time-jamming')).toBe(false);
+      expect(husk.conditions.has('time-stopped')).toBe(false);
+      expect(demo.log.some((l) => /remembers how to/.test(l.text))).toBe(true);
+      return;
+    }
+    throw new Error('Timejammer never beat an 18 in a hundred and twenty tries');
+  });
+
+  it('and what the stillness is worth is nothing they can do', () => {
+    const { demo, husk } = casting('yarrow-still', 'book-of-yarrow');
+    demo.world.applyCondition(husk.id, 'time-stopped', 'scene');
+    expect(demo.world.blocks(husk.id, 'act')).toBe(true);
+    expect(demo.world.blocks(husk.id, 'move')).toBe(true);
+    // And it cannot answer a blow either, which is the third thing it blocks.
+    expect(demo.world.reactionsFor(husk.id, 'incomingDamage')).toEqual([]);
+  });
+
+  it('Wall of Flame burns whatever walks through it', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, mira, husk } = casting('grynn-wall-' + seed, 'book-of-grynn');
+      // A spot a few tiles off, and somewhere further still to park the husk
+      // so the wall goes up with nobody in it. Searched rather than guessed:
+      // the demo map is a vault, not an open field.
+      // Somewhere passable at least two tiles off the husk, so the wall goes
+      // up with nobody in it. Searched rather than guessed: the demo map is a
+      // vault, not an open field.
+      let spot = NO_TILE;
+      for (let dx = -4; dx <= 4 && spot === NO_TILE; dx++) {
+        for (const dy of [0, 1, -1, 2, -2]) {
+          const tile = demo.grid.indexOf(demo.grid.xOf(mira.tile) + dx, demo.grid.yOf(mira.tile) + dy);
+          if (tile === NO_TILE || !demo.grid.isPassable(tile)) continue;
+          if (demo.grid.chebyshevDistance(tile, husk.tile) < 3) continue;
+          spot = tile;
+          break;
+        }
+      }
+      if (spot === NO_TILE) continue;
+
+      expect(useAbility(demo, 'mira', 'book-of-grynn-wall-of-flame', [], { point: spot }).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (!demo.world.zones().some((z) => z.id === 'wall-of-flame')) continue;
+      // It went up with nobody in it.
+      expect(husk.hitPoints.marked).toBe(0);
+
+      // Walked into by hand and the ground read again: 4d10+3 is a real blow.
+      demo.state.moveEntity(husk.id, spot);
+      settleFight(demo);
+      expect(husk.hitPoints.marked).toBeGreaterThan(0);
+      expect(demo.log.some((l) => /the flame notices/.test(l.text))).toBe(true);
+      return;
+    }
+    throw new Error('the wall never went up in eighty tries');
+  });
+
+  it('Arcane Door puts her across the room, and refuses with something in her face', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, mira, husk } = casting('vagras-door-' + seed, 'book-of-vagras');
+      // Nothing in Melee of her, and a spot to go to.
+      const away = demo.grid.indexOf(demo.grid.xOf(mira.tile) + 6, demo.grid.yOf(mira.tile));
+      if (away === NO_TILE || !demo.grid.isPassable(away)) continue;
+      demo.state.moveEntity(husk.id, away);
+      const spot = demo.grid.indexOf(demo.grid.xOf(mira.tile) + 3, demo.grid.yOf(mira.tile));
+      if (spot === NO_TILE || !demo.grid.isPassable(spot)) continue;
+      const stood = mira.tile;
+
+      const used = useAbility(demo, 'mira', 'book-of-vagras-arcane-door', [], { point: spot });
+      expect(used.status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (mira.tile === stood) continue;
+
+      expect(demo.grid.chebyshevDistance(mira.tile, spot)).toBeLessThanOrEqual(1);
+      expect(mira.hope!.value).toBeLessThan(6);
+
+      // And with the husk back in her face, the door will not open at all.
+      const blocked = demo.state.blockedFor(husk.id);
+      demo.grid.forEachNeighbor(mira.tile, false, (tile) => {
+        if (demo.grid.isPassable(tile) && !blocked(tile)) demo.state.moveEntity(husk.id, tile);
+      });
+      expect(useAbility(demo, 'mira', 'book-of-vagras-arcane-door', [], { point: stood }).status).toBe('refused');
+      return;
+    }
+    throw new Error('the door never opened in eighty tries');
+  });
+
+  it('Reveal takes Hidden off what the roll found', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, husk } = casting('vagras-reveal-' + seed, 'book-of-vagras');
+      demo.world.applyCondition(husk.id, 'hidden', 'scene');
+
+      expect(useAbility(demo, 'mira', 'book-of-vagras-reveal', []).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (husk.conditions.has('hidden')) continue;
+
+      expect(husk.conditions.has('hidden')).toBe(false);
+      expect(demo.log.some((l) => /what was not there is/.test(l.text))).toBe(true);
+      return;
+    }
+    throw new Error('Reveal never beat the husk in eighty tries');
+  });
+
+  it('Arcane Deflection takes a blow to nothing, once', () => {
+    const demo = standoff('grynn-deflect');
+    demo.askDefender = false;
+    hold(demo, 'kara', ['book-of-grynn']);
+    const kara = demo.state.entity('kara')!;
+    kara.hope = { max: 6, value: 6 };
+    kara.hitPoints = { max: 12, marked: 0 };
+    // Four steps of severity takes any blow to nothing, which is what the card
+    // asks for without a vocabulary of its own.
+    const offered = demo.world.reactionsFor('kara', 'incomingDamage');
+    expect(offered.map((a) => a.id)).toContain('book-of-grynn-arcane-deflection');
+    const card = offered.find((a) => a.id === 'book-of-grynn-arcane-deflection')!;
+    expect(card.reaction).toMatchObject({ kind: 'reduceSeverity', steps: 4 });
+    expect(card.uses).toMatchObject({ count: 1, per: 'longRest' });
+    expect(card.cost.hope).toBe(1);
+    expect(card.auto).toBe(false);
+  });
+});
