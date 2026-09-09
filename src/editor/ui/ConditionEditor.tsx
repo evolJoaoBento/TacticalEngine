@@ -56,6 +56,7 @@ const KINDS: readonly { kind: Condition['kind']; label: string }[] = [
   { kind: 'rollTagged', label: 'the roll was for' },
   { kind: 'hasMark', label: 'has a spot marked' },
   { kind: 'rolledWith', label: 'the roll was with' },
+  { kind: 'chance', label: 'the dice come up' },
   { kind: 'inCombat', label: 'in a fight' },
   { kind: 'loadout', label: "a domain's cards in the loadout" },
   { kind: 'hasCondition', label: 'the target has a condition' },
@@ -132,6 +133,8 @@ export function blankCondition(kind: Condition['kind'], props: Pick<ConditionEdi
       return { kind, mark: 'rift' };
     case 'rolledWith':
       return { kind, trait: 'presence' };
+    case 'chance':
+      return { kind, dice: '1d6', atLeast: 5 };
     case 'inCombat':
       return { kind };
     case 'hasCondition':
@@ -267,6 +270,15 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
       case 'hasMark':
         // The name a card marks the ground under: "rift", "phantom".
         return text(condition.mark, (mark) => onChange({ ...condition, mark }));
+      case 'chance':
+        // Dice thrown into the gate, and the face that carries it.
+        return (
+          <>
+            {text(condition.dice, (dice) => onChange({ ...condition, dice }))}
+            <span style={{ fontSize: '11px', color: '#8ea3b0' }}>at least</span>
+            {number(condition.atLeast, (atLeast) => onChange({ ...condition, atLeast }))}
+          </>
+        );
       case 'rolledWith':
         return select(
           condition.trait,

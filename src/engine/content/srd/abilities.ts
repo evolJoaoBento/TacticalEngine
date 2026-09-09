@@ -256,6 +256,23 @@ const RIFT: EffectInput[] = [
   },
 ];
 
+/** Confusing Aura's success: one layer, and as many more as the caster will pay Stress for. */
+const AURA_UP: EffectInput[] = [
+  { kind: 'log', text: 'The air over them goes doubtful.', tone: 'hope' },
+  { kind: 'addToken', ability: 'confusing-aura', amount: 1 },
+  {
+    kind: 'howMany',
+    most: 3,
+    least: 0,
+    title: 'Confusing Aura',
+    body: 'How many Stress for more layers?',
+    each: [
+      { kind: 'markStress', amount: 'spent', target: { kind: 'actor' } },
+      { kind: 'addToken', ability: 'confusing-aura', amount: 'spent' },
+    ],
+  },
+];
+
 const RAW: Input[] = [
   // ---- Blade -----------------------------------------------------------------
   {
@@ -4038,6 +4055,66 @@ const RAW: Input[] = [
     ],
   },
 
+  // "Make a Spellcast Roll (14). Once per long rest on a success, you create a
+  // layer of illusion over your body... Mark any number of Stress to make that
+  // many additional layers. When an adversary makes an attack against you,
+  // roll a number of d6s equal to the number of layers currently active. If
+  // any roll a 5 or higher, one layer of the aura is destroyed and the attack
+  // fails. If all the results are 4 or lower, you take the damage and this
+  // spell ends."
+  //
+  // The layers are tokens on the card, and the throw is the first gate to
+  // roll dice: a `chance` read against every layer at once. Simplified: the
+  // extra layers are up to three, a number to ask for rather than "any
+  // number"; and it answers the blow the defender is asked about, a standard
+  // attack that has hit, the way Thorn Skin and Scramble do.
+  {
+    id: 'confusing-aura',
+    name: 'Confusing Aura',
+    source: card('confusing-aura'),
+    uses: { count: 1, per: 'longRest' },
+    target: { kind: 'self' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 14,
+          prompt: 'Confusing Aura: a layer of illusion over where you stand.',
+          onCriticalSuccess: AURA_UP,
+          onSuccessWithHope: AURA_UP,
+          onSuccessWithFear: AURA_UP,
+        },
+      },
+    ],
+  },
+  {
+    id: 'confusing-aura-layers',
+    name: 'Confusing Aura',
+    source: card('confusing-aura'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    auto: false,
+    available: { kind: 'tokens', ability: 'confusing-aura', op: '>=', value: 1 },
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'branch',
+        when: { kind: 'chance', dice: '1d6', atLeast: 5, times: { tokens: 'confusing-aura' } },
+        then: [
+          { kind: 'log', text: 'The blow goes through a layer of them that was never there.', tone: 'hope' },
+          { kind: 'spendToken', ability: 'confusing-aura', amount: 1 },
+          { kind: 'avoidBlow' },
+        ],
+        otherwise: [
+          { kind: 'log', text: 'Every layer holds still, and the blow finds the real one. The aura is gone.', tone: 'fear' },
+          { kind: 'spendToken', ability: 'confusing-aura', all: true },
+        ],
+      },
+    ],
+  },
+
   // ---- Blade -----------------------------------------------------------------
   {
     id: 'blade-touched',
@@ -4558,6 +4635,27 @@ const RAW: Input[] = [
         then: [{ kind: 'raiseRoll', amount: { trait: 'agility' } }],
         otherwise: [{ kind: 'raiseRoll', amount: { trait: 'instinct' } }],
       },
+    ],
+  },
+  // "Once per rest, you can spend 3 Hope to cause an attack that succeeded
+  // against you to fail instead." Answered with a script that avoids the blow,
+  // the way Scramble does, for the price the card names. The +1 to Agility
+  // stays text: a trait is not a number a modifier can raise.
+  {
+    id: 'bone-touched',
+    name: 'Bone-Touched',
+    source: card('bone-touched'),
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    auto: false,
+    cost: { hope: 3 },
+    uses: { count: 1, per: 'rest' },
+    available: { kind: 'loadout', domain: 'bone', op: '>=', value: 4 },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'They are simply not where the blow was going.', tone: 'hope' },
+      { kind: 'avoidBlow' },
     ],
   },
   {

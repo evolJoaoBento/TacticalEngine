@@ -23,7 +23,7 @@ export type { Condition, CompareOp, ScriptValue } from './schema';
 export { conditionSchema } from './schema';
 
 import { markKey } from './marks';
-import type { CheckTrait, Condition, CompareOp, CountName, HookArgs, PoolName, ScriptValue, TargetSelector } from './schema';
+import type { Amount, CheckTrait, Condition, CompareOp, CountName, HookArgs, PoolName, ScriptValue, TargetSelector } from './schema';
 import type { QuestQuery } from '../content/quests';
 import type { HookFn, HookReads } from './hooks';
 import { runHook } from './hooks';
@@ -150,10 +150,22 @@ function compare(left: ScriptValue, op: CompareOp, right: ScriptValue): boolean 
 }
 
 /** Evaluate a condition. Total: an unknown variable reads as `null`, never throws. */
+/**
+ * Dice for a gate that throws them. A script hands its own seeded stream in;
+ * everything else evaluates without one, and a `chance` gate reads false.
+ */
+export interface DiceHand {
+  /** The total of an expression thrown once. */
+  roll(dice: string): number;
+  /** An amount read the way the script reads one - tokens, a trait, a count. */
+  amount(amount: Amount): number;
+}
+
 export function evaluate(
   condition: Condition,
   context: ConditionContext,
   bindings: TargetBindings = NO_BINDINGS,
+  dice?: DiceHand,
 ): boolean {
   switch (condition.kind) {
     case 'always':
@@ -161,11 +173,19 @@ export function evaluate(
     case 'never':
       return false;
     case 'not':
-      return !evaluate(condition.of, context, bindings);
+      return !evaluate(condition.of, context, bindings, dice);
     case 'all':
-      return condition.of.every((c) => evaluate(c, context, bindings));
+      return condition.of.every((c) => evaluate(c, context, bindings, dice));
     case 'any':
-      return condition.of.some((c) => evaluate(c, context, bindings));
+      return condition.of.some((c) => evaluate(c, context, bindings, dice));
+    case 'chance': {
+      if (dice === undefined) return false;
+      const times = condition.times === undefined ? 1 : dice.amount(condition.times);
+      for (let i = 0; i < times; i++) {
+        if (dice.roll(condition.dice) >= condition.atLeast) return true;
+      }
+      return false;
+    }
     case 'flag':
       return context.hasFlag(condition.flag);
     case 'hasItem':
@@ -284,8 +304,9 @@ export function evaluateOptional(
   condition: Condition | undefined,
   context: ConditionContext,
   bindings: TargetBindings = NO_BINDINGS,
+  dice?: DiceHand,
 ): boolean {
-  return condition === undefined || evaluate(condition, context, bindings);
+  return condition === undefined || evaluate(condition, context, bindings, dice);
 }
 
 // ---------------------------------------------------------------------------

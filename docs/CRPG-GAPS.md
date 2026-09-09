@@ -178,7 +178,7 @@ Minion, Momentum and Terrifying are read off the block, and action or reaction f
 abilities in the same vocabulary (`docs/ADVERSARIES.md` lists which of the 417 printed features
 the engine runs).
 
-**Still open:** 140 of 189 cards are scripted (`docs/CARDS.md`, which counts them itself); the
+**Still open:** 142 of 189 cards are scripted (`docs/CARDS.md`, which counts them itself); the
 rest are text, and each one now carries its own line saying why - the generator refuses to build
 if a text card has no reason, so this number is the only one here anybody has to keep by hand. On the stat blocks, 73 of 417 features are read off the block and 52 are
 scripted; the other 292 are the GM's to narrate, and `docs/ADVERSARIES.md` now groups the

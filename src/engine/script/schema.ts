@@ -376,6 +376,20 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     kind: z.literal('rolledWith'),
     trait: z.union([traitSchema, z.literal('spellcast'), z.literal('weapon')]),
   }),
+  /**
+   * Dice thrown into a gate: "roll a number of d6s equal to the number of
+   * layers currently active; if any roll a 5 or higher…". `times` is how many
+   * throws, as an amount, one when left out; true when any throw reaches
+   * `atLeast`. Only a running script has dice to throw, so a gate read where
+   * nothing is rolling - a card's `available`, a modifier's `when` - reads
+   * false rather than guessing.
+   */
+  z.object({
+    kind: z.literal('chance'),
+    dice: z.string().min(1),
+    atLeast: z.number().int().positive(),
+    times: amountSchema.optional(),
+  }),
   z.object({ kind: z.literal('inCombat') }),
   /**
    * How many of a domain's cards a character has in their loadout — the nine

@@ -250,6 +250,34 @@ describe('plain effects', () => {
   });
 });
 
+describe('a gate that throws dice', () => {
+  it('is true when any of its throws reaches the face, off the script\'s own stream', () => {
+    const { world: w } = world();
+    const script: Effect[] = [
+      {
+        kind: 'branch',
+        when: { kind: 'chance', dice: '1d6', atLeast: 5, times: 2 },
+        then: [setFlag('turned')],
+        otherwise: [setFlag('through')],
+      },
+    ];
+    // A one and then a six: the second throw carries it.
+    runScript(script, w, scriptedRng([1, 6]));
+    expect(w.hasFlag('turned')).toBe(true);
+    expect(w.hasFlag('through')).toBe(false);
+    // Two low faces: nothing reaches five.
+    const { world: cold } = world();
+    runScript(script, cold, scriptedRng([2, 3]));
+    expect(cold.hasFlag('through')).toBe(true);
+    expect(cold.hasFlag('turned')).toBe(false);
+  });
+
+  it('reads false where nothing is rolling', () => {
+    const { world: w } = world();
+    expect(evaluate({ kind: 'chance', dice: '1d6', atLeast: 1 }, w)).toBe(false);
+  });
+});
+
 describe('branch', () => {
   it('takes the branch its condition selects', () => {
     const { world: w } = world();

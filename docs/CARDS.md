@@ -39,6 +39,7 @@ Known simplifications in the scripted ones. Why each of the others is *not* scri
 - **Reassurance** throws both Duality Dice again; **Support Tank** always throws the Fear Die, it being the one anybody would pick. Neither touches the advantage die or the Help dice, which belong to the roll rather than to the hands that threw it. Both answer any action roll the party makes - a weapon swing, and now a check made through the runner, which stops after its dice whenever somebody is holding a card that answers one.
 - **Wild Surge**'s die grows on every action roll the engine hears about, which is the party's weapon swings and the rolls a script makes; a roll nothing raises does not feed it.
 - **Rift Walker** and **Phantom Retreat** are the two cards that remember a place: a mark is a tile kept under the caster's name, and the second cast comes back to it. The rift is one step rather than a door that stays open until the next spell, and a mark is forgotten on a rest - which Phantom Retreat prints - or on leaving the room, a tile meaning nothing in another one.
+- **Confusing Aura** is the first card to roll dice into a gate: its layers are tokens on the card, and a blow that lands is put through a d6 per layer at once - any 5 or higher and the blow closes on a layer that was never there. Simplified: the extra layers bought with Stress are up to three rather than any number, and it answers the blow the defender is asked about, the way Thorn Skin and Scramble do. **Bone-Touched** avoids a blow for three Hope once per rest the same way; its +1 to Agility stays text, a trait not being a number a modifier can raise.
 - **Full Surge**'s "+2 bonus to all of your character traits" is +2 on every action roll, a trait being the thing you roll; a trait read anywhere that is not a roll does not move. It lasts to the next rest rather than the next long one, there being one rest a condition outlasts.
 - The **Book of Korvax** runs two of its three spells. Its circle is the first ground that bites: the crossing is the whole of the spell, so standing still in one sets nothing off, and recasting it leaves the people already inside bearing it rather than hitting them twice. **Lift** sets its target down away from the caster rather than anywhere within Close of where they were - there is no way to aim the second half of a spell aimed at a creature - and on ground that can be walked to, so a lift carries nobody over a wall. The Reaction Roll that makes somebody forget the last minute of a conversation stays text.
 - **Hold the Line** is the second card built on ground that bites, and of the three ways its stance ends only the failure with Fear is scripted: "until you move" needs a hook on the holder's own walk that nothing raises, and the GM spending 2 Fear to clear it is the GM's to spend. The stance otherwise stands until the fight ends or the one holding it falls, and the hold it leaves is the ordinary Restrained, shaken off on the creature's next spotlight.
@@ -58,7 +59,7 @@ Known simplifications in the scripted ones. Why each of the others is *not* scri
 - **Endless Charisma** is the card that needed a roll to know what it was *for*. `tags` had been on a check since the schema was written and nothing had ever read one; a `rollTagged` gate is what makes them worth writing, and the rolls that are persuasion say so now - Troublemaker's taunt, Goad Them On's, and both halves of Words of Discord. Which die goes back in the cup is the Fear Die, always: the same call Support Tank makes, it being the half that decides who holds the spotlight as well as whether the roll lands.
 - **Disintegration Wave** wanted a way to kill without hitting - no thresholds, no Armor Slot, nothing that answers a wound - and past the veil, so a heal cannot stand them back up. `slay` is that, and the mirror of the `revive` Resurrection needed. The roll is made once and laid against every Difficulty within Far, which is what the card gives the GM to announce, read off the roll instead; slightly generous when the roll beats 18 by a distance. "Each one you wish to hit" is all of them - which of a list to spare is a decision with nobody here to make it - and the Stress is one per target either way.
 - **Adjust Reality** names a roll's total instead of throwing the dice again - the other thing that can be done to a roll already read, and the reason the post-roll moment was worth building twice. Two decisions of the engine's: "a result of your choice" is the least that carries the roll over its Difficulty, five Hope not being spent to make a success prettier, so it is only offered on a failure; and the *total* moves while the faces stand, which is what "the numerical result" says - whether the roll was with Hope or with Fear, and whether the dice matched, belong to the throw. Unlike Reassurance it answers its holder's own roll as well as an ally's, which is the card's "you or a willing ally".
-Scripted: 140 of 189 cards.
+Scripted: 142 of 189 cards.
 
 
 ## Arcana
@@ -81,7 +82,7 @@ Scripted: 140 of 189 cards.
 | 7 | Arcana-Touched | Ability | **passive** |  |
 | 7 | Cloaking Blast | Spell | text | turns on Cloaked, which is a line of sight the engine does not draw |
 | 8 | Arcane Reflection | Spell | **reaction** |  |
-| 8 | Confusing Aura | Spell | text | rolls a d6 per layer to decide whether a blow lands at all; a damage reaction here picks from a fixed set of shapes rather than running a script |
+| 8 | Confusing Aura | Spell | **action**, **reaction** |  |
 | 9 | Earthquake | Spell | **action** |  |
 | 9 | Sensory Projection | Spell | text | drops into a vision of a place you have been |
 | 10 | Adjust Reality | Spell | **reaction** |  |
@@ -130,7 +131,7 @@ Scripted: 140 of 189 cards.
 | 5 | Signature Move | Ability | **action**, **reaction** |  |
 | 6 | Rapid Riposte | Ability | **reaction** |  |
 | 6 | Recovery | Ability | text | swaps a short rest's downtime move for a long rest's |
-| 7 | Bone-Touched | Ability | text | gives +1 Agility, which the sheet can hold, and turns a successful attack into a failure for 3 Hope, which is a defence shape the engine picks from a fixed set |
+| 7 | Bone-Touched | Ability | **reaction** |  |
 | 7 | Cruel Precision | Ability | **passive** |  |
 | 8 | Breaking Blow | Ability | **reaction** |  |
 | 8 | Wrangle | Ability | **action** |  |

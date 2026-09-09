@@ -3,7 +3,18 @@ import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { NO_TILE } from '../engine/grid/grid';
 import { rest, useAbility } from './demo-abilities';
-import { SRD_CHARACTERS, answerPending, attackWithSelected, buildDemoScene, refreshWorld, startEncounter, travelTo, type DemoScene } from './demo-scene';
+import {
+  SRD_CHARACTERS,
+  answerPending,
+  attackWithSelected,
+  buildDemoScene,
+  endTurn,
+  refreshWorld,
+  startEncounter,
+  travelTo,
+  type DemoScene,
+  type PendingDefense,
+} from './demo-scene';
 import { PIT_SCENE_ID } from './demo-scenes';
 import { loadGameText, saveGame } from './save';
 import type { EntityState } from '../engine/scene/state';
@@ -341,5 +352,144 @@ describe('Sage-Touched', () => {
       return;
     }
     throw new Error('Sage-Touched was never offered in a hundred and twenty tries');
+  });
+});
+
+/**
+ * Cards that answer a blow with dice or a price.
+ *
+ * Confusing Aura keeps its layers as tokens and throws a d6 per layer at a
+ * blow that has landed; Bone-Touched spends three Hope to make one miss. Both
+ * are script defences, offered beside the plans when the husk's swing lands.
+ */
+
+/** Mira holding these cards beside the husk, the others down so the husk swings at her. */
+function miraFacing(seed: string, cards: string[]): { demo: DemoScene; mira: EntityState; husk: EntityState } {
+  const demo = holding(seed, cards);
+  demo.askDefender = true;
+  const mira = demo.state.entity('mira')!;
+  const husk = demo.state
+    .entitiesOf('adversary')
+    .filter((e) => e.alive)
+    .sort((a, b) => demo.grid.manhattanDistance(mira.tile, a.tile) - demo.grid.manhattanDistance(mira.tile, b.tile))[0]!;
+  const blocked = demo.state.blockedFor('mira');
+  let stand = NO_TILE;
+  demo.grid.forEachNeighbor(husk.tile, false, (tile) => {
+    if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
+  });
+  demo.state.moveEntity('mira', stand);
+  for (const member of demo.state.entitiesOf('party')) {
+    if (member.id === 'mira') continue;
+    member.hitPoints = { ...member.hitPoints, marked: member.hitPoints.max };
+    member.alive = false;
+  }
+  startEncounter(demo, demo.scene.encounters[0]!.id);
+  for (const e of demo.state.entitiesOf('adversary')) {
+    if (e.id !== husk.id) {
+      e.hitPoints = { ...e.hitPoints, marked: e.hitPoints.max };
+      e.alive = false;
+    }
+  }
+  return { demo, mira, husk };
+}
+
+/** Let the room swing until a defence prompt offers a script card, healing the defender between swings. */
+function untilScriptChoice(demo: DemoScene, who: string, limit = 60): PendingDefense | null {
+  for (let i = 0; i < limit; i++) {
+    const member = demo.state.entity(who)!;
+    member.hitPoints = { ...member.hitPoints, marked: 0 };
+    member.stress = { ...member.stress, marked: 0 };
+    member.alive = true;
+    if (member.hope !== undefined) member.hope = { max: member.hope.max, value: member.hope.max };
+    endTurn(demo);
+    while (demo.pending !== null) {
+      const waiting = demo.pending;
+      if (waiting.kind === 'defense' && waiting.choices.some((c) => c.kind === 'script')) return waiting;
+      answerPending(demo, { kind: 'choose', index: 0 });
+    }
+    if (demo.encounter?.outcome !== 'ongoing') return null;
+  }
+  return null;
+}
+
+describe('Confusing Aura', () => {
+  it('lays layers as tokens, one plus the Stress paid, once per long rest', () => {
+    for (let seed = 1; seed < 120; seed++) {
+      const demo = holding('aura-' + seed, ['confusing-aura']);
+      const mira = demo.state.entity('mira')!;
+      expect(useAbility(demo, 'mira', 'confusing-aura', []).status).toBe('waiting');
+      answerPending(demo, { kind: 'roll' });
+      if (demo.pending === null) continue; // the roll failed: no layer, no question
+      // How many more: two Stress for two more layers.
+      expect(demo.pending.kind).toBe('script');
+      answerPending(demo, { kind: 'choose', index: 2 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      expect(demo.world.tokensOn('mira', 'confusing-aura')).toBe(3);
+      expect(mira.stress.marked).toBe(2);
+      expect(useAbility(demo, 'mira', 'confusing-aura', []).status).toBe('refused');
+      return;
+    }
+    throw new Error('the aura never went up in a hundred and twenty tries');
+  });
+
+  it('throws a d6 per layer at a blow that landed: a five turns it aside and costs a layer, nothing does and the aura ends', () => {
+    let turned = 0;
+    let broke = 0;
+    for (let seed = 1; seed < 40 && (turned === 0 || broke === 0); seed++) {
+      const { demo, mira } = miraFacing('aura-blow-' + seed, ['confusing-aura']);
+      demo.world.addTokens('mira', 'confusing-aura', 2);
+      const asked = untilScriptChoice(demo, 'mira');
+      if (asked === null) continue;
+      const index = asked.choices.findIndex((c) => c.kind === 'script');
+      expect(asked.choices[index]!.label).toContain('Confusing Aura');
+      const said = demo.log.length;
+      answerPending(demo, { kind: 'choose', index });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const after = demo.log.slice(said).map((l) => l.text);
+      if (after.some((t) => t.includes('never there'))) {
+        turned++;
+        expect(after.some((t) => t.includes('finds nothing where Mira was'))).toBe(true);
+        expect(demo.world.tokensOn('mira', 'confusing-aura')).toBe(1);
+      } else {
+        broke++;
+        expect(after.some((t) => t.includes('The aura is gone'))).toBe(true);
+        expect(demo.world.tokensOn('mira', 'confusing-aura')).toBe(0);
+        expect(mira.hitPoints.marked).toBeGreaterThan(0);
+      }
+    }
+    expect(turned).toBeGreaterThan(0);
+    expect(broke).toBeGreaterThan(0);
+  });
+});
+
+describe('Bone-Touched', () => {
+  it('makes a blow that landed miss for three Hope, once per rest, with four Bone cards held', () => {
+    const bone = ['bone-touched', 'deft-maneuvers', 'i-see-it-coming', 'untouchable', 'ferocity'];
+    for (let seed = 1; seed < 40; seed++) {
+      const { demo, mira } = miraFacing('bone-' + seed, bone);
+      const asked = untilScriptChoice(demo, 'mira');
+      if (asked === null) continue;
+      const index = asked.choices.findIndex((c) => c.kind === 'script' && c.label.includes('Bone-Touched'));
+      expect(index).toBeGreaterThanOrEqual(0);
+      const said = demo.log.length;
+      answerPending(demo, { kind: 'choose', index });
+      const after = demo.log.slice(said).map((l) => l.text);
+      expect(after.some((t) => t.includes('finds nothing where Mira was'))).toBe(true);
+      expect(mira.hope!.value).toBe(3);
+      expect(mira.hitPoints.marked).toBe(0);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+      // Spent for the rest: the next blow is not offered it.
+      const again = untilScriptChoice(demo, 'mira');
+      expect(again === null || !again.choices.some((c) => c.label.includes('Bone-Touched'))).toBe(true);
+      return;
+    }
+    throw new Error('the husk never landed a blow on Mira in forty tries');
+  });
+
+  it('is not offered with three Bone cards', () => {
+    const { demo } = miraFacing('bone-few', ['bone-touched', 'deft-maneuvers', 'i-see-it-coming', 'rift-walker']);
+    const asked = untilScriptChoice(demo, 'mira');
+    expect(asked).toBeNull();
   });
 });

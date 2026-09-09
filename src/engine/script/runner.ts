@@ -38,6 +38,7 @@ import {
   NO_BINDINGS,
   type Condition,
   type ConditionContext,
+  type DiceHand,
   type ScriptValue,
   type TargetBindings,
 } from './conditions';
@@ -610,6 +611,17 @@ export class ScriptRunner {
    * asked for rather than kept, because the roll that bound `hit` may have
    * happened since this script started.
    */
+  /** The dice a gate may throw: this script's own stream, and its way of reading an amount. */
+  private dice(): DiceHand {
+    return {
+      roll: (dice) => {
+        const parsed = parseDice(dice);
+        return parsed === null ? 0 : rollDice(this.rng, parsed).total;
+      },
+      amount: (amount) => this.amountOf(amount, 0),
+    };
+  }
+
   private amountOf(amount: Amount | undefined, fallback = 1): number {
     if (amount === undefined) return fallback;
     if (typeof amount === 'number') return amount;
@@ -735,7 +747,7 @@ export class ScriptRunner {
       return;
     }
     const option = options[response.index];
-    if (option === undefined || !evaluateOptional(option.available, this.world, this.bindings())) return;
+    if (option === undefined || !evaluateOptional(option.available, this.world, this.bindings(), this.dice())) return;
     this.journal.push({ kind: 'chose', label: option.label, index: response.index });
     this.stack.push({ effects: option.effects, index: 0 });
   }
@@ -1107,14 +1119,14 @@ export class ScriptRunner {
         this.journal.push({ kind: 'dialogue', dialogue: effect.dialogue });
         return { kind: 'dialogue', dialogue: effect.dialogue };
       case 'branch': {
-        const taken = evaluateOptional(effect.when, world, this.bindings()) ? effect.then : effect.otherwise;
+        const taken = evaluateOptional(effect.when, world, this.bindings(), this.dice()) ? effect.then : effect.otherwise;
         if (taken !== undefined && taken.length > 0) this.stack.push({ effects: taken, index: 0 });
         return null;
       }
       case 'choice': {
         const options = effect.options
           .map((option, index) => ({ option, index }))
-          .filter(({ option }) => evaluateOptional(option.available, world, this.bindings()))
+          .filter(({ option }) => evaluateOptional(option.available, world, this.bindings(), this.dice()))
           .map(({ option, index }) => ({
             index,
             label: option.label,
