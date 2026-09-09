@@ -14,6 +14,92 @@ def kebab(name):
     s=name.lower().replace("'","").replace("’","")
     s=re.sub(r'[^a-z0-9]+','-',s).strip('-')
     return s
+# ---------------------------------------------------------------------------
+# Why each unscripted card is unscripted.
+#
+# One line per card, in its own words rather than its domain's. Written by
+# reading all 189 cards rather than their names: two rounds of that found cards
+# the domain-level summaries had written off (Grace's Invisibility, Arcana's
+# Telekinesis), so the summaries are gone and this is what replaced them.
+#
+# The table below refuses to build if a text card is missing from here, which
+# is the point: a card can stay text, but not silently.
+# ---------------------------------------------------------------------------
+WHY = {
+  # Asking the GM something, or being told something. No dice to run.
+  'divination': "asks the GM a yes-or-no question about the future",
+  'final-words': "asks a corpse questions the GM answers",
+  'dark-whispers': "opens a channel into somebody's mind and asks the GM about it",
+  'thought-delver': "reads thoughts the GM narrates",
+  'gifted-tracker': "asks the GM about tracks, then reads on a creature you have tracked before - which nothing here remembers",
+  'natures-tongue': "talks to plants and animals, and its second half turns on being in a natural environment",
+  'book-of-vyola': "reads a memory the GM narrates; its other spell shares Stress between two creatures at a moment nothing raises",
+  'tell-no-lies': "compels the truth, which is a conversation rather than a roll the engine owns",
+
+  # Somewhere else, or seeing somewhere else. The board is one room of tiles.
+  'astral-projection': "puts a copy of you somewhere you have been; the board holds one room at a time",
+  'through-your-eyes': "sees through somebody else's eyes",
+  'sensory-projection': "drops into a vision of a place you have been",
+  'floating-eye': "makes an orb you see through",
+  'rift-walker': "marks a spot to return to, and nothing here can hold a remembered tile",
+  'phantom-retreat': "marks a spot to return to - the same missing thing as Rift Walker",
+  'teleport': "goes to a place you have been before, which is not a place the board knows",
+  'book-of-homet': "walks through walls and opens a gate to another plane",
+  'safe-haven': "summons an interdimensional house to rest in",
+  'wall-walk': "walks on walls and ceilings, where the grid has a floor and nothing else",
+  'flight': "has a token clock this engine could run and nothing for it to mean, a creature's height not being a thing here; running the clock without the flying would read worse than the card's own words",
+
+  # Being looked at, or not being.
+  'uncanny-disguise': "is a disguise, and the advantage it grants is on avoiding scrutiny",
+  'mass-disguise': "disguises a crowd; its Countdown would run and the disguise would mean nothing",
+  'cloaking-blast': "turns on Cloaked, which is a line of sight the engine does not draw",
+  'veil-of-night': "hangs a curtain between two points and hides you behind it; the board aims at one tile, and being seen is not modelled",
+  'shadowhunter': "reads on low light, which the engine has no notion of",
+  'deft-deceiver': "gives advantage on deceiving somebody, which is not a roll the engine owns",
+
+  # A creature whose whole purpose is to stand near somebody else - the
+  # third-creature rule the modifier schema refuses on purpose.
+  'natural-familiar': "puts a critter on the board whose only rule is what it stands next to",
+  'forest-sprites': "places sprites that buff whoever is near them - a rule about a third creature",
+  'conjured-steeds': "conjures mounts, and the board has no notion of riding one",
+  'book-of-exota': "interrupts a magical effect nothing raises, and animates a construct whose stat block is the caster's own traits, which `summon` cannot read off anybody",
+
+  # Terrain, objects and building things.
+  'plant-dominion': "reshapes the terrain, which is authored rather than rewritten in play",
+  'shape-material': "shapes stone or ice into a tool or a door",
+  'manifest-wall': "stands a wall between two points and shunts what was in the way; the board aims at one tile",
+  'wild-fortress': "grows a dome with its own damage thresholds and Hit Points, which is a creature-shaped thing that is not a creature",
+
+  # Downtime, sessions and the table's own clock.
+  'forager': "is a downtime move",
+  'recovery': "swaps a short rest's downtime move for a long rest's",
+  'soothing-speech': "adds to a Tend to Wounds taken during a short rest",
+  'copycat': "borrows a card out of another player's loadout",
+  'master-of-the-craft': "adds a permanent bonus to Experiences, which are words on a sheet rather than a number the engine rolls",
+  'notorious': "reads on leveraging a reputation, and its other half is the price of drinks",
+
+  # A moment the engine does not raise.
+  'counterspell': "interrupts a magical effect, and nothing here announces one",
+  'premonition': "rescinds a move already made and its consequences",
+  'invigoration': "refreshes a spent once-per-rest feature, and would need a card to name which of somebody's features it meant; the option lists here are written rather than gathered",
+  'endless-charisma': "rerolls a die after a roll to persuade or lie - the moment exists now, but a roll's *purpose* is not something the engine tags",
+  'stealth-expertise': "turns a roll with Fear into a roll with Hope while moving unnoticed; the moment exists, but moving unnoticed is not a roll the engine owns and the faces are the throw",
+  'grace-touched': "swaps an Armor Slot for a Stress, and Hit Points for Stress, at moments nothing raises",
+  'midnight-touched': "turns the GM's Fear into your Hope at 0 Hope, and adds the Fear Die to damage - two moments nothing raises",
+  'bold-presence': "adds a trait to a roll for a Hope, which is a choice offered before the dice where only Utilize an Experience lives; avoiding a condition needs a moment nothing raises",
+  'tactician': "lends an Experience to somebody else's roll, and rolls a d20 on a Tag Team Roll, which this engine does not have",
+  'sage-touched': "reads on being in a natural environment, and doubles a trait for a roll chosen before it is made",
+  'bone-touched': "gives +1 Agility, which the sheet can hold, and turns a successful attack into a failure for 3 Hope, which is a defence shape the engine picks from a fixed set",
+  'codex-touched': "adds Proficiency to a Spellcast Roll for a Stress - a choice before the dice - and swaps a card out of the vault mid-fight",
+  'transcendent-union': "lets connected creatures choose who marks Stress or Hit Points, at a moment nothing raises",
+
+  # Close enough to name.
+  'confusing-aura': "rolls a d6 per layer to decide whether a blow lands at all; a damage reaction here picks from a fixed set of shapes rather than running a script",
+  'hush': "silences an area that follows a creature, and a zone here is anchored to a tile; Silenced would also need a condition that stops spellcasting",
+  'banish': "rolls a number of d20s and asks the target to beat the highest, which is a reaction roll against a Difficulty the spell itself rolled for",
+  'disintegration-wave': "is the closest miss left: the Difficulties are readable and the Stress is spendable, but nothing can kill a creature outright and stop it being brought back",
+}
+
 entries=[]
 for c in cards:
     cid=kebab(t(c['name']))
@@ -52,7 +138,7 @@ out.append("Every SRD domain card is held, shown and counted toward the loadout.
 out.append("as **action**, **reaction** or **passive** are scripted in `src/engine/content/srd/abilities.ts`")
 out.append("and run through the one effect vocabulary; the rest are **text**: the card's words are shown on")
 out.append("the action bar and the table adjudicates, as at a real one. A grimoire lists each spell.\n")
-out.append("Known simplifications in the scripted ones:\n")
+out.append("Known simplifications in the scripted ones. Why each of the others is *not* scripted is in the tables below, a line per card - written by reading all 189 rather than their names, which is how two rounds of this found cards the domain-level summaries had written off.\n")
 out.append("- **Rune Ward** never breaks on an 8; **Get Back Up**, **Iron Will**, **Brace**, **Shrug It Off**, **On the Brink** and the ward fire on their own when they lower the Hit Points marked (per-card `auto`, and an interrupt is always asked).")
 out.append("- **Arcane Barrage**, **Falling Sky** and **Wild Flame** offer a short list of amounts rather than any number; **Unleash Chaos** and **Share the Burden** ask outright, one button per number, up to twelve.")
 out.append("- **Slumber**'s sleeper loses its spotlight until damage marks a Hit Point or the GM spends a Fear, which the GM's turn does on its own when there is one.")
@@ -88,10 +174,8 @@ out.append("- The **Book of Korvax** runs two of its three spells. Its circle is
 out.append("- **Hold the Line** is the second card built on ground that bites, and of the three ways its stance ends only the failure with Fear is scripted: \"until you move\" needs a hook on the holder's own walk that nothing raises, and the GM spending 2 Fear to clear it is the GM's to spend. The stance otherwise stands until the fight ends or the one holding it falls, and the hold it leaves is the ordinary Restrained, shaken off on the creature's next spotlight.")
 out.append("- The **Book of Sitil** runs one spell of its three: the echo that lets an ally's next attack reach a second target the same roll would have beaten. The additional target is the nearest other adversary the swing reaches, chosen the way every other automatic pick here is, and the mark is spent whether or not the roll beats them - the attack it was waiting for has been made. Shifting your appearance to avoid recognition and an illusion that holds up until somebody is within Melee of it are both about being looked at, which nothing here models, and stay text.")
 out.append("- The remaining Codex grimoires, four of seven with something a fight can use. **Vagras**: Arcane Door is the caster's own blink to the spot they pointed at, the portal closing behind the one creature that went through it; Reveal takes Hidden off whatever its roll beat, creatures being the only thing here that can be magically hidden; Runic Lock stays text. **Grynn**: Arcane Deflection takes a blow four bands down, which is any blow to nothing, and answers only the holder's own skin - a blow aimed at somebody else is answered by standing in front of them, which is a different card; Wall of Flame is a patch of ground around the one point the player picked rather than a line between two, the board aiming at a tile and not at a pair; Time Lock stays text. **Ronin**: Eternal Enervation is Vulnerable at the `permanent` duration, which outlives the scene as the card asks. **Yarrow**: Timejammer stops every adversary within Far rather than literally everyone, a party member frozen out of their own turn being a worse game than the card intends, and it is released by the caster's next attack, hit or miss - which is what \"an action roll that targets another creature\" comes to here.")
-out.append("- Three grimoires run nothing, and the reason is the same each time: they are about being looked at, being somewhere else, or asking the GM a question. **Exota** interrupts a magical effect nothing here raises, and animates a construct whose stat block is the caster's own traits, which `summon` cannot read off anybody. **Homet** passes through walls and opens a gate to another plane. **Vyola** reads a memory the GM narrates, and shares Stress between two creatures at a moment nothing raises.")
 out.append("- **Tempest** is three storms behind one roll, and the choice among them is the player's. The Blizzard is whole. The Hurricane's \"choose a direction the wind is blowing; targets can't move against the wind\" is a direction the board cannot hold, so what lands is the damage. The Sandstorm's \"attacks made from beyond Melee range have disadvantage\" is about where the attacker is standing, and a modifier reads from one creature rather than the distance between two - so it makes every attack aimed at them harder, Melee included. All three last the scene rather than \"until the GM spends a Fear\", there being nobody at that end of the table to spend it.")
 out.append("- **Force of Nature** runs the +10 and the upkeep, which is the shape of the card: a form that costs a Hope every time it is used, and drops off whoever cannot pay. Absorbing a creature you defeated needs a moment nothing raises on the party's side, and \"you can't be Restrained\" needs a creature immune to a condition, which nothing here can say; both stay text. The Hope is taken after the roll rather than before it, which differs only for a character down to their last one.")
-out.append("- The rest of Sage stays text for reasons that repeat: **Natural Familiar**, **Forest Sprites** and **Conjured Steeds** put a creature on the board whose whole purpose is to stand near somebody else - the third-creature rule this engine does not read - **Wild Fortress** builds a thing with its own damage thresholds, **Plant Dominion** reshapes terrain, **Forager** is a downtime move, and **Nature's Tongue**, **Gifted Tracker** and **Sage-Touched** each turn on a natural environment or a creature you have tracked, neither of which the engine knows about.")
 out.append("- **Fane of the Wilds** is the first card to reach a roll *after* it was read. The spend is made rather than asked - the least number of tokens that carries the total over the Difficulty, and none when the roll needs no saving or cannot be saved - because the moment belongs to the runner, which has nobody to ask. Its tokens are the Sage cards in the loadout, the vault being a place a card goes rather than a number to count, and the token it should gain on a critical Sage spell is not there: nothing tells a card which domain the spell that just critted came from.")
 out.append("- **Signature Move** is the only card that changes what is thrown rather than what is added to it: a d20 in place of the d12 Hope Die, which raises the floor of the roll and makes a critical rarer, both of which the card is buying deliberately. Declaring the move is a free thing done before rolling rather than folded into an action, the engine having no way to hear \"as part of\" an action that has not happened yet. **Tactician** says the same words about a Tag Team Roll, which this engine does not have, and stays text along with its half about lending an Experience to somebody else's roll.")
 out.append("- **Strategic Approach** spends its token *before* the swing rather than during it, which is what keeps all three of its options: advantage has to be declared before the dice, so a card that asked afterwards could only ever have offered two of the three. Its gate - \"the first time you move within Close range of an adversary\" - is not tracked, nothing here remembering that a character walked before they swung; the cost of both is a player who picks their line and then cannot reach anybody, which is a wasted token rather than a wrong rule.")
@@ -99,20 +183,22 @@ out.append("- **Know Thy Enemy** leaves the Hope it costs and the Fear it can ta
 out.append("- **Invisibility** keeps its die and its clock: attacks against the hidden creature are made with disadvantage, and every action they take spends one of the tokens the caster's Spellcast trait placed. Two simplifications. The tokens sit with the one who is invisible rather than on the caster's card, which is what lets an ally spend them at all; and \"yourself or an ally\" is an ally, because a caster who chose themselves would spend the first token on the Spellcast Roll that cast it. Not being seen except by magical means is the table's.")
 out.append("- **Troublemaker** is the first card to roll dice for an *amount* rather than for damage: a number of d4s scaled by Proficiency, and the best single face of them, marked as Stress on whatever the taunt beat.")
 out.append("- **Resurrection** is the one card that goes past the veil, so it is the one effect that does: a heal stands somebody up and stops there on purpose, and `revive` undoes the death itself. It is also the only card that can be aimed at somebody who is not standing there. Simplified twice, both about the d6: the card goes to the vault whatever it said, nothing here rolling a die into a gate, and \"can't cast it again for a week\" is a week this engine does not count, so a failure costs the roll and nothing else.")
-out.append("- The rest of Splendor is the table's. **Divination** asks the GM a yes-or-no question about the future and **Final Words** asks a corpse; **Shape Material** reshapes stone; and **Invigoration** refreshes a spent once-per-rest feature, which would need a card to name which of somebody's features it meant, and the option lists here are written rather than gathered.")
 out.append("- **Telekinesis** is two rolls: the first takes hold and moves them, the second throws them at the next one along. Simplified as Korvax's Lift is - \"anywhere within Far of their original position\" is away from the one lifting them, there being no way to aim the second half of a spell aimed at a creature - and the one thrown takes nothing for the landing, which the card does not give them either.")
 out.append("- **Vitality** is the only card that changes what somebody *is* rather than what they can do: two of its three benefits, each a condition at the `permanent` duration, which is the one duration that outlives a scene and a rest. It asks twice and the second question leaves out what the first took.")
-out.append("- Arcana keeps eleven of its own, and the reasons are its own too. **Counterspell** interrupts a magical effect nothing here raises and **Premonition** rescinds a move already made; **Cloaking Blast**, **Floating Eye**, **Sensory Projection** and **Wall Walk** are about being seen, seeing elsewhere, or walking where there is no floor; **Rift Walker** marks a spot to return to, which needs a remembered tile nothing can hold yet. **Flight** has a token clock this engine could run and nothing for it to mean - a creature's height is not a thing here - so running the clock without the flying would read worse than the card's own words. **Confusing Aura** rolls d6s per layer to decide whether a blow lands at all, and a damage reaction here picks from a fixed set of shapes rather than running a script. **Adjust Reality** is scripted, and was the last card blocked rather than deliberately text.")
-out.append("- **Bold Presence** stays text in both halves: adding a trait to a roll for a Hope is a choice offered before the dice, where only Utilize an Experience lives, and avoiding a condition needs a moment nothing raises.")
 out.append("- **Adjust Reality** names a roll's total instead of throwing the dice again - the other thing that can be done to a roll already read, and the reason the post-roll moment was worth building twice. Two decisions of the engine's: \"a result of your choice\" is the least that carries the roll over its Difficulty, five Hope not being spent to make a success prettier, so it is only offered on a failure; and the *total* moves while the faces stand, which is what \"the numerical result\" says - whether the roll was with Hope or with Fear, and whether the dice matched, belong to the throw. Unlike Reassurance it answers its holder's own roll as well as an ally's, which is the card's \"you or a willing ally\".")
-out.append("- Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.\n")
 count_s=sum(1 for e in entries if e[4])
 out.append(f"Scripted: {count_s} of {len(entries)} cards.\n")
 dom=None
+missing=[kebab(t(c['name'])) for c in cards
+         if not [m for m in re.finditer(r"source: card\('%s'\)"%re.escape(kebab(t(c['name']))), lib)]
+         and kebab(t(c['name'])) not in WHY]
+if missing:
+    raise SystemExit('a text card with no reason in WHY: ' + ', '.join(missing))
 for d,lvl,name,typ,names in entries:
     if d!=dom:
-        dom=d; out.append(f"\n## {d}\n"); out.append("| Level | Card | Type | Engine |"); out.append("|---|---|---|---|")
+        dom=d; out.append(f"\n## {d}\n"); out.append("| Level | Card | Type | Engine | Why |"); out.append("|---|---|---|---|---|")
     how = ', '.join(f"**{h}**" + ('' if nm==name else f" ({nm})") for nm,h in names) if names else 'text'
-    out.append(f"| {lvl} | {name} | {typ} | {how} |")
+    why = '' if names else WHY[kebab(name)]
+    out.append(f"| {lvl} | {name} | {typ} | {how} | {why} |")
 io.open(root+'docs/CARDS.md','w',encoding='utf-8',newline='\n').write('\n'.join(out)+'\n')
 print('cards', len(entries), 'scripted', count_s)
