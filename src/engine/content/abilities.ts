@@ -112,6 +112,16 @@ export const abilityModifierSchema = z.object({
     'attackRoll',
     'damageRoll',
     'spellcastRoll',
+    /**
+     * Every action roll the creature makes, whatever they roll it at: "you add
+     * its value to every action roll you make". The three above are each one
+     * kind of roll - a swing, a spell - and this is the one that is not a kind
+     * at all, so it is added on top of whichever of them applied.
+     *
+     * A reaction roll is not an action roll and does not read it, which is the
+     * same line `anyRoll` draws for the advantage dice.
+     */
+    'actionRoll',
     'proficiency',
     'hitPoints',
     'stress',

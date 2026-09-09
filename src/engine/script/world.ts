@@ -312,7 +312,7 @@ export interface SceneScriptWorldOptions {
 }
 
 /** A stat a modifier can move at roll time. */
-export type RollStat = 'attackRoll' | 'damageRoll' | 'spellcastRoll';
+export type RollStat = 'attackRoll' | 'damageRoll' | 'spellcastRoll' | 'actionRoll';
 /** A stat a modifier can move on a pool or a defence. */
 export type PoolStat = 'evasion' | 'armorScore' | 'hitPoints' | 'stress' | 'majorThreshold' | 'severeThreshold' | 'thresholds';
 
@@ -683,6 +683,14 @@ export class SceneScriptWorld implements ScriptWorld {
   checkModifier(trait: CheckTrait, as: 'party' | 'actor'): number | null {
     const character = this.actorCharacter();
     const actor = this.scenario.actorId;
+    // What the sheet adds to *any* action roll. The two branches below get it
+    // from `rollBonus` along with their own kind; a plain trait check asks for
+    // no kind at all, so it is added here by hand.
+    //
+    // Read from the actor's chair even when the trait is the party's best: the
+    // modifier belongs to whoever is making the roll, and the borrowed trait is
+    // only where the number came from.
+    const any = actor === null ? 0 : this.rollBonus(actor, 'actionRoll');
     if (trait === 'spellcast') {
       if (character?.spellcastTrait === undefined || actor === null) return null;
       return character.traits[character.spellcastTrait] + this.rollBonus(actor, 'spellcastRoll');
@@ -692,8 +700,8 @@ export class SceneScriptWorld implements ScriptWorld {
       const weapon = character.primaryWeapon;
       return character.traits[weapon?.trait ?? UNARMED.trait] + this.rollBonus(actor, 'attackRoll', { melee: (weapon?.range ?? UNARMED.range) === 'melee' });
     }
-    if (as === 'actor' && character !== undefined) return character.traits[trait];
-    return this.traitModifier(trait);
+    if (as === 'actor' && character !== undefined) return character.traits[trait] + any;
+    return this.traitModifier(trait) + any;
   }
 
   // ---- modifiers -------------------------------------------------------------
@@ -847,10 +855,23 @@ export class SceneScriptWorld implements ScriptWorld {
     }, 0);
   }
 
-  /** The bonus a creature's modifiers add to a roll of this kind. */
+  /**
+   * The bonus a creature's modifiers add to a roll of this kind.
+   *
+   * An `actionRoll` modifier is one that reads on every action roll there is,
+   * so asking for the attack or the Spellcast bonus gets it too: a caller that
+   * is about to make an action roll should not have to know which cards happen
+   * to be worded that way. `damageRoll` is the one that does not, being a roll
+   * the rules do not call an action roll - and asking for `actionRoll` itself
+   * gets it once, not twice.
+   */
   rollBonus(id: string, stat: RollStat, context: { melee?: boolean } = {}): number {
+    const alsoAny = stat === 'attackRoll' || stat === 'spellcastRoll';
     const applicable = this.modifiersOf(id, 'roll').filter(
-      (m) => m.stat === stat && m.against !== true && (m.requires !== 'meleeWeapon' || context.melee === true),
+      (m) =>
+        (m.stat === stat || (alsoAny && m.stat === 'actionRoll')) &&
+        m.against !== true &&
+        (m.requires !== 'meleeWeapon' || context.melee === true),
     );
     return this.sumModifiers(id, applicable);
   }

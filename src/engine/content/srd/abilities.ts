@@ -455,6 +455,71 @@ const RAW: Input[] = [
       },
     ],
   },
+  // "Once per long rest, mark a Stress to channel the natural world around you
+  // and enhance yourself. Describe how your appearance changes, then place a d6
+  // on this card with the 1 value facing up. While the Wild Surge Die is
+  // active, you add its value to every action roll you make. After you add its
+  // value to a roll, increase the Wild Surge Die's value by one. When the die's
+  // value would exceed 6 or you take a rest, this form drops and you must mark
+  // an additional Stress."
+  //
+  // The die is tokens on the card, which is what a number sitting on a card has
+  // always been here; the condition carries a modifier worth one per token, so
+  // "add its value" is the pile read at the moment of the roll. It is the first
+  // `actionRoll` modifier - a bonus on every roll rather than on a kind of one -
+  // and it is what that stat was added for.
+  //
+  // Simplified: the die grows on every action roll the engine hears about,
+  // which is the party's weapon swings and the rolls a script makes. A roll
+  // nothing raises does not feed it.
+  {
+    id: 'wild-surge',
+    name: 'Wild Surge',
+    source: card('wild-surge'),
+    uses: { count: 1, per: 'longRest' },
+    cost: { stress: 1 },
+    target: { kind: 'self' },
+    action: false,
+    effects: [
+      { kind: 'log', text: 'Something older than them comes up through the ground and wears them.', tone: 'hope' },
+      // The pile is emptied first, so a second surge starts at one rather than
+      // wherever the last one stopped.
+      { kind: 'spendToken', ability: 'wild-surge', all: true },
+      { kind: 'addToken', ability: 'wild-surge', amount: 1 },
+      { kind: 'applyCondition', condition: 'wild-surging', duration: 'scene', target: { kind: 'actor' } },
+    ],
+  },
+  {
+    id: 'wild-surge-grows',
+    name: 'Wild Surge',
+    source: card('wild-surge'),
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    // Not a decision: the die grows on its own, and drops on its own.
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'self' },
+        { kind: 'hasCondition', condition: 'wild-surging' },
+      ],
+    },
+    effects: [
+      { kind: 'addToken', ability: 'wild-surge', amount: 1 },
+      {
+        kind: 'branch',
+        // Seven is the value that "would exceed 6": the die was on six, the
+        // roll took its six, and the next turn of it has nowhere to go.
+        when: { kind: 'tokens', ability: 'wild-surge', op: '>=', value: 7 },
+        then: [
+          { kind: 'log', text: 'The shape will not hold any longer, and drops off them all at once.', tone: 'fear' },
+          { kind: 'spendToken', ability: 'wild-surge', all: true },
+          { kind: 'clearCondition', condition: 'wild-surging', target: { kind: 'actor' } },
+          { kind: 'markStress', amount: 1, target: { kind: 'actor' } },
+        ],
+      },
+    ],
+  },
   {
     id: 'twilight-toll',
     name: 'Twilight Toll',

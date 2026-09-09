@@ -188,6 +188,15 @@ const RAW: ConditionInput[] = [
       ],
     },
   },
+  // Wild Surge, while the form holds. The value of the die is the tokens on
+  // the card, so the modifier is worth one apiece and reads whatever the pile
+  // says at the moment the roll is made.
+  {
+    id: 'wild-surging',
+    name: 'Wild Surge',
+    text: 'The Wild Surge Die is active: its value is added to every action roll you make.',
+    modifiers: [{ stat: 'actionRoll', bonus: 1, perToken: 'wild-surge' }],
+  },
   // Goad Them On, on the one who was taunted. The disadvantage is on *their*
   // swing rather than on rolls against them, so no `against`: it is the plain
   // modifier every attacker reads off themselves, and `endsWhen: 'attacks'`

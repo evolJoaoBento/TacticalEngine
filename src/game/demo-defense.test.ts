@@ -4835,3 +4835,92 @@ describe('a card that throws the dice again', () => {
     throw new Error('Support Tank was never offered, in a hundred and twenty tries');
   });
 });
+
+
+/**
+ * A bonus that reads on every action roll rather than on a kind of one, and
+ * the card it was added for: a die that sits on the sheet, grows with every
+ * roll it helped, and drops off past six.
+ */
+describe('a bonus on every action roll', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('reaches a plain trait check, a Spellcast Roll and a swing alike', () => {
+    const demo = scene('action-roll');
+    hold(demo, 'mira', ['wild-surge']);
+    demo.scenario.actorId = 'mira';
+    const plain = demo.world.checkModifier('agility', 'actor')!;
+    const spell = demo.world.checkModifier('spellcast', 'actor')!;
+    const swing = demo.world.rollBonus('mira', 'attackRoll', { melee: false });
+    const hurt = demo.world.rollBonus('mira', 'damageRoll', { melee: false });
+
+    // Four tokens on the card is a Wild Surge Die showing four.
+    demo.world.applyCondition('mira', 'wild-surging', 'scene');
+    demo.world.addTokens('mira', 'wild-surge', 4);
+    expect(demo.world.checkModifier('agility', 'actor')).toBe(plain + 4);
+    expect(demo.world.checkModifier('spellcast', 'actor')).toBe(spell + 4);
+    expect(demo.world.rollBonus('mira', 'attackRoll', { melee: false })).toBe(swing + 4);
+    // A damage roll is not an action roll, and neither is the party's best
+    // trait read for somebody who is not the one surging.
+    expect(demo.world.rollBonus('mira', 'damageRoll', { melee: false })).toBe(hurt);
+    demo.scenario.actorId = 'kara';
+    expect(demo.world.checkModifier('agility', 'actor')).toBe(demo.characters.get('kara')!.traits.agility);
+  });
+
+  it('is worth nothing with the condition gone, however many tokens are on the card', () => {
+    const demo = scene('action-roll-off');
+    hold(demo, 'mira', ['wild-surge']);
+    demo.scenario.actorId = 'mira';
+    const plain = demo.world.checkModifier('agility', 'actor')!;
+    demo.world.addTokens('mira', 'wild-surge', 5);
+    // The die is on the card; what reads it is the form, and there is none.
+    expect(demo.world.checkModifier('agility', 'actor')).toBe(plain);
+  });
+
+  it('Wild Surge starts at one, grows with each roll, and drops past six', () => {
+    const demo = standoff('wild-surge');
+    demo.askDefender = false;
+    hold(demo, 'kara', ['wild-surge']);
+    const kara = demo.state.entity('kara')!;
+    kara.stress = { max: 12, marked: 0 };
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 60, marked: 0 };
+
+    expect(useAbility(demo, 'kara', 'wild-surge', []).status).not.toBe('refused');
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    // A Stress to channel it, and the die face up on one.
+    expect(kara.conditions.has('wild-surging')).toBe(true);
+    expect(demo.world.tokensOn('kara', 'wild-surge')).toBe(1);
+    expect(kara.stress.marked).toBe(1);
+
+    // Six swings: each takes the die it found and leaves it one higher, and
+    // the seventh turn of it has nowhere to go.
+    const seen: number[] = [];
+    let cost: number | null = null;
+    for (let i = 0; i < 6 && kara.conditions.has('wild-surging'); i++) {
+      seen.push(demo.world.tokensOn('kara', 'wild-surge'));
+      const stress = kara.stress.marked;
+      attackWithSelected(demo, husk.id);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      if (!kara.conditions.has('wild-surging')) {
+        // The swing the form dropped on. A critical clears a Stress of its own,
+        // so what the drop cost is the difference net of that.
+        const crit = demo.rolls[demo.rolls.length - 1]?.roll.critical === true;
+        cost = kara.stress.marked - stress + (crit ? 1 : 0);
+      }
+      if (demo.encounter?.outcome === 'ongoing') endTurn(demo);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    }
+    // One through six, and the die never showed a seven to anybody.
+    expect(seen).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(kara.conditions.has('wild-surging')).toBe(false);
+    expect(demo.world.tokensOn('kara', 'wild-surge')).toBe(0);
+    // "You must mark an additional Stress."
+    expect(cost).toBe(1);
+  });
+});
