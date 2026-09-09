@@ -1098,7 +1098,8 @@ function inspectTile(tile: number): Inspection | null {
           ...pools,
           ...(entity.hope === undefined ? [] : [`Hope ${entity.hope.value}/${entity.hope.max}`]),
           `Evasion ${character?.evasion ?? '?'}`,
-          ...[...entity.conditions],
+          // Named, not keyed: an inspect card is read by a player.
+          ...[...entity.conditions].map((c) => demo.world.conditionName(c)),
         ],
       };
     }
@@ -1109,7 +1110,11 @@ function inspectTile(tile: number): Inspection | null {
       name: def?.name ?? entity.definition,
       line: def === undefined ? entity.definition : `Tier ${def.tier} ${def.role}`,
       text: def?.description ?? '',
-      facts: [...pools, ...(def === undefined ? [] : [`Difficulty ${def.difficulty}`]), ...[...entity.conditions]],
+      facts: [
+        ...pools,
+        ...(def === undefined ? [] : [`Difficulty ${def.difficulty}`]),
+        ...[...entity.conditions].map((c) => demo.world.conditionName(c)),
+      ],
     };
   }
   const objectId = objectOn(tile);
