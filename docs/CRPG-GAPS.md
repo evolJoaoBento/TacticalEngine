@@ -510,6 +510,30 @@ on those names, and hovering one leaves the same marker under their tile that th
 Both line factories - `note` and `record` - mark on the way in, so a sentence written tomorrow
 gets it for nothing.
 
+### ~~13. Gridless~~ — the rules and the picture; where a creature stands is open
+
+"Daggerheart wasn't meant to be played on a grid." Two slices closed most of it:
+
+**The rules** (`bandForSpan` in `rules/range.ts`): every distance between two tiles is as the
+crow flies, measured to the nearest tile, through one function - the attack, an area, a script's
+walk, a zone's footprint. A diagonal neighbour is Melee, `diagonalAdjacency` is gone. A move in
+a fight is the SRD's "within Close range": a disc round the mover (`MovementContext.maxSpan`),
+not a count of steps; out of a fight nobody counts at all. The demo walks diagonals
+(`DEMO_MOVEMENT`), as do scripts' `drawIn`/`breakAway` and an adversary's approach.
+
+**The picture** (`render/terrain-mesh.ts`, `render/scene-view.ts`): the ground is one continuous
+mesh per terrain type - a top per tile, a wall only where the ground drops, corner colours the
+mean of the tiles sharing them at that height, so a tint reads as a patch of ground and a step
+keeps its edge. Fills are seamless and bordered (`outline`), reach is lit only in a fight as the
+Close-range disc, and the pointer marks a spot with a disc.
+
+**Still open:** a creature stands at a tile's centre, and a token glides from centre to centre.
+Going further means `EntityState.tile` becoming a world point with the tile derived from it -
+occupancy by radius, line of sight from a point, zones and marks as points, triggers as areas,
+the save format, the editor's placements, and every `tileOf`/`moveTo(tile)` handle the browser
+suite drives. It is the one reading of "gridless" this does not yet do, and the one that touches
+most of the tests; the tiles underneath would stay as the navmesh either way.
+
 ## How to tell whether this is on track
 
 A good check at any point: **could someone build a small BG3-like scenario with this and no

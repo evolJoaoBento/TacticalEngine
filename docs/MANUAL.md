@@ -93,9 +93,17 @@ Q/E) are ignored while a text field has focus; the other keys are not (see Limit
 
 ### Turns: exploring and fighting
 
-Out of combat there are no turns. Click the ground to walk the selected character; the others
-follow in a trail. Walking onto a trigger cell starts that cell's encounter and the mover stops
-on the trigger rather than running past the ambush.
+Out of combat there are no turns. Click the ground to walk the selected character anywhere the
+floor goes - nobody counts steps; the others follow in a trail. Walking onto a trigger cell
+starts that cell's encounter and the mover stops on the trigger rather than running past the
+ambush.
+
+Daggerheart is not played on a grid, and neither is this. Distance is as the crow flies: a
+creature standing corner-to-corner is in Melee like one standing straight ahead, and the range
+bands (Melee, Very Close, Close, Far, Very Far) are circles round whoever is measuring. In a
+fight a character moves within Close range as part of an action - the lit disc with a border
+round whoever is selected - however the floor bends on the way. The tiles are still there
+underneath, for the pathfinder and the editor, but nothing in play reads them.
 
 In a fight there is no initiative. The party acts until an action roll — an attack, a card's
 Spellcast Roll — comes up with Fear or fails, which hands the spotlight to the GM; or until you
