@@ -385,6 +385,11 @@ export interface ReactionOffer {
    * an adversary's d20 is not one, and nothing on a card asks about it.
    */
   roll?: { total: number; outcome: RollOutcome };
+  /**
+   * And the dice behind it, when the moment was a swing: a card that reuses the
+   * attack roll rather than asking what it came to needs the throw itself.
+   */
+  swing?: DualityRoll;
 }
 
 /** The waiting script, when what is waiting is a script and not a defender. */
@@ -2753,6 +2758,8 @@ function offersFor(
     landing?: { held: HeldSwing };
     /** The roll that raised the moment, for a card that asks what it was. */
     roll?: { total: number; outcome: RollOutcome };
+    /** And its dice, for a card that puts the same roll against somebody else. */
+    swing?: DualityRoll;
     /** Who else the moment names, when it names two - see `ReactionOffer`. */
     hit?: readonly string[];
   } = {},
@@ -2781,6 +2788,7 @@ function offersFor(
         counts,
         ...(lastDamage === undefined ? {} : { lastDamage }),
         ...(roll === undefined ? {} : { roll }),
+        ...(left.swing === undefined ? {} : { swing: left.swing }),
       };
       // Free and automatic is not a question: it happens, the way a stat
       // block's own reactions do.
@@ -2889,6 +2897,7 @@ function playReaction(
     counts: offer.counts,
     ...(offer.lastDamage === undefined ? {} : { lastDamage: offer.lastDamage }),
     ...(offer.roll === undefined ? {} : { roll: offer.roll }),
+    ...(offer.swing === undefined ? {} : { swing: offer.swing }),
   });
   const result = runner.run(offer.ability.effects);
   record(demo, result.journal);
@@ -3577,7 +3586,9 @@ function playAttackRiders(
   if (demo.state.entity(defenderId)?.alive !== true) return;
   const triggers: NonNullable<AbilityDef['trigger']>[] = hitPointsMarked > 0 ? ['dealtHit', 'dealtDamage'] : ['dealtHit'];
   const counts = { hitPointsDealt: hitPointsMarked };
-  const said = roll === undefined ? {} : { roll: { total: roll.total, outcome: roll.outcome } };
+  // The summary a `rolled` gate reads, and the dice themselves for a card that
+  // puts the same attack roll against somebody else.
+  const said = roll === undefined ? {} : { roll: { total: roll.total, outcome: roll.outcome }, swing: roll };
   if (demo.state.entity(attackerId)?.faction === 'party') {
     offerReactions(demo, [offersFor(demo, attackerId, triggers, [defenderId], counts, said)]);
     return;

@@ -460,6 +460,63 @@ const RAW: Input[] = [
       },
     ],
   },
+  // The Book of Sitil, one spell of its three.
+  //
+  // "Spend 2 Hope to cast this spell on yourself or an ally within Close range.
+  // The next time the target makes an attack, they can hit an additional target
+  // within range that their attack roll would succeed against. You can only
+  // hold this spell on one creature at a time."
+  //
+  // The other two are text: shifting your appearance to avoid recognition, and
+  // an illusion that holds up until somebody is within Melee of it, are both
+  // about being looked at, which nothing here models.
+  //
+  // "You can only hold this spell on one creature at a time" is the first line
+  // of the script: the mark comes off everybody before it goes on anybody.
+  {
+    id: 'book-of-sitil-echoing-strike',
+    name: 'Echoing Strike',
+    source: card('book-of-sitil'),
+    cost: { hope: 2 },
+    target: { kind: 'ally', range: 'close' },
+    effects: [
+      { kind: 'clearCondition', condition: 'sitil-echo', target: { kind: 'allies' } },
+      { kind: 'log', text: 'The air beside them doubles, and waits.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'sitil-echo', duration: 'scene', target: { kind: 'target' } },
+    ],
+  },
+  // And the swing that spends it. `roll: 'last'` is the card's own words -
+  // "that their attack roll would succeed against" is the roll already made,
+  // laid against a second Difficulty rather than thrown again - and it is the
+  // first time a card has reused a roll made *outside* the runner, which is
+  // what the swing handed to a reaction is for.
+  //
+  // Simplified: "an additional target" is the nearest other adversary the swing
+  // reaches, chosen the way every other automatic pick here is made; and the
+  // mark is spent whether or not the roll beats them, because the attack it was
+  // waiting for has been made.
+  {
+    id: 'book-of-sitil-echo-strikes',
+    name: 'Echoing Strike',
+    source: card('book-of-sitil'),
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    available: { kind: 'hasCondition', condition: 'sitil-echo', of: { kind: 'actor' } },
+    effects: [
+      { kind: 'clearCondition', condition: 'sitil-echo', target: { kind: 'actor' } },
+      {
+        kind: 'check',
+        check: {
+          trait: 'weapon',
+          difficulty: 'target',
+          roll: 'last',
+          targets: { kind: 'adversaries', range: 'far', reach: 'weapon', except: 'target', nearest: 1 },
+          always: [{ kind: 'damage', dice: 'weapon', using: 'proficiency', target: { kind: 'hit' } }],
+        },
+      },
+    ],
+  },
   // "Describe the defensive stance you take and spend a Hope. If an adversary
   // moves within Very Close range, they're pulled into Melee range and
   // Restrained. This condition lasts until you move or fail a roll with Fear,

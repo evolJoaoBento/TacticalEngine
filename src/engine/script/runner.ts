@@ -445,6 +445,16 @@ export interface ScriptRunnerOptions {
    * is asked inside it.
    */
   roll?: { total: number; outcome: RollOutcome };
+  /**
+   * And the whole of that roll, when it was a swing, so a card answering it can
+   * *reuse* it rather than only ask what it was: "they can hit an additional
+   * target that their attack roll would succeed against".
+   *
+   * `roll` above is the summary a `rolled` gate reads; this is the dice. Only a
+   * blow made outside the runner needs it - a script that swings sets its own
+   * last roll as it goes.
+   */
+  swing?: DualityRoll;
 }
 
 /** A list of effects part-way through, and what `hit` meant when it was pushed. */
@@ -518,6 +528,8 @@ export class ScriptRunner {
     this.rollAs = options.rollAs ?? 'party';
     this.answering = options.roll ?? null;
     for (const name of COUNT_NAMES) this.counts[name] = options.counts?.[name] ?? 0;
+    // The dice of the swing that raised this, so `roll: 'last'` reuses them.
+    if (options.swing !== undefined) this.lastRoll = options.swing;
     if (options.lastDamage !== undefined) {
       this.lastDamage = { total: options.lastDamage.total, dice: '', types: options.lastDamage.types ?? [] };
     }

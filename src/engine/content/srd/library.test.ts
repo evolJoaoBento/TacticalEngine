@@ -114,6 +114,7 @@ const EXPECTED_REFUSALS: ReadonlyMap<string, string> = new Map([
   ['arcane-reflection', 'nothing to send back until a blow is arriving, which is the only moment it is offered'],
   ['shark-blood-in-the-water', 'nothing to swim at until somebody nearby is bleeding'],
   ['share-the-burden', 'nobody in the fixture is carrying Stress to take on'],
+  ['book-of-sitil-echo-strikes', 'no attack roll to lay against a second target until a swing has been made'],
 ]);
 
 const husk = (id: string, difficulty: number): AdversaryDef => ({

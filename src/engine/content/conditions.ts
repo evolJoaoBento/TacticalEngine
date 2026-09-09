@@ -91,6 +91,19 @@ export const conditionDefSchema = z.object({
     })
     .optional(),
   /**
+   * An ability this puts in the bearer's hands for as long as it lasts.
+   *
+   * A spell cast *on* somebody - "cast this on yourself or an ally within Close
+   * range; the next time the target makes an attack, they can hit an additional
+   * target" - leaves the ally answering with a card they do not hold and have
+   * never seen. The condition lends it to them: it names an ability in the
+   * project's library, and `heldBy` hands it over beside their own.
+   *
+   * The lent ability is read from the bearer's chair like any other of theirs,
+   * so its `available` gate and its cost are theirs too.
+   */
+  grants: z.object({ ability: contentIdSchema }).optional(),
+  /**
    * What happens to somebody the moment they come to bear this - "all
    * adversaries within Melee range, *or who enter Melee range*, take 2d12+4
    * magic damage and are knocked back".
@@ -213,6 +226,17 @@ const RAW: ConditionInput[] = [
         },
       ],
     },
+  },
+  // The Book of Sitil's second spell, on whoever it was cast on. It carries
+  // nothing while it waits: what it does is written on the reaction that
+  // spends it, which is the only thing that reads this.
+  {
+    id: 'sitil-echo',
+    name: 'Echoing Strike',
+    text: 'The next attack you make also reaches one more target its roll would have beaten.',
+    // The one being helped does not hold the Book: the spell lends them its
+    // second half for as long as the mark is on them.
+    grants: { ability: 'book-of-sitil-echo-strikes' },
   },
   // Hold the Line, on the one holding it. It does nothing by itself: it is the
   // marker that says the stance is still up, so the card that drops it on a

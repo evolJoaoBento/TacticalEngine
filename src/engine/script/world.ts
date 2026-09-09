@@ -758,9 +758,31 @@ export class SceneScriptWorld implements ScriptWorld {
    */
   heldBy(id: string): readonly AbilityDef[] {
     const character = this.characters.get(id);
-    if (character !== undefined) return abilitiesFor(character, this.abilities);
+    const own = character !== undefined ? abilitiesFor(character, this.abilities) : this.abilitiesOfEntity(id);
+    // And whatever a condition has lent them. A spell cast *on* somebody puts
+    // the card's own reaction in their hands for as long as it lasts, which is
+    // the only way an ally who does not hold the card can answer with it.
+    const lent = this.lentTo(id);
+    return lent.length === 0 ? own : [...own, ...lent];
+  }
+
+  private abilitiesOfEntity(id: string): readonly AbilityDef[] {
     const entity = this.state.entity(id);
     return entity === undefined ? [] : this.abilitiesForAdversary(entity.definition);
+  }
+
+  /** The abilities the conditions on a creature grant them, in a stable order. */
+  private lentTo(id: string): AbilityDef[] {
+    const entity = this.state.entity(id);
+    if (entity === undefined || entity.conditions.size === 0) return [];
+    const lent: AbilityDef[] = [];
+    for (const name of [...entity.conditions].sort()) {
+      const granted = this.conditionDefs.get(name)?.grants;
+      if (granted === undefined) continue;
+      const ability = this.abilities.find((a) => a.id === granted.ability);
+      if (ability !== undefined) lent.push(ability);
+    }
+    return lent;
   }
 
   modifiersOf(id: string, scope: 'roll' | 'pool', bindings: TargetBindings = { targets: [], hit: [] }): AbilityModifier[] {

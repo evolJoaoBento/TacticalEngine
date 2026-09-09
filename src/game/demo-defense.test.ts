@@ -5164,3 +5164,112 @@ describe('a stance that holds the ground around it', () => {
     throw new Error('Kara never failed with Fear in eighty tries');
   });
 });
+
+
+/**
+ * The Book of Sitil's echo: the same attack roll, laid against a second
+ * Difficulty rather than thrown again. The first card to reuse a roll made
+ * outside the runner.
+ */
+describe('a swing that reaches one more', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** Kara beside two husks, marked with the echo and about to swing. */
+  const marked = (seed: string): { demo: DemoScene; first: EntityState; second: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    hold(demo, 'kara', ['bare-bones']);
+    const kara = demo.state.entity('kara')!;
+    const first = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    // A second husk stood back up beside the first, so the echo has somewhere
+    // to go: `nearest: 1` picks it and nobody else.
+    const spare = demo.state.entitiesOf('adversary').find((e) => !e.alive)!;
+    spare.alive = true;
+    spare.hitPoints = { max: 40, marked: 0 };
+    first.hitPoints = { max: 40, marked: 0 };
+    const blocked = demo.state.blockedFor(spare.id);
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== first.tile) demo.state.moveEntity(spare.id, tile);
+    });
+    demo.world.applyCondition('kara', 'sitil-echo', 'scene');
+    return { demo, first, second: spare };
+  };
+
+  it('lays the same roll against the next one along, and spends the mark', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, first, second } = marked('sitil-' + seed);
+      if (demo.grid.chebyshevDistance(demo.state.entity('kara')!.tile, second.tile) > 1) continue;
+
+      attackWithSelected(demo, first.id);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const roll = demo.rolls[demo.rolls.length - 1]?.roll;
+      if (roll === undefined || !roll.success) continue;
+
+      // The swing landed on the one it was aimed at, and the echo carried the
+      // same roll onto the other without throwing a second time.
+      expect(first.hitPoints.marked).toBeGreaterThan(0);
+      expect(second.hitPoints.marked).toBeGreaterThan(0);
+      // Spent: the attack it was waiting for has been made.
+      expect(demo.state.entity('kara')!.conditions.has('sitil-echo')).toBe(false);
+      return;
+    }
+    throw new Error('Kara never landed a swing with the echo up, in sixty tries');
+  });
+
+  it('throws no second time: the echo is the same dice', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, first, second } = marked('sitil-same-' + seed);
+      if (demo.grid.chebyshevDistance(demo.state.entity('kara')!.tile, second.tile) > 1) continue;
+
+      const before = demo.rolls.length;
+      attackWithSelected(demo, first.id);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const shown = demo.rolls.slice(before);
+      if (shown.length < 2) continue;
+
+      // The swing, then the echo laying it against the second Difficulty. Two
+      // readings of one throw: the faces are the same, which is the whole of
+      // what "their attack roll would succeed against" asks for.
+      const swing = shown[0]!.roll;
+      const echo = shown[shown.length - 1]!.roll;
+      expect(echo.hope).toBe(swing.hope);
+      expect(echo.fear).toBe(swing.fear);
+      expect(echo.total).toBe(swing.total);
+      return;
+    }
+    throw new Error('the echo never fired in sixty tries');
+  });
+
+  it('is only cast on one creature at a time', () => {
+    const demo = standoff('sitil-one');
+    demo.askDefender = false;
+    hold(demo, 'mira', ['book-of-sitil']);
+    const mira = demo.state.entity('mira')!;
+    mira.hope = { max: 6, value: 6 };
+    const kara = demo.state.entity('kara')!;
+    const finn = demo.state.entity('finn')!;
+    // Both standing close enough to be cast on.
+    const blocked = demo.state.blockedFor('mira');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile)) demo.state.moveEntity('mira', tile);
+    });
+    demo.state.moveEntity('finn', demo.grid.indexOf(demo.grid.xOf(mira.tile), demo.grid.yOf(mira.tile) + 1));
+    demo.party.select('mira');
+
+    expect(useAbility(demo, 'mira', 'book-of-sitil-echoing-strike', ['kara']).status).not.toBe('refused');
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    expect(kara.conditions.has('sitil-echo')).toBe(true);
+
+    expect(useAbility(demo, 'mira', 'book-of-sitil-echoing-strike', ['finn']).status).not.toBe('refused');
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    // The mark moved rather than doubling: "you can only hold this spell on
+    // one creature at a time".
+    expect(finn.conditions.has('sitil-echo')).toBe(true);
+    expect(kara.conditions.has('sitil-echo')).toBe(false);
+  });
+});
