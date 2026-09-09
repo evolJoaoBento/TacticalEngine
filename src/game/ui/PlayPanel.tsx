@@ -110,7 +110,7 @@ export interface PlayPanelProps {
   actorHope: number;
 }
 
-const TONE: Readonly<Record<LogLine['tone'], string>> = {
+export const TONE: Readonly<Record<LogLine['tone'], string>> = {
   narration: '#d8d4c8',
   system: '#8ea3b0',
   hope: '#7fd1ff',

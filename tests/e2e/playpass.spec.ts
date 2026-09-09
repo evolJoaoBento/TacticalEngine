@@ -135,7 +135,9 @@ test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
       before,
       foeWas,
       after: a.hitPoints(foe).marked,
+      foe,
       zones: a.zones(),
+      floaters: a.floaters(),
       mira: a.tileOf('mira'),
       log: a.log().slice(-6).map((l) => l.text),
     };
@@ -153,6 +155,12 @@ test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
   const circle = cast.zones.find((z) => z.name === 'Magic Circle')!;
   expect(circle.tiles).toContain(cast.mira);
   expect(circle.tiles).toContain(cast.foeWas);
+
+  // And the wound rose over the Burrower's head as a number. Read through the
+  // driver in the same tick as the cast: a floater lives 1.4 seconds, and the
+  // screenshot above can take longer than that on the software GL the suite
+  // runs on, so counting the divs afterwards reads as nothing having risen.
+  expect(cast.floaters.map((f) => `${f.id}:${f.text}`)).toContain(`${cast.foe}:-${cast.after - cast.before} HP`);
 });
 
 test('Hold the Line drags in whatever comes close', async ({ page }) => {

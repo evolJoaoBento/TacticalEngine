@@ -294,7 +294,8 @@ export type JournalEntry =
       /** What the targets' own passives took off, added up. */
       reduced?: number;
     }
-  | { kind: 'heal'; amount: number; cleared: number }
+  /** `ids` is who was healed, for a view that shows it over their heads. */
+  | { kind: 'heal'; amount: number; cleared: number; ids?: readonly string[] }
   | { kind: 'encounter'; id: string; change: 'started' | 'ended'; intro?: string }
   | { kind: 'goto'; scene: string }
   | { kind: 'dialogue'; dialogue: string }
@@ -1058,11 +1059,12 @@ export class ScriptRunner {
         // a number of Stress equal to the HP marked" with none marked is a
         // quiet zero, not a refusal.
         if (amount <= 0) return null;
+        const healed = effect.target ?? { kind: 'actor' as const };
         const cleared =
           effect.spread === true
-            ? world.healShared(effect.target ?? { kind: 'actor' }, amount, this.bindings())
-            : world.heal(effect.target ?? { kind: 'actor' }, amount, this.bindings());
-        this.journal.push({ kind: 'heal', amount, cleared });
+            ? world.healShared(healed, amount, this.bindings())
+            : world.heal(healed, amount, this.bindings());
+        this.journal.push({ kind: 'heal', amount, cleared, ids: this.resolve(healed) });
         return null;
       }
       case 'startEncounter':

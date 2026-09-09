@@ -441,6 +441,13 @@ own rather than a recoloured base ring, because tokens share materials. Every SR
 a hero body (`DEMO_MODELS`), so a character added in the panel stands as a person and not as
 the magenta placeholder - which stays what it is, the library's honest "no model for this id".
 
+**Numbers over heads.** A wound, a miss, Stress marked or cleared, Armor cleared, Hope gained, a
+healing, a condition going on - each rises over the creature it happened to, in the log line's
+tone colour (`DemoScene.floaters`, written beside the log line from the same journal entry;
+`main.ts` draws them as positioned divs projected from the tile, so they use the page's font and
+no texture). What happened to the room or the party as a whole stays in the log. A headless run
+never draws them and loses nothing.
+
 **Dice** are read out rather than rolled on screen: "Hope 8 + Fear 7 + 2 = 17 vs 12. Success,
 with Hope." Only the parts that applied are named. That is the part of dice presentation a
 player needs to trust the outcome; a 3D roll is theatre on top of it.

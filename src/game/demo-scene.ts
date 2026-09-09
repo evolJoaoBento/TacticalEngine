@@ -220,6 +220,13 @@ export interface DemoScene {
   dialogues: ReadonlyMap<string, Dialogue>;
   /** The narrative log, oldest first. */
   log: LogLine[];
+  /**
+   * Numbers to float over heads - "-2 HP", "+1 Stress", a condition's name -
+   * written where the log line is and read by a view that draws them where
+   * the creature stands. Cleared by whoever draws them; a headless run lets
+   * them pile up harmlessly.
+   */
+  floaters: Floater[];
   /** Waiting on the player: a script's roll or choice, or a defender's answer. */
   pending: Pending | null;
   /** Set while a fight is running. */
@@ -269,6 +276,13 @@ export interface GmTurn {
 }
 
 /** A line in the narrative pane. */
+/** One number over one head, in the tone the matching log line has. */
+export interface Floater {
+  id: string;
+  text: string;
+  tone: LogTone;
+}
+
 export interface LogLine {
   text: string;
   tone: LogTone;
@@ -1130,6 +1144,7 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
     destination: null,
     dialogues: new Map(project.dialogues.map((d) => [d.id, d])),
     log: [],
+    floaters: [],
     pending: null,
     encounter: null,
     gmTurn: null,
@@ -1502,6 +1517,8 @@ function landPartyAttack(
       : `${character.sheet.name} swings the ${profile.name} at ${nameOf(demo, targetId)} and misses.`,
     'combat',
   );
+  if (outcome.hit) float(demo, targetId, `-${applied.hitPointsMarked} HP`, 'combat');
+  else float(demo, targetId, 'miss', 'system');
   // After the swing is in the log and before `act`, which is where the
   // encounter decides whether anyone is left standing: what answers a wound
   // reads after the wound, and a phase change has to put its next form on the
@@ -4586,6 +4603,55 @@ function speak(demo: DemoScene, talking: PendingDialogue, view: DialogueView): L
   return lines;
 }
 
+/** Float a number over somebody who is on the board. Nobody there, nothing floats. */
+export function float(demo: DemoScene, id: string, text: string, tone: LogTone): void {
+  const entity = demo.state.entity(id);
+  if (entity === undefined || entity.tile === NO_TILE) return;
+  demo.floaters.push({ id, text, tone });
+}
+
+/**
+ * The number a journal entry puts over a head, if it puts one.
+ *
+ * The rule is: what changed a pool, or put a condition on someone, floats;
+ * what happened to the room, the story or the party as a whole stays in the
+ * log. A miss floats too, since the swing was watched.
+ */
+function floatEntry(demo: DemoScene, entry: JournalEntry): void {
+  switch (entry.kind) {
+    case 'attack':
+      if (entry.hit) float(demo, entry.target, `-${entry.hitPointsMarked} HP`, 'combat');
+      else float(demo, entry.target, 'miss', 'system');
+      return;
+    case 'damage':
+      if (entry.targets === undefined) return;
+      // One target reads as the slots it lost; several as the one total that
+      // landed on each, since each marked its own.
+      for (const id of entry.targets) {
+        float(demo, id, entry.targets.length === 1 ? `-${entry.marked} HP` : `${entry.amount} damage`, 'combat');
+      }
+      return;
+    case 'heal':
+      for (const id of entry.ids ?? []) float(demo, id, `+${entry.amount}`, 'hope');
+      return;
+    case 'stress':
+      if (entry.cleared > 0) float(demo, entry.id, `-${entry.cleared} Stress`, 'hope');
+      else float(demo, entry.id, `+${entry.marked} Stress`, 'fear');
+      return;
+    case 'armor':
+      float(demo, entry.id, `+${entry.cleared} Armor`, 'hope');
+      return;
+    case 'condition':
+      if (entry.applied) float(demo, entry.id, demo.world.conditionName(entry.condition), 'combat');
+      return;
+    case 'hope':
+      if (entry.id !== undefined) float(demo, entry.id, `+${entry.gained} Hope`, 'hope');
+      return;
+    default:
+      return;
+  }
+}
+
 /** Put one line in the log, and return it. */
 export function note(demo: DemoScene, text: string, tone: LogTone): LogLine[] {
   // Every line goes through here or through `record`, and both want their
@@ -4650,6 +4716,7 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
     }
     const line = describeEntry(entry, names, quests, who, (c) => demo.world.conditionName(c));
     if (line !== null) lines.push(withMentions(demo, line));
+    floatEntry(demo, entry);
   }
   demo.log.push(...lines);
   // A condition a script put on or took off someone may move a pool's maximum.

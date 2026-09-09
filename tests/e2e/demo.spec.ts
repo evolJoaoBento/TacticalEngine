@@ -107,6 +107,7 @@ declare global {
       takeLevel: (id: string, plan: unknown) => boolean;
       characterLevel: (id: string) => number;
       cursorTile: () => number;
+      floaters: () => { id: string; text: string }[];
       screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
       load: () => boolean;

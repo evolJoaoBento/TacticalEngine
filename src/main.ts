@@ -35,7 +35,7 @@ import {
   updateInteractable,
 } from './editor/session';
 import { EditorPanel } from './editor/ui/EditorPanel';
-import { PlayPanel, type Inspection, type JournalQuest } from './game/ui/PlayPanel';
+import { PlayPanel, TONE, type Inspection, type JournalQuest } from './game/ui/PlayPanel';
 import { PartyHud, type HudMember } from './game/ui/PartyHud';
 import { LevelUpPanel } from './game/ui/LevelUpPanel';
 import { deriveCharacter } from './engine/character/sheet';
@@ -210,6 +210,7 @@ declare global {
       takeLevel: (id: string, plan: unknown) => boolean;
       characterLevel: (id: string) => number;
       cursorTile: () => number;
+      floaters: () => { id: string; text: string }[];
       screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
       load: () => boolean;
@@ -240,6 +241,79 @@ window.addEventListener('error', (e) => errors.push(String(e.message)));
 
 const canvas = document.getElementById('gl') as HTMLCanvasElement;
 const app = document.getElementById('app') as HTMLDivElement;
+
+// ---------------------------------------------------------------------------
+// Numbers over heads
+// ---------------------------------------------------------------------------
+
+/**
+ * A layer of its own over the canvas, under the panels: a floater is a
+ * positioned div rather than a sprite, so it is drawn with the page's font in
+ * the log's tone colour and needs no texture.
+ */
+const floaterLayer = document.createElement('div');
+floaterLayer.id = 'floaters';
+Object.assign(floaterLayer.style, {
+  position: 'absolute',
+  inset: '0',
+  overflow: 'hidden',
+  pointerEvents: 'none',
+  font: '600 15px/1 system-ui, sans-serif',
+});
+document.body.insertBefore(floaterLayer, app);
+
+interface LiveFloater {
+  el: HTMLDivElement;
+  tile: number;
+  /** How many were already rising from this tile when this one was born. */
+  stack: number;
+  born: number;
+}
+const liveFloaters: LiveFloater[] = [];
+const FLOATER_LIFE = 1.4;
+
+/** Take what the game wrote since the last draw and start it rising. */
+function drainFloaters(): void {
+  if (demo.floaters.length === 0) return;
+  const now = performance.now();
+  for (const floater of demo.floaters) {
+    const tile = demo.state.entity(floater.id)?.tile ?? NO_TILE;
+    if (tile === NO_TILE) continue;
+    const stack = liveFloaters.filter((f) => f.tile === tile).length;
+    const el = document.createElement('div');
+    el.dataset['testid'] = 'floater';
+    el.dataset['entity'] = floater.id;
+    el.textContent = floater.text;
+    Object.assign(el.style, {
+      position: 'absolute',
+      transform: 'translate(-50%, -100%)',
+      color: TONE[floater.tone],
+      textShadow: '0 1px 2px #000, 0 0 6px rgba(0,0,0,0.8)',
+      whiteSpace: 'nowrap',
+    });
+    floaterLayer.appendChild(el);
+    liveFloaters.push({ el, tile, stack, born: now });
+  }
+  demo.floaters.length = 0;
+  driveFloaters(now);
+}
+
+/** Move every rising number, and let go of the ones that have risen. */
+function driveFloaters(now: number): void {
+  for (let i = liveFloaters.length - 1; i >= 0; i--) {
+    const f = liveFloaters[i]!;
+    const age = (now - f.born) / 1000;
+    if (age > FLOATER_LIFE) {
+      f.el.remove();
+      liveFloaters.splice(i, 1);
+      continue;
+    }
+    const at = screenPoint(f.tile, 1.3);
+    f.el.style.left = `${at.x}px`;
+    f.el.style.top = `${at.y - age * 36 - f.stack * 18}px`;
+    f.el.style.opacity = `${Math.max(0, 1 - Math.max(0, age - 0.7) / (FLOATER_LIFE - 0.7))}`;
+  }
+}
 const renderer = new WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(1);
 renderer.shadowMap.enabled = true;
@@ -547,6 +621,14 @@ const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight,
  */
 const orbit = new OrbitCamera({ yaw: 0, pitch: 0.85 });
 
+/** Where a point `height` above a tile's surface lands on screen, in CSS pixels. */
+function screenPoint(tile: number, height: number): { x: number; y: number } {
+  const centre = tileCenter(activeGrid, tile, view.layout);
+  const v = new Vector3(centre.x, centre.y + height, centre.z).project(camera);
+  const rect = canvas.getBoundingClientRect();
+  return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height };
+}
+
 /** Look at the whole room. */
 function frameCamera(): void {
   const extent = mapExtent(activeGrid, view.layout);
@@ -661,6 +743,7 @@ function refreshPlay(): void {
   // the party on whatever happens to share those tile indices.
   if (activeScene().id === demo.scene.id) {
     view.syncTokens(demo.state);
+    drainFloaters();
     view.showZones(paintedZones());
     view.showSelection(demo.party.selected === null ? NO_TILE : (demo.state.entity(demo.party.selected)?.tile ?? NO_TILE));
     // A target to pick lights the creatures it could be; otherwise the walk.
@@ -1674,12 +1757,10 @@ const state = {
   characterLevel: (id: string): number => demo.sheets.get(id)?.level ?? 0,
   cursorTile: (): number => view.cursorAt,
   /** Where a tile's centre lands on screen, in CSS pixels from the page origin. */
-  screenOf: (tile: number): { x: number; y: number } => {
-    const centre = tileCenter(activeGrid, tile, view.layout);
-    const v = new Vector3(centre.x, 0, centre.z).project(camera);
-    const rect = canvas.getBoundingClientRect();
-    return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height };
-  },
+  screenOf: (tile: number): { x: number; y: number } => screenPoint(tile, 0),
+  /** The numbers rising over heads right now, and whose. */
+  floaters: (): { id: string; text: string }[] =>
+    liveFloaters.map((f) => ({ id: f.el.dataset['entity'] ?? '', text: f.el.textContent ?? '' })),
   journal: (): { id: string; status: string; done: string[] }[] =>
     journalEntries().map((q) => ({
       id: q.id,
@@ -1757,6 +1838,7 @@ function frame(now = performance.now()): void {
   lastFrame = now;
   steerCamera(dt);
   view.tick(dt);
+  driveFloaters(now);
   if (orbit.update(dt)) applyCamera();
   renderer.render(view.scene, camera);
   state.frames++;
