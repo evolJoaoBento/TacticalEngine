@@ -182,6 +182,57 @@ describe('SceneView', () => {
     view.dispose();
   });
 
+  it('rebinds to another room: the ground, the sun and the overlays change, the view and its caches do not', () => {
+    const { grid, state, view } = setup();
+    view.syncTokens(state);
+    const karaBefore = view.tokenFor('kara')!;
+    view.showHighlights([grid.indexOf(0, 0)]);
+    view.showZones([{ tiles: [grid.indexOf(1, 1)], color: '#ff7a3a' }]);
+    view.showSelection(grid.indexOf(0, 0));
+    view.showCursor(grid.indexOf(1, 0));
+    const resources = view.resources;
+
+    // A bigger room, with Kara arriving on a spawn and the husk left behind.
+    const bigger = makeGrid(['........', '........', '........', '........', '........', '........']);
+    const arrived = new SceneState({ id: 'hall' }, bigger);
+    arrived.addEntity(createPartyEntity('kara', 'sentinel', bigger.indexOf(7, 5)));
+    view.rebind(bigger, { decos: [] });
+
+    expect(view.grid).toBe(bigger);
+    expect(instanceCount(view.terrain)).toBe(bigger.size);
+    expect(view.resources).toBe(resources);
+    expect(view.highlightedCount).toBe(0);
+    expect(view.zonedCount).toBe(0);
+    expect(view.zoneEdgeSegments).toBe(0);
+    expect(view.selectionAt).toBe(-1);
+    expect(view.cursorAt).toBe(-1);
+    // The sun reaches the whole of the new room.
+    expect(view.sunlight!.shadow.camera.right).toBeGreaterThanOrEqual(mapExtent(bigger).radius);
+
+    // Kara's token is the same one, put down where she now is with no walk
+    // from the other room's coordinates; the husk is gone.
+    view.syncTokens(arrived);
+    expect(view.tokenFor('kara')).toBe(karaBefore);
+    expect(view.glidingCount).toBe(0);
+    const at = tileCenter(bigger, bigger.indexOf(7, 5));
+    expect(karaBefore.group.position.x).toBeCloseTo(at.x, 10);
+    expect(view.tokenFor('husk')).toBeUndefined();
+
+    // The overlays grew with the room: every tile can be lit at once.
+    const all = Array.from({ length: bigger.size }, (_, i) => i);
+    view.showHighlights(all);
+    expect(view.highlightedCount).toBe(bigger.size);
+    view.showZones([{ tiles: all, color: '#b46cff' }]);
+    expect(view.zonedCount).toBe(bigger.size);
+
+    // And back to a smaller room, which fits in what there is.
+    view.rebind(grid);
+    expect(instanceCount(view.terrain)).toBe(grid.size);
+    view.showHighlights([0, 1, 2]);
+    expect(view.highlightedCount).toBe(3);
+    view.dispose();
+  });
+
   it('creates one token per entity, standing on its tile', () => {
     const { grid, state, view } = setup();
     view.syncTokens(state);

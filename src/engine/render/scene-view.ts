@@ -134,12 +134,16 @@ const FALLBACK_MODEL: Readonly<Record<string, string>> = {
  */
 export class SceneView {
   readonly scene = new Scene();
-  readonly grid: TileGrid;
+  private _grid: TileGrid;
+  /** The room being drawn. Replaced by `rebind`, never mutated here. */
+  get grid(): TileGrid {
+    return this._grid;
+  }
   readonly layout: TileLayout;
   /** Everything the view owns, so a caller can add it to a scene of their own. */
   readonly root = new Group();
   terrain: TerrainMesh;
-  private readonly terrainOptions: TerrainMeshOptions;
+  private terrainOptions: TerrainMeshOptions;
 
   readonly registry: ModelRegistry;
   readonly resources: ModelResources;
@@ -168,16 +172,16 @@ export class SceneView {
   private lastState: SceneState | null = null;
   /** One mixer per animated clone, advanced by `tick`. */
   private readonly mixers = new Map<Object3D, AnimationMixer>();
-  private readonly highlight: InstancedMesh;
+  private highlight: InstancedMesh;
   private readonly highlightGeometry: BoxGeometry;
   private readonly highlightMaterial: MeshBasicMaterial;
   /** Ground a spell holds: one quad per tile, coloured per zone, under the highlights. */
-  private readonly zoneLayer: InstancedMesh;
+  private zoneLayer: InstancedMesh;
   private readonly zoneMaterial: MeshBasicMaterial;
   private zoneCount = 0;
   /** The edge of each zone, so a footprint reads as a shape and not as loose tiles. */
-  private readonly zoneEdges: LineSegments;
-  private readonly zoneEdgeGeometry: BufferGeometry;
+  private zoneEdges: LineSegments;
+  private zoneEdgeGeometry: BufferGeometry;
   private readonly zoneEdgeMaterial: LineBasicMaterial;
   private zoneEdgeCount = 0;
   /** The tile under the pointer: one quad, a different colour, or hidden. */
@@ -192,13 +196,14 @@ export class SceneView {
   private breath = 0;
   /** The sun, kept so its shadow map can be let go with the rest. */
   private sun: DirectionalLight | null = null;
-  private readonly maxHighlights: number;
+  /** How many tiles the overlay layers have room for; grows with the biggest room seen. */
+  private maxHighlights: number;
   private highlightCount = 0;
   private readonly dummy = new Object3D();
   private readonly factionColors: Readonly<Record<string, string>>;
 
   constructor(grid: TileGrid, options: SceneViewOptions = {}) {
-    this.grid = grid;
+    this._grid = grid;
     this.layout = options.layout ?? DEFAULT_LAYOUT;
     this.factionColors = options.factionColors ?? DEFAULT_FACTION_COLORS;
     this.maxHighlights = options.maxHighlights ?? grid.size;
@@ -233,16 +238,6 @@ export class SceneView {
       opacity: 0.22,
       depthWrite: false,
     });
-    this.highlight = new InstancedMesh(
-      this.highlightGeometry,
-      this.highlightMaterial,
-      Math.max(1, this.maxHighlights),
-    );
-    this.highlight.name = 'highlights';
-    this.highlight.count = 0;
-    this.highlight.frustumCulled = false;
-    this.root.add(this.highlight);
-
     // A zone is painted below a highlight, so a walk previewed across a wall
     // of flame shows both: the ground it is, and the ground it could be.
     this.zoneMaterial = new MeshBasicMaterial({
@@ -251,32 +246,9 @@ export class SceneView {
       opacity: 0.38,
       depthWrite: false,
     });
-    this.zoneLayer = new InstancedMesh(this.highlightGeometry, this.zoneMaterial, Math.max(1, this.maxHighlights));
-    this.zoneLayer.name = 'zones';
-    this.zoneLayer.count = 0;
-    this.zoneLayer.frustumCulled = false;
-    this.root.add(this.zoneLayer);
-
-    // Room for four edges on every tile, allocated once; `showZones` writes
-    // into it and sets the draw range, the way the instanced layers do.
-    const edgeCapacity = Math.max(1, this.maxHighlights) * 4 * 2;
-    this.zoneEdgeGeometry = new BufferGeometry();
-    this.zoneEdgeGeometry.setAttribute('position', new BufferAttribute(new Float32Array(edgeCapacity * 3), 3));
-    this.zoneEdgeGeometry.setAttribute('color', new BufferAttribute(new Float32Array(edgeCapacity * 3), 3));
-    this.zoneEdgeGeometry.setDrawRange(0, 0);
     this.zoneEdgeMaterial = new LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false });
-    this.zoneEdges = new LineSegments(this.zoneEdgeGeometry, this.zoneEdgeMaterial);
-    this.zoneEdges.name = 'zone-edges';
-    this.zoneEdges.frustumCulled = false;
-    this.root.add(this.zoneEdges);
-
-    // The overlays are all transparent and none writes depth, so their order
-    // is decided here rather than by whichever happens to be nearer the
-    // camera: ground first, the edge over it, then the walk, the pointer,
-    // and the ring round the selected on top of everything.
-    this.zoneLayer.renderOrder = 1;
-    this.zoneEdges.renderOrder = 2;
-    this.highlight.renderOrder = 3;
+    ({ highlight: this.highlight, zoneLayer: this.zoneLayer, zoneEdges: this.zoneEdges, zoneEdgeGeometry: this.zoneEdgeGeometry } =
+      this.buildOverlays(this.maxHighlights));
 
     this.cursorMaterial = new MeshBasicMaterial({
       color: new Color('#ffe08a'),
@@ -310,6 +282,93 @@ export class SceneView {
   }
 
   /**
+   * The overlay layers, sized for `capacity` tiles: the walk highlights, the
+   * zone ground and the zone edges. Built once here and again by `rebind`
+   * when a bigger room arrives; the materials and the quad geometry are the
+   * view's own and outlive them.
+   */
+  private buildOverlays(capacity: number): {
+    highlight: InstancedMesh;
+    zoneLayer: InstancedMesh;
+    zoneEdges: LineSegments;
+    zoneEdgeGeometry: BufferGeometry;
+  } {
+    const room = Math.max(1, capacity);
+    const highlight = new InstancedMesh(this.highlightGeometry, this.highlightMaterial, room);
+    highlight.name = 'highlights';
+    highlight.count = 0;
+    highlight.frustumCulled = false;
+
+    const zoneLayer = new InstancedMesh(this.highlightGeometry, this.zoneMaterial, room);
+    zoneLayer.name = 'zones';
+    zoneLayer.count = 0;
+    zoneLayer.frustumCulled = false;
+
+    // Room for four edges on every tile, allocated once; `showZones` writes
+    // into it and sets the draw range, the way the instanced layers do.
+    const edgeCapacity = room * 4 * 2;
+    const zoneEdgeGeometry = new BufferGeometry();
+    zoneEdgeGeometry.setAttribute('position', new BufferAttribute(new Float32Array(edgeCapacity * 3), 3));
+    zoneEdgeGeometry.setAttribute('color', new BufferAttribute(new Float32Array(edgeCapacity * 3), 3));
+    zoneEdgeGeometry.setDrawRange(0, 0);
+    const zoneEdges = new LineSegments(zoneEdgeGeometry, this.zoneEdgeMaterial);
+    zoneEdges.name = 'zone-edges';
+    zoneEdges.frustumCulled = false;
+
+    // The overlays are all transparent and none writes depth, so their order
+    // is decided here rather than by whichever happens to be nearer the
+    // camera: ground first, the edge over it, then the walk, the pointer,
+    // and the ring round the selected on top of everything.
+    zoneLayer.renderOrder = 1;
+    zoneEdges.renderOrder = 2;
+    highlight.renderOrder = 3;
+    this.root.add(zoneLayer, zoneEdges, highlight);
+    return { highlight, zoneLayer, zoneEdges, zoneEdgeGeometry };
+  }
+
+  /**
+   * Draw another room with this view.
+   *
+   * Travelling used to build a whole new view - lights, caches, every model
+   * again - and let the old one go. What a room actually changes is the
+   * ground, the scenery, and where the sun has to reach: the terrain is
+   * rebuilt for the new grid, the decos replaced, the sun refitted, the
+   * overlays cleared (and grown, if this room is the biggest yet). Tokens
+   * are kept for whoever is still there - the party walked in - but forget
+   * where they were drawn, so the next `syncTokens` puts them down outright
+   * rather than gliding them in from the other room's coordinates.
+   */
+  rebind(grid: TileGrid, options: { tints?: readonly string[]; decos?: readonly Deco[] } = {}): void {
+    this.settle();
+    this._grid = grid;
+    this.terrainOptions = { ...this.terrainOptions, ...(options.tints === undefined ? {} : { tints: options.tints }) };
+    this.rebuildTerrain(options.tints);
+
+    if (grid.size > this.maxHighlights) {
+      this.root.remove(this.highlight, this.zoneLayer, this.zoneEdges);
+      this.highlight.dispose();
+      this.zoneLayer.dispose();
+      this.zoneEdgeGeometry.dispose();
+      this.maxHighlights = grid.size;
+      ({ highlight: this.highlight, zoneLayer: this.zoneLayer, zoneEdges: this.zoneEdges, zoneEdgeGeometry: this.zoneEdgeGeometry } =
+        this.buildOverlays(this.maxHighlights));
+      this.highlightCount = 0;
+      this.zoneCount = 0;
+      this.zoneEdgeCount = 0;
+    } else {
+      this.clearHighlights();
+      this.clearZones();
+    }
+    this.showCursor(NO_TILE);
+    this.showSelection(NO_TILE);
+    this.fitSun();
+
+    this.tokenTiles.clear();
+    this.tokenStanding.clear();
+    this.setDecos(options.decos ?? []);
+  }
+
+  /**
    * The light rig: a sky over the room, a little ambient so nothing is black,
    * and a sun that casts. The shadow is the depth cue that makes a wall read
    * as standing on the floor rather than painted on it, and a token as
@@ -321,22 +380,7 @@ export class SceneView {
     this.scene.add(new HemisphereLight(new Color('#b9c7e0'), new Color('#2b2a26'), 0.55));
 
     const sun = new DirectionalLight(0xffffff, 1.35);
-    // Low enough that a wall throws a shadow you can see, high enough that
-    // the shadow does not cover the tile beside it: about fifty degrees up.
-    sun.position.set(
-      this.grid.width * 0.55,
-      Math.max(this.grid.width, this.grid.height) * 0.6,
-      this.grid.height * 0.5,
-    );
     sun.castShadow = true;
-    const extent = mapExtent(this.grid, this.layout);
-    const reach = extent.radius * 1.1;
-    sun.shadow.camera.left = -reach;
-    sun.shadow.camera.right = reach;
-    sun.shadow.camera.top = reach;
-    sun.shadow.camera.bottom = -reach;
-    sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far = extent.radius * 6;
     // 1024 is soft enough on a 22-tile room, and half the cost of the next
     // size up on the software GL the browser suite runs on.
     sun.shadow.mapSize.set(1024, 1024);
@@ -347,6 +391,29 @@ export class SceneView {
     this.scene.add(sun);
     // The light aims at its target, which lives at the origin unless it is in the scene.
     this.scene.add(sun.target);
+    this.fitSun();
+  }
+
+  /** Put the sun where this room wants it, with its shadow camera round the whole room. */
+  private fitSun(): void {
+    const sun = this.sun;
+    if (sun === null) return;
+    // Low enough that a wall throws a shadow you can see, high enough that
+    // the shadow does not cover the tile beside it: about fifty degrees up.
+    sun.position.set(
+      this.grid.width * 0.55,
+      Math.max(this.grid.width, this.grid.height) * 0.6,
+      this.grid.height * 0.5,
+    );
+    const extent = mapExtent(this.grid, this.layout);
+    const reach = extent.radius * 1.1;
+    sun.shadow.camera.left = -reach;
+    sun.shadow.camera.right = reach;
+    sun.shadow.camera.top = reach;
+    sun.shadow.camera.bottom = -reach;
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = extent.radius * 6;
+    sun.shadow.camera.updateProjectionMatrix();
   }
 
   /** The sun, for a test of the rig or a caller that wants to move it. */

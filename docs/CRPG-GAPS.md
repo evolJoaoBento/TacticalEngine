@@ -320,8 +320,14 @@ The demo ships two rooms: the imported vault, and a hand-authored pit whose stro
 for the word the Warden gives up. That is the two halves meeting — a conversation in one room
 decides whether a chest opens in another.
 
-**Still open:** arriving rebuilds the whole `SceneView` rather than diffing it, which is fine
-for two rooms and would not be for fifty.
+Arriving **rebinds** the one `SceneView` (`SceneView.rebind`) rather than building another: the
+terrain is rebuilt for the new grid, the decos replaced, the sun refitted to the room's extent,
+the overlays cleared (and grown once, if the room is the biggest yet), while the lights, the
+geometry and material caches, the asset listener and the party's own tokens carry over - a token
+forgets where it was drawn, so it is put down on its spawn rather than glided in from the other
+room's coordinates. Fifty rooms cost fifty terrain rebuilds and nothing else.
+
+**Still open:** nothing.
 
 ### ~~8. The editor~~ — first pass done
 

@@ -362,7 +362,7 @@ const assets = new AssetLibrary(
   demo.project.assets,
 );
 
-let view = new SceneView(demo.grid, {
+const view = new SceneView(demo.grid, {
   tints: demo.scene.tints,
   modelForEntity: (entity) => DEMO_MODELS[entity.definition] ?? entity.definition,
   assets,
@@ -742,13 +742,9 @@ function rebindScene(): void {
   // editing one room cannot corrupt the one being played.
   activeGrid = scene.id === demo.scene.id ? demo.grid : gridFromScene(scene).grid;
 
-  view.dispose();
-  view = new SceneView(activeGrid, {
-    tints: scene.tints,
-    modelForEntity: (entity) => DEMO_MODELS[entity.definition] ?? entity.definition,
-    assets,
-  });
-  view.setDecos(scene.decos);
+  // The same view, pointed at the other room: its caches, its lights and the
+  // party's own tokens carry over; the ground and the scenery do not.
+  view.rebind(activeGrid, { tints: scene.tints, decos: scene.decos });
   frameCamera();
 }
 
