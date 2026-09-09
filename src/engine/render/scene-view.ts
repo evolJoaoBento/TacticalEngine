@@ -601,6 +601,11 @@ export class SceneView {
     return this.glides.size;
   }
 
+  /** Whether this one is on its way somewhere. */
+  isGliding(id: string): boolean {
+    return this.glides.has(id);
+  }
+
   /**
    * Send a token from one tile to another: along the path when there is one
    * and it joins the two, straight otherwise. A walk takes a fixed time per

@@ -100,6 +100,23 @@ export class OrbitCamera {
     this.goal.target = { ...target };
   }
 
+  /**
+   * Keep a point within `slack` of the target, along the ground, moving the
+   * target as little as that takes and not at all when the point is already
+   * close: a walking token stays in frame without the camera chasing every
+   * step. Angle and distance are untouched. Returns whether it moved.
+   */
+  follow(point: { x: number; z: number }, slack: number): boolean {
+    const dx = point.x - this.goal.target.x;
+    const dz = point.z - this.goal.target.z;
+    const away = Math.hypot(dx, dz);
+    if (away <= slack || away < 1e-9) return false;
+    const pull = (away - slack) / away;
+    this.goal.target.x += dx * pull;
+    this.goal.target.z += dz * pull;
+    return true;
+  }
+
   /** Jump the drawn pose to the goal, skipping the easing. */
   snap(): void {
     Object.assign(this.pose, this.goal, { target: { ...this.goal.target } });

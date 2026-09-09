@@ -285,10 +285,12 @@ test('a walked token walks, and is standing on the tile when it has', async ({ p
     a.setDiceSpeed(0);
     const me = a.selected()!;
     const from = a.tileOf(me);
+    // Look somewhere far from the walk, so following has something to do.
+    const before = a.camera();
     const tiles = a.reachable().filter((t) => t !== from);
     const far = tiles.reduce((x, y) => (Math.abs(y - from) > Math.abs(x - from) ? y : x));
     const moved = a.moveTo(far);
-    return { me, from, to: far, moved, tile: a.tileOf(me), gliding: a.gliding() };
+    return { me, from, to: far, moved, tile: a.tileOf(me), gliding: a.gliding(), before };
   });
   console.log('WALKED:', JSON.stringify(walked));
   expect(walked.moved).toBe(true);
@@ -298,5 +300,19 @@ test('a walked token walks, and is standing on the tile when it has', async ({ p
 
   await page.screenshot({ path: 'test-results/walk-mid.png' });
   await page.waitForFunction(() => window.__polyheart!.gliding() === 0, null, { timeout: 5_000 });
+
+  // The camera kept them in frame: its target ends within a third of its
+  // distance of where they now stand, and the angle is untouched.
+  const after = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    return { camera: a.camera(), at: a.screenOf(a.tileOf(a.selected()!)), size: { w: window.innerWidth, h: window.innerHeight } };
+  });
+  console.log('CAMERA:', JSON.stringify({ before: walked.before, after: after.camera, at: after.at }));
+  expect(after.camera.yaw).toBeCloseTo(walked.before.yaw, 6);
+  expect(after.camera.distance).toBeCloseTo(walked.before.distance, 6);
+  expect(after.at.x).toBeGreaterThan(0);
+  expect(after.at.x).toBeLessThan(after.size.w);
+  expect(after.at.y).toBeGreaterThan(0);
+  expect(after.at.y).toBeLessThan(after.size.h);
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });

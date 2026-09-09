@@ -1410,6 +1410,22 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('keyup', (event) => held.delete(event.key.toLowerCase()));
 window.addEventListener('blur', () => held.clear());
 
+/**
+ * Keep whoever is selected in frame while their token walks.
+ *
+ * Only while it walks: the camera does not chase a click on a card, and it
+ * does not fight the player - a drag or a held key is theirs, and a walk that
+ * ends within a third of the view's distance of the target moves nothing.
+ */
+function followSelected(): void {
+  if (mode !== 'play' || drag !== null || held.size > 0) return;
+  const id = demo.party.selected;
+  if (id === null || !view.isGliding(id)) return;
+  const token = view.tokenFor(id);
+  if (token === undefined) return;
+  orbit.follow(token.group.position, orbit.goal.distance * 0.35);
+}
+
 function steerCamera(dt: number): void {
   if (mode !== 'play') return;
   const speed = orbit.goal.distance * 0.9 * dt;
@@ -1849,6 +1865,7 @@ function frame(now = performance.now()): void {
   lastFrame = now;
   steerCamera(dt);
   view.tick(dt);
+  followSelected();
   driveFloaters(now);
   if (orbit.update(dt)) applyCamera();
   renderer.render(view.scene, camera);

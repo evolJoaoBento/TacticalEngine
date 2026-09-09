@@ -433,7 +433,10 @@ yaw, pitch, distance — with clamps, screen-relative pan and easing, tested in 
 owns only the events: left drag orbits, right drag pans, the wheel zooms, WASD/arrows slide,
 Q/E turn, F frames the selected character, Home frames the room. A press that moves under six
 pixels is a click, the line the prototype drew with `OrbitControls`; here it is ours and tested
-end to end.
+end to end. The camera **follows a walk**: while the selected character's token is on its way,
+the target is pulled just far enough to keep them within a third of the view's distance of it
+(`OrbitCamera.follow`) - angle and zoom untouched, nothing moved for a short walk, and never
+while the player is dragging or holding a key.
 
 A **HUD** (`game/ui/PartyHud.tsx`) shows each party member as pips — every Hit Point, Stress and
 Armor Slot a box, filled when marked, the way the character sheet looks — plus Hope, conditions,

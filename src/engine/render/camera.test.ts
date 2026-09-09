@@ -82,6 +82,29 @@ describe('framing', () => {
   });
 });
 
+describe('following', () => {
+  it('leaves the target alone while the point is within the slack', () => {
+    const cam = new OrbitCamera({ target: { x: 0, y: 0, z: 0 } });
+    expect(cam.follow({ x: 2, z: 1 }, 3)).toBe(false);
+    expect(cam.goal.target).toEqual({ x: 0, y: 0, z: 0 });
+  });
+
+  it('pulls the target just far enough to bring the point back within it', () => {
+    const cam = new OrbitCamera({ target: { x: 0, y: 0, z: 0 }, yaw: 0.7, distance: 12 });
+    expect(cam.follow({ x: 10, z: 0 }, 3)).toBe(true);
+    expect(cam.goal.target.x).toBeCloseTo(7, 6);
+    expect(cam.goal.target.z).toBeCloseTo(0, 6);
+    expect(cam.goal.target.y).toBe(0);
+    // Angle and distance are the player's and stay theirs.
+    expect(cam.goal.yaw).toBe(0.7);
+    expect(cam.goal.distance).toBe(12);
+    // Along the line, whichever way the point is.
+    expect(cam.follow({ x: 7, z: -8 }, 3)).toBe(true);
+    expect(cam.goal.target.x).toBeCloseTo(7, 6);
+    expect(cam.goal.target.z).toBeCloseTo(-5, 6);
+  });
+});
+
 describe('easing', () => {
   it('moves toward the goal and settles exactly', () => {
     const cam = new OrbitCamera({ distance: 10 });
