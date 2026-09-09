@@ -26,6 +26,16 @@ describe('what floats', () => {
     expect(demo.log.at(-1)?.tone).toBe('combat');
   });
 
+  it('lands on the token too: a hit is a flinch to draw, a miss is not', () => {
+    const demo = scene();
+    const husk = demo.state.entitiesOf('adversary')[0]!.id;
+    record(demo, [
+      { kind: 'attack', attacker: 'kara', target: husk, weapon: 'broadsword', hit: true, critical: false, hitPointsMarked: 2 },
+      { kind: 'attack', attacker: 'finn', target: husk, weapon: 'shortbow', hit: false, critical: false, hitPointsMarked: 0 },
+    ]);
+    expect(demo.motions).toEqual([{ id: husk, struck: true }]);
+  });
+
   it('is a miss, since the swing was watched', () => {
     const demo = scene();
     const husk = demo.state.entitiesOf('adversary')[0]!.id;

@@ -51,6 +51,14 @@ interface Glide {
   to: number;
 }
 
+/** A token taking a blow, going down, or getting up. */
+interface Reaction {
+  token: BuiltModel;
+  kind: 'flinch' | 'fall' | 'rise';
+  elapsed: number;
+  duration: number;
+}
+
 /** Just the faction ring, to put under an imported model. */
 const RING_ONLY: ProceduralModelSpec = {
   id: 'ring',
@@ -139,6 +147,10 @@ export class SceneView {
   /** Paths and throws registered for the next `syncTokens`, by entity. */
   private readonly pendingPaths = new Map<string, readonly number[]>();
   private readonly pendingThrows = new Set<string>();
+  /** Whether each token was last drawn standing, so a fall is a change to animate. */
+  private readonly tokenStanding = new Map<string, boolean>();
+  /** Flinches and falls in progress, by entity. */
+  private readonly reactions = new Map<string, Reaction>();
   private readonly decos: Group[] = [];
   private readonly modelForEntity: (entity: EntityState) => string;
   private readonly assets: AssetLibrary | null;
@@ -345,6 +357,18 @@ export class SceneView {
         this.placeToken(token, entity);
       }
       this.tokenTiles.set(entity.id, entity.tile);
+      // Standing to lying, or back, is a fall or a rise; a token first seen
+      // lying is simply lying.
+      const stood = this.tokenStanding.get(entity.id);
+      if (stood !== undefined && stood !== entity.alive) {
+        if (options.snap !== true && this.grid.isTile(entity.tile)) {
+          this.startReaction(entity.id, token, entity.alive ? 'rise' : 'fall');
+        } else {
+          this.reactions.delete(entity.id);
+          token.group.rotation.x = entity.alive ? 0 : -Math.PI / 2;
+        }
+      }
+      this.tokenStanding.set(entity.id, entity.alive);
     }
 
     for (const [id, token] of this.tokens) {
@@ -353,9 +377,65 @@ export class SceneView {
       this.tokens.delete(id);
       this.tokenModels.delete(id);
       this.tokenTiles.delete(id);
+      this.tokenStanding.delete(id);
       this.glides.delete(id);
+      this.reactions.delete(id);
     }
     this.lastState = state;
+  }
+
+  /** A blow landed on this creature: its token takes it, now. */
+  flinch(id: string): void {
+    const token = this.tokens.get(id);
+    if (token === undefined || !token.group.visible) return;
+    this.startReaction(id, token, 'flinch');
+  }
+
+  /** How many tokens are flinching, falling or getting up. */
+  get reactingCount(): number {
+    return this.reactions.size;
+  }
+
+  private startReaction(id: string, token: BuiltModel, kind: Reaction['kind']): void {
+    // A fall or a rise replaces a flinch, never the other way round: the body
+    // going down is the thing to see.
+    const current = this.reactions.get(id);
+    if (current !== undefined && current.kind !== 'flinch' && kind === 'flinch') return;
+    this.reactions.set(id, { token, kind, elapsed: 0, duration: kind === 'flinch' ? 0.35 : 0.45 });
+  }
+
+  /** Move every reaction on by `dt` seconds. */
+  private advanceReactions(dt: number): void {
+    for (const [id, reaction] of this.reactions) {
+      reaction.elapsed += dt;
+      const t = Math.min(1, reaction.elapsed / reaction.duration);
+      const group = reaction.token.group;
+      if (reaction.kind === 'flinch') {
+        // A quick swell and a lean, both gone by the end.
+        const pulse = Math.sin(Math.PI * t);
+        const swell = 1 + 0.18 * pulse;
+        group.scale.set(swell, 1 + 0.08 * pulse, swell);
+        group.rotation.z = 0.22 * Math.sin(2 * Math.PI * t) * (1 - t);
+      } else {
+        // A body drops: slow to start, quick to land. Getting up is the reverse.
+        const eased = t * t;
+        group.rotation.x = reaction.kind === 'fall' ? -eased * (Math.PI / 2) : -(1 - eased) * (Math.PI / 2);
+      }
+      if (t >= 1) {
+        this.finishReaction(reaction);
+        this.reactions.delete(id);
+      }
+    }
+  }
+
+  private finishReaction(reaction: Reaction): void {
+    const group = reaction.token.group;
+    if (reaction.kind === 'flinch') {
+      group.scale.set(1, 1, 1);
+      group.rotation.z = 0;
+    } else {
+      group.rotation.x = reaction.kind === 'fall' ? -Math.PI / 2 : 0;
+    }
   }
 
   /**
@@ -372,12 +452,16 @@ export class SceneView {
     this.pendingThrows.add(id);
   }
 
-  /** Put every moving token where it is going, now. */
+  /** Put every moving token where it is going, and every reacting one at rest, now. */
   settle(): void {
     for (const [id, glide] of this.glides) {
       const end = glide.points[glide.points.length - 1]!;
       glide.token.group.position.set(end.x, end.y, end.z);
       this.glides.delete(id);
+    }
+    for (const [id, reaction] of this.reactions) {
+      this.finishReaction(reaction);
+      this.reactions.delete(id);
     }
   }
 
@@ -506,6 +590,7 @@ export class SceneView {
   /** Advance every playing clip, every moving token, and the selection's breathing. `dt` in seconds. */
   tick(dt: number): void {
     this.advanceGlides(dt);
+    this.advanceReactions(dt);
     if (this.selection.visible) {
       // The ring marks the selected creature's tile, and while their token is
       // still walking there it walks with the token rather than waiting ahead.
@@ -559,8 +644,13 @@ export class SceneView {
       return false;
     }
     group.visible = true;
-    // A fallen creature lies down rather than vanishing; the engine keeps its body.
-    group.rotation.set(entity.alive ? 0 : -Math.PI / 2, 0, 0);
+    // A fallen creature lies down rather than vanishing; the engine keeps its
+    // body. A change from what was drawn is animated by `syncTokens`, which
+    // reads the standing map after this; here only a token with no history,
+    // or one whose fall is not in progress, is posed outright.
+    if (!this.reactions.has(entity.id) && this.tokenStanding.get(entity.id) === undefined) {
+      group.rotation.set(entity.alive ? 0 : -Math.PI / 2, 0, 0);
+    }
     return true;
   }
 
@@ -740,7 +830,9 @@ export class SceneView {
     this.sun?.shadow.dispose();
     this.tokens.clear();
     this.tokenTiles.clear();
+    this.tokenStanding.clear();
     this.glides.clear();
+    this.reactions.clear();
     this.decos.length = 0;
     // Shared caches outlive a scene unless this view created them.
     if (this.ownsResources) this.resources.dispose();

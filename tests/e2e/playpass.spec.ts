@@ -138,6 +138,7 @@ test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
       foe,
       zones: a.zones(),
       floaters: a.floaters(),
+      reacting: a.reacting(),
       mira: a.tileOf('mira'),
       log: a.log().slice(-6).map((l) => l.text),
     };
@@ -161,6 +162,8 @@ test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
   // screenshot above can take longer than that on the software GL the suite
   // runs on, so counting the divs afterwards reads as nothing having risen.
   expect(cast.floaters.map((f) => `${f.id}:${f.text}`)).toContain(`${cast.foe}:-${cast.after - cast.before} HP`);
+  // And the Burrower's token took the blow.
+  expect(cast.reacting, 'a token is flinching').toBeGreaterThan(0);
 });
 
 test('Hold the Line drags in whatever comes close', async ({ page }) => {

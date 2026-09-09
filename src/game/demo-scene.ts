@@ -282,12 +282,14 @@ export interface GmTurn {
 }
 
 /** A line in the narrative pane. */
-/** How somebody got where they are: along a path, or flung. */
+/** How somebody got where they are: along a path, or flung - or that a blow landed on them. */
 export interface Motion {
   id: string;
   /** The tiles walked, the first the one left. */
   path?: readonly number[];
   thrown?: true;
+  /** A wound landed; the token takes it. */
+  struck?: true;
 }
 
 /** One number over one head, in the tone the matching log line has. */
@@ -1533,8 +1535,10 @@ function landPartyAttack(
       : `${character.sheet.name} swings the ${profile.name} at ${nameOf(demo, targetId)} and misses.`,
     'combat',
   );
-  if (outcome.hit) float(demo, targetId, `-${applied.hitPointsMarked} HP`, 'combat');
-  else float(demo, targetId, 'miss', 'system');
+  if (outcome.hit) {
+    float(demo, targetId, `-${applied.hitPointsMarked} HP`, 'combat');
+    struck(demo, targetId);
+  } else float(demo, targetId, 'miss', 'system');
   // After the swing is in the log and before `act`, which is where the
   // encounter decides whether anyone is left standing: what answers a wound
   // reads after the wound, and a phase change has to put its next form on the
@@ -4622,6 +4626,13 @@ function speak(demo: DemoScene, talking: PendingDialogue, view: DialogueView): L
   return lines;
 }
 
+/** A blow landed on somebody on the board, for a token that flinches. */
+export function struck(demo: DemoScene, id: string): void {
+  const entity = demo.state.entity(id);
+  if (entity === undefined || entity.tile === NO_TILE) return;
+  demo.motions.push({ id, struck: true });
+}
+
 /** Float a number over somebody who is on the board. Nobody there, nothing floats. */
 export function float(demo: DemoScene, id: string, text: string, tone: LogTone): void {
   const entity = demo.state.entity(id);
@@ -4639,8 +4650,10 @@ export function float(demo: DemoScene, id: string, text: string, tone: LogTone):
 function floatEntry(demo: DemoScene, entry: JournalEntry): void {
   switch (entry.kind) {
     case 'attack':
-      if (entry.hit) float(demo, entry.target, `-${entry.hitPointsMarked} HP`, 'combat');
-      else float(demo, entry.target, 'miss', 'system');
+      if (entry.hit) {
+        float(demo, entry.target, `-${entry.hitPointsMarked} HP`, 'combat');
+        struck(demo, entry.target);
+      } else float(demo, entry.target, 'miss', 'system');
       return;
     case 'damage':
       if (entry.targets === undefined) return;
@@ -4648,6 +4661,7 @@ function floatEntry(demo: DemoScene, entry: JournalEntry): void {
       // landed on each, since each marked its own.
       for (const id of entry.targets) {
         float(demo, id, entry.targets.length === 1 ? `-${entry.marked} HP` : `${entry.amount} damage`, 'combat');
+        struck(demo, id);
       }
       return;
     case 'heal':

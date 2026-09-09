@@ -403,6 +403,9 @@ from the test fixtures, draws it where a prop names it, and finds it in the expo
 An imported model with clips plays its first one on a loop (an idle, in every sample set
 worth the name); `SceneView.tick` drives the mixers from the frame loop.
 
+The procedural tokens walk, flinch, fall and rise (above); an imported glTF plays its first clip
+on a loop and gets the same glides and falls as a whole.
+
 **Still open:** choosing clips per state (walk, attack, fallen) is content's job and there is no
 field for it yet; textures come with the file but nothing authors materials; there is no file
 picker — a model is a URL the page can reach.
@@ -455,6 +458,13 @@ thrown is flung in a quick arc. The engine's truth never waits: `state` already 
 there, `syncTokens` starts the glide and `tick` finishes it, `settle()` ends every glide now, and
 `syncTokens(state, { snap: true })` puts a token straight down. A view rebuilt for another room
 starts with nothing in flight.
+
+**Tokens take it.** A blow that lands makes its token flinch - a quick swell and a lean, gone in a
+third of a second (`Motion.struck`, written beside the wound's floater; `SceneView.flinch`). A
+creature found fallen since it was last drawn falls - slow to start, quick to land - and one found
+standing again gets up the same way round; a fall wins over a flinch landing at the same moment,
+and a load (`snap`) poses the body outright. The old instant -90° rotation is what a token first
+seen lying still gets.
 
 **Dice** are read out rather than rolled on screen: "Hope 8 + Fear 7 + 2 = 17 vs 12. Success,
 with Hope." Only the parts that applied are named. That is the part of dice presentation a

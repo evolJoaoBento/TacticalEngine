@@ -213,6 +213,8 @@ declare global {
       floaters: () => { id: string; text: string }[];
       /** How many tokens are still walking to where their creature already is. */
       gliding: () => number;
+      /** How many tokens are flinching, falling or getting up. */
+      reacting: () => number;
       screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
       load: () => boolean;
@@ -279,6 +281,7 @@ function drainMotions(): void {
   for (const motion of demo.motions) {
     if (motion.path !== undefined) view.walk(motion.id, motion.path);
     else if (motion.thrown === true) view.throwBack(motion.id);
+    else if (motion.struck === true) view.flinch(motion.id);
   }
   demo.motions.length = 0;
 }
@@ -1765,6 +1768,7 @@ const state = {
   /** Where a tile's centre lands on screen, in CSS pixels from the page origin. */
   screenOf: (tile: number): { x: number; y: number } => screenPoint(tile, 0),
   gliding: (): number => view.glidingCount,
+  reacting: (): number => view.reactingCount,
   /** The numbers rising over heads right now, and whose. */
   floaters: (): { id: string; text: string }[] =>
     liveFloaters.map((f) => ({ id: f.el.dataset['entity'] ?? '', text: f.el.textContent ?? '' })),

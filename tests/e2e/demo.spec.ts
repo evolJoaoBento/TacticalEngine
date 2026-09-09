@@ -109,6 +109,7 @@ declare global {
       cursorTile: () => number;
       floaters: () => { id: string; text: string }[];
       gliding: () => number;
+      reacting: () => number;
       screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
       load: () => boolean;

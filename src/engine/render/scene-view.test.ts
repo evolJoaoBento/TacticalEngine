@@ -337,7 +337,7 @@ describe('SceneView', () => {
     view.dispose();
   });
 
-  it('lays a fallen creature down instead of removing it', () => {
+  it('lays a fallen creature down instead of removing it - falling, not snapping', () => {
     const { state, view } = setup();
     view.syncTokens(state);
     state.entity('husk')!.alive = false;
@@ -345,7 +345,79 @@ describe('SceneView', () => {
 
     const husk = view.tokenFor('husk')!.group;
     expect(husk.visible).toBe(true);
+    // Still upright on the tick it fell; part-way down after a little; flat after the fall.
+    expect(husk.rotation.x).toBeCloseTo(0, 6);
+    expect(view.reactingCount).toBe(1);
+    view.tick(0.2);
+    expect(husk.rotation.x).toBeLessThan(-0.05);
+    expect(husk.rotation.x).toBeGreaterThan(-Math.PI / 2);
+    view.tick(1);
     expect(husk.rotation.x).toBeCloseTo(-Math.PI / 2, 10);
+    expect(view.reactingCount).toBe(0);
+
+    // And gets up again, the same way round.
+    state.entity('husk')!.alive = true;
+    view.syncTokens(state);
+    view.tick(0.2);
+    expect(husk.rotation.x).toBeLessThan(-0.05);
+    view.tick(1);
+    expect(husk.rotation.x).toBeCloseTo(0, 10);
+    view.dispose();
+  });
+
+  it('draws a creature first seen lying as lying, and settles a fall on demand', () => {
+    const { grid, state, view } = setup();
+    state.entity('husk')!.alive = false;
+    view.syncTokens(state);
+    expect(view.tokenFor('husk')!.group.rotation.x).toBeCloseTo(-Math.PI / 2, 10);
+    expect(view.reactingCount).toBe(0);
+
+    state.addEntity(createPartyEntity('finn', 'nightwalker', grid.indexOf(1, 2)));
+    view.syncTokens(state);
+    state.entity('finn')!.alive = false;
+    view.syncTokens(state);
+    expect(view.reactingCount).toBe(1);
+    view.settle();
+    // A load snaps: the body is simply where the save left it.
+    state.entity('finn')!.alive = true;
+    view.syncTokens(state, { snap: true });
+    expect(view.reactingCount).toBe(0);
+    expect(view.tokenFor('finn')!.group.rotation.x).toBeCloseTo(0, 10);
+    state.entity('finn')!.alive = false;
+    view.syncTokens(state, { snap: true });
+    expect(view.reactingCount).toBe(0);
+    expect(view.tokenFor('finn')!.group.rotation.x).toBeCloseTo(-Math.PI / 2, 10);
+    view.dispose();
+  });
+
+  it('flinches when struck: a swell and a lean, gone by the end', () => {
+    const { state, view } = setup();
+    view.syncTokens(state);
+    const husk = view.tokenFor('husk')!.group;
+    view.flinch('husk');
+    expect(view.reactingCount).toBe(1);
+    view.tick(0.1);
+    expect(husk.scale.x).toBeGreaterThan(1.05);
+    expect(husk.rotation.z).not.toBe(0);
+    view.tick(1);
+    expect(husk.scale.x).toBeCloseTo(1, 10);
+    expect(husk.rotation.z).toBeCloseTo(0, 10);
+    expect(view.reactingCount).toBe(0);
+
+    // Nobody to flinch is nothing started.
+    view.flinch('nobody');
+    expect(view.reactingCount).toBe(0);
+    view.dispose();
+  });
+
+  it('lets the fall win over a flinch landing at the same time', () => {
+    const { state, view } = setup();
+    view.syncTokens(state);
+    state.entity('husk')!.alive = false;
+    view.syncTokens(state);
+    view.flinch('husk');
+    view.tick(1);
+    expect(view.tokenFor('husk')!.group.rotation.x).toBeCloseTo(-Math.PI / 2, 10);
     view.dispose();
   });
 
