@@ -900,6 +900,26 @@ export const effectSchema = z.discriminatedUnion('kind', [
     below: z.number().int().positive(),
   }),
   /**
+   * "Your ally can reroll their dice", "allow them to reroll either their Hope
+   * or Fear Die": the Duality Dice of a roll that has been made and read, put
+   * back in the cup before anything comes of it.
+   *
+   * Journalled like the damage rerolls above, and for the same reason: the
+   * faces belong to the swing, and the swing belongs to whoever stopped it
+   * here. What the game layer does with it is throw the named dice again and
+   * resolve the whole blow around the new pair - a reroll can turn a miss into
+   * a hit, a hit into a miss, and either into a critical.
+   *
+   * Only a swing somebody is being asked about hears it. A check made through
+   * the runner - a chest, a spell - is not held anywhere it could be rerolled,
+   * which is the same limit `payout` has.
+   */
+  z.object({
+    kind: z.literal('rerollDuality'),
+    /** Which of the two goes back in the cup. Both when left out. */
+    which: z.enum(['hope', 'fear', 'both']).default('both'),
+  }),
+  /**
    * "Spend any number of tokens to roll that number of d6s and reduce the
    * incoming damage by that amount": what a card takes off a blow that is
    * arriving, rolled by the card rather than named by the defence step.

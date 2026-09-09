@@ -301,6 +301,19 @@ export const abilitySchema = z.object({
        */
       'partyRolled',
       /**
+       * The same moment one step earlier: a party member has made an action
+       * roll and *nothing has come of it yet* - "after an ally attempts an
+       * action roll but before the consequences take place". The one who
+       * rolled is bound as the target, and the roll is bound, exactly as for
+       * `partyRolled`; the difference is that a card answering this one can
+       * still change the roll.
+       *
+       * Only the party's weapon swing raises it. A check made through the
+       * runner is not held anywhere it could be rerolled, which is the limit
+       * `payout` has too.
+       */
+      'partyRolling',
+      /**
        * The holder's own blow has landed and its damage has not been counted
        * yet: "before rolling damage for the Construct's attack".
        */

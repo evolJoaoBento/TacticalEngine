@@ -109,6 +109,16 @@ export interface AttackOptions extends TargetingOptions {
    * there is no Hope, no Fear and no move handed to the GM off the back of it.
    */
   automatic?: 'criticalSuccess';
+  /**
+   * A swing whose Duality Dice have already been thrown: a card put one of
+   * them back in the cup, and the blow is being resolved again around the new
+   * pair. No dice are drawn for the attack roll, so the stream goes straight
+   * to the damage — which is rolled fresh, because a roll that has become a
+   * critical needs a critical's dice and the old throw never had them.
+   *
+   * PC attacks only; the GM's Die has no such card behind it.
+   */
+  roll?: DualityRoll;
 }
 
 export interface AttackOutcome {
@@ -221,13 +231,15 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
     hit = true;
     critical = true;
   } else if (profile.kind === 'pc') {
-    dualityRoll = rollDuality(rng, {
-      difficulty,
-      modifier,
-      advantage,
-      disadvantage,
-      helpDice: options.helpDice ?? 0,
-    });
+    dualityRoll =
+      options.roll ??
+      rollDuality(rng, {
+        difficulty,
+        modifier,
+        advantage,
+        disadvantage,
+        helpDice: options.helpDice ?? 0,
+      });
     hit = dualityRoll.success;
     critical = dualityRoll.critical;
     hopeGained = dualityRoll.hopeGained;

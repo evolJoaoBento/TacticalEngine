@@ -10,6 +10,7 @@ import { NO_TILE } from '../engine/grid/grid';
 import { reaches } from '../engine/rules/range';
 import { adversaryTraits } from '../engine/combat/adversary-features';
 import type { DefenseChoice, HeldSwing, PendingDeath, PendingDefense } from './demo-scene';
+import type { EntityState } from '../engine/scene/state';
 import {
   SRD_CHARACTERS,
   adversaryDefOf,
@@ -4683,5 +4684,154 @@ describe('a card that moves the room', () => {
       }
     }
     expect({ withFear, withHope }).toEqual({ withFear: true, withHope: true });
+  });
+});
+
+
+/**
+ * The moment between the dice and the consequences: a card that puts one of
+ * the Duality Dice back in the cup, and a swing rebuilt around the new pair.
+ */
+describe('a card that throws the dice again', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** Kara swinging with the room able to answer, and a husk that will not fall. */
+  const swinging = (seed: string, cards: string[], hope = 6): { demo: DemoScene; husk: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = true;
+    // Nothing of Kara's own answers a swing, so an offer is always Finn's.
+    hold(demo, 'kara', ['bare-bones']);
+    hold(demo, 'finn', cards);
+    const finn = demo.state.entity('finn')!;
+    finn.hope = { max: 6, value: hope };
+    // Close enough to say something: Support Tank asks for an ally within Close.
+    const kara = demo.state.entity('kara')!;
+    const blocked = demo.state.blockedFor('finn');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (finn.tile !== kara.tile && demo.grid.isPassable(tile) && !blocked(tile) && demo.grid.chebyshevDistance(finn.tile, kara.tile) > 2) {
+        demo.state.moveEntity('finn', tile);
+      }
+    });
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 40, marked: 0 };
+    return { demo, husk };
+  };
+
+  it('Reassurance is offered on an ally\'s roll and not on the holder\'s own', () => {
+    const { demo, husk } = swinging('reassure-offered', ['reassurance']);
+    const first = attackWithSelected(demo, husk.id);
+    // Kara rolled; Finn holds the card, so Finn is asked.
+    expect(first?.waiting).toBe(true);
+    expect(demo.pending?.kind).toBe('reaction');
+    if (demo.pending?.kind !== 'reaction') throw new Error('expected a reaction prompt');
+    expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['reassurance']);
+    expect(demo.pending.offers[0]!.by).toBe('finn');
+
+    // The same card in the roller's own hand answers nothing: `not self`.
+    const mine = swinging('reassure-mine', []);
+    hold(mine.demo, 'kara', ['reassurance']);
+    expect(attackWithSelected(mine.demo, mine.husk.id)?.waiting).not.toBe(true);
+  });
+
+  it('turns a miss into a hit, damage and all', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const { demo, husk } = swinging('reassure-hit-' + seed, ['reassurance']);
+      const first = attackWithSelected(demo, husk.id);
+      if (first?.waiting !== true || first.hit) continue;
+
+      // Let it pass and the miss stands; take it and the dice go again.
+      answerPending(demo, { kind: 'choose', index: 1 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      if (husk.hitPoints.marked === 0) continue;
+
+      // A swing that only became a hit on the second throw still rolls damage:
+      // the first attempt never had any to keep.
+      expect(husk.hitPoints.marked).toBeGreaterThan(0);
+      expect(demo.log.some((l) => /throws again/.test(l.text))).toBe(true);
+      // And the roll the log reports is the one that stands.
+      const shown = demo.rolls[demo.rolls.length - 1]!.roll;
+      expect(shown.success).toBe(true);
+      return;
+    }
+    throw new Error('no miss became a hit in two hundred tries');
+  });
+
+  it('and can just as easily turn a hit into a miss', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const { demo, husk } = swinging('reassure-miss-' + seed, ['reassurance']);
+      const first = attackWithSelected(demo, husk.id);
+      if (first?.waiting !== true || !first.hit) continue;
+
+      answerPending(demo, { kind: 'choose', index: 1 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      if (husk.hitPoints.marked > 0) continue;
+
+      // Nothing marked, and the log says it went wide.
+      expect(husk.hitPoints.marked).toBe(0);
+      expect(demo.rolls[demo.rolls.length - 1]!.roll.success).toBe(false);
+      return;
+    }
+    throw new Error('no hit became a miss in two hundred tries');
+  });
+
+  it('letting it pass leaves the roll exactly as it was thrown', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const { demo, husk } = swinging('reassure-pass-' + seed, ['reassurance']);
+      const first = attackWithSelected(demo, husk.id);
+      if (first?.waiting !== true) continue;
+
+      answerPending(demo, { kind: 'choose', index: 0 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      expect(demo.log.some((l) => /throws again/.test(l.text))).toBe(false);
+      expect(demo.rolls[demo.rolls.length - 1]!.roll.success).toBe(first.hit);
+      return;
+    }
+    throw new Error('nobody was ever asked, in two hundred tries');
+  });
+
+  it('Support Tank answers a failure and stays quiet on a success', () => {
+    let onFailure = false;
+    let onSuccess = false;
+    for (let seed = 1; seed < 120 && !(onFailure && onSuccess); seed++) {
+      const { demo, husk } = swinging('tank-' + seed, ['support-tank']);
+      const first = attackWithSelected(demo, husk.id);
+      // A hit is a successful roll; the card only answers a failed one.
+      if (first?.waiting === true) {
+        if (demo.pending?.kind !== 'reaction') throw new Error('expected a reaction prompt');
+        expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['support-tank']);
+        expect(first.hit).toBe(false);
+        // Two Hope, and only the Fear Die goes back in the cup.
+        const before = demo.state.entity('finn')!.hope!.value;
+        answerPending(demo, { kind: 'choose', index: 1 });
+        while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+        expect(demo.state.entity('finn')!.hope!.value).toBe(before - 2);
+        expect(demo.rolls[demo.rolls.length - 1]!.roll.hope).toBe(first.hit ? 0 : demo.rolls[demo.rolls.length - 1]!.roll.hope);
+        onFailure = true;
+      } else {
+        onSuccess = true;
+      }
+    }
+    expect({ onFailure, onSuccess }).toEqual({ onFailure: true, onSuccess: true });
+  });
+
+  it('and is not even offered when the two Hope are not there', () => {
+    for (let seed = 1; seed < 120; seed++) {
+      const rich = swinging('tank-hope-' + seed, ['support-tank'], 6);
+      if (attackWithSelected(rich.demo, rich.husk.id)?.waiting !== true) continue;
+
+      // The same seed, so the same roll: what changes is the purse. A card
+      // nobody can pay for is never put to them - the offer is the question,
+      // and there is no point asking one whose answer is refused.
+      const poor = swinging('tank-hope-' + seed, ['support-tank'], 1);
+      expect(attackWithSelected(poor.demo, poor.husk.id)?.waiting).not.toBe(true);
+      expect(poor.demo.log.some((l) => /throws again/.test(l.text))).toBe(false);
+      return;
+    }
+    throw new Error('Support Tank was never offered, in a hundred and twenty tries');
   });
 });

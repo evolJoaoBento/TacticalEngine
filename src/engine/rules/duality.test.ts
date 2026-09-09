@@ -5,6 +5,8 @@ import {
   groupActionModifier,
   netAdvantage,
   rollDuality,
+  withFaces,
+  type DualityRoll,
   type RollOutcome,
 } from './duality';
 
@@ -173,5 +175,70 @@ describe('rollDuality', () => {
     const n = 60_000;
     for (let i = 0; i < n; i++) if (rollDuality(rng, { difficulty: 12 }).critical) crits++;
     expect(Math.abs(crits / n - 1 / 12)).toBeLessThan(0.005);
+  });
+});
+
+
+/**
+ * A roll read again around dice that were thrown a second time: everything
+ * that was not the Duality Dice stands, and everything they decide is decided
+ * from the top.
+ */
+describe('withFaces', () => {
+  const base = (over: Partial<DualityRoll> = {}): DualityRoll => ({
+    ...rollDuality(scriptedRng([5, 3]), { difficulty: 12, modifier: 2 }),
+    ...over,
+  });
+
+  it('reads the whole roll again from the new pair', () => {
+    // 5 + 3 + 2 = 10 against 12: a failure, with Hope, and the spotlight goes.
+    const first = base();
+    expect(first).toMatchObject({ total: 10, outcome: 'failureWithHope', success: false, spotlightToGm: true });
+
+    // The Fear Die alone comes up 9: 5 + 9 + 2 = 16, a success with Fear.
+    const again = withFaces(first, { fear: 9 });
+    expect(again).toMatchObject({
+      hope: 5,
+      fear: 9,
+      total: 16,
+      outcome: 'successWithFear',
+      success: true,
+      withHope: false,
+      withFear: true,
+      hopeGained: 0,
+      fearGained: 1,
+      spotlightToGm: true,
+    });
+  });
+
+  it('finds a critical in a pair that was not one', () => {
+    const again = withFaces(base(), { fear: 5 });
+    expect(again).toMatchObject({ critical: true, success: true, outcome: 'criticalSuccess', stressCleared: 1 });
+    // A critical succeeds however the total falls: 5 + 5 + 2 is 12 here, but
+    // matched dice would beat any Difficulty.
+    expect(withFaces({ ...base(), difficulty: 40 }, { fear: 5 }).success).toBe(true);
+  });
+
+  it('keeps everything that was not the Duality Dice', () => {
+    const advantaged = { ...base(), advantageDie: 4, helpBonus: 3, helpDice: [3] };
+    const again = withFaces(advantaged, { hope: 1, fear: 2 });
+    // 1 + 2 + 4 (advantage) + 3 (help) + 2 (modifier) = 12.
+    expect(again).toMatchObject({ advantageDie: 4, helpBonus: 3, modifier: 2, difficulty: 12, total: 12, success: true });
+  });
+
+  it('leaves a die alone when it is not named, and a reaction roll gains nothing', () => {
+    const first = base();
+    expect(withFaces(first, {})).toEqual(first);
+    expect(withFaces(first, { hope: 11 })).toMatchObject({ hope: 11, fear: 3 });
+    // "A critical success on an adversary's reaction roll confers no
+    // additional benefit": no Hope, no Fear, no Stress cleared.
+    const reaction = { ...base(), reaction: true };
+    expect(withFaces(reaction, { fear: 5 })).toMatchObject({
+      critical: true,
+      hopeGained: 0,
+      fearGained: 0,
+      stressCleared: 0,
+      spotlightToGm: false,
+    });
   });
 });

@@ -268,6 +268,64 @@ const RAW: Input[] = [
       { kind: 'applyCondition', condition: 'inevitable', duration: 'scene', target: { kind: 'actor' } },
     ],
   },
+  // "Once per rest, after an ally attempts an action roll but before the
+  // consequences take place, you can offer assistance or words of support.
+  // When you do, your ally can reroll their dice."
+  //
+  // The first card written against `partyRolling`, which is that "before the
+  // consequences take place" made into a moment: the dice are read and nothing
+  // has come of them. `not self` is what makes it an ally's roll rather than
+  // the holder's own - the other side of the question Inevitable asks.
+  //
+  // Offered rather than automatic: a reroll is a reroll, and whether this throw
+  // was worth throwing again is exactly the decision the card is.
+  {
+    id: 'reassurance',
+    name: 'Reassurance',
+    source: card('reassurance'),
+    kind: 'reaction',
+    trigger: 'partyRolling',
+    uses: { count: 1, per: 'rest' },
+    action: false,
+    // Asked rather than taken, which for a free card has to be said outright:
+    // `auto` is true by default, and a card that fired itself would spend its
+    // one use per rest on the first roll of the fight, good throw or bad.
+    auto: false,
+    available: { kind: 'not', of: { kind: 'self' } },
+    effects: [
+      { kind: 'log', text: 'A steady word, at exactly the right moment.', tone: 'hope' },
+      { kind: 'rerollDuality', which: 'both' },
+    ],
+  },
+  // "When an ally within Close range fails a roll, you can spend 2 Hope to
+  // allow them to reroll either their Hope or Fear Die."
+  //
+  // The same moment, narrower and repeatable: only a failure, only an ally
+  // standing Close, and two Hope every time. Which of the two dice goes back in
+  // the cup is the Fear Die, always - it is the one a player would choose,
+  // being the half that decides who holds the spotlight as well as whether the
+  // blow lands, and there is nobody here to ask.
+  {
+    id: 'support-tank',
+    name: 'Support Tank',
+    source: card('support-tank'),
+    kind: 'reaction',
+    trigger: 'partyRolling',
+    cost: { hope: 2 },
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'not', of: { kind: 'self' } },
+        { kind: 'withinRange', range: 'close' },
+        { kind: 'rolled', is: 'failure' },
+      ],
+    },
+    effects: [
+      { kind: 'log', text: 'A shoulder in the way, and room to try it again.', tone: 'hope' },
+      { kind: 'rerollDuality', which: 'fear' },
+    ],
+  },
   // "Spend 3 Hope and choose an ally within Close range. They are marked with
   // a glowing sigil of protection. When this ally would make a death move,
   // they clear a Hit Point instead. This effect ends when it saves the target

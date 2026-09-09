@@ -328,6 +328,7 @@ export type JournalEntry =
   | { kind: 'dieMaxed' }
   /** Every face of it under this one is thrown again. */
   | { kind: 'damageRerolled'; below: number }
+  | { kind: 'dualityRerolled'; which: 'hope' | 'fear' | 'both' }
   /** A patch of ground started or stopped meaning something. */
   | { kind: 'zone'; id: string; name: string; standing: boolean }
   /** Added to a blow that has landed and not yet been counted. */
@@ -1227,6 +1228,12 @@ export class ScriptRunner {
         // Journalled rather than rolled: the faces are the game layer's, and
         // it throws them again where it can see them.
         this.journal.push({ kind: 'damageRerolled', below: effect.below });
+        return null;
+      }
+      case 'rerollDuality': {
+        // The same bargain as `rerollDamage`: named here, thrown where the
+        // faces can be seen and the blow rebuilt around them.
+        this.journal.push({ kind: 'dualityRerolled', which: effect.which });
         return null;
       }
       case 'maxOneDie': {

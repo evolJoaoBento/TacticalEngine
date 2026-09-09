@@ -135,6 +135,42 @@ export function classifyRoll(
 }
 
 /**
+ * The same roll with one or both Duality Dice showing something else.
+ *
+ * "Your ally can reroll their dice", "allow them to reroll either their Hope or
+ * Fear Die": the throw has been made and read, and a card puts one of the two
+ * back in the cup. Everything that was not the dice stands — the advantage die,
+ * the Help dice, the modifier and the Difficulty are all properties of the roll
+ * rather than of the faces — and the whole reading is done again from the top,
+ * because a new pair can be matched, can cross the Difficulty, and can change
+ * which way the Hope and Fear fall.
+ *
+ * Pure: the faces are drawn by whoever is holding the dice.
+ */
+export function withFaces(roll: DualityRoll, faces: { hope?: number; fear?: number }): DualityRoll {
+  const hope = faces.hope ?? roll.hope;
+  const fear = faces.fear ?? roll.fear;
+  const total = hope + fear + roll.advantageDie + roll.helpBonus + roll.modifier;
+  const { outcome, success, critical, withHope } = classifyRoll(hope, fear, total, roll.difficulty);
+  const { reaction } = roll;
+  return {
+    ...roll,
+    hope,
+    fear,
+    total,
+    outcome,
+    success,
+    critical,
+    withHope,
+    withFear: !withHope,
+    hopeGained: !reaction && withHope ? 1 : 0,
+    fearGained: !reaction && !withHope ? 1 : 0,
+    stressCleared: !reaction && critical ? 1 : 0,
+    spotlightToGm: !reaction && !(success && withHope),
+  };
+}
+
+/**
  * Roll the Duality Dice.
  *
  * Dice are drawn in a fixed order — Hope, Fear, advantage/disadvantage, then Help

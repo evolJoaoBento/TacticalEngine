@@ -35,7 +35,7 @@ import { DEMO_DIALOGUES, PILLAR_DIALOGUE_ID } from './demo-dialogue';
 import { useInteractable } from '../engine/scene/interact';
 import type { Trait } from '../engine/scene/primitives';
 import type { CheckOutcome, LogTone } from '../engine/script/effects';
-import { HOPE_DIE_SIDES, rollDuality, type DualityRoll, type RollOutcome } from '../engine/rules/duality';
+import { FEAR_DIE_SIDES, HOPE_DIE_SIDES, rollDuality, withFaces, type DualityRoll, type RollOutcome } from '../engine/rules/duality';
 import type { CountdownCue } from '../engine/rules/countdown';
 import type { CountdownMoved, RunningCountdown } from '../engine/script/countdowns';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
@@ -438,6 +438,16 @@ export interface HeldSwing {
   severity?: DamageSeverity;
   /** Or the band it lands in at worst: a floor under a blow counted as usual. */
   floor?: DamageSeverity;
+  /**
+   * Where in the swing it was stopped, for a question that has to be answered
+   * before the next stage rather than before it lands.
+   *
+   * `rolled` is the moment after the Duality Dice and before anything has come
+   * of them, which is where a card that rerolls them is asked. Everything else
+   * is held at the usual place - the blow has landed and is being counted - and
+   * carries no stage at all.
+   */
+  stage?: 'rolled';
 }
 
 /** One hit, as it stands while the defender decides. */
@@ -1142,10 +1152,46 @@ export function attackWithSelected(
     damage: profile.damage,
     ...(profile.direct === undefined ? {} : { direct: profile.direct }),
   };
+  // One stage earlier than that, and the only one where the roll itself can
+  // still be changed: "after an ally attempts an action roll but before the
+  // consequences take place". Nobody has been told whether it hit.
+  if (outcome.dualityRoll !== undefined) {
+    const box = { held };
+    const groups = rollingOffers(demo, id!, outcome.dualityRoll, box);
+    // A free card fired itself and rerolled from inside `offersFor`; the box
+    // holds what it left, and everything from here reads that instead.
+    if (demo.pending !== null) return { hit: box.held.outcome.hit, refused: null, hitPointsMarked: 0, waiting: true };
+    if (groups.length > 0 && demo.askDefender) {
+      const [first, ...queued] = groups;
+      askReaction(demo, first!, queued, { ...box.held, stage: 'rolled' });
+      return { hit: box.held.outcome.hit, refused: null, hitPointsMarked: 0, waiting: true };
+    }
+    return afterRolled(demo, box.held);
+  }
+  return afterRolled(demo, held);
+}
+
+/**
+ * The rest of the party's swing, once nothing more is going to change the
+ * dice: the blow has landed or gone wide, and what is left is counting it.
+ *
+ * Split out of `attackWithSelected` because a card that rerolls the Duality
+ * Dice has to settle first - the questions asked here are asked about a hit,
+ * and whether there is one is exactly what the reroll decides.
+ */
+function afterRolled(
+  demo: DemoScene,
+  held: HeldSwing,
+): { hit: boolean; refused: string | null; hitPointsMarked: number; waiting?: boolean } {
+  const { outcome, target: targetId } = held;
+  // The blow has landed and has not been counted: the party's half of the
+  // moment the GM's swing already stops at. A card that adds to its own damage
+  // roll is asked here, before the thresholds read anything, and the swing is
+  // held until the question is done with.
   if (outcome.hit && outcome.damageRoll !== undefined) {
     const box = { held };
-    const offers = offersFor(demo, id!, ['rollingDamage'], [targetId], {}, {
-      lastDamage: { total: outcome.damageRoll.total, types: profile.damage.types ?? ['physical'] },
+    const offers = offersFor(demo, held.attacker, ['rollingDamage'], [targetId], {}, {
+      lastDamage: { total: outcome.damageRoll.total, types: held.damage.types ?? ['physical'] },
       landing: box,
       ...(outcome.dualityRoll === undefined ? {} : { roll: outcome.dualityRoll }),
     });
@@ -1159,6 +1205,34 @@ export function attackWithSelected(
     return landPartyAttack(demo, box.held);
   }
   return landPartyAttack(demo, held);
+}
+
+/**
+ * Who in the party has something to say about a roll that has just been made,
+ * before anything comes of it.
+ *
+ * The same shape `playPartyRolled` builds for the moment afterwards, and the
+ * same bindings: whoever rolled is bound as the target, so `self` tells a card
+ * that answers its holder's own roll from one that answers an ally's.
+ *
+ * The swing goes along in its box, because a free card fires from inside
+ * `offersFor` rather than being handed back - and a free card that rerolled the
+ * dice has to leave the new swing somewhere the caller will read it.
+ */
+function rollingOffers(
+  demo: DemoScene,
+  roller: string,
+  roll: DualityRoll,
+  landing: { held: HeldSwing },
+): ReactionOffer[][] {
+  const bound = { roll: { total: roll.total, outcome: roll.outcome }, landing };
+  const groups: ReactionOffer[][] = [];
+  for (const member of demo.state.entitiesOf('party')) {
+    if (!member.alive) continue;
+    const theirs = offersFor(demo, member.id, ['partyRolling'], [roller], {}, bound);
+    if (theirs.length > 0) groups.push(theirs);
+  }
+  return groups;
 }
 
 /**
@@ -2839,7 +2913,11 @@ export function vaultAfter(demo: DemoScene, id: string, ability: AbilityDef, run
  * mark instead of rolling. Both are read here rather than written, so the
  * thresholds and the Armor Slots read what actually arrives.
  */
-function asAnswered(demo: DemoScene, landing: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
+function asAnswered(demo: DemoScene, held: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
+  // The dice first: a card that put one of them back in the cup changes what
+  // the rest of this is even about, and a swing that has become a miss has no
+  // damage for the riders below to add to.
+  const landing = asRerolled(demo, held, journal);
   if (landing === undefined || landing.outcome.damageRoll === undefined) return landing;
   let added = 0;
   let doubled = false;
@@ -2879,6 +2957,73 @@ function asAnswered(demo: DemoScene, landing: HeldSwing | undefined, journal: re
     ...(band === undefined ? {} : { severity: worse(landing.severity, band) }),
     ...(floor === undefined ? {} : { floor: worse(landing.floor, floor) }),
   };
+}
+
+/**
+ * The swing rebuilt around Duality Dice that were thrown again.
+ *
+ * The named die goes back in the cup, `withFaces` reads the whole roll from the
+ * new pair - a matched pair is a critical however it got there - and the attack
+ * is resolved once more with that roll supplied, so nothing about the throw is
+ * drawn twice.
+ *
+ * The damage *is* rolled again, and that is right rather than wasteful: a swing
+ * that has become a critical needs a critical's dice, and one that has become a
+ * miss needs none. The dice the first attempt rolled are thrown away, which
+ * costs the fight nothing - they came off the seed and were never read.
+ *
+ * Simplified: "reroll their dice" is the two Duality Dice. An advantage die and
+ * the Help dice stand, being properties of the roll rather than of the hands
+ * that threw it.
+ */
+function asRerolled(demo: DemoScene, held: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
+  if (held === undefined) return held;
+  const roll = held.outcome.dualityRoll;
+  if (roll === undefined) return held;
+  let which: 'hope' | 'fear' | 'both' | null = null;
+  for (const entry of journal) {
+    if (entry.kind === 'dualityRerolled') which = entry.which;
+  }
+  if (which === null) return held;
+
+  const attacker = demo.state.entity(held.attacker);
+  const target = demo.state.entity(held.target);
+  const character = demo.characters.get(held.attacker);
+  if (attacker === undefined || target === undefined || character === undefined) return held;
+
+  // Drawn in the printed order, so a seed replays a reroll exactly.
+  const faces: { hope?: number; fear?: number } = {};
+  if (which !== 'fear') faces.hope = demo.rng.die(HOPE_DIE_SIDES);
+  if (which !== 'hope') faces.fear = demo.rng.die(FEAR_DIE_SIDES);
+  const thrown = withFaces(roll, faces);
+  note(
+    demo,
+    `${nameOf(demo, held.attacker)} throws again: ${describeRoll(thrown)}`,
+    thrown.success ? 'hope' : 'fear',
+  );
+
+  const profile = attackProfile(character);
+  const outcome = resolveAttack(demo.rng, {
+    grid: demo.grid,
+    attacker,
+    target,
+    profile,
+    defender: demo.world.defenderOf(target),
+    options: {
+      bandTiles: DEMO_BAND_TILES,
+      bonus: demo.world.rollBonus(held.attacker, 'attackRoll', { melee: held.melee }),
+      damageBonus: demo.world.rollBonus(held.attacker, 'damageRoll', { melee: held.melee }),
+      ...demo.world.advantageFor(held.attacker, held.target),
+      roll: thrown,
+    },
+  });
+  // A swing that was in range when it was thrown is in range now: nobody has
+  // moved. A refusal here would be the geometry disagreeing with itself.
+  if (outcome.refused !== null) return held;
+  // What the room had already put behind the old blow is dropped with it: a
+  // boost was added to dice that are gone. Nothing ships a card that boosts
+  // before the reroll is asked, and this says which way that falls if one does.
+  return { attacker: held.attacker, target: held.target, outcome, weapon: held.weapon, melee: held.melee, damage: held.damage, ...(held.direct === undefined ? {} : { direct: held.direct }) };
 }
 
 /**
@@ -2930,8 +3075,17 @@ function afterReaction(
     askReaction(demo, first!, rest, landing);
     return;
   }
-  // Whatever was said about it, the blow still lands.
-  if (landing !== undefined) landPartyAttack(demo, landing);
+  // Whatever was said about it, the blow still lands - unless it was stopped
+  // one stage earlier than that, in which case the stages it has not been
+  // through yet are still to come.
+  if (landing !== undefined) {
+    if (landing.stage === 'rolled') {
+      const { stage: _done, ...rest } = landing;
+      afterRolled(demo, rest);
+    } else {
+      landPartyAttack(demo, landing);
+    }
+  }
   // A fall that happened behind this queue was held until the queue drained,
   // and so was the reckoning: a card with no swing waiting on it reaches
   // nothing else that settles the fight.

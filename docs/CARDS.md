@@ -35,7 +35,7 @@ Known simplifications in the scripted ones:
 - **Deathrun** is the first card aimed at the ground rather than at anybody: the player picks a tile, the board shows what the line would go through before the click, and what the run passes is what it hits. Simplified: the ladder of shrinking damage rolls and the order to deal them in is one roll, the same damage to everyone it beat, which is what every other attack against several targets here does; the card's own +1 to Proficiency is kept.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 110 of 189 cards.
+Scripted: 112 of 189 cards.
 
 
 ## Arcana
@@ -226,7 +226,7 @@ Scripted: 110 of 189 cards.
 |---|---|---|---|
 | 1 | Bolt Beacon | Spell | **action** |
 | 1 | Mending Touch | Spell | **action** |
-| 1 | Reassurance | Ability | text |
+| 1 | Reassurance | Ability | **reaction** |
 | 2 | Final Words | Spell | text |
 | 2 | Healing Hands | Spell | **action** |
 | 3 | Second Wind | Ability | **action** |
@@ -258,7 +258,7 @@ Scripted: 110 of 189 cards.
 | 3 | Critical Inspiration | Ability | **reaction** |
 | 3 | Lean on Me | Ability | **reaction** |
 | 4 | Goad Them On | Ability | **action** |
-| 4 | Support Tank | Ability | text |
+| 4 | Support Tank | Ability | **reaction** |
 | 5 | Armorer | Ability | **passive** |
 | 5 | Rousing Strike | Ability | **reaction** |
 | 6 | Inevitable | Ability | **reaction** |
