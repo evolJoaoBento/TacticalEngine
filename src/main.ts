@@ -282,6 +282,7 @@ function drainMotions(): void {
     if (motion.path !== undefined) view.walk(motion.id, motion.path);
     else if (motion.thrown === true) view.throwBack(motion.id);
     else if (motion.struck === true) view.flinch(motion.id);
+    else if (motion.lunge !== undefined) view.lunge(motion.id, motion.lunge.at);
   }
   demo.motions.length = 0;
 }

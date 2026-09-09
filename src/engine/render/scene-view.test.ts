@@ -410,6 +410,48 @@ describe('SceneView', () => {
     view.dispose();
   });
 
+  it('lunges at whoever it swung at, and comes back to exactly where it stood', () => {
+    const { grid, state, view } = setup();
+    view.syncTokens(state);
+    const kara = view.tokenFor('kara')!.group;
+    const rest = kara.position.clone();
+    // Kara at (0,0), the husk at (4,2): the lunge is east and a little south.
+    view.lunge('kara', grid.indexOf(4, 2));
+    expect(view.reactingCount).toBe(1);
+    view.tick(0.12);
+    expect(kara.position.x).toBeGreaterThan(rest.x + 0.1);
+    expect(kara.position.z).toBeGreaterThan(rest.z);
+    view.tick(1);
+    expect(kara.position.x).toBeCloseTo(rest.x, 6);
+    expect(kara.position.z).toBeCloseTo(rest.z, 6);
+    expect(view.reactingCount).toBe(0);
+
+    // Settling mid-lunge brings it straight back.
+    view.lunge('kara', grid.indexOf(4, 2));
+    view.tick(0.1);
+    view.settle();
+    expect(kara.position.x).toBeCloseTo(rest.x, 6);
+    // Nowhere to lunge at is nothing started.
+    view.lunge('kara', -1);
+    view.lunge('kara', grid.indexOf(0, 0));
+    expect(view.reactingCount).toBe(0);
+    view.dispose();
+  });
+
+  it('lunges without disturbing a walk under it', () => {
+    const { grid, state, view } = setup();
+    view.syncTokens(state);
+    const kara = view.tokenFor('kara')!.group;
+    state.moveEntity('kara', grid.indexOf(3, 0));
+    view.syncTokens(state);
+    view.lunge('kara', grid.indexOf(3, 2));
+    view.tick(2);
+    const to = tileCenter(grid, grid.indexOf(3, 0));
+    expect(kara.position.x).toBeCloseTo(to.x, 6);
+    expect(kara.position.z).toBeCloseTo(to.z, 6);
+    view.dispose();
+  });
+
   it('lets the fall win over a flinch landing at the same time', () => {
     const { state, view } = setup();
     view.syncTokens(state);

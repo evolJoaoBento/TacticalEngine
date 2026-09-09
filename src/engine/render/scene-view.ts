@@ -55,12 +55,15 @@ interface Glide {
   to: number;
 }
 
-/** A token taking a blow, going down, or getting up. */
+/** A token taking a blow, going down, getting up, or lunging at somebody. */
 interface Reaction {
   token: BuiltModel;
-  kind: 'flinch' | 'fall' | 'rise';
+  kind: 'flinch' | 'fall' | 'rise' | 'lunge';
   elapsed: number;
   duration: number;
+  /** A lunge: the way to the target, unit length, and how far along it the token is right now. */
+  toward?: { x: number; z: number };
+  offset?: number;
 }
 
 /** Just the faction ring, to put under an imported model. */
@@ -423,17 +426,33 @@ export class SceneView {
     this.startReaction(id, token, 'flinch');
   }
 
-  /** How many tokens are flinching, falling or getting up. */
+  /** This creature swung at that tile: its token lunges that way and back. */
+  lunge(id: string, at: number): void {
+    const token = this.tokens.get(id);
+    if (token === undefined || !token.group.visible || !this.grid.isTile(at)) return;
+    const there = tileCenter(this.grid, at, this.layout);
+    const dx = there.x - token.group.position.x;
+    const dz = there.z - token.group.position.z;
+    const length = Math.hypot(dx, dz);
+    if (length < 1e-6) return;
+    this.startReaction(id, token, 'lunge', { x: dx / length, z: dz / length });
+  }
+
+  /** How many tokens are flinching, falling, getting up or lunging. */
   get reactingCount(): number {
     return this.reactions.size;
   }
 
-  private startReaction(id: string, token: BuiltModel, kind: Reaction['kind']): void {
-    // A fall or a rise replaces a flinch, never the other way round: the body
+  private startReaction(id: string, token: BuiltModel, kind: Reaction['kind'], toward?: { x: number; z: number }): void {
+    // A fall or a rise replaces anything, and nothing replaces it: the body
     // going down is the thing to see.
     const current = this.reactions.get(id);
-    if (current !== undefined && current.kind !== 'flinch' && kind === 'flinch') return;
-    this.reactions.set(id, { token, kind, elapsed: 0, duration: kind === 'flinch' ? 0.35 : 0.45 });
+    if (current !== undefined) {
+      if ((current.kind === 'fall' || current.kind === 'rise') && kind !== 'fall' && kind !== 'rise') return;
+      this.finishReaction(current);
+    }
+    const duration = kind === 'flinch' ? 0.35 : kind === 'lunge' ? 0.3 : 0.45;
+    this.reactions.set(id, { token, kind, elapsed: 0, duration, ...(toward === undefined ? {} : { toward, offset: 0 }) });
   }
 
   /** Move every reaction on by `dt` seconds. */
@@ -448,6 +467,14 @@ export class SceneView {
         const swell = 1 + 0.18 * pulse;
         group.scale.set(swell, 1 + 0.08 * pulse, swell);
         group.rotation.z = 0.22 * Math.sin(2 * Math.PI * t) * (1 - t);
+      } else if (reaction.kind === 'lunge') {
+        // Out fast, back slower, a third of a tile at the furthest. Applied as
+        // the change since last tick, so a walk under it is left alone.
+        const reach = this.layout.tileSize * 0.35 * Math.sin(Math.PI * Math.pow(t, 0.7));
+        const delta = reach - (reaction.offset ?? 0);
+        group.position.x += reaction.toward!.x * delta;
+        group.position.z += reaction.toward!.z * delta;
+        reaction.offset = reach;
       } else {
         // A body drops: slow to start, quick to land. Getting up is the reverse.
         const eased = t * t;
@@ -465,6 +492,11 @@ export class SceneView {
     if (reaction.kind === 'flinch') {
       group.scale.set(1, 1, 1);
       group.rotation.z = 0;
+    } else if (reaction.kind === 'lunge') {
+      // Whatever is still leaned out comes back.
+      group.position.x -= reaction.toward!.x * (reaction.offset ?? 0);
+      group.position.z -= reaction.toward!.z * (reaction.offset ?? 0);
+      reaction.offset = 0;
     } else {
       group.rotation.x = reaction.kind === 'fall' ? -Math.PI / 2 : 0;
     }

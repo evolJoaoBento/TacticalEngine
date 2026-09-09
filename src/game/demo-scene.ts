@@ -290,6 +290,8 @@ export interface Motion {
   thrown?: true;
   /** A wound landed; the token takes it. */
   struck?: true;
+  /** They swung at this tile; the token lunges that way. */
+  lunge?: { at: number };
 }
 
 /** One number over one head, in the tone the matching log line has. */
@@ -1535,6 +1537,7 @@ function landPartyAttack(
       : `${character.sheet.name} swings the ${profile.name} at ${nameOf(demo, targetId)} and misses.`,
     'combat',
   );
+  swungAt(demo, id, targetId);
   if (outcome.hit) {
     float(demo, targetId, `-${applied.hitPointsMarked} HP`, 'combat');
     struck(demo, targetId);
@@ -4626,6 +4629,14 @@ function speak(demo: DemoScene, talking: PendingDialogue, view: DialogueView): L
   return lines;
 }
 
+/** Somebody on the board swung at somebody else on it, for a token that lunges. */
+export function swungAt(demo: DemoScene, attacker: string, target: string): void {
+  const from = demo.state.entity(attacker);
+  const at = demo.state.entity(target)?.tile ?? NO_TILE;
+  if (from === undefined || from.tile === NO_TILE || at === NO_TILE) return;
+  demo.motions.push({ id: attacker, lunge: { at } });
+}
+
 /** A blow landed on somebody on the board, for a token that flinches. */
 export function struck(demo: DemoScene, id: string): void {
   const entity = demo.state.entity(id);
@@ -4650,6 +4661,7 @@ export function float(demo: DemoScene, id: string, text: string, tone: LogTone):
 function floatEntry(demo: DemoScene, entry: JournalEntry): void {
   switch (entry.kind) {
     case 'attack':
+      swungAt(demo, entry.attacker, entry.target);
       if (entry.hit) {
         float(demo, entry.target, `-${entry.hitPointsMarked} HP`, 'combat');
         struck(demo, entry.target);

@@ -33,7 +33,12 @@ describe('what floats', () => {
       { kind: 'attack', attacker: 'kara', target: husk, weapon: 'broadsword', hit: true, critical: false, hitPointsMarked: 2 },
       { kind: 'attack', attacker: 'finn', target: husk, weapon: 'shortbow', hit: false, critical: false, hitPointsMarked: 0 },
     ]);
-    expect(demo.motions).toEqual([{ id: husk, struck: true }]);
+    const huskTile = demo.state.entity(husk)!.tile;
+    expect(demo.motions).toEqual([
+      { id: 'kara', lunge: { at: huskTile } },
+      { id: husk, struck: true },
+      { id: 'finn', lunge: { at: huskTile } },
+    ]);
   });
 
   it('is a miss, since the swing was watched', () => {

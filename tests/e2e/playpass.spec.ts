@@ -83,9 +83,12 @@ test('the vault fight runs, and a swing reads out on screen', async ({ page }) =
     const before = a.hitPoints(foe).marked;
     a.standBeside(foe);
     const attacked = a.attack(foe);
+    // The swing is on the board the moment it is made: somebody is lunging or flinching.
+    const reacting = a.reacting();
     while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
     return {
       attacked,
+      reacting,
       before,
       after: a.hitPoints(foe).marked,
       dice: a.dice(),
@@ -97,6 +100,7 @@ test('the vault fight runs, and a swing reads out on screen', async ({ page }) =
   await page.screenshot({ path: 'test-results/playpass-swing.png' });
   expect(swung.attacked).toBe(true);
   expect(swung.dice.length).toBeGreaterThan(0);
+  expect(swung.reacting, 'the swing moved a token').toBeGreaterThan(0);
 });
 
 test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
