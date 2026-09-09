@@ -110,6 +110,27 @@ const STOPPED: EffectInput[] = [
   { kind: 'applyCondition', condition: 'time-jamming', duration: 'scene', target: { kind: 'actor' } },
 ];
 
+/**
+ * One of Tempest's three storms: the same roll against everything within Far,
+ * and whatever it beat takes the damage and, for two of the three, wears the
+ * weather afterwards.
+ */
+const STORM = (dice: string, condition?: string): EffectInput => ({
+  kind: 'check',
+  check: {
+    trait: 'spellcast',
+    difficulty: 'target',
+    targets: { kind: 'adversaries', range: 'far' },
+    prompt: 'Tempest: one roll, against everything the weather can reach.',
+    always: [
+      { kind: 'damage', dice, type: 'magic', target: { kind: 'hit' } },
+      ...(condition === undefined
+        ? []
+        : [{ kind: 'applyCondition' as const, condition, duration: 'scene' as const, target: { kind: 'hit' as const } }]),
+    ],
+  },
+});
+
 const RESUMES: EffectInput[] = [
   { kind: 'log', text: 'They move, and the room remembers how to.', tone: 'combat' },
   { kind: 'clearCondition', condition: 'time-stopped', target: { kind: 'adversaries', range: 'veryFar' } },
@@ -504,6 +525,91 @@ const RAW: Input[] = [
       },
     ],
   },
+  // ---- Sage's two capstones --------------------------------------------------
+  //
+  // "Choose one of the following tempests and make a Spellcast Roll against all
+  // targets within Far range. Targets you succeed against experience its
+  // effects until the GM spends a Fear on their turn to end this spell."
+  //
+  // Three storms, one roll, and the arms aimed at `hit` - so "targets you
+  // succeed against" is exactly the list the check hands back. The choice is
+  // the player's, which is the one thing about this card that is not automatic.
+  //
+  // Simplified per storm. The Blizzard is whole. The Hurricane's "choose a
+  // direction the wind is blowing; targets can't move against the wind" is a
+  // direction the board has no way to hold, so what lands is the damage and
+  // the wind is the table's. The Sandstorm's "attacks made from beyond Melee
+  // range have disadvantage" is about where the attacker stands, and a modifier
+  // reads from one creature rather than the distance between two - so it makes
+  // every attack aimed at them harder, Melee included.
+  //
+  // And the spell lasts the scene rather than "until the GM spends a Fear to
+  // end it", there being nobody at that end of the table to spend it.
+  {
+    id: 'tempest',
+    name: 'Tempest',
+    source: card('tempest'),
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'choice',
+        title: 'Tempest',
+        body: 'Which storm comes down?',
+        options: [
+          { label: 'Blizzard', effects: [STORM('2d20+8', 'vulnerable')] },
+          { label: 'Hurricane', effects: [STORM('3d10+10')] },
+          { label: 'Sandstorm', effects: [STORM('5d6+9', 'sandstormed')] },
+        ],
+      },
+    ],
+  },
+  // "Mark a Stress to transform into a hulking nature spirit... Before you make
+  // an action roll, you must spend a Hope. If you can't, you revert to your
+  // normal form."
+  //
+  // Two of the three benefits stay text: absorbing a creature you defeated
+  // needs a moment nothing raises on the party's side, and "you can't be
+  // Restrained" needs a creature to be immune to a condition, which nothing
+  // here can say. What runs is the +10 and the upkeep, which is the shape of
+  // the card - a form that costs you something every time you use it.
+  //
+  // Simplified: the Hope is spent after the roll rather than before it. The two
+  // differ only for a character down to their last Hope, who here gets the roll
+  // and then reverts rather than reverting and then rolling.
+  {
+    id: 'force-of-nature',
+    name: 'Force of Nature',
+    source: card('force-of-nature'),
+    cost: { stress: 1 },
+    target: { kind: 'self' },
+    action: false,
+    effects: [
+      { kind: 'log', text: 'Something enormous stands up wearing them.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'force-of-nature', duration: 'scene', target: { kind: 'actor' } },
+    ],
+  },
+  {
+    id: 'force-of-nature-upkeep',
+    name: 'Force of Nature',
+    source: card('force-of-nature'),
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    available: { kind: 'all', of: [{ kind: 'self' }, { kind: 'hasCondition', condition: 'force-of-nature', of: { kind: 'actor' } }] },
+    effects: [
+      {
+        kind: 'branch',
+        when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+        then: [{ kind: 'spendHope', amount: 1 }],
+        otherwise: [
+          { kind: 'log', text: 'There is nothing left to feed it, and the shape goes out of them.', tone: 'fear' },
+          { kind: 'clearCondition', condition: 'force-of-nature', target: { kind: 'actor' } },
+        ],
+      },
+    ],
+  },
+
   // ---- the rest of the Codex grimoires ---------------------------------------
   //
   // Seven Books were left. Four of them have something a fight can use and are

@@ -5472,3 +5472,124 @@ describe('the last of the Codex', () => {
     expect(card.auto).toBe(false);
   });
 });
+
+
+/**
+ * Sage's two capstones: three storms behind one roll, and a shape that costs
+ * its wearer a Hope every time they use it.
+ */
+describe('the weather, and the thing that wears it', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  const casting = (seed: string, card: string): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    hold(demo, 'mira', [card]);
+    const mira = demo.state.entity('mira')!;
+    mira.hope = { max: 6, value: 6 };
+    const kara = demo.state.entity('kara')!;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 90, marked: 0 };
+    const blocked = demo.state.blockedFor('mira');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) demo.state.moveEntity('mira', tile);
+    });
+    demo.party.select('mira');
+    return { demo, mira, husk };
+  };
+
+  /** Pick a storm by name from the choice the card raises. */
+  const storm = (demo: DemoScene, label: string): void => {
+    if (demo.pending === null) throw new Error('no choice was raised');
+    const prompt = demo.pending.prompt;
+    if (prompt.kind !== 'choice') throw new Error('expected a choice of storms');
+    const option = prompt.options.find((o) => o.label === label);
+    if (option === undefined) throw new Error(`no storm called ${label}: ${prompt.options.map((o) => o.label).join(', ')}`);
+    answerPending(demo, { kind: 'choose', index: option.index });
+  };
+
+  it('offers three storms and drops the one that was chosen', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const { demo, husk } = casting('tempest-' + seed, 'tempest');
+      expect(useAbility(demo, 'mira', 'tempest', []).status).toBe('waiting');
+      if (demo.pending?.prompt.kind !== 'choice') throw new Error('expected the storms');
+      expect(demo.pending.prompt.options.map((o) => o.label)).toEqual(['Blizzard', 'Hurricane', 'Sandstorm']);
+
+      storm(demo, 'Blizzard');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (husk.hitPoints.marked === 0) continue;
+
+      // 2d20+8 is a real blow, and what it beat is left Vulnerable.
+      expect(husk.hitPoints.marked).toBeGreaterThan(0);
+      expect(husk.conditions.has('vulnerable')).toBe(true);
+      return;
+    }
+    throw new Error('the blizzard never landed in sixty tries');
+  });
+
+  it('leaves the sand on them and nothing but weather behind the hurricane', () => {
+    let sanded = false;
+    let blown = false;
+    for (let seed = 1; seed < 60 && !(sanded && blown); seed++) {
+      for (const [label, condition] of [['Sandstorm', 'sandstormed'], ['Hurricane', null]] as const) {
+        const { demo, husk } = casting(`tempest-${label}-${seed}`, 'tempest');
+        useAbility(demo, 'mira', 'tempest', []);
+        storm(demo, label);
+        while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+        if (husk.hitPoints.marked === 0) continue;
+
+        if (condition === null) {
+          // The wind is the table's: what the engine lands is the damage.
+          expect(husk.conditions.has('sandstormed')).toBe(false);
+          expect(husk.conditions.has('vulnerable')).toBe(false);
+          blown = true;
+          continue;
+        }
+        expect(husk.conditions.has(condition)).toBe(true);
+        // And the sand is worth a disadvantage die on anything aimed at them.
+        demo.scenario.actorId = 'kara';
+        expect(demo.world.advantageFor('kara', husk.id)).toEqual({ advantage: 0, disadvantage: 1 });
+        sanded = true;
+      }
+    }
+    expect({ sanded, blown }).toEqual({ sanded: true, blown: true });
+  });
+
+  it('Force of Nature adds ten to a blow and takes a Hope for every roll', () => {
+    const { demo, mira, husk } = casting('force-of-nature', 'force-of-nature');
+    mira.stress = { max: 6, marked: 0 };
+    expect(useAbility(demo, 'mira', 'force-of-nature', []).status).not.toBe('refused');
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    expect(mira.conditions.has('force-of-nature')).toBe(true);
+    expect(mira.stress.marked).toBe(1);
+    expect(demo.world.rollBonus('mira', 'damageRoll')).toBe(10);
+
+    // Every action roll she makes costs a Hope out of the six.
+    const hope = mira.hope!.value;
+    attackWithSelected(demo, husk.id);
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    expect(mira.hope!.value).toBeLessThan(hope + 1);
+    expect(mira.conditions.has('force-of-nature')).toBe(true);
+  });
+
+  it('and drops off somebody with nothing left to feed it', () => {
+    const { demo, mira, husk } = casting('force-of-nature-broke', 'force-of-nature');
+    mira.stress = { max: 6, marked: 0 };
+    expect(useAbility(demo, 'mira', 'force-of-nature', []).status).not.toBe('refused');
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    mira.hope = { max: 6, value: 0 };
+
+    attackWithSelected(demo, husk.id);
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    // A roll with Hope hands one over before the upkeep reads the pool, so the
+    // shape only goes when the dice gave her nothing to pay with either.
+    const gained = demo.rolls[demo.rolls.length - 1]!.roll.hopeGained;
+    expect(mira.conditions.has('force-of-nature')).toBe(gained > 0);
+    if (gained === 0) expect(demo.log.some((l) => /goes out of them/.test(l.text))).toBe(true);
+  });
+});

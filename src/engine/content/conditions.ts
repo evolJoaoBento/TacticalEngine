@@ -227,6 +227,26 @@ const RAW: ConditionInput[] = [
       ],
     },
   },
+  // Tempest's third storm, on everything caught in it. "Attacks made from
+  // beyond Melee range have disadvantage" is about where the attacker is
+  // standing, and a modifier reads from one creature rather than a distance
+  // between two - so what the sand does here is make everything aimed at them
+  // harder, whoever is aiming and from wherever.
+  {
+    id: 'sandstormed',
+    name: 'Sandstormed',
+    text: 'Lost in blowing sand: attacks aimed at you are made with disadvantage.',
+    modifiers: [{ stat: 'advantage', bonus: -1, against: true }],
+  },
+  // Force of Nature, while the shape holds. The +10 is on the damage roll
+  // rather than on a successful one: a damage roll only happens after a swing
+  // has landed, so the card's "when you succeed" is where it already reads.
+  {
+    id: 'force-of-nature',
+    name: 'Force of Nature',
+    text: 'A hulking nature spirit: +10 to damage rolls, and a Hope for every action roll made.',
+    modifiers: [{ stat: 'damageRoll', bonus: 10 }],
+  },
   // The Book of Grynn's wall, on whoever is standing in it. Like the Korvax
   // circle, the whole of it happens on the crossing: "anything that
   // subsequently passes through the wall takes 4d10+3 magic damage".
