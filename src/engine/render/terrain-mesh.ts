@@ -96,7 +96,9 @@ export function buildTerrainMesh(
 
     const mesh = new InstancedMesh(geometry, material, tiles.length);
     mesh.name = `terrain:${type.id}`;
-    mesh.castShadow = false;
+    // A raised slab or a wall throws its shadow on the floor beside it, which
+    // is most of what makes the height read.
+    mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.frustumCulled = true;
 

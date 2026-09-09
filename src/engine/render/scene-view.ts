@@ -19,16 +19,18 @@ import {
   Color,
   DirectionalLight,
   Group,
+  HemisphereLight,
   InstancedMesh,
   Mesh,
   MeshBasicMaterial,
   Object3D,
+  RingGeometry,
   Scene,
 } from 'three';
 import { NO_TILE, type TileGrid } from '../grid/grid';
 import type { Deco } from '../scene/schema';
 import type { EntityState, SceneState } from '../scene/state';
-import { DEFAULT_LAYOUT, surfaceHeight, tileCenter, type TileLayout } from './layout';
+import { DEFAULT_LAYOUT, mapExtent, surfaceHeight, tileCenter, type TileLayout } from './layout';
 import { ModelResources, buildModel, type BuildOptions, type BuiltModel } from './procedural/build';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { AssetLibrary } from './assets';
@@ -124,6 +126,14 @@ export class SceneView {
   private readonly cursor: Mesh;
   private readonly cursorMaterial: MeshBasicMaterial;
   private cursorTile = NO_TILE;
+  /** A ring round whoever is selected, breathing so the eye finds it. */
+  private readonly selection: Mesh;
+  private readonly selectionGeometry: RingGeometry;
+  private readonly selectionMaterial: MeshBasicMaterial;
+  private selectionTile = NO_TILE;
+  private breath = 0;
+  /** The sun, kept so its shadow map can be let go with the rest. */
+  private sun: DirectionalLight | null = null;
   private readonly maxHighlights: number;
   private highlightCount = 0;
   private readonly dummy = new Object3D();
@@ -200,18 +210,67 @@ export class SceneView {
     this.cursor.visible = false;
     this.root.add(this.cursor);
 
+    // The same blue the HUD card of whoever is selected is edged in, so the
+    // board and the cards point at the same person.
+    this.selectionGeometry = new RingGeometry(this.layout.tileSize * 0.44, this.layout.tileSize * 0.54, 36);
+    this.selectionGeometry.rotateX(-Math.PI / 2);
+    this.selectionMaterial = new MeshBasicMaterial({
+      color: new Color('#69d2ff'),
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+    });
+    this.selection = new Mesh(this.selectionGeometry, this.selectionMaterial);
+    this.selection.name = 'selection';
+    this.selection.visible = false;
+    this.root.add(this.selection);
+
     this.addLights();
   }
 
+  /**
+   * The light rig: a sky over the room, a little ambient so nothing is black,
+   * and a sun that casts. The shadow is the depth cue that makes a wall read
+   * as standing on the floor rather than painted on it, and a token as
+   * standing rather than floating; its camera is fitted to the map so the
+   * whole room is inside it whatever the room's size.
+   */
   private addLights(): void {
-    this.scene.add(new AmbientLight(0xffffff, 0.45));
-    const sun = new DirectionalLight(0xffffff, 1.15);
+    this.scene.add(new AmbientLight(0xffffff, 0.3));
+    this.scene.add(new HemisphereLight(new Color('#b9c7e0'), new Color('#2b2a26'), 0.55));
+
+    const sun = new DirectionalLight(0xffffff, 1.35);
+    // Low enough that a wall throws a shadow you can see, high enough that
+    // the shadow does not cover the tile beside it: about fifty degrees up.
     sun.position.set(
-      this.grid.width * 0.4,
-      Math.max(this.grid.width, this.grid.height) * 0.8,
-      this.grid.height * 0.35,
+      this.grid.width * 0.55,
+      Math.max(this.grid.width, this.grid.height) * 0.6,
+      this.grid.height * 0.5,
     );
+    sun.castShadow = true;
+    const extent = mapExtent(this.grid, this.layout);
+    const reach = extent.radius * 1.1;
+    sun.shadow.camera.left = -reach;
+    sun.shadow.camera.right = reach;
+    sun.shadow.camera.top = reach;
+    sun.shadow.camera.bottom = -reach;
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = extent.radius * 6;
+    // 1024 is soft enough on a 22-tile room, and half the cost of the next
+    // size up on the software GL the browser suite runs on.
+    sun.shadow.mapSize.set(1024, 1024);
+    // Flat-shaded boxes lit at a low angle acne without a bias along the normal.
+    sun.shadow.normalBias = 0.03;
+    sun.shadow.bias = -0.0005;
+    this.sun = sun;
     this.scene.add(sun);
+    // The light aims at its target, which lives at the origin unless it is in the scene.
+    this.scene.add(sun.target);
+  }
+
+  /** The sun, for a test of the rig or a caller that wants to move it. */
+  get sunlight(): DirectionalLight | null {
+    return this.sun;
   }
 
   /**
@@ -320,8 +379,14 @@ export class SceneView {
     if (this.lastDecos.some((deco) => deco.model === id)) this.setDecos(this.lastDecos);
   }
 
-  /** Advance every playing clip. `dt` in seconds. */
+  /** Advance every playing clip, and the selection's breathing. `dt` in seconds. */
   tick(dt: number): void {
+    if (this.selection.visible) {
+      this.breath += dt;
+      const swell = 1 + 0.06 * Math.sin(this.breath * 3.5);
+      this.selection.scale.set(swell, 1, swell);
+      this.selectionMaterial.opacity = 0.75 + 0.2 * Math.sin(this.breath * 3.5);
+    }
     for (const [object, mixer] of this.mixers) {
       // A clone whose group left the scene stops being driven.
       if (object.parent === null || object.parent.parent === null) {
@@ -496,6 +561,24 @@ export class SceneView {
     return this.cursorTile;
   }
 
+  /** Ring the tile of whoever is selected, or nobody for `NO_TILE`. */
+  showSelection(tile: number): void {
+    if (tile === this.selectionTile) return;
+    this.selectionTile = tile;
+    if (!this.grid.isTile(tile)) {
+      this.selection.visible = false;
+      return;
+    }
+    const centre = tileCenter(this.grid, tile, this.layout);
+    this.selection.position.set(centre.x, surfaceHeight(this.grid.heightAt(tile), this.layout) + 0.035, centre.z);
+    this.selection.visible = true;
+  }
+
+  /** The tile the selection ring is on, or `NO_TILE`. */
+  get selectionAt(): number {
+    return this.selectionTile;
+  }
+
   dispose(): void {
     if (this.stopListening !== null) this.stopListening();
     for (const mixer of this.mixers.values()) mixer.stopAllAction();
@@ -507,6 +590,12 @@ export class SceneView {
     this.zoneMaterial.dispose();
     this.zoneLayer.dispose();
     this.cursorMaterial.dispose();
+    this.selectionGeometry.dispose();
+    this.selectionMaterial.dispose();
+    // A view is rebuilt on every scene switch; the shadow map is a texture the
+    // renderer holds until told otherwise.
+    this.sun?.shadow.map?.dispose();
+    this.sun?.shadow.dispose();
     this.tokens.clear();
     this.decos.length = 0;
     // Shared caches outlive a scene unless this view created them.

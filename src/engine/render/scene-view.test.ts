@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { Color, Matrix4, Vector3, type InstancedMesh } from 'three';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
-import { surfaceHeight, tileCenter } from './layout';
+import { mapExtent, surfaceHeight, tileCenter } from './layout';
 import { SceneView } from './scene-view';
 import { DEFAULT_TERRAIN_COLORS, buildTerrainMesh, instanceCount } from './terrain-mesh';
 
@@ -132,6 +132,53 @@ describe('SceneView', () => {
     expect(view.terrain.meshes.length).toBeGreaterThan(0);
     for (const mesh of view.terrain.meshes) expect(view.root.children).toContain(mesh);
     expect(view.scene.children.filter((c) => c.type.endsWith('Light')).length).toBeGreaterThan(0);
+    view.dispose();
+  });
+
+  it('has a sun that casts, with a shadow camera the whole room fits inside', () => {
+    const { grid, view } = setup();
+    const sun = view.sunlight!;
+    expect(sun.castShadow).toBe(true);
+    // Every tile's centre is inside the shadow camera's box, or the far edge
+    // of a big room would be lit as if nothing stood on it.
+    const extent = mapExtent(grid);
+    expect(sun.shadow.camera.right).toBeGreaterThanOrEqual(extent.radius);
+    expect(sun.shadow.camera.top).toBeGreaterThanOrEqual(extent.radius);
+    expect(-sun.shadow.camera.left).toBeGreaterThanOrEqual(extent.radius);
+    expect(-sun.shadow.camera.bottom).toBeGreaterThanOrEqual(extent.radius);
+    // And the floor is what catches the shadow, the walls what throw it.
+    for (const mesh of view.terrain.meshes) {
+      expect(mesh.receiveShadow).toBe(true);
+      expect(mesh.castShadow).toBe(true);
+    }
+    view.dispose();
+  });
+
+  it('rings the selected tile, breathes while it is there, and goes away for nobody', () => {
+    const { grid, view } = setup();
+    const ring = view.root.children.find((c) => c.name === 'selection')!;
+    expect(ring.visible).toBe(false);
+
+    const tile = grid.indexOf(2, 1);
+    grid.setHeight(tile, 1);
+    view.showSelection(tile);
+    expect(view.selectionAt).toBe(tile);
+    expect(ring.visible).toBe(true);
+    const centre = tileCenter(grid, tile);
+    expect(ring.position.x).toBeCloseTo(centre.x, 6);
+    expect(ring.position.z).toBeCloseTo(centre.z, 6);
+    expect(ring.position.y).toBeGreaterThan(surfaceHeight(1));
+
+    // Breathing changes the size a little and the place not at all.
+    const before = ring.scale.x;
+    view.tick(0.3);
+    expect(ring.scale.x).not.toBe(before);
+    expect(Math.abs(ring.scale.x - 1)).toBeLessThan(0.1);
+    expect(ring.position.x).toBeCloseTo(centre.x, 6);
+
+    view.showSelection(-1);
+    expect(ring.visible).toBe(false);
+    expect(view.selectionAt).toBe(-1);
     view.dispose();
   });
 

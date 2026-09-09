@@ -13,6 +13,7 @@
 
 import { Fragment, h, render } from 'preact';
 import {
+  PCFSoftShadowMap,
   PerspectiveCamera,
   Raycaster,
   Vector2,
@@ -241,6 +242,8 @@ const canvas = document.getElementById('gl') as HTMLCanvasElement;
 const app = document.getElementById('app') as HTMLDivElement;
 const renderer = new WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(1);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = PCFSoftShadowMap;
 renderer.setSize(window.innerWidth, window.innerHeight, false);
 const gl = renderer.getContext();
 const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
@@ -392,6 +395,7 @@ function setMode(next: 'play' | 'edit'): void {
     rebindScene();
     view.clearHighlights();
     view.clearZones();
+    view.showSelection(NO_TILE);
     view.syncTokens(demo.state);
     renderPanel();
   }
@@ -658,6 +662,7 @@ function refreshPlay(): void {
   if (activeScene().id === demo.scene.id) {
     view.syncTokens(demo.state);
     view.showZones(paintedZones());
+    view.showSelection(demo.party.selected === null ? NO_TILE : (demo.state.entity(demo.party.selected)?.tile ?? NO_TILE));
     // A target to pick lights the creatures it could be; otherwise the walk.
     view.showHighlights(
       targeting !== null
@@ -669,6 +674,7 @@ function refreshPlay(): void {
   } else {
     view.clearHighlights();
     view.clearZones();
+    view.showSelection(NO_TILE);
   }
   renderPlayPanel();
 }

@@ -431,6 +431,16 @@ instanced layer under the highlights, a colour per zone), and the tiles come fro
 the picture is the rule. A zone's condition names its colour (`ConditionDef.color`); one that
 names none gets a hue spun from its id, so nothing scripted later is invisible.
 
+**The room has a sun.** The light rig is a sky (`HemisphereLight`), a little ambient, and a
+directional sun that casts, about fifty degrees up, with a shadow camera fitted to the map's
+extent so a room of any size is inside it. Walls and raised slabs cast onto the floor beside
+them, props and tokens onto the tiles they stand on - the depth cue that makes a wall read as
+standing rather than painted. **Whoever is selected is ringed** on the board in the same blue
+their HUD card is edged in, breathing slightly so the eye finds it; the ring is a mesh of its
+own rather than a recoloured base ring, because tokens share materials. Every SRD class maps to
+a hero body (`DEMO_MODELS`), so a character added in the panel stands as a person and not as
+the magenta placeholder - which stays what it is, the library's honest "no model for this id".
+
 **Dice** are read out rather than rolled on screen: "Hope 8 + Fear 7 + 2 = 17 vs 12. Success,
 with Hope." Only the parts that applied are named. That is the part of dice presentation a
 player needs to trust the outcome; a 3D roll is theatre on top of it.

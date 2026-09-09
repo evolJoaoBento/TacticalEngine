@@ -127,9 +127,19 @@ export const DEMO_BAND_TILES = { melee: 1, veryClose: 2, close: 4, far: 8, veryF
  * SRD content id; neither is a model id, so the demo maps them.
  */
 export const DEMO_MODELS: Readonly<Record<string, string>> = {
+  // The nine SRD classes, on the six hero bodies the library has. A class
+  // without a line here would stand as the magenta placeholder - which is
+  // the library's honest "asked for a model I do not have", so this is a
+  // map to keep complete rather than a fallback to hide behind.
   guardian: 'knight',
+  warrior: 'defender',
+  seraph: 'knight',
   rogue: 'rogue',
+  ranger: 'rogue',
+  bard: 'rogue',
   wizard: 'mage',
+  sorcerer: 'battleMage',
+  druid: 'frostMage',
   'acid-burrower': 'bramble',
   'hollow-husk': 'husk',
 };
