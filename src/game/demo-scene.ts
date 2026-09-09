@@ -262,6 +262,15 @@ export interface GmTurn {
 export interface LogLine {
   text: string;
   tone: LogTone;
+  /**
+   * The creatures this line names, and where in it their names are.
+   *
+   * Collected once, where the line is written and the board is to hand, so the
+   * panel does not have to know what a creature is called. A UI that wants to
+   * point at somebody hovers the name; one that does not can ignore this and
+   * print `text`.
+   */
+  mentions?: readonly { id: string; name: string }[];
 }
 
 /**
@@ -4481,7 +4490,10 @@ function speak(demo: DemoScene, talking: PendingDialogue, view: DialogueView): L
 
 /** Put one line in the log, and return it. */
 export function note(demo: DemoScene, text: string, tone: LogTone): LogLine[] {
-  const line = { text, tone };
+  // Every line goes through here or through `record`, and both want their
+  // names findable, so the marking happens on the way in rather than at each
+  // of the several dozen call sites that write a sentence.
+  const line = withMentions(demo, { text, tone });
   demo.log.push(line);
   return [line];
 }
@@ -4539,7 +4551,7 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
       showRoll(demo, roller === null ? '' : who(roller), rolled.what, rolled.roll);
     }
     const line = describeEntry(entry, names, quests, who, (c) => demo.world.conditionName(c));
-    if (line !== null) lines.push(line);
+    if (line !== null) lines.push(withMentions(demo, line));
   }
   demo.log.push(...lines);
   // A condition a script put on or took off someone may move a pool's maximum.
@@ -4581,6 +4593,39 @@ function cuesFrom(demo: DemoScene, journal: readonly JournalEntry[]): CountdownC
     }
   }
   return cues;
+}
+
+/**
+ * The creatures a line names, so a UI can point at them.
+ *
+ * Read off the board rather than threaded through every sentence: a line is
+ * written by a dozen different branches, and every one of them already calls
+ * the same `nameOf`. Matching afterwards means a new sentence gets this for
+ * nothing.
+ *
+ * Longest name first, so "Acid Burrower" is not found as "Acid" when something
+ * on the map is called that; and a name is only a mention where it stands as a
+ * whole word.
+ */
+function withMentions(demo: DemoScene, line: LogLine): LogLine {
+  const found: { id: string; name: string }[] = [];
+  const everybody = [...demo.state.entitiesOf('party'), ...demo.state.entitiesOf('adversary')];
+  const named = everybody
+    .map((e) => ({ id: e.id, name: nameOf(demo, e.id) }))
+    .sort((a, b) => b.name.length - a.name.length);
+  let left = line.text;
+  for (const one of named) {
+    if (one.name === '' || found.some((f) => f.id === one.id)) continue;
+    const at = left.indexOf(one.name);
+    if (at === -1) continue;
+    const before = at === 0 ? ' ' : left[at - 1]!;
+    const after = left[at + one.name.length] ?? ' ';
+    if (/[A-Za-z0-9]/.test(before) || /[A-Za-z0-9]/.test(after)) continue;
+    found.push(one);
+    // Blank it out so a shorter name inside it is not found again.
+    left = `${left.slice(0, at)}${' '.repeat(one.name.length)}${left.slice(at + one.name.length)}`;
+  }
+  return found.length === 0 ? line : { ...line, mentions: found };
 }
 
 /** A creature's name for the log: the sheet's, the stat block's, or its id. */

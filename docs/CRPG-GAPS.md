@@ -178,8 +178,9 @@ Minion, Momentum and Terrifying are read off the block, and action or reaction f
 abilities in the same vocabulary (`docs/ADVERSARIES.md` lists which of the 417 printed features
 the engine runs).
 
-**Still open:** 53 of 189 cards are scripted (`docs/CARDS.md`); the rest are text, each for a
-reason the doc gives. On the stat blocks, 73 of 417 features are read off the block and 52 are
+**Still open:** 135 of 189 cards are scripted (`docs/CARDS.md`, which counts them itself); the
+rest are text, and each one now carries its own line saying why - the generator refuses to build
+if a text card has no reason, so this number is the only one here anybody has to keep by hand. On the stat blocks, 73 of 417 features are read off the block and 52 are
 scripted; the other 292 are the GM's to narrate, and `docs/ADVERSARIES.md` now groups the
 reasons rather than leaving them unsaid. Resistance, immunity and the number a block takes off the
 damage are now a `defenses` line on a passive or a condition, read wherever damage lands; the
@@ -428,7 +429,11 @@ gear, pools, Evasion, conditions), an adversary (tier, role, description, Diffic
 an object (kind, flavour, whether it is open, used or gone, what it asks for) — as a card in the
 play panel; Escape or ✕ closes it.
 
-**Still open:** entity-hover links in the log.
+**Still open:** nothing. A name in the log points at whoever it named: the line collects the
+creatures it mentions where it is written and the board is to hand, the panel cuts the sentence
+on those names, and hovering one leaves the same marker under their tile that the pointer does.
+Both line factories - `note` and `record` - mark on the way in, so a sentence written tomorrow
+gets it for nothing.
 
 ## How to tell whether this is on track
 

@@ -170,3 +170,75 @@ test('Hold the Line drags in whatever comes close', async ({ page }) => {
   expect(held.kara).toContain('holding-the-line');
   expect(held.foe).toContain('caught-in-the-line');
 });
+
+test('a name in the log points at whoever it named', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+    timeout: 30_000,
+  });
+  await page.evaluate(() => window.__polyheart!.setDiceSpeed(0));
+
+  // A swing, so the log has a line naming two creatures.
+  const swung = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    const door = a.objects().find((o) => o.includes('door')) ?? a.objects()[0]!;
+    a.standBeside(door);
+    for (let i = 0; i < 20 && !a.objectState(door).open; i++) {
+      if (a.use(door) === 'waiting') a.answer({ kind: 'roll' });
+      while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
+    }
+    for (let i = 0; i < 15 && !a.inCombat(); i++) {
+      const tiles = a.reachable();
+      if (tiles.length === 0) break;
+      const east = tiles.reduce((x, y) => (y % 22 > x % 22 ? y : x));
+      if (!a.moveTo(east)) break;
+      while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
+    }
+    const foe = a.adversaries()[0]!;
+    const away = (t: number, to: number): number =>
+      Math.abs((t % 22) - (to % 22)) + Math.abs(Math.floor(t / 22) - Math.floor(to / 22));
+    for (let i = 0; i < 12; i++) {
+      const me = a.selected() ?? '';
+      if (away(a.tileOf(me), a.tileOf(foe)) <= 1) break;
+      const tiles = a.reachable();
+      if (tiles.length === 0) break;
+      const foeTile = a.tileOf(foe);
+      const closest = tiles.reduce((x, y) => (away(y, foeTile) < away(x, foeTile) ? y : x));
+      if (!a.moveTo(closest)) break;
+      while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
+      a.endGmTurn();
+      while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
+    }
+    a.attack(foe);
+    while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
+    return { foe, foeTile: a.tileOf(foe) };
+  });
+  console.log('SWUNG:', JSON.stringify(swung));
+
+  // The swing's line names the swinger and whoever was swung at, and each name
+  // is its own element rather than a run of text.
+  const links = page.locator('[data-testid="log"] [data-testid="log-entity"]');
+  const count = await links.count();
+  console.log('LINKS:', count, JSON.stringify(await links.allInnerTexts()));
+  expect(count, 'the log linked the creatures it named').toBeGreaterThan(0);
+
+  // Hovering one marks it on the board.
+  const foeLink = page.locator(`[data-testid="log"] [data-entity="${swung.foe}"]`).last();
+  await expect(foeLink).toBeVisible();
+  await foeLink.hover();
+  const marked = await page.evaluate(() => window.__polyheart!.cursorTile());
+  console.log('MARKED:', marked, 'FOE AT:', swung.foeTile);
+  expect(marked, 'the board marks whoever the log named').toBe(swung.foeTile);
+
+  await page.screenshot({ path: 'test-results/log-hover.png' });
+
+  // And letting go puts the marker away.
+  await page.locator('[data-testid="hud"]').hover();
+  const after = await page.evaluate(() => window.__polyheart!.cursorTile());
+  console.log('AFTER:', after);
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});

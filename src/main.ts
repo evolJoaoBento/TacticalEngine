@@ -1002,6 +1002,12 @@ function renderPlayPanel(): void {
         refreshPlay();
       },
       journal: journalEntries(),
+      // A name in the log points at somebody on the board: the same marker the
+      // pointer leaves under a tile, put there by reading rather than aiming.
+      onHoverEntity: (id: string | null) => {
+        const tile = id === null ? NO_TILE : demo.state.entity(id)?.tile ?? NO_TILE;
+        view.showCursor(tile);
+      },
       carried: carriedItems(),
       pending: demo.pending,
       within: reachableInteractable(demo),

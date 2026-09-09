@@ -24,6 +24,35 @@ export interface CarriedItem {
   usable: boolean;
 }
 
+/**
+ * A log line cut into the creatures it names and the words between them.
+ *
+ * The names come from the line itself, which collected them where the board was
+ * to hand; this only has to find them again in order. A line that named nobody
+ * is one part and no work.
+ */
+function logParts(line: LogLine): { text: string; id: string | null }[] {
+  const mentions = line.mentions ?? [];
+  if (mentions.length === 0) return [{ text: line.text, id: null }];
+  const parts: { text: string; id: string | null }[] = [];
+  let rest = line.text;
+  // Left to right through the sentence, whichever name comes next.
+  for (;;) {
+    let soonest: { id: string; name: string; at: number } | null = null;
+    for (const one of mentions) {
+      const at = rest.indexOf(one.name);
+      if (at === -1) continue;
+      if (soonest === null || at < soonest.at) soonest = { ...one, at };
+    }
+    if (soonest === null) break;
+    if (soonest.at > 0) parts.push({ text: rest.slice(0, soonest.at), id: null });
+    parts.push({ text: soonest.name, id: soonest.id });
+    rest = rest.slice(soonest.at + soonest.name.length);
+  }
+  if (rest !== '') parts.push({ text: rest, id: null });
+  return parts;
+}
+
 /** One quest as the journal shows it: the words, and which steps are ticked. */
 export interface JournalQuest {
   id: string;
@@ -52,6 +81,8 @@ export interface PlayPanelProps {
   onCloseInspect: () => void;
   /** Quests the party has been given, active first. */
   journal: readonly JournalQuest[];
+  /** Somebody named in the log is under the pointer, or nobody is. */
+  onHoverEntity?: (id: string | null) => void;
   /** What the party is carrying. */
   carried: readonly CarriedItem[];
   pending: Pending | null;
@@ -296,7 +327,22 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         >
           {log.slice(-12).map((line, i) => (
             <div key={i} style={{ color: TONE[line.tone], marginBottom: '4px' }}>
-              {line.text}
+              {logParts(line).map((part, j) =>
+                part.id === null ? (
+                  part.text
+                ) : (
+                  <span
+                    key={j}
+                    data-testid="log-entity"
+                    data-entity={part.id}
+                    style={{ textDecoration: 'underline dotted', cursor: 'default' }}
+                    onMouseEnter={() => props.onHoverEntity?.(part.id)}
+                    onMouseLeave={() => props.onHoverEntity?.(null)}
+                  >
+                    {part.text}
+                  </span>
+                ),
+              )}
             </div>
           ))}
         </div>
