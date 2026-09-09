@@ -2143,8 +2143,10 @@ describe('a Demon rallying Relentless allies', () => {
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'pit', name: 'The pit' })));
     s.run(addAdversary('hall', 'pit', { id: 'hubris', adversary: 'demon-of-hubris', position: { x: 7, y: 4 } }));
-    s.run(addAdversary('hall', 'pit', { id: 'imp-1', adversary: 'minor-demon', position: { x: 7, y: 3 } }));
-    s.run(addAdversary('hall', 'pit', { id: 'imp-2', adversary: 'minor-demon', position: { x: 7, y: 5 } }));
+    // The imps stand in Far range of Kara and past a Close-range walk of her:
+    // rallied, they close in and stop short, and the fight makes no Fear of its own.
+    s.run(addAdversary('hall', 'pit', { id: 'imp-1', adversary: 'minor-demon', position: { x: 10, y: 3 } }));
+    s.run(addAdversary('hall', 'pit', { id: 'imp-2', adversary: 'minor-demon', position: { x: 10, y: 5 } }));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'pit');

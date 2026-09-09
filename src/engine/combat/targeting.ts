@@ -18,7 +18,7 @@ import { TileGrid } from '../grid/grid';
 import { coverBetween, lineOfSight, type LineOfSightRules } from '../grid/los';
 import { coverDisadvantage, type Cover } from '../rules/cover';
 import {
-  bandForDistance,
+  bandForSpan,
   bandLabel,
   reaches,
   type BandTiles,
@@ -43,20 +43,6 @@ export interface TargetingOptions {
    * Defaults to "anything beyond Melee band is ranged".
    */
   ranged?: boolean;
-  /**
-   * Whether a diagonal neighbour counts as adjacent — that is, as Melee range.
-   *
-   * This has to follow the project's movement rules or the two disagree in a way
-   * players notice: straight-line distance to a diagonal neighbour is 1.41, which
-   * rounds into Very Close, so a fighter standing corner-to-corner with a target
-   * could not reach it with a Melee weapon. Defaults to `false`, matching
-   * `DEFAULT_MOVEMENT`; a project that turns diagonal movement on must turn this
-   * on with it.
-   *
-   * It only affects adjacency. Everything past a neighbouring tile is measured in
-   * a straight line, because that is what a range band describes.
-   */
-  diagonalAdjacency?: boolean;
 }
 
 export interface TargetingReport {
@@ -120,13 +106,9 @@ export function evaluateTarget(
   }
 
   const distance = grid.euclideanDistance(attackerTile, targetTile);
-  // A neighbour under the movement rules is in Melee range, whichever direction it
-  // lies in; anything further is measured in a straight line.
-  const adjacent =
-    options.diagonalAdjacency === true
-      ? grid.chebyshevDistance(attackerTile, targetTile) <= 1
-      : grid.manhattanDistance(attackerTile, targetTile) <= 1;
-  const band = adjacent ? 'melee' : bandForDistance(Math.ceil(distance), options.bandTiles);
+  // As the crow flies, to the nearest tile: every neighbour is Melee, whichever
+  // way it lies, and nothing past one depends on the shape of the map.
+  const band = bandForSpan(distance, options.bandTiles);
   const ranged = options.ranged ?? band !== 'melee';
 
   const sight = lineOfSight(grid, attackerTile, targetTile, options.losRules);

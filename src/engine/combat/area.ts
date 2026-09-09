@@ -23,7 +23,7 @@
 import type { TileGrid } from '../grid/grid';
 import { hasLineOfSight, type LineOfSightRules } from '../grid/los';
 import {
-  bandForDistance,
+  bandForSpan,
   reaches,
   type BandTiles,
   type RangeBand,
@@ -58,8 +58,7 @@ export function isLegalOrigin(
 ): boolean {
   if (!grid.isTile(caster) || !grid.isTile(origin)) return false;
   if (caster === origin) return true;
-  const distance = Math.ceil(grid.euclideanDistance(caster, origin));
-  return reaches(bandForDistance(distance, options.bandTiles), effectRange);
+  return reaches(bandForSpan(grid.euclideanDistance(caster, origin), options.bandTiles), effectRange);
 }
 
 /** Whether a tile falls inside the area an effect covers from its origin. */
@@ -72,8 +71,7 @@ export function isInArea(
   if (!grid.isTile(origin) || !grid.isTile(tile)) return false;
   if (origin === tile) return true;
   const radius = options.radius ?? AREA_OF_EFFECT_BAND;
-  const distance = Math.ceil(grid.euclideanDistance(origin, tile));
-  if (!reaches(bandForDistance(distance, options.bandTiles), radius)) return false;
+  if (!reaches(bandForSpan(grid.euclideanDistance(origin, tile), options.bandTiles), radius)) return false;
   if (options.requireLineOfSight !== true) return true;
   return hasLineOfSight(grid, origin, tile, options.losRules);
 }
@@ -150,7 +148,7 @@ export function moveUnderPressure(
   if (!grid.isTile(from) || !grid.isTile(to)) return 'outOfReach';
   if (from === to) return 'free';
 
-  const band = bandForDistance(Math.ceil(grid.euclideanDistance(from, to)), options.bandTiles);
+  const band = bandForSpan(grid.euclideanDistance(from, to), options.bandTiles);
 
   if (mover === 'adversary') {
     // "within Close range for free as part of an action, or within Very Far

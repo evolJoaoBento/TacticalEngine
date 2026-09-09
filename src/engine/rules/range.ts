@@ -60,6 +60,18 @@ export function bandForDistance(tiles: number, table: BandTiles = DEFAULT_BAND_T
   return 'outOfRange';
 }
 
+/**
+ * The band a straight-line span falls in, the span measured to the nearest
+ * tile. Daggerheart is not played on a grid: distance is "as the crow flies",
+ * so a diagonal neighbour (1.41 tiles away) is Melee like any other neighbour,
+ * and nothing depends on which way a corridor runs. Every measurement between
+ * two tiles goes through here, so the rule cannot drift between the attack,
+ * the area, the script and the picture.
+ */
+export function bandForSpan(span: number, table: BandTiles = DEFAULT_BAND_TILES): RangeBand {
+  return bandForDistance(Math.round(span), table);
+}
+
 /** Furthest tile distance still inside a band. */
 export function maxTilesForBand(band: RangeBand, table: BandTiles = DEFAULT_BAND_TILES): number {
   return band === 'outOfRange' ? Infinity : table[band];

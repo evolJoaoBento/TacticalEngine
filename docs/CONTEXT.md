@@ -101,8 +101,10 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
     is total; clipping a corner where only one of the two tiles blocks is partial, and gives cover.
   - Band-to-tile distances (`DEFAULT_BAND_TILES` in `src/engine/rules/range.ts`), derived from the SRD's
     own distances at 5 ft per tile.
-  - Diagonal adjacency (`TargetingOptions.diagonalAdjacency`). It must follow the project's movement rules
-    or a diagonal neighbour is out of Melee reach.
+  - Distance is as the crow flies, to the nearest tile (`bandForSpan` in `src/engine/rules/range.ts`),
+    everywhere: an attack, an area, a script's walk, the picture. Daggerheart is not played on a grid, so
+    a diagonal neighbour is Melee and a fight's move is a Close-range disc (`MovementContext.maxSpan`),
+    not a count of steps. The tiles are a navmesh underneath, never a rule.
   - Which target's scales a check reads when it names several
     (`SceneScriptWorld.advantageAgainst`). Vulnerable is "all rolls targeting you" and Hidden is "any rolls
     against you", so a Spellcast Roll reads them as an attack does — but a check is *one* roll and may name a

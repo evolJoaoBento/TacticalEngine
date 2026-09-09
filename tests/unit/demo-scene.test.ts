@@ -17,7 +17,7 @@ import { tileOf } from '../../src/engine/scene/grid-from-scene';
 import { attackProfile } from '../../src/engine/character/sheet';
 import {
   DEMO_ADVERSARY_ID,
-  DEMO_MOVE_BUDGET,
+  DEMO_BAND_TILES,
   PARTY_SHEETS,
   SRD_ADVERSARIES,
   SRD_CHARACTERS,
@@ -112,15 +112,38 @@ describe('party control', () => {
     for (const tile of after) expect(demo.grid.isPassable(tile)).toBe(true);
   });
 
-  it('keeps the preview inside the budget and off the walls', () => {
+  it('keeps the preview off the walls and, out of a fight, counts no steps', () => {
     const demo = build();
     const field = reachableTiles(demo);
     const tiles = field.tiles();
     expect(tiles.length).toBeGreaterThan(1);
+    for (const tile of tiles) expect(demo.grid.isPassable(tile)).toBe(true);
+    // Everywhere the floor goes from where they stand: the far end of the vault included.
+    const start = demo.state.entity('kara')!.tile;
+    const farthest = Math.max(...tiles.map((t) => demo.grid.euclideanDistance(start, t)));
+    expect(farthest).toBeGreaterThan(DEMO_BAND_TILES.close);
+  });
+
+  it('in a fight, the walk is the Close-range disc round them, not a count of steps', () => {
+    const demo = build();
+    openTheDoor(demo);
+    const target = demo.state.entitiesOf('adversary')[0]!.tile;
+    walkTowards(demo, target);
+    expect(inCombat(demo)).toBe(true);
+    const start = demo.state.entity(demo.party.selected!)!.tile;
+    const tiles = reachableTiles(demo).tiles();
+    expect(tiles.length).toBeGreaterThan(1);
     for (const tile of tiles) {
       expect(demo.grid.isPassable(tile)).toBe(true);
-      expect(field.costTo(tile)).toBeLessThanOrEqual(DEMO_MOVE_BUDGET);
+      expect(Math.round(demo.grid.euclideanDistance(start, tile))).toBeLessThanOrEqual(DEMO_BAND_TILES.close);
     }
+    // And a diagonal is one step, so the disc is round rather than a diamond.
+    const corner = [...tiles].find((t) => {
+      const dx = Math.abs(demo.grid.xOf(t) - demo.grid.xOf(start));
+      const dy = Math.abs(demo.grid.yOf(t) - demo.grid.yOf(start));
+      return dx === dy && dx >= 2;
+    });
+    expect(corner).toBeDefined();
   });
 
   it('refuses a move out of reach and changes nothing', () => {

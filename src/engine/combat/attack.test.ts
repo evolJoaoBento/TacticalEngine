@@ -512,29 +512,16 @@ describe('adjacency and range', () => {
   const centre = diagonalGrid.indexOf(2, 2);
   const diagonalNeighbour = diagonalGrid.indexOf(3, 3);
 
-  it('refuses a Melee attack on a diagonal neighbour by default', () => {
-    // Straight-line distance is 1.41, which rounds into Very Close. That matches
-    // DEFAULT_MOVEMENT, where a diagonal is not a step either.
-    const outcome = resolveAttack(scriptedRng([]), {
-      grid: diagonalGrid,
-      attacker: party('kara', centre),
-      target: adversary('husk', diagonalNeighbour),
-      profile: greatblade,
-      defender,
-      options: { bandTiles },
-    });
-    expect(outcome.targeting.band).toBe('veryClose');
-    expect(outcome.refused).toBe('outOfRange');
-  });
-
-  it('reaches a diagonal neighbour when the project allows diagonal movement', () => {
+  it('reaches a diagonal neighbour: distance is as the crow flies, and 1.41 tiles is Melee', () => {
+    // Daggerheart is not played on a grid. A creature standing corner-to-corner
+    // is as close as one standing straight ahead.
     const outcome = resolveAttack(scriptedRng([8, 3, 5, 6]), {
       grid: diagonalGrid,
       attacker: party('kara', centre),
       target: adversary('husk', diagonalNeighbour),
       profile: greatblade,
       defender,
-      options: { bandTiles, diagonalAdjacency: true },
+      options: { bandTiles },
     });
     expect(outcome.targeting.band).toBe('melee');
     expect(outcome.targeting.ranged).toBe(false);
@@ -549,7 +536,7 @@ describe('adjacency and range', () => {
       target: adversary('husk', diagonalGrid.indexOf(4, 4)),
       profile: { ...greatblade, range: 'veryClose' },
       defender,
-      options: { bandTiles, diagonalAdjacency: true },
+      options: { bandTiles },
     });
     expect(outcome.targeting.distance).toBeCloseTo(Math.hypot(4, 4), 10);
     expect(outcome.refused).toBe('outOfRange');

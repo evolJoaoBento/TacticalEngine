@@ -56,6 +56,13 @@ export interface MovementContext {
    * clamped to zero rather than trusted.
    */
   extraCost?: (tile: number) => number;
+  /**
+   * How far from the query's start a tile may lie, as the crow flies in tiles
+   * measured to the nearest one, beyond which it is not entered. A move "within
+   * Close range" is a disc round where the mover stands, not a count of steps;
+   * this is the disc. Left out, only the budget bounds the search.
+   */
+  maxSpan?: number;
 }
 
 /**
@@ -185,6 +192,7 @@ export class Pathfinder {
   private queryGeneration = 0;
   private queryBudget = Infinity;
   private queryFrom = NO_TILE;
+  private queryStart = NO_TILE;
   private queryFromCost = 0;
   /** `NO_TILE` for an unguided flood; a goal tile switches the heap key to A*. */
   private queryGoal = NO_TILE;
@@ -209,6 +217,8 @@ export class Pathfinder {
       const rules = this.queryRules;
       const generation = this.queryGeneration;
       if (!this.canStep(from, next, rules, this.queryContext)) return;
+      const span = this.queryContext.maxSpan;
+      if (span !== undefined && Math.round(this.grid.euclideanDistance(this.queryStart, next)) > span) return;
 
       const total = this.queryFromCost + this.stepCost(from, next, rules, this.queryContext);
       if (total > this.queryBudget) return;
@@ -228,7 +238,7 @@ export class Pathfinder {
    */
   reachable(start: number, budget: number, context: MovementContext = {}): ReachableField {
     const rules = context.rules ?? DEFAULT_MOVEMENT;
-    const generation = this.beginQuery(rules, context, budget, NO_TILE);
+    const generation = this.beginQuery(rules, context, budget, NO_TILE, start);
     const { cost, prev, stamp, heap, grid } = this;
 
     if (grid.isTile(start)) {
@@ -269,7 +279,7 @@ export class Pathfinder {
     if (start === goal) return [start];
     if (!grid.isPassable(goal) || context.isBlocked?.(goal) === true) return null;
 
-    const generation = this.beginQuery(rules, context, Infinity, goal);
+    const generation = this.beginQuery(rules, context, Infinity, goal, start);
     cost[start] = 0;
     prev[start] = NO_TILE;
     stamp[start] = generation;
@@ -316,6 +326,7 @@ export class Pathfinder {
     context: MovementContext,
     budget: number,
     goal: number,
+    start: number,
   ): number {
     this.heap.clear();
     this.queryRules = rules;
@@ -323,6 +334,7 @@ export class Pathfinder {
     this.queryBudget = budget;
     this.queryGoal = goal;
     this.queryFrom = NO_TILE;
+    this.queryStart = start;
     this.queryFromCost = 0;
     this.generation++;
     if (this.generation === 0x7fff_ffff) {

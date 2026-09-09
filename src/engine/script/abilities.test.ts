@@ -509,8 +509,8 @@ describe('a swarm that piles in', () => {
 
   /**
    * The corridor with more of husk-1's kind loose in it, and Kara a step
-   * further in so there is a free tile on every side of her: only four
-   * creatures can stand beside anyone, and Mira holds one of the four.
+   * further in so there is a free tile on every side of her: eight creatures
+   * can stand beside anyone, a diagonal being as close as a side.
    *
    * Armor is left alone here so the arithmetic is the swarm's: Kara's
    * thresholds are 8/16, and each husk deals 1d6+2.
@@ -529,7 +529,7 @@ describe('a swarm that piles in', () => {
   }
 
   const beside = (built: ReturnType<typeof rats>, id: string): boolean =>
-    built.grid.manhattanDistance(built.state.entity(id)!.tile, built.state.entity('kara')!.tile) <= 1;
+    built.grid.chebyshevDistance(built.state.entity(id)!.tile, built.state.entity('kara')!.tile) <= 1;
 
   it('walks its own kind into reach, swings once, and counts the damage for each', () => {
     const built = rats([[4, 0], [4, 2], [5, 2]]);
@@ -561,14 +561,17 @@ describe('a swarm that piles in', () => {
     expect(built.state.entity('kara')!.hitPoints.marked).toBe(2);
   });
 
-  it('takes no more than can stand beside them', () => {
-    // Six of them, four tiles around Kara, and Mira on one of the four.
+  it('takes no more than can get there', () => {
+    // Six of them. Kara has seven free tiles round her with husk-1 on the
+    // eighth, but the two on her far side are past a Close-range walk for the
+    // last rat in the corridor, which stops short.
     const built = rats([[4, 0], [4, 2], [5, 2], [5, 0], [6, 1], [6, 0]]);
-    const journal = runScript(swarm, built.world, scripted([18, 3, 3, 3, 3]), { rollAs: 'actor', targets: ['kara'] });
+    const journal = runScript(swarm, built.world, scripted([18, 3, 3, 3, 3, 3, 3]), { rollAs: 'actor', targets: ['kara'] });
     const attack = journal.find((e) => e.kind === 'attack') as { joined?: readonly string[] };
-    expect(attack.joined).toHaveLength(3);
-    // The ones who could not get there are still out in the corridor.
-    expect(['rat-6', 'rat-7', 'rat-8'].filter((id) => beside(built, id))).toHaveLength(0);
+    expect(attack.joined).toHaveLength(5);
+    // The one who could not get there is still out in the corridor.
+    expect(beside(built, 'rat-8')).toBe(false);
+    expect(built.state.entity('rat-8')!.tile).not.toBe(built.grid.indexOf(6, 0));
   });
 
   it('is a plain swing when nobody else is near', () => {

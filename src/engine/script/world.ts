@@ -38,7 +38,7 @@ import {
 import { HOPE_DIE_SIDES, rollDuality, type DualityRoll, type RollOutcome } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
 import {
-  bandForDistance,
+  bandForSpan,
   bandIndex,
   maxTilesForBand,
   reaches,
@@ -56,7 +56,7 @@ import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../ru
 import type { AdversaryDef } from '../content/types';
 import { NO_TILE } from '../grid/grid';
 import { traceLine } from '../grid/los';
-import { Pathfinder } from '../grid/pathfinding';
+import { Pathfinder, type MovementRules } from '../grid/pathfinding';
 import { createAdversaryEntity, type EntityState, type SceneState } from '../scene/state';
 import type { Trait } from '../scene/schema';
 import { scriptValueSchema, type ConditionDuration, type PoolName, type ScriptValue } from './schema';
@@ -290,6 +290,8 @@ export interface SceneScriptWorldOptions {
   adversaries?: ReadonlyMap<string, AdversaryDef>;
   /** How many tiles each range band spans on this map. */
   bandTiles?: BandTiles;
+  /** The movement rules a script walks a creature by; the engine's four-way default when left out. */
+  movement?: MovementRules;
   /** Whether a fight is running. Read off the scene's encounters when left out. */
   inCombat?: () => boolean;
   /**
@@ -345,6 +347,7 @@ export class SceneScriptWorld implements ScriptWorld {
   private readonly characters: ReadonlyMap<string, DerivedCharacter>;
   private readonly adversaries: ReadonlyMap<string, AdversaryDef>;
   private readonly bandTiles: BandTiles | undefined;
+  private readonly movement: MovementRules | undefined;
   /** Built the first time a script walks someone, and kept for the scene. */
   private pathfinder: Pathfinder | null = null;
   /**
@@ -374,6 +377,7 @@ export class SceneScriptWorld implements ScriptWorld {
     this.characters = options.characters ?? new Map();
     this.adversaries = options.adversaries ?? new Map();
     this.bandTiles = options.bandTiles;
+    this.movement = options.movement;
     this.fighting = options.inCombat ?? (() => state.encounterRunning());
     this.defense = { armor: options.armor ?? 'auto', reactions: options.reactions ?? true };
     this.abilities = options.abilities ?? [];
@@ -1382,10 +1386,8 @@ export class SceneScriptWorld implements ScriptWorld {
    */
   bandBetween(a: number, b: number): RangeBand | null {
     if (a === NO_TILE || b === NO_TILE) return null;
-    // The same rule as targeting: a neighbouring tile is Melee, anything else
-    // is measured as the crow flies.
-    if (this.state.grid.manhattanDistance(a, b) <= 1) return 'melee';
-    return bandForDistance(Math.ceil(this.state.grid.euclideanDistance(a, b)), this.bandTiles);
+    // The same rule as targeting: as the crow flies, to the nearest tile.
+    return bandForSpan(this.state.grid.euclideanDistance(a, b), this.bandTiles);
   }
 
   /**
@@ -2317,9 +2319,9 @@ export class SceneScriptWorld implements ScriptWorld {
       let bestDistance = Infinity;
       for (let tile = 0; tile < grid.size; tile++) {
         if (!grid.isPassable(tile) || this.state.occupantsOf(tile).length > 0) continue;
-        const distance = Math.ceil(grid.euclideanDistance(from, tile));
+        const distance = grid.euclideanDistance(from, tile);
         if (distance === 0) continue;
-        if (bandForDistance(distance, this.bandTiles) !== band) continue;
+        if (bandForSpan(distance, this.bandTiles) !== band) continue;
         if (distance < bestDistance || (distance === bestDistance && (best === null || tile < best))) {
           best = tile;
           bestDistance = distance;
@@ -2378,8 +2380,10 @@ export class SceneScriptWorld implements ScriptWorld {
     // the lower index, so a swarm arrives in the same order every replay.
     const grid = this.state.grid;
     const start = walking.tile;
-    const field = this.paths().reachable(start, maxTilesForBand(budget, this.bandTiles), {
+    const field = this.paths().reachable(start, Infinity, {
+      rules: this.movement,
       isBlocked: this.state.blockedFor(mover),
+      maxSpan: maxTilesForBand(budget, this.bandTiles),
     });
     let best = start;
     let bestDistance = grid.euclideanDistance(start, goal.tile);
@@ -2457,8 +2461,10 @@ export class SceneScriptWorld implements ScriptWorld {
 
     const grid = this.state.grid;
     const start = walking.tile;
-    const field = this.paths().reachable(start, maxTilesForBand(budget, this.bandTiles), {
+    const field = this.paths().reachable(start, Infinity, {
+      rules: this.movement,
       isBlocked: this.state.blockedFor(mover),
+      maxSpan: maxTilesForBand(budget, this.bandTiles),
     });
     let best = start;
     let bestDistance = grid.euclideanDistance(start, away.tile);
@@ -2497,7 +2503,7 @@ export class SceneScriptWorld implements ScriptWorld {
     const blocked = this.state.blockedFor(target);
     const goal = bandIndex(band);
     const bandOf = (tile: number): number =>
-      bandIndex(bandForDistance(Math.ceil(grid.euclideanDistance(source.tile, tile)), this.bandTiles));
+      bandIndex(bandForSpan(grid.euclideanDistance(source.tile, tile), this.bandTiles));
 
     let tile = start;
     let x = grid.xOf(start);

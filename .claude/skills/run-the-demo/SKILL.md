@@ -52,9 +52,11 @@ things bite, in this order:
    in range of anything. The demo's real route is: pick the **vault door**
    (`use(door)` in a loop, answering `{ kind: 'roll' }`), then walk east
    until `inCombat()` — the trigger past the door is what wakes the room.
-3. **`standBeside(foe)` returns `false` across a room.** A character gets
-   one move's budget per turn. Close over several turns: move to the
-   reachable tile nearest the foe, `endGmTurn()`, repeat.
+3. **`standBeside(foe)` returns `false` across a room.** In a fight a
+   character moves within Close range per turn (a disc round them, as the
+   crow flies - not a count of steps). Close over several turns: move to
+   the reachable tile nearest the foe, `endGmTurn()`, repeat. Out of a
+   fight nobody counts: one click walks anywhere the floor goes.
 4. **The closing loop moves whoever is *selected*.** If the caster is
    Mira, `select('mira')` *before* closing, or you will walk Kara up and
    then cast from where Mira never left.

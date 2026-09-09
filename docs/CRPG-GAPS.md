@@ -25,7 +25,7 @@ two thirds.
 | Layer | State |
 |---|---|
 | Rules (SRD 2.0) | Duality rolls, GM die, damage/thresholds/armor, resources, range, cover |
-| Grid | Terrain, A*/Dijkstra, line of sight, occupancy |
+| Space | Tiles underneath as a navmesh (terrain, A*/Dijkstra, line of sight, occupancy); the rules read distance as the crow flies and move by range band, never by counting squares |
 | Content | SRD adversary importer; legacy map/campaign importer |
 | Scene | Authored document (zod), runtime state overlay, JSON save/restore |
 | Combat | One attack, end to end, seeded and replayable |

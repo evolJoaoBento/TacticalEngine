@@ -105,7 +105,7 @@ adapter: the rest of the core does not know it exists.
 | `script/effects.ts` | Behaviour over those shapes: `outcomeEffects` (the five-outcome fallback) and TypeScript constructors. Re-exports the types from `schema.ts`. |
 | `script/conditions.ts` | Evaluating a `Condition` against a `ConditionContext`; `TargetBindings` (`targets`, `hit`, and the optional `counts`), `NO_BINDINGS`, `countOf`. |
 | `script/runner.ts` | `ScriptRunner` (the stepper), `ScriptWorld` (what the world must provide), `JournalEntry`, `Prompt`, `Response`, `RunStatus`. |
-| `script/world.ts` | `SceneScriptWorld` — the only writer of scene state (1330 lines). `ScenarioState`, `worldOptions`' counterpart types. Movement lives here too: `drawIn` walks a creature towards another until it is within a band, `breakAway` walks it as far off as it can get, both inside a budget and both refused while something holds it. |
+| `script/world.ts` | `SceneScriptWorld` — the only writer of scene state (1330 lines). `ScenarioState`, `worldOptions`' counterpart types. Movement lives here too: `drawIn` walks a creature towards another until it is within a band, `breakAway` walks it as far off as it can get, both within a band as the crow flies and both refused while something holds it. |
 | `script/countdowns.ts` | The board a scenario carries: `RunningCountdown` (a clock plus what it is counting towards), `advanceBoard`, `reapBoard`, `endCreatureCountdowns`, and the snapshot schema a save uses. |
 | `script/hooks.ts` | Running project code: `HookContext`, `runHook`, `SAFE_MATH`. |
 | `content/types.ts` | `AdversaryDef`, `AdversaryFeature`, `ContentIssue`, `ImportResult`, `toContentId`. |

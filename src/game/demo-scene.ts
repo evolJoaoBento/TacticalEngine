@@ -94,7 +94,7 @@ import {
 import type { AdversaryDef } from '../engine/content/types';
 import { createRng, type Rng } from '../engine/core/rng';
 import { NO_TILE, type TileGrid } from '../engine/grid/grid';
-import { Pathfinder, tracePath, type ReachableField } from '../engine/grid/pathfinding';
+import { DEFAULT_MOVEMENT, Pathfinder, tracePath, type MovementRules, type ReachableField } from '../engine/grid/pathfinding';
 import { gridFromScene, tileOf } from '../engine/scene/grid-from-scene';
 import { importLegacyScene, type LegacyMap } from '../engine/scene/legacy-import';
 import { Party } from '../engine/scene/party';
@@ -117,11 +117,15 @@ export const DEMO_ADVERSARY_ID = 'acid-burrower';
 /** The way out of the vault, added by the demo because the legacy map had none. */
 export const DEMO_STAIR_ID = 'stair-down';
 
-/** How far a party member may move in one go, in movement points. */
-export const DEMO_MOVE_BUDGET = 8;
-
 /** Tight bands, so a 22x16 map spans more than one of them. */
 export const DEMO_BAND_TILES = { melee: 1, veryClose: 2, close: 4, far: 8, veryFar: 12 };
+
+/**
+ * Nobody walks in an L on a battlemap: every creature in the demo steps
+ * diagonally, at the price of a diagonal, and does not cut a corner it could
+ * not squeeze through.
+ */
+export const DEMO_MOVEMENT: MovementRules = { ...DEFAULT_MOVEMENT, diagonals: true };
 
 /**
  * Which model an entity uses. Party members carry a class name and adversaries an
@@ -683,7 +687,7 @@ function buildRuntime(
     grid,
     state,
     pathfinder,
-    party: new Party(state, pathfinder, { moveBudget: DEMO_MOVE_BUDGET }),
+    party: new Party(state, pathfinder, { combatReach: DEMO_BAND_TILES.close, rules: DEMO_MOVEMENT }),
     triggers: new TriggerIndex(scene, grid),
     world: new SceneScriptWorld(state, scenario, worldOptions(characters, options.lootTables, scene, options.project)),
   };
@@ -734,6 +738,7 @@ export function worldOptions(
     characters,
     adversaries: adversaryDefsFor(scene),
     bandTiles: DEMO_BAND_TILES,
+    movement: DEMO_MOVEMENT,
     abilities: withStatBlockFeatures(project?.abilities ?? SRD_ABILITIES),
     conditionDefs: withSrdConditions(project?.conditionDefs ?? []),
     // The engine's native hooks, then the project's own code, which may
@@ -1222,7 +1227,7 @@ export function inCombat(demo: DemoScene): boolean {
 }
 
 /** Tiles the selected member can reach right now. */
-export function reachableTiles(demo: DemoScene, budget = DEMO_MOVE_BUDGET): ReachableField {
+export function reachableTiles(demo: DemoScene, budget?: number): ReachableField {
   const id = demo.party.selected;
   if (id === null) return demo.pathfinder.reachable(NO_TILE, 0);
   return demo.party.reachable(id, { inCombat: inCombat(demo), budget });
@@ -3519,8 +3524,11 @@ function approach(demo: DemoScene, adversaryId: string, targetTile: number, reac
   const reachTiles = maxTilesForBand(reach, DEMO_BAND_TILES);
   if (demo.grid.euclideanDistance(adversary.tile, targetTile) <= reachTiles) return;
 
-  const budget = maxTilesForBand('close', DEMO_BAND_TILES);
-  const field = demo.pathfinder.reachable(adversary.tile, budget, { isBlocked: demo.state.blockedFor(adversaryId) });
+  const field = demo.pathfinder.reachable(adversary.tile, Infinity, {
+    rules: DEMO_MOVEMENT,
+    isBlocked: demo.state.blockedFor(adversaryId),
+    maxSpan: maxTilesForBand('close', DEMO_BAND_TILES),
+  });
   let best = adversary.tile;
   let bestDistance = demo.grid.euclideanDistance(adversary.tile, targetTile);
   for (const tile of field.tiles()) {

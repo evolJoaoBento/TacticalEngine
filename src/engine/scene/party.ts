@@ -11,7 +11,8 @@
  */
 
 import { NO_TILE, type TileGrid } from '../grid/grid';
-import { Pathfinder, tracePath, type MovementContext } from '../grid/pathfinding';
+import { DEFAULT_MOVEMENT, Pathfinder, tracePath, type MovementContext, type MovementRules } from '../grid/pathfinding';
+import { DEFAULT_BAND_TILES } from '../rules/range';
 import type { Faction, SceneState } from './state';
 
 /** Factions a party member walks through rather than around, out of combat. */
@@ -19,20 +20,31 @@ export const PARTY_PASSES_THROUGH: readonly Faction[] = ['party'];
 
 export interface PartyOptions {
   /**
-   * Movement points a member spends per move. Out of combat the legacy prototype
-   * gave the leader `speed + 4` and followers an effectively unlimited budget so
-   * they could catch up; the same shape is kept here.
+   * How far a member may move in a fight as part of an action, as the crow
+   * flies in tiles: the SRD's "within Close range". Not a count of steps - the
+   * board is not a grid to the rules - so a walk round a pillar costs what it
+   * costs, as long as it ends inside the disc.
+   */
+  combatReach?: number;
+  /**
+   * Movement points a member may spend on one walk out of a fight. Nobody
+   * counts steps out of a fight, so this is `Infinity` unless a project wants a
+   * leash; it also caps how far a follower searches for a spot.
    */
   moveBudget?: number;
   followerBudget?: number;
   /** How far behind the leader a follower tries to stay. */
   followDistance?: number;
+  /** The movement rules every member walks by; the engine's default is four-way. */
+  rules?: MovementRules;
 }
 
 export const DEFAULT_PARTY_OPTIONS: Required<PartyOptions> = {
-  moveBudget: 8,
+  combatReach: DEFAULT_BAND_TILES.close,
+  moveBudget: Infinity,
   followerBudget: 60,
   followDistance: 1,
+  rules: DEFAULT_MOVEMENT,
 };
 
 /**
@@ -103,15 +115,21 @@ export class Party {
     // Out of combat allies are transparent, so the party does not jam itself in a
     // corridor; in combat everything blocks, which is what makes position matter.
     const passThrough = inCombat ? [] : PARTY_PASSES_THROUGH;
-    return { isBlocked: this.state.blockedFor(id, passThrough) };
+    return { rules: this.options.rules, isBlocked: this.state.blockedFor(id, passThrough) };
   }
 
-  /** Tiles a member can reach, for a movement preview. */
+  /**
+   * Tiles a member can reach, for a movement preview. In a fight that is the
+   * Close-range disc round them; out of one, everywhere the floor goes. An
+   * explicit `budget` bounds either by steps, for a rule that counts them.
+   */
   reachable(id: string, options: { inCombat?: boolean; budget?: number } = {}) {
     const entity = this.state.entity(id);
     const from = entity?.tile ?? NO_TILE;
-    const budget = options.budget ?? this.options.moveBudget;
-    return this.pathfinder.reachable(from, budget, this.movementFor(id, options.inCombat === true));
+    const fighting = options.inCombat === true;
+    const budget = options.budget ?? (fighting ? Infinity : this.options.moveBudget);
+    const context = this.movementFor(id, fighting);
+    return this.pathfinder.reachable(from, budget, fighting ? { ...context, maxSpan: this.options.combatReach } : context);
   }
 
   /**
@@ -193,6 +211,7 @@ export class Party {
   /** The nearest free tile to the leader, for a follower with no trail left. */
   private claimNear(leaderTile: number, taken: Set<number>, moverId: string): number | null {
     const field = this.pathfinder.reachable(leaderTile, this.options.followerBudget, {
+      rules: this.options.rules,
       isBlocked: this.state.blockedFor(moverId, PARTY_PASSES_THROUGH),
     });
     let best: number | null = null;
