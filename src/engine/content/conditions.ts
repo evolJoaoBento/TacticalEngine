@@ -58,7 +58,8 @@ export const conditionDefSchema = z.object({
    * them - somebody the card that marked them has never heard of. A condition
    * can carry the debt instead: it sits on the one who was marked, and the
    * script runs with whoever attacked them acting and the bearer bound as the
-   * target. It is paid once and the condition goes with it.
+   * target. It is paid once and the condition goes with it, unless `keeps`
+   * says the condition *is* the standing effect rather than a debt.
    */
   payout: z
     .object({
@@ -76,6 +77,14 @@ export const conditionDefSchema = z.object({
        * "the target must mark a Stress" is not a decision anybody makes.
        */
       auto: z.boolean().optional(),
+      /**
+       * Whether paying it leaves the condition standing. A debt is spent by
+       * the one who collects it, which is the default; a spell like
+       * Overwhelming Aura is not a debt at all but a standing price on
+       * swinging at its bearer - "an adversary must mark a Stress when they
+       * target you with an attack", every time, until it ends on its own.
+       */
+      keeps: z.boolean().optional(),
       get effects() {
         return z.array(effectSchema).default([]);
       },
@@ -177,6 +186,37 @@ const RAW: ConditionInput[] = [
           ],
         },
       ],
+    },
+  },
+  // Goad Them On, on the one who was taunted. The disadvantage is on *their*
+  // swing rather than on rolls against them, so no `against`: it is the plain
+  // modifier every attacker reads off themselves, and `endsWhen: 'attacks'`
+  // spends it on the next one they make, hit or miss.
+  //
+  // "They must target you" is the half nothing here can enforce - whom an
+  // adversary swings at is the GM's, the way Enrapture's is.
+  {
+    id: 'goaded',
+    name: 'Goaded',
+    text: 'Taunted into a swing they have not thought through: their next attack is made with disadvantage.',
+    modifiers: [{ stat: 'advantage', bonus: -1 }],
+    endsWhen: 'attacks',
+  },
+  // Overwhelming Aura, on the one wearing it. Not a debt but a standing price,
+  // so `keeps`: every adversary that aims a swing at them marks a Stress, and
+  // the aura is still there for the next one.
+  //
+  // Simplified: "until your next long rest" is `rest`, there being one rest a
+  // condition can outlast rather than two.
+  {
+    id: 'overwhelming-aura',
+    name: 'Overwhelming Aura',
+    text: 'An adversary must mark a Stress when they target you with an attack.',
+    payout: {
+      on: 'attacked',
+      auto: true,
+      keeps: true,
+      effects: [{ kind: 'markStress', amount: 1, target: { kind: 'actor' } }],
     },
   },
   // Zone of Protection's shell. It carries nothing itself: the die that comes

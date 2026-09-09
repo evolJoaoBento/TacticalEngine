@@ -316,6 +316,16 @@ export type RollStat = 'attackRoll' | 'damageRoll' | 'spellcastRoll';
 /** A stat a modifier can move on a pool or a defence. */
 export type PoolStat = 'evasion' | 'armorScore' | 'hitPoints' | 'stress' | 'majorThreshold' | 'severeThreshold' | 'thresholds';
 
+/** What a condition on the one who was swung at owes the one who swung. */
+export interface Payout {
+  condition: string;
+  effects: readonly Effect[];
+  when?: Condition;
+  auto?: boolean;
+  /** The condition stands after it pays: a price rather than a debt. */
+  keeps?: boolean;
+}
+
 /** A `ScriptWorld` backed by a live scene. */
 export class SceneScriptWorld implements ScriptWorld {
   readonly state: SceneState;
@@ -422,14 +432,14 @@ export class SceneScriptWorld implements ScriptWorld {
   /**
    * What the conditions on a creature owe whoever just did this to them: the
    * condition's name and the script it carries, in a stable order.
+   *
+   * `keeps` is the one that is not a debt: the condition stands after it pays,
+   * so the caller must not clear it.
    */
-  payoutsOn(
-    id: string,
-    on: 'attacked',
-  ): { condition: string; effects: readonly Effect[]; when?: Condition; auto?: boolean }[] {
+  payoutsOn(id: string, on: 'attacked'): Payout[] {
     const entity = this.state.entity(id);
     if (entity === undefined) return [];
-    const owed: { condition: string; effects: readonly Effect[]; when?: Condition; auto?: boolean }[] = [];
+    const owed: Payout[] = [];
     for (const name of [...entity.conditions].sort()) {
       const payout = this.conditionDefs.get(name)?.payout;
       if (payout === undefined || payout.on !== on || payout.effects.length === 0) continue;
@@ -438,6 +448,7 @@ export class SceneScriptWorld implements ScriptWorld {
         effects: payout.effects,
         ...(payout.when === undefined ? {} : { when: payout.when }),
         ...(payout.auto === undefined ? {} : { auto: payout.auto }),
+        ...(payout.keeps === undefined ? {} : { keeps: payout.keeps }),
       });
     }
     return owed;

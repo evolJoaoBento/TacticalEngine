@@ -4440,3 +4440,129 @@ describe('the next one', () => {
     throw new Error('Finn never failed a roll in sixty tries');
   });
 });
+
+
+/**
+ * Two cards that put a price on the other side of the table: one taunts a
+ * creature into a swing it has not thought through, the other makes aiming at
+ * you cost something every time.
+ */
+describe('a card that charges the one who swings', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('Goad Them On costs them a Stress and their next swing', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = standoff('goad-' + seed);
+      demo.askDefender = false;
+      hold(demo, 'kara', ['goad-them-on']);
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      husk.stress = { max: 6, marked: 0 };
+
+      expect(useAbility(demo, 'kara', 'goad-them-on', [husk.id]).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      // The taunt did not land this time; try another seed.
+      if (!husk.conditions.has('goaded')) continue;
+
+      expect(husk.stress.marked).toBe(1);
+      // The disadvantage is on their own swing rather than on rolls against
+      // them, so it is read off the goaded creature as the attacker.
+      expect(demo.world.advantageFor(husk.id, 'kara')).toEqual({ advantage: 0, disadvantage: 1 });
+      expect(demo.world.advantageFor('kara', husk.id)).toEqual({ advantage: 0, disadvantage: 0 });
+      return;
+    }
+    throw new Error('Goad Them On never landed in sixty tries');
+  });
+
+  it('and the swing it was waiting for spends it', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = standoff('goad-spent-' + seed);
+      demo.askDefender = false;
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      demo.world.applyCondition(husk.id, 'goaded', 'scene');
+      expect(husk.conditions.has('goaded')).toBe(true);
+
+      const before = demo.log.length;
+      endTurn(demo);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      // Only a turn the husk actually swung on proves anything: `endsOnAttack`
+      // is what spends the goad, and a turn spent walking spends nothing.
+      const swung = demo.log.slice(before).some((l) => /misses|Hit Point/.test(l.text));
+      if (!swung) continue;
+      expect(husk.conditions.has('goaded')).toBe(false);
+      return;
+    }
+    throw new Error('the husk never swung in sixty tries');
+  });
+
+  it('Overwhelming Aura charges an adversary for aiming, and is still up afterwards', () => {
+    const demo = standoff('aura');
+    demo.askDefender = false;
+    const kara = demo.state.entity('kara')!;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.stress = { max: 12, marked: 0 };
+    demo.world.applyCondition('kara', 'overwhelming-aura', 'rest');
+    // A price rather than a debt: `keeps` is what stops the payout clearing it.
+    expect(demo.world.payoutsOn('kara', 'attacked')).toMatchObject([
+      { condition: 'overwhelming-aura', auto: true, keeps: true },
+    ]);
+
+    let paid = 0;
+    for (let turn = 0; turn < 12 && paid < 2; turn++) {
+      for (const member of demo.state.entitiesOf('party')) {
+        member.hitPoints = { ...member.hitPoints, marked: 0 };
+        member.alive = true;
+      }
+      const before = husk.stress.marked;
+      endTurn(demo);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      if (husk.stress.marked > before) paid += 1;
+      if (demo.encounter?.outcome !== 'ongoing') break;
+    }
+    // Twice, which is the half of it that `keeps` buys: a debt would have paid
+    // once and gone.
+    expect(paid).toBe(2);
+    expect(kara.conditions.has('overwhelming-aura')).toBe(true);
+  });
+
+  it('the aura goes up on a Spellcast Roll, and not without the Hope to hold it', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = standoff('aura-cast-' + seed);
+      demo.askDefender = false;
+      hold(demo, 'mira', ['overwhelming-aura']);
+      const mira = demo.state.entity('mira')!;
+      mira.hope = { max: 6, value: 6 };
+
+      expect(useAbility(demo, 'mira', 'overwhelming-aura', []).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      if (!mira.conditions.has('overwhelming-aura')) continue;
+
+      // Two Hope out of six, and the aura standing.
+      expect(mira.hope!.value).toBeLessThanOrEqual(4);
+      return;
+    }
+    throw new Error('the aura never went up in sixty tries');
+  });
+
+  it('and a caster with one Hope holds nothing', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const demo = standoff('aura-poor-' + seed);
+      demo.askDefender = false;
+      hold(demo, 'mira', ['overwhelming-aura']);
+      const mira = demo.state.entity('mira')!;
+      mira.hope = { max: 6, value: 1 };
+
+      const used = useAbility(demo, 'mira', 'overwhelming-aura', []);
+      if (used.status === 'refused') continue;
+      while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
+      // However the dice went, two Hope was never there to spend.
+      expect(mira.conditions.has('overwhelming-aura')).toBe(false);
+      return;
+    }
+    throw new Error('the roll was never made in sixty tries');
+  });
+});

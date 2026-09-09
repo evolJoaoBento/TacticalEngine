@@ -29,6 +29,7 @@
 
 import { z } from 'zod';
 import { abilitySchema, type AbilityDef } from '../abilities';
+import { effectSchema } from '../../script/schema';
 
 type Input = z.input<typeof abilitySchema>;
 
@@ -39,6 +40,32 @@ const subclass = (subclassId: string, stage: 'foundation' | 'specialization' | '
   subclassId,
   stage,
 });
+
+/**
+ * The three faces of "on a success", where a card's arms are the same on all
+ * of them. A check has no single `onSuccess`, so the alternative is writing
+ * the list out three times, as the older entries here do.
+ */
+type EffectInput = z.input<typeof effectSchema>;
+
+const GOADED: EffectInput[] = [
+  { kind: 'log', text: 'They round on whoever said that.', tone: 'hope' },
+  { kind: 'markStress', target: { kind: 'hit' } },
+  { kind: 'applyCondition', condition: 'goaded', duration: 'scene', target: { kind: 'hit' } },
+];
+
+const AURA: EffectInput[] = [
+  {
+    kind: 'branch',
+    when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 2 },
+    then: [
+      { kind: 'spendHope', amount: 2 },
+      { kind: 'log', text: 'The room fills with them, and standing near it costs something.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'overwhelming-aura', duration: 'rest', target: { kind: 'actor' } },
+    ],
+    otherwise: [{ kind: 'log', text: 'The aura gathers and will not hold: there is no Hope to pour into it.', tone: 'fear' }],
+  },
+];
 
 const RAW: Input[] = [
   // ---- Blade -----------------------------------------------------------------
@@ -519,6 +546,64 @@ const RAW: Input[] = [
     effects: [
       { kind: 'log', text: 'Everything else in the room goes quiet.', tone: 'hope' },
       { kind: 'applyCondition', condition: 'focused', duration: 'scene', target: { kind: 'actor' } },
+    ],
+  },
+  // "Describe how you taunt a target within Close range, then make a Presence
+  // Roll against them. On a success, the target must mark a Stress, and the
+  // next time the GM spotlights them, they must target you with an attack,
+  // which they make with disadvantage."
+  //
+  // Simplified: whom an adversary swings at is the GM's, as it is for Enrapture
+  // - what the card leaves behind is the Stress and the disadvantage, and the
+  // condition spends itself on the next swing they make.
+  {
+    id: 'goad-them-on',
+    name: 'Goad Them On',
+    source: card('goad-them-on'),
+    target: { kind: 'adversary', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'presence',
+          difficulty: 'target',
+          prompt: 'Goad Them On: make them want you.',
+          onCriticalSuccess: GOADED,
+          onSuccessWithHope: GOADED,
+          onSuccessWithFear: GOADED,
+        },
+      },
+    ],
+  },
+  // "Make a Spellcast Roll (15) to magically empower your aura. On a success,
+  // spend 2 Hope to make your Presence equal to your Spellcast trait until
+  // your next long rest. While this spell is active, an adversary must mark a
+  // Stress when they target you with an attack."
+  //
+  // Half of it is scripted. The Presence swap stays text: a condition carries
+  // a number rather than one trait's name copied onto another, and a trait a
+  // spell rewrote would have to be unwritten by the same spell ending. What
+  // runs is the price on swinging at them, which is the half that is about a
+  // fight - and it stands rather than being spent, so every adversary that
+  // aims at them pays it.
+  {
+    id: 'overwhelming-aura',
+    name: 'Overwhelming Aura',
+    source: card('overwhelming-aura'),
+    target: { kind: 'self' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 15,
+          prompt: 'Overwhelming Aura: make the air around you hard to stand in.',
+          onCriticalSuccess: AURA,
+          onSuccessWithHope: AURA,
+          onSuccessWithFear: AURA,
+        },
+      },
     ],
   },
   {

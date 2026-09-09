@@ -39,7 +39,7 @@ import { HOPE_DIE_SIDES, rollDuality, type DualityRoll, type RollOutcome } from 
 import type { CountdownCue } from '../engine/rules/countdown';
 import type { CountdownMoved, RunningCountdown } from '../engine/script/countdowns';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
-import { createScenarioState, SceneScriptWorld, useKey, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
+import { createScenarioState, SceneScriptWorld, useKey, type Payout, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
 import { NO_BINDINGS, evaluate, evaluateOptional } from '../engine/script/conditions';
 import { maxTilesForBand, reaches, type RangeBand } from '../engine/rules/range';
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
@@ -685,7 +685,7 @@ export function hooksFor(code: readonly CodeDef[] | undefined): HookMap {
   // Keyed on what the code *says*, not on the array holding it: the editor
   // rewrites an entry in place, and a cache keyed on identity would go on
   // running the version the author has just changed.
-  const signature = code.map((entry) => `${entry.id} ${entry.source}`).join('');
+  const signature = code.map((entry) => `${entry.id}\x00${entry.source}`).join('\x01');
   if (compiled !== null && compiled.signature === signature) return compiled.hooks;
   const hooks = mergeHooks(SRD_HOOKS, compileHooks(code).hooks);
   compiled = { signature, hooks };
@@ -2332,7 +2332,7 @@ function playPayouts(
   demo: DemoScene,
   attacker: string,
   target: string,
-  owed: readonly { condition: string; effects: readonly Effect[]; when?: Condition; auto?: boolean }[],
+  owed: readonly Payout[],
   roll?: { total: number; outcome: RollOutcome },
 ): void {
   const asked: ReactionOffer[][] = [];
@@ -2365,7 +2365,11 @@ function playPayouts(
       // "The target must mark a Stress" is nobody's decision; a debt somebody
       // may decline is offered.
       auto: debt.auto === true,
-      effects: [...debt.effects, { kind: 'clearCondition', condition: debt.condition, target: { kind: 'target' } }],
+      // Spent by whoever collects it - unless the condition is the standing
+      // price itself, which is still there for the next one to swing.
+      effects: debt.keeps === true
+        ? [...debt.effects]
+        : [...debt.effects, { kind: 'clearCondition', condition: debt.condition, target: { kind: 'target' } }],
     });
     const offer: ReactionOffer = { by: attacker, ability, targets: [target], counts: {} };
     if (debt.auto === true) {
@@ -3124,6 +3128,15 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
     options: { bandTiles: DEMO_BAND_TILES, armorSlotsMarked: 0, ...demo.world.advantageFor(adversaryId, targetId) },
   });
   if (rolled.refused !== null) return false;
+  // The other side of the party's own swing: what the one being swung at makes
+  // whoever swings at them pay. "When they target you with an attack" is the
+  // aiming rather than the landing, so it is collected here - the swing was
+  // made, and whether it lands is still to come.
+  //
+  // Everything that reaches this today is `auto`; a debt somebody may decline
+  // would be put to them in the middle of the GM's turn, which nothing on
+  // either side ships.
+  playPayouts(demo, adversaryId, targetId, demo.world.payoutsOn(targetId, 'attacked'));
   // "Attacks they make while spotlighted in this way deal half damage": the
   // price of a turn the Leader handed them. Halved before the defence step, so
   // the thresholds and the Armor Slots are read against what actually lands,
