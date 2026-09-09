@@ -448,6 +448,14 @@ tone colour (`DemoScene.floaters`, written beside the log line from the same jou
 no texture). What happened to the room or the party as a whole stays in the log. A headless run
 never draws them and loses nothing.
 
+**Tokens walk.** A token whose creature is found on another tile glides there - along the path
+walked when the game says which (`DemoScene.motions`: the party's own walk, an adversary's
+approach), straight otherwise - a fixed time per tile with a small hop on each; one that was
+thrown is flung in a quick arc. The engine's truth never waits: `state` already has the creature
+there, `syncTokens` starts the glide and `tick` finishes it, `settle()` ends every glide now, and
+`syncTokens(state, { snap: true })` puts a token straight down. A view rebuilt for another room
+starts with nothing in flight.
+
 **Dice** are read out rather than rolled on screen: "Hope 8 + Fear 7 + 2 = 17 vs 12. Success,
 with Hope." Only the parts that applied are named. That is the part of dice presentation a
 player needs to trust the outcome; a 3D roll is theatre on top of it.

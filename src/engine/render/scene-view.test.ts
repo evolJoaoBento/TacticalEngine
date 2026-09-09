@@ -206,9 +206,115 @@ describe('SceneView', () => {
     const after = view.tokenFor('kara')!;
 
     expect(after).toBe(before); // same model, moved
+    // The engine's truth is already there; the token walks. Once it has, it is there too.
+    expect(view.glidingCount).toBe(1);
+    view.settle();
+    expect(view.glidingCount).toBe(0);
     const centre = tileCenter(grid, grid.indexOf(3, 1));
     expect(after.group.position.x).toBeCloseTo(centre.x, 10);
     expect(after.group.position.z).toBeCloseTo(centre.z, 10);
+    view.dispose();
+  });
+
+  it('walks a token along the path it took, a hop per tile, and arrives exactly', () => {
+    const { grid, state, view } = setup();
+    view.syncTokens(state);
+    const kara = view.tokenFor('kara')!;
+    // Round the corner: east two, then south one.
+    const path = [grid.indexOf(0, 0), grid.indexOf(1, 0), grid.indexOf(2, 0), grid.indexOf(2, 1)];
+    state.moveEntity('kara', grid.indexOf(2, 1));
+    view.walk('kara', path);
+    view.syncTokens(state);
+
+    // Still where it was, on the tick it left.
+    const from = tileCenter(grid, grid.indexOf(0, 0));
+    expect(kara.group.position.x).toBeCloseTo(from.x, 6);
+
+    // Two thirds of the way in time is the corner tile, not a point on the
+    // straight line from start to finish.
+    view.tick(0.16 * 2);
+    const corner = tileCenter(grid, grid.indexOf(2, 0));
+    expect(kara.group.position.x).toBeCloseTo(corner.x, 3);
+    expect(kara.group.position.z).toBeCloseTo(corner.z, 3);
+
+    // Mid-tile it is a little off the ground: the hop.
+    view.tick(0.08);
+    expect(kara.group.position.y).toBeGreaterThan(corner.y + 0.05);
+
+    view.tick(1);
+    const to = tileCenter(grid, grid.indexOf(2, 1));
+    expect(kara.group.position.x).toBeCloseTo(to.x, 10);
+    expect(kara.group.position.y).toBeCloseTo(to.y, 10);
+    expect(kara.group.position.z).toBeCloseTo(to.z, 10);
+    expect(view.glidingCount).toBe(0);
+    view.dispose();
+  });
+
+  it('walks the selection ring with the selected token, and leaves it on the tile', () => {
+    const { grid, state, view } = setup();
+    view.syncTokens(state);
+    const to = grid.indexOf(3, 0);
+    state.moveEntity('kara', to);
+    view.syncTokens(state);
+    view.showSelection(to);
+    const ring = view.root.children.find((c) => c.name === 'selection')!;
+
+    view.tick(0.1);
+    const kara = view.tokenFor('kara')!;
+    expect(ring.position.x).toBeCloseTo(kara.group.position.x, 6);
+    expect(ring.position.x).toBeLessThan(tileCenter(grid, to).x);
+
+    view.tick(2);
+    expect(ring.position.x).toBeCloseTo(tileCenter(grid, to).x, 6);
+    view.dispose();
+  });
+
+  it('flings a thrown token: quicker, higher, and straight', () => {
+    const { grid, state, view } = setup();
+    view.syncTokens(state);
+    const husk = view.tokenFor('husk')!;
+    state.moveEntity('husk', grid.indexOf(2, 2));
+    view.throwBack('husk');
+    view.syncTokens(state);
+
+    view.tick(0.1);
+    const from = tileCenter(grid, grid.indexOf(4, 2));
+    const to = tileCenter(grid, grid.indexOf(2, 2));
+    // Past halfway already at four tenths of the time (a throw slows into its
+    // landing), and well off the ground.
+    expect(husk.group.position.x).toBeLessThan((from.x + to.x) / 2);
+    expect(husk.group.position.y).toBeGreaterThan(to.y + 0.25);
+    view.tick(0.2);
+    expect(husk.group.position.x).toBeCloseTo(to.x, 10);
+    expect(view.glidingCount).toBe(0);
+    view.dispose();
+  });
+
+  it('puts a token straight down when told to snap, and never walks a new one', () => {
+    const { grid, state, view } = setup();
+    view.syncTokens(state);
+    state.moveEntity('kara', grid.indexOf(3, 2));
+    view.syncTokens(state, { snap: true });
+    expect(view.glidingCount).toBe(0);
+    const at = tileCenter(grid, grid.indexOf(3, 2));
+    expect(view.tokenFor('kara')!.group.position.x).toBeCloseTo(at.x, 10);
+
+    state.addEntity(createPartyEntity('finn', 'nightwalker', grid.indexOf(1, 2)));
+    view.syncTokens(state);
+    expect(view.glidingCount).toBe(0);
+    view.dispose();
+  });
+
+  it('lets a token that left the scene go, mid-walk', () => {
+    const { grid, state, view } = setup();
+    view.syncTokens(state);
+    state.moveEntity('husk', grid.indexOf(1, 1));
+    view.syncTokens(state);
+    expect(view.glidingCount).toBe(1);
+    state.removeEntity('husk');
+    view.syncTokens(state);
+    expect(view.glidingCount).toBe(0);
+    expect(view.tokenFor('husk')).toBeUndefined();
     view.dispose();
   });
 

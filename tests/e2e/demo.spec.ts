@@ -108,6 +108,7 @@ declare global {
       characterLevel: (id: string) => number;
       cursorTile: () => number;
       floaters: () => { id: string; text: string }[];
+      gliding: () => number;
       screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
       load: () => boolean;

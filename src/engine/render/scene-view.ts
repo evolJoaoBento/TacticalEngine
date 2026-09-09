@@ -37,6 +37,20 @@ import type { AssetLibrary } from './assets';
 import type { ProceduralModelSpec } from './procedural/spec';
 import { placeholder as placeholderSpec } from './procedural/registry';
 
+/** One token on its way from one tile to another. */
+interface Glide {
+  token: BuiltModel;
+  /** Where it goes through, first point where it is now. */
+  points: { x: number; y: number; z: number }[];
+  elapsed: number;
+  duration: number;
+  /** How high it lifts between two points. */
+  hop: number;
+  thrown: boolean;
+  /** The tile it ends on, so a ring can tell whose walk it is watching. */
+  to: number;
+}
+
 /** Just the faction ring, to put under an imported model. */
 const RING_ONLY: ProceduralModelSpec = {
   id: 'ring',
@@ -118,6 +132,13 @@ export class SceneView {
   private readonly ownsResources: boolean;
 
   private readonly tokens = new Map<string, BuiltModel>();
+  /** The tile each token was last drawn on, so a change is a move to animate. */
+  private readonly tokenTiles = new Map<string, number>();
+  /** Moves in flight, by entity. */
+  private readonly glides = new Map<string, Glide>();
+  /** Paths and throws registered for the next `syncTokens`, by entity. */
+  private readonly pendingPaths = new Map<string, readonly number[]>();
+  private readonly pendingThrows = new Set<string>();
   private readonly decos: Group[] = [];
   private readonly modelForEntity: (entity: EntityState) => string;
   private readonly assets: AssetLibrary | null;
@@ -292,12 +313,16 @@ export class SceneView {
    * Fallen entities stay on the map, lying flat, because the engine keeps their
    * bodies too — `SceneState.isOccupied` already treats them as not blocking.
    */
-  syncTokens(state: SceneState): void {
+  syncTokens(state: SceneState, options: { snap?: boolean } = {}): void {
     const seen = new Set<string>();
 
     for (const entity of state.allEntities()) {
       seen.add(entity.id);
       let token = this.tokens.get(entity.id);
+      const was = this.tokenTiles.get(entity.id);
+      const path = this.pendingPaths.get(entity.id);
+      this.pendingPaths.delete(entity.id);
+      const thrown = this.pendingThrows.delete(entity.id);
       if (token === undefined) {
         // The base ring carries the faction colour, so one spec serves both sides.
         const ring = this.factionColors[entity.faction] ?? DEFAULT_FACTION_COLORS['neutral']!;
@@ -308,7 +333,18 @@ export class SceneView {
         this.tokenModels.set(entity.id, modelId);
         this.root.add(token.group);
       }
-      this.placeToken(token, entity);
+      // A token already standing somewhere on the board that is now somewhere
+      // else walks there; anything else - new, off the board, told to snap -
+      // is simply put where it is.
+      const moved = was !== undefined && was !== entity.tile && this.grid.isTile(was) && this.grid.isTile(entity.tile);
+      if (moved && options.snap !== true) {
+        this.poseToken(token, entity);
+        this.startGlide(entity.id, token, was, entity.tile, path, thrown);
+      } else {
+        this.glides.delete(entity.id);
+        this.placeToken(token, entity);
+      }
+      this.tokenTiles.set(entity.id, entity.tile);
     }
 
     for (const [id, token] of this.tokens) {
@@ -316,8 +352,83 @@ export class SceneView {
       this.root.remove(token.group);
       this.tokens.delete(id);
       this.tokenModels.delete(id);
+      this.tokenTiles.delete(id);
+      this.glides.delete(id);
     }
     this.lastState = state;
+  }
+
+  /**
+   * The path an entity is about to be found to have walked, tile by tile
+   * from the one it left. Read by the next `syncTokens`, which sends the
+   * token along it; without one, a moved token glides straight there.
+   */
+  walk(id: string, path: readonly number[]): void {
+    this.pendingPaths.set(id, path);
+  }
+
+  /** The entity is about to be found somewhere it was thrown, not somewhere it went. */
+  throwBack(id: string): void {
+    this.pendingThrows.add(id);
+  }
+
+  /** Put every moving token where it is going, now. */
+  settle(): void {
+    for (const [id, glide] of this.glides) {
+      const end = glide.points[glide.points.length - 1]!;
+      glide.token.group.position.set(end.x, end.y, end.z);
+      this.glides.delete(id);
+    }
+  }
+
+  /** How many tokens are on their way somewhere. */
+  get glidingCount(): number {
+    return this.glides.size;
+  }
+
+  /**
+   * Send a token from one tile to another: along the path when there is one
+   * and it joins the two, straight otherwise. A walk takes a fixed time per
+   * tile and hops a little on each; a throw is one quick arc. The engine's
+   * truth never waits on this - `state` already has the creature there.
+   */
+  private startGlide(id: string, token: BuiltModel, from: number, to: number, path: readonly number[] | undefined, thrown: boolean): void {
+    const lift = token.spec.groundOffset ?? 0;
+    const at = (tile: number): { x: number; y: number; z: number } => {
+      const centre = tileCenter(this.grid, tile, this.layout);
+      return { x: centre.x, y: centre.y + lift, z: centre.z };
+    };
+    const joins = path !== undefined && path.length >= 2 && path[0] === from && path[path.length - 1] === to;
+    const tiles = joins ? path : [from, to];
+    // Continue from wherever the token is, so a second move mid-glide does not jump back.
+    const start = token.group.position;
+    const points = tiles.map(at);
+    points[0] = { x: start.x, y: start.y, z: start.z };
+    const duration = thrown ? 0.25 : Math.min(1.2, 0.16 * (points.length - 1));
+    this.glides.set(id, { token, points, elapsed: 0, duration, hop: thrown ? 0.35 : 0.12, thrown, to });
+  }
+
+  /** Move every glide on by `dt` seconds. */
+  private advanceGlides(dt: number): void {
+    for (const [id, glide] of this.glides) {
+      glide.elapsed += dt;
+      const t = Math.min(1, glide.elapsed / glide.duration);
+      // A throw slows into its landing; a walk keeps its pace.
+      const eased = glide.thrown ? 1 - (1 - t) * (1 - t) : t;
+      const segments = glide.points.length - 1;
+      const along = eased * segments;
+      const i = Math.min(segments - 1, Math.floor(along));
+      const frac = along - i;
+      const a = glide.points[i]!;
+      const b = glide.points[i + 1]!;
+      const hop = glide.hop * Math.sin(Math.PI * frac);
+      glide.token.group.position.set(a.x + (b.x - a.x) * frac, a.y + (b.y - a.y) * frac + hop, a.z + (b.z - a.z) * frac);
+      if (t >= 1) {
+        const end = glide.points[segments]!;
+        glide.token.group.position.set(end.x, end.y, end.z);
+        this.glides.delete(id);
+      }
+    }
   }
 
   /**
@@ -392,9 +503,21 @@ export class SceneView {
     if (this.lastDecos.some((deco) => deco.model === id)) this.setDecos(this.lastDecos);
   }
 
-  /** Advance every playing clip, and the selection's breathing. `dt` in seconds. */
+  /** Advance every playing clip, every moving token, and the selection's breathing. `dt` in seconds. */
   tick(dt: number): void {
+    this.advanceGlides(dt);
     if (this.selection.visible) {
+      // The ring marks the selected creature's tile, and while their token is
+      // still walking there it walks with the token rather than waiting ahead.
+      const walking = [...this.glides.values()].find((glide) => glide.to === this.selectionTile);
+      const centre = tileCenter(this.grid, this.selectionTile, this.layout);
+      if (walking !== undefined) {
+        this.selection.position.x = walking.token.group.position.x;
+        this.selection.position.z = walking.token.group.position.z;
+      } else {
+        this.selection.position.x = centre.x;
+        this.selection.position.z = centre.z;
+      }
       this.breath += dt;
       const swell = 1 + 0.06 * Math.sin(this.breath * 3.5);
       this.selection.scale.set(swell, 1, swell);
@@ -422,17 +545,23 @@ export class SceneView {
   }
 
   private placeToken(token: BuiltModel, entity: EntityState): void {
+    if (!this.poseToken(token, entity)) return;
+    const centre = tileCenter(this.grid, entity.tile, this.layout);
+    const lift = token.spec.groundOffset ?? 0;
+    token.group.position.set(centre.x, centre.y + lift, centre.z);
+  }
+
+  /** Everything about a token but where it is: shown or not, standing or lying. */
+  private poseToken(token: BuiltModel, entity: EntityState): boolean {
     const group = token.group;
     if (!this.grid.isTile(entity.tile)) {
       group.visible = false;
-      return;
+      return false;
     }
     group.visible = true;
-    const centre = tileCenter(this.grid, entity.tile, this.layout);
-    const lift = token.spec.groundOffset ?? 0;
-    group.position.set(centre.x, centre.y + lift, centre.z);
     // A fallen creature lies down rather than vanishing; the engine keeps its body.
     group.rotation.set(entity.alive ? 0 : -Math.PI / 2, 0, 0);
+    return true;
   }
 
   /**
@@ -610,6 +739,8 @@ export class SceneView {
     this.sun?.shadow.map?.dispose();
     this.sun?.shadow.dispose();
     this.tokens.clear();
+    this.tokenTiles.clear();
+    this.glides.clear();
     this.decos.length = 0;
     // Shared caches outlive a scene unless this view created them.
     if (this.ownsResources) this.resources.dispose();

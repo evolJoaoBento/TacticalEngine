@@ -211,6 +211,8 @@ declare global {
       characterLevel: (id: string) => number;
       cursorTile: () => number;
       floaters: () => { id: string; text: string }[];
+      /** How many tokens are still walking to where their creature already is. */
+      gliding: () => number;
       screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
       load: () => boolean;
@@ -271,6 +273,15 @@ interface LiveFloater {
 }
 const liveFloaters: LiveFloater[] = [];
 const FLOATER_LIFE = 1.4;
+
+/** Tell the view how everybody got where they are, before it looks. */
+function drainMotions(): void {
+  for (const motion of demo.motions) {
+    if (motion.path !== undefined) view.walk(motion.id, motion.path);
+    else if (motion.thrown === true) view.throwBack(motion.id);
+  }
+  demo.motions.length = 0;
+}
 
 /** Take what the game wrote since the last draw and start it rising. */
 function drainFloaters(): void {
@@ -742,6 +753,7 @@ function refreshPlay(): void {
   // Tokens belong to the played room. Drawing them over another room's grid puts
   // the party on whatever happens to share those tile indices.
   if (activeScene().id === demo.scene.id) {
+    drainMotions();
     view.syncTokens(demo.state);
     drainFloaters();
     view.showZones(paintedZones());
@@ -1752,6 +1764,7 @@ const state = {
   cursorTile: (): number => view.cursorAt,
   /** Where a tile's centre lands on screen, in CSS pixels from the page origin. */
   screenOf: (tile: number): { x: number; y: number } => screenPoint(tile, 0),
+  gliding: (): number => view.glidingCount,
   /** The numbers rising over heads right now, and whose. */
   floaters: (): { id: string; text: string }[] =>
     liveFloaters.map((f) => ({ id: f.el.dataset['entity'] ?? '', text: f.el.textContent ?? '' })),

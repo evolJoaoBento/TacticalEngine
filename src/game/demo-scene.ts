@@ -93,7 +93,7 @@ import {
 import type { AdversaryDef } from '../engine/content/types';
 import { createRng, type Rng } from '../engine/core/rng';
 import { NO_TILE, type TileGrid } from '../engine/grid/grid';
-import { Pathfinder, type ReachableField } from '../engine/grid/pathfinding';
+import { Pathfinder, tracePath, type ReachableField } from '../engine/grid/pathfinding';
 import { gridFromScene, tileOf } from '../engine/scene/grid-from-scene';
 import { importLegacyScene, type LegacyMap } from '../engine/scene/legacy-import';
 import { Party } from '../engine/scene/party';
@@ -227,6 +227,12 @@ export interface DemoScene {
    * them pile up harmlessly.
    */
   floaters: Floater[];
+  /**
+   * How creatures got where they now are - the path walked, or that they were
+   * thrown - for a view that moves a token rather than putting it down. Read
+   * and cleared by whoever draws; the board itself is already right.
+   */
+  motions: Motion[];
   /** Waiting on the player: a script's roll or choice, or a defender's answer. */
   pending: Pending | null;
   /** Set while a fight is running. */
@@ -276,6 +282,14 @@ export interface GmTurn {
 }
 
 /** A line in the narrative pane. */
+/** How somebody got where they are: along a path, or flung. */
+export interface Motion {
+  id: string;
+  /** The tiles walked, the first the one left. */
+  path?: readonly number[];
+  thrown?: true;
+}
+
 /** One number over one head, in the tone the matching log line has. */
 export interface Floater {
   id: string;
@@ -1145,6 +1159,7 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
     dialogues: new Map(project.dialogues.map((d) => [d.id, d])),
     log: [],
     floaters: [],
+    motions: [],
     pending: null,
     encounter: null,
     gmTurn: null,
@@ -1212,6 +1227,7 @@ export function moveSelectedTo(demo: DemoScene, destination: number): MoveResult
   const hit = demo.triggers.firstAlong(full, demo.state);
   const path = hit === null ? full : full.slice(0, full.indexOf(hit.tile) + 1);
   if (hit !== null) demo.state.moveEntity(id, hit.tile);
+  demo.motions.push({ id, path });
 
   if (!fighting) demo.party.follow(id, path);
   if (fighting) demo.encounter!.act(id);
@@ -3464,7 +3480,10 @@ function approach(demo: DemoScene, adversaryId: string, targetTile: number, reac
       bestDistance = distance;
     }
   }
-  if (best !== adversary.tile) demo.state.moveEntity(adversaryId, best);
+  if (best === adversary.tile) return;
+  demo.state.moveEntity(adversaryId, best);
+  const path = tracePath(field, best);
+  demo.motions.push(path === null ? { id: adversaryId } : { id: adversaryId, path });
 }
 
 /** An adversary spends its spotlight clearing what a scene put on it. */
@@ -4721,6 +4740,7 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
     const line = describeEntry(entry, names, quests, who, (c) => demo.world.conditionName(c));
     if (line !== null) lines.push(withMentions(demo, line));
     floatEntry(demo, entry);
+    if (entry.kind === 'moved' && entry.walked !== true) demo.motions.push({ id: entry.id, thrown: true });
   }
   demo.log.push(...lines);
   // A condition a script put on or took off someone may move a pool's maximum.

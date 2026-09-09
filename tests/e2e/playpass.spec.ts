@@ -261,3 +261,35 @@ test('a name in the log points at whoever it named', async ({ page }) => {
   console.log('AFTER:', after);
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
+
+test('a walked token walks, and is standing on the tile when it has', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+    timeout: 30_000,
+  });
+
+  // The board is right the moment the move is made; the token takes a moment.
+  const walked = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    a.setDiceSpeed(0);
+    const me = a.selected()!;
+    const from = a.tileOf(me);
+    const tiles = a.reachable().filter((t) => t !== from);
+    const far = tiles.reduce((x, y) => (Math.abs(y - from) > Math.abs(x - from) ? y : x));
+    const moved = a.moveTo(far);
+    return { me, from, to: far, moved, tile: a.tileOf(me), gliding: a.gliding() };
+  });
+  console.log('WALKED:', JSON.stringify(walked));
+  expect(walked.moved).toBe(true);
+  expect(walked.tile).toBe(walked.to);
+  // The mover, and out of combat the party following - somebody is walking.
+  expect(walked.gliding, 'the token is on its way').toBeGreaterThan(0);
+
+  await page.screenshot({ path: 'test-results/walk-mid.png' });
+  await page.waitForFunction(() => window.__polyheart!.gliding() === 0, null, { timeout: 5_000 });
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
