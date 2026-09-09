@@ -34,6 +34,45 @@ async function vault(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Every panel that puts engine strings in front of a player. A panel that is
+ * not on screen reads as nothing, which is what an absent locator should be.
+ */
+const PANELS = [
+  'log',
+  'hud',
+  'inspect',
+  'action-bar',
+  'dice-tray',
+  'check-prompt',
+  'choice-prompt',
+  'dialogue',
+  'journal',
+  'pack',
+  'gear',
+  'gm',
+] as const;
+
+async function readAll(page: Page): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const panel of PANELS) {
+    const at = page.locator(`[data-testid="${panel}"]`);
+    out[panel] = (await at.count()) > 0 ? await at.first().innerText() : '';
+  }
+  return out;
+}
+
+/** Which ids are showing where, as `panel: id`. */
+function leaksIn(shown: Record<string, string>, ids: readonly string[]): string[] {
+  const found: string[] = [];
+  for (const [where, text] of Object.entries(shown)) {
+    for (const id of ids) {
+      if (id !== '' && text.includes(id)) found.push(`${where}: ${id}`);
+    }
+  }
+  return found;
+}
+
 test('nothing a player reads is a content id', async ({ page }) => {
   await vault(page);
 
@@ -82,31 +121,59 @@ test('nothing a player reads is a content id', async ({ page }) => {
   console.log('IDS IN PLAY:', JSON.stringify(ids));
   expect(ids.conditions.length, 'the cards actually left something behind').toBeGreaterThan(0);
 
-  // And the third readout: the card a right-click puts up about a creature.
+  // The card a right-click puts up about a creature.
   await page.evaluate(() => {
     const a = window.__polyheart!;
     const foe = a.adversaries()[0];
     if (foe !== undefined) a.inspect(a.tileOf(foe));
   });
 
-  // What a player can actually read.
-  const inspect = page.locator('[data-testid="inspect"]');
-  const shown = {
-    log: (await page.locator('[data-testid="log"]').innerText()) || '',
-    hud: (await page.locator('[data-testid="hud"]').innerText()) || '',
-    inspect: (await inspect.count()) > 0 ? await inspect.innerText() : '',
-  };
-  console.log('HUD TEXT:', JSON.stringify(shown.hud));
+  const shown = await readAll(page);
+  console.log('READ:', JSON.stringify(shown, null, 1));
 
   await page.screenshot({ path: 'test-results/readout.png' });
 
-  // A condition id is a key, not a word. Neither the log nor the HUD should
-  // ever show one; a creature id is the same rule.
-  const leaks: string[] = [];
-  for (const [where, text] of Object.entries(shown)) {
-    for (const id of [...ids.conditions, ...ids.creatures]) {
-      if (text.includes(id)) leaks.push(`${where}: ${id}`);
-    }
-  }
-  expect(leaks, 'ids leaking into what a player reads').toEqual([]);
+  expect(leaksIn(shown, [...ids.conditions, ...ids.creatures]), 'ids leaking into what a player reads').toEqual([]);
+});
+
+test('the loadout, the journal and a rest read as English too', async ({ page }) => {
+  await vault(page);
+
+  // Cards in hand and a quest running, then the panels that show them.
+  const ids = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    a.setCards('kara', ['hold-the-line', 'signature-move', 'strategic-approach']);
+    a.select('kara');
+    // Something in the pack, so the panel has a row to render rather than the
+    // assertion passing on an empty list.
+    a.giveItem('healing-draught', 2);
+    a.giveItem('husk-carapace');
+    const held = a.loadout('kara');
+    return {
+      cards: [...held.loadout, ...held.vault],
+      quests: a.journal().map((q) => q.id),
+      items: a.carried().map((i) => i.id),
+      creatures: [...a.party(), ...a.adversaries()],
+      conditions: [] as string[],
+    };
+  });
+  console.log('IDS:', JSON.stringify(ids));
+
+  // The pack only draws when something is in it, and the page redraws on its
+  // own frame rather than on the call that changed the state.
+  await expect(page.locator('[data-testid="pack"]')).toBeVisible();
+
+  await page.locator('[data-testid="open-loadout"]').click();
+  const loadout = await page.locator('[data-testid="loadout"]').innerText();
+  console.log('LOADOUT:', JSON.stringify(loadout));
+  await page.locator('[data-testid="close-loadout"]').click();
+
+  const shown = { ...(await readAll(page)), loadout };
+  await page.screenshot({ path: 'test-results/readout-panels.png' });
+
+  expect(ids.cards.length, 'cards are in hand to be listed').toBeGreaterThan(0);
+  expect(
+    leaksIn(shown, [...ids.cards, ...ids.quests, ...ids.items, ...ids.creatures]),
+    'ids leaking into what a player reads',
+  ).toEqual([]);
 });
