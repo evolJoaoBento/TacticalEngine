@@ -531,6 +531,32 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /**
+   * The tiles a zone holds: every one within its band of its anchor, by the
+   * same measure `refreshZones` uses to decide who is standing in it. So what
+   * is drawn is the rule, not a picture of it - a creature on a painted tile
+   * bears the condition, and one off it does not.
+   */
+  zoneFootprint(zone: RunningZone): number[] {
+    const tiles: number[] = [];
+    for (let tile = 0; tile < this.state.grid.size; tile++) {
+      const band = this.bandBetween(zone.anchor, tile);
+      if (band !== null && reaches(band, zone.band)) tiles.push(tile);
+    }
+    return tiles;
+  }
+
+  /** Every standing zone with its ground, for a board that draws them. */
+  zoneFootprints(): { id: string; name: string; condition: string; owner: string | null; tiles: number[] }[] {
+    return this.zones().map((zone) => ({
+      id: zone.id,
+      name: zone.name,
+      condition: zone.condition,
+      owner: zone.owner,
+      tiles: this.zoneFootprint(zone),
+    }));
+  }
+
+  /**
    * Put a zone on the map, or move the one already standing under that id.
    *
    * Casting a spell again under the same id is the SRD's "or you cast it

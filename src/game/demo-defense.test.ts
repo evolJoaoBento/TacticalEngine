@@ -3828,6 +3828,23 @@ describe('ground that means something', () => {
     expect(kara.conditions.has('rooted')).toBe(false);
   });
 
+  it('holds exactly the tiles a creature would be caught standing on', () => {
+    const { demo, kara } = ground('zone-footprint');
+    const [zone] = demo.world.zoneFootprints();
+    expect(zone?.name).toBe('Light');
+    expect(zone?.condition).toBe('rooted');
+    expect(zone?.tiles).toContain(kara.tile);
+    const painted = new Set(zone!.tiles);
+    // Walk Kara over every tile she can stand on: painted is rooted, unpainted
+    // is not. The picture and the rule are the same measure.
+    for (let tile = 0; tile < demo.grid.width * demo.grid.height; tile++) {
+      if (!demo.grid.isPassable(tile) || demo.state.blockedFor('kara')(tile)) continue;
+      demo.state.moveEntity('kara', tile);
+      demo.world.refreshZones();
+      expect(kara.conditions.has('rooted'), `tile ${tile}`).toBe(painted.has(tile));
+    }
+  });
+
   it('touches only the side it was cast for', () => {
     const demo = standoff('zone-side');
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;

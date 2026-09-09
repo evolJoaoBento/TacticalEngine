@@ -24,6 +24,7 @@ declare global {
       select: (id: string) => boolean;
       selectNext: () => string | null;
       tileOf: (id: string) => number;
+      zones: () => { id: string; name: string; tiles: number[] }[];
       inCombat: () => boolean;
       round: () => number;
       adversaries: () => string[];

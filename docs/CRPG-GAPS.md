@@ -425,6 +425,12 @@ Armor Slot a box, filled when marked, the way the character sheet looks — plus
 the GM's Fear and the round. Clicking a card selects. The tile under the pointer is **marked**,
 so a click has a visible target.
 
+**Zones are on the floor.** A standing zone paints the tiles it holds (`SceneView.showZones`, one
+instanced layer under the highlights, a colour per zone), and the tiles come from
+`world.zoneFootprint` - the same measure `refreshZones` uses to decide who is standing in it, so
+the picture is the rule. A zone's condition names its colour (`ConditionDef.color`); one that
+names none gets a hue spun from its id, so nothing scripted later is invisible.
+
 **Dice** are read out rather than rolled on screen: "Hope 8 + Fear 7 + 2 = 17 vs 12. Success,
 with Hope." Only the parts that applied are named. That is the part of dice presentation a
 player needs to trust the outcome; a 3D roll is theatre on top of it.

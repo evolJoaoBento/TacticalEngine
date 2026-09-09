@@ -26,6 +26,16 @@ export const conditionDefSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
   text: z.string().default(''),
+  /**
+   * What the ground looks like where a zone puts this on whoever stands there:
+   * a colour, for the board to paint the zone's tiles in. Only a condition a
+   * zone applies needs one; a board given none picks a hue from the id, so a
+   * zone written tomorrow is never invisible.
+   */
+  color: z
+    .string()
+    .regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i, 'a hex colour')
+    .optional(),
   /** What it does to whoever bears it. */
   modifiers: z.array(abilityModifierSchema).default([]),
   /** What carrying it does to damage coming in — a shroud's resistance. */
@@ -321,6 +331,7 @@ const RAW: ConditionInput[] = [
     id: 'wall-of-flame',
     name: 'Wall of Flame',
     text: 'A standing sheet of magical fire: anything that passes through it takes 4d10+3 magic damage.',
+    color: '#ff7a3a',
     onEnter: {
       effects: [
         { kind: 'log', text: 'They come through the flame, and the flame notices.', tone: 'fear' },
@@ -376,6 +387,7 @@ const RAW: ConditionInput[] = [
     id: 'caught-in-the-line',
     name: 'Caught',
     text: 'Dragged into reach of the one holding this ground.',
+    color: '#e0b04a',
     onEnter: {
       effects: [
         { kind: 'log', text: 'They come one step too close and are hauled the rest of the way in.', tone: 'combat' },
@@ -393,6 +405,7 @@ const RAW: ConditionInput[] = [
     id: 'korvax-circle',
     name: 'Magic Circle',
     text: 'Ground that answers anybody who steps onto it: 2d12+4 magic damage, and knocked back.',
+    color: '#b46cff',
     onEnter: {
       effects: [
         { kind: 'log', text: 'The circle takes them as they cross it.', tone: 'fear' },
@@ -460,6 +473,7 @@ const RAW: ConditionInput[] = [
     id: 'zone-of-protection',
     name: 'Zone of Protection',
     text: 'Damage taken here is reduced by the value of the die on the card.',
+    color: '#6ed6a0',
   },
   // Eclipse, read from either side of it. The dark is one spell and two
   // zones, because what it does to the party and what it does to everything
@@ -468,12 +482,14 @@ const RAW: ConditionInput[] = [
     id: 'in-shadow',
     name: 'In Shadow',
     text: 'Attack rolls have disadvantage when targeting you.',
+    color: '#5a4b8a',
     modifiers: [{ stat: 'advantage', bonus: -1, against: true }],
   },
   {
     id: 'shadowed',
     name: 'Shadowed',
     text: 'When somebody succeeds with Hope against you here, you must mark a Stress.',
+    color: '#3d3358',
     payout: {
       on: 'attacked',
       when: {

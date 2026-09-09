@@ -124,6 +124,8 @@ declare global {
       select: (id: string) => boolean;
       selectNext: () => string | null;
       tileOf: (id: string) => number;
+      /** The zones standing on the board, and the tiles each one holds. */
+      zones: () => { id: string; name: string; tiles: number[] }[];
       inCombat: () => boolean;
       round: () => number;
       adversaries: () => string[];
@@ -389,6 +391,7 @@ function setMode(next: 'play' | 'edit'): void {
   } else {
     rebindScene();
     view.clearHighlights();
+    view.clearZones();
     view.syncTokens(demo.state);
     renderPanel();
   }
@@ -654,6 +657,7 @@ function refreshPlay(): void {
   // the party on whatever happens to share those tile indices.
   if (activeScene().id === demo.scene.id) {
     view.syncTokens(demo.state);
+    view.showZones(paintedZones());
     // A target to pick lights the creatures it could be; otherwise the walk.
     view.showHighlights(
       targeting !== null
@@ -664,8 +668,28 @@ function refreshPlay(): void {
     );
   } else {
     view.clearHighlights();
+    view.clearZones();
   }
   renderPlayPanel();
+}
+
+/**
+ * The ground each standing zone holds, in the colour its condition names -
+ * or, for one that names none, a hue spun from the id, so a zone scripted
+ * tomorrow still shows up.
+ */
+function paintedZones(): { tiles: number[]; color: string }[] {
+  return demo.world.zoneFootprints().map((zone) => ({
+    tiles: zone.tiles,
+    color: demo.world.conditionDef(zone.condition)?.color ?? hueOf(zone.condition),
+  }));
+}
+
+/** A colour that is always the same for the same word. */
+function hueOf(word: string): string {
+  let hash = 0;
+  for (const ch of word) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return `hsl(${hash % 360} 70% 60%)`;
 }
 
 /**
@@ -1333,6 +1357,8 @@ const state = {
     return id;
   },
   tileOf: (id: string): number => demo.state.entity(id)?.tile ?? NO_TILE,
+  zones: (): { id: string; name: string; tiles: number[] }[] =>
+    demo.world.zoneFootprints().map((z) => ({ id: z.id, name: z.name, tiles: z.tiles })),
   inCombat: (): boolean => inCombat(demo),
   round: (): number => demo.encounter?.round ?? 0,
   adversaries: (): string[] =>

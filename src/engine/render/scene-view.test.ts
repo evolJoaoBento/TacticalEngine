@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Matrix4, Vector3 } from 'three';
+import { Color, Matrix4, Vector3, type InstancedMesh } from 'three';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
 import { surfaceHeight, tileCenter } from './layout';
@@ -248,6 +248,42 @@ describe('SceneView', () => {
     expect(position.x).toBeCloseTo(centre.x, 6);
     expect(position.z).toBeCloseTo(centre.z, 6);
     expect(position.y).toBeGreaterThan(surfaceHeight(2) - 0.001);
+    view.dispose();
+  });
+
+  it('paints a zone under the highlights, coloured per zone, without allocating', () => {
+    const { grid, view } = setup();
+    const meshesBefore = view.root.children.length;
+
+    view.showZones([
+      { tiles: [grid.indexOf(0, 0), grid.indexOf(1, 0)], color: '#ff7a3a' },
+      { tiles: [grid.indexOf(4, 2), 999], color: '#b46cff' },
+    ]);
+    expect(view.zonedCount).toBe(3);
+    expect(view.root.children.length).toBe(meshesBefore);
+
+    const layer = view.root.children.find((c) => c.name === 'zones') as InstancedMesh;
+    const colour = new Color();
+    layer.getColorAt(0, colour);
+    expect(colour.getHexString()).toBe('ff7a3a');
+    layer.getColorAt(2, colour);
+    expect(colour.getHexString()).toBe('b46cff');
+
+    // Below the highlight, so a walk previewed across the ground shows both.
+    const matrix = new Matrix4();
+    const position = new Vector3();
+    layer.getMatrixAt(0, matrix);
+    position.setFromMatrixPosition(matrix);
+    view.showHighlights([grid.indexOf(0, 0)]);
+    const highlight = view.root.children.find((c) => c.name === 'highlights') as InstancedMesh;
+    const above = new Vector3();
+    highlight.getMatrixAt(0, matrix);
+    above.setFromMatrixPosition(matrix);
+    expect(position.y).toBeGreaterThan(surfaceHeight(0));
+    expect(position.y).toBeLessThan(above.y);
+
+    view.clearZones();
+    expect(view.zonedCount).toBe(0);
     view.dispose();
   });
 

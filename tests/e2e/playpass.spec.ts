@@ -126,13 +126,17 @@ test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
       beside = away(a.tileOf('mira'), a.tileOf(foe)) <= 1;
     }
     const before = a.hitPoints(foe).marked;
+    const foeWas = a.tileOf(foe);
     const status = a.useAbility('mira', 'book-of-korvax-magic-circle');
     while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
     return {
       beside,
       status,
       before,
+      foeWas,
       after: a.hitPoints(foe).marked,
+      zones: a.zones(),
+      mira: a.tileOf('mira'),
       log: a.log().slice(-6).map((l) => l.text),
     };
   });
@@ -142,6 +146,13 @@ test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
   expect(cast.status).toBe('done');
   expect(cast.after).toBeGreaterThan(cast.before);
   expect(cast.log.join(' ')).toMatch(/circle takes them/i);
+
+  // The circle is on the floor: a zone the board knows the tiles of, holding
+  // Mira's own tile and the one the Burrower was standing on when it burned.
+  expect(cast.zones.map((z) => z.name)).toContain('Magic Circle');
+  const circle = cast.zones.find((z) => z.name === 'Magic Circle')!;
+  expect(circle.tiles).toContain(cast.mira);
+  expect(circle.tiles).toContain(cast.foeWas);
 });
 
 test('Hold the Line drags in whatever comes close', async ({ page }) => {

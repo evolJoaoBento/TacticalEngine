@@ -116,6 +116,10 @@ export class SceneView {
   private readonly highlight: InstancedMesh;
   private readonly highlightGeometry: BoxGeometry;
   private readonly highlightMaterial: MeshBasicMaterial;
+  /** Ground a spell holds: one quad per tile, coloured per zone, under the highlights. */
+  private readonly zoneLayer: InstancedMesh;
+  private readonly zoneMaterial: MeshBasicMaterial;
+  private zoneCount = 0;
   /** The tile under the pointer: one quad, a different colour, or hidden. */
   private readonly cursor: Mesh;
   private readonly cursorMaterial: MeshBasicMaterial;
@@ -170,6 +174,20 @@ export class SceneView {
     this.highlight.count = 0;
     this.highlight.frustumCulled = false;
     this.root.add(this.highlight);
+
+    // A zone is painted below a highlight, so a walk previewed across a wall
+    // of flame shows both: the ground it is, and the ground it could be.
+    this.zoneMaterial = new MeshBasicMaterial({
+      color: new Color('#ffffff'),
+      transparent: true,
+      opacity: 0.38,
+      depthWrite: false,
+    });
+    this.zoneLayer = new InstancedMesh(this.highlightGeometry, this.zoneMaterial, Math.max(1, this.maxHighlights));
+    this.zoneLayer.name = 'zones';
+    this.zoneLayer.count = 0;
+    this.zoneLayer.frustumCulled = false;
+    this.root.add(this.zoneLayer);
 
     this.cursorMaterial = new MeshBasicMaterial({
       color: new Color('#ffe08a'),
@@ -418,6 +436,44 @@ export class SceneView {
     return this.highlightCount;
   }
 
+  /**
+   * Paint the ground every standing zone holds, each in its own colour. Passing
+   * an empty list clears it. Like the highlights, this rewrites instances in
+   * place and never allocates.
+   */
+  showZones(zones: Iterable<{ tiles: Iterable<number>; color: string }>): void {
+    let i = 0;
+    const color = new Color();
+    outer: for (const zone of zones) {
+      color.set(zone.color);
+      for (const tile of zone.tiles) {
+        if (i >= this.maxHighlights) break outer;
+        if (!this.grid.isTile(tile)) continue;
+        const centre = tileCenter(this.grid, tile, this.layout);
+        this.dummy.position.set(centre.x, surfaceHeight(this.grid.heightAt(tile), this.layout) + 0.012, centre.z);
+        this.dummy.scale.set(1, 1, 1);
+        this.dummy.rotation.set(0, 0, 0);
+        this.dummy.updateMatrix();
+        this.zoneLayer.setMatrixAt(i, this.dummy.matrix);
+        this.zoneLayer.setColorAt(i, color);
+        i++;
+      }
+    }
+    this.zoneCount = i;
+    this.zoneLayer.count = i;
+    this.zoneLayer.instanceMatrix.needsUpdate = true;
+    if (this.zoneLayer.instanceColor !== null) this.zoneLayer.instanceColor.needsUpdate = true;
+  }
+
+  /** How many tiles the zone layer is currently drawing. */
+  get zonedCount(): number {
+    return this.zoneCount;
+  }
+
+  clearZones(): void {
+    this.showZones([]);
+  }
+
   clearHighlights(): void {
     this.showHighlights([]);
   }
@@ -448,6 +504,8 @@ export class SceneView {
     this.highlightGeometry.dispose();
     this.highlightMaterial.dispose();
     this.highlight.dispose();
+    this.zoneMaterial.dispose();
+    this.zoneLayer.dispose();
     this.cursorMaterial.dispose();
     this.tokens.clear();
     this.decos.length = 0;
