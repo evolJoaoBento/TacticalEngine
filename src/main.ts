@@ -795,7 +795,8 @@ function hudMembers(): HudMember[] {
       stress: { ...entity.stress },
       armorSlots: { ...entity.armorSlots },
       ...(entity.hope === undefined ? {} : { hope: { ...entity.hope } }),
-      conditions: [...entity.conditions],
+      // What they are called rather than their ids: a HUD is read by a player.
+      conditions: [...entity.conditions].map((c) => demo.world.conditionName(c)),
       canLevel: waiting.has(entity.id) && !inCombat(demo) && demo.pending === null,
       gear: `${gearOf(demo, entity.id).weapon} · ${gearOf(demo, entity.id).armor}`,
     };

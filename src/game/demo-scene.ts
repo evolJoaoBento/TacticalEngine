@@ -4519,7 +4519,7 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
       const roller = rolled.who === '' ? demo.scenario.actorId : rolled.who;
       showRoll(demo, roller === null ? '' : who(roller), rolled.what, rolled.roll);
     }
-    const line = describeEntry(entry, names, quests, who);
+    const line = describeEntry(entry, names, quests, who, (c) => demo.world.conditionName(c));
     if (line !== null) lines.push(line);
   }
   demo.log.push(...lines);
@@ -4589,6 +4589,8 @@ function describeEntry(
   names: ReadonlyMap<string, string>,
   quests: ReadonlyMap<string, QuestDef>,
   who: (id: string) => string,
+  /** What a condition is called, rather than the id it is keyed by. */
+  called: (condition: string) => string,
 ): LogLine | null {
   const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
   switch (entry.kind) {
@@ -4609,10 +4611,14 @@ function describeEntry(
       };
     case 'armor':
       return { text: `${who(entry.id)} clears ${plural(entry.cleared, 'Armor Slot')}.`, tone: 'hope' };
-    case 'condition':
+    case 'condition': {
+      // The condition's name, not the id it is keyed by: "Kara is Holding the
+      // Line" rather than "Kara is holding-the-line".
+      const name = called(entry.condition);
       return entry.applied
-        ? { text: `${who(entry.id)} is ${entry.condition}.`, tone: 'combat' }
-        : { text: `${who(entry.id)} is no longer ${entry.condition}.`, tone: 'system' };
+        ? { text: `${who(entry.id)} is ${name}.`, tone: 'combat' }
+        : { text: `${who(entry.id)} is no longer ${name}.`, tone: 'system' };
+    }
     case 'moved':
       return entry.walked === true
         ? { text: `${who(entry.id)} crosses the ground.`, tone: 'combat' }
