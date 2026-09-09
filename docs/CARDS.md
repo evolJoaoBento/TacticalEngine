@@ -39,9 +39,10 @@ Known simplifications in the scripted ones:
 - **Wild Surge**'s die grows on every action roll the engine hears about, which is the party's weapon swings and the rolls a script makes; a roll nothing raises does not feed it.
 - **Full Surge**'s "+2 bonus to all of your character traits" is +2 on every action roll, a trait being the thing you roll; a trait read anywhere that is not a roll does not move. It lasts to the next rest rather than the next long one, there being one rest a condition outlasts.
 - The **Book of Korvax** runs two of its three spells. Its circle is the first ground that bites: the crossing is the whole of the spell, so standing still in one sets nothing off, and recasting it leaves the people already inside bearing it rather than hitting them twice. **Lift** sets its target down away from the caster rather than anywhere within Close of where they were - there is no way to aim the second half of a spell aimed at a creature - and on ground that can be walked to, so a lift carries nobody over a wall. The Reaction Roll that makes somebody forget the last minute of a conversation stays text.
+- **Hold the Line** is the second card built on ground that bites, and of the three ways its stance ends only the failure with Fear is scripted: "until you move" needs a hook on the holder's own walk that nothing raises, and the GM spending 2 Fear to clear it is the GM's to spend. The stance otherwise stands until the fight ends or the one holding it falls, and the hold it leaves is the ordinary Restrained, shaken off on the creature's next spotlight.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 115 of 189 cards.
+Scripted: 116 of 189 cards.
 
 
 ## Arcana
@@ -273,7 +274,7 @@ Scripted: 115 of 189 cards.
 | 7 | Valor-Touched | Ability | **passive** |
 | 8 | Full Surge | Ability | **action** |
 | 8 | Ground Pound | Ability | **action** |
-| 9 | Hold the Line | Ability | text |
+| 9 | Hold the Line | Ability | **action**, **reaction** |
 | 9 | Lead by Example | Ability | **reaction** |
 | 10 | Unbreakable | Ability | **reaction** |
 | 10 | Unyielding Armor | Ability | **reaction** |

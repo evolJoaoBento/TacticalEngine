@@ -460,6 +460,66 @@ const RAW: Input[] = [
       },
     ],
   },
+  // "Describe the defensive stance you take and spend a Hope. If an adversary
+  // moves within Very Close range, they're pulled into Melee range and
+  // Restrained. This condition lasts until you move or fail a roll with Fear,
+  // or the GM spends 2 Fear on their turn to clear it."
+  //
+  // The second card built on ground that bites, and the one that shows the
+  // substrate is not a one-off: the circle hurts what crosses it, this drags
+  // what crosses it. Both are a zone naming a condition whose `onEnter` is the
+  // whole of the spell.
+  //
+  // Simplified: of the three ways the stance ends, the one that is scripted is
+  // the failure with Fear. "Until you move" needs a hook on the holder's own
+  // walk that nothing raises, and the GM spending 2 Fear to clear it is the
+  // GM's to spend; the stance otherwise stands until the fight is over or the
+  // one holding it falls.
+  {
+    id: 'hold-the-line',
+    name: 'Hold the Line',
+    source: card('hold-the-line'),
+    cost: { hope: 1 },
+    target: { kind: 'self' },
+    inCombatOnly: true,
+    action: false,
+    effects: [
+      { kind: 'log', text: 'They set their feet, and the ground around them stops being neutral.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'holding-the-line', duration: 'scene', target: { kind: 'actor' } },
+      {
+        kind: 'zone',
+        zone: 'hold-the-line',
+        name: 'Hold the Line',
+        condition: 'caught-in-the-line',
+        at: 'actor',
+        band: 'veryClose',
+        side: 'adversaries',
+        onDeath: 'end',
+      },
+    ],
+  },
+  {
+    id: 'hold-the-line-drops',
+    name: 'Hold the Line',
+    source: card('hold-the-line'),
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'self' },
+        { kind: 'hasCondition', condition: 'holding-the-line' },
+        { kind: 'rolled', is: 'failure' },
+        { kind: 'rolled', is: 'withFear' },
+      ],
+    },
+    effects: [
+      { kind: 'log', text: 'The stance breaks, and the ground is only ground again.', tone: 'fear' },
+      { kind: 'endZone', zone: 'hold-the-line' },
+      { kind: 'clearCondition', condition: 'holding-the-line', target: { kind: 'actor' } },
+    ],
+  },
   // The Book of Korvax, two spells of its three.
   //
   // "Make a Spellcast Roll to temporarily lift a target you can see up into the

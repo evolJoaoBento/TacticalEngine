@@ -5046,3 +5046,121 @@ describe('a circle burnt into the floor', () => {
     throw new Error('the lift never landed in sixty tries');
   });
 });
+
+
+/**
+ * The second card built on ground that bites: where Korvax's circle hurts
+ * whatever crosses it, this drags it in and holds it.
+ */
+describe('a stance that holds the ground around it', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** Kara braced, with the husk parked well outside Very Close of her. */
+  const braced = (seed: string): { demo: DemoScene; husk: EntityState; kara: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    hold(demo, 'kara', ['hold-the-line']);
+    const kara = demo.state.entity('kara')!;
+    kara.hope = { max: 6, value: 6 };
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 60, marked: 0 };
+    return { demo, husk, kara };
+  };
+
+  it('costs a Hope, marks the one holding it, and puts a zone on the board', () => {
+    const { demo, kara } = braced('line-up');
+    expect(useAbility(demo, 'kara', 'hold-the-line', []).status).not.toBe('refused');
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+    expect(kara.hope!.value).toBe(5);
+    expect(kara.conditions.has('holding-the-line')).toBe(true);
+    expect(demo.world.zones().map((z) => z.id)).toContain('hold-the-line');
+  });
+
+  it('hauls in an adversary that walks within Very Close, and holds it there', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const { demo, husk, kara } = braced('line-pull-' + seed);
+      // Out past Very Close of her, so only walking in can set it off.
+      const away = demo.grid.indexOf(
+        Math.min(demo.grid.width - 1, demo.grid.xOf(kara.tile) + 6),
+        demo.grid.yOf(husk.tile),
+      );
+      if (away === NO_TILE || !demo.grid.isPassable(away)) continue;
+      demo.state.moveEntity(husk.id, away);
+
+      expect(useAbility(demo, 'kara', 'hold-the-line', []).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      // Nothing was inside it when it went up.
+      if (husk.conditions.has('restrained')) continue;
+
+      endTurn(demo);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      if (!husk.conditions.has('caught-in-the-line')) continue;
+
+      // Dragged the rest of the way in: Melee is one tile. The hold itself is
+      // `temporary`, which the creature's own next spotlight shakes off - so
+      // what this test claims is that walking in on the GM's turn sets the
+      // stance off at all, with nobody on the party's side having acted.
+      expect(demo.grid.chebyshevDistance(kara.tile, husk.tile)).toBeLessThanOrEqual(1);
+      expect(demo.log.some((l) => /hauled the rest of the way in/.test(l.text))).toBe(true);
+      return;
+    }
+    throw new Error('nothing ever walked into the line in forty tries');
+  });
+
+  it('and what it leaves on them is the hold', () => {
+    const { demo, husk, kara } = braced('line-hold');
+    const away = demo.grid.indexOf(
+      Math.min(demo.grid.width - 1, demo.grid.xOf(kara.tile) + 6),
+      demo.grid.yOf(husk.tile),
+    );
+    demo.state.moveEntity(husk.id, away);
+    expect(useAbility(demo, 'kara', 'hold-the-line', []).status).not.toBe('refused');
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    expect(husk.conditions.has('caught-in-the-line')).toBe(false);
+
+    // Walked in by hand and the ground read again, which is the crossing with
+    // none of the turn's own housekeeping around it.
+    let near = NO_TILE;
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (near === NO_TILE && demo.grid.isPassable(tile) && tile !== kara.tile) near = tile;
+    });
+    demo.state.moveEntity(husk.id, near);
+    settleFight(demo);
+
+    expect(husk.conditions.has('caught-in-the-line')).toBe(true);
+    expect(husk.conditions.has('restrained')).toBe(true);
+    expect(demo.grid.chebyshevDistance(kara.tile, husk.tile)).toBeLessThanOrEqual(1);
+  });
+
+  it('drops on a failure with Fear, and the ground stops meaning anything', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, husk, kara } = braced('line-drop-' + seed);
+      expect(useAbility(demo, 'kara', 'hold-the-line', []).status).not.toBe('refused');
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      expect(demo.world.zones().map((z) => z.id)).toContain('hold-the-line');
+
+      attackWithSelected(demo, husk.id);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const roll = demo.rolls[demo.rolls.length - 1]?.roll;
+      if (roll === undefined) continue;
+      if (roll.outcome !== 'failureWithFear') {
+        // Any other roll leaves the stance standing, which is half the claim.
+        expect(kara.conditions.has('holding-the-line')).toBe(true);
+        expect(demo.world.zones().map((z) => z.id)).toContain('hold-the-line');
+        continue;
+      }
+      expect(kara.conditions.has('holding-the-line')).toBe(false);
+      expect(demo.world.zones().map((z) => z.id)).not.toContain('hold-the-line');
+      // And nobody is standing in ground that is no longer there.
+      expect(husk.conditions.has('caught-in-the-line')).toBe(false);
+      return;
+    }
+    throw new Error('Kara never failed with Fear in eighty tries');
+  });
+});
