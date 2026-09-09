@@ -14,6 +14,7 @@
  */
 
 import type { Rng } from '../core/rng';
+import type { Trait } from '../scene/primitives';
 import { TileGrid } from '../grid/grid';
 import { rollDuality, type DualityRoll } from '../rules/duality';
 import { rollGmDie, type GmRoll } from '../rules/gm-die';
@@ -54,6 +55,12 @@ export interface AttackProfile {
   proficiency?: number;
   /** Damage that cannot be reduced by marking Armor Slots. */
   direct?: boolean;
+  /**
+   * The trait the swing rolls with - the weapon's, for a PC - so a card that
+   * asks "when you make a Presence Roll" can hear a swing as well as a check.
+   * A stat block rolls its printed modifier and names none.
+   */
+  trait?: Trait;
   /**
    * Twice what the dice said — "the Demon deals double damage to PCs with 0
    * Hope". Doubled once the dice are in, so the thresholds read the number

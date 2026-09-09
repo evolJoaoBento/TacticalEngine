@@ -368,8 +368,9 @@ export const conditionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('hasMark'), mark: contentIdSchema }),
   /**
    * Which trait the roll was thrown with: "when you make a Presence Roll",
-   * "add your Proficiency to a Spellcast Roll". A check says so; a weapon
-   * swing does not yet, and reads false the way an untagged roll does.
+   * "add your Proficiency to a Spellcast Roll". A check says its own; a
+   * weapon swing says the weapon's. A roll that said nothing reads false,
+   * the way an untagged roll does.
    */
   z.object({
     kind: z.literal('rolledWith'),

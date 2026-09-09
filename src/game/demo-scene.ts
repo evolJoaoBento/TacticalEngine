@@ -1313,7 +1313,8 @@ export function attackWithSelected(
   // consequences take place". Nobody has been told whether it hit.
   if (outcome.dualityRoll !== undefined) {
     const box = { held };
-    const groups = rollingOffers(demo, id!, outcome.dualityRoll, box);
+    // A swing is a roll with the weapon's trait, and says so.
+    const groups = rollingOffers(demo, id!, outcome.dualityRoll, box, undefined, profile.trait);
     // A free card fired itself and rerolled from inside `offersFor`; the box
     // holds what it left, and everything from here reads that instead.
     if (demo.pending !== null) return { hit: box.held.outcome.hit, refused: null, hitPointsMarked: 0, waiting: true };

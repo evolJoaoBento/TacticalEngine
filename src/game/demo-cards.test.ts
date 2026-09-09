@@ -3,7 +3,7 @@ import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { NO_TILE } from '../engine/grid/grid';
 import { rest, useAbility } from './demo-abilities';
-import { SRD_CHARACTERS, answerPending, buildDemoScene, refreshWorld, startEncounter, travelTo, type DemoScene } from './demo-scene';
+import { SRD_CHARACTERS, answerPending, attackWithSelected, buildDemoScene, refreshWorld, startEncounter, travelTo, type DemoScene } from './demo-scene';
 import { PIT_SCENE_ID } from './demo-scenes';
 import { loadGameText, saveGame } from './save';
 import type { EntityState } from '../engine/scene/state';
@@ -234,6 +234,43 @@ describe('Bold Presence', () => {
       if (demo.rolls[demo.rolls.length - 1]!.roll.success) successes++;
     }
     expect(successes).toBeGreaterThan(0);
+  });
+});
+
+describe('a weapon swing', () => {
+  it('is a roll with the weapon\'s trait: Sage-Touched answers Finn\'s Agility shot', () => {
+    const sage = ['sage-touched', 'gifted-tracker', 'natures-tongue', 'natural-familiar'];
+    for (let seed = 1; seed < 120; seed++) {
+      const { demo, husk } = karaHolding('swing-' + seed, []);
+      const sheet = { ...demo.sheets.get('finn')!, domainCards: sage, loadout: sage };
+      demo.sheets.set('finn', sheet);
+      demo.characters.set('finn', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+      refreshWorld(demo);
+      const finn = demo.state.entity('finn')!;
+      const agility = demo.characters.get('finn')!.sheet.traits.agility;
+      // Finn beside the husk with his shortbow, and the fight is his to act in.
+      const blocked = demo.state.blockedFor('finn');
+      demo.grid.forEachNeighbor(husk.tile, false, (tile) => {
+        if (demo.grid.isPassable(tile) && !blocked(tile)) demo.state.moveEntity('finn', tile);
+      });
+      demo.party.select('finn');
+      attackWithSelected(demo, husk.id);
+      if (!offered(demo, 'sage-touched')) {
+        while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+        continue;
+      }
+      const pending = demo.pending;
+      if (pending?.kind !== 'reaction') continue;
+      const thrown = pending.offers[0]!.swing!;
+      expect(thrown.success).toBe(false);
+      answerPending(demo, { kind: 'choose', index: 1 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const settled = demo.rolls[demo.rolls.length - 1]!.roll;
+      expect(settled.total).toBe(thrown.total + agility);
+      expect(finn.alive).toBe(true);
+      return;
+    }
+    throw new Error('Sage-Touched never answered a shot in a hundred and twenty tries');
   });
 });
 

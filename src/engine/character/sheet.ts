@@ -357,6 +357,7 @@ export function attackProfile(
       kind: 'pc',
       name: 'Unarmed',
       modifier: { count: 0, sides: 0, modifier: traits[UNARMED.trait] },
+      trait: UNARMED.trait,
       range: UNARMED.range,
       damage: UNARMED.damage,
       proficiency: character.proficiency,
@@ -369,6 +370,7 @@ export function attackProfile(
     // The attack modifier is the weapon's trait; features that add to it are
     // applied by the caller as `AttackOptions.bonus`, so this stays the sheet's.
     modifier: { count: 0, sides: 0, modifier: traits[weapon.trait] },
+    trait: weapon.trait,
     range: weapon.range,
     damage: weapon.damage,
     proficiency: character.proficiency,
