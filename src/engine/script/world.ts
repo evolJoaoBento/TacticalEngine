@@ -1395,14 +1395,20 @@ export class SceneScriptWorld implements ScriptWorld {
             .map((e) => e.id);
         }
         const left = selector.except === 'target' ? new Set(bindings.targets) : null;
+        // "An ally within Melee range of the adversary": measured from the one
+        // the script is aimed at rather than from the one casting it. With
+        // nobody bound the band has nothing to measure from and names nobody,
+        // which is the same quiet answer every other selector gives.
+        const from = selector.around === 'target' ? (bindings.targets[0] ?? null) : actor;
+        if (selector.around === 'target' && from === null) return [];
         const standing = this.state
           .entitiesOf('party')
           .filter((e) => e.alive && (selector.includeSelf === true || e.id !== actor))
           .filter((e) => !(left?.has(e.id) ?? false))
-          .filter((e) => selector.range === undefined || actor === null || this.within(actor, e.id, selector.range))
+          .filter((e) => selector.range === undefined || from === null || this.within(from, e.id, selector.range))
           .map((e) => e.id);
-        if (selector.nearest === undefined || actor === null) return standing;
-        return this.nearestFirst(actor, standing).slice(0, selector.nearest);
+        if (selector.nearest === undefined || from === null) return standing;
+        return this.nearestFirst(from, standing).slice(0, selector.nearest);
       }
       case 'inPath': {
         const actor = this.scenario.actorId;

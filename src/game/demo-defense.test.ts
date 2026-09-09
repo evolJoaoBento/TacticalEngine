@@ -5785,3 +5785,139 @@ describe('a Hope Die that is not a d12', () => {
     expect({ onSuccess, onFailure }).toEqual({ onSuccess: true, onFailure: true });
   });
 });
+
+
+/**
+ * Bone's two leftovers: a token spent on how you come at somebody, and a long
+ * look at a creature that takes the wind out of the room.
+ */
+describe('coming at them well, and knowing them', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  const approaching = (seed: string): { demo: DemoScene; kara: EntityState; husk: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = false;
+    hold(demo, 'kara', ['strategic-approach']);
+    const kara = demo.state.entity('kara')!;
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    husk.hitPoints = { max: 90, marked: 0 };
+    demo.world.addTokens('kara', 'strategic-approach', 3);
+    demo.party.select('kara');
+    return { demo, kara, husk };
+  };
+
+  /** Take one of the card's three options by name. */
+  const pick = (demo: DemoScene, label: RegExp): void => {
+    if (demo.pending?.prompt.kind !== 'choice') throw new Error('expected the three approaches');
+    const option = demo.pending.prompt.options.find((o) => label.test(o.label));
+    if (option === undefined) throw new Error(`no option matching ${label}`);
+    answerPending(demo, { kind: 'choose', index: option.index });
+  };
+
+  it('counts its tokens off Knowledge, and offers all three approaches', () => {
+    const demo = standoff('approach-tokens');
+    hold(demo, 'kara', ['strategic-approach']);
+    // Kara's Knowledge is below one, and the card floors it at one.
+    expect(demo.world.tokenCount('kara', 'strategic-approach')).toBe(1);
+
+    const { demo: ready, husk } = approaching('approach-offer');
+    expect(useAbility(ready, 'kara', 'strategic-approach', [husk.id]).status).toBe('waiting');
+    if (ready.pending?.prompt.kind !== 'choice') throw new Error('expected the three approaches');
+    expect(ready.pending.prompt.options).toHaveLength(3);
+  });
+
+  it('picks a line, and the next swing is made with advantage', () => {
+    const { demo, kara, husk } = approaching('approach-advantage');
+    useAbility(demo, 'kara', 'strategic-approach', [husk.id]);
+    pick(demo, /advantage/);
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+    expect(kara.conditions.has('strategic-advantage')).toBe(true);
+    expect(demo.world.tokensOn('kara', 'strategic-approach')).toBe(2);
+    expect(demo.world.advantageFor('kara', husk.id)).toEqual({ advantage: 1, disadvantage: 0 });
+
+    // And it is spent by that swing, hit or miss.
+    attackWithSelected(demo, husk.id);
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    expect(kara.conditions.has('strategic-advantage')).toBe(false);
+  });
+
+  it('steadies an ally standing beside the one it was aimed at, not beside the caster', () => {
+    const { demo, husk } = approaching('approach-ally');
+    const finn = demo.state.entity('finn')!;
+    finn.stress = { max: 6, marked: 3 };
+    const mira = demo.state.entity('mira')!;
+    mira.stress = { max: 6, marked: 3 };
+    // Finn beside the husk; Mira left where she was, well away from it.
+    const blocked = demo.state.blockedFor('finn');
+    demo.grid.forEachNeighbor(husk.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== demo.state.entity('kara')!.tile) {
+        demo.state.moveEntity('finn', tile);
+      }
+    });
+
+    useAbility(demo, 'kara', 'strategic-approach', [husk.id]);
+    pick(demo, /Steady/);
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+    // `around: 'target'` is the whole of this: the band is measured from the
+    // adversary, which is why Finn is steadied and Mira is not.
+    expect(finn.stress.marked).toBe(2);
+    expect(mira.stress.marked).toBe(3);
+  });
+
+  it('puts a d8 behind the blow, once', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const { demo, kara, husk } = approaching('approach-d8-' + seed);
+      useAbility(demo, 'kara', 'strategic-approach', [husk.id]);
+      pick(demo, /d8/);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      expect(kara.conditions.has('strategic-force')).toBe(true);
+
+      attackWithSelected(demo, husk.id);
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      // A miss counts nothing and leaves the d8 waiting; a hit spends it.
+      if (husk.hitPoints.marked === 0) continue;
+      expect(kara.conditions.has('strategic-force')).toBe(false);
+      return;
+    }
+    throw new Error('Kara never landed a blow in forty tries');
+  });
+
+  it('Know Thy Enemy takes a Hope, and offers a Stress for one of the GM\'s Fear', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const demo = standoff('know-' + seed);
+      demo.askDefender = false;
+      // An Instinct Roll, not a Spellcast one, so the Guardian can make it -
+      // and she is already stood next to the thing she is watching.
+      hold(demo, 'kara', ['know-thy-enemy']);
+      const kara = demo.state.entity('kara')!;
+      kara.hope = { max: 6, value: 6 };
+      kara.stress = { max: 6, marked: 0 };
+      demo.state.fear = { max: 12, value: 5 };
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+
+      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+      answerPending(demo, { kind: 'roll' });
+      // A failed roll asks nothing; try again.
+      if (demo.pending?.prompt.kind !== 'choice') continue;
+
+      expect(kara.hope!.value).toBe(5);
+      // Read after the dice, not before them: a roll with Fear hands the GM one
+      // on its way past, and what the card takes is measured off that.
+      const pool = demo.state.fear.value;
+      answerPending(demo, { kind: 'choose', index: 0 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      // A Stress marked, and one off the GM's pool.
+      expect(kara.stress.marked).toBeGreaterThanOrEqual(1);
+      expect(demo.state.fear.value).toBe(pool - 1);
+      return;
+    }
+    throw new Error('the watch never paid off in eighty tries');
+  });
+});

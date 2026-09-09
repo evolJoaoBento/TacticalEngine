@@ -131,6 +131,31 @@ const STORM = (dice: string, condition?: string): EffectInput => ({
   },
 });
 
+const LEARNED: EffectInput[] = [
+  { kind: 'log', text: 'They watch a while longer, and something about it gives.', tone: 'hope' },
+  {
+    kind: 'branch',
+    when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+    then: [{ kind: 'spendHope', amount: 1 }],
+    otherwise: [{ kind: 'log', text: 'What they saw will not stay: there is no Hope to hold it with.', tone: 'fear' }],
+  },
+  {
+    kind: 'choice',
+    title: 'Know Thy Enemy',
+    body: 'Something in what you have seen takes the wind out of the room.',
+    options: [
+      {
+        label: 'Mark a Stress to take a Fear off the GM',
+        effects: [
+          { kind: 'markStress', amount: 1, target: { kind: 'actor' } },
+          { kind: 'loseFear', amount: 1 },
+        ],
+      },
+      { label: 'Keep it to yourself', effects: [{ kind: 'none' }] },
+    ],
+  },
+];
+
 const RESUMES: EffectInput[] = [
   { kind: 'log', text: 'They move, and the room remembers how to.', tone: 'combat' },
   { kind: 'clearCondition', condition: 'time-stopped', target: { kind: 'adversaries', range: 'veryFar' } },
@@ -525,6 +550,110 @@ const RAW: Input[] = [
       },
     ],
   },
+  // "After a long rest, place a number of tokens equal to your Knowledge on
+  // this card (minimum 1). The first time you move within Close range of an
+  // adversary and make an attack against them, you can spend one token to
+  // choose one of the following options... When you take a long rest, clear all
+  // unspent tokens."
+  //
+  // Simplified twice, and deliberately not a third time. The gate - "the first
+  // time you move within Close range of an adversary" - is not tracked: nothing
+  // here remembers that a character walked before they swung. And the token is
+  // spent *before* the swing rather than during it, which is what keeps all
+  // three options: advantage has to be declared before the dice, so a card that
+  // asked afterwards could only ever have offered two of the three.
+  //
+  // What that costs is a player who picks their line and then cannot reach
+  // anybody, which is a wasted token rather than a wrong rule.
+  {
+    id: 'strategic-approach',
+    name: 'Strategic Approach',
+    source: card('strategic-approach'),
+    tokens: { amount: 'knowledge', minimum: 1, refill: 'longRest' },
+    target: { kind: 'adversary', range: 'close' },
+    action: false,
+    inCombatOnly: true,
+    available: { kind: 'tokens', ability: 'strategic-approach', op: '>=', value: 1 },
+    effects: [
+      {
+        kind: 'choice',
+        title: 'Strategic Approach',
+        body: 'How do you come at them?',
+        options: [
+          {
+            label: 'Pick your line: advantage on the attack',
+            effects: [
+              { kind: 'spendToken', ability: 'strategic-approach', amount: 1 },
+              { kind: 'applyCondition', condition: 'strategic-advantage', duration: 'scene', target: { kind: 'actor' } },
+            ],
+          },
+          {
+            label: 'Steady an ally standing beside them',
+            effects: [
+              { kind: 'spendToken', ability: 'strategic-approach', amount: 1 },
+              { kind: 'clearStress', amount: 1, target: { kind: 'allies', range: 'melee', around: 'target' } },
+            ],
+          },
+          {
+            label: 'Put a d8 behind the blow',
+            effects: [
+              { kind: 'spendToken', ability: 'strategic-approach', amount: 1 },
+              { kind: 'applyCondition', condition: 'strategic-force', duration: 'scene', target: { kind: 'actor' } },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  // The d8, put behind the blow at the moment a blow is counted.
+  {
+    id: 'strategic-approach-force',
+    name: 'Strategic Approach',
+    source: card('strategic-approach'),
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    available: { kind: 'hasCondition', condition: 'strategic-force', of: { kind: 'actor' } },
+    effects: [
+      { kind: 'boostDamage', dice: '1d8' },
+      { kind: 'clearCondition', condition: 'strategic-force', target: { kind: 'actor' } },
+    ],
+  },
+
+  // "When observing a creature, you can make an Instinct Roll against them. On
+  // a success, spend a Hope and ask the GM for one set of information about the
+  // target... Additionally on a success, you can mark a Stress to remove a Fear
+  // from the GM's Fear Pool."
+  //
+  // The information is the table's, and the engine already shows every number
+  // on that list when you look at a creature - unmarked Hit Points and Stress,
+  // Difficulty and thresholds, the standard attack, the features. What the
+  // effect vocabulary cannot do is read those numbers into a sentence, so what
+  // the card leaves here is the Hope it costs and the Fear it can take.
+  //
+  // The Fear is offered rather than taken: a Stress is a real price, and "you
+  // can" is the card's own word.
+  {
+    id: 'know-thy-enemy',
+    name: 'Know Thy Enemy',
+    source: card('know-thy-enemy'),
+    target: { kind: 'adversary', range: 'far' },
+    action: false,
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'instinct',
+          difficulty: 'target',
+          prompt: 'Know Thy Enemy: watch them and see what shows.',
+          onCriticalSuccess: LEARNED,
+          onSuccessWithHope: LEARNED,
+          onSuccessWithFear: LEARNED,
+        },
+      },
+    ],
+  },
+
   // "Name and describe your signature combat move. Once per rest, when you
   // perform this signature move as part of an action you're taking, you can roll
   // a d20 as your Hope Die. On a success, clear a Stress."

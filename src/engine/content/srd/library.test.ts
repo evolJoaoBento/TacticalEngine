@@ -115,6 +115,7 @@ const EXPECTED_REFUSALS: ReadonlyMap<string, string> = new Map([
   ['shark-blood-in-the-water', 'nothing to swim at until somebody nearby is bleeding'],
   ['share-the-burden', 'nobody in the fixture is carrying Stress to take on'],
   ['book-of-sitil-echo-strikes', 'no attack roll to lay against a second target until a swing has been made'],
+  ['strategic-approach', 'no tokens on the card until a long rest places them'],
 ]);
 
 const husk = (id: string, difficulty: number): AdversaryDef => ({

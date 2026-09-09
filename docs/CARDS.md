@@ -48,9 +48,11 @@ Known simplifications in the scripted ones:
 - The rest of Sage stays text for reasons that repeat: **Natural Familiar**, **Forest Sprites** and **Conjured Steeds** put a creature on the board whose whole purpose is to stand near somebody else - the third-creature rule this engine does not read - **Wild Fortress** builds a thing with its own damage thresholds, **Plant Dominion** reshapes terrain, **Forager** is a downtime move, and **Nature's Tongue**, **Gifted Tracker** and **Sage-Touched** each turn on a natural environment or a creature you have tracked, neither of which the engine knows about.
 - **Fane of the Wilds** is the first card to reach a roll *after* it was read. The spend is made rather than asked - the least number of tokens that carries the total over the Difficulty, and none when the roll needs no saving or cannot be saved - because the moment belongs to the runner, which has nobody to ask. Its tokens are the Sage cards in the loadout, the vault being a place a card goes rather than a number to count, and the token it should gain on a critical Sage spell is not there: nothing tells a card which domain the spell that just critted came from.
 - **Signature Move** is the only card that changes what is thrown rather than what is added to it: a d20 in place of the d12 Hope Die, which raises the floor of the roll and makes a critical rarer, both of which the card is buying deliberately. Declaring the move is a free thing done before rolling rather than folded into an action, the engine having no way to hear "as part of" an action that has not happened yet. **Tactician** says the same words about a Tag Team Roll, which this engine does not have, and stays text along with its half about lending an Experience to somebody else's roll.
+- **Strategic Approach** spends its token *before* the swing rather than during it, which is what keeps all three of its options: advantage has to be declared before the dice, so a card that asked afterwards could only ever have offered two of the three. Its gate - "the first time you move within Close range of an adversary" - is not tracked, nothing here remembering that a character walked before they swung; the cost of both is a player who picks their line and then cannot reach anybody, which is a wasted token rather than a wrong rule.
+- **Know Thy Enemy** leaves the Hope it costs and the Fear it can take. The information is the table's: the engine already shows every number on that list when you look at a creature, but the effect vocabulary cannot read those numbers into a sentence. The Fear is offered rather than taken, a Stress being a real price and "you can" the card's own word.
 - Cards that ask for a Presence Roll to compel, a Countdown, Hidden/Cloaked, flight, teleportation, a summon, or a GM's discretion stay text.
 
-Scripted: 125 of 189 cards.
+Scripted: 127 of 189 cards.
 
 
 ## Arcana
@@ -113,12 +115,12 @@ Scripted: 125 of 189 cards.
 | 1 | I See It Coming | Ability | **reaction** |
 | 1 | Untouchable | Ability | **passive** |
 | 2 | Ferocity | Ability | **reaction**, **passive** |
-| 2 | Strategic Approach | Ability | text |
+| 2 | Strategic Approach | Ability | **action**, **reaction** |
 | 3 | Brace | Ability | **reaction** |
 | 3 | Tactician | Ability | text |
 | 4 | Boost | Ability | **action** |
 | 4 | Redirect | Ability | **reaction** |
-| 5 | Know Thy Enemy | Ability | text |
+| 5 | Know Thy Enemy | Ability | **action** |
 | 5 | Signature Move | Ability | **action**, **reaction** |
 | 6 | Rapid Riposte | Ability | **reaction** |
 | 6 | Recovery | Ability | text |

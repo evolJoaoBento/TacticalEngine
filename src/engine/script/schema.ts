@@ -173,8 +173,12 @@ export const targetSelectorSchema = z.discriminatedUnion('kind', [
     kind: z.literal('allies'),
     /** Living party members within this band of the actor. Everywhere when left out. */
     range: rangeBandSchema.optional(),
-    /** Measured from the actor, or from the tile that was picked. */
-    around: z.enum(['actor', 'point']).optional(),
+    /**
+     * Measured from the actor, from the creature the script is aimed at, or
+     * from the tile that was picked - the same three the adversary selector
+     * has. "An ally within Melee range of the adversary" is the middle one.
+     */
+    around: z.enum(['actor', 'target', 'point']).optional(),
     includeSelf: z.boolean().optional(),
     /** Leave the chosen target out: "all *other* PCs within Close range". */
     except: z.enum(['target']).optional(),

@@ -237,6 +237,21 @@ const RAW: ConditionInput[] = [
       ],
     },
   },
+  // Strategic Approach, declared and waiting on the swing it was declared for.
+  // Two of its three options leave something behind; the third - steadying an
+  // ally - happens as it is chosen and needs no condition.
+  {
+    id: 'strategic-advantage',
+    name: 'Strategic Approach',
+    text: 'You have picked your line: your next attack is made with advantage.',
+    modifiers: [{ stat: 'advantage', bonus: 1 }],
+    endsWhen: 'attacks',
+  },
+  {
+    id: 'strategic-force',
+    name: 'Strategic Approach',
+    text: 'You have picked your moment: a d8 goes behind the next blow that lands.',
+  },
   // Signature Move, waiting on the roll it was declared for. The whole of it is
   // the die: a d20 in place of the d12, which raises the floor of the roll and
   // makes a critical rarer, both of which the card is buying deliberately.
