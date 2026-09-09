@@ -356,6 +356,11 @@ export interface PendingReaction {
    */
   landing?: HeldSwing;
   /**
+   * A script stopped mid-roll behind this question: its dice are read and its
+   * arms have not run, and it settles once the room has said what it says.
+   */
+  resuming?: ResumingScript;
+  /**
    * Offers still to be put to somebody once this question is answered. A blow
    * can leave several people with something to say, and the queue is built
    * before the first is asked: `drainDamage` empties as it reports, so what is
@@ -1229,9 +1234,13 @@ function rollingOffers(
   demo: DemoScene,
   roller: string,
   roll: DualityRoll,
-  landing: { held: HeldSwing },
+  landing?: { held: HeldSwing },
 ): ReactionOffer[][] {
-  const bound = { roll: { total: roll.total, outcome: roll.outcome }, landing };
+  const bound = {
+    roll: { total: roll.total, outcome: roll.outcome },
+    swing: roll,
+    ...(landing === undefined ? {} : { landing }),
+  };
   const groups: ReactionOffer[][] = [];
   for (const member of demo.state.entitiesOf('party')) {
     if (!member.alive) continue;
@@ -2429,6 +2438,38 @@ function playZoneEntries(demo: DemoScene): void {
   }
 }
 
+/** What the cards said about a roll, as the response that settles it. */
+function answerFrom(said: readonly JournalEntry[]): Response {
+  let reroll: 'hope' | 'fear' | 'both' | undefined;
+  for (const entry of said) {
+    if (entry.kind === 'dualityRerolled') reroll = entry.which;
+  }
+  return reroll === undefined ? { kind: 'answered' } : { kind: 'answered', reroll };
+}
+
+/**
+ * Put the roll to the room before the check reads it.
+ *
+ * The runner stops after the dice when somebody is holding a card that answers
+ * one - and only then, so every chest, door and conversation runs as it always
+ * did. What comes back is offered here, and the check settles around it.
+ */
+function offerOnRoll(demo: DemoScene, waiting: PendingScript, roll: DualityRoll): UseOutcome {
+  const roller = demo.scenario.actorId;
+  const groups = roller === null ? [] : rollingOffers(demo, roller, roll);
+  if (groups.length === 0 || !demo.askDefender) return resumeRolled(demo, waiting, { kind: 'answered' });
+  const said: JournalEntry[] = [];
+  const [first, ...queued] = groups;
+  askReaction(demo, first!, queued, undefined, { script: waiting, said });
+  return { status: 'waiting', lines: [] };
+}
+
+/** Carry the held script on, with what the room said about its roll. */
+function resumeRolled(demo: DemoScene, waiting: PendingScript, response: Response): UseOutcome {
+  demo.pending = waiting;
+  return answerPending(demo, response);
+}
+
 /**
  * What a creature owed whoever swung at them, put to them as a card would be.
  *
@@ -2831,12 +2872,25 @@ function offerReactions(demo: DemoScene, groups: readonly (readonly ReactionOffe
   askReaction(demo, first!, queued);
 }
 
+/**
+ * A script stopped mid-roll, waiting on whatever the room says about it.
+ *
+ * The conversation-inside-a-script pattern, one level smaller: the outer script
+ * is held while its question is put, and `said` collects what the answering
+ * cards journalled so the roll can be settled around it.
+ */
+export interface ResumingScript {
+  script: PendingScript;
+  said: JournalEntry[];
+}
+
 /** The question itself: one character, their cards, and letting it pass. */
 function askReaction(
   demo: DemoScene,
   offers: readonly ReactionOffer[],
   queued: readonly (readonly ReactionOffer[])[],
   landing?: HeldSwing,
+  resuming?: ResumingScript,
 ): void {
   const who = nameOf(demo, offers[0]!.by);
   demo.pending = {
@@ -2844,6 +2898,7 @@ function askReaction(
     offers,
     queued,
     ...(landing === undefined ? {} : { landing }),
+    ...(resuming === undefined ? {} : { resuming }),
     prompt: {
       kind: 'choice',
       title: `${who} can answer that`,
@@ -2883,9 +2938,11 @@ function playReaction(
   landing?: HeldSwing,
   /** Where to report what the card did, for a caller still holding the blow. */
   into?: JournalEntry[],
+  /** A script stopped mid-roll, to be carried on once this card is done. */
+  resuming?: ResumingScript,
 ): void {
   if (!payFor(demo, offer.by, offer.ability)) {
-    if (resume) afterReaction(demo, queued, landing);
+    if (resume) afterReaction(demo, queued, landing, resuming);
     return;
   }
   note(demo, `${nameOf(demo, offer.by)}: ${offer.ability.name}.`, 'hope');
@@ -2918,14 +2975,15 @@ function playReaction(
         // than above: without this a reaction that vaults only vaults when it
         // had nothing to ask.
         vaultAfter(demo, offer.by, offer.ability, runner);
-        afterReaction(demo, queued, asAnswered(demo, landing, done.entries));
+        if (into !== undefined) into.push(...done.entries);
+        afterReaction(demo, queued, asAnswered(demo, landing, done.entries), resuming);
       },
     };
     return;
   }
   demo.scenario.actorId = was;
   vaultAfter(demo, offer.by, offer.ability, runner);
-  if (resume) afterReaction(demo, queued, asAnswered(demo, landing, result.journal));
+  if (resume) afterReaction(demo, queued, asAnswered(demo, landing, result.journal), resuming);
 }
 
 /**
@@ -3115,12 +3173,18 @@ function afterReaction(
   demo: DemoScene,
   queued: readonly (readonly ReactionOffer[])[],
   landing?: HeldSwing,
+  resuming?: ResumingScript,
 ): void {
   if (demo.pending !== null) return;
   const waiting = queued.filter((group) => group.length > 0);
   if (waiting.length > 0) {
     const [first, ...rest] = waiting;
-    askReaction(demo, first!, rest, landing);
+    askReaction(demo, first!, rest, landing, resuming);
+    return;
+  }
+  // A script held mid-roll picks up where it stopped, told what was said.
+  if (resuming !== undefined) {
+    resumeRolled(demo, resuming.script, answerFrom(resuming.said));
     return;
   }
   // Whatever was said about it, the blow still lands - unless it was stopped
@@ -4222,8 +4286,10 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
     const chosen = index > 0 ? waiting.offers[index - 1] : undefined;
     const before = demo.log.length;
     demo.pending = null;
-    if (chosen === undefined) afterReaction(demo, waiting.queued, waiting.landing);
-    else playReaction(demo, chosen, waiting.queued, true, waiting.landing);
+    // What the card journals is read back by a script waiting on this answer,
+    // which is how "reroll their dice" reaches the roll it is about.
+    if (chosen === undefined) afterReaction(demo, waiting.queued, waiting.landing, waiting.resuming);
+    else playReaction(demo, chosen, waiting.queued, true, waiting.landing, waiting.resuming?.said, waiting.resuming);
     return settle(demo, demo.log.slice(before));
   }
 
@@ -4249,7 +4315,15 @@ export function answerPending(demo: DemoScene, response: Response): UseOutcome {
   // Only the part that has not been shown yet.
   const lines = record(demo, result.journal.slice(waiting.recorded));
   if (result.status === 'waiting') {
-    demo.pending = { ...waiting, prompt: result.prompt, recorded: result.journal.length };
+    const held: PendingScript = { ...waiting, prompt: result.prompt, recorded: result.journal.length };
+    // The dice are read and nothing has come of them: the one prompt the room
+    // answers rather than the player, so it is not put on screen as a question.
+    if (result.prompt.kind === 'rolled') {
+      demo.pending = null;
+      const asked = offerOnRoll(demo, held, result.prompt.roll);
+      return { status: asked.status, lines: [...lines, ...asked.lines] };
+    }
+    demo.pending = held;
     return settle(demo, lines);
   }
   demo.pending = null;

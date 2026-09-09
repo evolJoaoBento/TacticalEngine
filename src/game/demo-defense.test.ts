@@ -6097,3 +6097,114 @@ describe('asking for somebody back', () => {
     throw new Error('Resurrection never beat a 20 in two hundred tries');
   });
 });
+
+
+/**
+ * The moment a check can be reached in. A swing was always held between its
+ * dice and its damage; a check settled in one go, so a card that answers a roll
+ * could only ever answer half the rolls in the game.
+ */
+describe('a check the room can answer', () => {
+  const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  /** Kara about to make a check, with Finn holding something to say about it. */
+  const rolling = (seed: string, cards: string[]): { demo: DemoScene; kara: EntityState; husk: EntityState } => {
+    const demo = standoff(seed);
+    demo.askDefender = true;
+    hold(demo, 'kara', ['know-thy-enemy']);
+    hold(demo, 'finn', cards);
+    const finn = demo.state.entity('finn')!;
+    finn.hope = { max: 6, value: 6 };
+    const kara = demo.state.entity('kara')!;
+    kara.hope = { max: 6, value: 6 };
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const blocked = demo.state.blockedFor('finn');
+    demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
+      if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) demo.state.moveEntity('finn', tile);
+    });
+    return { demo, kara, husk };
+  };
+
+  it('stops for nobody when nobody is holding anything', () => {
+    // The gate that keeps every chest, door and conversation exactly as it was.
+    const { demo, husk } = rolling('check-quiet', ['bare-bones']);
+    expect(demo.world.answersRoll('kara', { total: 10, outcome: 'failureWithFear' })).toBe(false);
+    expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+    // One answer settles it: the roll goes straight to its arms as it always did.
+    answerPending(demo, { kind: 'roll' });
+    expect(demo.pending?.prompt.kind).not.toBe('rolled');
+  });
+
+  it('puts the roll to an ally holding Reassurance, and throws again when they take it', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, husk } = rolling('check-reassure-' + seed, ['reassurance']);
+      expect(demo.world.answersRoll('kara', { total: 10, outcome: 'failureWithFear' })).toBe(true);
+      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+
+      // The dice are read, and the question that follows is Finn's, not Kara's.
+      answerPending(demo, { kind: 'roll' });
+      if (demo.pending?.kind !== 'reaction') continue;
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['reassurance']);
+      expect(demo.pending.offers[0]!.by).toBe('finn');
+      // The throw is on the offer, not in the log: nothing has been journalled
+      // yet, which is the point - the roll has not decided anything.
+      const first = demo.pending.offers[0]!.swing!;
+
+      answerPending(demo, { kind: 'choose', index: 1 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+
+      // A second reading of the same check, on new dice.
+      const after = demo.rolls[demo.rolls.length - 1]!.roll;
+      expect(after.hope === first.hope && after.fear === first.fear).toBe(false);
+      return;
+    }
+    throw new Error('Reassurance was never put to Finn in eighty tries');
+  });
+
+  it('leaves the roll exactly as thrown when the ally lets it pass', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const { demo, husk } = rolling('check-pass-' + seed, ['reassurance']);
+      useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]);
+      answerPending(demo, { kind: 'roll' });
+      if (demo.pending?.kind !== 'reaction') continue;
+      const thrown = demo.pending.offers[0]!.swing!;
+
+      answerPending(demo, { kind: 'choose', index: 0 });
+      while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      const after = demo.rolls[demo.rolls.length - 1]!.roll;
+      expect({ hope: after.hope, fear: after.fear }).toEqual({ hope: thrown.hope, fear: thrown.fear });
+      return;
+    }
+    throw new Error('Reassurance was never put to Finn in eighty tries');
+  });
+
+  it('Support Tank answers a failed check, and only a failed one', () => {
+    let asked = false;
+    let quiet = false;
+    for (let seed = 1; seed < 80 && !(asked && quiet); seed++) {
+      const { demo, husk } = rolling('check-tank-' + seed, ['support-tank']);
+      useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]);
+      answerPending(demo, { kind: 'roll' });
+
+      if (demo.pending?.kind === 'reaction') {
+        expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['support-tank']);
+        // Only a failure: the card says so and the gate is read before asking.
+        expect(demo.pending.offers[0]!.swing!.success).toBe(false);
+        const before = demo.state.entity('finn')!.hope!.value;
+        answerPending(demo, { kind: 'choose', index: 1 });
+        while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+        expect(demo.state.entity('finn')!.hope!.value).toBe(before - 2);
+        asked = true;
+      } else {
+        quiet = true;
+        while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+      }
+    }
+    expect({ asked, quiet }).toEqual({ asked: true, quiet: true });
+  });
+});

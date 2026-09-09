@@ -333,9 +333,10 @@ export const abilitySchema = z.object({
        * `partyRolled`; the difference is that a card answering this one can
        * still change the roll.
        *
-       * Only the party's weapon swing raises it. A check made through the
-       * runner is not held anywhere it could be rerolled, which is the limit
-       * `payout` has too.
+       * Raised by the party's weapon swing, and by a check made through the
+       * runner - which stops after its dice whenever `answersRoll` says
+       * somebody is holding a card that answers one, and settles around what
+       * they said. A check nobody can answer never stops.
        */
       'partyRolling',
       /**

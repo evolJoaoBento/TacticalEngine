@@ -35,7 +35,7 @@ import {
   type DamageSeverity,
   type IncomingDamage,
 } from '../rules/damage';
-import { HOPE_DIE_SIDES, rollDuality, type DualityRoll } from '../rules/duality';
+import { HOPE_DIE_SIDES, rollDuality, type DualityRoll, type RollOutcome } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
 import {
   bandForDistance,
@@ -1139,6 +1139,28 @@ export class SceneScriptWorld implements ScriptWorld {
       if (die !== undefined) sides = Math.max(sides, die.sides);
     }
     return sides;
+  }
+
+  /**
+   * Whether anybody in the party is holding a card that answers a roll this
+   * creature has just made.
+   *
+   * Asked before a check pauses, so that a chest, a door and a conversation -
+   * every roll nobody has a card for - runs from the dice to its arms without
+   * stopping, exactly as it did before there was a moment to stop in.
+   *
+   * The gates on those cards are read here, with the roller bound, so a card
+   * that only answers an ally does not stop the ally-less roll and one that
+   * wants a failure does not stop a success.
+   */
+  answersRoll(id: string, roll: { total: number; outcome: RollOutcome }): boolean {
+    if (this.state.entity(id)?.faction !== 'party') return false;
+    const bindings: TargetBindings = { targets: [id], hit: [id], roll };
+    for (const member of this.state.entitiesOf('party')) {
+      if (!member.alive) continue;
+      if (this.reactionsFor(member.id, 'partyRolling', bindings).some((a) => a.effects.length > 0)) return true;
+    }
+    return false;
   }
 
   /**

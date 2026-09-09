@@ -938,9 +938,9 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * resolve the whole blow around the new pair - a reroll can turn a miss into
    * a hit, a hit into a miss, and either into a critical.
    *
-   * Only a swing somebody is being asked about hears it. A check made through
-   * the runner - a chest, a spell - is not held anywhere it could be rerolled,
-   * which is the same limit `payout` has.
+   * Heard by a swing somebody is being asked about, and by a check: the runner
+   * stops a check after its dice whenever somebody is holding a card that
+   * answers one, and settles it around whatever they said.
    */
   z.object({
     kind: z.literal('rerollDuality'),

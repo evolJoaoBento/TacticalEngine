@@ -24,7 +24,7 @@
 
 import type { Rng } from '../core/rng';
 import { NO_TILE } from '../grid/grid';
-import { rollDuality, withFaces, type DualityRoll, type RollOutcome } from '../rules/duality';
+import { FEAR_DIE_SIDES, HOPE_DIE_SIDES, rollDuality, withFaces, type DualityRoll, type RollOutcome } from '../rules/duality';
 import { formatDice, parseDice, rollDice, withProficiency, type DamageType, type DiceExpression, type ParsedDamage } from '../rules/dice';
 import type { RunningCountdown } from './countdowns';
 import type { RunningZone } from './zones';
@@ -140,6 +140,16 @@ export interface ScriptWorld extends ConditionContext {
   liftRoll(id: string, trait: CheckTrait, total: number, difficulty: number, critical: boolean): number;
   /** The faces on this creature's Hope Die: twelve unless a card says otherwise. */
   hopeDieSides(id: string): number;
+  /**
+   * Whether anybody is holding a card that answers the roll this creature has
+   * just made. False stops the check pausing at all, which is what keeps every
+   * chest, door and conversation in the game running exactly as it did.
+   *
+   * The roll goes with the question because the cards gate on it: one that
+   * answers a failure must not stop a success, and asking without the dice
+   * would read every such gate as false.
+   */
+  answersRoll(id: string, roll: { total: number; outcome: RollOutcome }): boolean;
   /** The acting character's Experiences, spendable for a Hope each. */
   experiences(): readonly { name: string; modifier: number }[];
   /** What a roll against this creature must meet: Evasion, or an adversary's Difficulty. */
@@ -392,6 +402,15 @@ export type Prompt =
       /** The actor's Experiences, each spendable for a Hope with `roll.experience`. */
       experiences: readonly { name: string; modifier: number }[];
     }
+  /**
+   * The dice are read and nothing has come of them yet: "after an ally
+   * attempts an action roll but before the consequences take place".
+   *
+   * Raised only when somebody is actually holding a card that answers one -
+   * `answersRoll` - so every other check in the game runs exactly as it did,
+   * straight from the dice to its arms. Answered with `answered`.
+   */
+  | { kind: 'rolled'; roll: DualityRoll; targets: readonly string[] }
   /** Play this conversation out, then resume with `continue`. */
   | { kind: 'dialogue'; dialogue: string };
 
@@ -410,6 +429,11 @@ export type Response =
    * modifier added, as the SRD has it.
    */
   | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number; experience?: string }
+  /**
+   * What the room did about a roll it was shown: nothing, or a die put back in
+   * the cup. The check carries on from where it stopped either way.
+   */
+  | { kind: 'answered'; reroll?: 'hope' | 'fear' | 'both' }
   /** Decline the roll — the legacy dialog let a player back out, costing nothing. */
   | { kind: 'cancel' };
 
@@ -470,6 +494,13 @@ export interface ScriptRunnerOptions {
   swing?: DualityRoll;
 }
 
+/** A check whose dice have been read and whose arms have not run yet. */
+interface RolledCheck {
+  roll: DualityRoll;
+  targets: readonly string[];
+  difficulties: readonly number[];
+}
+
 /** A list of effects part-way through, and what `hit` meant when it was pushed. */
 /**
  * The longest list of numbers a `howMany` will offer. Nobody reads twenty
@@ -489,7 +520,12 @@ export class ScriptRunner {
   private readonly journal: JournalEntry[] = [];
   /** Stacked cursors into effect lists: [list, next index]. */
   private readonly stack: Frame[] = [];
-  private pending: { effect: Effect } | null = null;
+  /**
+   * What the script stopped on, and - for a check stopped after its dice - the
+   * throw it stopped with, so resuming settles that roll rather than making a
+   * new one.
+   */
+  private pending: { effect: Effect; rolled?: RolledCheck } | null = null;
 
   /**
    * The interactable this script was started from, if any. `open`, `remove` and
@@ -633,7 +669,15 @@ export class ScriptRunner {
     if (waiting.effect.kind === 'choice') {
       this.applyChoice(waiting.effect.options, response);
     } else if (waiting.effect.kind === 'check') {
-      this.applyCheck(waiting.effect.check, response);
+      // A check stopped after its dice settles them; one stopped before them
+      // throws. The second can stop again, which is the only prompt in the
+      // runner raised by something other than an effect.
+      if (waiting.rolled !== undefined) {
+        this.settleCheck(waiting.effect.check, waiting.rolled, response);
+      } else {
+        const again = this.applyCheck(waiting.effect.check, response);
+        if (again !== null) return { status: 'waiting', prompt: again, journal: this.journal };
+      }
     }
     return this.step();
   }
@@ -700,17 +744,17 @@ export class ScriptRunner {
     return null;
   }
 
-  private applyCheck(check: CheckRequest, response: Response): void {
+  private applyCheck(check: CheckRequest, response: Response): Prompt | null {
     if (response.kind !== 'roll') {
       // Declining costs nothing, as the legacy dialog did; the caller may put the card back.
       if (response.kind === 'cancel') this.cancelled = true;
-      return;
+      return null;
     }
 
     const base = this.world.checkModifier(check.trait, this.rollAs);
     if (base === null) {
       this.refuse(`no ${check.trait} trait to roll with`);
-      return;
+      return null;
     }
     let modifier = base;
 
@@ -764,6 +808,39 @@ export class ScriptRunner {
     const lifted = actor === null ? 0 : this.world.liftRoll(actor, check.trait, thrown.total, difficulty, thrown.critical);
     const roll = lifted === 0 ? thrown : withFaces({ ...thrown, modifier: thrown.modifier + lifted }, {});
     if (lifted > 0) this.journal.push({ kind: 'lifted', by: lifted, total: roll.total });
+
+    // And the moment somebody else can reach it. Only raised when a card that
+    // answers a roll is actually in somebody's hand, so every other check goes
+    // straight on to its arms exactly as it always did.
+    const stopped: RolledCheck = { roll, targets, difficulties };
+    if (actor !== null && this.world.answersRoll(actor, { total: roll.total, outcome: roll.outcome })) {
+      // Waiting again, on the same effect and on the throw it stopped with, so
+      // resuming settles these dice rather than reaching for new ones.
+      this.pending = { effect: { kind: 'check', check }, rolled: stopped };
+      return { kind: 'rolled', roll, targets };
+    }
+    this.settleCheck(check, stopped, null);
+    return null;
+  }
+
+  /**
+   * What a check's dice meant, once nothing more is going to change them.
+   *
+   * Split from the throw because a card can be offered in between: "after an
+   * ally attempts an action roll but before the consequences take place". A
+   * die put back in the cup is thrown here, and the whole roll read again
+   * around the new pair, so the arm that runs is the one the new dice chose.
+   */
+  private settleCheck(check: CheckRequest, stopped: RolledCheck, response: Response | null): void {
+    const { targets, difficulties } = stopped;
+    let roll = stopped.roll;
+    if (response !== null && response.kind === 'answered' && response.reroll !== undefined) {
+      const faces: { hope?: number; fear?: number } = {};
+      if (response.reroll !== 'fear') faces.hope = this.rng.die(roll.hopeSides ?? HOPE_DIE_SIDES);
+      if (response.reroll !== 'hope') faces.fear = this.rng.die(FEAR_DIE_SIDES);
+      roll = withFaces(roll, faces);
+      this.journal.push({ kind: 'dualityRerolled', which: response.reroll });
+    }
     const hit =
       check.difficulty === 'target'
         ? targets.filter((_, i) => roll.critical || roll.total >= difficulties[i]!)
@@ -785,9 +862,12 @@ export class ScriptRunner {
     if (roll.fearGained > 0 && this.world.gainFear()) {
       this.journal.push({ kind: 'fear', gained: roll.fearGained });
     }
-    if (roll.stressCleared > 0 && actor !== null) {
-      const cleared = this.world.clearStress(actor, roll.stressCleared);
-      if (cleared > 0) this.journal.push({ kind: 'stress', id: actor, marked: 0, cleared, hitPoints: 0 });
+    // Read again rather than carried across the pause: whoever is acting when
+    // the dice are settled is who the critical clears a Stress from.
+    const roller = this.world.actorId();
+    if (roll.stressCleared > 0 && roller !== null) {
+      const cleared = this.world.clearStress(roller, roll.stressCleared);
+      if (cleared > 0) this.journal.push({ kind: 'stress', id: roller, marked: 0, cleared, hitPoints: 0 });
     }
 
     // `always` runs after the outcome branch, so it is pushed first.
