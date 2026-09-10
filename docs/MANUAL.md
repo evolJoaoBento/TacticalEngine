@@ -295,36 +295,40 @@ clearing a mark. The grown sheet travels between rooms and into the save.
 
 ## 3. The editor
 
-Press `Ctrl+E`. The panel on the left shows the scene being edited (name and size, "unsaved"
-when the project has changes), **▶ Play**, **Undo**, **Redo**, then the sections below. In edit
-mode the view follows the scene being edited, which need not be the room the party is in;
-browsing scenes never moves the party or abandons their fight.
+Press `Ctrl+E`. The editor is a **top bar** over the board, and a **mode** decides what sits
+around the board's edges. In edit mode the view follows the scene being edited, which need not be
+the room the party is in; browsing scenes never moves the party or abandons their fight.
 
-### Tools
+### The top bar
 
-| Tool | What a click or drag does |
+| Part | What it does |
 |---|---|
-| Inspect | Click an object to open its inspector below (selecting is not an undo step) |
-| Terrain | Drag to paint the chosen terrain id; brush 1×1, 3×3 or 5×5. Painting a wall stops movement but reads as dark floor until raised |
-| Raise / Lower | Drag to change elevation by one level; same brushes. One drag is one undo step |
-| Prop | Click to place the chosen prop model; click the same model again to turn it 90° |
-| Object | Click to place a chest, door, pillar or portal (chosen below the tools); clicking an existing object with this tool **removes** it |
-| Enemy | Click to place the chosen SRD adversary (dropdown) in the scene's encounter; an encounter is created if there is none |
-| Trigger | Click to toggle a cell that starts the encounter |
-| Spawn | Click to toggle a party start tile |
-| Erase | Click removes the prop on the tile first, then the object under it |
+| **Project ▾** | Save JSON · Load… · Check (lists what the validator finds; a red badge counts errors) |
+| **Content ▾** | Party · Cards · Items & loot · Quests · Code · Models — each opens as a workspace under the bar; its ✕ or `Esc` closes it |
+| **Inspector · Terrain · Combat · Interaction** | The four modes, also on keys `1`–`4` |
+| **Scene ▾** | Every scene with its size; **▸** marks the one the project opens on and **●** the one the party is in. Click to edit it; **✎** renames, **▸** makes it the opening scene, **✕** deletes (refused for the opening scene or the last one); **+ New scene** adds a blank 12×10 room |
+| **Undo / Redo** | The same history as `Ctrl+Z` / `Ctrl+Shift+Z`; hover for what it would undo |
+| **▶ Play here / ▶ Play** | Play in this room from its spawns (Shift-click a tile to play from there), or go back to where the party is |
 
-### Scenes
+`Esc` closes the nearest thing: a menu, the problem list, a workspace, a conversation, then the
+selection.
 
-The **Scenes** list shows every scene with its size; **▸** marks the scene the project opens on
-and **●** the one the party is in. Click a scene to edit it; **✎** renames it (a browser
-prompt); **▸** makes it the start scene; **✕** deletes it (refused for the start scene or the
-last scene, after a confirm). **+ Scene** adds a blank 12×10 room and opens it. "This scene"
-counts props, objects, enemies and spawns.
+### The modes
+
+| Mode | Around the board | What a click or drag does |
+|---|---|---|
+| **Inspector** (1) | The selected object's properties, on the right | Click an object to select it |
+| **Terrain** (2) | Tools on the left rail; **Ground**, **Props** and **Objects** in the strip along the bottom; the tool's options on the right | Paint ground (brush 1×1, 3×3, 5×5); raise or lower it a level; place a prop (click it again to turn it); place an object (click one again to remove it); erase a prop, then the object under it |
+| **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one) |
+| **Interaction** (4) | The conversations, on the left | Click one to open its graph |
+
+Picking something from a strip puts the tool that places it in hand. Terrain and Combat still hold
+the editor's original tools; TaleSpire-style building and a creature palette with factions replace
+them in later parts of the rebuild (`docs/superpowers/specs/2026-09-10-editor-shell-design.md`).
 
 ### Objects and the inspector
 
-With Inspect, click an object. The inspector edits:
+In Inspector mode, click an object. The inspector edits:
 
 - **What it is** — Name; Flavour (read when used); Kind (chest, door, pillar, portal,
   scripted — only a door stops blocking its tile when opened); Blocks movement.
@@ -382,7 +386,8 @@ over the whole view:
 
 - Node cards on a pannable surface (drag the background to pan, drag a card to move it; a
   position is only written to the document when a node is dragged). The start node has a
-  yellow border and ▸. **+ Node** adds one near the view; **Close** returns to the panel.
+  yellow border and ▸. **+ Node** adds one near the view; **Close** returns to Interaction
+  mode's conversation list.
 - Links curve from each reply's row to its target: grey for a node's own `goto`, blue for a
   reply, green / red for a check's success / failure route. A link to a node that does not
   exist is a red dashed stub labelled `id?`.
@@ -509,7 +514,7 @@ quest nothing starts; an objective nothing completes.
 "unsaved" mark. **Load** opens a file picker; the file is parsed through the project schema.
 Loading replaces the document the *editor* holds and redraws the view; it does **not** restart
 play — the running game keeps the project it booted with (the built-in demo). A file that fails
-the schema is recorded in `__polyheart.errors`, and nothing is shown in the panel.
+the schema is recorded in `__polyheart.errors`, and nothing is shown under Project ▾.
 
 ### Undo
 

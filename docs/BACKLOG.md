@@ -4,8 +4,8 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
-**Pinned to commit `c81c16b`.** At that commit: `npx tsc --noEmit` clean, **1692 unit tests across
-81 files**, **83 Playwright tests** (about 3 minutes). If those numbers come back lower, something
+**Pinned to commit `e55b81d`.** At that commit: `npx tsc --noEmit` clean, **1712 unit tests across
+83 files**, **91 Playwright tests** (about 3.4 minutes). If those numbers come back lower, something
 was lost — check before building on it. Symbol names are the stable handles here; line numbers move.
 
 ---
@@ -30,6 +30,22 @@ prototype with `file:line` anchors; read those instead of re-reading `legacy/`.
 ---
 
 ## 2. The backlog, ranked
+
+### 0. The editor rebuild — the user's direction, ahead of everything below
+
+On 2026-09-10 the user set the editor as the priority, which overrides the fight-first ranking
+that follows. There are five parts, each with its own spec, plan and slices:
+1. Shell + Inspector
+2. 3D multi-level world
+3. TaleSpire-style Terrain
+4. Combat with factions
+5. Interaction graphs
+
+Part 1's spec is `docs/superpowers/specs/2026-09-10-editor-shell-design.md`, and its slice plans
+are in `docs/superpowers/plans/`. Part 2 starts from `docs/research/multilevel-dependency-map.md`.
+
+**Done:** part 1, slice 1 (the shell's frame).
+**Next:** part 1, slice 2 — the board shows the document, and objects get models.
 
 Ranked by **what it adds to a fight** — the house rule for ordering slices. The GM's narrative half
 is deliberately last. A *slice* is one behaviour complete: rule, content, editor field, validation,

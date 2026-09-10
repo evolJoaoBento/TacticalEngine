@@ -341,7 +341,23 @@ room's coordinates. Fifty rooms cost fifty terrain rebuilds and nothing else.
 drags coalesced into one step); `editor/controller.ts` decides what a click means given the tool
 in hand; `editor/validate.ts` reports the mistakes a schema cannot catch — a spawn in a wall, a
 trigger sealed behind one, an adversary with no stat block, an encounter nothing can start;
-`editor/ui/EditorPanel.tsx` is the panel over all of it. Ctrl+E toggles play and edit.
+`editor/ui/EditorShell.tsx` is the shell over all of it, and `editor/modes.ts` decides which tools
+each of its modes offers. Ctrl+E toggles play and edit.
+
+**The shell (2026-09-10).** The user judged that editor "not even good enough to be called a
+prototype", and it is being rebuilt to their direction. The plan is
+`docs/superpowers/specs/2026-09-10-editor-shell-design.md`. The first slice replaced the side panel
+with a purple top bar of four modes (Inspector, Terrain, Combat, Interaction):
+- each mode has a tool rail, a library strip and a side panel;
+- content editors open as workspaces under the bar;
+- Combat's eraser takes creatures, trigger cells and party starts.
+
+**Still open, and the spec's next slices:**
+- The board in edit mode draws the played room's runtime state, not the document.
+- Trigger cells and spawns are never drawn.
+- No object has a model, so doors, chests, pillars and stairs are invisible in play too.
+- Only objects can be inspected.
+- Terrain and Combat still hold the original tools.
 
 Tools: terrain brush, raise/lower, props, objects, adversaries, trigger cells, spawns, erase,
 inspect. Save and load a project as JSON. The brush paints terrain only — a wall painted on flat

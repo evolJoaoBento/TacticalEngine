@@ -156,11 +156,16 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 |---|---|
 | `session.ts` | The command/undo model (1590 lines). An `Edit` is `{ label, apply, undo, mergeKey?, absorb?, isNoop? }`; `EditorSession.run` coalesces a brush drag into one undo step rather than snapshotting the grid. Command functions grouped by domain: terrain/deco, interactables, encounters, scenes, dialogues, quests, assets, items/loot, party, abilities, code. |
 | `controller.ts` | What a click means given the tool in hand; `CONTINUOUS` tools coalesce. |
+| `modes.ts` | The top bar's four modes and the tools each owns. Choosing a tool chooses its mode, so the two never disagree. |
+| `library.ts` | What the bottom strip offers (ground, props, objects, creatures by tier) and what a search there matches. |
 | `validate.ts` | The **Check** button (653 lines). Reports playability problems a zod parse cannot: party, abilities, code, item uses, quests, then per scene the spawns, interactables, decos, encounters, reachability (pathfinding, run last because it is the expensive one), loot tables and dialogues. |
 | `ui/EffectList.tsx` | The largest panel (930 lines): editing a list of effects, recursively. `ADDABLE` is the list of kinds it can build. |
 | `ui/AbilityPanel.tsx` | An ability's fields, including `defenses` and `tokens`. |
 | `ui/ConditionEditor.tsx`, `ui/CheckEditor.tsx`, `ui/TargetEditor.tsx` | The three sub-editors `EffectList` nests. |
-| `ui/EditorPanel.tsx` | The editor shell and tool palette. |
+| `ui/EditorShell.tsx` | The editor's root: which menu, workspace, conversation and problem list is open; keys 1-4 and Esc. |
+| `ui/TopBar.tsx`, `ui/SceneMenu.tsx`, `ui/ToolRail.tsx`, `ui/LibraryStrip.tsx`, `ui/ModeSides.tsx` | The shell's parts: menus and modes, the scene dropdown, a mode's tools, the strip, and what sits beside the board in each mode. |
+| `ui/QuestsWorkspace.tsx`, `ui/ModelsWorkspace.tsx`, `ui/ProblemsPopover.tsx` | Quests and imported models as workspaces, and what Check found. |
+| `ui/editor.css` | The purple theme's tokens on `:root`, and the shell's rules under `.ph-editor`. |
 | `ui/Inspector.tsx`, `ui/DialogueGraph.tsx`, `ui/ItemPanel.tsx`, `ui/PartyPanel.tsx`, `ui/QuestEditor.tsx`, `ui/CodePanel.tsx` | The rest of the panels. |
 
 `src/main.ts` is the boot path and the only file with DOM listeners. `index.html` holds a
