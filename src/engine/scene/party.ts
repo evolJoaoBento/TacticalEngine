@@ -248,15 +248,34 @@ export class Party {
    * it was short, or hugs a wall - claims a trail tile the old way.
    */
   follow(leaderId: string, leaderPath: readonly number[], route?: readonly Spot[]): Map<string, number> {
+    return new Map([...this.followAlong(leaderId, leaderPath, route)].map(([id, walk]) => [id, walk.path[walk.path.length - 1]!]));
+  }
+
+  /**
+   * `follow`, handing back each follower's own walk: the tiles from where
+   * they stood to where they stand now, and the line they cross - round the
+   * same corner the leader went round, not through the wall.
+   */
+  followAlong(leaderId: string, leaderPath: readonly number[], route?: readonly Spot[]): Map<string, Walk> {
     const along = route === undefined ? new Map<string, { tile: number; at: Spot }>() : this.alongTheLine(leaderId, route);
     const positions = this.followPositions(leaderId, leaderPath, new Map([...along].map(([id, s]) => [id, s.tile])));
-    for (const [id, tile] of positions) this.state.moveEntity(id, tile);
-    for (const [id, { tile, at }] of along) {
+    const goals = new Map<string, { tile: number; at: Spot }>();
+    for (const [id, tile] of positions) goals.set(id, { tile, at: this.grid.spotOf(tile) });
+    for (const [id, goal] of along) goals.set(id, goal);
+
+    const walks = new Map<string, Walk>();
+    for (const [id, { tile, at }] of goals) {
+      const follower = this.state.entity(id);
+      if (follower === undefined) continue;
+      const stood = { ...follower.at };
+      const context = this.movementFor(id, false);
+      const path = tracePath(this.pathfinder.reachable(follower.tile, Infinity, context), tile) ?? [follower.tile, tile];
+      const line = smoothPath(this.grid, path, context.isBlocked ?? (() => false), this.walkRules(), { start: stood, end: at });
       this.state.moveEntity(id, tile);
       this.state.placeEntity(id, at.x, at.y);
-      positions.set(id, tile);
+      walks.set(id, { path, route: line });
     }
-    return positions;
+    return walks;
   }
 
   /** The living members other than the leader, nearest the leader first, then by id. */

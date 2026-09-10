@@ -1211,6 +1211,24 @@ describe('Hope taken rather than spent', () => {
   });
 });
 
+describe('a walk', () => {
+  it('carries the line the creature crossed, from where it stood to where it stands', () => {
+    const { world, state, grid } = scene();
+    // Mira (0,1) closes on husk-2 (5,1), round Kara and husk-1 in the row.
+    const journal = runScript([{ kind: 'move', how: 'toward', range: 'melee' }], world, scripted([]), {
+      targets: ['husk-2'],
+      rollAs: 'actor',
+    });
+    const moved = journal.find((e) => e.kind === 'moved') as { walked?: boolean; to: number; route?: readonly { x: number; y: number }[] };
+    expect(moved.walked).toBe(true);
+    expect(moved.to).toBe(state.entity('mira')!.tile);
+    expect(moved.route).toBeDefined();
+    expect(moved.route![0]).toEqual({ x: 0, y: 1 });
+    expect(moved.route!.at(-1)).toEqual(grid.spotOf(moved.to));
+    expect(moved.route!.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe('a push', () => {
   it('moves the target straight away from the actor until the band reads right, and stops at a wall', () => {
     const { world, state, grid } = scene();

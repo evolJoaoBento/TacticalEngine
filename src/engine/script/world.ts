@@ -54,9 +54,10 @@ import { abilitiesFor, loadoutOf, type AbilityDef, type AbilityModifier } from '
 import type { ConditionBlock, ConditionDef } from '../content/conditions';
 import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
 import type { AdversaryDef } from '../content/types';
-import { NO_TILE } from '../grid/grid';
+import { NO_TILE, type Spot } from '../grid/grid';
+import { DEFAULT_WALK, smoothPath, type WalkRules } from '../grid/walk';
 import { traceLine } from '../grid/los';
-import { Pathfinder, type MovementRules } from '../grid/pathfinding';
+import { DEFAULT_MOVEMENT, Pathfinder, tracePath, type MovementRules, type ReachableField } from '../grid/pathfinding';
 import { createAdversaryEntity, type EntityState, type SceneState } from '../scene/state';
 import type { Trait } from '../scene/schema';
 import { scriptValueSchema, type ConditionDuration, type PoolName, type ScriptValue } from './schema';
@@ -2353,8 +2354,28 @@ export class SceneScriptWorld implements ScriptWorld {
    * does not join the swing, which is the honest reading of "those Minions
    * move into Melee range of the target".
    */
-  drawIn(mover: string, toward: string, band: RangeBand, budget: RangeBand = 'close'): { from: number; to: number } | null {
+  drawIn(mover: string, toward: string, band: RangeBand, budget: RangeBand = 'close'): { from: number; to: number; route?: readonly Spot[] } | null {
     return this.drawTo(mover, this.state.entity(toward)?.tile ?? NO_TILE, band, budget);
+  }
+
+  /** The body a walk is measured with: the engine's, stepping as far as the movement rules step. */
+  private walkRules(): WalkRules {
+    return { ...DEFAULT_WALK, maxStepHeight: (this.movement ?? DEFAULT_MOVEMENT).maxStepHeight };
+  }
+
+  /**
+   * The line a creature crosses to a tile of a field it can reach: the path's
+   * corners pulled straight where its body fits, from where it stands now to
+   * the tile's centre. Read before the creature is moved.
+   */
+  private lineOf(mover: string, field: ReachableField, to: number): readonly Spot[] | undefined {
+    const walking = this.state.entity(mover);
+    const path = tracePath(field, to);
+    if (walking === undefined || path === null) return undefined;
+    return smoothPath(this.state.grid, path, this.state.blockedFor(mover), this.walkRules(), {
+      start: { ...walking.at },
+      end: this.state.grid.spotOf(to),
+    });
   }
 
   /**
@@ -2366,7 +2387,7 @@ export class SceneScriptWorld implements ScriptWorld {
    * is what happens - so a charge at a spot behind a wall stops where the wall
    * is, and what the run passed on the way is what it passed.
    */
-  drawTo(mover: string, goalTile: number, band: RangeBand, budget: RangeBand = 'close'): { from: number; to: number } | null {
+  drawTo(mover: string, goalTile: number, band: RangeBand, budget: RangeBand = 'close'): { from: number; to: number; route?: readonly Spot[] } | null {
     const walking = this.state.entity(mover);
     if (walking === undefined) return null;
     if (walking.tile === NO_TILE || goalTile === NO_TILE) return null;
@@ -2396,8 +2417,9 @@ export class SceneScriptWorld implements ScriptWorld {
       }
     }
     if (best === start) return null;
+    const route = this.lineOf(mover, field, best);
     this.state.moveEntity(mover, best);
-    return { from: start, to: best };
+    return route === undefined ? { from: start, to: best } : { from: start, to: best, route };
   }
 
   /**
@@ -2452,7 +2474,7 @@ export class SceneScriptWorld implements ScriptWorld {
    * replay puts it on the same tile; the far side of a wall is not reachable,
    * which is the honest reading of a walk rather than a step through stone.
    */
-  breakAway(mover: string, from: string, budget: RangeBand = 'close'): { from: number; to: number } | null {
+  breakAway(mover: string, from: string, budget: RangeBand = 'close'): { from: number; to: number; route?: readonly Spot[] } | null {
     const walking = this.state.entity(mover);
     const away = this.state.entity(from);
     if (walking === undefined || away === undefined) return null;
@@ -2476,8 +2498,9 @@ export class SceneScriptWorld implements ScriptWorld {
       }
     }
     if (best === start) return null;
+    const route = this.lineOf(mover, field, best);
     this.state.moveEntity(mover, best);
-    return { from: start, to: best };
+    return route === undefined ? { from: start, to: best } : { from: start, to: best, route };
   }
 
   /** The pathfinder this world walks with, built once for the scene's grid. */

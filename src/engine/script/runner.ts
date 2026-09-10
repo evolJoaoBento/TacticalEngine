@@ -23,7 +23,7 @@
  */
 
 import type { Rng } from '../core/rng';
-import { NO_TILE } from '../grid/grid';
+import { NO_TILE, type Spot } from '../grid/grid';
 import { FEAR_DIE_SIDES, HOPE_DIE_SIDES, rollDuality, withFaces, type DualityRoll, type RollOutcome } from '../rules/duality';
 import { formatDice, parseDice, rollDice, withProficiency, type DamageType, type DiceExpression, type ParsedDamage } from '../rules/dice';
 import type { RunningCountdown } from './countdowns';
@@ -240,13 +240,13 @@ export interface ScriptWorld extends ConditionContext {
   ): AttackSummary;
   /** Knock a creature away from another to a band. Null when it could not move at all. */
   pushBack(from: string, target: string, band: RangeBand): { from: number; to: number } | null;
-  /** Walk towards a creature until within a band, as far as the budget allows. */
-  drawIn(mover: string, toward: string, band: RangeBand, budget?: RangeBand): { from: number; to: number } | null;
+  /** Walk towards a creature until within a band, as far as the budget allows; `route` is the line crossed. */
+  drawIn(mover: string, toward: string, band: RangeBand, budget?: RangeBand): { from: number; to: number; route?: readonly Spot[] } | null;
   /** The same, at a tile: a run across the map rather than at somebody. */
-  drawTo(mover: string, goalTile: number, band: RangeBand, budget?: RangeBand): { from: number; to: number } | null;
+  drawTo(mover: string, goalTile: number, band: RangeBand, budget?: RangeBand): { from: number; to: number; route?: readonly Spot[] } | null;
   blinkTo(mover: string, goalTile: number, band?: RangeBand): { from: number; to: number } | null;
   /** Walk away from a creature, as far as the budget allows. */
-  breakAway(mover: string, from: string, budget?: RangeBand): { from: number; to: number } | null;
+  breakAway(mover: string, from: string, budget?: RangeBand): { from: number; to: number; route?: readonly Spot[] } | null;
   /**
    * Put creatures off a stat block onto the map, in the band named, around the
    * one summoning them. Returns the ones that found somewhere to stand.
@@ -341,8 +341,8 @@ export type JournalEntry =
       joined?: readonly string[];
       roll?: DualityRoll;
     }
-  /** `walked` is the creature crossing the ground itself; otherwise it was shoved. */
-  | { kind: 'moved'; id: string; from: number; to: number; walked?: boolean }
+  /** `walked` is the creature crossing the ground itself, along `route` when it is known; otherwise it was shoved. */
+  | { kind: 'moved'; id: string; from: number; to: number; walked?: boolean; route?: readonly Spot[] }
   /** Creatures a feature put on the map, and whether they act at once. */
   | { kind: 'summoned'; adversary: string; ids: readonly string[]; spotlight: boolean }
   /** A clock armed. Advancing it is the game's job, not the runner's. */
@@ -1551,7 +1551,9 @@ export class ScriptRunner {
                 ? world.blinkTo(mover, at, budget)
                 : world.drawTo(mover, at, effect.range ?? 'melee', budget);
             if (ran !== null) {
-              this.journal.push({ kind: 'moved', id: mover, from: ran.from, to: ran.to, walked: effect.teleport !== true });
+              const crossed = (ran as { route?: readonly Spot[] }).route;
+              const route = crossed === undefined ? {} : { route: crossed };
+              this.journal.push({ kind: 'moved', id: mover, from: ran.from, to: ran.to, walked: effect.teleport !== true, ...route });
             }
           }
           return null;
@@ -1574,7 +1576,8 @@ export class ScriptRunner {
               ? world.breakAway(mover, other, effect.budget ?? 'close')
               : world.drawIn(mover, other, effect.range ?? 'melee', effect.budget ?? 'close');
           if (walked !== null) {
-            this.journal.push({ kind: 'moved', id: mover, from: walked.from, to: walked.to, walked: true });
+            const route = walked.route === undefined ? {} : { route: walked.route };
+            this.journal.push({ kind: 'moved', id: mover, from: walked.from, to: walked.to, walked: true, ...route });
           }
         }
         return null;

@@ -23,6 +23,7 @@ import {
   SRD_CHARACTERS,
   attackWithSelected,
   buildDemoScene,
+  endTurn,
   inCombat,
   moveSelectedTo,
   playGmTurn,
@@ -188,6 +189,31 @@ describe('walking into the fight', () => {
     walkTowards(demo, target);
     expect(inCombat(demo)).toBe(true);
     expect(demo.encounter!.view().side).toBe('party');
+  });
+
+  it('walks an adversary closing in along a line that ends where it now stands', () => {
+    const demo = build();
+    openTheDoor(demo);
+    const target = demo.state.entitiesOf('adversary')[0]!.tile;
+    walkTowards(demo, target);
+    expect(inCombat(demo)).toBe(true);
+    // Nobody in reach of anybody: whoever the GM spotlights has to walk.
+    for (const member of demo.state.entitiesOf('party')) {
+      const west = demo.grid.indexOf(demo.grid.xOf(member.tile) - 2, demo.grid.yOf(member.tile));
+      if (demo.state.bodyFree(west, member.id)) demo.state.moveEntity(member.id, west);
+    }
+    for (const member of demo.state.entitiesOf('party')) {
+      for (const foe of demo.state.entitiesOf('adversary')) expect(demo.grid.chebyshevDistance(member.tile, foe.tile)).toBeGreaterThan(1);
+    }
+    demo.motions.length = 0;
+    endTurn(demo);
+    const walks = demo.motions.filter((m) => m.route !== undefined);
+    expect(walks.length).toBeGreaterThan(0);
+    for (const walk of walks) {
+      const mover = demo.state.entity(walk.id)!;
+      expect(walk.route!.at(-1)).toEqual(mover.at);
+      expect(walk.path!.at(-1)).toBe(mover.tile);
+    }
   });
 
   it('stops the mover on the trigger rather than running past the ambush', () => {

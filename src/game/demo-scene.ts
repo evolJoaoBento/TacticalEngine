@@ -95,6 +95,7 @@ import type { AdversaryDef } from '../engine/content/types';
 import { createRng, type Rng } from '../engine/core/rng';
 import { NO_TILE, type Spot, type TileGrid } from '../engine/grid/grid';
 import { DEFAULT_MOVEMENT, Pathfinder, tracePath, type MovementRules, type ReachableField } from '../engine/grid/pathfinding';
+import { DEFAULT_WALK, smoothPath, type WalkRules } from '../engine/grid/walk';
 import { gridFromScene, tileOf } from '../engine/scene/grid-from-scene';
 import { importLegacyScene, type LegacyMap } from '../engine/scene/legacy-import';
 import { Party } from '../engine/scene/party';
@@ -126,6 +127,9 @@ export const DEMO_BAND_TILES = { melee: 1, veryClose: 2, close: 4, far: 8, veryF
  * not squeeze through.
  */
 export const DEMO_MOVEMENT: MovementRules = { ...DEFAULT_MOVEMENT, diagonals: true };
+
+/** The body a creature in the demo walks with. */
+export const DEMO_WALK: WalkRules = { ...DEFAULT_WALK, maxStepHeight: DEMO_MOVEMENT.maxStepHeight };
 
 /**
  * Which model an entity uses. Party members carry a class name and adversaries an
@@ -1273,7 +1277,12 @@ export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spo
   const route = hit === null ? walk.route : demo.party.lineAlong(id, path, stood, demo.grid.spotOf(hit.tile), fighting);
   demo.motions.push({ id, path, route });
 
-  if (!fighting) demo.party.follow(id, path, route);
+  if (!fighting) {
+    // Each follower crosses their own line, round the same corners.
+    for (const [follower, walk] of demo.party.followAlong(id, path, route)) {
+      demo.motions.push({ id: follower, path: walk.path, route: walk.route });
+    }
+  }
   if (fighting) demo.encounter!.act(id);
 
   if (hit !== null) {
@@ -3549,9 +3558,14 @@ function approach(demo: DemoScene, adversaryId: string, targetTile: number, reac
     }
   }
   if (best === adversary.tile) return;
-  demo.state.moveEntity(adversaryId, best);
+  const stood = { ...adversary.at };
   const path = tracePath(field, best);
-  demo.motions.push(path === null ? { id: adversaryId } : { id: adversaryId, path });
+  const route =
+    path === null
+      ? undefined
+      : smoothPath(demo.grid, path, demo.state.blockedFor(adversaryId), DEMO_WALK, { start: stood, end: demo.grid.spotOf(best) });
+  demo.state.moveEntity(adversaryId, best);
+  demo.motions.push(path === null ? { id: adversaryId } : route === undefined ? { id: adversaryId, path } : { id: adversaryId, path, route });
 }
 
 /** An adversary spends its spotlight clearing what a scene put on it. */
@@ -4828,6 +4842,7 @@ export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLi
     if (line !== null) lines.push(withMentions(demo, line));
     floatEntry(demo, entry);
     if (entry.kind === 'moved' && entry.walked !== true) demo.motions.push({ id: entry.id, thrown: true });
+    else if (entry.kind === 'moved' && entry.route !== undefined) demo.motions.push({ id: entry.id, route: entry.route });
   }
   demo.log.push(...lines);
   // A condition a script put on or took off someone may move a pool's maximum.

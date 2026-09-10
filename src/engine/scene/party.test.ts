@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { TileGrid } from '../grid/grid';
 import { Pathfinder } from '../grid/pathfinding';
+import { segmentClear } from '../grid/walk';
 import { Party } from './party';
 import { SceneState, createAdversaryEntity, createPartyEntity } from './state';
 
@@ -194,6 +195,23 @@ describe('walking to a spot', () => {
     const backs = ['finn', 'mira'].map((id) => backOf(state.entity(id)!.at)).sort((x, y) => x - y);
     expect(backs[0]).toBeCloseTo(1, 6);
     expect(backs[1]).toBeCloseTo(2, 6);
+  });
+
+  it('hands each follower the line they cross, round the same corner as the leader', () => {
+    const { grid, party, state } = setup(['..........', '.#######..', '..........']);
+    party.select('mira');
+    const before = Object.fromEntries(['kara', 'finn'].map((id) => [id, { ...state.entity(id)!.at }]));
+    const walk = party.walkTo('mira', grid.indexOf(9, 0))!;
+    const walks = party.followAlong('mira', walk.path, walk.route);
+    expect(walks.size).toBe(2);
+    for (const [id, w] of walks) {
+      const follower = state.entity(id)!;
+      expect(w.route[0]).toEqual(before[id]);
+      expect(w.route.at(-1)).toEqual(follower.at);
+      expect(w.path.at(-1)).toBe(follower.tile);
+      // Nothing crosses the wall: every leg is clear on its own.
+      for (let i = 0; i + 1 < w.route.length; i++) expect(segmentClear(grid, w.route[i]!, w.route[i + 1]!)).toBe(true);
+    }
   });
 
   it('falls back to the trail for whoever the line has no room for', () => {
