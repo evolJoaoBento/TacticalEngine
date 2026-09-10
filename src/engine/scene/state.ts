@@ -17,6 +17,7 @@ import { z } from 'zod';
 
 import type { ContentIssue } from '../content/types';
 import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
+import { BODY_RADIUS } from '../grid/walk';
 import {
   createFear,
   createHope,
@@ -282,19 +283,43 @@ export class SceneState {
    * one predicate for as long as the mover and the pass-through set stay the same.
    */
   blockedFor(moverId: string, passThrough: readonly Faction[] = []): (tile: number) => boolean {
-    const transparent = new Set(passThrough);
-    return (tile: number): boolean => {
-      const set = this.occupants.get(tile);
-      if (set !== undefined) {
-        for (const id of set) {
-          if (id === moverId) continue;
-          const other = this.entities.get(id);
-          if (other === undefined || !other.alive) continue;
-          if (!transparent.has(other.faction)) return true;
+    const held = this.bodiesExcept(moverId, new Set(passThrough));
+    return (tile: number): boolean => held.has(tile) || this.blockingInteractables.has(tile);
+  }
+
+  /**
+   * Whether a body could be put down at a tile's centre: floor, no living
+   * body over it, nothing blocking there. What a summon, a newcomer or a
+   * gathered party looks for. `except` is a body not to count - the one
+   * being placed.
+   */
+  bodyFree(tile: number, except = ''): boolean {
+    return this.grid.isPassable(tile) && !this.blockedFor(except)(tile);
+  }
+
+  /**
+   * The tiles some living body overlaps: its own, and any neighbour whose
+   * centre lies within two bodies of where it actually stands. A creature at
+   * its tile's centre holds that tile alone; one leaning into the next tile
+   * holds that one too, so nobody is walked or put down through it.
+   */
+  private bodiesExcept(moverId: string, transparent: ReadonlySet<Faction>): Set<number> {
+    const held = new Set<number>();
+    for (const other of this.entities.values()) {
+      if (other.id === moverId || !other.alive || other.tile === NO_TILE || transparent.has(other.faction)) continue;
+      held.add(other.tile);
+      const x = this.grid.xOf(other.tile);
+      const y = this.grid.yOf(other.tile);
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const tile = this.grid.indexOf(x + dx, y + dy);
+          if (tile === NO_TILE) continue;
+          if (Math.hypot(x + dx - other.at.x, y + dy - other.at.y) < 2 * BODY_RADIUS) held.add(tile);
         }
       }
-      return this.blockingInteractables.has(tile);
-    };
+    }
+    return held;
   }
 
   // ---- interactables ------------------------------------------------------

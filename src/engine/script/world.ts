@@ -2318,7 +2318,7 @@ export class SceneScriptWorld implements ScriptWorld {
       let best: number | null = null;
       let bestDistance = Infinity;
       for (let tile = 0; tile < grid.size; tile++) {
-        if (!grid.isPassable(tile) || this.state.occupantsOf(tile).length > 0) continue;
+        if (!this.state.bodyFree(tile)) continue;
         const distance = grid.euclideanDistance(from, tile);
         if (distance === 0) continue;
         if (bandForSpan(distance, this.bandTiles) !== band) continue;

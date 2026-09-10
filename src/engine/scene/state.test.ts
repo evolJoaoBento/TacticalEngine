@@ -177,6 +177,22 @@ describe('blockedFor', () => {
     expect(state.blockedFor('kara')(7)).toBe(false);
   });
 
+  it('blocks the tile a body leans into, for walking and for putting somebody down', () => {
+    const state = setup();
+    // The husk at (2,1) standing well into (3,1): both are held.
+    state.placeEntity('husk-1', 2.35, 1);
+    expect(state.blockedFor('kara')(7)).toBe(true);
+    expect(state.blockedFor('kara')(8)).toBe(true);
+    expect(state.bodyFree(8)).toBe(false);
+    expect(state.bodyFree(9)).toBe(true);
+    // Its own body does not count against the tile it is being put down on.
+    expect(state.bodyFree(7, 'husk-1')).toBe(true);
+    // Leaning less than two bodies' worth, the next tile is free again.
+    state.placeEntity('husk-1', 2.2, 1);
+    expect(state.blockedFor('kara')(8)).toBe(false);
+    expect(state.bodyFree(8)).toBe(true);
+  });
+
   it('blocks tiles held by an interactable that blocks movement', () => {
     const state = setup();
     state.setInteractableBlocking(9, true);

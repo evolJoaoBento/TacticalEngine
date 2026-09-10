@@ -888,7 +888,7 @@ export function gatherParty(demo: DemoScene, tile: number): void {
 function freeTileNear(demo: DemoScene, from: number): number {
   if (from === NO_TILE) return NO_TILE;
   const grid = demo.grid;
-  const free = (tile: number): boolean => grid.isPassable(tile) && demo.state.occupantsOf(tile).length === 0;
+  const free = (tile: number): boolean => demo.state.bodyFree(tile);
   if (free(from)) return from;
   // Breadth-first, so the first free tile found is the closest one.
   const seen = new Set<number>([from]);

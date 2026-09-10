@@ -22,8 +22,10 @@ export interface WalkRules {
   readonly maxStepHeight: number;
 }
 
-/** A body a little over two thirds of a tile wide, which is what the tokens are. */
-export const DEFAULT_WALK: WalkRules = { radius: 0.35, maxStepHeight: 1 };
+/** Half the width of a creature, in tiles: a body a little over two thirds of a tile wide, which is what the tokens are. */
+export const BODY_RADIUS = 0.35;
+
+export const DEFAULT_WALK: WalkRules = { radius: BODY_RADIUS, maxStepHeight: 1 };
 
 /** How finely a segment is checked, in tiles. */
 const STRIDE = 0.25;
