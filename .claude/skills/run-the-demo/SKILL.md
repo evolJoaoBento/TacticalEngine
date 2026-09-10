@@ -26,7 +26,7 @@ it first and expect Playwright to use it.
 | Doing | Handle |
 |---|---|
 | pick a character | `select(id)`, `selected()`, `party()` |
-| walk | `reachable()`, `moveTo(tile)`, `standBeside(id)`, `tileOf(id)` |
+| walk | `reachable()`, `moveTo(tile)`, `walkTo(x, y)` (a spot in tile units, where a click lands), `standBeside(id)`, `tileOf(id)`, `standingAt(id)` (the spot), `screenAt(x, y)` |
 | fight | `inCombat()`, `adversaries()`, `attack(id)`, `endGmTurn()`, `round()` |
 | cards | `setCards(id, cards)`, `abilities(id)`, `useAbility(id, ability, targets?, point?)` |
 | aimed cards | `aim(ability)` for the legal tiles, `shape(ability, tile)` for what it catches |

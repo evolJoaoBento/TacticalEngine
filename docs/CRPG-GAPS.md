@@ -527,12 +527,21 @@ mean of the tiles sharing them at that height, so a tint reads as a patch of gro
 keeps its edge. Fills are seamless and bordered (`outline`), reach is lit only in a fight as the
 Close-range disc, and the pointer marks a spot with a disc.
 
-**Still open:** a creature stands at a tile's centre, and a token glides from centre to centre.
-Going further means `EntityState.tile` becoming a world point with the tile derived from it -
-occupancy by radius, line of sight from a point, zones and marks as points, triggers as areas,
-the save format, the editor's placements, and every `tileOf`/`moveTo(tile)` handle the browser
-suite drives. It is the one reading of "gridless" this does not yet do, and the one that touches
-most of the tests; the tiles underneath would stay as the navmesh either way.
+**Where a creature stands** (`EntityState.at`, `grid/walk.ts`): a spot in tile units, continuous;
+`tile` is the tile the spot rounds to, kept in step by `SceneState`, and is what every rule reads -
+range, occupancy, line of sight, zones, triggers all measure by tile, the way a gridless VTT snaps
+its measurements to 5 ft. A click on the ground is a spot, and the creature walks to it: the
+pathfinder's tiles are pulled into a straight line wherever a body (radius 0.35 of a tile) can
+stand all the way (`smoothPath`), the walk ends at the spot when a body fits there clear of
+everyone else and as near as one does otherwise (`settleEnd`), followers stand a tile further
+back each along the line the leader walked, and the token glides along that line at a steady
+pace, arriving at the spot. A save keeps the spot; one from before spots restores at centres.
+Placements a designer makes, `gatherParty`, `standBeside`, knockbacks and summons still land
+on centres, which is what they mean. Driver: `walkTo(x, y)`, `standingAt(id)`, `screenAt(x, y)`.
+
+**Still open:** nothing that "gridless" asks for. Measuring range from the spots rather than
+the tiles is a choice, not a gap: it would make a corner-to-corner neighbour standing at the
+far edges of two tiles read as Very Close, which no table would call it.
 
 ## How to tell whether this is on track
 
