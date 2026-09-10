@@ -125,7 +125,7 @@ describe('party control', () => {
     expect(farthest).toBeGreaterThan(DEMO_BAND_TILES.close);
   });
 
-  it('in a fight, the walk is the Close-range disc round them, not a count of steps', () => {
+  it('in a fight, the walk is within Close range along the way, spent as it goes', () => {
     const demo = build();
     openTheDoor(demo);
     const target = demo.state.entitiesOf('adversary')[0]!.tile;
@@ -169,13 +169,45 @@ describe('party control', () => {
     }
   });
 
-  it('refuses a move out of reach and changes nothing', () => {
+  it('walks up to a spot it cannot reach out of a fight: the nearest reachable one', () => {
     const demo = build();
     const start = demo.state.entity('kara')!.tile;
     const reachable = new Set(reachableTiles(demo).tiles());
-    const unreachable = [...Array(demo.grid.size).keys()].find((t) => !reachable.has(t))!;
-    expect(moveSelectedTo(demo, unreachable).moved).toBe(false);
-    expect(demo.state.entity('kara')!.tile).toBe(start);
+    // The shut vault door: the far side is out of reach, so the walk ends at the door.
+    const unreachable = [...Array(demo.grid.size).keys()].find((t) => !reachable.has(t) && demo.grid.isPassable(t))!;
+    const aimed = demo.grid.spotOf(unreachable);
+    expect(moveSelectedTo(demo, unreachable, aimed).moved).toBe(true);
+    const kara = demo.state.entity('kara')!;
+    expect(kara.tile).not.toBe(start);
+    expect(reachable.has(kara.tile)).toBe(true);
+    const near = (t: number): number => Math.hypot(demo.grid.xOf(t) - aimed.x, demo.grid.yOf(t) - aimed.y);
+    for (const tile of reachable) expect(near(kara.tile)).toBeLessThanOrEqual(near(tile) + 1e-9);
+  });
+
+  it('in a fight, walks as far along the way as one move allows, and refuses only the unreachable', () => {
+    const demo = build();
+    openTheDoor(demo);
+    const target = demo.state.entitiesOf('adversary')[0]!.tile;
+    walkTowards(demo, target);
+    expect(inCombat(demo)).toBe(true);
+    const id = demo.party.selected!;
+    const start = demo.state.entity(id)!.tile;
+    const inReach = new Set(reachableTiles(demo).tiles());
+    const whole = demo.party.reachable(id, { inCombat: true, budget: Infinity }).tiles();
+    const far = whole.find((t) => !inReach.has(t))!;
+    expect(far).toBeDefined();
+    const logBefore = demo.log.length;
+    expect(moveSelectedTo(demo, far).moved).toBe(true);
+    const stood = demo.state.entity(id)!.tile;
+    expect(stood).not.toBe(start);
+    expect(inReach.has(stood)).toBe(true);
+    expect(demo.log.slice(logBefore).some((l) => l.text.includes('can go no further'))).toBe(true);
+    // A wall is nowhere to go at all.
+    const wall = [...Array(demo.grid.size).keys()].find((t) => !demo.grid.isPassable(t))!;
+    demo.encounter!.endGmTurn();
+    const before = demo.state.entity(demo.party.selected!)!.tile;
+    expect(moveSelectedTo(demo, wall).moved).toBe(false);
+    expect(demo.state.entity(demo.party.selected!)!.tile).toBe(before);
   });
 });
 

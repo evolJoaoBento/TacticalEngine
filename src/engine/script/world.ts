@@ -2401,10 +2401,9 @@ export class SceneScriptWorld implements ScriptWorld {
     // the lower index, so a swarm arrives in the same order every replay.
     const grid = this.state.grid;
     const start = walking.tile;
-    const field = this.paths().reachable(start, Infinity, {
+    const field = this.paths().reachable(start, maxTilesForBand(budget, this.bandTiles), {
       rules: this.movement,
       isBlocked: this.state.blockedFor(mover),
-      maxSpan: maxTilesForBand(budget, this.bandTiles),
     });
     let best = start;
     let bestDistance = grid.euclideanDistance(start, goal.tile);
@@ -2483,10 +2482,9 @@ export class SceneScriptWorld implements ScriptWorld {
 
     const grid = this.state.grid;
     const start = walking.tile;
-    const field = this.paths().reachable(start, Infinity, {
+    const field = this.paths().reachable(start, maxTilesForBand(budget, this.bandTiles), {
       rules: this.movement,
       isBlocked: this.state.blockedFor(mover),
-      maxSpan: maxTilesForBand(budget, this.bandTiles),
     });
     let best = start;
     let bestDistance = grid.euclideanDistance(start, away.tile);

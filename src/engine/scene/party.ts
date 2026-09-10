@@ -21,10 +21,10 @@ export const PARTY_PASSES_THROUGH: readonly Faction[] = ['party'];
 
 export interface PartyOptions {
   /**
-   * How far a member may move in a fight as part of an action, as the crow
-   * flies in tiles: the SRD's "within Close range". Not a count of steps - the
-   * board is not a grid to the rules - so a walk round a pillar costs what it
-   * costs, as long as it ends inside the disc.
+   * How far a member may move in a fight as part of an action, in tiles
+   * along the walk: the SRD's "within Close range", spent the way BG3 spends
+   * movement - along the path actually taken, so a walk round a pillar costs
+   * the way round, and marsh costs what marsh costs.
    */
   combatReach?: number;
   /**
@@ -137,9 +137,8 @@ export class Party {
     const entity = this.state.entity(id);
     const from = entity?.tile ?? NO_TILE;
     const fighting = options.inCombat === true;
-    const budget = options.budget ?? (fighting ? Infinity : this.options.moveBudget);
-    const context = this.movementFor(id, fighting);
-    return this.pathfinder.reachable(from, budget, fighting ? { ...context, maxSpan: this.options.combatReach } : context);
+    const budget = options.budget ?? (fighting ? this.options.combatReach : this.options.moveBudget);
+    return this.pathfinder.reachable(from, budget, this.movementFor(id, fighting));
   }
 
   /**

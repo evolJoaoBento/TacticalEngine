@@ -300,7 +300,7 @@ test('walks into the vault, fights, and hands the spotlight back and forth', asy
   expect(consoleErrors).toEqual([]);
 });
 
-test('refuses a move to a tile that is out of reach', async ({ page }) => {
+test('walks up to a tile that is out of reach, and no further', async ({ page }) => {
   await boot(page);
 
   const result = await page.evaluate(() => {
@@ -308,19 +308,22 @@ test('refuses a move to a tile that is out of reach', async ({ page }) => {
     const reachable = new Set(api.reachable());
     let unreachable = -1;
     for (let tile = 0; tile < api.tiles; tile++) {
-      if (!reachable.has(tile)) {
+      if (!reachable.has(tile) && api.terrainAt(tile) !== 'wall') {
         unreachable = tile;
         break;
       }
     }
     const selected = api.selected()!;
     const before = api.tileOf(selected);
-    return { unreachable, ok: api.moveTo(unreachable), before, after: api.tileOf(selected) };
+    const ok = api.moveTo(unreachable);
+    return { unreachable, ok, before, after: api.tileOf(selected), landed: reachable.has(api.tileOf(selected)) };
   });
 
   expect(result.unreachable).toBeGreaterThanOrEqual(0);
-  expect(result.ok).toBe(false);
-  expect(result.after).toBe(result.before);
+  // Out of a fight the walk goes to the nearest reachable tile - the door, the edge of the chasm.
+  expect(result.ok).toBe(true);
+  expect(result.landed).toBe(true);
+  expect(result.after).not.toBe(result.before);
 });
 
 

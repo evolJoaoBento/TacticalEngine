@@ -126,7 +126,7 @@ export const DEMO_BAND_TILES = { melee: 1, veryClose: 2, close: 4, far: 8, veryF
  * diagonally, at the price of a diagonal, and does not cut a corner it could
  * not squeeze through.
  */
-export const DEMO_MOVEMENT: MovementRules = { ...DEFAULT_MOVEMENT, diagonals: true };
+export const DEMO_MOVEMENT: MovementRules = { ...DEFAULT_MOVEMENT, diagonals: true, diagonalCostMultiplier: Math.SQRT2 };
 
 /** The body a creature in the demo walks with. */
 export const DEMO_WALK: WalkRules = { ...DEFAULT_WALK, maxStepHeight: DEMO_MOVEMENT.maxStepHeight };
@@ -1262,10 +1262,23 @@ export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spo
   if (fighting && !demo.encounter!.canAct(id)) return { moved: false, path: [] };
 
   const field = demo.party.reachable(id, { inCombat: fighting });
-  if (!field.canReach(destination)) return { moved: false, path: [] };
-
+  let goal = destination;
+  let aim = aimed;
+  let short = false;
+  if (!field.canReach(destination)) {
+    // Beyond reach is not a refusal. Out of a fight the walk goes to the
+    // reachable spot nearest the one aimed at - a click across a chasm or on a
+    // shut door walks up to it. In a fight it goes as far along the way as one
+    // move allows, and says so.
+    const nearest = nearestReachable(demo, field, aimed ?? demo.grid.spotOf(destination), fighting ? destination : NO_TILE);
+    if (nearest === NO_TILE || nearest === demo.state.entity(id)!.tile) return { moved: false, path: [] };
+    goal = nearest;
+    aim = aimed === undefined ? undefined : clampInto(demo.grid, aimed, nearest);
+    short = fighting;
+  }
   const stood = { ...demo.state.entity(id)!.at };
-  const walk = demo.party.walkTo(id, destination, aimed === undefined ? { inCombat: fighting } : { inCombat: fighting, at: aimed });
+  const walk = demo.party.walkTo(id, goal, aim === undefined ? { inCombat: fighting } : { inCombat: fighting, at: aim });
+  if (short && walk !== null) note(demo, `${nameOf(demo, id)} can go no further this turn.`, 'combat');
   if (walk === null) return { moved: false, path: [] };
   const full = walk.path;
 
@@ -1290,6 +1303,44 @@ export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spo
     return { moved: true, path, triggered: hit.encounter };
   }
   return { moved: true, path };
+}
+
+/**
+ * The reachable tile a walk beyond reach ends on. Given a tile the way to
+ * which is only too long (`along`), the furthest tile along that way still in
+ * reach; otherwise the reachable tile nearest the spot aimed at, as the crow
+ * flies. `NO_TILE` when nothing at all is in reach.
+ */
+function nearestReachable(demo: DemoScene, field: ReachableField, aimed: Spot, along: number): number {
+  const id = demo.party.selected!;
+  if (along !== NO_TILE) {
+    // The bounded field is a view over shared buffers: keep it before asking
+    // for the way there without a budget.
+    const inReach = field.clone();
+    const whole = demo.party.reachable(id, { inCombat: true, budget: Infinity });
+    const path = tracePath(whole, along);
+    if (path !== null) {
+      for (let i = path.length - 1; i >= 0; i--) if (inReach.canReach(path[i]!)) return path[i]!;
+    }
+    return NO_TILE;
+  }
+  let best = NO_TILE;
+  let bestDistance = Infinity;
+  for (const tile of field.tiles()) {
+    const distance = Math.hypot(demo.grid.xOf(tile) - aimed.x, demo.grid.yOf(tile) - aimed.y);
+    if (distance < bestDistance || (distance === bestDistance && tile < best)) {
+      best = tile;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+/** The spot within a tile nearest to one aimed at outside it. */
+function clampInto(grid: TileGrid, aimed: Spot, tile: number): Spot {
+  const x = grid.xOf(tile);
+  const y = grid.yOf(tile);
+  return { x: Math.min(x + 0.49, Math.max(x - 0.49, aimed.x)), y: Math.min(y + 0.49, Math.max(y - 0.49, aimed.y)) };
 }
 
 /** Begin a fight. Safe to call twice. */
@@ -3541,10 +3592,9 @@ function approach(demo: DemoScene, adversaryId: string, targetTile: number, reac
   const already = demo.world.bandBetween(adversary.tile, targetTile);
   if (already !== null && reaches(already, reach)) return;
 
-  const field = demo.pathfinder.reachable(adversary.tile, Infinity, {
+  const field = demo.pathfinder.reachable(adversary.tile, maxTilesForBand('close', DEMO_BAND_TILES), {
     rules: DEMO_MOVEMENT,
     isBlocked: demo.state.blockedFor(adversaryId),
-    maxSpan: maxTilesForBand('close', DEMO_BAND_TILES),
   });
   let best = adversary.tile;
   let bestDistance = demo.grid.euclideanDistance(adversary.tile, targetTile);
