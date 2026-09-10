@@ -128,6 +128,8 @@ declare global {
       saveText: () => string | null;
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
+      editorMode: () => string;
+      setEditorMode: (mode: string) => void;
       setTool: (tool: string) => void;
       setTerrain: (id: string) => void;
       editAt: (tile: number) => boolean;

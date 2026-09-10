@@ -26,6 +26,7 @@ import {
 } from 'three';
 import { demoMap } from '../legacy/js/data.js';
 import { EditorController } from './editor/controller';
+import type { EditorMode } from './editor/modes';
 import {
   EditorSession,
   addAsset,
@@ -250,6 +251,9 @@ declare global {
       saveText: () => string | null;
       mode: () => 'play' | 'edit';
       setMode: (mode: 'play' | 'edit') => void;
+      /** The top bar's mode: 'inspect', 'terrain', 'combat' or 'interaction'. */
+      editorMode: () => string;
+      setEditorMode: (mode: string) => void;
       setTool: (tool: string) => void;
       setTerrain: (id: string) => void;
       editAt: (tile: number) => boolean;
@@ -2005,6 +2009,11 @@ const state = {
 
   mode: (): 'play' | 'edit' => mode,
   setMode,
+  editorMode: (): string => editor.mode,
+  setEditorMode: (next: string): void => {
+    editor.setMode(next as EditorMode);
+    if (mode === 'edit') renderPanel();
+  },
   setTool: (tool: string): void => {
     editor.setTool(tool as Parameters<EditorController['setTool']>[0]);
     if (mode === 'edit') renderPanel();
