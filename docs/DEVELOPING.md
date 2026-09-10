@@ -8,7 +8,7 @@ that keep recurring. It is a reference to look things up in, not a tutorial to r
 
 | Doc | Covers |
 |---|---|
-| `docs/CONTEXT.md` (137 lines) | The goal, the hard constraints, the chosen stack, the SRD sourcing and the house rules. Read it first; it is the working agreement. |
+| `docs/CONTEXT.md` (144 lines) | The goal, the hard constraints, the chosen stack, the SRD sourcing and the house rules. Read it first; it is the working agreement. |
 | `docs/BACKLOG.md` | What to build next, ranked, and the working rules learned the expensive way: the patch-script protocol, the driver-type mirror, what to run before claiming done. Read it second. |
 | `docs/MANUAL.md` (951 lines) | Playing the demo and authoring content in the editor. Every panel, every field, every verb. Hand-written, user-facing. |
 | **this file** | Extending the engine: adding an effect, a condition, a passive, a panel field, an SRD feature, a rule. |

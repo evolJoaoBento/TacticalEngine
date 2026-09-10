@@ -16,10 +16,10 @@ Do not read the sources first. Forty minutes of reading below saves a day.
 
 | Order | File | Why |
 |---|---|---|
-| 1 | `docs/CONTEXT.md` (137 lines) | The goal, the hard constraints, the stack, the SRD sourcing. The working agreement. |
+| 1 | `docs/CONTEXT.md` | The goal, the hard constraints, the stack, the SRD sourcing. The working agreement. |
 | 2 | **this file** | What to build, and the rules that are not written anywhere else. |
-| 3 | `docs/DEVELOPING.md` (769 lines) | Extending the engine: layer map, invariants, recipes, gotchas. A reference to look things up in, not a tutorial. **§11 Gotchas earns its reading twice.** |
-| 4 | `docs/CRPG-GAPS.md` (625 lines) | The honest audit against the CRPG goal. Read the relevant section before claiming a system exists or is missing. |
+| 3 | `docs/DEVELOPING.md` | Extending the engine: layer map, invariants, recipes, gotchas. A reference to look things up in, not a tutorial. **§11 Gotchas earns its reading twice.** |
+| 4 | `docs/CRPG-GAPS.md` | The honest audit against the CRPG goal. Read the relevant section before claiming a system exists or is missing. |
 | 5 | `.claude/skills/run-the-demo/SKILL.md` | Driving the app in a real browser. Read it before writing any Playwright of your own. |
 
 `docs/MANUAL.md` is user-facing: playing the demo and authoring content, every panel and field.
@@ -34,6 +34,11 @@ prototype with `file:line` anchors; read those instead of re-reading `legacy/`.
 Ranked by **what it adds to a fight** — the house rule for ordering slices. The GM's narrative half
 is deliberately last. A *slice* is one behaviour complete: rule, content, editor field, validation,
 tests, docs. Half a slice gets finished by someone with less context.
+
+**Keeping this list true is part of landing a slice.** When one lands, delete its item here, record
+it in the matching `CRPG-GAPS.md` section as done, and re-pin the commit and suite numbers in the
+header above. A backlog nobody prunes is wrong within a week, and then it costs the next agent the
+startup time it was written to save.
 
 ### 1. Movement Under Pressure — the rule is written and nothing calls it
 
@@ -53,8 +58,11 @@ function so the GM's turn stops inventing its own budget.
 (`game/save.ts`). Pressing Save while the party walks into the vault restores them standing on the
 trigger with no fight and nothing to wake it.
 
-*Done means:* the field round-trips, or the save refuses mid-walk the way it already refuses
-mid-fight. Refusing is the smaller change and probably the right one.
+`saveBlockedBy` (`game/save.ts`) already refuses a save in a fight and in a conversation, and the
+autosave on travel and the Save buttons all route through it. It does not know about the ambush.
+
+*Done means:* either the field round-trips through `saveSchema`, or `saveBlockedBy` gains the third
+clause and the UI says why. The second is a two-line change and probably the right one.
 
 ### 3. Materials and a file picker for imported models
 
@@ -65,9 +73,10 @@ the editor at all.
 ### 4. Content depth: the unscripted remainder
 
 47 of 189 domain cards are text only, and 292 of 417 adversary features are left to the GM to
-narrate. Both generators refuse to build if an unscripted entry has no stated reason, so
-`docs/CARDS.md` and `docs/ADVERSARIES.md` count themselves — **do not hand-count, and do not hand-edit
-those files.** Scripting a feature is a short, well-shaped slice; `DEVELOPING.md` §7(c) is the recipe.
+narrate. **The cards generator refuses to build when a text-only card carries no reason**, so
+`docs/CARDS.md` keeps that count honest by itself; `docs/ADVERSARIES.md` groups its reasons rather
+than enforcing them. Both are generated — **do not hand-count, and do not hand-edit either file.**
+Scripting a feature is a short, well-shaped slice; `DEVELOPING.md` §7(c) is the recipe.
 
 ### 5. The stated efficiency goals are unmet
 
@@ -110,10 +119,11 @@ TTS, English only. These are the process ones, learned the expensive way.
 
 ### Editing files: use a Python patch script, not the shell
 
-**Multi-line inline scripts through the Bash tool break on this machine, and `python -` hangs** and
-has to be killed. Write the script to **your scratchpad directory** with the Write tool, then run
-`python <path>`. Two passes: assert every anchor before writing anything, so a bad anchor cannot
-leave a half-patched tree.
+**A heredoc carrying a script has failed here more than once** — the shell parses the payload and
+dies on an apostrophe or a brace — and **`python -` hangs** and has to be killed off. A heredoc
+carrying *prose* is fine; `git commit -F -` that way is the normal path. For edits: write the script
+to **your scratchpad directory** with the Write tool, then run `python <path>`. Two passes, so a bad
+anchor cannot leave a half-patched tree.
 
 ```python
 import io
