@@ -14,6 +14,7 @@
 
 import { toContentId } from '../engine/content/types';
 import type { Deco, Encounter, Interactable, Point, SceneDoc } from '../engine/scene/schema';
+import { MODE_TOOLS, defaultTool, modeOfTool, type EditorMode } from './modes';
 import {
   EditorSession,
   addAdversary,
@@ -23,6 +24,7 @@ import {
   adjustHeight,
   brushTiles,
   paintTerrain,
+  removeAdversary,
   removeDecoAt,
   removeInteractable,
   rotateDeco,
@@ -90,6 +92,8 @@ export class EditorController {
   readonly session: EditorSession;
   sceneId: string;
   state: EditorToolState;
+  /** Which of the top bar's modes is in hand. It always owns `state.tool`. */
+  mode: EditorMode;
   private readonly onChange: (change: EditorChange) => void;
   /** Tiles already painted in this drag, so one stroke does not re-edit them. */
   private readonly strokeTiles = new Set<number>();
@@ -102,16 +106,28 @@ export class EditorController {
     this.sceneId = options.sceneId;
     this.state = { ...DEFAULT_TOOL_STATE, ...options.state };
     this.onChange = options.onChange ?? ((): void => {});
+    this.mode = modeOfTool(this.state.tool, 'inspect');
   }
 
   get scene(): SceneDoc {
     return this.session.requireScene(this.sceneId);
   }
 
-  /** Change tools, ending any drag in progress. */
+  /** Change tools, ending any drag in progress. The mode follows the tool. */
   setTool(tool: EditorTool): void {
     this.end();
     this.state.tool = tool;
+    this.mode = modeOfTool(tool, this.mode);
+  }
+
+  /**
+   * Change modes, ending any drag. The tool in hand stays when the new mode owns
+   * it - Erase crossing from Terrain to Combat - and is otherwise the mode's first.
+   */
+  setMode(mode: EditorMode): void {
+    this.end();
+    this.mode = mode;
+    if (!MODE_TOOLS[mode].includes(this.state.tool)) this.state.tool = defaultTool(mode);
   }
 
   /**
@@ -251,6 +267,7 @@ export class EditorController {
       }
 
       case 'erase': {
+        if (this.mode === 'combat') return this.eraseForCombat(point);
         // Topmost content first, so one tool clears a stack a click at a time.
         const deco = this.decoAt(point);
         if (deco !== null) {
@@ -265,6 +282,36 @@ export class EditorController {
         return 'none';
       }
     }
+  }
+
+  /**
+   * Combat's eraser: the creature on the tile, else the trigger cell, else a
+   * party start - never the last one, since a room must have somewhere to put
+   * the party.
+   */
+  private eraseForCombat(point: Point): EditorChange {
+    const { session, sceneId } = this;
+    const scene = this.scene;
+    const here = (p: Point): boolean => p.x === point.x && p.y === point.y;
+    for (const encounter of scene.encounters) {
+      const placed = encounter.adversaries.find((a) => here(a.position));
+      if (placed !== undefined) {
+        session.run(removeAdversary(sceneId, encounter.id, placed.id));
+        return 'content';
+      }
+    }
+    for (const encounter of scene.encounters) {
+      if (encounter.triggerCells.some(here)) {
+        session.run(toggleTriggerCell(sceneId, encounter.id, point));
+        return 'content';
+      }
+    }
+    const at = scene.spawns.findIndex(here);
+    if (at >= 0 && scene.spawns.length > 1) {
+      session.run(setSpawns(sceneId, scene.spawns.filter((_, i) => i !== at)));
+      return 'content';
+    }
+    return 'none';
   }
 
   /** The object the inspector should show, if it is still there. */

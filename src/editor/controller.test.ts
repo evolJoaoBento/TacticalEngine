@@ -490,3 +490,115 @@ describe('selecting an object to edit', () => {
     expect(controller.selectedInteractable()).toBeNull();
   });
 });
+
+describe('modes', () => {
+  it('starts in the mode that owns its tool', () => {
+    const { editor } = setup();
+    expect(editor.state.tool).toBe('paintTerrain');
+    expect(editor.mode).toBe('terrain');
+  });
+
+  it('choosing a tool chooses its mode', () => {
+    const { editor } = setup();
+    editor.setTool('adversary');
+    expect(editor.mode).toBe('combat');
+    editor.setTool('select');
+    expect(editor.mode).toBe('inspect');
+  });
+
+  it('choosing a mode picks its first tool, unless the current one is its own', () => {
+    const { editor } = setup();
+    editor.setMode('combat');
+    expect(editor.state.tool).toBe('adversary');
+    editor.setTool('erase');
+    editor.setMode('terrain');
+    expect(editor.state.tool).toBe('erase');
+    editor.setMode('interaction');
+    expect(editor.state.tool).toBe('select');
+  });
+
+  it('ends a drag when the mode changes', () => {
+    const { editor, session } = setup();
+    editor.setTool('paintTerrain');
+    editor.set('terrainId', 'wall');
+    editor.begin({ x: 0, y: 0 });
+    editor.setMode('combat');
+    editor.paint({ x: 1, y: 0 });
+    expect(session.requireScene('room').terrain[1]).toBe('floor');
+  });
+});
+
+describe('erasing in combat', () => {
+  /** A creature, a trigger cell and a spawn all on (2, 2), with Combat's eraser in hand. */
+  function stacked(): ReturnType<typeof setup> {
+    const made = setup();
+    const { editor } = made;
+    for (const tool of ['adversary', 'trigger', 'spawn'] as const) {
+      editor.setTool(tool);
+      editor.begin({ x: 2, y: 2 });
+      editor.end();
+    }
+    editor.setTool('erase');
+    return made;
+  }
+
+  const erase = (editor: EditorController): void => {
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+  };
+
+  it('takes the creature, then the trigger cell, then the spawn', () => {
+    const { editor, session } = stacked();
+    const scene = () => session.requireScene('room');
+    expect(editor.mode).toBe('combat');
+
+    erase(editor);
+    expect(scene().encounters[0]!.adversaries).toHaveLength(0);
+    expect(scene().encounters[0]!.triggerCells).toEqual([{ x: 2, y: 2 }]);
+
+    erase(editor);
+    expect(scene().encounters[0]!.triggerCells).toEqual([]);
+    expect(scene().spawns).toContainEqual({ x: 2, y: 2 });
+
+    erase(editor);
+    expect(scene().spawns).toEqual([{ x: 0, y: 0 }]);
+  });
+
+  it('never takes the last spawn', () => {
+    const { editor, session } = setup();
+    editor.setMode('combat');
+    editor.setTool('erase');
+    expect(editor.begin({ x: 0, y: 0 })).toBe('none');
+    editor.end();
+    expect(session.requireScene('room').spawns).toEqual([{ x: 0, y: 0 }]);
+  });
+
+  it('is undone a step at a time', () => {
+    const { editor, session } = stacked();
+    erase(editor);
+    erase(editor);
+    session.undo();
+    expect(session.requireScene('room').encounters[0]!.triggerCells).toEqual([{ x: 2, y: 2 }]);
+    session.undo();
+    expect(session.requireScene('room').encounters[0]!.adversaries).toHaveLength(1);
+  });
+
+  it('leaves props to Terrain', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.begin({ x: 3, y: 3 });
+    editor.end();
+
+    editor.setMode('combat');
+    editor.setTool('erase');
+    editor.begin({ x: 3, y: 3 });
+    editor.end();
+    expect(session.requireScene('room').decos).toHaveLength(1);
+
+    // Erase is Terrain's too, so it stays in hand across the switch.
+    editor.setMode('terrain');
+    editor.begin({ x: 3, y: 3 });
+    editor.end();
+    expect(session.requireScene('room').decos).toHaveLength(0);
+  });
+});
