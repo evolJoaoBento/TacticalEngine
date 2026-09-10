@@ -40,6 +40,7 @@ async function intoTheVault(page: Page): Promise<{ inCombat: boolean; foe: strin
       if (tiles.length === 0) break;
       const east = tiles.reduce((x, y) => (y % 22 > x % 22 ? y : x));
       if (!a.moveTo(east)) break;
+      a.arrive();
       while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
     }
     return { inCombat: a.inCombat(), foe: a.adversaries()[0] ?? null };
@@ -252,6 +253,7 @@ test('a name in the log points at whoever it named', async ({ page }) => {
       if (tiles.length === 0) break;
       const east = tiles.reduce((x, y) => (y % 22 > x % 22 ? y : x));
       if (!a.moveTo(east)) break;
+      a.arrive();
       while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
     }
     const foe = a.adversaries()[0]!;
@@ -425,9 +427,10 @@ test('the party rounds the vault door together, along the line the hover drew', 
   // the walk where the fight begins.
   await page.mouse.click(hovered.px.x, hovered.px.y);
   await page.waitForTimeout(700);
-  const mid = await page.evaluate(() => window.__polyheart!.gliding());
+  const mid = await page.evaluate(() => ({ gliding: window.__polyheart!.gliding(), fighting: window.__polyheart!.inCombat() }));
   await page.screenshot({ path: 'test-results/corner-mid.png' });
-  expect(mid, 'the party is on its way').toBeGreaterThan(1);
+  expect(mid.gliding, 'the party is on its way').toBeGreaterThan(1);
+  expect(mid.fighting, 'no fight before they get there').toBe(false);
   await page.waitForFunction(() => window.__polyheart!.gliding() === 0, null, { timeout: 15_000 });
   const done = await page.evaluate(() => {
     const a = window.__polyheart!;

@@ -87,6 +87,7 @@ import {
   gearOf,
   useItem,
   moveSelectedTo,
+  arrive,
   previewStrike,
   previewWalk,
   note,
@@ -232,6 +233,8 @@ declare global {
       floaters: () => { id: string; text: string }[];
       /** How many tokens are still walking to where their creature already is. */
       gliding: () => number;
+      /** Skip the walk: let the fight a move woke begin now. True when one did. */
+      arrive: () => boolean;
       /** How many tokens are flinching, falling or getting up. */
       reacting: () => number;
       screenOf: (tile: number) => { x: number; y: number };
@@ -375,6 +378,8 @@ let demo = buildDemoScene(demoMap());
 // or an ally stepping in. The engine decides for itself in tests and headless
 // runs, where there is nobody to ask.
 demo.askDefender = true;
+// The tokens walk; a fight the walk wakes starts when they get there.
+demo.animated = true;
 
 /** glTF files the project declares, loaded on first use. */
 const gltfLoader = new GLTFLoader();
@@ -645,6 +650,7 @@ function loadProjectText(text: string, label = 'the project'): string {
   }
   demo = fresh;
   demo.askDefender = true;
+  demo.animated = true;
   project = demo.project;
   session = new EditorSession(project);
   editor = new EditorController({
@@ -1928,6 +1934,11 @@ const state = {
   /** Where a tile's centre lands on screen, in CSS pixels from the page origin. */
   screenOf: (tile: number): { x: number; y: number } => screenPoint(tile, 0),
   gliding: (): number => view.glidingCount,
+  arrive: (): boolean => {
+    const began = arrive(demo);
+    if (began) refreshPlay();
+    return began;
+  },
   reacting: (): number => view.reactingCount,
   /** The numbers rising over heads right now, and whose. */
   floaters: (): { id: string; text: string }[] =>
@@ -2010,6 +2021,8 @@ function frame(now = performance.now()): void {
   lastFrame = now;
   steerCamera(dt);
   view.tick(dt);
+  // The last token stops: the ambush the walk woke begins.
+  if (demo.ambush !== null && view.glidingCount === 0 && arrive(demo)) refreshPlay();
   followSelected();
   driveFloaters(now);
   if (orbit.update(dt)) applyCamera();

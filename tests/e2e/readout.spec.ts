@@ -29,6 +29,7 @@ async function vault(page: Page): Promise<void> {
       if (tiles.length === 0) break;
       const east = tiles.reduce((x, y) => (y % 22 > x % 22 ? y : x));
       if (!a.moveTo(east)) break;
+      a.arrive();
       while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
     }
   });

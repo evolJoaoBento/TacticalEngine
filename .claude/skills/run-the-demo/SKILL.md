@@ -36,7 +36,9 @@ it first and expect Playwright to use it.
 | objects | `objects()`, `use(id)`, `objectState(id)` |
 
 Always `setDiceSpeed(0)` first, or the dice animation makes everything
-wait. Drain prompts with
+wait. A move that wakes an encounter does not start it until the tokens
+arrive; call `arrive()` after the move (or wait for `gliding() === 0`)
+before reading `inCombat()`. Drain prompts with
 `while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 })`
 — index 0 is always "let it pass" / "take it as it comes".
 

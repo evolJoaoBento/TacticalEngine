@@ -116,6 +116,7 @@ declare global {
       cursorTile: () => number;
       floaters: () => { id: string; text: string }[];
       gliding: () => number;
+      arrive: () => boolean;
       reacting: () => number;
       screenOf: (tile: number) => { x: number; y: number };
       save: () => boolean;
@@ -254,6 +255,7 @@ test('walks into the vault, fights, and hands the spotlight back and forth', asy
       // The vault is east, so head for the highest column reachable.
       const east = tiles.reduce((a, b) => (b % 22 > a % 22 ? b : a));
       if (!api.moveTo(east)) break;
+      api.arrive();
     }
     if (!api.inCombat()) return { started: false };
 
@@ -552,6 +554,7 @@ test('shows the Duality Dice landing on the faces the roll rolled', async ({ pag
       const tiles = api.reachable();
       if (tiles.length === 0) break;
       if (!api.moveTo(tiles.reduce((a, b) => (b % 22 > a % 22 ? b : a)))) break;
+      api.arrive();
     }
     if (!api.inCombat()) return null;
     const foe = api.adversaries()[0];

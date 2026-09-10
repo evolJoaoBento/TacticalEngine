@@ -553,9 +553,11 @@ out of reach walks to where the weapon reaches from and swings (`closeToStrike`,
 
 **Still open:** nothing that "gridless" asks for. Measuring range from the spots rather than
 the tiles is a choice, not a gap: it would make a corner-to-corner neighbour standing at the
-far edges of two tiles read as Very Close, which no table would call it. The fight begins the
-moment the state crosses the trigger, while the tokens are still walking there - the engine's
-truth never waits on an animation; BG3 would hold the round until they arrive.
+far edges of two tiles read as Very Close, which no table would call it. The one place the
+engine's truth waits on a drawing: a walk that wakes an encounter holds it as `demo.ambush`
+until the tokens get there (`arrive`, called from the frame loop when the last glide ends, or by
+the move itself headless), and nobody walks or swings in between - BG3 holds the round the same
+way. Drivers in a hurry call `arrive()`.
 
 ## How to tell whether this is on track
 

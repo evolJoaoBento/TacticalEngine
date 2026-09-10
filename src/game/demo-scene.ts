@@ -243,6 +243,18 @@ export interface DemoScene {
    * and cleared by whoever draws; the board itself is already right.
    */
   motions: Motion[];
+  /**
+   * Whether somebody draws the motions. Then a walk is not over when the board
+   * says so but when the tokens get there, and what the walk woke waits on
+   * `arrive`. Headless, a walk is over at once.
+   */
+  animated: boolean;
+  /**
+   * The encounter a walk woke, not yet begun: the fight starts when the party
+   * arrives at the trigger, not when the board crossed it. Nobody moves or
+   * swings in between.
+   */
+  ambush: string | null;
   /** Waiting on the player: a script's roll or choice, or a defender's answer. */
   pending: Pending | null;
   /** Set while a fight is running. */
@@ -1205,6 +1217,8 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
     log: [],
     floaters: [],
     motions: [],
+    animated: false,
+    ambush: null,
     pending: null,
     encounter: null,
     gmTurn: null,
@@ -1256,7 +1270,8 @@ export interface MoveResult {
  */
 export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spot): MoveResult {
   // A script waiting on the player blocks everything else; see `useSelectedOn`.
-  if (demo.pending !== null) return { moved: false, path: [] };
+  // So does an ambush the party is still walking into.
+  if (demo.pending !== null || demo.ambush !== null) return { moved: false, path: [] };
   const id = demo.party.selected;
   if (id === null || !demo.party.canCommand(id)) return { moved: false, path: [] };
   const fighting = inCombat(demo);
@@ -1300,10 +1315,24 @@ export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spo
   if (fighting) demo.encounter!.act(id);
 
   if (hit !== null) {
-    startEncounter(demo, hit.encounter);
+    demo.ambush = hit.encounter;
+    if (!demo.animated) arrive(demo);
     return { moved: true, path, triggered: hit.encounter };
   }
   return { moved: true, path };
+}
+
+/**
+ * The walkers are where the board put them. Whatever the walk woke begins now.
+ * Whoever draws the tokens calls this when the last of them stops; headless,
+ * the move itself does.
+ */
+export function arrive(demo: DemoScene): boolean {
+  if (demo.ambush === null) return false;
+  const encounter = demo.ambush;
+  demo.ambush = null;
+  startEncounter(demo, encounter);
+  return true;
 }
 
 /**
@@ -1374,7 +1403,7 @@ function walkSelected(demo: DemoScene, id: string, tile: number, fighting: boole
  * already in reach or nothing would move.
  */
 export function previewStrike(demo: DemoScene, targetId: string): Spot[] | null {
-  if (demo.pending !== null) return null;
+  if (demo.pending !== null || demo.ambush !== null) return null;
   const id = demo.party.selected;
   const character = id === null ? undefined : demo.characters.get(id);
   const target = demo.state.entity(targetId);
@@ -1400,7 +1429,7 @@ export interface WalkPreview {
  * move - nobody selected, a script waiting, nowhere to go.
  */
 export function previewWalk(demo: DemoScene, destination: number, aimed: Spot): WalkPreview | null {
-  if (demo.pending !== null) return null;
+  if (demo.pending !== null || demo.ambush !== null) return null;
   const id = demo.party.selected;
   if (id === null || !demo.party.canCommand(id)) return null;
   const fighting = inCombat(demo);
@@ -1486,7 +1515,7 @@ export function attackWithSelected(
   demo: DemoScene,
   targetId: string,
 ): { hit: boolean; refused: string | null; hitPointsMarked: number; waiting?: boolean } | null {
-  if (demo.pending !== null) return null;
+  if (demo.pending !== null || demo.ambush !== null) return null;
   const id = demo.party.selected;
   const character = id === null ? undefined : demo.characters.get(id);
   const attacker = id === null ? undefined : demo.state.entity(id);

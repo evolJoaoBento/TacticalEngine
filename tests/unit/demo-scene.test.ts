@@ -30,6 +30,7 @@ import {
   previewWalk,
   reachableTiles,
   startEncounter,
+  arrive,
   type DemoScene,
 } from '../../src/game/demo-scene';
 
@@ -257,6 +258,27 @@ describe('walking into the fight', () => {
     walkTowards(demo, target);
     expect(inCombat(demo)).toBe(true);
     expect(demo.encounter!.view().side).toBe('party');
+  });
+
+  it('holds the fight until the tokens arrive when somebody is drawing the walk', () => {
+    const demo = build();
+    demo.animated = true;
+    openTheDoor(demo);
+    const target = demo.state.entitiesOf('adversary')[0]!.tile;
+    walkTowards(demo, target);
+    // The board crossed the trigger; the fight is woken, not begun.
+    expect(demo.ambush).not.toBeNull();
+    expect(inCombat(demo)).toBe(false);
+    // Nobody walks or swings on the way in.
+    const here = demo.state.entity(demo.party.selected!)!.tile;
+    expect(moveSelectedTo(demo, here - 1).moved).toBe(false);
+    expect(previewWalk(demo, here - 1, demo.grid.spotOf(here - 1))).toBeNull();
+    expect(attackWithSelected(demo, demo.state.entitiesOf('adversary')[0]!.id)).toBeNull();
+    // The tokens get there.
+    expect(arrive(demo)).toBe(true);
+    expect(demo.ambush).toBeNull();
+    expect(inCombat(demo)).toBe(true);
+    expect(arrive(demo)).toBe(false);
   });
 
   it('walks an adversary closing in along a line that ends where it now stands', () => {
