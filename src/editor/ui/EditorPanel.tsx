@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useState } from 'preact/hooks';
+import './editor.css';
 import { SRD_CONDITIONS } from '../../engine/content/conditions';
 import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
@@ -84,8 +85,8 @@ const panel: Record<string, string | number> = {
   maxHeight: '100vh',
   overflowY: 'auto',
   padding: '10px 12px 16px',
-  background: 'rgba(16,18,24,0.94)',
-  color: '#e8e6df',
+  background: 'var(--ph-panel)',
+  color: 'var(--ph-text)',
   font: '13px/1.45 system-ui, sans-serif',
   pointerEvents: 'auto',
   boxSizing: 'border-box',
@@ -96,16 +97,16 @@ const heading: Record<string, string | number> = {
   font: '600 11px/1 system-ui, sans-serif',
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
-  color: '#8ea3b0',
+  color: 'var(--ph-muted)',
 };
 
 function button(active: boolean): Record<string, string | number> {
   return {
     padding: '5px 8px',
     margin: '0 4px 4px 0',
-    border: `1px solid ${active ? '#69d2ff' : '#39404d'}`,
+    border: `1px solid ${active ? 'var(--ph-accent)' : 'var(--ph-line)'}`,
     borderRadius: '4px',
-    background: active ? 'rgba(105,210,255,0.18)' : 'transparent',
+    background: active ? 'var(--ph-accent-bg)' : 'transparent',
     color: 'inherit',
     font: 'inherit',
     cursor: 'pointer',
@@ -228,10 +229,10 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
     <div style={panel} data-version={version}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
         <strong style={{ fontSize: '14px' }}>Editor</strong>
-        <span style={{ color: '#8ea3b0', fontSize: '12px' }}>
+        <span style={{ color: 'var(--ph-muted)', fontSize: '12px' }}>
           {scene.name || scene.id} · {scene.width}×{scene.height}
           {session.dirty ? ' ·' : ''}
-          {session.dirty ? <span style={{ color: '#f6c453' }}> unsaved</span> : null}
+          {session.dirty ? <span style={{ color: 'var(--ph-warm)' }}> unsaved</span> : null}
         </span>
       </div>
 
@@ -350,7 +351,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
           <div style={heading}>Adversary</div>
           <select
             value={state.adversaryId}
-            style={{ width: '100%', padding: '4px', background: '#1b1f28', color: 'inherit', border: '1px solid #39404d', borderRadius: '4px' }}
+            style={{ width: '100%', padding: '4px', background: 'var(--ph-field)', color: 'inherit', border: '1px solid var(--ph-line)', borderRadius: '4px' }}
             onChange={(e) => {
               controller.set('adversaryId', (e.target as HTMLSelectElement).value);
               bump();
@@ -406,13 +407,13 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
                 onClick={() => props.onSwitchScene(entry.id)}
               >
                 {entry.name || entry.id}
-                <span style={{ color: '#8ea3b0' }}>
+                <span style={{ color: 'var(--ph-muted)' }}>
                   {' '}
                   {entry.width}×{entry.height}
                 </span>
-                {opens ? <span style={{ color: '#f6c453' }}> ▸</span> : null}
+                {opens ? <span style={{ color: 'var(--ph-warm)' }}> ▸</span> : null}
                 {entry.id === props.playingScene ? (
-                  <span style={{ color: '#9ae08a' }}> ●</span>
+                  <span style={{ color: 'var(--ph-good)' }}> ●</span>
                 ) : null}
               </button>
               <button
@@ -462,12 +463,12 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
           + Scene
         </button>
       </div>
-      <div style={{ color: '#8ea3b0', fontSize: '11px', marginTop: '4px' }}>
+      <div style={{ color: 'var(--ph-muted)', fontSize: '11px', marginTop: '4px' }}>
         ▸ opens the project · ● the party is here
       </div>
 
       <div style={heading}>This scene</div>
-      <div style={{ color: '#8ea3b0', fontSize: '12px' }}>
+      <div style={{ color: 'var(--ph-muted)', fontSize: '12px' }}>
         {scene.decos.length} props · {scene.interactables.length} objects ·{' '}
         {scene.encounters.reduce((n, e) => n + e.adversaries.length, 0)} enemies ·{' '}
         {scene.spawns.length} spawns
@@ -475,7 +476,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
 
       {state.tool === 'select' ? (
         selectedObject === null ? (
-          <div style={{ ...heading, textTransform: 'none', letterSpacing: 0, color: '#8ea3b0' }}>
+          <div style={{ ...heading, textTransform: 'none', letterSpacing: 0, color: 'var(--ph-muted)' }}>
             Click an object to edit what it does.
           </div>
         ) : (
@@ -507,7 +508,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
               onClick={() => setGraph(entry.id)}
             >
               {entry.id}
-              <span style={{ color: '#8ea3b0' }}> {entry.nodes.length} nodes</span>
+              <span style={{ color: 'var(--ph-muted)' }}> {entry.nodes.length} nodes</span>
             </button>
             <button
               style={{ ...button(false), margin: 0 }}
@@ -575,7 +576,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
                 onClick={() => setOpenQuest(openQuest === quest.id ? null : quest.id)}
               >
                 {quest.name}
-                <span style={{ color: '#8ea3b0' }}> {quest.objectives.length} steps</span>
+                <span style={{ color: 'var(--ph-muted)' }}> {quest.objectives.length} steps</span>
               </button>
               <button
                 style={{ ...button(false), margin: 0 }}
@@ -626,7 +627,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
           <div key={asset.id} style={{ display: 'flex', gap: '4px', marginBottom: '2px', alignItems: 'center' }} data-asset={asset.id}>
             <span style={{ flex: 1, fontSize: '12px' }}>
               {asset.id}
-              <span style={{ color: '#8ea3b0' }}> {asset.url}</span>
+              <span style={{ color: 'var(--ph-muted)' }}> {asset.url}</span>
             </span>
             <button
               style={{ ...button(false), margin: 0 }}
@@ -659,7 +660,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
         >
           + Model
         </button>
-        <div style={{ color: '#8ea3b0', fontSize: '11px', marginTop: '2px' }}>
+        <div style={{ color: 'var(--ph-muted)', fontSize: '11px', marginTop: '2px' }}>
           Name a model id in the Prop tool, or on an object, to use it.
         </div>
       </div>
@@ -693,7 +694,7 @@ export function EditorPanel(props: EditorPanelProps): preact.JSX.Element {
             {problems.slice(0, 30).map((problem, i) => (
               <li
                 key={i}
-                style={{ color: problem.severity === 'error' ? '#ff8f7a' : '#f6c453', marginBottom: '3px' }}
+                style={{ color: problem.severity === 'error' ? 'var(--ph-bad)' : 'var(--ph-warm)', marginBottom: '3px' }}
               >
                 {problem.message}
               </li>

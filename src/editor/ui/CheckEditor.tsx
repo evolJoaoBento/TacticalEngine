@@ -55,9 +55,9 @@ const field: Record<string, string | number> = {
   flex: 1,
   minWidth: 0,
   padding: '3px 5px',
-  background: '#1b1f28',
+  background: 'var(--ph-field)',
   color: 'inherit',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   font: 'inherit',
 };
@@ -90,7 +90,7 @@ export function CheckEditor<T extends CheckRequest>(props: CheckEditorProps<T>):
   };
 
   const gotoSelect = (key: 'gotoOnSuccess' | 'gotoOnFailure', label: string) => (
-    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#8ea3b0' }}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--ph-muted)' }}>
       {label}
       <select
         style={field}
@@ -131,7 +131,7 @@ export function CheckEditor<T extends CheckRequest>(props: CheckEditorProps<T>):
             ))}
           </select>
           {check.difficulty === 'target' ? (
-            <span style={{ ...field, flex: 'none', color: '#8ea3b0' }} data-testid="check-difficulty">
+            <span style={{ ...field, flex: 'none', color: 'var(--ph-muted)' }} data-testid="check-difficulty">
               vs target
             </span>
           ) : (
@@ -146,7 +146,7 @@ export function CheckEditor<T extends CheckRequest>(props: CheckEditorProps<T>):
               }
             />
           )}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }} title="Roll against each target's own Difficulty">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--ph-muted)' }} title="Roll against each target's own Difficulty">
             <input
               type="checkbox"
               checked={check.difficulty === 'target'}
@@ -171,7 +171,7 @@ export function CheckEditor<T extends CheckRequest>(props: CheckEditorProps<T>):
 
       {props.showTargets === true ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
-          <span style={{ color: '#8ea3b0', fontSize: '11px' }}>against</span>
+          <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>against</span>
           <TargetEditor
             testId="check-targets"
             selector={check.targets}
@@ -179,7 +179,7 @@ export function CheckEditor<T extends CheckRequest>(props: CheckEditorProps<T>):
             onChange={(targets) => setField('targets', targets)}
           />
           <label
-            style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--ph-muted)' }}
             title="No new dice: the last roll made in this script stands against each target's Difficulty"
           >
             <input
@@ -200,14 +200,14 @@ export function CheckEditor<T extends CheckRequest>(props: CheckEditorProps<T>):
         </div>
       ) : null}
 
-      <div style={{ color: '#8ea3b0', fontSize: '11px', marginBottom: '4px' }}>
+      <div style={{ color: 'var(--ph-muted)', fontSize: '11px', marginBottom: '4px' }}>
         An outcome left empty falls back to a less specific one, so writing a success and a failure
         covers all five.
       </div>
 
       {OUTCOMES.map(([key, title]) => (
         <div key={key} style={{ marginBottom: '6px' }} data-outcome={key}>
-          <div style={{ color: '#c8b88a', fontSize: '11px', marginBottom: '2px' }}>{title}</div>
+          <div style={{ color: 'var(--ph-label)', fontSize: '11px', marginBottom: '2px' }}>{title}</div>
           <EffectList
             effects={(check[key] as Effect[] | undefined) ?? []}
             onChange={(effects) => setOutcome(key, effects)}

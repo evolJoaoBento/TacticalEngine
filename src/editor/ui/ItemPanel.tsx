@@ -50,9 +50,9 @@ const KINDS: readonly ItemDef['kind'][] = ['key', 'consumable', 'weapon', 'armor
 
 const field: Record<string, string | number> = {
   padding: '3px 5px',
-  background: '#1b1f28',
+  background: 'var(--ph-field)',
   color: 'inherit',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   font: 'inherit',
   boxSizing: 'border-box',
@@ -60,9 +60,9 @@ const field: Record<string, string | number> = {
 
 const button = (active: boolean): Record<string, string | number> => ({
   padding: '3px 8px',
-  border: `1px solid ${active ? '#6f8cff' : '#39404d'}`,
+  border: `1px solid ${active ? 'var(--ph-accent)' : 'var(--ph-line)'}`,
   borderRadius: '3px',
-  background: active ? '#28314a' : 'transparent',
+  background: active ? 'var(--ph-accent-bg)' : 'transparent',
   color: 'inherit',
   font: 'inherit',
   fontSize: '11px',
@@ -70,7 +70,7 @@ const button = (active: boolean): Record<string, string | number> => ({
 });
 
 const labelled = (text: string, control: preact.JSX.Element): preact.JSX.Element => (
-  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#8ea3b0' }}>
+  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--ph-muted)' }}>
     {text}
     {control}
   </label>
@@ -127,14 +127,14 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
         // Over the map, which is a canvas that would otherwise swallow clicks.
         pointerEvents: 'auto',
         zIndex: 2,
-        background: '#12151c',
-        border: '1px solid #39404d',
+        background: 'var(--ph-surface)',
+        border: '1px solid var(--ph-line)',
         borderRadius: '4px',
         padding: '10px',
         display: 'flex',
         gap: '10px',
         overflow: 'hidden',
-        color: '#e8e6df',
+        color: 'var(--ph-text)',
         font: '12px/1.5 system-ui, sans-serif',
       }}
     >
@@ -200,7 +200,7 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, overflow: 'auto' }}>
         {item === null && table === null ? (
-          <div style={{ color: '#8ea3b0' }}>
+          <div style={{ color: 'var(--ph-muted)' }}>
             Nothing selected. An item is a thing the party can carry; a loot table is what a chest draws from.
             A table needs at least one item to exist, so write an item first.
           </div>
@@ -216,7 +216,7 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
                 data-testid="item-name"
                 onInput={(e) => editItem({ name: (e.target as HTMLInputElement).value })}
               />
-              <span style={{ color: '#8ea3b0' }}>{item.id}</span>
+              <span style={{ color: 'var(--ph-muted)' }}>{item.id}</span>
             </div>
             <input
               style={field}
@@ -241,7 +241,7 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
                   ))}
                 </select>,
               )}
-              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--ph-muted)' }}>
                 <input
                   type="checkbox"
                   data-testid="item-stackable"
@@ -272,13 +272,13 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
                     ))}
                   </select>,
                 )}
-                <span style={{ color: '#8ea3b0', fontSize: '11px' }}>
+                <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>
                   Equipping is a lookup into the SRD content, not a copy of it.
                 </span>
               </div>
             ) : null}
 
-            <div style={{ color: '#c8b88a', fontSize: '11px' }}>
+            <div style={{ color: 'var(--ph-label)', fontSize: '11px' }}>
               What using it does{item.kind === 'consumable' ? ' (and it is spent)' : ''}
             </div>
             <EffectList
@@ -292,7 +292,7 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
               hookIds={props.hookIds}
             />
             {item.use.length === 0 ? (
-              <div style={{ color: '#8ea3b0', fontSize: '11px' }}>Nothing: it sits in the pack.</div>
+              <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>Nothing: it sits in the pack.</div>
             ) : null}
           </>
         )}
@@ -312,7 +312,7 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
                   onInput={(e) => editTable({ rolls: Math.max(0, Number((e.target as HTMLInputElement).value) || 0) })}
                 />,
               )}
-              <span style={{ color: '#8ea3b0', fontSize: '11px' }}>times</span>
+              <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>times</span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }} data-testid="loot-entries">
@@ -370,7 +370,7 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
                         }}
                       />
                     )}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--ph-muted)' }}>
                       <input
                         type="checkbox"
                         data-role="loot-range"
@@ -385,7 +385,7 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
                       />
                       a range
                     </label>
-                    <span style={{ color: '#8ea3b0', fontSize: '11px' }}>weight</span>
+                    <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>weight</span>
                     <input
                       type="number"
                       min={1}
@@ -401,7 +401,7 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
                       }
                     />
                     {/* Weights are relative, so the useful reading is the odds. */}
-                    <span style={{ color: '#8ea3b0', fontSize: '11px' }} data-role="loot-odds">
+                    <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }} data-role="loot-odds">
                       {odds}%
                     </span>
                     <button
@@ -426,7 +426,7 @@ export function ItemPanel(props: ItemPanelProps): preact.JSX.Element {
                 + Entry
               </button>
             </div>
-            <div style={{ color: '#8ea3b0', fontSize: '11px' }}>
+            <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>
               A table with no draws gives nothing; the odds are each entry's weight against the rest of the
               table, not a percentage that has to reach a hundred.
             </div>

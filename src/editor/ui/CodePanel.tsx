@@ -31,9 +31,9 @@ export interface CodePanelProps {
 const field: Record<string, string | number> = {
   width: '100%',
   padding: '3px 5px',
-  background: '#1b1f28',
+  background: 'var(--ph-field)',
   color: 'inherit',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   font: 'inherit',
   boxSizing: 'border-box',
@@ -41,9 +41,9 @@ const field: Record<string, string | number> = {
 
 const button = (active: boolean): Record<string, string | number> => ({
   padding: '3px 8px',
-  border: `1px solid ${active ? '#6f8cff' : '#39404d'}`,
+  border: `1px solid ${active ? 'var(--ph-accent)' : 'var(--ph-line)'}`,
   borderRadius: '3px',
-  background: active ? '#28314a' : 'transparent',
+  background: active ? 'var(--ph-accent-bg)' : 'transparent',
   color: 'inherit',
   font: 'inherit',
   fontSize: '11px',
@@ -86,14 +86,14 @@ export function CodePanel(props: CodePanelProps): preact.JSX.Element {
         // swallow the clicks: the overlay it lives in lets them through by default.
         pointerEvents: 'auto',
         zIndex: 2,
-        background: '#12151c',
-        border: '1px solid #39404d',
+        background: 'var(--ph-surface)',
+        border: '1px solid var(--ph-line)',
         borderRadius: '4px',
         padding: '10px',
         display: 'flex',
         gap: '10px',
         overflow: 'hidden',
-        color: '#e8e6df',
+        color: 'var(--ph-text)',
         font: '12px/1.5 system-ui, sans-serif',
       }}
     >
@@ -148,7 +148,7 @@ export function CodePanel(props: CodePanelProps): preact.JSX.Element {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
         {open === null ? (
-          <div style={{ color: '#8ea3b0' }}>
+          <div style={{ color: 'var(--ph-muted)' }}>
             Nothing selected. Code is a JavaScript function body; a card runs it with a <code>run</code> effect naming
             its id.
           </div>
@@ -162,7 +162,7 @@ export function CodePanel(props: CodePanelProps): preact.JSX.Element {
                 data-testid="code-name"
                 onInput={(e) => edit({ name: (e.target as HTMLInputElement).value })}
               />
-              <span style={{ color: '#8ea3b0', alignSelf: 'center' }}>
+              <span style={{ color: 'var(--ph-muted)', alignSelf: 'center' }}>
                 run by: {usedBy(session, open.id).join(', ') || 'nothing yet'}
               </span>
             </div>
@@ -181,13 +181,13 @@ export function CodePanel(props: CodePanelProps): preact.JSX.Element {
             />
             <div
               data-testid="code-errors"
-              style={{ minHeight: '16px', color: errors.length === 0 ? '#7fb069' : '#e06c75' }}
+              style={{ minHeight: '16px', color: errors.length === 0 ? 'var(--ph-good)' : 'var(--ph-bad)' }}
             >
               {errors.length === 0 ? 'Compiles.' : errors.map((issue) => issue.message).join('; ')}
             </div>
           </>
         )}
-        <details style={{ color: '#8ea3b0' }}>
+        <details style={{ color: 'var(--ph-muted)' }}>
           <summary style={{ cursor: 'pointer' }}>What a hook can do</summary>
           <div style={{ marginTop: '4px' }}>
             <p style={{ margin: '0 0 4px' }}>

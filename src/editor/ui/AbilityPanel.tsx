@@ -42,9 +42,9 @@ export interface AbilityPanelProps {
 
 const field: Record<string, string | number> = {
   padding: '3px 5px',
-  background: '#1b1f28',
+  background: 'var(--ph-field)',
   color: 'inherit',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   font: 'inherit',
   boxSizing: 'border-box',
@@ -52,9 +52,9 @@ const field: Record<string, string | number> = {
 
 const button = (active: boolean): Record<string, string | number> => ({
   padding: '3px 8px',
-  border: `1px solid ${active ? '#6f8cff' : '#39404d'}`,
+  border: `1px solid ${active ? 'var(--ph-accent)' : 'var(--ph-line)'}`,
   borderRadius: '3px',
-  background: active ? '#28314a' : 'transparent',
+  background: active ? 'var(--ph-accent-bg)' : 'transparent',
   color: 'inherit',
   font: 'inherit',
   fontSize: '11px',
@@ -62,7 +62,7 @@ const button = (active: boolean): Record<string, string | number> => ({
 });
 
 const label = (text: string, control: preact.JSX.Element): preact.JSX.Element => (
-  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#8ea3b0' }}>
+  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--ph-muted)' }}>
     {text}
     {control}
   </label>
@@ -120,14 +120,14 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
         // Over the map, which is a canvas that would otherwise swallow clicks.
         pointerEvents: 'auto',
         zIndex: 2,
-        background: '#12151c',
-        border: '1px solid #39404d',
+        background: 'var(--ph-surface)',
+        border: '1px solid var(--ph-line)',
         borderRadius: '4px',
         padding: '10px',
         display: 'flex',
         gap: '10px',
         overflow: 'hidden',
-        color: '#e8e6df',
+        color: 'var(--ph-text)',
         font: '12px/1.5 system-ui, sans-serif',
       }}
     >
@@ -176,7 +176,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
           + Card
         </button>
 
-        <div style={{ marginTop: '8px', color: '#8ea3b0', fontSize: '11px' }}>
+        <div style={{ marginTop: '8px', color: 'var(--ph-muted)', fontSize: '11px' }}>
           The engine ships {props.libraryAbilities.length} more (`srd/abilities.ts`), edited in code.
         </div>
         <div style={{ marginTop: 'auto' }}>
@@ -188,7 +188,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, overflow: 'auto' }}>
         {open === null ? (
-          <div style={{ color: '#8ea3b0' }}>
+          <div style={{ color: 'var(--ph-muted)' }}>
             Nothing selected. A card is its text plus a script; a card with no script is still a card — its
             holder reads it and the table decides.
           </div>
@@ -202,7 +202,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 data-testid="ability-name"
                 onInput={(e) => edit({ name: (e.target as HTMLInputElement).value })}
               />
-              <span style={{ color: '#8ea3b0', alignSelf: 'center' }}>{open.id}</span>
+              <span style={{ color: 'var(--ph-muted)', alignSelf: 'center' }}>{open.id}</span>
             </div>
 
             <textarea
@@ -297,7 +297,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                   }
                 />,
               )}
-              <span style={{ color: '#8ea3b0', fontSize: '11px' }}>Hope</span>
+              <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>Hope</span>
               <input
                 type="number"
                 min={0}
@@ -308,7 +308,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                   edit({ cost: { ...open.cost, stress: Math.max(0, Number((e.target as HTMLInputElement).value) || 0) } })
                 }
               />
-              <span style={{ color: '#8ea3b0', fontSize: '11px' }}>Stress</span>
+              <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>Stress</span>
               <input
                 type="number"
                 min={0}
@@ -320,7 +320,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 }
               />
               {/* The GM's pool: a stat block spends it, a card never can. */}
-              <span style={{ color: '#8ea3b0', fontSize: '11px' }}>Fear</span>
+              <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>Fear</span>
               {label(
                 'aimed at',
                 <select
@@ -361,7 +361,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 worth aiming at, asked of each of them in turn. */}
             {open.target.kind === 'none' || open.target.kind === 'self' ? null : (
               <div style={{ display: 'flex', gap: '3px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                <span style={{ color: '#8ea3b0', fontSize: '11px', paddingTop: '3px' }}>worth aiming at if</span>
+                <span style={{ color: 'var(--ph-muted)', fontSize: '11px', paddingTop: '3px' }}>worth aiming at if</span>
                 {open.target.when === undefined ? (
                   <button
                     style={{ ...field, fontSize: '11px', cursor: 'pointer' }}
@@ -395,7 +395,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
             )}
 
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--ph-muted)' }}>
                 <input
                   type="checkbox"
                   data-testid="ability-action"
@@ -404,7 +404,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 />
                 using it is their action
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--ph-muted)' }}>
                 <input
                   type="checkbox"
                   data-testid="ability-in-combat"
@@ -421,7 +421,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
               {(['physical', 'magic'] as const).map((type) => (
                 <label
                   key={type}
-                  style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--ph-muted)' }}
                 >
                   <input
                     type="checkbox"
@@ -482,7 +482,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                     </select>,
                   )}
               {/* The swing a stat block prints, which no card has. */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--ph-muted)' }}>
                 <input
                   type="checkbox"
                   data-testid="ability-direct-attack"
@@ -495,7 +495,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 />
                 its attacks are direct
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#8ea3b0' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--ph-muted)' }}>
                 <input
                   type="checkbox"
                   data-testid="ability-tokens"
@@ -546,7 +546,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
               ) : null}
             </div>
 
-            <div style={{ color: '#c8b88a', fontSize: '11px' }}>What it does</div>
+            <div style={{ color: 'var(--ph-label)', fontSize: '11px' }}>What it does</div>
             <EffectList
               testId="ability-effects"
               effects={open.effects}
@@ -560,7 +560,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
               adversaryIds={props.adversaryIds}
             />
             {open.effects.length === 0 ? (
-              <div style={{ color: '#8ea3b0', fontSize: '11px' }}>
+              <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>
                 No script: the card is shown as text and the table decides what it does.
               </div>
             ) : null}

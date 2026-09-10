@@ -1,0 +1,28 @@
+/*
+ * The editor's look: purple, as the user asked.
+ *
+ * Tokens live on :root, so every editor panel resolves them wherever it is
+ * mounted. They style nothing by themselves, so the play screen is untouched.
+ * Rules that do style something sit under .ph-editor (added with the shell).
+ */
+:root {
+  --ph-bar: #120f19;
+  --ph-panel: rgba(23, 19, 33, 0.96);
+  --ph-surface: #151020;
+  --ph-raised: #181322;
+  --ph-field: #130f1b;
+  --ph-backdrop: rgba(11, 9, 16, 0.97);
+  --ph-line: #30293f;
+  --ph-line-soft: #261f33;
+  --ph-text: #ece8f4;
+  --ph-muted: #a59cba;
+  --ph-faint: #6f6684;
+  --ph-label: #cdb9f2;
+  --ph-accent: #b58cff;
+  --ph-accent-bg: rgba(181, 140, 255, 0.17);
+  --ph-accent-line: rgba(181, 140, 255, 0.5);
+  --ph-on-accent: #1a0f2e;
+  --ph-warm: #f6c453;
+  --ph-good: #9ae08a;
+  --ph-bad: #ff8f7a;
+}

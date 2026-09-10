@@ -199,16 +199,16 @@ const field: Record<string, string | number> = {
   flex: 1,
   minWidth: 0,
   padding: '3px 5px',
-  background: '#1b1f28',
+  background: 'var(--ph-field)',
   color: 'inherit',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   font: 'inherit',
 };
 
 const small: Record<string, string | number> = {
   padding: '2px 6px',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   background: 'transparent',
   color: 'inherit',
@@ -399,7 +399,7 @@ export function EffectList(props: EffectListProps): preact.JSX.Element {
     <div data-testid={props.testId}>
       {effects.map((effect, i) => (
         <div key={i} style={row} data-effect={i}>
-          <span style={{ color: '#8ea3b0', width: '70px', flexShrink: 0, fontSize: '11px' }}>
+          <span style={{ color: 'var(--ph-muted)', width: '70px', flexShrink: 0, fontSize: '11px' }}>
             {effect.kind in LABELS ? LABELS[effect.kind as Addable] : effect.kind}
           </span>
           {renderBody(effect, (next) => replace(i, next), props)}
@@ -509,7 +509,7 @@ function renderBody(
         {read === null || !('trait' in read) ? null : (
           <>
             {pick(read.trait, [...TRAITS, 'spellcast'], (trait) => set({ ...read, trait: trait as typeof read.trait }))}
-            <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="How many times over">
+            <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }} title="How many times over">
               &times;
             </span>
             {count(read.times ?? 1, (times) => set({ ...read, times: times === 1 ? undefined : times }))}
@@ -530,7 +530,7 @@ function renderBody(
   };
 
   const flag = (label: string, hint: string, on: boolean, set: (v: boolean) => Effect): preact.JSX.Element => (
-    <label style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }} title={hint}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--ph-muted)' }} title={hint}>
       <input type="checkbox" checked={on} onChange={(e) => onChange(set((e.target as HTMLInputElement).checked))} />
       {label}
     </label>
@@ -588,7 +588,7 @@ function renderBody(
           {rolled
             ? text(effect.dice ?? '', (dice) => ({ ...effect, dice }), '1d4')
             : amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }))}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--ph-muted)' }}>
             <input
               type="checkbox"
               data-role="heal-spread"
@@ -769,7 +769,7 @@ function renderBody(
           </select>
           {effect.to === 'point' ? null : who(effect.of, 'the chosen target', (of) => ({ ...effect, of }))}
           {effect.to === 'point' ? (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--ph-muted)' }}>
               <input
                 type="checkbox"
                 data-role="move-teleport"
@@ -780,7 +780,7 @@ function renderBody(
               in one step
             </label>
           ) : null}
-          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="Who moves. The one acting when left out.">
+          <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }} title="Who moves. The one acting when left out.">
             moving
           </span>
           {who(effect.who, 'the one acting', (target) => ({ ...effect, who: target }))}
@@ -892,7 +892,7 @@ function renderBody(
       );
     case 'attack':
       return (
-        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="attack">
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid var(--ph-line)', paddingLeft: '6px' }} data-testid="attack">
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
             <select
               style={{ ...field, flex: 'none', width: '96px' }}
@@ -973,15 +973,15 @@ function renderBody(
               joinedBy: on ? { kind: 'adversaries' as const, range: 'close' as const, around: 'target' as const, sameKind: true } : undefined,
             }))}
           </div>
-          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>on a hit</div>
+          <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>on a hit</div>
           <EffectList {...props} testId={undefined} effects={effect.onHit ?? []} onChange={(onHit) => onChange({ ...effect, onHit: onHit.length === 0 ? undefined : onHit })} />
-          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>on a miss</div>
+          <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>on a miss</div>
           <EffectList {...props} testId={undefined} effects={effect.onMiss ?? []} onChange={(onMiss) => onChange({ ...effect, onMiss: onMiss.length === 0 ? undefined : onMiss })} />
         </div>
       );
     case 'reactionRoll':
       return (
-        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="reaction-roll">
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid var(--ph-line)', paddingLeft: '6px' }} data-testid="reaction-roll">
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
             <select
               style={{ ...field, flex: 'none', width: '86px' }}
@@ -1022,11 +1022,11 @@ function renderBody(
             />
           </div>
           <div data-outcome="onFail">
-            <div style={{ color: '#8ea3b0', fontSize: '11px' }}>those who fail</div>
+            <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>those who fail</div>
             <EffectList {...props} testId={undefined} effects={effect.onFail ?? []} onChange={(onFail) => onChange({ ...effect, onFail: onFail.length === 0 ? undefined : onFail })} />
           </div>
           <div data-outcome="onSuccess">
-            <div style={{ color: '#8ea3b0', fontSize: '11px' }}>those who succeed</div>
+            <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>those who succeed</div>
             <EffectList {...props} testId={undefined} effects={effect.onSuccess ?? []} onChange={(onSuccess) => onChange({ ...effect, onSuccess: onSuccess.length === 0 ? undefined : onSuccess })} />
           </div>
         </div>
@@ -1078,16 +1078,16 @@ function renderBody(
       );
     case 'endSpotlight':
       return (
-        <span style={{ ...field, color: '#8ea3b0' }}>
+        <span style={{ ...field, color: 'var(--ph-muted)' }}>
           the creature acts no further this turn
         </span>
       );
     case 'howMany':
       return (
         <>
-          <span style={{ color: '#8ea3b0', fontSize: '11px' }}>up to</span>
+          <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>up to</span>
           {amount(effect.most, (most) => ({ ...effect, most }))}
-          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="Zero lets them decline">
+          <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }} title="Zero lets them decline">
             from
           </span>
           {count(effect.least ?? 1, (least) => ({ ...effect, least }), 0)}
@@ -1108,11 +1108,11 @@ function renderBody(
             }}
           />
           {amount(effect.amount ?? 0, (value) => ({ ...effect, amount: value === 0 ? undefined : value }))}
-          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="How many times to roll those dice">
+          <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }} title="How many times to roll those dice">
             rolled
           </span>
           {amount(effect.times ?? 1, (times) => ({ ...effect, times: times === 1 ? undefined : times }))}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--ph-muted)' }}>
             <input
               type="checkbox"
               data-role="boost-double"
@@ -1141,7 +1141,7 @@ function renderBody(
     case 'stepSeverity':
       return (
         <>
-          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="Bands down, after whatever the armor did">
+          <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }} title="Bands down, after whatever the armor did">
             down
           </span>
           {count(effect.steps ?? 1, (steps) => ({ ...effect, steps }))}
@@ -1184,7 +1184,7 @@ function renderBody(
     case 'forceHitPoints':
       return (
         <>
-          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="Marked outright, instead of rolling for damage">
+          <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }} title="Marked outright, instead of rolling for damage">
             marks
           </span>
           {amount(effect.amount, (value) => ({ ...effect, amount: value }))}
@@ -1193,7 +1193,7 @@ function renderBody(
     case 'forceSeverity':
       return (
         <>
-          <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="The band it lands in, instead of rolling for damage">
+          <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }} title="The band it lands in, instead of rolling for damage">
             lands as
           </span>
           {pick(effect.severity, ['minor', 'major', 'severe', 'massive'], (severity) => ({
@@ -1208,7 +1208,7 @@ function renderBody(
       );
     case 'countdown':
       return (
-        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="countdown">
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid var(--ph-line)', paddingLeft: '6px' }} data-testid="countdown">
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
             {text(effect.name, (name) => ({ ...effect, name }), 'what it is called')}
             {text(effect.countdown, (countdown) => ({ ...effect, countdown }), 'id')}
@@ -1253,7 +1253,7 @@ function renderBody(
             }))}
           </div>
           <div data-outcome="countdownEffects">
-            <div style={{ color: '#8ea3b0', fontSize: '11px' }}>when it triggers</div>
+            <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>when it triggers</div>
             <EffectList {...props} testId={undefined} effects={effect.effects} onChange={(effects) => onChange({ ...effect, effects })} />
           </div>
         </div>
@@ -1289,7 +1289,7 @@ function renderBody(
       );
     }
     case 'levelUp':
-      return <span style={{ ...field, color: '#8ea3b0' }}>one level, whole party</span>;
+      return <span style={{ ...field, color: 'var(--ph-muted)' }}>one level, whole party</span>;
     case 'endEncounter':
       return pick(effect.encounter, props.encounterIds, (encounter) => ({ ...effect, encounter }));
     case 'setVar':
@@ -1348,7 +1348,7 @@ function renderBody(
       );
     case 'check':
       return (
-        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="check-effect">
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid var(--ph-line)', paddingLeft: '6px' }} data-testid="check-effect">
           <CheckEditor
             check={effect.check}
             onChange={(check) => onChange({ ...effect, check })}
@@ -1364,11 +1364,11 @@ function renderBody(
       );
     case 'choice':
       return (
-        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="choice">
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid var(--ph-line)', paddingLeft: '6px' }} data-testid="choice">
           {text(effect.title ?? '', (title) => ({ ...effect, ...(title === '' ? { title: undefined } : { title }) }), 'title')}
           {text(effect.body ?? '', (body) => ({ ...effect, ...(body === '' ? { body: undefined } : { body }) }), 'what the player is told')}
           {effect.options.map((option, i) => (
-            <div key={i} style={{ marginTop: '4px', paddingLeft: '4px', borderLeft: '1px solid #2a303a' }} data-option={i}>
+            <div key={i} style={{ marginTop: '4px', paddingLeft: '4px', borderLeft: '1px solid var(--ph-line-soft)' }} data-option={i}>
               <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                 <input
                   style={field}
@@ -1404,7 +1404,7 @@ function renderBody(
                 </button>
               ) : (
                 <div style={{ display: 'flex', gap: '3px', alignItems: 'flex-start', marginTop: '2px' }}>
-                  <span style={{ color: '#8ea3b0', fontSize: '11px', paddingTop: '3px' }}>shown if</span>
+                  <span style={{ color: 'var(--ph-muted)', fontSize: '11px', paddingTop: '3px' }}>shown if</span>
                   <ConditionEditor
                     condition={option.available}
                     quests={props.quests}
@@ -1452,7 +1452,7 @@ function renderBody(
       // A handful of dice under a gate of their own: what to roll, how many,
       // what counts as coming up, and what each answer runs.
       return (
-        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="dice-check">
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid var(--ph-line)', paddingLeft: '6px' }} data-testid="dice-check">
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
             <input
               style={{ ...field, flex: 'none', width: '72px' }}
@@ -1462,19 +1462,19 @@ function renderBody(
               value={effect.dice}
               onInput={(e) => onChange({ ...effect, dice: (e.target as HTMLInputElement).value })}
             />
-            <span style={{ color: '#8ea3b0', fontSize: '11px' }} title="How many of them">
+            <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }} title="How many of them">
               &times;
             </span>
             {amount(effect.times ?? 1, (times) => ({ ...effect, times: times === 1 ? undefined : times }))}
-            <span style={{ color: '#8ea3b0', fontSize: '11px' }}>needs</span>
+            <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>needs</span>
             {count(effect.needed ?? 1, (needed) => ({ ...effect, needed: needed === 1 ? undefined : needed }))}
-            <span style={{ color: '#8ea3b0', fontSize: '11px' }}>showing</span>
+            <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>showing</span>
             {count(effect.atLeast, (atLeast) => ({ ...effect, atLeast }))}
-            <span style={{ color: '#8ea3b0', fontSize: '11px' }}>or better</span>
+            <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>or better</span>
           </div>
-          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>then</div>
+          <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>then</div>
           <EffectList {...props} testId={undefined} effects={effect.then} onChange={(then) => onChange({ ...effect, then })} />
-          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>otherwise</div>
+          <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>otherwise</div>
           <EffectList
             {...props}
             testId={undefined}
@@ -1486,16 +1486,16 @@ function renderBody(
     case 'branch':
       // A whole little script under a gate: the condition, then the two lists.
       return (
-        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid #39404d', paddingLeft: '6px' }} data-testid="branch">
+        <div style={{ flex: 1, minWidth: 0, borderLeft: '2px solid var(--ph-line)', paddingLeft: '6px' }} data-testid="branch">
           <ConditionEditor
             condition={effect.when}
             quests={props.quests}
             encounterIds={props.encounterIds}
             onChange={(when) => onChange({ ...effect, when })}
           />
-          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>then</div>
+          <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>then</div>
           <EffectList {...props} testId={undefined} effects={effect.then} onChange={(then) => onChange({ ...effect, then })} />
-          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>otherwise</div>
+          <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>otherwise</div>
           <EffectList
             {...props}
             testId={undefined}
@@ -1508,12 +1508,12 @@ function renderBody(
     case 'remove':
     case 'markUsed':
     case 'none':
-      return <span style={{ ...field, color: '#8ea3b0' }}>this object</span>;
+      return <span style={{ ...field, color: 'var(--ph-muted)' }}>this object</span>;
     default:
       // Recursive and rarer effects: shown so nothing is hidden, and removable,
       // but not editable here.
       return (
-        <span style={{ ...field, color: '#c8b88a' }} title="Edit this one in the project file">
+        <span style={{ ...field, color: 'var(--ph-label)' }} title="Edit this one in the project file">
           {describe(effect)}
         </span>
       );

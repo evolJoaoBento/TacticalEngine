@@ -74,9 +74,9 @@ const KINDS: readonly { kind: Condition['kind']; label: string }[] = [
 const field: Record<string, string | number> = {
   minWidth: 0,
   padding: '2px 4px',
-  background: '#1b1f28',
+  background: 'var(--ph-field)',
   color: 'inherit',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   font: 'inherit',
   fontSize: '11px',
@@ -84,7 +84,7 @@ const field: Record<string, string | number> = {
 
 const small: Record<string, string | number> = {
   padding: '1px 5px',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   background: 'transparent',
   color: 'inherit',
@@ -275,7 +275,7 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
         return (
           <>
             {text(condition.dice, (dice) => onChange({ ...condition, dice }))}
-            <span style={{ fontSize: '11px', color: '#8ea3b0' }}>at least</span>
+            <span style={{ fontSize: '11px', color: 'var(--ph-muted)' }}>at least</span>
             {number(condition.atLeast, (atLeast) => onChange({ ...condition, atLeast }))}
           </>
         );

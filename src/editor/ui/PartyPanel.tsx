@@ -40,9 +40,9 @@ const TRAITS: readonly Trait[] = ['agility', 'strength', 'finesse', 'instinct', 
 
 const field: Record<string, string | number> = {
   padding: '3px 5px',
-  background: '#1b1f28',
+  background: 'var(--ph-field)',
   color: 'inherit',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   font: 'inherit',
   boxSizing: 'border-box',
@@ -50,9 +50,9 @@ const field: Record<string, string | number> = {
 
 const button = (active: boolean): Record<string, string | number> => ({
   padding: '3px 8px',
-  border: `1px solid ${active ? '#6f8cff' : '#39404d'}`,
+  border: `1px solid ${active ? 'var(--ph-accent)' : 'var(--ph-line)'}`,
   borderRadius: '3px',
-  background: active ? '#28314a' : 'transparent',
+  background: active ? 'var(--ph-accent-bg)' : 'transparent',
   color: 'inherit',
   font: 'inherit',
   fontSize: '11px',
@@ -60,7 +60,7 @@ const button = (active: boolean): Record<string, string | number> => ({
 });
 
 const labelled = (text: string, control: preact.JSX.Element): preact.JSX.Element => (
-  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#8ea3b0' }}>
+  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--ph-muted)' }}>
     {text}
     {control}
   </label>
@@ -134,14 +134,14 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
         // Over the map, which is a canvas that would otherwise swallow clicks.
         pointerEvents: 'auto',
         zIndex: 2,
-        background: '#12151c',
-        border: '1px solid #39404d',
+        background: 'var(--ph-surface)',
+        border: '1px solid var(--ph-line)',
         borderRadius: '4px',
         padding: '10px',
         display: 'flex',
         gap: '10px',
         overflow: 'hidden',
-        color: '#e8e6df',
+        color: 'var(--ph-text)',
         font: '12px/1.5 system-ui, sans-serif',
       }}
     >
@@ -186,7 +186,7 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
         >
           + Character
         </button>
-        <div style={{ marginTop: '8px', color: '#8ea3b0', fontSize: '11px' }}>
+        <div style={{ marginTop: '8px', color: 'var(--ph-muted)', fontSize: '11px' }}>
           A party edited here reaches the table when you press Play.
         </div>
         <div style={{ marginTop: 'auto' }}>
@@ -198,7 +198,7 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, overflow: 'auto' }}>
         {open === null ? (
-          <div style={{ color: '#8ea3b0' }}>
+          <div style={{ color: 'var(--ph-muted)' }}>
             Nothing selected. A sheet names a class, an ancestry, what they carry and what they know; every
             number comes off those.
           </div>
@@ -212,7 +212,7 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
                 data-testid="character-name"
                 onInput={(e) => edit({ name: (e.target as HTMLInputElement).value })}
               />
-              <span style={{ color: '#8ea3b0' }}>
+              <span style={{ color: 'var(--ph-muted)' }}>
                 {open.id} · level {open.level}
               </span>
             </div>
@@ -247,7 +247,7 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
               )}
             </div>
 
-            <div style={{ color: '#c8b88a', fontSize: '11px' }}>Traits</div>
+            <div style={{ color: 'var(--ph-label)', fontSize: '11px' }}>Traits</div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }} data-testid="character-traits">
               {TRAITS.map((trait) =>
                 labelled(
@@ -265,7 +265,7 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
               )}
             </div>
 
-            <div style={{ color: '#c8b88a', fontSize: '11px' }}>Carried</div>
+            <div style={{ color: 'var(--ph-label)', fontSize: '11px' }}>Carried</div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {labelled(
                 'armor',
@@ -281,12 +281,12 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
               )}
             </div>
 
-            <div style={{ color: '#c8b88a', fontSize: '11px' }}>
+            <div style={{ color: 'var(--ph-label)', fontSize: '11px' }}>
               Domain cards{domains.length === 0 ? '' : ` (${domains.join(', ')})`}
             </div>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }} data-testid="character-cards">
               {cards.length === 0 ? (
-                <span style={{ color: '#8ea3b0', fontSize: '11px' }}>Choose a class first.</span>
+                <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>Choose a class first.</span>
               ) : null}
               {cards.map((entry) => {
                 const has = held.includes(entry.id);
@@ -331,7 +331,7 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
               })}
             </div>
 
-            <div style={{ color: '#c8b88a', fontSize: '11px' }}>Experiences</div>
+            <div style={{ color: 'var(--ph-label)', fontSize: '11px' }}>Experiences</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }} data-testid="character-experiences">
               {(open.experiences ?? []).map((experience, i) => (
                 <div key={i} style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -379,8 +379,8 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
 
             {(open.levels ?? []).length > 0 ? (
               <>
-                <div style={{ color: '#c8b88a', fontSize: '11px' }}>Levels taken</div>
-                <div style={{ color: '#8ea3b0', fontSize: '11px' }} data-testid="character-levels">
+                <div style={{ color: 'var(--ph-label)', fontSize: '11px' }}>Levels taken</div>
+                <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }} data-testid="character-levels">
                   {(open.levels ?? []).map((record) => (
                     <div key={record.level}>
                       {record.level}: {record.advancements.map((a) => a.kind).join(', ')} · {record.domainCard}
@@ -391,8 +391,8 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
               </>
             ) : null}
 
-            <div style={{ color: '#c8b88a', fontSize: '11px' }}>What that comes to</div>
-            <div style={{ color: '#8ea3b0', fontSize: '11px' }} data-testid="character-derived">
+            <div style={{ color: 'var(--ph-label)', fontSize: '11px' }}>What that comes to</div>
+            <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }} data-testid="character-derived">
               {derived === null ? null : (
                 <>
                   Evasion {derived.evasion} · Armor Score {derived.armorScore} · {derived.hitPoints} Hit Points ·{' '}
@@ -403,7 +403,7 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
               )}
             </div>
             {issues.length > 0 ? (
-              <div style={{ color: '#e06c75', fontSize: '11px' }} data-testid="character-issues">
+              <div style={{ color: 'var(--ph-bad)', fontSize: '11px' }} data-testid="character-issues">
                 {issues.join('; ')}
               </div>
             ) : null}

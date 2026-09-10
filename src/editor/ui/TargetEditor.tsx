@@ -42,9 +42,9 @@ const KINDS = [
 const field: Record<string, string | number> = {
   minWidth: 0,
   padding: '2px 4px',
-  background: '#1b1f28',
+  background: 'var(--ph-field)',
   color: 'inherit',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   font: 'inherit',
   fontSize: '11px',
@@ -145,7 +145,7 @@ export function TargetEditor(props: TargetEditorProps): preact.JSX.Element {
             <option value="target">all other than the target</option>
             <option value="actor">all other than the one acting</option>
           </select>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--ph-muted)' }}>
             <input
               type="checkbox"
               data-role="target-same-kind"
@@ -214,7 +214,7 @@ export function TargetEditor(props: TargetEditorProps): preact.JSX.Element {
       ) : null}
 
       {selector?.kind === 'allies' ? (
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#8ea3b0' }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--ph-muted)' }}>
           <input
             type="checkbox"
             data-role="target-self"

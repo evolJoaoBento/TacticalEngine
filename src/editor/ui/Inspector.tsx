@@ -32,12 +32,12 @@ const heading: Record<string, string | number> = {
   font: '600 11px/1 system-ui, sans-serif',
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
-  color: '#8ea3b0',
+  color: 'var(--ph-muted)',
 };
 
 const label: Record<string, string | number> = {
   display: 'block',
-  color: '#8ea3b0',
+  color: 'var(--ph-muted)',
   fontSize: '11px',
   marginBottom: '2px',
 };
@@ -47,16 +47,16 @@ const field: Record<string, string | number> = {
   boxSizing: 'border-box',
   padding: '4px 6px',
   marginBottom: '6px',
-  background: '#1b1f28',
+  background: 'var(--ph-field)',
   color: 'inherit',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   font: 'inherit',
 };
 
 const button: Record<string, string | number> = {
   padding: '4px 8px',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   background: 'transparent',
   color: 'inherit',
@@ -76,10 +76,10 @@ export function Inspector(props: InspectorProps): preact.JSX.Element {
   };
 
   return (
-    <div style={{ borderTop: '1px solid #39404d', marginTop: '10px', paddingTop: '6px' }}>
+    <div style={{ borderTop: '1px solid var(--ph-line)', marginTop: '10px', paddingTop: '6px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
         <strong style={{ fontSize: '13px' }}>{object.name || object.id}</strong>
-        <span style={{ color: '#8ea3b0', fontSize: '11px' }}>
+        <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>
           {object.kind} · {object.position.x},{object.position.y}
         </span>
       </div>
@@ -153,7 +153,7 @@ export function Inspector(props: InspectorProps): preact.JSX.Element {
       />
 
       <div style={heading}>What it does</div>
-      <div style={{ color: '#8ea3b0', fontSize: '11px', marginBottom: '4px' }}>
+      <div style={{ color: 'var(--ph-muted)', fontSize: '11px', marginBottom: '4px' }}>
         Runs with no roll, before any check below.
       </div>
       <EffectList
@@ -187,7 +187,7 @@ export function Inspector(props: InspectorProps): preact.JSX.Element {
       )}
 
       <div style={heading}>Danger</div>
-      <button style={{ ...button, color: '#ff8f7a' }} onClick={props.onDelete}>
+      <button style={{ ...button, color: 'var(--ph-bad)' }} onClick={props.onDelete}>
         Delete this object
       </button>
     </div>

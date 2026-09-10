@@ -22,7 +22,7 @@ const field: Record<string, string | number> = {
   boxSizing: 'border-box',
   padding: '4px 6px',
   marginBottom: '4px',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '4px',
   background: 'rgba(0,0,0,0.3)',
   color: 'inherit',
@@ -31,7 +31,7 @@ const field: Record<string, string | number> = {
 
 const small: Record<string, string | number> = {
   padding: '2px 8px',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '4px',
   background: 'transparent',
   color: 'inherit',
@@ -55,7 +55,7 @@ export function QuestEditor(props: QuestEditorProps): preact.JSX.Element {
   };
 
   return (
-    <div style={{ marginTop: '6px', padding: '6px', borderLeft: '2px solid #39404d' }} data-testid="quest-editor">
+    <div style={{ marginTop: '6px', padding: '6px', borderLeft: '2px solid var(--ph-line)' }} data-testid="quest-editor">
       <input
         style={field}
         value={quest.name}
@@ -75,7 +75,7 @@ export function QuestEditor(props: QuestEditorProps): preact.JSX.Element {
       {quest.objectives.map((objective, index) => (
         <div key={objective.id} style={{ marginBottom: '6px' }} data-objective={objective.id}>
         <div style={{ display: 'flex', gap: '4px', marginBottom: '3px' }}>
-          <span style={{ color: '#8ea3b0', alignSelf: 'center', fontSize: '11px' }} title="Objective id">
+          <span style={{ color: 'var(--ph-muted)', alignSelf: 'center', fontSize: '11px' }} title="Objective id">
             {objective.id}
           </span>
           <input
@@ -86,7 +86,7 @@ export function QuestEditor(props: QuestEditorProps): preact.JSX.Element {
             }
             onBlur={() => session.endGroup()}
           />
-          <label style={{ fontSize: '11px', color: '#8ea3b0', whiteSpace: 'nowrap', alignSelf: 'center' }} title="Kept out of the journal until revealed or done">
+          <label style={{ fontSize: '11px', color: 'var(--ph-muted)', whiteSpace: 'nowrap', alignSelf: 'center' }} title="Kept out of the journal until revealed or done">
             <input
               type="checkbox"
               checked={objective.hidden}

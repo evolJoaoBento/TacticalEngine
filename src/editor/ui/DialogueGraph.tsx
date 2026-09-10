@@ -52,8 +52,8 @@ const surface: Record<string, string | number> = {
   position: 'absolute',
   inset: 0,
   overflow: 'hidden',
-  background: 'rgba(10,12,16,0.97)',
-  color: '#e8e6df',
+  background: 'var(--ph-backdrop)',
+  color: 'var(--ph-text)',
   font: '12px/1.4 system-ui, sans-serif',
   pointerEvents: 'auto',
 };
@@ -67,8 +67,8 @@ const bar: Record<string, string | number> = {
   alignItems: 'center',
   gap: '8px',
   padding: '8px 12px',
-  background: 'rgba(16,18,24,0.95)',
-  borderBottom: '1px solid #39404d',
+  background: 'var(--ph-panel)',
+  borderBottom: '1px solid var(--ph-line)',
   zIndex: 2,
 };
 
@@ -77,8 +77,8 @@ const card: Record<string, string | number> = {
   width: `${NODE_WIDTH}px`,
   boxSizing: 'border-box',
   padding: '8px',
-  background: '#1b1f28',
-  border: '1px solid #39404d',
+  background: 'var(--ph-field)',
+  border: '1px solid var(--ph-line)',
   borderRadius: '6px',
 };
 
@@ -87,16 +87,16 @@ const field: Record<string, string | number> = {
   boxSizing: 'border-box',
   padding: '3px 5px',
   marginBottom: '4px',
-  background: '#12161d',
+  background: 'var(--ph-field)',
   color: 'inherit',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   font: 'inherit',
 };
 
 const small: Record<string, string | number> = {
   padding: '2px 6px',
-  border: '1px solid #39404d',
+  border: '1px solid var(--ph-line)',
   borderRadius: '3px',
   background: 'transparent',
   color: 'inherit',
@@ -117,10 +117,10 @@ interface Link {
 }
 
 const LINK_COLOR: Readonly<Record<Link['kind'], string>> = {
-  goto: '#5d6b7a',
-  reply: '#69d2ff',
-  success: '#9ae08a',
-  failure: '#ff8f7a',
+  goto: 'var(--ph-faint)',
+  reply: 'var(--ph-accent)',
+  success: 'var(--ph-good)',
+  failure: 'var(--ph-bad)',
 };
 
 function linksOf(dialogue: Dialogue): Link[] {
@@ -220,14 +220,14 @@ export function DialogueGraph(props: DialogueGraphProps): preact.JSX.Element {
     <div style={surface} data-testid="dialogue-graph">
       <div style={bar}>
         <strong>{dialogue.id}</strong>
-        <span style={{ color: '#8ea3b0' }}>
+        <span style={{ color: 'var(--ph-muted)' }}>
           {dialogue.nodes.length} nodes · opens on {dialogue.start}
         </span>
         <button style={small} onClick={newNode}>
           + Node
         </button>
         <span style={{ flex: 1 }} />
-        <span style={{ color: '#8ea3b0', fontSize: '11px' }}>Drag the background to pan</span>
+        <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>Drag the background to pan</span>
         <button style={small} onClick={props.onClose}>
           Close
         </button>
@@ -256,12 +256,12 @@ export function DialogueGraph(props: DialogueGraphProps): preact.JSX.Element {
                 <path
                   d={`M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`}
                   fill="none"
-                  stroke={link.dangling ? '#ff8f7a' : LINK_COLOR[link.kind]}
+                  style={{ stroke: link.dangling ? 'var(--ph-bad)' : LINK_COLOR[link.kind] }}
                   strokeWidth={link.dangling ? 2 : 1.5}
                   strokeDasharray={link.dangling ? '4 3' : undefined}
                 />
                 {link.dangling ? (
-                  <text x={x2 + 4} y={y2 + 4} fill="#ff8f7a" style={{ font: '10px system-ui' }}>
+                  <text x={x2 + 4} y={y2 + 4} style={{ font: '10px system-ui', fill: 'var(--ph-bad)' }}>
                     {link.to}?
                   </text>
                 ) : null}
@@ -322,7 +322,7 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
         ...card,
         left: `${props.left}px`,
         top: `${props.top}px`,
-        borderColor: props.open ? '#69d2ff' : isStart ? '#f6c453' : '#39404d',
+        borderColor: props.open ? 'var(--ph-accent)' : isStart ? 'var(--ph-warm)' : 'var(--ph-line)',
         cursor: 'grab',
       }}
       data-node={node.id}
@@ -331,7 +331,7 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
         <strong style={{ flex: 1 }}>
           {node.id}
-          {isStart ? <span style={{ color: '#f6c453' }}> ▸</span> : null}
+          {isStart ? <span style={{ color: 'var(--ph-warm)' }}> ▸</span> : null}
         </strong>
         <button
           style={small}
@@ -344,9 +344,9 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
       </div>
 
       {node.lines.map((line, i) => (
-        <div key={i} style={{ color: '#d8d4c8', marginBottom: '2px' }}>
+        <div key={i} style={{ color: 'var(--ph-text)', marginBottom: '2px' }}>
           {line.speaker !== undefined && line.speaker !== '' ? (
-            <span style={{ color: '#c8b88a' }}>{line.speaker}: </span>
+            <span style={{ color: 'var(--ph-label)' }}>{line.speaker}: </span>
           ) : null}
           {props.open ? (
             <input
@@ -362,7 +362,7 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
               }}
             />
           ) : (
-            <span>{line.text || <em style={{ color: '#5d6b7a' }}>empty</em>}</span>
+            <span>{line.text || <em style={{ color: 'var(--ph-faint)' }}>empty</em>}</span>
           )}
         </div>
       ))}
@@ -371,10 +371,10 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
         <div
           key={i}
           style={{
-            borderTop: '1px solid #2a303a',
+            borderTop: '1px solid var(--ph-line-soft)',
             paddingTop: '3px',
             marginTop: '3px',
-            color: '#69d2ff',
+            color: 'var(--ph-accent)',
           }}
         >
           {props.open ? (
@@ -442,7 +442,7 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
               {(['available', 'enabled'] as const).map((gate) =>
                 choice[gate] !== undefined ? (
                   <div key={gate} style={{ display: 'flex', gap: '3px', alignItems: 'flex-start', marginTop: '2px' }} data-gate-editor={gate} onPointerDown={holdPointer}>
-                    <span style={{ color: '#8ea3b0', fontSize: '11px', whiteSpace: 'nowrap', paddingTop: '3px' }}>
+                    <span style={{ color: 'var(--ph-muted)', fontSize: '11px', whiteSpace: 'nowrap', paddingTop: '3px' }}>
                       {gate === 'available' ? 'shown if' : 'enabled if'}
                     </span>
                     <ConditionEditor
@@ -458,7 +458,7 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
                 ) : null,
               )}
               <label
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', margin: '3px 0', color: '#8ea3b0' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', margin: '3px 0', color: 'var(--ph-muted)' }}
                 onPointerDown={holdPointer}
               >
                 <input
@@ -538,9 +538,9 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
             </>
           ) : (
             <div>
-              {choice.text || <em style={{ color: '#5d6b7a' }}>empty reply</em>}
+              {choice.text || <em style={{ color: 'var(--ph-faint)' }}>empty reply</em>}
               {choice.check !== undefined ? (
-                <span style={{ color: '#c8b88a' }}>
+                <span style={{ color: 'var(--ph-label)' }}>
                   {' '}
                   ({choice.check.trait} {choice.check.difficulty})
                 </span>
@@ -576,7 +576,7 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
                 Open here
               </button>{' '}
               <button
-                style={{ ...small, color: '#ff8f7a' }}
+                style={{ ...small, color: 'var(--ph-bad)' }}
                 onClick={() => onRun(removeNode(dialogue.id, node.id))}
               >
                 Delete
@@ -584,7 +584,7 @@ function NodeCard(props: NodeCardProps): preact.JSX.Element {
             </>
           ) : null}
 
-          <div style={{ color: '#8ea3b0', fontSize: '11px', margin: '6px 0 2px' }}>
+          <div style={{ color: 'var(--ph-muted)', fontSize: '11px', margin: '6px 0 2px' }}>
             On entering this node
           </div>
           <EffectList
