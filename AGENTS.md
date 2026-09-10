@@ -3,8 +3,9 @@
 A browser CRPG engine and editor running the **Daggerheart SRD 2.0** rules. TypeScript (strict),
 Vite, three.js, Preact + signals, zod, Vitest, Playwright.
 
-Claude Code reads `CLAUDE.md`, Codex reads this file. They say the same thing; if you change one,
-change the other.
+Claude Code reads `CLAUDE.md`, Codex reads this file. Both carry the same rules; the licensing
+case below lives here in full, and `CLAUDE.md` points at it rather than repeating it. Keep the rules
+in step when you change either.
 
 ---
 
