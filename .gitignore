@@ -6,3 +6,12 @@ playwright-report/
 *.log
 .DS_Store
 Thumbs.db
+
+# Card illustrations fetched by tools/download-card-art.mjs from a third-party
+# mirror. They are Critical Role artwork, NOT SRD content: the DPCGL licenses
+# the System Reference Document's text and mechanics and does not cover
+# illustrations, so nothing here licenses these files for redistribution.
+# Fetch them locally, never commit them - a blob committed once stays in
+# history forever and only a history rewrite removes it.
+# See AGENTS.md, and tests/unit/licensing-boundary.test.ts which guards this.
+public/cards/
