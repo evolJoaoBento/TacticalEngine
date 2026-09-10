@@ -10,7 +10,7 @@ export default defineConfig({
       '@engine': dir('./src/engine'),
       '@editor': dir('./src/editor'),
       '@game': dir('./src/game'),
-      '@content': dir('./content'),
+      '@content': dir('./src/engine/content'),
     },
   },
   server: { port: 8420, host: '127.0.0.1' },

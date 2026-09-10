@@ -52,25 +52,13 @@ rather than silently walking as far as it can — the refusal becomes a prompt w
 answered through the same `pending` channel as a script's check. The adversary side reads the same
 function so the GM's turn stops inventing its own budget.
 
-### 2. The pending ambush does not survive a save
-
-`demo.ambush` (the encounter a walk woke, held until the tokens arrive) is not in `saveSchema`
-(`game/save.ts`). Pressing Save while the party walks into the vault restores them standing on the
-trigger with no fight and nothing to wake it.
-
-`saveBlockedBy` (`game/save.ts`) already refuses a save in a fight and in a conversation, and the
-autosave on travel and the Save buttons all route through it. It does not know about the ambush.
-
-*Done means:* either the field round-trips through `saveSchema`, or `saveBlockedBy` gains the third
-clause and the UI says why. The second is a two-line change and probably the right one.
-
-### 3. Materials and a file picker for imported models
+### 2. Materials and a file picker for imported models
 
 `CRPG-GAPS.md` §9. Textures come with a glTF file but nothing authors materials, and there is no file
 picker — a model is a URL the page can reach, which means an author cannot add a model from disk in
 the editor at all.
 
-### 4. Content depth: the unscripted remainder
+### 3. Content depth: the unscripted remainder
 
 47 of 189 domain cards are text only, and 292 of 417 adversary features are left to the GM to
 narrate. **The cards generator refuses to build when a text-only card carries no reason**, so
@@ -78,37 +66,30 @@ narrate. **The cards generator refuses to build when a text-only card carries no
 than enforcing them. Both are generated — **do not hand-count, and do not hand-edit either file.**
 Scripting a feature is a short, well-shaped slice; `DEVELOPING.md` §7(c) is the recipe.
 
-### 5. The stated efficiency goals are unmet
+### 4. The stated efficiency goals are unmet
 
 `CONTEXT.md` names instancing, batching, culling, LOD, typed arrays and measured budgets. Instancing
 and geometry sharing exist (`terrain-mesh.ts`, `procedural/build.ts` with `PrimitiveCache` and
 `MaterialLibrary`). **There is no frustum culling and no LOD, and no budget is measured.** Either
 build them or amend `CONTEXT.md`; leaving a stated goal unmet and unmarked is the defect.
 
-### 6. Zip project export
+### 5. Zip project export
 
 `fflate` is a dependency and is imported nowhere under `src/`. `CONTEXT.md`'s "zip import and export
 of projects with assets" is not implemented — export is `JSON.stringify` into a `Blob`, so a project
 with imported assets cannot be handed to anyone as one file.
 
-### 7. Cleanup: the dead `@content/*` alias
-
-`@content/*` resolves to `content/*` and **there is no `content/` directory at the repo root.**
-`CONTEXT.md` lists all four aliases without qualification. Content actually lives in
-`src/engine/content/` and in the project document. Delete the alias or point it somewhere real.
-
 ---
 
 ## 3. Known doc drift
 
-Fix these when you are next in the file; each is one line.
+The stale dialogue-authoring paragraph was corrected on 2026-09-10. `DEVELOPING.md` now
+labels its old line anchors as historical; use symbol names to find current implementations.
 
-- **`docs/CRPG-GAPS.md`, the tail section ("How to tell whether this is on track")** still says
-  *"today a conversation is a literal in `game/demo-dialogue.ts`"* and calls dialogue authoring the
-  remaining gap. Stale: `editor/ui/DialogueGraph.tsx` and `editor/dialogue-edits.test.ts` exist, and
-  §2 of the same file correctly says the Dialogue panel is done. The tail paragraph predates it.
-- **`docs/DEVELOPING.md`** pins its line counts and anchors to commit `058c3af`; HEAD is well past it.
-  The symbol names still resolve.
+Completed in the 2026-09-10 working tree: ambush checkpoints are refused with an explanatory
+message, and `@content/*` resolves to the real content directory in Vite and TypeScript.
+The card collection now has 189 local illustrations, domain frames, full-text inspection,
+search and domain filters, responsive layout, keyboard navigation and active/vault swaps.
 
 ---
 

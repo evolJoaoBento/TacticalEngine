@@ -8,11 +8,12 @@
  * which is what you want while a campaign is still being written and worth
  * knowing before someone reports it as a bug.
  *
- * Two moments refuse to save, both because the thing being asked for holds live
+ * Fights and paused scripts refuse to save because the thing being asked for holds live
  * objects with no serialisable form: a fight (`EncounterRunner` owns action
  * tokens, whose turn it is, and a reference to the scene it started in) and a
  * script waiting on an answer (a paused `ScriptRunner`, mid-conversation). A
- * save is a checkpoint between beats.
+ * save is a checkpoint between beats. An approaching ambush also refuses: its
+ * delayed encounter is not part of the save and would otherwise be lost.
  */
 
 import { z } from 'zod';
@@ -80,6 +81,7 @@ export type SaveGame = z.infer<typeof saveSchema>;
 /** Why a save was refused, or `null` when it can go ahead. */
 export function saveBlockedBy(demo: DemoScene): string | null {
   if (inCombat(demo)) return 'Not in the middle of a fight.';
+  if (demo.ambush !== null) return 'Not while the party is approaching an ambush.';
   if (demo.pending !== null) return 'Not in the middle of a conversation.';
   return null;
 }

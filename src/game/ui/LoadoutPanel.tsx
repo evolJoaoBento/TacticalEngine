@@ -1,124 +1,83 @@
-/**
- * The loadout and the vault, for one character.
- *
- * Five cards active, the rest waiting. Recalling a card from the vault costs
- * Stress equal to its Recall Cost unless the party is resting, and the button
- * says so; when the loadout is full the player picks which card makes room.
- */
-
-import { useState } from 'preact/hooks';
-import type { LoadoutView } from '../demo-abilities';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import type { LoadoutCard, LoadoutView } from '../demo-abilities';
+import { CardFace } from './CardFace';
+import './cards.css';
 
 export interface LoadoutPanelProps {
   name: string;
   view: LoadoutView;
-  /** Whether swapping is free right now. */
   resting: boolean;
-  /** Why the last swap was refused, if it was. */
   issue: string | null;
   onSwap: (cardIn: string, cardOut: string | undefined) => void;
   onClose: () => void;
 }
 
-const box: Record<string, string | number> = {
-  position: 'absolute',
-  left: '50%',
-  top: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '420px',
-  maxHeight: '80vh',
-  overflowY: 'auto',
-  background: 'rgba(16,18,24,0.97)',
-  border: '1px solid #69d2ff',
-  borderRadius: '8px',
-  padding: '14px 16px',
-  color: '#e8e6df',
-  font: '13px/1.5 system-ui, sans-serif',
-  pointerEvents: 'auto',
-  boxSizing: 'border-box',
-};
-
-const heading: Record<string, string | number> = {
-  color: '#8ea3b0',
-  margin: '8px 0 4px',
-  fontSize: '11px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-};
-
-function button(primary: boolean): Record<string, string | number> {
-  return {
-    padding: '3px 9px',
-    marginLeft: '6px',
-    border: `1px solid ${primary ? '#69d2ff' : '#39404d'}`,
-    borderRadius: '4px',
-    background: primary ? 'rgba(105,210,255,0.18)' : 'transparent',
-    color: 'inherit',
-    font: 'inherit',
-    cursor: 'pointer',
-  };
-}
-
 export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
   const { view } = props;
   const full = view.loadout.length >= view.limit;
-  /** The loadout card chosen to make room, when the loadout is full. */
   const [out, setOut] = useState<string | null>(null);
-
-  return (
-    <div style={box} data-testid="loadout">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <strong style={{ fontSize: '15px' }}>{props.name} — loadout</strong>
-        <span style={{ color: '#8ea3b0' }}>
-          {view.loadout.length} / {view.limit}
-        </span>
-      </div>
-
-      <div style={heading}>Active</div>
-      {view.loadout.map((card) => (
-        <div key={card.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }} data-card={card.id}>
-          <span>{card.name}</span>
-          {full ? (
-            <label style={{ color: '#8ea3b0', fontSize: '11px', cursor: 'pointer' }}>
-              <input type="radio" name="vault-out" checked={out === card.id} onChange={() => setOut(card.id)} data-testid="pick-out" /> make room
-            </label>
-          ) : null}
-        </div>
-      ))}
-      {view.loadout.length === 0 ? <div style={{ color: '#8ea3b0' }}>Nothing active.</div> : null}
-
-      <div style={heading}>Vault</div>
-      {view.vault.map((card) => {
-        const cost = props.resting ? 0 : card.recallCost;
-        const needsRoom = full && out === null;
-        return (
-          <div key={card.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }} data-card={card.id}>
-            <span>{card.name}</span>
-            <button
-              style={{ ...button(true), opacity: needsRoom ? 0.5 : 1 }}
-              disabled={needsRoom}
-              title={needsRoom ? 'The loadout is full: pick a card to make room' : cost > 0 ? `Mark ${cost} Stress to recall it now` : 'Recall it, free'}
-              data-testid="recall"
-              onClick={() => props.onSwap(card.id, full ? (out ?? undefined) : undefined)}
-            >
-              Recall{cost > 0 ? ` (${cost} Stress)` : ''}
-            </button>
-          </div>
-        );
-      })}
-      {view.vault.length === 0 ? <div style={{ color: '#8ea3b0' }}>The vault is empty.</div> : null}
-
-      {props.issue !== null ? (
-        <div style={{ color: '#ff9d7a', margin: '8px 0' }} data-testid="loadout-issue">
-          {props.issue}
-        </div>
-      ) : null}
-
-      <div style={{ marginTop: '10px', textAlign: 'right' }}>
-        <button style={button(false)} onClick={props.onClose} data-testid="close-loadout">
-          Close
+  const [query, setQuery] = useState('');
+  const [domain, setDomain] = useState('all');
+  const [inspect, setInspect] = useState<LoadoutCard | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const inspectTrigger = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    root.current?.focus();
+    return () => previous?.focus();
+  }, []);
+  useEffect(() => {
+    if (inspect) root.current?.querySelector<HTMLButtonElement>('.card-lightbox button')?.focus();
+    else inspectTrigger.current?.focus();
+  }, [inspect]);
+  const chosen = view.loadout.some(c => c.id === out) ? out : null;
+  const domains = [...new Set([...view.loadout, ...view.vault].map(c => c.domain))].sort();
+  const matches = (c: LoadoutCard) => (domain === 'all' || c.domain === domain)
+    && `${c.name} ${c.text} ${c.type}`.toLowerCase().includes(query.toLowerCase());
+  const renderCard = (card: LoadoutCard, active: boolean) => (
+    <article key={card.id} className={`deck-slot ${chosen === card.id ? 'is-selected' : ''}`} data-card={card.id}>
+      <button className="card-inspect" aria-label={`Inspect ${card.name}`} onClick={e => { inspectTrigger.current = e.currentTarget; setInspect(card); }}><CardFace card={card} /></button>
+      {active ? (full ? <label className="deck-select">
+        <input type="radio" name="vault-out" checked={chosen === card.id} onChange={() => setOut(card.id)} data-testid="pick-out" />
+        {chosen === card.id ? 'Selected to vault' : 'Make room'}
+      </label> : <span className="deck-ready">In your hand</span>) : (
+        <button className="deck-recall" data-testid="recall" disabled={full && chosen === null}
+          title={full && chosen === null ? 'Choose an active card to make room' : 'Bring this card into your active loadout'}
+          onClick={() => { props.onSwap(card.id, full ? chosen ?? undefined : undefined); setOut(null); }}>
+          Recall{!props.resting && card.recallCost > 0 ? ` (${card.recallCost} Stress)` : ' · Free'}
         </button>
-      </div>
-    </div>
+      )}
+    </article>
   );
+  return <div className="deck-backdrop" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+    <div ref={root} tabIndex={-1} className="deck-browser" role="dialog" aria-modal="true" aria-label={`${props.name} loadout`} data-testid="loadout"
+      onKeyDown={e => {
+        e.stopPropagation();
+        if (e.key === 'Escape') { e.preventDefault(); if (inspect) setInspect(null); else props.onClose(); }
+        if (e.key === 'Tab') {
+          const nodes = [...(root.current?.querySelectorAll<HTMLElement>(inspect ? '.card-lightbox button' : 'button:not(:disabled), input, select') ?? [])].filter(n => n.offsetParent !== null);
+          const first = nodes[0], last = nodes[nodes.length - 1];
+          if (e.shiftKey && (document.activeElement === first || document.activeElement === root.current)) { e.preventDefault(); last?.focus(); }
+          else if (!e.shiftKey && (document.activeElement === last || document.activeElement === root.current)) { e.preventDefault(); first?.focus(); }
+        }
+      }}>
+      <header className="deck-header"><div><div className="deck-eyebrow">DOMAIN COLLECTION</div><h1>{props.name} <span>/ Loadout</span></h1></div>
+        <button className="deck-close" onClick={props.onClose} data-testid="close-loadout">Close <kbd>Esc</kbd></button></header>
+      <div className="deck-toolbar"><label className="deck-search">Search cards<input aria-label="Search cards" placeholder="Name, effect, or card type…" value={query} onInput={e => setQuery(e.currentTarget.value)} /></label>
+        <label>Domain<select aria-label="Domain" value={domain} onChange={e => setDomain(e.currentTarget.value)}><option value="all">All domains</option>{domains.map(d => <option key={d} value={d}>{d}</option>)}</select></label>
+        <p>Inspect a card to read it.<br />{props.resting ? 'Resting · recall is free.' : 'Recall costs the card’s Recall Cost in Stress.'}</p></div>
+      <div className="deck-scroll">
+        <section><div className="deck-section-title"><h2>Active hand</h2><span>{view.loadout.length} / {view.limit}</span><p>{full ? 'Choose a card to make room for a recall.' : 'These cards are ready for your adventure.'}</p></div>
+          <div className="deck-grid">{view.loadout.filter(matches).map(c => renderCard(c, true))}</div>
+          {!view.loadout.some(matches) && <p className="deck-empty">{view.loadout.length ? 'No active cards match your filters.' : 'Nothing active.'}</p>}</section>
+        <section><div className="deck-section-title"><h2>The vault</h2><span>{view.vault.length} {view.vault.length === 1 ? 'card' : 'cards'}</span><p>Your reserve. Recall a card to change your hand.</p></div>
+          <div className="deck-grid">{view.vault.filter(matches).map(c => renderCard(c, false))}</div>
+          {!view.vault.some(matches) && <p className="deck-empty">{view.vault.length ? 'No vaulted cards match your filters.' : 'The vault is empty. New cards beyond your active hand wait here.'}</p>}</section>
+      </div>
+      <footer className="deck-footer">{props.issue ? <span role="alert" data-testid="loadout-issue">{props.issue}</span> : <span>{view.loadout.length + view.vault.length} cards collected · Click any card to inspect</span>}<span>DAGGERHEART <small>SRD</small></span></footer>
+      {inspect && <div className="card-lightbox" role="dialog" aria-label={inspect.name} onClick={() => setInspect(null)}>
+        <div className="card-detail" onClick={e => e.stopPropagation()}><CardFace key={inspect.id} card={inspect} expanded /><button autoFocus className="deck-close" onClick={() => setInspect(null)}>Back to collection</button></div>
+      </div>}
+    </div>
+  </div>;
 }

@@ -22,7 +22,7 @@ notes on the legacy prototype with `file:line` anchors; read those instead of re
 The same page arranged for reading rather than lookup is `docs/developer-guide.html` — open it from
 `file://`, it fetches nothing.
 
-**Line counts and `file:line` anchors below are as of commit `058c3af`, the current HEAD.**
+**Line counts and `file:line` anchors below are historical, as of commit `058c3af`.**
 A working tree part-way through a slice moves them; the symbol name is the stable handle, and
 `grep -a` finds it.
 
@@ -730,8 +730,9 @@ community sets carry are separate obligations and both are kept — the exact 2.
 (`tools/srd-sources/{official-2.0,daggersearch,seansbox}/README.md`; there is no top-level one).
 Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
 
-**The boundary.** Only vendored SRD *text* enters the repository. The source PDF is deliberately not
-committed; only the extracted text is, along with the script that extracted it.
+**Sources.** The source PDF is deliberately not committed; its extracted SRD text is.
+The illustrated card browser also includes locally served card artwork requested by the user;
+`public/cards/README.md` and `sources.json` record its separate provenance.
 
 **Adding a field to the normalised adversaries.** `content/srd/seansbox-adversaries.ts` normalises
 all 129, and `tests/unit/srd-content-strings.test.ts` asserts they all import with zero issues. Add
@@ -754,10 +755,8 @@ a case there before trusting a new field.
   `isolatedModules`. Match the surrounding style by reading it.
 - **`grep` sees some sources as binary.** `src/game/demo-scene.ts` among them (an em dash in a
   comment). Pass `grep -a`, or the match count comes back as "Binary file … matches".
-- **Path aliases:** `@engine/*`, `@editor/*`, `@game/*` resolve; **`@content/*` points at
-  `content/*` and there is no `content/` directory at the repo root.** It is a dead alias — `docs/CONTEXT.md`
-  lists all four without qualification, and this one does not resolve. Content lives in
-  `src/engine/content/` and in the project document.
+- **Path aliases:** `@engine/*`, `@editor/*`, `@game/*` resolve to their source directories;
+  `@content/*` resolves to `src/engine/content/*` in both TypeScript and Vite.
 - **`fflate` is a dependency and is imported nowhere under `src/`.** `CONTEXT.md`'s "zip import and
   export of projects with assets" is not implemented; export is `JSON.stringify` into a `Blob`.
 - **No frustum culling and no LOD.** Instancing and geometry sharing exist (`terrain-mesh.ts`,

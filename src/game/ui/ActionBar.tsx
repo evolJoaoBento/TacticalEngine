@@ -11,6 +11,7 @@
  */
 
 import type { AbilityView } from '../demo-abilities';
+import './cards.css';
 
 export interface ActionBarProps {
   /** The selected character, or null when nobody is. */
@@ -120,6 +121,7 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
         {props.abilities.map((view) => (
           <button
             key={view.ability.id}
+            className="ability-card-chip"
             style={chip('ability', view.usable)}
             disabled={!view.usable}
             title={`${view.text}${view.reason === null ? '' : `\n\n(${view.reason})`}`}
@@ -127,6 +129,7 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
             data-usable={view.usable}
             onClick={() => props.onUse(view.ability.id)}
           >
+            {view.ability.source.kind === 'domainCard' ? <img className="ability-card-art" src={`/cards/${view.ability.source.card}.jpg`} alt="" /> : null}
             <div>{view.ability.name}</div>
             <div style={small}>{view.reason ?? badges(view) ?? ''}</div>
           </button>

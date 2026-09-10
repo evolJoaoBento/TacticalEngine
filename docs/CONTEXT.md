@@ -43,7 +43,7 @@ typed arrays, no per-frame allocations, measured budgets.
 | Typecheck | `npm run typecheck` (`tsc --noEmit`) |
 
 Path aliases: `@engine/*` → `src/engine/*`, `@editor/*` → `src/editor/*`, `@game/*` → `src/game/*`,
-`@content/*` → `content/*`.
+`@content/*` → `src/engine/content/*`.
 
 Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own server on port 8421.
 

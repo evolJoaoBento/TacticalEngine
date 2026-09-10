@@ -222,6 +222,11 @@ any other script.
 
 ### ~~12. Saving a game~~ — done
 
+The 2026-09-10 pass also fixes the `@content/*` alias in TypeScript and Vite to point to
+`src/engine/content/*`. The illustrated loadout browser shows all 189 domain illustrations,
+search and domain filters, full rules inspection, and keyboard-accessible active/vault swaps.
+The card art has separate provenance in `public/cards/README.md`.
+
 A save is *state over a project*, not a copy of one: it names the project it belongs to and
 carries only what play changed — the room being played, where everyone stands and what they have
 taken, the pack, the flags and variables, every room already visited as it was left, the log, and
@@ -233,10 +238,10 @@ scenario, so handing back a fresh object would leave the live room writing flags
 So does the RNG position — a save that only kept the seed would re-roll numbers the session had
 already spent, and the reload would diverge from the game it came from.
 
-Two moments **refuse** to save, deliberately: a fight, and a script waiting on an answer. Both
+Three moments **refuse** to save: a fight, a pending ambush while the party approaches, and a script waiting on an answer. Fights and scripts
 hold live objects with no serialisable form — `EncounterRunner` owns action tokens, whose turn it
 is, and a reference to the scene it started in; a pending prompt is a paused `ScriptRunner`
-mid-conversation. A save is a checkpoint between beats, and the Save button says why it is greyed.
+mid-conversation. An approaching ambush is not serialized, so saving there is blocked to prevent losing the encounter on reload. A save is a checkpoint between beats, and the Save button says why it is greyed.
 
 Loading restores the party to the tiles they were standing on rather than to the spawns, which is
 what separates it from `travelTo`. A save for another project is refused, and damaged text is
@@ -595,9 +600,8 @@ Conversation is authorable too, as of this pass: the demo's pillar holds a five-
 conversation with a reply hidden until the party knows the Warden's name and a reply that costs
 a Presence 13, and the whole thing is document data that survives Save JSON.
 
-What is left of the authoring gap is a *tool* for the writing rather than the writing itself —
-today a conversation is a literal in `game/demo-dialogue.ts` that happens to parse through the
-schema, which is the same position maps were in before the editor.
+The Dialogue panel (`editor/ui/DialogueGraph.tsx`) authors the conversation graph, including
+replies, conditions and checks; the demo conversation is also available as authored project data.
 
 So the honest answer today is: *a designer can build the party, the place, what everything in it
 does, what it says, and the way between rooms — all of it in a tool.* What is left is depth

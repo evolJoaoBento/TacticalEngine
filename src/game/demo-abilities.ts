@@ -383,9 +383,19 @@ function putBack(demo: DemoScene, characterId: string, ability: AbilityDef): voi
 // Loadout and vault
 // ---------------------------------------------------------------------------
 
+export interface LoadoutCard {
+  id: string;
+  name: string;
+  recallCost: number;
+  domain: string;
+  level: number;
+  type: string;
+  text: string;
+}
+
 export interface LoadoutView {
-  loadout: { id: string; name: string; recallCost: number }[];
-  vault: { id: string; name: string; recallCost: number }[];
+  loadout: LoadoutCard[];
+  vault: LoadoutCard[];
   limit: number;
 }
 
@@ -393,7 +403,9 @@ export function loadoutView(demo: DemoScene, characterId: string): LoadoutView {
   const character = demo.characters.get(characterId);
   const describe = (id: string) => {
     const card = SRD_CHARACTERS.domainCards.get(id);
-    return { id, name: card?.name ?? id, recallCost: card?.recallCost ?? 0 };
+    return { id, name: card?.name ?? id, recallCost: card?.recallCost ?? 0,
+      domain: card?.domain ?? 'Unknown', level: card?.level ?? 1,
+      type: card?.type ?? 'ability', text: card?.features.map(f => f.name ? `${f.name}\n${f.text}` : f.text).join('\n\n') ?? '' };
   };
   if (character === undefined) return { loadout: [], vault: [], limit: LOADOUT_LIMIT };
   return { loadout: loadoutOf(character).map(describe), vault: vaultOf(character).map(describe), limit: LOADOUT_LIMIT };

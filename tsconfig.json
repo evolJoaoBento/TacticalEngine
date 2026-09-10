@@ -20,7 +20,7 @@
       "@engine/*": ["./src/engine/*"],
       "@editor/*": ["./src/editor/*"],
       "@game/*": ["./src/game/*"],
-      "@content/*": ["./content/*"]
+      "@content/*": ["./src/engine/content/*"]
     }
   },
   "include": ["src", "tests", "tools", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]

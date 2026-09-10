@@ -84,6 +84,16 @@ describe('saving a game', () => {
     expect(saveGame(demo)).toBeNull();
   });
 
+  it('refuses a checkpoint while an ambush is waiting for the party to arrive', () => {
+    const demo = scene();
+    demo.ambush = demo.scene.encounters[0]!.id;
+    expect(saveBlockedBy(demo)).toMatch(/ambush/);
+    expect(saveGame(demo)).toBeNull();
+    demo.ambush = null;
+    expect(saveBlockedBy(demo)).toBeNull();
+    expect(saveGame(demo)).not.toBeNull();
+  });
+
   it('refuses while a script is waiting on an answer', () => {
     const demo = scene();
     stand(demo, CHEST);
