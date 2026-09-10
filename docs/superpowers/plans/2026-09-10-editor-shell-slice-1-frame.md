@@ -1923,6 +1923,8 @@ export function ProblemsPopover(props: { problems: readonly Problem[]; onClose: 
 
 - [ ] **Step 11: Create `src/editor/ui/EditorShell.tsx`**
 
+> **Constraint, easy to break without noticing:** in Inspector mode, the Inspector side panel must hold the first `<input>` in `#app`. `demo.spec.ts` ("shows the inspector for a clicked object") fills `#app input:first` and expects the object's *name* to change. The top bar renders an input only while the Project menu is open (the file picker), and the library strip is not shown in Inspector mode, so this holds as written. Do not add an always-visible input (a search box, say) to the top bar or anywhere before the side panel without giving that test a testid for the name field in the same commit.
+
 ```tsx
 /**
  * The editor: a top bar of modes over the board, and whatever the mode in hand
@@ -2293,6 +2295,13 @@ In `loadProjectText`, directly after the statement that ends the `editor = new E
 ```ts
   editor.setMode('inspect');
 ```
+
+Opening on the Inspector changes the current tool from `paintTerrain` to `select`. Three driver paths reach `editor.begin`:
+- `placeProp` sets its own tool.
+- `editAt` uses whatever tool is current. Every `editAt` call in `tests/e2e` is preceded by a `setTool` in the same block: `editor-panels.spec.ts:121→123` and `demo.spec.ts:344→346`, `350→352`, `356→358`, `413→415`, `444→446`, `728→730` and `839→841`.
+- The canvas pointer handler uses the current tool too. No spec clicks the board in edit mode; every `screenOf`/`screenAt` click is in play mode.
+
+So no existing test depends on the old default. A new spec that calls `editAt` or `setTerrain` without first calling `setTool` will select instead of paint.
 
 (d) Undo and redo from anywhere. Directly before `let mode: 'play' | 'edit' = 'play';`, add:
 
