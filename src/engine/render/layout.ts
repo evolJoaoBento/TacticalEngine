@@ -10,7 +10,7 @@
  * anywhere.
  */
 
-import type { TileGrid } from '../grid/grid';
+import type { Spot, TileGrid } from '../grid/grid';
 
 export interface TileLayout {
   /** Width and depth of one tile in world units. */
@@ -69,9 +69,27 @@ export function tileAtWorld(
   z: number,
   layout: TileLayout = DEFAULT_LAYOUT,
 ): number {
-  const gx = Math.round(x / layout.tileSize + (grid.width - 1) / 2);
-  const gy = Math.round(z / layout.tileSize + (grid.height - 1) / 2);
-  return grid.indexOf(gx, gy);
+  const spot = worldToSpot(grid, x, z, layout);
+  return grid.tileAtSpot(spot.x, spot.y);
+}
+
+/** A world position as a spot in tile units - where a click landed, for a creature to walk to. */
+export function worldToSpot(grid: TileGrid, x: number, z: number, layout: TileLayout = DEFAULT_LAYOUT): Spot {
+  return { x: x / layout.tileSize + (grid.width - 1) / 2, y: z / layout.tileSize + (grid.height - 1) / 2 };
+}
+
+/**
+ * A spot in world space, standing on the ground under it: the surface of the
+ * tile the spot lies in, or the ground plane off the map.
+ */
+export function spotToWorld(grid: TileGrid, spot: Spot, layout: TileLayout = DEFAULT_LAYOUT): WorldPoint {
+  const { tileSize } = layout;
+  const tile = grid.tileAtSpot(spot.x, spot.y);
+  return {
+    x: (spot.x - (grid.width - 1) / 2) * tileSize,
+    y: tile === -1 ? 0 : surfaceHeight(grid.heightAt(tile), layout),
+    z: (spot.y - (grid.height - 1) / 2) * tileSize,
+  };
 }
 
 /** World-space extent of the whole map, for framing a camera on it. */

@@ -4,8 +4,10 @@ import {
   DEFAULT_LAYOUT,
   mapExtent,
   surfaceHeight,
+  spotToWorld,
   tileAtWorld,
   tileCenter,
+  worldToSpot,
 } from './layout';
 
 const grid = (w = 5, h = 3) => new TileGrid({ width: w, height: h });
@@ -53,6 +55,31 @@ describe('tileCenter', () => {
     const a = tileCenter(g, g.indexOf(1, 1));
     const b = tileCenter(g, g.indexOf(2, 1));
     expect(b.x - a.x).toBeCloseTo(DEFAULT_LAYOUT.tileSize, 10);
+  });
+});
+
+describe('spots', () => {
+  it('puts a tile\'s centre where tileCenter does, and reads a world point back to the same spot', () => {
+    const g = grid();
+    for (let tile = 0; tile < g.size; tile++) {
+      const centre = tileCenter(g, tile);
+      const world = spotToWorld(g, g.spotOf(tile));
+      expect(world).toEqual(centre);
+      const back = worldToSpot(g, world.x, world.z);
+      expect(back.x).toBeCloseTo(g.xOf(tile), 10);
+      expect(back.y).toBeCloseTo(g.yOf(tile), 10);
+    }
+  });
+
+  it('stands a spot on the surface of the tile it lies in', () => {
+    const g = grid();
+    g.heights[7] = 2;
+    const on = spotToWorld(g, { x: 2.3, y: 1.4 });
+    expect(on.y).toBeCloseTo(surfaceHeight(2), 10);
+    expect(on.x).toBeCloseTo((2.3 - 2) * DEFAULT_LAYOUT.tileSize, 10);
+    const beside = spotToWorld(g, { x: 1.4, y: 1.4 });
+    expect(beside.y).toBeCloseTo(surfaceHeight(0), 10);
+    expect(spotToWorld(g, { x: -4, y: 0 }).y).toBe(0);
   });
 });
 

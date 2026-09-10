@@ -16,7 +16,7 @@
 import { z } from 'zod';
 
 import type { ContentIssue } from '../content/types';
-import { NO_TILE, type TileGrid } from '../grid/grid';
+import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
 import {
   createFear,
   createHope,
@@ -37,6 +37,13 @@ export interface EntityState {
   readonly definition: string;
   /** Tile the entity stands on, or `NO_TILE` when it is off the map. */
   tile: number;
+  /**
+   * Where exactly it stands, in tile units - Daggerheart is not played on a
+   * grid, and a creature stops where it was walked to, not at the centre of
+   * a square. `tile` is always the tile this rounds to; `SceneState` keeps
+   * the two in step, and every rule reads `tile`.
+   */
+  at: Spot;
   hitPoints: MarkPool;
   stress: MarkPool;
   armorSlots: MarkPool;
@@ -102,6 +109,7 @@ export const sceneSnapshotSchema = z.object({
       faction: z.enum(['party', 'adversary', 'neutral']),
       definition: z.string(),
       tile: z.number().int(),
+      at: z.object({ x: z.number(), y: z.number() }).optional(),
       hitPoints: markPoolSchema,
       stress: markPoolSchema,
       armorSlots: markPoolSchema,
@@ -134,7 +142,9 @@ export interface SceneStateSnapshot {
   sceneId: string;
   entities: Record<
     string,
-    Omit<EntityState, 'conditions' | 'conditionDurations'> & {
+    Omit<EntityState, 'conditions' | 'conditionDurations' | 'at'> & {
+      /** Absent in a save written before creatures stood off-centre: the tile's centre then. */
+      at?: Spot;
       conditions: string[];
       conditionDurations: Record<string, ConditionDuration>;
     }
@@ -186,6 +196,11 @@ export class SceneState {
     if (this.entities.has(entity.id)) {
       throw new RangeError(`entity "${entity.id}" is already in this scene`);
     }
+    // The spot follows the tile unless it already agrees with it: a factory
+    // does not know the grid, a spread copy carries a stale one, and a save
+    // from before spots restores at the centre.
+    const at = entity.at as Spot | undefined;
+    if (at === undefined || this.grid.tileAtSpot(at.x, at.y) !== entity.tile) entity.at = this.grid.spotOf(entity.tile);
     this.entities.set(entity.id, entity);
     this.occupy(entity.tile, entity.id);
     return entity;
@@ -211,10 +226,26 @@ export class SceneState {
     return this.allEntities().filter((e) => e.faction === faction);
   }
 
-  /** Move an entity, keeping the occupancy index in step. */
+  /** Put an entity down at a tile's centre, keeping the occupancy index in step. */
   moveEntity(id: string, tile: number): void {
     const entity = this.entities.get(id);
     if (entity === undefined) throw new RangeError(`no entity "${id}" in this scene`);
+    entity.at = this.grid.spotOf(tile);
+    if (entity.tile === tile) return;
+    this.vacate(entity.tile, id);
+    entity.tile = tile;
+    this.occupy(tile, id);
+  }
+
+  /**
+   * Stand an entity at a spot - where a walk ended, not the centre of the
+   * square it ended in. The tile it counts as standing on follows.
+   */
+  placeEntity(id: string, x: number, y: number): void {
+    const entity = this.entities.get(id);
+    if (entity === undefined) throw new RangeError(`no entity "${id}" in this scene`);
+    const tile = this.grid.tileAtSpot(x, y);
+    entity.at = tile === NO_TILE ? this.grid.spotOf(NO_TILE) : { x, y };
     if (entity.tile === tile) return;
     this.vacate(entity.tile, id);
     entity.tile = tile;
@@ -369,6 +400,7 @@ export class SceneState {
     for (const [id, entity] of this.entities) {
       entities[id] = {
         ...entity,
+        at: { ...entity.at },
         conditions: [...entity.conditions],
         conditionDurations: Object.fromEntries(entity.conditionDurations),
       };
@@ -398,6 +430,7 @@ export class SceneState {
       this.addEntity({
         ...entity,
         id,
+        at: entity.at ?? this.grid.spotOf(entity.tile),
         conditions: new Set(entity.conditions),
         conditionDurations: new Map(Object.entries(entity.conditionDurations)),
       });
@@ -435,6 +468,9 @@ export class SceneState {
   }
 }
 
+/** A spot no tile rounds to: `addEntity` puts the creature at its tile's centre. */
+const UNPLACED: Spot = { x: Number.NaN, y: Number.NaN };
+
 /** A party member's starting state. */
 export function createPartyEntity(
   id: string,
@@ -450,6 +486,7 @@ export function createPartyEntity(
     faction: 'party',
     definition,
     tile,
+    at: UNPLACED,
     hitPoints: createMarkPool(options.hitPoints),
     stress: createMarkPool(options.stress),
     armorSlots: createMarkPool(options.armorSlots ?? 0),
@@ -472,6 +509,7 @@ export function createAdversaryEntity(
     faction: 'adversary',
     definition,
     tile,
+    at: UNPLACED,
     hitPoints: createMarkPool(options.hitPoints),
     stress: createMarkPool(options.stress),
     armorSlots: createMarkPool(0),

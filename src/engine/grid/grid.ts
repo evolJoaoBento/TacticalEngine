@@ -15,6 +15,16 @@ import { TerrainPalette, type TerrainType } from './terrain';
 /** Not a tile. Returned by lookups that fall outside the grid. */
 export const NO_TILE = -1;
 
+/**
+ * A place on the board in tile units, continuous: (0, 0) is the centre of
+ * the first tile, (0.5, 0) its east edge. Where a creature actually stands;
+ * the tile it counts as standing on is the one this rounds to.
+ */
+export interface Spot {
+  readonly x: number;
+  readonly y: number;
+}
+
 export interface GridOptions {
   width: number;
   height: number;
@@ -66,6 +76,16 @@ export class TileGrid {
   /** Tile index for a coordinate, or `NO_TILE` when out of bounds. */
   indexOf(x: number, y: number): number {
     return this.inBounds(x, y) ? y * this.width + x : NO_TILE;
+  }
+
+  /** The tile a spot lies in: the nearest centre. `NO_TILE` off the map. */
+  tileAtSpot(x: number, y: number): number {
+    return this.indexOf(Math.round(x), Math.round(y));
+  }
+
+  /** The centre of a tile as a spot; off the map for a non-tile. */
+  spotOf(index: number): Spot {
+    return this.isTile(index) ? { x: this.xOf(index), y: this.yOf(index) } : { x: -1, y: -1 };
   }
 
   xOf(index: number): number {

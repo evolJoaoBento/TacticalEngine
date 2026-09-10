@@ -104,6 +104,7 @@ function buildFight(seed: string): {
     faction: 'adversary',
     definition: burrower.id,
     tile: burrowerTile,
+    at: grid.spotOf(burrowerTile),
     hitPoints: { max: burrower.hitPoints, marked: 0 },
     stress: { max: burrower.stress, marked: 0 },
     armorSlots: { max: 0, marked: 0 },

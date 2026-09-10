@@ -49,6 +49,62 @@ describe('SceneState entities', () => {
   });
 });
 
+describe('where a creature stands', () => {
+  it('stands at the centre of the tile it was added to, and moves to the centre of the next', () => {
+    const state = makeState();
+    state.addEntity(createPartyEntity('kara', 'sentinel', 7));
+    expect(state.entity('kara')!.at).toEqual({ x: 2, y: 1 });
+    state.moveEntity('kara', 8);
+    expect(state.entity('kara')!.at).toEqual({ x: 3, y: 1 });
+  });
+
+  it('can stand anywhere in a tile, and the tile it counts as standing on follows', () => {
+    const state = makeState();
+    state.addEntity(createPartyEntity('kara', 'sentinel', 0));
+    state.placeEntity('kara', 2.4, 1.3);
+    expect(state.entity('kara')!.at).toEqual({ x: 2.4, y: 1.3 });
+    expect(state.entity('kara')!.tile).toBe(7);
+    expect(state.occupantsOf(0)).toEqual([]);
+    expect(state.occupantsOf(7)).toEqual(['kara']);
+    // A step within the same tile keeps the index as it is.
+    state.placeEntity('kara', 1.6, 0.8);
+    expect(state.entity('kara')!.tile).toBe(7);
+    expect(state.occupantsOf(7)).toEqual(['kara']);
+    // Off the map is off the map.
+    state.placeEntity('kara', -3, 0);
+    expect(state.entity('kara')!.tile).toBe(-1);
+    expect(state.occupantsOf(7)).toEqual([]);
+  });
+
+  it('is kept in step with the tile by a copy that carries a stale spot', () => {
+    const state = makeState();
+    const kara = createPartyEntity('kara', 'sentinel', 0);
+    state.addEntity(kara);
+    state.placeEntity('kara', 0.3, 0.2);
+    const other = makeState();
+    other.addEntity({ ...kara, tile: 8 });
+    expect(other.entity('kara')!.at).toEqual({ x: 3, y: 1 });
+  });
+
+  it('survives a snapshot, and a snapshot from before spots restores at the centre', () => {
+    const state = makeState();
+    state.addEntity(createPartyEntity('kara', 'sentinel', 0));
+    state.placeEntity('kara', 2.4, 1.3);
+    const snapshot = state.snapshot();
+    expect(snapshot.entities['kara']!.at).toEqual({ x: 2.4, y: 1.3 });
+    const back = makeState();
+    back.restore(JSON.parse(JSON.stringify(snapshot)));
+    expect(back.entity('kara')!.at).toEqual({ x: 2.4, y: 1.3 });
+    expect(back.entity('kara')!.tile).toBe(7);
+
+    const old = JSON.parse(JSON.stringify(snapshot));
+    delete old.entities['kara'].at;
+    const older = makeState();
+    older.restore(old);
+    expect(older.entity('kara')!.at).toEqual({ x: 2, y: 1 });
+  });
+});
+
 describe('occupancy index', () => {
   it('follows an entity as it moves', () => {
     const state = makeState();
