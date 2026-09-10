@@ -4,8 +4,8 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
-**Pinned to commit `fd6e660`.** At that commit: `npx tsc --noEmit` clean, **1679 unit tests across
-79 files**, **80 Playwright tests** (about 3 minutes). If those numbers come back lower, something
+**Pinned to commit `c81c16b`.** At that commit: `npx tsc --noEmit` clean, **1692 unit tests across
+81 files**, **83 Playwright tests** (about 3 minutes). If those numbers come back lower, something
 was lost — check before building on it. Symbol names are the stable handles here; line numbers move.
 
 ---
@@ -83,10 +83,6 @@ with imported assets cannot be handed to anyone as one file.
 
 ## 3. Known doc drift
 
-The card-art audit follow-up blocks private directory artwork from production bundles, preserves
-other public assets, restores generated emblems when an image fails, and fixes uppercase image
-extensions in the indexer. Packaging and browser regression tests cover these cases.
-
 The stale dialogue-authoring paragraph was corrected on 2026-09-10. `DEVELOPING.md` now
 labels its old line anchors as historical; use symbol names to find current implementations.
 
@@ -95,7 +91,10 @@ message, and `@content/*` resolves to the real content directory in Vite and Typ
 The card collection has domain frames, full-text inspection, search and domain filters,
 responsive layout, keyboard navigation and active/vault swaps. Each card's art is generated
 from its own id and domain (`ui/card-sigil.ts`), so a fresh clone draws a complete card with
-nothing to download.
+nothing to download. The card-art audit that followed closed the packaging hole: private
+directory artwork is kept out of production bundles while other public assets are preserved
+(`tools/build-public-assets.ts`), an image that fails to load falls back to the emblem, and the
+indexer handles uppercase extensions. Packaging and browser regression tests cover all three.
 
 ---
 
