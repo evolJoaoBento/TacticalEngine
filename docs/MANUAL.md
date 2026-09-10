@@ -111,7 +111,9 @@ fight, the part past one move in red. A click beyond reach is not refused: out o
 walks up to the nearest reachable spot (the shut door, the edge of the chasm); in a fight it
 walks as far as the move allows and the log says so. A click on an enemy across the room walks
 up to where the weapon reaches from and swings, the move being part of the action; with nowhere
-in reach this move, it closes as far as it can and the walk is the action. Range is read from
+in reach this move, it closes as far as it can and the walk is the action. A walk that wakes
+an ambush starts the fight when the party gets there, not when the board is crossed: nothing is
+lit and nobody acts until the last of them stops. Range is read from
 the tile a character is standing in, the way a gridless table reads it to the nearest 5 ft. The
 tiles are still there underneath, for the pathfinder and the editor, but nothing in play shows
 them.

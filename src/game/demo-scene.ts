@@ -4664,7 +4664,8 @@ export interface UseOutcome {
 export function useSelectedOn(demo: DemoScene, interactableId: string): UseOutcome {
   // One thing at a time: a script waiting on an answer holds the floor, or a
   // player could walk away from a lock and then pick it from across the room.
-  if (demo.pending !== null) return { status: 'busy', lines: [] };
+  // Nor is anything used on the way into an ambush.
+  if (demo.pending !== null || demo.ambush !== null) return { status: 'busy', lines: [] };
 
   const object = demo.scene.interactables.find((i) => i.id === interactableId);
   if (object === undefined) return { status: 'missing', lines: [] };
