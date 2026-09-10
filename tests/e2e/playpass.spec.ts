@@ -382,6 +382,64 @@ test('hovering the ground draws the line a click would walk', async ({ page }) =
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
+test('the party rounds the vault door together, along the line the hover drew', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+    timeout: 30_000,
+  });
+
+  const opened = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    a.setDiceSpeed(0);
+    const door = a.objects().find((o) => o.includes('door')) ?? a.objects()[0]!;
+    a.standBeside(door);
+    for (let i = 0; i < 20 && !a.objectState(door).open; i++) {
+      if (a.use(door) === 'waiting') a.answer({ kind: 'roll' });
+      while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
+    }
+    // Back to the west, so the walk has to come round through the doorway.
+    a.moveTo(9 * 22 + 4);
+    return a.objectState(door).open;
+  });
+  expect(opened).toBe(true);
+  await page.waitForFunction(() => window.__polyheart!.gliding() === 0, null, { timeout: 15_000 });
+
+  // A spot inside the vault, north-east of the door: the line bends at the doorway.
+  const hovered = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    const spot = { x: 15.3, y: 4.2 };
+    return { preview: a.previewAt(spot.x, spot.y), px: a.screenAt(spot.x, spot.y) };
+  });
+  console.log('HOVER:', JSON.stringify(hovered.preview));
+  expect(hovered.preview).not.toBeNull();
+  expect(hovered.preview!.route.length).toBeGreaterThanOrEqual(3);
+  await page.mouse.move(hovered.px.x, hovered.px.y);
+  await page.waitForFunction(() => window.__polyheart!.pathPoints() >= 2, null, { timeout: 5_000 });
+  await page.screenshot({ path: 'test-results/corner-hover.png' });
+
+  // Click it: everyone walks, in a line, and the trigger past the door stops
+  // the walk where the fight begins.
+  await page.mouse.click(hovered.px.x, hovered.px.y);
+  await page.waitForTimeout(700);
+  const mid = await page.evaluate(() => window.__polyheart!.gliding());
+  await page.screenshot({ path: 'test-results/corner-mid.png' });
+  expect(mid, 'the party is on its way').toBeGreaterThan(1);
+  await page.waitForFunction(() => window.__polyheart!.gliding() === 0, null, { timeout: 15_000 });
+  const done = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    return { inCombat: a.inCombat(), party: a.party().map((p) => ({ p, at: a.standingAt(p), tile: a.tileOf(p) })) };
+  });
+  console.log('DONE:', JSON.stringify(done));
+  expect(done.inCombat).toBe(true);
+  // Through the doorway (x 12) or at it: nobody left on the far side of the wall.
+  for (const member of done.party) expect(member.tile % 22).toBeGreaterThanOrEqual(11);
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
 test('a walked token walks, and is standing on the tile when it has', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (m) => {

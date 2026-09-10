@@ -102,12 +102,19 @@ Daggerheart is not played on a grid, and neither is this. Distance is as the cro
 creature standing corner-to-corner is in Melee like one standing straight ahead, and the range
 bands (Melee, Very Close, Close, Far, Very Far) are circles round whoever is measuring. In a
 fight a character moves within Close range as part of an action - the lit disc with a border
-round whoever is selected - however the floor bends on the way. A click on the ground is a
-spot, not a square: the character walks there in a straight line where nothing is in the way,
-stops where you clicked (or as near as their body fits, clear of walls and of everyone else),
-and the others fall in a pace behind along the line. Range is read from the tile a character is
-standing in, the way a gridless table reads it to the nearest 5 ft. The tiles are still there
-underneath, for the pathfinder and the editor, but nothing in play shows them.
+round whoever is selected - spent along the way, as BG3 spends movement, so the way round a
+pillar costs the way round. A click on the ground is a spot, not a square: the character walks
+there in a straight line where nothing is in the way, stops where you clicked (or as near as
+their body fits, clear of walls and of everyone else), and the others fall in a pace behind along
+the line, round the same corners. Hovering the ground draws the line a click would walk - in a
+fight, the part past one move in red. A click beyond reach is not refused: out of a fight it
+walks up to the nearest reachable spot (the shut door, the edge of the chasm); in a fight it
+walks as far as the move allows and the log says so. A click on an enemy across the room walks
+up to where the weapon reaches from and swings, the move being part of the action; with nowhere
+in reach this move, it closes as far as it can and the walk is the action. Range is read from
+the tile a character is standing in, the way a gridless table reads it to the nearest 5 ft. The
+tiles are still there underneath, for the pathfinder and the editor, but nothing in play shows
+them.
 
 In a fight there is no initiative. The party acts until an action roll — an attack, a card's
 Spellcast Roll — comes up with Fear or fails, which hands the spotlight to the GM; or until you

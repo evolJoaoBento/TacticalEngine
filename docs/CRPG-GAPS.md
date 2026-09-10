@@ -539,9 +539,23 @@ pace, arriving at the spot. A save keeps the spot; one from before spots restore
 Placements a designer makes, `gatherParty`, `standBeside`, knockbacks and summons still land
 on centres, which is what they mean. Driver: `walkTo(x, y)`, `standingAt(id)`, `screenAt(x, y)`.
 
+**Walking like BG3** (`grid/walk.ts`, `scene/party.ts`, `game/demo-scene.ts`): bodies block,
+not squares (`blockedFor` holds every tile a body overlaps, `bodyFree` is what a placement asks);
+every walk on the board - the party's, a follower's own, a scripted `drawIn`/`breakAway`, an
+adversary's approach - crosses a straightened line carried on the motion or the journal's
+`moved.route`; a fight's move is Close range spent along the way (path cost, diagonals at root
+two) rather than a disc; a click beyond reach walks to the nearest reachable spot out of a fight
+and as far as the move allows in one (`nearestReachable`); the hover path (`previewWalk`,
+`SceneView.showPath`) draws the line a click would walk, the part past one move in red; tokens
+face where they go at a fixed pace per tile and keep their feet down; and a click on an enemy
+out of reach walks to where the weapon reaches from and swings (`closeToStrike`,
+`previewStrike`), the move being part of the action. Driver: `previewAt(x, y)`, `pathPoints()`.
+
 **Still open:** nothing that "gridless" asks for. Measuring range from the spots rather than
 the tiles is a choice, not a gap: it would make a corner-to-corner neighbour standing at the
-far edges of two tiles read as Very Close, which no table would call it.
+far edges of two tiles read as Very Close, which no table would call it. The fight begins the
+moment the state crosses the trigger, while the tokens are still walking there - the engine's
+truth never waits on an animation; BG3 would hold the round until they arrive.
 
 ## How to tell whether this is on track
 

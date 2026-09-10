@@ -53,10 +53,13 @@ things bite, in this order:
    (`use(door)` in a loop, answering `{ kind: 'roll' }`), then walk east
    until `inCombat()` — the trigger past the door is what wakes the room.
 3. **`standBeside(foe)` returns `false` across a room.** In a fight a
-   character moves within Close range per turn (a disc round them, as the
-   crow flies - not a count of steps). Close over several turns: move to
-   the reachable tile nearest the foe, `endGmTurn()`, repeat. Out of a
-   fight nobody counts: one click walks anywhere the floor goes.
+   character moves within Close range per turn, spent along the path.
+   `attack(foe)` walks up to where the weapon reaches from before the
+   swing when that is within one move, and otherwise closes as far as it
+   can (the walk is the action, `attack` returns false). So: `attack(foe)`,
+   `endGmTurn()`, repeat, rather than a closing loop of your own. Out of a
+   fight nobody counts: one click walks anywhere the floor goes, and a
+   click beyond reach walks up to the nearest reachable spot.
 4. **The closing loop moves whoever is *selected*.** If the caster is
    Mira, `select('mira')` *before* closing, or you will walk Kara up and
    then cast from where Mira never left.
