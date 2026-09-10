@@ -272,6 +272,52 @@ test('a name in the log points at whoever it named', async ({ page }) => {
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
+test('a walk ends where it was aimed, not at the centre of a square, and the token stands there', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+    timeout: 30_000,
+  });
+
+  const walked = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    const me = a.selected()!;
+    const from = a.tileOf(me);
+    // Towards the middle of the room, where nothing on the HUD covers the board.
+    const span = (t: number): number => Math.hypot((t % 22) - 10, Math.floor(t / 22) - 8);
+    const far = a.reachable().filter((t) => t !== from).reduce((x, y) => (span(y) < span(x) ? y : x));
+    const aimed = { x: (far % 22) + 0.3, y: Math.floor(far / 22) - 0.2 };
+    const moved = a.walkTo(aimed.x, aimed.y);
+    return { me, moved, aimed, tile: a.tileOf(me), at: a.standingAt(me), far, others: a.party().filter((p) => p !== me).map((p) => a.standingAt(p)) };
+  });
+  console.log('AIMED:', JSON.stringify(walked));
+  expect(walked.moved).toBe(true);
+  expect(walked.tile).toBe(walked.far);
+  expect(walked.at).toEqual(walked.aimed);
+
+  // The token arrives at the spot, not the square's centre, and stands there.
+  await page.waitForFunction(() => window.__polyheart!.gliding() === 0, null, { timeout: 10_000 });
+  const stood = await page.evaluate((me: string) => window.__polyheart!.standingAt(me), walked.me);
+  expect(stood).toEqual(walked.aimed);
+  await page.screenshot({ path: 'test-results/walk-aimed.png' });
+
+  // A click on the token where it actually stands selects it, off-centre and all.
+  const target = await page.evaluate((me: string) => {
+    const a = window.__polyheart!;
+    a.selectNext();
+    const at = a.standingAt(me)!;
+    return { other: a.selected(), px: a.screenAt(at.x, at.y) };
+  }, walked.me);
+  expect(target.other).not.toBe(walked.me);
+  await page.mouse.click(target.px.x, target.px.y);
+  const selected = await page.evaluate(() => window.__polyheart!.selected());
+  expect(selected).toBe(walked.me);
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
 test('a walked token walks, and is standing on the tile when it has', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (m) => {

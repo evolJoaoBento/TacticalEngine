@@ -30,6 +30,9 @@ declare global {
       adversaries: () => string[];
       hitPoints: (id: string) => { marked: number; max: number };
       moveTo: (tile: number) => boolean;
+      walkTo: (x: number, y: number) => boolean;
+      standingAt: (id: string) => { x: number; y: number } | null;
+      screenAt: (x: number, y: number) => { x: number; y: number };
       attack: (id: string) => boolean;
       endGmTurn: () => number;
       highlighted: () => number;
@@ -1095,13 +1098,20 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
     api.use(chest);
     api.answer({ kind: 'roll' });
     api.travelTo('the-pit');
+    // Stand somewhere that is not the centre of a square, so the save has a spot to keep.
+    const me = api.selected()!;
+    const here = api.tileOf(me);
+    const step = api.reachable().find((t) => t !== here)!;
+    api.walkTo((step % 22) + 0.3, Math.floor(step / 22) - 0.2);
     return {
       vault,
       carried: api.carried(),
       scene: api.sceneId(),
       tiles: api.party().map((id) => api.tileOf(id)),
+      spots: api.party().map((id) => api.standingAt(id)),
     };
   });
+  expect(before.spots.some((s) => s !== null && (s.x % 1 !== 0 || s.y % 1 !== 0))).toBe(true);
   expect(before.carried.length).toBeGreaterThan(0);
   expect(before.scene).toBe('the-pit');
 
@@ -1127,12 +1137,14 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
       carried: api.carried(),
       scene: api.sceneId(),
       tiles: api.party().map((id) => api.tileOf(id)),
+      spots: api.party().map((id) => api.standingAt(id)),
     };
   });
 
   expect(after.scene).toBe('the-pit');
   expect(after.carried).toEqual(before.carried);
   expect(after.tiles).toEqual(before.tiles);
+  expect(after.spots).toEqual(before.spots);
 
   // Upstairs, the chest the party emptied before saving is still empty: using it
   // is refused rather than offering the lock roll again. That is the room the

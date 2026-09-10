@@ -11,7 +11,7 @@ import { AnimationClip, Color, Group, Matrix4, Vector3, type InstancedMesh, type
 import { AssetLibrary, modelAssetSchema } from './assets';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
-import { mapExtent, surfaceHeight, tileCenter } from './layout';
+import { mapExtent, spotToWorld, surfaceHeight, tileCenter } from './layout';
 import { SceneView, hueOf } from './scene-view';
 import { DEFAULT_TERRAIN_COLORS, buildTerrainMesh, tilesDrawn, topColorOf } from './terrain-mesh';
 
@@ -413,6 +413,73 @@ describe('SceneView', () => {
 
     view.tick(2);
     expect(ring.position.x).toBeCloseTo(tileCenter(grid, to).x, 6);
+    view.dispose();
+  });
+
+  it('stands a token where the creature stands, not at the centre of its square', () => {
+    const { grid, state, view } = setup();
+    state.placeEntity('kara', 2.4, 1.3);
+    view.syncTokens(state);
+    const at = spotToWorld(grid, { x: 2.4, y: 1.3 });
+    const kara = view.tokenFor('kara')!;
+    expect(kara.group.position.x).toBeCloseTo(at.x, 10);
+    expect(kara.group.position.z).toBeCloseTo(at.z, 10);
+    expect(kara.group.position.x).not.toBeCloseTo(tileCenter(grid, grid.indexOf(2, 1)).x, 3);
+    view.dispose();
+  });
+
+  it('walks a token along the line it was handed, and arrives at the spot at its end', () => {
+    const { grid, state, view } = setup();
+    view.syncTokens(state);
+    const kara = view.tokenFor('kara')!;
+    // One straight leg across the room to a spot off any centre.
+    const route = [
+      { x: 0, y: 0 },
+      { x: 3.4, y: 1.7 },
+    ];
+    state.placeEntity('kara', 3.4, 1.7);
+    view.walkAlong('kara', route);
+    view.syncTokens(state);
+    expect(view.glidingCount).toBe(1);
+    const from = tileCenter(grid, grid.indexOf(0, 0));
+    const to = spotToWorld(grid, { x: 3.4, y: 1.7 });
+
+    // Halfway in time is halfway along the line, since it is one leg.
+    const duration = Math.min(1.2, 0.16 * Math.hypot(3.4, 1.7));
+    view.tick(duration / 2);
+    expect(kara.group.position.x).toBeCloseTo((from.x + to.x) / 2, 3);
+    expect(kara.group.position.z).toBeCloseTo((from.z + to.z) / 2, 3);
+
+    view.tick(2);
+    expect(kara.group.position.x).toBeCloseTo(to.x, 10);
+    expect(kara.group.position.z).toBeCloseTo(to.z, 10);
+    expect(kara.group.position.y).toBeCloseTo(to.y, 10);
+    expect(view.glidingCount).toBe(0);
+    view.dispose();
+  });
+
+  it('walks a step within the same tile rather than jumping it', () => {
+    const { state, view } = setup();
+    view.syncTokens(state);
+    state.placeEntity('kara', 0.3, 0.2);
+    view.syncTokens(state);
+    expect(view.glidingCount).toBe(1);
+    view.tick(2);
+    expect(view.glidingCount).toBe(0);
+    view.dispose();
+  });
+
+  it('keeps the selection ring under the selected creature\'s token, wherever they stand', () => {
+    const { grid, state, view } = setup();
+    state.placeEntity('kara', 1.4, 0.3);
+    view.syncTokens(state);
+    view.showSelection(state.entity('kara')!.tile, 'kara');
+    view.tick(0.1);
+    const ring = view.root.children.find((c) => c.name === 'selection')!;
+    const kara = view.tokenFor('kara')!;
+    expect(ring.position.x).toBeCloseTo(kara.group.position.x, 10);
+    expect(ring.position.z).toBeCloseTo(kara.group.position.z, 10);
+    expect(ring.position.x).not.toBeCloseTo(tileCenter(grid, grid.indexOf(1, 0)).x, 3);
     view.dispose();
   });
 

@@ -60,8 +60,8 @@ import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
 import { AssetLibrary, modelAssetSchema, type ModelAsset } from './engine/render/assets';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { NO_TILE, type TileGrid } from './engine/grid/grid';
-import { mapExtent, tileAtWorld, tileCenter } from './engine/render/layout';
+import { NO_TILE, type Spot, type TileGrid } from './engine/grid/grid';
+import { mapExtent, spotToWorld, tileAtWorld, tileCenter, worldToSpot } from './engine/render/layout';
 import { MODELS } from './engine/render/procedural/registry';
 import { SceneView, hueOf } from './engine/render/scene-view';
 import { journalSummary } from './engine/content/quests';
@@ -135,6 +135,12 @@ declare global {
       adversaries: () => string[];
       hitPoints: (id: string) => { marked: number; max: number };
       moveTo: (tile: number) => boolean;
+      /** Walk the selected member to a spot, in tile units: where a click on the ground lands. */
+      walkTo: (x: number, y: number) => boolean;
+      /** Where somebody stands, in tile units; null off the map or unknown. */
+      standingAt: (id: string) => { x: number; y: number } | null;
+      /** Where a spot on the ground lands on screen, in CSS pixels. */
+      screenAt: (x: number, y: number) => { x: number; y: number };
       attack: (id: string) => boolean;
       endGmTurn: () => number;
       highlighted: () => number;
@@ -275,8 +281,9 @@ document.body.insertBefore(floaterLayer, app);
 
 interface LiveFloater {
   el: HTMLDivElement;
-  tile: number;
-  /** How many were already rising from this tile when this one was born. */
+  /** Whose head it rises over: it follows them, walking or thrown. */
+  id: string;
+  /** How many were already rising over them when this one was born. */
   stack: number;
   born: number;
 }
@@ -286,7 +293,8 @@ const FLOATER_LIFE = 1.4;
 /** Tell the view how everybody got where they are, before it looks. */
 function drainMotions(): void {
   for (const motion of demo.motions) {
-    if (motion.path !== undefined) view.walk(motion.id, motion.path);
+    if (motion.route !== undefined) view.walkAlong(motion.id, motion.route);
+    else if (motion.path !== undefined) view.walk(motion.id, motion.path);
     else if (motion.thrown === true) view.throwBack(motion.id);
     else if (motion.struck === true) view.flinch(motion.id);
     else if (motion.lunge !== undefined) view.lunge(motion.id, motion.lunge.at);
@@ -301,7 +309,7 @@ function drainFloaters(): void {
   for (const floater of demo.floaters) {
     const tile = demo.state.entity(floater.id)?.tile ?? NO_TILE;
     if (tile === NO_TILE) continue;
-    const stack = liveFloaters.filter((f) => f.tile === tile).length;
+    const stack = liveFloaters.filter((f) => f.id === floater.id).length;
     const el = document.createElement('div');
     el.dataset['testid'] = 'floater';
     el.dataset['entity'] = floater.id;
@@ -314,7 +322,7 @@ function drainFloaters(): void {
       whiteSpace: 'nowrap',
     });
     floaterLayer.appendChild(el);
-    liveFloaters.push({ el, tile, stack, born: now });
+    liveFloaters.push({ el, id: floater.id, stack, born: now });
   }
   demo.floaters.length = 0;
   driveFloaters(now);
@@ -330,7 +338,13 @@ function driveFloaters(now: number): void {
       liveFloaters.splice(i, 1);
       continue;
     }
-    const at = screenPoint(f.tile, 1.3);
+    const over = demo.state.entity(f.id);
+    if (over === undefined || over.tile === NO_TILE) {
+      f.el.remove();
+      liveFloaters.splice(i, 1);
+      continue;
+    }
+    const at = screenAt(over.at, 1.3);
     f.el.style.left = `${at.x}px`;
     f.el.style.top = `${at.y - age * 36 - f.stack * 18}px`;
     f.el.style.opacity = `${Math.max(0, 1 - Math.max(0, age - 0.7) / (FLOATER_LIFE - 0.7))}`;
@@ -664,7 +678,17 @@ const orbit = new OrbitCamera({ yaw: 0, pitch: 0.85 });
 /** Where a point `height` above a tile's surface lands on screen, in CSS pixels. */
 function screenPoint(tile: number, height: number): { x: number; y: number } {
   const centre = tileCenter(activeGrid, tile, view.layout);
-  const v = new Vector3(centre.x, centre.y + height, centre.z).project(camera);
+  return screenOfWorld(centre.x, centre.y + height, centre.z);
+}
+
+/** Where a spot on the ground, so high above it, lands on screen. */
+function screenAt(spot: Spot, height: number): { x: number; y: number } {
+  const at = spotToWorld(activeGrid, spot, view.layout);
+  return screenOfWorld(at.x, at.y + height, at.z);
+}
+
+function screenOfWorld(x: number, y: number, z: number): { x: number; y: number } {
+  const v = new Vector3(x, y, z).project(camera);
   const rect = canvas.getBoundingClientRect();
   return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height };
 }
@@ -715,20 +739,26 @@ const raycaster = new Raycaster();
 const pointer = new Vector2();
 const groundPoint = new Vector3();
 
-function tileUnderPointer(event: PointerEvent | MouseEvent): number {
+/** The ground under the pointer: the tile struck, and the exact spot on it. */
+function groundUnderPointer(event: PointerEvent | MouseEvent): { tile: number; spot: Spot } | null {
   const rect = canvas.getBoundingClientRect();
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
   const hits: Intersection<Object3D>[] = raycaster.intersectObjects(view.terrain.meshes, false);
   const hit = hits[0];
-  if (hit === undefined) return NO_TILE;
+  if (hit === undefined) return null;
+  groundPoint.copy(hit.point);
+  const spot = worldToSpot(activeGrid, groundPoint.x, groundPoint.z, view.layout);
   // The face struck knows its tile, which a hit on a wall's side would
   // otherwise round to whichever tile the wall's edge is nearer.
   const faced = view.terrain.tileOf(hit.object as Mesh, hit.faceIndex ?? -1);
-  if (faced >= 0) return faced;
-  groundPoint.copy(hit.point);
-  return tileAtWorld(activeGrid, groundPoint.x, groundPoint.z, view.layout);
+  const tile = faced >= 0 ? faced : tileAtWorld(activeGrid, groundPoint.x, groundPoint.z, view.layout);
+  return { tile, spot };
+}
+
+function tileUnderPointer(event: PointerEvent | MouseEvent): number {
+  return groundUnderPointer(event)?.tile ?? NO_TILE;
 }
 
 const pointOf = (tile: number) => ({ x: activeGrid.xOf(tile), y: activeGrid.yOf(tile) });
@@ -748,6 +778,24 @@ function entityOn(tile: number): string | null {
     if (demo.state.entity(id)?.alive === true) return id;
   }
   return null;
+}
+
+/**
+ * The living entity whose body is under a spot - a creature standing off its
+ * centre reaches into the next tile, and a click on it is a click on it.
+ */
+function entityNear(spot: Spot): string | null {
+  let best: string | null = null;
+  let bestDistance = 0.5;
+  for (const entity of demo.state.allEntities()) {
+    if (!entity.alive || entity.tile === NO_TILE) continue;
+    const distance = Math.hypot(entity.at.x - spot.x, entity.at.y - spot.y);
+    if (distance < bestDistance) {
+      best = entity.id;
+      bestDistance = distance;
+    }
+  }
+  return best;
 }
 
 /**
@@ -786,7 +834,7 @@ function refreshPlay(): void {
     view.syncTokens(demo.state);
     drainFloaters();
     view.showZones(paintedZones());
-    view.showSelection(demo.party.selected === null ? NO_TILE : (demo.state.entity(demo.party.selected)?.tile ?? NO_TILE));
+    view.showSelection(demo.party.selected === null ? NO_TILE : (demo.state.entity(demo.party.selected)?.tile ?? NO_TILE), demo.party.selected);
     // A target to pick lights the creatures it could be; otherwise, in a
     // fight, the Close-range walk round whoever is selected. Out of a fight a
     // walk goes anywhere the floor does, and the floor is not lit for it.
@@ -1304,8 +1352,9 @@ function inspectTile(tile: number): Inspection | null {
 
 /** A click on the board in play mode. */
 function clickAt(event: PointerEvent): void {
-  const tile = tileUnderPointer(event);
-  if (tile === NO_TILE) return;
+  const ground = groundUnderPointer(event);
+  if (ground === null || ground.tile === NO_TILE) return;
+  const { tile, spot } = ground;
 
   if (targeting !== null) {
     pickTarget(tile);
@@ -1313,7 +1362,7 @@ function clickAt(event: PointerEvent): void {
     return;
   }
 
-  const occupant = entityOn(tile);
+  const occupant = entityNear(spot) ?? entityOn(tile);
   if (occupant !== null) {
     const entity = demo.state.entity(occupant)!;
     if (entity.faction === 'party') demo.party.select(occupant);
@@ -1323,7 +1372,7 @@ function clickAt(event: PointerEvent): void {
     // inside the verb, which reports "out of reach" rather than silently walking.
     const object = objectOn(tile);
     if (object !== null) useSelectedOn(demo, object);
-    else moveSelectedTo(demo, tile);
+    else moveSelectedTo(demo, tile, spot);
   }
   refreshPlay();
 }
@@ -1524,6 +1573,17 @@ const state = {
     if (result.moved) refreshPlay();
     return result.moved;
   },
+  walkTo: (x: number, y: number): boolean => {
+    const result = moveSelectedTo(demo, activeGrid.tileAtSpot(x, y), { x, y });
+    if (result.moved) refreshPlay();
+    return result.moved;
+  },
+  standingAt: (id: string): { x: number; y: number } | null => {
+    const entity = demo.state.entity(id);
+    return entity === undefined || entity.tile === NO_TILE ? null : { x: entity.at.x, y: entity.at.y };
+  },
+  /** Where a spot on the ground lands on screen, in CSS pixels from the page origin. */
+  screenAt: (x: number, y: number): { x: number; y: number } => screenAt({ x, y }, 0),
   attack: (id: string): boolean => {
     const result = attackWithSelected(demo, id);
     refreshPlay();
