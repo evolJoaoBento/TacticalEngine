@@ -41,6 +41,7 @@ export function titleCase(id: string): string {
 
 const FALLBACK_SWATCH = '#5d8a4a';
 
+/** Ground has no model to show, so each terrain type is a colour swatch. */
 export function groundTab(terrainIds: readonly string[], colors: Readonly<Record<string, string>>): LibraryTab {
   return {
     id: 'ground',
@@ -49,6 +50,7 @@ export function groundTab(terrainIds: readonly string[], colors: Readonly<Record
   };
 }
 
+/** Built-in props come first, then the project's imported models, marked "imported" so a designer can tell which ship with the engine. */
 export function propsTab(models: readonly string[], imported: readonly string[]): LibraryTab {
   return {
     id: 'props',
@@ -63,6 +65,7 @@ export function propsTab(models: readonly string[], imported: readonly string[])
 /** Every kind the schema allows, in the order a designer reaches for them. */
 export const OBJECT_KINDS: readonly Interactable['kind'][] = ['chest', 'door', 'pillar', 'portal', 'scripted'];
 
+/** One card per interactable kind, in OBJECT_KINDS order. */
 export function objectsTab(): LibraryTab {
   return {
     id: 'objects',
