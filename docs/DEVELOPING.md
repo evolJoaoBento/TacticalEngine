@@ -742,6 +742,14 @@ scraper that used to fill that directory was removed on 2026-09-10, and `public/
 git-ignored because what is in it today is Critical Role's artwork, which the DPCGL does not
 cover. See `AGENTS.md`.
 
+**Distribution is guarded separately from Git.** `tools/build-public-assets.ts` disables Vite's
+automatic public-directory copy, emits other regular public files, excludes the entire `cards`
+subtree, and emits an empty `cards/index.json`. Local directory art remains available in dev;
+production uses generated emblems and per-browser imports. `card-art-packaging.test.ts` builds
+a fixture with private nested images to verify the output, and exercises mixed-case extensions
+through the real indexer. `CardArtwork` falls back on decode/load errors and resets the attempt
+when the source changes; browser tests cover broken directory art, corrupt imports and replacement.
+
 **Adding a field to the normalised adversaries.** `content/srd/seansbox-adversaries.ts` normalises
 all 129, and `tests/unit/srd-content-strings.test.ts` asserts they all import with zero issues. Add
 a case there before trusting a new field.

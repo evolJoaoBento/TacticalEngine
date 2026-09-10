@@ -39,8 +39,8 @@ const index = {};
 const unmatched = [];
 for (const entry of entries) {
   if (!entry.isFile()) continue;
-  const extension = path.extname(entry.name).toLowerCase();
-  if (!IMAGES.has(extension)) continue;
+  const extension = path.extname(entry.name);
+  if (!IMAGES.has(extension.toLowerCase())) continue;
   const id = idOf(path.basename(entry.name, extension));
   index[id] = entry.name;
   if (!known.has(id)) unmatched.push(entry.name);

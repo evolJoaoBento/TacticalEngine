@@ -25,6 +25,10 @@ a third-party mirror, by a downloader that has since been removed. **Those files
 `.gitignore` and must stay there while they are that artwork.**
 
 - **Do not commit them, and do not `git add -f` them.** Nothing licenses them for redistribution.
+- **Do not package them either.** Git ignore rules do not affect Vite. The build plugin in
+  `tools/build-public-assets.ts` excludes `public/cards/` and emits an empty card index while
+  preserving other public assets. Keep this boundary until art is deliberately cleared for
+  distribution; changing the ignore rule alone does not enable shipping artwork.
 - **Once a blob is committed it is in history permanently.** A later `git rm` only adds a deletion
   commit; every clone still downloads the files and any old revision checks them back out. Removing
   them for real means rewriting history with `git-filter-repo` or BFG, which changes every commit

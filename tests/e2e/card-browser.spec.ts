@@ -6,6 +6,41 @@ const PIXEL = Buffer.from(
   'base64',
 );
 
+for (const source of ['directory', 'import'] as const) {
+  test(`a broken ${source} image falls back to an emblem and can be replaced`, async ({ page }) => {
+    await page.route('**/cards/index.json', route => route.fulfill({
+      contentType: 'application/json', body: JSON.stringify({ 'bare-bones': 'broken.jpg' }),
+    }));
+    await page.route('**/cards/broken.jpg', route => route.fulfill({ contentType: 'image/jpeg', body: 'not an image' }));
+    if (source === 'import') await page.addInitScript(() => {
+      localStorage.setItem('polyheart:card-art:bare-bones', 'data:image/jpeg;base64,broken');
+    });
+    const indexLoaded = page.waitForResponse('**/cards/index.json');
+    await page.goto('/');
+    await indexLoaded;
+    await page.waitForFunction(() => window.__polyheart && window.__polyheart.frames > 2);
+    await page.evaluate(() => {
+      const a = window.__polyheart!;
+      a.select('kara');
+      a.setCards('kara', ['bare-bones']);
+    });
+    await page.getByTestId('open-loadout').click();
+    const panel = page.getByTestId('loadout');
+    const tile = panel.locator('[data-card="bare-bones"] .dh-art');
+    await expect(tile.locator('svg')).toBeVisible();
+    await expect(tile.locator('img')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Inspect Bare Bones', exact: true }).click();
+    const enlarged = panel.locator('.dh-card-expanded .dh-art');
+    await expect(enlarged.locator('svg')).toBeVisible();
+    await panel.getByTestId('art-file').setInputFiles({ name: 'replacement.png', mimeType: 'image/png', buffer: PIXEL });
+    await expect(enlarged.locator('img')).toHaveAttribute('src', /^data:image\/jpeg/);
+    await expect.poll(() => tile.locator('img').evaluateAll(images => images.length === 1 && (images[0] as HTMLImageElement).naturalWidth > 0)).toBe(true);
+    await panel.getByTestId('clear-art').click();
+    await expect(enlarged.locator('svg')).toBeVisible();
+    await expect(tile.locator('svg')).toBeVisible();
+  });
+}
+
 test('the card collection filters, inspects and swaps without leaking keyboard input to the game', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));

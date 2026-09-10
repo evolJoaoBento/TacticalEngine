@@ -1,3 +1,4 @@
+import { useState } from 'preact/hooks';
 import type { LoadoutCard } from '../demo-abilities';
 import { artFor } from './card-art';
 import { SIGIL_HEIGHT, SIGIL_WIDTH, sigilOf, type Sigil } from './card-sigil';
@@ -46,8 +47,16 @@ export function CardSigil({ card, className }: { card: { id: string; domain: str
 export function CardArtwork({ card, className }: { card: { id: string; domain: string }; className?: string }): preact.JSX.Element {
   const art = artFor(card.id);
   return art.kind === 'image'
-    ? <img className={className} src={art.src} alt="" aria-hidden="true" />
+    ? <ImageArtwork key={`${card.id}:${art.src}`} card={card} className={className} src={art.src} />
     : <CardSigil card={card} className={className} />;
+}
+
+/** A failed source falls back locally; choosing a different image starts a fresh attempt. */
+function ImageArtwork({ card, className, src }: { card: { id: string; domain: string }; className?: string; src: string }): preact.JSX.Element {
+  const [failed, setFailed] = useState(false);
+  return failed
+    ? <CardSigil card={card} className={className} />
+    : <img className={className} src={src} alt="" aria-hidden="true" onError={() => setFailed(true)} />;
 }
 
 /** A domain card, drawn from the SRD text and whatever art it has. */

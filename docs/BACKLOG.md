@@ -83,6 +83,10 @@ with imported assets cannot be handed to anyone as one file.
 
 ## 3. Known doc drift
 
+The card-art audit follow-up blocks private directory artwork from production bundles, preserves
+other public assets, restores generated emblems when an image fails, and fixes uppercase image
+extensions in the indexer. Packaging and browser regression tests cover these cases.
+
 The stale dialogue-authoring paragraph was corrected on 2026-09-10. `DEVELOPING.md` now
 labels its old line anchors as historical; use symbol names to find current implementations.
 

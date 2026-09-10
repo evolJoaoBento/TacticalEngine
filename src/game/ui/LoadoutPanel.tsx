@@ -98,7 +98,7 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
               ? <p>{importedFor(inspect.id) !== null
                   ? 'Your own picture, kept in this browser.'
                   : artFor(inspect.id).kind === 'image'
-                    ? 'From public/cards/ — shared by everyone playing this project.'
+                    ? 'Local development artwork.'
                     : 'Drawn from the card itself. Import a picture to replace it.'}</p>
               : <p role="alert" data-testid="art-issue">{artIssue}</p>}
           </div>
