@@ -93,7 +93,7 @@ import {
 } from '../engine/content/srd/seansbox-adversaries';
 import type { AdversaryDef } from '../engine/content/types';
 import { createRng, type Rng } from '../engine/core/rng';
-import { NO_TILE, type TileGrid } from '../engine/grid/grid';
+import { NO_TILE, type Spot, type TileGrid } from '../engine/grid/grid';
 import { DEFAULT_MOVEMENT, Pathfinder, tracePath, type MovementRules, type ReachableField } from '../engine/grid/pathfinding';
 import { gridFromScene, tileOf } from '../engine/scene/grid-from-scene';
 import { importLegacyScene, type LegacyMap } from '../engine/scene/legacy-import';
@@ -292,6 +292,8 @@ export interface Motion {
   id: string;
   /** The tiles walked, the first the one left. */
   path?: readonly number[];
+  /** The line actually crossed, from where they stood to where they stopped; the path when left out. */
+  route?: readonly Spot[];
   thrown?: true;
   /** A wound landed; the token takes it. */
   struck?: true;
@@ -1247,7 +1249,7 @@ export interface MoveResult {
  * the move spends an action. Walking onto a trigger cell starts its encounter, and
  * the mover stops there rather than running on through the ambush.
  */
-export function moveSelectedTo(demo: DemoScene, destination: number): MoveResult {
+export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spot): MoveResult {
   // A script waiting on the player blocks everything else; see `useSelectedOn`.
   if (demo.pending !== null) return { moved: false, path: [] };
   const id = demo.party.selected;
@@ -1258,16 +1260,20 @@ export function moveSelectedTo(demo: DemoScene, destination: number): MoveResult
   const field = demo.party.reachable(id, { inCombat: fighting });
   if (!field.canReach(destination)) return { moved: false, path: [] };
 
-  const full = demo.party.moveTo(id, destination, { inCombat: fighting });
-  if (full === null) return { moved: false, path: [] };
+  const stood = { ...demo.state.entity(id)!.at };
+  const walk = demo.party.walkTo(id, destination, aimed === undefined ? { inCombat: fighting } : { inCombat: fighting, at: aimed });
+  if (walk === null) return { moved: false, path: [] };
+  const full = walk.path;
 
-  // A trigger stops the move where it fired.
+  // A trigger stops the move where it fired: on the trigger's tile, and the
+  // line is cut there too, since a straightened walk might have crossed it.
   const hit = demo.triggers.firstAlong(full, demo.state);
   const path = hit === null ? full : full.slice(0, full.indexOf(hit.tile) + 1);
   if (hit !== null) demo.state.moveEntity(id, hit.tile);
-  demo.motions.push({ id, path });
+  const route = hit === null ? walk.route : demo.party.lineAlong(id, path, stood, demo.grid.spotOf(hit.tile), fighting);
+  demo.motions.push({ id, path, route });
 
-  if (!fighting) demo.party.follow(id, path);
+  if (!fighting) demo.party.follow(id, path, route);
   if (fighting) demo.encounter!.act(id);
 
   if (hit !== null) {

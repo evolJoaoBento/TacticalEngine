@@ -146,6 +146,28 @@ describe('party control', () => {
     expect(corner).toBeDefined();
   });
 
+  it('walks to the spot clicked, not the centre of its square, and brings the others along the line', () => {
+    const demo = build();
+    const start = demo.state.entity('kara')!.tile;
+    const target = reachableTiles(demo)
+      .tiles()
+      .find((t) => demo.grid.chebyshevDistance(t, start) >= 3 && demo.grid.xOf(t) > demo.grid.xOf(start))!;
+    const aimed = { x: demo.grid.xOf(target) + 0.3, y: demo.grid.yOf(target) - 0.2 };
+    const result = moveSelectedTo(demo, target, aimed);
+    expect(result.moved).toBe(true);
+    const kara = demo.state.entity('kara')!;
+    expect(kara.tile).toBe(target);
+    expect(kara.at).toEqual(aimed);
+    const motion = demo.motions.find((m) => m.id === 'kara')!;
+    expect(motion.route!.at(-1)).toEqual(aimed);
+    expect(motion.route!.length).toBeLessThanOrEqual(motion.path!.length);
+    // The others followed and stand somewhere distinct, each in the tile they count on.
+    for (const id of ['finn', 'mira']) {
+      const follower = demo.state.entity(id)!;
+      expect(demo.grid.tileAtSpot(follower.at.x, follower.at.y)).toBe(follower.tile);
+    }
+  });
+
   it('refuses a move out of reach and changes nothing', () => {
     const demo = build();
     const start = demo.state.entity('kara')!.tile;

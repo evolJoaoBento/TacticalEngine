@@ -118,6 +118,96 @@ describe('movement', () => {
   });
 });
 
+describe('walking to a spot', () => {
+  it('stops where it was sent, on the tile that spot lies in, along a straight line', () => {
+    const { grid, party, state } = setup();
+    const walk = party.walkTo('kara', grid.indexOf(5, 1), { at: { x: 5.3, y: 0.8 } })!;
+    expect(walk.path[0]).toBe(grid.indexOf(0, 1));
+    expect(walk.path.at(-1)).toBe(grid.indexOf(5, 1));
+    expect(state.entity('kara')!.at).toEqual({ x: 5.3, y: 0.8 });
+    expect(state.entity('kara')!.tile).toBe(grid.indexOf(5, 1));
+    // Open floor: one leg, from where she stood to where she stopped.
+    expect(walk.route).toEqual([
+      { x: 0, y: 1 },
+      { x: 5.3, y: 0.8 },
+    ]);
+  });
+
+  it('stops short of a spot where its body would not fit, and at the centre with no aim', () => {
+    const { grid, party, state } = setup(['..........', '..........', '.....#....']);
+    // Aimed at the edge of the tile above the wall, body over the wall.
+    party.walkTo('kara', grid.indexOf(5, 1), { at: { x: 5, y: 1.4 } });
+    const at = state.entity('kara')!.at;
+    expect(at.x).toBe(5);
+    expect(at.y).toBeLessThan(1.4);
+    expect(at.y).toBeGreaterThan(1);
+    expect(state.entity('kara')!.tile).toBe(grid.indexOf(5, 1));
+    party.walkTo('kara', grid.indexOf(7, 1));
+    expect(state.entity('kara')!.at).toEqual({ x: 7, y: 1 });
+  });
+
+  it('keeps clear of somebody already standing near the spot', () => {
+    const { grid, party, state } = setup();
+    state.moveEntity('finn', grid.indexOf(6, 1));
+    party.walkTo('kara', grid.indexOf(5, 1), { at: { x: 5.4, y: 1 } });
+    const at = state.entity('kara')!.at;
+    expect(Math.hypot(at.x - 6, at.y - 1)).toBeGreaterThanOrEqual(0.7);
+    expect(state.entity('kara')!.tile).toBe(grid.indexOf(5, 1));
+  });
+
+  it('bends round a wall and walks straight where it can', () => {
+    const { grid, party } = setup(['..........', '.#######..', '..........']);
+    party.select('mira');
+    const walk = party.walkTo('mira', grid.indexOf(9, 0))!;
+    expect(walk.route.length).toBeGreaterThanOrEqual(3);
+    expect(walk.route.length).toBeLessThan(walk.path.length);
+    expect(walk.route[0]).toEqual({ x: 0, y: 2 });
+    expect(walk.route.at(-1)).toEqual({ x: 9, y: 0 });
+  });
+
+  it('lines the followers up along the walk', () => {
+    const { grid, party, state } = setup();
+    // A diagonal walk: the trail's centres lie off the straight line.
+    state.moveEntity('finn', grid.indexOf(1, 0));
+    state.moveEntity('mira', grid.indexOf(0, 0));
+    state.moveEntity('kara', grid.indexOf(0, 0 + 2));
+    const walk = party.walkTo('kara', grid.indexOf(6, 0))!;
+    expect(walk.route).toHaveLength(2);
+    const spots = party.follow('kara', walk.path, walk.route);
+    const [a, b] = [walk.route[0]!, walk.route[1]!];
+    const offLine = (spot: { x: number; y: number }): number =>
+      Math.abs((b.x - a.x) * (spot.y - a.y) - (b.y - a.y) * (spot.x - a.x)) / Math.hypot(b.x - a.x, b.y - a.y);
+    const backOf = (spot: { x: number; y: number }): number => Math.hypot(b.x - spot.x, b.y - spot.y);
+    const kara = state.entity('kara')!;
+    for (const id of ['finn', 'mira']) {
+      const follower = state.entity(id)!;
+      // On the line, off any centre, counted on the tile the spot lies in, and reported.
+      expect(offLine(follower.at)).toBeLessThan(1e-9);
+      expect(follower.at).not.toEqual(grid.spotOf(follower.tile));
+      expect(grid.tileAtSpot(follower.at.x, follower.at.y)).toBe(follower.tile);
+      expect(spots.get(id)).toBe(follower.tile);
+      expect(follower.tile).not.toBe(kara.tile);
+      // Nobody stands on anybody.
+      expect(Math.hypot(follower.at.x - kara.at.x, follower.at.y - kara.at.y)).toBeGreaterThanOrEqual(0.7);
+    }
+    // One behind the other: a tile's length apart along the line.
+    const backs = ['finn', 'mira'].map((id) => backOf(state.entity(id)!.at)).sort((x, y) => x - y);
+    expect(backs[0]).toBeCloseTo(1, 6);
+    expect(backs[1]).toBeCloseTo(2, 6);
+  });
+
+  it('falls back to the trail for whoever the line has no room for', () => {
+    const { grid, party, state } = setup();
+    // A walk of one tile: room for one on the line, the other claims the trail.
+    const walk = party.walkTo('kara', grid.indexOf(1, 1))!;
+    const spots = party.follow('kara', walk.path, walk.route);
+    expect(spots.size).toBe(2);
+    const tiles = [...spots.values()];
+    expect(new Set(tiles).size).toBe(2);
+    for (const [id, tile] of spots) expect(state.entity(id)!.tile).toBe(tile);
+  });
+});
+
 describe('following', () => {
   it('strings the followers out along the leader trail', () => {
     const { grid, party, state } = setup();

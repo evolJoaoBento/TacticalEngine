@@ -10,10 +10,11 @@
  * deterministic and both are the same in a replay as in a session.
  */
 
-import { NO_TILE, type TileGrid } from '../grid/grid';
+import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
 import { DEFAULT_MOVEMENT, Pathfinder, tracePath, type MovementContext, type MovementRules } from '../grid/pathfinding';
+import { DEFAULT_WALK, canStandAt, lineLength, pointAlong, settleEnd, smoothPath, type WalkRules } from '../grid/walk';
 import { DEFAULT_BAND_TILES } from '../rules/range';
-import type { Faction, SceneState } from './state';
+import type { EntityState, Faction, SceneState } from './state';
 
 /** Factions a party member walks through rather than around, out of combat. */
 export const PARTY_PASSES_THROUGH: readonly Faction[] = ['party'];
@@ -37,6 +38,14 @@ export interface PartyOptions {
   followDistance?: number;
   /** The movement rules every member walks by; the engine's default is four-way. */
   rules?: MovementRules;
+  /** How wide a member's body is, for the line it walks and where it can stop. */
+  walk?: WalkRules;
+}
+
+/** A walk: the tiles the pathfinder took, and the line the creature actually crosses. */
+export interface Walk {
+  path: number[];
+  route: Spot[];
 }
 
 export const DEFAULT_PARTY_OPTIONS: Required<PartyOptions> = {
@@ -45,6 +54,7 @@ export const DEFAULT_PARTY_OPTIONS: Required<PartyOptions> = {
   followerBudget: 60,
   followDistance: 1,
   rules: DEFAULT_MOVEMENT,
+  walk: DEFAULT_WALK,
 };
 
 /**
@@ -142,15 +152,56 @@ export class Party {
   moveTo(
     id: string,
     destination: number,
-    options: { inCombat?: boolean; budget?: number } = {},
+    options: { inCombat?: boolean; budget?: number; at?: Spot } = {},
   ): number[] | null {
+    return this.walkTo(id, destination, options)?.path ?? null;
+  }
+
+  /**
+   * Walk a member to a tile, and to a spot in it when one is aimed at: the
+   * path the pathfinder took and the line the creature crosses - straight
+   * wherever nothing is in the way, ending at the spot if a body fits there
+   * clear of everyone else, and as near it as one does otherwise.
+   */
+  walkTo(
+    id: string,
+    destination: number,
+    options: { inCombat?: boolean; budget?: number; at?: Spot } = {},
+  ): Walk | null {
     if (!this.canCommand(id)) return null;
+    const entity = this.state.entity(id)!;
     const field = this.reachable(id, options);
     if (!field.canReach(destination)) return null;
     const path = tracePath(field, destination);
     if (path === null || path.length < 2) return null;
-    this.state.moveEntity(id, destination);
-    return path;
+    const start = { ...entity.at };
+    const end = this.settle(id, destination, options.at, options.inCombat === true);
+    this.state.placeEntity(id, end.x, end.y);
+    return { path, route: this.lineAlong(id, path, start, end, options.inCombat === true) };
+  }
+
+  /** Where a walk to a tile ends, given the spot it was aimed at, if any. */
+  private settle(id: string, tile: number, aimed: Spot | undefined, inCombat: boolean): Spot {
+    if (aimed === undefined) return this.grid.spotOf(tile);
+    const others = this.state
+      .allEntities()
+      .filter((e) => e.id !== id && e.alive && e.tile !== NO_TILE)
+      .map((e) => e.at);
+    return settleEnd(this.grid, tile, aimed, this.blockedForWalk(id, inCombat), others, this.walkRules());
+  }
+
+  /** The line a member crosses along a path, from where it stood to where it ends. */
+  lineAlong(id: string, path: readonly number[], start: Spot, end: Spot, inCombat: boolean): Spot[] {
+    return smoothPath(this.grid, path, this.blockedForWalk(id, inCombat), this.walkRules(), { start, end });
+  }
+
+  private walkRules(): WalkRules {
+    return { ...this.options.walk, maxStepHeight: this.options.rules.maxStepHeight };
+  }
+
+  /** What a walking body must keep clear of: the same as the pathfinder, less the mover. */
+  private blockedForWalk(id: string, inCombat: boolean): (tile: number) => boolean {
+    return this.movementFor(id, inCombat).isBlocked ?? (() => false);
   }
 
   /**
@@ -162,24 +213,21 @@ export class Party {
    * by current distance to the leader and then by id, so the result is the same
    * on every run.
    */
-  followPositions(leaderId: string, leaderPath: readonly number[]): Map<string, number> {
+  followPositions(
+    leaderId: string,
+    leaderPath: readonly number[],
+    already: ReadonlyMap<string, number> = new Map(),
+  ): Map<string, number> {
     const result = new Map<string, number>();
     const leader = this.state.entity(leaderId);
     if (leader === undefined) return result;
 
-    const followers = this.state
-      .entitiesOf('party')
-      .filter((e) => e.alive && e.id !== leaderId)
-      .sort(
-        (a, b) =>
-          this.grid.manhattanDistance(a.tile, leader.tile) -
-            this.grid.manhattanDistance(b.tile, leader.tile) || a.id.localeCompare(b.id),
-      );
+    const followers = this.followersOf(leaderId).filter((e) => !already.has(e.id));
     if (followers.length === 0) return result;
 
     // The trail, closest-behind first, skipping the tile the leader now holds.
     const trail = [...leaderPath].reverse().slice(this.options.followDistance);
-    const taken = new Set<number>([leader.tile]);
+    const taken = new Set<number>([leader.tile, ...already.values()]);
 
     for (const follower of followers) {
       const spot =
@@ -191,11 +239,70 @@ export class Party {
     return result;
   }
 
-  /** Move every follower to where `followPositions` puts them. */
-  follow(leaderId: string, leaderPath: readonly number[]): Map<string, number> {
-    const positions = this.followPositions(leaderId, leaderPath);
+  /**
+   * Move every follower to where they should stand behind the leader.
+   *
+   * Given the line the leader walked, each stands on it, a tile further back
+   * than the one before, so the party lines up along the walk rather than
+   * snapping to the centres of squares; whoever the line has no room for -
+   * it was short, or hugs a wall - claims a trail tile the old way.
+   */
+  follow(leaderId: string, leaderPath: readonly number[], route?: readonly Spot[]): Map<string, number> {
+    const along = route === undefined ? new Map<string, { tile: number; at: Spot }>() : this.alongTheLine(leaderId, route);
+    const positions = this.followPositions(leaderId, leaderPath, new Map([...along].map(([id, s]) => [id, s.tile])));
     for (const [id, tile] of positions) this.state.moveEntity(id, tile);
+    for (const [id, { tile, at }] of along) {
+      this.state.moveEntity(id, tile);
+      this.state.placeEntity(id, at.x, at.y);
+      positions.set(id, tile);
+    }
     return positions;
+  }
+
+  /** The living members other than the leader, nearest the leader first, then by id. */
+  private followersOf(leaderId: string): EntityState[] {
+    const leader = this.state.entity(leaderId);
+    if (leader === undefined) return [];
+    return this.state
+      .entitiesOf('party')
+      .filter((e) => e.alive && e.id !== leaderId)
+      .sort(
+        (a, b) =>
+          this.grid.manhattanDistance(a.tile, leader.tile) -
+            this.grid.manhattanDistance(b.tile, leader.tile) || a.id.localeCompare(b.id),
+      );
+  }
+
+  /**
+   * Where along the leader's line each follower stands: a tile's length back
+   * for the first, two for the next, and so on, skipping any spot a body does
+   * not fit or that is already somebody's. A follower the line runs out for is
+   * left out, for `followPositions` to place.
+   */
+  private alongTheLine(leaderId: string, route: readonly Spot[]): Map<string, { tile: number; at: Spot }> {
+    const result = new Map<string, { tile: number; at: Spot }>();
+    const leader = this.state.entity(leaderId);
+    if (leader === undefined || route.length < 2) return result;
+    const length = lineLength(route);
+    const spacing = Math.max(this.options.followDistance, 2 * this.options.walk.radius + 0.05);
+    const taken = new Set<number>([leader.tile]);
+    let back = spacing;
+    for (const follower of this.followersOf(leaderId)) {
+      const blocked = this.blockedForWalk(follower.id, false);
+      let found: { tile: number; at: Spot } | null = null;
+      while (back <= length + 1e-9) {
+        const at = pointAlong(route, length - back);
+        back += spacing;
+        const tile = this.grid.tileAtSpot(at.x, at.y);
+        if (taken.has(tile) || !canStandAt(this.grid, at, blocked, this.walkRules())) continue;
+        found = { tile, at };
+        break;
+      }
+      if (found === null) break;
+      taken.add(found.tile);
+      result.set(follower.id, found);
+    }
+    return result;
   }
 
   private claimFrom(trail: readonly number[], taken: Set<number>, moverId: string): number | null {
