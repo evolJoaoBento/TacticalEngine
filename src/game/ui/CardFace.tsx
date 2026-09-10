@@ -1,16 +1,47 @@
-import { useState } from 'preact/hooks';
 import type { LoadoutCard } from '../demo-abilities';
+import { SIGIL_HEIGHT, SIGIL_WIDTH, sigilOf, type Sigil } from './card-sigil';
 
-const colors: Record<string, string> = {
-  arcana: '#695cac', blade: '#973f45', bone: '#a99a78', codex: '#426baa',
-  grace: '#b75d90', midnight: '#414a87', sage: '#507b4b', splendor: '#be993c', valor: '#b76b38',
-};
+/** The ink the emblem is drawn in, over the domain-coloured ground. */
+const INK = '#fff2d4';
 
-/** Original illustration with a responsive, selectable SRD rules face. */
+/**
+ * The generated emblem for a card, as SVG.
+ *
+ * Drawn from the card's id and domain — no image files, so this works on a
+ * fresh clone with nothing downloaded. `aria-hidden`, because the card's name
+ * and rules are already read out beside it and the emblem says nothing extra.
+ */
+export function CardSigil({ card, className }: { card: { id: string; domain: string }; className?: string }): preact.JSX.Element {
+  const sigil: Sigil = sigilOf(card);
+  return (
+    <svg
+      className={className}
+      viewBox={`0 0 ${SIGIL_WIDTH} ${SIGIL_HEIGHT}`}
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {sigil.shapes.map((shape, i) => {
+        const paint = shape.fill
+          ? { fill: INK, 'fill-opacity': shape.opacity }
+          : { fill: 'none', stroke: INK, 'stroke-opacity': shape.opacity, 'stroke-width': shape.width };
+        if (shape.kind === 'circle') {
+          return <circle key={i} cx={shape.cx} cy={shape.cy} r={shape.r} {...paint} />;
+        }
+        const points = shape.points.join(' ');
+        // An unfilled run of points is an open arc, not a closed shape.
+        return shape.fill
+          ? <polygon key={i} points={points} {...paint} />
+          : <polyline key={i} points={points} strokeLinecap="round" {...paint} />;
+      })}
+    </svg>
+  );
+}
+
+/** A domain card, drawn from the SRD text and its own generated emblem. */
 export function CardFace({ card, expanded = false }: { card: LoadoutCard; expanded?: boolean }): preact.JSX.Element {
-  const [failed, setFailed] = useState(false);
-  return <div className={`dh-card ${expanded ? 'dh-card-expanded' : ''}`} style={{ '--domain-color': colors[card.domain.toLowerCase()] ?? '#695cac' }}>
-    <div className="dh-art">{!failed && <img src={`/cards/${card.id}.jpg`} alt={`${card.name} illustration`} loading="lazy" onError={() => setFailed(true)} />}
+  return <div className={`dh-card ${expanded ? 'dh-card-expanded' : ''}`} style={{ '--domain-color': sigilOf(card).color }}>
+    <div className="dh-art"><CardSigil card={card} />
       <span className="dh-level"><b>{card.level}</b><small>LEVEL</small></span><span className="dh-recall" title="Recall Cost">{card.recallCost}<small>RECALL</small></span>
       <span className="dh-domain">{card.domain}</span></div>
     <div className="dh-title"><h3>{card.name}</h3><span>{card.type}</span></div>

@@ -160,10 +160,11 @@ is where the loadout changes for free.
 
 ### The loadout and the vault
 
-The collection presents illustrated domain cards with level, domain and Recall Cost. Search by
-name or rules text, or filter by domain. Click a card to open its full readable rules; Escape
-returns to the collection, and Escape again closes it. The browser supports keyboard navigation
-and a two-column layout on phones. The action bar also shows each domain card's illustration.
+The collection presents domain cards with level, domain and Recall Cost, each wearing an
+emblem drawn from the card itself and its domain's colour. Search by name or rules text, or
+filter by domain. Click a card to open its full readable rules; Escape returns to the
+collection, and Escape again closes it. The browser supports keyboard navigation and a
+two-column layout on phones. The action bar wears the same emblem on each domain card.
 
 Five domain cards can be active; the rest wait in the vault. **Loadout…** shows both. Recalling
 a card from the vault outside a rest marks Stress equal to its Recall Cost (the button says how

@@ -10,7 +10,9 @@
  * why, and this lays it out.
  */
 
-import type { AbilityView } from '../demo-abilities';
+import { cardDomain, type AbilityView } from '../demo-abilities';
+import { CardSigil } from './CardFace';
+import { domainColor } from './card-sigil';
 import './cards.css';
 
 export interface ActionBarProps {
@@ -129,7 +131,11 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
             data-usable={view.usable}
             onClick={() => props.onUse(view.ability.id)}
           >
-            {view.ability.source.kind === 'domainCard' ? <img className="ability-card-art" src={`/cards/${view.ability.source.card}.jpg`} alt="" /> : null}
+            {view.ability.source.kind === 'domainCard' ? (
+              <span className="ability-card-art" style={{ background: domainColor(cardDomain(view.ability.source.card)) }}>
+                <CardSigil card={{ id: view.ability.source.card, domain: cardDomain(view.ability.source.card) }} />
+              </span>
+            ) : null}
             <div>{view.ability.name}</div>
             <div style={small}>{view.reason ?? badges(view) ?? ''}</div>
           </button>

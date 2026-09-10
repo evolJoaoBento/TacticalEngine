@@ -393,6 +393,16 @@ export interface LoadoutCard {
   text: string;
 }
 
+/**
+ * The domain a card belongs to, or `Unknown`.
+ *
+ * The action bar has a card id and needs the domain to draw the card's emblem
+ * and wear its colour; the SRD library is the only place that knows.
+ */
+export function cardDomain(cardId: string): string {
+  return SRD_CHARACTERS.domainCards.get(cardId)?.domain ?? 'Unknown';
+}
+
 export interface LoadoutView {
   loadout: LoadoutCard[];
   vault: LoadoutCard[];

@@ -88,8 +88,10 @@ labels its old line anchors as historical; use symbol names to find current impl
 
 Completed in the 2026-09-10 working tree: ambush checkpoints are refused with an explanatory
 message, and `@content/*` resolves to the real content directory in Vite and TypeScript.
-The card collection now has 189 local illustrations, domain frames, full-text inspection,
-search and domain filters, responsive layout, keyboard navigation and active/vault swaps.
+The card collection has domain frames, full-text inspection, search and domain filters,
+responsive layout, keyboard navigation and active/vault swaps. Each card's art is generated
+from its own id and domain (`ui/card-sigil.ts`), so a fresh clone draws a complete card with
+nothing to download.
 
 ---
 

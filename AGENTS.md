@@ -29,8 +29,12 @@ stay there.**
   them for real means rewriting history with `git-filter-repo` or BFG, which changes every commit
   hash from that point on and breaks every clone and fork. There is no cheap undo, which is why the
   guard is at the front.
+- **Nothing in `src/` reads those files.** Card faces draw their own art: `ui/card-sigil.ts`
+  generates each card's emblem from its id and domain, seeded through `createRng`, so a fresh
+  clone renders a complete card with no assets. Do not reintroduce an `<img>` pointing at
+  `/cards/`; it 404s for everyone but the one machine that ran the downloader.
 - **Keeping the script is fine** — it is your own code, and a developer fetching art onto their own
-  disk is not the project redistributing it. Prefer an official source over the fan mirror.
+  disk is not the project redistributing it. It is unused as of 2026-09-10.
 - **The frames, domain colours, filters, search and enlarged reading view are original work and are
   the valuable half.** Rendering card faces from the vendored SRD text carries no licensing risk at
   all. If art has to go, that work survives untouched.

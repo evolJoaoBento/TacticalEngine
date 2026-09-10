@@ -731,8 +731,11 @@ community sets carry are separate obligations and both are kept — the exact 2.
 Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
 
 **Sources.** The source PDF is deliberately not committed; its extracted SRD text is.
-The illustrated card browser also includes locally served card artwork requested by the user;
-`public/cards/README.md` and `sources.json` record its separate provenance.
+**Card art is generated, not sourced.** `ui/card-sigil.ts` draws each domain card's emblem from
+its own id, seeded through `createRng`, so nothing in `src/` reads an image file and the licence
+question never arises. `tools/download-card-art.mjs` fetches illustrations from a third-party
+mirror into `public/cards/`, which is git-ignored and which nothing in the app reads; that
+artwork is Critical Role's and the DPCGL does not cover it. See `AGENTS.md`.
 
 **Adding a field to the normalised adversaries.** `content/srd/seansbox-adversaries.ts` normalises
 all 129, and `tests/unit/srd-content-strings.test.ts` asserts they all import with zero issues. Add
