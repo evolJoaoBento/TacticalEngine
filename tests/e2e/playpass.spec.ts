@@ -103,6 +103,33 @@ test('the vault fight runs, and a swing reads out on screen', async ({ page }) =
   expect(swung.reacting, 'the swing moved a token').toBeGreaterThan(0);
 });
 
+test('a click on an enemy across the room walks up and swings', async ({ page }) => {
+  const arrived = await intoTheVault(page);
+  expect(arrived.inCombat).toBe(true);
+
+  const charged = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    const me = a.selected()!;
+    const foe = a.adversaries()[0]!;
+    // Back off within this move, let the room have a turn, then click the foe from there.
+    const away = (t: number): number => Math.hypot((t % 22) - (a.tileOf(foe) % 22), Math.floor(t / 22) - Math.floor(a.tileOf(foe) / 22));
+    const back = a.reachable().reduce((x, y) => (away(y) > away(x) ? y : x));
+    a.moveTo(back);
+    while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
+    a.endGmTurn();
+    while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
+    const from = a.tileOf(me);
+    const attacked = a.attack(foe);
+    while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
+    return { me, foe, from, distanceBefore: away(from), attacked, distanceAfter: away(a.tileOf(me)), gliding: a.gliding() };
+  });
+  console.log('CHARGE:', JSON.stringify(charged));
+  expect(charged.distanceBefore).toBeGreaterThan(1.5);
+  expect(charged.attacked).toBe(true);
+  expect(charged.distanceAfter).toBeLessThanOrEqual(1.5);
+  await page.screenshot({ path: 'test-results/charge.png' });
+});
+
 test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
   const arrived = await intoTheVault(page);
   expect(arrived.inCombat).toBe(true);

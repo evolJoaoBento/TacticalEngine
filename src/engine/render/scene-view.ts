@@ -806,11 +806,13 @@ export class SceneView {
       cumulative.push(cumulative[i - 1]! + Math.hypot(b.x - a.x, b.z - a.z));
     }
     const total = cumulative[cumulative.length - 1]!;
-    // A fixed time per tile of line, whether it bends or not: a follower
-    // crossing five tiles in one leg takes five tiles' worth.
+    // A fixed pace per tile of line, however long it is: a walk across the
+    // room takes as long as a walk across the room, and a follower crossing
+    // five tiles in one leg takes five tiles' worth. A walk keeps its feet on
+    // the ground; only a throw arcs.
     const crossed = Math.max(1, lineLength(spots));
-    const duration = thrown ? 0.25 : Math.min(1.2, 0.16 * crossed);
-    this.glides.set(id, { token, points, cumulative, total, elapsed: 0, duration, hop: thrown ? 0.35 : 0.12, thrown });
+    const duration = thrown ? 0.25 : 0.16 * crossed;
+    this.glides.set(id, { token, points, cumulative, total, elapsed: 0, duration, hop: thrown ? 0.35 : 0, thrown });
     if (!thrown) this.playState(token.group, 'walk');
   }
 
@@ -830,9 +832,14 @@ export class SceneView {
       const frac = legLength <= 1e-9 ? 1 : (distance - glide.cumulative[i]!) / legLength;
       const a = glide.points[i]!;
       const b = glide.points[i + 1]!;
-      // A walk hops once a tile; a throw is one arc.
-      const hop = glide.thrown ? glide.hop * Math.sin(Math.PI * t) : glide.hop * Math.abs(Math.sin(Math.PI * distance));
+      // A throw is one arc; a walk stays on the ground and faces where it is going.
+      const hop = glide.thrown ? glide.hop * Math.sin(Math.PI * t) : 0;
       glide.token.group.position.set(a.x + (b.x - a.x) * frac, a.y + (b.y - a.y) * frac + hop, a.z + (b.z - a.z) * frac);
+      if (!glide.thrown) {
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        if (dx * dx + dz * dz > 1e-12) glide.token.group.rotation.y = Math.atan2(dx, dz);
+      }
       if (t >= 1) {
         const end = glide.points[segments]!;
         glide.token.group.position.set(end.x, end.y, end.z);

@@ -87,6 +87,7 @@ import {
   gearOf,
   useItem,
   moveSelectedTo,
+  previewStrike,
   previewWalk,
   note,
   playGmTurn,
@@ -1436,8 +1437,16 @@ function hoverWalk(ground: { tile: number; spot: Spot } | null): void {
     view.clearPath();
     return;
   }
-  // A click on a creature or a thing is not a walk.
-  if (entityNear(ground.spot) !== null || entityOn(ground.tile) !== null || objectOn(ground.tile) !== null) {
+  // A click on an enemy walks up to it before the swing: that line. A click
+  // on anyone else, or on a thing, is not a walk.
+  const near = entityNear(ground.spot) ?? entityOn(ground.tile);
+  if (near !== null) {
+    const route = demo.state.entity(near)?.faction === 'adversary' ? previewStrike(demo, near) : null;
+    if (route === null) view.clearPath();
+    else view.showPath(route);
+    return;
+  }
+  if (objectOn(ground.tile) !== null) {
     view.clearPath();
     return;
   }

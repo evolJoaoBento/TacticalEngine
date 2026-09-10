@@ -363,7 +363,7 @@ describe('SceneView', () => {
     view.dispose();
   });
 
-  it('walks a token along the path it took, a hop per tile, and arrives exactly', () => {
+  it('walks a token along the path it took, facing the way it goes, and arrives exactly', () => {
     const { grid, state, view } = setup();
     view.syncTokens(state);
     const kara = view.tokenFor('kara')!;
@@ -384,9 +384,12 @@ describe('SceneView', () => {
     expect(kara.group.position.x).toBeCloseTo(corner.x, 3);
     expect(kara.group.position.z).toBeCloseTo(corner.z, 3);
 
-    // Mid-tile it is a little off the ground: the hop.
+    // Along the first leg it faced east; round the corner, south. Its feet
+    // stay on the ground the whole way.
+    expect(kara.group.rotation.y).toBeCloseTo(Math.PI / 2, 6);
     view.tick(0.08);
-    expect(kara.group.position.y).toBeGreaterThan(corner.y + 0.05);
+    expect(kara.group.rotation.y).toBeCloseTo(0, 6);
+    expect(kara.group.position.y).toBeCloseTo(corner.y, 6);
 
     view.tick(1);
     const to = tileCenter(grid, grid.indexOf(2, 1));

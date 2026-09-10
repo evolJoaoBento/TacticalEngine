@@ -322,12 +322,40 @@ describe('a fight, end to end', () => {
     expect(demo.encounter!.view()).toMatchObject({ side: 'party', round: 1, outcome: 'ongoing' });
   });
 
-  it('refuses an attack on a target out of reach, without rolling', () => {
+  it('closes as far as it can on a target it cannot reach, without rolling, and that is the action', () => {
     const demo = fighting();
     const far = demo.state.entitiesOf('adversary')[0]!.id;
+    const start = demo.state.entity('kara')!.tile;
     const result = attackWithSelected(demo, far)!;
-    expect(result.refused).not.toBeNull();
+    expect(result.refused).toBe('outOfRange');
     expect(result.hitPointsMarked).toBe(0);
+    // Behind the shut vault door: the walk gets nearer and stops, and the log says so.
+    const stood = demo.state.entity('kara')!.tile;
+    expect(stood).not.toBe(start);
+    expect(demo.grid.euclideanDistance(stood, demo.state.entity(far)!.tile)).toBeLessThan(
+      demo.grid.euclideanDistance(start, demo.state.entity(far)!.tile),
+    );
+    expect(demo.log.some((l) => l.text.includes('closes in, but cannot reach'))).toBe(true);
+    expect(demo.motions.some((m) => m.id === 'kara' && m.route !== undefined)).toBe(true);
+  });
+
+  it('walks up to a target within one move and swings from where the weapon reaches', () => {
+    const demo = fighting();
+    openTheDoor(demo);
+    const foe = demo.state.entitiesOf('adversary')[0]!;
+    // Three tiles west of it, inside the vault: a walk, then the swing, in one action.
+    const west = demo.grid.indexOf(demo.grid.xOf(foe.tile) - 3, demo.grid.yOf(foe.tile));
+    expect(demo.state.bodyFree(west)).toBe(true);
+    demo.state.moveEntity('kara', west);
+    demo.motions.length = 0;
+    const result = attackWithSelected(demo, foe.id)!;
+    expect(result.refused).toBeNull();
+    const kara = demo.state.entity('kara')!;
+    expect(demo.world.bandBetween(kara.tile, foe.tile)).toBe('melee');
+    const walk = demo.motions.find((m) => m.id === 'kara' && m.route !== undefined)!;
+    expect(walk.route!.at(-1)).toEqual(kara.at);
+    // And the swing followed the walk on the board.
+    expect(demo.motions.some((m) => m.id === 'kara' && m.lunge !== undefined)).toBe(true);
   });
 
   it('lands a hit once adjacent, and marks Hit Points', () => {

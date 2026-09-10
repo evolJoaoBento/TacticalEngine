@@ -52,6 +52,7 @@ import weaponJson from '../../tools/srd-sources/daggersearch/core/weapons.json';
 import subclassJson from '../../tools/srd-sources/daggersearch/core/subclasses.json';
 import domainCardJson from '../../tools/srd-sources/daggersearch/core/domain-cards.json';
 import { applyAttack, resolveAttack, type AttackOutcome, type AttackProfile } from '../engine/combat/attack';
+import { evaluateTarget } from '../engine/combat/targeting';
 import { adversaryTraits, attackDamageOf } from '../engine/combat/adversary-features';
 import {
   canPayFor,
@@ -1305,6 +1306,87 @@ export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spo
   return { moved: true, path };
 }
 
+/**
+ * Bring the selected member into reach of a target before a swing: nothing
+ * when already in reach, the walk to the nearest spot the weapon reaches from
+ * when one is within this move, and otherwise as far along the way as the
+ * move allows - `short`, the action spent on the walk.
+ */
+function closeToStrike(demo: DemoScene, id: string, target: EntityState, range: RangeBand): 'inReach' | 'closed' | 'short' {
+  const attacker = demo.state.entity(id)!;
+  const fighting = inCombat(demo);
+  const strikeFrom = strikeTile(demo, id, target, range);
+  if (strikeFrom === attacker.tile) return 'inReach';
+  if (strikeFrom !== NO_TILE) {
+    walkSelected(demo, id, strikeFrom, fighting);
+    return 'closed';
+  }
+  const field = demo.party.reachable(id, { inCombat: fighting });
+  let best = attacker.tile;
+  let bestDistance = demo.grid.euclideanDistance(attacker.tile, target.tile);
+  for (const tile of field.tiles()) {
+    const distance = demo.grid.euclideanDistance(tile, target.tile);
+    if (distance < bestDistance || (distance === bestDistance && tile < best)) {
+      best = tile;
+      bestDistance = distance;
+    }
+  }
+  if (best !== attacker.tile) {
+    walkSelected(demo, id, best, fighting);
+    note(demo, `${nameOf(demo, id)} closes in, but cannot reach ${nameOf(demo, target.id)} this turn.`, 'combat');
+    if (fighting) demo.encounter!.act(id);
+  }
+  return 'short';
+}
+
+/**
+ * The tile the selected member would strike a target from: their own when it
+ * is already in reach, else the cheapest to walk to this move that the weapon
+ * reaches from; `NO_TILE` when none is.
+ */
+function strikeTile(demo: DemoScene, id: string, target: EntityState, range: RangeBand): number {
+  const attacker = demo.state.entity(id)!;
+  const inReach = (tile: number): boolean =>
+    evaluateTarget(demo.grid, tile, target.tile, range, { bandTiles: DEMO_BAND_TILES }).refusal === null;
+  if (inReach(attacker.tile)) return attacker.tile;
+  const field = demo.party.reachable(id, { inCombat: inCombat(demo) });
+  let best = NO_TILE;
+  let bestCost = Infinity;
+  for (const tile of field.tiles()) {
+    if (tile === attacker.tile || !inReach(tile)) continue;
+    const cost = field.costTo(tile);
+    if (cost < bestCost || (cost === bestCost && tile < best)) {
+      best = tile;
+      bestCost = cost;
+    }
+  }
+  return best;
+}
+
+/** Walk the selected member to a tile, and tell the board the line they took. */
+function walkSelected(demo: DemoScene, id: string, tile: number, fighting: boolean): void {
+  const walk = demo.party.walkTo(id, tile, { inCombat: fighting });
+  if (walk !== null) demo.motions.push({ id, path: walk.path, route: walk.route });
+}
+
+/**
+ * The line a click on an adversary would walk before the swing: none when
+ * already in reach or nothing would move.
+ */
+export function previewStrike(demo: DemoScene, targetId: string): Spot[] | null {
+  if (demo.pending !== null) return null;
+  const id = demo.party.selected;
+  const character = id === null ? undefined : demo.characters.get(id);
+  const target = demo.state.entity(targetId);
+  if (id === null || character === undefined || target === undefined || !target.alive) return null;
+  const fighting = inCombat(demo);
+  if (fighting && !demo.encounter!.canAct(id)) return null;
+  const attacker = demo.state.entity(id)!;
+  const from = strikeTile(demo, id, target, attackProfile(character).range);
+  if (from === NO_TILE || from === attacker.tile) return null;
+  return demo.party.planWalk(id, from, { inCombat: fighting })?.route ?? null;
+}
+
 /** The line a click would walk: what is walked this move, and what lies beyond it. */
 export interface WalkPreview {
   route: Spot[];
@@ -1413,6 +1495,12 @@ export function attackWithSelected(
   if (inCombat(demo) && !demo.encounter!.canAct(id!)) return null;
 
   const profile = attackProfile(character);
+  // The first thing a player does is click the enemy across the room. Out of
+  // reach, the attacker walks to the nearest spot the weapon reaches from -
+  // the move within Close is part of the action - and swings from there. With
+  // nowhere in reach this move, they close as far as one move allows, and the
+  // walk is the action.
+  if (closeToStrike(demo, id!, target, profile.range) === 'short') return { hit: false, refused: 'outOfRange', hitPointsMarked: 0 };
   const melee = profile.range === 'melee';
   const outcome = resolveAttack(demo.rng, {
     grid: demo.grid,
