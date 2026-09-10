@@ -14,7 +14,7 @@
  * `library.ts`. This file arranges them.
  */
 
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import './editor.css';
 import { SRD_CONDITIONS } from '../../engine/content/conditions';
 import type { AbilityDef } from '../../engine/content/abilities';
@@ -94,7 +94,11 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
   // The session and controller are mutable objects rather than signals, so the
   // shell re-renders on a version counter, as the side panel did.
   const [version, setVersion] = useState(0);
-  useEffect(() => session.subscribe(() => setVersion((v) => v + 1)), [session]);
+  // Layout, not passive: an edit made right after mount - the driver's `editAt`
+  // right after `setMode('edit')`, or a user's first click after Ctrl+E - must
+  // bump this before a passive effect would get its turn, or the shell renders
+  // once against state already gone stale.
+  useLayoutEffect(() => session.subscribe(() => setVersion((v) => v + 1)), [session]);
   const bump = (): void => setVersion((v) => v + 1);
 
   const [menu, setMenu] = useState<Menu | null>(null);
@@ -129,9 +133,11 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
   };
 
   // One key listener for the life of the shell, reading the latest handlers.
+  // Layout, not passive: a user's first 1-4 right after Ctrl+E must not be
+  // dropped while a passive effect is still waiting its turn after paint.
   const keys = useRef({ changeMode, escape });
   keys.current = { changeMode, escape };
-  useEffect(() => {
+  useLayoutEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (typing(event) || event.ctrlKey || event.metaKey || event.altKey) return;
       const index = ['1', '2', '3', '4'].indexOf(event.key);
@@ -146,7 +152,15 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
   useEffect(() => {
     if (menu === null) return;
     const onDown = (event: PointerEvent): void => {
-      if (!(event.target instanceof Element) || event.target.closest('.ph-menu-wrap') === null) setMenu(null);
+      if (!(event.target instanceof Element) || event.target.closest('.ph-menu-wrap') !== null) return;
+      setMenu(null);
+      // The board sits under the bar, so the same press that closes the menu
+      // would otherwise also reach the canvas and paint or select. Other shell
+      // controls are unaffected: their own `click` handlers are separate events.
+      if (event.target.closest('#gl') !== null) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
     };
     document.addEventListener('pointerdown', onDown, true);
     return () => document.removeEventListener('pointerdown', onDown, true);
@@ -208,8 +222,17 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           ? controller.state.terrainId
           : '';
 
+  const openGraph = graph === null ? null : (session.project.dialogues.find((d) => d.id === graph) ?? null);
+  // Undo, redo or a Load can drop the conversation whose graph was open (the
+  // side panel used `openGraph` and fell back to itself; this state did not).
+  // Clearing the stale id here, rather than only in the `body` check below,
+  // means a later "+ Conversation" cannot mistake the leftover id for its own.
+  useEffect(() => {
+    if (graph !== null && openGraph === null) setGraph(null);
+  }, [graph, openGraph]);
+
   let body: preact.JSX.Element | preact.JSX.Element[] | null = null;
-  if (workspace === null && graph === null) {
+  if (workspace === null && openGraph === null) {
     if (mode === 'inspect') {
       body = <InspectorSide session={session} controller={controller} ids={ids} onChange={bump} />;
     } else if (mode === 'terrain') {
@@ -245,7 +268,6 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
     }
   }
 
-  const openGraph = graph === null ? null : (session.project.dialogues.find((d) => d.id === graph) ?? null);
   let workspaceBody: preact.JSX.Element | null = null;
   switch (workspace) {
     case 'party':

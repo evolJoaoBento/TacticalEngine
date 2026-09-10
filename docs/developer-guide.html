@@ -309,8 +309,10 @@ footer {
       citation at the top, pure functions, an <code>Rng</code> passed in wherever dice are rolled.</li>
     <li><code>src/game/demo-scene.ts</code> (2435 lines) — where the engine is actually wired into a
       playable thing.</li>
-    <li><code>src/main.ts</code> (1578 lines) — the boot path, and the only DOM listeners in the
-      project.</li>
+    <li><code>src/main.ts</code> (1578 lines) — the boot path. It owns the board, play and global
+      keys (<code>Ctrl+E</code>, <code>Ctrl+Z</code>); the editor shell
+      (<code>src/editor/ui/EditorShell.tsx</code>) also listens, for its own keys
+      (<code>1</code>-<code>4</code>, <code>Esc</code>) and for a click outside an open menu.</li>
   </ol>
 </section>
 
@@ -514,7 +516,7 @@ footer {
       <tr><td><code>ui/AbilityPanel.tsx</code></td><td>An ability's fields, including <code>defenses</code> and <code>tokens</code>.</td></tr>
       <tr><td><code>ui/ConditionEditor.tsx</code>, <code>ui/CheckEditor.tsx</code>, <code>ui/TargetEditor.tsx</code></td><td>The three sub-editors <code>EffectList</code> nests.</td></tr>
       <tr><td><code>ui/EditorShell.tsx</code></td><td>The editor's root: which menu, workspace, conversation and problem list is open; keys 1-4 and Esc.</td></tr>
-      <tr><td><code>ui/TopBar.tsx</code>, <code>ui/SceneMenu.tsx</code>, <code>ui/ToolRail.tsx</code>, <code>ui/LibraryStrip.tsx</code>, <code>ui/ModeSides.tsx</code></td><td>The shell's parts: menus and modes, the scene dropdown, a mode's tools, the strip, and what sits beside the board in each mode.</td></tr>
+      <tr><td><code>ui/TopBar.tsx</code>, <code>ui/SceneMenu.tsx</code>, <code>ui/ToolRail.tsx</code>, <code>ui/LibraryStrip.tsx</code>, <code>ui/ModeSides.tsx</code>, <code>ui/icons.tsx</code></td><td>The shell's parts: menus and modes, the scene dropdown, a mode's tools, the strip, what sits beside the board in each mode, and the icons drawn for tools and modes.</td></tr>
       <tr><td><code>ui/QuestsWorkspace.tsx</code>, <code>ui/ModelsWorkspace.tsx</code>, <code>ui/ProblemsPopover.tsx</code></td><td>Quests and imported models as workspaces, and what Check found.</td></tr>
       <tr><td><code>ui/editor.css</code></td><td>The purple theme's tokens on <code>:root</code>, and the shell's rules under <code>.ph-editor</code>.</td></tr>
       <tr><td><code>ui/Inspector.tsx</code>, <code>ui/DialogueGraph.tsx</code>, <code>ui/ItemPanel.tsx</code>, <code>ui/PartyPanel.tsx</code>, <code>ui/QuestEditor.tsx</code>, <code>ui/CodePanel.tsx</code></td><td>The rest of the panels.</td></tr>
@@ -527,7 +529,10 @@ footer {
   module: <code>engine-is-headless.test.ts</code>, <code>srd-content-strings.test.ts</code>,
   <code>demo-scene.test.ts</code>, <code>demo-map-fight.test.ts</code>,
   <code>legacy-campaign-import.test.ts</code>, and <code>spike.test.ts</code>, which asserts three.js
-  resolves as ESM under Vitest. <code>tests/e2e/demo.spec.ts</code> is the only Playwright file.
+  resolves as ESM under Vitest. <code>tests/e2e/</code> holds <code>between-fights.spec.ts</code>,
+  <code>card-browser.spec.ts</code>, <code>demo.spec.ts</code>, <code>editor-panels.spec.ts</code>,
+  <code>editor-shell.spec.ts</code>, <code>playpass.spec.ts</code>, <code>readout.spec.ts</code>,
+  <code>save-load.spec.ts</code> and <code>warden.spec.ts</code>.
   <code>tests/fixtures/models/</code> holds <code>BoxTextured.glb</code>, <code>Duck.glb</code> and
   <code>Fox.glb</code>.</p>
 

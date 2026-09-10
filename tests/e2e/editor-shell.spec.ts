@@ -52,6 +52,18 @@ test('the editor is purple', async ({ page }) => {
   expect(await page.locator('[data-testid="play"]').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
     'rgb(181, 140, 255)',
   );
+  // Inspector is active, so Terrain's mode tab is inactive and should be muted, not white.
+  const inactiveMode = page.locator('[data-testid="mode-terrain"]');
+  expect(await inactiveMode.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(165, 156, 186)');
+
+  await page.locator('[data-testid="mode-terrain"]').click();
+  const strip = page.locator('[data-testid="terrain-library"]');
+  const [open, closed] = await Promise.all([
+    strip.locator('[data-tab="ground"]').evaluate((el) => getComputedStyle(el).backgroundColor),
+    strip.locator('[data-tab="props"]').evaluate((el) => getComputedStyle(el).backgroundColor),
+  ]);
+  expect(open).not.toBe(closed);
+
   expect(errors).toEqual([]);
 });
 
@@ -67,11 +79,15 @@ test('Terrain: its own tools, and a pick from the strip takes up the tool that p
 
   const placed = await page.evaluate(() => {
     const api = window.__polyheart!;
-    const before = api.propCount();
+    const models = (): string[] =>
+      (JSON.parse(api.exportProject()) as { scenes: { decos: { model: string }[] }[] }).scenes[0]!.decos.map((d) => d.model);
+    const barrels = (): number => models().filter((model) => model === 'barrel').length;
+    const before = { all: models().length, barrels: barrels() };
     api.editAt(2 * 22 + 2);
-    return api.propCount() - before;
+    return { added: models().length - before.all, barrels: barrels() - before.barrels };
   });
-  expect(placed).toBe(1);
+  // One deco more, and it is the barrel the strip picked - not merely a change of tool.
+  expect(placed).toEqual({ added: 1, barrels: 1 });
   expect(errors).toEqual([]);
 });
 
@@ -80,22 +96,35 @@ test('Combat: its own tools, and a creature found by searching is the one placed
   await page.locator('[data-testid="mode-combat"]').click();
   await expect(page.locator('[data-testid="tool-rail"] [data-tool]')).toHaveCount(4);
 
+  // Search for a creature that is not the default `tangle-bramble`, and read
+  // its id from the card rather than guessing it, so the test still means
+  // something if the SRD list ever renumbers.
   const strip = page.locator('[data-testid="combat-library"]');
-  await strip.locator('[data-testid="library-search"]').fill('bramble');
-  await strip.locator('[data-item="tangle-bramble"]').click();
+  await strip.locator('[data-testid="library-search"]').fill('wolf');
+  const found = strip.locator('[data-item]');
+  await expect(found).toHaveCount(1);
+  const creatureId = await found.getAttribute('data-item');
+  expect(creatureId).not.toBe('tangle-bramble');
+  await found.click();
 
-  const placed = await page.evaluate(() => {
+  const placed = await page.evaluate((id) => {
     const api = window.__polyheart!;
     const kinds = (): string[] =>
       (JSON.parse(api.exportProject()) as { scenes: { encounters: { adversaries: { adversary: string }[] }[] }[] }).scenes[0]!
         .encounters.flatMap((e) => e.adversaries.map((a) => a.adversary));
-    const brambles = (): number => kinds().filter((kind) => kind === 'tangle-bramble').length;
-    const before = { all: kinds().length, brambles: brambles() };
+    const matching = (): number => kinds().filter((kind) => kind === id).length;
+    const before = { all: kinds().length, matching: matching() };
     api.editAt(2 * 22 + 2);
-    return { added: kinds().length - before.all, brambles: brambles() - before.brambles };
-  });
+    return { added: kinds().length - before.all, matching: matching() - before.matching };
+  }, creatureId);
   // One creature more, and it is the one the search found - wherever the encounter lists it.
-  expect(placed).toEqual({ added: 1, brambles: 1 });
+  expect(placed).toEqual({ added: 1, matching: 1 });
+
+  // First browser coverage of a rail click: it changes the tool in hand.
+  await page.locator('[data-testid="tool-rail"] [data-tool="trigger"]').click();
+  await expect(page.locator('[data-testid="tool-rail"] [data-tool="trigger"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-testid="tool-rail"] [data-tool="adversary"]')).toHaveAttribute('aria-pressed', 'false');
+
   expect(errors).toEqual([]);
 });
 
@@ -120,6 +149,18 @@ test('Interaction lists the conversations and opens one as a graph', async ({ pa
   await expect(page.locator('[data-testid="interaction-side"]')).toBeVisible();
   await page.locator('[data-testid="interaction-side"]').getByRole('button', { name: /the-listening-pillar/ }).click();
   await expect(page.locator('[data-testid="dialogue-graph"]')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('undoing a new conversation returns to the conversation list', async ({ page }) => {
+  const errors = await editing(page);
+  await page.locator('[data-testid="mode-interaction"]').click();
+  page.once('dialog', (d) => d.accept('a-new-talk'));
+  await page.locator('[data-testid="add-conversation"]').click();
+  await expect(page.locator('[data-testid="dialogue-graph"]')).toBeVisible();
+
+  await page.locator('[data-testid="undo"]').click();
+  await expect(page.locator('[data-testid="interaction-side"]')).toBeVisible();
   expect(errors).toEqual([]);
 });
 

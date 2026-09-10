@@ -81,7 +81,7 @@ export function TerrainSide(props: { controller: EditorController; onChange: () 
       <div class="ph-heading">{TOOL_LABELS[tool]}</div>
       <div class="ph-hint">{TERRAIN_HINTS[tool] ?? ''}</div>
       {BRUSHED.includes(tool) ? (
-        <div>
+        <>
           <div class="ph-heading">Brush</div>
           <div class="ph-row">
             {[1, 3, 5].map((size) => (
@@ -98,7 +98,7 @@ export function TerrainSide(props: { controller: EditorController; onChange: () 
               </button>
             ))}
           </div>
-        </div>
+        </>
       ) : null}
     </aside>
   );

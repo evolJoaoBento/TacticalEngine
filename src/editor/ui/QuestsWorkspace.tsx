@@ -10,7 +10,18 @@ import { useState } from 'preact/hooks';
 import { questSchema } from '../../engine/content/quests';
 import { addQuest, removeQuest, type EditorSession } from '../session';
 import { QuestEditor } from './QuestEditor';
-import { Icon } from './icons';
+
+/** The small text button every workspace closes with, styled like the other four's. */
+const CLOSE_BUTTON: Record<string, string | number> = {
+  padding: '3px 8px',
+  border: '1px solid var(--ph-line)',
+  borderRadius: '3px',
+  background: 'transparent',
+  color: 'inherit',
+  font: 'inherit',
+  fontSize: '11px',
+  cursor: 'pointer',
+};
 
 export function QuestsWorkspace(props: {
   session: EditorSession;
@@ -26,8 +37,8 @@ export function QuestsWorkspace(props: {
       <div class="ph-workspace-list" data-testid="quest-list">
         <div class="ph-row">
           <strong style={{ flex: 1 }}>Quests</strong>
-          <button class="ph-mini" data-testid="close-quests" aria-label="Close" onClick={props.onClose}>
-            <Icon name="close" size={14} />
+          <button style={CLOSE_BUTTON} data-testid="close-quests" onClick={props.onClose}>
+            Close
           </button>
         </div>
         {session.project.quests.map((q) => (

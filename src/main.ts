@@ -26,7 +26,7 @@ import {
 } from 'three';
 import { demoMap } from '../legacy/js/data.js';
 import { EditorController } from './editor/controller';
-import type { EditorMode } from './editor/modes';
+import { EDITOR_MODES, type EditorMode } from './editor/modes';
 import {
   EditorSession,
   addAsset,
@@ -2012,6 +2012,10 @@ const state = {
   setMode,
   editorMode: (): string => editor.mode,
   setEditorMode: (next: string): void => {
+    // A bad string must not reach the controller: setMode assigns `this.mode`
+    // before it looks the tool up, so an unknown mode would leave it pointing
+    // at tools that do not exist.
+    if (!EDITOR_MODES.includes(next as EditorMode)) return;
     editor.setMode(next as EditorMode);
     if (mode === 'edit') renderPanel();
   },

@@ -9,11 +9,13 @@
 
 import type { EditorTool } from './controller';
 
+/** The four ways of working on a room; a tool always belongs to exactly one. */
 export type EditorMode = 'inspect' | 'terrain' | 'combat' | 'interaction';
 
 /** The top bar's order, which is also the number keys'. */
 export const EDITOR_MODES: readonly EditorMode[] = ['inspect', 'terrain', 'combat', 'interaction'];
 
+/** What the top bar's tab reads for each mode. */
 export const MODE_LABELS: Readonly<Record<EditorMode, string>> = {
   inspect: 'Inspector',
   terrain: 'Terrain',
@@ -36,6 +38,7 @@ export const MODE_TOOLS: Readonly<Record<EditorMode, readonly EditorTool[]>> = {
   interaction: ['select'],
 };
 
+/** The tool a mode opens with, and the one a switch into it falls back to. */
 export function defaultTool(mode: EditorMode): EditorTool {
   return MODE_TOOLS[mode][0]!;
 }

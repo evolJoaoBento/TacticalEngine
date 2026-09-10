@@ -4,7 +4,7 @@
  * can ask for `Icon name={tool}` without a lookup table of its own.
  */
 
-const PATHS: Readonly<Record<string, string>> = {
+const PATHS = {
   inspect: 'M5 3l6.5 17 2.2-7.3L21 10.5z',
   terrain: 'M2 19l6.5-11 4 6.5 3-4.5L22 19z',
   combat: 'M4 4l10 10M20 4L10 14M7 17l-3 3M17 17l3 3M6 14l4 4M18 14l-4 4',
@@ -23,13 +23,16 @@ const PATHS: Readonly<Record<string, string>> = {
   redo: 'M15 7l5 5-5 5M20 12H9a5 5 0 000 10h2',
   search: 'M11 5a6 6 0 110 12 6 6 0 010-12zM20 20l-4.5-4.5',
   close: 'M6 6l12 12M18 6L6 18',
-};
+} as const;
 
-export function Icon(props: { name: string; size?: number }): preact.JSX.Element {
+/** Every name `Icon` can draw. A typo here is a compile error, not a blank icon. */
+export type IconName = keyof typeof PATHS;
+
+export function Icon(props: { name: IconName; size?: number }): preact.JSX.Element {
   const size = props.size ?? 18;
   return (
     <svg class="ph-icon" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-      <path d={PATHS[props.name] ?? ''} />
+      <path d={PATHS[props.name]} />
     </svg>
   );
 }

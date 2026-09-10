@@ -48,7 +48,9 @@ In this order, and no further until you need it:
 4. `src/engine/rules/damage.ts` (358 lines) — the shape of a rules module: SRD citation at the top,
    pure functions, an `Rng` passed in wherever dice are rolled.
 5. `src/game/demo-scene.ts` (2435 lines) — where the engine is actually wired into a playable thing.
-6. `src/main.ts` (1578 lines) — the boot path and the only DOM listeners in the project.
+6. `src/main.ts` (1578 lines) — the boot path. It owns the board, play and global keys
+   (`Ctrl+E`, `Ctrl+Z`); the editor shell (`src/editor/ui/EditorShell.tsx`) also listens, for its
+   own keys (`1`-`4`, `Esc`) and for a click outside an open menu.
 
 ### The layer map
 
@@ -163,20 +165,24 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 | `ui/AbilityPanel.tsx` | An ability's fields, including `defenses` and `tokens`. |
 | `ui/ConditionEditor.tsx`, `ui/CheckEditor.tsx`, `ui/TargetEditor.tsx` | The three sub-editors `EffectList` nests. |
 | `ui/EditorShell.tsx` | The editor's root: which menu, workspace, conversation and problem list is open; keys 1-4 and Esc. |
-| `ui/TopBar.tsx`, `ui/SceneMenu.tsx`, `ui/ToolRail.tsx`, `ui/LibraryStrip.tsx`, `ui/ModeSides.tsx` | The shell's parts: menus and modes, the scene dropdown, a mode's tools, the strip, and what sits beside the board in each mode. |
+| `ui/TopBar.tsx`, `ui/SceneMenu.tsx`, `ui/ToolRail.tsx`, `ui/LibraryStrip.tsx`, `ui/ModeSides.tsx`, `ui/icons.tsx` | The shell's parts: menus and modes, the scene dropdown, a mode's tools, the strip, what sits beside the board in each mode, and the icons drawn for tools and modes. |
 | `ui/QuestsWorkspace.tsx`, `ui/ModelsWorkspace.tsx`, `ui/ProblemsPopover.tsx` | Quests and imported models as workspaces, and what Check found. |
 | `ui/editor.css` | The purple theme's tokens on `:root`, and the shell's rules under `.ph-editor`. |
 | `ui/Inspector.tsx`, `ui/DialogueGraph.tsx`, `ui/ItemPanel.tsx`, `ui/PartyPanel.tsx`, `ui/QuestEditor.tsx`, `ui/CodePanel.tsx` | The rest of the panels. |
 
-`src/main.ts` is the boot path and the only file with DOM listeners. `index.html` holds a
-`<canvas id="gl">` and a `<div id="app">` and loads `/src/main.ts`.
+`src/main.ts` is the boot path, and owns the board, play and global keys (`Ctrl+E`, `Ctrl+Z`).
+The editor shell (`ui/EditorShell.tsx`) also listens, for its own keys (`1`-`4`, `Esc`) and for a
+click outside an open menu. `index.html` holds a `<canvas id="gl">` and a `<div id="app">` and
+loads `/src/main.ts`.
 
 ### `tests/`, `tools/`
 
 `tests/unit/` holds the six tests that are about the repository rather than a module:
 `engine-is-headless.test.ts`, `srd-content-strings.test.ts`, `demo-scene.test.ts`,
-`demo-map-fight.test.ts`, `legacy-campaign-import.test.ts`, `spike.test.ts`. `tests/e2e/demo.spec.ts`
-is the only Playwright file. `tests/fixtures/models/` holds `BoxTextured.glb`, `Duck.glb`, `Fox.glb`.
+`demo-map-fight.test.ts`, `legacy-campaign-import.test.ts`, `spike.test.ts`. `tests/e2e/` holds
+`between-fights.spec.ts`, `card-browser.spec.ts`, `demo.spec.ts`, `editor-panels.spec.ts`,
+`editor-shell.spec.ts`, `playpass.spec.ts`, `readout.spec.ts`, `save-load.spec.ts` and
+`warden.spec.ts`. `tests/fixtures/models/` holds `BoxTextured.glb`, `Duck.glb`, `Fox.glb`.
 
 `tools/` holds exactly two Python scripts — `adversaries-doc.py` and `cards-doc.py` — plus the
 vendored `tools/srd-sources/` tree. They are not npm scripts; run them from the repo root with

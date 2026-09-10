@@ -5,7 +5,18 @@
 
 import { modelAssetSchema } from '../../engine/render/assets';
 import { addAsset, removeAsset, type EditorSession } from '../session';
-import { Icon } from './icons';
+
+/** The small text button every workspace closes with, styled like the other four's. */
+const CLOSE_BUTTON: Record<string, string | number> = {
+  padding: '3px 8px',
+  border: '1px solid var(--ph-line)',
+  borderRadius: '3px',
+  background: 'transparent',
+  color: 'inherit',
+  font: 'inherit',
+  fontSize: '11px',
+  cursor: 'pointer',
+};
 
 export function ModelsWorkspace(props: {
   session: EditorSession;
@@ -20,8 +31,8 @@ export function ModelsWorkspace(props: {
       <div class="ph-workspace-body" data-testid="asset-list">
         <div class="ph-row">
           <strong style={{ flex: 1 }}>Models</strong>
-          <button class="ph-mini" data-testid="close-models" aria-label="Close" onClick={props.onClose}>
-            <Icon name="close" size={14} />
+          <button style={CLOSE_BUTTON} data-testid="close-models" onClick={props.onClose}>
+            Close
           </button>
         </div>
         {session.project.assets.map((asset) => (

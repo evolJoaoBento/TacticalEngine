@@ -304,9 +304,9 @@ the room the party is in; browsing scenes never moves the party or abandons thei
 | Part | What it does |
 |---|---|
 | **Project ▾** | Save JSON · Load… · Check (lists what the validator finds; a red badge counts errors) |
-| **Content ▾** | Party · Cards · Items & loot · Quests · Code · Models — each opens as a workspace under the bar; its ✕ or `Esc` closes it |
+| **Content ▾** | Party · Cards · Items & loot · Quests · Code · Models — each opens as a workspace under the bar; its **Close** button or `Esc` closes it |
 | **Inspector · Terrain · Combat · Interaction** | The four modes, also on keys `1`–`4` |
-| **Scene ▾** | Every scene with its size; **▸** marks the one the project opens on and **●** the one the party is in. Click to edit it; **✎** renames, **▸** makes it the opening scene, **✕** deletes (refused for the opening scene or the last one); **+ New scene** adds a blank 12×10 room |
+| **The scene button** (shows the room's name and size) ▾ | Every scene with its size; **▸** marks the one the project opens on and **●** the one the party is in. Click to edit it; **✎** renames, **▸** makes it the opening scene, **✕** deletes (refused for the opening scene or the last one); **+ New scene** adds a blank 12×10 room |
 | **Undo / Redo** | The same history as `Ctrl+Z` / `Ctrl+Shift+Z`; hover for what it would undo |
 | **▶ Play here / ▶ Play** | Play in this room from its spawns (Shift-click a tile to play from there), or go back to where the party is |
 
@@ -511,10 +511,10 @@ quest nothing starts; an objective nothing completes.
 ### Saving and loading a project
 
 **Save JSON** downloads `<project-id>.json` (the whole document, pretty-printed) and clears the
-"unsaved" mark. **Load** opens a file picker; the file is parsed through the project schema.
-Loading replaces the document the *editor* holds and redraws the view; it does **not** restart
-play — the running game keeps the project it booted with (the built-in demo). A file that fails
-the schema is recorded in `__polyheart.errors`, and nothing is shown under Project ▾.
+"unsaved" mark. **Load** opens a file picker; the file is parsed through the project schema, and
+if it is playable, replaces the document the *editor* holds, redraws the view, and restarts the
+game on it — the same round trip described under **Playing what you authored** above. A file
+that fails the schema is recorded in `__polyheart.errors`, and nothing is shown under Project ▾.
 
 ### Undo
 

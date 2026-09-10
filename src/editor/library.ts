@@ -9,6 +9,7 @@
 import type { AdversaryDef, AdversaryRole } from '../engine/content/types';
 import type { Interactable } from '../engine/scene/schema';
 
+/** One card in the strip: what it shows, and what picking it hands to the tool. */
 export interface LibraryItem {
   /** Which tab it came from, so a pick found by searching still knows what it is. */
   readonly tab: string;
@@ -23,6 +24,7 @@ export interface LibraryItem {
   readonly keywords?: readonly string[];
 }
 
+/** One tab of the strip: a label over the cards it groups. */
 export interface LibraryTab {
   readonly id: string;
   readonly label: string;
