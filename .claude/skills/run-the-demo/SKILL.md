@@ -82,9 +82,11 @@ any conditions under the gear line), the Fear track, and the narrative log
 bottom-right in tone colours. On the board: a blue ring breathing under
 whoever is selected, shadows under walls and tokens, any zone painted as
 one shape with a border (the Korvax circle is a purple square of nine
-tiles at Melee - a diagonal is Melee too), in a fight the Close-range walk
-lit as a disc with an edge round whoever is selected (out of a fight
-nothing is lit: one click walks anywhere the floor goes), and a
+tiles at Melee - a diagonal is Melee too), in a fight the ground the selected
+one can reach lit with an edge round it - a serrated diamond, not a disc,
+since the move is Close range spent along the path with diagonals at root
+two (out of a fight nothing is lit: one click walks anywhere the floor
+goes), and a
 number - "-2 HP", "+1 Stress", a condition's name - rising over whoever it
 happened to for about a second.
 
@@ -92,4 +94,5 @@ happened to for about a second.
 
 - `tests/e2e/demo.spec.ts` — the big suite; the original route into the
   vault and the fight loop are near the top.
-- `npm run test:e2e` runs everything, about 1.3 minutes.
+- `npm run test:e2e` runs everything: 79 tests, about 2.7 minutes.
+- `docs/BACKLOG.md` - what to build next, and the rules that are not written elsewhere.
