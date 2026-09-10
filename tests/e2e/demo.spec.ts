@@ -810,9 +810,10 @@ test('lists the scenes in the panel, marking where the party is', async ({ page 
   const consoleErrors = await boot(page);
 
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
-  const panel = page.locator('#app');
-  await expect(panel).toContainText('Scenes');
-  await expect(panel).toContainText('The Sounding Pit');
+  await page.locator('[data-testid="open-scenes"]').click();
+  const menu = page.locator('[data-testid="scene-menu"]');
+  await expect(menu).toBeVisible();
+  await expect(menu).toContainText('The Sounding Pit');
 
   // Switching by clicking the scene's own button, not the debug handle.
   await page.getByRole('button', { name: /The Sounding Pit/ }).click();
@@ -914,6 +915,7 @@ test('draws the pillar conversation as a graph', async ({ page }) => {
   const consoleErrors = await boot(page);
 
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="mode-interaction"]').click();
   await page.getByRole('button', { name: /the-listening-pillar/ }).click();
 
   const graph = page.locator('[data-testid="dialogue-graph"]');
@@ -935,6 +937,7 @@ test('drags a node, and one undo puts it back', async ({ page }) => {
   const consoleErrors = await boot(page);
 
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="mode-interaction"]').click();
   await page.getByRole('button', { name: /the-listening-pillar/ }).click();
 
   const before = await page.evaluate(() =>
@@ -969,6 +972,7 @@ test('writes a new reply in the graph and hears it in play', async ({ page }) =>
   const consoleErrors = await boot(page);
 
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="mode-interaction"]').click();
   await page.getByRole('button', { name: /the-listening-pillar/ }).click();
 
   const graph = page.locator('[data-testid="dialogue-graph"]');
@@ -1223,6 +1227,8 @@ test('edits a quest in the editor, and the journal reads the new words', async (
   const consoleErrors = await boot(page);
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
 
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-quests"]').click();
   await page.locator('[data-quest="the-wardens-word"]').click();
   const editor = page.locator('[data-testid="quest-editor"]');
   await expect(editor).toBeVisible();
@@ -1256,7 +1262,11 @@ test('authors a quest effect from dropdowns, and the objective follows the quest
 
   // A second quest, so switching between them means something.
   page.once('dialog', (dialog) => void dialog.accept('Another errand'));
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-quests"]').click();
   await page.locator('button', { hasText: '+ Quest' }).click();
+  // The workspace covers the board; close it before the inspector is needed.
+  await page.locator('[data-testid="close-quests"]').click();
 
   await page.evaluate(() => {
     const api = window.__polyheart!;
@@ -1516,6 +1526,8 @@ test('imports a glTF model and draws it where a prop names it', async ({ page })
   expect(exported.assets).toEqual([
     { id: 'duck', kind: 'gltf', url: '/tests/fixtures/models/Duck.glb', scale: 0.01, groundOffset: 0, rotationY: 0 },
   ]);
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-models"]').click();
   await expect(page.locator('[data-asset="duck"]')).toBeVisible();
 
   expect(consoleErrors).toEqual([]);
@@ -1550,6 +1562,7 @@ test('authors a branch with a condition from dropdowns, and gates a reply', asyn
   });
 
   // A reply in the conversation, hidden unless an objective is done.
+  await page.locator('[data-testid="mode-interaction"]').click();
   await page.getByRole('button', { name: /the-listening-pillar/ }).click();
   const graph = page.locator('[data-testid="dialogue-graph"]');
   const node = graph.locator('[data-node="vault"]');
@@ -1638,6 +1651,7 @@ test('authors a roll and a choice inside an effect list, and outcomes on a reply
   expect(authored.at(-1)).toMatchObject({ kind: 'choice', options: [{ label: 'Go on' }, { label: 'Another option' }] });
 
   // In the graph, the polite reply's roll gets an "always" line and a success node.
+  await page.locator('[data-testid="mode-interaction"]').click();
   await page.getByRole('button', { name: /the-listening-pillar/ }).click();
   const node = page.locator('[data-testid="dialogue-graph"] [data-node="vault"]');
   await node.getByRole('button', { name: '▸' }).click();
@@ -1940,6 +1954,7 @@ test('writes logic in the Code panel and plays the card that runs it', async ({ 
 
   // The demo ships one card written in project code. Open the panel and read it.
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-code"]').click();
   const panel = page.locator('[data-testid="code-panel"]');
   await expect(panel).toBeVisible();
@@ -2044,6 +2059,7 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
   page.on('dialog', (dialog) => void dialog.accept('Banner Cry'));
 
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-abilities"]').click();
   const panel = page.locator('[data-testid="ability-panel"]');
   await expect(panel).toBeVisible();
@@ -2097,6 +2113,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   page.on('dialog', (dialog) => void dialog.accept('Eruption'));
 
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-abilities"]').click();
   const panel = page.locator('[data-testid="ability-panel"]');
   await panel.locator('[data-testid="add-ability"]').click();
@@ -2211,6 +2228,7 @@ test('writes a card that reuses one roll against every other adversary in reach'
   page.on('dialog', (dialog) => void dialog.accept('Sweep'));
 
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-abilities"]').click();
   const panel = page.locator('[data-testid="ability-panel"]');
   await panel.locator('[data-testid="add-ability"]').click();
@@ -2270,6 +2288,7 @@ test('writes a character in the Party panel and the table plays the new sheet', 
   const before = await page.evaluate(() => window.__polyheart!.gear('kara'));
 
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-party"]').click();
   const panel = page.locator('[data-testid="party-panel"]');
   await expect(panel).toBeVisible();
@@ -2317,6 +2336,7 @@ test('writes an item and the table that hands it out, and the party can carry it
   page.on('dialog', (dialog) => void dialog.accept(names.shift() ?? 'ok'));
 
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-items"]').click();
   const panel = page.locator('[data-testid="item-panel"]');
   await expect(panel).toBeVisible();
@@ -2362,6 +2382,7 @@ test('loads a project and restarts the game on it, but not in the middle of a fi
   // that is the round trip a designer makes between authoring and playing.
   page.on('dialog', (dialog) => void dialog.accept('Ilse'));
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-party"]').click();
   const panel = page.locator('[data-testid="party-panel"]');
   await panel.locator('[data-testid="add-character"]').click();

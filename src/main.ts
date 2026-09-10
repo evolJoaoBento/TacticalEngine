@@ -8,7 +8,8 @@
  *
  * Play: click a companion to take control, click the ground to walk (the rest
  * follow), Tab to cycle, click an adversary to attack, Space for the GM's turn.
- * Edit: pick a tool and drag on the map. Ctrl+Z / Ctrl+Shift+Z undo and redo.
+ * Edit: pick a mode in the top bar (1-4), a tool on its rail and a thing from
+ * its strip, then click or drag on the map. Ctrl+Z / Ctrl+Shift+Z undo and redo.
  */
 
 import { Fragment, h, render } from 'preact';
@@ -35,7 +36,7 @@ import {
   setStartScene,
   updateInteractable,
 } from './editor/session';
-import { EditorPanel } from './editor/ui/EditorPanel';
+import { EditorShell } from './editor/ui/EditorShell';
 import { PlayPanel, TONE, type Inspection, type JournalQuest } from './game/ui/PlayPanel';
 import { PartyHud, type HudMember } from './game/ui/PartyHud';
 import { LevelUpPanel } from './game/ui/LevelUpPanel';
@@ -64,6 +65,7 @@ import { NO_TILE, type Spot, type TileGrid } from './engine/grid/grid';
 import { mapExtent, spotToWorld, tileAtWorld, tileCenter, worldToSpot } from './engine/render/layout';
 import { MODELS } from './engine/render/procedural/registry';
 import { SceneView, hueOf } from './engine/render/scene-view';
+import { DEFAULT_TERRAIN_COLORS } from './engine/render/terrain-mesh';
 import { journalSummary } from './engine/content/quests';
 import { blankScene, gridFromScene } from './engine/scene/grid-from-scene';
 import { importLegacyScene } from './engine/scene/legacy-import';
@@ -421,10 +423,13 @@ let editor = new EditorController({
   },
 });
 
+// The editor opens on the Inspector, the first of the top bar's modes.
+editor.setMode('inspect');
+
 const KNOWN_MODELS = new Set(MODELS.map((m) => m.id));
 const TERRAIN_IDS = demo.grid.palette.types.map((t) => t.id);
 const PROP_MODELS = MODELS.filter((m) => m.category === 'prop').map((m) => m.id);
-const ADVERSARY_IDS = [...SRD_ADVERSARIES.keys()].sort();
+const ADVERSARY_DEFS = [...SRD_ADVERSARIES.values()].sort((a, b) => a.name.localeCompare(b.name));
 
 /** Redraw whichever panel the current mode owns. */
 function refreshEditor(): void {
@@ -468,6 +473,26 @@ function rebuildTerrain(): void {
   activeGrid.terrain.set(grid.terrain);
   activeGrid.heights.set(grid.heights);
   view.rebuildTerrain(scene.tints);
+}
+
+/**
+ * Undo from anywhere - a key, the top bar, a test - and redraw what it touched.
+ * The top bar's button used to call the session alone and left the board stale.
+ */
+function undoEdit(): boolean {
+  const ok = session.undo();
+  rebuildTerrain();
+  view.setDecos(editor.scene.decos);
+  if (mode === 'edit') renderPanel();
+  return ok;
+}
+
+function redoEdit(): boolean {
+  const ok = session.redo();
+  rebuildTerrain();
+  view.setDecos(editor.scene.decos);
+  if (mode === 'edit') renderPanel();
+  return ok;
 }
 
 let mode: 'play' | 'edit' = 'play';
@@ -542,27 +567,30 @@ function setMode(next: 'play' | 'edit'): void {
 
 function renderPanel(): void {
   render(
-    h(EditorPanel, {
+    h(EditorShell, {
       session,
       controller: editor,
       terrainIds: TERRAIN_IDS,
+      terrainColors: DEFAULT_TERRAIN_COLORS,
       propModels: PROP_MODELS,
-      adversaryIds: ADVERSARY_IDS,
+      adversaries: ADVERSARY_DEFS,
       knownModels: KNOWN_MODELS,
       knownAdversaries: new Set(SRD_ADVERSARIES.keys()),
       nativeHooks: [...SRD_HOOKS.keys()],
       libraryAbilities: SRD_ABILITIES,
       characterContent: SRD_CHARACTERS,
+      playingScene: demo.scene.id,
       onPlay: () => setMode('play'),
       onPlayHere: () => playAt(editor.sceneId, null),
+      onUndo: () => void undoEdit(),
+      onRedo: () => void redoEdit(),
       onSave: saveProject,
+      onLoad: loadProject,
       onAssetsChanged: () => {
         for (const id of assets.ids()) assets.remove(id);
         for (const asset of session.project.assets) assets.add(asset);
         view.setDecos(editor.scene.decos);
       },
-      onLoad: loadProject,
-      playingScene: demo.scene.id,
       onSwitchScene: (id: string) => {
         editor.switchScene(id);
         rebindScene();
@@ -662,6 +690,7 @@ function loadProjectText(text: string, label = 'the project'): string {
       if (change === 'content') view.setDecos(editor.scene.decos);
     },
   });
+  editor.setMode('inspect');
   // The loaded project is a different document; nothing on screen survives it.
   for (const id of assets.ids()) assets.remove(id);
   for (const asset of session.project.assets) assets.add(asset);
@@ -1503,11 +1532,8 @@ window.addEventListener('keydown', (event) => {
   if (mode === 'edit') {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
       event.preventDefault();
-      if (event.shiftKey) session.redo();
-      else session.undo();
-      rebuildTerrain();
-      view.setDecos(editor.scene.decos);
-      renderPanel();
+      if (event.shiftKey) redoEdit();
+      else undoEdit();
     }
     return;
   }
@@ -1992,20 +2018,8 @@ const state = {
   },
   terrainAt: (tile: number): string => editor.scene.terrain[tile] ?? '',
   heightAt: (tile: number): number => editor.scene.heights[tile] ?? 0,
-  undo: (): boolean => {
-    const ok = session.undo();
-    rebuildTerrain();
-    view.setDecos(editor.scene.decos);
-    if (mode === 'edit') renderPanel();
-    return ok;
-  },
-  redo: (): boolean => {
-    const ok = session.redo();
-    rebuildTerrain();
-    view.setDecos(editor.scene.decos);
-    if (mode === 'edit') renderPanel();
-    return ok;
-  },
+  undo: (): boolean => undoEdit(),
+  redo: (): boolean => redoEdit(),
   propCount: (): number => editor.scene.decos.length,
   problems: (): number => {
     // Imported from the legacy map, so its homebrew adversaries are expected.

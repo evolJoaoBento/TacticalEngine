@@ -37,6 +37,7 @@ test('every authoring panel opens and reads as English', async ({ page }) => {
   expect(await page.evaluate(() => window.__polyheart!.mode())).toBe('edit');
 
   for (const { open, panel, close } of PANELS) {
+    await page.locator('[data-testid="open-content"]').click();
     const button = page.locator(`[data-testid="${open}"]`);
     await expect(button, `${open} is on screen`).toBeVisible();
     await button.click();
@@ -68,6 +69,7 @@ test('a designer can add one of each thing, and the panel shows it', async ({ pa
   // array would be counting the wrong thing.
   const grew: string[] = [];
   for (const { open, panel, add, close } of PANELS) {
+    await page.locator('[data-testid="open-content"]').click();
     await page.locator(`[data-testid="${open}"]`).click();
     const body = page.locator(`[data-testid="${panel}"]`);
     await expect(body).toBeVisible();
@@ -179,6 +181,7 @@ test('a character added in the Party panel is standing with the party when Play 
 
   const before = await page.evaluate(() => window.__polyheart!.party());
 
+  await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-party"]').click();
   await expect(page.locator('[data-testid="party-panel"]')).toBeVisible();
   await page.locator('[data-testid="add-character"]').first().click();
