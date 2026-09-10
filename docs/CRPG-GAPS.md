@@ -352,13 +352,6 @@ with a purple top bar of four modes (Inspector, Terrain, Combat, Interaction):
 - content editors open as workspaces under the bar;
 - Combat's eraser takes creatures, trigger cells and party starts.
 
-**Still open, and the spec's next slices:**
-- The board in edit mode draws the played room's runtime state, not the document.
-- Trigger cells and spawns are never drawn.
-- No object has a model, so doors, chests, pillars and stairs are invisible in play too.
-- Only objects can be inspected.
-- Terrain and Combat still hold the original tools.
-
 Tools: terrain brush, raise/lower, props, objects, adversaries, trigger cells, spawns, erase,
 inspect. Save and load a project as JSON. The brush paints terrain only — a wall painted on flat
 ground stops movement and reads as dark floor until Raise gives it height, which is deliberate:
@@ -422,7 +415,12 @@ tile, announced in the log - and in a fight if there is one, since the spotlight
 the party off the board each time it asks who is ready. One removed leaves the same way, after
 the fight if there is one.
 
-**Still open:** nothing.
+**Still open:**
+- The board in edit mode draws the played room's runtime state, not the document.
+- Trigger cells and spawns are never drawn.
+- No object has a model, so doors, chests, pillars and stairs are invisible in play too.
+- Only objects can be inspected.
+- Terrain and Combat still hold the original tools.
 
 ### ~~9. Asset import (glTF)~~ — done
 

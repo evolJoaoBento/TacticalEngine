@@ -507,11 +507,16 @@ footer {
     <tbody>
       <tr><td><code>session.ts</code><br>1590 lines</td><td>The command and undo model. An <code>Edit</code> is <code>{ label, apply, undo, mergeKey?, absorb?, isNoop? }</code>; <code>EditorSession.run</code> coalesces a brush drag into one undo step rather than snapshotting the grid. Commands grouped by domain: terrain and deco, interactables, encounters, scenes, dialogues, quests, assets, items and loot, party, abilities, code.</td></tr>
       <tr><td><code>controller.ts</code></td><td>What a click means given the tool in hand; <code>CONTINUOUS</code> tools coalesce.</td></tr>
+      <tr><td><code>modes.ts</code></td><td>The top bar's four modes and the tools each owns. Choosing a tool chooses its mode, so the two never disagree.</td></tr>
+      <tr><td><code>library.ts</code></td><td>What the bottom strip offers (ground, props, objects, creatures by tier) and what a search there matches.</td></tr>
       <tr><td><code>validate.ts</code><br>653 lines</td><td>The <strong>Check</strong> button. Reports playability problems a zod parse cannot: party, abilities, code, item uses, quests, then per scene the spawns, interactables, decos, encounters, reachability (pathfinding, run last because it is the expensive one), loot tables and dialogues.</td></tr>
       <tr><td><code>ui/EffectList.tsx</code><br>930 lines</td><td>The largest panel: editing a list of effects, recursively. <code>ADDABLE</code> is the list of kinds it can build.</td></tr>
       <tr><td><code>ui/AbilityPanel.tsx</code></td><td>An ability's fields, including <code>defenses</code> and <code>tokens</code>.</td></tr>
       <tr><td><code>ui/ConditionEditor.tsx</code>, <code>ui/CheckEditor.tsx</code>, <code>ui/TargetEditor.tsx</code></td><td>The three sub-editors <code>EffectList</code> nests.</td></tr>
-      <tr><td><code>ui/EditorPanel.tsx</code></td><td>The editor shell and tool palette.</td></tr>
+      <tr><td><code>ui/EditorShell.tsx</code></td><td>The editor's root: which menu, workspace, conversation and problem list is open; keys 1-4 and Esc.</td></tr>
+      <tr><td><code>ui/TopBar.tsx</code>, <code>ui/SceneMenu.tsx</code>, <code>ui/ToolRail.tsx</code>, <code>ui/LibraryStrip.tsx</code>, <code>ui/ModeSides.tsx</code></td><td>The shell's parts: menus and modes, the scene dropdown, a mode's tools, the strip, and what sits beside the board in each mode.</td></tr>
+      <tr><td><code>ui/QuestsWorkspace.tsx</code>, <code>ui/ModelsWorkspace.tsx</code>, <code>ui/ProblemsPopover.tsx</code></td><td>Quests and imported models as workspaces, and what Check found.</td></tr>
+      <tr><td><code>ui/editor.css</code></td><td>The purple theme's tokens on <code>:root</code>, and the shell's rules under <code>.ph-editor</code>.</td></tr>
       <tr><td><code>ui/Inspector.tsx</code>, <code>ui/DialogueGraph.tsx</code>, <code>ui/ItemPanel.tsx</code>, <code>ui/PartyPanel.tsx</code>, <code>ui/QuestEditor.tsx</code>, <code>ui/CodePanel.tsx</code></td><td>The rest of the panels.</td></tr>
     </tbody>
   </table>
