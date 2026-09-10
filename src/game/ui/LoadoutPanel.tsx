@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { LoadoutCard, LoadoutView } from '../demo-abilities';
 import { CardFace } from './CardFace';
+import { artFor, cardArtImports } from './card-art';
+import { ACCEPTED, pictureFromFile } from './card-art-import';
 import './cards.css';
 
 export interface LoadoutPanelProps {
@@ -19,6 +21,12 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
   const [query, setQuery] = useState('');
   const [domain, setDomain] = useState('all');
   const [inspect, setInspect] = useState<LoadoutCard | null>(null);
+  // Bumped when imported art changes, so every face of that card redraws.
+  const [artVersion, setArtVersion] = useState(0);
+  const [artIssue, setArtIssue] = useState<string | null>(null);
+  const picker = useRef<HTMLInputElement>(null);
+  /** The picture this browser is holding for a card, if any. */
+  const importedFor = (id: string): string | null => cardArtImports()?.get(id) ?? null;
   const root = useRef<HTMLDivElement>(null);
   const inspectTrigger = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
@@ -76,7 +84,41 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
       </div>
       <footer className="deck-footer">{props.issue ? <span role="alert" data-testid="loadout-issue">{props.issue}</span> : <span>{view.loadout.length + view.vault.length} cards collected · Click any card to inspect</span>}<span>DAGGERHEART <small>SRD</small></span></footer>
       {inspect && <div className="card-lightbox" role="dialog" aria-label={inspect.name} onClick={() => setInspect(null)}>
-        <div className="card-detail" onClick={e => e.stopPropagation()}><CardFace key={inspect.id} card={inspect} expanded /><button autoFocus className="deck-close" onClick={() => setInspect(null)}>Back to collection</button></div>
+        <div className="card-detail" onClick={e => e.stopPropagation()}>
+          <CardFace key={`${inspect.id}:${artVersion}`} card={inspect} expanded />
+          <button autoFocus className="deck-close" onClick={() => setInspect(null)}>Back to collection</button>
+          <div className="card-art-import">
+            <div>
+              <button className="deck-close" data-testid="import-art" onClick={() => picker.current?.click()}>Use your own art…</button>
+              {importedFor(inspect.id) !== null
+                ? <button className="deck-close" data-testid="clear-art" onClick={() => { cardArtImports()?.remove(inspect.id); setArtIssue(null); setArtVersion(v => v + 1); }}>Remove</button>
+                : null}
+            </div>
+            {artIssue === null
+              ? <p>{importedFor(inspect.id) !== null
+                  ? 'Your own picture, kept in this browser.'
+                  : artFor(inspect.id).kind === 'image'
+                    ? 'From public/cards/ — shared by everyone playing this project.'
+                    : 'Drawn from the card itself. Import a picture to replace it.'}</p>
+              : <p role="alert" data-testid="art-issue">{artIssue}</p>}
+          </div>
+          <input ref={picker} type="file" accept={ACCEPTED} data-testid="art-file" style={{ display: 'none' }}
+            onChange={async e => {
+              const file = e.currentTarget.files?.[0];
+              e.currentTarget.value = '';
+              if (file === undefined) return;
+              try {
+                const picture = await pictureFromFile(file);
+                const imports = cardArtImports();
+                // `set` answers `null` when it worked, so this cannot be `??`.
+                setArtIssue(imports === null
+                  ? 'There is nowhere to keep imported art in this browser.'
+                  : imports.set(inspect.id, picture));
+              } catch (error) {
+                setArtIssue(error instanceof Error ? error.message : 'That file could not be read as a picture.');
+              }
+              setArtVersion(v => v + 1);
+            }} /></div>
       </div>}
     </div>
   </div>;

@@ -76,6 +76,7 @@ import {
 import type { Response } from './engine/script/runner';
 import { loadGameText, saveBlockedBy, serialiseSave } from './game/save';
 import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore } from './game/save-slots';
+import { CardArtImports, loadCardArtIndex, useCardArtImports, useCardArtIndex } from './game/ui/card-art';
 import {
   answerPending,
   attackWithSelected,
@@ -2031,3 +2032,15 @@ function frame(now = performance.now()): void {
   requestAnimationFrame(frame);
 }
 frame();
+
+// Card art: whatever is in `public/cards/`, plus anything imported into this
+// browser. One fetch, and a miss is silent - most machines have no directory at
+// all, and every card can draw its own emblem instead.
+useCardArtImports(new CardArtImports(browserStore()));
+void loadCardArtIndex().then((index) => {
+  useCardArtIndex(index);
+  // The action bar was drawn before the index arrived, so redraw it - but only
+  // the side that is on screen. `renderPanel` is the *editor*, and calling it
+  // here replaces the play UI with the editor's, HUD and all.
+  if (Object.keys(index).length > 0 && mode === 'play') refreshPlay();
+});

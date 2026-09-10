@@ -161,10 +161,23 @@ is where the loadout changes for free.
 ### The loadout and the vault
 
 The collection presents domain cards with level, domain and Recall Cost, each wearing an
-emblem drawn from the card itself and its domain's colour. Search by name or rules text, or
-filter by domain. Click a card to open its full readable rules; Escape returns to the
-collection, and Escape again closes it. The browser supports keyboard navigation and a
-two-column layout on phones. The action bar wears the same emblem on each domain card.
+picture. Search by name or rules text, or filter by domain. Click a card to open its full
+readable rules; Escape returns to the collection, and Escape again closes it. The browser
+supports keyboard navigation and a two-column layout on phones. The action bar wears the same
+picture on each domain card.
+
+**A card's picture** comes from the first of three places that has one:
+
+1. **Art you imported.** Open a card and press **Use your own art…**. The picture is redrawn to
+   512 pixels across and kept *in this browser only* — it survives a reload, it is not in your
+   save, and it does not travel to anyone else. **Remove** gives the card back whatever it
+   showed before.
+2. **A file in `public/cards/`.** Drop `bare-bones.jpg` in that directory, run
+   `node tools/index-card-art.mjs`, and Bare Bones wears it for everyone playing this project.
+   The file name is the card's id: lowercase, no punctuation, spaces as hyphens. The indexer
+   prints any file it could not match to a card.
+3. **The emblem the card draws for itself**, from its own id and its domain's colour. This one
+   always works, so a fresh copy of the project shows complete cards with nothing to install.
 
 Five domain cards can be active; the rest wait in the vault. **Loadout…** shows both. Recalling
 a card from the vault outside a rest marks Stress equal to its Recall Cost (the button says how

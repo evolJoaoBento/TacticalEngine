@@ -1,4 +1,5 @@
 import type { LoadoutCard } from '../demo-abilities';
+import { artFor } from './card-art';
 import { SIGIL_HEIGHT, SIGIL_WIDTH, sigilOf, type Sigil } from './card-sigil';
 
 /** The ink the emblem is drawn in, over the domain-coloured ground. */
@@ -38,10 +39,21 @@ export function CardSigil({ card, className }: { card: { id: string; domain: str
   );
 }
 
-/** A domain card, drawn from the SRD text and its own generated emblem. */
+/**
+ * Whatever this card should show: imported art, a file from `public/cards/`, or
+ * the emblem it draws for itself. `card-art.ts` decides; this paints it.
+ */
+export function CardArtwork({ card, className }: { card: { id: string; domain: string }; className?: string }): preact.JSX.Element {
+  const art = artFor(card.id);
+  return art.kind === 'image'
+    ? <img className={className} src={art.src} alt="" aria-hidden="true" />
+    : <CardSigil card={card} className={className} />;
+}
+
+/** A domain card, drawn from the SRD text and whatever art it has. */
 export function CardFace({ card, expanded = false }: { card: LoadoutCard; expanded?: boolean }): preact.JSX.Element {
   return <div className={`dh-card ${expanded ? 'dh-card-expanded' : ''}`} style={{ '--domain-color': sigilOf(card).color }}>
-    <div className="dh-art"><CardSigil card={card} />
+    <div className="dh-art"><CardArtwork card={card} />
       <span className="dh-level"><b>{card.level}</b><small>LEVEL</small></span><span className="dh-recall" title="Recall Cost">{card.recallCost}<small>RECALL</small></span>
       <span className="dh-domain">{card.domain}</span></div>
     <div className="dh-title"><h3>{card.name}</h3><span>{card.type}</span></div>

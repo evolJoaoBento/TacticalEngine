@@ -20,9 +20,9 @@ illustrations are not SRD content, and a fan mirror is not a licence.
 
 ### The live case: `public/cards/`
 
-`tools/download-card-art.mjs` fetches 191 card illustrations (about 89 MB) from
-`https://en.daggerheart.su`, a third-party mirror. **Those files are now in `.gitignore` and must
-stay there.**
+`public/cards/` holds about 89 MB of card illustrations fetched from `https://en.daggerheart.su`,
+a third-party mirror, by a downloader that has since been removed. **Those files are in
+`.gitignore` and must stay there while they are that artwork.**
 
 - **Do not commit them, and do not `git add -f` them.** Nothing licenses them for redistribution.
 - **Once a blob is committed it is in history permanently.** A later `git rm` only adds a deletion
@@ -30,12 +30,15 @@ stay there.**
   them for real means rewriting history with `git-filter-repo` or BFG, which changes every commit
   hash from that point on and breaks every clone and fork. There is no cheap undo, which is why the
   guard is at the front.
-- **Nothing in `src/` reads those files.** Card faces draw their own art: `ui/card-sigil.ts`
-  generates each card's emblem from its id and domain, seeded through `createRng`, so a fresh
-  clone renders a complete card with no assets. Do not reintroduce an `<img>` pointing at
-  `/cards/`; it 404s for everyone but the one machine that ran the downloader.
-- **Keeping the script is fine** — it is your own code, and a developer fetching art onto their own
-  disk is not the project redistributing it. It is unused as of 2026-09-10.
+- **A card always draws without them.** `ui/card-sigil.ts` generates each card's emblem from its
+  id and domain, seeded through `createRng`, so a fresh clone renders complete cards with no
+  assets. `ui/card-art.ts` layers the directory and a player's imported art over that.
+- **Never interpolate a `/cards/` URL.** Read `public/cards/index.json` through `artFor()`. A
+  guess 404s for every card without a file, which on most machines is every card, and the
+  licensing test fails on any source that does it.
+- **When the art in that directory is the project's own**, this rule has done its job: drop the
+  ignore line deliberately and commit the images together with `index.json`. The guard test's
+  message says the same. Until then, assume anything in there is not ours.
 - **The frames, domain colours, filters, search and enlarged reading view are original work and are
   the valuable half.** Rendering card faces from the vendored SRD text carries no licensing risk at
   all. If art has to go, that work survives untouched.

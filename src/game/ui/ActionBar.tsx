@@ -11,7 +11,7 @@
  */
 
 import { cardDomain, type AbilityView } from '../demo-abilities';
-import { CardSigil } from './CardFace';
+import { CardArtwork } from './CardFace';
 import { domainColor } from './card-sigil';
 import './cards.css';
 
@@ -133,7 +133,7 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
           >
             {view.ability.source.kind === 'domainCard' ? (
               <span className="ability-card-art" style={{ background: domainColor(cardDomain(view.ability.source.card)) }}>
-                <CardSigil card={{ id: view.ability.source.card, domain: cardDomain(view.ability.source.card) }} />
+                <CardArtwork card={{ id: view.ability.source.card, domain: cardDomain(view.ability.source.card) }} />
               </span>
             ) : null}
             <div>{view.ability.name}</div>

@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
 
+/** A 1x1 PNG, small enough to paste and real enough for the browser to decode. */
+const PIXEL = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
 test('the card collection filters, inspects and swaps without leaking keyboard input to the game', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -14,8 +20,10 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   await page.getByTestId('open-loadout').click();
   const panel = page.getByTestId('loadout');
   await expect(panel.locator('.deck-slot')).toHaveCount(6);
-  // Every card draws its own emblem: no files to fetch, so nothing to wait for.
-  await expect(panel.locator('.dh-art svg')).toHaveCount(6);
+  // Every card shows something without waiting on a fetch: a file from
+  // `public/cards/` where the index names one, its own drawn emblem otherwise.
+  // Which of the two depends on whether this machine has an art directory.
+  await expect(panel.locator('.dh-art > :is(svg, img)')).toHaveCount(6);
   await page.screenshot({ path: 'test-results/card-collection.png' });
   await page.getByRole('button', { name: 'Inspect Not Good Enough', exact: true }).click();
   await expect(panel.locator('.dh-card-expanded')).toContainText('Not Good Enough');
@@ -45,4 +53,58 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   await page.getByTestId('close-loadout').click();
   await expect(panel).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('imports custom art for one card, and gives it back', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/');
+  await page.waitForFunction(() => window.__polyheart && window.__polyheart.frames > 2);
+  await page.evaluate(() => {
+    const a = window.__polyheart!;
+    a.setDiceSpeed(0);
+    a.select('kara');
+    a.setCards('kara', ['bare-bones', 'get-back-up', 'forceful-push', 'i-am-your-shield', 'not-good-enough']);
+  });
+
+  await page.getByTestId('open-loadout').click();
+  const panel = page.getByTestId('loadout');
+  await page.getByRole('button', { name: 'Inspect Bare Bones', exact: true }).click();
+  const enlarged = panel.locator('.dh-card-expanded .dh-art');
+
+  // Whatever it shows now, it is not something this test chose.
+  const before = await enlarged.locator('img').count() > 0
+    ? await enlarged.locator('img').getAttribute('src')
+    : null;
+  expect(before?.startsWith('data:')).not.toBe(true);
+
+  await panel.getByTestId('art-file').setInputFiles({ name: 'mine.png', mimeType: 'image/png', buffer: PIXEL });
+
+  // The picture the player chose, kept in this browser and shown at once.
+  await expect(enlarged.locator('img')).toHaveAttribute('src', /^data:image\/jpeg/);
+  await page.screenshot({ path: 'test-results/card-import.png' });
+
+  // And on the tile behind the enlarged view, not only in the reader.
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('.deck-slot[data-card="bare-bones"] img')).toHaveAttribute('src', /^data:image\/jpeg/);
+  // Its neighbours are untouched.
+  await expect(panel.locator('.deck-slot[data-card="get-back-up"] img[src^="data:"]')).toHaveCount(0);
+
+  // Imported art survives a reload: it lives in this browser, not in the page.
+  await page.reload();
+  await page.waitForFunction(() => window.__polyheart && window.__polyheart.frames > 2);
+  await page.evaluate(() => {
+    const a = window.__polyheart!;
+    a.select('kara');
+    a.setCards('kara', ['bare-bones', 'get-back-up', 'forceful-push', 'i-am-your-shield', 'not-good-enough']);
+  });
+  await page.getByTestId('open-loadout').click();
+  await expect(panel.locator('.deck-slot[data-card="bare-bones"] img')).toHaveAttribute('src', /^data:image\/jpeg/);
+
+  // Giving it back returns the card to whatever it showed before.
+  await page.getByRole('button', { name: 'Inspect Bare Bones', exact: true }).click();
+  await panel.getByTestId('clear-art').click();
+  await expect(panel.locator('.dh-card-expanded .dh-art img[src^="data:"]')).toHaveCount(0);
+
+  expect(errors, `page errors: ${errors.join(' | ')}`).toEqual([]);
 });

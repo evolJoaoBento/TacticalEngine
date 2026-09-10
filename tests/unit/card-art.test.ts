@@ -1,86 +1,119 @@
 import { describe, expect, it } from 'vitest';
-import { SRD_CHARACTERS } from '../../src/game/demo-scene';
+import { memoryStore } from '../../src/game/save-slots';
 import {
-  DOMAIN_COLORS,
-  SIGIL_HEIGHT,
-  SIGIL_WIDTH,
-  domainColor,
-  sigilOf,
-} from '../../src/game/ui/card-sigil';
+  CARD_ART_DIRECTORY,
+  CardArtImports,
+  loadCardArtIndex,
+  parseCardArtIndex,
+  resolveArt,
+} from '../../src/game/ui/card-art';
 
 /**
- * Card art is generated, not downloaded.
+ * Which picture a card shows.
  *
- * This test used to read `public/cards/sources.json` and assert a JPEG per
- * card. Those files are Critical Role's artwork, fetched from a fan mirror and
- * now ignored by git, so that test could only pass on the one machine that had
- * run the downloader — a fresh clone failed it. What replaces it pins the
- * property that actually matters: every card draws a complete face from the
- * vendored SRD data alone, with nothing to fetch.
+ * Three tiers — imported, then a file in the directory, then the emblem the
+ * card draws for itself — and the rule that keeps the console quiet: a URL is
+ * only ever built from the index, never guessed.
  */
 
-const cards = [...SRD_CHARACTERS.domainCards.values()];
+const response = (ok: boolean, body: string) => async () => ({ ok, text: async () => body });
 
-describe('generated domain card art', () => {
-  it('draws every card in the SRD library, with no files to load', () => {
-    expect(cards.length).toBeGreaterThan(180);
-    for (const card of cards) {
-      const sigil = sigilOf(card);
-      expect(sigil.shapes.length, card.name).toBeGreaterThan(3);
-      expect(sigil.color, card.name).toMatch(/^#[0-9a-f]{6}$/);
+describe('reading the card art index', () => {
+  it('treats a missing, empty or unreadable index as no art at all', () => {
+    // A broken index costs a player their illustrations, never their game.
+    expect(parseCardArtIndex(null)).toEqual({});
+    expect(parseCardArtIndex('')).toEqual({});
+    expect(parseCardArtIndex('   ')).toEqual({});
+    expect(parseCardArtIndex('not json')).toEqual({});
+    expect(parseCardArtIndex('[1, 2, 3]')).toEqual({});
+    expect(parseCardArtIndex('null')).toEqual({});
+    expect(parseCardArtIndex('{}')).toEqual({});
+  });
+
+  it('keeps file names and drops anything that is a path', () => {
+    const index = parseCardArtIndex(JSON.stringify({
+      'bare-bones': 'bare-bones.jpg',
+      'get-back-up': 'nested/get-back-up.jpg',
+      escaping: '../../secrets.png',
+      empty: '',
+      wrong: 42,
+    }));
+    expect(index).toEqual({ 'bare-bones': 'bare-bones.jpg' });
+  });
+
+  it('reads the index over fetch, and shrugs off every way that can fail', async () => {
+    await expect(loadCardArtIndex(response(true, '{"bare-bones":"bare-bones.jpg"}')))
+      .resolves.toEqual({ 'bare-bones': 'bare-bones.jpg' });
+    // 404 is the normal case: most machines have no directory.
+    await expect(loadCardArtIndex(response(false, 'Not found'))).resolves.toEqual({});
+    await expect(loadCardArtIndex(async () => { throw new Error('offline'); })).resolves.toEqual({});
+  });
+});
+
+describe('art a player imported', () => {
+  it('keeps, returns and forgets a picture for one card', () => {
+    const imports = new CardArtImports(memoryStore());
+    expect(imports.get('bare-bones')).toBeNull();
+    expect(imports.set('bare-bones', 'data:image/jpeg;base64,AAA')).toBeNull();
+    expect(imports.get('bare-bones')).toBe('data:image/jpeg;base64,AAA');
+    imports.remove('bare-bones');
+    expect(imports.get('bare-bones')).toBeNull();
+  });
+
+  it('says so when the browser has no room, rather than failing silently', () => {
+    // `localStorage` throws when it is full, and a player who just chose a file
+    // deserves a sentence rather than nothing happening.
+    const full = { get: () => null, set: () => { throw new Error('QuotaExceededError'); }, remove: () => {} };
+    const issue = new CardArtImports(full).set('bare-bones', 'data:image/jpeg;base64,AAA');
+    expect(issue).toMatch(/no room/i);
+  });
+
+  it('survives a store that refuses to be read or written at all', () => {
+    // Some browsers throw on the very first touch of storage; that has to read
+    // as "no imported art", not take the page down.
+    const dead = {
+      get: () => { throw new Error('denied'); },
+      set: () => { throw new Error('denied'); },
+      remove: () => { throw new Error('denied'); },
+    };
+    const imports = new CardArtImports(dead);
+    expect(imports.get('bare-bones')).toBeNull();
+    expect(imports.set('bare-bones', 'data:x')).not.toBeNull();
+    expect(() => imports.remove('bare-bones')).not.toThrow();
+  });
+});
+
+describe('choosing what a card shows', () => {
+  const index = { 'bare-bones': 'bare-bones.jpg' };
+
+  it('draws the emblem when there is no file and nothing imported', () => {
+    expect(resolveArt('bare-bones', {}, null)).toEqual({ kind: 'sigil' });
+    expect(resolveArt('unknown-card', index, null)).toEqual({ kind: 'sigil' });
+  });
+
+  it('uses a file from the directory when the index names one', () => {
+    expect(resolveArt('bare-bones', index, null)).toEqual({
+      kind: 'image',
+      src: `${CARD_ART_DIRECTORY}bare-bones.jpg`,
+    });
+  });
+
+  it('lets imported art win over the directory', () => {
+    // The player picked a file precisely to replace what was on screen.
+    expect(resolveArt('bare-bones', index, 'data:image/jpeg;base64,MINE')).toEqual({
+      kind: 'image',
+      src: 'data:image/jpeg;base64,MINE',
+    });
+  });
+
+  it('ignores an empty import rather than showing a blank frame', () => {
+    expect(resolveArt('bare-bones', {}, '')).toEqual({ kind: 'sigil' });
+  });
+
+  it('only ever builds a URL inside the art directory', () => {
+    for (const [id, imported] of [['bare-bones', null], ['unknown-card', null]] as const) {
+      const art = resolveArt(id, index, imported);
+      if (art.kind === 'image') expect(art.src.startsWith(CARD_ART_DIRECTORY)).toBe(true);
     }
-  });
-
-  it('puts every coordinate inside the art slot', () => {
-    // Nothing may sail off the frame: the slot clips, and a stray NaN would
-    // silently drop a shape rather than fail anywhere visible.
-    for (const card of cards) {
-      for (const shape of sigilOf(card).shapes) {
-        const numbers = shape.kind === 'circle'
-          ? [shape.cx, shape.cy, shape.r]
-          : [...shape.points];
-        for (const n of numbers) expect(Number.isFinite(n), `${card.name}: ${n}`).toBe(true);
-
-        if (shape.kind === 'circle') {
-          expect(shape.cx, card.name).toBeGreaterThanOrEqual(-SIGIL_WIDTH);
-          expect(shape.cx, card.name).toBeLessThanOrEqual(SIGIL_WIDTH * 2);
-          expect(shape.r, card.name).toBeGreaterThan(0);
-        }
-        for (let i = 0; i < numbers.length; i++) {
-          expect(Math.abs(numbers[i]!), card.name).toBeLessThan(SIGIL_WIDTH * 2);
-        }
-      }
-      expect(SIGIL_HEIGHT).toBeGreaterThan(0);
-    }
-  });
-
-  it('gives a card the same emblem every time it is drawn', () => {
-    // The collection, the enlarged view and the action bar each call this
-    // independently; a card that shuffled between them would look like a bug.
-    for (const card of cards.slice(0, 25)) {
-      expect(sigilOf(card)).toEqual(sigilOf(card));
-    }
-  });
-
-  it('gives different cards different emblems, including within one domain', () => {
-    const blade = cards.filter((c) => c.domain.toLowerCase() === 'blade').slice(0, 6);
-    expect(blade.length).toBeGreaterThan(1);
-    const drawings = blade.map((c) => JSON.stringify(sigilOf(c).shapes));
-    expect(new Set(drawings).size, 'two Blade cards drew the same emblem').toBe(blade.length);
-  });
-
-  it('seeds from the id alone, so the domain only chooses the palette', () => {
-    const first = sigilOf({ id: 'a-soldiers-bond', domain: 'Blade' });
-    const recoloured = sigilOf({ id: 'a-soldiers-bond', domain: 'Valor' });
-    // Blade and Valor share the 'spikes' motif, so only the colour may differ.
-    expect(recoloured.shapes).toEqual(first.shapes);
-    expect(recoloured.color).not.toBe(first.color);
-  });
-
-  it('knows a colour for every domain the library uses', () => {
-    for (const card of cards) {
-      expect(Object.keys(DOMAIN_COLORS), card.domain).toContain(card.domain.toLowerCase());
-    }
-    expect(domainColor('NoSuchDomain')).toBe(DOMAIN_COLORS['arcana']);
   });
 });

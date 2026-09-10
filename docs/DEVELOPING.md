@@ -733,9 +733,14 @@ Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
 **Sources.** The source PDF is deliberately not committed; its extracted SRD text is.
 **Card art is generated, not sourced.** `ui/card-sigil.ts` draws each domain card's emblem from
 its own id, seeded through `createRng`, so nothing in `src/` reads an image file and the licence
-question never arises. `tools/download-card-art.mjs` fetches illustrations from a third-party
-mirror into `public/cards/`, which is git-ignored and which nothing in the app reads; that
-artwork is Critical Role's and the DPCGL does not cover it. See `AGENTS.md`.
+question never arises. `ui/card-art.ts` then layers two optional sources over it: a file named in
+`public/cards/index.json`, and art a player imported into their own browser, which wins. **A URL
+is only ever built from that index** — a guessed `/cards/<id>.jpg` would 404 for every card
+without a file, and `tests/unit/licensing-boundary.test.ts` fails if any source interpolates one.
+`tools/index-card-art.mjs` writes the index by listing the directory; it downloads nothing. The
+scraper that used to fill that directory was removed on 2026-09-10, and `public/cards/` is
+git-ignored because what is in it today is Critical Role's artwork, which the DPCGL does not
+cover. See `AGENTS.md`.
 
 **Adding a field to the normalised adversaries.** `content/srd/seansbox-adversaries.ts` normalises
 all 129, and `tests/unit/srd-content-strings.test.ts` asserts they all import with zero issues. Add
