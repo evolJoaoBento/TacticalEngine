@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { AnimationClip, Color, Group, Matrix4, Vector3, type InstancedMesh, type LineSegments } from 'three';
+import { AnimationClip, Color, Group, Matrix4, Vector3, type InstancedMesh, type Line, type LineSegments } from 'three';
 import { AssetLibrary, modelAssetSchema } from './assets';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
@@ -768,6 +768,35 @@ describe('SceneView', () => {
     view.dispose();
   });
 
+  it('draws the hover path on the ground in two colours, and clears it', () => {
+    const { view } = setup();
+    const line = view.root.children.find((c) => c.name === 'path') as Line;
+    expect(line.visible).toBe(false);
+    view.showPath(
+      [
+        { x: 0, y: 0 },
+        { x: 2, y: 0 },
+      ],
+      [
+        { x: 2, y: 0 },
+        { x: 3, y: 0 },
+      ],
+    );
+    // Two tiles cut at half a tile is five points, then two more beyond.
+    expect(view.pathPointCount).toBe(7);
+    expect(line.visible).toBe(true);
+    expect(line.geometry.drawRange.count).toBe(7);
+    const colors = line.geometry.getAttribute('color');
+    expect(colors.getX(0)).toBeCloseTo(new Color('#69d2ff').r, 5);
+    expect(colors.getX(6)).toBeCloseTo(new Color('#ff6a5c').r, 5);
+    const positions = line.geometry.getAttribute('position');
+    expect(positions.getY(0)).toBeGreaterThan(0);
+    view.clearPath();
+    expect(view.pathPointCount).toBe(0);
+    expect(line.visible).toBe(false);
+    view.dispose();
+  });
+
   it('borders the lit ground along its edge, so a walk reads as an area', () => {
     const { grid, view } = setup();
     view.showHighlights([grid.indexOf(1, 1)]);
@@ -813,7 +842,7 @@ describe('SceneView', () => {
 
   it('draws the overlays in a fixed order: ground, edge, walk, pointer, ring', () => {
     const { view } = setup();
-    const order = ['zones', 'zone-edges', 'highlights', 'highlight-edges', 'cursor', 'selection'].map(
+    const order = ['zones', 'zone-edges', 'highlights', 'highlight-edges', 'path', 'cursor', 'selection'].map(
       (name) => view.root.children.find((c) => c.name === name)!.renderOrder,
     );
     expect(order).toEqual([...order].sort((a, b) => a - b));

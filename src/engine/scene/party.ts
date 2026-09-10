@@ -167,6 +167,19 @@ export class Party {
     destination: number,
     options: { inCombat?: boolean; budget?: number; at?: Spot } = {},
   ): Walk | null {
+    const walk = this.planWalk(id, destination, options);
+    if (walk === null) return null;
+    const end = walk.route[walk.route.length - 1]!;
+    this.state.placeEntity(id, end.x, end.y);
+    return walk;
+  }
+
+  /** The walk `walkTo` would make, without making it: what a hover draws on the ground. */
+  planWalk(
+    id: string,
+    destination: number,
+    options: { inCombat?: boolean; budget?: number; at?: Spot } = {},
+  ): Walk | null {
     if (!this.canCommand(id)) return null;
     const entity = this.state.entity(id)!;
     const field = this.reachable(id, options);
@@ -175,7 +188,6 @@ export class Party {
     if (path === null || path.length < 2) return null;
     const start = { ...entity.at };
     const end = this.settle(id, destination, options.at, options.inCombat === true);
-    this.state.placeEntity(id, end.x, end.y);
     return { path, route: this.lineAlong(id, path, start, end, options.inCombat === true) };
   }
 

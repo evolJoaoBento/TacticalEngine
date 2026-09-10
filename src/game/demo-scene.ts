@@ -1305,6 +1305,47 @@ export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spo
   return { moved: true, path };
 }
 
+/** The line a click would walk: what is walked this move, and what lies beyond it. */
+export interface WalkPreview {
+  route: Spot[];
+  /** In a fight, the rest of the way to where the click aimed, past what one move allows. */
+  beyond: Spot[];
+}
+
+/**
+ * What `moveSelectedTo` would do with a click on a spot, without doing it:
+ * the line drawn on the ground as the pointer moves. Null when nothing would
+ * move - nobody selected, a script waiting, nowhere to go.
+ */
+export function previewWalk(demo: DemoScene, destination: number, aimed: Spot): WalkPreview | null {
+  if (demo.pending !== null) return null;
+  const id = demo.party.selected;
+  if (id === null || !demo.party.canCommand(id)) return null;
+  const fighting = inCombat(demo);
+  if (fighting && !demo.encounter!.canAct(id)) return null;
+  if (!demo.grid.isTile(destination)) return null;
+
+  const field = demo.party.reachable(id, { inCombat: fighting });
+  if (field.canReach(destination)) {
+    const walk = demo.party.planWalk(id, destination, { inCombat: fighting, at: aimed });
+    return walk === null ? null : { route: walk.route, beyond: [] };
+  }
+  const nearest = nearestReachable(demo, field, aimed, fighting ? destination : NO_TILE);
+  if (nearest === NO_TILE || nearest === demo.state.entity(id)!.tile) return null;
+  const walk = demo.party.planWalk(id, nearest, { inCombat: fighting, at: clampInto(demo.grid, aimed, nearest) });
+  if (walk === null) return null;
+  if (!fighting) return { route: walk.route, beyond: [] };
+  // The rest of the way, from where this move stops to where the click aimed.
+  const whole = demo.party.reachable(id, { inCombat: true, budget: Infinity });
+  const path = tracePath(whole, destination);
+  const rest = path === null ? null : path.slice(path.indexOf(nearest));
+  const beyond =
+    rest === null || rest.length < 2
+      ? []
+      : smoothPath(demo.grid, rest, demo.state.blockedFor(id), DEMO_WALK, { start: walk.route[walk.route.length - 1]!, end: aimed });
+  return { route: walk.route, beyond };
+}
+
 /**
  * The reachable tile a walk beyond reach ends on. Given a tile the way to
  * which is only too long (`along`), the furthest tile along that way still in

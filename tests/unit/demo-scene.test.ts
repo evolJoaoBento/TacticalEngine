@@ -27,6 +27,7 @@ import {
   inCombat,
   moveSelectedTo,
   playGmTurn,
+  previewWalk,
   reachableTiles,
   startEncounter,
   type DemoScene,
@@ -167,6 +168,41 @@ describe('party control', () => {
       const follower = demo.state.entity(id)!;
       expect(demo.grid.tileAtSpot(follower.at.x, follower.at.y)).toBe(follower.tile);
     }
+  });
+
+  it('previews the line a click would walk, without walking it', () => {
+    const demo = build();
+    const start = demo.state.entity('kara')!.tile;
+    const target = reachableTiles(demo)
+      .tiles()
+      .find((t) => demo.grid.chebyshevDistance(t, start) >= 3)!;
+    const aimed = { x: demo.grid.xOf(target) + 0.2, y: demo.grid.yOf(target) + 0.1 };
+    const preview = previewWalk(demo, target, aimed)!;
+    expect(preview.route[0]).toEqual(demo.state.entity('kara')!.at);
+    expect(preview.route.at(-1)).toEqual(aimed);
+    expect(preview.beyond).toEqual([]);
+    expect(demo.state.entity('kara')!.tile).toBe(start);
+    // And the walk itself takes exactly that line.
+    moveSelectedTo(demo, target, aimed);
+    expect(demo.motions.find((m) => m.id === 'kara')!.route).toEqual(preview.route);
+  });
+
+  it('in a fight, previews the way beyond one move in a second line', () => {
+    const demo = build();
+    openTheDoor(demo);
+    const target = demo.state.entitiesOf('adversary')[0]!.tile;
+    walkTowards(demo, target);
+    expect(inCombat(demo)).toBe(true);
+    const id = demo.party.selected!;
+    const inReach = new Set(reachableTiles(demo).tiles());
+    const far = demo.party.reachable(id, { inCombat: true, budget: Infinity }).tiles().find((t) => !inReach.has(t))!;
+    const preview = previewWalk(demo, far, demo.grid.spotOf(far))!;
+    expect(preview.route.length).toBeGreaterThanOrEqual(2);
+    const stop = preview.route.at(-1)!;
+    expect(inReach.has(demo.grid.tileAtSpot(stop.x, stop.y))).toBe(true);
+    expect(preview.beyond.length).toBeGreaterThanOrEqual(2);
+    expect(preview.beyond[0]).toEqual(stop);
+    expect(preview.beyond.at(-1)).toEqual(demo.grid.spotOf(far));
   });
 
   it('walks up to a spot it cannot reach out of a fight: the nearest reachable one', () => {

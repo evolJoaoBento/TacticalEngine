@@ -87,6 +87,7 @@ import {
   gearOf,
   useItem,
   moveSelectedTo,
+  previewWalk,
   note,
   playGmTurn,
   endTurn,
@@ -141,6 +142,10 @@ declare global {
       standingAt: (id: string) => { x: number; y: number } | null;
       /** Where a spot on the ground lands on screen, in CSS pixels. */
       screenAt: (x: number, y: number) => { x: number; y: number };
+      /** The line a click on a spot would walk, and what lies beyond one move of it; null for nowhere to go. */
+      previewAt: (x: number, y: number) => { route: { x: number; y: number }[]; beyond: { x: number; y: number }[] } | null;
+      /** How many points the hover path is drawn through on the board right now. */
+      pathPoints: () => number;
       attack: (id: string) => boolean;
       endGmTurn: () => number;
       highlighted: () => number;
@@ -1374,6 +1379,8 @@ function clickAt(event: PointerEvent): void {
     if (object !== null) useSelectedOn(demo, object);
     else moveSelectedTo(demo, tile, spot);
   }
+  // The walk is under way; the line it was going to take is not needed on the ground now.
+  view.clearPath();
   refreshPlay();
 }
 
@@ -1403,9 +1410,12 @@ canvas.addEventListener('pointermove', (event) => {
     if (tile !== NO_TILE) editor.paint(pointOf(tile));
     return;
   }
-  // Hover: mark the tile under the pointer so a click has a visible target.
-  const over = tileUnderPointer(event);
+  // Hover: mark the spot under the pointer so a click has a visible target,
+  // and draw the line a click there would walk.
+  const ground = groundUnderPointer(event);
+  const over = ground?.tile ?? NO_TILE;
   view.showCursor(over);
+  hoverWalk(ground);
   // A card aimed at the ground redraws its shape as the pointer moves, so what
   // it would catch is on the board before the click rather than in the log
   // after it.
@@ -1415,7 +1425,26 @@ canvas.addEventListener('pointermove', (event) => {
   }
 });
 
-canvas.addEventListener('pointerleave', () => view.showCursor(NO_TILE));
+canvas.addEventListener('pointerleave', () => {
+  view.showCursor(NO_TILE);
+  view.clearPath();
+});
+
+/** The line a click on this ground would walk, on the ground; nothing while aiming a card, or with nowhere to go. */
+function hoverWalk(ground: { tile: number; spot: Spot } | null): void {
+  if (ground === null || mode !== 'play' || targeting !== null || activeScene().id !== demo.scene.id) {
+    view.clearPath();
+    return;
+  }
+  // A click on a creature or a thing is not a walk.
+  if (entityNear(ground.spot) !== null || entityOn(ground.tile) !== null || objectOn(ground.tile) !== null) {
+    view.clearPath();
+    return;
+  }
+  const preview = previewWalk(demo, ground.tile, ground.spot);
+  if (preview === null) view.clearPath();
+  else view.showPath(preview.route, preview.beyond);
+}
 
 canvas.addEventListener('pointerup', (event) => {
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
@@ -1584,6 +1613,12 @@ const state = {
   },
   /** Where a spot on the ground lands on screen, in CSS pixels from the page origin. */
   screenAt: (x: number, y: number): { x: number; y: number } => screenAt({ x, y }, 0),
+  previewAt: (x: number, y: number): { route: { x: number; y: number }[]; beyond: { x: number; y: number }[] } | null => {
+    const preview = previewWalk(demo, activeGrid.tileAtSpot(x, y), { x, y });
+    if (preview === null) return null;
+    return { route: preview.route.map((s) => ({ x: s.x, y: s.y })), beyond: preview.beyond.map((s) => ({ x: s.x, y: s.y })) };
+  },
+  pathPoints: (): number => view.pathPointCount,
   attack: (id: string): boolean => {
     const result = attackWithSelected(demo, id);
     refreshPlay();

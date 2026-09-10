@@ -25,6 +25,7 @@ import {
   Group,
   HemisphereLight,
   InstancedMesh,
+  Line,
   LineBasicMaterial,
   LineSegments,
   LoopOnce,
@@ -47,6 +48,12 @@ import type { ProceduralModelSpec } from './procedural/spec';
 import { placeholder as placeholderSpec } from './procedural/registry';
 
 /** One token on its way from one tile to another. */
+/** Points the hover path has room for: a long walk cut at half a tile. */
+const PATH_CAPACITY = 1024;
+/** The walk's own blue, and the red of the way a fight's move does not cover. */
+const PATH_WALK = new Color('#69d2ff');
+const PATH_BEYOND = new Color('#ff6a5c');
+
 interface Glide {
   token: BuiltModel;
   /** Where it goes through, first point where it is now. */
@@ -211,6 +218,11 @@ export class SceneView {
   private zoneEdgeGeometry: BufferGeometry;
   private readonly zoneEdgeMaterial: LineBasicMaterial;
   private zoneEdgeCount = 0;
+  /** The line a click would walk, drawn on the ground as the pointer moves: what this move covers, then what lies beyond it. */
+  private readonly pathLine: Line;
+  private readonly pathGeometry: BufferGeometry;
+  private readonly pathMaterial: LineBasicMaterial;
+  private pathPoints = 0;
   /** The spot under the pointer: a soft disc, a different colour, or hidden. */
   private readonly cursor: Mesh;
   private readonly cursorGeometry: CircleGeometry;
@@ -289,6 +301,21 @@ export class SceneView {
       zoneEdgeGeometry: this.zoneEdgeGeometry,
     } = this.buildOverlays(this.maxHighlights));
 
+    // The hover path: room for a long walk cut at half a tile, drawn once and
+    // rewritten in place. Two colours along one line - the walk, then the
+    // rest of the way a fight's move does not cover.
+    this.pathGeometry = new BufferGeometry();
+    this.pathGeometry.setAttribute('position', new BufferAttribute(new Float32Array(PATH_CAPACITY * 3), 3));
+    this.pathGeometry.setAttribute('color', new BufferAttribute(new Float32Array(PATH_CAPACITY * 3), 3));
+    this.pathGeometry.setDrawRange(0, 0);
+    this.pathMaterial = new LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false });
+    this.pathLine = new Line(this.pathGeometry, this.pathMaterial);
+    this.pathLine.name = 'path';
+    this.pathLine.frustumCulled = false;
+    this.pathLine.visible = false;
+    this.pathLine.renderOrder = 5;
+    this.root.add(this.pathLine);
+
     // A disc rather than a square: the pointer marks a spot on the ground,
     // not a cell of it.
     this.cursorGeometry = new CircleGeometry(this.layout.tileSize * 0.4, 32);
@@ -302,7 +329,7 @@ export class SceneView {
     this.cursor = new Mesh(this.cursorGeometry, this.cursorMaterial);
     this.cursor.name = 'cursor';
     this.cursor.visible = false;
-    this.cursor.renderOrder = 5;
+    this.cursor.renderOrder = 6;
     this.root.add(this.cursor);
 
     // The same blue the HUD card of whoever is selected is edged in, so the
@@ -318,7 +345,7 @@ export class SceneView {
     this.selection = new Mesh(this.selectionGeometry, this.selectionMaterial);
     this.selection.name = 'selection';
     this.selection.visible = false;
-    this.selection.renderOrder = 6;
+    this.selection.renderOrder = 7;
     this.root.add(this.selection);
 
     this.addLights();
@@ -459,6 +486,7 @@ export class SceneView {
     }
     this.showCursor(NO_TILE);
     this.showSelection(NO_TILE);
+    this.clearPath();
     this.fitSun();
 
     this.tokenSpots.clear();
@@ -1169,6 +1197,54 @@ export class SceneView {
     this.showHighlights([]);
   }
 
+  /**
+   * Draw the line a click would walk: `route` in the walk's blue, `beyond`
+   * - the rest of the way a fight's move does not cover - in red. Legs are
+   * cut at half a tile so the line lies on the ground it crosses. An empty
+   * route clears it.
+   */
+  showPath(route: readonly Spot[], beyond: readonly Spot[] = []): void {
+    const positions = this.pathGeometry.getAttribute('position') as BufferAttribute;
+    const colors = this.pathGeometry.getAttribute('color') as BufferAttribute;
+    let n = 0;
+    const put = (spot: Spot, color: Color): void => {
+      if (n >= PATH_CAPACITY) return;
+      const w = spotToWorld(this.grid, spot, this.layout);
+      positions.setXYZ(n, w.x, w.y + 0.04, w.z);
+      colors.setXYZ(n, color.r, color.g, color.b);
+      n++;
+    };
+    const lay = (line: readonly Spot[], color: Color, fromStart: boolean): void => {
+      for (let i = 0; i + 1 < line.length; i++) {
+        const a = line[i]!;
+        const b = line[i + 1]!;
+        const pieces = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 0.5));
+        for (let k = i === 0 && fromStart ? 0 : 1; k <= pieces; k++) {
+          const t = k / pieces;
+          put({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }, color);
+        }
+      }
+    };
+    if (route.length >= 2) {
+      lay(route, PATH_WALK, true);
+      if (beyond.length >= 2) lay(beyond, PATH_BEYOND, false);
+    }
+    this.pathPoints = n;
+    this.pathGeometry.setDrawRange(0, n);
+    positions.needsUpdate = true;
+    colors.needsUpdate = true;
+    this.pathLine.visible = n >= 2;
+  }
+
+  clearPath(): void {
+    this.showPath([]);
+  }
+
+  /** How many points the hover path is drawn through; none when it is hidden. */
+  get pathPointCount(): number {
+    return this.pathPoints;
+  }
+
   /** Mark the tile under the pointer, or nothing for `NO_TILE`. */
   showCursor(tile: number): void {
     if (tile === this.cursorTile) return;
@@ -1221,6 +1297,8 @@ export class SceneView {
     this.highlightEdgeGeometry.dispose();
     this.highlightEdgeMaterial.dispose();
     this.cursorGeometry.dispose();
+    this.pathGeometry.dispose();
+    this.pathMaterial.dispose();
     this.zoneMaterial.dispose();
     this.zoneLayer.dispose();
     this.zoneEdgeGeometry.dispose();

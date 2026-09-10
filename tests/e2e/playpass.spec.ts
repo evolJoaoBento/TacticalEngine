@@ -318,6 +318,43 @@ test('a walk ends where it was aimed, not at the centre of a square, and the tok
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
+test('hovering the ground draws the line a click would walk', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+    timeout: 30_000,
+  });
+
+  // Somewhere a few tiles off, towards the middle of the room.
+  const target = await page.evaluate(() => {
+    const a = window.__polyheart!;
+    const me = a.selected()!;
+    const from = a.tileOf(me);
+    const span = (t: number): number => Math.hypot((t % 22) - 9, Math.floor(t / 22) - 8);
+    const far = a.reachable().filter((t) => t !== from).reduce((x, y) => (span(y) < span(x) ? y : x));
+    const spot = { x: (far % 22) + 0.2, y: Math.floor(far / 22) - 0.1 };
+    return { spot, px: a.screenAt(spot.x, spot.y), preview: a.previewAt(spot.x, spot.y) };
+  });
+  expect(target.preview).not.toBeNull();
+  expect(target.preview!.route.length).toBeGreaterThanOrEqual(2);
+  expect(target.preview!.beyond).toEqual([]);
+
+  await page.mouse.move(target.px.x, target.px.y);
+  await page.waitForFunction(() => window.__polyheart!.pathPoints() >= 2, null, { timeout: 5_000 });
+  const drawn = await page.evaluate(() => window.__polyheart!.pathPoints());
+  console.log('PATH POINTS:', drawn);
+  await page.screenshot({ path: 'test-results/hover-path.png' });
+  expect(drawn).toBeGreaterThanOrEqual(2);
+
+  // Off the board, the line goes.
+  await page.mouse.move(2, 2);
+  await page.waitForFunction(() => window.__polyheart!.pathPoints() === 0, null, { timeout: 5_000 });
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
 test('a walked token walks, and is standing on the tile when it has', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (m) => {
