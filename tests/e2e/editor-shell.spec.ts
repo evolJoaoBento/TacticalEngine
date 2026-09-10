@@ -115,9 +115,10 @@ test('Content opens a workspace under the top bar, and Esc closes it', async ({ 
 
 test('Interaction lists the conversations and opens one as a graph', async ({ page }) => {
   const errors = await editing(page);
-  await page.evaluate(() => window.__polyheart!.setEditorMode('interaction'));
+  await expect(page.locator('[data-testid="top-bar"]')).toBeVisible();
+  await page.keyboard.press('4');
   await expect(page.locator('[data-testid="interaction-side"]')).toBeVisible();
-  await page.locator('[data-testid="interaction-side"] button.ph-item').first().click();
+  await page.locator('[data-testid="interaction-side"]').getByRole('button', { name: /the-listening-pillar/ }).click();
   await expect(page.locator('[data-testid="dialogue-graph"]')).toBeVisible();
   expect(errors).toEqual([]);
 });

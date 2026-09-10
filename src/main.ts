@@ -253,6 +253,7 @@ declare global {
       setMode: (mode: 'play' | 'edit') => void;
       /** The top bar's mode: 'inspect', 'terrain', 'combat' or 'interaction'. */
       editorMode: () => string;
+      /** Switch the top bar's mode, as pressing 1-4 would. */
       setEditorMode: (mode: string) => void;
       setTool: (tool: string) => void;
       setTerrain: (id: string) => void;
