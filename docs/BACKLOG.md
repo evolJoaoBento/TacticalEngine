@@ -4,8 +4,8 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
-**Pinned to commit `40832da`.** At that commit: `npx tsc --noEmit` clean, **1747 unit tests across
-87 files**, **97 Playwright tests** (about 3.4 minutes). If those numbers come back lower, something
+**Pinned to commit `0c96dd6`.** At that commit: `npx tsc --noEmit` clean, **1751 unit tests across
+88 files**, **101 Playwright tests** (about 3.6 minutes). If those numbers come back lower, something
 was lost — check before building on it. Symbol names are the stable handles here; line numbers move.
 
 ---
@@ -47,11 +47,15 @@ starts from `docs/research/construction-layer-review.md` (the format, and what a
 needs from it) and `docs/research/multilevel-dependency-map.md` (the 2D assumptions still standing).
 
 **Done:** part 1, slice 1 (the shell's frame); sparse construction with stackable tiles,
-extended coordinates, brush/rotation/level controls, undo/save and chunked LOD (2026-09-11).
-Follow-up: overlapping instances, four edge walls, fractional Z/vertical size,
-tab-driven placement and visible authored creatures with on-grid play sync.
+extended coordinates, brush/rotation/level controls, undo/save and chunked LOD; and placement
+rotation — Alt-drag / R / the Rotate button turn tiles and props to a cardinal facing, props place
+with the chosen facing, and one left-docked Z slider replaces the per-mode height fields
+(2026-09-11). Follow-up: overlapping instances, four edge walls, fractional Z/vertical size,
+tab-driven placement, visible authored creatures with on-grid play sync. All this is unplanned
+Codex work reviewed onto the branch; the spec's §15 records the rulings (C1–C9).
 **Next:** part 2 — one vertical unit and multilevel navigation over constructed surfaces
-(spec first); part 1, slice 2's remaining edit-view items (objects, spawns, trigger cells).
+(spec first); part 1, slice 2's remaining edit-view items (objects, spawns, trigger cells) plus a
+rotated prop-facing ghost during Alt (review M7).
 
 Ranked by **what it adds to a fight** — the house rule for ordering slices. The GM's narrative half
 is deliberately last. A *slice* is one behaviour complete: rule, content, editor field, validation,
