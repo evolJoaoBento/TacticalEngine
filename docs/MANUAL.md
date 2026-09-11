@@ -337,13 +337,13 @@ each cell only once; a fresh click or stroke can place another identical piece t
 
 Use the vertical **Z slider on the left of the board** for placement height in tile units. Its
 +/− buttons move by a quarter tile, the compact value accepts exact heights beyond the slider's
-−16 to +16 working range, and Page Up/Down moves by one tile. **Piece height (Z)** scales a piece vertically, from 0.25 to 16; floors start
+−16 to +16 working range, and Page Up/Down moves by one tile. The separate **Piece height** field scales a piece vertically, from 0.25 to 16; floors start
 at a quarter-tile thickness. **Hold Alt and drag toward a tile edge** to point tiles or props
 in that cardinal direction. The camera angle is accounted for, so dragging along the visible
 grid chooses the matching north, west, south or east edge. While Alt is held, the tile preview stays in place and
 mouse gestures do not stamp pieces or pan the camera. Release Alt, then click to place with
 the chosen facing. **R** and **Rotate** also turn tiles and props; the four **Wall edge** buttons
-put walls along the north, east, south or west edge, meeting at the corners.
+put walls along the north, west, south or east edge, meeting at the corners.
 Four walls and a floor can occupy the same tile. **Erase building
 tiles** removes the most recently placed piece at the selected X/Y/Z; repeat to peel away
 overlaps. Undo/redo and JSON save/load preserve every instance.

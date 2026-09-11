@@ -409,7 +409,7 @@ in a line or two, and the user has not yet confirmed them.
 |---|---|---|
 | C1 | §5, §8 (document) | Two vertical units coexist until part 2 unifies them: `heights[]` counts levels of `levelHeight` (0.35 world units); `buildingTiles.level` and `position.z` count tiles, in quarter steps. Nothing converts between them into saved content. Part 2's spec opens with the choice of one unit. |
 | C2 | §4.2 Terrain row, the approved mockup | Terrain's strip has a **Tiles** tab before Ground · Props · Objects, and **the open tab chooses the placement action** (`TERRAIN_TAB_TOOL` in `modes.ts`); the rail shows only that tab's other tools (`TERRAIN_RAIL`): Tiles → Erase tiles; Ground → Raise · Lower; Props and Objects → Erase. Terrain's default tool is Build tiles, so key 2 hands the user the build tool. Slice 1's six-tool rail is in `bbbf098` if the user wants it back. |
-| C3 | §4.7 | **R** rotates the build piece while Build tiles or Erase tiles is in hand. §4.7's R (turn a selected prop) is Inspector mode and still free. |
+| C3 | §4.7 | **R** rotates the piece in hand: Build tiles, Erase tiles, and now also the **prop** tool (via `rotatablePlacement()`), so a facing can be chosen without the mouse. §4.7's R (turn a selected prop) is Inspector mode and still free. |
 | C4 | §2 item 6 | A creature without a model of its own draws as the `husk` body in edit and play. `ModelRegistry.missing()` still lists it and `SceneView.modelSource(id)` returns `fallback:husk`, so the diagnostic is honest; part 4 gives them art. |
 | C5 | §9, validation | A placement outside the board (signed coordinates to ±1,000,000) is authored content that takes no part in play: the validator gives one warning, never an error, and neither play path creates an entity for it. |
 | C6 | §5.1 | Creatures placed in the editor enter the running game on return to play *and* on every scene entry, through a per-scene record of synced placement ids; a creature a script removed is not re-added. |
@@ -424,3 +424,24 @@ decos, interactables and adversary placements.
 (`SceneView.setAuthoring`); objects, spawns and trigger cells are not, and remain slice 2. §12's
 "new terrain tools, the tile library" are now in, as scenery only: nothing walks on or under a piece,
 and pieces block neither movement nor sight, which is part 2.
+
+### 2026-09-11 — placement rotation and a shared elevation slider (Codex batch 2)
+
+The user ran Codex again. It added placement-time rotation and replaced the per-mode Z fields with one
+left-edge slider, with no spec or plan, committed unchanged as `b5c52bb`, then reviewed
+(`.superpowers/sdd/codex-rotation/review.md`) and fixed. The rulings below override the sections they
+name. Each is reversible in a line or two, and the user has not yet confirmed them.
+
+| Ruling | Overrides | What stands now |
+|---|---|---|
+| C7 | §12 (placement rotation, deferred to part 3) | Alt + a mouse drag on the build plane — also Alt held + **R**, also the **Rotate** button — turns the piece to a cardinal facing (north, west, south, east), for **build tiles and props**. The world delta is read from the raycast hit, so it is camera-aware. Reversible: the gesture wiring in `main.ts` (`rotatePlacement`, `placementRotation`) and `rotatablePlacement()`. |
+| C8 | nothing (extends slice 1) | Props place with the chosen `buildRotation` (× π/2) instead of always 0. Clicking a tile that already holds the same prop still turns it by `rotationStep` from its current facing. |
+| C9 | §4 mockup (Z lived in the right panel) | The per-mode Z number fields ("Z · Vertical position" in Terrain, "Z · Creature height" in Combat) are replaced by one vertical `PlacementHeightControl` docked at the board's **left** edge, shared by terrain placement tools and creature placement. This is a layout change to the approved shell. Reversible: `PlacementHeightControl` in `ModeSides`. |
+
+**C3 (prior batch), amended above.** Its R — which rotated only while Build/Erase tiles was in hand —
+now also covers the **prop** tool through `rotatablePlacement()`, so §4.7's prop-R-in-Inspector still
+does not collide.
+
+**§12 is not fully contradicted.** §12 deferred *placement-time rotation* to part 3 ("Object rotation …
+arrives with part 3's placement"); this batch brings it early for tiles and props only. Interactables and
+"objects" are untouched, so that clause still holds for them.

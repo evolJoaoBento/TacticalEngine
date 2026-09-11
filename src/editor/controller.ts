@@ -72,7 +72,7 @@ export interface EditorToolState {
    * the plane once puts a whole storey's worth of content at the same height.
    */
   buildLevel: number;
-  /** Quarter turns a stamped piece is rotated by, which is how a wall picks its edge. */
+  /** Quarter turns a stamped piece is rotated by: how a wall picks its edge, and the facing a prop is placed at. */
   buildRotation: number;
   /** How tall a stamped piece stands, in tiles, so one shape covers a step and a pillar. */
   buildHeight: number;
