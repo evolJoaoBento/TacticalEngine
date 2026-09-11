@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('the left-side height slider controls placement Z and follows the active tab', async ({ page }) => {
+test('the right-side height ladder controls placement Z and follows the active tab', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
@@ -13,19 +13,26 @@ test('the left-side height slider controls placement Z and follows the active ta
   ]);
   expect(controlBox).not.toBeNull();
   expect(sideBox).not.toBeNull();
-  expect(controlBox!.x + controlBox!.width).toBeLessThan(sideBox!.x);
+  // Docked at the board's right edge: clear of the mode panel, but against it —
+  // which fails if the ladder ever drifts back to the left of the board.
+  expect(controlBox!.x + controlBox!.width).toBeLessThanOrEqual(sideBox!.x);
+  expect(sideBox!.x - (controlBox!.x + controlBox!.width)).toBeLessThan(40);
 
-  await page.getByLabel('Placement height slider').fill('2.25');
+  // A rung nine quarter-tiles up is drawn, and clicking it jumps to that level.
+  await page.getByRole('button', { name: 'Z 2.25', exact: true }).click();
   await expect(page.getByLabel('Build level', { exact: true })).toHaveValue('2.25');
   await page.evaluate(() => window.__polyheart!.buildAt(4, 4));
   const scene = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject())).scenes[0];
   expect(scene.buildingTiles['4,4,2.25']).toBeDefined();
 
+  // The ladder re-centres on the new level, so its own rung is now the current one.
+  await expect(page.getByTestId('height-ladder')).toHaveAttribute('aria-valuenow', '2.25');
+
   await page.locator('[data-tab="ground"]').click();
   await expect(height).toHaveCount(0);
   await page.locator('[data-tab="props"]').click();
   await expect(page.getByTestId('placement-height')).toBeVisible();
-  await page.screenshot({ path: 'test-results/left-height-slider.png' });
+  await page.screenshot({ path: 'test-results/right-height-ladder.png' });
   expect(await page.evaluate(() => window.__polyheart!.errors)).toEqual([]);
 });
 
@@ -117,8 +124,24 @@ test('a creature clicked onto raised ground lands on the tile under the cursor',
   await strip.locator('[data-item]').click();
   // The plateau in the north-east corner. A flat plane through the board's
   // base projects to a different tile from this camera angle than the raised
-  // surface does, which is the whole point of the test.
-  const plateau = 3 * 22 + 18;
+  // surface does, which is the whole point of the test. Which of its tiles can
+  // be clicked depends on where the editor's chrome falls — the Z ladder is
+  // docked over the board's right edge — so take the first raised one whose
+  // surface projects onto the canvas rather than naming a tile that chrome may
+  // later cover.
+  const plateau = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    for (let y = 2; y <= 5; y += 1) {
+      for (let x = 19; x >= 15; x -= 1) {
+        const tile = y * 22 + x;
+        if (api.heightAt(tile) <= 0) continue;
+        const point = api.screenOf(tile);
+        if (document.elementFromPoint(point.x, point.y)?.id === 'gl') return tile;
+      }
+    }
+    return -1;
+  });
+  expect(plateau).toBeGreaterThan(0);
   expect(await page.evaluate((tile) => window.__polyheart!.heightAt(tile), plateau)).toBeGreaterThan(0);
   const placements = async (): Promise<{ id: string; position: { x: number; y: number } }[]> =>
     page.evaluate(() => (JSON.parse(window.__polyheart!.exportProject()) as {
@@ -128,11 +151,9 @@ test('a creature clicked onto raised ground lands on the tile under the cursor',
   // `screenOf` projects the tile's real surface, not the build plane, so the
   // click lands where a designer aiming at the plateau would put it.
   const at = await page.evaluate((tile) => window.__polyheart!.screenOf(tile), plateau);
-  const onCanvas = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.id ?? '', at);
-  expect(onCanvas).toBe('gl');
   await page.mouse.click(at.x, at.y);
   const added = (await placements()).filter((a) => !before.has(a.id));
   expect(added).toHaveLength(1);
-  expect(added[0]!.position).toMatchObject({ x: 18, y: 3 });
+  expect(added[0]!.position).toMatchObject({ x: plateau % 22, y: Math.floor(plateau / 22) });
   expect(errors).toEqual([]);
 });

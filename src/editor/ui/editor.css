@@ -109,15 +109,17 @@
 .ph-editor .ph-tool:hover { color: var(--ph-text); background: var(--ph-raised); }
 .ph-editor .ph-tool.ph-on { background: var(--ph-accent-bg); color: var(--ph-accent); }
 
-/* Placement elevation: a compact vertical instrument beside the board. */
+/* Placement elevation: a fisheye ladder beside the board. Rungs near the level
+   being placed at are large and fall away with distance, so the level the
+   author is aiming for is also the easiest one to hit. */
 .ph-editor .ph-height-control {
   position: absolute;
   top: 116px;
   bottom: 198px;
-  left: 70px;
+  right: 324px;
   z-index: 2;
-  width: 46px;
-  max-height: 360px;
+  width: 76px;
+  max-height: 460px;
   padding: 7px 5px;
   box-sizing: border-box;
   display: flex;
@@ -145,15 +147,48 @@
   color: var(--ph-accent);
   background: var(--ph-accent-bg);
 }
-.ph-editor .ph-height-range {
+.ph-editor .ph-height-ladder {
   flex: 1;
-  min-height: 86px;
-  width: 22px;
-  margin: 0;
-  writing-mode: vertical-lr;
-  direction: rtl;
-  accent-color: var(--ph-accent);
+  align-self: stretch;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   cursor: ns-resize;
+  touch-action: none;
+  outline: 0;
+}
+.ph-editor .ph-height-ladder:focus-visible {
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px var(--ph-accent);
+}
+.ph-editor .ph-height-rung {
+  flex: none;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ph-muted);
+  cursor: ns-resize;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  align-items: center;
+  gap: 4px;
+}
+.ph-editor .ph-height-rung:hover { color: var(--ph-text); }
+.ph-editor .ph-height-rung.ph-on { color: var(--ph-accent); }
+.ph-editor .ph-height-bar {
+  justify-self: center;
+  border-radius: 1px;
+  background: currentColor;
+}
+.ph-editor .ph-height-rung-label {
+  justify-self: start;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .ph-editor .ph-height-value {
   width: 36px;

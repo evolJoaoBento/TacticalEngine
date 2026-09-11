@@ -8,7 +8,16 @@
  */
 
 import type { QuestDef } from '../../engine/content/quests';
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
+import {
+  LADDER_REACH,
+  Z_STEP,
+  levelFromDrag,
+  roundToStep,
+  rungFalloff,
+  rungLabelled,
+  rungSize,
+} from '../height-ladder';
 import {
   BUILD_LIMIT,
   BUILD_MATERIALS,
@@ -86,26 +95,73 @@ const BRUSHED: readonly EditorTool[] = ['paintTerrain', 'raise', 'lower', 'build
 /** Tools that place at `buildLevel`, and so want the Z controls beside them. */
 const LEVELLED: readonly EditorTool[] = ['buildTile', 'eraseTile', 'prop', 'interactable'];
 
-const HEIGHT_SLIDER_LIMIT = 16;
-
-/** The board-edge elevation control shared by terrain placement and creatures. */
+/**
+ * The board-edge elevation ladder shared by terrain placement and creatures.
+ *
+ * One rung per quarter tile, drawn large around the level being placed at and
+ * shrinking away from it, so the level the author is aiming for is the easiest
+ * one to hit. Drag the ladder to scrub, click a rung to jump to it, or use the
+ * buttons and the box for exact values — `height-ladder.ts` holds the maths.
+ */
 export function PlacementHeightControl(props: {
   controller: EditorController;
   onChange: () => void;
   kind: 'terrain' | 'creature';
 }): preact.JSX.Element | null {
   const { controller } = props;
+  const drag = useRef<
+    { startY: number; startLevel: number; moved: boolean; captured: boolean } | null
+  >(null);
+  const justDragged = useRef(false);
   const visible = props.kind === 'creature'
     ? controller.state.tool === 'adversary'
     : LEVELLED.includes(controller.state.tool);
   if (!visible) return null;
   const level = controller.state.buildLevel;
   const setLevel = (value: number): void => {
-    if (!isBuildZ(value)) return;
-    controller.setBuildLevel(value);
+    const clamped = Math.max(-BUILD_LIMIT, Math.min(BUILD_LIMIT, value));
+    if (!isBuildZ(clamped)) return;
+    if (clamped === controller.state.buildLevel) return;
+    controller.setBuildLevel(clamped);
     props.onChange();
   };
+  const stepBy = (by: number): void => {
+    setLevel(roundToStep(level + by));
+  };
   const inputLabel = props.kind === 'creature' ? 'Creature Z' : 'Build level';
+  const rungs: preact.JSX.Element[] = [];
+  for (let offset = LADDER_REACH; offset >= -LADDER_REACH; offset -= 1) {
+    const value = roundToStep(level + offset * Z_STEP);
+    if (Math.abs(value) > BUILD_LIMIT) continue;
+    const size = rungSize(offset);
+    const current = offset === 0;
+    rungs.push(
+      <button
+        key={offset}
+        class={current ? 'ph-height-rung ph-on' : 'ph-height-rung'}
+        style={{ height: `${size.height}px`, opacity: size.opacity }}
+        aria-label={`Z ${value}`}
+        onClick={() => {
+          if (justDragged.current) {
+            justDragged.current = false;
+            return;
+          }
+          setLevel(value);
+        }}
+      >
+        <span
+          class="ph-height-bar"
+          style={{ width: `${size.width}px`, height: current ? '5px' : '2px' }}
+        />
+        <span
+          class="ph-height-rung-label"
+          style={{ fontSize: `${8 + 3 * rungFalloff(offset)}px` }}
+        >
+          {rungLabelled(value, offset) ? value : ''}
+        </span>
+      </button>,
+    );
+  }
   return (
     <aside class="ph-height-control ph-panel" data-testid="placement-height">
       <div class="ph-height-title">Z</div>
@@ -113,26 +169,72 @@ export function PlacementHeightControl(props: {
         class="ph-height-step"
         aria-label="Raise build level"
         disabled={level >= BUILD_LIMIT}
-        onClick={() => setLevel(Math.min(BUILD_LIMIT, level + 0.25))}
+        onClick={() => stepBy(Z_STEP)}
       >
         +
       </button>
-      <input
-        class="ph-height-range"
-        aria-label="Placement height slider"
-        title="Placement height"
-        type="range"
-        min={-HEIGHT_SLIDER_LIMIT}
-        max={HEIGHT_SLIDER_LIMIT}
-        step="0.25"
-        value={Math.max(-HEIGHT_SLIDER_LIMIT, Math.min(HEIGHT_SLIDER_LIMIT, level))}
-        onInput={(e) => setLevel(Number(e.currentTarget.value))}
-      />
+      <div
+        class="ph-height-ladder"
+        data-testid="height-ladder"
+        role="slider"
+        tabIndex={0}
+        aria-label="Placement height"
+        aria-orientation="vertical"
+        aria-valuemin={-BUILD_LIMIT}
+        aria-valuemax={BUILD_LIMIT}
+        aria-valuenow={level}
+        aria-valuetext={`${level} tiles`}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          justDragged.current = false;
+          drag.current = { startY: e.clientY, startLevel: level, moved: false, captured: false };
+        }}
+        onPointerMove={(e) => {
+          const gesture = drag.current;
+          if (gesture === null) return;
+          const dy = e.clientY - gesture.startY;
+          if (Math.abs(dy) <= 2) return;
+          gesture.moved = true;
+          if (!gesture.captured) {
+            // Capture only once this is a real drag. Capturing on pointerdown
+            // would retarget the click that follows a plain tap, and the rung
+            // under the pointer would never hear it.
+            e.currentTarget.setPointerCapture(e.pointerId);
+            gesture.captured = true;
+          }
+          setLevel(levelFromDrag(gesture.startLevel, dy));
+        }}
+        onPointerUp={(e) => {
+          const gesture = drag.current;
+          if (gesture === null) return;
+          justDragged.current = gesture.moved;
+          drag.current = null;
+          if (gesture.captured && e.currentTarget.hasPointerCapture(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+          }
+        }}
+        onPointerCancel={() => {
+          drag.current = null;
+          justDragged.current = false;
+        }}
+        onWheel={(e) => {
+          e.stopPropagation();
+          stepBy(e.deltaY < 0 ? Z_STEP : -Z_STEP);
+        }}
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+          e.preventDefault();
+          e.stopPropagation();
+          stepBy(e.key === 'ArrowUp' ? Z_STEP : -Z_STEP);
+        }}
+      >
+        {rungs}
+      </div>
       <button
         class="ph-height-step"
         aria-label="Lower build level"
         disabled={level <= -BUILD_LIMIT}
-        onClick={() => setLevel(Math.max(-BUILD_LIMIT, level - 0.25))}
+        onClick={() => stepBy(-Z_STEP)}
       >
         −
       </button>
