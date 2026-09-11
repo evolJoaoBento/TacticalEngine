@@ -31,7 +31,14 @@ import { TopBar, type Menu, type Workspace } from './TopBar';
 import { SceneMenu } from './SceneMenu';
 import { ToolRail } from './ToolRail';
 import { LibraryStrip } from './LibraryStrip';
-import { CombatSide, InspectorSide, InteractionSide, TerrainSide, type PickableIds } from './ModeSides';
+import {
+  CombatSide,
+  InspectorSide,
+  InteractionSide,
+  PlacementHeightControl,
+  TerrainSide,
+  type PickableIds,
+} from './ModeSides';
 import { DialogueGraph } from './DialogueGraph';
 import { PartyPanel } from './PartyPanel';
 import { AbilityPanel } from './AbilityPanel';
@@ -246,6 +253,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
     } else if (mode === 'terrain') {
       body = [
         <ToolRail key="rail" mode={mode} tools={TERRAIN_RAIL[controller.terrainTab]} current={tool} onTool={useTool} />,
+        <PlacementHeightControl key="height" controller={controller} kind="terrain" onChange={bump} />,
         <LibraryStrip
           key="terrain-library"
           testId="terrain-library"
@@ -268,6 +276,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
     } else if (mode === 'combat') {
       body = [
         <ToolRail key="rail" mode={mode} tools={MODE_TOOLS.combat} current={tool} onTool={useTool} />,
+        <PlacementHeightControl key="height" controller={controller} kind="creature" onChange={bump} />,
         <LibraryStrip
           key="combat-library"
           testId="combat-library"

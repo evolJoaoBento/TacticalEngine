@@ -335,11 +335,16 @@ the placement. Brushes cover 1×1, 3×3 or 5×5 cells; a drag is one undo step.
 Each stamp creates an independent piece, even where other pieces already exist. A drag visits
 each cell only once; a fresh click or stroke can place another identical piece there.
 
-Use **Z · Vertical position** for height in tile units, in quarter-tile increments. Page Up/Down
-moves by one tile. **Piece height (Z)** scales a piece vertically, from 0.25 to 16; floors start
-at a quarter-tile thickness. **R**, **Rotate**, or the four **Wall edge** buttons place walls
-along the north, east, south or west edge, meeting at the corners — R and Rotate act only while
-a build tool is in hand. Four walls and a floor can occupy the same tile. **Erase building
+Use the vertical **Z slider on the left of the board** for placement height in tile units. Its
++/− buttons move by a quarter tile, the compact value accepts exact heights beyond the slider's
+−16 to +16 working range, and Page Up/Down moves by one tile. **Piece height (Z)** scales a piece vertically, from 0.25 to 16; floors start
+at a quarter-tile thickness. **Hold Alt and drag toward a tile edge** to point tiles or props
+in that cardinal direction. The camera angle is accounted for, so dragging along the visible
+grid chooses the matching north, west, south or east edge. While Alt is held, the tile preview stays in place and
+mouse gestures do not stamp pieces or pan the camera. Release Alt, then click to place with
+the chosen facing. **R** and **Rotate** also turn tiles and props; the four **Wall edge** buttons
+put walls along the north, east, south or west edge, meeting at the corners.
+Four walls and a floor can occupy the same tile. **Erase building
 tiles** removes the most recently placed piece at the selected X/Y/Z; repeat to peel away
 overlaps. Undo/redo and JSON save/load preserve every instance.
 
@@ -347,7 +352,7 @@ Raise and Lower still move the ground a whole level at a time, and Z does not to
 Z and the ground's height are two different units until multilevel navigation unifies them.
 
 Props, objects and creatures can also be authored beyond the board. Creature placements appear
-immediately in the editor, including at the **Creature Z** height. Generic creature bodies stand
+immediately in the editor, including at the height shown by the same left-side **Z slider**. Generic creature bodies stand
 in for SRD creatures without a dedicated model — 128 of the 129 stat blocks — and the engine still
 counts those definitions as unresolved, because they are. Undo and scene switching update what is
 drawn.

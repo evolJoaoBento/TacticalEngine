@@ -1,5 +1,35 @@
 import { expect, test } from '@playwright/test';
 
+test('the left-side height slider controls placement Z and follows the active tab', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.getByTestId('mode-terrain').click();
+  const height = page.getByTestId('placement-height');
+  await expect(height).toBeVisible();
+  const [controlBox, sideBox] = await Promise.all([
+    height.boundingBox(),
+    page.getByTestId('terrain-side').boundingBox(),
+  ]);
+  expect(controlBox).not.toBeNull();
+  expect(sideBox).not.toBeNull();
+  expect(controlBox!.x).toBeLessThan(70);
+  expect(sideBox!.x).toBeGreaterThan(900);
+
+  await page.getByLabel('Placement height slider').fill('2.25');
+  await expect(page.getByLabel('Build level', { exact: true })).toHaveValue('2.25');
+  await page.evaluate(() => window.__polyheart!.buildAt(4, 4));
+  const scene = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject())).scenes[0];
+  expect(scene.buildingTiles['4,4,2.25']).toBeDefined();
+
+  await page.locator('[data-tab="ground"]').click();
+  await expect(height).toHaveCount(0);
+  await page.locator('[data-tab="props"]').click();
+  await expect(page.getByTestId('placement-height')).toBeVisible();
+  await page.screenshot({ path: 'test-results/left-height-slider.png' });
+  expect(await page.evaluate(() => window.__polyheart!.errors)).toEqual([]);
+});
+
 test('open tabs drive placement; edge walls overlap floors and preserve Z through undo and load', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);

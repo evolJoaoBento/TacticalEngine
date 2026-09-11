@@ -1,5 +1,88 @@
 import { expect, test } from '@playwright/test';
 
+test('Alt + mouse rotates placement without stamping or panning', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.getByTestId('mode-terrain').click();
+  await page.getByLabel('Build X', { exact: true }).fill('40');
+  await page.getByLabel('Build Y', { exact: true }).fill('20');
+  await page.getByRole('button', { name: 'Go', exact: true }).click();
+  await page.getByTestId('build-wall').click();
+  const at = await page.evaluate(() => window.__polyheart!.buildScreenAt(40, 20));
+  const camera = await page.evaluate(() => window.__polyheart!.camera());
+  await page.mouse.move(at.x, at.y);
+  const north = await page.evaluate(() => window.__polyheart!.buildScreenAt(40, 19));
+  const west = await page.evaluate(() => window.__polyheart!.buildScreenAt(39, 20));
+  const east = await page.evaluate(() => window.__polyheart!.buildScreenAt(41, 20));
+  await page.keyboard.down('Alt');
+  await page.mouse.move(at.x + 5, at.y);
+  await expect(page.getByTestId('build-rotate')).toContainText('0°');
+  await page.mouse.move(west.x, west.y, { steps: 5 });
+  await expect(page.getByTestId('build-rotate')).toContainText('90°');
+  await page.mouse.move(east.x, east.y, { steps: 5 });
+  await expect(page.getByTestId('build-rotate')).toContainText('270°');
+  await page.mouse.move(north.x, north.y, { steps: 5 });
+  await expect(page.getByTestId('build-rotate')).toContainText('0°');
+  // Both painting and right-drag camera movement are suppressed during rotation.
+  await page.mouse.down();
+  await page.mouse.move(west.x, west.y, { steps: 5 });
+  await page.mouse.up();
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(west.x, west.y, { steps: 5 });
+  await page.mouse.up({ button: 'right' });
+  await expect(page.getByTestId('build-rotate')).toContainText('90°');
+  expect(await page.evaluate(() => window.__polyheart!.buildingStats().tiles)).toBe(0);
+  expect(await page.evaluate(() => window.__polyheart!.camera())).toEqual(camera);
+  await page.screenshot({ path: 'test-results/alt-placement-rotation.png' });
+  await page.keyboard.up('Alt');
+  await page.mouse.click(at.x, at.y);
+  const saved = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    return { text: api.exportProject(), scene: api.editScene() };
+  });
+  const scene = JSON.parse(saved.text).scenes.find((s: { id: string }) => s.id === saved.scene);
+  expect(scene.buildingTiles['40,20,0']).toMatchObject({ shape: 'wall', rotation: 1 });
+  expect(await page.evaluate(() => window.__polyheart!.undo())).toBe(true);
+  expect(await page.evaluate(() => window.__polyheart!.buildingStats().tiles)).toBe(0);
+  expect(await page.evaluate(() => window.__polyheart!.redo())).toBe(true);
+  expect(await page.evaluate((text) => window.__polyheart!.loadProjectText(text), saved.text)).toBe('');
+  expect(await page.evaluate(() => window.__polyheart!.errors)).toEqual([]);
+});
+
+test('Alt chooses the facing of new props and blur ends a rotation gesture', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.evaluate(() => {
+    window.__polyheart!.setMode('edit');
+    window.__polyheart!.setTool('prop');
+  });
+  const at = await page.evaluate(() => window.__polyheart!.buildScreenAt(10, 10));
+  const west = await page.evaluate(() => window.__polyheart!.buildScreenAt(9, 10));
+  const east = await page.evaluate(() => window.__polyheart!.buildScreenAt(11, 10));
+  await page.mouse.move(at.x, at.y);
+  const before = await page.evaluate(() => window.__polyheart!.propCount());
+  await page.keyboard.down('Alt');
+  await page.mouse.move(west.x, west.y, { steps: 5 });
+  await expect(page.getByTestId('prop-rotate')).toContainText('90°');
+  expect(await page.evaluate(() => window.__polyheart!.propCount())).toBe(before);
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await page.keyboard.up('Alt');
+  await page.mouse.move(at.x, at.y);
+  await page.keyboard.down('Alt');
+  await page.mouse.move(east.x, east.y, { steps: 5 });
+  await expect(page.getByTestId('prop-rotate')).toContainText('270°');
+  await page.keyboard.up('Alt');
+  const placed = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    api.buildAt(40, 20);
+    const scene = JSON.parse(api.exportProject()).scenes.find((s: { id: string }) => s.id === api.editScene());
+    return scene.decos.find((d: { position: { x: number; y: number } }) => d.position.x === 40 && d.position.y === 20);
+  });
+  expect(placed.rotation).toBeCloseTo(3 * Math.PI / 2);
+  expect(await page.evaluate(() => window.__polyheart!.errors)).toEqual([]);
+});
+
 test('builds outside the board, stacks, rotates, erases and restores saved tiles', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));

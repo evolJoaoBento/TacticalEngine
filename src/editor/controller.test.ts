@@ -134,6 +134,19 @@ describe('height', () => {
 });
 
 describe('props', () => {
+  it('places with the chosen facing and preserves it through save and undo/redo', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('buildRotation', 3);
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+    expect(projectSchema.parse(session.project).scenes[0]!.decos[0]!.rotation).toBeCloseTo(3 * Math.PI / 2);
+    session.undo();
+    expect(session.requireScene('room').decos).toHaveLength(0);
+    session.redo();
+    expect(session.requireScene('room').decos[0]!.rotation).toBeCloseTo(3 * Math.PI / 2);
+  });
+
   it('places one, then turns it when clicked again', () => {
     const { editor, session } = setup();
     editor.setTool('prop');

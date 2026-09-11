@@ -27,6 +27,7 @@ import {
 } from 'three';
 import { demoMap } from '../legacy/js/data.js';
 import { EditorController } from './editor/controller';
+import { placementRotation } from './editor/placement-rotation';
 import { EDITOR_MODES, type EditorMode } from './editor/modes';
 import {
   EditorSession,
@@ -861,9 +862,68 @@ const pointer = new Vector2();
 const groundPoint = new Vector3();
 const buildPlane = new Plane(new Vector3(0, 1, 0), 0);
 let lastBuildPointer: { clientX: number; clientY: number } | null = null;
+let altRotation: {
+  start: { clientX: number; clientY: number };
+  world: { x: number; z: number };
+  rotation: number;
+  tool: string;
+  pointer: { clientX: number; clientY: number };
+} | null = null;
+
+function rotatablePlacement(): boolean {
+  return mode === 'edit' && (editor.state.tool === 'buildTile' || editor.state.tool === 'prop');
+}
+
+function beginAltRotation(at: { clientX: number; clientY: number }): boolean {
+  editor.end();
+  drag = null;
+  lastBuildPointer = { clientX: at.clientX, clientY: at.clientY };
+  const world = pointOnBuildPlane(at);
+  if (world === null) return false;
+  altRotation = {
+    start: { clientX: at.clientX, clientY: at.clientY },
+    world,
+    rotation: editor.state.buildRotation,
+    tool: editor.state.tool,
+    pointer: at,
+  };
+  return true;
+}
+
+function endAltRotation(): void {
+  if (altRotation !== null) lastBuildPointer = altRotation.pointer;
+  altRotation = null;
+}
+
+/** Consume rotation gestures before either painting or camera dragging sees them. */
+function rotatePlacement(event: PointerEvent): boolean {
+  if (!event.altKey || event.ctrlKey || event.metaKey || !rotatablePlacement()) {
+    endAltRotation();
+    return false;
+  }
+  event.preventDefault();
+  if (altRotation === null || altRotation.tool !== editor.state.tool) {
+    if (!beginAltRotation(lastBuildPointer ?? event)) return true;
+  }
+  const gesture = altRotation!;
+  gesture.pointer = { clientX: event.clientX, clientY: event.clientY };
+  const world = pointOnBuildPlane(event);
+  if (world === null) return true;
+  const rotation = placementRotation(
+    gesture.rotation,
+    world.x - gesture.world.x,
+    world.z - gesture.world.z,
+    Math.hypot(event.clientX - gesture.start.clientX, event.clientY - gesture.start.clientY),
+  );
+  if (rotation !== editor.state.buildRotation) {
+    editor.set('buildRotation', rotation);
+    renderPanel();
+  }
+  return true;
+}
 
 /** The cell the pointer crosses on the flat plane at the level being built on. */
-function buildingUnderPointer(event: { clientX: number; clientY: number }): Spot | null {
+function pointOnBuildPlane(event: { clientX: number; clientY: number }): { x: number; z: number } | null {
   const rect = canvas.getBoundingClientRect();
   pointer.set(
     ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -872,7 +932,14 @@ function buildingUnderPointer(event: { clientX: number; clientY: number }): Spot
   raycaster.setFromCamera(pointer, camera);
   buildPlane.constant = -(view.layout.baseHeight + editor.state.buildLevel);
   if (!raycaster.ray.intersectPlane(buildPlane, groundPoint)) return null;
-  const spot = worldToSpot(activeGrid, groundPoint.x, groundPoint.z, view.layout);
+  return { x: groundPoint.x, z: groundPoint.z };
+}
+
+/** The cell the pointer crosses on the flat plane at the level being built on. */
+function buildingUnderPointer(event: { clientX: number; clientY: number }): Spot | null {
+  const world = pointOnBuildPlane(event);
+  if (world === null) return null;
+  const spot = worldToSpot(activeGrid, world.x, world.z, view.layout);
   const x = Math.round(spot.x);
   const y = Math.round(spot.y);
   if (!isBuildCoordinate(x) || !isBuildCoordinate(y)) return null;
@@ -1447,6 +1514,7 @@ function renderPlayPanel(): void {
 refreshPlay();
 
 canvas.addEventListener('pointerdown', (event) => {
+  if (rotatePlacement(event)) return;
   if (mode === 'edit') {
     if (event.button !== 0) {
       editor.end();
@@ -1570,6 +1638,7 @@ function clickAt(event: PointerEvent): void {
 }
 
 canvas.addEventListener('pointermove', (event) => {
+  if (rotatePlacement(event)) return;
   if (drag !== null) {
     const dx = event.clientX - drag.lastX;
     const dy = event.clientY - drag.lastY;
@@ -1620,9 +1689,17 @@ canvas.addEventListener('pointermove', (event) => {
 });
 
 canvas.addEventListener('pointerleave', () => {
+  endAltRotation();
   lastBuildPointer = null;
   view.showCursor(NO_TILE);
   view.clearPath();
+});
+
+canvas.addEventListener('pointercancel', () => {
+  endAltRotation();
+  lastBuildPointer = null;
+  drag = null;
+  editor.end();
 });
 
 /** The line a click on this ground would walk, on the ground; nothing while aiming a card, or with nowhere to go. */
@@ -1682,6 +1759,11 @@ function typing(event: KeyboardEvent): boolean {
 
 window.addEventListener('keydown', (event) => {
   if (typing(event)) return;
+  if (event.key === 'Alt' && !event.ctrlKey && !event.metaKey && rotatablePlacement()) {
+    event.preventDefault();
+    if (altRotation === null && lastBuildPointer !== null) beginAltRotation(lastBuildPointer);
+    return;
+  }
   if (event.key === 'e' && (event.ctrlKey || event.metaKey)) {
     event.preventDefault();
     setMode(mode === 'play' ? 'edit' : 'play');
@@ -1694,10 +1776,8 @@ window.addEventListener('keydown', (event) => {
       else undoEdit();
     }
     if (placementTool() && !event.ctrlKey && !event.metaKey) {
-      // R turns the piece being stamped. Nothing on the prop, object or
-      // creature paths reads `buildRotation`, so there it would be a key that
-      // changed a number and nothing else; the spec gives R to the Inspector.
-      if (buildingTool() && event.key.toLowerCase() === 'r') {
+      // R remains a single-step alternative to Alt + mouse for tiles and props.
+      if (!event.altKey && (buildingTool() || rotatablePlacement()) && event.key.toLowerCase() === 'r') {
         editor.end();
         editor.set('buildRotation', (editor.state.buildRotation + 1) % 4);
         renderPanel();
@@ -1740,8 +1820,17 @@ window.addEventListener('keydown', (event) => {
   if (typing(event)) return;
   held.add(event.key.toLowerCase());
 });
-window.addEventListener('keyup', (event) => held.delete(event.key.toLowerCase()));
-window.addEventListener('blur', () => held.clear());
+window.addEventListener('keyup', (event) => {
+  held.delete(event.key.toLowerCase());
+  if (event.key === 'Alt') endAltRotation();
+});
+window.addEventListener('blur', () => {
+  held.clear();
+  endAltRotation();
+  lastBuildPointer = null;
+  drag = null;
+  editor.end();
+});
 
 /**
  * Keep whoever is selected in frame while their token walks.
@@ -1761,6 +1850,7 @@ function followSelected(): void {
 
 function steerCamera(dt: number): void {
   if (mode !== 'play' && mode !== 'edit') return;
+  if (altRotation !== null && rotatablePlacement()) return;
   const speed = orbit.goal.distance * 0.9 * dt;
   let right = 0;
   let forward = 0;

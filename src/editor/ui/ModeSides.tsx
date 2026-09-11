@@ -71,12 +71,12 @@ export function InspectorSide(props: {
 }
 
 const TERRAIN_HINTS: Partial<Record<EditorTool, string>> = {
-  buildTile: 'Drag to place pieces at Z height. Each new stroke adds pieces, including at occupied positions. R turns walls to the next edge.',
+  buildTile: 'Drag to place pieces at Z height. Hold Alt and point the mouse toward a tile edge to rotate in that direction.',
   eraseTile: 'Drag to remove the latest piece at each position and Z height. Click again to remove the next overlapping piece.',
   paintTerrain: 'Drag across the board to paint the ground picked below.',
   raise: 'Drag to raise the ground a level. One drag is one undo.',
   lower: 'Drag to lower the ground a level. One drag is one undo.',
-  prop: 'Click to place the prop picked below; click it again to turn it.',
+  prop: 'Hold Alt and point the mouse in the direction the prop should face, then click to place. Click an existing matching prop to turn it.',
   interactable: 'Click to place the object picked below; click an object again to remove it.',
   erase: 'Click a prop to remove it, then the object under it.',
 };
@@ -85,6 +85,74 @@ const BRUSHED: readonly EditorTool[] = ['paintTerrain', 'raise', 'lower', 'build
 
 /** Tools that place at `buildLevel`, and so want the Z controls beside them. */
 const LEVELLED: readonly EditorTool[] = ['buildTile', 'eraseTile', 'prop', 'interactable'];
+
+const HEIGHT_SLIDER_LIMIT = 16;
+
+/** The board-edge elevation control shared by terrain placement and creatures. */
+export function PlacementHeightControl(props: {
+  controller: EditorController;
+  onChange: () => void;
+  kind: 'terrain' | 'creature';
+}): preact.JSX.Element | null {
+  const { controller } = props;
+  const visible = props.kind === 'creature'
+    ? controller.state.tool === 'adversary'
+    : LEVELLED.includes(controller.state.tool);
+  if (!visible) return null;
+  const level = controller.state.buildLevel;
+  const setLevel = (value: number): void => {
+    if (!isBuildZ(value)) return;
+    controller.setBuildLevel(value);
+    props.onChange();
+  };
+  const inputLabel = props.kind === 'creature' ? 'Creature Z' : 'Build level';
+  return (
+    <aside class="ph-height-control ph-panel" data-testid="placement-height">
+      <div class="ph-height-title">Z</div>
+      <button
+        class="ph-height-step"
+        aria-label="Raise build level"
+        disabled={level >= BUILD_LIMIT}
+        onClick={() => setLevel(Math.min(BUILD_LIMIT, level + 0.25))}
+      >
+        +
+      </button>
+      <input
+        class="ph-height-range"
+        aria-label="Placement height slider"
+        title="Placement height"
+        type="range"
+        min={-HEIGHT_SLIDER_LIMIT}
+        max={HEIGHT_SLIDER_LIMIT}
+        step="0.25"
+        value={Math.max(-HEIGHT_SLIDER_LIMIT, Math.min(HEIGHT_SLIDER_LIMIT, level))}
+        onInput={(e) => setLevel(Number(e.currentTarget.value))}
+      />
+      <button
+        class="ph-height-step"
+        aria-label="Lower build level"
+        disabled={level <= -BUILD_LIMIT}
+        onClick={() => setLevel(Math.max(-BUILD_LIMIT, level - 0.25))}
+      >
+        −
+      </button>
+      <input
+        class="ph-height-value"
+        aria-label={inputLabel}
+        title="Exact Z height in tile units"
+        type="number"
+        step="0.25"
+        min={-BUILD_LIMIT}
+        max={BUILD_LIMIT}
+        value={level}
+        onChange={(e) => {
+          const value = typedNumber(e.currentTarget.value, isBuildZ);
+          if (value !== null) setLevel(value);
+        }}
+      />
+    </aside>
+  );
+}
 
 /** The four edges a wall can sit on, in the order its rotation numbers them. */
 const WALL_EDGES: readonly string[] = ['North', 'West', 'South', 'East'];
@@ -109,10 +177,6 @@ export function TerrainSide(props: {
   const [y, setY] = useState('0');
   const goX = typedNumber(x, isBuildCoordinate);
   const goY = typedNumber(y, isBuildCoordinate);
-  const setZ = (value: number): void => {
-    controller.setBuildLevel(value);
-    props.onChange();
-  };
   const setRotation = (rotation: number): void => {
     controller.end();
     controller.set('buildRotation', rotation);
@@ -197,45 +261,17 @@ export function TerrainSide(props: {
             data-testid="build-rotate"
             onClick={() => setRotation((controller.state.buildRotation + 1) % 4)}
           >
-            Rotate · {controller.state.buildRotation * 90}° (R)
+            Rotate · {controller.state.buildRotation * 90}° (Alt + mouse / R)
           </button>
         </>
       ) : null}
+      {tool === 'prop' ? (
+        <button class="ph-item" data-testid="prop-rotate" onClick={() => setRotation((controller.state.buildRotation + 1) % 4)}>
+          Rotate · {controller.state.buildRotation * 90}° (Alt + mouse / R)
+        </button>
+      ) : null}
       {LEVELLED.includes(tool) ? (
         <>
-          <div class="ph-heading">Z · Vertical position</div>
-          <div class="ph-row">
-            <button
-              class="ph-chip"
-              aria-label="Lower build level"
-              disabled={controller.state.buildLevel <= -BUILD_LIMIT}
-              onClick={() => setZ(controller.state.buildLevel - 0.25)}
-            >
-              −
-            </button>
-            <input
-              class="ph-input"
-              aria-label="Build level"
-              title="Z height in tile units"
-              type="number"
-              step="0.25"
-              min={-BUILD_LIMIT}
-              max={BUILD_LIMIT}
-              value={controller.state.buildLevel}
-              onChange={(e) => {
-                const value = typedNumber(e.currentTarget.value, isBuildZ);
-                if (value !== null) setZ(value);
-              }}
-            />
-            <button
-              class="ph-chip"
-              aria-label="Raise build level"
-              disabled={controller.state.buildLevel >= BUILD_LIMIT}
-              onClick={() => setZ(controller.state.buildLevel + 0.25)}
-            >
-              +
-            </button>
-          </div>
           <div class="ph-heading">Go to coordinates</div>
           <div class="ph-row">
             <input class="ph-input" aria-label="Build X" type="number" value={x} onInput={(e) => setX(e.currentTarget.value)} />
@@ -302,24 +338,6 @@ export function CombatSide(props: { controller: EditorController; onChange: () =
     <aside class="ph-side ph-panel" data-testid="combat-side">
       <div class="ph-heading">{TOOL_LABELS[tool]}</div>
       <div class="ph-hint">{COMBAT_HINTS[tool] ?? ''}</div>
-      <label class="ph-heading">
-        Z · Creature height
-        <input
-          class="ph-input"
-          aria-label="Creature Z"
-          type="number"
-          step="0.25"
-          min={-BUILD_LIMIT}
-          max={BUILD_LIMIT}
-          value={controller.state.buildLevel}
-          onChange={(e) => {
-            const value = typedNumber(e.currentTarget.value, isBuildZ);
-            if (value === null) return;
-            controller.setBuildLevel(value);
-            props.onChange();
-          }}
-        />
-      </label>
       <div class="ph-heading">Encounter</div>
       {scene.encounters.length === 0 ? (
         <div class="ph-hint">None yet. The first creature or trigger cell you place starts one.</div>

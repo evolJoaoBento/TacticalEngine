@@ -356,7 +356,11 @@ export class EditorController {
         if (existing !== null && existing.model === state.propModel) {
           session.run(rotateDeco(sceneId, point, state.rotationStep));
         } else {
-          const deco: Deco = { model: state.propModel, position: this.placementAt(point), rotation: 0 };
+          const deco: Deco = {
+            model: state.propModel,
+            position: this.placementAt(point),
+            rotation: state.buildRotation * Math.PI / 2,
+          };
           session.run(addDeco(sceneId, deco));
         }
         return 'content';
