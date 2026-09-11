@@ -8,9 +8,15 @@ import { BUILD_MATERIALS, buildingParts, type BuildingTile } from '../scene/buil
 import type { SceneDoc } from '../scene/schema';
 import { DEFAULT_LAYOUT } from './layout';
 
+/** Tiles per chunk on each axis. One chunk is one draw call, so it sets the grain. */
 export const BUILD_CHUNK_SIZE = 16;
+
+/** How far from the eye a chunk may be and still be drawn, in world units. */
 export const BUILD_VIEW_DISTANCE = 128;
+
+/** How many chunks may hold GPU buffers at once, whatever the world's extent. */
 export const BUILD_RESIDENT_LIMIT = 96;
+
 const CHUNK_RADIUS = Math.sqrt(3) * BUILD_CHUNK_SIZE / 2 + 1;
 const keyOf = (x: number, y: number, z: number): string => `${x},${y},${z}`;
 interface Chunk {
@@ -23,19 +29,46 @@ interface Chunk {
   mesh?: InstancedMesh;
   lod?: number;
 }
+/**
+ * What the construction layer is actually costing, for a test or the driver to
+ * assert on. Everything here is counted from the meshes that exist, never from
+ * what the code meant to build.
+ */
 export interface BuildingStats {
+  /** Pieces in the document. */
   tiles: number;
+  /** Chunks the document fills, drawn or not. */
   chunks: number;
+  /** Chunks holding GPU buffers right now. */
   residentChunks: number;
+  /**
+   * Chunks the last `update` found near enough and in frustum. Resident chunks
+   * are a subset: a chunk becomes visible before its buffers are built, since
+   * only two are built per frame.
+   */
   visibleChunks: number;
+  /** Instances across every resident mesh. */
   instances: number;
+  /** Triangles those instances draw. */
   triangles: number;
+  /** How many resident chunks are at each level of detail, nearest first. */
   lods: number[];
 }
 
+/**
+ * The construction layer, drawn.
+ *
+ * Chunks are the unit of residency, so what is on the GPU is bounded by the
+ * view rather than by how far the document reaches: a piece a million tiles
+ * away costs a map entry and nothing else. Instance transforms are chunk-local,
+ * because float32 has no precision left at ±1,000,000.
+ */
 export class BuildingView {
+  /** Everything this view owns, for a caller to add to a scene of their own. */
   readonly root = new Group();
+  /** The grid drawn at the level being built on, so an empty plane is still aimable. */
   readonly guide = new GridHelper(32, 32, '#b58cff', '#50455f');
+  /** The translucent piece under the pointer. */
   readonly preview = new Group();
   private readonly chunks = new Map<string, Chunk>();
   private readonly columns = new Map<string, Map<number, Chunk>>();
@@ -54,6 +87,7 @@ export class BuildingView {
   private offsetX = 0;
   private offsetZ = 0;
   private tileCount = 0;
+  private visibleCount = 0;
 
   constructor() {
     this.root.name = 'building-tiles';
@@ -136,6 +170,8 @@ export class BuildingView {
     }
     candidates.sort((a, b) => a.distance - b.distance);
     const wanted = new Set(candidates.slice(0, BUILD_RESIDENT_LIMIT).map((c) => c.chunk));
+    // What the camera can see, as opposed to what has buffers yet.
+    this.visibleCount = wanted.size;
     for (const chunk of this.resident) if (!wanted.has(chunk)) this.release(chunk);
     let builds = 0;
     for (const { chunk, distance } of candidates.slice(0, BUILD_RESIDENT_LIMIT)) {
@@ -164,7 +200,7 @@ export class BuildingView {
       const angle = tile.rotation * Math.PI / 2;
       const sin = Math.sin(angle), cos = Math.cos(angle);
       for (const part of buildingParts(tile.shape, lod === 2)) {
-        const [x, y, z, sx, sy, sz] = part as [number, number, number, number, number, number];
+        const [x, y, z, sx, sy, sz] = part;
         this.scratch.position.set(tile.x - chunk.x * BUILD_CHUNK_SIZE + x * cos + z * sin,
           tile.level - chunk.y * BUILD_CHUNK_SIZE + y * (tile.height ?? 1), tile.y - chunk.z * BUILD_CHUNK_SIZE - x * sin + z * cos);
         this.scratch.rotation.set(0, angle, 0);
@@ -192,6 +228,7 @@ export class BuildingView {
     this.resident.delete(chunk);
   }
 
+  /** The grid showing which level is being built on, centred on a cell. */
   showGuide(x: number, y: number, level: number, visible: boolean): void {
     this.guide.visible = visible;
     this.guide.position.set(Math.round(x) - this.offsetX + 0.5, DEFAULT_LAYOUT.baseHeight + level + 0.002,
@@ -199,7 +236,14 @@ export class BuildingView {
     if (!visible) this.preview.visible = false;
   }
 
-  showPreview(tile: BuildingTile | null, erase = false, brushSize = 1): void {
+  /**
+   * The translucent piece under the pointer, or nothing.
+   *
+   * Always one piece at its own size, even for a 3x3 or 5x5 brush: scaling the
+   * group to the brush stretched the parts with it, so a wall brush previewed
+   * as one wall five tiles long rather than five walls.
+   */
+  showPreview(tile: BuildingTile | null, erase = false): void {
     this.preview.visible = tile !== null;
     if (!tile) return;
     // At most four preview meshes, reused as the pointer moves.
@@ -208,17 +252,18 @@ export class BuildingView {
     const parts = buildingParts(tile.shape);
     this.preview.position.set(tile.x - this.offsetX, DEFAULT_LAYOUT.baseHeight + tile.level, tile.y - this.offsetZ);
     this.preview.rotation.y = tile.rotation * Math.PI / 2;
-    this.preview.scale.set(brushSize, tile.height ?? 1, brushSize);
+    this.preview.scale.set(1, tile.height ?? 1, 1);
     this.preview.children.forEach((mesh, i) => {
       const part = parts[i];
       mesh.visible = part !== undefined;
-      if (part) { mesh.position.set(part[0]!, part[1]!, part[2]!); mesh.scale.set(part[3]!, part[4]!, part[5]!); }
+      if (part) { mesh.position.set(part[0], part[1], part[2]); mesh.scale.set(part[3], part[4], part[5]); }
     });
   }
 
+  /** What is on the GPU right now, counted from the meshes themselves. */
   stats(): BuildingStats {
     const stats: BuildingStats = { tiles: this.tileCount, chunks: this.chunks.size, residentChunks: this.resident.size,
-      visibleChunks: this.resident.size, instances: 0, triangles: 0, lods: [0, 0, 0] };
+      visibleChunks: this.visibleCount, instances: 0, triangles: 0, lods: [0, 0, 0] };
     for (const chunk of this.resident) {
       const mesh = chunk.mesh!;
       stats.instances += mesh.count;
@@ -228,6 +273,7 @@ export class BuildingView {
     return stats;
   }
 
+  /** Let every buffer and every shared geometry go; the view is finished with. */
   dispose(): void {
     for (const chunk of this.resident) this.release(chunk);
     this.chunks.clear();

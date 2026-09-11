@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import type { EditorTool } from './controller';
-import { EDITOR_MODES, MODE_LABELS, MODE_TOOLS, defaultTool, modeOfTool } from './modes';
+import {
+  EDITOR_MODES,
+  MODE_LABELS,
+  MODE_TOOLS,
+  TERRAIN_RAIL,
+  TERRAIN_TABS,
+  TERRAIN_TAB_TOOL,
+  defaultTool,
+  isTerrainTab,
+  modeOfTool,
+  terrainTabOf,
+} from './modes';
 
 const ALL_TOOLS: readonly EditorTool[] = [
   'buildTile',
@@ -44,5 +55,38 @@ describe('editor modes', () => {
     expect(modeOfTool('erase', 'terrain')).toBe('terrain');
     expect(modeOfTool('erase', 'inspect')).toBe('terrain');
     expect(modeOfTool('select', 'interaction')).toBe('interaction');
+  });
+});
+
+describe("terrain's tabs", () => {
+  it('give every terrain tool a tab, so nothing can be held and not shown', () => {
+    for (const tool of MODE_TOOLS.terrain) {
+      const owner = TERRAIN_TABS.find((tab) => TERRAIN_TAB_TOOL[tab] === tool || TERRAIN_RAIL[tab].includes(tool));
+      expect(owner, tool).toBeDefined();
+      expect(terrainTabOf(tool, 'tiles'), tool).toBe(tool === 'buildTile' || tool === 'eraseTile' ? 'tiles' : owner);
+    }
+  });
+
+  it('cover exactly the tools Terrain owns, and nothing else', () => {
+    const offered = new Set([
+      ...TERRAIN_TABS.map((tab) => TERRAIN_TAB_TOOL[tab]),
+      ...TERRAIN_TABS.flatMap((tab) => [...TERRAIN_RAIL[tab]]),
+    ]);
+    expect([...offered].sort()).toEqual([...MODE_TOOLS.terrain].sort());
+  });
+
+  it('keep Erase in the tab that already offers it', () => {
+    expect(terrainTabOf('erase', 'tiles')).toBe('props');
+    expect(terrainTabOf('erase', 'objects')).toBe('objects');
+    expect(terrainTabOf('erase', 'props')).toBe('props');
+  });
+
+  it("leave the tab alone for a tool no tab owns", () => {
+    expect(terrainTabOf('adversary', 'ground')).toBe('ground');
+  });
+
+  it('recognise their own ids and no others', () => {
+    for (const tab of TERRAIN_TABS) expect(isTerrainTab(tab)).toBe(true);
+    expect(isTerrainTab('creatures')).toBe(false);
   });
 });

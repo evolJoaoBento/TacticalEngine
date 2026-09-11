@@ -1258,3 +1258,57 @@ describe('logic in code', () => {
     expect(messages.some((m) => m.includes('asks hook "good"'))).toBe(false);
   });
 });
+
+describe('content authored off the board', () => {
+  const offBoard = {
+    id: 'chest-out',
+    kind: 'chest' as const,
+    position: { x: -200, y: 400 },
+    name: '',
+    flavor: '',
+    model: null,
+    blocksMovement: true,
+    repeatable: false,
+    effects: [],
+    lockedText: '',
+    tags: [],
+    data: {},
+  };
+
+  it('warns once about a creature outside the board, and calls nothing an error', () => {
+    const project = build();
+    project.scenes[0]!.encounters.push({
+      id: 'ambush',
+      name: '',
+      adversaries: [{ id: 'b1', adversary: 'tangle-bramble', position: { x: -200, y: 400 } }],
+      triggerCells: [{ x: 1, y: 1 }],
+      startsOnTrigger: true,
+    });
+    const problems = validateProject(project);
+    const about = problems.filter((p) => p.entity === 'b1');
+    expect(about).toHaveLength(1);
+    expect(about[0]!.severity).toBe('warning');
+    expect(about[0]!.message).toContain('outside the playable board');
+    expect(errorsOnly(problems)).toEqual([]);
+  });
+
+  it('does not say two objects outside the board share a tile', () => {
+    const project = build();
+    project.scenes[0]!.interactables.push({ ...offBoard }, { ...offBoard, id: 'chest-out-2' });
+    const problems = validateProject(project);
+    expect(problems.some((p) => p.message.includes('shares a tile'))).toBe(false);
+    expect(problems.some((p) => p.message.includes('cannot be reached'))).toBe(false);
+    expect(problems.some((p) => p.message.includes('impassable'))).toBe(false);
+    expect(problems.filter((p) => p.entity === 'chest-out')).toHaveLength(1);
+    expect(errorsOnly(problems)).toEqual([]);
+  });
+
+  it('warns about a prop outside the board', () => {
+    const project = build();
+    project.scenes[0]!.decos.push({ model: 'crate', position: { x: 900, y: -900 }, rotation: 0 });
+    const problems = validateProject(project, { knownModels: KNOWN_MODELS });
+    expect(problems.map((p) => p.message)).toContain(
+      'The "crate" prop at (900, -900) is authored outside the playable board and takes no part in play.',
+    );
+  });
+});

@@ -590,6 +590,11 @@ export function sceneStateFromScene(
 
   for (const encounter of scene.encounters) {
     for (const placement of encounter.adversaries) {
+      // A placement may be authored beyond the board, where construction reaches
+      // and the tactical grid does not. It is scenery for the editor to draw,
+      // not a creature: standing it up at `NO_TILE` would put a live, targetable
+      // adversary nowhere at all. The editor warns about it; play skips it.
+      if (grid.indexOf(placement.position.x, placement.position.y) === NO_TILE) continue;
       const definition = stats.get(placement.adversary);
       if (definition === undefined) {
         issues.push({

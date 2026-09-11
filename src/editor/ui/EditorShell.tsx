@@ -23,7 +23,8 @@ import type { SrdCharacterContent } from '../../engine/content/srd/daggersearch'
 import type { Interactable } from '../../engine/scene/schema';
 import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
-import { EDITOR_MODES, MODE_TOOLS, type EditorMode } from '../modes';
+import { EDITOR_MODES, MODE_TOOLS, TERRAIN_RAIL, isTerrainTab, type EditorMode } from '../modes';
+import { BUILD_SHAPES } from '../../engine/scene/building';
 import { buildingTab, creatureTabs, groundTab, objectsTab, propsTab, type LibraryItem } from '../library';
 import { validateProject, type Problem } from '../validate';
 import { TopBar, type Menu, type Workspace } from './TopBar';
@@ -199,7 +200,10 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
   const pickForTerrain = (item: LibraryItem): void => {
     if (item.tab === 'tiles') {
       controller.setTool('buildTile');
-      controller.set('buildShape', item.id.slice(5) as typeof controller.state.buildShape);
+      // The strip's id is a label, not a promise: an unknown one leaves the
+      // shape alone rather than reaching `buildingTileSchema.parse` and throwing.
+      const shape = BUILD_SHAPES.find((candidate) => `tile-${candidate}` === item.id);
+      if (shape !== undefined) controller.set('buildShape', shape);
     } else if (item.tab === 'ground') {
       controller.setTool('paintTerrain');
       controller.set('terrainId', item.id);
@@ -241,13 +245,12 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       body = <InspectorSide session={session} controller={controller} ids={ids} onChange={bump} />;
     } else if (mode === 'terrain') {
       body = [
-        <ToolRail key="rail" mode={mode} tools={controller.terrainTab === 'ground' ? ['raise', 'lower'] :
-          controller.terrainTab === 'tiles' ? ['eraseTile'] : ['erase']} current={tool} onTool={useTool} />,
+        <ToolRail key="rail" mode={mode} tools={TERRAIN_RAIL[controller.terrainTab]} current={tool} onTool={useTool} />,
         <LibraryStrip
           key="terrain-library"
           testId="terrain-library"
           activeTab={controller.terrainTab}
-          onTab={(tab) => { controller.openTerrainTab(tab as typeof controller.terrainTab); bump(); }}
+          onTab={(tab) => { if (isTerrainTab(tab)) controller.openTerrainTab(tab); bump(); }}
           tabs={[
             buildingTab(),
             groundTab(props.terrainIds, props.terrainColors),

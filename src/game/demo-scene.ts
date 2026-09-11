@@ -101,7 +101,7 @@ import { gridFromScene, tileOf } from '../engine/scene/grid-from-scene';
 import { importLegacyScene, type LegacyMap } from '../engine/scene/legacy-import';
 import { Party } from '../engine/scene/party';
 import type { SceneDoc } from '../engine/scene/schema';
-import { createPartyEntity, sceneStateFromScene, type SceneState } from '../engine/scene/state';
+import { createAdversaryEntity, createPartyEntity, sceneStateFromScene, type SceneState } from '../engine/scene/state';
 import { TriggerIndex } from '../engine/scene/triggers';
 
 /** Adversary stat blocks, keyed by content id. */
@@ -224,6 +224,17 @@ export interface DemoScene {
   project: ProjectDoc;
   /** How each visited scene was left, so returning finds it that way. */
   snapshots: Map<string, SceneStateSnapshot>;
+  /**
+   * The placement ids each scene was last stood up from, by scene id.
+   *
+   * A snapshot remembers what *happened* in a room; this remembers what the
+   * *document* said when it last did. The difference is what `syncAuthoredEncounters`
+   * acts on: an id the document places and this does not know is new and is
+   * brought in, and an id this knows and the document no longer places is gone
+   * and is taken out. An id it knows that the state no longer holds is neither -
+   * a creature a script removed stays removed rather than rising again.
+   */
+  syncedPlacements: Map<string, Set<string>>;
   /** A scene a script asked to travel to, acted on once the script settles. */
   destination: string | null;
   /** Conversations the project ships, by id. */
@@ -1052,7 +1063,69 @@ function install(demo: DemoScene, runtime: SceneRuntime, selected: string | null
   demo.pending = null;
   demo.destination = null;
 
+  // Entering a room is the moment its document and its state have to agree: a
+  // remembered room is restored from a snapshot taken before the designer
+  // edited it, and a freshly built one has just read the document anyway.
+  syncAuthoredEncounters(demo);
+
   if (selected !== null && demo.party.members().includes(selected)) demo.party.select(selected);
+}
+
+/** The placements a scene can actually stand up: the ones the play grid has a tile for. */
+function playablePlacements(scene: SceneDoc, grid: TileGrid): Set<string> {
+  const ids = new Set<string>();
+  for (const encounter of scene.encounters) {
+    for (const placement of encounter.adversaries) {
+      if (grid.indexOf(placement.position.x, placement.position.y) !== NO_TILE) ids.add(placement.id);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Make the room being played agree with the room the document describes.
+ *
+ * Called on every entry into a scene and on the way back from the editor, and
+ * deliberately not a rebuild: wounds, Fear, opened chests and a fight in
+ * progress all survive it. What it reconciles is the *cast*, against
+ * `demo.syncedPlacements` rather than against the state, because "the document
+ * places it and the state does not hold it" has two very different causes. A
+ * placement the last sync never saw is new and is brought in; one it saw and
+ * the document has since dropped is taken out; one it saw that the state has
+ * since lost was killed, replaced or otherwise spent, and is left alone.
+ *
+ * The trigger index is rebuilt from the document each time. It holds no fired
+ * state - `TriggerIndex` is a lookup - so a designer's new trigger cell works
+ * immediately and an old one does not come back to life.
+ */
+export function syncAuthoredEncounters(demo: DemoScene): void {
+  const known = demo.syncedPlacements.get(demo.scene.id);
+  const placed = playablePlacements(demo.scene, demo.grid);
+  if (known !== undefined) {
+    for (const encounter of demo.scene.encounters) {
+      for (const placement of encounter.adversaries) {
+        if (!placed.has(placement.id) || known.has(placement.id)) continue;
+        if (demo.state.entity(placement.id) !== undefined) continue;
+        // No substitution here either: the load path throws for a document that
+        // names a creature nobody can look up, and so does this one.
+        const definition = SRD_ADVERSARIES.get(placement.adversary);
+        if (definition === undefined) {
+          throw new Error(`"${demo.scene.id}" places adversary "${placement.adversary}", which has no stat block`);
+        }
+        demo.state.addEntity(createAdversaryEntity(
+          placement.id,
+          placement.adversary,
+          demo.grid.indexOf(placement.position.x, placement.position.y),
+          { hitPoints: placement.hitPoints ?? definition.hitPoints, stress: definition.stress },
+        ));
+      }
+    }
+    for (const id of known) {
+      if (!placed.has(id)) demo.state.removeEntity(id);
+    }
+  }
+  demo.syncedPlacements.set(demo.scene.id, placed);
+  demo.triggers = new TriggerIndex(demo.scene, demo.grid);
 }
 
 /**
@@ -1212,6 +1285,10 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
     scenario,
     project,
     snapshots: new Map(),
+    // The opening room was just stood up from its document, so every placement
+    // in it is already known. Leaving this empty would make the first sync -
+    // the one on the way back from the editor - think the whole cast was new.
+    syncedPlacements: new Map([[opening.id, playablePlacements(opening, runtime.grid)]]),
     destination: null,
     dialogues: new Map(project.dialogues.map((d) => [d.id, d])),
     log: [],

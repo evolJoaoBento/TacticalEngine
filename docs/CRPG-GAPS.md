@@ -364,13 +364,21 @@ The legacy ground mesh and props do not gain LOD from this change. Construction 
 multilevel walking, collision and LOS remain open, as do selection/moving of whole assemblies.
 
 **Placement follow-up.** Multiple independent pieces can share X/Y/Z, including four edge walls
-around a floor; erasing peels away the latest instance. Vertical Z supports quarter tiles, pieces
-have adjustable vertical size, and ground painting can set exact Z with material in one stroke.
-Terrain library tabs directly choose placement, without separate place/paint rail buttons.
-Editor creatures now render from the scene document, including remote or elevated placements;
-generic models cover SRD definitions without dedicated art. Undo and scene switches reconcile
-the visible placements. Returning to play adds new on-grid adversaries and refreshes trigger
-indices without resetting existing creatures. Elevated/outlying navigation is still open.
+around a floor; erasing peels away the latest instance. Vertical Z supports quarter tiles and
+pieces have adjustable vertical size. The ground's `heights[]` is still whole levels: two
+vertical units coexist until part 2 picks one.
+Terrain library tabs directly choose placement, without separate place/paint rail buttons; the
+open tab and the tool in hand are one fact (`editor/modes.ts`), so every tool has a tab and the
+rail always shows the tool being used.
+Editor creatures now render from the scene document, including remote or elevated placements.
+A creature whose definition has no model of its own draws as a husk body, in edit and in play,
+so a board of 129 SRD stat blocks can be read; `ModelRegistry.missing()` still lists the id and
+`SceneView.modelSource()` still answers `fallback:husk`, and part 4 gives them art.
+Undo and scene switches reconcile the visible placements. Every entry into a room — travelling
+in, loading a save, coming back from the editor — brings in the creatures the document has
+gained and takes out the ones it has lost, without resetting existing creatures and without
+resurrecting one a script removed. A placement authored outside the board is scenery the editor
+draws and warns about: it never enters play. Elevated/outlying navigation is still open.
 
 Tools: construction/erase construction, terrain brush, raise/lower, props, objects, adversaries, trigger cells, spawns, erase,
 inspect. Save and load a project as JSON. The brush paints terrain only — a wall painted on flat
@@ -441,6 +449,9 @@ the fight if there is one.
 - No object has a model, so doors, chests, pillars and stairs are invisible in play too.
 - Only objects can be inspected.
 - Combat still holds the original tools; construction needs multilevel navigation.
+- **Editor camera**: right-drag pan, wheel zoom, WASD/arrows, Q/E and Home work in edit mode;
+  **F (frame the selected character) is still play-only**, there being no selection to frame.
+- No creature has a model of its own: 127 of the 129 SRD stat blocks draw as a husk body.
 
 ### ~~9. Asset import (glTF)~~ — done
 

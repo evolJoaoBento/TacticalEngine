@@ -13,11 +13,18 @@
  */
 
 import { toContentId } from '../engine/content/types';
-import { BUILD_LIMIT, type BuildingTile } from '../engine/scene/building';
+import { BUILD_LIMIT, isBuildCoordinate, isBuildZ, type BuildingTile } from '../engine/scene/building';
 import { BuildingEdit } from './building';
-import { DEFAULT_LAYOUT } from '../engine/render/layout';
 import type { Deco, Encounter, Interactable, Point, SceneDoc } from '../engine/scene/schema';
-import { MODE_TOOLS, defaultTool, modeOfTool, type EditorMode } from './modes';
+import {
+  MODE_TOOLS,
+  TERRAIN_TAB_TOOL,
+  defaultTool,
+  modeOfTool,
+  terrainTabOf,
+  type EditorMode,
+  type TerrainTab,
+} from './modes';
 import {
   EditorSession,
   addAdversary,
@@ -27,7 +34,6 @@ import {
   adjustHeight,
   brushTiles,
   paintTerrain,
-  paintTerrainAtHeight,
   removeAdversary,
   removeDecoAt,
   removeInteractable,
@@ -55,12 +61,21 @@ export type EditorTool =
 const CONTINUOUS = new Set<EditorTool>(['paintTerrain', 'raise', 'lower', 'erase', 'buildTile', 'eraseTile']);
 
 export interface EditorToolState {
+  /** Which construction piece the build tool stamps. */
   buildShape: BuildingTile['shape'];
+  /** The colour a stamped piece is made of; presentation only. */
   buildMaterial: BuildingTile['material'];
+  /**
+   * The vertical plane everything is placed on, in tiles.
+   *
+   * Shared by the build tools and by props, objects and creatures, so raising
+   * the plane once puts a whole storey's worth of content at the same height.
+   */
   buildLevel: number;
+  /** Quarter turns a stamped piece is rotated by, which is how a wall picks its edge. */
   buildRotation: number;
+  /** How tall a stamped piece stands, in tiles, so one shape covers a step and a pillar. */
   buildHeight: number;
-  paintHeight: boolean;
   tool: EditorTool;
   /** Terrain the brush paints. */
   terrainId: string;
@@ -84,7 +99,6 @@ export const DEFAULT_TOOL_STATE: EditorToolState = {
   buildLevel: 0,
   buildRotation: 0,
   buildHeight: 1,
-  paintHeight: false,
   tool: 'paintTerrain',
   terrainId: 'floor',
   propModel: 'crate',
@@ -112,7 +126,11 @@ export class EditorController {
   state: EditorToolState;
   /** Which of the top bar's modes is in hand. It always owns `state.tool`. */
   mode: EditorMode;
-  terrainTab: 'tiles' | 'ground' | 'props' | 'objects' = 'tiles';
+  /**
+   * Which of Terrain's strips is open. It always owns `state.tool` while Terrain
+   * is the mode, so the rail beside it can never be missing the tool in hand.
+   */
+  terrainTab: TerrainTab = 'tiles';
   private readonly onChange: (change: EditorChange) => void;
   /** Tiles already painted in this drag, so one stroke does not re-edit them. */
   private readonly strokeTiles = new Set<number>();
@@ -134,31 +152,48 @@ export class EditorController {
     return this.session.requireScene(this.sceneId);
   }
 
-  /** Change tools, ending any drag in progress. The mode follows the tool. */
+  /** Change tools, ending any drag in progress. The mode, and Terrain's tab, follow the tool. */
   setTool(tool: EditorTool): void {
     this.end();
     this.state.tool = tool;
     this.mode = modeOfTool(tool, this.mode);
-    if (tool === 'buildTile' || tool === 'eraseTile') this.terrainTab = 'tiles';
-    else if (tool === 'paintTerrain' || tool === 'raise' || tool === 'lower') this.terrainTab = 'ground';
-    else if (tool === 'prop') this.terrainTab = 'props';
-    else if (tool === 'interactable') this.terrainTab = 'objects';
+    this.terrainTab = terrainTabOf(tool, this.terrainTab);
   }
 
-  openTerrainTab(tab: EditorController['terrainTab']): void {
+  /** Open one of Terrain's strips, which is also how its placement tool is chosen. */
+  openTerrainTab(tab: TerrainTab): void {
     this.terrainTab = tab;
-    this.setTool({ tiles: 'buildTile', ground: 'paintTerrain', props: 'prop', objects: 'interactable' }[tab] as EditorTool);
+    this.setTool(TERRAIN_TAB_TOOL[tab]);
   }
 
   /**
    * Change modes, ending any drag. The tool in hand stays when the new mode owns
    * it - Erase crossing from Terrain to Combat - and is otherwise the mode's first.
+   *
+   * Coming into Terrain holding one of its own tools re-syncs the tab to that
+   * tool rather than the other way round; coming in holding somebody else's
+   * reopens the tab that was last open, with the tool that tab places.
    */
   setMode(mode: EditorMode): void {
     this.end();
     this.mode = mode;
+    if (mode === 'terrain') {
+      if (MODE_TOOLS.terrain.includes(this.state.tool)) this.terrainTab = terrainTabOf(this.state.tool, this.terrainTab);
+      else this.setTool(TERRAIN_TAB_TOOL[this.terrainTab]);
+      return;
+    }
     if (!MODE_TOOLS[mode].includes(this.state.tool)) this.state.tool = defaultTool(mode);
-    if (mode === 'terrain' && !['erase', 'raise', 'lower'].includes(this.state.tool)) this.openTerrainTab(this.terrainTab);
+  }
+
+  /**
+   * Move the plane everything is placed on.
+   *
+   * It ends the drag first: a stroke that changed height halfway would leave
+   * half its pieces on another storey and merge them into one undo step.
+   */
+  setBuildLevel(z: number): void {
+    this.end();
+    this.state.buildLevel = z;
   }
 
   /**
@@ -223,8 +258,7 @@ export class EditorController {
   private apply(point: Point, pressed: boolean, notify = true): EditorChange {
     if (this.state.tool === 'buildTile' || this.state.tool === 'eraseTile') {
       const { state } = this;
-      if (![point.x, point.y].every((n) => Number.isInteger(n) && Math.abs(n) <= BUILD_LIMIT) ||
-        !Number.isInteger(state.buildLevel * 4) || Math.abs(state.buildLevel) > BUILD_LIMIT) return 'none';
+      if (!isBuildCoordinate(point.x) || !isBuildCoordinate(point.y) || !isBuildZ(state.buildLevel)) return 'none';
       const tiles: BuildingTile[] = [];
       const radius = Math.floor(Math.min(15, Math.max(1, state.brushSize)) / 2);
       for (let y = point.y - radius; y <= point.y + radius; y++) {
@@ -243,7 +277,7 @@ export class EditorController {
     }
     const scene = this.scene;
     if (['prop', 'interactable', 'adversary'].includes(this.state.tool) || (this.mode === 'terrain' && this.state.tool === 'erase')) {
-      if (![point.x, point.y].every((n) => Number.isInteger(n) && Math.abs(n) <= BUILD_LIMIT)) return 'none';
+      if (!isBuildCoordinate(point.x) || !isBuildCoordinate(point.y)) return 'none';
       const changed = this.run(point, [], pressed);
       if (changed !== 'none') this.onChange(changed);
       return changed;
@@ -282,8 +316,7 @@ export class EditorController {
       // Each reports 'none' when the session discarded the edit as a no-op, so a
       // viewport does not rebuild for a brush painting what was already there.
       case 'paintTerrain':
-        return session.run(state.paintHeight ? paintTerrainAtHeight(sceneId, tiles, state.terrainId,
-          state.buildLevel / DEFAULT_LAYOUT.levelHeight) : paintTerrain(sceneId, tiles, state.terrainId)) ? 'terrain' : 'none';
+        return session.run(paintTerrain(sceneId, tiles, state.terrainId)) ? 'terrain' : 'none';
 
       case 'raise':
         return session.run(adjustHeight(sceneId, tiles, 1)) ? 'terrain' : 'none';

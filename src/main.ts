@@ -260,6 +260,10 @@ declare global {
       /** Switch the top bar's mode, as pressing 1-4 would. */
       setEditorMode: (mode: string) => void;
       setTool: (tool: string) => void;
+      /** The tool actually in hand, which a rail button's pressed state only implies. */
+      editorTool: () => string;
+      /** Which of Terrain's strips is open, and so which tools its rail offers. */
+      editorTerrainTab: () => string;
       setTerrain: (id: string) => void;
       buildingStats: () => BuildingStats;
       authoredCreatureCount: () => number;
@@ -411,8 +415,12 @@ const assets = new AssetLibrary(
 
 const view = new SceneView(demo.grid, {
   tints: demo.scene.tints,
-  modelForEntity: (entity) => DEMO_MODELS[entity.definition] ??
-    (MODELS.some((m) => m.id === entity.definition) ? entity.definition : entity.faction === 'adversary' ? 'husk' : entity.definition),
+  modelForEntity: (entity) => DEMO_MODELS[entity.definition] ?? entity.definition,
+  // Almost none of the SRD's stat blocks have art of their own yet, and a board
+  // of magenta markers cannot be read. A husk body stands in - and the view
+  // still reports the real id as missing, so the models diagnostic and
+  // `docs/CRPG-GAPS.md` keep saying what is still to be made.
+  fallbackFor: (entity) => (entity.faction === 'adversary' ? 'husk' : null),
   assets,
 });
 view.setDecos(demo.scene.decos);
@@ -497,7 +505,9 @@ function rebuildTerrain(): void {
   activeGrid.heights.set(grid.heights);
   view.rebuildTerrain(scene.tints);
   buildings.sync(scene);
-  if (mode === 'edit') syncEditorContent();
+  // The scenery hangs off the ground that was just replaced, in either mode:
+  // this is the one place that redraws it, so undo and redo do not have to.
+  syncEditorContent();
 }
 
 /**
@@ -506,8 +516,9 @@ function rebuildTerrain(): void {
  */
 function undoEdit(): boolean {
   const ok = session.undo();
+  // `rebuildTerrain` ends in `syncEditorContent`, which is what redraws the
+  // scenery; setting the decos again here drew every prop twice over.
   rebuildTerrain();
-  view.setDecos(editor.scene.decos);
   if (mode === 'edit') renderPanel();
   return ok;
 }
@@ -515,14 +526,11 @@ function undoEdit(): boolean {
 function redoEdit(): boolean {
   const ok = session.redo();
   rebuildTerrain();
-  view.setDecos(editor.scene.decos);
   if (mode === 'edit') renderPanel();
   return ok;
 }
 
 let mode: 'play' | 'edit' = 'play';
-let editingPlacementIds = new Set<string>();
-let editingPlayedScene = '';
 
 /**
  * Fold the project's cards back into the party's derived numbers.
@@ -568,12 +576,11 @@ function playAt(sceneId: string, tile: number | null): boolean {
 }
 
 function setMode(next: 'play' | 'edit'): void {
-  if (next === 'edit' && mode !== 'edit') {
-    editingPlayedScene = demo.scene.id;
-    editingPlacementIds = new Set(demo.scene.encounters.flatMap((e) => e.adversaries.map((a) => a.id)));
-  }
-  if (next === 'play' && mode === 'edit') syncAuthoredEncounters(demo,
-    editingPlayedScene === demo.scene.id ? editingPlacementIds : new Set());
+  // Going back to play is a scene entry like any other: whatever the editor did
+  // to the room the party is standing in has to reach the room they walk back
+  // into. `DemoScene` remembers what it last stood the scene up from, so no
+  // bookkeeping is needed on this side.
+  if (next === 'play' && mode === 'edit') syncAuthoredEncounters(demo);
   mode = next;
   editor.end();
   // The tray only lives in the play tree, so dice still tumbling when the
@@ -586,6 +593,9 @@ function setMode(next: 'play' | 'edit'): void {
   }
   if (mode === 'play') {
     view.setAuthoring(null);
+    // The build guide and its ghost belong to the editor; nothing in play would
+    // hide them, because the per-frame update no longer runs there.
+    buildings.showGuide(0, 0, 0, false);
     rederiveParty();
     rebindScene();
     refreshPlay();
@@ -846,14 +856,35 @@ function buildingUnderPointer(event: { clientX: number; clientY: number }): Spot
   return Math.abs(x) <= BUILD_LIMIT && Math.abs(y) <= BUILD_LIMIT ? { x, y } : null;
 }
 
+/**
+ * The cell a placement tool would act on, for the pointer where it is.
+ *
+ * Build tools work on a flat plane at the chosen Z: that is the only way to
+ * reach space with no ground under it, and it is what the purple guide draws.
+ * Props, objects and creatures placed at ground level want the ground itself.
+ * The plane and the ground are not the same place on screen - at this camera
+ * pitch a tile raised two levels projects about two thirds of a tile short of
+ * where it stands - so aiming at the plateau used to drop the creature on the
+ * flat tile behind it. Off the board, or above it, there is no ground to hit
+ * and the plane is all there is.
+ */
+function placementUnderPointer(event: PointerEvent | MouseEvent): Spot | null {
+  if (!buildingTool() && editor.state.buildLevel === 0) {
+    const tile = tileUnderPointer(event);
+    if (tile !== NO_TILE) return pointOf(tile);
+  }
+  return buildingUnderPointer(event);
+}
+
 function updateBuildingPreview(): void {
+  if (mode !== 'edit') return;
   const active = placementTool();
   const target = worldToSpot(activeGrid, orbit.pose.target.x, orbit.pose.target.z, view.layout);
   buildings.showGuide(target.x, target.y, editor.state.buildLevel, active);
   const at = active && lastBuildPointer ? buildingUnderPointer(lastBuildPointer) : null;
   buildings.showPreview(at && buildingTool() ? { ...at, level: editor.state.buildLevel, shape: editor.state.buildShape,
     material: editor.state.buildMaterial, rotation: editor.state.buildRotation, height: editor.state.buildHeight } : null,
-  editor.state.tool === 'eraseTile', editor.state.brushSize);
+  editor.state.tool === 'eraseTile');
 }
 
 /** The ground under the pointer: the tile struck, and the exact spot on it. */
@@ -1393,7 +1424,7 @@ canvas.addEventListener('pointerdown', (event) => {
       return;
     }
     if (placementTool() && !event.shiftKey) {
-      const at = buildingUnderPointer(event);
+      const at = placementUnderPointer(event);
       if (at) { canvas.setPointerCapture(event.pointerId); editor.begin(at); renderPanel(); }
       return;
     }
@@ -1527,7 +1558,7 @@ canvas.addEventListener('pointermove', (event) => {
   if (mode === 'edit') {
     if (placementTool()) {
       lastBuildPointer = { clientX: event.clientX, clientY: event.clientY };
-      const at = buildingUnderPointer(event);
+      const at = placementUnderPointer(event);
       if (event.buttons === 1 && at) editor.paint(at);
       return;
     }
@@ -1626,14 +1657,16 @@ window.addEventListener('keydown', (event) => {
       else undoEdit();
     }
     if (placementTool() && !event.ctrlKey && !event.metaKey) {
-      if (event.key.toLowerCase() === 'r') {
+      // R turns the piece being stamped. Nothing on the prop, object or
+      // creature paths reads `buildRotation`, so there it would be a key that
+      // changed a number and nothing else; the spec gives R to the Inspector.
+      if (buildingTool() && event.key.toLowerCase() === 'r') {
         editor.end();
         editor.set('buildRotation', (editor.state.buildRotation + 1) % 4);
         renderPanel();
       } else if (event.key === 'PageUp' || event.key === 'PageDown') {
         event.preventDefault();
-        editor.end();
-        editor.set('buildLevel', Math.max(-BUILD_LIMIT, Math.min(BUILD_LIMIT,
+        editor.setBuildLevel(Math.max(-BUILD_LIMIT, Math.min(BUILD_LIMIT,
           editor.state.buildLevel + (event.key === 'PageUp' ? 1 : -1))));
         renderPanel();
       }
@@ -2122,6 +2155,8 @@ const state = {
     editor.setTool(tool as Parameters<EditorController['setTool']>[0]);
     if (mode === 'edit') renderPanel();
   },
+  editorTool: (): string => editor.state.tool,
+  editorTerrainTab: (): string => editor.terrainTab,
   setTerrain: (id: string): void => editor.set('terrainId', id),
   buildingStats: (): BuildingStats => buildings.stats(),
   authoredCreatureCount: (): number => view.authoredCreatureCount,
@@ -2162,7 +2197,10 @@ function frame(now = performance.now()): void {
   if (demo.ambush !== null && view.glidingCount === 0 && arrive(demo)) refreshPlay();
   followSelected();
   driveFloaters(now);
-  if (placementTool()) orbit.goal.target.y = view.layout.baseHeight + editor.state.buildLevel;
+  // Only the build tools work on the level plane, so only they pin the camera
+  // to it. Pinning it for a creature placed at Z 3.25 left Home unable to bring
+  // the view back down to the room.
+  if (buildingTool()) orbit.goal.target.y = view.layout.baseHeight + editor.state.buildLevel;
   if (orbit.update(dt)) applyCamera();
   updateBuildingPreview();
   buildings.update(camera);

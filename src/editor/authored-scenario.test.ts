@@ -62,13 +62,19 @@ const KARA = characterSheetSchema.parse(
   }),
 );
 
-/** A blank project with one empty room, which is where a designer starts. */
-function blank(): EditorSession {
+/**
+ * A blank project with one empty room, which is where a designer starts.
+ *
+ * The room is small on purpose - a fight in it is over quickly - so a fixture
+ * that needs somebody genuinely out of range asks for a bigger one rather than
+ * parking them off the board, which is authored scenery and never enters play.
+ */
+function blank(width = 12, height = 8): EditorSession {
   return new EditorSession(
     projectSchema.parse({
       id: 'authored',
       name: 'Authored',
-      scenes: [sceneSchema.parse({ ...blankScene('hall', 12, 8), spawns: [{ x: 1, y: 4 }] })],
+      scenes: [sceneSchema.parse({ ...blankScene('hall', width, height), spawns: [{ x: 1, y: 4 }] })],
       startScene: 'hall',
     }),
   );
@@ -1732,8 +1738,13 @@ describe('a number read off a pool', () => {
 
 describe('the blow that has landed and not yet been counted', () => {
   /** One thing swinging at Kara, and optionally somebody watching. */
-  const swinging = (adversary: string, seed: string, bystander?: { id: string; adversary: string; at: { x: number; y: number } }) => {
-    const s = blank();
+  const swinging = (
+    adversary: string,
+    seed: string,
+    bystander?: { id: string; adversary: string; at: { x: number; y: number } },
+    hall: { width: number; height: number } = { width: 12, height: 8 },
+  ) => {
+    const s = blank(hall.width, hall.height);
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
@@ -1797,11 +1808,13 @@ describe('the blow that has landed and not yet been counted', () => {
     // Parked out past Far, the same Turret says nothing: the gate is read from
     // the Turret's chair to whoever is being hit, not from the attacker's -
     // where everyone is always in range, a hit having just landed.
+    // A hall wide enough that the Turret is still out past Far after six turns
+    // of walking towards the noise.
     const distant = swinging('brawny-zombie', 'concentrate-far', {
       id: 'turret',
       adversary: 'vault-guardian-turret',
-      at: { x: 18, y: 16 },
-    });
+      at: { x: 38, y: 22 },
+    }, { width: 40, height: 24 });
     distant.state.entity('turret')!.hitPoints = { max: 90, marked: 0 };
     distant.state.fear = { ...distant.state.fear, value: distant.state.fear.max };
     for (let i = 0; i < 6; i++) {
@@ -1836,7 +1849,9 @@ describe('one of its own, standing beside the target', () => {
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
-    s.run(addAdversary('hall', 'duel', { id: 'pack-mate', adversary, position: together ? { x: 2, y: 5 } : { x: 12, y: 14 } }));
+    // Standing off means the far corner of this hall, not off the map: a
+    // placement outside the board is authored scenery and never enters play.
+    s.run(addAdversary('hall', 'duel', { id: 'pack-mate', adversary, position: together ? { x: 2, y: 5 } : { x: 11, y: 7 } }));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');

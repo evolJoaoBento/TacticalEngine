@@ -799,10 +799,14 @@ a case there before trusting a new field.
   does not alter the dense tactical grid or implement collision/navigation.
   Building keys may include `#instance` to retain overlaps. Z remains named `level` for compatibility
   and supports quarter tiles; optional `height` scales pieces vertically. Bounds include tall pieces.
-  Ground heights now use Float64Array to retain fractional authored elevation. `paintTerrainAtHeight`
-  composes material and height with one undo record. `SceneView.setAuthoring` renders document
-  creatures separately from runtime tokens; `syncAuthoredEncounters` applies new on-grid placements
-  and trigger changes on return to play. A remote/elevated placement is not yet a multilevel nav node.
+  `SceneView.setAuthoring` renders document creatures separately from runtime tokens;
+  `syncAuthoredEncounters` reconciles the cast on every scene entry against `DemoScene.syncedPlacements`,
+  not against the state, so a creature a script removed is not resurrected by a trip to the editor.
+  A remote/elevated placement is not yet a multilevel nav node, and never enters play.
+- **Two vertical units coexist until part 2 unifies them: `heights[]` counts levels of
+  `levelHeight` (0.35), while `buildingTiles.level` and `position.z` count tiles. Nothing may
+  convert between them into saved content.** A renderer constant in a document is a document that
+  means something different the day the constant changes.
 - **No TTS, no speech synthesis, no "voice" features.** A hard constraint from the user; both
   attempts were removed.
 - **All content text is English.**

@@ -401,6 +401,26 @@ describe('sceneStateFromScene', () => {
     expect(state.entity('bramble-a')!.tile).toBe(state.grid.indexOf(5, 0));
   });
 
+  it('leaves a creature authored off the board out of play entirely', () => {
+    const outside = sceneSchema.parse({
+      ...scene,
+      encounters: [
+        {
+          id: 'group-1',
+          adversaries: [
+            { id: 'bramble-a', adversary: 'tangle-bramble', position: { x: 5, y: 0 } },
+            { id: 'bramble-out', adversary: 'tangle-bramble', position: { x: -200, y: 400 } },
+          ],
+        },
+      ],
+    });
+    const { state } = sceneStateFromScene(outside, new TileGrid({ width: 6, height: 3 }), {
+      adversaries: stats,
+    });
+    expect(state.entitiesOf('adversary').map((e) => e.id)).toEqual(['bramble-a']);
+    expect(state.entity('bramble-out')).toBeUndefined();
+  });
+
   it('leaves the encounter unstarted — adversaries stand there dormant', () => {
     const { state } = build();
     expect(state.encounter('group-1').started).toBe(false);

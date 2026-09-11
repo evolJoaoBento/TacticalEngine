@@ -40,7 +40,7 @@ export class TileGrid {
   readonly height: number;
   readonly palette: TerrainPalette;
   /** Elevation level per tile, row-major. */
-  readonly heights: Float64Array;
+  readonly heights: Int16Array;
   /** Terrain palette index per tile, row-major. */
   readonly terrain: Uint8Array;
 
@@ -54,7 +54,7 @@ export class TileGrid {
     this.palette = options.palette ?? new TerrainPalette();
 
     const count = width * height;
-    this.heights = new Float64Array(count);
+    this.heights = new Int16Array(count);
     this.terrain = new Uint8Array(count);
     if (options.fillHeight !== undefined && options.fillHeight !== 0) {
       this.heights.fill(options.fillHeight);

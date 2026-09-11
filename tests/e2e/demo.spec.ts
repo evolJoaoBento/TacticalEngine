@@ -131,6 +131,8 @@ declare global {
       editorMode: () => string;
       setEditorMode: (mode: string) => void;
       setTool: (tool: string) => void;
+      editorTool: () => string;
+      editorTerrainTab: () => string;
       setTerrain: (id: string) => void;
       buildingStats: () => import('../../src/engine/render/building-view').BuildingStats;
       authoredCreatureCount: () => number;

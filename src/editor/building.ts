@@ -23,13 +23,25 @@ export class BuildingEdit implements Edit {
     if (!this.initialized) {
       this.wasAbsent = scene.buildingTiles === undefined;
       if (this.tiles.length === 0) { this.initialized = true; return; }
-      const occupied = new Set(Object.keys(scene.buildingTiles ?? {}));
+      const tiles = scene.buildingTiles ?? {};
+      const occupied = new Set(Object.keys(tiles));
+      // The keys standing at each position, oldest first, read once per edit
+      // rather than once per tile: a 5x5 erase would otherwise walk the whole
+      // document twenty-five times. Erasing pops the newest off its stack.
+      const stacked = new Map<string, string[]>();
+      if (this.erase) {
+        for (const [key, tile] of Object.entries(tiles)) {
+          const cell = buildingKey(tile);
+          const at = stacked.get(cell);
+          if (at === undefined) stacked.set(cell, [key]);
+          else at.push(key);
+        }
+      }
       for (const tile of this.tiles) {
         const cell = buildingKey(tile);
         if (this.erase) {
-          const found = Object.entries(scene.buildingTiles ?? {}).reverse().find(([key, t]) =>
-            buildingKey(t) === cell && !this.after.has(key));
-          if (found) { this.before.set(found[0], found[1]); this.after.set(found[0], undefined); }
+          const key = stacked.get(cell)?.pop();
+          if (key !== undefined) { this.before.set(key, tiles[key]); this.after.set(key, undefined); }
         } else {
           let key = cell, n = 1;
           while (occupied.has(key)) key = `${cell}#${n++}`;

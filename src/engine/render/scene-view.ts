@@ -121,6 +121,17 @@ export interface SceneViewOptions extends TerrainMeshOptions {
    * legacy content's `model` strings import to.
    */
   modelForEntity?: (entity: EntityState) => string;
+  /**
+   * A body to draw for a creature whose own model nothing can supply, or `null`
+   * to let the magenta placeholder stand there instead.
+   *
+   * Most of the SRD's stat blocks have no art yet, and a board of magenta
+   * markers is unreadable. Substituting is a *drawing* decision, though, not a
+   * resolution: the registry is still asked for the real id, so `missing()`
+   * lists it and `modelSource()` says `fallback:<what was drawn>`. The editor's
+   * model diagnostic stays honest about what is still to be made.
+   */
+  fallbackFor?: (entity: Pick<EntityState, 'definition' | 'faction'>) => string | null;
   /** Imported glTF models. Asked first for every id; the library is the fallback. */
   assets?: AssetLibrary;
 }
@@ -193,6 +204,9 @@ export class SceneView {
   private readonly authoredCreatures: Group[] = [];
   private authoring = false;
   private readonly modelForEntity: (entity: EntityState) => string;
+  private readonly fallbackFor: (entity: Pick<EntityState, 'definition' | 'faction'>) => string | null;
+  /** What was drawn in place of each id nothing could supply, for `modelSource`. */
+  private readonly fallbacks = new Map<string, string>();
   private readonly assets: AssetLibrary | null;
   private stopListening: (() => void) | null = null;
   /** Which model id each token and deco was drawn from, so a late asset can find them. */
@@ -266,6 +280,9 @@ export class SceneView {
         this.registry.has(entity.definition)
           ? entity.definition
           : (FALLBACK_MODEL[entity.faction] ?? 'dummy'));
+    // Nothing stands in by default: a caller that wants a body rather than the
+    // placeholder says so, and takes the honest `missing()` entry with it.
+    this.fallbackFor = options.fallbackFor ?? ((): string | null => null);
 
     this.scene.background = new Color('#0d0f14');
     this.scene.add(this.root);
@@ -570,7 +587,7 @@ export class SceneView {
       if (token === undefined) {
         // The base ring carries the faction colour, so one spec serves both sides.
         const ring = this.factionColors[entity.faction] ?? DEFAULT_FACTION_COLORS['neutral']!;
-        const modelId = this.modelForEntity(entity);
+        const modelId = this.drawnModel(this.modelForEntity(entity), entity);
         token = this.build(modelId, { palette: { ring: ringMaterial(ring) } });
         token.group.name = `token:${entity.id}`;
         this.tokens.set(entity.id, token);
@@ -857,6 +874,23 @@ export class SceneView {
    * otherwise. An asset that is declared but not yet loaded is requested and
    * the placeholder stands in until it arrives.
    */
+  /**
+   * The id actually drawn for a creature, once the stand-in has had its say.
+   *
+   * It records the substitution rather than hiding it: the registry is asked
+   * for the id nobody has, so `missing()` names it, and `fallbacks` remembers
+   * what went in its place so `modelSource` can say so.
+   */
+  private drawnModel(modelId: string, entity: Pick<EntityState, 'definition' | 'faction'>): string {
+    if (this.assets !== null && this.assets.has(modelId)) return modelId;
+    if (this.registry.has(modelId)) return modelId;
+    const fallback = this.fallbackFor(entity);
+    if (fallback === null || fallback === modelId || !this.registry.has(fallback)) return modelId;
+    this.registry.get(modelId);
+    this.fallbacks.set(modelId, fallback);
+    return fallback;
+  }
+
   private build(modelId: string, options: BuildOptions = {}): BuiltModel {
     if (this.assets !== null && this.assets.has(modelId)) {
       const template = this.assets.template(modelId);
@@ -1026,10 +1060,15 @@ export class SceneView {
     return this.mixers.size;
   }
 
-  /** Whether an id is currently drawn from an imported file, the library, or the placeholder. */
-  modelSource(modelId: string): 'asset' | 'library' | 'placeholder' {
+  /**
+   * Where an id is currently drawn from: an imported file, the library, the
+   * body that stood in for it (`fallback:husk`), or the magenta placeholder.
+   */
+  modelSource(modelId: string): 'asset' | 'library' | 'placeholder' | `fallback:${string}` {
     if (this.assets !== null && this.assets.has(modelId) && this.assets.template(modelId) !== undefined) return 'asset';
-    return this.registry.has(modelId) ? 'library' : 'placeholder';
+    if (this.registry.has(modelId)) return 'library';
+    const fallback = this.fallbacks.get(modelId);
+    return fallback === undefined ? 'placeholder' : `fallback:${fallback}`;
   }
 
   private placeToken(token: BuiltModel, entity: EntityState): void {
@@ -1086,12 +1125,15 @@ export class SceneView {
    * calling it again replaces what was there.
    */
   setDecos(decos: readonly Deco[]): void {
-    for (const group of this.decos) this.root.remove(group);
+    for (const group of this.decos) {
+      this.root.remove(group);
+      // Same as `setAuthoring`: the group is gone, so its clips go with it.
+      this.clipSets.delete(group);
+    }
     this.decos.length = 0;
 
     this.lastDecos = decos;
     for (const deco of decos) {
-      const tile = this.grid.indexOf(deco.position.x, deco.position.y);
       const model = this.build(deco.model);
       const centre = this.placementCentre(deco.position);
       const lift = model.spec.groundOffset ?? 0;
@@ -1114,13 +1156,30 @@ export class SceneView {
 
   /** Editor creatures come from authored placements, including ones outside the play grid. */
   setAuthoring(scene: SceneDoc | null, models: Readonly<Record<string, string>> = {}): void {
-    for (const group of this.authoredCreatures) this.root.remove(group);
+    for (const group of this.authoredCreatures) {
+      this.root.remove(group);
+      // The clip set is keyed by the group, and the group is being thrown away;
+      // `setAuthoring` runs on every content edit, so leaving them would grow a
+      // map for the life of the session.
+      this.clipSets.delete(group);
+    }
     this.authoredCreatures.length = 0;
     this.authoring = scene !== null;
-    for (const token of this.tokens.values()) token.group.visible = !this.authoring;
+    if (this.authoring) {
+      for (const token of this.tokens.values()) token.group.visible = false;
+    } else {
+      // Not "everything is visible again": a token `poseToken` hid because its
+      // creature stands nowhere must stay hidden. Re-pose against the state the
+      // tokens were last drawn from.
+      for (const [id, token] of this.tokens) {
+        const entity = this.lastState?.entity(id);
+        if (entity !== undefined) this.poseToken(token, entity);
+      }
+    }
     if (!scene) return;
     for (const encounter of scene.encounters) for (const placement of encounter.adversaries) {
-      const modelId = models[placement.adversary] ?? (this.registry.has(placement.adversary) ? placement.adversary : 'husk');
+      const wanted = models[placement.adversary] ?? placement.adversary;
+      const modelId = this.drawnModel(wanted, { definition: placement.adversary, faction: 'adversary' });
       const model = this.build(modelId, { palette: { ring: ringMaterial(DEFAULT_FACTION_COLORS.adversary!) } });
       const centre = this.placementCentre(placement.position);
       model.group.position.set(centre.x, centre.y + (model.spec.groundOffset ?? 0), centre.z);
@@ -1130,6 +1189,7 @@ export class SceneView {
     }
   }
 
+  /** How many creatures the editor is drawing from the document rather than from play. */
   get authoredCreatureCount(): number { return this.authoredCreatures.length; }
 
   /** How many scenery models are in the scene. */

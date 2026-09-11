@@ -11,6 +11,7 @@
  * problems and let the work continue, not refuse to open the file.
  */
 
+import { NO_TILE } from '../engine/grid/grid';
 import { Pathfinder } from '../engine/grid/pathfinding';
 import { danglingLinks, unreachableNodes } from '../engine/dialogue/dialogue';
 import {
@@ -746,6 +747,17 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
   const { grid, issues } = gridFromScene(scene, context.palette);
   for (const issue of issues) add('error', issue.message);
 
+  /**
+   * Construction reaches a million tiles in every direction, and props, objects
+   * and creatures may be authored out there with it. That is legal: it is how a
+   * street is dressed around a room. It is not playable, though - the tactical
+   * board is still the rectangle - so each such placement earns exactly one
+   * warning and is then left out of the checks that reason about tiles. Calling
+   * it "impassable terrain", as this used to, was both an error and untrue.
+   */
+  const offBoard = (position: { x: number; y: number }): boolean => tileOf(grid, position) === NO_TILE;
+  const OUTSIDE = 'is authored outside the playable board and takes no part in play.';
+
   // --- spawns -------------------------------------------------------------
   for (const [i, spawn] of scene.spawns.entries()) {
     const tile = tileOf(grid, spawn);
@@ -758,18 +770,22 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
   const occupied = new Map<number, string>();
   for (const interactable of scene.interactables) {
     const tile = tileOf(grid, interactable.position);
-    if (!grid.isPassable(tile)) {
-      add(
-        'warning',
-        `"${interactable.id}" stands on impassable terrain, so nothing can reach it.`,
-        interactable.id,
-      );
+    if (offBoard(interactable.position)) {
+      add('warning', `"${interactable.id}" ${OUTSIDE}`, interactable.id);
+    } else {
+      if (!grid.isPassable(tile)) {
+        add(
+          'warning',
+          `"${interactable.id}" stands on impassable terrain, so nothing can reach it.`,
+          interactable.id,
+        );
+      }
+      const already = occupied.get(tile);
+      if (already !== undefined) {
+        add('warning', `"${interactable.id}" shares a tile with "${already}".`, interactable.id);
+      }
+      occupied.set(tile, interactable.id);
     }
-    const already = occupied.get(tile);
-    if (already !== undefined) {
-      add('warning', `"${interactable.id}" shares a tile with "${already}".`, interactable.id);
-    }
-    occupied.set(tile, interactable.id);
 
     if (interactable.goto !== undefined && !context.sceneIds.has(interactable.goto)) {
       add('error', `"${interactable.id}" travels to scene "${interactable.goto}", which does not exist.`, interactable.id);
@@ -783,6 +799,10 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
   }
 
   // --- decos --------------------------------------------------------------
+  for (const deco of scene.decos) {
+    if (!offBoard(deco.position)) continue;
+    add('warning', `The "${deco.model}" prop at (${deco.position.x}, ${deco.position.y}) ${OUTSIDE}`);
+  }
   if (context.options.knownModels !== undefined) {
     const missing = new Set<string>();
     for (const deco of scene.decos) {
@@ -815,8 +835,9 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
       }
     }
     for (const placement of encounter.adversaries) {
-      const tile = tileOf(grid, placement.position);
-      if (!grid.isPassable(tile)) {
+      if (offBoard(placement.position)) {
+        add('warning', `"${placement.id}" ${OUTSIDE}`, placement.id);
+      } else if (!grid.isPassable(tileOf(grid, placement.position))) {
         add('error', `"${placement.id}" stands in impassable terrain.`, placement.id);
       }
       if (

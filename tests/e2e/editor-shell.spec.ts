@@ -77,6 +77,17 @@ test('Terrain: its own tools, and a pick from the strip takes up the tool that p
   await strip.locator('[data-item="barrel"]').click();
   await expect(strip.locator('[data-tab="props"]')).toHaveClass(/ph-on/);
   await expect(page.locator('[data-testid="tool-rail"] [data-tool="prop"]')).toHaveCount(0);
+  // The rail not showing it is only half the claim: the pick has to have put
+  // the prop tool in hand, which the rail's absent button cannot say.
+  expect(await page.evaluate(() => window.__polyheart!.editorTool())).toBe('prop');
+  expect(await page.evaluate(() => window.__polyheart!.editorTerrainTab())).toBe('props');
+  // Erase belongs to the Props tab too, so picking it keeps the strip where it
+  // is and the rail keeps showing the tool in hand.
+  await page.locator('[data-testid="tool-rail"] [data-tool="erase"]').click();
+  expect(await page.evaluate(() => window.__polyheart!.editorTool())).toBe('erase');
+  expect(await page.evaluate(() => window.__polyheart!.editorTerrainTab())).toBe('props');
+  await expect(page.locator('[data-testid="tool-rail"] [data-tool="erase"]')).toHaveCount(1);
+  await strip.locator('[data-item="barrel"]').click();
 
   const placed = await page.evaluate(() => {
     const api = window.__polyheart!;

@@ -139,7 +139,7 @@ export const sceneSchema = z
     /** Terrain ids, row-major, `width * height` long. */
     terrain: z.array(z.string().min(1)),
     /** Elevation levels, row-major, `width * height` long. */
-    heights: z.array(z.number()),
+    heights: z.array(z.number().int()),
     /**
      * Per-tile CSS colour, row-major. Presentation only — the rules never read it —
      * but it is authored, so it belongs to the document.

@@ -3,6 +3,7 @@ import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema } from '../engine/scene/schema';
 import { EditorController, type EditorTool } from './controller';
 import { EditorSession, addScene, removeInteractable } from './session';
+import { TERRAIN_RAIL } from './modes';
 
 function setup(width = 8, height = 6): { session: EditorSession; editor: EditorController; changes: string[] } {
   const project = projectSchema.parse({
@@ -600,5 +601,60 @@ describe('erasing in combat', () => {
     editor.begin({ x: 3, y: 3 });
     editor.end();
     expect(session.requireScene('room').decos).toHaveLength(0);
+  });
+});
+
+describe("terrain's open tab", () => {
+  it('follows the tool into hand, so the rail always shows it', () => {
+    const { editor } = setup();
+    editor.setMode('terrain');
+    editor.openTerrainTab('tiles');
+    expect(editor.state.tool).toBe('buildTile');
+    expect(TERRAIN_RAIL[editor.terrainTab]).toEqual(['eraseTile']);
+
+    // Erase belongs to Props and Objects, never to Tiles: picking it from the
+    // Tiles tab must move the strip rather than leave the tool off the rail.
+    editor.setTool('erase');
+    expect(editor.terrainTab).toBe('props');
+    expect(TERRAIN_RAIL[editor.terrainTab]).toContain('erase');
+
+    editor.openTerrainTab('objects');
+    expect(editor.state.tool).toBe('interactable');
+    editor.setTool('erase');
+    expect(editor.terrainTab).toBe('objects');
+  });
+
+  it('re-syncs when Terrain is entered holding one of its own tools', () => {
+    const { editor } = setup();
+    editor.setMode('terrain');
+    editor.openTerrainTab('tiles');
+    editor.setMode('combat');
+    editor.setTool('erase');
+    editor.setMode('terrain');
+    expect(editor.state.tool).toBe('erase');
+    expect(TERRAIN_RAIL[editor.terrainTab]).toContain('erase');
+  });
+
+  it('reopens the last tab when Terrain is entered holding somebody else’s tool', () => {
+    const { editor } = setup();
+    editor.setMode('terrain');
+    editor.openTerrainTab('ground');
+    editor.setMode('inspect');
+    expect(editor.state.tool).toBe('select');
+    editor.setMode('terrain');
+    expect(editor.terrainTab).toBe('ground');
+    expect(editor.state.tool).toBe('paintTerrain');
+  });
+
+  it('ends the drag when the build plane moves, so a stroke cannot span two storeys', () => {
+    const { editor, session } = setup();
+    editor.setTool('buildTile');
+    editor.begin({ x: 0, y: 0 });
+    editor.setBuildLevel(2.25);
+    editor.begin({ x: 0, y: 0 });
+    editor.end();
+    expect(Object.keys(session.requireScene('room').buildingTiles ?? {})).toEqual(['0,0,0', '0,0,2.25']);
+    session.undo();
+    expect(Object.keys(session.requireScene('room').buildingTiles ?? {})).toEqual(['0,0,0']);
   });
 });

@@ -338,20 +338,24 @@ each cell only once; a fresh click or stroke can place another identical piece t
 Use **Z · Vertical position** for height in tile units, in quarter-tile increments. Page Up/Down
 moves by one tile. **Piece height (Z)** scales a piece vertically, from 0.25 to 16; floors start
 at a quarter-tile thickness. **R**, **Rotate**, or the four **Wall edge** buttons place walls
-along the north, east, south or west edge, meeting at the corners. Four walls and a floor can
-occupy the same tile. **Erase building tiles** removes the most recently placed piece at the
-selected X/Y/Z; repeat to peel away overlaps. Undo/redo and JSON save/load preserve every instance.
+along the north, east, south or west edge, meeting at the corners — R and Rotate act only while
+a build tool is in hand. Four walls and a floor can occupy the same tile. **Erase building
+tiles** removes the most recently placed piece at the selected X/Y/Z; repeat to peel away
+overlaps. Undo/redo and JSON save/load preserve every instance.
 
-On **Ground**, changing Z enables **Apply Z height when painting ground**. This paints material
-and exact height together as one undoable stroke. Turn the checkbox off to repaint without changing
-elevation. Terrain stores fractional heights rather than truncating them to integers.
+Raise and Lower still move the ground a whole level at a time, and Z does not touch it: a piece's
+Z and the ground's height are two different units until multilevel navigation unifies them.
 
 Props, objects and creatures can also be authored beyond the board. Creature placements appear
 immediately in the editor, including at the **Creature Z** height. Generic creature bodies stand
-in for SRD creatures without a dedicated model. Undo and scene switching update what is drawn.
-Returning to play brings newly placed creatures on the tactical board into the running encounter
-data and refreshes its triggers, while retaining existing wounds and party pools. Outlying
-creatures and elevated authoring still require expanded navigation for equivalent gameplay.
+in for SRD creatures without a dedicated model — the Models workspace still lists those
+definitions as unresolved, because they are. Undo and scene switching update what is drawn.
+Every entry into a room brings its creatures up to date with the document: returning to play,
+travelling in through a door, or loading a save each add the creatures placed since and remove
+the ones deleted since, keeping existing wounds, party pools and anything a script has already
+taken off the board. A creature placed outside the board is drawn in the editor and reported by
+**Check**, but it does not enter play: outlying and elevated authoring still needs multilevel
+navigation before it can be fought on.
 
 Right-drag or WASD/arrows pan; Q/E orbit; the wheel zooms. **Go to coordinates** jumps to a
 distant build, including negative coordinates. **Home** returns to the original map.
@@ -588,6 +592,7 @@ A **scene**: `id`, `name`, `intro` (logged on arrival), `width`, `height` (≤ 5
 overlapping pieces. X/Y are integers; `level` stores vertical Z in quarter-tile increments, and
 optional `height` scales the piece vertically. Each piece has a `shape` (block/floor/wall/stairs),
 `material` (stone/wood/grass) and `rotation` (0–3 quarter turns). Old unsuffixed keys still load.
+`heights[]` is whole levels, as it always was, and is a different unit from a piece's `level`.
 Props, objects and adversaries accept signed placement coordinates and optional `position.z`.
 
 An **interactable**: `id`, `kind` (chest | door | pillar | portal | scripted), `position`,
@@ -966,6 +971,8 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   data.
 - **Construction navigation**: building tiles have visual LOD but do not yet affect walking,
   collision or line of sight. The tactical ground remains a single height field.
+- **Editor camera**: right-drag pan, wheel zoom, WASD/arrows, Q/E and Home work in edit mode;
+  **F** (frame the selected character) is still play-only.
 - No entity-hover links in the log.
 - An impossible attack click is silent.
 - A scripted check (an object, a conversation) awards Hope to whoever used the thing and Fear

@@ -44,6 +44,7 @@ export function titleCase(id: string): string {
 
 const FALLBACK_SWATCH = '#5d8a4a';
 
+/** Tiles has no models and no ids of its own: one card per shape the build tool stamps. */
 export function buildingTab(): LibraryTab {
   return { id: 'tiles', label: 'Tiles', items: BUILD_SHAPES.map((shape) => ({
     tab: 'tiles', id: `tile-${shape}`, label: titleCase(shape), detail: 'Stackable', keywords: ['building', shape],

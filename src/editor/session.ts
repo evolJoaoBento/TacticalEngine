@@ -340,26 +340,6 @@ export function paintTerrain(sceneId: string, tiles: readonly number[], terrainI
 }
 
 /** Set tiles to an exact elevation. */
-export function paintTerrainAtHeight(sceneId: string, tiles: readonly number[], terrainId: string, level: number): Edit {
-  const paint = paintTerrain(sceneId, tiles, terrainId);
-  const height = setHeight(sceneId, tiles, level);
-  const edit: Edit & { parts: readonly Edit[] } = {
-    label: `Paint ${terrainId} at height ${level}`,
-    mergeKey: `paint-height:${sceneId}:${terrainId}:${level}`,
-    parts: [paint, height],
-    apply(project) { paint.apply(project); height.apply(project); },
-    undo(project) { height.undo(project); paint.undo(project); },
-    isNoop() { return paint.isNoop?.() === true && height.isNoop?.() === true; },
-    absorb(other) {
-      const parts = (other as typeof edit).parts;
-      if (!parts || other.mergeKey !== edit.mergeKey) return false;
-      return paint.absorb?.(parts[0]!) === true && height.absorb?.(parts[1]!) === true;
-    },
-  };
-  return edit;
-}
-
-/** Set tiles to an exact elevation. */
 export function setHeight(sceneId: string, tiles: readonly number[], level: number): Edit {
   return tileValueEdit(
     sceneId,

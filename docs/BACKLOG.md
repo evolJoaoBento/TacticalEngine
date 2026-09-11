@@ -8,10 +8,6 @@ handful of working rules that are learned the expensive way rather than read.
 83 files**, **92 Playwright tests** (about 3.4 minutes). If those numbers come back lower, something
 was lost — check before building on it. Symbol names are the stable handles here; line numbers move.
 
-Construction working tree, 2026-09-11: typecheck clean, **1723 unit tests across 85 files**,
-**94 Playwright tests** pass. The LOD regression fails when distance simplification is disabled
-and passes when restored. The commit pin above remains the historical baseline.
-
 ---
 
 ## 1. Reading order
@@ -50,10 +46,10 @@ are in `docs/superpowers/plans/`. Part 2 starts from `docs/research/multilevel-d
 
 **Done:** part 1, slice 1 (the shell's frame); sparse construction with stackable tiles,
 extended coordinates, brush/rotation/level controls, undo/save and chunked LOD (2026-09-11).
-Follow-up: overlapping instances, four edge walls, fractional Z/vertical size, exact ground
-height painting, tab-driven placement and visible authored creatures with on-grid play sync.
-**Next:** connect constructed surfaces to multilevel navigation/collision; part 1, slice 2
-(the board shows the document, and objects get models) remains open.
+Follow-up: overlapping instances, four edge walls, fractional Z/vertical size,
+tab-driven placement and visible authored creatures with on-grid play sync.
+**Next:** part 2 — one vertical unit and multilevel navigation over constructed surfaces
+(spec first); part 1, slice 2's remaining edit-view items (objects, spawns, trigger cells).
 
 Ranked by **what it adds to a fight** — the house rule for ordering slices. The GM's narrative half
 is deliberately last. A *slice* is one behaviour complete: rule, content, editor field, validation,

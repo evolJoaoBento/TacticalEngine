@@ -31,18 +31,20 @@ describe('sparse construction', () => {
     expect(wall[2]! - wall[5]! / 2).toBeCloseTo(-0.5);
     expect(wall[3]).toBe(1);
   });
-  it('authors fractional Z and piece height, and paints the ground at the same physical Z', () => {
+  it('authors fractional Z and piece height, and leaves the ground in whole levels', () => {
     const { editor, scene, session } = setup();
     editor.set('buildLevel', 2.25); editor.set('buildHeight', 3.5);
     editor.begin({ x: 0, y: 0 }); editor.end();
     expect(scene.buildingTiles!['0,0,2.25']).toMatchObject({ level: 2.25, height: 3.5 });
-    editor.openTerrainTab('ground'); editor.set('paintHeight', true); editor.set('terrainId', 'wall');
+    // Two vertical units coexist until part 2 unifies them: the plane the piece
+    // stands on counts tiles, while `heights[]` counts whole levels, so painting
+    // the ground from the same tab must not write 2.25 into it.
+    editor.openTerrainTab('ground'); editor.set('terrainId', 'wall');
     editor.begin({ x: 1, y: 1 }); editor.paint({ x: 2, y: 1 }); editor.end();
-    const grid = gridFromScene(scene).grid;
-    expect(grid.heightAt(5) * 0.35).toBeCloseTo(2.25);
-    expect(grid.heightAt(6) * 0.35).toBeCloseTo(2.25);
-    session.undo(); expect(scene.heights[5]).toBe(0); expect(scene.terrain[5]).toBe('floor');
-    session.redo(); expect(scene.heights[5]! * 0.35).toBeCloseTo(2.25);
+    expect(scene.heights[5]).toBe(0);
+    expect(scene.terrain[5]).toBe('wall');
+    expect(gridFromScene(scene).grid.heightAt(5)).toBe(0);
+    session.undo(); expect(scene.terrain[5]).toBe('floor');
   });
   it('takes placement behavior from the open tab, retaining each tab selection', () => {
     const { editor, scene } = setup();
