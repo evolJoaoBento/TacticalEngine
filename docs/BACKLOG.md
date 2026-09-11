@@ -4,8 +4,8 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
-**Pinned to commit `89ca1bf`.** At that commit: `npx tsc --noEmit` clean, **1712 unit tests across
-83 files**, **92 Playwright tests** (about 3.4 minutes). If those numbers come back lower, something
+**Pinned to commit `40832da`.** At that commit: `npx tsc --noEmit` clean, **1747 unit tests across
+87 files**, **97 Playwright tests** (about 3.4 minutes). If those numbers come back lower, something
 was lost — check before building on it. Symbol names are the stable handles here; line numbers move.
 
 ---
