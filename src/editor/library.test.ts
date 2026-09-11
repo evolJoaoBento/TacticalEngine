@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OBJECT_KINDS, creatureTabs, filterLibrary, groundTab, objectsTab, propsTab, titleCase } from './library';
+import { OBJECT_KINDS, buildingTab, creatureTabs, filterLibrary, groundTab, objectsTab, propsTab, titleCase } from './library';
 
 const CREATURES = [
   { id: 'jagged-knife-bandit', name: 'Jagged Knife Bandit', tier: 1 as const, role: 'standard' as const },
@@ -9,6 +9,10 @@ const CREATURES = [
 ];
 
 describe('the library', () => {
+  it('offers searchable, stackable construction pieces', () => {
+    expect(buildingTab().items.map((item) => item.id)).toEqual(['tile-block', 'tile-floor', 'tile-wall', 'tile-stairs']);
+    expect(filterLibrary([buildingTab()], 'building stairs').map((item) => item.id)).toEqual(['tile-stairs']);
+  });
   it('names ids the way a person would', () => {
     expect(titleCase('deadTree')).toBe('Dead Tree');
     expect(titleCase('tangle-bramble')).toBe('Tangle Bramble');

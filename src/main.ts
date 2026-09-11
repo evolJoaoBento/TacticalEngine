@@ -15,6 +15,7 @@
 import { Fragment, h, render } from 'preact';
 import {
   PCFSoftShadowMap,
+  Plane,
   PerspectiveCamera,
   Raycaster,
   Vector2,
@@ -60,6 +61,9 @@ import {
 } from './game/demo-abilities';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
+import { BuildingView, type BuildingStats } from './engine/render/building-view';
+import { syncAuthoredEncounters } from './game/authored-encounters';
+import { BUILD_LIMIT } from './engine/scene/building';
 import { AssetLibrary, modelAssetSchema, type ModelAsset } from './engine/render/assets';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NO_TILE, type Spot, type TileGrid } from './engine/grid/grid';
@@ -257,6 +261,10 @@ declare global {
       setEditorMode: (mode: string) => void;
       setTool: (tool: string) => void;
       setTerrain: (id: string) => void;
+      buildingStats: () => BuildingStats;
+      authoredCreatureCount: () => number;
+      buildAt: (x: number, y: number) => boolean;
+      buildScreenAt: (x: number, y: number) => { x: number; y: number };
       editAt: (tile: number) => boolean;
       terrainAt: (tile: number) => string;
       heightAt: (tile: number) => number;
@@ -403,11 +411,15 @@ const assets = new AssetLibrary(
 
 const view = new SceneView(demo.grid, {
   tints: demo.scene.tints,
-  modelForEntity: (entity) => DEMO_MODELS[entity.definition] ?? entity.definition,
+  modelForEntity: (entity) => DEMO_MODELS[entity.definition] ??
+    (MODELS.some((m) => m.id === entity.definition) ? entity.definition : entity.faction === 'adversary' ? 'husk' : entity.definition),
   assets,
 });
 view.setDecos(demo.scene.decos);
 view.syncTokens(demo.state);
+const buildings = new BuildingView();
+view.scene.add(buildings.root);
+buildings.sync(demo.scene);
 
 /**
  * One project, edited and played.
@@ -423,8 +435,9 @@ let editor = new EditorController({
   session,
   sceneId: demo.scene.id,
   onChange: (change) => {
+    if (change === 'building') buildings.sync(editor.scene);
     if (change === 'terrain') rebuildTerrain();
-    if (change === 'content') view.setDecos(editor.scene.decos);
+    if (change === 'content') syncEditorContent();
   },
 });
 
@@ -439,8 +452,13 @@ const ADVERSARY_DEFS = [...SRD_ADVERSARIES.values()].sort((a, b) => a.name.local
 /** Redraw whichever panel the current mode owns. */
 function refreshEditor(): void {
   rebuildTerrain();
-  view.setDecos(editor.scene.decos);
+  syncEditorContent();
   renderPanel();
+}
+
+function syncEditorContent(): void {
+  view.setDecos(activeScene().decos);
+  view.setAuthoring(mode === 'edit' ? editor.scene : null, DEMO_MODELS);
 }
 
 /** A kebab-case id from a name, made unique against the scenes already there. */
@@ -478,6 +496,8 @@ function rebuildTerrain(): void {
   activeGrid.terrain.set(grid.terrain);
   activeGrid.heights.set(grid.heights);
   view.rebuildTerrain(scene.tints);
+  buildings.sync(scene);
+  if (mode === 'edit') syncEditorContent();
 }
 
 /**
@@ -501,6 +521,8 @@ function redoEdit(): boolean {
 }
 
 let mode: 'play' | 'edit' = 'play';
+let editingPlacementIds = new Set<string>();
+let editingPlayedScene = '';
 
 /**
  * Fold the project's cards back into the party's derived numbers.
@@ -546,6 +568,12 @@ function playAt(sceneId: string, tile: number | null): boolean {
 }
 
 function setMode(next: 'play' | 'edit'): void {
+  if (next === 'edit' && mode !== 'edit') {
+    editingPlayedScene = demo.scene.id;
+    editingPlacementIds = new Set(demo.scene.encounters.flatMap((e) => e.adversaries.map((a) => a.id)));
+  }
+  if (next === 'play' && mode === 'edit') syncAuthoredEncounters(demo,
+    editingPlayedScene === demo.scene.id ? editingPlacementIds : new Set());
   mode = next;
   editor.end();
   // The tray only lives in the play tree, so dice still tumbling when the
@@ -557,6 +585,7 @@ function setMode(next: 'play' | 'edit'): void {
     editor.switchScene(demo.scene.id);
   }
   if (mode === 'play') {
+    view.setAuthoring(null);
     rederiveParty();
     rebindScene();
     refreshPlay();
@@ -565,7 +594,7 @@ function setMode(next: 'play' | 'edit'): void {
     view.clearHighlights();
     view.clearZones();
     view.showSelection(NO_TILE);
-    view.syncTokens(demo.state);
+    syncEditorContent();
     renderPanel();
   }
 }
@@ -575,6 +604,7 @@ function renderPanel(): void {
     h(EditorShell, {
       session,
       controller: editor,
+      onNavigateBuilding: navigateBuilding,
       terrainIds: TERRAIN_IDS,
       terrainColors: DEFAULT_TERRAIN_COLORS,
       propModels: PROP_MODELS,
@@ -691,8 +721,9 @@ function loadProjectText(text: string, label = 'the project'): string {
     session,
     sceneId: project.startScene,
     onChange: (change) => {
+      if (change === 'building') buildings.sync(editor.scene);
       if (change === 'terrain') rebuildTerrain();
-      if (change === 'content') view.setDecos(editor.scene.decos);
+      if (change === 'content') syncEditorContent();
     },
   });
   editor.setMode('inspect');
@@ -721,6 +752,22 @@ const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight,
  * event plumbing.
  */
 const orbit = new OrbitCamera({ yaw: 0, pitch: 0.85 });
+
+function navigateBuilding(x: number, y: number): void {
+  editor.end();
+  orbit.lookAt({ x: x - (activeGrid.width - 1) / 2, y: view.layout.baseHeight + editor.state.buildLevel,
+    z: y - (activeGrid.height - 1) / 2 });
+  orbit.snap();
+  applyCamera();
+}
+
+function buildingTool(): boolean {
+  return mode === 'edit' && (editor.state.tool === 'buildTile' || editor.state.tool === 'eraseTile');
+}
+
+function placementTool(): boolean {
+  return buildingTool() || (mode === 'edit' && ['prop', 'interactable', 'adversary'].includes(editor.state.tool));
+}
 
 /** Where a point `height` above a tile's surface lands on screen, in CSS pixels. */
 function screenPoint(tile: number, height: number): { x: number; y: number } {
@@ -785,6 +832,29 @@ canvas.addEventListener(
 const raycaster = new Raycaster();
 const pointer = new Vector2();
 const groundPoint = new Vector3();
+const buildPlane = new Plane(new Vector3(0, 1, 0), 0);
+let lastBuildPointer: { clientX: number; clientY: number } | null = null;
+
+function buildingUnderPointer(event: { clientX: number; clientY: number }): Spot | null {
+  const rect = canvas.getBoundingClientRect();
+  pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  buildPlane.constant = -(view.layout.baseHeight + editor.state.buildLevel);
+  if (!raycaster.ray.intersectPlane(buildPlane, groundPoint)) return null;
+  const spot = worldToSpot(activeGrid, groundPoint.x, groundPoint.z, view.layout);
+  const x = Math.round(spot.x), y = Math.round(spot.y);
+  return Math.abs(x) <= BUILD_LIMIT && Math.abs(y) <= BUILD_LIMIT ? { x, y } : null;
+}
+
+function updateBuildingPreview(): void {
+  const active = placementTool();
+  const target = worldToSpot(activeGrid, orbit.pose.target.x, orbit.pose.target.z, view.layout);
+  buildings.showGuide(target.x, target.y, editor.state.buildLevel, active);
+  const at = active && lastBuildPointer ? buildingUnderPointer(lastBuildPointer) : null;
+  buildings.showPreview(at && buildingTool() ? { ...at, level: editor.state.buildLevel, shape: editor.state.buildShape,
+    material: editor.state.buildMaterial, rotation: editor.state.buildRotation, height: editor.state.buildHeight } : null,
+  editor.state.tool === 'eraseTile', editor.state.brushSize);
+}
 
 /** The ground under the pointer: the tile struck, and the exact spot on it. */
 function groundUnderPointer(event: PointerEvent | MouseEvent): { tile: number; spot: Spot } | null {
@@ -868,7 +938,9 @@ function rebindScene(): void {
   // The same view, pointed at the other room: its caches, its lights and the
   // party's own tokens carry over; the ground and the scenery do not.
   view.rebind(activeGrid, { tints: scene.tints, decos: scene.decos });
+  buildings.sync(scene);
   frameCamera();
+  if (mode === 'edit') syncEditorContent();
 }
 
 function refreshPlay(): void {
@@ -1315,8 +1387,14 @@ refreshPlay();
 canvas.addEventListener('pointerdown', (event) => {
   if (mode === 'edit') {
     if (event.button !== 0) {
+      editor.end();
       drag = { button: event.button, startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, moved: false };
       canvas.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (placementTool() && !event.shiftKey) {
+      const at = buildingUnderPointer(event);
+      if (at) { canvas.setPointerCapture(event.pointerId); editor.begin(at); renderPanel(); }
       return;
     }
     const tile = tileUnderPointer(event);
@@ -1447,6 +1525,12 @@ canvas.addEventListener('pointermove', (event) => {
     return;
   }
   if (mode === 'edit') {
+    if (placementTool()) {
+      lastBuildPointer = { clientX: event.clientX, clientY: event.clientY };
+      const at = buildingUnderPointer(event);
+      if (event.buttons === 1 && at) editor.paint(at);
+      return;
+    }
     if (event.buttons === 0) return;
     const tile = tileUnderPointer(event);
     if (tile !== NO_TILE) editor.paint(pointOf(tile));
@@ -1468,6 +1552,7 @@ canvas.addEventListener('pointermove', (event) => {
 });
 
 canvas.addEventListener('pointerleave', () => {
+  lastBuildPointer = null;
   view.showCursor(NO_TILE);
   view.clearPath();
 });
@@ -1540,6 +1625,20 @@ window.addEventListener('keydown', (event) => {
       if (event.shiftKey) redoEdit();
       else undoEdit();
     }
+    if (placementTool() && !event.ctrlKey && !event.metaKey) {
+      if (event.key.toLowerCase() === 'r') {
+        editor.end();
+        editor.set('buildRotation', (editor.state.buildRotation + 1) % 4);
+        renderPanel();
+      } else if (event.key === 'PageUp' || event.key === 'PageDown') {
+        event.preventDefault();
+        editor.end();
+        editor.set('buildLevel', Math.max(-BUILD_LIMIT, Math.min(BUILD_LIMIT,
+          editor.state.buildLevel + (event.key === 'PageUp' ? 1 : -1))));
+        renderPanel();
+      }
+    }
+    if (event.key === 'Home') frameCamera();
     return;
   }
   if (event.key === 'Escape' && (inspecting !== null || targeting !== null || loadoutOpen !== null || restOpen)) {
@@ -1591,7 +1690,7 @@ function followSelected(): void {
 }
 
 function steerCamera(dt: number): void {
-  if (mode !== 'play') return;
+  if (mode !== 'play' && mode !== 'edit') return;
   const speed = orbit.goal.distance * 0.9 * dt;
   let right = 0;
   let forward = 0;
@@ -2024,6 +2123,15 @@ const state = {
     if (mode === 'edit') renderPanel();
   },
   setTerrain: (id: string): void => editor.set('terrainId', id),
+  buildingStats: (): BuildingStats => buildings.stats(),
+  authoredCreatureCount: (): number => view.authoredCreatureCount,
+  buildAt: (x: number, y: number): boolean => {
+    const changed = editor.begin({ x, y }) !== 'none';
+    editor.end();
+    return changed;
+  },
+  buildScreenAt: (x: number, y: number): { x: number; y: number } => screenOfWorld(
+    x - (activeGrid.width - 1) / 2, view.layout.baseHeight + editor.state.buildLevel, y - (activeGrid.height - 1) / 2),
   editAt: (tile: number): boolean => {
     const change = editor.begin(pointOf(tile));
     editor.end();
@@ -2054,7 +2162,10 @@ function frame(now = performance.now()): void {
   if (demo.ambush !== null && view.glidingCount === 0 && arrive(demo)) refreshPlay();
   followSelected();
   driveFloaters(now);
+  if (placementTool()) orbit.goal.target.y = view.layout.baseHeight + editor.state.buildLevel;
   if (orbit.update(dt)) applyCamera();
+  updateBuildingPreview();
+  buildings.update(camera);
   renderer.render(view.scene, camera);
   state.frames++;
   requestAnimationFrame(frame);

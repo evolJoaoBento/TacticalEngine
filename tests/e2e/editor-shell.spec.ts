@@ -59,7 +59,7 @@ test('the editor is purple', async ({ page }) => {
   await page.locator('[data-testid="mode-terrain"]').click();
   const strip = page.locator('[data-testid="terrain-library"]');
   const [open, closed] = await Promise.all([
-    strip.locator('[data-tab="ground"]').evaluate((el) => getComputedStyle(el).backgroundColor),
+    strip.locator('[data-tab="tiles"]').evaluate((el) => getComputedStyle(el).backgroundColor),
     strip.locator('[data-tab="props"]').evaluate((el) => getComputedStyle(el).backgroundColor),
   ]);
   expect(open).not.toBe(closed);
@@ -70,12 +70,13 @@ test('the editor is purple', async ({ page }) => {
 test('Terrain: its own tools, and a pick from the strip takes up the tool that places it', async ({ page }) => {
   const errors = await editing(page);
   await page.locator('[data-testid="mode-terrain"]').click();
-  await expect(page.locator('[data-testid="tool-rail"] [data-tool]')).toHaveCount(6);
+  await expect(page.locator('[data-testid="tool-rail"] [data-tool]')).toHaveCount(1);
 
   const strip = page.locator('[data-testid="terrain-library"]');
   await strip.locator('[data-tab="props"]').click();
   await strip.locator('[data-item="barrel"]').click();
-  await expect(page.locator('[data-testid="tool-rail"] [data-tool="prop"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(strip.locator('[data-tab="props"]')).toHaveClass(/ph-on/);
+  await expect(page.locator('[data-testid="tool-rail"] [data-tool="prop"]')).toHaveCount(0);
 
   const placed = await page.evaluate(() => {
     const api = window.__polyheart!;

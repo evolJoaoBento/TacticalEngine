@@ -24,7 +24,7 @@ import type { Interactable } from '../../engine/scene/schema';
 import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
 import { EDITOR_MODES, MODE_TOOLS, type EditorMode } from '../modes';
-import { creatureTabs, groundTab, objectsTab, propsTab, type LibraryItem } from '../library';
+import { buildingTab, creatureTabs, groundTab, objectsTab, propsTab, type LibraryItem } from '../library';
 import { validateProject, type Problem } from '../validate';
 import { TopBar, type Menu, type Workspace } from './TopBar';
 import { SceneMenu } from './SceneMenu';
@@ -42,6 +42,7 @@ import { ProblemsPopover } from './ProblemsPopover';
 
 /** What the shell needs from `main.ts`: the document, the SRD content it offers, and what a click on the bar should do. */
 export interface EditorShellProps {
+  onNavigateBuilding?: (x: number, y: number) => void;
   session: EditorSession;
   controller: EditorController;
   terrainIds: readonly string[];
@@ -196,7 +197,10 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
 
   /** A pick from Terrain's strip puts the matching tool in hand. */
   const pickForTerrain = (item: LibraryItem): void => {
-    if (item.tab === 'ground') {
+    if (item.tab === 'tiles') {
+      controller.setTool('buildTile');
+      controller.set('buildShape', item.id.slice(5) as typeof controller.state.buildShape);
+    } else if (item.tab === 'ground') {
       controller.setTool('paintTerrain');
       controller.set('terrainId', item.id);
     } else if (item.tab === 'props') {
@@ -214,7 +218,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
     bump();
   };
   const terrainPicked =
-    tool === 'prop'
+    tool === 'buildTile' ? `tile-${controller.state.buildShape}` : tool === 'prop'
       ? controller.state.propModel
       : tool === 'interactable'
         ? controller.state.interactableKind
@@ -237,11 +241,15 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       body = <InspectorSide session={session} controller={controller} ids={ids} onChange={bump} />;
     } else if (mode === 'terrain') {
       body = [
-        <ToolRail key="rail" mode={mode} tools={MODE_TOOLS.terrain} current={tool} onTool={useTool} />,
+        <ToolRail key="rail" mode={mode} tools={controller.terrainTab === 'ground' ? ['raise', 'lower'] :
+          controller.terrainTab === 'tiles' ? ['eraseTile'] : ['erase']} current={tool} onTool={useTool} />,
         <LibraryStrip
           key="terrain-library"
           testId="terrain-library"
+          activeTab={controller.terrainTab}
+          onTab={(tab) => { controller.openTerrainTab(tab as typeof controller.terrainTab); bump(); }}
           tabs={[
+            buildingTab(),
             groundTab(props.terrainIds, props.terrainColors),
             propsTab(props.propModels, session.project.assets.map((a) => a.id)),
             objectsTab(),
@@ -249,7 +257,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           picked={terrainPicked}
           onPick={pickForTerrain}
         />,
-        <TerrainSide key="side" controller={controller} onChange={bump} />,
+        <TerrainSide key="side" controller={controller} onChange={bump} onNavigate={props.onNavigateBuilding} />,
       ];
     } else if (mode === 'combat') {
       body = [
@@ -258,6 +266,11 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           key="combat-library"
           testId="combat-library"
           tabs={creatureTabs(props.adversaries)}
+          onTab={(tab) => {
+            const entries = creatureTabs(props.adversaries).find((t) => t.id === tab)?.items ?? [];
+            if (!entries.some((item) => item.id === controller.state.adversaryId) && entries[0]) pickCreature(entries[0]);
+            else { controller.setTool('adversary'); bump(); }
+          }}
           picked={tool === 'adversary' ? controller.state.adversaryId : ''}
           onPick={pickCreature}
         />,

@@ -13,6 +13,9 @@
  */
 
 import { toContentId } from '../engine/content/types';
+import { BUILD_LIMIT, type BuildingTile } from '../engine/scene/building';
+import { BuildingEdit } from './building';
+import { DEFAULT_LAYOUT } from '../engine/render/layout';
 import type { Deco, Encounter, Interactable, Point, SceneDoc } from '../engine/scene/schema';
 import { MODE_TOOLS, defaultTool, modeOfTool, type EditorMode } from './modes';
 import {
@@ -24,6 +27,7 @@ import {
   adjustHeight,
   brushTiles,
   paintTerrain,
+  paintTerrainAtHeight,
   removeAdversary,
   removeDecoAt,
   removeInteractable,
@@ -35,6 +39,8 @@ import {
 export type EditorTool =
   /** Click things to inspect them; changes nothing. */
   | 'select'
+  | 'buildTile'
+  | 'eraseTile'
   | 'paintTerrain'
   | 'raise'
   | 'lower'
@@ -46,9 +52,15 @@ export type EditorTool =
   | 'erase';
 
 /** Tools that act on every tile a drag crosses. */
-const CONTINUOUS = new Set<EditorTool>(['paintTerrain', 'raise', 'lower', 'erase']);
+const CONTINUOUS = new Set<EditorTool>(['paintTerrain', 'raise', 'lower', 'erase', 'buildTile', 'eraseTile']);
 
 export interface EditorToolState {
+  buildShape: BuildingTile['shape'];
+  buildMaterial: BuildingTile['material'];
+  buildLevel: number;
+  buildRotation: number;
+  buildHeight: number;
+  paintHeight: boolean;
   tool: EditorTool;
   /** Terrain the brush paints. */
   terrainId: string;
@@ -67,6 +79,12 @@ export interface EditorToolState {
 }
 
 export const DEFAULT_TOOL_STATE: EditorToolState = {
+  buildShape: 'block',
+  buildMaterial: 'stone',
+  buildLevel: 0,
+  buildRotation: 0,
+  buildHeight: 1,
+  paintHeight: false,
   tool: 'paintTerrain',
   terrainId: 'floor',
   propModel: 'crate',
@@ -86,7 +104,7 @@ export interface EditorControllerOptions {
 }
 
 /** What a viewport has to redraw. */
-export type EditorChange = 'terrain' | 'content' | 'none';
+export type EditorChange = 'terrain' | 'content' | 'building' | 'none';
 
 export class EditorController {
   readonly session: EditorSession;
@@ -94,10 +112,13 @@ export class EditorController {
   state: EditorToolState;
   /** Which of the top bar's modes is in hand. It always owns `state.tool`. */
   mode: EditorMode;
+  terrainTab: 'tiles' | 'ground' | 'props' | 'objects' = 'tiles';
   private readonly onChange: (change: EditorChange) => void;
   /** Tiles already painted in this drag, so one stroke does not re-edit them. */
   private readonly strokeTiles = new Set<number>();
+  private readonly buildingStroke = new Set<string>();
   private dragging = false;
+  private lastBuildingPoint: Point | null = null;
   /** The object the inspector is showing, if the select tool has hit one. */
   selected: string | null = null;
 
@@ -118,6 +139,15 @@ export class EditorController {
     this.end();
     this.state.tool = tool;
     this.mode = modeOfTool(tool, this.mode);
+    if (tool === 'buildTile' || tool === 'eraseTile') this.terrainTab = 'tiles';
+    else if (tool === 'paintTerrain' || tool === 'raise' || tool === 'lower') this.terrainTab = 'ground';
+    else if (tool === 'prop') this.terrainTab = 'props';
+    else if (tool === 'interactable') this.terrainTab = 'objects';
+  }
+
+  openTerrainTab(tab: EditorController['terrainTab']): void {
+    this.terrainTab = tab;
+    this.setTool({ tiles: 'buildTile', ground: 'paintTerrain', props: 'prop', objects: 'interactable' }[tab] as EditorTool);
   }
 
   /**
@@ -128,6 +158,7 @@ export class EditorController {
     this.end();
     this.mode = mode;
     if (!MODE_TOOLS[mode].includes(this.state.tool)) this.state.tool = defaultTool(mode);
+    if (mode === 'terrain' && !['erase', 'raise', 'lower'].includes(this.state.tool)) this.openTerrainTab(this.terrainTab);
   }
 
   /**
@@ -151,7 +182,9 @@ export class EditorController {
   /** Press. Applies the tool once; a continuous tool then follows the pointer. */
   begin(point: Point): EditorChange {
     this.dragging = true;
+    this.lastBuildingPoint = { ...point };
     this.strokeTiles.clear();
+    this.buildingStroke.clear();
     return this.apply(point, true);
   }
 
@@ -159,19 +192,62 @@ export class EditorController {
   paint(point: Point): EditorChange {
     if (!this.dragging) return 'none';
     if (!CONTINUOUS.has(this.state.tool)) return 'none';
+    if ((this.state.tool === 'buildTile' || this.state.tool === 'eraseTile') && this.lastBuildingPoint) {
+      const previous = this.lastBuildingPoint;
+      this.lastBuildingPoint = { ...point };
+      const steps = Math.max(Math.abs(point.x - previous.x), Math.abs(point.y - previous.y));
+      // Fill skipped pointer samples, but never expand a teleport into a million-cell stroke.
+      if (Number.isInteger(steps) && steps > 0 && steps <= 512) {
+        let changed: EditorChange = 'none';
+        for (let i = 1; i <= steps; i++) {
+          if (this.apply({ x: Math.round(previous.x + (point.x - previous.x) * i / steps),
+            y: Math.round(previous.y + (point.y - previous.y) * i / steps) }, false, false) !== 'none') changed = 'building';
+        }
+        if (changed !== 'none') this.onChange(changed);
+        return changed;
+      }
+    }
     return this.apply(point, false);
   }
 
   end(): void {
     this.dragging = false;
+    this.lastBuildingPoint = null;
     this.strokeTiles.clear();
+    this.buildingStroke.clear();
     // Releasing the pointer closes the undo step, so a second stroke of the same
     // brush is a second undo rather than joining the first.
     this.session.endGroup();
   }
 
-  private apply(point: Point, pressed: boolean): EditorChange {
+  private apply(point: Point, pressed: boolean, notify = true): EditorChange {
+    if (this.state.tool === 'buildTile' || this.state.tool === 'eraseTile') {
+      const { state } = this;
+      if (![point.x, point.y].every((n) => Number.isInteger(n) && Math.abs(n) <= BUILD_LIMIT) ||
+        !Number.isInteger(state.buildLevel * 4) || Math.abs(state.buildLevel) > BUILD_LIMIT) return 'none';
+      const tiles: BuildingTile[] = [];
+      const radius = Math.floor(Math.min(15, Math.max(1, state.brushSize)) / 2);
+      for (let y = point.y - radius; y <= point.y + radius; y++) {
+        for (let x = point.x - radius; x <= point.x + radius; x++) {
+          if (Math.abs(x) > BUILD_LIMIT || Math.abs(y) > BUILD_LIMIT) continue;
+          const cell = `${x},${y},${state.buildLevel}`;
+          if (this.buildingStroke.has(cell)) continue;
+          this.buildingStroke.add(cell);
+          tiles.push({ x, y, level: state.buildLevel, shape: state.buildShape, material: state.buildMaterial,
+            rotation: state.buildRotation, height: state.buildHeight });
+        }
+      }
+      const changed = this.session.run(new BuildingEdit(this.sceneId, tiles, state.tool === 'eraseTile'));
+      if (changed && notify) this.onChange('building');
+      return changed ? 'building' : 'none';
+    }
     const scene = this.scene;
+    if (['prop', 'interactable', 'adversary'].includes(this.state.tool) || (this.mode === 'terrain' && this.state.tool === 'erase')) {
+      if (![point.x, point.y].every((n) => Number.isInteger(n) && Math.abs(n) <= BUILD_LIMIT)) return 'none';
+      const changed = this.run(point, [], pressed);
+      if (changed !== 'none') this.onChange(changed);
+      return changed;
+    }
     if (!inBounds(scene, point)) return 'none';
 
     const tiles = brushTiles(scene, point, this.state.brushSize).filter(
@@ -190,6 +266,8 @@ export class EditorController {
   private run(point: Point, tiles: number[], pressed: boolean): EditorChange {
     const { session, sceneId, state } = this;
     switch (state.tool) {
+      case 'buildTile':
+      case 'eraseTile': return 'none'; // Sparse tools are handled before rectangular bounds.
       case 'select': {
         if (!pressed) return 'none';
         // Selecting is not an edit — nothing enters the undo history — but the
@@ -204,7 +282,8 @@ export class EditorController {
       // Each reports 'none' when the session discarded the edit as a no-op, so a
       // viewport does not rebuild for a brush painting what was already there.
       case 'paintTerrain':
-        return session.run(paintTerrain(sceneId, tiles, state.terrainId)) ? 'terrain' : 'none';
+        return session.run(state.paintHeight ? paintTerrainAtHeight(sceneId, tiles, state.terrainId,
+          state.buildLevel / DEFAULT_LAYOUT.levelHeight) : paintTerrain(sceneId, tiles, state.terrainId)) ? 'terrain' : 'none';
 
       case 'raise':
         return session.run(adjustHeight(sceneId, tiles, 1)) ? 'terrain' : 'none';
@@ -220,7 +299,7 @@ export class EditorController {
         if (existing !== null && existing.model === state.propModel) {
           session.run(rotateDeco(sceneId, point, state.rotationStep));
         } else {
-          const deco: Deco = { model: state.propModel, position: { ...point }, rotation: 0 };
+          const deco: Deco = { model: state.propModel, position: { ...point, ...(state.buildLevel === 0 ? {} : { z: state.buildLevel }) }, rotation: 0 };
           session.run(addDeco(sceneId, deco));
         }
         return 'content';
@@ -253,7 +332,7 @@ export class EditorController {
           addAdversary(sceneId, encounter.id, {
             id: this.uniqueId(`${encounter.id}-${state.adversaryId}`, point),
             adversary: state.adversaryId,
-            position: { ...point },
+            position: { ...point, ...(state.buildLevel === 0 ? {} : { z: state.buildLevel }) },
           }),
         );
         return 'content';
@@ -406,7 +485,7 @@ export class EditorController {
     return {
       id: this.uniqueId(this.state.interactableKind, point),
       kind: this.state.interactableKind,
-      position: { ...point },
+      position: { ...point, ...(this.state.buildLevel === 0 ? {} : { z: this.state.buildLevel }) },
       name: '',
       flavor: '',
       model: null,

@@ -8,6 +8,8 @@
  */
 
 import type { QuestDef } from '../../engine/content/quests';
+import { useState } from 'preact/hooks';
+import { BUILD_LIMIT, BUILD_SHAPES, BUILD_MATERIALS } from '../../engine/scene/building';
 import { dialogueSchema } from '../../engine/dialogue/schema';
 import type { EditorController, EditorTool } from '../controller';
 import {
@@ -62,6 +64,8 @@ export function InspectorSide(props: {
 }
 
 const TERRAIN_HINTS: Partial<Record<EditorTool, string>> = {
+  buildTile: 'Drag to place pieces at Z height. Each new stroke adds pieces, including at occupied positions. R turns walls to the next edge.',
+  eraseTile: 'Drag to remove the latest piece at each position and Z height. Click again to remove the next overlapping piece.',
   paintTerrain: 'Drag across the board to paint the ground picked below.',
   raise: 'Drag to raise the ground a level. One drag is one undo.',
   lower: 'Drag to lower the ground a level. One drag is one undo.',
@@ -70,16 +74,84 @@ const TERRAIN_HINTS: Partial<Record<EditorTool, string>> = {
   erase: 'Click a prop to remove it, then the object under it.',
 };
 
-const BRUSHED: readonly EditorTool[] = ['paintTerrain', 'raise', 'lower'];
+const BRUSHED: readonly EditorTool[] = ['paintTerrain', 'raise', 'lower', 'buildTile', 'eraseTile'];
 
 /** Terrain mode's side: the tool in hand, and the brush size when one applies. */
-export function TerrainSide(props: { controller: EditorController; onChange: () => void }): preact.JSX.Element {
+export function TerrainSide(props: { controller: EditorController; onChange: () => void; onNavigate?: (x: number, y: number) => void }): preact.JSX.Element {
   const { controller } = props;
   const tool = controller.state.tool;
+  const building = tool === 'buildTile' || tool === 'eraseTile';
+  const [x, setX] = useState('0');
+  const [y, setY] = useState('0');
+  const validCoordinate = (value: string): boolean => value.trim() !== '' && Number.isInteger(Number(value)) && Math.abs(Number(value)) <= BUILD_LIMIT;
+  const validZ = (value: string): boolean => value.trim() !== '' && Number.isInteger(Number(value) * 4) && Math.abs(Number(value)) <= BUILD_LIMIT;
+  const setZ = (value: number): void => {
+    controller.end(); controller.set('buildLevel', value);
+    if (controller.terrainTab === 'ground') controller.set('paintHeight', true);
+    props.onChange();
+  };
   return (
     <aside class="ph-side ph-panel" data-testid="terrain-side">
       <div class="ph-heading">{TOOL_LABELS[tool]}</div>
       <div class="ph-hint">{TERRAIN_HINTS[tool] ?? ''}</div>
+      {building ? <>
+        <div class="ph-heading">Tile pieces</div>
+        <div class="ph-row ph-build-pieces">{BUILD_SHAPES.map((shape) => <button
+          class={controller.state.buildShape === shape ? 'ph-chip ph-on' : 'ph-chip'}
+          data-testid={`build-${shape}`} onClick={() => { controller.set('buildShape', shape); props.onChange(); }}
+        >{shape[0]!.toUpperCase() + shape.slice(1)}</button>)}</div>
+        <div class="ph-heading">Material</div>
+        <div class="ph-row">{Object.entries(BUILD_MATERIALS).map(([material, color]) => <button
+          class={controller.state.buildMaterial === material ? 'ph-chip ph-on' : 'ph-chip'}
+          style={{ borderBottom: `3px solid ${color}` }}
+          onClick={() => { controller.set('buildMaterial', material as keyof typeof BUILD_MATERIALS); props.onChange(); }}
+        >{material}</button>)}</div>
+        {controller.state.buildShape === 'wall' ? <>
+          <div class="ph-heading">Wall edge</div>
+          <div class="ph-row">{['North', 'West', 'South', 'East'].map((edge, rotation) => <button
+            class={controller.state.buildRotation === rotation ? 'ph-chip ph-on' : 'ph-chip'} aria-label={`Wall ${edge}`}
+            onClick={() => { controller.end(); controller.set('buildRotation', rotation); props.onChange(); }}>{edge}</button>)}</div>
+        </> : null}
+        <label class="ph-heading">Piece height (Z)
+          <input class="ph-input" aria-label="Piece height" type="number" min="0.25" max="16" step="0.25"
+            value={controller.state.buildHeight} onChange={(e) => {
+              const value = Number(e.currentTarget.value);
+              if (value >= 0.25 && value <= 16 && Number.isInteger(value * 4)) {
+                controller.end(); controller.set('buildHeight', value); props.onChange();
+              }
+            }} />
+        </label>
+      </> : null}
+      <>
+        <div class="ph-heading">Z · Vertical position</div>
+        <div class="ph-row">
+          <button class="ph-chip" aria-label="Lower build level" disabled={controller.state.buildLevel <= -BUILD_LIMIT}
+            onClick={() => setZ(controller.state.buildLevel - 0.25)}>−</button>
+          <input class="ph-input" aria-label="Build level" title="Z height in tile units" type="number" step="0.25" min={-BUILD_LIMIT} max={BUILD_LIMIT}
+            value={controller.state.buildLevel} onChange={(e) => {
+              if (validZ(e.currentTarget.value)) setZ(Number(e.currentTarget.value));
+            }} />
+          <button class="ph-chip" aria-label="Raise build level" disabled={controller.state.buildLevel >= BUILD_LIMIT}
+            onClick={() => setZ(controller.state.buildLevel + 0.25)}>+</button>
+        </div>
+        {controller.terrainTab === 'ground' ? <label class="ph-hint">
+          <input type="checkbox" checked={controller.state.paintHeight} onChange={(e) => {
+            controller.set('paintHeight', e.currentTarget.checked); props.onChange();
+          }} /> Apply Z height when painting ground
+        </label> : null}
+        <button class="ph-item" data-testid="build-rotate" onClick={() => {
+          controller.end(); controller.set('buildRotation', (controller.state.buildRotation + 1) % 4); props.onChange();
+        }}>Rotate · {controller.state.buildRotation * 90}° (R)</button>
+        <div class="ph-heading">Go to coordinates</div>
+        <div class="ph-row">
+          <input class="ph-input" aria-label="Build X" type="number" value={x} onInput={(e) => setX(e.currentTarget.value)} />
+          <input class="ph-input" aria-label="Build Y" type="number" value={y} onInput={(e) => setY(e.currentTarget.value)} />
+          <button class="ph-chip" disabled={!validCoordinate(x) || !validCoordinate(y)}
+            onClick={() => props.onNavigate?.(Number(x), Number(y))}>Go</button>
+        </div>
+        <div class="ph-note">Build up to ±1,000,000 tiles in each direction. Right-drag or WASD pans; wheel zooms. Page Up/Down changes level.</div>
+        <div class="ph-note">Building tiles are scenery. Party movement still uses the original ground map.</div>
+      </>
       {BRUSHED.includes(tool) ? (
         <>
           <div class="ph-heading">Brush</div>
@@ -121,6 +193,15 @@ export function CombatSide(props: { controller: EditorController; onChange: () =
     <aside class="ph-side ph-panel" data-testid="combat-side">
       <div class="ph-heading">{TOOL_LABELS[tool]}</div>
       <div class="ph-hint">{COMBAT_HINTS[tool] ?? ''}</div>
+      <label class="ph-heading">Z · Creature height
+        <input class="ph-input" aria-label="Creature Z" type="number" step="0.25" min={-BUILD_LIMIT} max={BUILD_LIMIT}
+          value={controller.state.buildLevel} onChange={(e) => {
+            const value = Number(e.currentTarget.value);
+            if (Number.isInteger(value * 4) && Math.abs(value) <= BUILD_LIMIT) {
+              controller.end(); controller.set('buildLevel', value); props.onChange();
+            }
+          }} />
+      </label>
       <div class="ph-heading">Encounter</div>
       {scene.encounters.length === 0 ? (
         <div class="ph-hint">None yet. The first creature or trigger cell you place starts one.</div>

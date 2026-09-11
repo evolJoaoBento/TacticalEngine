@@ -150,3 +150,5 @@
 .ph-editor .ph-bad { color: var(--ph-bad); }
 .ph-editor .ph-warm { color: var(--ph-warm); }
 .ph-editor .ph-good { color: var(--ph-good); }
+.ph-editor .ph-build-pieces { flex-wrap: wrap; }
+.ph-editor .ph-side .ph-input { min-width: 0; width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid var(--ph-line); border-radius: 5px; background: var(--ph-field); color: var(--ph-text); }

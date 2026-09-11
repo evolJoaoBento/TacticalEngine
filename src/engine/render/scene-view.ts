@@ -38,7 +38,7 @@ import {
 } from 'three';
 import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
 import { lineLength } from '../grid/walk';
-import type { Deco } from '../scene/schema';
+import type { Deco, SceneDoc } from '../scene/schema';
 import type { EntityState, SceneState } from '../scene/state';
 import { DEFAULT_LAYOUT, mapExtent, spotToWorld, surfaceHeight, tileCenter, type TileLayout } from './layout';
 import { ModelResources, buildModel, type BuildOptions, type BuiltModel } from './procedural/build';
@@ -190,6 +190,8 @@ export class SceneView {
   /** Flinches and falls in progress, by entity. */
   private readonly reactions = new Map<string, Reaction>();
   private readonly decos: Group[] = [];
+  private readonly authoredCreatures: Group[] = [];
+  private authoring = false;
   private readonly modelForEntity: (entity: EntityState) => string;
   private readonly assets: AssetLibrary | null;
   private stopListening: (() => void) | null = null;
@@ -604,6 +606,7 @@ export class SceneView {
         }
       }
       this.tokenStanding.set(entity.id, entity.alive);
+      if (this.authoring) token.group.visible = false;
     }
 
     for (const [id, token] of this.tokens) {
@@ -1089,9 +1092,8 @@ export class SceneView {
     this.lastDecos = decos;
     for (const deco of decos) {
       const tile = this.grid.indexOf(deco.position.x, deco.position.y);
-      if (!this.grid.isTile(tile)) continue;
       const model = this.build(deco.model);
-      const centre = tileCenter(this.grid, tile, this.layout);
+      const centre = this.placementCentre(deco.position);
       const lift = model.spec.groundOffset ?? 0;
       model.group.position.set(centre.x, centre.y + lift, centre.z);
       model.group.rotation.y = deco.rotation;
@@ -1099,6 +1101,36 @@ export class SceneView {
       this.decos.push(model.group);
     }
   }
+
+  private placementCentre(position: { x: number; y: number; z?: number }): { x: number; y: number; z: number } {
+    const tile = this.grid.indexOf(position.x, position.y);
+    return {
+      x: (position.x - (this.grid.width - 1) / 2) * this.layout.tileSize,
+      z: (position.y - (this.grid.height - 1) / 2) * this.layout.tileSize,
+      y: position.z === undefined ? (tile < 0 ? this.layout.baseHeight : surfaceHeight(this.grid.heightAt(tile), this.layout)) :
+        this.layout.baseHeight + position.z * this.layout.tileSize,
+    };
+  }
+
+  /** Editor creatures come from authored placements, including ones outside the play grid. */
+  setAuthoring(scene: SceneDoc | null, models: Readonly<Record<string, string>> = {}): void {
+    for (const group of this.authoredCreatures) this.root.remove(group);
+    this.authoredCreatures.length = 0;
+    this.authoring = scene !== null;
+    for (const token of this.tokens.values()) token.group.visible = !this.authoring;
+    if (!scene) return;
+    for (const encounter of scene.encounters) for (const placement of encounter.adversaries) {
+      const modelId = models[placement.adversary] ?? (this.registry.has(placement.adversary) ? placement.adversary : 'husk');
+      const model = this.build(modelId, { palette: { ring: ringMaterial(DEFAULT_FACTION_COLORS.adversary!) } });
+      const centre = this.placementCentre(placement.position);
+      model.group.position.set(centre.x, centre.y + (model.spec.groundOffset ?? 0), centre.z);
+      model.group.name = `authored-creature:${placement.id}`;
+      this.root.add(model.group);
+      this.authoredCreatures.push(model.group);
+    }
+  }
+
+  get authoredCreatureCount(): number { return this.authoredCreatures.length; }
 
   /** How many scenery models are in the scene. */
   get decoCount(): number {

@@ -33,7 +33,7 @@ export const MODE_LABELS: Readonly<Record<EditorMode, string>> = {
  */
 export const MODE_TOOLS: Readonly<Record<EditorMode, readonly EditorTool[]>> = {
   inspect: ['select'],
-  terrain: ['paintTerrain', 'raise', 'lower', 'prop', 'interactable', 'erase'],
+  terrain: ['buildTile', 'eraseTile', 'paintTerrain', 'raise', 'lower', 'prop', 'interactable', 'erase'],
   combat: ['adversary', 'trigger', 'spawn', 'erase'],
   interaction: ['select'],
 };

@@ -134,7 +134,8 @@ adapter: the rest of the core does not know it exists.
 | `render/camera.ts` | `OrbitCamera`, plain data, deliberately not three's `OrbitControls` so it is testable headless. |
 | `render/assets.ts` | `AssetLibrary` — glTF/GLB loading. |
 | `render/layout.ts` | The only place that knows tile-to-world scale. |
-| `render/terrain-mesh.ts` | One `InstancedMesh` per terrain type. |
+| `render/terrain-mesh.ts` | Continuous legacy ground mesh per terrain type. |
+| `scene/building.ts`, `render/building-view.ts` | Sparse construction schema and chunked instanced LOD; `editor/building.ts` owns reversible cell edits. |
 | `render/procedural/` | `spec.ts`, `registry.ts` (falls back to a placeholder rather than throwing; `missing()` lists unresolved ids), `build.ts`, `library/{heroes,monsters,props}.ts`. |
 
 There is **no `src/engine/audio/` and no `src/engine/input/`**. `CONTEXT.md` and
@@ -786,9 +787,22 @@ a case there before trusting a new field.
   `@content/*` resolves to `src/engine/content/*` in both TypeScript and Vite.
 - **`fflate` is a dependency and is imported nowhere under `src/`.** `CONTEXT.md`'s "zip import and
   export of projects with assets" is not implemented; export is `JSON.stringify` into a `Blob`.
-- **No frustum culling and no LOD.** Instancing and geometry sharing exist (`terrain-mesh.ts`,
-  `procedural/build.ts` with its `PrimitiveCache` and `MaterialLibrary`); the rest of the efficiency
-  goals in `CONTEXT.md` are stated, not met. `docs/CRPG-GAPS.md` is the honest list.
+- **Construction has bounded LOD; legacy ground and props still need it.** `building-view.ts`
+  indexes 16³ chunks, queries nearby columns, frustum-culls, and retains at most 96 chunks within
+  128 world units of their bounding spheres. It builds at most two chunks per frame. LOD switches
+  at 24/64 units with four-unit hysteresis: rounded boxes, plain boxes, then simplified stairs.
+  Instance transforms stay chunk-local for distant-coordinate precision; empty coordinates are
+  never materialized. `sync(scene)` compares tile references and preserves unchanged buffers.
+  Authoring replaces a touched tile object through `BuildingEdit`; never mutate it in place.
+  Idle cameras skip chunk selection. `buildingStats()` reports actual resident geometry budgets.
+  CPU document/index memory scales with placed pieces; GPU residency is bounded. The sparse layer
+  does not alter the dense tactical grid or implement collision/navigation.
+  Building keys may include `#instance` to retain overlaps. Z remains named `level` for compatibility
+  and supports quarter tiles; optional `height` scales pieces vertically. Bounds include tall pieces.
+  Ground heights now use Float64Array to retain fractional authored elevation. `paintTerrainAtHeight`
+  composes material and height with one undo record. `SceneView.setAuthoring` renders document
+  creatures separately from runtime tokens; `syncAuthoredEncounters` applies new on-grid placements
+  and trigger changes on return to play. A remote/elevated placement is not yet a multilevel nav node.
 - **No TTS, no speech synthesis, no "voice" features.** A hard constraint from the user; both
   attempts were removed.
 - **All content text is English.**

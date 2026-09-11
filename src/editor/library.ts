@@ -8,6 +8,7 @@
 
 import type { AdversaryDef, AdversaryRole } from '../engine/content/types';
 import type { Interactable } from '../engine/scene/schema';
+import { BUILD_SHAPES } from '../engine/scene/building';
 
 /** One card in the strip: what it shows, and what picking it hands to the tool. */
 export interface LibraryItem {
@@ -42,6 +43,12 @@ export function titleCase(id: string): string {
 }
 
 const FALLBACK_SWATCH = '#5d8a4a';
+
+export function buildingTab(): LibraryTab {
+  return { id: 'tiles', label: 'Tiles', items: BUILD_SHAPES.map((shape) => ({
+    tab: 'tiles', id: `tile-${shape}`, label: titleCase(shape), detail: 'Stackable', keywords: ['building', shape],
+  })) };
+}
 
 /** Ground has no model to show, so each terrain type is a colour swatch. */
 export function groundTab(terrainIds: readonly string[], colors: Readonly<Record<string, string>>): LibraryTab {

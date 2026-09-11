@@ -15,6 +15,7 @@
  */
 
 import { z } from 'zod';
+import { BUILD_LIMIT, buildingTilesSchema } from './building';
 import { itemSchema, lootTableSchema } from '../content/items';
 import { abilitySchema } from '../content/abilities';
 import { characterSheetSchema } from '../character/sheet-schema';
@@ -46,10 +47,17 @@ export type { Point, Trait } from './primitives';
 export { effectSchema, checkRequestSchema };
 export type { Effect, CheckRequest } from '../script/schema';
 
+/** Scenery and encounter placements can be authored beyond the tactical board. */
+const placementPointSchema = z.object({
+  x: z.number().int().min(-BUILD_LIMIT).max(BUILD_LIMIT),
+  y: z.number().int().min(-BUILD_LIMIT).max(BUILD_LIMIT),
+  z: z.number().min(-BUILD_LIMIT).max(BUILD_LIMIT).multipleOf(0.25).optional(),
+});
+
 export const interactableSchema = z.object({
   id: contentIdSchema,
   kind: z.enum(['chest', 'door', 'pillar', 'portal', 'scripted']),
-  position: pointSchema,
+  position: placementPointSchema,
   name: z.string().default(''),
   flavor: z.string().default(''),
   /** Model key for the renderer. `null` means present but invisible. */
@@ -88,7 +96,7 @@ export const adversaryPlacementSchema = z.object({
   id: contentIdSchema,
   /** Id of an `AdversaryDef` — see `content/srd/seansbox-adversaries.ts`. */
   adversary: contentIdSchema,
-  position: pointSchema,
+  position: placementPointSchema,
   /** Per-instance overrides: a named lieutenant, a wounded straggler. */
   name: z.string().optional(),
   hitPoints: z.number().int().positive().optional(),
@@ -115,7 +123,7 @@ export const decoSchema = z.object({
   /** Optional, and only needed for decos the narrative refers to. */
   id: contentIdSchema.optional(),
   model: z.string().min(1),
-  position: pointSchema,
+  position: placementPointSchema,
   /** Rotation in radians. */
   rotation: z.number().default(0),
 });
@@ -131,7 +139,7 @@ export const sceneSchema = z
     /** Terrain ids, row-major, `width * height` long. */
     terrain: z.array(z.string().min(1)),
     /** Elevation levels, row-major, `width * height` long. */
-    heights: z.array(z.number().int()),
+    heights: z.array(z.number()),
     /**
      * Per-tile CSS colour, row-major. Presentation only — the rules never read it —
      * but it is authored, so it belongs to the document.
@@ -141,6 +149,8 @@ export const sceneSchema = z
     interactables: z.array(interactableSchema).default([]),
     encounters: z.array(encounterSchema).default([]),
     decos: z.array(decoSchema).default([]),
+    /** Sparse, stackable scenery outside the tactical height field as well as within it. */
+    buildingTiles: buildingTilesSchema.optional(),
     /** Visual fog wall inset from the edges, in tiles. */
     fogBand: z.number().int().positive().optional(),
   })

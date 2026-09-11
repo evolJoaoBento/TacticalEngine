@@ -132,6 +132,10 @@ declare global {
       setEditorMode: (mode: string) => void;
       setTool: (tool: string) => void;
       setTerrain: (id: string) => void;
+      buildingStats: () => import('../../src/engine/render/building-view').BuildingStats;
+      authoredCreatureCount: () => number;
+      buildAt: (x: number, y: number) => boolean;
+      buildScreenAt: (x: number, y: number) => { x: number; y: number };
       editAt: (tile: number) => boolean;
       terrainAt: (tile: number) => string;
       heightAt: (tile: number) => number;

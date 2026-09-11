@@ -318,13 +318,53 @@ selection.
 | Mode | Around the board | What a click or drag does |
 |---|---|---|
 | **Inspector** (1) | The selected object's properties, on the right | Click an object to select it |
-| **Terrain** (2) | Tools on the left rail; **Ground**, **Props** and **Objects** in the strip along the bottom; the tool's options on the right | Paint ground (brush 1×1, 3×3, 5×5); raise or lower it a level; place a prop (click it again to turn it); place an object (click one again to remove it); erase a prop, then the object under it |
+| **Terrain** (2) | Tools on the left rail; **Tiles**, **Ground**, **Props** and **Objects** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere; erase tiles at a chosen level; paint ground (brush 1×1, 3×3, 5×5); raise/lower ground; place props and objects |
 | **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one) |
 | **Interaction** (4) | The conversations, on the left | Click one to open its graph |
 
-Picking something from a strip puts the tool that places it in hand. Terrain and Combat still hold
-the editor's original tools; TaleSpire-style building and a creature palette with factions replace
-them in later parts of the rebuild (`docs/superpowers/specs/2026-09-10-editor-shell-design.md`).
+Opening a Terrain library tab chooses the placement action automatically: Tiles builds,
+Ground paints, Props places props and Objects places objects. Picks are remembered when switching
+tabs. The rail only offers the applicable erase or raise/lower actions; there is no separate
+placement-type selector. Clicking the tab or an item returns from erase to placement.
+
+### Building tiles beyond the board
+
+Open **Terrain → Tiles** and choose Block, Floor, Wall or Stairs. Pick stone, wood or grass
+on the right, then click or drag on the purple build grid. The translucent piece previews
+the placement. Brushes cover 1×1, 3×3 or 5×5 cells; a drag is one undo step.
+Each stamp creates an independent piece, even where other pieces already exist. A drag visits
+each cell only once; a fresh click or stroke can place another identical piece there.
+
+Use **Z · Vertical position** for height in tile units, in quarter-tile increments. Page Up/Down
+moves by one tile. **Piece height (Z)** scales a piece vertically, from 0.25 to 16; floors start
+at a quarter-tile thickness. **R**, **Rotate**, or the four **Wall edge** buttons place walls
+along the north, east, south or west edge, meeting at the corners. Four walls and a floor can
+occupy the same tile. **Erase building tiles** removes the most recently placed piece at the
+selected X/Y/Z; repeat to peel away overlaps. Undo/redo and JSON save/load preserve every instance.
+
+On **Ground**, changing Z enables **Apply Z height when painting ground**. This paints material
+and exact height together as one undoable stroke. Turn the checkbox off to repaint without changing
+elevation. Terrain stores fractional heights rather than truncating them to integers.
+
+Props, objects and creatures can also be authored beyond the board. Creature placements appear
+immediately in the editor, including at the **Creature Z** height. Generic creature bodies stand
+in for SRD creatures without a dedicated model. Undo and scene switching update what is drawn.
+Returning to play brings newly placed creatures on the tactical board into the running encounter
+data and refreshes its triggers, while retaining existing wounds and party pools. Outlying
+creatures and elevated authoring still require expanded navigation for equivalent gameplay.
+
+Right-drag or WASD/arrows pan; Q/E orbit; the wheel zooms. **Go to coordinates** jumps to a
+distant build, including negative coordinates. **Home** returns to the original map.
+X, Y and build level each support −1,000,000 through +1,000,000. Empty space allocates nothing;
+memory and saved file size grow with the number of placed pieces, not the distance between them.
+
+Nearby pieces have beveled edges, middle-distance pieces use simpler geometry, and far stairs
+become solid silhouettes. Chunks outside the viewing range unload automatically. On a dense
+view, the nearest 96 visible chunks take priority and load progressively.
+
+**Building tiles are scenery in both edit and play.** They do not yet add walkable surfaces,
+collision or line-of-sight blockers. Party navigation still uses the original rectangular
+ground map; elevated and outlying builds need multilevel navigation before they can be played.
 
 ### Objects and the inspector
 
@@ -543,7 +583,12 @@ defaulted, so a project written before it existed still parses.
 
 A **scene**: `id`, `name`, `intro` (logged on arrival), `width`, `height` (≤ 512), `terrain[]`
 (terrain ids, row-major), `heights[]`, `tints[]?` (per-tile CSS colour, presentation only),
-`spawns[]` (≥ 1), `interactables[]`, `encounters[]`, `decos[]`, `fogBand?`.
+`spawns[]` (≥ 1), `interactables[]`, `encounters[]`, `decos[]`, `fogBand?`, `buildingTiles?`.
+`buildingTiles` is a sparse record keyed by `x,y,level` with optional `#instance` suffixes for
+overlapping pieces. X/Y are integers; `level` stores vertical Z in quarter-tile increments, and
+optional `height` scales the piece vertically. Each piece has a `shape` (block/floor/wall/stairs),
+`material` (stone/wood/grass) and `rotation` (0–3 quarter turns). Old unsuffixed keys still load.
+Props, objects and adversaries accept signed placement coordinates and optional `position.z`.
 
 An **interactable**: `id`, `kind` (chest | door | pillar | portal | scripted), `position`,
 `name`, `flavor`, `model` (null = invisible), `blocksMovement`, `effects[]`, `check?`,
@@ -919,8 +964,8 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   the level-up sheet but not executed; see `docs/CARDS.md`.
 - **No items or loot-table UI**, no sheet editor, no tint tool though `tints` is document
   data.
-- **Editor camera**: right-drag pan and wheel zoom work in edit mode, but the keyboard camera
-  (WASD, Q/E, F, Home) is play-only.
+- **Construction navigation**: building tiles have visual LOD but do not yet affect walking,
+  collision or line of sight. The tactical ground remains a single height field.
 - No entity-hover links in the log.
 - An impossible attack click is silent.
 - A scripted check (an object, a conversation) awards Hope to whoever used the thing and Fear

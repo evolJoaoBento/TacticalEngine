@@ -352,7 +352,27 @@ with a purple top bar of four modes (Inspector, Terrain, Combat, Interaction):
 - content editors open as workspaces under the bar;
 - Combat's eraser takes creatures, trigger cells and party starts.
 
-Tools: terrain brush, raise/lower, props, objects, adversaries, trigger cells, spawns, erase,
+**Sparse construction (2026-09-11).** Terrain now offers stackable block, floor, wall and stair
+pieces, three materials, quarter turns, a level plane with placement preview, square brushes,
+level-specific erasing, grouped undo and JSON round trips. Coordinates extend to ±1,000,000
+on all three axes without allocating intervening cells. The renderer indexes 16³ chunks,
+uses instanced beveled/simple/silhouette LOD, frustum and distance culling, a 96-chunk residency
+limit and two chunk builds per frame. Unchanged chunk buffers survive edits; unloaded buffers
+are disposed. Tests check actual triangle counts and residency, not an FPS promise.
+`window.__polyheart.buildingStats()` exposes current tile/chunk/instance/triangle/LOD counts.
+The legacy ground mesh and props do not gain LOD from this change. Construction is scenery:
+multilevel walking, collision and LOS remain open, as do selection/moving of whole assemblies.
+
+**Placement follow-up.** Multiple independent pieces can share X/Y/Z, including four edge walls
+around a floor; erasing peels away the latest instance. Vertical Z supports quarter tiles, pieces
+have adjustable vertical size, and ground painting can set exact Z with material in one stroke.
+Terrain library tabs directly choose placement, without separate place/paint rail buttons.
+Editor creatures now render from the scene document, including remote or elevated placements;
+generic models cover SRD definitions without dedicated art. Undo and scene switches reconcile
+the visible placements. Returning to play adds new on-grid adversaries and refreshes trigger
+indices without resetting existing creatures. Elevated/outlying navigation is still open.
+
+Tools: construction/erase construction, terrain brush, raise/lower, props, objects, adversaries, trigger cells, spawns, erase,
 inspect. Save and load a project as JSON. The brush paints terrain only — a wall painted on flat
 ground stops movement and reads as dark floor until Raise gives it height, which is deliberate:
 elevation is its own tool because low walls and tall walls play differently.
@@ -416,11 +436,11 @@ the party off the board each time it asks who is ready. One removed leaves the s
 the fight if there is one.
 
 **Still open:**
-- The board in edit mode draws the played room's runtime state, not the document.
+- Creature placements now draw from the document; other editor overlays still need authoring views.
 - Trigger cells and spawns are never drawn.
 - No object has a model, so doors, chests, pillars and stairs are invisible in play too.
 - Only objects can be inspected.
-- Terrain and Combat still hold the original tools.
+- Combat still holds the original tools; construction needs multilevel navigation.
 
 ### ~~9. Asset import (glTF)~~ — done
 

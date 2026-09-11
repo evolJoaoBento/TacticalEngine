@@ -9,6 +9,8 @@ import { Icon } from './icons';
 
 /** What the strip needs to draw a mode's tabs and report a pick. */
 export interface LibraryStripProps {
+  activeTab?: string;
+  onTab?: (tab: string) => void;
   tabs: readonly LibraryTab[];
   /** The id the tool holds, marked on its card. */
   picked: string;
@@ -21,7 +23,7 @@ export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
   const [tabId, setTabId] = useState(props.tabs[0]?.id ?? '');
   const [query, setQuery] = useState('');
   const searching = query.trim() !== '';
-  const tab = props.tabs.find((t) => t.id === tabId) ?? props.tabs[0];
+  const tab = props.tabs.find((t) => t.id === (props.activeTab ?? tabId)) ?? props.tabs[0];
   const items = searching ? filterLibrary(props.tabs, query) : (tab?.items ?? []);
 
   return (
@@ -35,6 +37,7 @@ export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
             onClick={() => {
               setTabId(t.id);
               setQuery('');
+              props.onTab?.(t.id);
             }}
           >
             {t.label}
@@ -58,10 +61,20 @@ export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
             class={item.id === props.picked ? 'ph-card ph-on' : 'ph-card'}
             data-item={item.id}
             title={item.detail === undefined ? item.label : `${item.label} · ${item.detail}`}
-            onClick={() => props.onPick(item)}
+            onClick={() => { setTabId(item.tab); setQuery(''); props.onPick(item); }}
           >
             <span class="ph-thumb" style={item.swatch === undefined ? undefined : { background: item.swatch }}>
-              {item.swatch === undefined ? <span class="ph-glyph">{item.label.slice(0, 1)}</span> : null}
+              {item.tab === 'tiles' ? <svg viewBox="0 0 80 80" width="72" height="72" aria-hidden="true" class="ph-tile-icon">
+                {item.id === 'tile-stairs' ? <>
+                  <path d="M10 53l30 17 30-17V23L40 6v10l-10 6v10l-10 6v10z" fill="#686275" />
+                  <path d="M10 53l30 17V60L20 48m0-10l30 17V45L30 32m0-10l30 17V29L40 16" fill="#9e96b0" />
+                  <path d="M40 6l30 17-10 6-30-17M30 22l30 17-10 6-30-17M20 38l30 17-10 5-30-17" fill="#c5bdd5" />
+                </> : <g transform={item.id === 'tile-floor' ? 'translate(0 40) scale(1 .35)' : item.id === 'tile-wall' ? 'translate(18 0) scale(.55 1)' : ''}>
+                  <path d="M10 24L40 7l30 17-30 17z" fill="#c5bdd5" />
+                  <path d="M10 24l30 17v33L10 57z" fill="#9e96b0" />
+                  <path d="M40 41l30-17v33L40 74z" fill="#686275" />
+                </g>}
+              </svg> : item.swatch === undefined ? <span class="ph-glyph">{item.label.slice(0, 1)}</span> : null}
             </span>
             <span class="ph-card-label">{item.label}</span>
             {item.detail === undefined ? null : <span class="ph-card-detail">{item.detail}</span>}

@@ -3,6 +3,8 @@ import type { EditorTool } from './controller';
 import { EDITOR_MODES, MODE_LABELS, MODE_TOOLS, defaultTool, modeOfTool } from './modes';
 
 const ALL_TOOLS: readonly EditorTool[] = [
+  'buildTile',
+  'eraseTile',
   'select',
   'paintTerrain',
   'raise',
