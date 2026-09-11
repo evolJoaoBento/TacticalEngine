@@ -1,11 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 test('open tabs drive placement; edge walls overlap floors and preserve Z through undo and load', async ({ page }) => {
-  await page.goto('/'); await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
   const strip = page.getByTestId('terrain-library');
-  await expect(page.locator('[data-tool="buildTile"], [data-tool="prop"], [data-tool="interactable"], [data-tool="paintTerrain"]')).toHaveCount(0);
+  // The open tab puts the placement tool in hand, so none of them is on the rail.
+  const placementTools = '[data-tool="buildTile"], [data-tool="prop"], [data-tool="interactable"], [data-tool="paintTerrain"]';
+  await expect(page.locator(placementTools)).toHaveCount(0);
   await strip.locator('[data-item="tile-floor"]').click();
   await page.evaluate(() => window.__polyheart!.buildAt(8, 6));
   await strip.locator('[data-item="tile-wall"]').click();
@@ -24,7 +27,10 @@ test('open tabs drive placement; edge walls overlap floors and preserve Z throug
   await page.evaluate(() => window.__polyheart!.undo());
   expect(await page.evaluate(() => window.__polyheart!.buildingStats().tiles)).toBe(5);
   expect(await page.evaluate((s) => window.__polyheart!.loadProjectText(s), saved)).toBe('');
-  await page.evaluate(() => { window.__polyheart!.setMode('edit'); window.__polyheart!.setEditorMode('terrain'); });
+  await page.evaluate(() => {
+    window.__polyheart!.setMode('edit');
+    window.__polyheart!.setEditorMode('terrain');
+  });
   await strip.locator('[data-tab="props"]').click();
   const before = await page.evaluate(() => window.__polyheart!.propCount());
   await page.evaluate(() => window.__polyheart!.buildAt(6, 6));
@@ -37,7 +43,8 @@ test('open tabs drive placement; edge walls overlap floors and preserve Z throug
 test('creatures immediately appear in authored scenes, undo correctly, and enter play', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/'); await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
   await page.getByTestId('mode-combat').click();
   const strip = page.getByTestId('combat-library');
@@ -60,7 +67,8 @@ test('creatures immediately appear in authored scenes, undo correctly, and enter
   await page.evaluate(() => window.__polyheart!.setMode('play'));
   expect(await page.evaluate((id) => window.__polyheart!.tileOf(id), id)).toBe(6 * 22 + 8);
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
-  await page.getByLabel('Creature Z').fill('3.25'); await page.getByLabel('Creature Z').press('Tab');
+  await page.getByLabel('Creature Z').fill('3.25');
+  await page.getByLabel('Creature Z').press('Tab');
   await page.evaluate(() => window.__polyheart!.buildAt(-200, 400));
   expect(await page.evaluate(() => window.__polyheart!.authoredCreatureCount())).toBe(before + 2);
   await page.evaluate(() => window.__polyheart!.addScene('Empty room'));
@@ -71,7 +79,8 @@ test('creatures immediately appear in authored scenes, undo correctly, and enter
 test('a creature clicked onto raised ground lands on the tile under the cursor', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/'); await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
   await page.getByTestId('mode-combat').click();
   const strip = page.getByTestId('combat-library');

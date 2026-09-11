@@ -3,10 +3,12 @@ import { expect, test } from '@playwright/test';
 test('builds outside the board, stacks, rotates, erases and restores saved tiles', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  page.on('console', (e) => { if (e.type() === 'error') errors.push(e.text()); });
+  page.on('console', (e) => {
+    if (e.type() === 'error') errors.push(e.text());
+  });
   await page.goto('/');
   await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
-  await page.evaluate(() => { window.__polyheart!.setMode('edit'); });
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
   await expect(page.locator('[data-tab="tiles"]')).toHaveClass(/ph-on/);
   await page.getByLabel('Build X', { exact: true }).fill('-900000');
@@ -46,7 +48,7 @@ test('builds outside the board, stacks, rotates, erases and restores saved tiles
 test('renders a stacked build with a brush, level controls and bounded LOD', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
-  await page.evaluate(() => { window.__polyheart!.setMode('edit'); });
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
   await page.getByLabel('Build X', { exact: true }).fill('40');
   await page.getByLabel('Build Y', { exact: true }).fill('20');
@@ -55,17 +57,26 @@ test('renders a stacked build with a brush, level controls and bounded LOD', asy
   await page.getByTestId('build-floor').click();
   await page.evaluate(() => {
     const api = window.__polyheart!;
-    for (const x of [35, 40, 45]) for (const y of [15, 20, 25]) api.buildAt(x, y);
+    for (const x of [35, 40, 45]) {
+      for (const y of [15, 20, 25]) api.buildAt(x, y);
+    }
   });
   await page.locator('[data-brush="1"]').click();
   await page.getByTestId('build-block').click();
   for (let level = 0; level < 3; level++) {
     await page.getByLabel('Build level', { exact: true }).fill(String(level));
     await page.getByLabel('Build level', { exact: true }).press('Tab');
+    // The room's four walls, with a gap in the east one for the stairs.
     await page.evaluate(() => {
       const api = window.__polyheart!;
-      for (let x = 33; x <= 47; x++) { api.buildAt(x, 13); api.buildAt(x, 27); }
-      for (let y = 14; y < 27; y++) { api.buildAt(33, y); if (y < 19 || y > 21) api.buildAt(47, y); }
+      for (let x = 33; x <= 47; x++) {
+        api.buildAt(x, 13);
+        api.buildAt(x, 27);
+      }
+      for (let y = 14; y < 27; y++) {
+        api.buildAt(33, y);
+        if (y < 19 || y > 21) api.buildAt(47, y);
+      }
     });
   }
   await page.getByTestId('build-stairs').click();

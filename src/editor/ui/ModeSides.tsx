@@ -86,6 +86,9 @@ const BRUSHED: readonly EditorTool[] = ['paintTerrain', 'raise', 'lower', 'build
 /** Tools that place at `buildLevel`, and so want the Z controls beside them. */
 const LEVELLED: readonly EditorTool[] = ['buildTile', 'eraseTile', 'prop', 'interactable'];
 
+/** The four edges a wall can sit on, in the order its rotation numbers them. */
+const WALL_EDGES: readonly string[] = ['North', 'West', 'South', 'East'];
+
 /** A number typed into a field, with an empty box meaning "nothing yet" rather than 0. */
 function typedNumber(value: string, valid: (n: number) => boolean): number | null {
   if (value.trim() === '') return null;
@@ -94,7 +97,11 @@ function typedNumber(value: string, valid: (n: number) => boolean): number | nul
 }
 
 /** Terrain mode's side: the tool in hand, and the brush size when one applies. */
-export function TerrainSide(props: { controller: EditorController; onChange: () => void; onNavigate?: (x: number, y: number) => void }): preact.JSX.Element {
+export function TerrainSide(props: {
+  controller: EditorController;
+  onChange: () => void;
+  onNavigate?: (x: number, y: number) => void;
+}): preact.JSX.Element {
   const { controller } = props;
   const tool = controller.state.tool;
   const building = tool === 'buildTile' || tool === 'eraseTile';
@@ -106,67 +113,154 @@ export function TerrainSide(props: { controller: EditorController; onChange: () 
     controller.setBuildLevel(value);
     props.onChange();
   };
+  const setRotation = (rotation: number): void => {
+    controller.end();
+    controller.set('buildRotation', rotation);
+    props.onChange();
+  };
   return (
     <aside class="ph-side ph-panel" data-testid="terrain-side">
       <div class="ph-heading">{TOOL_LABELS[tool]}</div>
       <div class="ph-hint">{TERRAIN_HINTS[tool] ?? ''}</div>
-      {building ? <>
-        <div class="ph-heading">Tile pieces</div>
-        <div class="ph-row ph-build-pieces">{BUILD_SHAPES.map((shape) => <button
-          key={shape}
-          class={controller.state.buildShape === shape ? 'ph-chip ph-on' : 'ph-chip'}
-          data-testid={`build-${shape}`} onClick={() => { controller.set('buildShape', shape); props.onChange(); }}
-        >{shape[0]!.toUpperCase() + shape.slice(1)}</button>)}</div>
-        <div class="ph-heading">Material</div>
-        <div class="ph-row">{BUILD_MATERIAL_IDS.map((material) => <button
-          key={material}
-          class={controller.state.buildMaterial === material ? 'ph-chip ph-on' : 'ph-chip'}
-          style={{ borderBottom: `3px solid ${BUILD_MATERIALS[material]}` }}
-          onClick={() => { controller.set('buildMaterial', material); props.onChange(); }}
-        >{material}</button>)}</div>
-        {controller.state.buildShape === 'wall' ? <>
-          <div class="ph-heading">Wall edge</div>
-          <div class="ph-row">{['North', 'West', 'South', 'East'].map((edge, rotation) => <button
-            key={edge}
-            class={controller.state.buildRotation === rotation ? 'ph-chip ph-on' : 'ph-chip'} aria-label={`Wall ${edge}`}
-            onClick={() => { controller.end(); controller.set('buildRotation', rotation); props.onChange(); }}>{edge}</button>)}</div>
-        </> : null}
-        <label class="ph-heading">Piece height (Z)
-          <input class="ph-input" aria-label="Piece height" type="number" min="0.25" max="16" step="0.25"
-            value={controller.state.buildHeight} onChange={(e) => {
-              const value = Number(e.currentTarget.value);
-              if (value >= 0.25 && value <= 16 && Number.isInteger(value * 4)) {
-                controller.end(); controller.set('buildHeight', value); props.onChange();
-              }
-            }} />
-        </label>
-        <button class="ph-item" data-testid="build-rotate" onClick={() => {
-          controller.end(); controller.set('buildRotation', (controller.state.buildRotation + 1) % 4); props.onChange();
-        }}>Rotate · {controller.state.buildRotation * 90}° (R)</button>
-      </> : null}
-      {LEVELLED.includes(tool) ? <>
-        <div class="ph-heading">Z · Vertical position</div>
-        <div class="ph-row">
-          <button class="ph-chip" aria-label="Lower build level" disabled={controller.state.buildLevel <= -BUILD_LIMIT}
-            onClick={() => setZ(controller.state.buildLevel - 0.25)}>−</button>
-          <input class="ph-input" aria-label="Build level" title="Z height in tile units" type="number" step="0.25" min={-BUILD_LIMIT} max={BUILD_LIMIT}
-            value={controller.state.buildLevel} onChange={(e) => {
-              const value = typedNumber(e.currentTarget.value, isBuildZ);
-              if (value !== null) setZ(value);
-            }} />
-          <button class="ph-chip" aria-label="Raise build level" disabled={controller.state.buildLevel >= BUILD_LIMIT}
-            onClick={() => setZ(controller.state.buildLevel + 0.25)}>+</button>
-        </div>
-        <div class="ph-heading">Go to coordinates</div>
-        <div class="ph-row">
-          <input class="ph-input" aria-label="Build X" type="number" value={x} onInput={(e) => setX(e.currentTarget.value)} />
-          <input class="ph-input" aria-label="Build Y" type="number" value={y} onInput={(e) => setY(e.currentTarget.value)} />
-          <button class="ph-chip" disabled={goX === null || goY === null}
-            onClick={() => { if (goX !== null && goY !== null) props.onNavigate?.(goX, goY); }}>Go</button>
-        </div>
-        <div class="ph-note">Build up to ±1,000,000 tiles in each direction. Right-drag or WASD pans; wheel zooms. Page Up/Down changes level.</div>
-        {building ? <div class="ph-note">Building tiles are scenery. Party movement still uses the original ground map.</div> : null}
-      </> : null}
+      {building ? (
+        <>
+          <div class="ph-heading">Tile pieces</div>
+          <div class="ph-row ph-build-pieces">
+            {BUILD_SHAPES.map((shape) => (
+              <button
+                key={shape}
+                class={controller.state.buildShape === shape ? 'ph-chip ph-on' : 'ph-chip'}
+                data-testid={`build-${shape}`}
+                onClick={() => {
+                  controller.set('buildShape', shape);
+                  props.onChange();
+                }}
+              >
+                {shape[0]!.toUpperCase() + shape.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div class="ph-heading">Material</div>
+          <div class="ph-row">
+            {BUILD_MATERIAL_IDS.map((material) => (
+              <button
+                key={material}
+                class={controller.state.buildMaterial === material ? 'ph-chip ph-on' : 'ph-chip'}
+                style={{ borderBottom: `3px solid ${BUILD_MATERIALS[material]}` }}
+                onClick={() => {
+                  controller.set('buildMaterial', material);
+                  props.onChange();
+                }}
+              >
+                {material}
+              </button>
+            ))}
+          </div>
+          {controller.state.buildShape === 'wall' ? (
+            <>
+              <div class="ph-heading">Wall edge</div>
+              <div class="ph-row">
+                {WALL_EDGES.map((edge, rotation) => (
+                  <button
+                    key={edge}
+                    class={controller.state.buildRotation === rotation ? 'ph-chip ph-on' : 'ph-chip'}
+                    aria-label={`Wall ${edge}`}
+                    onClick={() => setRotation(rotation)}
+                  >
+                    {edge}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
+          <label class="ph-heading">
+            Piece height (Z)
+            <input
+              class="ph-input"
+              aria-label="Piece height"
+              type="number"
+              min="0.25"
+              max="16"
+              step="0.25"
+              value={controller.state.buildHeight}
+              onChange={(e) => {
+                const value = Number(e.currentTarget.value);
+                if (value < 0.25 || value > 16 || !Number.isInteger(value * 4)) return;
+                controller.end();
+                controller.set('buildHeight', value);
+                props.onChange();
+              }}
+            />
+          </label>
+          <button
+            class="ph-item"
+            data-testid="build-rotate"
+            onClick={() => setRotation((controller.state.buildRotation + 1) % 4)}
+          >
+            Rotate · {controller.state.buildRotation * 90}° (R)
+          </button>
+        </>
+      ) : null}
+      {LEVELLED.includes(tool) ? (
+        <>
+          <div class="ph-heading">Z · Vertical position</div>
+          <div class="ph-row">
+            <button
+              class="ph-chip"
+              aria-label="Lower build level"
+              disabled={controller.state.buildLevel <= -BUILD_LIMIT}
+              onClick={() => setZ(controller.state.buildLevel - 0.25)}
+            >
+              −
+            </button>
+            <input
+              class="ph-input"
+              aria-label="Build level"
+              title="Z height in tile units"
+              type="number"
+              step="0.25"
+              min={-BUILD_LIMIT}
+              max={BUILD_LIMIT}
+              value={controller.state.buildLevel}
+              onChange={(e) => {
+                const value = typedNumber(e.currentTarget.value, isBuildZ);
+                if (value !== null) setZ(value);
+              }}
+            />
+            <button
+              class="ph-chip"
+              aria-label="Raise build level"
+              disabled={controller.state.buildLevel >= BUILD_LIMIT}
+              onClick={() => setZ(controller.state.buildLevel + 0.25)}
+            >
+              +
+            </button>
+          </div>
+          <div class="ph-heading">Go to coordinates</div>
+          <div class="ph-row">
+            <input class="ph-input" aria-label="Build X" type="number" value={x} onInput={(e) => setX(e.currentTarget.value)} />
+            <input class="ph-input" aria-label="Build Y" type="number" value={y} onInput={(e) => setY(e.currentTarget.value)} />
+            <button
+              class="ph-chip"
+              disabled={goX === null || goY === null}
+              onClick={() => {
+                if (goX !== null && goY !== null) props.onNavigate?.(goX, goY);
+              }}
+            >
+              Go
+            </button>
+          </div>
+          <div class="ph-note">
+            Build up to ±1,000,000 tiles in each direction. Right-drag or WASD pans; wheel zooms.
+            Page Up/Down changes level.
+          </div>
+          {building ? (
+            <div class="ph-note">
+              Building tiles are scenery. Party movement still uses the original ground map.
+            </div>
+          ) : null}
+        </>
+      ) : null}
       {BRUSHED.includes(tool) ? (
         <>
           <div class="ph-heading">Brush</div>
@@ -208,15 +302,23 @@ export function CombatSide(props: { controller: EditorController; onChange: () =
     <aside class="ph-side ph-panel" data-testid="combat-side">
       <div class="ph-heading">{TOOL_LABELS[tool]}</div>
       <div class="ph-hint">{COMBAT_HINTS[tool] ?? ''}</div>
-      <label class="ph-heading">Z · Creature height
-        <input class="ph-input" aria-label="Creature Z" type="number" step="0.25" min={-BUILD_LIMIT} max={BUILD_LIMIT}
-          value={controller.state.buildLevel} onChange={(e) => {
+      <label class="ph-heading">
+        Z · Creature height
+        <input
+          class="ph-input"
+          aria-label="Creature Z"
+          type="number"
+          step="0.25"
+          min={-BUILD_LIMIT}
+          max={BUILD_LIMIT}
+          value={controller.state.buildLevel}
+          onChange={(e) => {
             const value = typedNumber(e.currentTarget.value, isBuildZ);
-            if (value !== null) {
-              controller.setBuildLevel(value);
-              props.onChange();
-            }
-          }} />
+            if (value === null) return;
+            controller.setBuildLevel(value);
+            props.onChange();
+          }}
+        />
       </label>
       <div class="ph-heading">Encounter</div>
       {scene.encounters.length === 0 ? (

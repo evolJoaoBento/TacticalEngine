@@ -13,7 +13,7 @@
  */
 
 import { toContentId } from '../engine/content/types';
-import { BUILD_LIMIT, isBuildCoordinate, isBuildZ, type BuildingTile } from '../engine/scene/building';
+import { isBuildCoordinate, isBuildZ, type BuildingTile } from '../engine/scene/building';
 import { BuildingEdit } from './building';
 import type { Deco, Encounter, Interactable, Point, SceneDoc } from '../engine/scene/schema';
 import {
@@ -235,8 +235,11 @@ export class EditorController {
       if (Number.isInteger(steps) && steps > 0 && steps <= 512) {
         let changed: EditorChange = 'none';
         for (let i = 1; i <= steps; i++) {
-          if (this.apply({ x: Math.round(previous.x + (point.x - previous.x) * i / steps),
-            y: Math.round(previous.y + (point.y - previous.y) * i / steps) }, false, false) !== 'none') changed = 'building';
+          const at = {
+            x: Math.round(previous.x + (point.x - previous.x) * i / steps),
+            y: Math.round(previous.y + (point.y - previous.y) * i / steps),
+          };
+          if (this.apply(at, false, false) !== 'none') changed = 'building';
         }
         if (changed !== 'none') this.onChange(changed);
         return changed;
@@ -258,20 +261,12 @@ export class EditorController {
   private apply(point: Point, pressed: boolean, notify = true): EditorChange {
     if (this.state.tool === 'buildTile' || this.state.tool === 'eraseTile') {
       const { state } = this;
-      if (!isBuildCoordinate(point.x) || !isBuildCoordinate(point.y) || !isBuildZ(state.buildLevel)) return 'none';
-      const tiles: BuildingTile[] = [];
-      const radius = Math.floor(Math.min(15, Math.max(1, state.brushSize)) / 2);
-      for (let y = point.y - radius; y <= point.y + radius; y++) {
-        for (let x = point.x - radius; x <= point.x + radius; x++) {
-          if (Math.abs(x) > BUILD_LIMIT || Math.abs(y) > BUILD_LIMIT) continue;
-          const cell = `${x},${y},${state.buildLevel}`;
-          if (this.buildingStroke.has(cell)) continue;
-          this.buildingStroke.add(cell);
-          tiles.push({ x, y, level: state.buildLevel, shape: state.buildShape, material: state.buildMaterial,
-            rotation: state.buildRotation, height: state.buildHeight });
-        }
-      }
-      const changed = this.session.run(new BuildingEdit(this.sceneId, tiles, state.tool === 'eraseTile'));
+      if (!isBuildCoordinate(point.x)) return 'none';
+      if (!isBuildCoordinate(point.y)) return 'none';
+      if (!isBuildZ(state.buildLevel)) return 'none';
+      const changed = this.session.run(
+        new BuildingEdit(this.sceneId, this.brushPieces(point), state.tool === 'eraseTile'),
+      );
       if (changed && notify) this.onChange('building');
       return changed ? 'building' : 'none';
     }
@@ -295,6 +290,35 @@ export class EditorController {
     const change = this.run(point, tiles, pressed);
     if (change !== 'none') this.onChange(change);
     return change;
+  }
+
+  /**
+   * One piece per cell the brush covers, skipping any this stroke already
+   * stamped: dragging back over a cell must not stack a second copy on it,
+   * while a fresh click on the same cell may.
+   */
+  private brushPieces(point: Point): BuildingTile[] {
+    const { state } = this;
+    const pieces: BuildingTile[] = [];
+    const radius = Math.floor(Math.min(15, Math.max(1, state.brushSize)) / 2);
+    for (let y = point.y - radius; y <= point.y + radius; y++) {
+      for (let x = point.x - radius; x <= point.x + radius; x++) {
+        if (!isBuildCoordinate(x) || !isBuildCoordinate(y)) continue;
+        const cell = `${x},${y},${state.buildLevel}`;
+        if (this.buildingStroke.has(cell)) continue;
+        this.buildingStroke.add(cell);
+        pieces.push({
+          x,
+          y,
+          level: state.buildLevel,
+          shape: state.buildShape,
+          material: state.buildMaterial,
+          rotation: state.buildRotation,
+          height: state.buildHeight,
+        });
+      }
+    }
+    return pieces;
   }
 
   private run(point: Point, tiles: number[], pressed: boolean): EditorChange {
@@ -332,7 +356,7 @@ export class EditorController {
         if (existing !== null && existing.model === state.propModel) {
           session.run(rotateDeco(sceneId, point, state.rotationStep));
         } else {
-          const deco: Deco = { model: state.propModel, position: { ...point, ...(state.buildLevel === 0 ? {} : { z: state.buildLevel }) }, rotation: 0 };
+          const deco: Deco = { model: state.propModel, position: this.placementAt(point), rotation: 0 };
           session.run(addDeco(sceneId, deco));
         }
         return 'content';
@@ -365,7 +389,7 @@ export class EditorController {
           addAdversary(sceneId, encounter.id, {
             id: this.uniqueId(`${encounter.id}-${state.adversaryId}`, point),
             adversary: state.adversaryId,
-            position: { ...point, ...(state.buildLevel === 0 ? {} : { z: state.buildLevel }) },
+            position: this.placementAt(point),
           }),
         );
         return 'content';
@@ -430,6 +454,17 @@ export class EditorController {
   selectedInteractable(): Interactable | null {
     if (this.selected === null) return null;
     return this.scene.interactables.find((i) => i.id === this.selected) ?? null;
+  }
+
+  /**
+   * Where a placement tool puts something: the tile clicked, at the plane's Z.
+   *
+   * Z is left out at ground level so a document authored before construction
+   * existed, and one authored on the ground since, are the same document.
+   */
+  private placementAt(point: Point): { x: number; y: number; z?: number } {
+    if (this.state.buildLevel === 0) return { ...point };
+    return { ...point, z: this.state.buildLevel };
   }
 
   /** The prop on a tile, topmost first. */
@@ -518,7 +553,7 @@ export class EditorController {
     return {
       id: this.uniqueId(this.state.interactableKind, point),
       kind: this.state.interactableKind,
-      position: { ...point, ...(this.state.buildLevel === 0 ? {} : { z: this.state.buildLevel }) },
+      position: this.placementAt(point),
       name: '',
       flavor: '',
       model: null,

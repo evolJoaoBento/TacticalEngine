@@ -63,7 +63,7 @@ import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
 import { BuildingView, type BuildingStats } from './engine/render/building-view';
 import { syncAuthoredEncounters } from './game/authored-encounters';
-import { BUILD_LIMIT } from './engine/scene/building';
+import { BUILD_LIMIT, isBuildCoordinate } from './engine/scene/building';
 import { AssetLibrary, modelAssetSchema, type ModelAsset } from './engine/render/assets';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NO_TILE, type Spot, type TileGrid } from './engine/grid/grid';
@@ -464,6 +464,13 @@ function refreshEditor(): void {
   renderPanel();
 }
 
+/**
+ * Redraw everything that hangs off the document rather than off play: the
+ * scenery, and, in edit mode, the creatures the room places.
+ *
+ * In play it is the other half of that switch - the authored creatures come
+ * down and the runtime tokens go back to standing where the fight put them.
+ */
 function syncEditorContent(): void {
   view.setDecos(activeScene().decos);
   view.setAuthoring(mode === 'edit' ? editor.scene : null, DEMO_MODELS);
@@ -763,20 +770,29 @@ const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight,
  */
 const orbit = new OrbitCamera({ yaw: 0, pitch: 0.85 });
 
+/** Put the camera over a coordinate the designer typed, at the level they are building on. */
 function navigateBuilding(x: number, y: number): void {
   editor.end();
-  orbit.lookAt({ x: x - (activeGrid.width - 1) / 2, y: view.layout.baseHeight + editor.state.buildLevel,
-    z: y - (activeGrid.height - 1) / 2 });
+  orbit.lookAt({
+    x: x - (activeGrid.width - 1) / 2,
+    y: view.layout.baseHeight + editor.state.buildLevel,
+    z: y - (activeGrid.height - 1) / 2,
+  });
   orbit.snap();
   applyCamera();
 }
 
+/** Whether a click would stamp or remove construction. */
 function buildingTool(): boolean {
-  return mode === 'edit' && (editor.state.tool === 'buildTile' || editor.state.tool === 'eraseTile');
+  if (mode !== 'edit') return false;
+  return editor.state.tool === 'buildTile' || editor.state.tool === 'eraseTile';
 }
 
+/** Whether a click would put something down at `buildLevel`: a piece, a prop, an object, a creature. */
 function placementTool(): boolean {
-  return buildingTool() || (mode === 'edit' && ['prop', 'interactable', 'adversary'].includes(editor.state.tool));
+  if (buildingTool()) return true;
+  if (mode !== 'edit') return false;
+  return ['prop', 'interactable', 'adversary'].includes(editor.state.tool);
 }
 
 /** Where a point `height` above a tile's surface lands on screen, in CSS pixels. */
@@ -791,6 +807,7 @@ function screenAt(spot: Spot, height: number): { x: number; y: number } {
   return screenOfWorld(at.x, at.y + height, at.z);
 }
 
+/** A world point in CSS pixels, which is what a test's mouse and the driver speak. */
 function screenOfWorld(x: number, y: number, z: number): { x: number; y: number } {
   const v = new Vector3(x, y, z).project(camera);
   const rect = canvas.getBoundingClientRect();
@@ -845,15 +862,21 @@ const groundPoint = new Vector3();
 const buildPlane = new Plane(new Vector3(0, 1, 0), 0);
 let lastBuildPointer: { clientX: number; clientY: number } | null = null;
 
+/** The cell the pointer crosses on the flat plane at the level being built on. */
 function buildingUnderPointer(event: { clientX: number; clientY: number }): Spot | null {
   const rect = canvas.getBoundingClientRect();
-  pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+  pointer.set(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  );
   raycaster.setFromCamera(pointer, camera);
   buildPlane.constant = -(view.layout.baseHeight + editor.state.buildLevel);
   if (!raycaster.ray.intersectPlane(buildPlane, groundPoint)) return null;
   const spot = worldToSpot(activeGrid, groundPoint.x, groundPoint.z, view.layout);
-  const x = Math.round(spot.x), y = Math.round(spot.y);
-  return Math.abs(x) <= BUILD_LIMIT && Math.abs(y) <= BUILD_LIMIT ? { x, y } : null;
+  const x = Math.round(spot.x);
+  const y = Math.round(spot.y);
+  if (!isBuildCoordinate(x) || !isBuildCoordinate(y)) return null;
+  return { x, y };
 }
 
 /**
@@ -881,10 +904,18 @@ function updateBuildingPreview(): void {
   const active = placementTool();
   const target = worldToSpot(activeGrid, orbit.pose.target.x, orbit.pose.target.z, view.layout);
   buildings.showGuide(target.x, target.y, editor.state.buildLevel, active);
-  const at = active && lastBuildPointer ? buildingUnderPointer(lastBuildPointer) : null;
-  buildings.showPreview(at && buildingTool() ? { ...at, level: editor.state.buildLevel, shape: editor.state.buildShape,
-    material: editor.state.buildMaterial, rotation: editor.state.buildRotation, height: editor.state.buildHeight } : null,
-  editor.state.tool === 'eraseTile');
+  const at = active && lastBuildPointer !== null ? buildingUnderPointer(lastBuildPointer) : null;
+  const ghost = at !== null && buildingTool()
+    ? {
+      ...at,
+      level: editor.state.buildLevel,
+      shape: editor.state.buildShape,
+      material: editor.state.buildMaterial,
+      rotation: editor.state.buildRotation,
+      height: editor.state.buildHeight,
+    }
+    : null;
+  buildings.showPreview(ghost, editor.state.tool === 'eraseTile');
 }
 
 /** The ground under the pointer: the tile struck, and the exact spot on it. */
@@ -1425,7 +1456,10 @@ canvas.addEventListener('pointerdown', (event) => {
     }
     if (placementTool() && !event.shiftKey) {
       const at = placementUnderPointer(event);
-      if (at) { canvas.setPointerCapture(event.pointerId); editor.begin(at); renderPanel(); }
+      if (at === null) return;
+      canvas.setPointerCapture(event.pointerId);
+      editor.begin(at);
+      renderPanel();
       return;
     }
     const tile = tileUnderPointer(event);
@@ -1559,7 +1593,7 @@ canvas.addEventListener('pointermove', (event) => {
     if (placementTool()) {
       lastBuildPointer = { clientX: event.clientX, clientY: event.clientY };
       const at = placementUnderPointer(event);
-      if (event.buttons === 1 && at) editor.paint(at);
+      if (event.buttons === 1 && at !== null) editor.paint(at);
       return;
     }
     if (event.buttons === 0) return;
@@ -1666,8 +1700,8 @@ window.addEventListener('keydown', (event) => {
         renderPanel();
       } else if (event.key === 'PageUp' || event.key === 'PageDown') {
         event.preventDefault();
-        editor.setBuildLevel(Math.max(-BUILD_LIMIT, Math.min(BUILD_LIMIT,
-          editor.state.buildLevel + (event.key === 'PageUp' ? 1 : -1))));
+        const step = event.key === 'PageUp' ? 1 : -1;
+        editor.setBuildLevel(Math.max(-BUILD_LIMIT, Math.min(BUILD_LIMIT, editor.state.buildLevel + step)));
         renderPanel();
       }
     }
@@ -2166,7 +2200,10 @@ const state = {
     return changed;
   },
   buildScreenAt: (x: number, y: number): { x: number; y: number } => screenOfWorld(
-    x - (activeGrid.width - 1) / 2, view.layout.baseHeight + editor.state.buildLevel, y - (activeGrid.height - 1) / 2),
+    x - (activeGrid.width - 1) / 2,
+    view.layout.baseHeight + editor.state.buildLevel,
+    y - (activeGrid.height - 1) / 2,
+  ),
   editAt: (tile: number): boolean => {
     const change = editor.begin(pointOf(tile));
     editor.end();

@@ -250,7 +250,10 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           key="terrain-library"
           testId="terrain-library"
           activeTab={controller.terrainTab}
-          onTab={(tab) => { if (isTerrainTab(tab)) controller.openTerrainTab(tab); bump(); }}
+          onTab={(tab) => {
+            if (isTerrainTab(tab)) controller.openTerrainTab(tab);
+            bump();
+          }}
           tabs={[
             buildingTab(),
             groundTab(props.terrainIds, props.terrainColors),
