@@ -394,3 +394,33 @@ play HUD.
 - Objects are visible in play, and doors open visibly.
 - Everything the old panel could reach is reachable from the shell.
 - `tsc`, `vitest` and `playwright` are green, with the docs and backlog updated as in §11.
+
+## 15. Amendments
+
+### 2026-09-11 — the construction layer landed ahead of parts 2 and 3
+
+After slice 1 (commit `e484a09`), the user ran Codex overnight. It added a sparse construction
+layer with no spec or plan, which was committed unchanged as `7c6afa5`, reviewed, and fixed through
+`40832da` (`docs/research/construction-layer-review.md` holds the review's findings and what part 2
+needs from the new format). The rulings below override the sections they name. Each is reversible
+in a line or two, and the user has not yet confirmed them.
+
+| Ruling | Overrides | What stands now |
+|---|---|---|
+| C1 | §5, §8 (document) | Two vertical units coexist until part 2 unifies them: `heights[]` counts levels of `levelHeight` (0.35 world units); `buildingTiles.level` and `position.z` count tiles, in quarter steps. Nothing converts between them into saved content. Part 2's spec opens with the choice of one unit. |
+| C2 | §4.2 Terrain row, the approved mockup | Terrain's strip has a **Tiles** tab before Ground · Props · Objects, and **the open tab chooses the placement action** (`TERRAIN_TAB_TOOL` in `modes.ts`); the rail shows only that tab's other tools (`TERRAIN_RAIL`): Tiles → Erase tiles; Ground → Raise · Lower; Props and Objects → Erase. Terrain's default tool is Build tiles, so key 2 hands the user the build tool. Slice 1's six-tool rail is in `bbbf098` if the user wants it back. |
+| C3 | §4.7 | **R** rotates the build piece while Build tiles or Erase tiles is in hand. §4.7's R (turn a selected prop) is Inspector mode and still free. |
+| C4 | §2 item 6 | A creature without a model of its own draws as the `husk` body in edit and play. `ModelRegistry.missing()` still lists it and `SceneView.modelSource(id)` returns `fallback:husk`, so the diagnostic is honest; part 4 gives them art. |
+| C5 | §9, validation | A placement outside the board (signed coordinates to ±1,000,000) is authored content that takes no part in play: the validator gives one warning, never an error, and neither play path creates an entity for it. |
+| C6 | §5.1 | Creatures placed in the editor enter the running game on return to play *and* on every scene entry, through a per-scene record of synced placement ids; a creature a script removed is not re-added. |
+
+**New document fields** (`src/engine/scene/schema.ts`, `src/engine/scene/building.ts`), all optional, so
+every earlier project still parses: `scene.buildingTiles` (a record keyed `x,y,level`, with `#n`
+suffixes for overlapping pieces: `shape` block · floor · wall · stairs, `material` stone · wood ·
+grass, `rotation` 0–3, `level` in quarter tiles, optional `height`); `position.z` and signed `x`/`y` on
+decos, interactables and adversary placements.
+
+**What this pre-empts.** §5.1's edit view is half-delivered: creatures are drawn from the document
+(`SceneView.setAuthoring`); objects, spawns and trigger cells are not, and remain slice 2. §12's
+"new terrain tools, the tile library" are now in, as scenery only: nothing walks on or under a piece,
+and pieces block neither movement nor sight, which is part 2.

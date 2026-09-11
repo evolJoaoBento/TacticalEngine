@@ -42,7 +42,9 @@ that follows. There are five parts, each with its own spec, plan and slices:
 5. Interaction graphs
 
 Part 1's spec is `docs/superpowers/specs/2026-09-10-editor-shell-design.md`, and its slice plans
-are in `docs/superpowers/plans/`. Part 2 starts from `docs/research/multilevel-dependency-map.md`.
+are in `docs/superpowers/plans/`; its §15 records the rulings that landed the construction layer. Part 2
+starts from `docs/research/construction-layer-review.md` (the format, and what a navigation model
+needs from it) and `docs/research/multilevel-dependency-map.md` (the 2D assumptions still standing).
 
 **Done:** part 1, slice 1 (the shell's frame); sparse construction with stackable tiles,
 extended coordinates, brush/rotation/level controls, undo/save and chunked LOD (2026-09-11).
