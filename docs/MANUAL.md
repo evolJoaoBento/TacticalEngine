@@ -348,8 +348,9 @@ Z and the ground's height are two different units until multilevel navigation un
 
 Props, objects and creatures can also be authored beyond the board. Creature placements appear
 immediately in the editor, including at the **Creature Z** height. Generic creature bodies stand
-in for SRD creatures without a dedicated model — the Models workspace still lists those
-definitions as unresolved, because they are. Undo and scene switching update what is drawn.
+in for SRD creatures without a dedicated model — 128 of the 129 stat blocks — and the engine still
+counts those definitions as unresolved, because they are. Undo and scene switching update what is
+drawn.
 Every entry into a room brings its creatures up to date with the document: returning to play,
 travelling in through a door, or loading a save each add the creatures placed since and remove
 the ones deleted since, keeping existing wounds, party pools and anything a script has already

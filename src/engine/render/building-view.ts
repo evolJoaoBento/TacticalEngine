@@ -60,9 +60,9 @@ export interface BuildingStats {
   /** Chunks holding GPU buffers right now. */
   residentChunks: number;
   /**
-   * Chunks the last `update` found near enough and in frustum. Resident chunks
-   * are a subset: a chunk becomes visible before its buffers are built, since
-   * only two are built per frame.
+   * Chunks the last `update` found near enough and in frustum, up to the
+   * residency budget. Resident chunks are a subset: a chunk is wanted before
+   * its buffers are built, since only two are built per frame.
    */
   visibleChunks: number;
   /** Instances across every resident mesh. */

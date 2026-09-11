@@ -1591,9 +1591,12 @@ canvas.addEventListener('pointermove', (event) => {
   }
   if (mode === 'edit') {
     if (placementTool()) {
+      // The ghost only needs where the pointer is; working out the cell costs a
+      // raycast against the terrain meshes, so a hover does not pay for one.
       lastBuildPointer = { clientX: event.clientX, clientY: event.clientY };
+      if (event.buttons !== 1) return;
       const at = placementUnderPointer(event);
-      if (event.buttons === 1 && at !== null) editor.paint(at);
+      if (at !== null) editor.paint(at);
       return;
     }
     if (event.buttons === 0) return;

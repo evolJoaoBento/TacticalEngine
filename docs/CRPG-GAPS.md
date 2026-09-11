@@ -451,7 +451,8 @@ the fight if there is one.
 - Combat still holds the original tools; construction needs multilevel navigation.
 - **Editor camera**: right-drag pan, wheel zoom, WASD/arrows, Q/E and Home work in edit mode;
   **F (frame the selected character) is still play-only**, there being no selection to frame.
-- No creature has a model of its own: 127 of the 129 SRD stat blocks draw as a husk body.
+- No creature has a model of its own: 128 of the 129 SRD stat blocks draw as a husk body.
+  `window.__polyheart.missingModels()` lists them; the Models workspace does not show them yet.
 
 ### ~~9. Asset import (glTF)~~ — done
 
