@@ -44,6 +44,14 @@ describe('editor modes', () => {
     for (const mode of EDITOR_MODES) expect(MODE_TOOLS[mode]).toContain(defaultTool(mode));
   });
 
+  it('let Combat select a creature without changing the tool it opens with', () => {
+    expect(MODE_TOOLS.combat).toContain('select');
+    // Select is not first: entering Combat still hands over creature placement.
+    expect(defaultTool('combat')).toBe('adversary');
+    // And select stays put rather than throwing the user back to the Inspector.
+    expect(modeOfTool('select', 'combat')).toBe('combat');
+  });
+
   it('find the mode a tool belongs to', () => {
     expect(modeOfTool('raise', 'inspect')).toBe('terrain');
     expect(modeOfTool('adversary', 'terrain')).toBe('combat');

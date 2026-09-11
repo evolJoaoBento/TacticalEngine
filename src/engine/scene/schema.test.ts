@@ -47,6 +47,36 @@ describe('sceneSchema', () => {
     expect(parsed.decos).toEqual([]);
   });
 
+  it('accepts a model override on one placed creature', () => {
+    const parsed = sceneSchema.parse(
+      scene({
+        encounters: [
+          {
+            id: 'group-1',
+            adversaries: [
+              { id: 'a', adversary: 'tangle-bramble', position: { x: 0, y: 0 }, model: 'knight' },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(parsed.encounters[0]!.adversaries[0]!.model).toBe('knight');
+  });
+
+  it('leaves a placement without one unset, so the type default decides', () => {
+    const parsed = sceneSchema.parse(
+      scene({
+        encounters: [
+          {
+            id: 'group-1',
+            adversaries: [{ id: 'a', adversary: 'tangle-bramble', position: { x: 0, y: 0 } }],
+          },
+        ],
+      }),
+    );
+    expect(parsed.encounters[0]!.adversaries[0]!.model).toBeUndefined();
+  });
+
   it('requires the tile arrays to match the declared size', () => {
     const short = sceneSchema.safeParse(scene({ terrain: ['floor', 'floor'] }));
     expect(short.success).toBe(false);
@@ -167,6 +197,15 @@ describe('projectSchema', () => {
 
   it('accepts a project and defaults the format version', () => {
     expect(projectSchema.parse(project()).formatVersion).toBe(1);
+  });
+
+  it('defaults the per-type model map, so a project written before it is still a project', () => {
+    expect(projectSchema.parse(project()).adversaryModels).toEqual({});
+  });
+
+  it('keeps a per-type model map it is given', () => {
+    const parsed = projectSchema.parse(project({ adversaryModels: { 'tangle-bramble': 'knight' } }));
+    expect(parsed.adversaryModels['tangle-bramble']).toBe('knight');
   });
 
   it('rejects a future format version rather than guessing at it', () => {

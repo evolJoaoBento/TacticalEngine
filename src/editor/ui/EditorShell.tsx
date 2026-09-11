@@ -289,7 +289,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           picked={tool === 'adversary' ? controller.state.adversaryId : ''}
           onPick={pickCreature}
         />,
-        <CombatSide key="side" controller={controller} onChange={bump} />,
+        <CombatSide key="side" session={session} controller={controller} onChange={bump} />,
       ];
     } else {
       body = <InteractionSide session={session} onOpen={setGraph} onChange={bump} />;

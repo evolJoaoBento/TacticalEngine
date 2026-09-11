@@ -133,6 +133,46 @@ describe('height', () => {
   });
 });
 
+describe('selecting a creature', () => {
+  it('picks the placement under the pointer, and forgets it when the room changes', () => {
+    const { editor } = setup();
+    editor.setMode('combat');
+    editor.set('adversaryId', 'tangle-bramble');
+    editor.setTool('adversary');
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+
+    editor.setTool('select');
+    expect(editor.mode).toBe('combat');
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+    expect(editor.selectedAdversary).not.toBeNull();
+    expect(editor.selectedPlacement()?.adversary).toBe('tangle-bramble');
+
+    editor.switchScene('room');
+    expect(editor.selectedAdversary).toBeNull();
+    expect(editor.selectedPlacement()).toBeNull();
+  });
+
+  it('clears the selection when the click lands on empty ground', () => {
+    const { editor } = setup();
+    editor.setMode('combat');
+    editor.set('adversaryId', 'tangle-bramble');
+    editor.setTool('adversary');
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+
+    editor.setTool('select');
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+    expect(editor.selectedAdversary).not.toBeNull();
+
+    editor.begin({ x: 5, y: 5 });
+    editor.end();
+    expect(editor.selectedAdversary).toBeNull();
+  });
+});
+
 describe('props', () => {
   it('places with the chosen facing and preserves it through save and undo/redo', () => {
     const { editor, session } = setup();
@@ -516,6 +556,21 @@ describe('modes', () => {
     const { editor } = setup();
     editor.setTool('adversary');
     expect(editor.mode).toBe('combat');
+    editor.setTool('interactable');
+    expect(editor.mode).toBe('terrain');
+  });
+
+  it('keeps a tool two modes share in the one that already owns it', () => {
+    const { editor } = setup();
+    editor.setTool('adversary');
+    expect(editor.mode).toBe('combat');
+    // Combat owns select as well, now that a creature's panel is opened with it,
+    // so picking it stays put rather than throwing the user to the Inspector.
+    editor.setTool('select');
+    expect(editor.mode).toBe('combat');
+    // From a mode that does not own it, it still lands in the Inspector.
+    editor.setTool('paintTerrain');
+    expect(editor.mode).toBe('terrain');
     editor.setTool('select');
     expect(editor.mode).toBe('inspect');
   });

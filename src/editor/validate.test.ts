@@ -37,6 +37,85 @@ describe('schema failures come first', () => {
   });
 });
 
+describe('creature models', () => {
+  const creature = (options: {
+    model?: string;
+    adversaryModels?: Record<string, string>;
+    assets?: { id: string; url: string }[];
+  } = {}): ProjectDoc =>
+    projectSchema.parse({
+      id: 'demo',
+      name: 'Demo',
+      scenes: [
+        sceneSchema.parse({
+          ...blankScene('room', 6, 4),
+          encounters: [
+            {
+              id: 'enc',
+              adversaries: [
+                {
+                  id: 'bramble-1',
+                  adversary: 'tangle-bramble',
+                  position: { x: 1, y: 1 },
+                  ...(options.model === undefined ? {} : { model: options.model }),
+                },
+              ],
+            },
+          ],
+        }),
+      ],
+      adversaryModels: options.adversaryModels ?? {},
+      assets: options.assets ?? [],
+      startScene: 'room',
+    });
+
+  /**
+   * Only the model complaints, so an unrelated warning cannot make these
+   * brittle. Like every model check here, it runs only when the caller says
+   * which ids the renderer can resolve.
+   */
+  const drawnWith = (project: ProjectDoc): string[] =>
+    validateProject(project, { knownModels: KNOWN_MODELS })
+      .filter((p) => p.message.includes('drawn with'))
+      .map((p) => p.message);
+
+  it('says nothing when a creature is drawn with a model the library has', () => {
+    expect(drawnWith(creature({ model: [...KNOWN_MODELS][0]! }))).toEqual([]);
+  });
+
+  it('says nothing about a creature that names no model at all', () => {
+    expect(drawnWith(creature())).toEqual([]);
+  });
+
+  it('says nothing at all when the caller never said what a model is', () => {
+    const problems = validateProject(creature({ model: 'no-such-model' }));
+    expect(problems.filter((p) => p.message.includes('no-such-model'))).toEqual([]);
+  });
+
+  it('warns when one creature names a model nothing can supply', () => {
+    const mine = drawnWith(creature({ model: 'no-such-model' }));
+    expect(mine).toHaveLength(1);
+    expect(mine[0]!).toMatch(/bramble-1/);
+    expect(
+      validateProject(creature({ model: 'no-such-model' }), { knownModels: KNOWN_MODELS })
+        .filter((p) => p.message.includes('no-such-model'))
+        .every((p) => p.severity === 'warning'),
+    ).toBe(true);
+  });
+
+  it('warns when a whole type is pointed at a model nothing can supply', () => {
+    const mine = drawnWith(creature({ adversaryModels: { 'tangle-bramble': 'no-such-model' } }));
+    expect(mine).toHaveLength(1);
+    expect(mine[0]!).toMatch(/tangle-bramble/);
+  });
+
+  it('counts an imported model as one the renderer can supply', () => {
+    expect(
+      drawnWith(creature({ model: 'imported-thing', assets: [{ id: 'imported-thing', url: '/models/x.glb' }] })),
+    ).toEqual([]);
+  });
+});
+
 describe('terrain and placement', () => {
   it('catches a spawn inside a wall', () => {
     const project = build();

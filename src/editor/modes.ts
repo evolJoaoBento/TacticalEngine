@@ -39,7 +39,10 @@ export const MODE_LABELS: Readonly<Record<EditorMode, string>> = {
 export const MODE_TOOLS: Readonly<Record<EditorMode, readonly EditorTool[]>> = {
   inspect: ['select'],
   terrain: ['buildTile', 'eraseTile', 'paintTerrain', 'raise', 'lower', 'prop', 'interactable', 'erase'],
-  combat: ['adversary', 'trigger', 'spawn', 'erase'],
+  // Select comes last deliberately: it is how a creature's panel is opened, but
+  // entering Combat should still hand over creature placement, and `defaultTool`
+  // takes the first tool in the list.
+  combat: ['adversary', 'trigger', 'spawn', 'erase', 'select'],
   interaction: ['select'],
 };
 

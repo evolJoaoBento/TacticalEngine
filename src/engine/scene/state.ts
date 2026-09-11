@@ -36,6 +36,12 @@ export interface EntityState {
   readonly faction: Faction;
   /** Content id this entity was built from — an adversary def, or a character. */
   readonly definition: string;
+  /**
+   * Drawn with this instead of whatever the definition would have chosen. Set
+   * from a placement's own override; unset for everyone else, which is the
+   * ordinary case.
+   */
+  readonly model?: string;
   /** Tile the entity stands on, or `NO_TILE` when it is off the map. */
   tile: number;
   /**
@@ -527,12 +533,13 @@ export function createAdversaryEntity(
   id: string,
   definition: string,
   tile: number,
-  options: { hitPoints: number; stress: number },
+  options: { hitPoints: number; stress: number; model?: string },
 ): EntityState {
   return {
     id,
     faction: 'adversary',
     definition,
+    ...(options.model === undefined ? {} : { model: options.model }),
     tile,
     at: UNPLACED,
     hitPoints: createMarkPool(options.hitPoints),
@@ -613,6 +620,7 @@ export function sceneStateFromScene(
           {
             hitPoints: placement.hitPoints ?? definition.hitPoints,
             stress: definition.stress,
+            ...(placement.model === undefined ? {} : { model: placement.model }),
           },
         ),
       );

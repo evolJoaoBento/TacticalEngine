@@ -1178,7 +1178,9 @@ export class SceneView {
     }
     if (!scene) return;
     for (const encounter of scene.encounters) for (const placement of encounter.adversaries) {
-      const wanted = models[placement.adversary] ?? placement.adversary;
+      // This one creature's own look first, then whatever its type is drawn
+      // with, and failing both the adversary's own id.
+      const wanted = placement.model ?? models[placement.adversary] ?? placement.adversary;
       const modelId = this.drawnModel(wanted, { definition: placement.adversary, faction: 'adversary' });
       const model = this.build(modelId, { palette: { ring: ringMaterial(DEFAULT_FACTION_COLORS.adversary!) } });
       const centre = this.placementCentre(placement.position);

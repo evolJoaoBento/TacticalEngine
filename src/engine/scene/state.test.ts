@@ -421,6 +421,29 @@ describe('sceneStateFromScene', () => {
     expect(state.entity('bramble-out')).toBeUndefined();
   });
 
+  it("carries a placement's model override onto the entity it stands up", () => {
+    const dressed = sceneSchema.parse({
+      ...scene,
+      encounters: [
+        {
+          id: 'group-1',
+          adversaries: [
+            { id: 'bramble-a', adversary: 'tangle-bramble', position: { x: 5, y: 0 }, model: 'knight' },
+          ],
+        },
+      ],
+    });
+    const { state } = sceneStateFromScene(dressed, new TileGrid({ width: 6, height: 3 }), {
+      adversaries: stats,
+    });
+    expect(state.entity('bramble-a')!.model).toBe('knight');
+  });
+
+  it('leaves the model unset when a placement names none, so the type default decides', () => {
+    const { state } = build();
+    expect(state.entity('bramble-a')!.model).toBeUndefined();
+  });
+
   it('leaves the encounter unstarted — adversaries stand there dormant', () => {
     const { state } = build();
     expect(state.encounter('group-1').started).toBe(false);

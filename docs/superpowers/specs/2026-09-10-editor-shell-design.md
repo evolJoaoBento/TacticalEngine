@@ -445,3 +445,25 @@ does not collide.
 **§12 is not fully contradicted.** §12 deferred *placement-time rotation* to part 3 ("Object rotation …
 arrives with part 3's placement"); this batch brings it early for tiles and props only. Interactables and
 "objects" are untouched, so that clause still holds for them.
+
+### 2026-09-11 — creatures can be re-skinned from the Combat panel
+
+The user asked to choose an enemy's model in the editor, from a panel on the right in Combat, by
+selecting the enemy. Before this, a creature's model was whatever its adversary id resolved to, and
+the only way to change it was to name an imported `.glb` file after the adversary — or to edit the
+game's own `DEMO_MODELS` map in source.
+
+| Ruling | Overrides | What stands now |
+|---|---|---|
+| C10 | §5, §8 (document) | Two new optional document fields, both defaulted so every earlier project still parses: `project.adversaryModels` (a record of adversary id → model id, the **type default**) and `model?` on an adversary placement (**one creature only**). Resolution runs placement → project map → the game's own `DEMO_MODELS` → the adversary's own id → the `husk` stand-in. The project's map beats `DEMO_MODELS` deliberately: an author who re-skins a type the demo already names would otherwise be silently ignored. `EntityState` gains an optional `model` so the per-creature override survives into play. |
+| C11 | §4.2 Combat row | Combat's rail gains **Select**, placed **last** so `defaultTool('combat')` is still `adversary` and entering Combat still hands over creature placement. `modeOfTool` already allows a shared tool to stay in the mode that owns it, so Select no longer throws the user to the Inspector from Combat. The controller keeps `selectedAdversary` apart from `selected`, because the two modes select different kinds of thing and one field holding either would leave every reader asking which. Selecting a creature opens a block in Combat's right-hand panel editing its type model, its own model, its name and its hit points — the last two being placement overrides the schema always had and nothing could reach. |
+
+**Validation.** `checkAdversaryModels` warns (never errors) when either field names a model nothing can
+supply; the creature still plays in a borrowed body. Like the other model checks it runs only when the
+caller passes `knownModels`, so `validate.ts` keeps its distance from the renderer — but it additionally
+counts the project's own `assets` ids as resolvable, since those are written down in the document.
+
+**A pre-existing gap this uncovered, deliberately left alone.** `KNOWN_MODELS` in `main.ts` is built once
+from the procedural library only and never includes imported asset ids, so the existing **deco** and
+**interactable** model checks warn about a perfectly good imported model. The new creature check does not
+share that bug. Fixing the other two is a separate change and was out of this slice's scope.

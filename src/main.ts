@@ -416,9 +416,26 @@ const assets = new AssetLibrary(
   demo.project.assets,
 );
 
+/**
+ * What each adversary type is drawn with, held here rather than read off the
+ * session: the view below syncs its tokens while it is being set up, which is
+ * before the session that owns the document exists. Edits mutate this very
+ * record in place, so it stays current on its own; only a load, which swaps the
+ * whole document, has to point it at the new one.
+ */
+let adversaryModels: Readonly<Record<string, string>> = demo.project.adversaryModels;
+
 const view = new SceneView(demo.grid, {
   tints: demo.scene.tints,
-  modelForEntity: (entity) => DEMO_MODELS[entity.definition] ?? entity.definition,
+  // This creature's own look first, then what the project draws its type with,
+  // then the game's own mapping, and failing all three the adversary's id. The
+  // project's map beats DEMO_MODELS deliberately: an author who re-skins a type
+  // the demo already names would otherwise be quietly ignored.
+  modelForEntity: (entity) =>
+    entity.model
+    ?? adversaryModels[entity.definition]
+    ?? DEMO_MODELS[entity.definition]
+    ?? entity.definition,
   // Almost none of the SRD's stat blocks have art of their own yet, and a board
   // of magenta markers cannot be read. A husk body stands in - and the view
   // still reports the real id as missing, so the models diagnostic and
@@ -476,7 +493,11 @@ function refreshEditor(): void {
  */
 function syncEditorContent(): void {
   view.setDecos(activeScene().decos);
-  view.setAuthoring(mode === 'edit' ? editor.scene : null, DEMO_MODELS);
+  // Same order the play path uses: the project's own re-skins win over the demo's.
+  view.setAuthoring(mode === 'edit' ? editor.scene : null, {
+    ...DEMO_MODELS,
+    ...session.project.adversaryModels,
+  });
 }
 
 /** A kebab-case id from a name, made unique against the scenes already there. */
@@ -750,6 +771,8 @@ function loadProjectText(text: string, label = 'the project'): string {
   // The loaded project is a different document; nothing on screen survives it.
   for (const id of assets.ids()) assets.remove(id);
   for (const asset of session.project.assets) assets.add(asset);
+  // Edits mutate the record in place, so this only has to follow a whole new one.
+  adversaryModels = project.adversaryModels;
   boundScene = '';
   rebindScene();
   rebuildTerrain();

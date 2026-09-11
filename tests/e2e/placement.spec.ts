@@ -55,6 +55,79 @@ test('the right-side height ladder controls placement Z and follows the active t
   expect(await page.evaluate(() => window.__polyheart!.errors)).toEqual([]);
 });
 
+test('a selected creature is re-skinned by its type and on its own, and it survives a reload', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.getByTestId('mode-combat').click();
+
+  const strip = page.getByTestId('combat-library');
+  await strip.getByTestId('library-search').fill('wolf');
+  await strip.locator('[data-item]').first().click();
+
+  // Editor chrome floats over the board, so take a tile whose surface is
+  // actually clickable rather than naming one and hoping.
+  const spot = await page.evaluate(() => {
+    const api = window.__polyheart!;
+    for (let y = 3; y <= 6; y += 1) {
+      for (let x = 3; x <= 6; x += 1) {
+        const at = api.buildScreenAt(x, y);
+        if (document.elementFromPoint(at.x, at.y)?.id === 'gl') return { x, y, at };
+      }
+    }
+    return null;
+  });
+  expect(spot).not.toBeNull();
+
+  // Placing needs no panel, so the headless handle will do.
+  await page.evaluate(({ x, y }) => window.__polyheart!.buildAt(x, y), spot!);
+  await expect(page.getByTestId('selected-creature')).toHaveCount(0);
+
+  // Selecting is a real click: that path is what re-renders the panel, and it is
+  // what a designer actually does. `buildAt` applies the tool without drawing.
+  await page.evaluate(() => window.__polyheart!.setTool('select'));
+  await page.mouse.click(spot!.at.x, spot!.at.y);
+  await expect(page.getByTestId('selected-creature')).toBeVisible();
+
+  await page.getByTestId('type-model').selectOption('knight');
+  await page.getByTestId('creature-model').selectOption('rogue');
+  // The name commits on change, not on every keystroke — one rename is one undo
+  // step — so the field has to lose focus before it takes.
+  await page.getByTestId('creature-name').fill('Gorehide');
+  await page.getByTestId('creature-name').blur();
+
+  const editing = await page.evaluate(() => window.__polyheart!.editScene());
+  type Placed = { adversary: string; model?: string; name?: string; position: { x: number; y: number } };
+  // The room comes with encounters of its own, so find the creature just placed
+  // by where it stands rather than taking the first one in the list.
+  const placedIn = (text: string): Placed => {
+    const doc = JSON.parse(text);
+    const scene = doc.scenes.find((s: { id: string }) => s.id === editing);
+    const found = scene.encounters
+      .flatMap((e: { adversaries: Placed[] }) => e.adversaries)
+      .find((a: Placed) => a.position.x === spot!.x && a.position.y === spot!.y);
+    expect(found).toBeDefined();
+    return found as Placed;
+  };
+
+  const text = await page.evaluate(() => window.__polyheart!.exportProject());
+  const placed = placedIn(text);
+  // The type default and the one-creature override are stored apart, and the
+  // creature's own override is what the panel put on the placement.
+  expect(JSON.parse(text).adversaryModels[placed.adversary]).toBe('knight');
+  expect(placed.model).toBe('rogue');
+  expect(placed.name).toBe('Gorehide');
+
+  // Clearing the override falls back to the type without disturbing it.
+  await page.getByTestId('creature-model').selectOption('');
+  const clearedText = await page.evaluate(() => window.__polyheart!.exportProject());
+  expect(placedIn(clearedText).model).toBeUndefined();
+  expect(JSON.parse(clearedText).adversaryModels[placed.adversary]).toBe('knight');
+
+  expect(await page.evaluate((t) => window.__polyheart!.loadProjectText(t), text)).toBe('');
+  expect(await page.evaluate(() => window.__polyheart!.errors)).toEqual([]);
+});
+
 test('open tabs drive placement; edge walls overlap floors and preserve Z through undo and load', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);

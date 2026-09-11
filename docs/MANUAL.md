@@ -367,6 +367,17 @@ immediately in the editor, including at the height shown by the same right-side 
 in for SRD creatures without a dedicated model — 128 of the 129 stat blocks — and the engine still
 counts those definitions as unresolved, because they are. Undo and scene switching update what is
 drawn.
+
+To change what a creature looks like, take **Select** from Combat's rail and click one on the board.
+The panel on the right then shows that creature, with two model fields. **Model · every _type_**
+re-skins the whole type: set it on one Acid Burrower and every Acid Burrower in the project is drawn
+that way, which is the usual want. **Model · this one only** overrides that single creature, for a
+named lieutenant or a standout; setting it back to *Whatever the type uses* clears the override and
+leaves the type alone. Both lists offer the built-in models and anything the project imported under
+**Models**, so an imported `.glb` is chosen by name rather than by naming the file after an adversary.
+The same panel edits that creature's **Name** and **Hit points**, which are per-creature overrides of
+its stat block. **Check** warns about a model name nothing can supply — the creature still plays, it
+just stands in a borrowed body.
 Every entry into a room brings its creatures up to date with the document: returning to play,
 travelling in through a door, or loading a save each add the creatures placed since and remove
 the ones deleted since, keeping existing wounds, party pools and anything a script has already

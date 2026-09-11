@@ -204,6 +204,8 @@ export function importLegacyCampaign(
       lootTables: [],
       quests: [],
       assets: [],
+      // A legacy campaign re-skins nothing: every creature is drawn as its own id.
+      adversaryModels: {},
       startScene: scenes[0]!.id,
     },
     issues,

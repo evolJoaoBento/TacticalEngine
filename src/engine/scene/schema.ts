@@ -100,6 +100,12 @@ export const adversaryPlacementSchema = z.object({
   /** Per-instance overrides: a named lieutenant, a wounded straggler. */
   name: z.string().optional(),
   hitPoints: z.number().int().positive().optional(),
+  /**
+   * Draw this one creature with something other than what its type uses. Unset
+   * is the ordinary case: the type's entry in `adversaryModels` decides, and
+   * failing that the adversary's own id.
+   */
+  model: z.string().min(1).optional(),
 });
 export type AdversaryPlacement = z.infer<typeof adversaryPlacementSchema>;
 
@@ -242,6 +248,13 @@ export const projectSchema = z
     quests: z.array(questSchema).default([]),
     /** Imported models, by id. Content names them exactly as it names a procedural model. */
     assets: z.array(modelAssetSchema).default([]),
+    /**
+     * What each adversary type is drawn with, by adversary id. A type with no
+     * entry here falls back to the game's own map and then to the adversary id
+     * itself. Defaulted, so a project written before creatures could be
+     * re-skinned is still a project.
+     */
+    adversaryModels: z.record(z.string(), z.string().min(1)).default({}),
     /**
      * What characters can do: domain cards, Hope features, subclass features,
      * with their scripts. Defaulted, so an older project is still a project.

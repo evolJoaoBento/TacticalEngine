@@ -19,9 +19,11 @@ import {
   renameScene,
   resizeScene,
   rotateDeco,
+  setAdversaryModel,
   setHeight,
   setSpawns,
   toggleTriggerCell,
+  updateAdversary,
   updateInteractable,
 } from './session';
 
@@ -441,6 +443,48 @@ describe('encounters', () => {
     expect(s.requireScene('room').encounters[0]!.adversaries).toHaveLength(0);
     s.undo();
     expect(s.requireScene('room').encounters[0]!.adversaries[0]!.id).toBe('bramble-1');
+  });
+
+  it('re-skins and renames one placed creature, and undo puts it back as it was', () => {
+    const s = session();
+    s.run(addEncounter('room', { ...encounter }));
+    s.run(addAdversary('room', 'ambush', { ...bramble }));
+    const placed = (): { model?: string; name?: string } =>
+      s.requireScene('room').encounters[0]!.adversaries[0]!;
+
+    s.run(updateAdversary('room', 'ambush', 'bramble-1', { model: 'knight', name: 'Gorehide' }));
+    expect(placed().model).toBe('knight');
+    expect(placed().name).toBe('Gorehide');
+
+    s.undo();
+    expect(placed().model).toBeUndefined();
+    expect(placed().name).toBeUndefined();
+  });
+
+  it('drops a per-creature override when it is cleared, rather than storing nothing', () => {
+    const s = session();
+    s.run(addEncounter('room', { ...encounter }));
+    s.run(addAdversary('room', 'ambush', { ...bramble, model: 'knight' }));
+    s.run(updateAdversary('room', 'ambush', 'bramble-1', { model: null }));
+    const placed = s.requireScene('room').encounters[0]!.adversaries[0]!;
+    expect(placed.model).toBeUndefined();
+    expect('model' in placed).toBe(false);
+  });
+
+  it('sets what a whole adversary type is drawn with, and undoes it', () => {
+    const s = session();
+    s.run(setAdversaryModel('tangle-bramble', 'knight'));
+    expect(s.project.adversaryModels['tangle-bramble']).toBe('knight');
+    s.undo();
+    expect(s.project.adversaryModels['tangle-bramble']).toBeUndefined();
+  });
+
+  it('clears a type entry rather than leaving an empty model id behind', () => {
+    const s = session();
+    s.run(setAdversaryModel('tangle-bramble', 'knight'));
+    s.run(setAdversaryModel('tangle-bramble', null));
+    expect(s.project.adversaryModels['tangle-bramble']).toBeUndefined();
+    expect('tangle-bramble' in s.project.adversaryModels).toBe(false);
   });
 
   it('toggles trigger cells on and off, and undoes either way', () => {

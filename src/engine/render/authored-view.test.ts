@@ -35,6 +35,35 @@ it('renders authored creatures beyond the board at their Z and removes them on u
   view.dispose();
 });
 
+it('draws a creature by its own override, else its type default, else its id', () => {
+  const scene = blankScene('room', 4, 4);
+  scene.encounters = [{
+    id: 'enc',
+    name: '',
+    startsOnTrigger: true,
+    triggerCells: [],
+    adversaries: [
+      { id: 'own', adversary: 'dire-wolf', position: { x: 0, y: 0 }, model: 'own-model' },
+      { id: 'typed', adversary: 'dire-wolf', position: { x: 1, y: 0 } },
+      { id: 'bare', adversary: 'lone-stray', position: { x: 2, y: 0 } },
+    ],
+  }];
+  const grid = gridFromScene(scene).grid;
+  const view = new SceneView(grid, { fallbackFor: () => 'husk' });
+  view.setAuthoring(scene, { 'dire-wolf': 'typed-model' });
+  expect(view.authoredCreatureCount).toBe(3);
+  // None of these ids exist, so the registry names each one the view actually
+  // asked for - which is how we can see which model each creature chose.
+  const asked = view.registry.missing();
+  expect(asked).toContain('own-model');
+  expect(asked).toContain('typed-model');
+  expect(asked).toContain('lone-stray');
+  // The override beat the type default, and the type default beat the id.
+  expect(asked).not.toContain('dire-wolf');
+  view.setAuthoring(null);
+  view.dispose();
+});
+
 it('hands the board back without showing a token whose creature stands nowhere', () => {
   const scene = blankScene('room', 4, 4);
   const grid = gridFromScene(scene).grid;

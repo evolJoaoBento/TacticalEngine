@@ -107,6 +107,9 @@ export function validateProject(
   checkParty(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkAdversaryModels(project, options, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   return problems;
 }
 
@@ -971,6 +974,48 @@ function checkLootTables(
     for (const entry of table.entries) {
       if (!itemIds.has(entry.item)) {
         add('error', `Loot table "${table.id}" can drop "${entry.item}", which is not an item.`, table.id);
+      }
+    }
+  }
+}
+
+/**
+ * What creatures are drawn with, per type and per placement.
+ *
+ * Like the other model checks, this runs only when the caller says which ids the
+ * renderer can resolve — a headless caller that never loaded the library is not
+ * wrong. The project's own imported models count as resolvable on top of that
+ * set: they are written down in the document, so this can see them without
+ * knowing anything about the renderer.
+ *
+ * A wrong name is a warning rather than an error. The creature still draws, as
+ * the stand-in body, and still plays; it simply does not look like what was
+ * asked for.
+ */
+function checkAdversaryModels(
+  project: ProjectDoc,
+  options: ValidationOptions,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const known = options.knownModels;
+  if (known === undefined) return;
+  const resolvable = (id: string): boolean =>
+    known.has(id) || project.assets.some((asset) => asset.id === id);
+
+  for (const [adversary, model] of Object.entries(project.adversaryModels)) {
+    if (resolvable(model)) continue;
+    add('warning', `Every "${adversary}" is drawn with "${model}", which nothing can supply.`, adversary);
+  }
+
+  for (const scene of project.scenes) {
+    for (const encounter of scene.encounters) {
+      for (const placement of encounter.adversaries) {
+        if (placement.model === undefined || resolvable(placement.model)) continue;
+        add(
+          'warning',
+          `Creature "${placement.id}" is drawn with "${placement.model}", which nothing can supply.`,
+          placement.id,
+        );
       }
     }
   }

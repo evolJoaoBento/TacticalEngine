@@ -106,7 +106,17 @@ test('Terrain: its own tools, and a pick from the strip takes up the tool that p
 test('Combat: its own tools, and a creature found by searching is the one placed', async ({ page }) => {
   const errors = await editing(page);
   await page.locator('[data-testid="mode-combat"]').click();
-  await expect(page.locator('[data-testid="tool-rail"] [data-tool]')).toHaveCount(4);
+  const combatTools = page.locator('[data-testid="tool-rail"] [data-tool]');
+  await expect(combatTools).toHaveCount(5);
+  // Named and in order rather than merely counted: Select has to come last, or
+  // entering Combat would hand over selection instead of creature placement.
+  expect(await combatTools.evaluateAll((els) => els.map((el) => el.getAttribute('data-tool')))).toEqual([
+    'adversary',
+    'trigger',
+    'spawn',
+    'erase',
+    'select',
+  ]);
 
   // Search for a creature that is not the default `tangle-bramble`, and read
   // its id from the card rather than guessing it, so the test still means

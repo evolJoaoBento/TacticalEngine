@@ -558,6 +558,60 @@ export function removeAdversary(sceneId: string, encounterId: string, placementI
   };
 }
 
+/**
+ * Change what one placed creature is: what it is drawn with, what it is called,
+ * how much it can take. A `null` clears that override rather than storing it
+ * empty, so a creature reverted to its type is the same document as one that
+ * never carried an override at all.
+ */
+export function updateAdversary(
+  sceneId: string,
+  encounterId: string,
+  placementId: string,
+  changes: { model?: string | null; name?: string | null; hitPoints?: number | null },
+): Edit {
+  let before: { model?: string; name?: string; hitPoints?: number } | null = null;
+  return {
+    label: 'Edit creature',
+    apply(project) {
+      before = null;
+      const encounter = requireEncounter(project, sceneId, encounterId);
+      const placement = encounter.adversaries.find((a) => a.id === placementId);
+      if (placement === undefined) return;
+      before = {
+        ...(placement.model === undefined ? {} : { model: placement.model }),
+        ...(placement.name === undefined ? {} : { name: placement.name }),
+        ...(placement.hitPoints === undefined ? {} : { hitPoints: placement.hitPoints }),
+      };
+      if ('model' in changes) {
+        if (changes.model === null || changes.model === undefined) delete placement.model;
+        else placement.model = changes.model;
+      }
+      if ('name' in changes) {
+        if (changes.name === null || changes.name === undefined) delete placement.name;
+        else placement.name = changes.name;
+      }
+      if ('hitPoints' in changes) {
+        if (changes.hitPoints === null || changes.hitPoints === undefined) delete placement.hitPoints;
+        else placement.hitPoints = changes.hitPoints;
+      }
+    },
+    undo(project) {
+      if (before === null) return;
+      const encounter = requireEncounter(project, sceneId, encounterId);
+      const placement = encounter.adversaries.find((a) => a.id === placementId);
+      if (placement === undefined) return;
+      delete placement.model;
+      delete placement.name;
+      delete placement.hitPoints;
+      Object.assign(placement, before);
+    },
+    isNoop() {
+      return before === null;
+    },
+  };
+}
+
 /** Add or remove a trigger cell, whichever the tile currently is. */
 export function toggleTriggerCell(sceneId: string, encounterId: string, point: Point): Edit {
   let added = false;
@@ -1210,6 +1264,29 @@ export function removeAsset(assetId: string): Edit {
     },
     isNoop() {
       return removed === null;
+    },
+  };
+}
+
+/**
+ * What every creature of one type is drawn with, by adversary id. `null` removes
+ * the entry rather than writing an empty id, so a type put back to its default
+ * leaves nothing behind in the saved project.
+ */
+export function setAdversaryModel(adversaryId: string, modelId: string | null): Edit {
+  let had: string | undefined;
+  let existed = false;
+  return {
+    label: modelId === null ? 'Clear type model' : `Draw ${adversaryId} as ${modelId}`,
+    apply(project) {
+      existed = adversaryId in project.adversaryModels;
+      had = project.adversaryModels[adversaryId];
+      if (modelId === null) delete project.adversaryModels[adversaryId];
+      else project.adversaryModels[adversaryId] = modelId;
+    },
+    undo(project) {
+      if (existed && had !== undefined) project.adversaryModels[adversaryId] = had;
+      else delete project.adversaryModels[adversaryId];
     },
   };
 }

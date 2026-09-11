@@ -139,6 +139,12 @@ export class EditorController {
   private lastBuildingPoint: Point | null = null;
   /** The object the inspector is showing, if the select tool has hit one. */
   selected: string | null = null;
+  /**
+   * The placed creature Combat's panel is showing. Kept apart from `selected`
+   * because the two modes pick different kinds of thing, and one field holding
+   * either would leave every reader asking which it currently is.
+   */
+  selectedAdversary: string | null = null;
 
   constructor(options: EditorControllerOptions) {
     this.session = options.session;
@@ -208,6 +214,7 @@ export class EditorController {
     this.state.encounterId = null;
     // The selection belonged to the room being left.
     this.selected = null;
+    this.selectedAdversary = null;
   }
 
   set<K extends keyof EditorToolState>(key: K, value: EditorToolState[K]): void {
@@ -330,6 +337,15 @@ export class EditorController {
         if (!pressed) return 'none';
         // Selecting is not an edit — nothing enters the undo history — but the
         // panel has to redraw, so it reports a change.
+        // Combat selects creatures, the Inspector selects objects: the same tool
+        // picks whichever kind the mode is about.
+        if (this.mode === 'combat') {
+          const creature = this.adversaryAt(point);
+          const picked = creature?.id ?? null;
+          if (picked === this.selectedAdversary) return 'none';
+          this.selectedAdversary = picked;
+          return 'content';
+        }
         const found = this.interactableAt(point);
         const next = found?.id ?? null;
         if (next === this.selected) return 'none';
@@ -487,6 +503,36 @@ export class EditorController {
         (i) => i.position.x === point.x && i.position.y === point.y,
       ) ?? null
     );
+  }
+
+  /** The creature standing on a tile, most recently placed first. */
+  adversaryAt(point: Point): Encounter['adversaries'][number] | null {
+    for (const encounter of this.scene.encounters) {
+      for (let i = encounter.adversaries.length - 1; i >= 0; i--) {
+        const placement = encounter.adversaries[i]!;
+        if (placement.position.x === point.x && placement.position.y === point.y) return placement;
+      }
+    }
+    return null;
+  }
+
+  /** The creature Combat's panel should show, if it is still in the room. */
+  selectedPlacement(): Encounter['adversaries'][number] | null {
+    if (this.selectedAdversary === null) return null;
+    for (const encounter of this.scene.encounters) {
+      const found = encounter.adversaries.find((a) => a.id === this.selectedAdversary);
+      if (found !== undefined) return found;
+    }
+    return null;
+  }
+
+  /** Which encounter holds the selected creature — what an edit to it needs. */
+  selectedPlacementEncounter(): string | null {
+    if (this.selectedAdversary === null) return null;
+    for (const encounter of this.scene.encounters) {
+      if (encounter.adversaries.some((a) => a.id === this.selectedAdversary)) return encounter.id;
+    }
+    return null;
   }
 
   /** Everything on a tile, for an inspector panel. */

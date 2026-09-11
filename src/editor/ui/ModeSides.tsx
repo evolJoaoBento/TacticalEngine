@@ -32,9 +32,12 @@ import {
   addDialogue,
   removeDialogue,
   removeInteractable,
+  setAdversaryModel,
+  updateAdversary,
   updateInteractable,
   type EditorSession,
 } from '../session';
+import { MODELS } from '../../engine/render/procedural/registry';
 import { Inspector } from './Inspector';
 import { TOOL_LABELS } from './ToolRail';
 
@@ -429,14 +432,117 @@ export function TerrainSide(props: {
 }
 
 const COMBAT_HINTS: Partial<Record<EditorTool, string>> = {
+  select: 'Click a creature to change what it is called and what it is drawn with.',
   adversary: 'Click to place the creature picked below in the encounter.',
   trigger: 'Click the cells that start the encounter when the party steps on one.',
   spawn: 'Click to add or remove a place the party starts.',
   erase: 'Click a creature to remove it, then a trigger cell, then a party start.',
 };
 
-/** Combat mode's side: the tool in hand, and which encounter placements go into. */
-export function CombatSide(props: { controller: EditorController; onChange: () => void }): preact.JSX.Element {
+/** Every model a creature can be pointed at: the library's, plus what the project imported. */
+function modelChoices(session: EditorSession): string[] {
+  return [
+    ...new Set([...MODELS.map((m) => m.id), ...session.project.assets.map((a) => a.id)]),
+  ].sort();
+}
+
+/**
+ * The selected creature: what it is drawn with, what it is called, what it can
+ * take. The model is two fields rather than one because the usual want is to
+ * re-skin a whole type, and the exception is one standout creature.
+ */
+function SelectedCreature(props: {
+  session: EditorSession;
+  controller: EditorController;
+  onChange: () => void;
+}): preact.JSX.Element | null {
+  const { session, controller } = props;
+  const placement = controller.selectedPlacement();
+  const encounterId = controller.selectedPlacementEncounter();
+  if (placement === null || encounterId === null) return null;
+  const sceneId = controller.sceneId;
+  const choices = modelChoices(session);
+  const edit = (changes: { model?: string | null; name?: string | null; hitPoints?: number | null }): void => {
+    session.run(updateAdversary(sceneId, encounterId, placement.id, changes));
+    props.onChange();
+  };
+  return (
+    <div data-testid="selected-creature">
+      <div class="ph-heading">Selected creature</div>
+      <div class="ph-hint">{placement.adversary}</div>
+      <label class="ph-heading">
+        Model · every {placement.adversary}
+        <select
+          class="ph-select"
+          data-testid="type-model"
+          value={session.project.adversaryModels[placement.adversary] ?? ''}
+          onChange={(e) => {
+            const picked = e.currentTarget.value;
+            session.run(setAdversaryModel(placement.adversary, picked === '' ? null : picked));
+            props.onChange();
+          }}
+        >
+          <option value="">Its own id</option>
+          {choices.map((id) => (
+            <option key={id} value={id}>{id}</option>
+          ))}
+        </select>
+      </label>
+      <label class="ph-heading">
+        Model · this one only
+        <select
+          class="ph-select"
+          data-testid="creature-model"
+          value={placement.model ?? ''}
+          onChange={(e) => {
+            const picked = e.currentTarget.value;
+            edit({ model: picked === '' ? null : picked });
+          }}
+        >
+          <option value="">Whatever the type uses</option>
+          {choices.map((id) => (
+            <option key={id} value={id}>{id}</option>
+          ))}
+        </select>
+      </label>
+      <label class="ph-heading">
+        Name
+        <input
+          class="ph-input"
+          data-testid="creature-name"
+          value={placement.name ?? ''}
+          onChange={(e) => {
+            const typed = e.currentTarget.value.trim();
+            edit({ name: typed === '' ? null : typed });
+          }}
+        />
+      </label>
+      <label class="ph-heading">
+        Hit points
+        <input
+          class="ph-input"
+          data-testid="creature-hp"
+          type="number"
+          min="1"
+          step="1"
+          value={placement.hitPoints ?? ''}
+          onChange={(e) => {
+            const typed = e.currentTarget.value.trim();
+            const n = Number(typed);
+            edit({ hitPoints: typed === '' || !Number.isInteger(n) || n <= 0 ? null : n });
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
+/** Combat mode's side: the tool in hand, the selected creature, and which encounter placements go into. */
+export function CombatSide(props: {
+  session: EditorSession;
+  controller: EditorController;
+  onChange: () => void;
+}): preact.JSX.Element {
   const { controller } = props;
   const scene = controller.scene;
   const tool = controller.state.tool;
@@ -445,6 +551,7 @@ export function CombatSide(props: { controller: EditorController; onChange: () =
     <aside class="ph-side ph-panel" data-testid="combat-side">
       <div class="ph-heading">{TOOL_LABELS[tool]}</div>
       <div class="ph-hint">{COMBAT_HINTS[tool] ?? ''}</div>
+      <SelectedCreature session={props.session} controller={controller} onChange={props.onChange} />
       <div class="ph-heading">Encounter</div>
       {scene.encounters.length === 0 ? (
         <div class="ph-hint">None yet. The first creature or trigger cell you place starts one.</div>
