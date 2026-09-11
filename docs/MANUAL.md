@@ -341,8 +341,9 @@ rungs near that level are large while further ones shrink away — so the level 
 also the easiest to hit. **Drag the ladder** to scrub: the first quarter tile costs a whole rung
 and later ones cost less, so a small movement is precise and a long one travels. **Click a rung**
 to jump straight to it, or roll the wheel over the ladder for a quarter tile a notch. The +/−
-buttons and the arrow keys also move a quarter tile, Page Up/Down moves a whole one, and the box
-underneath takes exact heights out to ±1,000,000 — past anything the ladder draws. The separate
+buttons move a quarter tile, as do the arrow keys once the ladder itself has focus — unfocused,
+the arrows still pan the camera. Page Up/Down moves a whole tile, and the box underneath takes
+exact heights out to ±1,000,000 — past anything the ladder draws. The separate
 **Piece height** field scales a piece vertically, from 0.25 to 16; floors start
 at a quarter-tile thickness. **Hold Alt and drag toward a tile edge** to point tiles or props
 in that cardinal direction. The camera angle is accounted for, so dragging along the visible

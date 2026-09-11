@@ -18,15 +18,32 @@ test('the right-side height ladder controls placement Z and follows the active t
   expect(controlBox!.x + controlBox!.width).toBeLessThanOrEqual(sideBox!.x);
   expect(sideBox!.x - (controlBox!.x + controlBox!.width)).toBeLessThan(40);
 
-  // A rung nine quarter-tiles up is drawn, and clicking it jumps to that level.
-  await page.getByRole('button', { name: 'Z 2.25', exact: true }).click();
-  await expect(page.getByLabel('Build level', { exact: true })).toHaveValue('2.25');
+  // A rung a whole tile up is drawn, and clicking it jumps to that level. Kept
+  // close to the centre so a shorter viewport, which fits fewer rungs, cannot
+  // clip the rung this test clicks.
+  await page.getByRole('button', { name: 'Z 1', exact: true }).click();
+  await expect(page.getByLabel('Build level', { exact: true })).toHaveValue('1');
   await page.evaluate(() => window.__polyheart!.buildAt(4, 4));
   const scene = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject())).scenes[0];
-  expect(scene.buildingTiles['4,4,2.25']).toBeDefined();
+  expect(scene.buildingTiles['4,4,1']).toBeDefined();
 
   // The ladder re-centres on the new level, so its own rung is now the current one.
-  await expect(page.getByTestId('height-ladder')).toHaveAttribute('aria-valuenow', '2.25');
+  await expect(page.getByTestId('height-ladder')).toHaveAttribute('aria-valuenow', '1');
+
+  // Dragging scrubs: pixels are spent against the shrinking rungs, so a short
+  // pull upward climbs several quarter tiles. This is the gesture the ladder
+  // exists for, and the only place the deferred pointer capture and the guard
+  // on the click that trails a drag are exercised together.
+  const ladderBox = await page.getByTestId('height-ladder').boundingBox();
+  expect(ladderBox).not.toBeNull();
+  const midX = ladderBox!.x + ladderBox!.width / 2;
+  const midY = ladderBox!.y + ladderBox!.height / 2;
+  await page.mouse.move(midX, midY);
+  await page.mouse.down();
+  await page.mouse.move(midX, midY - 60, { steps: 6 });
+  await page.mouse.up();
+  const dragged = Number(await page.getByLabel('Build level', { exact: true }).inputValue());
+  expect(dragged).toBeGreaterThan(1);
 
   await page.locator('[data-tab="ground"]').click();
   await expect(height).toHaveCount(0);

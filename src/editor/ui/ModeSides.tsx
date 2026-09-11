@@ -219,12 +219,16 @@ export function PlacementHeightControl(props: {
         }}
         onWheel={(e) => {
           e.stopPropagation();
+          // Any other way of moving the level ends the drag's claim on the next
+          // click, which would otherwise be swallowed a gesture later.
+          justDragged.current = false;
           stepBy(e.deltaY < 0 ? Z_STEP : -Z_STEP);
         }}
         onKeyDown={(e) => {
           if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
           e.preventDefault();
           e.stopPropagation();
+          justDragged.current = false;
           stepBy(e.key === 'ArrowUp' ? Z_STEP : -Z_STEP);
         }}
       >
