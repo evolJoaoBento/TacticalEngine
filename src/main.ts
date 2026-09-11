@@ -276,6 +276,8 @@ declare global {
       undo: () => boolean;
       redo: () => boolean;
       propCount: () => number;
+      /** Whether an Alt facing gesture is under way; blur and keyup must end it. */
+      altRotating: () => boolean;
       problems: () => number;
       exportProject: () => string;
       loadProjectText: (text: string) => string;
@@ -1700,6 +1702,9 @@ canvas.addEventListener('pointercancel', () => {
   lastBuildPointer = null;
   drag = null;
   editor.end();
+  // Pair the end with a re-render, the way pointerup does (which only reaches renderPanel
+  // in edit mode); rendering the editor shell in play would paint it over the play UI.
+  if (mode === 'edit') renderPanel();
 });
 
 /** The line a click on this ground would walk, on the ground; nothing while aiming a card, or with nowhere to go. */
@@ -1759,6 +1764,11 @@ function typing(event: KeyboardEvent): boolean {
 
 window.addEventListener('keydown', (event) => {
   if (typing(event)) return;
+  // Alt is a held editing gesture now, and on Chrome/Windows Alt+ArrowLeft/Right is
+  // Back/Forward, which would navigate away and lose the whole unsaved project. Cancel
+  // the arrows here; camera pan still works, since it runs off the separate held-set
+  // listener and preventDefault does not stop another listener.
+  if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && (mode === 'edit' || mode === 'play')) event.preventDefault();
   if (event.key === 'Alt' && !event.ctrlKey && !event.metaKey && rotatablePlacement()) {
     event.preventDefault();
     if (altRotation === null && lastBuildPointer !== null) beginAltRotation(lastBuildPointer);
@@ -1783,6 +1793,9 @@ window.addEventListener('keydown', (event) => {
         renderPanel();
       } else if (event.key === 'PageUp' || event.key === 'PageDown') {
         event.preventDefault();
+        // Moving the build plane re-anchors an Alt gesture's captured world point, so the
+        // facing would jump with no pointer motion; end the gesture before the plane moves.
+        endAltRotation();
         const step = event.key === 'PageUp' ? 1 : -1;
         editor.setBuildLevel(Math.max(-BUILD_LIMIT, Math.min(BUILD_LIMIT, editor.state.buildLevel + step)));
         renderPanel();
@@ -1830,6 +1843,14 @@ window.addEventListener('blur', () => {
   lastBuildPointer = null;
   drag = null;
   editor.end();
+});
+window.addEventListener('beforeunload', (event) => {
+  // A tab close or reload with unsaved edits should prompt: the project lives only in
+  // memory until it is saved, so leaving by any route would throw the edits away.
+  if (session.dirty) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
 });
 
 /**
@@ -2308,6 +2329,7 @@ const state = {
   undo: (): boolean => undoEdit(),
   redo: (): boolean => redoEdit(),
   propCount: (): number => editor.scene.decos.length,
+  altRotating: (): boolean => altRotation !== null,
   problems: (): number => {
     // Imported from the legacy map, so its homebrew adversaries are expected.
     return editor.scene.encounters.length;

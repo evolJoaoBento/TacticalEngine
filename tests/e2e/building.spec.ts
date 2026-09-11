@@ -66,7 +66,13 @@ test('Alt chooses the facing of new props and blur ends a rotation gesture', asy
   await page.mouse.move(west.x, west.y, { steps: 5 });
   await expect(page.getByTestId('prop-rotate')).toContainText('90°');
   expect(await page.evaluate(() => window.__polyheart!.propCount())).toBe(before);
+  // Blur, not the later keyup, must end the gesture. Assert it is cleared while Alt is
+  // still held, so only blur can have done it. A move here would re-anchor the gesture
+  // (rotatePlacement re-begins on the next Alt-held move), so the flag, not the readout,
+  // is the honest witness.
+  expect(await page.evaluate(() => window.__polyheart!.altRotating())).toBe(true);
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  expect(await page.evaluate(() => window.__polyheart!.altRotating())).toBe(false);
   await page.keyboard.up('Alt');
   await page.mouse.move(at.x, at.y);
   await page.keyboard.down('Alt');
@@ -80,6 +86,26 @@ test('Alt chooses the facing of new props and blur ends a rotation gesture', asy
     return scene.decos.find((d: { position: { x: number; y: number } }) => d.position.x === 40 && d.position.y === 20);
   });
   expect(placed.rotation).toBeCloseTo(3 * Math.PI / 2);
+  expect(await page.evaluate(() => window.__polyheart!.errors)).toEqual([]);
+});
+
+test('arrow keys are suppressed in edit mode so Alt+Arrow cannot navigate the tab away', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  // The app's keydown listener is registered at load, so it runs before this probe; by the
+  // time the probe reads the event, the app's preventDefault has already been applied.
+  const prevented = await page.evaluate(() => {
+    let seen = false;
+    const probe = (event: KeyboardEvent): void => {
+      seen = event.defaultPrevented;
+    };
+    window.addEventListener('keydown', probe);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', cancelable: true }));
+    window.removeEventListener('keydown', probe);
+    return seen;
+  });
+  expect(prevented).toBe(true);
   expect(await page.evaluate(() => window.__polyheart!.errors)).toEqual([]);
 });
 

@@ -144,6 +144,7 @@ declare global {
       undo: () => boolean;
       redo: () => boolean;
       propCount: () => number;
+      altRotating: () => boolean;
       problems: () => number;
       exportProject: () => string;
       loadProjectText: (text: string) => string;

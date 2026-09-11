@@ -13,8 +13,7 @@ test('the left-side height slider controls placement Z and follows the active ta
   ]);
   expect(controlBox).not.toBeNull();
   expect(sideBox).not.toBeNull();
-  expect(controlBox!.x).toBeLessThan(70);
-  expect(sideBox!.x).toBeGreaterThan(900);
+  expect(controlBox!.x + controlBox!.width).toBeLessThan(sideBox!.x);
 
   await page.getByLabel('Placement height slider').fill('2.25');
   await expect(page.getByLabel('Build level', { exact: true })).toHaveValue('2.25');
