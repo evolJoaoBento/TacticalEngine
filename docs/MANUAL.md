@@ -338,8 +338,12 @@ each cell only once; a fresh click or stroke can place another identical piece t
 Use the vertical **Z ladder at the board's right edge**, beside the mode panel, for placement
 height in tile units. It draws one rung per quarter tile around the level being placed at, and
 rungs near that level are large while further ones shrink away — so the level being aimed for is
-also the easiest to hit. **Drag the ladder** to scrub: the first quarter tile costs a whole rung
-and later ones cost less, so a small movement is precise and a long one travels. **Click a rung**
+also the easiest to hit. **Drag the ladder** to scrub: it moves with the pointer, past a selector
+that stays put, so pulling down brings the levels above down to meet it and raises the height. The
+first quarter tile costs a whole rung and later ones cost less, so a small movement is precise and
+a long one travels. Whole tiles are **detents** — the drag falls into them and needs a deliberate
+pull to leave — so a round number is the easiest level to stop on, and they are drawn as the
+ladder's landmarks: taller, wider and always numbered. **Click a rung**
 to jump straight to it, or roll the wheel over the ladder for a quarter tile a notch. The +/−
 buttons move a quarter tile, as do the arrow keys once the ladder itself has focus — unfocused,
 the arrows still pan the camera. Page Up/Down moves a whole tile, and the box underneath takes

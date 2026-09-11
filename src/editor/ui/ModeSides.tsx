@@ -133,8 +133,9 @@ export function PlacementHeightControl(props: {
   for (let offset = LADDER_REACH; offset >= -LADDER_REACH; offset -= 1) {
     const value = roundToStep(level + offset * Z_STEP);
     if (Math.abs(value) > BUILD_LIMIT) continue;
-    const size = rungSize(offset);
+    const size = rungSize(offset, value);
     const current = offset === 0;
+    const whole = Number.isInteger(value);
     rungs.push(
       <button
         key={offset}
@@ -151,7 +152,7 @@ export function PlacementHeightControl(props: {
       >
         <span
           class="ph-height-bar"
-          style={{ width: `${size.width}px`, height: current ? '5px' : '2px' }}
+          style={{ width: `${size.width}px`, height: current ? '5px' : whole ? '3px' : '2px' }}
         />
         <span
           class="ph-height-rung-label"

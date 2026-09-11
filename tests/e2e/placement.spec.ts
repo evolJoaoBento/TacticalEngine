@@ -30,17 +30,19 @@ test('the right-side height ladder controls placement Z and follows the active t
   // The ladder re-centres on the new level, so its own rung is now the current one.
   await expect(page.getByTestId('height-ladder')).toHaveAttribute('aria-valuenow', '1');
 
-  // Dragging scrubs: pixels are spent against the shrinking rungs, so a short
-  // pull upward climbs several quarter tiles. This is the gesture the ladder
-  // exists for, and the only place the deferred pointer capture and the guard
-  // on the click that trails a drag are exercised together.
+  // Dragging scrubs, and the ladder moves with the pointer: pulling down brings
+  // the levels above down to the selector, so the level climbs. Pixels are spent
+  // against the shrinking rungs, so a short pull covers several quarter tiles.
+  // This is the gesture the ladder exists for, and the only place the deferred
+  // pointer capture and the guard on the click that trails a drag are exercised
+  // together.
   const ladderBox = await page.getByTestId('height-ladder').boundingBox();
   expect(ladderBox).not.toBeNull();
   const midX = ladderBox!.x + ladderBox!.width / 2;
   const midY = ladderBox!.y + ladderBox!.height / 2;
   await page.mouse.move(midX, midY);
   await page.mouse.down();
-  await page.mouse.move(midX, midY - 60, { steps: 6 });
+  await page.mouse.move(midX, midY + 60, { steps: 6 });
   await page.mouse.up();
   const dragged = Number(await page.getByLabel('Build level', { exact: true }).inputValue());
   expect(dragged).toBeGreaterThan(1);
