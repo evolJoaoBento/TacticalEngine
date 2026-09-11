@@ -4,8 +4,8 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
-**Pinned to commit `1f39fae`.** At that commit: `npx tsc --noEmit` clean, **1766 unit tests across
-89 files**, **101 Playwright tests** (about 4.2 minutes). If those numbers come back lower, something
+**Pinned to commit `584e72e`.** At that commit: `npx tsc --noEmit` clean, **1787 unit tests across
+89 files**, **102 Playwright tests** (about 3.6 minutes). If those numbers come back lower, something
 was lost — check before building on it. Symbol names are the stable handles here; line numbers move.
 
 ---
@@ -51,7 +51,9 @@ extended coordinates, brush/rotation/level controls, undo/save and chunked LOD; 
 rotation — Alt-drag / R / the Rotate button turn tiles and props to a cardinal facing, props place
 with the chosen facing, and a fisheye Z ladder at the board's right edge replaces the per-mode
 height fields — rungs grow towards the level being placed at, so aiming is a click rather than a
-guess (`src/editor/height-ladder.ts`) (2026-09-11). Follow-up: overlapping instances, four edge walls, fractional Z/vertical size,
+guess (`src/editor/height-ladder.ts`); and creature models, chosen from Combat's panel by taking
+Select and clicking an enemy — for a whole adversary type in `project.adversaryModels`, or for one
+placed creature, with its Name and Hit points alongside (2026-09-11). Follow-up: overlapping instances, four edge walls, fractional Z/vertical size,
 tab-driven placement, visible authored creatures with on-grid play sync. All this is unplanned
 Codex work reviewed onto the branch; the spec's §15 records the rulings (C1–C9).
 **Next:** part 2 — one vertical unit and multilevel navigation over constructed surfaces

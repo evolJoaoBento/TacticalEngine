@@ -95,6 +95,7 @@ test('a selected creature is re-skinned by its type and on its own, and it survi
   // step — so the field has to lose focus before it takes.
   await page.getByTestId('creature-name').fill('Gorehide');
   await page.getByTestId('creature-name').blur();
+  await page.screenshot({ path: 'test-results/creature-models.png' });
 
   const editing = await page.evaluate(() => window.__polyheart!.editScene());
   type Placed = { adversary: string; model?: string; name?: string; position: { x: number; y: number } };
