@@ -3,6 +3,7 @@ import { blankScene } from '../engine/scene/grid-from-scene';
 import { encounterSchema, interactableSchema, projectSchema, sceneSchema } from '../engine/scene/schema';
 import { itemSchema, lootTableSchema } from '../engine/content/items';
 import { abilitySchema } from '../engine/content/abilities';
+import { conditionDefSchema } from '../engine/content/conditions';
 import { blankSheet } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import {
@@ -27,13 +28,34 @@ import {
   A_SHARE_OF_WHAT_THEY_CARRY,
   A_SPEND_OF_WHATEVER_IS_ON_THE_CARD,
   A_TALLY_THAT_COUNTS_A_MARK,
+  A_BLAST_AROUND_WHAT_IT_HIT,
+  A_GLYPH_THAT_OPENS_THEM_UP,
+  A_HOLD_ON_ONE_OF_THEM,
+  A_HOLD_ON_THE_WHOLE_ROOM,
+  A_TETHER_THAT_BINDS,
+  BLAST_ABILITY,
+  BLAST_CARD,
   CHAOS_ABILITY,
   CHAOS_CARD,
+  GLYPHED,
+  GLYPHED_CONDITION,
+  GLYPH_ABILITY,
+  GLYPH_CARD,
+  HELD,
+  HELD_ABILITY,
+  HELD_CARD,
+  HELD_CONDITION,
+  HELD_TIGHTEN,
   MARKED,
   MARKED_TALLY_CARD,
+  ROOM_HELD_ABILITY,
+  ROOM_HELD_CARD,
+  ROOM_HELD_RELEASE,
   SHARE_ABILITY,
   SHARING_CARD,
   TALLY,
+  TETHER_ABILITY,
+  TETHER_CARD,
 } from '../../tests/fixtures/cards';
 import {
   A_BONUS_READ_OFF_ITS_OWN_WOUNDS,
@@ -1970,9 +1992,20 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
       }),
     );
     const s = blank();
-    // A blank project ships no cards: the SRD library is content the game
-    // folds in, and an authored project has to say it wants it.
-    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+    // A blank project ships no cards, so the block carries the ones it holds.
+    s.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of [
+      ...A_TETHER_THAT_BINDS,
+      ...A_HOLD_ON_ONE_OF_THEM,
+      ...A_HOLD_ON_THE_WHOLE_ROOM,
+      ...A_BLAST_AROUND_WHAT_IT_HIT,
+      ...A_GLYPH_THAT_OPENS_THEM_UP,
+    ]) {
+      s.project.abilities.push(abilitySchema.parse(ability));
+    }
+    for (const condition of [HELD_CONDITION, GLYPHED_CONDITION]) {
+      s.project.conditionDefs.push(conditionDefSchema.parse(condition));
+    }
     s.run(addSheet(sheet));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
@@ -2005,8 +2038,10 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
   };
 
   it('binds them where they stand, and the binding lasts one spotlight', () => {
-    // "On a success, they're temporarily Restrained and must mark a Stress."
-    const demo = landed(['book-of-norai'], 'mystic-tether', (d) =>
+    // The mechanism: a success binds them where they stand and costs them a
+    // Stress. `restrained` is the engine's own, so what this reads is the
+    // engine's handling of a temporary condition on a creature.
+    const demo = landed([TETHER_CARD], TETHER_ABILITY, (d) =>
       d.state.entity('foe')!.conditions.has('restrained'),
     );
     expect(demo).not.toBeNull();
@@ -2018,12 +2053,12 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
   });
 
   it('fixes their attention on the caster, which is worth two Evasion', () => {
-    // "They become temporarily Enraptured." What the condition does is on the
-    // condition, so the card only has to put the name on them.
-    const demo = landed(['enrapture'], 'enrapture', (d) => d.state.entity('foe')!.conditions.has('enraptured'));
+    // What the condition does is on the condition, so the card only has to put
+    // the name on them -- and the two Evasion is read off the definition.
+    const demo = landed([HELD_CARD], HELD_ABILITY, (d) => d.state.entity('foe')!.conditions.has(HELD));
     expect(demo).not.toBeNull();
     const held = demo!.world.defenderOf(demo!.state.entity('foe')!).difficulty;
-    const free = casting(['enrapture'], 'plain');
+    const free = casting([HELD_CARD], 'plain');
     expect(held).toBe(free.world.defenderOf(free.state.entity('foe')!).difficulty - 2);
   });
 
@@ -2031,18 +2066,18 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
     // A seed where the song lands *and* the spotlight stays with the party,
     // so the second half is a move Vela can still make.
     const demo = landed(
-      ['mass-enrapture'],
-      'mass-enrapture',
-      (d) => d.state.entity('foe')!.conditions.has('enraptured') && d.encounter!.view().side === 'party',
+      [ROOM_HELD_CARD],
+      ROOM_HELD_ABILITY,
+      (d) => d.state.entity('foe')!.conditions.has(HELD) && d.encounter!.view().side === 'party',
     );
     expect(demo).not.toBeNull();
-    // "Mark a Stress to force all Enraptured targets to mark a Stress, ending
-    // this spell": the spell ends because the condition comes off with it.
+    // The hold ending IS the condition coming off: there is nothing else holding
+    // it, so the release marks them and clears it in one move.
     const before = demo!.state.entity('foe')!.stress.marked;
     demo!.party.select('vela');
-    expect(useAbility(demo!, 'vela', 'mass-enrapture-hold').status).toBe('done');
+    expect(useAbility(demo!, 'vela', ROOM_HELD_RELEASE).status).toBe('done');
     expect(demo!.state.entity('foe')!.stress.marked).toBe(before + 1);
-    expect(demo!.state.entity('foe')!.conditions.has('enraptured')).toBe(false);
+    expect(demo!.state.entity('foe')!.conditions.has(HELD)).toBe(false);
   });
 
   it('goes up around the one it hit, not around the one who threw it', () => {
@@ -2051,7 +2086,8 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
     // is what `around: 'target'` means inside what the check succeeded at.
     for (let seed = 1; seed < 40; seed++) {
       const s = blank();
-      for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+      s.project.domainCards.push(...FIXTURE_CARDS);
+      for (const ability of A_BLAST_AROUND_WHAT_IT_HIT) s.project.abilities.push(abilitySchema.parse(ability));
       s.run(
         addSheet(
           characterSheetSchema.parse(
@@ -2062,7 +2098,7 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
               armorId: 'padded-coat',
               primaryWeaponId: 'ember-staff',
               subclassId: 'flamecaller',
-              domainCards: ['book-of-norai'],
+              domainCards: [BLAST_CARD],
             }),
           ),
         ),
@@ -2073,14 +2109,14 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
       // would catch neither.
       s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 9, y: 6 } }));
       s.run(addAdversary('hall', 'duel', { id: 'beside', adversary: 'fixture-foe', position: { x: 10, y: 6 } }));
-      const demo = buildProjectScene(s.project, `fireball-${seed}`);
+      const demo = buildProjectScene(s.project, `blast-${seed}`);
       demo.askDefender = false;
       startEncounter(demo, 'duel');
       demo.party.select('vela');
       for (const id of ['foe', 'beside']) demo.state.entity(id)!.hitPoints = { max: 90, marked: 0 };
 
-      if (useAbility(demo, 'vela', 'fireball', ['foe']).status === 'waiting') answerPending(demo, { kind: 'roll' });
-      if (!demo.log.some((l) => l.text.includes('goes up on impact'))) continue;
+      if (useAbility(demo, 'vela', BLAST_ABILITY, ['foe']).status === 'waiting') answerPending(demo, { kind: 'roll' });
+      if (!demo.log.some((l) => l.text.includes('comes apart where it lands'))) continue;
       const said = demo.log.map((l) => l.text).join(' | ');
       expect(said).toContain('Foe');
       // Both of them answered the blast, not just the one it was thrown at.
@@ -2088,28 +2124,29 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
       expect(demo.state.entity('beside')!.hitPoints.marked).toBeGreaterThan(0);
       return;
     }
-    throw new Error('no seed landed a Fireball in forty tries');
+    throw new Error('no seed landed the blast in forty tries');
   });
 
   it('leaves a glyph on for one of their spotlights, and no longer', () => {
     // "Temporarily" is the creature's next spotlight: it acts under whatever
     // was put on it, and sheds it at the end of the turn - so a caster who
     // spends their turn on a debuff buys the party exactly one round of it.
-    const demo = landed(['glyph-of-nightfall'], 'glyph-of-nightfall', (d) =>
-      d.state.entity('foe')!.conditions.has('glyphed'),
+    const demo = landed([GLYPH_CARD], GLYPH_ABILITY, (d) =>
+      d.state.entity('foe')!.conditions.has(GLYPHED),
     );
     expect(demo).not.toBeNull();
     endTurn(demo!);
-    expect(demo!.state.entity('foe')!.conditions.has('glyphed')).toBe(false);
+    expect(demo!.state.entity('foe')!.conditions.has(GLYPHED)).toBe(false);
   });
 
   it('will not tighten a song nobody is under', () => {
-    // The second half of Enrapture is aimed at whoever is already held, which
-    // is a gate on the target rather than on the card.
-    const demo = casting(['enrapture'], 'not-yet');
-    const card = abilitiesOf(demo, 'vela').find((a) => a.id === 'enrapture-hold')!;
+    // The follow-up is aimed at whoever is already held, which is a gate on the
+    // target rather than on the card: until somebody is under it, it offers no
+    // targets at all, which is a different thing from being refused.
+    const demo = casting([HELD_CARD], 'not-yet');
+    const card = abilitiesOf(demo, 'vela').find((a) => a.id === HELD_TIGHTEN)!;
     expect(abilityTargets(demo, 'vela', card)).toEqual([]);
-    demo.state.entity('foe')!.conditions.add('enraptured');
+    demo.state.entity('foe')!.conditions.add(HELD);
     expect(abilityTargets(demo, 'vela', card)).toEqual(['foe']);
   });
 });

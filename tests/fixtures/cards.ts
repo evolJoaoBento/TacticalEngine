@@ -34,6 +34,45 @@ export const ANSWERING_CARD = 'fixture-card-10';
 export const SHARING_CARD = 'fixture-card-11';
 /** A card that spends whatever is sitting on it. */
 export const CHAOS_CARD = 'fixture-card-12';
+/** Cards that put something on a target and leave it there. */
+export const TETHER_CARD = 'fixture-card-13';
+export const HELD_CARD = 'fixture-card-14';
+export const ROOM_HELD_CARD = 'fixture-card-15';
+export const BLAST_CARD = 'fixture-card-16';
+export const GLYPH_CARD = 'fixture-card-17';
+
+/** Their abilities, by the id a test names them with. */
+export const TETHER_ABILITY = 'fixture-tether';
+export const HELD_ABILITY = 'fixture-hold';
+export const HELD_TIGHTEN = 'fixture-hold-tighten';
+export const ROOM_HELD_ABILITY = 'fixture-room-hold';
+export const ROOM_HELD_RELEASE = 'fixture-room-hold-release';
+export const BLAST_ABILITY = 'fixture-blast';
+export const GLYPH_ABILITY = 'fixture-glyph';
+
+/**
+ * Two conditions that carry a real number, and therefore need defining.
+ *
+ * A bare marker needs no definition -- `hasCondition` reads the entity's own set --
+ * but a test asserting a held creature is two easier to hit is reading a modifier
+ * off the definition, not off the card that applied it.
+ */
+export const HELD = 'fixture-held-fast';
+export const GLYPHED = 'fixture-glyphed';
+
+export const HELD_CONDITION = {
+  id: HELD,
+  name: 'Held Fast',
+  text: 'Your attention is fixed on the one holding it, and nothing else reaches you.',
+  modifiers: [{ stat: 'evasion', bonus: -2 }],
+};
+
+export const GLYPHED_CONDITION = {
+  id: GLYPHED,
+  name: 'Glyphed',
+  text: 'A mark on your body says where you are weakest.',
+  modifiers: [{ stat: 'evasion', bonus: -2 }],
+};
 
 /**
  * The two asking cards, by the id a test names them with.
@@ -428,6 +467,189 @@ export const A_SPEND_OF_WHATEVER_IS_ON_THE_CARD = [
             },
           },
         ],
+      },
+    ],
+  },
+];
+
+/**
+ * A tether: bound where they stand, and it costs them something.
+ *
+ * `restrained` is deliberately the engine's own condition rather than a fixture
+ * one. What a test wants from this is the engine's handling of `temporary` on an
+ * adversary -- it spends its spotlight tearing free -- and a fixture condition
+ * would be testing my definition instead of that.
+ */
+export const A_TETHER_THAT_BINDS = [
+  {
+    id: TETHER_ABILITY,
+    name: 'Tether',
+    source: { kind: 'domainCard', card: TETHER_CARD },
+    text: 'Put a line on something at range and hold it where it stands.',
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Bind them where they stand?',
+          onSuccessWithHope: [
+            { kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } },
+            { kind: 'markStress', amount: 1, target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+];
+
+/**
+ * A hold on one creature, and a second ability that tightens it.
+ *
+ * The gate on the follow-up sits on `target.when`, so until somebody is actually
+ * under the hold it offers no targets at all -- which is a different thing from
+ * being refused, and is what one test reads.
+ */
+export const A_HOLD_ON_ONE_OF_THEM = [
+  {
+    id: HELD_ABILITY,
+    name: 'Hold',
+    source: { kind: 'domainCard', card: HELD_CARD },
+    text: 'Take hold of what something is paying attention to.',
+    target: { kind: 'adversary', range: 'close' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Hold their attention?',
+          onSuccessWithHope: [
+            { kind: 'applyCondition', condition: HELD, duration: 'temporary', target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: HELD_TIGHTEN,
+    name: 'Hold',
+    source: { kind: 'domainCard', card: HELD_CARD },
+    text: 'Tighten what is already held, and make them feel it.',
+    cost: { stress: 1 },
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'adversary', range: 'close', when: { kind: 'hasCondition', condition: HELD } },
+    effects: [
+      { kind: 'log', text: 'The hold tightens, and it costs them.', tone: 'hope' },
+      { kind: 'markStress', amount: 1, target: { kind: 'target' } },
+    ],
+  },
+];
+
+/**
+ * The same hold across a whole band, and a release that ends it for all of them.
+ *
+ * The release marks everybody and clears the condition in one move, because the
+ * hold ending IS the condition coming off -- there is nothing else holding it.
+ */
+export const A_HOLD_ON_THE_WHOLE_ROOM = [
+  {
+    id: ROOM_HELD_ABILITY,
+    name: 'Hold the Room',
+    source: { kind: 'domainCard', card: ROOM_HELD_CARD },
+    text: 'Take hold of everything in the room at once.',
+    target: { kind: 'none', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'far' },
+          prompt: 'Hold the whole room?',
+          onSuccessWithHope: [
+            { kind: 'applyCondition', condition: HELD, duration: 'temporary', target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: ROOM_HELD_RELEASE,
+    name: 'Hold the Room',
+    source: { kind: 'domainCard', card: ROOM_HELD_CARD },
+    text: 'Let go of all of them at once, and let it cost them on the way out.',
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'far' },
+    effects: [
+      { kind: 'log', text: 'The hold breaks, and every one of them feels it.', tone: 'hope' },
+      { kind: 'markStress', amount: 1, target: { kind: 'adversaries', range: 'far' } },
+      { kind: 'clearCondition', condition: HELD, target: { kind: 'adversaries', range: 'far' } },
+    ],
+  },
+];
+
+/**
+ * A blast whose ring is read around the one it hit.
+ *
+ * `around: 'target'` is the whole specimen. A ring read from the caster's chair
+ * would catch whoever is standing near HER, which in the test that reads this is
+ * nobody at all -- both creatures are across the room, together.
+ */
+export const A_BLAST_AROUND_WHAT_IT_HIT = [
+  {
+    id: BLAST_ABILITY,
+    name: 'Burst',
+    source: { kind: 'domainCard', card: BLAST_CARD },
+    text: 'Throw something that comes apart where it lands.',
+    target: { kind: 'adversary', range: 'veryFar' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Throw it?',
+          onSuccessWithHope: [
+            { kind: 'log', text: 'It comes apart where it lands.', tone: 'combat' },
+            {
+              kind: 'reactionRoll',
+              difficulty: 13,
+              trait: 'agility',
+              targets: { kind: 'adversaries', range: 'veryClose', around: 'target' },
+              onFail: [{ kind: 'damage', dice: 'd20+5', type: 'magic', using: 'proficiency', target: { kind: 'hit' } }],
+              onSuccess: [
+                { kind: 'damage', dice: 'd20+5', type: 'magic', using: 'proficiency', half: true, target: { kind: 'hit' } },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  },
+];
+
+/** A glyph that says where somebody is weakest, bought with Hope. */
+export const A_GLYPH_THAT_OPENS_THEM_UP = [
+  {
+    id: GLYPH_ABILITY,
+    name: 'Glyph',
+    source: { kind: 'domainCard', card: GLYPH_CARD },
+    text: 'Write something on them that says where they are weakest.',
+    cost: { hope: 1 },
+    target: { kind: 'adversary', range: 'veryClose' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Mark their weak points?',
+          onSuccessWithHope: [
+            { kind: 'applyCondition', condition: GLYPHED, duration: 'temporary', target: { kind: 'hit' } },
+          ],
+        },
       },
     ],
   },
