@@ -4419,13 +4419,85 @@ describe('one swing through all of them', () => {
 
 
 describe('a step across the room without crossing it', () => {
+  /**
+   * A card that puts its holder somewhere else without walking her there, and
+   * can bring whoever is standing with her for a Hope a head.
+   *
+   * Three success faces, all the same one: the engine reads them separately, so
+   * a specimen that filled only the best of them would leave two thirds of the
+   * seeds proving nothing. The arms are built once and shared.
+   */
+  const BLINK_CARD = 'fixture-card-20';
+
+  /** The offer, and the only part of it the dice do not decide. */
+  const TOGETHER = {
+    kind: 'choice',
+    title: 'Step across',
+    body: 'Anyone standing with you can come.',
+    options: [
+      { label: 'Step alone', effects: [] },
+      {
+        label: 'Bring them along (a Hope each)',
+        // Offered only when she can pay for all of them: a count measured
+        // against the Hope she is actually holding.
+        available: {
+          kind: 'all',
+          of: [
+            { kind: 'nearby', of: { kind: 'allies', range: 'veryClose' }, op: '>=', value: 1 },
+            {
+              kind: 'nearby',
+              of: { kind: 'allies', range: 'veryClose' },
+              op: '<=',
+              value: { pool: 'hope', measure: 'available' },
+            },
+          ],
+        },
+        // They arrive first, so who is standing with her is read from where
+        // they were all standing rather than from where she has already gone.
+        effects: [
+          { kind: 'spendHope', amount: { count: { kind: 'allies', range: 'veryClose' } } },
+          { kind: 'move', who: { kind: 'allies', range: 'veryClose' }, to: 'point', teleport: true, budget: 'far' },
+        ],
+      },
+    ],
+  };
+
+  /** The offer, then her own arrival. Every success face does both. */
+  const ARRIVE = [TOGETHER, { kind: 'move', to: 'point', teleport: true, budget: 'far' }];
+
+  const STEP = [
+    {
+      id: 'fixture-blink',
+      name: 'Step Across',
+      source: { kind: 'domainCard', card: BLINK_CARD },
+      text: 'Spend a Hope to be standing somewhere else, and bring whoever is with you for a Hope a head.',
+      cost: { hope: 1 },
+      target: { kind: 'point', range: 'far' },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 12,
+            prompt: 'Step across the room without crossing it.',
+            onCriticalSuccess: ARRIVE,
+            onSuccessWithHope: ARRIVE,
+            onSuccessWithFear: ARRIVE,
+          },
+        },
+      ],
+    },
+  ];
+
   /** Mira beside Kara with the card in hand, both beside the husk. */
   const blinking = (seed: string) => {
     const demo = standoff(seed);
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     standBehind(demo, 'mira', husk.tile);
-    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['blink-out'], loadout: ['blink-out'] };
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of STEP) demo.project.abilities.push(abilitySchema.parse(ability));
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: [BLINK_CARD], loadout: [BLINK_CARD] };
     demo.sheets.set('mira', sheet);
     demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
@@ -4455,7 +4527,7 @@ describe('a step across the room without crossing it', () => {
    * caster is a step further out than she is, and the spell carries them too.
    */
   const somewhereElse = (demo: DemoScene, who: readonly string[]): number => {
-    const card = demo.project.abilities.find((a) => a.id === 'blink-out')!;
+    const card = demo.project.abilities.find((a) => a.id === 'fixture-blink')!;
     const taken = new Set(demo.state.entitiesOf('party').concat(demo.state.entitiesOf('adversary')).map((e) => e.tile));
     for (const tile of pointTiles(demo, 'mira', card)) {
       if (taken.has(tile) || !demo.grid.isPassable(tile)) continue;
@@ -4475,7 +4547,7 @@ describe('a step across the room without crossing it', () => {
       const mira = demo.state.entity('mira')!;
       const from = mira.tile;
 
-      expect(useAbility(demo, 'mira', 'blink-out', [], { point: at }).status).not.toBe('refused');
+      expect(useAbility(demo, 'mira', 'fixture-blink', [], { point: at }).status).not.toBe('refused');
       answerAll(demo, 0);
       if (!demo.log.some((l) => /Success|Critical/.test(l.text))) continue;
 
@@ -4495,8 +4567,8 @@ describe('a step across the room without crossing it', () => {
       const kara = demo.state.entity('kara')!;
       const stood = kara.tile;
 
-      expect(useAbility(demo, 'mira', 'blink-out', [], { point: at }).status).not.toBe('refused');
-      // Option 1 is "take them with you"; option 0 is going alone.
+      expect(useAbility(demo, 'mira', 'fixture-blink', [], { point: at }).status).not.toBe('refused');
+      // Option 1 brings them along; option 0 steps across alone.
       answerAll(demo, 1);
       if (!demo.log.some((l) => /Success|Critical/.test(l.text))) continue;
       if (demo.state.entity('mira')!.tile === stood) continue;
@@ -4530,7 +4602,7 @@ describe('a step across the room without crossing it', () => {
       // back before the choice is put, so even then there is one for one of
       // them and not for both.
       mira.hope = { max: 6, value: 1 };
-      expect(useAbility(demo, 'mira', 'blink-out', [], { point: at }).status).not.toBe('refused');
+      expect(useAbility(demo, 'mira', 'fixture-blink', [], { point: at }).status).not.toBe('refused');
       let offered: string[] = [];
       for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
         const prompt = demo.pending.prompt;
@@ -4542,7 +4614,7 @@ describe('a step across the room without crossing it', () => {
         answerPending(demo, { kind: 'choose', index: 0 });
       }
       if (!demo.log.some((l) => /Success|Critical/.test(l.text))) continue;
-      expect(offered).toEqual(['Go alone']);
+      expect(offered).toEqual(['Step alone']);
       expect(demo.state.entity('kara')!.tile).not.toBe(at);
 
       // With a Hope for each of them it is offered, and each of them is paid for.
@@ -4550,7 +4622,7 @@ describe('a step across the room without crossing it', () => {
       rich.state.moveEntity('finn', stand);
       const richMira = rich.state.entity('mira')!;
       richMira.hope = { max: 6, value: 4 };
-      expect(useAbility(rich, 'mira', 'blink-out', [], { point: at }).status).not.toBe('refused');
+      expect(useAbility(rich, 'mira', 'fixture-blink', [], { point: at }).status).not.toBe('refused');
       let took: string[] = [];
       for (let guard = 0; guard < 8 && rich.pending !== null; guard++) {
         const prompt = rich.pending.prompt;
@@ -4577,7 +4649,7 @@ describe('a step across the room without crossing it', () => {
       const kara = demo.state.entity('kara')!;
       const stood = kara.tile;
 
-      expect(useAbility(demo, 'mira', 'blink-out', [], { point: at }).status).not.toBe('refused');
+      expect(useAbility(demo, 'mira', 'fixture-blink', [], { point: at }).status).not.toBe('refused');
       // Option 0 is going alone.
       answerAll(demo, 0);
       if (!demo.log.some((l) => /Success|Critical/.test(l.text))) continue;
