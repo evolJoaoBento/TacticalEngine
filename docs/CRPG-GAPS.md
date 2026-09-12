@@ -451,8 +451,11 @@ the fight if there is one.
 - Combat still holds the original tools; construction needs multilevel navigation.
 - **Editor camera**: right-drag pan, wheel zoom, WASD/arrows, Q/E and Home work in edit mode;
   **F (frame the selected character) is still play-only**, there being no selection to frame.
-- No creature has a model of its own: 128 of the 129 SRD stat blocks draw as a husk body.
-  `window.__polyheart.missingModels()` lists them; the Models workspace does not show them yet.
+- No creature *ships* with a model of its own: 128 of the 129 SRD stat blocks draw as a husk body
+  until one is assigned, and `window.__polyheart.missingModels()` lists them. Since 2026-09-11 that
+  is a default rather than a ceiling: taking Select in Combat and clicking a creature opens a panel
+  that points a whole adversary type (`project.adversaryModels`) or that one placement
+  (`model` on the placement) at any built-in or imported model.
 
 ### ~~9. Asset import (glTF)~~ — done
 
@@ -466,8 +469,14 @@ file lands only the tokens and props drawn from that id are rebuilt. Skinned mod
 `SkeletonUtils`, so the Khronos Fox walks in with its rig. A faction ring still goes under an
 imported token, so a side reads at a glance.
 
-The editor lists a project's models and adds one from a URL; the e2e imports the Khronos Duck
-from the test fixtures, draws it where a prop names it, and finds it in the exported JSON.
+The editor's Models panel picks a `.glb`/`.gltf` from disk and reads it **into the project**, so a
+saved document carries its art and opens anywhere; the row reports the file by weight rather than
+printing the encoded bytes, and **Check** warns past 8 MB. Scale, ground offset, facing and the four
+clip states are set in the same panel, the clip lists being the names the file itself carries, read
+back once it has loaded. A model referenced by a path still works and shows that path. Two e2e cover
+it: one imports the Khronos Duck by URL, draws it where a prop names it and finds it in the exported
+JSON; the other picks the Khronos Fox through the file input and chooses its own `Survey` clip as
+the idle.
 
 An imported model with clips plays its first one on a loop (an idle, in every sample set
 worth the name); `SceneView.tick` drives the mixers from the frame loop.
@@ -481,8 +490,9 @@ it flinches, the fall to its last frame as it goes down, and the idle otherwise.
 no clip named keeps what is playing, and a file with nothing named loops its first clip as
 before.
 
-**Still open:** textures come with the file but nothing authors materials; there is no file
-picker — a model is a URL the page can reach.
+**Still open:** textures come with the file but nothing authors materials — no tinting, no texture
+swap, no override of what the file ships with. (The file picker that used to be listed here landed
+on 2026-09-12.)
 
 ### ~~10. Presentation the prototype had and this does not~~ — mostly closed
 

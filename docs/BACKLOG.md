@@ -4,8 +4,8 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
-**Pinned to commit `584e72e`.** At that commit: `npx tsc --noEmit` clean, **1787 unit tests across
-89 files**, **102 Playwright tests** (about 3.6 minutes). If those numbers come back lower, something
+**Pinned to commit `7b99649`.** At that commit: `npx tsc --noEmit` clean, **1796 unit tests across
+89 files**, **103 Playwright tests** (about 3.7 minutes). If those numbers come back lower, something
 was lost — check before building on it. Symbol names are the stable handles here; line numbers move.
 
 ---
@@ -53,7 +53,9 @@ with the chosen facing, and a fisheye Z ladder at the board's right edge replace
 height fields — rungs grow towards the level being placed at, so aiming is a click rather than a
 guess (`src/editor/height-ladder.ts`); and creature models, chosen from Combat's panel by taking
 Select and clicking an enemy — for a whole adversary type in `project.adversaryModels`, or for one
-placed creature, with its Name and Hit points alongside (2026-09-11). Follow-up: overlapping instances, four edge walls, fractional Z/vertical size,
+placed creature, with its Name and Hit points alongside (2026-09-11); and importing rigged models —
+a file picker that carries the `.glb` inside the project, with scale, seating, facing and the four
+animation clips chosen from the names the file carries (2026-09-12). Follow-up: overlapping instances, four edge walls, fractional Z/vertical size,
 tab-driven placement, visible authored creatures with on-grid play sync. All this is unplanned
 Codex work reviewed onto the branch; the spec's §15 records the rulings (C1–C9).
 **Next:** part 2 — one vertical unit and multilevel navigation over constructed surfaces
@@ -81,11 +83,15 @@ rather than silently walking as far as it can — the refusal becomes a prompt w
 answered through the same `pending` channel as a script's check. The adversary side reads the same
 function so the GM's turn stops inventing its own budget.
 
-### 2. Materials and a file picker for imported models
+### 2. Materials for imported models
 
-`CRPG-GAPS.md` §9. Textures come with a glTF file but nothing authors materials, and there is no file
-picker — a model is a URL the page can reach, which means an author cannot add a model from disk in
-the editor at all.
+`CRPG-GAPS.md` §9. Textures arrive with a glTF file, but nothing authors materials: there is no way
+to tint one, swap a texture, or override what the file ships with.
+
+The file picker that was the other half of this item landed on 2026-09-12. A model is chosen from
+disk in **Content → Models**, read into the project so a save carries its art, and its scale, ground
+offset, facing and animation clips are set in that panel — the clip lists being the names the file
+itself carries.
 
 ### 3. Content depth: the unscripted remainder
 
