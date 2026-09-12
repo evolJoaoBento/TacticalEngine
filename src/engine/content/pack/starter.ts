@@ -31,6 +31,7 @@ const STARTER: ContentPackDoc = {
       },
       features: [
         { name: 'Shield Trained', text: 'You may use a shield without it counting against your burden.' },
+        { name: 'Drilled', text: 'Long practice in armour: your Armor Score is 1 higher.' },
       ],
     },
     {
@@ -71,6 +72,7 @@ const STARTER: ContentPackDoc = {
       domains: ['bulwark'],
       foundation: [
         { name: 'Bulwark Stance', text: 'Allies directly behind you count as having cover.' },
+        { name: 'Set Feet', text: 'You take a blow square rather than glancing: your damage thresholds are 1 higher.' },
       ],
       specialization: [
         { name: 'Unmoved', text: 'You cannot be pushed or pulled against your will.' },
@@ -87,6 +89,7 @@ const STARTER: ContentPackDoc = {
       spellcastTrait: 'finesse',
       foundation: [
         { name: 'Douse', text: 'Put out an unattended light within Close range as a free action.' },
+        { name: 'Softstep', text: 'You are never quite where the eye expects: your Evasion is 1 higher.' },
       ],
       specialization: [
         { name: 'Low Profile', text: 'In dim light or darkness, you are harder to pick out at range.' },
@@ -103,6 +106,7 @@ const STARTER: ContentPackDoc = {
       spellcastTrait: 'knowledge',
       foundation: [
         { name: 'Emberhand', text: 'Your Ember spells ignore one point of resistance.' },
+        { name: 'Emberflow', text: 'The heat answers quickly: your spellcast rolls are 1 higher.' },
       ],
       specialization: [
         { name: 'Banked Heat', text: 'A spell you did not cast this turn burns hotter on the next.' },

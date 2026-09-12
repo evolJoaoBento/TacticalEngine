@@ -1,10 +1,15 @@
 /**
- * What the starter pack's cards do.
+ * What the starter pack's cards and features do.
  *
  * A card is a name and some text whether or not the engine can run it; these
  * are the ones it can. The rest of each card's meaning stays in its text, which
  * is how the engine has always handled a card the effect vocabulary cannot
  * express — the holder reads it and the table settles it.
+ *
+ * The same is true of a class or subclass feature, and the last section here is
+ * the handful that are mechanical rather than read aloud. A feature's ability is
+ * matched to its printed entry by name, so each one's `name` is exactly the name
+ * the class or subclass prints.
  *
  * Nothing here costs Hope or Fear. Those are document field names on `cost`,
  * and both are being renamed; a starter pack that never spends them needs no
@@ -98,6 +103,45 @@ const RAW = [
     text: 'A ring of low fire. Foes crossing it are struck as they come.',
     kind: 'action',
     cost: { stress: 1 },
+  },
+
+  // ---- class and subclass features -------------------------------------------
+  // A character's numbers come from more than the cards they hold, and until
+  // these existed no shipped content exercised it: every ability in the pack was
+  // a domain card, so the `classFeature` and `subclass` paths were reachable only
+  // by a project writing its own. One mechanical feature each, at the stage a
+  // level-1 character has, which is `foundation`.
+  {
+    id: 'sentinel-drilled',
+    name: 'Drilled',
+    source: { kind: 'classFeature', classId: 'sentinel' },
+    text: 'Long practice in armour: your Armor Score is 1 higher.',
+    kind: 'passive',
+    modifiers: [{ stat: 'armorScore', bonus: 1 }],
+  },
+  {
+    id: 'shieldbearer-set-feet',
+    name: 'Set Feet',
+    source: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'foundation' },
+    text: 'You take a blow square rather than glancing: your damage thresholds are 1 higher.',
+    kind: 'passive',
+    modifiers: [{ stat: 'thresholds', bonus: 1 }],
+  },
+  {
+    id: 'lampsnuffer-softstep',
+    name: 'Softstep',
+    source: { kind: 'subclass', subclassId: 'lampsnuffer', stage: 'foundation' },
+    text: 'You are never quite where the eye expects: your Evasion is 1 higher.',
+    kind: 'passive',
+    modifiers: [{ stat: 'evasion', bonus: 1 }],
+  },
+  {
+    id: 'flamecaller-emberflow',
+    name: 'Emberflow',
+    source: { kind: 'subclass', subclassId: 'flamecaller', stage: 'foundation' },
+    text: 'The heat answers quickly: your spellcast rolls are 1 higher.',
+    kind: 'passive',
+    modifiers: [{ stat: 'spellcastRoll', bonus: 1 }],
   },
 ];
 

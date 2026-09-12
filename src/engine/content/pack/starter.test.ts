@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blankSheet, deriveCharacter } from '../../character/sheet';
-import { abilitySchema } from '../abilities';
+import { abilitiesFor, abilitySchema } from '../abilities';
 import { contentPackSchema } from './schema';
 import { STARTER_ABILITIES, STARTER_CHARACTERS, STARTER_PACK } from './starter';
 
@@ -136,6 +136,30 @@ describe('a character can actually be built from it', () => {
     ).character;
     // Iron Stance raises Armor Score, and the probe holds it.
     expect(character.armorScore).toBeGreaterThan(plain.armorScore);
+  });
+
+  /**
+   * A character is more than the cards in their hands. These two come from the
+   * class and the subclass rather than a card, which is the only shipped content
+   * that reaches those paths at all — so this is the test that they are wired.
+   */
+  it("grants the class's and the subclass's own features", () => {
+    const { character } = deriveCharacter(sentinel, STARTER_CHARACTERS, STARTER_ABILITIES);
+    const names = abilitiesFor(character, STARTER_ABILITIES).map((ability) => ability.name);
+    expect(names).toContain('Drilled');
+    expect(names).toContain('Set Feet');
+  });
+
+  it('folds those features into the numbers, as the cards are folded in', () => {
+    const withFeatures = deriveCharacter(sentinel, STARTER_CHARACTERS, STARTER_ABILITIES).character;
+    // The same sheet with nothing behind it: no cards, no features, so the
+    // difference is exactly what the pack's own abilities are worth.
+    const bare = deriveCharacter(sentinel, STARTER_CHARACTERS, []).character;
+    // Set Feet, and nothing else the probe holds, moves a threshold.
+    expect(withFeatures.thresholds.major).toBe(bare.thresholds.major + 1);
+    expect(withFeatures.thresholds.severe).toBe(bare.thresholds.severe + 1);
+    // Drilled and Iron Stance both raise Armor Score, so it is worth two.
+    expect(withFeatures.armorScore).toBe(bare.armorScore + 2);
   });
 
   it('builds one of each class without complaint', () => {
