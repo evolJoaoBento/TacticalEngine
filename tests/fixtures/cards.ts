@@ -16,6 +16,12 @@
 
 import {
   FIXTURE_AREA_CARD,
+  FIXTURE_BOLD_CARD,
+  FIXTURE_BONE_CARD,
+  FIXTURE_CODEX_CARD,
+  FIXTURE_PROVOKE_CARD,
+  FIXTURE_SAGE_CARD,
+  FIXTURE_WATCH_CARD,
   FIXTURE_RIFT_CARD,
   FIXTURE_RIFT_MARK,
   FIXTURE_SPOT_CARD,
@@ -1388,6 +1394,219 @@ export const A_RIFT_THAT_OPENS = [
           onSuccessWithFear: RIFT_ARMS,
         },
       },
+    ],
+  },
+];
+
+/**
+ * Boldness offered after the dice, on a roll that failed.
+ *
+ * Offered rather than taken (`auto: false`), because it costs a Light: a card that fired
+ * itself would spend on the first throw of the fight. The gate has three parts and each
+ * earns its place — the holder's own roll, made with one named trait, and only a failure.
+ * A test proves the middle one by rolling a different trait and finding nothing offered.
+ *
+ * `raiseRoll` moves the number behind the dice without touching the dice: a test asserts
+ * the Hope and Fear faces are unchanged and only the total moved.
+ */
+export const A_BOLDNESS_ON_A_FAILED_ROLL = [
+  {
+    id: 'fixture-bold-front',
+    name: 'Bold Front',
+    source: { kind: 'domainCard', card: FIXTURE_BOLD_CARD },
+    text: 'When a word of yours falls short, put your weight behind it instead.',
+    kind: 'reaction',
+    trigger: 'partyRolling',
+    cost: { hope: 1 },
+    action: false,
+    auto: false,
+    available: {
+      kind: 'all',
+      of: [{ kind: 'self' }, { kind: 'rolledWith', trait: 'presence' }, { kind: 'rolled', is: 'failure' }],
+    },
+    effects: [
+      { kind: 'log', text: 'They put their shoulders into it.', tone: 'hope' },
+      { kind: 'raiseRoll', amount: { trait: 'strength' } },
+    ],
+  },
+];
+
+/**
+ * A Presence roll to fail, so the card above has something to answer.
+ *
+ * `difficulty: 'target'` against a creature, which fails often enough to find in a seed
+ * hunt and succeeds often enough to be a real roll. What the success does is incidental
+ * — the point is that a Presence roll happened.
+ */
+export const A_PROVOCATION = [
+  {
+    id: 'fixture-needle-them',
+    name: 'Needle Them',
+    source: { kind: 'domainCard', card: FIXTURE_PROVOKE_CARD },
+    text: 'Say the thing that gets under it.',
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'presence',
+          difficulty: 'target',
+          tags: ['social'],
+          prompt: 'Say the thing that gets under it?',
+          onCriticalSuccess: [{ kind: 'markStress', amount: 1, target: { kind: 'hit' } }],
+          onSuccessWithHope: [{ kind: 'markStress', amount: 1, target: { kind: 'hit' } }],
+          onSuccessWithFear: [{ kind: 'markStress', amount: 1, target: { kind: 'hit' } }],
+        },
+      },
+    ],
+  },
+];
+
+/**
+ * An Instinct roll, in the OTHER domain.
+ *
+ * Two jobs, and the domain is the second one. It gives a roll made with a trait the
+ * boldness above does not answer, proving that gate; and because it sits outside the
+ * gated domain, a hand of five holding it leaves exactly four in-domain cards — which is
+ * what makes a four-of-one-domain gate testable at all.
+ */
+export const A_WATCHFUL_READ = [
+  {
+    id: 'fixture-read-them',
+    name: 'Read Them',
+    source: { kind: 'domainCard', card: FIXTURE_WATCH_CARD },
+    text: 'Watch something a while and see what it gives away.',
+    action: false,
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'instinct',
+          difficulty: 'target',
+          prompt: 'Watch them, and see what shows?',
+          onCriticalSuccess: [{ kind: 'log', text: 'Something about it gives.', tone: 'hope' }],
+          onSuccessWithHope: [{ kind: 'log', text: 'Something about it gives.', tone: 'hope' }],
+          onSuccessWithFear: [{ kind: 'log', text: 'Something about it gives.', tone: 'hope' }],
+        },
+      },
+    ],
+  },
+];
+
+/**
+ * Proficiency behind a failed Spellcast roll, for a Stress, with four of the domain held.
+ *
+ * The domain gate counts cards in the LOADOUT — `loadoutDomain` filters the derived
+ * character's own cards, so project content counts exactly as shipped content does. Which
+ * is why a test can satisfy this by carrying four fixture cards.
+ */
+export const CODEX_BOUND = [
+  {
+    id: 'fixture-codex-bound',
+    name: 'Codex-Bound',
+    source: { kind: 'domainCard', card: FIXTURE_CODEX_CARD },
+    text: 'What the books taught you is there when the words come out wrong — at a price.',
+    kind: 'reaction',
+    trigger: 'partyRolling',
+    cost: { stress: 1 },
+    action: false,
+    auto: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'self' },
+        { kind: 'loadout', domain: 'fixture', op: '>=', value: 4 },
+        { kind: 'rolledWith', trait: 'spellcast' },
+        { kind: 'rolled', is: 'failure' },
+      ],
+    },
+    effects: [
+      { kind: 'log', text: 'They reach for what the books taught them, and it costs them.', tone: 'hope' },
+      { kind: 'raiseRoll', amount: { trait: 'proficiency' } },
+    ],
+  },
+];
+
+/**
+ * The rolled trait again, on a failure, once per rest.
+ *
+ * Two traits answer it, and which one it raises is read off which was rolled — so the
+ * branch is not decoration: a test drives it through an Instinct roll from a card and
+ * through an Agility roll from a weapon swing, and expects the matching trait both times.
+ */
+export const WILD_BOUND = [
+  {
+    id: 'fixture-wild-bound',
+    name: 'Wild-Bound',
+    source: { kind: 'domainCard', card: FIXTURE_SAGE_CARD },
+    text: 'The wild in you answers what you already were.',
+    kind: 'reaction',
+    trigger: 'partyRolling',
+    uses: { count: 1, per: 'rest' },
+    action: false,
+    auto: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'self' },
+        { kind: 'loadout', domain: 'fixture', op: '>=', value: 4 },
+        { kind: 'rolled', is: 'failure' },
+        {
+          kind: 'any',
+          of: [
+            { kind: 'rolledWith', trait: 'agility' },
+            { kind: 'rolledWith', trait: 'instinct' },
+            // A weapon swing is a roll with the WEAPON's trait, and the bow's is
+            // Finesse. Without this the card answers no weapon in the starter pack.
+            { kind: 'rolledWith', trait: 'finesse' },
+          ],
+        },
+      ],
+    },
+    effects: [
+      { kind: 'log', text: 'The wild in them answers, and the roll is twice what it was.', tone: 'hope' },
+      {
+        kind: 'branch',
+        when: { kind: 'rolledWith', trait: 'agility' },
+        then: [{ kind: 'raiseRoll', amount: { trait: 'agility' } }],
+        otherwise: [
+          {
+            kind: 'branch',
+            when: { kind: 'rolledWith', trait: 'finesse' },
+            then: [{ kind: 'raiseRoll', amount: { trait: 'finesse' } }],
+            otherwise: [{ kind: 'raiseRoll', amount: { trait: 'instinct' } }],
+          },
+        ],
+      },
+    ],
+  },
+];
+
+/**
+ * A blow that landed, made to miss, for three Light and once per rest.
+ *
+ * A script defence: offered beside the ordinary answers when a swing lands, and its label
+ * is the card's own name, which a test finds by looking for it among the choices.
+ */
+export const BONE_BOUND = [
+  {
+    id: 'fixture-bone-bound',
+    name: 'Bone-Bound',
+    source: { kind: 'domainCard', card: FIXTURE_BONE_CARD },
+    text: 'You were simply never where the blow was going.',
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    auto: false,
+    cost: { hope: 3 },
+    uses: { count: 1, per: 'rest' },
+    available: { kind: 'loadout', domain: 'fixture', op: '>=', value: 4 },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'They are simply not where the blow was going.', tone: 'hope' },
+      { kind: 'avoidBlow' },
     ],
   },
 ];

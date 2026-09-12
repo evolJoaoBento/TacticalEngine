@@ -18,23 +18,41 @@ import {
 import { PIT_SCENE_ID } from './demo-scenes';
 import { abilitySchema } from '../engine/content/abilities';
 import {
+  FIXTURE_AURA_CARD,
+  FIXTURE_BOLD_CARD,
+  FIXTURE_BONE_CARD,
   FIXTURE_CARDS,
+  FIXTURE_CODEX_CARD,
+  FIXTURE_DOMAIN_FOUR,
+  FIXTURE_PROVOKE_CARD,
   FIXTURE_RIFT_CARD,
   FIXTURE_RIFT_MARK,
+  FIXTURE_SAGE_CARD,
   FIXTURE_SPOT_CARD,
   FIXTURE_SPOT_MARK,
+  FIXTURE_WATCH_CARD,
 } from '../../tests/fixtures/adversaries';
-import { A_RIFT_THAT_OPENS, A_STEP_BACK_TO_A_MARK } from '../../tests/fixtures/cards';
+import {
+  A_BOLDNESS_ON_A_FAILED_ROLL,
+  A_PROVOCATION,
+  A_RIFT_THAT_OPENS,
+  A_STEP_BACK_TO_A_MARK,
+  A_WATCHFUL_READ,
+  AN_AURA_OF_LAYERS,
+  BONE_BOUND,
+  CODEX_BOUND,
+  WILD_BOUND,
+} from '../../tests/fixtures/cards';
 import { loadGameText, saveGame } from './save';
 import type { EntityState } from '../engine/scene/state';
 
 /**
  * Cards that remember a place.
  *
- * Rift Walker and Phantom Retreat both mark the ground under the caster and
- * come back to it later. The mark is a tile kept under the caster's name in
- * the campaign's variables - so a save carries it - and it is forgotten by a
- * rest and by leaving the room, a tile meaning nothing in another one.
+ * Rift Step and Phantom Step both mark the ground under the caster and come
+ * back to it later. The mark is a tile kept under the caster's name in the
+ * campaign's variables - so a save carries it - and it is forgotten by a rest
+ * and by leaving the room, a tile meaning nothing in another one.
  */
 
 const scene = (seed: string): DemoScene => buildDemoScene(demoMap(), seed);
@@ -48,10 +66,33 @@ const scene = (seed: string): DemoScene => buildDemoScene(demoMap(), seed);
 function carry(demo: DemoScene): void {
   if (demo.project.domainCards.some((c) => c.id === FIXTURE_SPOT_CARD)) return;
   demo.project.domainCards.push(...FIXTURE_CARDS);
-  for (const ability of [...A_STEP_BACK_TO_A_MARK, ...A_RIFT_THAT_OPENS]) {
+  for (const ability of [
+    ...A_STEP_BACK_TO_A_MARK,
+    ...A_RIFT_THAT_OPENS,
+    ...A_BOLDNESS_ON_A_FAILED_ROLL,
+    ...A_PROVOCATION,
+    ...A_WATCHFUL_READ,
+    ...CODEX_BOUND,
+    ...WILD_BOUND,
+    ...BONE_BOUND,
+    ...AN_AURA_OF_LAYERS,
+  ]) {
     demo.project.abilities.push(abilitySchema.parse(ability));
   }
 }
+
+/**
+ * A hand of four in the gated domain, and a companion from outside it.
+ *
+ * The gate counts cards of one domain in the loadout, so the companion has to sit in
+ * another domain or it counts toward the gate it exists to sit beside. Three in-domain
+ * cards is the below-the-gate hand, which is what "not offered" should mean.
+ */
+const gated = (card: string, companion?: string, inDomain = 3): string[] => [
+  card,
+  ...FIXTURE_DOMAIN_FOUR.slice(0, inDomain),
+  ...(companion === undefined ? [] : [companion]),
+];
 
 /** Mira holding these cards, with Hope to spend, out of combat. */
 function holding(seed: string, cards: string[]): DemoScene {
@@ -83,7 +124,7 @@ function elsewhere(demo: DemoScene, from: number): number {
   throw new Error('nowhere to walk to');
 }
 
-describe('Phantom Retreat', () => {
+describe('Phantom Step', () => {
   it('marks the ground for a Hope, and comes back to it for another', () => {
     const demo = holding('phantom', [FIXTURE_SPOT_CARD]);
     const mira = demo.state.entity('mira')!;
@@ -140,7 +181,7 @@ describe('Phantom Retreat', () => {
   });
 });
 
-describe('Rift Walker', () => {
+describe('Rift Step', () => {
   it('marks on a success, and the next success offers the way back', () => {
     for (let seed = 1; seed < 80; seed++) {
       const demo = holding('rift-' + seed, [FIXTURE_RIFT_CARD]);
@@ -164,7 +205,7 @@ describe('Rift Walker', () => {
       expect(demo.log.some((l) => /walk back through it/.test(l.text))).toBe(true);
       return;
     }
-    throw new Error('Rift Walker never succeeded twice in eighty tries');
+    throw new Error('Rift Step never succeeded twice in eighty tries');
   });
 
   it('can drop the mark and lay it where they stand instead', () => {
@@ -185,17 +226,17 @@ describe('Rift Walker', () => {
       expect(demo.world.marks()).toEqual([{ mark: FIXTURE_RIFT_MARK, owner: 'mira', tile: here }]);
       return;
     }
-    throw new Error('Rift Walker never succeeded twice in eighty tries');
+    throw new Error('Rift Step never succeeded twice in eighty tries');
   });
 });
 
 /**
  * Cards that put a trait behind a roll.
  *
- * Bold Presence, Codex-Touched and Sage-Touched are offered once the dice are
- * down and the roll has come up short, and the price - a Hope, a Stress, the
+ * Bold Front, Codex-Bound and Wild-Bound are offered once the dice are down
+ * and the roll has come up short, and the price - a Light, a Stress, the
  * once-per-rest - buys the trait added to the total. The faces stand: a roll
- * with Fear stays one; only whether it succeeds can change.
+ * with Shadow stays one; only whether it succeeds can change.
  */
 
 /** Kara holding these cards, in a fight, beside a husk to roll against. */
@@ -230,16 +271,16 @@ function offered(demo: DemoScene, id: string): boolean {
   return pending?.kind === 'reaction' && pending.offers.some((o) => o.ability.id === id);
 }
 
-describe('Bold Presence', () => {
+describe('Bold Front', () => {
   it('is offered on a failed Presence Roll, and a Hope puts Strength behind it', () => {
     for (let seed = 1; seed < 120; seed++) {
-      const { demo, kara, husk } = karaHolding('bold-' + seed, ['bold-presence', 'troublemaker']);
+      const { demo, kara, husk } = karaHolding('bold-' + seed, [FIXTURE_BOLD_CARD, FIXTURE_PROVOKE_CARD]);
       const strength = demo.characters.get('kara')!.sheet.traits.strength;
-      expect(useAbility(demo, 'kara', 'troublemaker', [husk.id]).status).toBe('waiting');
+      expect(useAbility(demo, 'kara', 'fixture-needle-them', [husk.id]).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
 
-      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['bold-presence']);
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-bold-front']);
       const thrown = demo.pending.offers[0]!.swing!;
       expect(thrown.success).toBe(false);
 
@@ -255,17 +296,17 @@ describe('Bold Presence', () => {
       expect(demo.log.some((l) => /shoulders into it/.test(l.text))).toBe(true);
       return;
     }
-    throw new Error('Bold Presence was never offered in a hundred and twenty tries');
+    throw new Error('Bold Front was never offered in a hundred and twenty tries');
   });
 
   it('is not offered on a roll made with another trait, nor on a success', () => {
     let successes = 0;
     for (let seed = 1; seed < 60; seed++) {
       // Know Thy Enemy rolls Instinct: never a Presence Roll, whatever the dice.
-      const { demo, husk } = karaHolding('bold-other-' + seed, ['bold-presence', 'know-thy-enemy']);
-      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+      const { demo, husk } = karaHolding('bold-other-' + seed, [FIXTURE_BOLD_CARD, FIXTURE_WATCH_CARD]);
+      expect(useAbility(demo, 'kara', 'fixture-read-them', [husk.id]).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
-      expect(offered(demo, 'bold-presence')).toBe(false);
+      expect(offered(demo, 'fixture-bold-front')).toBe(false);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       if (demo.rolls[demo.rolls.length - 1]!.roll.success) successes++;
     }
@@ -274,8 +315,8 @@ describe('Bold Presence', () => {
 });
 
 describe('a weapon swing', () => {
-  it('is a roll with the weapon\'s trait: Sage-Touched answers Finn\'s Agility shot', () => {
-    const sage = ['sage-touched', 'gifted-tracker', 'natures-tongue', 'natural-familiar'];
+  it('is a roll with the weapon\'s trait: Wild-Bound answers Finn\'s Agility shot', () => {
+    const sage = gated(FIXTURE_SAGE_CARD);
     for (let seed = 1; seed < 120; seed++) {
       const { demo, husk } = karaHolding('swing-' + seed, []);
       const sheet = { ...demo.sheets.get('finn')!, domainCards: sage, loadout: sage };
@@ -283,7 +324,11 @@ describe('a weapon swing', () => {
       demo.characters.set('finn', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
       refreshWorld(demo);
       const finn = demo.state.entity('finn')!;
-      const agility = demo.characters.get('finn')!.sheet.traits.agility;
+      // The bow's trait is Finesse, and a weapon swing is a roll with the weapon's
+      // trait — so Finesse is what the card reads and what it raises by. Finn's
+      // Agility happens to equal his Finesse, so asserting Agility here would pass
+      // while reading the wrong number off the sheet.
+      const raised = demo.characters.get('finn')!.sheet.traits.finesse;
       // Finn beside the husk with his shortbow, and the fight is his to act in.
       const blocked = demo.state.blockedFor('finn');
       demo.grid.forEachNeighbor(husk.tile, false, (tile) => {
@@ -291,7 +336,7 @@ describe('a weapon swing', () => {
       });
       demo.party.select('finn');
       attackWithSelected(demo, husk.id);
-      if (!offered(demo, 'sage-touched')) {
+      if (!offered(demo, 'fixture-wild-bound')) {
         while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
         continue;
       }
@@ -302,17 +347,17 @@ describe('a weapon swing', () => {
       answerPending(demo, { kind: 'choose', index: 1 });
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       const settled = demo.rolls[demo.rolls.length - 1]!.roll;
-      expect(settled.total).toBe(thrown.total + agility);
+      expect(settled.total).toBe(thrown.total + raised);
       expect(finn.alive).toBe(true);
       return;
     }
-    throw new Error('Sage-Touched never answered a shot in a hundred and twenty tries');
+    throw new Error('Wild-Bound never answered a shot in a hundred and twenty tries');
   });
 });
 
-describe('Codex-Touched', () => {
-  it('puts Proficiency behind a failed Spellcast Roll for a Stress, with four Codex cards held', () => {
-    const codex = ['codex-touched', 'book-of-ava', 'book-of-illiat', 'book-of-tyfar', 'rift-walker'];
+describe('Codex-Bound', () => {
+  it('puts Proficiency behind a failed Spellcast Roll for a Stress, with four of the domain held', () => {
+    const codex = gated(FIXTURE_CODEX_CARD, FIXTURE_RIFT_CARD);
     for (let seed = 1; seed < 120; seed++) {
       const demo = holding('codex-' + seed, codex);
       const mira = demo.state.entity('mira')!;
@@ -322,7 +367,7 @@ describe('Codex-Touched', () => {
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
 
-      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['codex-touched']);
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-codex-bound']);
       const thrown = demo.pending.offers[0]!.swing!;
       answerPending(demo, { kind: 'choose', index: 1 });
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
@@ -334,12 +379,12 @@ describe('Codex-Touched', () => {
       expect(demo.world.marks().length).toBe(settled.success ? 1 : 0);
       return;
     }
-    throw new Error('Codex-Touched was never offered in a hundred and twenty tries');
+    throw new Error('Codex-Bound was never offered in a hundred and twenty tries');
   });
 
-  it('is not offered with three Codex cards in the loadout', () => {
+  it('is not offered with three of the domain in the loadout', () => {
     for (let seed = 1; seed < 40; seed++) {
-      const demo = holding('codex-few-' + seed, ['codex-touched', 'book-of-ava', 'rift-walker', 'phantom-retreat']);
+      const demo = holding('codex-few-' + seed, gated(FIXTURE_CODEX_CARD, FIXTURE_RIFT_CARD, 2));
       demo.askDefender = true;
       useAbility(demo, 'mira', 'fixture-rift-step', []);
       answerPending(demo, { kind: 'roll' });
@@ -349,17 +394,17 @@ describe('Codex-Touched', () => {
   });
 });
 
-describe('Sage-Touched', () => {
+describe('Wild-Bound', () => {
   it('doubles Instinct on a failed Instinct Roll, once per rest', () => {
-    const sage = ['sage-touched', 'gifted-tracker', 'natures-tongue', 'natural-familiar', 'know-thy-enemy'];
+    const sage = gated(FIXTURE_SAGE_CARD, FIXTURE_WATCH_CARD);
     for (let seed = 1; seed < 120; seed++) {
       const { demo, husk } = karaHolding('sage-' + seed, sage);
       // Know Thy Enemy is a Bone card: four Sage cards remain in the loadout of five.
       const instinct = demo.characters.get('kara')!.sheet.traits.instinct;
-      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+      expect(useAbility(demo, 'kara', 'fixture-read-them', [husk.id]).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
-      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['sage-touched']);
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-wild-bound']);
       const thrown = demo.pending.offers[0]!.swing!;
       answerPending(demo, { kind: 'choose', index: 1 });
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
@@ -368,24 +413,24 @@ describe('Sage-Touched', () => {
 
       // Spent for the rest: a second failure is not offered it.
       for (let again = 1; again < 60; again++) {
-        demo.scenario.abilityUses.delete([...demo.scenario.abilityUses.keys()].find((k) => k.endsWith('/know-thy-enemy')) ?? '');
-        useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]);
+        demo.scenario.abilityUses.delete([...demo.scenario.abilityUses.keys()].find((k) => k.endsWith('/fixture-read-them')) ?? '');
+        useAbility(demo, 'kara', 'fixture-read-them', [husk.id]);
         answerPending(demo, { kind: 'roll' });
-        expect(offered(demo, 'sage-touched')).toBe(false);
+        expect(offered(demo, 'fixture-wild-bound')).toBe(false);
         while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       }
       return;
     }
-    throw new Error('Sage-Touched was never offered in a hundred and twenty tries');
+    throw new Error('Wild-Bound was never offered in a hundred and twenty tries');
   });
 });
 
 /**
  * Cards that answer a blow with dice or a price.
  *
- * Confusing Aura keeps its layers as tokens and throws a d6 per layer at a
- * blow that has landed; Bone-Touched spends three Hope to make one miss. Both
- * are script defences, offered beside the plans when the husk's swing lands.
+ * Doubtful Air keeps its layers as tokens and throws a d6 per layer at a blow
+ * that has landed; Bone-Bound spends three Light to make one miss. Both are
+ * script defences, offered beside the plans when the husk's swing lands.
  */
 
 /** Mira holding these cards beside the husk, the others down so the husk swings at her. */
@@ -437,21 +482,21 @@ function untilScriptChoice(demo: DemoScene, who: string, limit = 60): PendingDef
   return null;
 }
 
-describe('Confusing Aura', () => {
+describe('Doubtful Air', () => {
   it('lays layers as tokens, one plus the Stress paid, once per long rest', () => {
     for (let seed = 1; seed < 120; seed++) {
-      const demo = holding('aura-' + seed, ['confusing-aura']);
+      const demo = holding('aura-' + seed, [FIXTURE_AURA_CARD]);
       const mira = demo.state.entity('mira')!;
-      expect(useAbility(demo, 'mira', 'confusing-aura', []).status).toBe('waiting');
+      expect(useAbility(demo, 'mira', 'fixture-aura', []).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
       if (demo.pending === null) continue; // the roll failed: no layer, no question
       // How many more: two Stress for two more layers.
       expect(demo.pending.kind).toBe('script');
       answerPending(demo, { kind: 'choose', index: 2 });
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-      expect(demo.world.tokensOn('mira', 'confusing-aura')).toBe(3);
+      expect(demo.world.tokensOn('mira', 'fixture-aura')).toBe(3);
       expect(mira.stress.marked).toBe(2);
-      expect(useAbility(demo, 'mira', 'confusing-aura', []).status).toBe('refused');
+      expect(useAbility(demo, 'mira', 'fixture-aura', []).status).toBe('refused');
       return;
     }
     throw new Error('the aura never went up in a hundred and twenty tries');
@@ -461,12 +506,12 @@ describe('Confusing Aura', () => {
     let turned = 0;
     let broke = 0;
     for (let seed = 1; seed < 40 && (turned === 0 || broke === 0); seed++) {
-      const { demo, mira } = miraFacing('aura-blow-' + seed, ['confusing-aura']);
-      demo.world.addTokens('mira', 'confusing-aura', 2);
+      const { demo, mira } = miraFacing('aura-blow-' + seed, [FIXTURE_AURA_CARD]);
+      demo.world.addTokens('mira', 'fixture-aura', 2);
       const asked = untilScriptChoice(demo, 'mira');
       if (asked === null) continue;
       const index = asked.choices.findIndex((c) => c.kind === 'script');
-      expect(asked.choices[index]!.label).toContain('Confusing Aura');
+      expect(asked.choices[index]!.label).toContain('Doubtful Air');
       const said = demo.log.length;
       answerPending(demo, { kind: 'choose', index });
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
@@ -474,11 +519,11 @@ describe('Confusing Aura', () => {
       if (after.some((t) => t.includes('never there'))) {
         turned++;
         expect(after.some((t) => t.includes('finds nothing where Mira was'))).toBe(true);
-        expect(demo.world.tokensOn('mira', 'confusing-aura')).toBe(1);
+        expect(demo.world.tokensOn('mira', 'fixture-aura')).toBe(1);
       } else {
         broke++;
-        expect(after.some((t) => t.includes('The aura is gone'))).toBe(true);
-        expect(demo.world.tokensOn('mira', 'confusing-aura')).toBe(0);
+        expect(after.some((t) => t.includes('The air clears'))).toBe(true);
+        expect(demo.world.tokensOn('mira', 'fixture-aura')).toBe(0);
         expect(mira.hitPoints.marked).toBeGreaterThan(0);
       }
     }
@@ -487,14 +532,14 @@ describe('Confusing Aura', () => {
   });
 });
 
-describe('Bone-Touched', () => {
-  it('makes a blow that landed miss for three Hope, once per rest, with four Bone cards held', () => {
-    const bone = ['bone-touched', 'deft-maneuvers', 'i-see-it-coming', 'untouchable', 'ferocity'];
+describe('Bone-Bound', () => {
+  it('makes a blow that landed miss for three Light, once per rest, with four of the domain held', () => {
+    const bone = gated(FIXTURE_BONE_CARD, FIXTURE_RIFT_CARD);
     for (let seed = 1; seed < 40; seed++) {
       const { demo, mira } = miraFacing('bone-' + seed, bone);
       const asked = untilScriptChoice(demo, 'mira');
       if (asked === null) continue;
-      const index = asked.choices.findIndex((c) => c.kind === 'script' && c.label.includes('Bone-Touched'));
+      const index = asked.choices.findIndex((c) => c.kind === 'script' && c.label.includes('Bone-Bound'));
       expect(index).toBeGreaterThanOrEqual(0);
       const said = demo.log.length;
       answerPending(demo, { kind: 'choose', index });
@@ -506,14 +551,14 @@ describe('Bone-Touched', () => {
 
       // Spent for the rest: the next blow is not offered it.
       const again = untilScriptChoice(demo, 'mira');
-      expect(again === null || !again.choices.some((c) => c.label.includes('Bone-Touched'))).toBe(true);
+      expect(again === null || !again.choices.some((c) => c.label.includes('Bone-Bound'))).toBe(true);
       return;
     }
     throw new Error('the husk never landed a blow on Mira in forty tries');
   });
 
-  it('is not offered with three Bone cards', () => {
-    const { demo } = miraFacing('bone-few', ['bone-touched', 'deft-maneuvers', 'i-see-it-coming', 'rift-walker']);
+  it('is not offered with three of the domain', () => {
+    const { demo } = miraFacing('bone-few', gated(FIXTURE_BONE_CARD, FIXTURE_RIFT_CARD, 2));
     const asked = untilScriptChoice(demo, 'mira');
     expect(asked).toBeNull();
   });

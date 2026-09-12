@@ -263,6 +263,12 @@ export const FIXTURE_CARDS = [
   card('fixture-hand-6', 'Hand VI', 'fixture', 1),
   // A book with two spells in it, named so that one can be asked for and the
   // other must stay out of the answer.
+  card('fixture-bold', 'Bold Front'),
+  card('fixture-provoke', 'Needle Them'),
+  card('fixture-other-watch', 'Read Them', 'other'),
+  card('fixture-codex', 'Codex-Bound'),
+  card('fixture-sage', 'Wild-Bound'),
+  card('fixture-bone', 'Bone-Bound'),
   card('fixture-spot', 'Phantom Step'),
   card('fixture-other-rift', 'Rift Step', 'other'),
   card('fixture-area', 'Bladefall'),
@@ -286,6 +292,23 @@ export const FIXTURE_HAND = [
 
 /** The book, and the names its two spells answer to. */
 export const FIXTURE_GRIMOIRE = 'fixture-grimoire';
+
+/** A reaction on a failed roll, and the two companions that make rolls to fail. */
+export const FIXTURE_BOLD_CARD = 'fixture-bold';
+export const FIXTURE_PROVOKE_CARD = 'fixture-provoke';
+/** In the other domain: an Instinct roll that must not count toward a domain gate. */
+export const FIXTURE_WATCH_CARD = 'fixture-other-watch';
+
+/**
+ * Three cards gated on holding four of one domain.
+ *
+ * Each sits IN the gated domain and counts toward its own gate, which is what the
+ * shipped cards do — so a hand is this card plus three more of the domain, and a
+ * companion from outside it.
+ */
+export const FIXTURE_CODEX_CARD = 'fixture-codex';
+export const FIXTURE_SAGE_CARD = 'fixture-sage';
+export const FIXTURE_BONE_CARD = 'fixture-bone';
 
 /** Cards that remember a place, and the marks they keep under their caster's name. */
 export const FIXTURE_SPOT_CARD = 'fixture-spot';
