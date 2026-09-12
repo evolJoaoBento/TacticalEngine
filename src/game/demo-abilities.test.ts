@@ -15,7 +15,8 @@ import {
   useAbility,
 } from './demo-abilities';
 import {
-  DEMO_CHARACTERS,
+  adversaryDefOf,
+  characterContentFor,
   answerPending,
   attackWithSelected,
   buildDemoScene,
@@ -35,6 +36,11 @@ import {
 const scene = (seed = 'cards'): DemoScene => buildDemoScene(demoMap(), seed);
 
 /** The living adversary nearest a character, and its tile. */
+/** What the demo places, by name: the log lines are built from the block's own. */
+function foeName(demo: DemoScene, id: string): string {
+  return adversaryDefOf(demo, id)!.name;
+}
+
 function nearestFoe(demo: DemoScene, characterId: string): { id: string; tile: number } {
   const from = demo.state.entity(characterId)!.tile;
   const foe = demo.state
@@ -165,7 +171,7 @@ describe('a spell in a fight', () => {
       if (!log.some((t) => t.includes('is thrown back'))) continue;
       const after = demo.grid.euclideanDistance(demo.state.entity('mira')!.tile, demo.state.entity(foe.id)!.tile);
       expect(after).toBeGreaterThan(before);
-      expect(log.some((t) => /d10\+2 → \d+ damage to Acid Burrower/.test(t))).toBe(true);
+      expect(log.some((t) => new RegExp(`d10\\+2 → \\d+ damage to ${foeName(demo, foe.id)}`).test(t))).toBe(true);
       return;
     }
     throw new Error('no seed landed a Power Push in forty tries');
@@ -200,7 +206,7 @@ describe('the loadout and the vault', () => {
     const cards = ['bare-bones', 'get-back-up', 'forceful-push', 'i-am-your-shield', 'not-good-enough', 'reckless'];
     const grown = { ...sheet, domainCards: cards };
     demo.sheets.set('kara', grown);
-    demo.characters.set('kara', deriveCharacter(grown, DEMO_CHARACTERS).character);
+    demo.characters.set('kara', deriveCharacter(grown, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -217,8 +223,8 @@ describe('the loadout and the vault', () => {
     const demo = scene();
     grow(demo);
     const kara = demo.state.entity('kara')!;
-    // Reckless and Not Good Enough both recall for 1.
-    expect(DEMO_CHARACTERS.domainCards.get('reckless')!.recallCost).toBe(1);
+    // The card recalled and the one vaulted both cost 1 to recall.
+    expect(characterContentFor(demo.project).domainCards.get('rallying-cry')!.recallCost).toBe(1);
     expect(swapCard(demo, 'kara', 'reckless')).toEqual({ ok: false, reason: expect.stringContaining('holds 5') });
     const swapped = swapCard(demo, 'kara', 'reckless', 'not-good-enough');
     expect(swapped).toEqual({ ok: true, stress: 1 });
@@ -311,9 +317,9 @@ describe("the GM's turn", () => {
     const hpBefore = demo.state.entity('kara')!.hitPoints.marked;
     endTurn(demo);
     expect(husk.conditions.has('restrained')).toBe(false);
-    expect(demo.log.map((l) => l.text)).toContain('The Acid Burrower shakes off restrained.');
+    expect(demo.log.map((l) => l.text)).toContain(`The ${foeName(demo, foe.id)} shakes off restrained.`);
     // It did not also attack.
-    expect(demo.log.some((l) => l.text.includes("Acid Burrower's") && l.text.includes('Kara'))).toBe(false);
+    expect(demo.log.some((l) => l.text.includes(`${foeName(demo, foe.id)}'s`) && l.text.includes('Kara'))).toBe(false);
     expect(demo.state.entity('kara')!.hitPoints.marked).toBe(hpBefore);
   });
 
@@ -360,14 +366,14 @@ describe('what holds an adversary', () => {
     endTurn(demo);
     // Still asleep, and it did not attack.
     expect(husk.conditions.has('asleep')).toBe(true);
-    expect(demo.log.some((l) => l.text.includes("Acid Burrower's") && l.text.includes('Kara'))).toBe(false);
+    expect(demo.log.some((l) => l.text.includes(`${foeName(demo, foe.id)}'s`) && l.text.includes('Kara'))).toBe(false);
     expect(demo.state.entity('kara')!.hitPoints.marked).toBe(hpBefore);
 
     demo.state.fear = { ...demo.state.fear, value: 1 };
     endTurn(demo);
     expect(husk.conditions.has('asleep')).toBe(false);
     expect(demo.state.fear.value).toBe(0);
-    expect(demo.log.map((l) => l.text)).toContain('The GM spends a Fear: the Acid Burrower shakes off asleep.');
+    expect(demo.log.map((l) => l.text)).toContain(`The GM spends a Fear: the ${foeName(demo, foe.id)} shakes off asleep.`);
   });
 
   it('a hit that marks a Hit Point wakes a sleeper', () => {
@@ -416,7 +422,7 @@ describe('stepping back from a roll', () => {
     const sheet = demo.sheets.get('mira')!;
     const grown = { ...sheet, domainCards: [...(sheet.domainCards ?? []), 'book-of-illiat'] };
     demo.sheets.set('mira', grown);
-    demo.characters.set('mira', deriveCharacter(grown, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(grown, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     const foe = nearestFoe(demo, 'mira');
     closeIn(demo, 'mira', foe.id);
@@ -474,7 +480,7 @@ describe('tokens on a card', () => {
     const demo = scene();
     const sheet = { ...demo.sheets.get('mira')!, domainCards: ['unleash-chaos'], loadout: ['unleash-chaos'] };
     demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     // "At the beginning of a session": a session boundary falls on a long rest.
     expect(SRD_ABILITY_MAP.get('unleash-chaos')!.tokens?.refill).toBe('session');
@@ -491,7 +497,7 @@ describe('tokens on a card', () => {
     // Mira takes Unleash Chaos: her Spellcast trait is Knowledge, so that many tokens.
     const sheet = { ...demo.sheets.get('mira')!, domainCards: ['unleash-chaos'], loadout: ['unleash-chaos'] };
     demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     const spellcast = demo.world.spellcastValue('mira')!;
     expect(spellcast).toBeGreaterThan(0);
