@@ -22,6 +22,8 @@ import {
 import { validateProject } from './validate';
 import { FIXTURE_ADVERSARIES } from '../../tests/fixtures/adversaries';
 import {
+  A_BONUS_READ_OFF_ITS_OWN_WOUNDS,
+  A_BREATH_GATED_ON_A_DIE,
   A_CALL_FOR_MORE_OF_THEM,
   A_HIDE_THAT_SHRUGS_OFF_STEEL,
   A_HUNGER_DRAWN_TO_A_WOUND,
@@ -33,6 +35,7 @@ import {
   A_WATCHER_THAT_ADDS_TO_A_HIT,
   A_WIND_UP_THAT_COSTS_A_TURN,
   A_WIND_UP_WITH_ITS_OWN_STORE,
+  A_WOUND_HANDED_BACK,
   AN_OVERLOAD_THAT_BUYS_ANOTHER_TURN,
   PLATE_THAT_ROLLS_WHAT_IT_TURNS,
   PLATE_THAT_TURNS_A_FLAT_AMOUNT,
@@ -1700,6 +1703,7 @@ describe('a breath that only comes when the dice say so', () => {
         position: { x: 4, y: 4 },
       }),
     );
+    s.project.abilities.push(abilitySchema.parse(A_BREATH_GATED_ON_A_DIE('fixture-champion')));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -1711,8 +1715,9 @@ describe('a breath that only comes when the dice say so', () => {
     const demo = dragon('lava');
     const bound = { targets: [], hit: [] };
 
-    // "When the Molten Scourge takes Major damage": two Hit Points marked is
-    // the number the blow left behind, and one is not enough.
+    // The gate on the blow: two Hit Points marked is the number the hit left
+    // behind, and one is not enough. It is a count the blow carries rather than
+    // a band read back off anything.
     expect(demo.world.reactionsFor('foe', 'tookDamage', { ...bound, counts: { hitPointsTaken: 1 } })).toEqual([]);
     expect(
       demo.world
@@ -1720,7 +1725,9 @@ describe('a breath that only comes when the dice say so', () => {
         .map((a) => a.id),
     ).toEqual(['fixture-champion-volcanic-breath']);
 
-    // And with the d10 coming up, the lava reaches whoever is standing there.
+    // And with the d10 coming up, what it breathes reaches whoever is standing
+    // there. The dice are rigged high here because the second gate is a roll,
+    // and a test waiting on an 8 in 10 would be a slow way to learn nothing.
     const card = demo.world.reactionsFor('foe', 'tookDamage', { ...bound, counts: { hitPointsTaken: 2 } })[0]!;
     const was = demo.scenario.actorId;
     demo.scenario.actorId = 'foe';
@@ -2083,12 +2090,13 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
 
 describe('a number read off a pool', () => {
   /** Kara toe to toe with something, the fight already on. */
-  const facing = (adversary: string, seed: string) => {
+  const facing = (adversary: string, seed: string, features: readonly Record<string, unknown>[] = []) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    for (const feature of features) s.project.abilities.push(abilitySchema.parse(feature));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2097,12 +2105,12 @@ describe('a number read off a pool', () => {
     return demo;
   };
 
-  it('puts what the Demon has lost behind the claws, and nothing when it is whole', () => {
-    // "A bonus to the damage roll equal to the Demon's current number of
-    // marked HP." Two runs of the same fixture and the same seed, the only
-    // difference being what has been taken out of the Demon.
+  it('puts what it has lost behind the next swing, and nothing when it is whole', () => {
+    // The mechanism: a damage bonus equal to what the creature has marked. Two
+    // runs of the same fixture and the same seed, the only difference being what
+    // has been taken out of it.
     const reap = (marked: number): string => {
-      const demo = facing('fixture-foe', 'reaper');
+      const demo = facing('fixture-foe', 'reaper', [A_BONUS_READ_OFF_ITS_OWN_WOUNDS('fixture-foe')]);
       demo.state.entity('foe')!.hitPoints = { max: 8, marked };
       demo.state.entity('foe')!.stress = { max: 4, marked: 0 };
       endTurn(demo);
@@ -2113,13 +2121,14 @@ describe('a number read off a pool', () => {
     // Whole, it says nothing at all - and keeps the Stress it would have paid.
     const whole = reap(0);
     expect(whole).not.toContain('lands harder');
-    expect(whole).not.toContain('behind the claws');
+    expect(whole).not.toContain('behind the next swing');
   });
 
   it('hands back exactly the wound it took', () => {
-    // "Cause the attacker to mark the same number of HP", which is a count the
-    // blow carries rather than a pool - but the Fear it costs is one either way.
-    const demo = facing('fixture-lurker', 'my-turn');
+    // What comes back is a count the blow carries rather than a number read off
+    // a pool, which is what separates this from the bonus above. The Fear it
+    // costs is one either way.
+    const demo = facing('fixture-lurker', 'my-turn', [A_WOUND_HANDED_BACK('fixture-lurker')]);
     demo.state.entity('foe')!.hitPoints = { max: 90, marked: 0 };
     demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
     const before = demo.state.entity('kara')!.hitPoints.marked;

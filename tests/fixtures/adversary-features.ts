@@ -470,3 +470,112 @@ export const ROOTS_PUT_DOWN_ONCE = (definition: string): Record<string, unknown>
     { kind: 'applyCondition', condition: 'rooted', duration: 'scene', target: { kind: 'actor' } },
   ],
 });
+
+/**
+ * A breath that only comes when the dice allow it.
+ *
+ * Two gates in series, and they are different in kind. The first is a condition on
+ * the blow -- two Hit Points marked, which is the number the hit left behind rather
+ * than a band anything reads back. The second is a die rolled when the feature
+ * fires, so the same wound does not always bring the same answer.
+ *
+ * The nesting matters to more than the rules: a test drives these effects through
+ * the runner directly with rigged dice and reads the journal for a passed dice
+ * check and a reaction, so flattening this into one list would break it in a way
+ * that looks like a rules bug.
+ *
+ * The id ends in `-volcanic-breath` because a test asserts it. Normally a
+ * specimen's id is mine to choose; this one is pinned.
+ *
+ * Simplified: it reaches the whole band rather than a flow in front of the
+ * creature, the Stress is a flat two rather than a roll, and Vulnerable lasts the
+ * scene rather than until a Stress is cleared.
+ */
+export const A_BREATH_GATED_ON_A_DIE = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-volcanic-breath`,
+  name: 'Volcanic Breath',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'Hurt it badly and it may answer with what it has been holding in its throat.',
+  kind: 'reaction',
+  trigger: 'tookDamage',
+  action: false,
+  available: { kind: 'count', of: 'hitPointsTaken', op: '>=', value: 2 },
+  target: { kind: 'none' },
+  effects: [
+    {
+      kind: 'diceCheck',
+      dice: '1d10',
+      atLeast: 8,
+      then: [
+        { kind: 'log', text: 'Something molten comes up its throat.', tone: 'fear' },
+        {
+          kind: 'reactionRoll',
+          difficulty: 20,
+          trait: 'agility',
+          targets: { kind: 'allies', range: 'far' },
+          damage: { dice: '2d10+4', type: 'physical' },
+          onFail: [
+            { kind: 'damage', dice: 'same', target: { kind: 'hit' } },
+            { kind: 'markStress', amount: 2, target: { kind: 'hit' } },
+            { kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: { kind: 'hit' } },
+          ],
+          onSuccess: [
+            { kind: 'damage', dice: 'same', half: true, target: { kind: 'hit' } },
+            { kind: 'markStress', amount: 1, target: { kind: 'hit' } },
+          ],
+        },
+      ],
+    },
+  ],
+});
+
+/**
+ * A bonus read off the creature's own wounds.
+ *
+ * The gate is the interesting half. Unhurt, the bonus is nothing, and a Stress
+ * spent for nothing is a Stress wasted -- so the feature is unavailable until
+ * something has been taken out of it. A test pins exactly that: whole, it says
+ * nothing and keeps the Stress it would have paid.
+ */
+export const A_BONUS_READ_OFF_ITS_OWN_WOUNDS = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-reaper`,
+  name: 'Reaper',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'What has been taken out of it, it puts back into the next blow.',
+  kind: 'reaction',
+  trigger: 'rollingDamage',
+  action: false,
+  cost: { stress: 1 },
+  available: { kind: 'pool', pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked', op: '>=', value: 1 },
+  target: { kind: 'none' },
+  effects: [
+    { kind: 'log', text: 'Everything it has lost, it puts behind the next swing.', tone: 'fear' },
+    { kind: 'boostDamage', amount: { pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked' } },
+  ],
+});
+
+/**
+ * A wound handed straight back to whoever opened it.
+ *
+ * What it returns is a count the blow carries -- `hitPointsTaken` -- not a number
+ * read off a pool, which is the distinction between this and the bonus above. The
+ * amount is therefore exact rather than approximate, and needs no gate to stay
+ * honest.
+ *
+ * Simplified: the Fear is one, rather than one for each Hit Point handed back.
+ */
+export const A_WOUND_HANDED_BACK = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-my-turn`,
+  name: 'My Turn',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'It does not intend to be the only one hurt in this fight.',
+  kind: 'reaction',
+  trigger: 'tookHitPoints',
+  action: false,
+  cost: { fear: 1 },
+  target: { kind: 'none' },
+  effects: [
+    { kind: 'log', text: 'It will not be the only one bleeding.', tone: 'fear' },
+    { kind: 'damage', amount: 'hitPointsTaken', target: { kind: 'target' } },
+  ],
+});
