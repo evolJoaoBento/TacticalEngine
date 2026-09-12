@@ -7,8 +7,9 @@ handful of working rules that are learned the expensive way rather than read.
 **Pinned to commit `01b4c83`.** At that commit: `npx tsc --noEmit` clean, **1834 of 1835 unit tests
 passing across 92 files**. The single failure is the documented deliberate one in
 `demo-defense.test.ts` — a Stress assertion left red after four attempts rather than guessed at, with
-what was ruled out recorded in its commit. **Playwright has not run since the demo was repointed onto
-the starter pack**, so its count is unverified; do not quote the old 103 until it has. If the passing
+what was ruled out recorded in its commit. **Playwright is green on the starter pack**: 82 passed, 15.3 minutes,
+measured after the demo was repointed. `--list` enumerates 103, so 21 are filtered or skipped —
+quote 82 as what runs. If the passing
 count comes back lower than 1834, something was lost — check before building on it. Symbol names are
 the stable handles here; line numbers move.
 
@@ -423,7 +424,9 @@ from a phone and will not scroll a terminal.
 ### Before claiming done
 
 `npx tsc --noEmit`, `npx vitest run`, **and** `npx playwright test`. All three, every time — the e2e
-suite is the only thing that catches a broken boot, and it takes under three minutes. Every commit
+suite is the only thing that catches a broken boot. **It takes about 15 minutes** (82 tests; `--list`
+enumerates 103, so 21 are filtered or skipped), so start it in the background and do something else
+while it runs rather than deciding to skip it. Every commit
 body carries a verification line saying what was run and what came back, then a sentence on how the
 new tests were shown to fail without their fix. If something could not be verified, say that instead
 of implying it works.
