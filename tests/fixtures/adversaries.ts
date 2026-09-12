@@ -114,6 +114,7 @@ export const FIXTURE_CARDS = [
   card('fixture-card-11', 'Fixture Card XI'),
   card('fixture-card-12', 'Fixture Card XII'),
   card('fixture-card-13', 'Fixture Card XIII'),
+  card('fixture-card-14', 'Fixture Card XIV'),
   card('fixture-other-1', 'Other Card I', 'other'),
   card('fixture-other-2', 'Other Card II', 'other'),
 ];

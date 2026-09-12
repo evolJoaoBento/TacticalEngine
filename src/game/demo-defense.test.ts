@@ -11,6 +11,7 @@ import { NO_TILE } from '../engine/grid/grid';
 import { reaches } from '../engine/rules/range';
 import { adversaryTraits } from '../engine/combat/adversary-features';
 import type { DefenseChoice, HeldSwing, PendingDeath, PendingDefense } from './demo-scene';
+import { createAdversaryEntity } from '../engine/scene/state';
 import type { EntityState } from '../engine/scene/state';
 import {
   adversaryDefOf,
@@ -27,7 +28,7 @@ import {
   type DemoScene,
 } from './demo-scene';
 import { restoreScenario, scenarioSnapshot, useKey } from '../engine/script/world';
-import { FIXTURE_CARDS, FIXTURE_DOMAIN_FOUR } from '../../tests/fixtures/adversaries';
+import { FIXTURE_ADVERSARIES, FIXTURE_CARDS, FIXTURE_DOMAIN_FOUR } from '../../tests/fixtures/adversaries';
 import {
   REASSURANCE,
   REASSURANCE_CARD,
@@ -1601,8 +1602,211 @@ function scriptedSixes(): Rng {
  * been played.
  */
 describe('a card that answers the blow in its own words', () => {
-  const holding = (demo: DemoScene, cards: string[]): void => {
-    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
+  /**
+   * Six cards, one at a time. Each test carries its own family and holds the
+   * same card, so no two of them are ever in the project together.
+   *
+   * What these answer a blow *with* is a script rather than a number, which is
+   * why they reach the defence step through a choice: dice off the total, the
+   * blow avoided outright, the severity stepped, the Difficulty raised after
+   * the fact. The engine writes the lines for all of those, so most of what is
+   * asserted below is its wording and not the card's.
+   */
+  const ANSWER_CARD = 'fixture-card-14';
+
+  /** Tokens placed once, then spent a handful at a time off an arriving blow. */
+  const THORNS = [
+    {
+      id: 'fixture-thorns',
+      name: 'Barbed Skin',
+      source: { kind: 'domainCard', card: ANSWER_CARD },
+      text: 'Thorns come up through the skin, and wait there.',
+      cost: { hope: 1 },
+      uses: { count: 1, per: 'rest' },
+      target: { kind: 'self' },
+      action: false,
+      effects: [
+        { kind: 'log', text: 'Thorns come up through the skin.', tone: 'hope' },
+        { kind: 'addToken', ability: 'fixture-thorns', amount: { trait: 'spellcast' } },
+      ],
+    },
+    {
+      id: 'fixture-thorns-turn',
+      name: 'Barbed Skin',
+      source: { kind: 'domainCard', card: ANSWER_CARD },
+      text: 'However many break off in the blow come back out of whoever threw it.',
+      kind: 'reaction',
+      trigger: 'incomingDamage',
+      action: false,
+      auto: false,
+      available: { kind: 'tokens', ability: 'fixture-thorns', op: '>=', value: 1 },
+      target: { kind: 'none' },
+      effects: [
+        {
+          kind: 'howMany',
+          most: { tokens: 'fixture-thorns' },
+          title: 'Barbed Skin',
+          body: 'How many thorns break off in it?',
+          each: [
+            { kind: 'spendToken', ability: 'fixture-thorns', amount: 'spent' },
+            { kind: 'softenBlow', dice: '{n}d6' },
+            {
+              kind: 'branch',
+              when: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } },
+              then: [{ kind: 'damage', dice: 'same', target: { kind: 'target' } }],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  /** Hope into a handful of dice, and a six sends the blow home instead. */
+  const MIRROR = [
+    {
+      id: 'fixture-mirror',
+      name: 'Mirror Shell',
+      source: { kind: 'domainCard', card: ANSWER_CARD },
+      text: 'Spend what you like on it; a six sends the blow back where it came from.',
+      kind: 'reaction',
+      trigger: 'incomingDamage',
+      action: false,
+      auto: false,
+      available: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+      target: { kind: 'none' },
+      effects: [
+        {
+          kind: 'howMany',
+          most: { pool: 'hope', measure: 'available' },
+          title: 'Mirror Shell',
+          body: 'How much of it goes into the mirror?',
+          each: [
+            { kind: 'spendHope', amount: 'spent' },
+            {
+              kind: 'diceCheck',
+              dice: '1d6',
+              times: 'spent',
+              atLeast: 6,
+              then: [
+                { kind: 'log', text: 'The blow turns in the air and goes home.', tone: 'hope' },
+                { kind: 'avoidBlow' },
+                { kind: 'damage', dice: 'same', target: { kind: 'target' } },
+              ],
+              otherwise: [{ kind: 'log', text: 'The mirror holds nothing.', tone: 'system' }],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  /**
+   * A shot that went wide, caught and sent on with the shooter's own dice.
+   * `theirs` is the point: what lands on the next creature is the attacker's
+   * damage, not anything its holder could have rolled.
+   */
+  const SEND_ON = [
+    {
+      id: 'fixture-send-on',
+      name: 'Send It On',
+      source: { kind: 'domainCard', card: ANSWER_CARD },
+      text: 'A shot from off at a distance can be caught and given to somebody else.',
+      kind: 'reaction',
+      trigger: 'attackMissed',
+      action: false,
+      auto: false,
+      cost: { stress: 1 },
+      target: { kind: 'none' },
+      inCombatOnly: true,
+      available: { kind: 'not', of: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } } },
+      effects: [
+        {
+          kind: 'diceCheck',
+          dice: '1d6',
+          times: { trait: 'proficiency' },
+          atLeast: 6,
+          then: [
+            { kind: 'log', text: 'The shot is caught and sent somewhere else.', tone: 'hope' },
+            { kind: 'damage', dice: 'theirs', target: { kind: 'adversaries', range: 'veryClose', nearest: 1 } },
+          ],
+          otherwise: [{ kind: 'log', text: 'Nothing about it can be caught.', tone: 'system' }],
+        },
+      ],
+    },
+  ];
+
+  /** A handful of dice against the blow's severity rather than its total. */
+  const PLATE = [
+    {
+      id: 'fixture-plate',
+      name: 'Plate That Holds',
+      source: { kind: 'domainCard', card: ANSWER_CARD },
+      text: 'Sometimes the plate holds a blow it had no right to.',
+      kind: 'reaction',
+      trigger: 'incomingDamage',
+      action: false,
+      auto: false,
+      target: { kind: 'none' },
+      effects: [
+        {
+          kind: 'diceCheck',
+          dice: '1d6',
+          times: { trait: 'proficiency' },
+          atLeast: 6,
+          then: [
+            { kind: 'log', text: 'The plate holds where it had no right to.', tone: 'hope' },
+            { kind: 'stepSeverity', steps: 1 },
+          ],
+          otherwise: [{ kind: 'log', text: 'The plate gives.', tone: 'system' }],
+        },
+      ],
+    },
+  ];
+
+  /** The Difficulty raised after the swing was already rolled. */
+  const FORESEE = [
+    {
+      id: 'fixture-foresee',
+      name: 'Saw It Coming',
+      source: { kind: 'domainCard', card: ANSWER_CARD },
+      text: 'A blow thrown from off at a distance can be read before it arrives.',
+      kind: 'reaction',
+      trigger: 'incomingDamage',
+      action: false,
+      auto: false,
+      cost: { stress: 1 },
+      target: { kind: 'none' },
+      available: { kind: 'not', of: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } } },
+      effects: [{ kind: 'dodgeBy', dice: '1d4' }],
+    },
+  ];
+
+  /** Not there when it lands, and somewhere else afterwards. */
+  const NOT_THERE = [
+    {
+      id: 'fixture-not-there',
+      name: 'Not There',
+      source: { kind: 'domainCard', card: ANSWER_CARD },
+      text: 'The blow closes on ground its holder is no longer standing on.',
+      kind: 'reaction',
+      trigger: 'incomingDamage',
+      action: false,
+      auto: false,
+      uses: { count: 1, per: 'rest' },
+      available: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } },
+      target: { kind: 'none' },
+      effects: [
+        { kind: 'log', text: 'The blow closes on empty ground.', tone: 'hope' },
+        { kind: 'avoidBlow' },
+        { kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'close' },
+      ],
+    },
+  ];
+
+  const holding = (demo: DemoScene, family: readonly Record<string, unknown>[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of family) demo.project.abilities.push(abilitySchema.parse(ability));
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: [ANSWER_CARD], loadout: [ANSWER_CARD] };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
@@ -1610,17 +1814,17 @@ describe('a card that answers the blow in its own words', () => {
 
   it('takes dice off the blow and puts them back into whoever swung', () => {
     const demo = standoff('thorns');
-    holding(demo, ['thorn-skin']);
-    demo.world.addTokens('kara', 'thorn-skin', 3);
+    holding(demo, THORNS);
+    demo.world.addTokens('kara', 'fixture-thorns', 3);
     const asked = untilChoice(demo, 'script');
     expect(asked).not.toBeNull();
     const index = asked!.choices.findIndex((c) => c.kind === 'script');
-    expect(asked!.choices[index]!.label).toContain('Thorn Skin');
+    expect(asked!.choices[index]!.label).toContain('Barbed Skin');
 
     // The same blow, taken plainly, off the same seed.
     const cold = standoff('thorns');
-    holding(cold, ['thorn-skin']);
-    cold.world.addTokens('kara', 'thorn-skin', 3);
+    holding(cold, THORNS);
+    cold.world.addTokens('kara', 'fixture-thorns', 3);
     untilChoice(cold, 'script');
     answerPending(cold, { kind: 'choose', index: 0 });
     const plain = cold.state.entity('kara')!.hitPoints.marked;
@@ -1633,7 +1837,7 @@ describe('a card that answers the blow in its own words', () => {
     answerPending(demo, { kind: 'choose', index: 2 });
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
 
-    expect(demo.world.tokensOn('kara', 'thorn-skin')).toBe(0);
+    expect(demo.world.tokensOn('kara', 'fixture-thorns')).toBe(0);
     expect(demo.log.some((l) => l.text.includes('turns aside'))).toBe(true);
     expect(husk.hitPoints.marked).toBeGreaterThan(0);
     expect(demo.state.entity('kara')!.hitPoints.marked).toBeLessThan(plain);
@@ -1644,11 +1848,11 @@ describe('a card that answers the blow in its own words', () => {
     // attack is reflected back, dealing the damage to them instead."
     for (let seed = 1; seed < 20; seed++) {
       const demo = standoff(`mirror-${seed}`);
-      holding(demo, ['arcane-reflection']);
+      holding(demo, MIRROR);
       const asked = untilChoice(demo, 'script');
       if (asked === null) continue;
       const index = asked.choices.findIndex((c) => c.kind === 'script');
-      expect(asked.choices[index]!.label).toContain('Arcane Reflection');
+      expect(asked.choices[index]!.label).toContain('Mirror Shell');
 
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       const before = husk.hitPoints.marked;
@@ -1675,7 +1879,7 @@ describe('a card that answers the blow in its own words', () => {
     // Redirect reads how far away the one who swung is, so a Burrower standing
     // over her is not something it can answer at all.
     const demo = standoff('redirect');
-    holding(demo, ['redirect']);
+    holding(demo, SEND_ON);
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     const bound = { targets: [husk.id], hit: [husk.id] };
     expect(demo.world.reactionsFor('kara', 'attackMissed', bound)).toEqual([]);
@@ -1684,7 +1888,7 @@ describe('a card that answers the blow in its own words', () => {
     // claws are not in reach, near enough that the fight is one room.
     const stand = demo.grid.indexOf(demo.grid.xOf(husk.tile) + 3, demo.grid.yOf(husk.tile));
     demo.state.moveEntity('kara', stand);
-    expect(demo.world.reactionsFor('kara', 'attackMissed', bound).map((a) => a.id)).toEqual(['redirect']);
+    expect(demo.world.reactionsFor('kara', 'attackMissed', bound).map((a) => a.id)).toEqual(['fixture-send-on']);
 
     // And what it says is the Burrower's own claws, in the nearest of them.
     const other = demo.state.entitiesOf('adversary').find((e) => e.id !== husk.id)!;
@@ -1712,22 +1916,22 @@ describe('a card that answers the blow in its own words', () => {
     // the severity by one threshold without marking an Armor Slot."
     for (let seed = 1; seed < 30; seed++) {
       const demo = standoff(`plate-${seed}`);
-      holding(demo, ['unyielding-armor']);
+      holding(demo, PLATE);
       const asked = untilChoice(demo, 'script');
       if (asked === null) continue;
       const index = asked.choices.findIndex((c) => c.kind === 'script');
-      expect(asked.choices[index]!.label).toContain('Unyielding Armor');
+      expect(asked.choices[index]!.label).toContain('Plate That Holds');
 
       // The same blow taken plainly, off the same seed.
       const cold = standoff(`plate-${seed}`);
-      holding(cold, ['unyielding-armor']);
+      holding(cold, PLATE);
       untilChoice(cold, 'script');
       answerPending(cold, { kind: 'choose', index: 0 });
       const plain = cold.state.entity('kara')!.hitPoints.marked;
 
       answerPending(demo, { kind: 'choose', index });
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-      if (!demo.log.some((l) => l.text.includes('no business holding'))) continue;
+      if (!demo.log.some((l) => l.text.includes('no right to'))) continue;
       expect(demo.state.entity('kara')!.hitPoints.marked).toBeLessThan(plain);
       return;
     }
@@ -1740,15 +1944,26 @@ describe('a card that answers the blow in its own words', () => {
     // measured again is the d20 that made it.
     for (let seed = 1; seed < 40; seed++) {
       const demo = standoff(`seen-${seed}`);
-      holding(demo, ['i-see-it-coming']);
-      // Standing off from it: the card answers a swing from beyond Melee, and
-      // the Burrower's claws reach Very Close without closing the ground.
-      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-      demo.state.moveEntity('kara', demo.grid.indexOf(demo.grid.xOf(husk.tile) + 2, demo.grid.yOf(husk.tile)));
+      holding(demo, FORESEE);
+      // The card answers a blow thrown from beyond Melee, so what throws it has
+      // to be something that shoots rather than something that closes: a melee
+      // creature walks in first and the card stops applying before the blow
+      // lands. The archer reaches Far and stays where it is.
+      const knight = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      demo.project.adversaries.push(...FIXTURE_ADVERSARIES);
+      // What a creature is comes from the placement, so the archer is stood up
+      // rather than written over the one already there, and the melee one goes
+      // down the way `standoff` puts the rest of the room down.
+      const archer = demo.state.addEntity(
+        createAdversaryEntity('archer', 'fixture-archer', knight.tile, { hitPoints: 40, stress: 3 }),
+      );
+      demo.state.removeEntity(knight.id);
+      refreshWorld(demo);
+      demo.state.moveEntity('kara', demo.grid.indexOf(demo.grid.xOf(archer.tile) + 2, demo.grid.yOf(archer.tile)));
       const asked = untilChoice(demo, 'script');
       if (asked === null) continue;
       const index = asked.choices.findIndex((c) => c.kind === 'script');
-      expect(asked.choices[index]!.label).toContain('I See It Coming');
+      expect(asked.choices[index]!.label).toContain('Saw It Coming');
 
       const said = demo.log.length;
       answerPending(demo, { kind: 'choose', index });
@@ -1757,7 +1972,7 @@ describe('a card that answers the blow in its own words', () => {
       expect(after.some((t) => t.includes('sees it coming'))).toBe(true);
       if (!after.some((t) => t.includes('misses Kara'))) continue;
       // The d4 was enough: the swing that had landed no longer has.
-      expect(after.some((t) => /Claws (hits|tears into) Kara/.test(t))).toBe(false);
+      expect(after.some((t) => /Loosed Arrow (hits|tears into) Kara/.test(t))).toBe(false);
       expect(demo.state.entity('kara')!.stress.marked).toBeGreaterThanOrEqual(1);
       return;
     }
@@ -1766,11 +1981,11 @@ describe('a card that answers the blow in its own words', () => {
 
   it('is not there when the blow arrives, and the swing is spent on nothing', () => {
     const demo = standoff('scramble');
-    holding(demo, ['scramble']);
+    holding(demo, NOT_THERE);
     const asked = untilChoice(demo, 'script');
     expect(asked).not.toBeNull();
     const index = asked!.choices.findIndex((c) => c.kind === 'script');
-    expect(asked!.choices[index]!.label).toContain('Scramble');
+    expect(asked!.choices[index]!.label).toContain('Not There');
 
     const kara = demo.state.entity('kara')!;
     const stood = kara.tile;
