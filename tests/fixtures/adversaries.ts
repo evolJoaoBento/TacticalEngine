@@ -94,15 +94,27 @@ export const FIXTURE_FOE = 'fixture-foe';
  * They carry no rules text of their own. The ability does the work; these are
  * the slots it sits in.
  */
-const card = (id: string, name: string): ReturnType<typeof domainCardDefSchema.parse> =>
-  domainCardDefSchema.parse({ id, name, domain: 'fixture', type: 'ability', level: 1, recallCost: 0, text: '', features: [] });
+const card = (id: string, name: string, domain = 'fixture'): ReturnType<typeof domainCardDefSchema.parse> =>
+  domainCardDefSchema.parse({ id, name, domain, type: 'ability', level: 1, recallCost: 0, text: '', features: [] });
 
+/**
+ * Two domains, because some cards count each other.
+ *
+ * A card whose effect reads "for every card of this kind in your loadout" needs
+ * both something to count and something that must *not* count, so the `other`
+ * pair exists to be held without being counted.
+ */
 export const FIXTURE_CARDS = [
   card('fixture-card-1', 'Fixture Card I'),
   card('fixture-card-2', 'Fixture Card II'),
   card('fixture-card-3', 'Fixture Card III'),
   card('fixture-card-4', 'Fixture Card IV'),
   card('fixture-card-5', 'Fixture Card V'),
+  card('fixture-card-6', 'Fixture Card VI'),
+  card('fixture-card-7', 'Fixture Card VII'),
+  card('fixture-card-8', 'Fixture Card VIII'),
+  card('fixture-other-1', 'Other Card I', 'other'),
+  card('fixture-other-2', 'Other Card II', 'other'),
 ];
 
 /** The four a gate of "four or more of one domain" is satisfied by. */

@@ -33,8 +33,11 @@ import {
   SILENT_CARD,
   SUPPORT_CARD,
   SUPPORT_TANK,
+  LIFT_CARD,
   OWN_REROLL_CARD,
   OWN_TAGGED_REROLL,
+  SPELLCAST_CHECK,
+  SPELL_CARD,
   TAGGED_CARD,
   TAGGED_CHECK,
   WATCHING_CARD,
@@ -5866,6 +5869,30 @@ describe('the weather, and the thing that wears it', () => {
  * the half of the moment the runner owns.
  */
 describe('a card that saves a roll already made', () => {
+  /**
+   * A card that pays for a roll out of its own tokens, and counts those tokens
+   * off the loadout it sits in. No effects at all — the engine reads `lift`
+   * where the roll is settled, spending the least that carries it over and
+   * nothing on a roll that never needed it.
+   */
+  const LIFT = [
+    {
+      id: 'fixture-lift',
+      name: 'Fane of the Wilds',
+      source: { kind: 'domainCard', card: LIFT_CARD },
+      text: 'What it has gathered, it spends to carry a spell over the line.',
+      kind: 'passive',
+      action: false,
+      tokens: { amount: 'domainCards', domain: 'fixture', minimum: 1, refill: 'longRest' },
+      lift: { each: 1, only: 'spellcast' },
+    },
+  ];
+
+  const carry = (demo: DemoScene): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of [...LIFT, ...SPELLCAST_CHECK]) demo.project.abilities.push(abilitySchema.parse(ability));
+  };
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
@@ -5876,7 +5903,8 @@ describe('a card that saves a roll already made', () => {
   const fane = (seed: string, tokens: number): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    hold(demo, 'mira', ['fane-of-the-wilds', 'book-of-norai']);
+    carry(demo);
+    hold(demo, 'mira', [LIFT_CARD, SPELL_CARD]);
     const mira = demo.state.entity('mira')!;
     mira.hope = { max: 6, value: 6 };
     const kara = demo.state.entity('kara')!;
@@ -5887,18 +5915,20 @@ describe('a card that saves a roll already made', () => {
       if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== husk.tile) demo.state.moveEntity('mira', tile);
     });
     demo.party.select('mira');
-    demo.world.spendTokens('mira', 'fane-of-the-wilds', 99);
-    demo.world.addTokens('mira', 'fane-of-the-wilds', tokens);
+    demo.world.spendTokens('mira', 'fixture-lift', 99);
+    demo.world.addTokens('mira', 'fixture-lift', tokens);
     return { demo, mira, husk };
   };
 
   it('counts its tokens off the Sage cards in the loadout', () => {
     const demo = standoff('fane-count');
-    // Two Sage cards beside it: the Fane itself is Sage, and so is Wild Surge.
-    hold(demo, 'mira', ['fane-of-the-wilds', 'wild-surge', 'book-of-norai']);
-    expect(demo.world.tokenCount('mira', 'fane-of-the-wilds')).toBe(2);
-    hold(demo, 'mira', ['fane-of-the-wilds', 'book-of-norai']);
-    expect(demo.world.tokenCount('mira', 'fane-of-the-wilds')).toBe(1);
+    carry(demo);
+    // Two of its own domain beside it: the card itself, and one more. The card
+    // in the other domain is held and not counted.
+    hold(demo, 'mira', [LIFT_CARD, 'fixture-card-2', SPELL_CARD]);
+    expect(demo.world.tokenCount('mira', 'fixture-lift')).toBe(2);
+    hold(demo, 'mira', [LIFT_CARD, SPELL_CARD]);
+    expect(demo.world.tokenCount('mira', 'fixture-lift')).toBe(1);
   });
 
   it('spends the least that saves the roll, and nothing on one that did not need it', () => {
@@ -5906,13 +5936,13 @@ describe('a card that saves a roll already made', () => {
     let untouched = false;
     for (let seed = 1; seed < 60 && !(saved && untouched); seed++) {
       const { demo, husk } = fane('fane-' + seed, 6);
-      const before = demo.world.tokensOn('mira', 'fane-of-the-wilds');
+      const before = demo.world.tokensOn('mira', 'fixture-lift');
 
       // Mystic Tether is a Spellcast Roll against the husk's own Difficulty.
-      expect(useAbility(demo, 'mira', 'mystic-tether', [husk.id]).status).toBe('waiting');
+      expect(useAbility(demo, 'mira', 'fixture-spellcast', [husk.id]).status).toBe('waiting');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       const roll = demo.rolls[demo.rolls.length - 1]!.roll;
-      const spent = before - demo.world.tokensOn('mira', 'fane-of-the-wilds');
+      const spent = before - demo.world.tokensOn('mira', 'fixture-lift');
 
       if (spent === 0) {
         // Either it did not need saving, or six tokens could not save it.
@@ -5933,10 +5963,10 @@ describe('a card that saves a roll already made', () => {
     for (let seed = 1; seed < 60; seed++) {
       // One token: it can lift a roll by exactly one and no more.
       const { demo, husk } = fane('fane-short-' + seed, 1);
-      expect(useAbility(demo, 'mira', 'mystic-tether', [husk.id]).status).toBe('waiting');
+      expect(useAbility(demo, 'mira', 'fixture-spellcast', [husk.id]).status).toBe('waiting');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       const roll = demo.rolls[demo.rolls.length - 1]!.roll;
-      const left = demo.world.tokensOn('mira', 'fane-of-the-wilds');
+      const left = demo.world.tokensOn('mira', 'fixture-lift');
       if (roll.critical) continue;
 
       // Two or more short: the token stays on the card rather than being
@@ -5960,9 +5990,10 @@ describe('a card that saves a roll already made', () => {
 
   const demo0 = (): DemoScene => {
     const demo = standoff('fane-direct');
-    hold(demo, 'mira', ['fane-of-the-wilds', 'book-of-norai']);
-    demo.world.spendTokens('mira', 'fane-of-the-wilds', 99);
-    demo.world.addTokens('mira', 'fane-of-the-wilds', 6);
+    carry(demo);
+    hold(demo, 'mira', [LIFT_CARD, SPELL_CARD]);
+    demo.world.spendTokens('mira', 'fixture-lift', 99);
+    demo.world.addTokens('mira', 'fixture-lift', 6);
     return demo;
   };
 });

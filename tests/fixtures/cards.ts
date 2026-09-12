@@ -20,8 +20,12 @@ import { FIXTURE_CARDS } from './adversaries';
 export const WATCHING_CARD = 'fixture-card-3';
 export const REASSURANCE_CARD = 'fixture-card-5';
 export const SUPPORT_CARD = 'fixture-card-4';
-export const TAGGED_CARD = 'fixture-card-2';
-export const OWN_REROLL_CARD = 'fixture-card-1';
+export const TAGGED_CARD = 'fixture-card-7';
+export const OWN_REROLL_CARD = 'fixture-card-6';
+/** Counts toward its own domain, which is what a card that counts cards reads. */
+export const LIFT_CARD = 'fixture-card-8';
+/** In the other domain, so holding it never adds to that count. */
+export const SPELL_CARD = 'fixture-other-1';
 
 /**
  * A check that stops to have its dice read.
@@ -172,6 +176,38 @@ export const OWN_TAGGED_REROLL = [
     effects: [
       { kind: 'log', text: 'They talk straight past the thing they just said.', tone: 'hope' },
       { kind: 'rerollDuality', which: 'fear' },
+    ],
+  },
+];
+
+/**
+ * A Spellcast Roll against a creature's own Difficulty.
+ *
+ * The plainest version of the shape the engine uses everywhere: a check that
+ * stops, resolves against the target, and leaves something behind on a success.
+ * Anything that answers or rescues a spellcast roll needs one of these to
+ * answer, which is why it is here rather than in a block.
+ */
+export const SPELLCAST_CHECK = [
+  {
+    id: 'fixture-spellcast',
+    name: 'Binding Word',
+    source: { kind: 'domainCard', card: SPELL_CARD },
+    text: 'Bind something where it stands.',
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          prompt: 'Bind them where they stand?',
+          onSuccessWithHope: [
+            { kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } },
+            { kind: 'markStress', amount: 1, target: { kind: 'hit' } },
+          ],
+        },
+      },
     ],
   },
 ];
