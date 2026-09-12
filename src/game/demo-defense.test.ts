@@ -2051,6 +2051,137 @@ describe('a card that answers the blow in its own words', () => {
  * number that has to outlive the moment it was bought in.
  */
 describe('what a card leaves on its holder', () => {
+  /**
+   * Four cards, and the conditions they leave do most of the work: one that
+   * cannot use armour at all, one that physical damage passes through until its
+   * bearer swings, one that hands an ally a die, and one that is Vulnerable
+   * under another name.
+   *
+   * The call is the one worth reading twice. Its Stress and its Hope reach
+   * everybody within earshot *including* the one who called it; the condition
+   * reaches everybody except them. That asymmetry is the card.
+   */
+  const LEAVES_CARD = 'fixture-card-10';
+
+  const RAGE_CONDITION = {
+    id: 'fixture-frenzied',
+    name: 'Frenzied',
+    text: 'You cannot use Armor Slots, you deal ten more damage, and you are far harder to put down.',
+    modifiers: [
+      { stat: 'damageRoll', bonus: 10 },
+      { stat: 'severeThreshold', bonus: 8 },
+    ],
+    blocks: ['armor'],
+  };
+
+  const THIN_CONDITION = {
+    id: 'fixture-spectral',
+    name: 'Spectral',
+    text: 'You are barely here: physical damage passes through you.',
+    defenses: { immunities: ['physical'] },
+    endsWhen: 'attacks',
+  };
+
+  const CALLED_CONDITION = {
+    id: 'fixture-inspired',
+    name: 'Inspired',
+    text: 'Somebody called out, and you believe them: your attacks have advantage.',
+    modifiers: [{ stat: 'advantage', bonus: 1 }],
+  };
+
+  const TERROR_CONDITION = {
+    id: 'fixture-horrified',
+    name: 'Horrified',
+    text: 'What you are looking at cannot be looked away from: every roll aimed at you has advantage.',
+    modifiers: [{ stat: 'advantage', bonus: 1, against: true, anyRoll: true }],
+  };
+
+  const RAGE = [
+    {
+      id: 'fixture-rage',
+      name: 'Frenzy',
+      source: { kind: 'domainCard', card: LEAVES_CARD },
+      text: 'Let go of the reins for the rest of the fight.',
+      uses: { count: 1, per: 'longRest' },
+      target: { kind: 'self' },
+      inCombatOnly: true,
+      effects: [
+        { kind: 'log', text: 'Something in them lets go of the reins.', tone: 'hope' },
+        { kind: 'applyCondition', condition: 'fixture-frenzied', duration: 'scene', target: { kind: 'actor' } },
+      ],
+    },
+  ];
+
+  const THIN = [
+    {
+      id: 'fixture-thin',
+      name: 'Going Thin',
+      source: { kind: 'domainCard', card: LEAVES_CARD },
+      text: 'Go thin enough that what is solid passes through, until you swing.',
+      cost: { stress: 1 },
+      target: { kind: 'self' },
+      action: false,
+      effects: [
+        { kind: 'log', text: 'They go thin, and the dark comes through them.', tone: 'hope' },
+        { kind: 'applyCondition', condition: 'fixture-spectral', duration: 'scene', target: { kind: 'actor' } },
+      ],
+    },
+  ];
+
+  const CALL = [
+    {
+      id: 'fixture-call',
+      name: 'Battle Cry',
+      source: { kind: 'domainCard', card: LEAVES_CARD },
+      text: 'Call the room together: they take heart, and swing the better for it.',
+      uses: { count: 1, per: 'longRest' },
+      target: { kind: 'none', range: 'far' },
+      inCombatOnly: true,
+      effects: [
+        { kind: 'log', text: 'The call goes up, and the room answers it.', tone: 'hope' },
+        { kind: 'clearStress', amount: 1, target: { kind: 'allies', range: 'far', includeSelf: true } },
+        { kind: 'gainHope', amount: 1, target: { kind: 'allies', range: 'far', includeSelf: true } },
+        // Not the one who called it: the die is for whoever heard them.
+        { kind: 'applyCondition', condition: 'fixture-inspired', duration: 'scene', target: { kind: 'allies', range: 'far' } },
+      ],
+    },
+  ];
+
+  const TERROR = [
+    {
+      id: 'fixture-terror',
+      name: 'Night Terror',
+      source: { kind: 'domainCard', card: LEAVES_CARD },
+      text: 'Stop being a person to look at, and take something off the GM for each one that cannot look away.',
+      uses: { count: 1, per: 'longRest' },
+      target: { kind: 'none', range: 'veryClose' },
+      inCombatOnly: true,
+      effects: [
+        { kind: 'log', text: 'What they are looking at is no longer a person.', tone: 'hope' },
+        {
+          kind: 'reactionRoll',
+          difficulty: 16,
+          trait: 'presence',
+          targets: { kind: 'adversaries', range: 'veryClose' },
+          onFail: [
+            { kind: 'applyCondition', condition: 'fixture-horrified', duration: 'scene', target: { kind: 'hit' } },
+            { kind: 'loseFear', amount: 'targetsHit' },
+          ],
+        },
+      ],
+    },
+  ];
+
+  const carry = (
+    demo: DemoScene,
+    family: readonly Record<string, unknown>[],
+    condition: Record<string, unknown>,
+  ): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
+    for (const ability of family) demo.project.abilities.push(abilitySchema.parse(ability));
+  };
+
   const holding = (demo: DemoScene, cards: string[]): void => {
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
     demo.sheets.set('kara', sheet);
@@ -2068,7 +2199,8 @@ describe('what a card leaves on its holder', () => {
 
   it('rages: ten more damage, a harder creature to fell, and no armor to hide behind', () => {
     const demo = standoff('frenzy');
-    holding(demo, ['frenzy']);
+    carry(demo, RAGE, RAGE_CONDITION);
+    holding(demo, [LEAVES_CARD]);
     const kara = demo.state.entity('kara')!;
     kara.armorSlots = { max: 4, marked: 0 };
     kara.hitPoints = { max: 12, marked: 0 };
@@ -2080,13 +2212,17 @@ describe('what a card leaves on its holder', () => {
     kara.armorSlots = { max: 4, marked: 0 };
     kara.hitPoints = { max: 12, marked: 0 };
 
-    expect(useAbility(demo, 'kara', 'frenzy', []).status).toBe('done');
-    expect(kara.conditions.has('frenzied')).toBe(true);
+    expect(useAbility(demo, 'kara', 'fixture-rage', []).status).toBe('done');
+    expect(kara.conditions.has('fixture-frenzied')).toBe(true);
     expect(demo.world.rollBonus('kara', 'damageRoll', { melee: true })).toBe(10);
     expect(demo.world.defenderOf(kara).thresholds.severe).toBe(before + 8);
 
-    // The armor is still on her; it is simply not something she will use.
-    expect(demo.world.armorFor('kara')).toEqual({ max: 4, marked: 4 });
+    // The armor is still on her; it is simply not something she will use. Read
+    // off her own Armor Score rather than a number written here: what the rage
+    // does is make every slot unusable, however many she has.
+    const slots = demo.world.armorFor('kara');
+    expect(slots.max).toBe(demo.characters.get('kara')!.armorScore);
+    expect(slots.marked).toBe(slots.max);
     struck(demo);
     expect(kara.armorSlots.marked).toBe(0);
     expect(kara.hitPoints.marked).toBeGreaterThan(0);
@@ -2094,12 +2230,13 @@ describe('what a card leaves on its holder', () => {
 
   it('goes spectral until they swing, and physical damage passes through', () => {
     const demo = standoff('specter');
-    holding(demo, ['specter-of-the-dark']);
+    carry(demo, THIN, THIN_CONDITION);
+    holding(demo, [LEAVES_CARD]);
     const kara = demo.state.entity('kara')!;
     kara.hitPoints = { max: 6, marked: 0 };
 
-    expect(useAbility(demo, 'kara', 'specter-of-the-dark', []).status).toBe('done');
-    expect(kara.conditions.has('spectral')).toBe(true);
+    expect(useAbility(demo, 'kara', 'fixture-thin', []).status).toBe('done');
+    expect(kara.conditions.has('fixture-spectral')).toBe(true);
     expect(kara.stress.marked).toBe(1);
 
     struck(demo);
@@ -2108,14 +2245,15 @@ describe('what a card leaves on its holder', () => {
     // Swinging is the end of it, which is what "until you make an action roll
     // targeting another creature" comes to in a fight.
     demo.world.endsOnAttack('kara');
-    expect(kara.conditions.has('spectral')).toBe(false);
+    expect(kara.conditions.has('fixture-spectral')).toBe(false);
     struck(demo);
     expect(kara.hitPoints.marked).toBeGreaterThan(0);
   });
 
   it('calls the room together, and the room swings harder for it', () => {
     const demo = standoff('cry');
-    holding(demo, ['battle-cry']);
+    carry(demo, CALL, CALLED_CONDITION);
+    holding(demo, [LEAVES_CARD]);
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     const finn = demo.state.entity('finn')!;
     // Within earshot: Kara went to meet the husk, and the rest of the party
@@ -2125,24 +2263,25 @@ describe('what a card leaves on its holder', () => {
     if (finn.hope !== undefined) finn.hope = { max: 6, value: 0 };
     expect(demo.world.advantageFor('finn', husk.id).advantage).toBe(0);
 
-    expect(useAbility(demo, 'kara', 'battle-cry', []).status).toBe('done');
+    expect(useAbility(demo, 'kara', 'fixture-call', []).status).toBe('done');
     expect(finn.stress.marked).toBe(1);
     expect(finn.hope?.value).toBe(1);
-    expect(finn.conditions.has('inspired')).toBe(true);
+    expect(finn.conditions.has('fixture-inspired')).toBe(true);
     expect(demo.world.advantageFor('finn', husk.id).advantage).toBe(1);
     // The one who called it is not the one it inspires.
-    expect(demo.state.entity('kara')!.conditions.has('inspired')).toBe(false);
+    expect(demo.state.entity('kara')!.conditions.has('fixture-inspired')).toBe(false);
   });
 
   it("horrifies what it can, and takes the GM's Fear for each of them", () => {
     for (let seed = 1; seed < 30; seed++) {
       const demo = standoff(`terror-${seed}`);
-      holding(demo, ['night-terror']);
+      carry(demo, TERROR, TERROR_CONDITION);
+      holding(demo, [LEAVES_CARD]);
       demo.state.fear = { ...demo.state.fear, value: 4 };
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
 
-      expect(useAbility(demo, 'kara', 'night-terror', []).status).toBe('done');
-      if (!husk.conditions.has('horrified')) continue;
+      expect(useAbility(demo, 'kara', 'fixture-terror', []).status).toBe('done');
+      if (!husk.conditions.has('fixture-horrified')) continue;
       // Vulnerable in all but name: rolls against them have advantage.
       expect(demo.world.advantageFor('kara', husk.id).advantage).toBe(1);
       expect(demo.state.fear.value).toBe(3);
