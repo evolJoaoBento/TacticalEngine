@@ -116,6 +116,36 @@ describe('creature models', () => {
   });
 });
 
+describe('embedded model files', () => {
+  const withAsset = (asset: { id: string; url: string }): ProjectDoc =>
+    projectSchema.parse({
+      id: 'demo',
+      name: 'Demo',
+      scenes: [sceneSchema.parse(blankScene('room', 6, 4))],
+      assets: [asset],
+      startScene: 'room',
+    });
+
+  it('warns when one embedded file is heavy enough to slow saving and loading', () => {
+    // Roughly 9 MB of base64, which is what a couple of rigged models costs.
+    const heavy = `data:model/gltf-binary;base64,${'A'.repeat(12_000_000)}`;
+    const problems = validateProject(withAsset({ id: 'huge', url: heavy }));
+    const mine = problems.filter((p) => p.message.includes('huge'));
+    expect(mine).toHaveLength(1);
+    expect(mine[0]!.severity).toBe('warning');
+    expect(mine[0]!.message).toMatch(/MB/);
+  });
+
+  it('says nothing about a small embedded file', () => {
+    const small = `data:model/gltf-binary;base64,${'A'.repeat(2000)}`;
+    expect(validateProject(withAsset({ id: 'tiny', url: small }))).toEqual([]);
+  });
+
+  it('says nothing about a model referenced by path, whatever the file weighs', () => {
+    expect(validateProject(withAsset({ id: 'linked', url: '/models/huge.glb' }))).toEqual([]);
+  });
+});
+
 describe('terrain and placement', () => {
   it('catches a spawn inside a wall', () => {
     const project = build();

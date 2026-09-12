@@ -467,3 +467,21 @@ counts the project's own `assets` ids as resolvable, since those are written dow
 from the procedural library only and never includes imported asset ids, so the existing **deco** and
 **interactable** model checks warn about a perfectly good imported model. The new creature check does not
 share that bug. Fixing the other two is a separate change and was out of this slice's scope.
+
+### 2026-09-12 — rigged models are imported and configured in the editor
+
+The user asked to add their own rigged, animated models and configure the animations. The runtime
+already did all of it — `instantiate` clones skinned meshes with `SkeletonUtils`, gives each clone an
+`AnimationMixer`, and maps `spec.clips` to four states — but the Models workspace only ever asked for
+a URL and a scale, so `clips`, `groundOffset` and `rotationY` were reachable only by editing saved
+JSON by hand.
+
+| Ruling | Overrides | What stands now |
+|---|---|---|
+| C12 | §12 (imported models were a later part's problem) | **No document change.** `clips`, `groundOffset` and `rotationY` were already in `modelAssetSchema`, and a `data:` URL is still a URL, so embedding needed no new field — which also matters because three separate tests assert the exact defaulted asset object (`assets.test.ts`, `demo.spec.ts`) and any new field would have broken them. The work is a rewritten panel plus one `updateAsset` edit. |
+| C13 | — | **+ Model is a file picker, and the file is carried inside the project** (`FileReader.readAsDataURL` into `url`), at the user's choice, so a saved document is self-contained. The row never prints the encoded bytes: it reports `embedded · N MB`. `checkEmbeddedAssets` warns past 8 MB, since embedding is a deliberate trade rather than a mistake. A referenced path still works and is shown as the path. |
+| C14 | — | **Clips are chosen from the file's own animation names**, read back from the loaded template, not typed. Opening the panel starts the load, because nothing loads until something draws it and an unplaced model would otherwise have no clips to offer. `updateAsset` takes `clips: null` to drop the mapping rather than store empty names. The id and the URL are deliberately not editable: swapping the file under a name content already refers to is a different act, through remove and add. |
+
+**One thing the e2e caught.** `AssetLibrary.onChange` only woke the `SceneView`, so when a file
+finished loading the panel did not redraw and its clip dropdowns stayed empty until something else
+happened to re-render. `main.ts` now re-renders the editor panel on that signal too.

@@ -6,6 +6,7 @@ import {
   setStartScene,
   EditorSession,
   addAdversary,
+  addAsset,
   addDeco,
   addEncounter,
   addInteractable,
@@ -24,8 +25,10 @@ import {
   setSpawns,
   toggleTriggerCell,
   updateAdversary,
+  updateAsset,
   updateInteractable,
 } from './session';
+import { modelAssetSchema } from '../engine/render/assets';
 
 function project(width = 6, height = 4): ProjectDoc {
   return projectSchema.parse({
@@ -763,5 +766,52 @@ describe('editing an object', () => {
 
     s.undo();
     expect(s.requireScene('room').interactables[0]!.check).toBeUndefined();
+  });
+});
+
+describe('imported models', () => {
+  const fox = (): ReturnType<typeof modelAssetSchema.parse> =>
+    modelAssetSchema.parse({ id: 'fox', url: '/tests/fixtures/models/Fox.glb', scale: 0.012 });
+
+  it('edits one in place, and undo puts every field back as it was', () => {
+    const s = session();
+    s.run(addAsset(fox()));
+    s.run(
+      updateAsset('fox', {
+        scale: 0.02,
+        groundOffset: 0.5,
+        rotationY: 1.5,
+        clips: { idle: 'Survey', walk: 'Run' },
+      }),
+    );
+    const edited = s.project.assets[0]!;
+    expect(edited.scale).toBe(0.02);
+    expect(edited.groundOffset).toBe(0.5);
+    expect(edited.rotationY).toBe(1.5);
+    expect(edited.clips).toEqual({ idle: 'Survey', walk: 'Run' });
+
+    s.undo();
+    const back = s.project.assets[0]!;
+    expect(back.scale).toBe(0.012);
+    expect(back.groundOffset).toBe(0);
+    expect(back.rotationY).toBe(0);
+    expect(back.clips).toBeUndefined();
+  });
+
+  it('drops the clip mapping entirely rather than storing empty names', () => {
+    const s = session();
+    s.run(addAsset(modelAssetSchema.parse({ ...fox(), clips: { idle: 'Survey' } })));
+    s.run(updateAsset('fox', { clips: null }));
+    const cleared = s.project.assets[0]!;
+    expect(cleared.clips).toBeUndefined();
+    expect('clips' in cleared).toBe(false);
+  });
+
+  it('leaves the url and id alone — replacing the file is a different act', () => {
+    const s = session();
+    s.run(addAsset(fox()));
+    s.run(updateAsset('fox', { scale: 2 }));
+    expect(s.project.assets[0]!.id).toBe('fox');
+    expect(s.project.assets[0]!.url).toBe('/tests/fixtures/models/Fox.glb');
   });
 });

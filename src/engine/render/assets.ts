@@ -81,6 +81,29 @@ export class AssetLibrary {
     this.errors.delete(asset.id);
   }
 
+  /**
+   * Replace a declaration's settings without throwing away the file.
+   *
+   * `add` forgets what was loaded, which is right when the file changes and
+   * wrong when only the scale, the seating or the clip names do: a panel editing
+   * those would blank its own clip lists and fetch the file again on every
+   * change. When the url really has changed this falls back to `add`.
+   *
+   * An id the library was never given is ignored rather than invented: tuning
+   * something that is not declared is a mistake, not a declaration.
+   */
+  retune(asset: ModelAsset): void {
+    const current = this.specs.get(asset.id);
+    if (current === undefined) return;
+    if (current.url !== asset.url) {
+      this.add(asset);
+      this.notify(asset.id);
+      return;
+    }
+    this.specs.set(asset.id, asset);
+    this.notify(asset.id);
+  }
+
   remove(id: string): void {
     this.specs.delete(id);
     this.templates.delete(id);

@@ -472,6 +472,14 @@ let editor = new EditorController({
 // The editor opens on the Inspector, the first of the top bar's modes.
 editor.setMode('inspect');
 
+// A file arriving changes what the Models panel can offer - a clip list it could
+// not know until the file was here. The view already redraws itself on this;
+// the panel has to be told too, or the dropdowns stay empty until something
+// else happens to re-render them.
+assets.onChange(() => {
+  if (mode === 'edit') renderPanel();
+});
+
 const KNOWN_MODELS = new Set(MODELS.map((m) => m.id));
 const TERRAIN_IDS = demo.grid.palette.types.map((t) => t.id);
 const PROP_MODELS = MODELS.filter((m) => m.category === 'prop').map((m) => m.id);
@@ -666,6 +674,16 @@ function renderPanel(): void {
         for (const id of assets.ids()) assets.remove(id);
         for (const asset of session.project.assets) assets.add(asset);
         view.setDecos(editor.scene.decos);
+      },
+      // The Models panel offers the clips a file actually carries, so it needs
+      // the loaded template rather than the declaration.
+      assetClips: (id: string): readonly string[] =>
+        (assets.template(id)?.animations ?? []).map((clip) => clip.name),
+      assetStatus: (id: string): string => assets.statusOf(id),
+      onRequestAssets: () => assets.requestAll(),
+      onAssetTuned: (id: string) => {
+        const tuned = session.project.assets.find((asset) => asset.id === id);
+        if (tuned !== undefined) assets.retune(tuned);
       },
       onSwitchScene: (id: string) => {
         editor.switchScene(id);

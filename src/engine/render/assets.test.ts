@@ -31,6 +31,51 @@ describe('the schema', () => {
   });
 });
 
+describe('retuning', () => {
+  it('keeps the file that is already here when only the settings change', async () => {
+    const { load, pending } = controllable();
+    const library = new AssetLibrary(load, [duck()]);
+    library.request('duck');
+    const scene = new Group();
+    pending.get('/models/duck.glb')!.resolve(scene);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(library.statusOf('duck')).toBe('ready');
+
+    const changed: string[] = [];
+    library.onChange((id) => changed.push(id));
+    library.retune({ ...duck(), scale: 2, clips: { idle: 'Survey' } });
+
+    // The settings moved and everything using it is told, but the file did not
+    // have to come down again — which is what `add` would have cost.
+    expect(library.spec('duck')!.scale).toBe(2);
+    expect(library.spec('duck')!.clips).toEqual({ idle: 'Survey' });
+    expect(library.statusOf('duck')).toBe('ready');
+    expect(library.template('duck')).toBe(scene);
+    expect(changed).toEqual(['duck']);
+  });
+
+  it('will not invent a model it was never given', () => {
+    const { load } = controllable();
+    const library = new AssetLibrary(load, []);
+    library.retune({ ...duck(), id: 'nobody' });
+    expect(library.has('nobody')).toBe(false);
+  });
+
+  it('still reloads when the file itself is replaced', async () => {
+    const { load, pending } = controllable();
+    const library = new AssetLibrary(load, [duck()]);
+    library.request('duck');
+    pending.get('/models/duck.glb')!.resolve(new Group());
+    await Promise.resolve();
+    await Promise.resolve();
+
+    library.retune({ ...duck(), url: '/models/other.glb' });
+    expect(library.statusOf('duck')).toBe('unknown');
+    expect(library.template('duck')).toBeUndefined();
+  });
+});
+
 describe('loading', () => {
   it('loads only what is asked for, once', async () => {
     const { load, pending } = controllable();

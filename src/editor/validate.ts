@@ -110,6 +110,9 @@ export function validateProject(
   checkAdversaryModels(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkEmbeddedAssets(project, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   return problems;
 }
 
@@ -976,6 +979,36 @@ function checkLootTables(
         add('error', `Loot table "${table.id}" can drop "${entry.item}", which is not an item.`, table.id);
       }
     }
+  }
+}
+
+/**
+ * Past this, one embedded file is heavy enough to be felt on every save and
+ * load. Embedding is a deliberate choice — it makes a project self-contained —
+ * so this says what it costs rather than refusing it.
+ */
+const EMBEDDED_WARN_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Model files carried inside the project rather than referenced beside it.
+ *
+ * Unlike the other model checks this needs nothing from the renderer: the
+ * weight of the document is visible in the document, so it always runs.
+ */
+function checkEmbeddedAssets(
+  project: ProjectDoc,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  for (const asset of project.assets) {
+    if (!asset.url.startsWith('data:')) continue;
+    const base64 = asset.url.slice(asset.url.indexOf(',') + 1);
+    const bytes = Math.floor((base64.length * 3) / 4);
+    if (bytes < EMBEDDED_WARN_BYTES) continue;
+    add(
+      'warning',
+      `Model "${asset.id}" is carried inside the project at ${(bytes / 1_048_576).toFixed(1)} MB; saving and loading will feel it.`,
+      asset.id,
+    );
   }
 }
 

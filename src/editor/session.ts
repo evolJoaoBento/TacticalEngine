@@ -1269,6 +1269,57 @@ export function removeAsset(assetId: string): Edit {
 }
 
 /**
+ * Change an imported model's settings: how big it is, how it sits on a tile,
+ * which way it faces, and which of the file's clips play for each state.
+ *
+ * The id and the file itself are deliberately not editable here. Swapping the
+ * file under a name that content already refers to is a different act with
+ * different consequences, and goes through remove and add.
+ *
+ * `clips: null` drops the mapping rather than leaving empty names behind, so a
+ * model put back to "just loop the first clip" is the same document as one that
+ * never named a clip at all.
+ */
+export function updateAsset(
+  assetId: string,
+  changes: {
+    scale?: number;
+    groundOffset?: number;
+    rotationY?: number;
+    clips?: ModelAsset['clips'] | null;
+  },
+): Edit {
+  let before: ModelAsset | null = null;
+  return {
+    label: `Edit model ${assetId}`,
+    apply(project) {
+      before = null;
+      const asset = project.assets.find((a) => a.id === assetId);
+      if (asset === undefined) return;
+      // A shallow copy is enough: `clips` is replaced or deleted, never edited
+      // in place, so the copy never shares a mutated object with the document.
+      before = { ...asset };
+      if (changes.scale !== undefined) asset.scale = changes.scale;
+      if (changes.groundOffset !== undefined) asset.groundOffset = changes.groundOffset;
+      if (changes.rotationY !== undefined) asset.rotationY = changes.rotationY;
+      if ('clips' in changes) {
+        if (changes.clips === null || changes.clips === undefined) delete asset.clips;
+        else asset.clips = changes.clips;
+      }
+    },
+    undo(project) {
+      if (before === null) return;
+      const index = project.assets.findIndex((a) => a.id === assetId);
+      if (index < 0) return;
+      project.assets[index] = before;
+    },
+    isNoop() {
+      return before === null;
+    },
+  };
+}
+
+/**
  * What every creature of one type is drawn with, by adversary id. `null` removes
  * the entry rather than writing an empty id, so a type put back to its default
  * leaves nothing behind in the saved project.

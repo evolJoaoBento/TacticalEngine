@@ -488,13 +488,31 @@ least one) and **+ Step**.
 
 ### Models (glTF import)
 
-A **Models** section lists the project's imported models (id and URL). **+ Model** asks for a
-`.glb`/`.gltf` URL (relative URLs resolve against the page) and a scale (a tile is one unit);
-the id is derived from the file name. **✕** removes one. Content refers to an imported model by
-id exactly as it refers to a built-in one — a deco's or an object's `model` field, or an
-entity's definition — and the view draws the built-in placeholder until the file has loaded. The Prop palette still lists only
-the built-in library, so placing an imported model from the UI is **not verified**; the
-end-to-end test places it through the debug handle.
+A **Models** section lists the project's imported models. **+ Model** opens a file picker for a
+`.glb`/`.gltf`; the file is read **into the project**, so one saved document carries its art with
+it and opens anywhere. The id comes from the file name, made unique if it is already taken, and the
+row reports the file by weight (`embedded · 2.4 MB`) rather than printing megabytes of encoded data.
+**✕** removes one. A model already sitting beside the app is still referenced by its path, and the
+row shows that path instead.
+
+Each model carries three settings: **Scale** (a tile is one unit — most sample files are in metres,
+so 0.01 is a common answer), **Ground offset** to sit its feet on the tile, and **Rotation °** to
+turn it to face the way the built-in models do.
+
+A rigged file's animations are chosen by name, from four dropdowns listing **the clips the file
+actually contains** — they fill in once it has loaded:
+
+| Clip | Plays |
+|---|---|
+| **idle** | at rest, on rising, and on arriving somewhere. Left blank, the first clip in the file loops. |
+| **walk** | while moving to a tile. Blank keeps whatever is playing, so it idles along. |
+| **hit** | on taking a blow, for about a third of a second. |
+| **fallen** | on going down. Blank leaves it lying on its rotation alone. |
+
+Content names an imported model by id exactly as it names a built-in one — a deco's or an object's
+`model` field, a creature's model in Combat's panel, or an entity's definition — and the built-in
+placeholder stands in until the file has loaded. **Check** warns about a model nothing can supply,
+and about an embedded file heavy enough (past 8 MB) to be felt on every save and load.
 
 ### Playing what you authored
 

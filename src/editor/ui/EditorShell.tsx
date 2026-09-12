@@ -80,6 +80,22 @@ export interface EditorShellProps {
   onLoad: (file: File) => void;
   /** The project's model list changed; the loader should follow. */
   onAssetsChanged?: () => void;
+  /**
+   * The clip names inside a loaded model file, so the Models panel can offer
+   * what the file actually contains rather than asking for names to be typed.
+   * Empty until the file has arrived.
+   */
+  assetClips?: (id: string) => readonly string[];
+  /** How an imported model is getting on: unknown, loading, ready or failed. */
+  assetStatus?: (id: string) => string;
+  /** Start loading every declared model, so their clips can be listed. */
+  onRequestAssets?: () => void;
+  /**
+   * One model's settings changed — its scale, seating, facing or clips. Lighter
+   * than `onAssetsChanged`: the file stays loaded, so the panel editing it does
+   * not blank its own clip lists between changes.
+   */
+  onAssetTuned?: (id: string) => void;
   onSwitchScene: (id: string) => void;
   onAddScene: (name: string) => void;
   onRenameScene: (id: string, name: string) => void;
@@ -327,7 +343,16 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       break;
     case 'models':
       workspaceBody = (
-        <ModelsWorkspace session={session} onAssetsChanged={props.onAssetsChanged} onChange={bump} onClose={closeWorkspace} />
+        <ModelsWorkspace
+          session={session}
+          onAssetsChanged={props.onAssetsChanged}
+          assetClips={props.assetClips}
+          assetStatus={props.assetStatus}
+          onRequestAssets={props.onRequestAssets}
+          onAssetTuned={props.onAssetTuned}
+          onChange={bump}
+          onClose={closeWorkspace}
+        />
       );
       break;
     case null:

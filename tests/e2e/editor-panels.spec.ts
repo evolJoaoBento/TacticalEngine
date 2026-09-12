@@ -54,6 +54,48 @@ test('every authoring panel opens and reads as English', async ({ page }) => {
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
+test('a model file picked in the panel rides inside the project, and its own clips can be chosen', async ({ page }) => {
+  const errors = await editing(page);
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-models"]').click();
+  await expect(page.locator('[data-testid="models-panel"]')).toBeVisible();
+
+  // A real rigged file, chosen the way a designer chooses one.
+  await page
+    .locator('[data-testid="add-model"] input[type="file"]')
+    .setInputFiles('tests/fixtures/models/Fox.glb');
+
+  const row = page.locator('[data-asset="fox"]');
+  await expect(row).toBeVisible();
+  // Carried inside the document rather than referenced beside it, and reported
+  // by weight because the bytes themselves would fill the panel.
+  await expect(row).toContainText('embedded');
+  const declared = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject()));
+  expect(declared.assets.find((a: { id: string }) => a.id === 'fox').url.startsWith('data:')).toBe(true);
+
+  // Once the file is here, the options are the clip names it actually carries.
+  await page.waitForFunction(() => window.__polyheart!.assetStatus('fox') === 'ready', undefined, {
+    timeout: 15_000,
+  });
+  const idle = page.locator('[data-testid="asset-clip-idle-fox"]');
+  await expect(idle.locator('option[value="Survey"]')).toHaveCount(1);
+  await idle.selectOption('Survey');
+
+  const chosen = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject()));
+  expect(chosen.assets.find((a: { id: string }) => a.id === 'fox').clips).toEqual({ idle: 'Survey' });
+
+  // Choosing a clip must not cost the file. Rebuilding the library on a settings
+  // change would drop the loaded template, blanking the status and the very list
+  // the choice was made from — which is what this panel did before `retune`.
+  await expect(page.locator('[data-testid="asset-status-fox"]')).toHaveText('ready');
+  await expect(idle).toHaveValue('Survey');
+  await expect(idle.locator('option[value="Run"]')).toHaveCount(1);
+
+  await page.screenshot({ path: 'test-results/models-panel.png' });
+  await page.locator('[data-testid="close-models"]').click();
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
 test('a designer can add one of each thing, and the panel shows it', async ({ page }) => {
   const errors = await editing(page);
 
