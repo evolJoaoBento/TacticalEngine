@@ -157,7 +157,7 @@ describe("a room with a stat block the engine did not write", () => {
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'demon', name: 'A demon' })));
     // The Minor Demon's Hellfire: a Fear, an Agility Reaction Roll from
     // everyone within Far range, and magic damage on those who fail.
-    s.run(addAdversary('hall', 'demon', { id: 'demon-1', adversary: 'minor-demon', position: { x: 5, y: 4 } }));
+    s.run(addAdversary('hall', 'demon', { id: 'demon-1', adversary: 'fixture-brute', position: { x: 5, y: 4 } }));
 
     const demo = buildProjectScene(s.project, 'hellfire');
     demo.askDefender = false;
@@ -184,16 +184,16 @@ describe('a block that shrugs the party off', () => {
       s.run(addSheet(KARA));
       s.run(setSpawns('hall', [{ x: 1, y: 4 }]));
       s.run(addEncounter('hall', encounterSchema.parse({ id: 'bones', name: 'Bones' })));
-      s.run(addAdversary('hall', 'bones', { id: 'warrior-1', adversary: 'skeleton-warrior', position: { x: 3, y: 4 } }));
+      s.run(addAdversary('hall', 'bones', { id: 'warrior-1', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
       if (silence) {
         // A project ability with the shipped feature's id says something else
         // with it — here, nothing at all. That is the override the manual
         // promises, and it is also how this test gets its control run.
         s.project.abilities.push(
           abilitySchema.parse({
-            id: 'skeleton-warrior-only-bones',
+            id: 'fixture-foe-only-bones',
             name: 'Only Bones',
-            source: { kind: 'adversary', adversaries: ['skeleton-warrior'] },
+            source: { kind: 'adversary', adversaries: ['fixture-foe'] },
             kind: 'passive',
             action: false,
             text: 'Nothing, for the sake of the test.',
@@ -226,7 +226,7 @@ describe('a Lieutenant with more where that came from', () => {
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'thieves', name: 'Thieves' })));
-    s.run(addAdversary('hall', 'thieves', { id: 'boss', adversary: 'jagged-knife-lieutenant', position: { x: 7, y: 4 } }));
+    s.run(addAdversary('hall', 'thieves', { id: 'boss', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
 
     const demo = buildProjectScene(s.project, 'knives');
     demo.askDefender = false;
@@ -244,9 +244,9 @@ describe('a Lieutenant with more where that came from', () => {
     // Three Lackeys, on the map, off the shipped stat block.
     const now = demo.state.entitiesOf('adversary');
     expect(now.length).toBe(before + 3);
-    const lackeys = now.filter((e) => e.definition === 'jagged-knife-lackey');
+    const lackeys = now.filter((e) => e.definition === 'fixture-runt');
     expect(lackeys).toHaveLength(3);
-    expect(demo.log.some((l) => l.text.includes('3 Jagged Knife Lackeys arrive.'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('3 Runts arrive.'))).toBe(true);
 
     // They are in the fight: the encounter waits on them, so killing the
     // Lieutenant alone does not end it.
@@ -264,9 +264,9 @@ describe('a Leader buying its own side a turn', () => {
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'thieves', name: 'Thieves' })));
-    s.run(addAdversary('hall', 'thieves', { id: 'boss', adversary: 'jagged-knife-lieutenant', position: { x: 7, y: 4 } }));
-    s.run(addAdversary('hall', 'thieves', { id: 'knife-1', adversary: 'jagged-knife-lackey', position: { x: 7, y: 3 } }));
-    s.run(addAdversary('hall', 'thieves', { id: 'knife-2', adversary: 'jagged-knife-lackey', position: { x: 7, y: 5 } }));
+    s.run(addAdversary('hall', 'thieves', { id: 'boss', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
+    s.run(addAdversary('hall', 'thieves', { id: 'knife-1', adversary: 'fixture-runt', position: { x: 7, y: 3 } }));
+    s.run(addAdversary('hall', 'thieves', { id: 'knife-2', adversary: 'fixture-runt', position: { x: 7, y: 5 } }));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'thieves');
@@ -1211,13 +1211,13 @@ describe("what the party puts behind its own blow", () => {
     s.run(
       addSheet(
         characterSheetSchema.parse(
-          blankSheet('vela', 'wizard', {
+          blankSheet('vela', 'emberwright', {
             name: 'Vela',
             traits: { agility: 0, strength: -1, finesse: 2, instinct: 1, presence: 0, knowledge: 2 },
-            ancestryId: 'faerie',
-            armorId: 'gambeson-armor',
-            primaryWeaponId: 'greatstaff',
-            subclassId: 'school-of-knowledge',
+            ancestryId: 'human',
+            armorId: 'padded-coat',
+            primaryWeaponId: 'ember-staff',
+            subclassId: 'flamecaller',
             domainCards: [...cards],
           }),
         ),
@@ -1225,7 +1225,7 @@ describe("what the party puts behind its own blow", () => {
     );
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
-    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'acid-burrower', position: { x: 3, y: 4 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -1604,15 +1604,15 @@ describe('a creature that acts again, and one that acts out of turn', () => {
     // "The Construct can then take the spotlight again." With no Fear in the
     // pool, a second spotlight is something only the feature can buy.
     for (let seed = 1; seed < 30; seed++) {
-      const demo = room(`overload-${seed}`, [{ id: 'foe', adversary: 'construct', x: 5 }]);
+      const demo = room(`overload-${seed}`, [{ id: 'foe', adversary: 'fixture-brute', x: 5 }]);
       demo.state.fear = { ...demo.state.fear, value: 0 };
       const acted = endTurn(demo);
-      if (!demo.log.some((l) => l.text.includes('The Construct overloads'))) continue;
+      if (!demo.log.some((l) => l.text.includes('The Brute overloads'))) continue;
       expect(acted).toBeGreaterThanOrEqual(2);
 
       // The same fight with nothing left to mark: it overloads nothing, and
       // takes the one turn the pool can pay for.
-      const spent = room(`overload-${seed}`, [{ id: 'foe', adversary: 'construct', x: 5 }]);
+      const spent = room(`overload-${seed}`, [{ id: 'foe', adversary: 'fixture-brute', x: 5 }]);
       spent.state.fear = { ...spent.state.fear, value: 0 };
       const foe = spent.state.entity('foe')!;
       foe.stress = { ...foe.stress, marked: foe.stress.max };
@@ -1623,26 +1623,26 @@ describe('a creature that acts again, and one that acts out of turn', () => {
   });
 
   it('smells blood in the water and comes for whoever is bleeding', () => {
-    // "When a creature within Close range of the Shark marks HP from another
-    // creature's attack": the Burrower does the cutting, and the Shark answers
-    // a wound that was never aimed at it.
+    // The mechanism: a creature that answers a wound it did not take. The Foe
+    // does the cutting, and the Lurker reacts to a hit that was never aimed at
+    // it.
     for (let seed = 1; seed < 30; seed++) {
-      const demo = room(`shark-${seed}`, [
-        { id: 'foe', adversary: 'acid-burrower', x: 5 },
-        { id: 'shark', adversary: 'shark', x: 6 },
+      const demo = room(`lurker-${seed}`, [
+        { id: 'foe', adversary: 'fixture-foe', x: 5 },
+        { id: 'lurker', adversary: 'fixture-lurker', x: 6 },
       ]);
-      const shark = demo.state.entity('shark')!;
-      const before = shark.stress.marked;
+      const lurker = demo.state.entity('lurker')!;
+      const before = lurker.stress.marked;
       for (let turn = 0; turn < 3 && demo.encounter?.outcome === 'ongoing'; turn++) endTurn(demo);
       if (!demo.log.some((l) => l.text.includes('uses Blood in the Water'))) continue;
 
       expect(demo.log.some((l) => l.text.includes('The water goes red'))).toBe(true);
-      expect(shark.stress.marked).toBeGreaterThan(before);
-      // It came to the blood: the Shark is standing over Kara now.
-      expect(demo.world.bandTo('shark', 'kara')).toBe('melee');
+      expect(lurker.stress.marked).toBeGreaterThan(before);
+      // It moved to the wound: the Lurker is standing over Kara now.
+      expect(demo.world.bandTo('lurker', 'kara')).toBe('melee');
       return;
     }
-    throw new Error('nothing bled near the Shark in thirty tries');
+    throw new Error('nothing bled near the Lurker in thirty tries');
   });
 });
 
@@ -1672,7 +1672,7 @@ describe('a breath that only comes when the dice say so', () => {
     s.run(
       addAdversary('hall', 'duel', {
         id: 'foe',
-        adversary: 'volcanic-dragon-molten-scourge',
+        adversary: 'fixture-champion',
         position: { x: 4, y: 4 },
       }),
     );
@@ -1694,7 +1694,7 @@ describe('a breath that only comes when the dice say so', () => {
       demo.world
         .reactionsFor('foe', 'tookDamage', { ...bound, counts: { hitPointsTaken: 2 } })
         .map((a) => a.id),
-    ).toEqual(['volcanic-dragon-molten-scourge-volcanic-breath']);
+    ).toEqual(['fixture-champion-volcanic-breath']);
 
     // And with the d10 coming up, the lava reaches whoever is standing there.
     const card = demo.world.reactionsFor('foe', 'tookDamage', { ...bound, counts: { hitPointsTaken: 2 } })[0]!;
@@ -1721,13 +1721,13 @@ describe('what a card makes of somebody else being hit', () => {
     s.run(
       addSheet(
         characterSheetSchema.parse(
-          blankSheet('vela', 'wizard', {
+          blankSheet('vela', 'emberwright', {
             name: 'Vela',
             traits: { agility: 0, strength: -1, finesse: 1, instinct: 1, presence: 0, knowledge: 2 },
-            ancestryId: 'faerie',
-            armorId: 'gambeson-armor',
-            primaryWeaponId: 'greatstaff',
-            subclassId: 'school-of-knowledge',
+            ancestryId: 'human',
+            armorId: 'padded-coat',
+            primaryWeaponId: 'ember-staff',
+            subclassId: 'flamecaller',
             domainCards: [...cards],
           }),
         ),
@@ -1736,7 +1736,7 @@ describe('what a card makes of somebody else being hit', () => {
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 8, y: 4 }, { x: 4, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
-    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'acid-burrower', position: { x: 5, y: 4 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 5, y: 4 } }));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -1822,13 +1822,13 @@ describe('asking the player how many', () => {
     s.run(
       addSheet(
         characterSheetSchema.parse(
-          blankSheet('vela', 'wizard', {
+          blankSheet('vela', 'emberwright', {
             name: 'Vela',
             traits: { agility: 0, strength: -1, finesse: 1, instinct: 1, presence: 0, knowledge: 2 },
-            ancestryId: 'faerie',
-            armorId: 'gambeson-armor',
-            primaryWeaponId: 'greatstaff',
-            subclassId: 'school-of-knowledge',
+            ancestryId: 'human',
+            armorId: 'padded-coat',
+            primaryWeaponId: 'ember-staff',
+            subclassId: 'flamecaller',
             domainCards: [...cards],
           }),
         ),
@@ -1837,7 +1837,7 @@ describe('asking the player how many', () => {
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }, { x: 3, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
-    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'acid-burrower', position: { x: 5, y: 4 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 5, y: 4 } }));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -1902,13 +1902,13 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
   /** A caster holding one card, with something to point it at. */
   const casting = (cards: readonly string[], seed: string, at: { x: number; y: number } = { x: 3, y: 4 }) => {
     const sheet = characterSheetSchema.parse(
-      blankSheet('vela', 'wizard', {
+      blankSheet('vela', 'emberwright', {
         name: 'Vela',
         traits: { agility: 0, strength: -1, finesse: 1, instinct: 1, presence: 0, knowledge: 2 },
-        ancestryId: 'faerie',
-        armorId: 'gambeson-armor',
-        primaryWeaponId: 'greatstaff',
-        subclassId: 'school-of-knowledge',
+        ancestryId: 'human',
+        armorId: 'padded-coat',
+        primaryWeaponId: 'ember-staff',
+        subclassId: 'flamecaller',
         domainCards: [...cards],
       }),
     );
@@ -1919,7 +1919,7 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
     s.run(addSheet(sheet));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
-    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'acid-burrower', position: at }));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: at }));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -1998,13 +1998,13 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
       s.run(
         addSheet(
           characterSheetSchema.parse(
-            blankSheet('vela', 'wizard', {
+            blankSheet('vela', 'emberwright', {
               name: 'Vela',
               traits: { agility: 0, strength: -1, finesse: 1, instinct: 1, presence: 0, knowledge: 2 },
-              ancestryId: 'faerie',
-              armorId: 'gambeson-armor',
-              primaryWeaponId: 'greatstaff',
-              subclassId: 'school-of-knowledge',
+              ancestryId: 'human',
+              armorId: 'padded-coat',
+              primaryWeaponId: 'ember-staff',
+              subclassId: 'flamecaller',
               domainCards: ['book-of-norai'],
             }),
           ),
@@ -2014,8 +2014,8 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
       s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
       // Both of them together, and both far from Vela: a ring read around her
       // would catch neither.
-      s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'acid-burrower', position: { x: 9, y: 6 } }));
-      s.run(addAdversary('hall', 'duel', { id: 'beside', adversary: 'acid-burrower', position: { x: 10, y: 6 } }));
+      s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 9, y: 6 } }));
+      s.run(addAdversary('hall', 'duel', { id: 'beside', adversary: 'fixture-foe', position: { x: 10, y: 6 } }));
       const demo = buildProjectScene(s.project, `fireball-${seed}`);
       demo.askDefender = false;
       startEncounter(demo, 'duel');
@@ -2025,7 +2025,7 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
       if (useAbility(demo, 'vela', 'fireball', ['foe']).status === 'waiting') answerPending(demo, { kind: 'roll' });
       if (!demo.log.some((l) => l.text.includes('goes up on impact'))) continue;
       const said = demo.log.map((l) => l.text).join(' | ');
-      expect(said).toContain('Acid Burrower');
+      expect(said).toContain('Foe');
       // Both of them answered the blast, not just the one it was thrown at.
       expect(demo.state.entity('foe')!.hitPoints.marked + demo.state.entity('beside')!.hitPoints.marked).toBeGreaterThan(0);
       expect(demo.state.entity('beside')!.hitPoints.marked).toBeGreaterThan(0);
@@ -2078,11 +2078,11 @@ describe('a number read off a pool', () => {
     // marked HP." Two runs of the same fixture and the same seed, the only
     // difference being what has been taken out of the Demon.
     const reap = (marked: number): string => {
-      const demo = facing('minor-demon', 'reaper');
+      const demo = facing('fixture-foe', 'reaper');
       demo.state.entity('foe')!.hitPoints = { max: 8, marked };
       demo.state.entity('foe')!.stress = { max: 4, marked: 0 };
       endTurn(demo);
-      expect(demo.log.some((l) => l.text.includes('Claws'))).toBe(true);
+      expect(demo.log.some((l) => l.text.includes('Swing'))).toBe(true);
       return demo.log.map((l) => l.text).join(' | ');
     };
     expect(reap(3)).toContain('The blow lands harder by 3.');
@@ -2095,7 +2095,7 @@ describe('a number read off a pool', () => {
   it('hands back exactly the wound it took', () => {
     // "Cause the attacker to mark the same number of HP", which is a count the
     // blow carries rather than a pool - but the Fear it costs is one either way.
-    const demo = facing('demon-of-jealousy', 'my-turn');
+    const demo = facing('fixture-lurker', 'my-turn');
     demo.state.entity('foe')!.hitPoints = { max: 90, marked: 0 };
     demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
     const before = demo.state.entity('kara')!.hitPoints.marked;
@@ -2136,11 +2136,11 @@ describe('the blow that has landed and not yet been counted', () => {
     // a +10 bonus." The same fixture and the same seed twice over, the only
     // difference being whether the Construct can afford the Stress.
     const swing = (stress: number): { marked: number; overloaded: boolean } => {
-      const demo = swinging('construct', 'overload');
+      const demo = swinging('fixture-brute', 'overload');
       demo.state.entity('foe')!.stress = { max: 4, marked: stress };
       const before = demo.state.entity('kara')!.hitPoints.marked;
       endTurn(demo);
-      expect(demo.log.some((l) => l.text.includes('Fist Slam hits'))).toBe(true);
+      expect(demo.log.some((l) => l.text.includes('Heavy Arm hits'))).toBe(true);
       return {
         marked: demo.state.entity('kara')!.hitPoints.marked - before,
         overloaded: demo.log.some((l) => l.text.includes('The blow lands harder by 10')),
@@ -2158,9 +2158,9 @@ describe('the blow that has landed and not yet been counted', () => {
   it("lets a Turret fire into somebody else's hit, but never into its own", () => {
     // "When another adversary deals damage to a target within Far range of the
     // Turret." The Turret is standing off, the Zombie does the hitting.
-    const demo = swinging('brawny-zombie', 'concentrate', {
+    const demo = swinging('fixture-foe', 'concentrate', {
       id: 'turret',
-      adversary: 'vault-guardian-turret',
+      adversary: 'fixture-archer',
       at: { x: 6, y: 4 },
     });
     demo.state.entity('turret')!.hitPoints = { max: 90, marked: 0 };
@@ -2180,9 +2180,9 @@ describe('the blow that has landed and not yet been counted', () => {
     // where everyone is always in range, a hit having just landed.
     // A hall wide enough that the Turret is still out past Far after six turns
     // of walking towards the noise.
-    const distant = swinging('brawny-zombie', 'concentrate-far', {
+    const distant = swinging('fixture-foe', 'concentrate-far', {
       id: 'turret',
-      adversary: 'vault-guardian-turret',
+      adversary: 'fixture-archer',
       at: { x: 38, y: 22 },
     }, { width: 40, height: 24 });
     distant.state.entity('turret')!.hitPoints = { max: 90, marked: 0 };
@@ -2194,19 +2194,19 @@ describe('the blow that has landed and not yet been counted', () => {
       distant.world.addTokens('foe', 'slow', 1);
       endTurn(distant);
     }
-    expect(distant.log.some((l) => l.text.includes('Slam'))).toBe(true);
+    expect(distant.log.some((l) => l.text.includes('Swing'))).toBe(true);
     expect(distant.log.some((l) => l.text.includes('swings around and fires'))).toBe(false);
 
     // And on its own Magitech Cannon it says nothing: the feature is about
     // another adversary's blow, and the trigger it answers is the other one.
-    const alone = swinging('vault-guardian-turret', 'turret-alone');
+    const alone = swinging('fixture-archer', 'turret-alone');
     for (let i = 0; i < 4; i++) {
       alone.state.entity('kara')!.hitPoints = { max: 90, marked: 0 };
       alone.state.entity('kara')!.alive = true;
       alone.world.addTokens('foe', 'slow-firing', 1);
       endTurn(alone);
     }
-    expect(alone.log.some((l) => l.text.includes("Magitech Cannon"))).toBe(true);
+    expect(alone.log.some((l) => l.text.includes("Loosed Arrow"))).toBe(true);
     expect(alone.log.some((l) => l.text.includes('swings around and fires'))).toBe(false);
   });
 });
@@ -2434,26 +2434,26 @@ describe('a token on the stat block', () => {
     // block, they can't act yet." The Zombie's attack is its Slam, so whether
     // it swung is whether Slam is in the log - a miss says so as loudly as a
     // hit, which a Hit Point count would not.
-    const demo = winding('brawny-zombie', 'slow-zombie');
+    const demo = winding('fixture-foe', 'slow-zombie');
     const first = spotlight(demo);
     expect(first.tokens).toBe(1);
     expect(first.said).toContain('gathers itself');
-    expect(first.said).not.toContain('Slam');
+    expect(first.said).not.toContain('Swing');
 
     const second = spotlight(demo);
     expect(second.tokens).toBe(0);
-    expect(second.said).toContain('Slam');
+    expect(second.said).toContain('Swing');
 
     // And it is a cycle, not a one-off toll at the door.
     const third = spotlight(demo);
     expect(third.tokens).toBe(1);
-    expect(third.said).not.toContain('Slam');
+    expect(third.said).not.toContain('Swing');
   });
 
   it('counts the token on the creature, not on the card', () => {
     // One card for four stat blocks: two Zombies winding up separately do not
     // hand each other a turn.
-    const demo = winding('brawny-zombie', 'two-zombies', true);
+    const demo = winding('fixture-foe', 'two-zombies', true);
     demo.state.entity('other')!.hitPoints = { max: 60, marked: 0 };
     demo.world.addTokens('other', 'slow', 1);
     demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
@@ -2466,9 +2466,9 @@ describe('a token on the stat block', () => {
     // "Give the target a bramble token. If a target has any bramble tokens,
     // they are Restrained. If a target has 3 or more, they are also
     // Vulnerable." The same store, on a creature the block does not own.
-    const demo = winding('tangle-bramble-swarm', 'brambles');
+    const demo = winding('fixture-swarm', 'brambles');
     const kara = demo.state.entity('kara')!;
-    const brambles = (): number => demo.world.tokensOn('kara', 'tangle-bramble-swarm-encumber');
+    const brambles = (): number => demo.world.tokensOn('kara', 'fixture-swarm-encumber');
     for (let i = 0; i < 24 && brambles() < 3; i++) {
       kara.hitPoints = { max: 60, marked: 0 };
       kara.stress = { max: 6, marked: 0 };
@@ -2493,37 +2493,37 @@ describe('a token on the stat block', () => {
     // "Mark a Stress to deal 2d6+8 direct physical damage to a target with 3
     // or more bramble tokens." The GM aims at the nearest creature in reach,
     // so without a gate on the target it would pay for the wrong one.
-    const short = winding('tangle-bramble-swarm', 'crush-short');
-    short.world.addTokens('kara', 'tangle-bramble-swarm-encumber', 2);
+    const short = winding('fixture-swarm', 'crush-short');
+    short.world.addTokens('kara', 'fixture-swarm-encumber', 2);
     const before = short.state.entity('foe')!.stress.marked;
     endTurn(short);
     expect(short.log.some((l) => l.text.includes('The brambles close and squeeze'))).toBe(false);
     expect(short.state.entity('foe')!.stress.marked).toBe(before);
 
-    const ready = winding('tangle-bramble-swarm', 'crush-ready');
-    ready.world.addTokens('kara', 'tangle-bramble-swarm-encumber', 3);
+    const ready = winding('fixture-swarm', 'crush-ready');
+    ready.world.addTokens('kara', 'fixture-swarm-encumber', 3);
     endTurn(ready);
     expect(ready.log.some((l) => l.text.includes('The brambles close and squeeze'))).toBe(true);
   });
 
   it('leaves the thorns on for a scratch', () => {
     // One Hit Point is Minor, and Minor is not "Major or greater".
-    const demo = winding('tangle-bramble-swarm', 'brambles-scratch');
-    demo.world.addTokens('kara', 'tangle-bramble-swarm-encumber', 2);
+    const demo = winding('fixture-swarm', 'brambles-scratch');
+    demo.world.addTokens('kara', 'fixture-swarm-encumber', 2);
     demo.world.noteDamage('foe', { attacker: 'kara', hitPoints: 1, damage: 4, types: ['physical'] });
     settleFight(demo);
-    expect(demo.world.tokensOn('kara', 'tangle-bramble-swarm-encumber')).toBe(2);
+    expect(demo.world.tokensOn('kara', 'fixture-swarm-encumber')).toBe(2);
   });
 
   it('takes the whole turn, not just the swing', () => {
     // Simplified, and worth pinning: the Turret's block only forbids its
     // standard attack while it winds, but nothing here can take the swing away
     // and leave the turn standing, so Mark Target waits too.
-    const demo = winding('vault-guardian-turret', 'turret');
+    const demo = winding('fixture-archer', 'turret');
     const first = spotlight(demo);
     expect(demo.world.tokensOn('foe', 'slow-firing')).toBe(1);
     expect(first.said).toContain('winding up');
-    expect(first.said).not.toContain('Magitech Cannon');
+    expect(first.said).not.toContain('Loosed Arrow');
   });
 });
 
@@ -2664,11 +2664,11 @@ describe('a Demon rallying Relentless allies', () => {
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'pit', name: 'The pit' })));
-    s.run(addAdversary('hall', 'pit', { id: 'hubris', adversary: 'demon-of-hubris', position: { x: 7, y: 4 } }));
+    s.run(addAdversary('hall', 'pit', { id: 'hubris', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
     // The imps stand in Far range of Kara and past a Close-range walk of her:
     // rallied, they close in and stop short, and the fight makes no Fear of its own.
-    s.run(addAdversary('hall', 'pit', { id: 'imp-1', adversary: 'minor-demon', position: { x: 10, y: 3 } }));
-    s.run(addAdversary('hall', 'pit', { id: 'imp-2', adversary: 'minor-demon', position: { x: 10, y: 5 } }));
+    s.run(addAdversary('hall', 'pit', { id: 'imp-1', adversary: 'fixture-runt', position: { x: 10, y: 3 } }));
+    s.run(addAdversary('hall', 'pit', { id: 'imp-2', adversary: 'fixture-runt', position: { x: 10, y: 5 } }));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'pit');
@@ -2699,7 +2699,7 @@ describe('what a feature calls in and spotlights', () => {
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'crypt', name: 'The crypt' })));
-    s.run(addAdversary('hall', 'crypt', { id: 'lord', adversary: 'head-vampire', position: { x: 7, y: 4 } }));
+    s.run(addAdversary('hall', 'crypt', { id: 'lord', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
     const demo = buildProjectScene(s.project, 'the-hunt');
     demo.askDefender = false;
     startEncounter(demo, 'crypt');
@@ -2734,15 +2734,15 @@ describe('a Necromancer who buys their troops a turn', () => {
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'lists', name: 'The gates' })));
-    s.run(addAdversary('hall', 'lists', { id: 'necromancer', adversary: 'arch-necromancer', position: { x: 7, y: 4 } }));
-    s.run(addAdversary('hall', 'lists', { id: 'troop-1', adversary: 'fallen-shock-troop', position: { x: 6, y: 3 } }));
-    s.run(addAdversary('hall', 'lists', { id: 'troop-2', adversary: 'fallen-shock-troop', position: { x: 6, y: 5 } }));
+    s.run(addAdversary('hall', 'lists', { id: 'necromancer', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
+    s.run(addAdversary('hall', 'lists', { id: 'troop-1', adversary: 'fixture-runt', position: { x: 6, y: 3 } }));
+    s.run(addAdversary('hall', 'lists', { id: 'troop-2', adversary: 'fixture-runt', position: { x: 6, y: 5 } }));
     if (!half) {
       s.project.abilities.push(
         abilitySchema.parse({
-          id: 'arch-necromancer-dance-of-death',
+          id: 'fixture-captain-dance-of-death',
           name: 'Dance of Death',
-          source: { kind: 'adversary', adversaries: ['arch-necromancer'] },
+          source: { kind: 'adversary', adversaries: ['fixture-captain'] },
           cost: { stress: 1 },
           target: { kind: 'none', range: 'far' },
           inCombatOnly: true,
@@ -2780,9 +2780,9 @@ describe('a Necromancer who buys their troops a turn', () => {
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'gates', name: 'The gates' })));
-    s.run(addAdversary('hall', 'gates', { id: 'necromancer', adversary: 'arch-necromancer', position: { x: 7, y: 4 } }));
-    s.run(addAdversary('hall', 'gates', { id: 'imp-1', adversary: 'minor-demon', position: { x: 6, y: 3 } }));
-    s.run(addAdversary('hall', 'gates', { id: 'imp-2', adversary: 'minor-demon', position: { x: 6, y: 5 } }));
+    s.run(addAdversary('hall', 'gates', { id: 'necromancer', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
+    s.run(addAdversary('hall', 'gates', { id: 'imp-1', adversary: 'fixture-runt', position: { x: 6, y: 3 } }));
+    s.run(addAdversary('hall', 'gates', { id: 'imp-2', adversary: 'fixture-runt', position: { x: 6, y: 5 } }));
     const demo = buildProjectScene(s.project, 'dance');
     demo.askDefender = false;
     startEncounter(demo, 'gates');
@@ -3134,19 +3134,19 @@ describe('a block wearing enough plate to matter', () => {
     // One seed, so both runs roll the same longsword: physical damage, which
     // is what plate answers. 13/26 thresholds, and a swing in the low teens is
     // Major until the plate takes three off it.
-    const knight = 'knight-of-the-realm';
+    const knight = 'fixture-champion';
     expect(swing(knight, knight + '-heavily-armored', true, 'k12').marked).toBe(2);
     const plated = swing(knight, knight + '-heavily-armored', false, 'k12');
     expect(plated.marked).toBe(1);
-    expect(plated.log).toContain('Knight of the Realm turns aside 3 of it.');
+    expect(plated.log).toContain('Champion turns aside 3 of it.');
 
     // The Champion's 1d10 is rolled after the swing, so the swing itself is
     // the same in both runs and only the armor differs.
-    const champion = 'fallen-warlord-undefeated-champion';
+    const champion = 'fixture-champion';
     expect(swing(champion, champion + '-faltering-armor', true, 'c9').marked).toBe(1);
     const rolled = swing(champion, champion + '-faltering-armor', false, 'c9');
     expect(rolled.marked).toBe(0);
-    expect(rolled.log).toContain('Fallen Warlord: Undefeated Champion turns aside 7 of it.');
+    expect(rolled.log).toContain('Champion turns aside 7 of it.');
   });
 });
 
@@ -3156,7 +3156,7 @@ describe('a Treant that puts its roots down', () => {
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 3, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'grove', name: 'The grove' })));
-    s.run(addAdversary('hall', 'grove', { id: 'treant-1', adversary: 'oak-treant', position: { x: 4, y: 4 } }));
+    s.run(addAdversary('hall', 'grove', { id: 'treant-1', adversary: 'fixture-brute', position: { x: 4, y: 4 } }));
 
     const demo = buildProjectScene(s.project, 'grove');
     demo.askDefender = false;
