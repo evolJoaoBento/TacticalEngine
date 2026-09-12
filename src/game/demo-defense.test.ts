@@ -3079,7 +3079,73 @@ describe('a swing lifted, and a swing that names its own number', () => {
 
 
 describe('a card that moves before it swings', () => {
+  /**
+   * Two cards that cross the room before they do anything else. Both walk
+   * first: a Melee weapon thrown from Far reaches nothing, so the swing is
+   * thrown from where the walk ended.
+   *
+   * On the first, the ally is a gate rather than a target -- it only asks that
+   * somebody is standing close enough to push off. Nothing is asked of them and
+   * nothing happens to them, which is why having nobody near makes the card
+   * unusable rather than usable and pointless.
+   *
+   * The second is not the character's action: the swing that follows is. What it
+   * leaves behind is a plain bonus on the next attack, spent by that attack
+   * whoever it is aimed at.
+   */
+  const SHOVE_CARD = 'fixture-card-38';
+  const SPRINT_CARD = 'fixture-card-39';
+
+  /** Spent by the next attack, whoever it is at. */
+  const POISED_CONDITION = {
+    id: 'fixture-poised',
+    name: 'Set',
+    text: 'You arrived exactly where you meant to. Your next attack is surer for it.',
+    modifiers: [{ stat: 'attackRoll', bonus: 1 }],
+    endsWhen: 'attacks',
+  };
+
+  const MOVERS = [
+    {
+      id: 'fixture-shove',
+      name: 'Shove Off',
+      source: { kind: 'domainCard', card: SHOVE_CARD },
+      text: 'Mark a Stress to push off somebody beside you, cross the room and swing.',
+      cost: { stress: 1 },
+      inCombatOnly: true,
+      target: { kind: 'adversary', range: 'far' },
+      // The ally is the gate: somebody close enough to push off, and that is
+      // all the card asks of them.
+      available: { kind: 'withinRange', range: 'close', of: { kind: 'allies' } },
+      effects: [
+        { kind: 'log', text: 'A push off a shoulder, and the air.', tone: 'hope' },
+        { kind: 'move', how: 'toward', of: { kind: 'target' }, range: 'melee', budget: 'far' },
+        { kind: 'attack', target: { kind: 'target' }, advantage: 1, damageDice: '1d10' },
+      ],
+    },
+    {
+      id: 'fixture-sprint',
+      name: 'Quick Feet',
+      source: { kind: 'domainCard', card: SPRINT_CARD },
+      text: 'Once between rests, mark a Stress to cross the room without rolling for it.',
+      cost: { stress: 1 },
+      uses: { count: 1, per: 'rest' },
+      // Not her action: the swing that follows is.
+      action: false,
+      inCombatOnly: true,
+      target: { kind: 'adversary', range: 'far' },
+      effects: [
+        { kind: 'log', text: 'A sprint nobody had to roll for.', tone: 'hope' },
+        { kind: 'move', how: 'toward', of: { kind: 'target' }, range: 'melee', budget: 'far' },
+        { kind: 'applyCondition', condition: 'fixture-poised', target: { kind: 'actor' } },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(POISED_CONDITION));
+    for (const ability of MOVERS) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -3104,8 +3170,8 @@ describe('a card that moves before it swings', () => {
   };
 
   it('boosts off an ally, crosses the room and swings with advantage', () => {
-    const demo = across('boost');
-    hold(demo, ['boost']);
+    const demo = across('shove');
+    hold(demo, [SHOVE_CARD]);
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     // Mira beside her: the card only has to know somebody is close enough to
     // push off, and nothing happens to them.
@@ -3113,16 +3179,16 @@ describe('a card that moves before it swings', () => {
     expect(demo.world.bandTo('kara', 'mira')).not.toBe(null);
 
     const stress = demo.state.entity('kara')!.stress.marked;
-    expect(useAbility(demo, 'kara', 'boost', [husk.id]).status).not.toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-shove', [husk.id]).status).not.toBe('refused');
     expect(demo.state.entity('kara')!.stress.marked).toBe(stress + 1);
     // "End your move within Melee range of the target."
     expect(demo.world.bandTo('kara', husk.id)).toBe('melee');
-    expect(demo.log.some((l) => l.text.includes('A shove off a shoulder'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('A push off a shoulder'))).toBe(true);
   });
 
   it('is not offered with nobody close enough to push off', () => {
-    const demo = across('boost-alone');
-    hold(demo, ['boost']);
+    const demo = across('shove-alone');
+    hold(demo, [SHOVE_CARD]);
     // Everyone else off the map: "a willing ally within Close range" is a gate
     // on the card, so it is not usable rather than usable and pointless.
     for (const member of demo.state.entitiesOf('party')) {
@@ -3130,28 +3196,28 @@ describe('a card that moves before it swings', () => {
       demo.state.moveEntity(member.id, NO_TILE);
     }
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-    expect(useAbility(demo, 'kara', 'boost', [husk.id]).status).toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-shove', [husk.id]).status).toBe('refused');
   });
 
   it('sprints without a roll and leaves the next swing surer for it', () => {
-    const demo = across('deft');
-    hold(demo, ['deft-maneuvers']);
+    const demo = across('sprint');
+    hold(demo, [SPRINT_CARD]);
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     expect(demo.world.bandTo('kara', husk.id)).not.toBe('melee');
     expect(demo.world.rollBonus('kara', 'attackRoll', { melee: true })).toBe(0);
 
-    expect(useAbility(demo, 'kara', 'deft-maneuvers', [husk.id]).status).not.toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-sprint', [husk.id]).status).not.toBe('refused');
     expect(demo.world.bandTo('kara', husk.id)).toBe('melee');
     // "Gain a +1 bonus to the attack roll" - on the next swing, and one only.
-    expect(demo.state.entity('kara')!.conditions.has('poised')).toBe(true);
+    expect(demo.state.entity('kara')!.conditions.has('fixture-poised')).toBe(true);
     expect(demo.world.rollBonus('kara', 'attackRoll', { melee: true })).toBe(1);
 
     // It is not the character's action: the attack that follows is.
     expect(demo.encounter!.canAct('kara')).toBe(true);
     attackWithSelected(demo, husk.id);
-    expect(demo.state.entity('kara')!.conditions.has('poised')).toBe(false);
+    expect(demo.state.entity('kara')!.conditions.has('fixture-poised')).toBe(false);
     // Once per rest, counted like any other limited card.
-    expect(demo.scenario.abilityUses.get(useKey('kara', 'deft-maneuvers'))).toBe(1);
+    expect(demo.scenario.abilityUses.get(useKey('kara', 'fixture-sprint'))).toBe(1);
   });
 
   it('rolls the dice behind a swing once, and puts them into what lands', () => {
@@ -7927,7 +7993,77 @@ describe('a card that saves a roll already made', () => {
  * The one card that changes what is thrown rather than what is added to it.
  */
 describe('a Hope Die that is not a d12', () => {
+  /**
+   * The one card here that changes what is thrown rather than what is added to
+   * it. The condition carries the die itself, and the roll only reports a size
+   * at all when it is not the usual one -- so the proof that a different die
+   * was thrown is a face above twelve, which a d12 cannot show.
+   *
+   * Two abilities: declaring it, and the roll it was waiting for. The mark comes
+   * off before the branch, because it was spent on that roll whatever the roll
+   * came to; only the Stress is conditional.
+   *
+   * The Stress here is one. A critical clears a second of its own through the
+   * roll, which is the engine's rule and not this card's -- writing two would
+   * clear three.
+   */
+  const MOVE_CARD = 'fixture-card-37';
+
+  /** The whole of it is the die: a d20 where a d12 would go. */
+  const DECLARED_CONDITION = {
+    id: 'fixture-declared',
+    name: 'Set for It',
+    text: 'The thing you are known for: your next action roll throws a d20 as its Hope Die.',
+    hopeDie: { sides: 20 },
+  };
+
+  const MOVE = [
+    {
+      id: 'fixture-declare',
+      name: 'The Thing They Do',
+      source: { kind: 'domainCard', card: MOVE_CARD },
+      text: 'Once between rests, set yourself for the thing you are known for.',
+      uses: { count: 1, per: 'rest' },
+      target: { kind: 'self' },
+      action: false,
+      effects: [
+        { kind: 'log', text: 'They set themselves for the thing they are known for.', tone: 'hope' },
+        { kind: 'applyCondition', condition: 'fixture-declared', duration: 'scene', target: { kind: 'actor' } },
+      ],
+    },
+    {
+      id: 'fixture-declare-lands',
+      name: 'The Thing They Do',
+      source: { kind: 'domainCard', card: MOVE_CARD },
+      text: 'The roll it was declared for spends it, and a success is worth a Stress back.',
+      kind: 'reaction',
+      trigger: 'partyRolled',
+      action: false,
+      available: {
+        kind: 'all',
+        of: [{ kind: 'self' }, { kind: 'hasCondition', condition: 'fixture-declared', of: { kind: 'actor' } }],
+      },
+      effects: [
+        // Spent whatever the dice said: the move was made.
+        { kind: 'clearCondition', condition: 'fixture-declared', target: { kind: 'actor' } },
+        {
+          kind: 'branch',
+          when: { kind: 'rolled', is: 'success' },
+          then: [
+            { kind: 'log', text: 'It goes exactly the way they practised it.', tone: 'hope' },
+            // One. The critical's second is the roll's own, cleared by the
+            // runner rather than by this.
+            { kind: 'clearStress', amount: 1, target: { kind: 'actor' } },
+          ],
+        },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(DECLARED_CONDITION));
+    for (const ability of MOVE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
     demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -7937,7 +8073,7 @@ describe('a Hope Die that is not a d12', () => {
   const armed = (seed: string): { demo: DemoScene; kara: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    hold(demo, 'kara', ['signature-move']);
+    hold(demo, 'kara', [MOVE_CARD]);
     const kara = demo.state.entity('kara')!;
     kara.stress = { max: 6, marked: 3 };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -7946,11 +8082,11 @@ describe('a Hope Die that is not a d12', () => {
   };
 
   it('is twelve until the move is declared, and twenty after', () => {
-    const { demo, kara } = armed('signature-sides');
+    const { demo, kara } = armed('declared-sides');
     expect(demo.world.hopeDieSides('kara')).toBe(12);
-    expect(useAbility(demo, 'kara', 'signature-move', []).status).not.toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-declare', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-    expect(kara.conditions.has('signature-move')).toBe(true);
+    expect(kara.conditions.has('fixture-declared')).toBe(true);
     expect(demo.world.hopeDieSides('kara')).toBe(20);
   });
 
@@ -7959,8 +8095,8 @@ describe('a Hope Die that is not a d12', () => {
     // face above twelve is the whole proof that a different die was thrown.
     let sawBig = false;
     for (let seed = 1; seed < 60 && !sawBig; seed++) {
-      const { demo, husk } = armed('signature-die-' + seed);
-      useAbility(demo, 'kara', 'signature-move', []);
+      const { demo, husk } = armed('declared-die-' + seed);
+      useAbility(demo, 'kara', 'fixture-declare', []);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
 
       demo.party.select('kara');
@@ -7980,8 +8116,8 @@ describe('a Hope Die that is not a d12', () => {
     let onSuccess = false;
     let onFailure = false;
     for (let seed = 1; seed < 80 && !(onSuccess && onFailure); seed++) {
-      const { demo, kara, husk } = armed('signature-spent-' + seed);
-      useAbility(demo, 'kara', 'signature-move', []);
+      const { demo, kara, husk } = armed('declared-spent-' + seed);
+      useAbility(demo, 'kara', 'fixture-declare', []);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       const stress = kara.stress.marked;
 
@@ -7991,7 +8127,7 @@ describe('a Hope Die that is not a d12', () => {
       const roll = demo.rolls[demo.rolls.length - 1]!.roll;
 
       // Spent either way: the move was made.
-      expect(kara.conditions.has('signature-move')).toBe(false);
+      expect(kara.conditions.has('fixture-declared')).toBe(false);
       expect(demo.world.hopeDieSides('kara')).toBe(12);
       if (roll.success) {
         // One for the card, and a critical clears one of its own on top.
