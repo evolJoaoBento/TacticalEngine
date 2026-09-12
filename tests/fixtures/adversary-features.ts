@@ -280,3 +280,92 @@ export const A_SPEND_GATED_ON_WHAT_THEY_CARRY = (definition: string): Record<str
     { kind: 'damage', dice: '2d6+8', type: 'physical', direct: true, target: { kind: 'target' } },
   ],
 });
+
+/**
+ * An overload: ten more damage on a blow already in the air, and then it acts
+ * again.
+ *
+ * `trigger: 'rollingDamage'` is the whole placement -- the hit has landed, the
+ * dice are being read, and nothing has been compared to a threshold yet. The one
+ * Stress pays for both halves, the bonus and the second spotlight, so the GM's
+ * own pool is never billed for the extra turn.
+ *
+ * The log names nothing, because two blocks share this one.
+ */
+export const AN_OVERLOAD_THAT_BUYS_ANOTHER_TURN = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-overload`,
+  name: 'Overload',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'It can drive itself past what it should bear, and keep going afterwards.',
+  kind: 'reaction',
+  trigger: 'rollingDamage',
+  action: false,
+  cost: { stress: 1 },
+  target: { kind: 'none' },
+  effects: [
+    { kind: 'log', text: 'It overloads, and the blow comes down heavier.', tone: 'fear' },
+    { kind: 'boostDamage', amount: 10 },
+    { kind: 'spotlightAgain' },
+  ],
+});
+
+/**
+ * A watcher that adds its own attack to somebody else's hit.
+ *
+ * `allyRollingDamage` is a different trigger from the overload's, and that
+ * difference is the test: this fires into another creature's blow and never into
+ * its own. The range gate is read from this creature's chair to whoever is being
+ * hit -- not from the attacker's, where everyone is always in range, a hit having
+ * just landed.
+ */
+export const A_WATCHER_THAT_ADDS_TO_A_HIT = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-into-the-same-spot`,
+  name: 'Into the Same Spot',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'It waits for somebody else to open a target up, and puts its own shot through it.',
+  kind: 'reaction',
+  trigger: 'allyRollingDamage',
+  action: false,
+  cost: { stress: 1 },
+  available: { kind: 'withinRange', range: 'far' },
+  target: { kind: 'none' },
+  effects: [
+    { kind: 'log', text: 'It swings around and fires into the same spot.', tone: 'fear' },
+    { kind: 'boostDamage', dice: 'weapon' },
+  ],
+});
+
+/**
+ * Something that comes for whoever is bleeding, on a wound it did not deal.
+ *
+ * Both halves of the gate earn their place: range is measured to the one who was
+ * hit rather than to the attacker, and at least one Hit Point must actually have
+ * been marked, so a blow that was shrugged off draws nothing.
+ *
+ * Simplified: it strikes from where it stands rather than being handed a
+ * spotlight of its own -- the same swing without the turn's bookkeeping -- and it
+ * goes for the one bleeding.
+ */
+export const A_HUNGER_DRAWN_TO_A_WOUND = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-drawn-to-the-wound`,
+  name: 'Drawn to the Wound',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'A wound close by is an invitation, and it does not wait to be asked twice.',
+  kind: 'reaction',
+  trigger: 'nearbyTookDamage',
+  action: false,
+  cost: { stress: 1 },
+  available: {
+    kind: 'all',
+    of: [
+      { kind: 'withinRange', range: 'close', of: { kind: 'hit' } },
+      { kind: 'count', of: 'hitPointsTaken', op: '>=', value: 1 },
+    ],
+  },
+  target: { kind: 'none' },
+  effects: [
+    { kind: 'log', text: 'Blood in the air, and something turns toward it.', tone: 'fear' },
+    { kind: 'move', how: 'toward', of: { kind: 'hit' }, range: 'melee', budget: 'close' },
+    { kind: 'attack', target: { kind: 'hit' } },
+  ],
+});

@@ -23,11 +23,14 @@ import { validateProject } from './validate';
 import { FIXTURE_ADVERSARIES } from '../../tests/fixtures/adversaries';
 import {
   A_HIDE_THAT_SHRUGS_OFF_STEEL,
+  A_HUNGER_DRAWN_TO_A_WOUND,
   A_SPEND_GATED_ON_WHAT_THEY_CARRY,
   A_STORE_THAT_HOLDS_WHOEVER_IT_HIT,
   A_STORE_TORN_OFF_BY_A_REAL_WOUND,
+  A_WATCHER_THAT_ADDS_TO_A_HIT,
   A_WIND_UP_THAT_COSTS_A_TURN,
   A_WIND_UP_WITH_ITS_OWN_STORE,
+  AN_OVERLOAD_THAT_BUYS_ANOTHER_TURN,
   PLATE_THAT_ROLLS_WHAT_IT_TURNS,
   PLATE_THAT_TURNS_A_FLAT_AMOUNT,
 } from '../../tests/fixtures/adversary-features';
@@ -1592,6 +1595,16 @@ describe('a creature that acts again, and one that acts out of turn', () => {
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     for (const block of blocks) {
       s.run(addAdversary('hall', 'duel', { id: block.id, adversary: block.adversary, position: { x: block.x, y: 4 } }));
+      // Only the block whose feature is under test carries one. A plain foe
+      // handed an overload would kill Kara early and fail a loop that is
+      // waiting on something else entirely.
+      const feature =
+        block.adversary === 'fixture-brute'
+          ? AN_OVERLOAD_THAT_BUYS_ANOTHER_TURN(block.adversary)
+          : block.adversary === 'fixture-lurker'
+            ? A_HUNGER_DRAWN_TO_A_WOUND(block.adversary)
+            : undefined;
+      if (feature !== undefined) s.project.abilities.push(abilitySchema.parse(feature));
     }
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
@@ -1602,13 +1615,14 @@ describe('a creature that acts again, and one that acts out of turn', () => {
   };
 
   it('overloads, and takes the turn again on the Stress that paid for it', () => {
-    // "The Construct can then take the spotlight again." With no Fear in the
-    // pool, a second spotlight is something only the feature can buy.
+    // The second half of the mechanism: it takes the spotlight again. With no
+    // Fear in the pool a second spotlight is something only the feature can buy,
+    // so a turn count above one is the feature and nothing else.
     for (let seed = 1; seed < 30; seed++) {
       const demo = room(`overload-${seed}`, [{ id: 'foe', adversary: 'fixture-brute', x: 5 }]);
       demo.state.fear = { ...demo.state.fear, value: 0 };
       const acted = endTurn(demo);
-      if (!demo.log.some((l) => l.text.includes('The Brute overloads'))) continue;
+      if (!demo.log.some((l) => l.text.includes('It overloads'))) continue;
       expect(acted).toBeGreaterThanOrEqual(2);
 
       // The same fight with nothing left to mark: it overloads nothing, and
@@ -1620,7 +1634,7 @@ describe('a creature that acts again, and one that acts out of turn', () => {
       expect(endTurn(spent)).toBe(1);
       return;
     }
-    throw new Error('the Construct never landed a blow to overload in thirty tries');
+    throw new Error('nothing landed a blow to overload in thirty tries');
   });
 
   it('smells blood in the water and comes for whoever is bleeding', () => {
@@ -1635,9 +1649,9 @@ describe('a creature that acts again, and one that acts out of turn', () => {
       const lurker = demo.state.entity('lurker')!;
       const before = lurker.stress.marked;
       for (let turn = 0; turn < 3 && demo.encounter?.outcome === 'ongoing'; turn++) endTurn(demo);
-      if (!demo.log.some((l) => l.text.includes('uses Blood in the Water'))) continue;
+      if (!demo.log.some((l) => l.text.includes('uses Drawn to the Wound'))) continue;
 
-      expect(demo.log.some((l) => l.text.includes('The water goes red'))).toBe(true);
+      expect(demo.log.some((l) => l.text.includes('something turns toward it'))).toBe(true);
       expect(lurker.stress.marked).toBeGreaterThan(before);
       // It moved to the wound: the Lurker is standing over Kara now.
       expect(demo.world.bandTo('lurker', 'kara')).toBe('melee');
@@ -2123,6 +2137,20 @@ describe('the blow that has landed and not yet been counted', () => {
     if (bystander !== undefined) {
       s.run(addAdversary('hall', 'duel', { id: bystander.id, adversary: bystander.adversary, position: bystander.at }));
     }
+    // Deduped by id: this helper can put an archer in as both the creature under
+    // test and the bystander watching, and the same specimen twice over would be
+    // offered twice.
+    const carried = new Map<string, Record<string, unknown>>();
+    for (const definition of [adversary, bystander?.adversary]) {
+      const feature =
+        definition === 'fixture-brute'
+          ? AN_OVERLOAD_THAT_BUYS_ANOTHER_TURN(definition)
+          : definition === 'fixture-archer'
+            ? A_WATCHER_THAT_ADDS_TO_A_HIT(definition)
+            : undefined;
+      if (feature !== undefined) carried.set(String(feature.id), feature);
+    }
+    for (const feature of carried.values()) s.project.abilities.push(abilitySchema.parse(feature));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2133,9 +2161,9 @@ describe('the blow that has landed and not yet been counted', () => {
   };
 
   it('adds the ten only when there is a Stress to pay for it', () => {
-    // "Before rolling damage for the Construct's attack, mark a Stress to gain
-    // a +10 bonus." The same fixture and the same seed twice over, the only
-    // difference being whether the Construct can afford the Stress.
+    // The mechanism: a Stress marked while the damage is being rolled buys ten
+    // more of it. The same fixture and the same seed twice over, the only
+    // difference being whether there is a Stress left to pay with.
     const swing = (stress: number): { marked: number; overloaded: boolean } => {
       const demo = swinging('fixture-brute', 'overload');
       demo.state.entity('foe')!.stress = { max: 4, marked: stress };
@@ -2152,13 +2180,13 @@ describe('the blow that has landed and not yet been counted', () => {
     expect(spent.overloaded).toBe(true);
     // Nothing left to mark, nothing added: the same hit, ten lighter.
     expect(broke.overloaded).toBe(false);
-    // A Fist Slam is 1d20; ten more of it is worth at least one more threshold.
+    // Ten more damage is worth at least one more threshold on these numbers.
     expect(spent.marked).toBeGreaterThan(broke.marked);
   });
 
-  it("lets a Turret fire into somebody else's hit, but never into its own", () => {
-    // "When another adversary deals damage to a target within Far range of the
-    // Turret." The Turret is standing off, the Zombie does the hitting.
+  it("lets a watcher fire into somebody else's hit, but never into its own", () => {
+    // The mechanism: another creature's damage, rolled within Far range of this
+    // one. The watcher stands off; the other block does the hitting.
     const demo = swinging('fixture-foe', 'concentrate', {
       id: 'turret',
       adversary: 'fixture-archer',
@@ -2170,17 +2198,16 @@ describe('the blow that has landed and not yet been counted', () => {
       demo.state.entity('kara')!.hitPoints = { max: 90, marked: 0 };
       demo.state.entity('kara')!.stress = { max: 6, marked: 0 };
       demo.state.entity('kara')!.alive = true;
-      demo.world.addTokens('foe', 'slow', 1);
       endTurn(demo);
     }
     expect(demo.log.some((l) => l.text.includes('swings around and fires'))).toBe(true);
     expect(demo.log.some((l) => l.text.includes('The blow lands harder by'))).toBe(true);
 
-    // Parked out past Far, the same Turret says nothing: the gate is read from
-    // the Turret's chair to whoever is being hit, not from the attacker's -
+    // Parked out past Far, the same watcher says nothing: the gate is read from
+    // the watcher's chair to whoever is being hit, not from the attacker's -
     // where everyone is always in range, a hit having just landed.
-    // A hall wide enough that the Turret is still out past Far after six turns
-    // of walking towards the noise.
+    // A hall wide enough that it is still out past Far after six turns of
+    // walking towards the noise.
     const distant = swinging('fixture-foe', 'concentrate-far', {
       id: 'turret',
       adversary: 'fixture-archer',
@@ -2192,19 +2219,17 @@ describe('the blow that has landed and not yet been counted', () => {
       distant.state.entity('kara')!.hitPoints = { max: 90, marked: 0 };
       distant.state.entity('kara')!.stress = { max: 6, marked: 0 };
       distant.state.entity('kara')!.alive = true;
-      distant.world.addTokens('foe', 'slow', 1);
       endTurn(distant);
     }
     expect(distant.log.some((l) => l.text.includes('Swing'))).toBe(true);
     expect(distant.log.some((l) => l.text.includes('swings around and fires'))).toBe(false);
 
-    // And on its own Magitech Cannon it says nothing: the feature is about
-    // another adversary's blow, and the trigger it answers is the other one.
+    // And on its own attack it says nothing: the feature answers another
+    // creature's damage roll, which is a different trigger from its own.
     const alone = swinging('fixture-archer', 'turret-alone');
     for (let i = 0; i < 4; i++) {
       alone.state.entity('kara')!.hitPoints = { max: 90, marked: 0 };
       alone.state.entity('kara')!.alive = true;
-      alone.world.addTokens('foe', 'slow-firing', 1);
       endTurn(alone);
     }
     expect(alone.log.some((l) => l.text.includes("Loosed Arrow"))).toBe(true);
