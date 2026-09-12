@@ -6443,7 +6443,94 @@ describe('a bonus on every action roll', () => {
  * whoever crosses into it and never on standing still.
  */
 describe('a circle burnt into the floor', () => {
+  /**
+   * One card, two spells: ground that bites whatever crosses onto it, and a
+   * lift that sets a creature down away from the one who lifted it.
+   *
+   * The bite lives in the condition's `onEnter`, so the crossing is the whole
+   * of it. Standing in the circle when it is drawn is a crossing -- nobody was
+   * in it a moment earlier -- and standing still afterwards is not, which is
+   * the distinction the first test settles the fight twice to check.
+   *
+   * `side: 'adversaries'` is read from the caster's chair, so this is only ever
+   * ground under somebody else's feet.
+   */
+  const CIRCLE_CARD = 'fixture-card-35';
+
+  /** Ground that answers a crossing: a real blow, and knocked back out of reach. */
+  const CIRCLE_CONDITION = {
+    id: 'fixture-circle',
+    name: 'Burnt Circle',
+    text: 'Ground that answers anybody who steps onto it: a blow, and knocked back.',
+    color: '#b46cff',
+    onEnter: {
+      effects: [
+        { kind: 'log', text: 'The floor answers them as they cross it.', tone: 'fear' },
+        { kind: 'damage', dice: '2d12+4', type: 'magic', target: { kind: 'target' } },
+        { kind: 'push', to: 'veryClose', target: { kind: 'target' } },
+      ],
+    },
+  };
+
+  /**
+   * What a lift does, shared by all three success faces: the one lifted moves,
+   * and the one lifting does not. `who` being the creature that was hit rather
+   * than the actor is the whole of it.
+   */
+  const LIFTED = [
+    { kind: 'log', text: 'They come off the floor, turn over once, and are set down somewhere else.', tone: 'combat' },
+    { kind: 'move', who: { kind: 'hit' }, how: 'away', of: { kind: 'actor' }, budget: 'close' },
+  ];
+
+  const CIRCLE = [
+    {
+      id: 'fixture-circle-draw',
+      name: 'Burnt Circle',
+      source: { kind: 'domainCard', card: CIRCLE_CARD },
+      text: 'Mark a Stress to burn a circle into the floor around your own feet.',
+      cost: { stress: 1 },
+      target: { kind: 'self' },
+      inCombatOnly: true,
+      effects: [
+        { kind: 'log', text: 'A circle burns itself into the floor around their feet.', tone: 'hope' },
+        {
+          kind: 'zone',
+          zone: 'fixture-circle-ground',
+          name: 'Burnt Circle',
+          condition: 'fixture-circle',
+          at: 'actor',
+          band: 'melee',
+          side: 'adversaries',
+          onDeath: 'end',
+        },
+      ],
+    },
+    {
+      id: 'fixture-lift',
+      name: 'Lift',
+      source: { kind: 'domainCard', card: CIRCLE_CARD },
+      text: 'Lift a creature you can see off the floor and set it down somewhere else.',
+      target: { kind: 'adversary', range: 'far' },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 'target',
+            prompt: 'Lift them off the floor?',
+            onCriticalSuccess: LIFTED,
+            onSuccessWithHope: LIFTED,
+            onSuccessWithFear: LIFTED,
+          },
+        },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(CIRCLE_CONDITION));
+    for (const ability of CIRCLE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
     demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -6451,21 +6538,21 @@ describe('a circle burnt into the floor', () => {
   };
 
   it('takes the ones already standing in it once, and not again for standing still', () => {
-    const demo = standoff('korvax-circle');
+    const demo = standoff('circle-drawn');
     demo.askDefender = false;
-    hold(demo, 'kara', ['book-of-korvax']);
+    hold(demo, 'kara', [CIRCLE_CARD]);
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 40, marked: 0 };
     const kara = demo.state.entity('kara')!;
 
-    expect(useAbility(demo, 'kara', 'book-of-korvax-magic-circle', []).status).not.toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-circle-draw', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
     // Standing in Melee when the circle was drawn is a crossing: they were not
     // in it a moment ago.
     const bitten = husk.hitPoints.marked;
     expect(bitten).toBeGreaterThan(0);
     // 2d12+4 is between 6 and 28: a real blow, whatever the dice said.
-    expect(demo.log.some((l) => /circle takes them/.test(l.text))).toBe(true);
+    expect(demo.log.some((l) => /floor answers them/.test(l.text))).toBe(true);
     // And knocked back out of Melee, which is the other half of the card.
     expect(demo.grid.chebyshevDistance(kara.tile, husk.tile)).toBeGreaterThan(1);
 
@@ -6477,9 +6564,9 @@ describe('a circle burnt into the floor', () => {
 
   it('takes an adversary that walks in on its own turn, with nobody swinging', () => {
     for (let seed = 1; seed < 40; seed++) {
-      const demo = standoff('korvax-walk-' + seed);
+      const demo = standoff('circle-walk-' + seed);
       demo.askDefender = false;
-      hold(demo, 'kara', ['book-of-korvax']);
+      hold(demo, 'kara', [CIRCLE_CARD]);
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       husk.hitPoints = { max: 60, marked: 0 };
       // Well out of the circle when it is drawn, so casting it costs them
@@ -6491,7 +6578,7 @@ describe('a circle burnt into the floor', () => {
       if (away === NO_TILE || !demo.grid.isPassable(away)) continue;
       demo.state.moveEntity(husk.id, away);
 
-      expect(useAbility(demo, 'kara', 'book-of-korvax-magic-circle', []).status).not.toBe('refused');
+      expect(useAbility(demo, 'kara', 'fixture-circle-draw', []).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       if (husk.hitPoints.marked > 0) continue;
 
@@ -6501,16 +6588,16 @@ describe('a circle burnt into the floor', () => {
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       if (husk.hitPoints.marked === 0) continue;
       expect(husk.hitPoints.marked).toBeGreaterThan(0);
-      expect(demo.log.some((l) => /circle takes them/.test(l.text))).toBe(true);
+      expect(demo.log.some((l) => /floor answers them/.test(l.text))).toBe(true);
       return;
     }
     throw new Error('nothing ever walked into the circle in forty tries');
   });
 
   it('does not touch the one who drew it, nor anybody on their side', () => {
-    const demo = standoff('korvax-side');
+    const demo = standoff('circle-side');
     demo.askDefender = false;
-    hold(demo, 'kara', ['book-of-korvax']);
+    hold(demo, 'kara', [CIRCLE_CARD]);
     const kara = demo.state.entity('kara')!;
     const finn = demo.state.entity('finn')!;
     const blocked = demo.state.blockedFor('finn');
@@ -6519,7 +6606,7 @@ describe('a circle burnt into the floor', () => {
     });
     const hurt = { kara: kara.hitPoints.marked, finn: finn.hitPoints.marked };
 
-    expect(useAbility(demo, 'kara', 'book-of-korvax-magic-circle', []).status).not.toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-circle-draw', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
     // `side: 'adversaries'` is read from the caster's chair, so the circle is
     // only ever ground under somebody else's feet.
@@ -6529,10 +6616,10 @@ describe('a circle burnt into the floor', () => {
 
   it('lifts somebody and sets them down away from the one who lifted them', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const demo = standoff('korvax-lift-' + seed);
+      const demo = standoff('circle-lift-' + seed);
       demo.askDefender = false;
       // A Codex grimoire wants somebody with a Spellcast trait behind it.
-      hold(demo, 'mira', ['book-of-korvax']);
+      hold(demo, 'mira', [CIRCLE_CARD]);
       const mira = demo.state.entity('mira')!;
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       // Standing where she can see it, and holding the spotlight to cast.
@@ -6544,7 +6631,7 @@ describe('a circle burnt into the floor', () => {
       const stood = mira.tile;
       const was = demo.grid.chebyshevDistance(mira.tile, husk.tile);
 
-      expect(useAbility(demo, 'mira', 'book-of-korvax-telekinesis', [husk.id]).status).not.toBe('refused');
+      expect(useAbility(demo, 'mira', 'fixture-lift', [husk.id]).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (demo.grid.chebyshevDistance(mira.tile, husk.tile) === was) continue;
 
