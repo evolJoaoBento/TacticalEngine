@@ -5134,11 +5134,123 @@ describe('ground worth standing on', () => {
 
 
 describe('a room put out', () => {
+  /**
+   * One card that puts the room out, and two patches of ground over the same
+   * tiles: what the dark does to the party and what it does to everything else
+   * are two different rules. Each test below asserts the other side's condition
+   * is absent, so one zone over everybody would prove nothing.
+   *
+   * The ending is a second ability -- a bare reaction to the caster's own Severe
+   * wound, which needs no gate because only the holder of the card carries it.
+   * The zones' `onDeath` covers the other ending, when the caster falls.
+   */
+  const DARK_CARD = 'fixture-card-25';
+
+  /** On the party. `against` is the whole of it: rolls *at* them suffer. */
+  const DIMMED_CONDITION = {
+    id: 'fixture-dimmed',
+    name: 'Hard to See',
+    text: 'Attack rolls have disadvantage when targeting you.',
+    color: '#5a4b8a',
+    modifiers: [{ stat: 'advantage', bonus: -1, against: true }],
+  };
+
+  /** And on everything else: a debt, paid by whoever beats them well. */
+  const UNLIT_CONDITION = {
+    id: 'fixture-unlit',
+    name: 'Caught Out',
+    text: 'When somebody succeeds with Hope against you here, you must mark a Stress.',
+    color: '#3d3358',
+    payout: {
+      on: 'attacked',
+      when: {
+        kind: 'all',
+        of: [
+          { kind: 'rolled', is: 'success' },
+          { kind: 'rolled', is: 'withHope' },
+        ],
+      },
+      // Taken rather than offered, which is why nobody is asked about it.
+      auto: true,
+      effects: [
+        { kind: 'log', text: 'The dark closes on them.', tone: 'hope' },
+        { kind: 'markStress', amount: 1, target: { kind: 'target' } },
+      ],
+    },
+  };
+
+  /** Both patches, raised together. Every success face does the same thing. */
+  const FELL = [
+    {
+      kind: 'zone',
+      zone: 'fixture-dark-allies',
+      name: 'Put Out',
+      condition: 'fixture-dimmed',
+      band: 'far',
+      side: 'allies',
+      onDeath: 'end',
+    },
+    {
+      kind: 'zone',
+      zone: 'fixture-dark-adversaries',
+      name: 'Put Out',
+      condition: 'fixture-unlit',
+      band: 'far',
+      side: 'adversaries',
+      onDeath: 'end',
+    },
+    { kind: 'log', text: 'The room goes dark, and only your own see through it.', tone: 'fear' },
+  ];
+
+  const DARK = [
+    {
+      id: 'fixture-dark',
+      name: 'Put Out the Room',
+      source: { kind: 'domainCard', card: DARK_CARD },
+      text: 'Once between long rests, put the room out as far as you can see.',
+      uses: { count: 1, per: 'longRest' },
+      inCombatOnly: true,
+      target: { kind: 'none', range: 'far' },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 16,
+            prompt: 'Put the room out?',
+            onCriticalSuccess: FELL,
+            onSuccessWithHope: FELL,
+            onSuccessWithFear: FELL,
+          },
+        },
+      ],
+    },
+    {
+      id: 'fixture-dark-ends',
+      name: 'Put Out the Room',
+      source: { kind: 'domainCard', card: DARK_CARD },
+      text: 'A bad enough wound on the one holding it and the room comes back.',
+      kind: 'reaction',
+      trigger: 'tookSevere',
+      action: false,
+      effects: [
+        { kind: 'endZone', zone: 'fixture-dark-allies' },
+        { kind: 'endZone', zone: 'fixture-dark-adversaries' },
+        { kind: 'log', text: 'The dark breaks, and the room comes back.', tone: 'fear' },
+      ],
+    },
+  ];
+
   /** Mira with the spell in hand, the party and the husk all within Far. */
   const dark = (seed: string) => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['eclipse'], loadout: ['eclipse'] };
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const condition of [DIMMED_CONDITION, UNLIT_CONDITION]) {
+      demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
+    }
+    for (const ability of DARK) demo.project.abilities.push(abilitySchema.parse(ability));
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: [DARK_CARD], loadout: [DARK_CARD] };
     demo.sheets.set('mira', sheet);
     demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
@@ -5151,7 +5263,7 @@ describe('a room put out', () => {
 
   /** Cast it; true when the roll got there. */
   const cast = (demo: DemoScene): boolean => {
-    if (useAbility(demo, 'mira', 'eclipse', []).status === 'refused') return false;
+    if (useAbility(demo, 'mira', 'fixture-dark', []).status === 'refused') return false;
     for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
       const prompt = demo.pending.prompt;
       if (prompt.kind === 'choice') answerPending(demo, { kind: 'choose', index: 0 });
@@ -5167,10 +5279,10 @@ describe('a room put out', () => {
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
 
       // Two patches of ground over the same tiles, one rule each.
-      expect(demo.state.entity('kara')!.conditions.has('in-shadow')).toBe(true);
-      expect(demo.state.entity('kara')!.conditions.has('shadowed')).toBe(false);
-      expect(husk.conditions.has('shadowed')).toBe(true);
-      expect(husk.conditions.has('in-shadow')).toBe(false);
+      expect(demo.state.entity('kara')!.conditions.has('fixture-dimmed')).toBe(true);
+      expect(demo.state.entity('kara')!.conditions.has('fixture-unlit')).toBe(false);
+      expect(husk.conditions.has('fixture-unlit')).toBe(true);
+      expect(husk.conditions.has('fixture-dimmed')).toBe(false);
 
       // Attacks against anyone in the party are made in the dark.
       expect(demo.world.advantageFor(husk.id, 'kara').disadvantage).toBe(1);
@@ -5208,7 +5320,7 @@ describe('a room put out', () => {
       } else {
         // Any other roll leaves them alone, and the dark still over them.
         expect(husk.stress.marked).toBe(0);
-        expect(demo.state.entity(husk.id)!.conditions.has('shadowed')).toBe(true);
+        expect(demo.state.entity(husk.id)!.conditions.has('fixture-unlit')).toBe(true);
         otherwise = true;
       }
     }
@@ -5228,8 +5340,8 @@ describe('a room put out', () => {
       settleFight(demo);
       expect(demo.log.some((l) => l.text.includes('The dark breaks'))).toBe(true);
       expect(demo.world.zones().length).toBe(0);
-      expect(demo.state.entity('kara')!.conditions.has('in-shadow')).toBe(false);
-      expect(demo.state.entitiesOf('adversary').every((e) => !e.conditions.has('shadowed'))).toBe(true);
+      expect(demo.state.entity('kara')!.conditions.has('fixture-dimmed')).toBe(false);
+      expect(demo.state.entitiesOf('adversary').every((e) => !e.conditions.has('fixture-unlit'))).toBe(true);
       return;
     }
     throw new Error('the dark never fell in sixty tries');
@@ -5242,7 +5354,7 @@ describe('a room put out', () => {
       demo.state.entity('mira')!.alive = false;
       demo.world.refreshZones();
       expect(demo.world.zones().length).toBe(0);
-      expect(demo.state.entity('kara')!.conditions.has('in-shadow')).toBe(false);
+      expect(demo.state.entity('kara')!.conditions.has('fixture-dimmed')).toBe(false);
       return;
     }
     throw new Error('the dark never fell in sixty tries');
