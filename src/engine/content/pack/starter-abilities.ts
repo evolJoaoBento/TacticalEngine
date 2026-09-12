@@ -1,0 +1,116 @@
+/**
+ * What the starter pack's cards do.
+ *
+ * A card is a name and some text whether or not the engine can run it; these
+ * are the ones it can. The rest of each card's meaning stays in its text, which
+ * is how the engine has always handled a card the effect vocabulary cannot
+ * express — the holder reads it and the table settles it.
+ *
+ * Nothing here costs Hope or Fear. Those are document field names on `cost`,
+ * and both are being renamed; a starter pack that never spends them needs no
+ * migration when that happens. A card that wants a price asks for Stress.
+ */
+
+import { abilitySchema, type AbilityDef } from '../abilities';
+
+const RAW = [
+  // ---- bulwark ---------------------------------------------------------------
+  {
+    id: 'power-slash',
+    name: 'Power Slash',
+    source: { kind: 'domainCard', card: 'power-slash' },
+    text: 'Put your weight behind the swing: deal 2 additional damage.',
+    kind: 'passive',
+    modifiers: [{ stat: 'damageRoll', bonus: 2 }],
+  },
+  {
+    id: 'iron-stance',
+    name: 'Iron Stance',
+    source: { kind: 'domainCard', card: 'iron-stance' },
+    text: 'While you hold your ground, your Armor Score is higher.',
+    kind: 'passive',
+    modifiers: [{ stat: 'armorScore', bonus: 1 }],
+  },
+  {
+    id: 'unbroken',
+    name: 'Unbroken',
+    source: { kind: 'domainCard', card: 'unbroken' },
+    text: 'The first Severe blow you take each fight lands as Major instead.',
+    kind: 'passive',
+    modifiers: [{ stat: 'severeThreshold', bonus: 3 }],
+  },
+
+  // ---- shadow-step -----------------------------------------------------------
+  {
+    id: 'quick-hands',
+    name: 'Quick Hands',
+    source: { kind: 'domainCard', card: 'quick-hands' },
+    text: 'Your hands are faster than the eye: gain a bonus to action rolls made to palm or plant something.',
+    kind: 'passive',
+    modifiers: [{ stat: 'actionRoll', bonus: 1 }],
+  },
+  {
+    id: 'backstab',
+    name: 'Backstab',
+    source: { kind: 'domainCard', card: 'backstab' },
+    text: 'Against a target unaware of you, your damage roll is higher.',
+    kind: 'passive',
+    modifiers: [{ stat: 'damageRoll', bonus: 3 }],
+  },
+  {
+    id: 'vanish',
+    name: 'Vanish',
+    source: { kind: 'domainCard', card: 'vanish' },
+    text: 'Break line of sight and you are gone until you act again.',
+    kind: 'action',
+    cost: { stress: 1 },
+  },
+
+  // ---- ember -----------------------------------------------------------------
+  {
+    id: 'arcane-ward',
+    name: 'Arcane Ward',
+    source: { kind: 'domainCard', card: 'arcane-ward' },
+    text: 'A shell of warm air holds: raise your Armor Score until your next rest.',
+    kind: 'passive',
+    modifiers: [{ stat: 'armorScore', bonus: 2 }],
+  },
+  {
+    id: 'emberbolt',
+    name: 'Emberbolt',
+    source: { kind: 'domainCard', card: 'emberbolt' },
+    text: 'A thrown coal of fire. Your spells deal more damage.',
+    kind: 'passive',
+    modifiers: [{ stat: 'spellcastRoll', bonus: 1 }],
+  },
+  {
+    id: 'healing-word',
+    name: 'Healing Word',
+    source: { kind: 'domainCard', card: 'healing-word' },
+    text: 'Speak an ally steady: they clear a Stress.',
+    kind: 'action',
+    cost: { stress: 1 },
+  },
+  {
+    id: 'warding-flame',
+    name: 'Warding Flame',
+    source: { kind: 'domainCard', card: 'warding-flame' },
+    text: 'A ring of low fire. Foes crossing it are struck as they come.',
+    kind: 'action',
+    cost: { stress: 1 },
+  },
+];
+
+/**
+ * The cards the engine can run. `shield-wall`, `rallying-cry`, `smoke-step`,
+ * `cut-purse-strings` and `cinder-burst` ship as text only: each needs
+ * something the effect vocabulary does not yet say — a timed bonus to someone
+ * else, a teleport between shadows, taking a named item, a burst around a
+ * chosen point — and a card with no script is still a card.
+ */
+export const STARTER_ABILITIES: readonly AbilityDef[] = RAW.map((raw) => abilitySchema.parse(raw));
+
+/** By id, for a panel that has the id and wants the ability. */
+export const STARTER_ABILITY_MAP: ReadonlyMap<string, AbilityDef> = new Map(
+  STARTER_ABILITIES.map((ability) => [ability.id, ability]),
+);
