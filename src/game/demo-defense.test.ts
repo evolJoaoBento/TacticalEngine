@@ -6092,6 +6092,102 @@ describe('a circle burnt into the floor', () => {
  * whatever crosses it, this drags it in and holds it.
  */
 describe('a stance that holds the ground around it', () => {
+  /**
+   * A stance that makes the ground around its holder mean something: anything
+   * that walks within Very Close of her is dragged into reach and pinned there.
+   *
+   * Two abilities on one card, and the second is not decoration. The stance
+   * paints the ground; a reaction on the holder's own dice takes it away again
+   * when she fails with Fear. The last test here pins that reaction, so a
+   * specimen carrying only the stance would fail it for the wrong reason.
+   *
+   * What the ground does lives in the condition it paints, not in the card --
+   * the pull and the hold both happen on the crossing.
+   */
+  const STANCE_CARD = 'fixture-card-21';
+
+  /** On the one holding it. Carries nothing: the ground does the work. */
+  const BRACED_CONDITION = {
+    id: 'fixture-braced',
+    name: 'Braced',
+    text: 'Feet set: anything that comes near enough is dragged into reach and held.',
+  };
+
+  /** And on whoever walked into it. Everything happens on the crossing. */
+  const CAUGHT_CONDITION = {
+    id: 'fixture-caught',
+    name: 'Caught',
+    text: 'Dragged into reach of whoever is holding this ground.',
+    color: '#e0b04a',
+    onEnter: {
+      effects: [
+        { kind: 'log', text: 'They step one pace too near, and the ground takes them the rest of the way.', tone: 'combat' },
+        { kind: 'move', who: { kind: 'target' }, how: 'toward', of: { kind: 'actor' }, range: 'melee', budget: 'veryClose' },
+        // The engine's own condition, and a generic one, so it stays.
+        { kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'target' } },
+      ],
+    },
+  };
+
+  const STANCE = [
+    {
+      id: 'fixture-stance',
+      name: 'Set Feet',
+      source: { kind: 'domainCard', card: STANCE_CARD },
+      text: 'Spend a Hope to set your feet, and the ground around you stops being neutral.',
+      cost: { hope: 1 },
+      target: { kind: 'self' },
+      inCombatOnly: true,
+      action: false,
+      effects: [
+        { kind: 'log', text: 'They set their feet, and the ground stops being anybody\'s.', tone: 'hope' },
+        { kind: 'applyCondition', condition: 'fixture-braced', duration: 'scene', target: { kind: 'actor' } },
+        {
+          kind: 'zone',
+          zone: 'fixture-line',
+          name: 'Set Feet',
+          condition: 'fixture-caught',
+          at: 'actor',
+          band: 'veryClose',
+          side: 'adversaries',
+          onDeath: 'end',
+        },
+      ],
+    },
+    {
+      id: 'fixture-stance-drops',
+      name: 'Set Feet',
+      source: { kind: 'domainCard', card: STANCE_CARD },
+      text: 'Fail badly enough while holding it and the stance goes, and the ground with it.',
+      kind: 'reaction',
+      trigger: 'partyRolled',
+      action: false,
+      available: {
+        kind: 'all',
+        of: [
+          { kind: 'self' },
+          { kind: 'hasCondition', condition: 'fixture-braced' },
+          { kind: 'rolled', is: 'failure' },
+          { kind: 'rolled', is: 'withFear' },
+        ],
+      },
+      effects: [
+        { kind: 'log', text: 'The stance goes, and the ground means nothing again.', tone: 'fear' },
+        { kind: 'endZone', zone: 'fixture-line' },
+        { kind: 'clearCondition', condition: 'fixture-braced', target: { kind: 'actor' } },
+      ],
+    },
+  ];
+
+  /** The card, the ground it paints, and what the ground leaves on people. */
+  const carry = (demo: DemoScene): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const condition of [BRACED_CONDITION, CAUGHT_CONDITION]) {
+      demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
+    }
+    for (const ability of STANCE) demo.project.abilities.push(abilitySchema.parse(ability));
+  };
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
@@ -6103,7 +6199,8 @@ describe('a stance that holds the ground around it', () => {
   const braced = (seed: string): { demo: DemoScene; husk: EntityState; kara: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    hold(demo, 'kara', ['hold-the-line']);
+    carry(demo);
+    hold(demo, 'kara', [STANCE_CARD]);
     const kara = demo.state.entity('kara')!;
     kara.hope = { max: 6, value: 6 };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -6113,12 +6210,12 @@ describe('a stance that holds the ground around it', () => {
 
   it('costs a Hope, marks the one holding it, and puts a zone on the board', () => {
     const { demo, kara } = braced('line-up');
-    expect(useAbility(demo, 'kara', 'hold-the-line', []).status).not.toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-stance', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
 
     expect(kara.hope!.value).toBe(5);
-    expect(kara.conditions.has('holding-the-line')).toBe(true);
-    expect(demo.world.zones().map((z) => z.id)).toContain('hold-the-line');
+    expect(kara.conditions.has('fixture-braced')).toBe(true);
+    expect(demo.world.zones().map((z) => z.id)).toContain('fixture-line');
   });
 
   it('hauls in an adversary that walks within Very Close, and holds it there', () => {
@@ -6132,21 +6229,21 @@ describe('a stance that holds the ground around it', () => {
       if (away === NO_TILE || !demo.grid.isPassable(away)) continue;
       demo.state.moveEntity(husk.id, away);
 
-      expect(useAbility(demo, 'kara', 'hold-the-line', []).status).not.toBe('refused');
+      expect(useAbility(demo, 'kara', 'fixture-stance', []).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       // Nothing was inside it when it went up.
       if (husk.conditions.has('restrained')) continue;
 
       endTurn(demo);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-      if (!husk.conditions.has('caught-in-the-line')) continue;
+      if (!husk.conditions.has('fixture-caught')) continue;
 
       // Dragged the rest of the way in: Melee is one tile. The hold itself is
       // `temporary`, which the creature's own next spotlight shakes off - so
       // what this test claims is that walking in on the GM's turn sets the
       // stance off at all, with nobody on the party's side having acted.
       expect(demo.grid.chebyshevDistance(kara.tile, husk.tile)).toBeLessThanOrEqual(1);
-      expect(demo.log.some((l) => /hauled the rest of the way in/.test(l.text))).toBe(true);
+      expect(demo.log.some((l) => /takes them the rest of the way/.test(l.text))).toBe(true);
       return;
     }
     throw new Error('nothing ever walked into the line in forty tries');
@@ -6159,9 +6256,9 @@ describe('a stance that holds the ground around it', () => {
       demo.grid.yOf(husk.tile),
     );
     demo.state.moveEntity(husk.id, away);
-    expect(useAbility(demo, 'kara', 'hold-the-line', []).status).not.toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-stance', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-    expect(husk.conditions.has('caught-in-the-line')).toBe(false);
+    expect(husk.conditions.has('fixture-caught')).toBe(false);
 
     // Walked in by hand and the ground read again, which is the crossing with
     // none of the turn's own housekeeping around it.
@@ -6172,7 +6269,7 @@ describe('a stance that holds the ground around it', () => {
     demo.state.moveEntity(husk.id, near);
     settleFight(demo);
 
-    expect(husk.conditions.has('caught-in-the-line')).toBe(true);
+    expect(husk.conditions.has('fixture-caught')).toBe(true);
     expect(husk.conditions.has('restrained')).toBe(true);
     expect(demo.grid.chebyshevDistance(kara.tile, husk.tile)).toBeLessThanOrEqual(1);
   });
@@ -6180,9 +6277,9 @@ describe('a stance that holds the ground around it', () => {
   it('drops on a failure with Fear, and the ground stops meaning anything', () => {
     for (let seed = 1; seed < 80; seed++) {
       const { demo, husk, kara } = braced('line-drop-' + seed);
-      expect(useAbility(demo, 'kara', 'hold-the-line', []).status).not.toBe('refused');
+      expect(useAbility(demo, 'kara', 'fixture-stance', []).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-      expect(demo.world.zones().map((z) => z.id)).toContain('hold-the-line');
+      expect(demo.world.zones().map((z) => z.id)).toContain('fixture-line');
 
       attackWithSelected(demo, husk.id);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
@@ -6190,14 +6287,14 @@ describe('a stance that holds the ground around it', () => {
       if (roll === undefined) continue;
       if (roll.outcome !== 'failureWithFear') {
         // Any other roll leaves the stance standing, which is half the claim.
-        expect(kara.conditions.has('holding-the-line')).toBe(true);
-        expect(demo.world.zones().map((z) => z.id)).toContain('hold-the-line');
+        expect(kara.conditions.has('fixture-braced')).toBe(true);
+        expect(demo.world.zones().map((z) => z.id)).toContain('fixture-line');
         continue;
       }
-      expect(kara.conditions.has('holding-the-line')).toBe(false);
-      expect(demo.world.zones().map((z) => z.id)).not.toContain('hold-the-line');
+      expect(kara.conditions.has('fixture-braced')).toBe(false);
+      expect(demo.world.zones().map((z) => z.id)).not.toContain('fixture-line');
       // And nobody is standing in ground that is no longer there.
-      expect(husk.conditions.has('caught-in-the-line')).toBe(false);
+      expect(husk.conditions.has('fixture-caught')).toBe(false);
       return;
     }
     throw new Error('Kara never failed with Fear in eighty tries');
