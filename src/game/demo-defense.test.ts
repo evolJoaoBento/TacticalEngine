@@ -7957,6 +7957,131 @@ describe('coming at them well, and knowing them', () => {
  * ally out of sight, and a taunt that rolls for what it costs.
  */
 describe('out of sight, and under the skin', () => {
+  /**
+   * Two cards: one takes somebody out of sight, the other says the thing that
+   * gets under a creature's skin and rolls for what it costs them.
+   *
+   * The first is the most wired-together specimen here, because its second half
+   * is held by somebody other than its holder. The condition lends it to them
+   * with `grants` -- whoever is hidden is not whoever cast it -- and the tokens
+   * sit on the hidden creature rather than on the caster's card, which is the
+   * only reason an ally can spend them at all.
+   *
+   * The token bucket is a plain label passed as `ability:`, named here after the
+   * ability that opens the bucket, the way the catalogue does it.
+   */
+  const HIDE_CARD = 'fixture-card-30';
+  const TAUNT_CARD = 'fixture-card-31';
+
+  /**
+   * On whoever was hidden. The die is this; not being seen is the table's. It
+   * lends the bearer the other half of the card, because the one who is hidden
+   * is not the one holding the spell.
+   */
+  const HIDDEN_CONDITION = {
+    id: 'fixture-hidden',
+    name: 'Out of Sight',
+    text: 'Not there to look at: attack rolls against you are made with disadvantage.',
+    modifiers: [{ stat: 'advantage', bonus: -1, against: true }],
+    grants: { ability: 'fixture-hide-spends' },
+  };
+
+  /** One creature at a time: it comes off everybody before it goes on anybody. */
+  const UNSEEN = [
+    { kind: 'markStress', amount: 1, target: { kind: 'actor' } },
+    { kind: 'clearCondition', condition: 'fixture-hidden', target: { kind: 'allies', includeSelf: true } },
+    { kind: 'log', text: 'They stop being somewhere anyone is looking.', tone: 'hope' },
+    { kind: 'applyCondition', condition: 'fixture-hidden', duration: 'scene', target: { kind: 'target' } },
+    // On the one who is hidden, not on the caster: the creature spending them
+    // is the creature they are about.
+    { kind: 'addToken', ability: 'fixture-hide', amount: { trait: 'spellcast' }, target: { kind: 'target' } },
+  ];
+
+  /** Rolled rather than written, which is the whole of the taunt's test. */
+  const PROVOKED = [
+    { kind: 'log', text: 'Whatever they said, it lands somewhere soft.', tone: 'hope' },
+    {
+      kind: 'markStress',
+      amount: { dice: '1d4', using: 'proficiency', pick: 'highest' },
+      target: { kind: 'hit' },
+    },
+  ];
+
+  const UNSEEN_FAMILY = [
+    {
+      id: 'fixture-hide',
+      name: 'Out of Sight',
+      source: { kind: 'domainCard', card: HIDE_CARD },
+      text: 'Mark a Stress to take somebody beside you out of sight for a while.',
+      // An ally rather than herself: a caster who chose themselves would spend
+      // the first token on the roll that cast it.
+      target: { kind: 'ally', range: 'melee' },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 10,
+            prompt: 'Take them out of sight?',
+            onCriticalSuccess: UNSEEN,
+            onSuccessWithHope: UNSEEN,
+            onSuccessWithFear: UNSEEN,
+          },
+        },
+      ],
+    },
+    {
+      // The half the hidden creature holds, lent to them by the condition.
+      id: 'fixture-hide-spends',
+      name: 'Out of Sight',
+      source: { kind: 'domainCard', card: HIDE_CARD },
+      text: 'Every action taken out of sight spends some of it, and the last one ends it.',
+      kind: 'reaction',
+      trigger: 'partyRolled',
+      action: false,
+      available: {
+        kind: 'all',
+        of: [{ kind: 'self' }, { kind: 'hasCondition', condition: 'fixture-hidden', of: { kind: 'actor' } }],
+      },
+      effects: [
+        { kind: 'spendToken', ability: 'fixture-hide', amount: 1, target: { kind: 'actor' } },
+        {
+          kind: 'branch',
+          when: { kind: 'tokens', ability: 'fixture-hide', of: { kind: 'actor' }, op: '<=', value: 0 },
+          then: [
+            { kind: 'log', text: 'The last of it goes, and there they are again.', tone: 'combat' },
+            { kind: 'clearCondition', condition: 'fixture-hidden', target: { kind: 'actor' } },
+          ],
+        },
+      ],
+    },
+  ];
+
+  const TAUNT = [
+    {
+      id: 'fixture-taunt',
+      name: 'Under the Skin',
+      source: { kind: 'domainCard', card: TAUNT_CARD },
+      text: 'Once between rests, say the thing that gets under it and see what it costs them.',
+      uses: { count: 1, per: 'rest' },
+      target: { kind: 'adversary', range: 'far' },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'presence',
+            difficulty: 'target',
+            tags: ['social'],
+            prompt: 'Say the thing that gets under it?',
+            onCriticalSuccess: PROVOKED,
+            onSuccessWithHope: PROVOKED,
+            onSuccessWithFear: PROVOKED,
+          },
+        },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
@@ -7968,6 +8093,9 @@ describe('out of sight, and under the skin', () => {
   const casting = (seed: string, card: string): { demo: DemoScene; mira: EntityState; kara: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(HIDDEN_CONDITION));
+    for (const ability of [...UNSEEN_FAMILY, ...TAUNT]) demo.project.abilities.push(abilitySchema.parse(ability));
     hold(demo, 'mira', [card]);
     const mira = demo.state.entity('mira')!;
     mira.hope = { max: 6, value: 6 };
@@ -7986,16 +8114,16 @@ describe('out of sight, and under the skin', () => {
 
   it('Invisibility puts the die on anything aimed at the one it hid', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const { demo, mira, kara, husk } = casting('invis-' + seed, 'invisibility');
-      expect(useAbility(demo, 'mira', 'invisibility', ['kara']).status).toBe('waiting');
+      const { demo, mira, kara, husk } = casting('invis-' + seed, HIDE_CARD);
+      expect(useAbility(demo, 'mira', 'fixture-hide', ['kara']).status).toBe('waiting');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
-      if (!kara.conditions.has('invisible')) continue;
+      if (!kara.conditions.has('fixture-hidden')) continue;
 
       // A Stress from the caster, and tokens on the one who is hidden - not on
       // the caster's card, so the creature spending them is the one they are
       // about.
       expect(mira.stress.marked).toBe(1);
-      expect(demo.world.tokensOn('kara', 'invisibility')).toBe(demo.characters.get('mira')!.traits.knowledge);
+      expect(demo.world.tokensOn('kara', 'fixture-hide')).toBe(demo.characters.get('mira')!.traits.knowledge);
       // Attacks against her are made with disadvantage; the caster is untouched.
       expect(demo.world.advantageFor(husk.id, 'kara')).toEqual({ advantage: 0, disadvantage: 1 });
       expect(demo.world.advantageFor(husk.id, 'mira')).toEqual({ advantage: 0, disadvantage: 0 });
@@ -8006,20 +8134,20 @@ describe('out of sight, and under the skin', () => {
 
   it('spends a token for every action she takes, and drops when the last one goes', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const { demo, kara, husk } = casting('invis-spend-' + seed, 'invisibility');
+      const { demo, kara, husk } = casting('invis-spend-' + seed, HIDE_CARD);
       // The spell put on her by hand rather than cast: casting it is Mira's
       // action, and the spotlight would be hers when Kara came to swing. What
       // this test is about is the spending, which is Kara's own.
-      demo.world.applyCondition('kara', 'invisible', 'scene');
+      demo.world.applyCondition('kara', 'fixture-hidden', 'scene');
       // Exactly two, so the second swing is the one that ends it.
-      demo.world.spendTokens('kara', 'invisibility', 99);
-      demo.world.addTokens('kara', 'invisibility', 2);
+      demo.world.spendTokens('kara', 'fixture-hide', 99);
+      demo.world.addTokens('kara', 'fixture-hide', 2);
       demo.party.select('kara');
 
       attackWithSelected(demo, husk.id);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-      expect(demo.world.tokensOn('kara', 'invisibility')).toBe(1);
-      expect(kara.conditions.has('invisible')).toBe(true);
+      expect(demo.world.tokensOn('kara', 'fixture-hide')).toBe(1);
+      expect(kara.conditions.has('fixture-hidden')).toBe(true);
 
       // Her turn is spent, so the room takes one before she swings again.
       kara.hitPoints = { max: 20, marked: 0 };
@@ -8030,8 +8158,8 @@ describe('out of sight, and under the skin', () => {
       demo.party.select('kara');
       attackWithSelected(demo, husk.id);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-      expect(demo.world.tokensOn('kara', 'invisibility')).toBe(0);
-      expect(kara.conditions.has('invisible')).toBe(false);
+      expect(demo.world.tokensOn('kara', 'fixture-hide')).toBe(0);
+      expect(kara.conditions.has('fixture-hidden')).toBe(false);
       return;
     }
     throw new Error('Invisibility never beat a 10 in sixty tries');
@@ -8040,9 +8168,9 @@ describe('out of sight, and under the skin', () => {
   it('Troublemaker rolls d4s for the Stress it costs them', () => {
     const marked: number[] = [];
     for (let seed = 1; seed < 60 && marked.length < 6; seed++) {
-      const { demo, husk } = casting('trouble-' + seed, 'troublemaker');
+      const { demo, husk } = casting('trouble-' + seed, TAUNT_CARD);
       // Presence is Mira's, and the taunt is aimed rather than cast.
-      expect(useAbility(demo, 'mira', 'troublemaker', [husk.id]).status).toBe('waiting');
+      expect(useAbility(demo, 'mira', 'fixture-taunt', [husk.id]).status).toBe('waiting');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (husk.stress.marked === 0) continue;
       marked.push(husk.stress.marked);
