@@ -5584,7 +5584,7 @@ export function equipItem(demo: DemoScene, characterId: string, itemId: string):
   let slot: 'primary' | 'secondary' | 'armor';
   let replaced: string | undefined;
   if (item.kind === 'weapon') {
-    const weapon = DEMO_CHARACTERS.weapons.get(item.contentId);
+    const weapon = characterContentFor(demo.project).weapons.get(item.contentId);
     if (weapon === undefined) return { ok: false, reason: `${item.name} points at no known weapon` };
     slot = slotOf(weapon);
     replaced = slot === 'primary' ? sheet.primaryWeaponId : sheet.secondaryWeaponId;
@@ -5593,7 +5593,7 @@ export function equipItem(demo: DemoScene, characterId: string, itemId: string):
     next = slot === 'primary' ? { ...sheet, primaryWeaponId: weapon.id } : { ...sheet, secondaryWeaponId: weapon.id };
   } else if (item.kind === 'armor') {
     if (inCombat(demo)) return { ok: false, reason: 'armor cannot be changed in a fight' };
-    const armor = DEMO_CHARACTERS.armors.get(item.contentId);
+    const armor = characterContentFor(demo.project).armors.get(item.contentId);
     if (armor === undefined) return { ok: false, reason: `${item.name} points at no known armor` };
     slot = 'armor';
     replaced = sheet.armorId;
@@ -5625,7 +5625,10 @@ export function gearOf(demo: DemoScene, characterId: string): { weapon: string; 
   const character = demo.characters.get(characterId);
   return {
     weapon: character?.primaryWeapon?.name ?? 'Unarmed',
-    armor: character?.sheet.armorId === undefined ? 'Unarmored' : (DEMO_CHARACTERS.armors.get(character.sheet.armorId)?.name ?? 'Unarmored'),
+    armor:
+      character?.sheet.armorId === undefined
+        ? 'Unarmored'
+        : (characterContentFor(demo.project).armors.get(character.sheet.armorId)?.name ?? 'Unarmored'),
   };
 }
 

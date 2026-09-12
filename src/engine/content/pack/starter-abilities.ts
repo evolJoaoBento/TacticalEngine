@@ -112,40 +112,6 @@ const RAW = [
   // by a project writing its own. One mechanical feature each, at the stage a
   // level-1 character has, which is `foundation`.
   {
-    id: 'sentinel-hold-fast',
-    name: 'Hold Fast',
-    source: { kind: 'classHope', classId: 'sentinel' },
-    text: 'Spend 3 Hope to clear 2 Armor Slots.',
-    cost: { hope: 3 },
-    // Not the turn: spending it is something done on a turn rather than the
-    // turn itself.
-    action: false,
-    // Nothing to fix, nothing to spend on: a sentinel with whole armour is
-    // refused rather than charged.
-    available: { kind: 'pool', pool: 'armorSlots', measure: 'marked', op: '>=', value: 1 },
-    effects: [{ kind: 'clearArmor', amount: 2 }],
-  },
-  {
-    id: 'cutpurse-slip-away',
-    name: 'Slip Away',
-    source: { kind: 'classHope', classId: 'cutpurse' },
-    text: 'Spend 3 Hope to clear 2 Stress.',
-    cost: { hope: 3 },
-    action: false,
-    available: { kind: 'pool', pool: 'stress', measure: 'marked', op: '>=', value: 1 },
-    effects: [{ kind: 'clearStress', amount: 2, target: { kind: 'actor' } }],
-  },
-  {
-    id: 'emberwright-bank-the-coals',
-    name: 'Bank the Coals',
-    source: { kind: 'classHope', classId: 'emberwright' },
-    text: 'Spend 3 Hope to clear 2 Stress.',
-    cost: { hope: 3 },
-    action: false,
-    available: { kind: 'pool', pool: 'stress', measure: 'marked', op: '>=', value: 1 },
-    effects: [{ kind: 'clearStress', amount: 2, target: { kind: 'actor' } }],
-  },
-  {
     id: 'sentinel-drilled',
     name: 'Drilled',
     source: { kind: 'classFeature', classId: 'sentinel' },

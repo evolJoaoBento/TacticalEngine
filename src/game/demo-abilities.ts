@@ -30,6 +30,7 @@ import { NO_TILE } from '../engine/grid/grid';
 import { walkEffects, type TargetSelector } from '../engine/script/schema';
 import {
   DEMO_CHARACTERS,
+  characterContentFor,
   inCombat,
   nameOf,
   note,
@@ -67,19 +68,21 @@ export interface AbilityView {
 export function abilityText(demo: DemoScene, ability: AbilityDef): string {
   if (ability.text !== '') return ability.text;
   const source = ability.source;
+  // The project's content, which is the pack's unless the project carries its own.
+  const content = characterContentFor(demo.project);
   if (source.kind === 'domainCard') {
-    const card = DEMO_CHARACTERS.domainCards.get(source.card);
+    const card = content.domainCards.get(source.card);
     if (card === undefined) return '';
     // A grimoire's spell is one of the card's named features.
     const spell = card.name === ability.name ? undefined : card.features.find((f) => f.name === ability.name);
     return spell?.text ?? card.text;
   }
-  if (source.kind === 'classHope') return DEMO_CHARACTERS.classes.get(source.classId)?.signatureFeature?.text ?? '';
+  if (source.kind === 'classHope') return content.classes.get(source.classId)?.signatureFeature?.text ?? '';
   if (source.kind === 'classFeature') {
-    return DEMO_CHARACTERS.classes.get(source.classId)?.features.find((f) => f.name === ability.name)?.text ?? '';
+    return content.classes.get(source.classId)?.features.find((f) => f.name === ability.name)?.text ?? '';
   }
   if (source.kind === 'subclass') {
-    return DEMO_CHARACTERS.subclasses.get(source.subclassId)?.[source.stage].find((f) => f.name === ability.name)?.text ?? '';
+    return content.subclasses.get(source.subclassId)?.[source.stage].find((f) => f.name === ability.name)?.text ?? '';
   }
   return demo.project.abilities.find((a) => a.id === ability.id)?.text ?? '';
 }
@@ -411,8 +414,9 @@ export interface LoadoutView {
 
 export function loadoutView(demo: DemoScene, characterId: string): LoadoutView {
   const character = demo.characters.get(characterId);
+  const content = characterContentFor(demo.project);
   const describe = (id: string) => {
-    const card = DEMO_CHARACTERS.domainCards.get(id);
+    const card = content.domainCards.get(id);
     return { id, name: card?.name ?? id, recallCost: card?.recallCost ?? 0,
       domain: card?.domain ?? 'Unknown', level: card?.level ?? 1,
       type: card?.type ?? 'ability', text: card?.features.map(f => f.name ? `${f.name}\n${f.text}` : f.text).join('\n\n') ?? '' };
@@ -446,7 +450,8 @@ export function swapCard(
   if (cardOut !== undefined && !loadout.includes(cardOut)) return { ok: false, reason: 'that card is not in the loadout' };
   if (cardOut === undefined && loadout.length >= LOADOUT_LIMIT) return { ok: false, reason: `the loadout holds ${LOADOUT_LIMIT}; choose one to vault` };
 
-  const card = DEMO_CHARACTERS.domainCards.get(cardIn);
+  const content = characterContentFor(demo.project);
+  const card = content.domainCards.get(cardIn);
   const cost = options.resting === true ? 0 : (card?.recallCost ?? 0);
   if (cost > 0 && !canMarkStress(entity.stress, cost)) return { ok: false, reason: `recalling it costs ${cost} Stress, and there is no room to mark it` };
   if (cost > 0) demo.world.markStress(characterId, cost);
@@ -457,7 +462,7 @@ export function swapCard(
   syncPools(demo);
   note(
     demo,
-    `${sheet.name} recalls ${card?.name ?? cardIn}${cardOut === undefined ? '' : ` and vaults ${DEMO_CHARACTERS.domainCards.get(cardOut)?.name ?? cardOut}`}${cost > 0 ? `, marking ${cost} Stress` : ''}.`,
+    `${sheet.name} recalls ${card?.name ?? cardIn}${cardOut === undefined ? '' : ` and vaults ${content.domainCards.get(cardOut)?.name ?? cardOut}`}${cost > 0 ? `, marking ${cost} Stress` : ''}.`,
     cost > 0 ? 'fear' : 'system',
   );
   return { ok: true, stress: cost };

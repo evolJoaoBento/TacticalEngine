@@ -72,13 +72,8 @@ describe('who has what', () => {
       'iron-stance',
       'rally-the-line',
     ]);
-    expect(names(demo, 'finn')).toEqual(['cutpurse-slip-away', 'lampsnuffer-softstep', 'quick-hands', 'backstab']);
-    expect(names(demo, 'mira')).toEqual([
-      'emberwright-bank-the-coals',
-      'flamecaller-emberflow',
-      'arcane-ward',
-      'healing-word',
-    ]);
+    expect(names(demo, 'finn')).toEqual(['lampsnuffer-softstep', 'quick-hands', 'backstab']);
+    expect(names(demo, 'mira')).toEqual(['flamecaller-emberflow', 'arcane-ward', 'healing-word']);
   });
 
   it('shows the card\'s words and says why it is greyed out', () => {
@@ -101,13 +96,13 @@ describe('a Hope feature', () => {
     const kara = demo.state.entity('kara')!;
     kara.hope = { max: 6, value: 3 };
     // Nothing marked: the feature has nothing to clear.
-    expect(useAbility(demo, 'kara', 'guardian-frontline-tank').status).toBe('refused');
+    expect(useAbility(demo, 'kara', 'sentinel-hold-fast').status).toBe('refused');
     expect(demo.log.at(-1)!.text).toContain('not now');
     expect(kara.hope.value).toBe(3);
 
     kara.armorSlots = { max: kara.armorSlots.max, marked: 3 };
     startEncounter(demo, demo.scene.encounters[0]!.id);
-    const result = useAbility(demo, 'kara', 'guardian-frontline-tank');
+    const result = useAbility(demo, 'kara', 'sentinel-hold-fast');
     expect(result.status).toBe('done');
     expect(kara.hope.value).toBe(0);
     expect(kara.armorSlots.marked).toBe(1);

@@ -48,6 +48,23 @@ return true;`,
 /** Abilities the demo project adds on top of the SRD's, as `z.input` to parse. */
 export const DEMO_PROJECT_ABILITIES: readonly z.input<typeof abilitySchema>[] = [
   {
+    // A class's Hope feature. It lives here rather than in the pack because the
+    // pack is written to spend nothing whose name is changing, and this spends
+    // Hope: the pack prices everything in Stress so that it needs no migration
+    // when Hope and Fear are renamed.
+    id: 'sentinel-hold-fast',
+    name: 'Hold Fast',
+    source: { kind: 'classHope', classId: 'sentinel' },
+    text: 'Spend 3 Hope to clear 2 Armor Slots.',
+    cost: { hope: 3 },
+    // Not the turn: spending it is something done on a turn rather than the turn
+    // itself, so it logs no `acted`.
+    action: false,
+    // Whole armour is refused rather than charged: there is nothing to fix.
+    available: { kind: 'pool', pool: 'armorSlots', measure: 'marked', op: '>=', value: 1 },
+    effects: [{ kind: 'clearArmor', amount: 2 }],
+  },
+  {
     id: 'rally-the-line',
     name: 'Rally the Line',
     source: { kind: 'granted', characters: ['kara'] },

@@ -1286,7 +1286,7 @@ function hudMembers(): HudMember[] {
   return demo.state.entitiesOf('party').map((entity) => {
     const character = demo.characters.get(entity.id);
     const sheet = character?.sheet;
-    const role = sheet === undefined ? '' : (DEMO_CHARACTERS.classes.get(sheet.classId)?.name ?? sheet.classId);
+    const role = sheet === undefined ? '' : (characterContentFor(demo.project).classes.get(sheet.classId)?.name ?? sheet.classId);
     return {
       id: entity.id,
       name: sheet?.name ?? entity.id,
@@ -1609,7 +1609,7 @@ function inspectTile(tile: number): Inspection | null {
     if (entity.faction === 'party') {
       const character = demo.characters.get(entity.id);
       const sheet = character?.sheet;
-      const klass = sheet === undefined ? undefined : DEMO_CHARACTERS.classes.get(sheet.classId);
+      const klass = sheet === undefined ? undefined : characterContentFor(demo.project).classes.get(sheet.classId);
       const gear = gearOf(demo, entity.id);
       return {
         kind: 'character',
