@@ -22,6 +22,15 @@ import { characterSheetSchema } from '../character/sheet-schema';
 import { conditionDefSchema } from '../content/conditions';
 import { questSchema } from '../content/quests';
 import { modelAssetSchema } from '../render/assets';
+import {
+  ancestryDefSchema,
+  armorDefSchema,
+  classDefSchema,
+  communityDefSchema,
+  domainCardDefSchema,
+  subclassDefSchema,
+  weaponDefSchema,
+} from '../content/pack/schema';
 import { dialogueSchema } from '../dialogue/schema';
 import { checkRequestSchema, effectSchema } from '../script/schema';
 import {
@@ -255,6 +264,19 @@ export const projectSchema = z
      * re-skinned is still a project.
      */
     adversaryModels: z.record(z.string(), z.string().min(1)).default({}),
+    /**
+     * The character content this project is played with: what a sheet's class,
+     * ancestry and cards are chosen from. Defaulted like every other list here,
+     * so a project written before content became data is still a project, and
+     * an empty list means "whatever pack the app was given".
+     */
+    classes: z.array(classDefSchema).default([]),
+    ancestries: z.array(ancestryDefSchema).default([]),
+    communities: z.array(communityDefSchema).default([]),
+    subclasses: z.array(subclassDefSchema).default([]),
+    domainCards: z.array(domainCardDefSchema).default([]),
+    weapons: z.array(weaponDefSchema).default([]),
+    armors: z.array(armorDefSchema).default([]),
     /**
      * What characters can do: domain cards, Hope features, subclass features,
      * with their scripts. Defaulted, so an older project is still a project.

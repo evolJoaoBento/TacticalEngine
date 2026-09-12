@@ -208,6 +208,56 @@ describe('projectSchema', () => {
     expect(parsed.adversaryModels['tangle-bramble']).toBe('knight');
   });
 
+  it('defaults the content lists, so a project written before packs still parses', () => {
+    const parsed = projectSchema.parse(project());
+    expect(parsed.classes).toEqual([]);
+    expect(parsed.ancestries).toEqual([]);
+    expect(parsed.communities).toEqual([]);
+    expect(parsed.subclasses).toEqual([]);
+    expect(parsed.domainCards).toEqual([]);
+    expect(parsed.weapons).toEqual([]);
+    expect(parsed.armors).toEqual([]);
+  });
+
+  it('carries the content a project declares', () => {
+    const parsed = projectSchema.parse(
+      project({
+        classes: [
+          {
+            id: 'sentinel',
+            name: 'Sentinel',
+            domains: ['bulwark'],
+            startingEvasion: 9,
+            startingHitPoints: 7,
+            signatureFeature: { name: 'Hold the Line', text: 'Stand your ground.' },
+          },
+        ],
+        domainCards: [
+          {
+            id: 'power-slash',
+            name: 'Power Slash',
+            domain: 'bulwark',
+            type: 'ability',
+            level: 1,
+            recallCost: 1,
+            text: 'Strike hard.',
+          },
+        ],
+      }),
+    );
+    expect(parsed.classes[0]!.name).toBe('Sentinel');
+    expect(parsed.classes[0]!.signatureFeature?.name).toBe('Hold the Line');
+    expect(parsed.domainCards[0]!.id).toBe('power-slash');
+  });
+
+  it('refuses content that does not describe itself properly', () => {
+    const bad = projectSchema.safeParse(
+      project({ classes: [{ id: 'Sentinel', name: 'Sentinel', startingEvasion: 9, startingHitPoints: 7 }] }),
+    );
+    // Ids are kebab-case; "Sentinel" is not one.
+    expect(bad.success).toBe(false);
+  });
+
   it('rejects a future format version rather than guessing at it', () => {
     expect(projectSchema.safeParse(project({ formatVersion: 2 })).success).toBe(false);
   });

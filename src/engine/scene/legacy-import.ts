@@ -206,6 +206,15 @@ export function importLegacyCampaign(
       assets: [],
       // A legacy campaign re-skins nothing: every creature is drawn as its own id.
       adversaryModels: {},
+      // It brings no content of its own either: the party is built from whatever
+      // pack the app was given, exactly as it was before content became data.
+      classes: [],
+      ancestries: [],
+      communities: [],
+      subclasses: [],
+      domainCards: [],
+      weapons: [],
+      armors: [],
       startScene: scenes[0]!.id,
     },
     issues,
