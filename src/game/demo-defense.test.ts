@@ -130,30 +130,99 @@ const WATCHED: Record<string, unknown>[] = [
 ];
 
 describe('passives on the sheet', () => {
-  it('Unwavering adds one to Kara\'s thresholds, and Bare Bones rewrites them when the mail comes off', () => {
-    const demo = scene();
-    const kara = demo.characters.get('kara')!;
-    // Chainmail 7/15 at level 1 is 8/16; Unwavering makes it 9/17.
-    expect(kara.thresholds).toEqual({ major: 9, severe: 17 });
-    expect(kara.modifiers.map((m) => m.stat)).toContain('thresholds');
-    // Bare Bones only counts unarmored, so it is filtered out while the mail is on.
-    expect(kara.modifiers.some((m) => m.stat === 'bareBones')).toBe(false);
+  /**
+   * Two passives that are read off the sheet rather than run: one rewrites the
+   * base the thresholds are built from, the other adds a trait to a roll and
+   * only while the right weapon is in hand.
+   *
+   * The first is a base rewrite rather than a bonus. The derive consults it only
+   * when no armour is worn, and then swaps the whole threshold table and takes
+   * the Armor Score from Strength instead of from armour -- which is why it
+   * sits on the sheet under its own stat rather than as a number.
+   */
+  const BARE_BONES_CARD = 'fixture-card-40';
+  const BASHER_CARD = 'fixture-card-41';
+  /** A card with nothing on it, for the derive with no passive in play. */
+  const INERT_CARD = 'fixture-card-42';
 
-    const { armorId: _off, ...unarmored } = demo.sheets.get('kara')!;
-    const bare = deriveCharacter(unarmored, characterContentFor(demo.project), demo.project.abilities).character;
-    // Tier 1: 9/19, plus level, plus Unwavering; Armor Score 3 + Strength 2.
+  const PASSIVES = [
+    {
+      id: 'fixture-bare-bones',
+      name: 'Bare Bones',
+      source: { kind: 'domainCard', card: BARE_BONES_CARD },
+      text: 'With nothing on, your own hide is the armour.',
+      kind: 'passive',
+      action: false,
+      modifiers: [{ stat: 'bareBones', requires: 'unarmored' }],
+    },
+    {
+      id: 'fixture-body-basher',
+      name: 'Body Basher',
+      source: { kind: 'domainCard', card: BASHER_CARD },
+      text: 'You put your shoulder into it: more damage with a weapon in reach.',
+      kind: 'passive',
+      action: false,
+      modifiers: [{ stat: 'damageRoll', plusTrait: 'strength', requires: 'meleeWeapon' }],
+    },
+  ];
+
+  const carry = (demo: DemoScene): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of PASSIVES) demo.project.abilities.push(abilitySchema.parse(ability));
+  };
+
+  it('a subclass passive lifts the thresholds, and a card rewrites them when the mail comes off', () => {
+    const demo = scene();
+    carry(demo);
+    const content = characterContentFor(demo.project);
+    const seeded = demo.sheets.get('kara')!;
+
+    // Armoured, and holding the card: ringmail's 7/15 at level 1 is 8/16, and
+    // the subclass passive makes it 9/17.
+    const armoured = deriveCharacter(
+      { ...seeded, domainCards: [BARE_BONES_CARD], loadout: [BARE_BONES_CARD] },
+      content,
+      demo.project.abilities,
+    ).character;
+    expect(armoured.thresholds).toEqual({ major: 9, severe: 17 });
+    expect(armoured.modifiers.map((m) => m.stat)).toContain('thresholds');
+    // The card is in her hand, and counts only unarmoured: what keeps it off
+    // the sheet is the requirement rather than the card being absent.
+    expect(armoured.modifiers.some((m) => m.stat === 'bareBones')).toBe(false);
+
+    const { armorId: _off, ...unarmored } = seeded;
+    const bare = deriveCharacter(
+      { ...unarmored, domainCards: [BARE_BONES_CARD], loadout: [BARE_BONES_CARD] },
+      content,
+      demo.project.abilities,
+    ).character;
+    // Tier 1 is 9/19, plus the level, plus the subclass passive.
     expect(bare.thresholds).toEqual({ major: 11, severe: 21 });
-    expect(bare.armorScore).toBe(5);
-    // Without the card it would be level / twice level, and no armor at all.
-    const plain = deriveCharacter({ ...unarmored, domainCards: ['get-back-up'] }, characterContentFor(demo.project), demo.project.abilities).character;
+    // And now it is on the sheet, which is the other half of the same claim.
+    expect(bare.modifiers.some((m) => m.stat === 'bareBones')).toBe(true);
+    // Three and her Strength, and the class passive is worth a slot on top.
+    expect(bare.armorScore).toBe(6);
+
+    // Without the card it is level and twice level, and no armour but the slot
+    // the class passive is worth.
+    const plain = deriveCharacter(
+      { ...unarmored, domainCards: [INERT_CARD], loadout: [INERT_CARD] },
+      content,
+      demo.project.abilities,
+    ).character;
     expect(plain.thresholds).toEqual({ major: 2, severe: 3 });
-    expect(plain.armorScore).toBe(0);
+    expect(plain.armorScore).toBe(1);
   });
 
   it('reads a roll bonus with a trait and a weapon requirement at roll time', () => {
     const demo = scene();
     const sheet = demo.sheets.get('kara')!;
-    const grown = { ...sheet, domainCards: ['bare-bones', 'body-basher'] };
+    carry(demo);
+    const grown = {
+      ...sheet,
+      domainCards: [BARE_BONES_CARD, BASHER_CARD],
+      loadout: [BARE_BONES_CARD, BASHER_CARD],
+    };
     demo.sheets.set('kara', grown);
     demo.characters.set('kara', deriveCharacter(grown, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
