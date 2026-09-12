@@ -3515,6 +3515,63 @@ describe('what a charge runs over', () => {
 });
 
 describe('the same blow again', () => {
+  /**
+   * A card that answers an ally's blow by laying the same damage on the same
+   * creature again -- the roll is made against the creature, and what lands is
+   * the ally's damage rather than a fresh roll of anything.
+   *
+   * Both its gates are about other people. An ally's blow raises the moment
+   * with whoever dealt it bound as the target and whoever took it as the hit,
+   * so the card asks that the target be an ally and the hit an adversary. The
+   * last test here is a blow the other way round, where both gates say no.
+   *
+   * Offered rather than taken: a roll that succeeds with Fear costs the card,
+   * so whether to answer is the player's to say. The offer is found by this
+   * ability's name, and the log line carries the name too.
+   */
+  const AGAIN_CARD = 'fixture-card-27';
+
+  /** The card the first test's own specimen sits on. */
+  const NOTICE_CARD = 'fixture-card-26';
+
+  const AGAIN = [
+    {
+      id: 'fixture-again',
+      name: 'Second Blow',
+      source: { kind: 'domainCard', card: AGAIN_CARD },
+      text: 'When somebody beside you wounds a creature, lay the same blow on it again.',
+      kind: 'reaction',
+      trigger: 'nearbyTookDamage',
+      action: false,
+      // Asked, not taken: a roll that succeeds with Fear costs the card.
+      auto: false,
+      inCombatOnly: true,
+      available: {
+        kind: 'all',
+        of: [
+          { kind: 'side', of: { kind: 'target' }, is: 'ally' },
+          { kind: 'side', of: { kind: 'hit' }, is: 'adversary' },
+          { kind: 'withinRange', range: 'close', of: { kind: 'target' } },
+        ],
+      },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 'target',
+            targets: { kind: 'hit' },
+            prompt: 'The same blow again, on the same creature?',
+            // `always` with `hit` is the idiom for "on a success": a roll that
+            // beat nobody leaves nobody bound, so the damage lands on no one.
+            always: [{ kind: 'damage', dice: 'same', target: { kind: 'hit' } }],
+            onSuccessWithFear: [{ kind: 'vaultCard' }],
+          },
+        },
+      ],
+    },
+  ];
+
   const gives = (demo: DemoScene, id: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(id)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(id, sheet);
@@ -3526,6 +3583,8 @@ describe('the same blow again', () => {
   const stage = (seed: string, cards: string[]): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = true;
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of AGAIN) demo.project.abilities.push(abilitySchema.parse(ability));
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 60, marked: 0 };
     standBehind(demo, 'mira', husk.tile);
@@ -3545,12 +3604,12 @@ describe('the same blow again', () => {
     // A card that reads the hit. Without the second binding it reads the ally
     // who swung, and answers a moment that never happened.
     for (let seed = 1; seed < 40; seed++) {
-      const demo = stage(`bindings-${seed}`, ['rune-ward']);
+      const demo = stage(`bindings-${seed}`, [NOTICE_CARD]);
       demo.project.abilities.push(
         abilitySchema.parse({
-          id: 'watching',
-          name: 'Watching',
-          source: { kind: 'domainCard', card: 'rune-ward' },
+          id: 'fixture-notices',
+          name: 'Notices',
+          source: { kind: 'domainCard', card: NOTICE_CARD },
           text: 'When somebody nearby is hurt, you note who.',
           kind: 'reaction',
           trigger: 'nearbyTookDamage',
@@ -3559,7 +3618,7 @@ describe('the same blow again', () => {
           effects: [{ kind: 'log', text: 'Mira marks the one that is bleeding.', tone: 'hope' }],
         }),
       );
-      gives(demo, 'mira', ['rune-ward']);
+      gives(demo, 'mira', [NOTICE_CARD]);
 
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       const before = husk.hitPoints.marked;
@@ -3573,10 +3632,10 @@ describe('the same blow again', () => {
 
   it('offers Encore when an ally lands one, and carries their damage over', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const demo = stage(`encore-${seed}`, ['encore']);
+      const demo = stage(`encore-${seed}`, [AGAIN_CARD]);
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       attackWithSelected(demo, husk.id);
-      const at = offerOf(demo, 'Encore');
+      const at = offerOf(demo, 'Second Blow');
       if (at === null) continue;
 
       const before = husk.hitPoints.marked;
@@ -3586,7 +3645,7 @@ describe('the same blow again', () => {
       while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
       const after = demo.log.slice(said).map((l) => l.text);
 
-      expect(after.some((t) => t.includes('Mira: Encore'))).toBe(true);
+      expect(after.some((t) => t.includes('Mira: Second Blow'))).toBe(true);
       // A roll that beat the husk carries Kara's own damage over; one that did
       // not carries nothing, and the card is spent either way.
       if (husk.hitPoints.marked === before) continue;
@@ -3599,10 +3658,10 @@ describe('the same blow again', () => {
 
   it('puts Encore in the vault when the roll succeeds with Fear', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const demo = stage(`encore-fear-${seed}`, ['encore']);
+      const demo = stage(`encore-fear-${seed}`, [AGAIN_CARD]);
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       attackWithSelected(demo, husk.id);
-      const at = offerOf(demo, 'Encore');
+      const at = offerOf(demo, 'Second Blow');
       if (at === null) continue;
       const said = demo.log.length;
       answerPending(demo, { kind: 'choose', index: at });
@@ -3612,7 +3671,7 @@ describe('the same blow again', () => {
       if (!after.some((t) => t.includes('Success, with Fear'))) continue;
       // "Then place this card in your vault": out of the loadout, and no
       // longer offering the reaction it was just played for.
-      expect(loadoutOf(demo.characters.get('mira')!)).not.toContain('encore');
+      expect(loadoutOf(demo.characters.get('mira')!)).not.toContain(AGAIN_CARD);
       return;
     }
     throw new Error('no seed put Encore through a success with Fear');
@@ -3622,7 +3681,7 @@ describe('the same blow again', () => {
     // The card reads "an ally deals damage to an adversary". A blow the other
     // way round names an adversary as the dealer and an ally as the hit, and
     // both gates say no.
-    const demo = stage('encore-wrong-way', ['encore']);
+    const demo = stage('encore-wrong-way', [AGAIN_CARD]);
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     for (let i = 0; i < 8 && demo.encounter?.outcome === 'ongoing'; i++) {
       endTurn(demo);
@@ -3631,7 +3690,7 @@ describe('the same blow again', () => {
       if (demo.state.entity('kara')!.hitPoints.marked > 0) break;
     }
     expect(demo.state.entity('kara')!.hitPoints.marked).toBeGreaterThan(0);
-    expect(demo.log.some((l) => l.text.includes('Mira: Encore'))).toBe(false);
+    expect(demo.log.some((l) => l.text.includes('Mira: Second Blow'))).toBe(false);
     expect(husk.hitPoints.marked).toBe(0);
   });
 });
