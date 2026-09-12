@@ -3151,7 +3151,43 @@ describe('a death move', () => {
 // ---------------------------------------------------------------------------
 
 describe('a card with a limit on it, answering something', () => {
+  /**
+   * A card played on a blow from somebody in reach: the blow closes on empty
+   * ground, and its holder is somewhere else.
+   *
+   * The card is the vehicle rather than the subject. What is under test is the
+   * once-per-rest limit being counted on the party's side at all, which is why
+   * the test reads it three ways: the offer going, the use counting, and the
+   * card still being listed as a reaction afterwards -- held and triggering,
+   * with only the use spent.
+   */
+  const SCRAMBLE_CARD = 'fixture-card-54';
+
+  const SCRAMBLE = [
+    {
+      id: 'fixture-scramble',
+      name: 'Not Where It Landed',
+      source: { kind: 'domainCard', card: SCRAMBLE_CARD },
+      text: 'Once between rests, be somewhere else than the blow expected.',
+      kind: 'reaction',
+      trigger: 'incomingDamage',
+      action: false,
+      auto: false,
+      uses: { count: 1, per: 'rest' },
+      // Read from the one swinging, who is bound as the target.
+      available: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } },
+      target: { kind: 'none' },
+      effects: [
+        { kind: 'log', text: 'The blow closes on empty ground.', tone: 'hope' },
+        { kind: 'avoidBlow' },
+        { kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'close' },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of SCRAMBLE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -3159,33 +3195,33 @@ describe('a card with a limit on it, answering something', () => {
   };
 
   it('is offered once and then not again, the way a stat block\'s feature already was', () => {
-    // Scramble is "once per rest", and until now nothing on the party's side
+    // The card is "once per rest", and until now nothing on the party's side
     // of the table counted that: `canPayFor` reads the pools and knows nothing
     // about how many times a card has been played.
-    const demo = standoff('scramble-once');
-    hold(demo, ['scramble']);
+    const demo = standoff('limit-once');
+    hold(demo, [SCRAMBLE_CARD]);
 
     const first = untilChoice(demo, 'script');
-    expect(first, 'Scramble was offered').not.toBeNull();
+    expect(first, 'the card was offered').not.toBeNull();
     const offered = (): boolean =>
       // The blow it was first offered against, so the answer is about the
       // card's own limit and not about having already answered this swing.
-      defenseChoices(demo, first!.attack).some((c) => c.kind === 'script' && c.ability.id === 'scramble');
+      defenseChoices(demo, first!.attack).some((c) => c.kind === 'script' && c.ability.id === 'fixture-scramble');
     expect(offered()).toBe(true);
 
-    const at = first!.choices.findIndex((c) => c.kind === 'script' && c.ability.id === 'scramble');
+    const at = first!.choices.findIndex((c) => c.kind === 'script' && c.ability.id === 'fixture-scramble');
     expect(at).toBeGreaterThan(0);
     const stood = demo.state.entity('kara')!.tile;
     answerPending(demo, { kind: 'choose', index: at });
 
     // Back where she was standing, because the card's own gate is about being
-    // in Melee range and Scramble is what took her out of it: the question
+    // in Melee range and the card is what took her out of it: the question
     // here is the limit on the card, not where the card left her.
     demo.state.moveEntity('kara', stood);
-    expect(demo.world.reactionsFor('kara', 'incomingDamage', { targets: [first!.attack.attacker], hit: [] }).map((a) => a.id)).toContain('scramble');
+    expect(demo.world.reactionsFor('kara', 'incomingDamage', { targets: [first!.attack.attacker], hit: [] }).map((a) => a.id)).toContain('fixture-scramble');
 
     // Played, counted, and gone until the party rests.
-    expect(demo.scenario.abilityUses.get(useKey('kara', 'scramble'))).toBe(1);
+    expect(demo.scenario.abilityUses.get(useKey('kara', 'fixture-scramble'))).toBe(1);
     expect(offered()).toBe(false);
   });
 });
@@ -3215,7 +3251,38 @@ describe('a wound marked outright', () => {
 
 
 describe('a swing that missed', () => {
+  /**
+   * A card that answers its holder's own miss: the swing goes wide and still
+   * finds something, for half of what the weapon would have been worth.
+   *
+   * `dealtMiss` rather than `attackMissed` is the whole of it -- this one is
+   * about the blow she threw, not the blow thrown at her -- and one test proves
+   * the distinction by landing a swing and asserting nothing is offered.
+   */
+  const GLANCE_CARD = 'fixture-card-53';
+
+  const GLANCE = [
+    {
+      id: 'fixture-glance',
+      name: 'Glancing Blow',
+      source: { kind: 'domainCard', card: GLANCE_CARD },
+      text: 'Mark a Stress when your swing goes wide to put half of it behind the blow anyway.',
+      kind: 'reaction',
+      trigger: 'dealtMiss',
+      action: false,
+      auto: false,
+      cost: { stress: 1 },
+      target: { kind: 'none' },
+      effects: [
+        { kind: 'log', text: 'The swing goes wide, and still finds something.', tone: 'combat' },
+        { kind: 'damage', dice: 'weapon', using: 'halfProficiency', target: { kind: 'target' } },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of GLANCE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -3237,15 +3304,15 @@ describe('a swing that missed', () => {
     return null;
   };
 
-  it('offers Glancing Blow on a miss and nothing on a hit', () => {
+  it('offers the card on a miss and nothing on a hit', () => {
     // "When you fail an attack, you can mark a Stress to deal weapon damage
     // using half your Proficiency."
-    const missed = swingUntil('glancing-miss', ['glancing-blow'], false);
+    const missed = swingUntil('glancing-miss', [GLANCE_CARD], false);
     expect(missed, 'a swing missed').not.toBeNull();
     const demo = missed!;
     expect(demo.pending?.kind).toBe('reaction');
     const asked = demo.pending as { offers: readonly { ability: { id: string } }[] };
-    expect(asked.offers.map((o) => o.ability.id)).toEqual(['glancing-blow']);
+    expect(asked.offers.map((o) => o.ability.id)).toEqual(['fixture-glance']);
 
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     const before = husk.hitPoints.marked;
@@ -3257,20 +3324,20 @@ describe('a swing that missed', () => {
 
     // The same card says nothing about a swing that landed: `dealtHit` and
     // `dealtMiss` are the two halves, and this one only answers the second.
-    const landed = swingUntil('glancing-hit', ['glancing-blow'], true);
+    const landed = swingUntil('glancing-hit', [GLANCE_CARD], true);
     expect(landed, 'a swing landed').not.toBeNull();
     expect(landed!.pending).toBe(null);
   });
 
   it('ends the fight it wins, though the killing blow came out of a reaction', () => {
     // A reaction's kill is neither an `act` nor a `spotlight`, and those are
-    // the only two things that count who is left standing. Glancing Blow is
-    // built to land one: the swing that raised it already passed the spotlight
-    // to a GM with nobody left to spotlight.
+    // the only two things that count who is left standing. This card is built
+    // to land one: the swing that raised it already passed the spotlight to a
+    // GM with nobody left to spotlight.
     for (let seed = 1; seed < 60; seed++) {
       const demo = standoff(`glancing-win-${seed}`);
       demo.askDefender = true;
-      hold(demo, ['glancing-blow']);
+      hold(demo, [GLANCE_CARD]);
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       husk.hitPoints = { max: 3, marked: 2 };
       husk.armorSlots = { max: 0, marked: 0 };
