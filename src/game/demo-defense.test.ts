@@ -745,12 +745,63 @@ describe('being asked how a hit lands', () => {
 });
 
 describe('an ally interrupting', () => {
-  it('takes the hit instead when I Am Your Shield is chosen', () => {
+  /**
+   * Two cards played on a blow aimed at somebody else: one steps in front of
+   * it, the other makes the attacker throw again.
+   *
+   * Both are offered rather than taken -- standing in the way costs the one who
+   * does it, and whether this was the blow worth paying for is theirs to say.
+   * The ranges are what decide who is asked: the first is measured from the one
+   * stepping in to the one being hit, the second from the one paying to the
+   * creature that swung.
+   */
+  const SHIELD_CARD = 'fixture-card-48';
+  const AGAIN_CARD = 'fixture-card-49';
+
+  const INTERRUPTS = [
+    {
+      id: 'fixture-shield',
+      name: 'Stand In Front',
+      source: { kind: 'domainCard', card: SHIELD_CARD },
+      text: 'Mark a Stress to take a blow meant for somebody beside you.',
+      kind: 'reaction',
+      trigger: 'incomingDamage',
+      cost: { stress: 1 },
+      target: { kind: 'ally', range: 'veryClose' },
+      action: false,
+      reaction: { kind: 'redirect' },
+      auto: false,
+    },
+    {
+      id: 'fixture-think-again',
+      name: 'Think Again',
+      source: { kind: 'domainCard', card: AGAIN_CARD },
+      text: 'Spend three Hope to make something throw its blow again.',
+      kind: 'reaction',
+      trigger: 'attackHit',
+      cost: { hope: 3 },
+      target: { kind: 'none', range: 'far' },
+      inCombatOnly: true,
+      action: false,
+      reaction: { kind: 'reroll', what: 'either' },
+      auto: false,
+    },
+  ];
+
+  /** The cards in the project, and one of them in somebody's hands. */
+  const carry = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of INTERRUPTS) demo.project.abilities.push(abilitySchema.parse(ability));
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('takes the hit instead when the one beside them steps in', () => {
     const demo = standoff('shield');
     // Finn holds the card and stands beside Kara.
-    demo.sheets.set('finn', { ...demo.sheets.get('finn')!, domainCards: ['i-am-your-shield'], loadout: ['i-am-your-shield'] });
-    demo.characters.set('finn', deriveCharacter(demo.sheets.get('finn')!, characterContentFor(demo.project), demo.project.abilities).character);
-    refreshWorld(demo);
+    carry(demo, 'finn', [SHIELD_CARD]);
     standBehind(demo, 'finn', demo.state.entitiesOf('adversary').find((e) => e.alive)!.tile);
     // Spit Acid catches the whole party; Finn has to still be standing when a
     // single blow finally lands on Kara.
@@ -776,22 +827,23 @@ describe('an ally interrupting', () => {
     expect(demo.state.entity('finn')!.hitPoints.marked).toBeGreaterThan(0);
   });
 
-  it('makes the adversary roll again for Not This Time, and asks once per hit', () => {
+  it('makes the adversary roll again for the card, and asks once per hit', () => {
     const demo = standoff('reroll');
     const mira = demo.state.entity('mira')!;
+    carry(demo, 'mira', [AGAIN_CARD]);
     mira.hope = { max: 6, value: 6 };
-    // Mira is a Wizard: Not This Time is her Hope feature. She has to be able
-    // to see it happen — within Far range of the adversary.
+    // Mira holds the card, and has to be able to see it happen — within Far
+    // range of the adversary.
     standBehind(demo, 'mira', demo.state.entitiesOf('adversary').find((e) => e.alive)!.tile);
     demo.state.entity('mira')!.hitPoints = { max: 12, marked: 0 };
 
     const pending = untilChoice(demo, 'reroll');
-    expect(pending, 'Not This Time was offered').not.toBeNull();
+    expect(pending, 'the reroll was offered').not.toBeNull();
     const reroll = pending!.choices.findIndex((c) => c.kind === 'reroll');
     answerPending(demo, { kind: 'choose', index: reroll });
     // Three Hope gone, and the log says the blow came again.
     expect(demo.state.entity('mira')!.hope!.value).toBe(3);
-    expect(demo.log.map((l) => l.text).some((t) => t.includes('Not This Time'))).toBe(true);
+    expect(demo.log.map((l) => l.text).some((t) => t.includes('Think Again'))).toBe(true);
 
     // If it still landed, the same card is not offered twice for the same hit.
     if (demo.pending !== null && demo.pending.kind === 'defense') {
@@ -803,23 +855,58 @@ describe('an ally interrupting', () => {
 });
 
 describe('answering a miss', () => {
-  it('offers Vanishing Dodge, which leaves the rogue Hidden until they act', () => {
+  /**
+   * A card played on a blow that went wide, leaving its holder out of sight
+   * until they do something about it.
+   *
+   * It asks nothing about the ending: `hidden` is one of the engine's own
+   * conditions and already ends when its bearer attacks, which is what the last
+   * two lines of the test read.
+   *
+   * Offered rather than taken -- it costs a Hope, and a free card would spend
+   * itself on the first swing that missed.
+   */
+  const VANISH_CARD = 'fixture-card-50';
+
+  const VANISH = [
+    {
+      id: 'fixture-vanish',
+      name: 'Step Into the Dark',
+      source: { kind: 'domainCard', card: VANISH_CARD },
+      text: 'Spend a Hope when a blow goes wide to be somewhere else than it looked.',
+      kind: 'reaction',
+      trigger: 'attackMissed',
+      cost: { hope: 1 },
+      target: { kind: 'none', range: 'close' },
+      inCombatOnly: true,
+      action: false,
+      auto: false,
+      effects: [
+        { kind: 'log', text: 'The dark closes over the space where they stood.', tone: 'hope' },
+        { kind: 'applyCondition', condition: 'hidden', duration: 'scene', target: { kind: 'actor' } },
+      ],
+    },
+  ];
+
+  it('offers the card, which leaves its holder out of sight until they act', () => {
     const demo = standoff('vanish');
-    const sheet = { ...demo.sheets.get('kara')!, domainCards: ['vanishing-dodge'], loadout: ['vanishing-dodge'] };
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of VANISH) demo.project.abilities.push(abilitySchema.parse(ability));
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: [VANISH_CARD], loadout: [VANISH_CARD] };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.state.entity('kara')!.hope = { max: 6, value: 6 };
 
     const pending = untilChoice(demo, 'react');
-    expect(pending, 'Vanishing Dodge was offered').not.toBeNull();
+    expect(pending, 'the card was offered').not.toBeNull();
     expect(pending!.choices[0]!.label).toBe('Let it go wide');
     const dodge = pending!.choices.findIndex((c) => c.kind === 'react');
     answerPending(demo, { kind: 'choose', index: dodge });
 
     expect(demo.world.hasCondition('kara', 'hidden')).toBe(true);
     expect(demo.state.entity('kara')!.hope!.value).toBe(5);
-    expect(demo.log.map((l) => l.text)).toContain('Shadow closes over the space where they stood.');
+    expect(demo.log.map((l) => l.text)).toContain('The dark closes over the space where they stood.');
 
     // Hidden until they act: swinging ends it.
     demo.state.entity('kara')!.hope = { max: 6, value: 6 };
