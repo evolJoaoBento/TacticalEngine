@@ -3955,7 +3955,7 @@ describe('a shout the next one hears', () => {
    * The two names differ on purpose — the offer says one thing and the payout
    * another — because one test below reads them apart in a queue of offers.
    */
-  const SHOUT_CARD = 'fixture-card-10';
+  const SHOUT_CARD = 'fixture-card-16';
   const FOLLOW_CARD = 'fixture-card-11';
   const SHOUT = [
     {
@@ -6119,7 +6119,7 @@ describe('the last of the Codex', () => {
    * through. So that card needs a condition beside it, and the fixture carries
    * both.
    */
-  const CODEX_CARD = 'fixture-card-9';
+  const CODEX_CARD = 'fixture-card-15';
 
   /** Permanent outlives the scene, where everything else a card hands out does not. */
   const ENERVATION = [
@@ -6540,6 +6540,122 @@ describe('the last of the Codex', () => {
  * its wearer a Hope every time they use it.
  */
 describe('the weather, and the thing that wears it', () => {
+  /**
+   * Two cards. One drops a storm: the same roll against everything the weather
+   * reaches, and for two of the three something stays on whatever it beat. The
+   * other is a shape its wearer feeds -- a Stress to put on, ten more damage
+   * while it holds, and a Hope for every roll made in it.
+   *
+   * The storm names below are looked up by exact string and asserted as a list,
+   * so they are part of the behaviour rather than decoration.
+   */
+  const WEATHER_CARD = 'fixture-card-17';
+  const SHAPE_CARD = 'fixture-card-18';
+
+  /** One roll, everything within Far, and whatever it beat wears the weather. */
+  const front = (dice: string, condition?: string): Record<string, unknown> => ({
+    kind: 'check',
+    check: {
+      trait: 'spellcast',
+      difficulty: 'target',
+      targets: { kind: 'adversaries', range: 'far' },
+      prompt: 'One roll, against everything the weather can reach.',
+      always: [
+        { kind: 'damage', dice, type: 'magic', target: { kind: 'hit' } },
+        ...(condition === undefined
+          ? []
+          : [{ kind: 'applyCondition', condition, duration: 'scene', target: { kind: 'hit' } }]),
+      ],
+    },
+  });
+
+  const SAND_CONDITION = {
+    id: 'fixture-sanded',
+    name: 'Sandstormed',
+    text: 'Lost in blowing sand: attacks aimed at you are made with disadvantage.',
+    modifiers: [{ stat: 'advantage', bonus: -1, against: true }],
+  };
+
+  const SHAPE_CONDITION = {
+    id: 'fixture-shape',
+    name: 'Force of Nature',
+    text: 'Something enormous wearing them: ten more damage, and a Hope for every roll.',
+    modifiers: [{ stat: 'damageRoll', bonus: 10 }],
+  };
+
+  const WEATHER = [
+    {
+      id: 'fixture-weather',
+      name: 'Tempest',
+      source: { kind: 'domainCard', card: WEATHER_CARD },
+      text: 'Bring one of three storms down on everything in reach.',
+      target: { kind: 'none' },
+      inCombatOnly: true,
+      effects: [
+        {
+          kind: 'choice',
+          title: 'Tempest',
+          body: 'Which storm comes down?',
+          options: [
+            { label: 'Blizzard', effects: [front('2d20+8', 'vulnerable')] },
+            { label: 'Hurricane', effects: [front('3d10+10')] },
+            { label: 'Sandstorm', effects: [front('5d6+9', 'fixture-sanded')] },
+          ],
+        },
+      ],
+    },
+  ];
+
+  const SHAPE = [
+    {
+      id: 'fixture-shape-on',
+      name: 'Force of Nature',
+      source: { kind: 'domainCard', card: SHAPE_CARD },
+      text: 'Put on something enormous, and feed it afterwards.',
+      cost: { stress: 1 },
+      target: { kind: 'self' },
+      action: false,
+      effects: [
+        { kind: 'log', text: 'Something enormous stands up wearing them.', tone: 'hope' },
+        { kind: 'applyCondition', condition: 'fixture-shape', duration: 'scene', target: { kind: 'actor' } },
+      ],
+    },
+    {
+      id: 'fixture-shape-upkeep',
+      name: 'Force of Nature',
+      source: { kind: 'domainCard', card: SHAPE_CARD },
+      text: 'Every roll made in the shape costs a Hope, and nothing left to pay takes it off.',
+      kind: 'reaction',
+      trigger: 'partyRolled',
+      action: false,
+      available: {
+        kind: 'all',
+        of: [{ kind: 'self' }, { kind: 'hasCondition', condition: 'fixture-shape', of: { kind: 'actor' } }],
+      },
+      effects: [
+        {
+          kind: 'branch',
+          when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+          then: [{ kind: 'spendHope', amount: 1 }],
+          otherwise: [
+            { kind: 'log', text: 'There is nothing left to feed it, and the shape goes out of them.', tone: 'fear' },
+            { kind: 'clearCondition', condition: 'fixture-shape', target: { kind: 'actor' } },
+          ],
+        },
+      ],
+    },
+  ];
+
+  const carry = (
+    demo: DemoScene,
+    family: readonly Record<string, unknown>[],
+    conditions: readonly Record<string, unknown>[],
+  ): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const condition of conditions) demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
+    for (const ability of family) demo.project.abilities.push(abilitySchema.parse(ability));
+  };
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
@@ -6550,6 +6666,11 @@ describe('the weather, and the thing that wears it', () => {
   const casting = (seed: string, card: string): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
+    carry(
+      demo,
+      card === WEATHER_CARD ? WEATHER : SHAPE,
+      card === WEATHER_CARD ? [SAND_CONDITION] : [SHAPE_CONDITION],
+    );
     hold(demo, 'mira', [card]);
     const mira = demo.state.entity('mira')!;
     mira.hope = { max: 6, value: 6 };
@@ -6576,8 +6697,8 @@ describe('the weather, and the thing that wears it', () => {
 
   it('offers three storms and drops the one that was chosen', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const { demo, husk } = casting('tempest-' + seed, 'tempest');
-      expect(useAbility(demo, 'mira', 'tempest', []).status).toBe('waiting');
+      const { demo, husk } = casting('tempest-' + seed, WEATHER_CARD);
+      expect(useAbility(demo, 'mira', 'fixture-weather', []).status).toBe('waiting');
       if (demo.pending?.prompt.kind !== 'choice') throw new Error('expected the storms');
       expect(demo.pending.prompt.options.map((o) => o.label)).toEqual(['Blizzard', 'Hurricane', 'Sandstorm']);
 
@@ -6597,16 +6718,16 @@ describe('the weather, and the thing that wears it', () => {
     let sanded = false;
     let blown = false;
     for (let seed = 1; seed < 60 && !(sanded && blown); seed++) {
-      for (const [label, condition] of [['Sandstorm', 'sandstormed'], ['Hurricane', null]] as const) {
-        const { demo, husk } = casting(`tempest-${label}-${seed}`, 'tempest');
-        useAbility(demo, 'mira', 'tempest', []);
+      for (const [label, condition] of [['Sandstorm', 'fixture-sanded'], ['Hurricane', null]] as const) {
+        const { demo, husk } = casting(`tempest-${label}-${seed}`, WEATHER_CARD);
+        useAbility(demo, 'mira', 'fixture-weather', []);
         storm(demo, label);
         while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
         if (husk.hitPoints.marked === 0) continue;
 
         if (condition === null) {
           // The wind is the table's: what the engine lands is the damage.
-          expect(husk.conditions.has('sandstormed')).toBe(false);
+          expect(husk.conditions.has('fixture-sanded')).toBe(false);
           expect(husk.conditions.has('vulnerable')).toBe(false);
           blown = true;
           continue;
@@ -6622,11 +6743,11 @@ describe('the weather, and the thing that wears it', () => {
   });
 
   it('Force of Nature adds ten to a blow and takes a Hope for every roll', () => {
-    const { demo, mira, husk } = casting('force-of-nature', 'force-of-nature');
+    const { demo, mira, husk } = casting('force-of-nature', SHAPE_CARD);
     mira.stress = { max: 6, marked: 0 };
-    expect(useAbility(demo, 'mira', 'force-of-nature', []).status).not.toBe('refused');
+    expect(useAbility(demo, 'mira', 'fixture-shape-on', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-    expect(mira.conditions.has('force-of-nature')).toBe(true);
+    expect(mira.conditions.has('fixture-shape')).toBe(true);
     expect(mira.stress.marked).toBe(1);
     expect(demo.world.rollBonus('mira', 'damageRoll')).toBe(10);
 
@@ -6635,13 +6756,13 @@ describe('the weather, and the thing that wears it', () => {
     attackWithSelected(demo, husk.id);
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
     expect(mira.hope!.value).toBeLessThan(hope + 1);
-    expect(mira.conditions.has('force-of-nature')).toBe(true);
+    expect(mira.conditions.has('fixture-shape')).toBe(true);
   });
 
   it('and drops off somebody with nothing left to feed it', () => {
-    const { demo, mira, husk } = casting('force-of-nature-broke', 'force-of-nature');
+    const { demo, mira, husk } = casting('force-of-nature-broke', SHAPE_CARD);
     mira.stress = { max: 6, marked: 0 };
-    expect(useAbility(demo, 'mira', 'force-of-nature', []).status).not.toBe('refused');
+    expect(useAbility(demo, 'mira', 'fixture-shape-on', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
     mira.hope = { max: 6, value: 0 };
 
@@ -6650,7 +6771,7 @@ describe('the weather, and the thing that wears it', () => {
     // A roll with Hope hands one over before the upkeep reads the pool, so the
     // shape only goes when the dice gave her nothing to pay with either.
     const gained = demo.rolls[demo.rolls.length - 1]!.roll.hopeGained;
-    expect(mira.conditions.has('force-of-nature')).toBe(gained > 0);
+    expect(mira.conditions.has('fixture-shape')).toBe(gained > 0);
     if (gained === 0) expect(demo.log.some((l) => /goes out of them/.test(l.text))).toBe(true);
   });
 });
