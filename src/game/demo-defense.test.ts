@@ -919,18 +919,27 @@ describe('answering a miss', () => {
 describe('what a block hangs on its own attack', () => {
   /** Kara, but so hard to hurt that only the Armor Slot decides the outcome. */
   function unhittable(demo: DemoScene): void {
-    demo.project.conditionDefs.push({
-      id: 'braced',
-      name: 'Braced',
-      text: 'Nothing gets through.',
-      modifiers: [
-        { stat: 'majorThreshold', bonus: 50, requires: undefined, plusTrait: undefined, when: undefined },
-        { stat: 'severeThreshold', bonus: 50, requires: undefined, plusTrait: undefined, when: undefined },
-      ],
-      blocks: [],
-    } as (typeof demo.project.conditionDefs)[number]);
-    demo.state.entity('kara')!.conditions.add('braced');
-    demo.state.entity('kara')!.conditionDurations.set('braced', 'scene');
+    // Parsed rather than cast. The cast version hand-spells the fields the
+    // schema would have defaulted, and leaving one off is what crashed the
+    // modifier read earlier in this conversion.
+    demo.project.conditionDefs.push(
+      conditionDefSchema.parse({
+        id: 'fixture-braced',
+        name: 'Braced',
+        text: 'Nothing gets through.',
+        modifiers: [
+          { stat: 'majorThreshold', bonus: 50 },
+          { stat: 'severeThreshold', bonus: 50 },
+        ],
+      }),
+    );
+    demo.state.entity('kara')!.conditions.add('fixture-braced');
+    demo.state.entity('kara')!.conditionDurations.set('fixture-braced', 'scene');
+    // The world keeps its own map of condition definitions, built when it was,
+    // so a definition pushed afterwards is not registered until it is rebuilt --
+    // and an unregistered one contributes nothing, which leaves this helper's
+    // whole premise unenforced.
+    refreshWorld(demo);
   }
 
   function withRiders(seed: string): DemoScene {
@@ -1936,11 +1945,19 @@ describe('a blow that names its band', () => {
    * Burrower swings more than once a turn, and a blow is what is under test.
    */
   const clawed = (demo: DemoScene): number | null => {
+    // The log names the blow from the block's own attack name, so the name is
+    // read off whatever is standing rather than spelled here: a spelled one stops
+    // matching the moment the demo places something else, and then this answers
+    // null for a reason that has nothing to do with the card.
+    const standing = demo.state.entitiesOf('adversary').find((e) => e.alive) ?? demo.state.entitiesOf('adversary')[0]!;
+    const attack = adversaryDefOf(demo, standing.id)!.attackName;
+    const turned = `${attack} hits Kara, and is turned aside`;
+    const landing = new RegExp(`${attack} (?:hits|tears into) Kara: (\\d+) Hit`);
     for (let i = 0; i < 8 && demo.encounter?.outcome === 'ongoing'; i++) {
       endTurn(demo);
       for (const line of demo.log) {
-        if (line.text.includes('Claws hits Kara, and is turned aside')) return 0;
-        const landed = /Claws (?:hits|tears into) Kara: (\d+) Hit/.exec(line.text);
+        if (line.text.includes(turned)) return 0;
+        const landed = landing.exec(line.text);
         if (landed !== null) return Number(landed[1]);
       }
     }
@@ -1948,16 +1965,16 @@ describe('a blow that names its band', () => {
   };
 
   const subtleBlade = {
-    id: 'the-subtle-blade',
-    name: 'The Subtle Blade',
-    text: 'Spend a Fear to deal Severe damage instead of their standard damage.',
+    id: 'fixture-subtle',
+    name: 'Named Mid-Swing',
+    text: 'Spend a Fear to name the band its blow lands in, instead of rolling for it.',
     kind: 'reaction',
     trigger: 'rollingDamage',
     action: false,
     cost: { fear: 1 },
-    // The card reads Vulnerable; the mark here is one nothing else in this
-    // fight applies, so the run without it is a control rather than a race
-    // against the Burrower knocking somebody over.
+    // The mark here is one nothing else in this fight applies, so the run
+    // without it is a control rather than a race against something else
+    // knocking her over.
     available: { kind: 'hasCondition', condition: 'guilty', of: { kind: 'target' } },
     effects: [{ kind: 'forceSeverity', severity: 'severe' }],
   };
@@ -1981,12 +1998,12 @@ describe('a blow that names its band', () => {
   });
 
   it('reads a band off the block itself, for the target it was named against', () => {
-    // Judgment's other half: a passive on the stat block rather than a
-    // reaction, gated on the mark the action left.
+    // The other half of the same idea: a passive on the stat block rather
+    // than a reaction, gated on the mark the action left.
     const judgment = {
-      id: 'judgment-strike',
-      name: 'Judgment',
-      text: 'When the Seraph succeeds on a standard attack against a Guilty target, they deal Severe damage instead.',
+      id: 'fixture-named-on-the-block',
+      name: 'Named On the Block',
+      text: 'Its standard attack names its own band against a marked target.',
       kind: 'passive',
       action: false,
       standardAttack: {
@@ -3434,7 +3451,65 @@ describe('a swing that missed', () => {
 
 
 describe('a swing lifted, and a swing that names its own number', () => {
+  /**
+   * Two cards about a blow that has landed and has not been counted yet.
+   *
+   * The first lifts one of the damage dice to its best face -- a single effect,
+   * journalling nothing, which is why the test reads what it was worth off the
+   * held swing's own dice rather than off a log line.
+   *
+   * The second names its own number instead of rolling one: a flat five to the
+   * nearest creature the roll beat, past thresholds and past armour, because
+   * the number belongs to the card rather than to a blow.
+   */
+  const LIFT_DIE_CARD = 'fixture-card-66';
+  const REAP_CARD = 'fixture-card-67';
+
+  const LIFTERS = [
+    {
+      id: 'fixture-lift-die',
+      name: 'Exactly There',
+      source: { kind: 'domainCard', card: LIFT_DIE_CARD },
+      text: 'Mark a Stress to take the best face of one of your damage dice instead of its roll.',
+      kind: 'reaction',
+      trigger: 'rollingDamage',
+      action: false,
+      auto: false,
+      cost: { stress: 1 },
+      target: { kind: 'none' },
+      effects: [
+        { kind: 'log', text: 'The blow lands exactly where it was meant to.', tone: 'hope' },
+        { kind: 'maxOneDie' },
+      ],
+    },
+    {
+      id: 'fixture-reap',
+      name: 'Name the Number',
+      source: { kind: 'domainCard', card: REAP_CARD },
+      text: 'Spend a Hope, once between long rests, to force five Hit Points on what your roll beat.',
+      cost: { hope: 1 },
+      uses: { count: 1, per: 'longRest' },
+      inCombatOnly: true,
+      target: { kind: 'none' },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'weapon',
+            difficulty: 'target',
+            targets: { kind: 'adversaries', range: 'melee', reach: 'weapon' },
+            prompt: 'One roll, against everything the weapon reaches?',
+            // The number is the card's, so nothing about the creature touches it.
+            always: [{ kind: 'damage', amount: 5, target: { kind: 'hit', nearest: 1 } }],
+          },
+        },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of LIFTERS) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -3446,26 +3521,29 @@ describe('a swing lifted, and a swing that names its own number', () => {
     // instead of rolling it." The card is offered while the blow is held, and
     // what it is worth is read off the faces the dice actually came up - which
     // is why it journals nothing and the swing does the arithmetic.
-    const swing = (seed: string, play: boolean): { marked: number; lift: number; stress: number } | null => {
+    const swing = (seed: string, play: boolean): { marked: number; lift: number; stress: number; critical: boolean } | null => {
       const demo = standoff(seed);
       demo.askDefender = true;
-      hold(demo, ['versatile-fighter']);
+      hold(demo, [LIFT_DIE_CARD]);
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       husk.hitPoints = { max: 30, marked: 0 };
       const result = attackWithSelected(demo, husk.id);
       if (result === null || result.refused !== null || !result.hit) return null;
       if (demo.pending?.kind !== 'reaction') return null;
       const asked = demo.pending as { offers: readonly { ability: { id: string } }[]; landing?: HeldSwing };
-      if (asked.offers.map((o) => o.ability.id).join() !== 'versatile-fighter') return null;
+      if (asked.offers.map((o) => o.ability.id).join() !== 'fixture-lift-die') return null;
       const roll = asked.landing?.outcome.damageRoll;
       if (roll === undefined) return null;
       const lift = roll.expression.sides - Math.min(...roll.rolls);
+      // A critical clears a Stress of its own, which would otherwise cancel the
+      // one this card costs and make it look free.
+      const critical = demo.rolls[demo.rolls.length - 1]?.roll.critical === true;
       answerPending(demo, { kind: 'choose', index: play ? 1 : 0 });
-      return { marked: husk.hitPoints.marked, lift, stress: demo.state.entity('kara')!.stress.marked };
+      return { marked: husk.hitPoints.marked, lift, stress: demo.state.entity('kara')!.stress.marked, critical };
     };
 
     for (let seed = 1; seed < 60; seed++) {
-      const name = `versatile-${seed}`;
+      const name = `lifted-${seed}`;
       const letPass = swing(name, false);
       if (letPass === null || letPass.lift === 0) continue;
       const played = swing(name, true);
@@ -3475,8 +3553,9 @@ describe('a swing lifted, and a swing that names its own number', () => {
       expect(played.marked).toBeGreaterThanOrEqual(letPass.marked);
       if (played.marked === letPass.marked) continue;
       expect(played.marked).toBeGreaterThan(letPass.marked);
-      // And it cost a Stress, where letting it pass cost nothing.
-      expect(played.stress).toBe(letPass.stress + 1);
+      // And it cost a Stress, where letting it pass cost nothing -- net of the
+      // one a critical clears, which both runs of this seed share.
+      expect(played.stress).toBe(letPass.stress + 1 - (played.critical ? 1 : 0));
       return;
     }
     throw new Error('no lifted die crossed a threshold in sixty tries');
@@ -3484,16 +3563,16 @@ describe('a swing lifted, and a swing that names its own number', () => {
 
   it('reaps for five Hit Points, past thresholds and past armor', () => {
     for (let seed = 1; seed < 40; seed++) {
-      const demo = standoff(`reaper-${seed}`);
+      const demo = standoff(`named-${seed}`);
       demo.askDefender = false;
-      hold(demo, ['reapers-strike']);
+      hold(demo, [REAP_CARD]);
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       husk.hitPoints = { max: 30, marked: 0 };
       husk.armorSlots = { max: 6, marked: 0 };
       const hope = demo.state.entity('kara')!;
       hope.hope = { max: 6, value: 3 };
 
-      expect(useAbility(demo, 'kara', 'reapers-strike', []).status).not.toBe('refused');
+      expect(useAbility(demo, 'kara', 'fixture-reap', []).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (husk.hitPoints.marked === 0) continue;
 
@@ -3505,7 +3584,7 @@ describe('a swing lifted, and a swing that names its own number', () => {
       // Hope - is the action roll's business and not the card's.
       expect(demo.log.some((l) => l.text.includes('Spends 1 Hope.'))).toBe(true);
       // Once per long rest, counted the way an action card's uses are.
-      expect(demo.scenario.abilityUses.get(useKey('kara', 'reapers-strike'))).toBe(1);
+      expect(demo.scenario.abilityUses.get(useKey('kara', 'fixture-reap'))).toBe(1);
       return;
     }
     throw new Error('the reap never beat the husk in forty tries');
@@ -6409,10 +6488,48 @@ describe('a sigil that answers a fall', () => {
 
 
 describe('a throw worth making again', () => {
+  /**
+   * A reroll of the low faces behind a blow that has landed and has not been
+   * counted yet, which is the moment `rollingDamage` is for.
+   *
+   * Offered rather than taken, and deliberately: the card rerolls without
+   * keeping the better of the two, so a bad throw can cost its holder. Whether
+   * this one is worth throwing again is the whole decision, which is why both
+   * tests hunt for a label instead of reading a result.
+   */
+  const AGAIN_THROW_CARD = 'fixture-card-65';
+
+  const AGAIN_THROW = [
+    {
+      id: 'fixture-again-throw',
+      name: 'Not Good Enough',
+      source: { kind: 'domainCard', card: AGAIN_THROW_CARD },
+      text: 'Throw the low faces behind a blow again, and live with what comes up.',
+      kind: 'reaction',
+      trigger: 'rollingDamage',
+      action: false,
+      auto: false,
+      effects: [
+        { kind: 'log', text: 'Not good enough. Again.', tone: 'hope' },
+        { kind: 'rerollDamage', below: 3 },
+      ],
+    },
+  ];
+
   /** Kara beside the husk with these cards in hand. */
   const swinging = (seed: string, cards: string[]) => {
     const demo = standoff(seed);
     demo.askDefender = true;
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of AGAIN_THROW) demo.project.abilities.push(abilitySchema.parse(ability));
+    // A creature whose thresholds a reroll can cross. What the demo places reads
+    // 13/26, and a rerolled weapon face never gets there -- so every landed blow
+    // marks one Hit Point either way and the total says nothing about the card.
+    demo.project.adversaries.push(...FIXTURE_ADVERSARIES);
+    const placed = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    demo.state.addEntity(createAdversaryEntity('thin-skinned', FIXTURE_FOE, placed.tile, { hitPoints: 90, stress: 3 }));
+    demo.state.removeEntity(placed.id);
+    refreshWorld(demo);
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 90, marked: 0 };
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
@@ -6425,7 +6542,7 @@ describe('a throw worth making again', () => {
 
   it('is offered on her own blow, before anything has counted it', () => {
     for (let seed = 1; seed < 40; seed++) {
-      const { demo, husk } = swinging(`nge-${seed}`, ['not-good-enough']);
+      const { demo, husk } = swinging(`nge-${seed}`, [AGAIN_THROW_CARD]);
       attackWithSelected(demo, husk.id);
       const pending = demo.pending;
       if (pending === null || pending.kind !== 'reaction' || pending.prompt.kind !== 'choice') continue;
@@ -6450,7 +6567,7 @@ describe('a throw worth making again', () => {
     const total = (holding: boolean): number => {
       let marked = 0;
       for (let seed = 1; seed < 80; seed++) {
-        const { demo, husk } = swinging(`nge-sum-${seed}`, holding ? ['not-good-enough'] : []);
+        const { demo, husk } = swinging(`nge-sum-${seed}`, holding ? [AGAIN_THROW_CARD] : []);
         attackWithSelected(demo, husk.id);
         let guard = 0;
         while (demo.pending !== null && guard++ < 6) {
@@ -9489,7 +9606,68 @@ describe('out of sight, and under the skin', () => {
  * The one card that goes past the veil, and the one effect that does.
  */
 describe('asking for somebody back', () => {
+  /**
+   * The one card that can be aimed at somebody who is not standing there.
+   * `fallen` on its target is the opt-in, and the second test proves it by
+   * contrast against an ordinary ally-targeted card, which cannot.
+   *
+   * That contrast card is carried here too. Without one the test would look up
+   * nothing and throw, rather than failing on the claim it is making.
+   *
+   * The vault is unconditional on every success face, so the loadout loses the
+   * card whatever the roll said.
+   */
+  const REVIVE_CARD = 'fixture-card-68';
+  const ORDINARY_CARD = 'fixture-card-69';
+
+  const BACK = [
+    {
+      kind: 'log',
+      text: 'Whatever was holding them lets go, and they come back whole.',
+      tone: 'hope',
+    },
+    { kind: 'revive', target: { kind: 'target' } },
+    { kind: 'vaultCard' },
+  ];
+
+  const ASKING = [
+    {
+      id: 'fixture-revive',
+      name: 'Ask For Them Back',
+      source: { kind: 'domainCard', card: REVIVE_CARD },
+      text: 'Ask for somebody back, and put this card away for good however it goes.',
+      // `fallen` is what lets it be aimed at somebody who is not standing.
+      target: { kind: 'ally', range: 'close', fallen: true },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 20,
+            prompt: 'Ask for them back?',
+            onCriticalSuccess: BACK,
+            onSuccessWithHope: BACK,
+            onSuccessWithFear: BACK,
+          },
+        },
+      ],
+    },
+    {
+      // The contrast: an ordinary ally-targeted card, which names only what is
+      // standing.
+      id: 'fixture-ordinary',
+      name: 'A Hand Up',
+      source: { kind: 'domainCard', card: ORDINARY_CARD },
+      text: 'Something for somebody who is still on their feet.',
+      cost: { hope: 1 },
+      target: { kind: 'ally', range: 'melee' },
+      effects: [{ kind: 'log', text: 'A hand on the shoulder, and they steady.', tone: 'hope' }],
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of ASKING) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
     demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -9499,7 +9677,7 @@ describe('asking for somebody back', () => {
   const mourning = (seed: string): { demo: DemoScene; mira: EntityState; kara: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    hold(demo, 'mira', ['resurrection']);
+    hold(demo, 'mira', [REVIVE_CARD]);
     const mira = demo.state.entity('mira')!;
     const kara = demo.state.entity('kara')!;
     const blocked = demo.state.blockedFor('mira');
@@ -9530,21 +9708,21 @@ describe('asking for somebody back', () => {
   it('can be aimed at somebody who is not standing there', () => {
     const { demo } = mourning('raise-aim');
     // Every other card names only what is standing; `fallen` is the opt-in.
-    expect(abilityTargets(demo, 'mira', demo.project.abilities.find((a) => a.id === 'resurrection')!)).toContain('kara');
-    expect(abilityTargets(demo, 'mira', demo.project.abilities.find((a) => a.id === 'book-of-ava-tavas-armor')!)).not.toContain('kara');
+    expect(abilityTargets(demo, 'mira', demo.project.abilities.find((a) => a.id === 'fixture-revive')!)).toContain('kara');
+    expect(abilityTargets(demo, 'mira', demo.project.abilities.find((a) => a.id === 'fixture-ordinary')!)).not.toContain('kara');
   });
 
   it('brings her back whole on a 20, and vaults itself for it', () => {
     for (let seed = 1; seed < 200; seed++) {
-      const { demo, mira, kara } = mourning('raise-' + seed);
-      expect(useAbility(demo, 'mira', 'resurrection', ['kara']).status).toBe('waiting');
+      const { demo, mira, kara } = mourning('back-' + seed);
+      expect(useAbility(demo, 'mira', 'fixture-revive', ['kara']).status).toBe('waiting');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (!kara.alive) continue;
 
       expect(kara.hitPoints.marked).toBe(0);
       expect(kara.dead).toBeUndefined();
       // "Then place this card in your vault permanently."
-      expect(demo.sheets.get('mira')!.loadout ?? []).not.toContain('resurrection');
+      expect(demo.sheets.get('mira')!.loadout ?? []).not.toContain(REVIVE_CARD);
       expect(mira.hitPoints.marked).toBe(0);
       return;
     }
@@ -9678,7 +9856,112 @@ describe('a check the room can answer', () => {
  * Arcana and Blade, read at last: two of their thirteen run.
  */
 describe('lifting somebody at somebody else, and keeping what you learned', () => {
+  /**
+   * Two cards. One takes hold of a creature and throws it at the next one along
+   * -- a second check nested inside the first one's success, rolled against
+   * whoever is nearest other than the one being thrown, which is why one test
+   * counts two rolls rather than one. The one holding them stays put.
+   *
+   * The other is the only card here that changes what somebody permanently is.
+   * Each benefit is gated on not already having it, so being asked twice and
+   * never for the same thing falls out of the gate; and each is applied at the
+   * `permanent` duration, so it outlives the scene where every other card's
+   * condition does not.
+   */
+  const LIFT_CARD_AT = 'fixture-card-70';
+  const KEPT_CARD = 'fixture-card-71';
+
+  /** One more of something, for good. Gated on not already having it. */
+  const KEEPS = (condition: string, label: string): Record<string, unknown> => ({
+    label,
+    available: { kind: 'not', of: { kind: 'hasCondition', condition, of: { kind: 'actor' } } },
+    effects: [{ kind: 'applyCondition', condition, duration: 'permanent', target: { kind: 'actor' } }],
+  });
+
+  const KEPT_CONDITIONS = [
+    { id: 'fixture-kept-stress', name: 'Hardened', text: 'One more Stress than you had.', modifiers: [{ stat: 'stress', bonus: 1 }] },
+    { id: 'fixture-kept-hit-points', name: 'Toughened', text: 'One more Hit Point than you had.', modifiers: [{ stat: 'hitPoints', bonus: 1 }] },
+    { id: 'fixture-kept-thresholds', name: 'Seasoned', text: 'Blows land two points further up your thresholds.', modifiers: [{ stat: 'thresholds', bonus: 2 }] },
+  ];
+
+  /** The throw: away from the one holding them, then at the next one along. */
+  const THROWN = [
+    { kind: 'log', text: 'They come off the ground with nothing holding them.', tone: 'combat' },
+    { kind: 'move', who: { kind: 'hit' }, how: 'away', of: { kind: 'actor' }, budget: 'far' },
+    {
+      kind: 'check',
+      check: {
+        trait: 'spellcast',
+        difficulty: 'target',
+        targets: { kind: 'adversaries', range: 'far', except: 'target', nearest: 1 },
+        prompt: 'Throw them at the next one along?',
+        always: [{ kind: 'damage', dice: 'd12+4', type: 'physical', using: 'proficiency', target: { kind: 'hit' } }],
+      },
+    },
+  ];
+
+  const LIFTING = [
+    {
+      id: 'fixture-lift-at',
+      name: 'Take Hold',
+      source: { kind: 'domainCard', card: LIFT_CARD_AT },
+      text: 'Take hold of something you can see and throw it at the next one along.',
+      target: { kind: 'adversary', range: 'far' },
+      inCombatOnly: true,
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 'target',
+            prompt: 'Take hold of them?',
+            onCriticalSuccess: THROWN,
+            onSuccessWithHope: THROWN,
+            onSuccessWithFear: THROWN,
+          },
+        },
+      ],
+    },
+    {
+      id: 'fixture-kept',
+      name: 'What You Learned',
+      source: { kind: 'domainCard', card: KEPT_CARD },
+      text: 'Keep two of these for good, and put the card away.',
+      target: { kind: 'self' },
+      action: false,
+      effects: [
+        { kind: 'log', text: 'Something about them settles, and stays settled.', tone: 'hope' },
+        {
+          kind: 'choice',
+          title: 'What You Learned',
+          body: 'What does the training leave you with?',
+          options: [
+            KEEPS('fixture-kept-stress', 'One more Stress'),
+            KEEPS('fixture-kept-hit-points', 'One more Hit Point'),
+            KEEPS('fixture-kept-thresholds', '+2 to your damage thresholds'),
+          ],
+        },
+        {
+          kind: 'choice',
+          title: 'What You Learned',
+          body: 'And the other one.',
+          options: [
+            KEEPS('fixture-kept-stress', 'One more Stress'),
+            KEEPS('fixture-kept-hit-points', 'One more Hit Point'),
+            KEEPS('fixture-kept-thresholds', '+2 to your damage thresholds'),
+          ],
+        },
+        { kind: 'vaultCard' },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const condition of KEPT_CONDITIONS) {
+      demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
+    }
+    for (const ability of LIFTING) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
     demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -9702,9 +9985,9 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
     return { demo, mira, husk };
   };
 
-  it('Telekinesis lifts the one it took hold of and throws them at the next along', () => {
+  it('the lift takes hold of one and throws it at the next along', () => {
     for (let seed = 1; seed < 80; seed++) {
-      const { demo, mira, husk } = casting('tk-' + seed, 'telekinesis');
+      const { demo, mira, husk } = casting('hold-' + seed, LIFT_CARD_AT);
       // A second husk standing up, so there is somebody to be thrown at.
       const spare = demo.state.entitiesOf('adversary').find((e) => !e.alive);
       if (spare === undefined) continue;
@@ -9716,7 +9999,7 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
       });
       const stood = husk.tile;
 
-      expect(useAbility(demo, 'mira', 'telekinesis', [husk.id]).status).toBe('waiting');
+      expect(useAbility(demo, 'mira', 'fixture-lift-at', [husk.id]).status).toBe('waiting');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (husk.tile === stood) continue;
 
@@ -9727,17 +10010,17 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
       expect(demo.rolls.length).toBeGreaterThanOrEqual(2);
       return;
     }
-    throw new Error('Telekinesis never took hold in eighty tries');
+    throw new Error('the lift never took hold in eighty tries');
   });
 
-  it('Vitality asks twice, never for the same thing, and is kept for good', () => {
-    const demo = standoff('vitality');
+  it('it asks twice, never for the same thing, and is kept for good', () => {
+    const demo = standoff('kept');
     demo.askDefender = false;
-    hold(demo, 'kara', ['vitality']);
+    hold(demo, 'kara', [KEPT_CARD]);
     const kara = demo.state.entity('kara')!;
     const stress = kara.stress.max;
 
-    expect(useAbility(demo, 'kara', 'vitality', []).status).toBe('waiting');
+    expect(useAbility(demo, 'kara', 'fixture-kept', []).status).toBe('waiting');
     if (demo.pending?.prompt.kind !== 'choice') throw new Error('expected the three benefits');
     expect(demo.pending.prompt.options).toHaveLength(3);
     answerPending(demo, { kind: 'choose', index: 0 });
@@ -9748,9 +10031,9 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
     answerPending(demo, { kind: 'choose', index: 2 });
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
 
-    expect(kara.conditions.has('vitality-stress')).toBe(true);
-    expect(kara.conditions.has('vitality-thresholds')).toBe(true);
-    expect(kara.conditions.has('vitality-hit-points')).toBe(false);
+    expect(kara.conditions.has('fixture-kept-stress')).toBe(true);
+    expect(kara.conditions.has('fixture-kept-thresholds')).toBe(true);
+    expect(kara.conditions.has('fixture-kept-hit-points')).toBe(false);
 
     // What it leaves is read live: a threshold as a blow arrives, a pool when
     // the pools are next squared up.
@@ -9761,9 +10044,9 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
 
     // "Permanently": it outlives the scene, where every other card's condition does not.
     demo.state.clearConditions('scene');
-    expect(kara.conditions.has('vitality-stress')).toBe(true);
+    expect(kara.conditions.has('fixture-kept-stress')).toBe(true);
     // And the card is in the vault, as it says.
-    expect(demo.sheets.get('kara')!.loadout ?? []).not.toContain('vitality');
+    expect(demo.sheets.get('kara')!.loadout ?? []).not.toContain(KEPT_CARD);
   });
 });
 
@@ -9989,7 +10272,62 @@ describe('a roll with a purpose', () => {
  * closest miss left.
  */
 describe('unmaking what you can reach', () => {
+  /**
+   * A card that reads one throw against every creature it can reach and unmakes
+   * the ones it beat, at a Stress apiece.
+   *
+   * Everything it does sits inside the check, which is why a roll that falls
+   * short takes nothing *and* costs nothing -- there is no price outside the arm
+   * to pay. `targetsHit` is what makes the Stress a count rather than a flat
+   * cost, and `slay` rather than damage is why the creatures are `dead` rather
+   * than merely down.
+   */
+  const WAVE_CARD = 'fixture-card-64';
+
+  const WAVE = [
+    {
+      kind: 'check',
+      trait: 'spellcast',
+      difficulty: 'target',
+      // The throw already made, read again against each of them.
+      roll: 'last',
+      targets: { kind: 'adversaries', range: 'far' },
+      always: [
+        { kind: 'markStress', amount: 'targetsHit', target: { kind: 'actor' } },
+        { kind: 'log', text: 'The air goes white, and what it touches is not there afterwards.', tone: 'fear' },
+        { kind: 'slay', target: { kind: 'hit' } },
+      ],
+    },
+  ];
+
+  const UNMAKING = [
+    {
+      id: 'fixture-wave',
+      name: 'Unmaking',
+      source: { kind: 'domainCard', card: WAVE_CARD },
+      text: 'Once between long rests, unmake everything your roll can reach, at a Stress apiece.',
+      uses: { count: 1, per: 'longRest' },
+      target: { kind: 'none' },
+      inCombatOnly: true,
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 18,
+            prompt: 'Unmake what you can reach?',
+            onCriticalSuccess: [{ kind: 'check', check: WAVE[0] }],
+            onSuccessWithHope: [{ kind: 'check', check: WAVE[0] }],
+            onSuccessWithFear: [{ kind: 'check', check: WAVE[0] }],
+          },
+        },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of UNMAKING) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
     demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -10011,11 +10349,11 @@ describe('unmaking what you can reach', () => {
     expect(demo.world.slay({ kind: 'entity', id: husk.id })).toEqual([]);
   });
 
-  it('Disintegration Wave unmakes what its roll reached, at a Stress apiece', () => {
+  it('the wave unmakes what its roll reached, at a Stress apiece', () => {
     for (let seed = 1; seed < 200; seed++) {
-      const demo = standoff('wave-' + seed);
+      const demo = standoff('unmake-' + seed);
       demo.askDefender = false;
-      hold(demo, 'mira', ['disintegration-wave']);
+      hold(demo, 'mira', [WAVE_CARD]);
       const mira = demo.state.entity('mira')!;
       mira.stress = { max: 12, marked: 0 };
       // Two husks standing, both within Far of the caster.
@@ -10033,7 +10371,7 @@ describe('unmaking what you can reach', () => {
       // out beforehand, and those were never slain by anything.
       const before = demo.state.entitiesOf('adversary').filter((e) => e.alive).map((e) => e.id);
 
-      expect(useAbility(demo, 'mira', 'disintegration-wave', []).status).toBe('waiting');
+      expect(useAbility(demo, 'mira', 'fixture-wave', []).status).toBe('waiting');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       const taken = before.filter((id) => demo.state.entity(id)?.alive !== true);
       if (taken.length === 0) continue;
@@ -10049,15 +10387,15 @@ describe('unmaking what you can reach', () => {
 
   it('and takes nothing at all on a roll that falls short', () => {
     for (let seed = 1; seed < 200; seed++) {
-      const demo = standoff('wave-short-' + seed);
+      const demo = standoff('unmake-short-' + seed);
       demo.askDefender = false;
-      hold(demo, 'mira', ['disintegration-wave']);
+      hold(demo, 'mira', [WAVE_CARD]);
       const mira = demo.state.entity('mira')!;
       mira.stress = { max: 12, marked: 0 };
       demo.party.select('mira');
       const standing = demo.state.entitiesOf('adversary').filter((e) => e.alive).length;
 
-      useAbility(demo, 'mira', 'disintegration-wave', []);
+      useAbility(demo, 'mira', 'fixture-wave', []);
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       const roll = demo.rolls[demo.rolls.length - 1]?.roll;
       if (roll === undefined || roll.success) continue;
