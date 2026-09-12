@@ -320,6 +320,28 @@ git mv src/engine/content/srd/daggersearch.ts src/engine/content/pack/import.ts
 
 In `src/engine/content/pack/import.ts`: `SrdCharacterContent` → `ContentPack`, `SrdFeature` → `PackFeature`, and `importCharacterContent` → `importContentPack`. Fix the relative import depth — the file moved sideways, not deeper, so `'../../rules/range'` and `'../types'` are unchanged, but re-check each one.
 
+**Derive the types from Task 1's schemas rather than keeping both.** The hand-written interfaces here and the schemas next door describe the same seven things, and two definitions of one shape drift apart the first time either changes. Replace each interface body with the inferred type and keep the names:
+
+```ts
+import type {
+  ancestryDefSchema, armorDefSchema, classDefSchema, communityDefSchema,
+  domainCardDefSchema, featureSchema, subclassDefSchema, weaponDefSchema,
+} from './schema';
+
+export type PackFeature = z.infer<typeof featureSchema>;
+export type WeaponDef = z.infer<typeof weaponDefSchema>;
+export type ArmorDef = z.infer<typeof armorDefSchema>;
+export type ClassDef = z.infer<typeof classDefSchema>;
+export type AncestryDef = z.infer<typeof ancestryDefSchema>;
+export type CommunityDef = z.infer<typeof communityDefSchema>;
+export type SubclassDef = z.infer<typeof subclassDefSchema>;
+export type DomainCardDef = z.infer<typeof domainCardDefSchema>;
+```
+
+`ContentPack` keeps its seven `ReadonlyMap<string, T>` members: the maps are what the engine reads at runtime, while the schemas describe the arrays a document stores.
+
+Expect the compiler to object where an importer builds a value that a schema defaults. A field with `.default([])` is **required on the way out**, so `features: []` must be set explicitly rather than left off. Fix those where `tsc` points, and do not weaken a schema to silence one.
+
 In `ClassDef`, rename `hopeFeature` to `signatureFeature`, and in `importClasses` map the source's key onto it:
 
 ```ts
