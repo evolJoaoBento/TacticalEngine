@@ -223,8 +223,18 @@ export const FIXTURE_CARDS = [
   card('fixture-card-120', 'Fixture Card 120'),
   card('fixture-other-1', 'Other Card I', 'other'),
   card('fixture-other-2', 'Other Card II', 'other'),
+  card('fixture-other-3', 'Other Card III', 'other'),
+  card('fixture-other-4', 'Other Card IV', 'other'),
+  card('fixture-other-5', 'Other Card V', 'other'),
+  card('fixture-other-6', 'Other Card VI', 'other'),
 ];
 
 /** The four a gate of "four or more of one domain" is satisfied by. */
 export const FIXTURE_DOMAIN_FOUR = ['fixture-card-1', 'fixture-card-2', 'fixture-card-3', 'fixture-card-4'];
+
+/**
+ * And four of the *other* domain, for a gate read against a second one — or for
+ * a held hand that must leave the first gate short.
+ */
+export const FIXTURE_OTHER_FOUR = ['fixture-other-1', 'fixture-other-2', 'fixture-other-3', 'fixture-other-4'];
 

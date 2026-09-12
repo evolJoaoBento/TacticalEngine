@@ -505,15 +505,17 @@ describe('the party is built from content, not written down', () => {
       const entity = demo.state.entity(id)!;
 
       expect(entity.hitPoints.max).toBe(klass.startingHitPoints);
-      expect(entity.armorSlots.max).toBe(armor.baseScore);
+      // The pool is built from the derived score, which a class feature and a
+      // held card both add to -- not from the armour's bare number.
+      expect(entity.armorSlots.max).toBe(character.armorScore);
       expect(entity.stress.max).toBe(6);
       expect(entity.hope!.value).toBe(2);
       // Level 1, so thresholds are the armor's plus one — plus one more for
-      // Kara, whose Stalwart card "Unwavering" adds it.
-      const unwavering = character.sheet.subclassId === 'stalwart' ? 1 : 0;
+      // Kara, whose subclass feature raises them.
+      const raised = character.sheet.subclassId === 'shieldbearer' ? 1 : 0;
       expect(character.thresholds).toEqual({
-        major: armor.baseThresholds.major + 1 + unwavering,
-        severe: armor.baseThresholds.severe + 1 + unwavering,
+        major: armor.baseThresholds.major + 1 + raised,
+        severe: armor.baseThresholds.severe + 1 + raised,
       });
     }
   });

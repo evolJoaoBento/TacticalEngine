@@ -30,7 +30,7 @@ const scene = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
 
 const karaToTwo: LevelUpPlan = {
   advancements: [{ kind: 'hitPoint' }, { kind: 'traits', traits: ['strength', 'agility'] }],
-  domainCard: 'forceful-push',
+  domainCard: 'rallying-cry',
   experience: { name: 'Vault-born', modifier: 2 },
 };
 

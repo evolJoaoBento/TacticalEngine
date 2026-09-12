@@ -69,20 +69,11 @@ export const DEMO_ITEMS: readonly ItemDef[] = [
     description: 'Dented on the rim where it did its job.',
     stackable: false,
   },
-  {
-    id: 'full-plate',
-    name: 'Full plate',
-    kind: 'armor',
-    contentId: 'full-plate-armor',
-    description: "Whoever wore this did not need to move much.",
-    stackable: false,
-  },
   // The party's own starting gear, so what a swap sets aside has somewhere to go.
-  { id: 'broadsword', name: 'Broadsword', kind: 'weapon', contentId: 'broadsword', stackable: false },
-  { id: 'shortbow', name: 'Shortbow', kind: 'weapon', contentId: 'shortbow', stackable: false },
-  { id: 'greatstaff', name: 'Greatstaff', kind: 'weapon', contentId: 'greatstaff', stackable: false },
-  { id: 'chainmail', name: 'Chainmail', kind: 'armor', contentId: 'chainmail-armor', stackable: false },
-  { id: 'gambeson', name: 'Gambeson', kind: 'armor', contentId: 'gambeson-armor', stackable: false },
+  { id: 'hunting-bow', name: 'Hunting bow', kind: 'weapon', contentId: 'hunting-bow', stackable: false },
+  { id: 'ember-staff', name: 'Ember staff', kind: 'weapon', contentId: 'ember-staff', stackable: false },
+  { id: 'ringmail', name: 'Ringmail', kind: 'armor', contentId: 'ringmail', stackable: false },
+  { id: 'padded-coat', name: 'Padded coat', kind: 'armor', contentId: 'padded-coat', stackable: false },
 ].map((item) => itemSchema.parse(item));
 
 export const CHEST_LOOT = 'vault-chest';
@@ -108,7 +99,7 @@ export const DEMO_LOOT_TABLES: readonly LootTable[] = [
       { item: 'healing-draught', quantity: 2, weight: 2 },
       { item: 'husk-carapace', quantity: 1, weight: 1 },
       { item: 'longsword', quantity: 1, weight: 2 },
-      { item: 'full-plate', quantity: 1, weight: 1 },
+      { item: 'round-shield', quantity: 1, weight: 1 },
     ],
   },
 ].map((table) => lootTableSchema.parse(table));

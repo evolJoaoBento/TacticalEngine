@@ -4,7 +4,7 @@ import { deriveCharacter } from '../engine/character/sheet';
 import { NO_TILE } from '../engine/grid/grid';
 import { rest, useAbility } from './demo-abilities';
 import {
-  DEMO_CHARACTERS,
+  characterContentFor,
   answerPending,
   attackWithSelected,
   buildDemoScene,
@@ -36,7 +36,7 @@ function holding(seed: string, cards: string[]): DemoScene {
   demo.askDefender = false;
   const sheet = { ...demo.sheets.get('mira')!, domainCards: cards, loadout: cards.slice(0, 5) };
   demo.sheets.set('mira', sheet);
-  demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+  demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
   refreshWorld(demo);
   demo.state.entity('mira')!.hope = { max: 6, value: 6 };
   demo.party.select('mira');
@@ -180,7 +180,7 @@ function karaHolding(seed: string, cards: string[]): { demo: DemoScene; kara: En
   demo.askDefender = true;
   const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
   demo.sheets.set('kara', sheet);
-  demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+  demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
   refreshWorld(demo);
   const kara = demo.state.entity('kara')!;
   kara.hope = { max: 6, value: 6 };
@@ -255,7 +255,7 @@ describe('a weapon swing', () => {
       const { demo, husk } = karaHolding('swing-' + seed, []);
       const sheet = { ...demo.sheets.get('finn')!, domainCards: sage, loadout: sage };
       demo.sheets.set('finn', sheet);
-      demo.characters.set('finn', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+      demo.characters.set('finn', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
       refreshWorld(demo);
       const finn = demo.state.entity('finn')!;
       const agility = demo.characters.get('finn')!.sheet.traits.agility;

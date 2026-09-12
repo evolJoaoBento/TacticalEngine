@@ -22,8 +22,10 @@ import {
 const cards = [...DEMO_CHARACTERS.domainCards.values()];
 
 describe('generated domain card art', () => {
-  it('draws every card in the SRD library, with no files to load', () => {
-    expect(cards.length).toBeGreaterThan(180);
+  it('draws every card the pack ships, with no files to load', () => {
+    // The pack rather than a library: what matters is that every card it
+    // carries draws a full face from data alone, not how many there are.
+    expect(cards.length).toBeGreaterThan(10);
     for (const card of cards) {
       const sigil = sigilOf(card);
       expect(sigil.shapes.length, card.name).toBeGreaterThan(3);
@@ -63,16 +65,16 @@ describe('generated domain card art', () => {
   });
 
   it('gives different cards different emblems, including within one domain', () => {
-    const blade = cards.filter((c) => c.domain.toLowerCase() === 'blade').slice(0, 6);
-    expect(blade.length).toBeGreaterThan(1);
-    const drawings = blade.map((c) => JSON.stringify(sigilOf(c).shapes));
-    expect(new Set(drawings).size, 'two Blade cards drew the same emblem').toBe(blade.length);
+    const oneDomain = cards.filter((c) => c.domain.toLowerCase() === 'bulwark').slice(0, 6);
+    expect(oneDomain.length).toBeGreaterThan(1);
+    const drawings = oneDomain.map((c) => JSON.stringify(sigilOf(c).shapes));
+    expect(new Set(drawings).size, 'two cards of one domain drew the same emblem').toBe(oneDomain.length);
   });
 
   it('seeds from the id alone, so the domain only chooses the palette', () => {
-    const first = sigilOf({ id: 'a-soldiers-bond', domain: 'Blade' });
-    const recoloured = sigilOf({ id: 'a-soldiers-bond', domain: 'Valor' });
-    // Blade and Valor share the 'spikes' motif, so only the colour may differ.
+    const first = sigilOf({ id: 'power-slash', domain: 'Bulwark' });
+    const recoloured = sigilOf({ id: 'power-slash', domain: 'Ember' });
+    // The pack's two domains share a motif, so only the colour may differ.
     expect(recoloured.shapes).toEqual(first.shapes);
     expect(recoloured.color).not.toBe(first.color);
   });

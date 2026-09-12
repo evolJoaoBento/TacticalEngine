@@ -17,7 +17,7 @@ import { loadGameText, saveGame } from './save';
 
 const scene = (): DemoScene => buildDemoScene(demoMap(), 'demo');
 
-const tamsin = () => characterSheetSchema.parse(blankSheet('tamsin', 'rogue', { name: 'Tamsin' }));
+const tamsin = () => characterSheetSchema.parse(blankSheet('tamsin', 'cutpurse', { name: 'Tamsin' }));
 
 const adjacent = (demo: DemoScene, a: number, b: number): boolean => demo.grid.chebyshevDistance(a, b) <= 1;
 

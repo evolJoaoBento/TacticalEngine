@@ -26,6 +26,10 @@ import { createRng, type Rng } from '../../engine/core/rng';
 
 /** The nine domains, and the colour each one wears. */
 export const DOMAIN_COLORS: Readonly<Record<string, string>> = {
+  // The starter pack's own domains, first because they are the ones that ship.
+  bulwark: '#6b7f8c',
+  shadow: '#4a4458',
+  ember: '#b2552f',
   arcana: '#695cac',
   blade: '#973f45',
   bone: '#a99a78',
@@ -70,6 +74,11 @@ export interface Sigil {
 type Motif = 'rings' | 'spikes' | 'petals' | 'arcs';
 
 const MOTIFS: Readonly<Record<string, Motif>> = {
+  // Both of the pack's domains take the same motif, so the palette is the only
+  // thing a domain changes between them.
+  bulwark: 'spikes',
+  ember: 'spikes',
+  shadow: 'arcs',
   arcana: 'rings',
   codex: 'rings',
   blade: 'spikes',

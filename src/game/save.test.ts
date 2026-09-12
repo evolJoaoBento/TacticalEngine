@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import {
-  DEMO_CHARACTERS,
+  characterContentFor,
   answerPending,
   buildDemoScene,
   startEncounter,
@@ -111,7 +111,7 @@ describe('saving a game', () => {
  */
 const KARA_TO_TWO: LevelUpPlan = {
   advancements: [{ kind: 'hitPoint' }, { kind: 'traits', traits: ['strength', 'agility'] }],
-  domainCard: 'forceful-push',
+  domainCard: 'rallying-cry',
   experience: { name: 'Vault-born', modifier: 2 },
 };
 
@@ -122,7 +122,7 @@ describe('a sheet the document has to keep', () => {
       if (demo.sheets.has(sheet.id)) demo.sheets.set(sheet.id, sheet);
     }
     for (const [id, sheet] of demo.sheets) {
-      demo.characters.set(id, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+      demo.characters.set(id, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     }
   };
 

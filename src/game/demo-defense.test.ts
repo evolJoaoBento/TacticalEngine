@@ -3539,6 +3539,12 @@ describe('a swing lifted, and a swing that names its own number', () => {
       // one this card costs and make it look free.
       const critical = demo.rolls[demo.rolls.length - 1]?.roll.critical === true;
       answerPending(demo, { kind: 'choose', index: play ? 1 : 0 });
+      // The defender is asked in this block, so choosing the card leaves another
+      // prompt waiting and the cost is not settled yet. Read the Stress once the
+      // queue is quiet, or it is read a line too early.
+      for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+        answerPending(demo, { kind: 'choose', index: 0 });
+      }
       return { marked: husk.hitPoints.marked, lift, stress: demo.state.entity('kara')!.stress.marked, critical };
     };
 

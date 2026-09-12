@@ -117,6 +117,9 @@ const EXPECTED_REFUSALS: ReadonlyMap<string, string> = new Map([
   ['book-of-sitil-echo-strikes', 'no attack roll to lay against a second target until a swing has been made'],
   ['strategic-approach', 'no tokens on the card until a long rest places them'],
   ['invisibility-spends', 'nothing to spend until the spell has been cast on somebody'],
+  ['green-ooze-split', 'splits into a variant the adversary set does not index'],
+  ['red-ooze-split', 'splits into a variant the adversary set does not index'],
+  ['huge-green-ooze-split', 'splits into a variant the adversary set does not index'],
 ]);
 
 const husk = (id: string, difficulty: number): AdversaryDef => ({

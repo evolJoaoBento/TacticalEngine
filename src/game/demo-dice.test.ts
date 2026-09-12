@@ -43,7 +43,7 @@ describe('the dice a player watches land', () => {
     expect(demo.rolls).toHaveLength(1);
     const shown = demo.rolls[0]!;
     expect(shown.who).toBe('Kara');
-    expect(shown.what).toBe('the Broadsword');
+    expect(shown.what).toBe('the Longsword');
     // The faces are the roll's own: two d12s, and the total they add up to.
     expect(shown.roll.hope).toBeGreaterThanOrEqual(1);
     expect(shown.roll.hope).toBeLessThanOrEqual(12);

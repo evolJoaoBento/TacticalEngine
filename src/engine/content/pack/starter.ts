@@ -37,7 +37,7 @@ const STARTER: ContentPackDoc = {
     {
       id: 'cutpurse',
       name: 'Cutpurse',
-      domains: ['shadow-step'],
+      domains: ['shadow'],
       startingEvasion: 12,
       startingHitPoints: 5,
       signatureFeature: {
@@ -85,7 +85,7 @@ const STARTER: ContentPackDoc = {
       id: 'lampsnuffer',
       name: 'Lampsnuffer',
       classId: 'cutpurse',
-      domains: ['shadow-step'],
+      domains: ['shadow'],
       spellcastTrait: 'finesse',
       foundation: [
         { name: 'Douse', text: 'Put out an unattended light within Close range as a free action.' },
@@ -141,6 +141,17 @@ const STARTER: ContentPackDoc = {
       features: [],
     },
     {
+      id: 'round-shield',
+      name: 'Round Shield',
+      tier: 1,
+      slot: 'secondary',
+      trait: 'strength',
+      range: 'melee',
+      damage: { count: 1, sides: 4, modifier: 0, types: ['physical'] },
+      burden: 'oneHanded',
+      features: [],
+    },
+    {
       id: 'hunting-bow',
       name: 'Hunting Bow',
       tier: 1,
@@ -190,11 +201,11 @@ const STARTER: ContentPackDoc = {
     card('rallying-cry', 'Rallying Cry', 'bulwark', 2, 1, 'Call out: each ally who can hear you clears a Stress.'),
     card('unbroken', 'Unbroken', 'bulwark', 2, 2, 'The first Severe blow you take each fight lands as Major instead.'),
 
-    card('quick-hands', 'Quick Hands', 'shadow-step', 1, 0, 'Your hands are faster than the eye: gain a bonus to action rolls made to palm or plant something.'),
-    card('smoke-step', 'Smoke Step', 'shadow-step', 1, 1, 'Step from one shadow within Close range to another.'),
-    card('backstab', 'Backstab', 'shadow-step', 1, 1, 'Against a target unaware of you, your damage roll is higher.'),
-    card('vanish', 'Vanish', 'shadow-step', 2, 2, 'Break line of sight and you are gone until you act again.'),
-    card('cut-purse-strings', 'Cut Purse Strings', 'shadow-step', 2, 1, 'Take one carried item from a target within Melee range.'),
+    card('quick-hands', 'Quick Hands', 'shadow', 1, 0, 'Your hands are faster than the eye: gain a bonus to action rolls made to palm or plant something.'),
+    card('smoke-step', 'Smoke Step', 'shadow', 1, 1, 'Step from one shadow within Close range to another.'),
+    card('backstab', 'Backstab', 'shadow', 1, 1, 'Against a target unaware of you, your damage roll is higher.'),
+    card('vanish', 'Vanish', 'shadow', 2, 2, 'Break line of sight and you are gone until you act again.'),
+    card('cut-purse-strings', 'Cut Purse Strings', 'shadow', 2, 1, 'Take one carried item from a target within Melee range.'),
 
     card('arcane-ward', 'Arcane Ward', 'ember', 1, 1, 'A shell of warm air holds: raise your Armor Score until your next rest.'),
     card('healing-word', 'Healing Word', 'ember', 1, 1, 'Speak an ally steady: they clear a Stress.'),

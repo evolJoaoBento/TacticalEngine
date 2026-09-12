@@ -1150,9 +1150,13 @@ export function syncAuthoredEncounters(demo: DemoScene): void {
       for (const placement of encounter.adversaries) {
         if (!placed.has(placement.id) || known.has(placement.id)) continue;
         if (demo.state.entity(placement.id) !== undefined) continue;
-        // No substitution here either: the load path throws for a document that
-        // names a creature nobody can look up, and so does this one.
-        const definition = DEMO_ADVERSARIES.get(placement.adversary);
+        // The project is asked before the pack, the way the load path asks it: a
+        // room may carry the creature it places rather than borrow one. No
+        // substitution either way -- a document naming a creature nobody can look
+        // up is broken, and saying so beats quietly fielding something else.
+        const definition =
+          demo.project.adversaries.find((def) => def.id === placement.adversary) ??
+          DEMO_ADVERSARIES.get(placement.adversary);
         if (definition === undefined) {
           throw new Error(`"${demo.scene.id}" places adversary "${placement.adversary}", which has no stat block`);
         }
