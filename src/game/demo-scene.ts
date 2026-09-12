@@ -816,7 +816,10 @@ export function setSheet(demo: DemoScene, sheet: CharacterSheet): void {
   demo.sheets.set(sheet.id, sheet);
   const at = demo.project.party.findIndex((s) => s.id === sheet.id);
   if (at >= 0) demo.project.party[at] = characterSheetSchema.parse(sheet);
-  demo.characters.set(sheet.id, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+  demo.characters.set(
+    sheet.id,
+    deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character,
+  );
 }
 
 /**
@@ -843,7 +846,7 @@ export function syncRoster(demo: DemoScene): { joined: string[]; left: string[] 
   for (const sheet of demo.project.party) {
     if (demo.state.entity(sheet.id) !== undefined) continue;
     demo.sheets.set(sheet.id, sheet);
-    const character = deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character;
+    const character = deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character;
     demo.characters.set(sheet.id, character);
     const pools = startingPools(character);
     demo.state.addEntity({
@@ -960,6 +963,36 @@ export function adversaryDefsFor(
   const merged = new Map(DEMO_ADVERSARIES);
   for (const def of own) merged.set(def.id, def);
   return merged;
+}
+
+/** The seven lists of character content a project may carry of its own. */
+export type ProjectContent = Pick<
+  ProjectDoc,
+  'classes' | 'ancestries' | 'communities' | 'subclasses' | 'domainCards' | 'weapons' | 'armors'
+>;
+
+/**
+ * The character content a project is played with.
+ *
+ * The pack the app ships is the base, and anything the project carries is laid
+ * over it id for id: a campaign can bring its own class, or a test the single
+ * card it is about, without either borrowing from a shipped deck.
+ *
+ * A project that carries nothing is played with the pack itself, handed back
+ * unwrapped — this is read on every sheet write, so the ordinary case does no
+ * work at all.
+ */
+export function characterContentFor(project?: ProjectContent): ContentPack {
+  if (project === undefined) return DEMO_CHARACTERS;
+  const carries =
+    project.classes.length > 0 ||
+    project.ancestries.length > 0 ||
+    project.communities.length > 0 ||
+    project.subclasses.length > 0 ||
+    project.domainCards.length > 0 ||
+    project.weapons.length > 0 ||
+    project.armors.length > 0;
+  return carries ? mergePack(DEMO_CHARACTERS, project) : DEMO_CHARACTERS;
 }
 
 /** The stat block an entity answers to. */
@@ -1272,7 +1305,7 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
   // them is written down twice.
   const characters = new Map<string, DerivedCharacter>();
   for (const sheet of sheets.values()) {
-    characters.set(sheet.id, deriveCharacter(sheet, DEMO_CHARACTERS, project.abilities).character);
+    characters.set(sheet.id, deriveCharacter(sheet, characterContentFor(project), project.abilities).character);
   }
 
   const opening = project.scenes.find((scene) => scene.id === project.startScene);
@@ -5477,7 +5510,7 @@ export function applyLevelUp(demo: DemoScene, characterId: string, plan: LevelUp
     return { ok: false, issues: [{ field: 'level', message: 'not in the middle of a fight or a conversation' }] };
   }
 
-  const result = levelUp(sheet, DEMO_CHARACTERS, plan);
+  const result = levelUp(sheet, characterContentFor(demo.project), plan);
   if (result.issues.length > 0) return { ok: false, issues: result.issues };
 
   setSheet(demo, result.sheet);

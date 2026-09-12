@@ -30,11 +30,48 @@ import {
   previewWalk,
   reachableTiles,
   startEncounter,
+  setSheet,
   arrive,
   type DemoScene,
 } from '../../src/game/demo-scene';
 
 const build = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
+
+/**
+ * A project is played with the content it carries.
+ *
+ * The pack the app ships is a starting point, not the whole world: a project
+ * may bring its own cards, classes and gear, and what it brings wins where the
+ * two name the same id. This is what lets a scenario travel — and what lets a
+ * test carry the one card it is about instead of borrowing a shipped one.
+ */
+describe('a project plays the content it carries', () => {
+  const FIXTURE_CARD = {
+    id: 'project-only-card',
+    name: 'Project Only Card',
+    domain: 'bulwark',
+    type: 'ability' as const,
+    level: 1,
+    recallCost: 0,
+    text: 'A card no pack has.',
+    features: [],
+  };
+
+  it('resolves a card no shipped pack has', () => {
+    const demo = build();
+    demo.project.domainCards.push(FIXTURE_CARD);
+    setSheet(demo, { ...demo.sheets.get('kara')!, domainCards: [FIXTURE_CARD.id] });
+
+    expect(demo.characters.get('kara')!.cards.map((card) => card.id)).toEqual(['project-only-card']);
+  });
+
+  it('still plays the shipped pack when the project carries nothing', () => {
+    const demo = build();
+    setSheet(demo, { ...demo.sheets.get('kara')!, domainCards: ['power-slash'] });
+
+    expect(demo.characters.get('kara')!.cards.map((card) => card.id)).toEqual(['power-slash']);
+  });
+});
 
 /** The vault door starts shut; these tests are about what is behind it. */
 function openTheDoor(demo: DemoScene): void {

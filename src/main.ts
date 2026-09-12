@@ -117,6 +117,7 @@ import {
   DEMO_MODELS,
   DEMO_ADVERSARIES,
   DEMO_CHARACTERS,
+  characterContentFor,
   buildProjectScene,
   setSheet,
   type DemoScene,
@@ -590,7 +591,10 @@ function rederiveParty(): void {
     if (demo.sheets.has(sheet.id)) demo.sheets.set(sheet.id, sheet);
   }
   for (const [id, sheet] of demo.sheets) {
-    demo.characters.set(id, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(
+      id,
+      deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character,
+    );
   }
   // The world first: `syncPools` reads the modifiers a card grants through it.
   refreshWorld(demo);
@@ -662,7 +666,7 @@ function renderPanel(): void {
       knownAdversaries: new Set(DEMO_ADVERSARIES.keys()),
       nativeHooks: [...SRD_HOOKS.keys()],
       libraryAbilities: SRD_ABILITIES,
-      characterContent: DEMO_CHARACTERS,
+      characterContent: characterContentFor(demo.project),
       playingScene: demo.scene.id,
       onPlay: () => setMode('play'),
       onPlayHere: () => playAt(editor.sceneId, null),
@@ -1483,7 +1487,7 @@ function renderPlayPanel(): void {
       : null, levelling !== null && demo.sheets.has(levelling) && awaitingLevel(demo).includes(levelling)
       ? h(LevelUpPanel, {
           sheet: demo.sheets.get(levelling)!,
-          content: DEMO_CHARACTERS,
+          content: characterContentFor(demo.project),
           issues: levelIssues,
           onApply: (plan: LevelUpPlan) => void takeLevel(levelling!, plan),
           onClose: () => {

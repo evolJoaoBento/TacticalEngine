@@ -427,6 +427,15 @@ export function importDomainCards(raw: readonly unknown[]): ImportResult<DomainC
 }
 
 /**
+ * What one of a pack's lists holds: `PackDef<'weapons'>` is a `WeaponDef`.
+ *
+ * Naming it keeps `mergePack` honest — a list of armours handed in under
+ * `weapons` is a type error rather than a map with the wrong thing in it.
+ */
+type PackDef<K extends keyof ContentPack> =
+  ContentPack[K] extends ReadonlyMap<string, infer T> ? T : never;
+
+/**
  * A project's own content laid over a base pack.
  *
  * Content a document carries wins, id for id, so a campaign — or a test — can
@@ -436,15 +445,15 @@ export function importDomainCards(raw: readonly unknown[]): ImportResult<DomainC
  */
 export function mergePack(
   base: ContentPack,
-  own: Partial<Record<keyof ContentPack, readonly { id: string }[]>>,
+  own: { readonly [K in keyof ContentPack]?: readonly PackDef<K>[] },
 ): ContentPack {
   const lay = <T extends { id: string }>(
     into: ReadonlyMap<string, T>,
-    over: readonly { id: string }[] | undefined,
+    over: readonly T[] | undefined,
   ): ReadonlyMap<string, T> => {
     if (over === undefined || over.length === 0) return into;
     const merged = new Map(into);
-    for (const def of over) merged.set(def.id, def as T);
+    for (const def of over) merged.set(def.id, def);
     return merged;
   };
   return {

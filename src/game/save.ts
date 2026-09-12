@@ -18,7 +18,7 @@
 
 import { z } from 'zod';
 
-import { DEMO_CHARACTERS, enterSavedScene, inCombat, setSheet, type DemoScene } from './demo-scene';
+import { characterContentFor, enterSavedScene, inCombat, setSheet, type DemoScene } from './demo-scene';
 import { deriveCharacter } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { logToneSchema } from '../engine/script/schema';
@@ -142,7 +142,7 @@ export function loadGame(demo: DemoScene, save: SaveGame): LoadResult {
 
   restoreScenario(demo.scenario, save.scenario);
   for (const sheet of save.sheets) {
-    const derived = deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities);
+    const derived = deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities);
     if (derived.issues.length > 0) {
       return { ok: false, reason: `${sheet.name}'s sheet: ${derived.issues[0]!.message}` };
     }
