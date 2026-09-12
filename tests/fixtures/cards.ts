@@ -40,6 +40,36 @@ export const HELD_CARD = 'fixture-card-14';
 export const ROOM_HELD_CARD = 'fixture-card-15';
 export const BLAST_CARD = 'fixture-card-16';
 export const GLYPH_CARD = 'fixture-card-17';
+/** Cards that answer a blow already in the air. */
+export const CHARGE_CARD = 'fixture-card-18';
+export const FORCED_CARD = 'fixture-card-19';
+export const BREAK_CARD = 'fixture-card-20';
+export const RAGE_CARD = 'fixture-card-21';
+export const FLOOR_CARD = 'fixture-card-22';
+export const GLORY_CARD = 'fixture-card-23';
+export const EDGE_CARD = 'fixture-card-24';
+export const ROOM_LIFT_CARD = 'fixture-card-25';
+export const ROUSE_CARD = 'fixture-card-26';
+export const TOLL_CARD = 'fixture-card-27';
+
+/** Their abilities and stores, by the id a test names them with. */
+export const CHARGE_TOKENS = 'fixture-charge-store';
+export const CHARGE_ABILITY = 'fixture-charge';
+export const FORCED_ABILITY = 'fixture-forced';
+export const BREAK_ABILITY = 'fixture-break';
+export const BREAK_PAID = 'fixture-break-paid';
+export const RAGE_ABILITY = 'fixture-rage';
+export const FLOOR_ABILITY = 'fixture-floor';
+export const GLORY_ABILITY = 'fixture-glory';
+export const EDGE_ABILITY = 'fixture-edge';
+export const ROOM_LIFT_ABILITY = 'fixture-room-lift';
+export const ROUSE_ABILITY = 'fixture-rouse';
+export const TOLL_ABILITY = 'fixture-toll';
+export const TOLL_PAID = 'fixture-toll-paid';
+
+/** Two more bare markers: no definition, because they carry no numbers. */
+export const BROKEN = 'fixture-broken';
+export const TOLLED = 'fixture-tolled';
 
 /** Their abilities, by the id a test names them with. */
 export const TETHER_ABILITY = 'fixture-tether';
@@ -650,6 +680,403 @@ export const A_GLYPH_THAT_OPENS_THEM_UP = [
             { kind: 'applyCondition', condition: GLYPHED, duration: 'temporary', target: { kind: 'hit' } },
           ],
         },
+      },
+    ],
+  },
+];
+
+/**
+ * A charge that banks wounds and spends them as dice.
+ *
+ * Two abilities: one banks what the holder took, the other spends it. The spend is
+ * `auto: false`, which is what makes the blow WAIT -- a test reads the swing
+ * stopping with nothing marked and the question up, and another reads the same
+ * swing landing when the card is let pass.
+ */
+export const A_CHARGE_THAT_BANKS_A_WOUND = [
+  {
+    id: 'fixture-charge-store-ability',
+    name: 'Charge',
+    source: { kind: 'domainCard', card: CHARGE_CARD },
+    text: 'What wounds you goes into the card instead of being wasted.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The wound goes into the card.', tone: 'hope' },
+      { kind: 'addToken', ability: CHARGE_TOKENS, amount: 'hitPointsTaken' },
+    ],
+  },
+  {
+    id: CHARGE_ABILITY,
+    name: 'Charge',
+    source: { kind: 'domainCard', card: CHARGE_CARD },
+    text: 'Put as much of what the card is holding behind the blow as you like.',
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    // Spending is a decision, so the blow waits to be answered.
+    auto: false,
+    action: false,
+    available: { kind: 'tokens', ability: CHARGE_TOKENS, op: '>=', value: 1 },
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'howMany',
+        most: { tokens: CHARGE_TOKENS },
+        title: 'Charge',
+        body: 'How much of it goes into the blow?',
+        each: [
+          { kind: 'spendToken', ability: CHARGE_TOKENS, amount: 'spent' },
+          { kind: 'boostDamage', dice: '{n}d6' },
+        ],
+      },
+    ],
+  },
+];
+
+/**
+ * A blow forced from the caster's own wounds, whatever the dice said.
+ *
+ * The gate earns its place twice over: nothing marked is nothing forced, so the
+ * four Stress would be wasted -- and a test reads the card not being OFFERED to an
+ * unmarked caster, which is a different thing from being refused.
+ */
+export const A_BLOW_FORCED_FROM_ITS_OWN_WOUNDS = [
+  {
+    id: FORCED_ABILITY,
+    name: 'Answer in Kind',
+    source: { kind: 'domainCard', card: FORCED_CARD },
+    text: 'Everything done to you can be handed back exactly, if you will pay for it.',
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    auto: false,
+    cost: { stress: 4 },
+    available: { kind: 'pool', pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked', op: '>=', value: 1 },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Everything it has done comes back the other way.', tone: 'hope' },
+      { kind: 'forceHitPoints', amount: { pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked' } },
+    ],
+  },
+];
+
+/**
+ * A crack opened on one blow and gone through with the next.
+ *
+ * One card, two moments. The first costs a Stress and leaves a marker; the second
+ * asks nothing and spends nothing, because the crack was paid for already -- and it
+ * clears the marker, so the next blow after that finds nothing.
+ */
+export const A_CRACK_PAID_FOR_IN_ADVANCE = [
+  {
+    id: BREAK_ABILITY,
+    name: 'Breaking Blow',
+    source: { kind: 'domainCard', card: BREAK_CARD },
+    text: 'Open something up now and come back through it.',
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    auto: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Something in their guard gives way.', tone: 'hope' },
+      { kind: 'applyCondition', condition: BROKEN, duration: 'scene', target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: BREAK_PAID,
+    name: 'Breaking Blow',
+    source: { kind: 'domainCard', card: BREAK_CARD },
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    available: { kind: 'hasCondition', condition: BROKEN, of: { kind: 'target' } },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'boostDamage', dice: '2d12' },
+      { kind: 'clearCondition', condition: BROKEN, target: { kind: 'target' } },
+    ],
+  },
+];
+
+/** A bonus read off the sheet rather than printed: twice a trait. */
+export const A_BONUS_OFF_THE_SHEET = [
+  {
+    id: RAGE_ABILITY,
+    name: 'Rage Up',
+    source: { kind: 'domainCard', card: RAGE_CARD },
+    text: 'Put your shoulder into it, and pay for it afterwards.',
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    auto: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Something gives, and it is not them.', tone: 'hope' },
+      { kind: 'boostDamage', amount: { trait: 'strength', times: 2 } },
+    ],
+  },
+];
+
+/**
+ * A floor under every blow, and the one card here that is not a decision.
+ *
+ * No cost and no `auto: false`, so nothing is asked: a test reads the blow being
+ * lifted to the band with `pending` still null, which is how the absence of a
+ * question is pinned.
+ */
+export const A_FLOOR_UNDER_EVERY_BLOW = [
+  {
+    id: FLOOR_ABILITY,
+    name: 'Onslaught',
+    source: { kind: 'domainCard', card: FLOOR_CARD },
+    text: 'Nothing you land comes in under its weight.',
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    target: { kind: 'none' },
+    effects: [{ kind: 'forceSeverity', severity: 'major', least: true }],
+  },
+];
+
+/** A critical worth a Hope or a Stress, asked once. */
+export const A_CRITICAL_WORTH_SOMETHING = [
+  {
+    id: GLORY_ABILITY,
+    name: 'Gore and Glory',
+    source: { kind: 'domainCard', card: GLORY_CARD },
+    text: 'A blow that tells is worth something beyond the wound.',
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    available: { kind: 'rolled', is: 'critical' },
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'choice',
+        title: 'Gore and Glory',
+        body: 'The blow tells.',
+        options: [
+          { label: 'Gain a Hope', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
+          { label: 'Clear a Stress', effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }] },
+        ],
+      },
+    ],
+  },
+];
+
+/**
+ * An edge asked three times, each for a Hope.
+ *
+ * Three separate questions in the order they are written, each gated on there still
+ * being a Hope to spend, and each offering a plain "No". That is what lets a test
+ * answer yes, no, yes and find exactly two Hope gone.
+ */
+export const AN_EDGE_ASKED_THREE_TIMES = [
+  {
+    id: EDGE_ABILITY,
+    name: 'Champion\'s Edge',
+    source: { kind: 'domainCard', card: EDGE_CARD },
+    text: 'A blow that tells buys as much as you are willing to spend on it.',
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    auto: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'rolled', is: 'critical' },
+        { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'branch',
+        when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+        then: [
+          {
+            kind: 'choice',
+            title: 'Edge',
+            body: 'Spend a Hope to clear a Hit Point?',
+            options: [
+              {
+                label: 'Clear a Hit Point (1 Hope)',
+                effects: [
+                  { kind: 'spendHope', amount: 1 },
+                  { kind: 'heal', amount: 1, target: { kind: 'actor' } },
+                ],
+              },
+              { label: 'No' },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'branch',
+        when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+        then: [
+          {
+            kind: 'choice',
+            title: 'Edge',
+            body: 'Spend a Hope to clear an Armor Slot?',
+            options: [
+              {
+                label: 'Clear an Armor Slot (1 Hope)',
+                effects: [
+                  { kind: 'spendHope', amount: 1 },
+                  { kind: 'clearArmor', amount: 1, target: { kind: 'actor' } },
+                ],
+              },
+              { label: 'No' },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'branch',
+        when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+        then: [
+          {
+            kind: 'choice',
+            title: 'Edge',
+            body: 'Spend a Hope to make them mark another Hit Point?',
+            options: [
+              {
+                label: 'They mark a Hit Point (1 Hope)',
+                effects: [
+                  { kind: 'spendHope', amount: 1 },
+                  { kind: 'damage', amount: 1, direct: true, target: { kind: 'target' } },
+                ],
+              },
+              { label: 'No' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+];
+
+/** What the sight of a critical is worth to everyone standing nearby. */
+export const A_LIFT_FOR_EVERYONE_NEARBY = [
+  {
+    id: ROOM_LIFT_ABILITY,
+    name: 'Inspiration',
+    source: { kind: 'domainCard', card: ROOM_LIFT_CARD },
+    text: 'What they just saw is worth something to all of them.',
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    uses: { count: 1, per: 'rest' },
+    available: { kind: 'rolled', is: 'critical' },
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'choice',
+        title: 'Inspiration',
+        body: 'What the sight of it is worth.',
+        options: [
+          {
+            label: 'Everyone nearby clears a Stress',
+            effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'allies', range: 'veryClose' } }],
+          },
+          {
+            label: 'Everyone nearby gains a Hope',
+            effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'allies', range: 'veryClose' } }],
+          },
+        ],
+      },
+    ],
+  },
+];
+
+/** The same moment, counting its holder in -- which is the difference. */
+export const A_ROUSING_BLOW = [
+  {
+    id: ROUSE_ABILITY,
+    name: 'Rousing Strike',
+    source: { kind: 'domainCard', card: ROUSE_CARD },
+    text: 'A blow the whole room takes something from, yourself included.',
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    uses: { count: 1, per: 'rest' },
+    available: { kind: 'rolled', is: 'critical' },
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'choice',
+        title: 'Rousing Strike',
+        body: 'What the room takes from it.',
+        options: [
+          {
+            label: 'Everyone clears a Hit Point',
+            effects: [{ kind: 'heal', amount: 1, target: { kind: 'allies', range: 'far', includeSelf: true } }],
+          },
+          {
+            label: 'Everyone clears 2 Stress',
+            effects: [{ kind: 'clearStress', amount: 2, target: { kind: 'allies', range: 'far', includeSelf: true } }],
+          },
+        ],
+      },
+    ],
+  },
+];
+
+/**
+ * A toll set on one creature and called in later.
+ *
+ * Setting it moves it: the mark comes off everybody else and the store is emptied
+ * first, so the card holds one creature at a time. Calling it in is gated on BOTH
+ * the tokens and the mark, which is what a test reads by adding the mark and taking
+ * it away again.
+ */
+export const A_TOLL_CALLED_IN = [
+  {
+    id: TOLL_ABILITY,
+    name: 'Toll',
+    source: { kind: 'domainCard', card: TOLL_CARD },
+    text: 'Name what something owes you, and collect it when you choose.',
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      { kind: 'clearCondition', condition: TOLLED, target: { kind: 'adversaries', range: 'veryFar' } },
+      { kind: 'spendToken', ability: TOLL_ABILITY, all: true },
+      { kind: 'log', text: 'The toll is set, and it will be paid.', tone: 'hope' },
+      { kind: 'applyCondition', condition: TOLLED, duration: 'scene', target: { kind: 'target' } },
+      { kind: 'addToken', ability: TOLL_ABILITY, amount: 1 },
+    ],
+  },
+  {
+    id: TOLL_PAID,
+    name: 'Toll',
+    source: { kind: 'domainCard', card: TOLL_CARD },
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    auto: false,
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'tokens', ability: TOLL_ABILITY, op: '>=', value: 1 },
+        { kind: 'hasCondition', condition: TOLLED, of: { kind: 'target' } },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'howMany',
+        most: { tokens: TOLL_ABILITY },
+        title: 'Toll',
+        body: 'Call it in?',
+        each: [
+          { kind: 'spendToken', ability: TOLL_ABILITY, amount: 'spent' },
+          { kind: 'boostDamage', dice: '{n}d12' },
+        ],
       },
     ],
   },

@@ -56,6 +56,32 @@ import {
   TALLY,
   TETHER_ABILITY,
   TETHER_CARD,
+  A_BLOW_FORCED_FROM_ITS_OWN_WOUNDS,
+  A_BONUS_OFF_THE_SHEET,
+  A_CHARGE_THAT_BANKS_A_WOUND,
+  A_CRACK_PAID_FOR_IN_ADVANCE,
+  A_CRITICAL_WORTH_SOMETHING,
+  A_FLOOR_UNDER_EVERY_BLOW,
+  A_LIFT_FOR_EVERYONE_NEARBY,
+  A_ROUSING_BLOW,
+  A_TOLL_CALLED_IN,
+  AN_EDGE_ASKED_THREE_TIMES,
+  BREAK_CARD,
+  BROKEN,
+  CHARGE_CARD,
+  CHARGE_TOKENS,
+  EDGE_CARD,
+  FLOOR_CARD,
+  FORCED_ABILITY,
+  FORCED_CARD,
+  GLORY_CARD,
+  RAGE_CARD,
+  ROOM_LIFT_CARD,
+  ROUSE_CARD,
+  TOLLED,
+  TOLL_ABILITY,
+  TOLL_CARD,
+  TOLL_PAID,
 } from '../../tests/fixtures/cards';
 import {
   A_BONUS_READ_OFF_ITS_OWN_WOUNDS,
@@ -75,6 +101,7 @@ import {
   A_WIND_UP_THAT_COSTS_A_TURN,
   A_WIND_UP_WITH_ITS_OWN_STORE,
   A_WOUND_HANDED_BACK,
+  A_WOUND_THAT_ANSWERS,
   AN_OVERLOAD_THAT_BUYS_ANOTHER_TURN,
   PLATE_THAT_ROLLS_WHAT_IT_TURNS,
   PLATE_THAT_TURNS_A_FLAT_AMOUNT,
@@ -1260,9 +1287,32 @@ describe('what the room makes of a roll', () => {
 
 describe("what the party puts behind its own blow", () => {
   /** A caster holding one card, standing over something. */
-  const swinging = (cards: readonly string[], seed: string) => {
+  const swinging = (
+    cards: readonly string[],
+    seed: string,
+    // What the thing being hit carries. Only one test wants a creature feature
+    // here, and it answers Severe damage by hurting everyone close -- carried for
+    // all thirteen it would wound the caster in fights that count her pools.
+    features: readonly Record<string, unknown>[] = [],
+  ) => {
     const s = blank();
-    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+    s.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of [
+      ...A_TALLY_THAT_COUNTS_A_MARK,
+      ...A_CHARGE_THAT_BANKS_A_WOUND,
+      ...A_BLOW_FORCED_FROM_ITS_OWN_WOUNDS,
+      ...A_CRACK_PAID_FOR_IN_ADVANCE,
+      ...A_BONUS_OFF_THE_SHEET,
+      ...A_FLOOR_UNDER_EVERY_BLOW,
+      ...A_CRITICAL_WORTH_SOMETHING,
+      ...AN_EDGE_ASKED_THREE_TIMES,
+      ...A_LIFT_FOR_EVERYONE_NEARBY,
+      ...A_ROUSING_BLOW,
+      ...A_TOLL_CALLED_IN,
+      ...features,
+    ]) {
+      s.project.abilities.push(abilitySchema.parse(ability));
+    }
     s.run(
       addSheet(
         characterSheetSchema.parse(
@@ -1290,12 +1340,12 @@ describe("what the party puts behind its own blow", () => {
   };
 
   it('stops the swing to ask, and counts nothing until it is answered', () => {
-    // "Spend any number of tokens to add a d6 for each to your damage roll":
-    // asked after the roll and before the thresholds read anything.
+    // The mechanism: tokens spent for a die each, asked after the roll and before
+    // the thresholds read anything.
     for (let seed = 1; seed < 40; seed++) {
-      const demo = swinging(['spellcharge'], `charge-${seed}`);
+      const demo = swinging([CHARGE_CARD], `charge-${seed}`);
       demo.askDefender = true;
-      demo.world.addTokens('vela', 'spellcharge-store', 2);
+      demo.world.addTokens('vela', CHARGE_TOKENS, 2);
       const swung = attackWithSelected(demo, 'foe');
       if (swung === null || !swung.hit) continue;
 
@@ -1309,15 +1359,15 @@ describe("what the party puts behind its own blow", () => {
       answerPending(demo, { kind: 'choose', index: 1 });
       if (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 1 });
       expect(demo.pending).toBeNull();
-      expect(demo.world.tokensOn('vela', 'spellcharge-store')).toBe(0);
+      expect(demo.world.tokensOn('vela', CHARGE_TOKENS)).toBe(0);
       expect(demo.state.entity('foe')!.hitPoints.marked).toBeGreaterThan(0);
       expect(demo.log.some((l) => /hits with|lands a critical with/.test(l.text))).toBe(true);
 
       // And the dice went into the blow: the same seed and the same swing,
       // the only difference being whether the card was played.
-      const cold = swinging(['spellcharge'], `charge-${seed}`);
+      const cold = swinging([CHARGE_CARD], `charge-${seed}`);
       cold.askDefender = true;
-      cold.world.addTokens('vela', 'spellcharge-store', 2);
+      cold.world.addTokens('vela', CHARGE_TOKENS, 2);
       attackWithSelected(cold, 'foe');
       answerPending(cold, { kind: 'choose', index: 0 });
       if (demo.state.entity('foe')!.hitPoints.marked <= cold.state.entity('foe')!.hitPoints.marked) continue;
@@ -1329,15 +1379,15 @@ describe("what the party puts behind its own blow", () => {
   it('lands the blow when the card is let pass, and swings straight through without one', () => {
     // Declining is still an answer, and the swing it was holding still lands.
     for (let seed = 1; seed < 40; seed++) {
-      const demo = swinging(['spellcharge'], `pass-${seed}`);
+      const demo = swinging([CHARGE_CARD], `pass-${seed}`);
       demo.askDefender = true;
-      demo.world.addTokens('vela', 'spellcharge-store', 2);
+      demo.world.addTokens('vela', CHARGE_TOKENS, 2);
       const swung = attackWithSelected(demo, 'foe');
       if (swung === null || !swung.hit) continue;
       expect(swung.waiting).toBe(true);
       answerPending(demo, { kind: 'choose', index: 0 });
       expect(demo.pending).toBeNull();
-      expect(demo.world.tokensOn('vela', 'spellcharge-store')).toBe(2);
+      expect(demo.world.tokensOn('vela', CHARGE_TOKENS)).toBe(2);
       expect(demo.state.entity('foe')!.hitPoints.marked).toBeGreaterThan(0);
 
       // And a caster with nothing to say swings in one call, as always.
@@ -1352,43 +1402,40 @@ describe("what the party puts behind its own blow", () => {
     throw new Error('no seed landed a swing in forty tries');
   });
 
-  it('rolls the dice a sigil collected without stopping to ask, and they land', () => {
-    // "When you successfully attack the marked adversary, roll the dice on
-    // this card and add the total to your damage roll." Nothing is asked and
-    // nothing is spent, so the card runs on its own - and what it rolled has
-    // to reach the blow that is still being held, rather than the log alone.
+  it('rolls the dice a mark collected without stopping to ask, and they land', () => {
+    // Nothing is asked and nothing is spent, so the card runs on its own -- and
+    // what it rolled has to reach the blow that is still being held, rather than
+    // the log alone.
     for (let seed = 1; seed < 40; seed++) {
-      const demo = swinging(['sigil-of-retribution'], `sigil-${seed}`);
+      const demo = swinging([MARKED_TALLY_CARD], `tally-${seed}`);
       demo.askDefender = true;
-      demo.state.entity('foe')!.conditions.add('sigiled');
-      demo.world.addTokens('vela', 'sigil-of-retribution', 3);
+      demo.state.entity('foe')!.conditions.add(MARKED);
+      demo.world.addTokens('vela', TALLY, 3);
       const swung = attackWithSelected(demo, 'foe');
       if (swung === null || !swung.hit) continue;
 
       // It never became a question, and the dice are off the card.
       expect(swung.waiting).toBeUndefined();
       expect(demo.pending).toBeNull();
-      expect(demo.world.tokensOn('vela', 'sigil-of-retribution')).toBe(0);
+      expect(demo.world.tokensOn('vela', TALLY)).toBe(0);
 
       // The same seed and the same swing, with nothing marked to pay for.
-      const cold = swinging(['sigil-of-retribution'], `sigil-${seed}`);
+      const cold = swinging([MARKED_TALLY_CARD], `tally-${seed}`);
       cold.askDefender = true;
-      cold.world.addTokens('vela', 'sigil-of-retribution', 3);
+      cold.world.addTokens('vela', TALLY, 3);
       attackWithSelected(cold, 'foe');
-      expect(cold.world.tokensOn('vela', 'sigil-of-retribution')).toBe(3);
+      expect(cold.world.tokensOn('vela', TALLY)).toBe(3);
       if (demo.state.entity('foe')!.hitPoints.marked <= cold.state.entity('foe')!.hitPoints.marked) continue;
       return;
     }
-    throw new Error('no seed landed a sigiled swing in forty tries');
+    throw new Error('no seed landed a marked swing in forty tries');
   });
 
   it('forces the Hit Points a blow marks, whatever the dice said', () => {
-    // "Mark 4 Stress to force the target to mark a number of Hit Points equal
-    // to the number of Hit Points you currently have marked instead of rolling
-    // for damage": three marked on the caster is three marked on the target,
-    // past the thresholds and past whatever armor would have turned aside.
+    // The mechanism: four Stress to hand back exactly what the caster is carrying,
+    // past the thresholds and past whatever armour would have turned it aside.
     for (let seed = 1; seed < 40; seed++) {
-      const demo = swinging(['battle-monster'], `monster-${seed}`);
+      const demo = swinging([FORCED_CARD], `monster-${seed}`);
       demo.askDefender = true;
       demo.state.entity('vela')!.hitPoints = { max: 6, marked: 3 };
       demo.state.entity('vela')!.stress = { max: 6, marked: 0 };
@@ -1406,11 +1453,10 @@ describe("what the party puts behind its own blow", () => {
   });
 
   it('reads Severe as a floor when a forced blow lands past it', () => {
-    // Four Hit Points at once is worse than Severe, and "when the Burrower
-    // takes Severe damage" still answers it: the band is a floor, not a
-    // bracket, so Acid Bath fires.
+    // Four Hit Points at once is worse than Severe, and a feature that answers
+    // Severe damage still fires: the band is a floor, not a bracket.
     for (let seed = 1; seed < 40; seed++) {
-      const demo = swinging(['battle-monster'], `massive-${seed}`);
+      const demo = swinging([FORCED_CARD], `massive-${seed}`, [A_WOUND_THAT_ANSWERS('fixture-foe')]);
       demo.askDefender = true;
       demo.state.entity('vela')!.hitPoints = { max: 8, marked: 4 };
       demo.state.entity('vela')!.stress = { max: 6, marked: 0 };
@@ -1418,30 +1464,29 @@ describe("what the party puts behind its own blow", () => {
       if (swung === null || !swung.hit) continue;
       answerPending(demo, { kind: 'choose', index: 1 });
       expect(demo.state.entity('foe')!.hitPoints.marked).toBe(4);
-      expect(demo.log.some((l) => l.text.includes('Acid blood sprays from the wound.'))).toBe(true);
+      expect(demo.log.some((l) => l.text.includes('The wound opens, and the room pays for it.'))).toBe(true);
       return;
     }
     throw new Error('no seed landed a swing in forty tries');
   });
 
   it('will not force nothing: an unmarked caster is not offered the card', () => {
-    const demo = swinging(['battle-monster'], 'monster-clean');
+    const demo = swinging([FORCED_CARD], 'monster-clean');
     demo.state.entity('vela')!.hitPoints = { max: 6, marked: 0 };
     demo.state.entity('vela')!.stress = { max: 6, marked: 0 };
     expect(demo.world.reactionsFor('vela', 'rollingDamage', { targets: ['foe'], hit: ['foe'] })).toEqual([]);
     demo.state.entity('vela')!.hitPoints = { max: 6, marked: 1 };
     expect(demo.world.reactionsFor('vela', 'rollingDamage', { targets: ['foe'], hit: ['foe'] }).map((a) => a.id)).toEqual([
-      'battle-monster',
+      FORCED_ABILITY,
     ]);
   });
 
   it('leaves a crack in one blow and goes through it with the next', () => {
-    // "Mark a Stress to make the next successful attack against that same
-    // target deal an extra 2d12 damage": one card, two moments, and the second
-    // half pays out on its own.
+    // One card, two moments: a Stress opens the crack, and the second half pays
+    // out on its own when the next blow goes through it.
     for (let seed = 1; seed < 40; seed++) {
-      const demo = swinging(['breaking-blow'], `break-${seed}`);
-      const cold = swinging(['breaking-blow'], `break-${seed}`);
+      const demo = swinging([BREAK_CARD], `break-${seed}`);
+      const cold = swinging([BREAK_CARD], `break-${seed}`);
       demo.askDefender = true;
       cold.askDefender = true;
       const first = attackWithSelected(demo, 'foe');
@@ -1453,8 +1498,8 @@ describe("what the party puts behind its own blow", () => {
       expect(demo.pending?.kind).toBe('reaction');
       answerPending(demo, { kind: 'choose', index: 1 });
       answerPending(cold, { kind: 'choose', index: 0 });
-      expect(demo.state.entity('foe')!.conditions.has('broken')).toBe(true);
-      expect(cold.state.entity('foe')!.conditions.has('broken')).toBe(false);
+      expect(demo.state.entity('foe')!.conditions.has(BROKEN)).toBe(true);
+      expect(cold.state.entity('foe')!.conditions.has(BROKEN)).toBe(false);
 
       const marked = demo.state.entity('foe')!.hitPoints.marked;
       const plain = cold.state.entity('foe')!.hitPoints.marked;
@@ -1464,7 +1509,7 @@ describe("what the party puts behind its own blow", () => {
 
       // The crack is spent by the blow that went through it, and what is being
       // asked now is the card again, on the new hit. Let it pass.
-      expect(demo.state.entity('foe')!.conditions.has('broken')).toBe(false);
+      expect(demo.state.entity('foe')!.conditions.has(BROKEN)).toBe(false);
       if (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       if (cold.pending !== null) answerPending(cold, { kind: 'choose', index: 0 });
       const through = demo.state.entity('foe')!.hitPoints.marked - marked;
@@ -1476,12 +1521,11 @@ describe("what the party puts behind its own blow", () => {
   });
 
   it('puts twice a trait behind the blow, once the blow is worth it', () => {
-    // "Mark a Stress to gain a bonus to your damage roll equal to twice your
-    // Strength": the number comes off the sheet, so a caster who has been
-    // lifting reads four where the printed card reads a trait.
+    // The number comes off the sheet rather than the card, so a caster who has
+    // been lifting reads four where the card only names a trait.
     for (let seed = 1; seed < 40; seed++) {
-      const demo = swinging(['rage-up'], `rage-${seed}`);
-      const cold = swinging(['rage-up'], `rage-${seed}`);
+      const demo = swinging([RAGE_CARD], `rage-${seed}`);
+      const cold = swinging([RAGE_CARD], `rage-${seed}`);
       for (const scene of [demo, cold]) {
         scene.askDefender = true;
         const vela = scene.characters.get('vela')!;
@@ -1505,16 +1549,15 @@ describe("what the party puts behind its own blow", () => {
   });
 
   it('never lets a blow land beneath the band the card floors it at', () => {
-    // "You never deal damage beneath a target's Major damage threshold (the
-    // target always marks a minimum of 2 Hit Points)": counted as rolled, then
-    // lifted. The seed hunted for is one where the blow really was smaller.
+    // Counted as rolled, then lifted to the band. The seed hunted for is one where
+    // the blow really was smaller, so the lift is doing the work.
     for (let seed = 1; seed < 60; seed++) {
       const cold = swinging([], `floor-${seed}`);
       cold.askDefender = true;
       const plain = attackWithSelected(cold, 'foe');
       if (plain === null || !plain.hit || plain.hitPointsMarked !== 1) continue;
 
-      const demo = swinging(['onslaught'], `floor-${seed}`);
+      const demo = swinging([FLOOR_CARD], `floor-${seed}`);
       demo.askDefender = true;
       const swung = attackWithSelected(demo, 'foe');
       expect(swung?.hit).toBe(true);
@@ -1542,7 +1585,7 @@ describe("what the party puts behind its own blow", () => {
 
   it('answers a critical, and says nothing about an ordinary hit', () => {
     const seed = critical();
-    const demo = swinging(['gore-and-glory'], `crit-${seed}`);
+    const demo = swinging([GLORY_CARD], `crit-${seed}`);
     demo.askDefender = true;
     demo.state.entity('vela')!.stress = { max: 6, marked: 3 };
     expect(attackWithSelected(demo, 'foe')?.hit).toBe(true);
@@ -1550,14 +1593,13 @@ describe("what the party puts behind its own blow", () => {
     // The card is free and not a decision, so it simply asks its question.
     expect(demo.pending?.kind).toBe('script');
     answerPending(demo, { kind: 'choose', index: 1 });
-    // Three marked, one cleared by the critical itself, one more by the card:
-    // "gain an additional Hope or clear an additional Stress".
+    // Three marked, one cleared by the critical itself, and one more by the card.
     expect(demo.state.entity('vela')!.stress.marked).toBe(1);
 
     // An ordinary hit is not a critical, and the card has nothing to say.
     for (let other = 1; other < 400; other++) {
       if (other === seed) continue;
-      const plain = swinging(['gore-and-glory'], `crit-${other}`);
+      const plain = swinging([GLORY_CARD], `crit-${other}`);
       plain.askDefender = true;
       const swung = attackWithSelected(plain, 'foe');
       if (swung?.hit !== true || plain.log.some((l) => l.text.includes('lands a critical with'))) continue;
@@ -1568,9 +1610,9 @@ describe("what the party puts behind its own blow", () => {
   });
 
   it('asks for each Hope in turn, and spends only what was said yes to', () => {
-    // "Spend up to 3 Hope and choose one of the following options for each
-    // Hope spent. You can't choose the same option more than once."
-    const demo = swinging(['champions-edge'], `crit-${critical()}`);
+    // Three questions, asked in the order they are written, each for a Hope and
+    // each offering a plain no -- so none can be taken twice.
+    const demo = swinging([EDGE_CARD], `crit-${critical()}`);
     demo.askDefender = true;
     const vela = demo.state.entity('vela')!;
     vela.hope = { max: 6, value: 3 };
@@ -1598,7 +1640,7 @@ describe("what the party puts behind its own blow", () => {
 
   it('hands the room a Hope or a Stress off one critical, once per rest', () => {
     const seed = critical();
-    const demo = swinging(['critical-inspiration'], `crit-${seed}`);
+    const demo = swinging([ROOM_LIFT_CARD], `crit-${seed}`);
     demo.askDefender = true;
     const vela = demo.state.entity('vela')!;
     vela.stress = { max: 6, marked: 2 };
@@ -1610,8 +1652,9 @@ describe("what the party puts behind its own blow", () => {
     answerPending(demo, { kind: 'choose', index: 0 });
     expect(demo.pending).toBeNull();
 
-    // Rousing Strike answers the same moment, and counts its holder in.
-    const roused = swinging(['rousing-strike'], `crit-${seed}`);
+    // The other card answers the same moment and counts its holder in, which is
+    // the difference between the two.
+    const roused = swinging([ROUSE_CARD], `crit-${seed}`);
     roused.askDefender = true;
     roused.state.entity('vela')!.hitPoints = { max: 6, marked: 2 };
     expect(attackWithSelected(roused, 'foe')?.hit).toBe(true);
@@ -1621,17 +1664,17 @@ describe("what the party puts behind its own blow", () => {
   });
 
   it('will not call in a toll on somebody who is not carrying one', () => {
-    const demo = swinging(['twilight-toll'], 'toll');
+    const demo = swinging([TOLL_CARD], 'toll');
     demo.askDefender = true;
-    demo.world.addTokens('vela', 'twilight-toll', 1);
+    demo.world.addTokens('vela', TOLL_ABILITY, 1);
     // Nobody is marked yet, so the payout has nothing to answer.
-    const card = abilitiesOf(demo, 'vela').find((a) => a.id === 'twilight-toll-paid')!;
+    const card = abilitiesOf(demo, 'vela').find((a) => a.id === TOLL_PAID)!;
     expect(card.available).toBeDefined();
-    demo.state.entity('foe')!.conditions.add('tolled');
+    demo.state.entity('foe')!.conditions.add(TOLLED);
     expect(demo.world.reactionsFor('vela', 'rollingDamage', { targets: ['foe'], hit: ['foe'] }).map((a) => a.id)).toEqual([
-      'twilight-toll-paid',
+      TOLL_PAID,
     ]);
-    demo.state.entity('foe')!.conditions.delete('tolled');
+    demo.state.entity('foe')!.conditions.delete(TOLLED);
     expect(demo.world.reactionsFor('vela', 'rollingDamage', { targets: ['foe'], hit: ['foe'] })).toEqual([]);
   });
 });
