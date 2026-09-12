@@ -5643,10 +5643,92 @@ describe('a throw worth making again', () => {
 
 
 describe('the next one', () => {
+  /**
+   * Two cards that are two halves of one question. Everybody in the party
+   * hears about everybody's rolls, so what tells these apart is `self` against
+   * `not self` on the same trigger: one answers only its holder's own failure,
+   * the other only an ally's and never the holder's own.
+   *
+   * The first is free and automatic -- there is nothing to decide -- so its
+   * tests read a result. The second is offered and costs a use, so its tests
+   * hunt for a label and then read the use back.
+   */
+  const CARRY_CARD = 'fixture-card-28';
+  const WORD_CARD = 'fixture-card-29';
+
+  /**
+   * What the first one leaves behind. `anyRoll` is why it is worth a die on a
+   * check as well as on a swing, and `endsWhen` is why the next roll spends it
+   * whether that roll lands or not.
+   */
+  const CARRIED_CONDITION = {
+    id: 'fixture-carried',
+    name: 'Owed One',
+    text: 'Your next action roll has advantage.',
+    modifiers: [{ stat: 'advantage', bonus: 1, anyRoll: true }],
+    endsWhen: 'rolls',
+  };
+
+  const CARRY = [
+    {
+      id: 'fixture-carry',
+      name: 'The Next One',
+      source: { kind: 'domainCard', card: CARRY_CARD },
+      text: 'When you fail an action roll, your next action roll has advantage.',
+      kind: 'reaction',
+      trigger: 'partyRolled',
+      action: false,
+      // Only her own: the one who rolled is bound as the target, and everybody
+      // in the party hears about every roll.
+      available: {
+        kind: 'all',
+        of: [
+          { kind: 'self' },
+          { kind: 'rolled', is: 'failure' },
+        ],
+      },
+      effects: [
+        { kind: 'log', text: 'Not this one. The next.', tone: 'hope' },
+        { kind: 'applyCondition', condition: 'fixture-carried', duration: 'scene', target: { kind: 'actor' } },
+      ],
+    },
+  ];
+
+  const WORD = [
+    {
+      id: 'fixture-word',
+      name: 'A Word in Your Ear',
+      source: { kind: 'domainCard', card: WORD_CARD },
+      text: 'Once between long rests, when somebody beside you fails, you both clear 2 Stress.',
+      kind: 'reaction',
+      trigger: 'partyRolled',
+      action: false,
+      // Offered: whether this was the roll worth consoling is the player's.
+      auto: false,
+      uses: { count: 1, per: 'longRest' },
+      // The other side of `self`: an ally's roll, never the holder's own.
+      available: {
+        kind: 'all',
+        of: [
+          { kind: 'not', of: { kind: 'self' } },
+          { kind: 'rolled', is: 'failure' },
+        ],
+      },
+      effects: [
+        { kind: 'log', text: 'A word in their ear, and they both stand straighter.', tone: 'hope' },
+        { kind: 'clearStress', amount: 2, target: { kind: 'actor' } },
+        { kind: 'clearStress', amount: 2, target: { kind: 'target' } },
+      ],
+    },
+  ];
+
   /** Kara beside the husk holding these cards; Finn beside it too. */
   const trying = (seed: string, cards: string[]) => {
     const demo = standoff(seed);
     demo.askDefender = true;
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(CARRIED_CONDITION));
+    for (const ability of [...CARRY, ...WORD]) demo.project.abilities.push(abilitySchema.parse(ability));
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 90, marked: 0 };
     const blocked = demo.state.blockedFor('finn');
@@ -5675,7 +5757,7 @@ describe('the next one', () => {
 
   it('carries advantage out of a failed roll and into the next one', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const { demo, husk } = trying(`inevitable-${seed}`, ['inevitable']);
+      const { demo, husk } = trying(`inevitable-${seed}`, [CARRY_CARD]);
       const kara = demo.state.entity('kara')!;
       const said = demo.log.length;
       swing(demo, husk.id);
@@ -5686,11 +5768,11 @@ describe('the next one', () => {
       const failed = rolled === 'failureWithHope' || rolled === 'failureWithFear';
       if (!failed) {
         // Nothing to carry: a roll that landed leaves her as she was.
-        expect(kara.conditions.has('inevitable')).toBe(false);
+        expect(kara.conditions.has('fixture-carried')).toBe(false);
         continue;
       }
-      expect(after.some((t) => t.includes('Not this time. The next one.'))).toBe(true);
-      expect(kara.conditions.has('inevitable')).toBe(true);
+      expect(after.some((t) => t.includes('Not this one. The next.'))).toBe(true);
+      expect(kara.conditions.has('fixture-carried')).toBe(true);
       // And it is worth a die on the next roll she makes.
       expect(demo.world.advantageFor('kara', husk.id).advantage).toBe(1);
       return;
@@ -5700,10 +5782,10 @@ describe('the next one', () => {
 
   it('is spent on the next roll, whether that one lands or not', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const { demo, husk } = trying(`inevitable-spend-${seed}`, ['inevitable']);
+      const { demo, husk } = trying(`inevitable-spend-${seed}`, [CARRY_CARD]);
       const kara = demo.state.entity('kara')!;
       swing(demo, husk.id);
-      if (!kara.conditions.has('inevitable')) continue;
+      if (!kara.conditions.has('fixture-carried')) continue;
 
       // Her turn again, and the die goes into it.
       endTurn(demo);
@@ -5713,7 +5795,7 @@ describe('the next one', () => {
       if (!demo.state.entity('kara')!.alive) continue;
       demo.party.select('kara');
       swing(demo, husk.id);
-      expect(kara.conditions.has('inevitable')).toBe(false);
+      expect(kara.conditions.has('fixture-carried')).toBe(false);
       return;
     }
     throw new Error('Kara never failed a roll in sixty tries');
@@ -5723,7 +5805,7 @@ describe('the next one', () => {
     let helped = false;
     let alone = false;
     for (let seed = 1; seed < 80 && !(helped && alone); seed++) {
-      const { demo, husk } = trying(`lean-${seed}`, ['lean-on-me']);
+      const { demo, husk } = trying(`lean-${seed}`, [WORD_CARD]);
       const kara = demo.state.entity('kara')!;
       const finn = demo.state.entity('finn')!;
       kara.stress = { max: 6, marked: 4 };
@@ -5737,7 +5819,7 @@ describe('the next one', () => {
       const pending = demo.pending;
       const at =
         pending !== null && pending.kind === 'reaction' && pending.prompt.kind === 'choice'
-          ? pending.prompt.options.findIndex((o) => o.label.includes('Lean on Me'))
+          ? pending.prompt.options.findIndex((o) => o.label.includes('A Word in Your Ear'))
           : -1;
 
       if (failed && at > 0) {
@@ -5746,7 +5828,7 @@ describe('the next one', () => {
         while (demo.pending !== null && guard++ < 6) answerPending(demo, { kind: 'choose', index: 0 });
         expect(kara.stress.marked).toBe(2);
         expect(finn.stress.marked).toBe(2);
-        expect(demo.scenario.abilityUses.get(useKey('kara', 'lean-on-me'))).toBe(1);
+        expect(demo.scenario.abilityUses.get(useKey('kara', 'fixture-word'))).toBe(1);
         helped = true;
         continue;
       }
@@ -5762,13 +5844,13 @@ describe('the next one', () => {
 
   it('is not offered to the one who failed the roll', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const { demo, husk } = trying(`lean-self-${seed}`, ['lean-on-me']);
+      const { demo, husk } = trying(`lean-self-${seed}`, [WORD_CARD]);
       demo.state.entity('kara')!.stress = { max: 6, marked: 4 };
       // Kara's own failure: "an ally who failed an action roll" is not her.
       attackWithSelected(demo, husk.id);
       const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
       if (rolled !== 'failureWithHope' && rolled !== 'failureWithFear') continue;
-      expect(JSON.stringify(demo.pending ?? {})).not.toContain('Lean on Me');
+      expect(JSON.stringify(demo.pending ?? {})).not.toContain('A Word in Your Ear');
       expect(demo.state.entity('kara')!.stress.marked).toBe(4);
       return;
     }
@@ -5777,15 +5859,15 @@ describe('the next one', () => {
 
   it("answers her own roll and not an ally's", () => {
     for (let seed = 1; seed < 60; seed++) {
-      const { demo, husk } = trying(`inevitable-mine-${seed}`, ['inevitable']);
+      const { demo, husk } = trying(`inevitable-mine-${seed}`, [CARRY_CARD]);
       const kara = demo.state.entity('kara')!;
       demo.party.select('finn');
       swing(demo, husk.id);
       const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
       if (rolled !== 'failureWithHope' && rolled !== 'failureWithFear') continue;
       // Finn's failure is Finn's: "when *you* fail an action roll".
-      expect(kara.conditions.has('inevitable')).toBe(false);
-      expect(demo.state.entity('finn')!.conditions.has('inevitable')).toBe(false);
+      expect(kara.conditions.has('fixture-carried')).toBe(false);
+      expect(demo.state.entity('finn')!.conditions.has('fixture-carried')).toBe(false);
       return;
     }
     throw new Error('Finn never failed a roll in sixty tries');
