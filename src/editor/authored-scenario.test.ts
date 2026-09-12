@@ -21,6 +21,11 @@ import {
 } from './session';
 import { validateProject } from './validate';
 import { FIXTURE_ADVERSARIES } from '../../tests/fixtures/adversaries';
+import {
+  A_HIDE_THAT_SHRUGS_OFF_STEEL,
+  PLATE_THAT_ROLLS_WHAT_IT_TURNS,
+  PLATE_THAT_TURNS_A_FLAT_AMOUNT,
+} from '../../tests/fixtures/adversary-features';
 import { SRD_ABILITIES } from '../engine/content/srd/abilities';
 import { runScript } from '../engine/script/runner';
 import type { Rng } from '../engine/core/rng';
@@ -179,26 +184,17 @@ describe("a room with a stat block the engine did not write", () => {
 
 describe('a block that shrugs the party off', () => {
   it('halves what it resists, at the button a player actually presses', () => {
-    const build = (silence: boolean, seed = 'bones') => {
+    const build = (resists: boolean, seed = 'bones') => {
       const s = blank();
       s.run(addSheet(KARA));
       s.run(setSpawns('hall', [{ x: 1, y: 4 }]));
       s.run(addEncounter('hall', encounterSchema.parse({ id: 'bones', name: 'Bones' })));
       s.run(addAdversary('hall', 'bones', { id: 'warrior-1', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
-      if (silence) {
-        // A project ability with the shipped feature's id says something else
-        // with it — here, nothing at all. That is the override the manual
-        // promises, and it is also how this test gets its control run.
-        s.project.abilities.push(
-          abilitySchema.parse({
-            id: 'fixture-foe-only-bones',
-            name: 'Only Bones',
-            source: { kind: 'adversary', adversaries: ['fixture-foe'] },
-            kind: 'passive',
-            action: false,
-            text: 'Nothing, for the sake of the test.',
-          }),
-        );
+      if (resists) {
+        // The control run is the absence of the feature rather than a silenced
+        // one: nothing the app ships is sourced to a fixture block, so there is
+        // nothing to suppress. Carrying it is the whole difference.
+        s.project.abilities.push(abilitySchema.parse(A_HIDE_THAT_SHRUGS_OFF_STEEL('fixture-foe')));
       }
       const demo = buildProjectScene(s.project, seed);
       startEncounter(demo, 'bones');
@@ -211,12 +207,12 @@ describe('a block that shrugs the party off', () => {
     };
 
     // One seed, so both runs roll the same swing: Kara's longsword deals
-    // physical damage, which is what a pile of bones shrugs off. Major on the
-    // Warrior's thresholds, and Minor once it is halved.
-    const plain = build(true, 's5');
-    const resisted = build(false, 's5');
-    expect(plain).toBe(3);
-    expect(resisted).toBe(2);
+    // physical damage, which is what the hide answers. Major on this block's
+    // thresholds, and one band down once it is halved.
+    const plain = build(false, 's5');
+    const resisted = build(true, 's5');
+    expect(plain).toBe(2);
+    expect(resisted).toBe(1);
   });
 });
 
@@ -3099,8 +3095,8 @@ describe('a block wearing enough plate to matter', () => {
    */
   const swing = (
     adversary: string,
-    feature: string,
-    quiet: boolean,
+    feature: (definition: string) => Record<string, unknown>,
+    plated: boolean,
     seed: string,
   ): { marked: number; log: string[] } => {
     const s = blank();
@@ -3108,19 +3104,9 @@ describe('a block wearing enough plate to matter', () => {
     s.run(setSpawns('hall', [{ x: 1, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'guard', name: 'The guard' })));
     s.run(addAdversary('hall', 'guard', { id: 'foe-1', adversary, position: { x: 3, y: 4 } }));
-    if (quiet) {
-      // The same override the resistance test uses for its control run: a
-      // project ability with the shipped feature's id, saying nothing.
-      s.project.abilities.push(
-        abilitySchema.parse({
-          id: feature,
-          name: 'Quiet',
-          source: { kind: 'adversary', adversaries: [adversary] },
-          kind: 'passive',
-          action: false,
-          text: 'Nothing, for the sake of the test.',
-        }),
-      );
+    if (plated) {
+      // As in the resistance test: the control run simply does not carry it.
+      s.project.abilities.push(abilitySchema.parse(feature(adversary)));
     }
     const demo = buildProjectScene(s.project, seed);
     startEncounter(demo, 'guard');
@@ -3134,19 +3120,22 @@ describe('a block wearing enough plate to matter', () => {
     // One seed, so both runs roll the same longsword: physical damage, which
     // is what plate answers. 13/26 thresholds, and a swing in the low teens is
     // Major until the plate takes three off it.
-    const knight = 'fixture-champion';
-    expect(swing(knight, knight + '-heavily-armored', true, 'k12').marked).toBe(2);
-    const plated = swing(knight, knight + '-heavily-armored', false, 'k12');
+    const worn = 'fixture-champion';
+    expect(swing(worn, PLATE_THAT_TURNS_A_FLAT_AMOUNT, false, 'k12').marked).toBe(2);
+    const plated = swing(worn, PLATE_THAT_TURNS_A_FLAT_AMOUNT, true, 'k12');
     expect(plated.marked).toBe(1);
     expect(plated.log).toContain('Champion turns aside 3 of it.');
 
     // The Champion's 1d10 is rolled after the swing, so the swing itself is
     // the same in both runs and only the armor differs.
-    const champion = 'fixture-champion';
-    expect(swing(champion, champion + '-faltering-armor', true, 'c9').marked).toBe(1);
-    const rolled = swing(champion, champion + '-faltering-armor', false, 'c9');
+    // A seed whose roll actually crosses a threshold. Most do not: the d10 can
+    // take 7 off this swing and still leave the same band, so a run that turns
+    // aside more is not the run that proves the reduction reached the
+    // thresholds. This one turns aside 2 and drops the Hit Point.
+    expect(swing(worn, PLATE_THAT_ROLLS_WHAT_IT_TURNS, false, 'c10').marked).toBe(1);
+    const rolled = swing(worn, PLATE_THAT_ROLLS_WHAT_IT_TURNS, true, 'c10');
     expect(rolled.marked).toBe(0);
-    expect(rolled.log).toContain('Champion turns aside 7 of it.');
+    expect(rolled.log).toContain('Champion turns aside 2 of it.');
   });
 });
 
