@@ -117,9 +117,73 @@ export const domainCardDefSchema = z.object({
   features: z.array(featureSchema).default([]),
 });
 
+/** An Experience and its modifier: "Tremor Sense +2". */
+export const experienceSchema = z.object({
+  name: z.string().min(1),
+  modifier: z.number().int(),
+});
+
+/** What an adversary is for, which is how the GM's side picks one. */
+export const adversaryRoleSchema = z.enum([
+  'bruiser',
+  'horde',
+  'leader',
+  'minion',
+  'ranged',
+  'skulk',
+  'social',
+  'solo',
+  'standard',
+  'support',
+]);
+
+export const adversaryFeatureSchema = z.object({
+  name: z.string().min(1),
+  kind: z.enum(['passive', 'action', 'reaction']),
+  /**
+   * The parenthetical in a name like "Relentless (3)", verbatim and unparsed:
+   * each feature reads it its own way, so nothing here guesses at it.
+   */
+  parameter: z.string().optional(),
+  /** The countdown printed after the kind, verbatim: "5", "Loop 1d6". */
+  countdown: z.string().optional(),
+  longTermCountdown: z.boolean().optional(),
+  text: z.string().default(''),
+  /**
+   * Whether using it spends the GM's own currency. Named for what it does
+   * rather than for the resource, so renaming that resource never has to reach
+   * a stored pack.
+   */
+  costsGmResource: z.boolean().default(false),
+});
+
+export const adversaryDefSchema = z.object({
+  id: contentIdSchema,
+  name: z.string().min(1),
+  tier: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  role: adversaryRoleSchema,
+  /** For a horde: how many creatures each marked Hit Point stands for. */
+  hordeUnitsPerHp: z.number().int().min(1).optional(),
+  description: z.string().default(''),
+  motivesAndTactics: z.string().default(''),
+  /** Difficulty of rolls made against this adversary. */
+  difficulty: z.number().int().min(1),
+  thresholds: damageThresholdsSchema,
+  hitPoints: z.number().int().min(1),
+  stress: z.number().int().min(0),
+  attackName: z.string().min(1),
+  /** Usually a flat number, but a stat block may roll it, so it is an expression. */
+  attackModifier: diceExpressionSchema,
+  attackRange: rangeBandSchema,
+  attackDamage: parsedDamageSchema,
+  experiences: z.array(experienceSchema).default([]),
+  features: z.array(adversaryFeatureSchema).default([]),
+});
+
 /**
- * Everything a character can be built from. Every list is defaulted, so a pack
- * may carry only what it has and a project that declares none still parses.
+ * Everything a character can be built from, and everything they can be set
+ * against. Every list is defaulted, so a pack may carry only what it has and a
+ * project that declares none still parses.
  */
 export const contentPackSchema = z.object({
   weapons: z.array(weaponDefSchema).default([]),
@@ -129,6 +193,7 @@ export const contentPackSchema = z.object({
   communities: z.array(communityDefSchema).default([]),
   subclasses: z.array(subclassDefSchema).default([]),
   domainCards: z.array(domainCardDefSchema).default([]),
+  adversaries: z.array(adversaryDefSchema).default([]),
 });
 
 export type ContentPackDoc = z.infer<typeof contentPackSchema>;

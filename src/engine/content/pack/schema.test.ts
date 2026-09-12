@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  adversaryDefSchema,
+  adversaryFeatureSchema,
   armorDefSchema,
   classDefSchema,
   contentPackSchema,
@@ -93,10 +95,61 @@ describe('domain cards', () => {
   });
 });
 
+describe('adversaries', () => {
+  const lurker = {
+    id: 'fen-lurker',
+    name: 'Fen Lurker',
+    tier: 1,
+    role: 'skulk',
+    description: 'A long-limbed thing that waits under the water.',
+    motivesAndTactics: 'Drag away the straggler, drown what it takes.',
+    difficulty: 11,
+    thresholds: { major: 6, severe: 12 },
+    hitPoints: 4,
+    stress: 3,
+    attackName: 'Grasping Arms',
+    attackModifier: { count: 0, sides: 0, modifier: 2 },
+    attackRange: 'melee',
+    attackDamage: { count: 1, sides: 6, modifier: 1, types: ['physical'] },
+  };
+
+  it('accepts a stat block and defaults its lists', () => {
+    const parsed = adversaryDefSchema.parse({ ...lurker });
+    expect(parsed.features).toEqual([]);
+    expect(parsed.experiences).toEqual([]);
+    expect(parsed.attackDamage.sides).toBe(6);
+  });
+
+  it('refuses a role it does not know', () => {
+    expect(adversaryDefSchema.safeParse({ ...lurker, role: 'boss' }).success).toBe(false);
+  });
+
+  it('refuses a tier off the end of the scale', () => {
+    expect(adversaryDefSchema.safeParse({ ...lurker, tier: 5 }).success).toBe(false);
+  });
+
+  it('names a feature for what it spends, not for the resource', () => {
+    const parsed = adversaryFeatureSchema.parse({
+      name: 'Undertow',
+      kind: 'action',
+      text: 'Pull a target into the water.',
+      costsGmResource: true,
+    });
+    expect(parsed.costsGmResource).toBe(true);
+    expect('costsFear' in parsed).toBe(false);
+  });
+
+  it('assumes a feature costs nothing unless it says so', () => {
+    const parsed = adversaryFeatureSchema.parse({ name: 'Sodden', kind: 'passive', text: 'Slow on dry land.' });
+    expect(parsed.costsGmResource).toBe(false);
+  });
+});
+
 describe('the pack', () => {
   it('is empty by default, so a project that declares none still parses', () => {
     const parsed = contentPackSchema.parse({});
     expect(parsed.classes).toEqual([]);
     expect(parsed.weapons).toEqual([]);
+    expect(parsed.adversaries).toEqual([]);
   });
 });

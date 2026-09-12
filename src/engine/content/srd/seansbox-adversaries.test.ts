@@ -196,7 +196,7 @@ describe('importSeansboxAdversaries', () => {
           kind: 'passive',
           parameter: '3',
           text: 'Can be spotlighted up to three times per GM turn. Spend a Fear to enrage it.',
-          costsFear: true,
+          costsGmResource: true,
         },
       ],
     });

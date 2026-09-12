@@ -23,6 +23,7 @@ import { conditionDefSchema } from '../content/conditions';
 import { questSchema } from '../content/quests';
 import { modelAssetSchema } from '../render/assets';
 import {
+  adversaryDefSchema,
   ancestryDefSchema,
   armorDefSchema,
   classDefSchema,
@@ -277,6 +278,8 @@ export const projectSchema = z
     domainCards: z.array(domainCardDefSchema).default([]),
     weapons: z.array(weaponDefSchema).default([]),
     armors: z.array(armorDefSchema).default([]),
+    /** The stat blocks its encounters place, by the ids those placements name. */
+    adversaries: z.array(adversaryDefSchema).default([]),
     /**
      * What characters can do: domain cards, Hope features, subclass features,
      * with their scripts. Defaulted, so an older project is still a project.

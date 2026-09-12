@@ -62,10 +62,13 @@ export interface AdversaryFeature {
   /** Rules text, as written. Markdown emphasis is preserved. */
   text: string;
   /**
-   * True when the text requires the GM to spend Fear. Detected from the text, so
-   * treat it as a hint for the GM AI rather than a guarantee.
+   * True when using it requires the GM to spend their own currency. Detected
+   * from the text, so treat it as a hint for the GM AI rather than a guarantee.
+   *
+   * Named for what it does rather than for the resource: this is about to be
+   * pack data, and the resource is being renamed.
    */
-  costsFear: boolean;
+  costsGmResource: boolean;
 }
 
 /** An Experience and its modifier: "Tremor Sense +2". */

@@ -215,6 +215,7 @@ export function importLegacyCampaign(
       domainCards: [],
       weapons: [],
       armors: [],
+      adversaries: [],
       startScene: scenes[0]!.id,
     },
     issues,

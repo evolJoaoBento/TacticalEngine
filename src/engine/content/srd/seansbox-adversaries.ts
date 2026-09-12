@@ -74,7 +74,7 @@ const FEATURE_NAME_PATTERN =
 
 export function parseFeatureName(
   input: string,
-): Omit<AdversaryFeature, 'text' | 'costsFear'> | null {
+): Omit<AdversaryFeature, 'text' | 'costsGmResource'> | null {
   if (typeof input !== 'string') return null;
   const match = FEATURE_NAME_PATTERN.exec(input.trim());
   if (match === null) return null;
@@ -94,7 +94,7 @@ export function parseFeatureName(
   }
   if (name === '') return null;
 
-  const feature: Omit<AdversaryFeature, 'text' | 'costsFear'> = { name, kind };
+  const feature: Omit<AdversaryFeature, 'text' | 'costsGmResource'> = { name, kind };
   if (parameter !== undefined && parameter !== '') feature.parameter = parameter;
   if (countdown !== undefined) {
     return {
@@ -266,7 +266,9 @@ export function importSeansboxAdversaries(
         fail('feature', `unreadable feature name ${JSON.stringify(featureName)}`);
         continue;
       }
-      features.push({ ...parsed, text, costsFear: costsFear(text) });
+      // The field is named for what it does; the reader is named for the word it
+      // looks for in this source's prose, and goes when the source does.
+      features.push({ ...parsed, text, costsGmResource: costsFear(text) });
     }
 
     const { experiences, unreadable } = parseExperiences(asString(entry.experience) ?? undefined);

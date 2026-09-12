@@ -184,7 +184,7 @@ describe('the adversary importer swallows the whole vendored roster', () => {
   });
 
   it('finds the Fear features the GM has to pay for', () => {
-    const fearFeatures = defs.flatMap((d) => d.features).filter((f) => f.costsFear);
+    const fearFeatures = defs.flatMap((d) => d.features).filter((f) => f.costsGmResource);
     expect(fearFeatures.length).toBeGreaterThan(50);
   });
 

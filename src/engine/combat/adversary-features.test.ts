@@ -21,7 +21,7 @@ const feature = (name: string, parameter?: string): AdversaryFeature => ({
   name,
   kind: 'passive',
   text: '',
-  costsFear: false,
+  costsGmResource: false,
   ...(parameter === undefined ? {} : { parameter }),
 });
 

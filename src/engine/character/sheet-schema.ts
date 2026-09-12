@@ -9,6 +9,7 @@
 
 import { z } from 'zod';
 
+import { experienceSchema } from '../content/pack/schema';
 import { traitSchema } from '../scene/primitives';
 import type { CharacterSheet } from './sheet';
 
@@ -20,8 +21,6 @@ const traitsSchema = z.object({
   presence: z.number().int(),
   knowledge: z.number().int(),
 });
-
-const experienceSchema = z.object({ name: z.string(), modifier: z.number().int() });
 
 /** Which tier's sheet the box was ticked on, when not the level's own. */
 const box = { fromTier: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional() };
