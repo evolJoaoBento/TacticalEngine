@@ -88,7 +88,7 @@ import {
 } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { importContentPack, mergePack, type ContentPack, type WeaponDef } from '../engine/content/pack/import';
-import { STARTER_ADVERSARIES, STARTER_CHARACTERS } from '../engine/content/pack/starter';
+import { STARTER_ABILITIES, STARTER_ADVERSARIES, STARTER_CHARACTERS } from '../engine/content/pack/starter';
 import {
   importSeansboxAdversaries,
   type RawAdversary,
@@ -768,7 +768,7 @@ export function worldOptions(
     adversaries: adversaryDefsFor(project),
     bandTiles: DEMO_BAND_TILES,
     movement: DEMO_MOVEMENT,
-    abilities: withStatBlockFeatures(project?.abilities ?? SRD_ABILITIES),
+    abilities: withStatBlockFeatures(project?.abilities ?? STARTER_ABILITIES),
     conditionDefs: withSrdConditions(project?.conditionDefs ?? []),
     // The engine's native hooks, then the project's own code, which may
     // override one of them by using the same id. Asked for each time: the
@@ -1265,7 +1265,11 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     items: [...DEMO_ITEMS],
     lootTables: [...DEMO_LOOT_TABLES],
     quests: [...DEMO_QUESTS],
-    abilities: [...SRD_ABILITIES, ...SRD_ADVERSARY_ABILITIES, ...DEMO_PROJECT_ABILITIES],
+    // The party holds the starter pack's cards, so the starter pack's abilities
+    // are what those cards do. `SRD_ADVERSARY_ABILITIES` is not listed: every
+    // project inherits it through `withStatBlockFeatures`, so naming it here
+    // only said twice what the world already does once.
+    abilities: [...STARTER_ABILITIES, ...DEMO_PROJECT_ABILITIES],
     code: [...DEMO_CODE],
     conditionDefs: [...SRD_CONDITIONS],
     party: [...PARTY_SHEETS],
