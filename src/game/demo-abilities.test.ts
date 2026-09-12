@@ -171,6 +171,7 @@ describe('a Hope feature', () => {
 describe('a spell in a fight', () => {
   it('pays its Hope, rolls against everyone Very Close, and spends the turn', () => {
     const demo = scene();
+    holds(demo, 'finn', [FIXTURE_AREA_CARD]);
     const foe = nearestFoe(demo, 'finn');
     closeIn(demo, 'finn', foe.id);
     startEncounter(demo, demo.scene.encounters[0]!.id);
@@ -178,7 +179,7 @@ describe('a spell in a fight', () => {
     finn.hope = { max: 6, value: 2 };
     const fearBefore = demo.state.fear.value;
 
-    const result = useAbility(demo, 'finn', 'rain-of-blades');
+    const result = useAbility(demo, 'finn', 'fixture-bladefall');
     expect(result.status).toBe('waiting');
     expect(demo.pending?.prompt.kind).toBe('check');
     if (demo.pending?.prompt.kind !== 'check') throw new Error('expected a check');
@@ -211,11 +212,12 @@ describe('a spell in a fight', () => {
     // Try seeds until the roll lands: the point is what a hit does, not the dice.
     for (let seed = 1; seed < 40; seed++) {
       const demo = scene(`push-${seed}`);
+      holds(demo, 'mira', [FIXTURE_GRIMOIRE]);
       const foe = nearestFoe(demo, 'mira');
       closeIn(demo, 'mira', foe.id);
       startEncounter(demo, demo.scene.encounters[0]!.id);
       const before = demo.grid.euclideanDistance(demo.state.entity('mira')!.tile, demo.state.entity(foe.id)!.tile);
-      expect(useAbility(demo, 'mira', 'book-of-ava-power-push', [foe.id]).status).toBe('waiting');
+      expect(useAbility(demo, 'mira', 'fixture-grimoire-shove', [foe.id]).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
       const log = demo.log.map((l) => l.text);
       if (!log.some((t) => t.includes('is thrown back'))) continue;
@@ -229,23 +231,27 @@ describe('a spell in a fight', () => {
 
   it('refuses a target out of range, and a spell with none, drawing nothing', () => {
     const demo = scene();
-    // Mira starts far from every husk: Ice Spike reaches Far, but the vault is wider.
+    // Two hands, and `carry` is guarded so the pool is not pushed twice.
+    holds(demo, 'mira', [FIXTURE_GRIMOIRE]);
+    holds(demo, 'finn', [FIXTURE_AREA_CARD]);
+    // Mira starts far from every husk: the splinter reaches Far, and the room is wider.
     const before = demo.rng.save();
-    expect(abilityTargets(demo, 'mira', abilitiesOf(demo, 'mira').find((a) => a.id === 'book-of-ava-ice-spike')!)).toEqual([]);
-    expect(useAbility(demo, 'mira', 'book-of-ava-ice-spike').status).toBe('refused');
+    expect(abilityTargets(demo, 'mira', abilitiesOf(demo, 'mira').find((a) => a.id === 'fixture-grimoire-splinter')!)).toEqual([]);
+    expect(useAbility(demo, 'mira', 'fixture-grimoire-splinter').status).toBe('refused');
     expect(demo.log.at(-1)!.text).toContain('nothing in range');
     expect(demo.rng.save()).toBe(before);
-    // Rain of Blades wants nobody picked, but wants somebody to hit.
-    expect(useAbility(demo, 'finn', 'rain-of-blades').status).toBe('refused');
+    // Bladefall wants nobody picked, but wants somebody to hit.
+    expect(useAbility(demo, 'finn', 'fixture-bladefall').status).toBe('refused');
   });
 
   it("is refused on the GM's turn, and after acting only when the spotlight rules say", () => {
     const demo = scene();
+    holds(demo, 'mira', [FIXTURE_GRIMOIRE]);
     const foe = nearestFoe(demo, 'mira');
     closeIn(demo, 'mira', foe.id);
     startEncounter(demo, demo.scene.encounters[0]!.id);
     demo.encounter!.passToGm();
-    expect(useAbility(demo, 'mira', 'book-of-ava-power-push', [foe.id]).status).toBe('refused');
+    expect(useAbility(demo, 'mira', 'fixture-grimoire-shove', [foe.id]).status).toBe('refused');
     expect(demo.log.at(-1)!.text).toContain("the GM's turn");
   });
 });
@@ -458,26 +464,28 @@ describe('what holds an adversary', () => {
 describe('stepping back from a roll', () => {
   it('puts the card down with its cost returned, and the turn still to take', () => {
     const demo = scene();
+    holds(demo, 'finn', [FIXTURE_AREA_CARD]);
     const foe = nearestFoe(demo, 'finn');
     closeIn(demo, 'finn', foe.id);
     startEncounter(demo, demo.scene.encounters[0]!.id);
     const finn = demo.state.entity('finn')!;
     finn.hope = { max: 6, value: 2 };
-    expect(useAbility(demo, 'finn', 'rain-of-blades').status).toBe('waiting');
+    expect(useAbility(demo, 'finn', 'fixture-bladefall').status).toBe('waiting');
     expect(finn.hope.value).toBe(1);
     const stepped = answerPending(demo, { kind: 'cancel' });
     expect(stepped.status).toBe('done');
     expect(demo.pending).toBeNull();
     expect(finn.hope.value).toBe(2);
-    expect(demo.log.map((l) => l.text)).toContain('Finn steps back from Rain of Blades; its cost is returned.');
+    expect(demo.log.map((l) => l.text)).toContain('Finn steps back from Bladefall; its cost is returned.');
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'finn')).toBe(false);
     expect(demo.encounter!.canAct('finn')).toBe(true);
   });
 
   it('gives a once-per-rest use back when the choice it opens with is cancelled', () => {
     const demo = scene();
+    carry(demo);
     const sheet = demo.sheets.get('mira')!;
-    const grown = { ...sheet, domainCards: [...(sheet.domainCards ?? []), 'book-of-illiat'] };
+    const grown = { ...sheet, domainCards: [...(sheet.domainCards ?? []), FIXTURE_BARRAGE_CARD] };
     demo.sheets.set('mira', grown);
     demo.characters.set('mira', deriveCharacter(grown, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
@@ -485,11 +493,11 @@ describe('stepping back from a roll', () => {
     closeIn(demo, 'mira', foe.id);
     startEncounter(demo, demo.scene.encounters[0]!.id);
     demo.state.entity('mira')!.hope = { max: 6, value: 2 };
-    expect(useAbility(demo, 'mira', 'book-of-illiat-arcane-barrage').status).toBe('waiting');
+    expect(useAbility(demo, 'mira', 'fixture-barrage').status).toBe('waiting');
     expect(demo.pending?.prompt.kind).toBe('choice');
-    expect(demo.scenario.abilityUses.get(useKey('mira', 'book-of-illiat-arcane-barrage'))).toBe(1);
+    expect(demo.scenario.abilityUses.get(useKey('mira', 'fixture-barrage'))).toBe(1);
     expect(answerPending(demo, { kind: 'cancel' }).status).toBe('done');
-    expect(demo.scenario.abilityUses.has(useKey('mira', 'book-of-illiat-arcane-barrage'))).toBe(false);
+    expect(demo.scenario.abilityUses.has(useKey('mira', 'fixture-barrage'))).toBe(false);
     expect(demo.state.entity('mira')!.hope!.value).toBe(2);
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'mira')).toBe(false);
   });
@@ -567,7 +575,7 @@ describe('tokens on a card', () => {
 
     expect(rest(demo, 'long', { moves: {} }).ok).toBe(true);
     expect(demo.world.tokensOn('mira', CHAOS_ABILITY)).toBe(spellcast);
-    expect(demo.log.map((l) => l.text).some((t) => t.includes('places') && t.includes('Doubtful'))).toBe(true);
+    expect(demo.log.map((l) => l.text).some((t) => t.includes('places') && t.includes('Let It Out'))).toBe(true);
 
     const foe = nearestFoe(demo, 'mira');
     closeIn(demo, 'mira', foe.id);
