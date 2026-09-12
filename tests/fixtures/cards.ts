@@ -16,11 +16,42 @@
 
 import {
   FIXTURE_AREA_CARD,
+  FIXTURE_RIFT_CARD,
+  FIXTURE_RIFT_MARK,
+  FIXTURE_SPOT_CARD,
+  FIXTURE_SPOT_MARK,
   FIXTURE_AURA_CARD,
   FIXTURE_BARRAGE_CARD,
   FIXTURE_CARDS,
   FIXTURE_GRIMOIRE,
 } from './adversaries';
+
+/** What a successful cast does: ask, if there is a mark; otherwise simply mark. */
+const RIFT_ARMS = [
+  {
+    kind: 'branch',
+    when: { kind: 'hasMark', mark: FIXTURE_RIFT_MARK },
+    then: [
+      {
+        kind: 'choice',
+        title: 'Rift Step',
+        body: 'The marking is still on the ground somewhere behind them.',
+        options: [
+          {
+            label: 'Step through the rift',
+            effects: [
+              { kind: 'log', text: 'The air splits, and they walk back through it to the mark.', tone: 'hope' },
+              { kind: 'move', to: 'mark', mark: FIXTURE_RIFT_MARK, teleport: true },
+              { kind: 'forgetSpot', mark: FIXTURE_RIFT_MARK },
+            ],
+          },
+          { label: 'Drop it and mark the ground here instead', effects: [{ kind: 'markSpot', mark: FIXTURE_RIFT_MARK }] },
+        ],
+      },
+    ],
+    otherwise: [{ kind: 'markSpot', mark: FIXTURE_RIFT_MARK }],
+  },
+];
 
 /** A layer up, and as many more as the caster will pay Stress for. */
 const AURA_LAYERS = [
@@ -1291,6 +1322,71 @@ export const AN_AURA_OF_LAYERS = [
           { kind: 'log', text: 'Every layer holds still, and the blow finds the real one. The air clears.', tone: 'fear' },
           { kind: 'spendToken', ability: 'fixture-aura', all: true },
         ],
+      },
+    ],
+  },
+];
+
+/**
+ * A mark on the ground, and a way back to it.
+ *
+ * One ability, two behaviours, decided by whether the mark is already down: the first
+ * cast marks where the caster stands, the second takes them back to it and forgets it.
+ * So the card ends when they reappear, and casting again marks afresh.
+ *
+ * The mark is a tile kept under the caster's name, which is why a rest forgets it and
+ * why leaving the room does: a tile means nothing in another one.
+ */
+export const A_STEP_BACK_TO_A_MARK = [
+  {
+    id: 'fixture-phantom-step',
+    name: 'Phantom Step',
+    source: { kind: 'domainCard', card: FIXTURE_SPOT_CARD },
+    text: 'Leave a mark where you are standing, and come back to it when it suits you.',
+    cost: { hope: 1 },
+    target: { kind: 'self' },
+    action: false,
+    effects: [
+      {
+        kind: 'branch',
+        when: { kind: 'hasMark', mark: FIXTURE_SPOT_MARK },
+        then: [
+          { kind: 'log', text: 'They are not there any more; they are where they were.', tone: 'hope' },
+          { kind: 'move', to: 'mark', mark: FIXTURE_SPOT_MARK, teleport: true },
+          { kind: 'forgetSpot', mark: FIXTURE_SPOT_MARK },
+        ],
+        otherwise: [{ kind: 'markSpot', mark: FIXTURE_SPOT_MARK }],
+      },
+    ],
+  },
+];
+
+/**
+ * The same idea behind a roll, and a choice on the way back.
+ *
+ * The difficulty is a flat number rather than a target's, because nothing is being cast
+ * at anybody. A success with the mark already down asks which the caster wants: step
+ * through to it, or drop it and mark here instead -- which is the whole of one test,
+ * answered at each index in turn.
+ */
+export const A_RIFT_THAT_OPENS = [
+  {
+    id: 'fixture-rift-step',
+    name: 'Rift Step',
+    source: { kind: 'domainCard', card: FIXTURE_RIFT_CARD },
+    text: 'Open a way back to somewhere you have already been standing.',
+    target: { kind: 'self' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 15,
+          prompt: 'A marking on the ground, or the way back to one?',
+          onCriticalSuccess: RIFT_ARMS,
+          onSuccessWithHope: RIFT_ARMS,
+          onSuccessWithFear: RIFT_ARMS,
+        },
       },
     ],
   },

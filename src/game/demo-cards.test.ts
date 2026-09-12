@@ -16,6 +16,15 @@ import {
   type PendingDefense,
 } from './demo-scene';
 import { PIT_SCENE_ID } from './demo-scenes';
+import { abilitySchema } from '../engine/content/abilities';
+import {
+  FIXTURE_CARDS,
+  FIXTURE_RIFT_CARD,
+  FIXTURE_RIFT_MARK,
+  FIXTURE_SPOT_CARD,
+  FIXTURE_SPOT_MARK,
+} from '../../tests/fixtures/adversaries';
+import { A_RIFT_THAT_OPENS, A_STEP_BACK_TO_A_MARK } from '../../tests/fixtures/cards';
 import { loadGameText, saveGame } from './save';
 import type { EntityState } from '../engine/scene/state';
 
@@ -30,10 +39,25 @@ import type { EntityState } from '../engine/scene/state';
 
 const scene = (seed: string): DemoScene => buildDemoScene(demoMap(), seed);
 
+/**
+ * The cards these tests play, carried into the project once.
+ *
+ * Guarded: both hand helpers call it, and pushing the pool twice would leave duplicate
+ * ability ids, where a card offered twice fires twice.
+ */
+function carry(demo: DemoScene): void {
+  if (demo.project.domainCards.some((c) => c.id === FIXTURE_SPOT_CARD)) return;
+  demo.project.domainCards.push(...FIXTURE_CARDS);
+  for (const ability of [...A_STEP_BACK_TO_A_MARK, ...A_RIFT_THAT_OPENS]) {
+    demo.project.abilities.push(abilitySchema.parse(ability));
+  }
+}
+
 /** Mira holding these cards, with Hope to spend, out of combat. */
 function holding(seed: string, cards: string[]): DemoScene {
   const demo = scene(seed);
   demo.askDefender = false;
+  carry(demo);
   const sheet = { ...demo.sheets.get('mira')!, domainCards: cards, loadout: cards.slice(0, 5) };
   demo.sheets.set('mira', sheet);
   demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -61,18 +85,18 @@ function elsewhere(demo: DemoScene, from: number): number {
 
 describe('Phantom Retreat', () => {
   it('marks the ground for a Hope, and comes back to it for another', () => {
-    const demo = holding('phantom', ['phantom-retreat']);
+    const demo = holding('phantom', [FIXTURE_SPOT_CARD]);
     const mira = demo.state.entity('mira')!;
     const stood = mira.tile;
 
-    expect(useAbility(demo, 'mira', 'phantom-retreat', []).status).toBe('done');
-    expect(demo.world.marks()).toEqual([{ mark: 'phantom', owner: 'mira', tile: stood }]);
+    expect(useAbility(demo, 'mira', 'fixture-phantom-step', []).status).toBe('done');
+    expect(demo.world.marks()).toEqual([{ mark: FIXTURE_SPOT_MARK, owner: 'mira', tile: stood }]);
     expect(mira.hope!.value).toBe(5);
     expect(demo.log.at(-1)?.text).toBe('Mira marks the ground where they stand.');
 
     const away = elsewhere(demo, stood);
     demo.state.moveEntity('mira', away);
-    expect(useAbility(demo, 'mira', 'phantom-retreat', []).status).toBe('done');
+    expect(useAbility(demo, 'mira', 'fixture-phantom-step', []).status).toBe('done');
     expect(mira.tile).toBe(stood);
     expect(mira.hope!.value).toBe(4);
     // The spell ends after they reappear: nothing marked, so the next cast marks again.
@@ -81,36 +105,36 @@ describe('Phantom Retreat', () => {
   });
 
   it('comes back to a mark from across the room, and beside it when somebody is standing on it', () => {
-    const demo = holding('phantom-far', ['phantom-retreat']);
+    const demo = holding('phantom-far', [FIXTURE_SPOT_CARD]);
     const mira = demo.state.entity('mira')!;
     const stood = mira.tile;
-    useAbility(demo, 'mira', 'phantom-retreat', []);
+    useAbility(demo, 'mira', 'fixture-phantom-step', []);
     // Kara on the mark, Mira far away.
     demo.state.moveEntity('kara', stood);
     const far = demo.grid.indexOf(demo.grid.width - 2, demo.grid.height - 2);
     demo.state.moveEntity('mira', demo.grid.isPassable(far) ? far : elsewhere(demo, stood));
-    useAbility(demo, 'mira', 'phantom-retreat', []);
+    useAbility(demo, 'mira', 'fixture-phantom-step', []);
     expect(demo.grid.chebyshevDistance(mira.tile, stood)).toBe(1);
   });
 
   it('is forgotten by a rest, and by leaving the room', () => {
-    const rested = holding('phantom-rest', ['phantom-retreat']);
-    useAbility(rested, 'mira', 'phantom-retreat', []);
+    const rested = holding('phantom-rest', [FIXTURE_SPOT_CARD]);
+    useAbility(rested, 'mira', 'fixture-phantom-step', []);
     expect(rested.world.marks()).toHaveLength(1);
     expect(rest(rested, 'short', { moves: {} }).ok).toBe(true);
     expect(rested.world.marks()).toEqual([]);
 
-    const left = holding('phantom-travel', ['phantom-retreat']);
-    useAbility(left, 'mira', 'phantom-retreat', []);
+    const left = holding('phantom-travel', [FIXTURE_SPOT_CARD]);
+    useAbility(left, 'mira', 'fixture-phantom-step', []);
     expect(travelTo(left, PIT_SCENE_ID)).toBe(true);
     expect(left.world.marks()).toEqual([]);
   });
 
   it('is carried by a save', () => {
-    const demo = holding('phantom-save', ['phantom-retreat']);
-    useAbility(demo, 'mira', 'phantom-retreat', []);
+    const demo = holding('phantom-save', [FIXTURE_SPOT_CARD]);
+    useAbility(demo, 'mira', 'fixture-phantom-step', []);
     const marked = demo.world.marks();
-    const fresh = holding('phantom-save-fresh', ['phantom-retreat']);
+    const fresh = holding('phantom-save-fresh', [FIXTURE_SPOT_CARD]);
     expect(loadGameText(fresh, JSON.stringify(saveGame(demo))).ok).toBe(true);
     expect(fresh.world.marks()).toEqual(marked);
   });
@@ -119,17 +143,17 @@ describe('Phantom Retreat', () => {
 describe('Rift Walker', () => {
   it('marks on a success, and the next success offers the way back', () => {
     for (let seed = 1; seed < 80; seed++) {
-      const demo = holding('rift-' + seed, ['rift-walker']);
+      const demo = holding('rift-' + seed, [FIXTURE_RIFT_CARD]);
       const mira = demo.state.entity('mira')!;
       const stood = mira.tile;
 
-      expect(useAbility(demo, 'mira', 'rift-walker', []).status).toBe('waiting');
+      expect(useAbility(demo, 'mira', 'fixture-rift-step', []).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
       if (demo.world.marks().length === 0) continue; // the roll failed: nothing marked, nothing offered
-      expect(demo.world.marks()).toEqual([{ mark: 'rift', owner: 'mira', tile: stood }]);
+      expect(demo.world.marks()).toEqual([{ mark: FIXTURE_RIFT_MARK, owner: 'mira', tile: stood }]);
 
       demo.state.moveEntity('mira', elsewhere(demo, stood));
-      expect(useAbility(demo, 'mira', 'rift-walker', []).status).toBe('waiting');
+      expect(useAbility(demo, 'mira', 'fixture-rift-step', []).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
       if (demo.pending === null) continue; // failed again: the mark stands, nobody moved
       // The success put the choice: through the rift, or a new mark here.
@@ -145,20 +169,20 @@ describe('Rift Walker', () => {
 
   it('can drop the mark and lay it where they stand instead', () => {
     for (let seed = 1; seed < 80; seed++) {
-      const demo = holding('rift-drop-' + seed, ['rift-walker']);
+      const demo = holding('rift-drop-' + seed, [FIXTURE_RIFT_CARD]);
       const mira = demo.state.entity('mira')!;
       const stood = mira.tile;
-      useAbility(demo, 'mira', 'rift-walker', []);
+      useAbility(demo, 'mira', 'fixture-rift-step', []);
       answerPending(demo, { kind: 'roll' });
       if (demo.world.marks().length === 0) continue;
       const here = elsewhere(demo, stood);
       demo.state.moveEntity('mira', here);
-      useAbility(demo, 'mira', 'rift-walker', []);
+      useAbility(demo, 'mira', 'fixture-rift-step', []);
       answerPending(demo, { kind: 'roll' });
       if (demo.pending === null) continue;
       answerPending(demo, { kind: 'choose', index: 1 });
       expect(mira.tile).toBe(here);
-      expect(demo.world.marks()).toEqual([{ mark: 'rift', owner: 'mira', tile: here }]);
+      expect(demo.world.marks()).toEqual([{ mark: FIXTURE_RIFT_MARK, owner: 'mira', tile: here }]);
       return;
     }
     throw new Error('Rift Walker never succeeded twice in eighty tries');
@@ -178,6 +202,7 @@ describe('Rift Walker', () => {
 function karaHolding(seed: string, cards: string[]): { demo: DemoScene; kara: EntityState; husk: EntityState } {
   const demo = scene(seed);
   demo.askDefender = true;
+  carry(demo);
   const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
   demo.sheets.set('kara', sheet);
   demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -293,7 +318,7 @@ describe('Codex-Touched', () => {
       const mira = demo.state.entity('mira')!;
       demo.askDefender = true;
       const proficiency = demo.characters.get('mira')!.proficiency;
-      expect(useAbility(demo, 'mira', 'rift-walker', []).status).toBe('waiting');
+      expect(useAbility(demo, 'mira', 'fixture-rift-step', []).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
 
@@ -316,7 +341,7 @@ describe('Codex-Touched', () => {
     for (let seed = 1; seed < 40; seed++) {
       const demo = holding('codex-few-' + seed, ['codex-touched', 'book-of-ava', 'rift-walker', 'phantom-retreat']);
       demo.askDefender = true;
-      useAbility(demo, 'mira', 'rift-walker', []);
+      useAbility(demo, 'mira', 'fixture-rift-step', []);
       answerPending(demo, { kind: 'roll' });
       expect(demo.pending?.kind === 'reaction').toBe(false);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });

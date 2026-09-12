@@ -263,6 +263,8 @@ export const FIXTURE_CARDS = [
   card('fixture-hand-6', 'Hand VI', 'fixture', 1),
   // A book with two spells in it, named so that one can be asked for and the
   // other must stay out of the answer.
+  card('fixture-spot', 'Phantom Step'),
+  card('fixture-other-rift', 'Rift Step', 'other'),
   card('fixture-area', 'Bladefall'),
   card('fixture-barrage', 'Barrage'),
   card('fixture-aura', 'Doubtful Air'),
@@ -284,6 +286,13 @@ export const FIXTURE_HAND = [
 
 /** The book, and the names its two spells answer to. */
 export const FIXTURE_GRIMOIRE = 'fixture-grimoire';
+
+/** Cards that remember a place, and the marks they keep under their caster's name. */
+export const FIXTURE_SPOT_CARD = 'fixture-spot';
+/** In the other domain: a spellcast companion for a gate that counts one domain. */
+export const FIXTURE_RIFT_CARD = 'fixture-other-rift';
+export const FIXTURE_SPOT_MARK = 'fixture-spot';
+export const FIXTURE_RIFT_MARK = 'fixture-rift';
 
 /** A spell that answers a whole band, a barrage that asks how much, and an aura. */
 export const FIXTURE_AREA_CARD = 'fixture-area';
