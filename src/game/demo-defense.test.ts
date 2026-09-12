@@ -3348,7 +3348,7 @@ describe('a word in the wrong ear', () => {
    * and a blow struck inside a card of the party's is neither an action nor a
    * spotlight -- which is what the last two tests are really about.
    */
-  const DISCORD_CARD = 'fixture-card-7';
+  const DISCORD_CARD = 'fixture-card-9';
   const TURNED = [
     { kind: 'markStress', target: { kind: 'target' } },
     {
@@ -3556,8 +3556,8 @@ describe('a shout the next one hears', () => {
    * The two names differ on purpose — the offer says one thing and the payout
    * another — because one test below reads them apart in a queue of offers.
    */
-  const SHOUT_CARD = 'fixture-card-5';
-  const FOLLOW_CARD = 'fixture-card-6';
+  const SHOUT_CARD = 'fixture-card-10';
+  const FOLLOW_CARD = 'fixture-card-11';
   const SHOUT = [
     {
       id: 'fixture-shout',
@@ -6256,7 +6256,7 @@ describe('coming at them well, and knowing them', () => {
    * `around: 'target'` in the middle option is the whole of one test: the band
    * is measured from the creature it was aimed at, not from whoever played it.
    */
-  const APPROACH_CARD = 'fixture-card-3';
+  const APPROACH_CARD = 'fixture-card-12';
   const APPROACH = [
     {
       id: 'fixture-approach',
@@ -6320,7 +6320,7 @@ describe('coming at them well, and knowing them', () => {
    * `cards.ts` resolves into a line of log, and this test is about what the
    * payout costs its holder and what it takes off the GM.
    */
-  const WATCH_CARD = 'fixture-card-4';
+  const WATCH_CARD = 'fixture-card-13';
   const WATCH_AND_PAY = [
     {
       id: 'fixture-watch-pay',
