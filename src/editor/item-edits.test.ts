@@ -2,9 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { itemSchema, lootTableSchema } from '../engine/content/items';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { interactableSchema, projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { importContentPack } from '../engine/content/pack/import';
+import { STARTER_CHARACTERS } from '../engine/content/pack/starter';
 import {
   EditorSession,
   addItem,
@@ -23,18 +21,9 @@ import { validateProject } from './validate';
  * nothing, and it can only do that if the reference survives the delete.
  */
 
-const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
-const read = (name: string): unknown[] =>
-  JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
-const content = importContentPack({
-  weapons: read('weapons'),
-  armors: read('armors'),
-  classes: read('classes'),
-  ancestries: read('ancestries'),
-  communities: read('communities'),
-  subclasses: read('subclasses'),
-  domainCards: read('domain-cards'),
-}).content;
+// The pack the app ships. What these tests want from content is that *a* weapon exists to
+// name and that an unknown id stays unknown — not anything about a catalogue's breadth.
+const content = STARTER_CHARACTERS;
 
 const KEY = { id: 'brass-key', name: 'A brass key', kind: 'key' };
 const TABLE = { id: 'chest', rolls: 2, entries: [{ item: 'brass-key', weight: 3 }] };
@@ -86,13 +75,13 @@ describe('items in the project', () => {
     expect(parsed.items[0]!.use).toEqual([{ kind: 'heal', amount: 2, target: { kind: 'actor' } }]);
   });
 
-  it('reports a weapon item standing for SRD content that does not exist', () => {
+  it('reports a weapon item standing for content that does not exist', () => {
     const s = session();
     s.run(updateItem('brass-key', { kind: 'weapon', contentId: 'vorpal-nonsense' }));
     expect(validateProject(s.project, { characterContent: content }).map((p) => p.message).join(' ')).toContain(
       'vorpal-nonsense',
     );
-    s.run(updateItem('brass-key', { contentId: 'broadsword' }));
+    s.run(updateItem('brass-key', { contentId: 'longsword' }));
     expect(validateProject(s.project, { characterContent: content })).toEqual([]);
   });
 
