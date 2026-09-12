@@ -77,11 +77,35 @@ time it was written to save.
 
 ### 0. ~~Finish the fixture conversion~~ — **done**, and slice 3 is unblocked
 
-Every game-layer test now carries its own content instead of borrowing the catalogue's.
+Every **game-layer** test now carries its own content instead of borrowing the catalogue's.
 `authored-scenario.test.ts` 49 → 0, `demo-abilities.test.ts` 14 → 0, `demo-cards.test.ts` 14 → 0,
-and the earlier `demo-defense.test.ts` conversion. **This is the precondition for slice 3 and it is
-met**: nothing under `src/` asserts against a card, creature or condition the vendored catalogue
-owns, so deleting that catalogue can only break the engine, never merely strip a test of its props.
+and the earlier `demo-defense.test.ts` conversion.
+
+**The precondition is not met yet, and an earlier version of this file wrongly said it was.**
+Nine more test files read the vendored folder off disk at runtime and fail the moment it goes.
+They are engine-layer tests using the catalogue as a content fixture, which is why a game-layer
+sweep never touched them:
+
+| File | What it wants |
+|---|---|
+| `editor/item-edits.test.ts` | a weapon id |
+| `editor/party-edits.test.ts` | a class, subclass, ancestry, armour, weapon, two cards |
+| `engine/character/progression.test.ts` | the same, plus a subclass's domains and a card's recall cost |
+| `engine/character/sheet.test.ts` | a class, armour, weapon |
+| `engine/content/abilities.test.ts` | a class, subclass, two cards |
+| `engine/script/abilities.test.ts` | a class, subclass, armour, weapon, two cards |
+| `engine/combat/adversary-features.test.ts` | one stat block — and only to parse brackets |
+| `engine/content/srd/library.test.ts` | the whole catalogue; **dies with the slice** |
+| `tests/unit/demo-map-fight.test.ts` | one stat block |
+
+Six share one `read()` helper over the seven daggersearch JSONs, so the conversion is one
+repeated move rather than nine problems: point it at `STARTER_PACK` and re-pin the names.
+Every name has a starter substitute — `guardian`→`sentinel`, `stalwart`→`shieldbearer`,
+`chainmail-armor`→`ringmail`, `gambeson-armor`→`padded-coat`, `broadsword`→`longsword`,
+`bare-bones`/`get-back-up`→`power-slash`/`iron-stance`, `human` unchanged. Two assertions need
+more than a rename: a subclass's domains (`['valor','blade']` → `['bulwark']`) and a card's
+recall cost. The two adversary tests want a fixture stat block; `adversary-features` only ever
+asserts bracket parsing, so inline literals suit it better than any catalogue.
 
 Roughly forty specimens live in `tests/fixtures/cards.ts` and `tests/fixtures/adversary-features.ts`,
 named for the mechanism rather than anything they were read off, so one serves several tests. They
