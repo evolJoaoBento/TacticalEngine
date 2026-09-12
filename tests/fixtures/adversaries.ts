@@ -263,6 +263,9 @@ export const FIXTURE_CARDS = [
   card('fixture-hand-6', 'Hand VI', 'fixture', 1),
   // A book with two spells in it, named so that one can be asked for and the
   // other must stay out of the answer.
+  card('fixture-area', 'Bladefall'),
+  card('fixture-barrage', 'Barrage'),
+  card('fixture-aura', 'Doubtful Air'),
   card('fixture-grimoire', 'A Book of Two Spells', 'fixture', 0, [
     { name: 'Shove', text: 'Shove something away from you, hard enough that it has to come back.' },
     { name: 'Splinter', text: 'Throw a shard of something at what is too far off to reach.' },
@@ -281,6 +284,11 @@ export const FIXTURE_HAND = [
 
 /** The book, and the names its two spells answer to. */
 export const FIXTURE_GRIMOIRE = 'fixture-grimoire';
+
+/** A spell that answers a whole band, a barrage that asks how much, and an aura. */
+export const FIXTURE_AREA_CARD = 'fixture-area';
+export const FIXTURE_BARRAGE_CARD = 'fixture-barrage';
+export const FIXTURE_AURA_CARD = 'fixture-aura';
 
 /** The four a gate of "four or more of one domain" is satisfied by. */
 export const FIXTURE_DOMAIN_FOUR = ['fixture-card-1', 'fixture-card-2', 'fixture-card-3', 'fixture-card-4'];

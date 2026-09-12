@@ -14,7 +14,30 @@
  * bundles may import them, so a fixture can never become shipped content.
  */
 
-import { FIXTURE_CARDS, FIXTURE_GRIMOIRE } from './adversaries';
+import {
+  FIXTURE_AREA_CARD,
+  FIXTURE_AURA_CARD,
+  FIXTURE_BARRAGE_CARD,
+  FIXTURE_CARDS,
+  FIXTURE_GRIMOIRE,
+} from './adversaries';
+
+/** A layer up, and as many more as the caster will pay Stress for. */
+const AURA_LAYERS = [
+  { kind: 'log', text: 'The air over them goes doubtful.', tone: 'hope' },
+  { kind: 'addToken', ability: 'fixture-aura', amount: 1 },
+  {
+    kind: 'howMany',
+    most: 3,
+    least: 0,
+    title: 'Doubtful Air',
+    body: 'How many Stress for more layers?',
+    each: [
+      { kind: 'markStress', amount: 'spent', target: { kind: 'actor' } },
+      { kind: 'addToken', ability: 'fixture-aura', amount: 'spent' },
+    ],
+  },
+];
 
 /** Which of the generic cards each specimen sits on. */
 export const WATCHING_CARD = 'fixture-card-3';
@@ -1124,6 +1147,150 @@ export const A_BOOK_OF_TWO_SPELLS = [
           difficulty: 'target',
           onSuccessWithHope: [{ kind: 'damage', dice: 'd6', type: 'physical', using: 'proficiency' }],
         },
+      },
+    ],
+  },
+];
+
+/**
+ * One roll, a whole band, and a Hope paid up front.
+ *
+ * What the tests reading this pin is the ENGINE's bookkeeping rather than the card's:
+ * the prompt carries the caster's Spellcast trait and modifier, the Hope leaves
+ * before the dice are thrown, the turn is not spent until they are, and putting the
+ * card back down returns what it cost. The only thing of mine they read is the name,
+ * because the step-back line is built out of it.
+ */
+export const A_SPELL_FOR_A_WHOLE_BAND = [
+  {
+    id: 'fixture-bladefall',
+    name: 'Bladefall',
+    source: { kind: 'domainCard', card: FIXTURE_AREA_CARD },
+    text: 'Fill the air around you with edges, and let everything near answer for it.',
+    cost: { hope: 1 },
+    target: { kind: 'none', range: 'veryClose' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'veryClose' },
+          prompt: 'Fill the air with edges?',
+          onSuccessWithHope: [{ kind: 'damage', dice: 'd8+2', type: 'magic', using: 'proficiency' }],
+        },
+      },
+    ],
+  },
+];
+
+/**
+ * A barrage whose size the player chooses, which only code can build.
+ *
+ * "Any number of Hope" is not a count an effect can express: the options depend on
+ * what the caster holds at the moment of asking. So the card runs a hook, and the
+ * hook is the project's own.
+ *
+ * Its `uses` is what a test is about: the use is banked when the card is played and
+ * handed back when the choice it opened with is cancelled.
+ */
+export const A_BARRAGE_THAT_ASKS = [
+  {
+    id: 'fixture-barrage',
+    name: 'Barrage',
+    source: { kind: 'domainCard', card: FIXTURE_BARRAGE_CARD },
+    text: 'Throw as much of what you are holding as you care to spend.',
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'adversary', range: 'close' },
+    available: { kind: 'pool', pool: 'hope', op: '>=', value: 1 },
+    effects: [{ kind: 'run', hook: 'fixture-barrage' }],
+  },
+];
+
+/**
+ * The project code behind it, shaped as a project carries code.
+ *
+ * `compileHooks` gives this the same context the engine's own hooks get, so it reads
+ * the pool, builds one option per point, and queues the choice.
+ */
+export const A_BARRAGE_HOOK = {
+  id: 'fixture-barrage',
+  name: 'Barrage',
+  notes: 'One option per Hope the caster holds, each throwing that many dice.',
+  source: `var actor = ctx.actor;
+var target = ctx.targets[0];
+if (actor === null || target === undefined) return;
+var hope = ctx.pool(actor, 'hope') || 0;
+if (hope < 1) {
+  ctx.log('Nothing to throw: the barrage never forms.', 'system');
+  return;
+}
+var options = [];
+for (var spent = 1; spent <= hope; spent++) {
+  options.push({
+    label: spent + ' Hope: ' + spent + 'd6 magic',
+    effects: [
+      { kind: 'spendHope', amount: spent },
+      { kind: 'damage', dice: spent + 'd6', type: 'magic', target: { kind: 'target' } },
+    ],
+  });
+}
+ctx.queue([{ kind: 'choice', title: 'Barrage', body: 'How much of it goes into this?', options: options }]);`,
+};
+
+/**
+ * An aura of layers, once per long rest, and a throw that answers a blow.
+ *
+ * `per: 'longRest'` is load-bearing beyond this card. A rest test reads a use key off
+ * the project's abilities and needs one a short rest keeps and a long rest clears; a
+ * `per: 'rest'` ability would be cleared by both.
+ */
+export const AN_AURA_OF_LAYERS = [
+  {
+    id: 'fixture-aura',
+    name: 'Doubtful Air',
+    source: { kind: 'domainCard', card: FIXTURE_AURA_CARD },
+    text: 'Put a layer of doubt over where you stand, and more if you can bear it.',
+    uses: { count: 1, per: 'longRest' },
+    target: { kind: 'self' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 14,
+          prompt: 'Put a layer of doubt over where you stand?',
+          onCriticalSuccess: AURA_LAYERS,
+          onSuccessWithHope: AURA_LAYERS,
+          onSuccessWithFear: AURA_LAYERS,
+        },
+      },
+    ],
+  },
+  {
+    id: 'fixture-aura-layers',
+    name: 'Doubtful Air',
+    source: { kind: 'domainCard', card: FIXTURE_AURA_CARD },
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    auto: false,
+    available: { kind: 'tokens', ability: 'fixture-aura', op: '>=', value: 1 },
+    target: { kind: 'none' },
+    effects: [
+      {
+        kind: 'branch',
+        // A die per layer, all at once.
+        when: { kind: 'chance', dice: '1d6', atLeast: 5, times: { tokens: 'fixture-aura' } },
+        then: [
+          { kind: 'log', text: 'The blow goes through a layer that was never there.', tone: 'hope' },
+          { kind: 'spendToken', ability: 'fixture-aura', amount: 1 },
+          { kind: 'avoidBlow' },
+        ],
+        otherwise: [
+          { kind: 'log', text: 'Every layer holds still, and the blow finds the real one. The air clears.', tone: 'fear' },
+          { kind: 'spendToken', ability: 'fixture-aura', all: true },
+        ],
       },
     ],
   },

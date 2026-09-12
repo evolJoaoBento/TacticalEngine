@@ -2,10 +2,26 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { abilitySchema } from '../engine/content/abilities';
-import { FIXTURE_CARDS, FIXTURE_GRIMOIRE, FIXTURE_HAND } from '../../tests/fixtures/adversaries';
-import { A_BOOK_OF_TWO_SPELLS } from '../../tests/fixtures/cards';
+import { codeSchema } from '../engine/scene/schema';
+import {
+  FIXTURE_AREA_CARD,
+  FIXTURE_AURA_CARD,
+  FIXTURE_BARRAGE_CARD,
+  FIXTURE_CARDS,
+  FIXTURE_GRIMOIRE,
+  FIXTURE_HAND,
+} from '../../tests/fixtures/adversaries';
+import {
+  AN_AURA_OF_LAYERS,
+  A_BARRAGE_HOOK,
+  A_BARRAGE_THAT_ASKS,
+  A_BOOK_OF_TWO_SPELLS,
+  A_SPELL_FOR_A_WHOLE_BAND,
+  A_SPEND_OF_WHATEVER_IS_ON_THE_CARD,
+  CHAOS_ABILITY,
+  CHAOS_CARD,
+} from '../../tests/fixtures/cards';
 import { useKey } from '../engine/script/world';
-import { SRD_ABILITY_MAP } from '../engine/content/srd/abilities';
 import { NO_TILE } from '../engine/grid/grid';
 import {
   abilityList,
@@ -37,6 +53,37 @@ import {
  */
 
 const scene = (seed = 'cards'): DemoScene => buildDemoScene(demoMap(), seed);
+
+/**
+ * Every card these tests play, and the project code one of them runs.
+ *
+ * Guarded, because a test can give two characters different hands: pushing the pool
+ * twice would leave duplicate ability ids in the project, and a card offered twice
+ * fires twice.
+ */
+function carry(demo: DemoScene): void {
+  if (demo.project.domainCards.some((c) => c.id === FIXTURE_AREA_CARD)) return;
+  demo.project.domainCards.push(...FIXTURE_CARDS);
+  for (const ability of [
+    ...A_SPELL_FOR_A_WHOLE_BAND,
+    ...A_BARRAGE_THAT_ASKS,
+    ...AN_AURA_OF_LAYERS,
+    ...A_BOOK_OF_TWO_SPELLS,
+    ...A_SPEND_OF_WHATEVER_IS_ON_THE_CARD,
+  ]) {
+    demo.project.abilities.push(abilitySchema.parse(ability));
+  }
+  demo.project.code.push(codeSchema.parse(A_BARRAGE_HOOK));
+}
+
+/** A character holding exactly these cards, with the project carrying them. */
+function holds(demo: DemoScene, who: string, cards: readonly string[]): void {
+  carry(demo);
+  const sheet = { ...demo.sheets.get(who)!, domainCards: [...cards], loadout: [...cards] };
+  demo.sheets.set(who, sheet);
+  demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
+  refreshWorld(demo);
+}
 
 /** The living adversary nearest a character, and its tile. */
 /** What the demo places, by name: the log lines are built from the block's own. */
@@ -252,6 +299,9 @@ describe('the loadout and the vault', () => {
 describe('a rest', () => {
   it('clears 1d4 + tier on a short rest, everything on a long one, and hands the GM Fear', () => {
     const demo = scene();
+    // The use key below has to name an ability the project knows: `rest` looks it up
+    // to read how often it refreshes, and an id it cannot find is never cleared.
+    carry(demo);
     const kara = demo.state.entity('kara')!;
     const mira = demo.state.entity('mira')!;
     kara.hitPoints = { ...kara.hitPoints, marked: 6 };
@@ -259,7 +309,7 @@ describe('a rest', () => {
     kara.armorSlots = { ...kara.armorSlots, marked: 3 };
     mira.hitPoints = { ...mira.hitPoints, marked: 4 };
     mira.hope = { max: 6, value: 0 };
-    demo.scenario.abilityUses.set(useKey('mira', 'healing-hands'), 1);
+    demo.scenario.abilityUses.set(useKey('mira', 'fixture-aura'), 1);
     demo.scenario.abilityUses.set(useKey('kara', 'some-scene-thing'), 1);
 
     const short = rest(demo, 'short', {
@@ -279,7 +329,7 @@ describe('a rest', () => {
     // Two characters prepared together: 2 Hope each.
     expect(mira.hope!.value).toBe(2);
     // A once-per-long-rest card is still used; a per-rest one would refresh.
-    expect(demo.scenario.abilityUses.get(useKey('mira', 'healing-hands'))).toBe(1);
+    expect(demo.scenario.abilityUses.get(useKey('mira', 'fixture-aura'))).toBe(1);
 
     kara.hitPoints = { ...kara.hitPoints, marked: 5 };
     const fearBefore = demo.state.fear.value;
@@ -287,7 +337,7 @@ describe('a rest', () => {
     expect(long.ok).toBe(true);
     expect(kara.hitPoints.marked).toBe(0);
     expect(kara.stress.marked).toBe(0);
-    expect(demo.scenario.abilityUses.has(useKey('mira', 'healing-hands'))).toBe(false);
+    expect(demo.scenario.abilityUses.has(useKey('mira', 'fixture-aura'))).toBe(false);
     // 1d4 + three party members, capped by the pool.
     expect(demo.state.fear.value - fearBefore).toBeGreaterThanOrEqual(Math.min(4, demo.state.fear.max - fearBefore));
   });
@@ -494,50 +544,43 @@ describe('a card written in the project\'s own code', () => {
 describe('tokens on a card', () => {
   it('refills a session card on a long rest and not on a short one', () => {
     const demo = scene();
-    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['unleash-chaos'], loadout: ['unleash-chaos'] };
-    demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
-    refreshWorld(demo);
-    // "At the beginning of a session": a session boundary falls on a long rest.
-    expect(SRD_ABILITY_MAP.get('unleash-chaos')!.tokens?.refill).toBe('session');
-
+    holds(demo, 'mira', [CHAOS_CARD]);
+    // "At the beginning of a session": a session boundary falls on a long rest, and
+    // what proves it is the behaviour below rather than the card restating itself.
     expect(rest(demo, 'short', { moves: {} }).ok).toBe(true);
-    expect(demo.world.tokensOn('mira', 'unleash-chaos')).toBe(0);
+    expect(demo.world.tokensOn('mira', CHAOS_ABILITY)).toBe(0);
     expect(rest(demo, 'long', { moves: {} }).ok).toBe(true);
-    expect(demo.world.tokensOn('mira', 'unleash-chaos')).toBe(demo.world.spellcastValue('mira')!);
+    expect(demo.world.tokensOn('mira', CHAOS_ABILITY)).toBe(demo.world.spellcastValue('mira')!);
   });
 
 
   it('places them on a rest, spends them for the damage rolled, and clears them on the next', () => {
     const demo = scene();
-    // Mira takes Unleash Chaos: her Spellcast trait is Knowledge, so that many tokens.
-    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['unleash-chaos'], loadout: ['unleash-chaos'] };
-    demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
-    refreshWorld(demo);
+    // Her Spellcast trait is Knowledge, so that many tokens go on the card.
+    holds(demo, 'mira', [CHAOS_CARD]);
     const spellcast = demo.world.spellcastValue('mira')!;
     expect(spellcast).toBeGreaterThan(0);
 
     // Nothing on the card yet: the card is greyed out and says why.
-    const before = abilityList(demo, 'mira').find((a) => a.ability.id === 'unleash-chaos')!;
+    const before = abilityList(demo, 'mira').find((a) => a.ability.id === CHAOS_ABILITY)!;
     expect(before.usable).toBe(false);
 
     expect(rest(demo, 'long', { moves: {} }).ok).toBe(true);
-    expect(demo.world.tokensOn('mira', 'unleash-chaos')).toBe(spellcast);
-    expect(demo.log.map((l) => l.text).some((t) => t.includes('places') && t.includes('Unleash Chaos'))).toBe(true);
+    expect(demo.world.tokensOn('mira', CHAOS_ABILITY)).toBe(spellcast);
+    expect(demo.log.map((l) => l.text).some((t) => t.includes('places') && t.includes('Doubtful'))).toBe(true);
 
     const foe = nearestFoe(demo, 'mira');
     closeIn(demo, 'mira', foe.id);
     startEncounter(demo, demo.scene.encounters[0]!.id);
-    const result = useAbility(demo, 'mira', 'unleash-chaos', [foe.id]);
+    const result = useAbility(demo, 'mira', CHAOS_ABILITY, [foe.id]);
     expect(result.status).toBe('waiting');
     if (demo.pending?.kind !== 'script' || demo.pending.prompt.kind !== 'choice') throw new Error('expected a choice');
     // One option per token held.
     expect(demo.pending.prompt.options).toHaveLength(spellcast);
     answerPending(demo, { kind: 'choose', index: spellcast - 1 });
-    expect(demo.world.tokensOn('mira', 'unleash-chaos')).toBe(0);
+    expect(demo.world.tokensOn('mira', CHAOS_ABILITY)).toBe(0);
     // Spending them all leaves the card unusable until the next long rest.
-    const after = abilityList(demo, 'mira').find((a) => a.ability.id === 'unleash-chaos')!;
+    const after = abilityList(demo, 'mira').find((a) => a.ability.id === CHAOS_ABILITY)!;
     expect(after.usable).toBe(false);
   });
 });
