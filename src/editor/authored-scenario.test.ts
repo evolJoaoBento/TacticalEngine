@@ -573,13 +573,91 @@ describe('a wound that answers back', () => {
 });
 
 describe('a wound big enough to be counted', () => {
-  /** Kara toe to toe with something, the fight already on. */
-  const duel = (adversary: string, seed: string) => {
+  /**
+   * Half of whatever landed, sent back the way it came. `same` is the blow that
+   * just arrived and `half` is what of it returns, so it goes through the
+   * attacker's thresholds the way it went through this creature's.
+   */
+  const MIRRORED_SKIN = {
+    id: 'fixture-mirrored-skin',
+    name: 'Mirrored Skin',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Struck from close in, it sends half of what landed straight back.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    available: { kind: 'withinRange', range: 'close' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The blow folds back on itself.', tone: 'fear' },
+      { kind: 'damage', dice: 'same', half: true, target: { kind: 'target' } },
+    ],
+  };
+
+  /** A gate on the size of the wound: two Hit Points or more, or nothing. */
+  const HEAVY_ANSWER = {
+    id: 'fixture-heavy-answer',
+    name: 'Heavy Answer',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'A wound worth noticing buys the one who dealt it a swing in return.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'veryClose' },
+        { kind: 'count', of: 'hitPointsTaken', op: '>=', value: 2 },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'It brings the hammer round in answer.', tone: 'fear' },
+      { kind: 'attack', damage: '2d6+15', target: { kind: 'target' } },
+    ],
+  };
+
+  /**
+   * A clock armed by its own wounds, which takes back exactly what it dealt:
+   * `hitPointsDealt` is what the blast marked, healed onto the creature that
+   * threw it.
+   */
+  const TAKES_IT_BACK = {
+    id: 'fixture-takes-it-back',
+    name: 'Takes It Back',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Worn down far enough, it starts counting, and what it spends next it takes out of somebody.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    uses: { count: 1, per: 'scene' },
+    available: { kind: 'pool', pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked', op: '>=', value: 6 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'fixture-takes-it-back',
+        name: 'Takes It Back',
+        start: '2d6',
+        loop: 'reset',
+        effects: [
+          { kind: 'log', text: 'It takes the wound back out of somebody.', tone: 'fear' },
+          { kind: 'damage', dice: '2d10+6', type: 'magic', direct: true, target: { kind: 'allies', range: 'close', nearest: 1 } },
+          { kind: 'heal', amount: 'hitPointsDealt', target: { kind: 'actor' } },
+        ],
+      },
+    ],
+  };
+
+  /** Kara toe to toe with something carrying the feature under test. */
+  const duel = (seed: string, features: readonly unknown[]) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
-    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
+    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -590,40 +668,39 @@ describe('a wound big enough to be counted', () => {
   };
 
   it('throws half of the blow back, off the damage rather than the Hit Points', () => {
-    // "Deal an amount of damage to the attacker equal to half the damage they
-    // dealt." Twenty magic damage marks the Elemental once or twice; what
-    // comes back is ten, which is half of the swing and not half of that.
-    const demo = duel('minor-chaos-elemental', 'reflect');
+    // Half of the damage that landed, not half of the Hit Points it cost:
+    // twenty marks the creature once or twice, and ten is what comes back.
+    const demo = duel('reflect', [MIRRORED_SKIN]);
     demo.world.noteDamage('foe', { attacker: 'kara', hitPoints: 2, damage: 20, types: ['magic'] });
     settleFight(demo);
 
-    expect(demo.log.some((l) => l.text.includes('The blow bends back on itself.'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('The blow folds back on itself.'))).toBe(true);
     expect(demo.log.some((l) => l.text.includes('10 damage to Kara'))).toBe(true);
   });
 
   it('answers only a wound of the size the block names', () => {
-    // "When the Brawler marks 2 or more HP from an attack within Very Close
-    // range." One Hit Point is a scratch, and the hammer stays down.
-    const light = duel('giant-brawler', 'brawler-light');
+    // Two Hit Points or more, and within Very Close. One Hit Point is a
+    // scratch, and the hammer stays down.
+    const light = duel('brawler-light', [HEAVY_ANSWER]);
     light.world.noteDamage('foe', { attacker: 'kara', hitPoints: 1, damage: 5, types: ['physical'] });
     settleFight(light);
-    expect(light.log.some((l) => l.text.includes('answers the wound with the hammer'))).toBe(false);
+    expect(light.log.some((l) => l.text.includes('brings the hammer round'))).toBe(false);
 
-    const heavy = duel('giant-brawler', 'brawler-heavy');
+    const heavy = duel('brawler-heavy', [HEAVY_ANSWER]);
     heavy.world.noteDamage('foe', { attacker: 'kara', hitPoints: 2, damage: 30, types: ['physical'] });
     settleFight(heavy);
-    expect(heavy.log.some((l) => l.text.includes('answers the wound with the hammer'))).toBe(true);
+    expect(heavy.log.some((l) => l.text.includes('brings the hammer round'))).toBe(true);
   });
 
   it('drinks back exactly what its own clock took out of somebody', () => {
-    // "The Necromancer then clears a number of Stress or HP equal to the
-    // number of HP marked by the target from this attack."
-    const demo = duel('arch-necromancer', 'life-is-mine');
+    // What it heals is what the blast marked — `hitPointsDealt`, not a flat
+    // number — so the two are checked against each other rather than a total.
+    const demo = duel('life-is-mine', [TAKES_IT_BACK]);
     const foe = demo.state.entity('foe')!;
     foe.hitPoints = { max: 12, marked: 6 };
     demo.world.noteDamage('foe', { attacker: 'kara', hitPoints: 1, damage: 8, types: ['physical'] });
     settleFight(demo);
-    const clock = demo.scenario.countdowns.get('arch-necromancer-your-life-is-mine');
+    const clock = demo.scenario.countdowns.get('fixture-takes-it-back');
     expect(clock).toBeDefined();
 
     clock!.value = 1;
@@ -632,7 +709,7 @@ describe('a wound big enough to be counted', () => {
     if (!demo.encounter!.canAct('kara')) endTurn(demo);
     attackWithSelected(demo, 'foe');
 
-    expect(demo.log.some((l) => l.text.includes('drinks the wound back'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('takes the wound back'))).toBe(true);
     const took = demo.state.entity('kara')!.hitPoints.marked - hurt;
     expect(took).toBeGreaterThan(0);
     // What it cleared is what the blast marked, less whatever Kara's own swing
@@ -642,12 +719,40 @@ describe('a wound big enough to be counted', () => {
 });
 
 describe('a wound too small to be worth taking', () => {
-  const duel = (adversary: string, seed: string) => {
+  /**
+   * The same gate as a counted wound, read the other way: two Hit Points or
+   * *fewer*, which includes a hit that marked none at all. That is why the
+   * trigger is the damage rather than the Hit Points.
+   */
+  const SHRUGS_IT_OFF = {
+    id: 'fixture-shrugs-it-off',
+    name: 'Shrugs It Off',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'A blow that barely tells costs whoever threw it something instead.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'melee' },
+        { kind: 'count', of: 'hitPointsTaken', op: '<=', value: 2 },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Turned aside, and laughed at.', tone: 'fear' },
+      { kind: 'markStress', target: { kind: 'target' } },
+    ],
+  };
+
+  const duel = (seed: string, features: readonly unknown[]) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
-    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
+    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -657,21 +762,19 @@ describe('a wound too small to be worth taking', () => {
     return demo;
   };
 
-  it('costs the attacker a Stress for a blow the Captain shrugs off, and nothing for a real one', () => {
-    // "When the Captain marks 2 or fewer HP from an attack within Melee range,
-    // the attacker must mark a Stress."
-    const small = duel('pirate-captain', 'swash-small');
+  it('costs the attacker a Stress for a blow it shrugs off, and nothing for a real one', () => {
+    const small = duel('swash-small', [SHRUGS_IT_OFF]);
     const before = small.state.entity('kara')!.stress.marked;
     small.world.noteDamage('foe', { attacker: 'kara', hitPoints: 1, damage: 6, types: ['physical'] });
     settleFight(small);
-    expect(small.log.some((l) => l.text.includes('Turned aside with a laugh.'))).toBe(true);
+    expect(small.log.some((l) => l.text.includes('Turned aside, and laughed at.'))).toBe(true);
     expect(small.state.entity('kara')!.stress.marked).toBe(before + 1);
 
-    const big = duel('pirate-captain', 'swash-big');
+    const big = duel('swash-big', [SHRUGS_IT_OFF]);
     const was = big.state.entity('kara')!.stress.marked;
     big.world.noteDamage('foe', { attacker: 'kara', hitPoints: 3, damage: 24, types: ['physical'] });
     settleFight(big);
-    expect(big.log.some((l) => l.text.includes('Turned aside with a laugh.'))).toBe(false);
+    expect(big.log.some((l) => l.text.includes('Turned aside, and laughed at.'))).toBe(false);
     expect(big.state.entity('kara')!.stress.marked).toBe(was);
   });
 });
