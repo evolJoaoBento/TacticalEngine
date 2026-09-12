@@ -1117,6 +1117,18 @@ export class SceneScriptWorld implements ScriptWorld {
     return this.abilities.filter((a) => a.source.kind === 'adversary' && a.source.adversaries.includes(definition));
   }
 
+  /**
+   * The stat block a definition names, out of the content this fight is being
+   * played with — the pack the app shipped *and* whatever the project carries.
+   *
+   * The world already holds that merged map, and until this existed every
+   * caller had to reach around it into the shipped one, which quietly answered
+   * with the wrong creature for anything a project brought itself.
+   */
+  adversaryDef(definition: string): AdversaryDef | undefined {
+    return this.adversaries.get(definition);
+  }
+
   /** Tokens sitting on a card a creature holds. */
   tokensOn(id: string, ability: string): number {
     return this.scenario.abilityTokens.get(useKey(id, ability)) ?? 0;

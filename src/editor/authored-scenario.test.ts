@@ -780,13 +780,80 @@ describe('a wound too small to be worth taking', () => {
 });
 
 describe('a creature that walks before it swings', () => {
+  /**
+   * Ground closed on the way in: a move toward whoever was picked, spending up
+   * to Far to arrive at Melee, and then the swing.
+   */
+  const RUN_UP = {
+    id: 'fixture-run-up',
+    name: 'Run-Up',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'It covers the ground first and swings on arrival.',
+    target: { kind: 'creature', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'A run-up, and then the blade.', tone: 'combat' },
+      { kind: 'move', how: 'toward', of: { kind: 'target' }, range: 'melee', budget: 'far' },
+      {
+        kind: 'attack',
+        damage: '2d8+4',
+        target: { kind: 'target' },
+        onHit: [{ kind: 'markStress', target: { kind: 'hit' } }],
+      },
+    ],
+  };
+
+  /**
+   * The other direction: a wound moves it away. Free, so the fight plays it
+   * every time — and a blow with nobody behind it has nothing to back away
+   * from, which is the half of this the second test is about.
+   */
+  const GIVES_GROUND = {
+    id: 'fixture-gives-ground',
+    name: 'Gives Ground',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Wounded, it is somewhere else.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    target: { kind: 'none' },
+    effects: [{ kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'far' }],
+  };
+
+  /**
+   * A walk aimed at its own side. `except: 'actor'` is the whole point: a
+   * creature is within Melee of itself, so a selector that counted the one
+   * acting would have it close up beside nobody at all.
+   */
+  const CLOSE_RANKS = {
+    id: 'fixture-close-ranks',
+    name: 'Close Ranks',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'It spends itself to reach one of its own and swing from there.',
+    cost: { stress: 1 },
+    target: { kind: 'creature', range: 'veryClose' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'It closes up beside one of its own.', tone: 'combat' },
+      { kind: 'move', how: 'toward', of: { kind: 'adversaries', range: 'far', nearest: 1, except: 'actor' }, range: 'melee' },
+      {
+        kind: 'attack',
+        range: 'veryClose',
+        damage: '2d10+2',
+        target: { kind: 'target' },
+        onHit: [{ kind: 'clearStress', target: { kind: 'adversaries', range: 'melee', nearest: 1, except: 'actor' } }],
+      },
+    ],
+  };
+
   /** Kara at one end of the hall and something at the other. */
-  const hall = (adversary: string, at: { x: number; y: number }, seed: string) => {
+  const hall = (seed: string, features: readonly unknown[], at: { x: number; y: number } = { x: 9, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'hall', name: 'The hall' })));
-    s.run(addAdversary('hall', 'hall', { id: 'foe', adversary, position: at }));
+    s.run(addAdversary('hall', 'hall', { id: 'foe', adversary: 'fixture-foe', position: at }));
+    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'hall');
@@ -800,23 +867,19 @@ describe('a creature that walks before it swings', () => {
   const bandTo = (demo: ReturnType<typeof hall>, a: string, b: string) => demo.world.bandTo(a, b);
 
   it('closes the ground the feature says it can, and no further than it needs', () => {
-    // "If the Knight is mounted, move up to Far range and make a standard
-    // attack against a target."
-    const demo = hall('knight-of-the-realm', { x: 9, y: 4 }, 'charge');
+    const demo = hall('charge', [RUN_UP]);
     expect(bandTo(demo, 'foe', 'kara')).not.toBe('melee');
 
     for (let i = 0; i < 4 && bandTo(demo, 'foe', 'kara') !== 'melee'; i++) endTurn(demo);
-    expect(demo.log.some((l) => l.text.includes('Hooves, and then the sword.'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('A run-up, and then the blade.'))).toBe(true);
     expect(bandTo(demo, 'foe', 'kara')).toBe('melee');
   });
 
   it('walks away from whoever wounded it, and stands still when nobody did', () => {
-    // "When the Sorcerer takes damage from an attack, they can teleport up to
-    // Far range."
-    const demo = hall('fallen-sorcerer', { x: 3, y: 4 }, 'slippery');
+    const demo = hall('slippery', [GIVES_GROUND], { x: 3, y: 4 });
     expect(bandTo(demo, 'kara', 'foe')).toBe('melee');
     // Whether a given swing lands is the seed's business; that the wound moves
-    // the Sorcerer is not.
+    // the creature is not.
     for (let i = 0; i < 8 && bandTo(demo, 'kara', 'foe') === 'melee'; i++) {
       if (!demo.encounter!.canAct('kara')) endTurn(demo);
       demo.world.drawIn('kara', 'foe', 'melee', 'far');
@@ -826,22 +889,20 @@ describe('a creature that walks before it swings', () => {
     expect(bandTo(demo, 'kara', 'foe')).not.toBe('melee');
 
     // Damage out of a script has nobody behind it: there is nothing to get
-    // away from, and the Sorcerer does not move.
+    // away from, and it does not move.
     demo.world.dealDamage('foe', { amount: 9, types: ['magic'] }, demo.rng);
     settleFight(demo);
     expect(demo.state.entity('foe')!.tile).toBe(after);
   });
 
   it('walks to an ally rather than to itself', () => {
-    // "Mark a Stress to move into Melee range of an ally and make a standard
-    // attack." A creature is within Melee of itself, so a selector that counts
-    // the one acting would have the Soldier reinforce nobody at all.
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'line', name: 'The line' })));
-    s.run(addAdversary('hall', 'line', { id: 'soldier', adversary: 'elite-soldier', position: { x: 8, y: 4 } }));
-    s.run(addAdversary('hall', 'line', { id: 'mate', adversary: 'elite-soldier', position: { x: 4, y: 4 } }));
+    s.run(addAdversary('hall', 'line', { id: 'soldier', adversary: 'fixture-foe', position: { x: 8, y: 4 } }));
+    s.run(addAdversary('hall', 'line', { id: 'mate', adversary: 'fixture-foe', position: { x: 4, y: 4 } }));
+    s.run(addAbility(abilitySchema.parse(CLOSE_RANKS)));
     const demo = buildProjectScene(s.project, 'reinforce');
     demo.askDefender = false;
     startEncounter(demo, 'line');
@@ -865,11 +926,13 @@ describe('a creature that walks before it swings', () => {
 
     const stood = demo.state.entity('soldier')!.tile;
     for (let i = 0; i < 4 && demo.state.entity('soldier')!.tile === stood; i++) endTurn(demo);
-    expect(demo.log.some((l) => l.text.includes('falls in beside one of their own'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('closes up beside one of its own'))).toBe(true);
   });
 
   it('cannot walk while something is holding it, either way', () => {
-    const demo = hall('knight-of-the-realm', { x: 9, y: 4 }, 'held');
+    // No feature at all: what is under test is the walk the turn itself takes,
+    // and the condition that refuses it.
+    const demo = hall('held', []);
     const foe = demo.state.entity('foe')!;
     const stood = foe.tile;
     foe.conditions.add('restrained');

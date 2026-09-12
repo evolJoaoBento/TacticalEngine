@@ -1626,7 +1626,10 @@ function inspectTile(tile: number): Inspection | null {
         ],
       };
     }
-    const def = DEMO_ADVERSARIES.get(entity.definition) ?? DEMO_ADVERSARIES.get(DEMO_ADVERSARY_ID);
+    // Whatever this fight is being played with, project content included. A
+    // creature nobody can look up is named by its id below, which is the truth;
+    // standing in a different creature's block would not be.
+    const def = demo.world.adversaryDef(entity.definition);
     return {
       kind: 'adversary',
       id: entity.id,

@@ -995,11 +995,17 @@ export function characterContentFor(project?: ProjectContent): ContentPack {
   return carries ? mergePack(DEMO_CHARACTERS, project) : DEMO_CHARACTERS;
 }
 
-/** The stat block an entity answers to. */
+/**
+ * The stat block an entity answers to.
+ *
+ * Read out of the world, which knows the content this fight is being played
+ * with: a project that carries its own creature is answered with that creature
+ * rather than with whatever the shipped pack happens to have under the id.
+ */
 export function adversaryDefOf(demo: DemoScene, entityId: string): AdversaryDef | undefined {
   const entity = demo.state.entity(entityId);
   if (entity === undefined) return undefined;
-  return DEMO_ADVERSARIES.get(entity.definition);
+  return demo.world.adversaryDef(entity.definition);
 }
 
 /** The same, for the fight, which always has a stat block to read. */
@@ -2532,7 +2538,7 @@ function takeSpotlight(demo: DemoScene, adversaryId: string, adversary: EntitySt
         demo.grid.manhattanDistance(adversary.tile, b.tile) || a.id.localeCompare(b.id),
   )[0]!;
 
-  const def = DEMO_ADVERSARIES.get(adversary.definition) ?? DEMO_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
+  const def = statBlock(demo, adversary.id);
   approach(demo, adversary.id, target.tile, def.attackRange);
   attackPartyMember(demo, adversaryId, target.id);
 }

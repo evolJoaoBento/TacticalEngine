@@ -103,15 +103,18 @@ describe('the demo scene', () => {
     expect(demo.party.selected).toBe('kara');
   });
 
-  it('reads its adversaries from the vendored SRD data', () => {
-    const burrower = DEMO_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
-    expect(burrower.name).toBe('Acid Burrower');
-    expect(DEMO_ADVERSARIES.size).toBe(129);
+  it('reads its adversaries from the pack it ships', () => {
+    const knight = DEMO_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
+    expect(knight.name).toBe('Hollow Knight');
+    expect(DEMO_ADVERSARIES.size).toBe(10);
 
+    // The prototype's husks are homebrew ids with no stat block, so the import
+    // points every one of them at the demo's own creature: one block, however
+    // many of them are standing in the vault.
     const demo = build();
     const adversaries = demo.state.entitiesOf('adversary');
     expect(adversaries.length).toBeGreaterThan(0);
-    for (const a of adversaries) expect(a.hitPoints.max).toBe(burrower.hitPoints);
+    for (const a of adversaries) expect(a.hitPoints.max).toBe(knight.hitPoints);
   });
 
   it('seats the party on the scene spawn points', () => {
