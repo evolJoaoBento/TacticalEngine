@@ -426,6 +426,38 @@ export function importDomainCards(raw: readonly unknown[]): ImportResult<DomainC
   });
 }
 
+/**
+ * A project's own content laid over a base pack.
+ *
+ * Content a document carries wins, id for id, so a campaign — or a test — can
+ * bring the creature or the card it needs rather than borrowing one from
+ * whatever pack the app happens to ship. A list the document leaves empty
+ * changes nothing.
+ */
+export function mergePack(
+  base: ContentPack,
+  own: Partial<Record<keyof ContentPack, readonly { id: string }[]>>,
+): ContentPack {
+  const lay = <T extends { id: string }>(
+    into: ReadonlyMap<string, T>,
+    over: readonly { id: string }[] | undefined,
+  ): ReadonlyMap<string, T> => {
+    if (over === undefined || over.length === 0) return into;
+    const merged = new Map(into);
+    for (const def of over) merged.set(def.id, def as T);
+    return merged;
+  };
+  return {
+    weapons: lay(base.weapons, own.weapons),
+    armors: lay(base.armors, own.armors),
+    classes: lay(base.classes, own.classes),
+    ancestries: lay(base.ancestries, own.ancestries),
+    communities: lay(base.communities, own.communities),
+    subclasses: lay(base.subclasses, own.subclasses),
+    domainCards: lay(base.domainCards, own.domainCards),
+  };
+}
+
 export interface RawCharacterSources {
   weapons: readonly unknown[];
   armors: readonly unknown[];

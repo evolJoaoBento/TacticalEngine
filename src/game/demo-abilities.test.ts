@@ -15,7 +15,7 @@ import {
   useAbility,
 } from './demo-abilities';
 import {
-  SRD_CHARACTERS,
+  DEMO_CHARACTERS,
   answerPending,
   attackWithSelected,
   buildDemoScene,
@@ -196,7 +196,7 @@ describe('the loadout and the vault', () => {
     const cards = ['bare-bones', 'get-back-up', 'forceful-push', 'i-am-your-shield', 'not-good-enough', 'reckless'];
     const grown = { ...sheet, domainCards: cards };
     demo.sheets.set('kara', grown);
-    demo.characters.set('kara', deriveCharacter(grown, SRD_CHARACTERS).character);
+    demo.characters.set('kara', deriveCharacter(grown, DEMO_CHARACTERS).character);
     refreshWorld(demo);
   };
 
@@ -214,7 +214,7 @@ describe('the loadout and the vault', () => {
     grow(demo);
     const kara = demo.state.entity('kara')!;
     // Reckless and Not Good Enough both recall for 1.
-    expect(SRD_CHARACTERS.domainCards.get('reckless')!.recallCost).toBe(1);
+    expect(DEMO_CHARACTERS.domainCards.get('reckless')!.recallCost).toBe(1);
     expect(swapCard(demo, 'kara', 'reckless')).toEqual({ ok: false, reason: expect.stringContaining('holds 5') });
     const swapped = swapCard(demo, 'kara', 'reckless', 'not-good-enough');
     expect(swapped).toEqual({ ok: true, stress: 1 });
@@ -412,7 +412,7 @@ describe('stepping back from a roll', () => {
     const sheet = demo.sheets.get('mira')!;
     const grown = { ...sheet, domainCards: [...(sheet.domainCards ?? []), 'book-of-illiat'] };
     demo.sheets.set('mira', grown);
-    demo.characters.set('mira', deriveCharacter(grown, SRD_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(grown, DEMO_CHARACTERS, demo.project.abilities).character);
     refreshWorld(demo);
     const foe = nearestFoe(demo, 'mira');
     closeIn(demo, 'mira', foe.id);
@@ -470,7 +470,7 @@ describe('tokens on a card', () => {
     const demo = scene();
     const sheet = { ...demo.sheets.get('mira')!, domainCards: ['unleash-chaos'], loadout: ['unleash-chaos'] };
     demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
     refreshWorld(demo);
     // "At the beginning of a session": a session boundary falls on a long rest.
     expect(SRD_ABILITY_MAP.get('unleash-chaos')!.tokens?.refill).toBe('session');
@@ -487,7 +487,7 @@ describe('tokens on a card', () => {
     // Mira takes Unleash Chaos: her Spellcast trait is Knowledge, so that many tokens.
     const sheet = { ...demo.sheets.get('mira')!, domainCards: ['unleash-chaos'], loadout: ['unleash-chaos'] };
     demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
     refreshWorld(demo);
     const spellcast = demo.world.spellcastValue('mira')!;
     expect(spellcast).toBeGreaterThan(0);

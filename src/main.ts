@@ -115,8 +115,8 @@ import {
   reachableTiles,
   DEMO_ADVERSARY_ID,
   DEMO_MODELS,
-  SRD_ADVERSARIES,
-  SRD_CHARACTERS,
+  DEMO_ADVERSARIES,
+  DEMO_CHARACTERS,
   buildProjectScene,
   setSheet,
   type DemoScene,
@@ -483,7 +483,7 @@ assets.onChange(() => {
 const KNOWN_MODELS = new Set(MODELS.map((m) => m.id));
 const TERRAIN_IDS = demo.grid.palette.types.map((t) => t.id);
 const PROP_MODELS = MODELS.filter((m) => m.category === 'prop').map((m) => m.id);
-const ADVERSARY_DEFS = [...SRD_ADVERSARIES.values()].sort((a, b) => a.name.localeCompare(b.name));
+const ADVERSARY_DEFS = [...DEMO_ADVERSARIES.values()].sort((a, b) => a.name.localeCompare(b.name));
 
 /** Redraw whichever panel the current mode owns. */
 function refreshEditor(): void {
@@ -590,7 +590,7 @@ function rederiveParty(): void {
     if (demo.sheets.has(sheet.id)) demo.sheets.set(sheet.id, sheet);
   }
   for (const [id, sheet] of demo.sheets) {
-    demo.characters.set(id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(id, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
   }
   // The world first: `syncPools` reads the modifiers a card grants through it.
   refreshWorld(demo);
@@ -659,10 +659,10 @@ function renderPanel(): void {
       propModels: PROP_MODELS,
       adversaries: ADVERSARY_DEFS,
       knownModels: KNOWN_MODELS,
-      knownAdversaries: new Set(SRD_ADVERSARIES.keys()),
+      knownAdversaries: new Set(DEMO_ADVERSARIES.keys()),
       nativeHooks: [...SRD_HOOKS.keys()],
       libraryAbilities: SRD_ABILITIES,
-      characterContent: SRD_CHARACTERS,
+      characterContent: DEMO_CHARACTERS,
       playingScene: demo.scene.id,
       onPlay: () => setMode('play'),
       onPlayHere: () => playAt(editor.sceneId, null),
@@ -1282,7 +1282,7 @@ function hudMembers(): HudMember[] {
   return demo.state.entitiesOf('party').map((entity) => {
     const character = demo.characters.get(entity.id);
     const sheet = character?.sheet;
-    const role = sheet === undefined ? '' : (SRD_CHARACTERS.classes.get(sheet.classId)?.name ?? sheet.classId);
+    const role = sheet === undefined ? '' : (DEMO_CHARACTERS.classes.get(sheet.classId)?.name ?? sheet.classId);
     return {
       id: entity.id,
       name: sheet?.name ?? entity.id,
@@ -1483,7 +1483,7 @@ function renderPlayPanel(): void {
       : null, levelling !== null && demo.sheets.has(levelling) && awaitingLevel(demo).includes(levelling)
       ? h(LevelUpPanel, {
           sheet: demo.sheets.get(levelling)!,
-          content: SRD_CHARACTERS,
+          content: DEMO_CHARACTERS,
           issues: levelIssues,
           onApply: (plan: LevelUpPlan) => void takeLevel(levelling!, plan),
           onClose: () => {
@@ -1605,7 +1605,7 @@ function inspectTile(tile: number): Inspection | null {
     if (entity.faction === 'party') {
       const character = demo.characters.get(entity.id);
       const sheet = character?.sheet;
-      const klass = sheet === undefined ? undefined : SRD_CHARACTERS.classes.get(sheet.classId);
+      const klass = sheet === undefined ? undefined : DEMO_CHARACTERS.classes.get(sheet.classId);
       const gear = gearOf(demo, entity.id);
       return {
         kind: 'character',
@@ -1622,7 +1622,7 @@ function inspectTile(tile: number): Inspection | null {
         ],
       };
     }
-    const def = SRD_ADVERSARIES.get(entity.definition) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID);
+    const def = DEMO_ADVERSARIES.get(entity.definition) ?? DEMO_ADVERSARIES.get(DEMO_ADVERSARY_ID);
     return {
       kind: 'adversary',
       id: entity.id,

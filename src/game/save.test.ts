@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import {
-  SRD_CHARACTERS,
+  DEMO_CHARACTERS,
   answerPending,
   buildDemoScene,
   startEncounter,
@@ -122,7 +122,7 @@ describe('a sheet the document has to keep', () => {
       if (demo.sheets.has(sheet.id)) demo.sheets.set(sheet.id, sheet);
     }
     for (const [id, sheet] of demo.sheets) {
-      demo.characters.set(id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+      demo.characters.set(id, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
     }
   };
 

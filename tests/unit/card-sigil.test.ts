@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SRD_CHARACTERS } from '../../src/game/demo-scene';
+import { DEMO_CHARACTERS } from '../../src/game/demo-scene';
 import {
   DOMAIN_COLORS,
   SIGIL_HEIGHT,
@@ -19,7 +19,7 @@ import {
  * vendored SRD data alone, with nothing to fetch.
  */
 
-const cards = [...SRD_CHARACTERS.domainCards.values()];
+const cards = [...DEMO_CHARACTERS.domainCards.values()];
 
 describe('generated domain card art', () => {
   it('draws every card in the SRD library, with no files to load', () => {

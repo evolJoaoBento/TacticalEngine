@@ -87,7 +87,8 @@ import {
   type DerivedCharacter,
 } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
-import { importContentPack, type WeaponDef } from '../engine/content/pack/import';
+import { importContentPack, mergePack, type ContentPack, type WeaponDef } from '../engine/content/pack/import';
+import { STARTER_ADVERSARIES, STARTER_CHARACTERS } from '../engine/content/pack/starter';
 import {
   importSeansboxAdversaries,
   type RawAdversary,
@@ -104,17 +105,19 @@ import type { SceneDoc } from '../engine/scene/schema';
 import { createAdversaryEntity, createPartyEntity, sceneStateFromScene, type SceneState } from '../engine/scene/state';
 import { TriggerIndex } from '../engine/scene/triggers';
 
-/** Adversary stat blocks, keyed by content id. */
-export const SRD_ADVERSARIES: ReadonlyMap<string, AdversaryDef> = new Map(
-  importSeansboxAdversaries(adversaryJson as RawAdversary[]).defs.map((def) => [def.id, def]),
-);
+/** Adversary stat blocks, keyed by content id, from the pack the engine ships with. */
+export const DEMO_ADVERSARIES: ReadonlyMap<string, AdversaryDef> = STARTER_ADVERSARIES;
 
 /**
- * The prototype's homebrew Hollow Husk has no SRD stat block, so the demo stands
- * the SRD's Acid Burrower in its place — the same substitution the end-to-end
- * combat test makes.
+ * The prototype's creature types are its own homebrew, and the starter pack has
+ * no stat block under those names, so the demo stands one of its own in their
+ * place — the same substitution the end-to-end combat test makes.
+ *
+ * Every creature the legacy map places currently becomes this one. Giving the
+ * map's three types a stat block each is a small change to `LEGACY_ADVERSARY_IDS`
+ * and would put the variety back.
  */
-export const DEMO_ADVERSARY_ID = 'acid-burrower';
+export const DEMO_ADVERSARY_ID = 'hollow-knight';
 
 /** The way out of the vault, added by the demo because the legacy map had none. */
 export const DEMO_STAIR_ID = 'stair-down';
@@ -137,33 +140,21 @@ export const DEMO_WALK: WalkRules = { ...DEFAULT_WALK, maxStepHeight: DEMO_MOVEM
  * SRD content id; neither is a model id, so the demo maps them.
  */
 export const DEMO_MODELS: Readonly<Record<string, string>> = {
-  // The nine SRD classes, on the six hero bodies the library has. A class
-  // without a line here would stand as the magenta placeholder - which is
-  // the library's honest "asked for a model I do not have", so this is a
-  // map to keep complete rather than a fallback to hide behind.
-  guardian: 'knight',
-  warrior: 'defender',
-  seraph: 'knight',
-  rogue: 'rogue',
-  ranger: 'rogue',
-  bard: 'rogue',
-  wizard: 'mage',
-  sorcerer: 'battleMage',
-  druid: 'frostMage',
-  'acid-burrower': 'bramble',
-  'hollow-husk': 'husk',
+  // The starter pack's three classes, on the hero bodies the library has. A
+  // class without a line here would stand as the magenta placeholder - which is
+  // the library's honest "asked for a model I do not have", so this is a map to
+  // keep complete rather than a fallback to hide behind.
+  sentinel: 'knight',
+  cutpurse: 'rogue',
+  emberwright: 'mage',
+  // Its adversaries. One without a line draws the stand-in body rather than the
+  // placeholder, because `fallbackFor` answers for adversaries in `main.ts`.
+  'hollow-knight': 'husk',
+  'briar-wraith': 'bramble',
 };
 
-/** Classes, ancestries, communities, armor and weapons, from the vendored SRD. */
-export const SRD_CHARACTERS = importContentPack({
-  weapons: weaponJson as unknown[],
-  armors: armorJson as unknown[],
-  classes: classJson as unknown[],
-  ancestries: ancestryJson as unknown[],
-  communities: communityJson as unknown[],
-  subclasses: subclassJson as unknown[],
-  domainCards: domainCardJson as unknown[],
-}).content;
+/** Classes, ancestries, communities, armor and weapons, from the pack we ship. */
+export const DEMO_CHARACTERS = STARTER_CHARACTERS;
 
 /**
  * The demo party, as authored character sheets.
@@ -173,34 +164,37 @@ export const SRD_CHARACTERS = importContentPack({
  * these name, rather than written down here.
  */
 export const PARTY_SHEETS: readonly CharacterSheet[] = [
-  blankSheet('kara', 'guardian', {
+  blankSheet('kara', 'sentinel', {
     name: 'Kara',
     traits: { agility: 0, strength: 2, finesse: 0, instinct: 1, presence: 1, knowledge: -1 },
-    ancestryId: 'human',
-    armorId: 'chainmail-armor',
-    primaryWeaponId: 'broadsword',
-    subclassId: 'stalwart',
-    domainCards: ['bare-bones', 'get-back-up'],
+    ancestryId: 'stoneborn',
+    communityId: 'wayfarer',
+    armorId: 'ringmail',
+    primaryWeaponId: 'longsword',
+    subclassId: 'shieldbearer',
+    domainCards: ['power-slash', 'iron-stance'],
     experiences: [{ name: 'Held the line', modifier: 2 }],
   }),
-  blankSheet('finn', 'rogue', {
+  blankSheet('finn', 'cutpurse', {
     name: 'Finn',
     traits: { agility: 2, strength: -1, finesse: 2, instinct: 1, presence: 0, knowledge: 0 },
-    ancestryId: 'elf',
-    armorId: 'gambeson-armor',
-    primaryWeaponId: 'shortbow',
-    subclassId: 'nightwalker',
-    domainCards: ['pick-and-pull', 'rain-of-blades'],
+    ancestryId: 'sylvan',
+    communityId: 'guildsworn',
+    armorId: 'padded-coat',
+    primaryWeaponId: 'hunting-bow',
+    subclassId: 'lampsnuffer',
+    domainCards: ['quick-hands', 'backstab'],
     experiences: [{ name: 'Knows a locksmith', modifier: 2 }],
   }),
-  blankSheet('mira', 'wizard', {
+  blankSheet('mira', 'emberwright', {
     name: 'Mira',
     traits: { agility: 0, strength: -1, finesse: 1, instinct: 2, presence: 1, knowledge: 2 },
-    ancestryId: 'faerie',
-    armorId: 'gambeson-armor',
-    primaryWeaponId: 'greatstaff',
-    subclassId: 'school-of-knowledge',
-    domainCards: ['book-of-ava', 'rune-ward'],
+    ancestryId: 'human',
+    communityId: 'guildsworn',
+    armorId: 'padded-coat',
+    primaryWeaponId: 'ember-staff',
+    subclassId: 'flamecaller',
+    domainCards: ['arcane-ward', 'healing-word'],
     experiences: [{ name: 'Read the old script', modifier: 2 }],
   }),
 ];
@@ -646,8 +640,8 @@ interface RuntimeOptions {
   fear?: Currency;
   /** The project's loot tables, so a chest in any room pays out. */
   lootTables?: ReadonlyMap<string, LootTable>;
-  /** The project's abilities and conditions, for the world's modifiers. */
-  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code'>;
+  /** The project's abilities, conditions and stat blocks, for the world's modifiers. */
+  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code' | 'adversaries'>;
   /** Ask the defender how they take a hit, rather than deciding for them. */
   askDefender?: boolean;
 }
@@ -676,12 +670,17 @@ function buildRuntime(
 ): SceneRuntime {
   const { grid } = gridFromScene(scene);
 
+  // Stat blocks the document carries itself, which win over the shipped pack:
+  // a room may bring the creature it places rather than borrow one.
+  const carried = new Map((options.project?.adversaries ?? []).map((def) => [def.id, def]));
+
   const stats = new Map<string, { id: string; hitPoints: number; stress: number }>();
   for (const encounter of scene.encounters) {
     for (const placement of encounter.adversaries) {
-      // No substitution: a room that names a creature nobody can look up is a
-      // broken document, and saying so beats quietly fielding something else.
-      const definition = SRD_ADVERSARIES.get(placement.adversary);
+      // Still no substitution: a room that names a creature nobody can look up
+      // is a broken document, and saying so beats quietly fielding something
+      // else. The project is simply asked before the pack.
+      const definition = carried.get(placement.adversary) ?? DEMO_ADVERSARIES.get(placement.adversary);
       if (definition === undefined) {
         throw new Error(`"${scene.id}" places adversary "${placement.adversary}", which has no stat block`);
       }
@@ -761,12 +760,12 @@ export function worldOptions(
   characters: ReadonlyMap<string, DerivedCharacter>,
   lootTables?: ReadonlyMap<string, LootTable>,
   scene?: SceneDoc,
-  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code'>,
+  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code' | 'adversaries'>,
 ): SceneScriptWorldOptions {
   return {
     traits: traitsFor(characters),
     characters,
-    adversaries: adversaryDefsFor(scene),
+    adversaries: adversaryDefsFor(project),
     bandTiles: DEMO_BAND_TILES,
     movement: DEMO_MOVEMENT,
     abilities: withStatBlockFeatures(project?.abilities ?? SRD_ABILITIES),
@@ -817,7 +816,7 @@ export function setSheet(demo: DemoScene, sheet: CharacterSheet): void {
   demo.sheets.set(sheet.id, sheet);
   const at = demo.project.party.findIndex((s) => s.id === sheet.id);
   if (at >= 0) demo.project.party[at] = characterSheetSchema.parse(sheet);
-  demo.characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character);
+  demo.characters.set(sheet.id, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
 }
 
 /**
@@ -844,7 +843,7 @@ export function syncRoster(demo: DemoScene): { joined: string[]; left: string[] 
   for (const sheet of demo.project.party) {
     if (demo.state.entity(sheet.id) !== undefined) continue;
     demo.sheets.set(sheet.id, sheet);
-    const character = deriveCharacter(sheet, SRD_CHARACTERS, demo.project.abilities).character;
+    const character = deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character;
     demo.characters.set(sheet.id, character);
     const pools = startingPools(character);
     demo.state.addEntity({
@@ -953,20 +952,26 @@ export function syncPools(demo: DemoScene): void {
  * names one nobody can look up. The scene is still taken as an argument so a
  * caller reads as asking about a room rather than about the SRD.
  */
-export function adversaryDefsFor(_scene?: SceneDoc): ReadonlyMap<string, AdversaryDef> {
-  return SRD_ADVERSARIES;
+export function adversaryDefsFor(
+  project?: Pick<ProjectDoc, 'adversaries'>,
+): ReadonlyMap<string, AdversaryDef> {
+  const own = project?.adversaries ?? [];
+  if (own.length === 0) return DEMO_ADVERSARIES;
+  const merged = new Map(DEMO_ADVERSARIES);
+  for (const def of own) merged.set(def.id, def);
+  return merged;
 }
 
 /** The stat block an entity answers to. */
 export function adversaryDefOf(demo: DemoScene, entityId: string): AdversaryDef | undefined {
   const entity = demo.state.entity(entityId);
   if (entity === undefined) return undefined;
-  return SRD_ADVERSARIES.get(entity.definition);
+  return DEMO_ADVERSARIES.get(entity.definition);
 }
 
 /** The same, for the fight, which always has a stat block to read. */
 function statBlock(demo: DemoScene, entityId: string): AdversaryDef {
-  return adversaryDefOf(demo, entityId) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
+  return adversaryDefOf(demo, entityId) ?? DEMO_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
 }
 
 /** Rebuild the script world after a sheet changed under it. */
@@ -1108,7 +1113,7 @@ export function syncAuthoredEncounters(demo: DemoScene): void {
         if (demo.state.entity(placement.id) !== undefined) continue;
         // No substitution here either: the load path throws for a document that
         // names a creature nobody can look up, and so does this one.
-        const definition = SRD_ADVERSARIES.get(placement.adversary);
+        const definition = DEMO_ADVERSARIES.get(placement.adversary);
         if (definition === undefined) {
           throw new Error(`"${demo.scene.id}" places adversary "${placement.adversary}", which has no stat block`);
         }
@@ -1181,10 +1186,10 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
   // at the one imported adversary that stands in for them *in the document*,
   // rather than substituting at runtime: what the project says is then what it
   // plays, and saving it and loading it back gives the same fight.
-  if (!SRD_ADVERSARIES.has(DEMO_ADVERSARY_ID)) throw new Error(`missing adversary "${DEMO_ADVERSARY_ID}"`);
+  if (!DEMO_ADVERSARIES.has(DEMO_ADVERSARY_ID)) throw new Error(`missing adversary "${DEMO_ADVERSARY_ID}"`);
   for (const encounter of vault.encounters) {
     for (const placement of encounter.adversaries) {
-      if (!SRD_ADVERSARIES.has(placement.adversary)) placement.adversary = DEMO_ADVERSARY_ID;
+      if (!DEMO_ADVERSARIES.has(placement.adversary)) placement.adversary = DEMO_ADVERSARY_ID;
     }
   }
 
@@ -1267,7 +1272,7 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
   // them is written down twice.
   const characters = new Map<string, DerivedCharacter>();
   for (const sheet of sheets.values()) {
-    characters.set(sheet.id, deriveCharacter(sheet, SRD_CHARACTERS, project.abilities).character);
+    characters.set(sheet.id, deriveCharacter(sheet, DEMO_CHARACTERS, project.abilities).character);
   }
 
   const opening = project.scenes.find((scene) => scene.id === project.startScene);
@@ -2490,7 +2495,7 @@ function takeSpotlight(demo: DemoScene, adversaryId: string, adversary: EntitySt
         demo.grid.manhattanDistance(adversary.tile, b.tile) || a.id.localeCompare(b.id),
   )[0]!;
 
-  const def = SRD_ADVERSARIES.get(adversary.definition) ?? SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
+  const def = DEMO_ADVERSARIES.get(adversary.definition) ?? DEMO_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
   approach(demo, adversary.id, target.tile, def.attackRange);
   attackPartyMember(demo, adversaryId, target.id);
 }
@@ -5472,7 +5477,7 @@ export function applyLevelUp(demo: DemoScene, characterId: string, plan: LevelUp
     return { ok: false, issues: [{ field: 'level', message: 'not in the middle of a fight or a conversation' }] };
   }
 
-  const result = levelUp(sheet, SRD_CHARACTERS, plan);
+  const result = levelUp(sheet, DEMO_CHARACTERS, plan);
   if (result.issues.length > 0) return { ok: false, issues: result.issues };
 
   setSheet(demo, result.sheet);
@@ -5532,7 +5537,7 @@ export function equipItem(demo: DemoScene, characterId: string, itemId: string):
   let slot: 'primary' | 'secondary' | 'armor';
   let replaced: string | undefined;
   if (item.kind === 'weapon') {
-    const weapon = SRD_CHARACTERS.weapons.get(item.contentId);
+    const weapon = DEMO_CHARACTERS.weapons.get(item.contentId);
     if (weapon === undefined) return { ok: false, reason: `${item.name} points at no known weapon` };
     slot = slotOf(weapon);
     replaced = slot === 'primary' ? sheet.primaryWeaponId : sheet.secondaryWeaponId;
@@ -5541,7 +5546,7 @@ export function equipItem(demo: DemoScene, characterId: string, itemId: string):
     next = slot === 'primary' ? { ...sheet, primaryWeaponId: weapon.id } : { ...sheet, secondaryWeaponId: weapon.id };
   } else if (item.kind === 'armor') {
     if (inCombat(demo)) return { ok: false, reason: 'armor cannot be changed in a fight' };
-    const armor = SRD_CHARACTERS.armors.get(item.contentId);
+    const armor = DEMO_CHARACTERS.armors.get(item.contentId);
     if (armor === undefined) return { ok: false, reason: `${item.name} points at no known armor` };
     slot = 'armor';
     replaced = sheet.armorId;
@@ -5573,7 +5578,7 @@ export function gearOf(demo: DemoScene, characterId: string): { weapon: string; 
   const character = demo.characters.get(characterId);
   return {
     weapon: character?.primaryWeapon?.name ?? 'Unarmed',
-    armor: character?.sheet.armorId === undefined ? 'Unarmored' : (SRD_CHARACTERS.armors.get(character.sheet.armorId)?.name ?? 'Unarmored'),
+    armor: character?.sheet.armorId === undefined ? 'Unarmored' : (DEMO_CHARACTERS.armors.get(character.sheet.armorId)?.name ?? 'Unarmored'),
   };
 }
 

@@ -19,8 +19,8 @@ import {
   DEMO_ADVERSARY_ID,
   DEMO_BAND_TILES,
   PARTY_SHEETS,
-  SRD_ADVERSARIES,
-  SRD_CHARACTERS,
+  DEMO_ADVERSARIES,
+  DEMO_CHARACTERS,
   attackWithSelected,
   buildDemoScene,
   endTurn,
@@ -67,9 +67,9 @@ describe('the demo scene', () => {
   });
 
   it('reads its adversaries from the vendored SRD data', () => {
-    const burrower = SRD_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
+    const burrower = DEMO_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
     expect(burrower.name).toBe('Acid Burrower');
-    expect(SRD_ADVERSARIES.size).toBe(129);
+    expect(DEMO_ADVERSARIES.size).toBe(129);
 
     const demo = build();
     const adversaries = demo.state.entitiesOf('adversary');
@@ -450,18 +450,18 @@ describe('the party is built from content, not written down', () => {
     const demo = build();
     expect(demo.characters.size).toBe(PARTY_SHEETS.length);
     for (const sheet of PARTY_SHEETS) {
-      expect(SRD_CHARACTERS.classes.has(sheet.classId)).toBe(true);
-      expect(SRD_CHARACTERS.armors.has(sheet.armorId!)).toBe(true);
-      expect(SRD_CHARACTERS.weapons.has(sheet.primaryWeaponId!)).toBe(true);
-      expect(SRD_CHARACTERS.ancestries.has(sheet.ancestryId!)).toBe(true);
+      expect(DEMO_CHARACTERS.classes.has(sheet.classId)).toBe(true);
+      expect(DEMO_CHARACTERS.armors.has(sheet.armorId!)).toBe(true);
+      expect(DEMO_CHARACTERS.weapons.has(sheet.primaryWeaponId!)).toBe(true);
+      expect(DEMO_CHARACTERS.ancestries.has(sheet.ancestryId!)).toBe(true);
     }
   });
 
   it('takes each character Hit Points and Armor Slots from their class and armor', () => {
     const demo = build();
     for (const [id, character] of demo.characters) {
-      const klass = SRD_CHARACTERS.classes.get(character.sheet.classId)!;
-      const armor = SRD_CHARACTERS.armors.get(character.sheet.armorId!)!;
+      const klass = DEMO_CHARACTERS.classes.get(character.sheet.classId)!;
+      const armor = DEMO_CHARACTERS.armors.get(character.sheet.armorId!)!;
       const entity = demo.state.entity(id)!;
 
       expect(entity.hitPoints.max).toBe(klass.startingHitPoints);
@@ -489,7 +489,7 @@ describe('the party is built from content, not written down', () => {
   it('rolls the trait the equipped weapon names', () => {
     const demo = build();
     const finn = demo.characters.get('finn')!;
-    const bow = SRD_CHARACTERS.weapons.get(finn.sheet.primaryWeaponId!)!;
+    const bow = DEMO_CHARACTERS.weapons.get(finn.sheet.primaryWeaponId!)!;
     const profile = attackProfile(finn);
     expect(profile.name).toBe(bow.name);
     expect(profile.modifier.modifier).toBe(finn.sheet.traits[bow.trait]);

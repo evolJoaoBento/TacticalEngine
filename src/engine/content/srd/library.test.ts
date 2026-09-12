@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createRng } from '../../core/rng';
 import { TileGrid } from '../../grid/grid';
-import { SRD_ADVERSARIES } from '../../../game/demo-scene';
+import { DEMO_ADVERSARIES } from '../../../game/demo-scene';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../../scene/state';
 import { blankScene } from '../../scene/grid-from-scene';
 import { projectSchema, sceneSchema } from '../../scene/schema';
@@ -178,7 +178,7 @@ function fixture(): { run: (ability: AbilityDef) => string[]; state: SceneState 
   // Every SRD block, not just the fixture's husk: a feature that summons
   // Bladed Guards has to find a Bladed Guard to summon.
   const adversaries = new Map<string, AdversaryDef>([
-    ...SRD_ADVERSARIES,
+    ...DEMO_ADVERSARIES,
     ['husk', husk('husk', 11)],
   ]);
   state.addEntity(createAdversaryEntity('foe-1', 'husk', grid.indexOf(1, 0), { hitPoints: 8, stress: 3 }));
