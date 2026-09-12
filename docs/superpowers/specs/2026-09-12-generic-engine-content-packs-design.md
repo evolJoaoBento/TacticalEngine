@@ -154,13 +154,22 @@ the same reason the card-art rule is a test rather than a note.
 
 ## 12. Slices
 
-1. **Pack architecture** — rename `ContentPack`, move `content/srd/` → `content/pack/`, add the seven
-   project fields, cut the eight imports. Suite stays green throughout.
-2. **Export and purge** — export today's catalogue to gitignored `packs/`, then delete the vendored
-   sources, the SRD catalogues, the generated docs and the quoted text.
-3. **Renames and migration** — Light and Shadow, `formatVersion` 2 with the load-time migration,
-   identity to Tactical Engine, `legacy/` prose.
-4. **Starter pack and guard** — author the original content, extend the licensing test.
+The order is forced by one constraint: the demo runs on the vendored catalogue, so nothing may be
+deleted until original content exists to replace it. The destructive slice therefore comes third,
+not first.
+
+1. **Pack architecture** — rename `SrdCharacterContent` → `ContentPack`, move `content/srd/` →
+   `content/pack/`, add the seven project fields. The eight imports stay pointed where they are:
+   this slice changes shapes and names, deletes nothing, and ends green.
+2. **The starter pack** — author the original classes, ancestries, cards and adversaries, and load
+   them through the pack path. Both catalogues exist at once, so the demo can be switched over and
+   the game-layer tests re-pointed while the old content is still there to fall back on.
+3. **Export and purge** — destructive, on a branch. Export today's catalogue to gitignored `packs/`,
+   cut the eight imports, then delete the vendored sources, the SRD catalogues, the generated docs
+   and their generators, and the quoted text.
+4. **Renames, migration and the guard** — Light and Shadow, `formatVersion` 2 with its load-time
+   migration, identity to Tactical Engine, `legacy/` prose, and the extended licensing test that
+   stops any of it coming back.
 
 Each slice ends green: `tsc`, `vitest`, `playwright`.
 
@@ -170,8 +179,9 @@ Each slice ends green: `tsc`, `vitest`, `playwright`.
   vocabulary is the slowest part, and the part most likely to be thin on the first pass.
 - **The migration must be exercised on a real version-1 document**, or it is a promise rather than a
   behaviour. A fixture project saved before the change is the test.
-- **Slice 2 is destructive.** It runs on a branch; everything deleted stays in git history and in the
-  exported pack.
+- **Slice 3 is destructive**, and is the only one that is. It runs on a branch, it happens only after
+  slice 2 has put replacement content in place, and everything it deletes survives in git history and
+  in the exported pack.
 - The e2e suite leans on demo content; renaming the `hope`/`fear` test ids touches selectors.
 
 ## 14. Done means
