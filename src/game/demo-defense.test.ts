@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { abilitySchema, loadoutOf, type AbilityDef } from '../engine/content/abilities';
+import { conditionDefSchema } from '../engine/content/conditions';
 import { runScript } from '../engine/script/runner';
 import { formatDice } from '../engine/rules/dice';
 import type { Rng } from '../engine/core/rng';
@@ -3478,6 +3479,66 @@ describe('a word in the wrong ear', () => {
 
 
 describe('a shout the next one hears', () => {
+  /**
+   * A card that marks somebody, and a condition that pays whoever swings at
+   * them next. Two content types for one idea: the card cannot pay it, because
+   * the one who collects is somebody the card has never heard of.
+   *
+   * The two names differ on purpose — the offer says one thing and the payout
+   * another — because one test below reads them apart in a queue of offers.
+   */
+  const SHOUT_CARD = 'fixture-card-5';
+  const FOLLOW_CARD = 'fixture-card-6';
+  const SHOUT = [
+    {
+      id: 'fixture-shout',
+      name: 'Lead by Example',
+      source: { kind: 'domainCard', card: SHOUT_CARD },
+      text: 'Having hurt something, say so, and the next one to swing takes heart.',
+      kind: 'reaction',
+      trigger: 'dealtDamage',
+      action: false,
+      auto: false,
+      cost: { stress: 1 },
+      inCombatOnly: true,
+      effects: [
+        { kind: 'log', text: 'They shout something, and the room hears it.', tone: 'hope' },
+        { kind: 'applyCondition', condition: 'fixture-led', duration: 'scene', target: { kind: 'target' } },
+      ],
+    },
+  ];
+
+  /**
+   * The debt, carried by the one it was marked on. Paid once, to whoever swung,
+   * and gone with the paying — which is what makes it a debt rather than a
+   * standing price.
+   */
+  const LED = {
+    id: 'fixture-led',
+    name: 'Led by Example',
+    text: 'The next one to attack them can clear a Stress or gain a Hope.',
+    payout: {
+      on: 'attacked',
+      effects: [
+        {
+          kind: 'choice',
+          title: 'They led by example',
+          body: 'Take heart from it.',
+          options: [
+            { label: 'Clear a Stress', effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }] },
+            { label: 'Gain a Hope', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
+          ],
+        },
+      ],
+    },
+  };
+
+  const carry = (demo: DemoScene, abilities: readonly Record<string, unknown>[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(LED));
+    for (const ability of abilities) demo.project.abilities.push(abilitySchema.parse(ability));
+  };
+
   /** Kara beside the husk with the card in hand, Finn beside it as well. */
   const rallying = (seed: string) => {
     const demo = standoff(seed);
@@ -3490,7 +3551,8 @@ describe('a shout the next one hears', () => {
       if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
     });
     demo.state.moveEntity('finn', stand);
-    const sheet = { ...demo.sheets.get('kara')!, domainCards: ['lead-by-example'], loadout: ['lead-by-example'] };
+    carry(demo, SHOUT);
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: [SHOUT_CARD], loadout: [SHOUT_CARD] };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
@@ -3510,7 +3572,7 @@ describe('a shout the next one hears', () => {
       }
       answerPending(demo, { kind: 'choose', index: 0 });
     }
-    return demo.state.entity(husk)!.conditions.has('led-by-example');
+    return demo.state.entity(husk)!.conditions.has('fixture-led');
   };
 
   it('pays the next one to swing at them, and not the one who shouted', () => {
@@ -3541,7 +3603,7 @@ describe('a shout the next one hears', () => {
       answerPending(demo, { kind: 'choose', index: 0 });
       expect(finn.stress.marked).toBe(2);
       // Paid once: the mark is gone with it.
-      expect(demo.state.entity(husk.id)!.conditions.has('led-by-example')).toBe(false);
+      expect(demo.state.entity(husk.id)!.conditions.has('fixture-led')).toBe(false);
       return;
     }
     throw new Error('Kara was never offered the card in sixty tries');
@@ -3575,12 +3637,12 @@ describe('a shout the next one hears', () => {
         abilitySchema.parse({
           id: 'rallying-cry',
           name: 'Rallying Cry',
-          source: { kind: 'domainCard', card: 'lead-by-example' },
+          source: { kind: 'domainCard', card: SHOUT_CARD },
           text: 'When you deal damage, the room takes heart at once.',
           kind: 'reaction',
           trigger: 'dealtDamage',
           action: false,
-          effects: [{ kind: 'applyCondition', condition: 'led-by-example', duration: 'scene', target: { kind: 'target' } }],
+          effects: [{ kind: 'applyCondition', condition: 'fixture-led', duration: 'scene', target: { kind: 'target' } }],
         }),
       );
       refreshWorld(demo);
@@ -3592,7 +3654,7 @@ describe('a shout the next one hears', () => {
       while (demo.pending !== null && guard++ < 6) answerPending(demo, { kind: 'choose', index: 0 });
       if (demo.state.entity(husk.id)!.hitPoints.marked === marked) continue;
 
-      expect(demo.state.entity(husk.id)!.conditions.has('led-by-example')).toBe(true);
+      expect(demo.state.entity(husk.id)!.conditions.has('fixture-led')).toBe(true);
       expect(demo.log.some((l) => l.text.includes('Take heart from it'))).toBe(false);
       return;
     }
@@ -3609,7 +3671,7 @@ describe('a shout the next one hears', () => {
         abilitySchema.parse({
           id: 'follow-through',
           name: 'Follow Through',
-          source: { kind: 'domainCard', card: 'rune-ward' },
+          source: { kind: 'domainCard', card: FOLLOW_CARD },
           text: 'When you deal damage, you can say something about it.',
           kind: 'reaction',
           trigger: 'dealtDamage',
@@ -3618,7 +3680,7 @@ describe('a shout the next one hears', () => {
           effects: [{ kind: 'log', text: 'Finn follows through.', tone: 'hope' }],
         }),
       );
-      const his = { ...demo.sheets.get('finn')!, domainCards: ['rune-ward'], loadout: ['rune-ward'] };
+      const his = { ...demo.sheets.get('finn')!, domainCards: [FOLLOW_CARD], loadout: [FOLLOW_CARD] };
       demo.sheets.set('finn', his);
       demo.characters.set('finn', deriveCharacter(his, characterContentFor(demo.project), demo.project.abilities).character);
       refreshWorld(demo);
@@ -3663,7 +3725,7 @@ describe('a shout the next one hears', () => {
       demo.party.select('finn');
       attackWithSelected(demo, other.id);
       expect(demo.log.some((l) => l.text.includes('Take heart from it'))).toBe(false);
-      expect(demo.state.entity(husk.id)!.conditions.has('led-by-example')).toBe(true);
+      expect(demo.state.entity(husk.id)!.conditions.has('fixture-led')).toBe(true);
       return;
     }
     throw new Error('Kara was never offered the card in sixty tries');
