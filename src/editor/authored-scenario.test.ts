@@ -2476,13 +2476,77 @@ describe('a token on the stat block', () => {
 });
 
 describe("what a block's own teeth do to this target", () => {
+  /** Dice in place of the block's own, while a condition on the attacker holds. */
+  const UNSEEN_STRIKE = {
+    id: 'fixture-unseen-strike',
+    name: 'Unseen Strike',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Striking unseen, it strikes for more than it usually would.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    standardAttack: {
+      damage: '1d10+4 phy',
+      when: { kind: 'hasCondition', condition: 'hidden', of: { kind: 'actor' } },
+    },
+  };
+
+  /** Twice whatever was rolled, read off a pool on the *target*. */
+  const NOTHING_LEFT = {
+    id: 'fixture-nothing-left',
+    name: 'Nothing Left',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Against someone with nothing left to hope for, its blows land twice as hard.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    standardAttack: {
+      double: true,
+      when: { kind: 'pool', pool: 'hope', of: { kind: 'target' }, measure: 'available', op: '<=', value: 0 },
+    },
+  };
+
+  /** A mark one creature puts on, for another creature's benefit. */
+  const NAMES_THEM = {
+    id: 'fixture-names-them',
+    name: 'Names Them',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'It names one of them, and the name sticks to them for the rest of the fight.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'veryFar' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'It names them, and the name sticks.', tone: 'fear' },
+      { kind: 'applyCondition', condition: 'guilty', duration: 'scene', target: { kind: 'target' } },
+    ],
+  };
+
+  /**
+   * The other half, and on a different block: the mark is worth putting on
+   * because something *else* reads it.
+   */
+  const PUNISH_THE_NAMED = {
+    id: 'fixture-punish-the-named',
+    name: 'Punish the Named',
+    source: { kind: 'adversary', adversaries: ['fixture-archer'] },
+    text: 'Against someone already named, its shots land twice as hard.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    standardAttack: {
+      double: true,
+      when: { kind: 'hasCondition', condition: 'guilty', of: { kind: 'target' } },
+    },
+  };
+
   /** Kara in reach of something, the fight already on. */
-  const facing = (adversary: string, seed: string) => {
+  const facing = (seed: string, features: readonly unknown[]) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
-    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
+    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2493,31 +2557,28 @@ describe("what a block's own teeth do to this target", () => {
   };
 
   it('swaps the dice for the ones the passive names, and only while it holds', () => {
-    // "If the Sniper is Hidden when they make a successful standard attack,
-    // they deal 1d10+4 physical damage instead of their standard damage."
-    const demo = facing('jagged-knife-sniper', 'unseen');
-    const plain = demo.world.standardAttackOf('jagged-knife-sniper', { attacker: 'foe', target: 'kara' });
+    const demo = facing('unseen', [UNSEEN_STRIKE]);
+    const plain = demo.world.standardAttackOf('fixture-foe', { attacker: 'foe', target: 'kara' });
     expect(plain.damage).toBeUndefined();
 
     demo.state.entity('foe')!.conditions.add('hidden');
-    const hidden = demo.world.standardAttackOf('jagged-knife-sniper', { attacker: 'foe', target: 'kara' });
+    const hidden = demo.world.standardAttackOf('fixture-foe', { attacker: 'foe', target: 'kara' });
     expect(hidden.damage).toMatchObject({ count: 1, sides: 10, modifier: 4 });
   });
 
   it('doubles what the dice said against a target with nothing left to hope for', () => {
-    // "The Demon deals double damage to PCs with 0 Hope."
-    const demo = facing('demon-of-despair', 'despair');
+    const demo = facing('despair', [NOTHING_LEFT]);
     const kara = demo.state.entity('kara')!;
     kara.hope = { max: 6, value: 3 };
-    expect(demo.world.standardAttackOf('demon-of-despair', { attacker: 'foe', target: 'kara' }).double).toBeUndefined();
+    expect(demo.world.standardAttackOf('fixture-foe', { attacker: 'foe', target: 'kara' }).double).toBeUndefined();
 
     kara.hope = { max: 6, value: 0 };
-    expect(demo.world.standardAttackOf('demon-of-despair', { attacker: 'foe', target: 'kara' }).double).toBe(true);
+    expect(demo.world.standardAttackOf('fixture-foe', { attacker: 'foe', target: 'kara' }).double).toBe(true);
 
     // And what lands is twice what the dice said: the same fixture and the
     // same seed twice over, the only difference being the Hope left in her.
     const swing = (hope: number): number => {
-      const twin = facing('demon-of-despair', 'despair-twin');
+      const twin = facing('despair-twin', [NOTHING_LEFT]);
       twin.state.entity('kara')!.hope = { max: 6, value: hope };
       twin.scenario.actorId = 'foe';
       const summary = twin.world.attack({ attacker: 'foe', target: 'kara', weapon: 'primary' }, twin.rng);
@@ -2529,20 +2590,18 @@ describe("what a block's own teeth do to this target", () => {
     expect(swing(0)).toBe(hopeful * 2);
   });
 
-  it('marks a target for the Seraph, and the Archer reads the mark', () => {
-    // "Spend a Fear to make a target Guilty…" and "the Archer deals double
-    // damage to targets marked Guilty by a High Seraph".
-    const demo = facing('high-seraph', 'judgment');
+  it('marks a target for one creature, and another block reads the mark', () => {
+    const demo = facing('judgment', [NAMES_THEM, PUNISH_THE_NAMED]);
     demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
     for (let i = 0; i < 4 && !demo.state.entity('kara')!.conditions.has('guilty'); i++) {
       demo.state.entity('kara')!.hitPoints = { max: 60, marked: 0 };
       demo.state.entity('kara')!.alive = true;
       endTurn(demo);
     }
-    expect(demo.log.some((l) => l.text.includes('The Seraph names them'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('It names them'))).toBe(true);
     expect(demo.state.entity('kara')!.conditions.has('guilty')).toBe(true);
-    // A different block, the same mark: what the Seraph named, the Archer punishes.
-    expect(demo.world.standardAttackOf('hallowed-archer', { attacker: 'foe', target: 'kara' }).double).toBe(true);
+    // A different block, the same mark: what one named, the other punishes.
+    expect(demo.world.standardAttackOf('fixture-archer', { attacker: 'foe', target: 'kara' }).double).toBe(true);
   });
 });
 
@@ -2699,20 +2758,92 @@ describe('a Necromancer who buys their troops a turn', () => {
 });
 
 describe('a clock the fight carries', () => {
-  /** One Sorcerer across the hall from Kara, and the fight already on. */
-  const ruin = (adversary: string, at: { x: number; y: number }, seed: string) => {
+  /**
+   * A clock armed the first time the fight turns to the creature counting it:
+   * `spotlighted` is the trigger, `uses` keeps it to once a scene, and `loop`
+   * brings it straight back at a length nobody at the table knows.
+   */
+  const CLOSING_IN = {
+    id: 'fixture-closing-in',
+    name: 'Closing In',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'The first time the fight turns to it, something starts closing on everyone.',
+    kind: 'reaction',
+    trigger: 'spotlighted',
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'fixture-closing-in',
+        name: 'Closing In',
+        start: '2d6',
+        loop: 'reset',
+        effects: [
+          { kind: 'log', text: 'It closes in on all of them.', tone: 'fear' },
+          { kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: { kind: 'allies', range: 'far' } },
+          { kind: 'markStress', target: { kind: 'allies', range: 'far' } },
+        ],
+      },
+    ],
+  };
+
+  /**
+   * The other kind: bought with a Fear, counted down by the party's own dice,
+   * and — the part that matters — `onDeath` means it goes off even if the
+   * creature counting it is already down.
+   */
+  const LAST_THRASH = {
+    id: 'fixture-last-thrash',
+    name: 'Last Thrash',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'A reckoning it sets going, which arrives whether or not it lives to see it.',
+    cost: { fear: 1 },
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'fixture-last-thrash',
+        name: 'Last Thrash',
+        start: '1d12',
+        advance: 'withFear',
+        onDeath: 'trigger',
+        effects: [
+          { kind: 'log', text: 'The room comes down around them.', tone: 'fear' },
+          {
+            kind: 'reactionRoll',
+            difficulty: 18,
+            trait: 'strength',
+            targets: { kind: 'allies', range: 'far' },
+            damage: { dice: '2d10+10', type: 'physical' },
+            onFail: [
+              { kind: 'damage', dice: 'same' },
+              { kind: 'applyCondition', condition: 'restrained', duration: 'scene', target: { kind: 'hit' } },
+            ],
+            onSuccess: [{ kind: 'damage', dice: 'same', half: true }],
+          },
+        ],
+      },
+    ],
+  };
+
+  /** One creature across the hall from Kara, and the fight already on. */
+  const ruin = (seed: string, features: readonly unknown[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'ruin', name: 'The ruin' })));
-    s.run(addAdversary('hall', 'ruin', { id: 'foe', adversary, position: at }));
+    s.run(addAdversary('hall', 'ruin', { id: 'foe', adversary: 'fixture-foe', position: at }));
+    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'ruin');
     demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
     demo.party.select('kara');
-    // A level 1 Guardian does not live long in front of a Tier 4 block, and
-    // this test is about the clock rather than about Kara: give her the Hit
+    // This test is about the clock rather than about Kara: give her the Hit
     // Points to stand there while it runs down.
     demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
     return demo;
@@ -2720,8 +2851,8 @@ describe('a clock the fight carries', () => {
 
   /**
    * Kara swings, taking the spotlight back first if a roll with Fear lost it -
-   * and closing the ground again first, because a Sorcerer that answers a
-   * wound by teleporting away is a Sorcerer somebody has to walk back to.
+   * and closing the ground again first, because a creature that answers a
+   * wound by backing off is one somebody has to walk back to.
    */
   const swing = (demo: ReturnType<typeof ruin>): void => {
     if (!demo.encounter!.canAct('kara')) endTurn(demo);
@@ -2729,79 +2860,83 @@ describe('a clock the fight carries', () => {
     attackWithSelected(demo, 'foe');
   };
 
-  it('is armed on the Sorcerer first spotlight and goes off on a later roll', () => {
-    const demo = ruin('fallen-sorcerer', { x: 3, y: 4 }, 'shackles');
+  it('is armed the first time the fight turns to it, and goes off on a later roll', () => {
+    const demo = ruin('shackles', [CLOSING_IN]);
     endTurn(demo);
 
-    // "When the Sorcerer is in the spotlight for the first time, activate the
-    // countdown."
-    expect(demo.log.some((l) => l.text.includes('Shackles of Guilt begins'))).toBe(true);
-    const clock = demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt');
+    // The creature was spotlighted, which is what arms it.
+    expect(demo.log.some((l) => l.text.includes('Closing In begins'))).toBe(true);
+    const clock = demo.scenario.countdowns.get('fixture-closing-in');
     expect(clock).toMatchObject({ owner: 'foe', advance: 'standard', loop: 'reset' });
     expect(clock!.value).toBeGreaterThanOrEqual(2);
 
     // A clock nobody spends a turn on: Kara swings, and it moves.
-    const started = demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value;
+    const started = demo.scenario.countdowns.get('fixture-closing-in')!.value;
     swing(demo);
-    expect(demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value).toBe(started - 1);
+    expect(demo.scenario.countdowns.get('fixture-closing-in')!.value).toBe(started - 1);
 
     // Down to its last tick, and the next roll sets it off: everyone within
-    // Far range relives what they would rather not.
-    demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value = 1;
+    // Far range is caught by it.
+    demo.scenario.countdowns.get('fixture-closing-in')!.value = 1;
     const stress = demo.state.entity('kara')!.stress.marked;
     swing(demo);
-    expect(demo.log.some((l) => l.text.includes('Shackles of Guilt triggers'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('Closing In triggers'))).toBe(true);
     expect(demo.state.entity('kara')!.conditions.has('vulnerable')).toBe(true);
     expect(demo.state.entity('kara')!.stress.marked).toBeGreaterThan(stress);
 
-    // "Loop 2d6": it comes straight back, at a length nobody at the table knows.
-    const again = demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt');
+    // A looping clock comes straight back, at a length nobody at the table knows.
+    const again = demo.scenario.countdowns.get('fixture-closing-in');
     expect(again).toBeDefined();
     expect(again!.value).toBe(again!.start);
   });
 
-  it('goes off as the Tyrant falls, because that is what their feature says', () => {
-    // Across the hall, so the Tyrant spends its first turn walking rather
-    // than eating a level 1 Guardian: the countdown is the point.
-    const demo = ruin('volcanic-dragon-ashen-tyrant', { x: 11, y: 4 }, 'tyrant');
+  it('goes off as the creature falls, because that is what its feature says', () => {
+    // Across the hall, so it spends its first turn walking rather than eating
+    // a level 1 character: the countdown is the point. Seven tiles, not nine —
+    // what the clock does reaches Far range, and Far is eight of them.
+    const demo = ruin('tyrant', [LAST_THRASH], { x: 9, y: 4 });
     endTurn(demo);
-    const id = 'volcanic-dragon-ashen-tyrant-apocalyptic-thrashing';
+    const id = 'fixture-last-thrash';
     expect(demo.scenario.countdowns.get(id)).toMatchObject({ advance: 'withFear', onDeath: 'trigger' });
 
-    // "If the Ashen Tyrant is defeated while this countdown is active,
-    // trigger the countdown immediately as the destruction caused by their
-    // death throes."
+    // The pools are re-read from the sheet as the turn runs, so the room to
+    // stand in has to be given after it rather than before: a level 1
+    // character's own seven Hit Points do not survive what this clock does.
+    demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
+
+    // `onDeath: 'trigger'` is the one clock that outlives the creature
+    // counting it: put it down and the reckoning arrives anyway.
     const before = demo.state.entity('kara')!.hitPoints.marked;
     demo.state.entity('foe')!.alive = false;
     settleFight(demo);
-    expect(demo.log.some((l) => l.text.includes('Apocalyptic Thrashing triggers'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('Last Thrash triggers'))).toBe(true);
     expect(demo.state.entity('kara')!.hitPoints.marked).toBeGreaterThan(before);
-    // Spent: a second death does not bring the mountain down twice.
+    // Spent: a second death does not bring the room down twice.
     expect(demo.scenario.countdowns.has(id)).toBe(false);
     settleFight(demo);
-    expect(demo.log.filter((l) => l.text.includes('Apocalyptic Thrashing triggers')).length).toBe(1);
+    expect(demo.log.filter((l) => l.text.includes('Last Thrash triggers')).length).toBe(1);
   });
 
-  it('does not bring the mountain down in a room the Tyrant is not in', () => {
-    const demo = ruin('volcanic-dragon-ashen-tyrant', { x: 11, y: 4 }, 'tyrant-elsewhere');
+  it('does not go off in a room the creature is not in', () => {
+    const demo = ruin('tyrant-elsewhere', [LAST_THRASH], { x: 11, y: 4 });
     endTurn(demo);
-    const id = 'volcanic-dragon-ashen-tyrant-apocalyptic-thrashing';
+    const id = 'fixture-last-thrash';
     expect(demo.scenario.countdowns.has(id)).toBe(true);
 
     // The clock is on the scenario, which outlives the room: walking out of
-    // the room the Tyrant is in is not the Tyrant being defeated.
+    // the room a creature is in is not that creature being defeated.
     demo.state.removeEntity('foe');
     settleFight(demo);
-    expect(demo.log.some((l) => l.text.includes('Apocalyptic Thrashing triggers'))).toBe(false);
+    expect(demo.log.some((l) => l.text.includes('Last Thrash triggers'))).toBe(false);
     expect(demo.scenario.countdowns.has(id)).toBe(false);
   });
 
   it('stops when the fight does, so nothing ticks in the quiet afterwards', () => {
-    const demo = ruin('fallen-sorcerer', { x: 3, y: 4 }, 'shackles-3');
+    const demo = ruin('shackles-3', [CLOSING_IN]);
     endTurn(demo);
     expect(demo.scenario.countdowns.size).toBe(1);
 
-    // A script calls the fight off with the Sorcerer still standing - a truce,
+    // A script calls the fight off with the creature still standing - a truce,
     // an objective met. The fight is over, so a clock a creature was counting
     // has nothing left to count, and a chest opened afterwards must not tick
     // it: countdowns advance on action rolls, in a fight or out of one.
@@ -2811,15 +2946,15 @@ describe('a clock the fight carries', () => {
     expect(demo.scenario.countdowns.size).toBe(0);
   });
 
-  it('is armed once, however many turns the Sorcerer gets', () => {
-    const demo = ruin('fallen-sorcerer', { x: 3, y: 4 }, 'shackles-2');
+  it('is armed once, however many turns it gets', () => {
+    const demo = ruin('shackles-2', [CLOSING_IN]);
     endTurn(demo);
-    const first = demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value;
-    demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value = 2;
+    const first = demo.scenario.countdowns.get('fixture-closing-in')!.value;
+    demo.scenario.countdowns.get('fixture-closing-in')!.value = 2;
     endTurn(demo);
-    // "For the first time": a second spotlight does not start it over.
-    expect(demo.scenario.countdowns.get('fallen-sorcerer-shackles-of-guilt')!.value).not.toBe(first);
-    expect(demo.log.filter((l) => l.text.includes('Shackles of Guilt begins')).length).toBe(1);
+    // A `uses` of one per scene: a second spotlight does not start it over.
+    expect(demo.scenario.countdowns.get('fixture-closing-in')!.value).not.toBe(first);
+    expect(demo.log.filter((l) => l.text.includes('Closing In begins')).length).toBe(1);
   });
 });
 
