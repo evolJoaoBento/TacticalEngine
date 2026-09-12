@@ -3792,28 +3792,72 @@ describe('a smite held back for the next blow', () => {
 
 describe('a shell of light over somebody', () => {
   /**
+   * A shell hung over somebody that answers the blow their armour did not
+   * finish: one more threshold off, and it goes out on the blow it carries all
+   * the way down to nothing.
+   *
+   * All of it lives in one field on the condition -- `armor` -- read where a
+   * blow is counted rather than where the defence is decided, because only the
+   * blow that has been answered knows whether a slot was marked for it.
+   *
+   * The log lines this block asserts are the engine's own: `armorAid` collects
+   * its ids from whatever conditions carry that field, so the words come out
+   * the same whatever the condition is called. They stay as they are.
+   */
+  const AURA_CARD = 'fixture-card-24';
+
+  /** Nothing until a slot is marked, and then one threshold more. */
+  const SHELL_CONDITION = {
+    id: 'fixture-shell',
+    name: 'Shell of Light',
+    text: 'When you mark an Armor Slot, you reduce the severity of the attack by an additional threshold.',
+    armor: { steps: 1, endsWhenItSaves: true },
+  };
+
+  const SHELL = [
+    {
+      id: 'fixture-shell-cast',
+      name: 'Shell of Light',
+      source: { kind: 'domainCard', card: AURA_CARD },
+      text: 'Mark a Stress to close a shell of light over somebody very close by.',
+      cost: { stress: 1 },
+      target: { kind: 'creature', range: 'veryClose' },
+      inCombatOnly: true,
+      effects: [
+        // One at a time: a second casting takes it off whoever was carrying it.
+        { kind: 'clearCondition', condition: 'fixture-shell', target: { kind: 'party' } },
+        { kind: 'applyCondition', condition: 'fixture-shell', duration: 'scene', target: { kind: 'target' } },
+        { kind: 'log', text: 'A shell of light closes over them.', tone: 'hope' },
+      ],
+    },
+  ];
+
+  /**
    * Mira beside Kara with the spell in hand, cast on her or not, and the husk
    * swinging hard enough that an Armor Slot alone does not answer the blow.
    */
   const staged = (seed: string, cast: boolean, swing: Record<string, unknown> = { damage: '2d20+30' }): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = false;
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(SHELL_CONDITION));
+    for (const ability of SHELL) demo.project.abilities.push(abilitySchema.parse(ability));
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     standBehind(demo, 'mira', husk.tile);
     demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
     demo.project.abilities.push(
       abilitySchema.parse({
-        id: 'heavy-claws',
-        name: 'Heavy Claws',
+        id: 'fixture-heavy-swing',
+        name: 'Heavy Swing',
         source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
-        text: 'The claws come down harder than the block prints.',
+        text: 'It swings harder than the block prints.',
         kind: 'passive',
         // Hard enough that an Armor Slot alone cannot answer it: the aura is
         // only ever worth anything on a blow the armor did not finish.
         standardAttack: swing,
       }),
     );
-    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['shield-aura'], loadout: ['shield-aura'] };
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: [AURA_CARD], loadout: [AURA_CARD] };
     demo.sheets.set('mira', sheet);
     demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     // Kara's own cards come off: Iron Will and Get Back Up answer a blow the
@@ -3825,20 +3869,28 @@ describe('a shell of light over somebody', () => {
     demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
     demo.state.entity('kara')!.hitPoints = { max: 20, marked: 0 };
     if (cast) {
-      expect(useAbility(demo, 'mira', 'shield-aura', ['kara']).status).not.toBe('refused');
-      expect(demo.state.entity('kara')!.conditions.has('shield-aura')).toBe(true);
+      expect(useAbility(demo, 'mira', 'fixture-shell-cast', ['kara']).status).not.toBe('refused');
+      expect(demo.state.entity('kara')!.conditions.has('fixture-shell')).toBe(true);
     }
     return demo;
   };
 
-  /** Turns until an Armor Slot answers a blow of Kara's, or null. */
+  /**
+   * Turns until an Armor Slot is marked for a blow of Kara's, or null.
+   *
+   * A new mark, not a total. One test below hands her a single unspent slot,
+   * and against a total this returned on the first turn whatever happened --
+   * including a turn the creature missed on, which left the test asserting
+   * about a blow that was never struck.
+   */
   const untilArmored = (demo: DemoScene): number | null => {
     const kara = demo.state.entity('kara')!;
+    const before = kara.armorSlots.marked;
     for (let turn = 1; turn <= 8 && demo.encounter?.outcome === 'ongoing'; turn++) {
       endTurn(demo);
       let guard = 0;
       while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'choose', index: 0 });
-      if (kara.armorSlots.marked > 0) return turn;
+      if (kara.armorSlots.marked > before) return turn;
     }
     return null;
   };
@@ -3886,7 +3938,7 @@ describe('a shell of light over somebody', () => {
       // "If this spell causes a creature who would be damaged to instead mark
       // no Hit Points, the effect ends."
       expect(lit.log.some((l) => l.text.includes('goes out'))).toBe(true);
-      expect(kara.conditions.has('shield-aura')).toBe(false);
+      expect(kara.conditions.has('fixture-shell')).toBe(false);
       // And the same blow without it marks the Hit Point it saved her from.
       const bare = staged(`aura-out-${seed}`, false, { severity: 'major' });
       const slots = bare.state.entity('kara')!.armorSlots;
@@ -3911,7 +3963,7 @@ describe('a shell of light over somebody', () => {
       }
       if (kara.hitPoints.marked === 0) continue;
       expect(demo.log.some((l) => l.text.includes('The aura around'))).toBe(false);
-      expect(kara.conditions.has('shield-aura')).toBe(true);
+      expect(kara.conditions.has('fixture-shell')).toBe(true);
       return;
     }
     throw new Error('nothing ever got through to Kara');
@@ -3927,9 +3979,9 @@ describe('a shell of light over somebody', () => {
       if (stand === NO_TILE && demo.grid.isPassable(tile) && !blocked(tile)) stand = tile;
     });
     demo.state.moveEntity('finn', stand);
-    expect(useAbility(demo, 'mira', 'shield-aura', ['finn']).status).not.toBe('refused');
-    expect(demo.state.entity('finn')!.conditions.has('shield-aura')).toBe(true);
-    expect(demo.state.entity('kara')!.conditions.has('shield-aura')).toBe(false);
+    expect(useAbility(demo, 'mira', 'fixture-shell-cast', ['finn']).status).not.toBe('refused');
+    expect(demo.state.entity('finn')!.conditions.has('fixture-shell')).toBe(true);
+    expect(demo.state.entity('kara')!.conditions.has('fixture-shell')).toBe(false);
   });
 });
 
