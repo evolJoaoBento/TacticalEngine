@@ -3021,17 +3021,69 @@ describe('a death move', () => {
     throw new Error('the Hope Die never read 1 in sixty seeds');
   });
 
+  /**
+   * Two cards that answer a death move, offered in place of the three moves
+   * rather than alongside them.
+   *
+   * Both are offered rather than taken: which of them to spend, against the
+   * three moves a fallen character chooses between, is the whole decision. One
+   * pays for itself by going to the vault; the other costs a Hope and is worth
+   * one use between long rests, which is what one test reads when she goes down
+   * a second time and is offered nothing.
+   */
+  const STANDING_CARD = 'fixture-card-55';
+  const BREATH_CARD = 'fixture-card-56';
+
+  const LAST_WORDS = [
+    {
+      id: 'fixture-still-standing',
+      name: 'Still Standing',
+      source: { kind: 'domainCard', card: STANDING_CARD },
+      text: 'Answer a fall by getting up, and put this card away for the rest of the day.',
+      kind: 'reaction',
+      trigger: 'defeated',
+      action: false,
+      auto: false,
+      target: { kind: 'none' },
+      effects: [
+        { kind: 'log', text: 'Not today.', tone: 'hope' },
+        { kind: 'heal', dice: '1d6', target: { kind: 'actor' } },
+        // The whole cost of it.
+        { kind: 'vaultCard' },
+      ],
+    },
+    {
+      id: 'fixture-breath-left',
+      name: 'Breath Left',
+      source: { kind: 'domainCard', card: BREATH_CARD },
+      text: 'Spend a Hope to answer a fall with one more Hit Point, once between long rests.',
+      kind: 'reaction',
+      trigger: 'defeated',
+      action: false,
+      auto: false,
+      cost: { hope: 1 },
+      uses: { count: 1, per: 'longRest' },
+      target: { kind: 'none' },
+      effects: [
+        { kind: 'log', text: 'Not while there is breath left.', tone: 'hope' },
+        { kind: 'heal', amount: 1, target: { kind: 'actor' } },
+      ],
+    },
+  ];
+
   /** Put a card in Kara's hands and in her loadout. */
   const carrying = (demo: DemoScene, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of LAST_WORDS) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
-  it('offers Unbreakable in place of the three, and the card goes to the vault after it', () => {
-    const demo = lastStand('unbreakable');
-    carrying(demo, ['unbreakable']);
+  it('offers a carried card in place of the three, and it goes to the vault after', () => {
+    const demo = lastStand('still-standing');
+    carrying(demo, [STANDING_CARD]);
     const kara = demo.state.entity('kara')!;
 
     felled(demo);
@@ -3039,16 +3091,16 @@ describe('a death move', () => {
     expect(asked.kind).toBe('death');
     // After the three moves, because the first option is the one that changes
     // nothing.
-    expect(asked.offers.map((o) => o.ability.id)).toEqual(['unbreakable']);
+    expect(asked.offers.map((o) => o.ability.id)).toEqual(['fixture-still-standing']);
 
-    choose(demo, 'Unbreakable');
+    choose(demo, 'Still Standing');
     // "Roll a d6 and clear a number of Hit Points equal to the result."
     expect(kara.alive).toBe(true);
     expect(kara.hitPoints.marked).toBeLessThan(kara.hitPoints.max);
     // "Then place this card in your vault": out of the loadout, and no longer
     // offering anything.
-    expect(said(demo, 'places Unbreakable in the vault')).toBe(true);
-    expect(loadoutOf(demo.characters.get('kara')!)).not.toContain('unbreakable');
+    expect(said(demo, 'places Still Standing in the vault')).toBe(true);
+    expect(loadoutOf(demo.characters.get('kara')!)).not.toContain(STANDING_CARD);
     expect(demo.world.reactionsFor('kara', 'defeated')).toEqual([]);
 
     // The next time she goes down there is nothing but the three moves.
@@ -3056,15 +3108,15 @@ describe('a death move', () => {
     expect((demo.pending as PendingDeath).offers).toEqual([]);
   });
 
-  it('spends a Hope on Battle-Hardened, and has none of it left this long rest', () => {
-    const demo = lastStand('battle-hardened');
-    carrying(demo, ['battle-hardened']);
+  it('spends a Hope on the other, and has none of it left this long rest', () => {
+    const demo = lastStand('breath-left');
+    carrying(demo, [BREATH_CARD]);
     const kara = demo.state.entity('kara')!;
     kara.hope = { max: 6, value: 3 };
 
     felled(demo);
-    expect((demo.pending as PendingDeath).offers.map((o) => o.ability.id)).toEqual(['battle-hardened']);
-    choose(demo, 'Battle-Hardened');
+    expect((demo.pending as PendingDeath).offers.map((o) => o.ability.id)).toEqual(['fixture-breath-left']);
+    choose(demo, 'Breath Left');
 
     // "Spend a Hope to clear a Hit Point instead."
     expect(kara.alive).toBe(true);
@@ -3078,7 +3130,7 @@ describe('a death move', () => {
 
   it('is not offered a card whose Hope the fallen character cannot pay', () => {
     const demo = lastStand('no-hope');
-    carrying(demo, ['battle-hardened']);
+    carrying(demo, [BREATH_CARD]);
     demo.state.entity('kara')!.hope = { max: 6, value: 0 };
     felled(demo);
     expect((demo.pending as PendingDeath).offers).toEqual([]);
@@ -3918,7 +3970,83 @@ describe('a run in a straight line', () => {
 
 
 describe('what a charge runs over', () => {
+  /**
+   * Two specimens from opposite sides, and a third that is only a shape.
+   *
+   * The creature charges when a wound costs it two Hit Points or more, and deals
+   * its damage before it moves -- what the charge ran through is measured from
+   * where it started, so a line read after it arrived is a line from the wrong
+   * end.
+   *
+   * The card in the party's hands answers taking damage and does nothing else.
+   * What the first test is about is *when* it is heard: the charge's own wound
+   * has to reach the room in the same breath as the wound that set the charge
+   * off, rather than waiting in the queue for whatever lands next.
+   */
+  const FLINCH_CARD = 'fixture-card-57';
+  const RUN_CARD = 'fixture-card-58';
+
+  /** A creature that charges when a wound costs it enough. */
+  const charge = (demo: DemoScene, who: string): Record<string, unknown> => ({
+    id: 'fixture-charge-over',
+    name: 'Charge',
+    source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, who)!.id] },
+    text: 'When a wound costs it two Hit Points or more, it puts its head down and runs.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    available: { kind: 'count', of: 'hitPointsTaken', op: '>=', value: 2 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'It puts its head down and goes.', tone: 'fear' },
+      { kind: 'damage', dice: '2d6+3', type: 'physical', direct: true, target: { kind: 'inPath', side: 'allies' } },
+      { kind: 'move', to: 'point', budget: 'close' },
+    ],
+  });
+
+  const CARDS = [
+    {
+      // Free and automatic: it costs nothing and asks nothing, so it runs where
+      // it would otherwise have been offered -- which is what lets the first
+      // test read it as proof the wound was heard at all.
+      id: 'fixture-flinch',
+      name: 'Flinch',
+      source: { kind: 'domainCard', card: FLINCH_CARD },
+      text: 'When you take damage, you can steady yourself.',
+      kind: 'reaction',
+      trigger: 'tookDamage',
+      action: false,
+      effects: [{ kind: 'log', text: 'Kara steadies herself.', tone: 'hope' }],
+    },
+    {
+      // Only a shape: something aimed at a tile, so the path can be read.
+      id: 'fixture-line',
+      name: 'Straight Line',
+      source: { kind: 'domainCard', card: RUN_CARD },
+      text: 'Spend three Hope to run a straight line through everything in the way.',
+      cost: { hope: 3 },
+      inCombatOnly: true,
+      target: { kind: 'point', range: 'far' },
+      effects: [
+        { kind: 'move', to: 'point', budget: 'far' },
+        {
+          kind: 'check',
+          check: {
+            trait: 'weapon',
+            difficulty: 'target',
+            targets: { kind: 'inPath', side: 'adversaries', reach: 'weapon' },
+            prompt: 'One roll, against everything the path went through?',
+            always: [{ kind: 'damage', dice: 'weapon', using: 'proficiency', target: { kind: 'hit' } }],
+          },
+        },
+      ],
+    },
+  ];
+
   const holds = (demo: DemoScene, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of CARDS) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -3930,31 +4058,13 @@ describe('what a charge runs over', () => {
     demo.askDefender = true;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 40, marked: 0 };
-    const on = adversaryDefOf(demo, husk.id)!.id;
-    const fury = demo.project.abilities.find((a) => a.id === 'cave-ogre-rampaging-fury')!;
-    // The Ogre's charge on the husk, and one card in Kara's hands that answers
-    // a wound. Nothing else in the room reacts, so what she is asked about is
-    // the whole of the assertion.
-    // A card that answers a wound, carried on a real card of the SRD's so it
-    // resolves onto her sheet - the trigger is what is under test, not which
-    // card it was printed on, so that card's own ability comes off.
-    demo.project.abilities = demo.project.abilities.filter(
-      (a) => a.source.kind !== 'adversary' && a.id !== 'deathrun',
-    );
-    demo.project.abilities.push(
-      abilitySchema.parse({ ...fury, id: 'husk-fury', source: { kind: 'adversary', adversaries: [on] } }),
-      abilitySchema.parse({
-        id: 'flinch',
-        name: 'Flinch',
-        source: { kind: 'domainCard', card: 'deathrun' },
-        text: 'When you take damage, you can steady yourself.',
-        kind: 'reaction',
-        trigger: 'tookDamage',
-        action: false,
-        effects: [{ kind: 'log', text: 'Kara steadies herself.', tone: 'hope' }],
-      }),
-    );
-    holds(demo, ['deathrun']);
+    // The creature's own features come off, so the charge is the only thing it
+    // can answer a wound with, and what Kara is asked about is the whole of the
+    // assertion.
+    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    holds(demo, [FLINCH_CARD]);
+    demo.project.abilities.push(abilitySchema.parse(charge(demo, husk.id)));
+    refreshWorld(demo);
     // Nobody is going to fall: a death move would be a question of its own.
     for (const e of demo.state.entitiesOf('party')) e.hitPoints = { max: 20, marked: 0 };
     const before = demo.state.entity('kara')!.hitPoints.marked;
@@ -4007,8 +4117,8 @@ describe('what a charge runs over', () => {
   it('does not run over what is standing behind the one charging', () => {
     const demo = standoff('behind-me');
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-    const card = demo.project.abilities.find((a) => a.id === 'deathrun')!;
-    holds(demo, ['deathrun']);
+    holds(demo, [RUN_CARD]);
+    const card = demo.project.abilities.find((a) => a.id === 'fixture-line')!;
     const tiles = pointTiles(demo, 'kara', card);
     expect(tiles.length).toBeGreaterThan(0);
 
@@ -6021,9 +6131,32 @@ describe('a room put out', () => {
 
 
 describe('half of what somebody is', () => {
+  /**
+   * One card, one modifier: half a trait, rounded up, on a defence.
+   *
+   * There is no arithmetic in the specimen on purpose -- the rounding belongs to
+   * the derive, and the test checks the derive by walking three Agilities
+   * through it plus one that is worth nothing.
+   */
+  const NIMBLE_CARD = 'fixture-card-59';
+
+  const NIMBLE = [
+    {
+      id: 'fixture-nimble',
+      name: 'Hard to Catch',
+      source: { kind: 'domainCard', card: NIMBLE_CARD },
+      text: 'You are half again as quick as you look: your Evasion is higher for it.',
+      kind: 'passive',
+      action: false,
+      modifiers: [{ stat: 'evasion', plusTrait: 'agility', halveTrait: true }],
+    },
+  ];
+
   /** Kara with an Agility of `agility`, holding these cards. */
   const nimble = (agility: number, cards: string[]): DemoScene => {
-    const demo = standoff(`untouchable-${agility}-${cards.length}`);
+    const demo = standoff(`nimble-${agility}-${cards.length}`);
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of NIMBLE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = {
       ...demo.sheets.get('kara')!,
       traits: { ...demo.sheets.get('kara')!.traits, agility },
@@ -6046,13 +6179,13 @@ describe('half of what somebody is', () => {
       [0, 0],
     ] as const) {
       const bare = nimble(agility, []).characters.get('kara')!.evasion;
-      const held = nimble(agility, ['untouchable']).characters.get('kara')!.evasion;
+      const held = nimble(agility, [NIMBLE_CARD]).characters.get('kara')!.evasion;
       expect(held - bare).toBe(worth);
     }
   });
 
   it('is read the same way by a roll made against her', () => {
-    const demo = nimble(5, ['untouchable']);
+    const demo = nimble(5, [NIMBLE_CARD]);
     const kara = demo.state.entity('kara')!;
     // What a swing at her has to beat, off the world rather than the sheet.
     expect(demo.world.defenderOf(kara).difficulty).toBe(demo.characters.get('kara')!.evasion);
@@ -6886,7 +7019,82 @@ describe('a card that throws the dice again', () => {
  * roll it helped, and drops off past six.
  */
 describe('a bonus on every action roll', () => {
+  /**
+   * A card whose bonus is a pile of tokens rather than a number. The condition
+   * says `perToken`, so what it is worth is read off the pile at the moment the
+   * roll is made -- which is why one test can stack tokens by hand and another
+   * can show the same pile is worth nothing once the form is gone.
+   *
+   * Two abilities: one puts the form on, the other grows it on every roll and
+   * drops it when the pile would pass six. Neither is a decision.
+   */
+  const SURGE_CARD = 'fixture-card-60';
+
+  /** Worth whatever the pile says, and only while the form holds. */
+  const SURGING_CONDITION = {
+    id: 'fixture-surging',
+    name: 'Surging',
+    text: 'The die is up: its value is added to every action roll you make.',
+    modifiers: [{ stat: 'actionRoll', bonus: 1, perToken: 'fixture-surge' }],
+  };
+
+  const SURGE = [
+    {
+      id: 'fixture-surge',
+      name: 'Something Older',
+      source: { kind: 'domainCard', card: SURGE_CARD },
+      text: 'Once between long rests, mark a Stress to let something older than you wear you.',
+      uses: { count: 1, per: 'longRest' },
+      cost: { stress: 1 },
+      target: { kind: 'self' },
+      action: false,
+      effects: [
+        { kind: 'log', text: 'Something older than them comes up through the ground and wears them.', tone: 'hope' },
+        // Emptied first, so a second turn of it starts at one rather than
+        // wherever the last one stopped.
+        { kind: 'spendToken', ability: 'fixture-surge', all: true },
+        { kind: 'addToken', ability: 'fixture-surge', amount: 1 },
+        { kind: 'applyCondition', condition: 'fixture-surging', duration: 'scene', target: { kind: 'actor' } },
+      ],
+    },
+    {
+      id: 'fixture-surge-grows',
+      name: 'Something Older',
+      source: { kind: 'domainCard', card: SURGE_CARD },
+      text: 'It climbs with every roll, and when it will not hold it drops all at once.',
+      kind: 'reaction',
+      trigger: 'partyRolled',
+      action: false,
+      // Not a decision: it grows on its own and drops on its own.
+      available: {
+        kind: 'all',
+        of: [
+          { kind: 'self' },
+          { kind: 'hasCondition', condition: 'fixture-surging' },
+        ],
+      },
+      effects: [
+        { kind: 'addToken', ability: 'fixture-surge', amount: 1 },
+        {
+          kind: 'branch',
+          // Seven is the value that would exceed six: the die was on six, the
+          // roll took its six, and the next turn of it has nowhere to go.
+          when: { kind: 'tokens', ability: 'fixture-surge', op: '>=', value: 7 },
+          then: [
+            { kind: 'log', text: 'The shape will not hold any longer, and drops off them all at once.', tone: 'fear' },
+            { kind: 'spendToken', ability: 'fixture-surge', all: true },
+            { kind: 'clearCondition', condition: 'fixture-surging', target: { kind: 'actor' } },
+            { kind: 'markStress', amount: 1, target: { kind: 'actor' } },
+          ],
+        },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(SURGING_CONDITION));
+    for (const ability of SURGE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
     demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -6895,16 +7103,16 @@ describe('a bonus on every action roll', () => {
 
   it('reaches a plain trait check, a Spellcast Roll and a swing alike', () => {
     const demo = scene('action-roll');
-    hold(demo, 'mira', ['wild-surge']);
+    hold(demo, 'mira', [SURGE_CARD]);
     demo.scenario.actorId = 'mira';
     const plain = demo.world.checkModifier('agility', 'actor')!;
     const spell = demo.world.checkModifier('spellcast', 'actor')!;
     const swing = demo.world.rollBonus('mira', 'attackRoll', { melee: false });
     const hurt = demo.world.rollBonus('mira', 'damageRoll', { melee: false });
 
-    // Four tokens on the card is a Wild Surge Die showing four.
-    demo.world.applyCondition('mira', 'wild-surging', 'scene');
-    demo.world.addTokens('mira', 'wild-surge', 4);
+    // Four tokens on the card is a die showing four.
+    demo.world.applyCondition('mira', 'fixture-surging', 'scene');
+    demo.world.addTokens('mira', 'fixture-surge', 4);
     expect(demo.world.checkModifier('agility', 'actor')).toBe(plain + 4);
     expect(demo.world.checkModifier('spellcast', 'actor')).toBe(spell + 4);
     expect(demo.world.rollBonus('mira', 'attackRoll', { melee: false })).toBe(swing + 4);
@@ -6917,40 +7125,40 @@ describe('a bonus on every action roll', () => {
 
   it('is worth nothing with the condition gone, however many tokens are on the card', () => {
     const demo = scene('action-roll-off');
-    hold(demo, 'mira', ['wild-surge']);
+    hold(demo, 'mira', [SURGE_CARD]);
     demo.scenario.actorId = 'mira';
     const plain = demo.world.checkModifier('agility', 'actor')!;
-    demo.world.addTokens('mira', 'wild-surge', 5);
+    demo.world.addTokens('mira', 'fixture-surge', 5);
     // The die is on the card; what reads it is the form, and there is none.
     expect(demo.world.checkModifier('agility', 'actor')).toBe(plain);
   });
 
-  it('Wild Surge starts at one, grows with each roll, and drops past six', () => {
-    const demo = standoff('wild-surge');
+  it('the die starts at one, grows with each roll, and drops past six', () => {
+    const demo = standoff('surge');
     demo.askDefender = false;
-    hold(demo, 'kara', ['wild-surge']);
+    hold(demo, 'kara', [SURGE_CARD]);
     const kara = demo.state.entity('kara')!;
     kara.stress = { max: 12, marked: 0 };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 60, marked: 0 };
 
-    expect(useAbility(demo, 'kara', 'wild-surge', []).status).not.toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-surge', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
     // A Stress to channel it, and the die face up on one.
-    expect(kara.conditions.has('wild-surging')).toBe(true);
-    expect(demo.world.tokensOn('kara', 'wild-surge')).toBe(1);
+    expect(kara.conditions.has('fixture-surging')).toBe(true);
+    expect(demo.world.tokensOn('kara', 'fixture-surge')).toBe(1);
     expect(kara.stress.marked).toBe(1);
 
     // Six swings: each takes the die it found and leaves it one higher, and
     // the seventh turn of it has nowhere to go.
     const seen: number[] = [];
     let cost: number | null = null;
-    for (let i = 0; i < 6 && kara.conditions.has('wild-surging'); i++) {
-      seen.push(demo.world.tokensOn('kara', 'wild-surge'));
+    for (let i = 0; i < 6 && kara.conditions.has('fixture-surging'); i++) {
+      seen.push(demo.world.tokensOn('kara', 'fixture-surge'));
       const stress = kara.stress.marked;
       attackWithSelected(demo, husk.id);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-      if (!kara.conditions.has('wild-surging')) {
+      if (!kara.conditions.has('fixture-surging')) {
         // The swing the form dropped on. A critical clears a Stress of its own,
         // so what the drop cost is the difference net of that.
         const crit = demo.rolls[demo.rolls.length - 1]?.roll.critical === true;
@@ -6961,8 +7169,8 @@ describe('a bonus on every action roll', () => {
     }
     // One through six, and the die never showed a seven to anybody.
     expect(seen).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(kara.conditions.has('wild-surging')).toBe(false);
-    expect(demo.world.tokensOn('kara', 'wild-surge')).toBe(0);
+    expect(kara.conditions.has('fixture-surging')).toBe(false);
+    expect(demo.world.tokensOn('kara', 'fixture-surge')).toBe(0);
     // "You must mark an additional Stress."
     expect(cost).toBe(1);
   });
