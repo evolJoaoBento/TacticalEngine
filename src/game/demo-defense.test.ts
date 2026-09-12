@@ -29,7 +29,8 @@ import {
   type DemoScene,
 } from './demo-scene';
 import { restoreScenario, scenarioSnapshot, useKey } from '../engine/script/world';
-import { FIXTURE_ADVERSARIES, FIXTURE_CARDS, FIXTURE_DOMAIN_FOUR } from '../../tests/fixtures/adversaries';
+import { FIXTURE_ADVERSARIES, FIXTURE_CARDS, FIXTURE_DOMAIN_FOUR, FIXTURE_FOE } from '../../tests/fixtures/adversaries';
+import { A_SPRAY_THAT_EATS_ARMOUR, A_WOUND_THAT_ANSWERS } from '../../tests/fixtures/adversary-features';
 import {
   REASSURANCE,
   REASSURANCE_CARD,
@@ -1065,74 +1066,114 @@ describe("an adversary's own features", () => {
   });
 });
 
-describe('the Burrower\'s scripted attacks', () => {
-  it('sprays acid over everyone in reach, and those without armor mark a Hit Point instead', () => {
-    const demo = standoff('spit');
+describe('a creature that answers its own wounds', () => {
+  /**
+   * The creature is swapped for a fixture, and not for tidiness: every test
+   * here deals 16, which cleared the old creature's Severe threshold and lands
+   * well short of what the demo places now. `fixture-foe` reads 6/12, so 16 is
+   * past Severe with room left to survive it, and the number stops depending on
+   * whoever is standing there.
+   *
+   * Both features are shared rather than written here, because a second file
+   * asserts the same answering wound: they live with the other fixtures, named
+   * for the mechanism they carry.
+   */
+  const WOUND_CARD = 'fixture-card-19';
+
+  /** Stand up the creature these tests are about, carrying what they read. */
+  const answering = (demo: DemoScene, features: readonly Record<string, unknown>[]): EntityState => {
+    const placed = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    demo.project.adversaries.push(...FIXTURE_ADVERSARIES);
+    // What a creature is comes from its placement, so the fixture is stood up
+    // where the other one was and that one goes down.
+    demo.state.addEntity(
+      createAdversaryEntity('answerer', FIXTURE_FOE, placed.tile, { hitPoints: 40, stress: 3 }),
+    );
+    demo.state.removeEntity(placed.id);
+    for (const feature of features) demo.project.abilities.push(abilitySchema.parse(feature));
+    refreshWorld(demo);
+    return demo.state.entity('answerer')!;
+  };
+
+  /** What swings is a card in a hand, not something handed to her. */
+  const holding = (demo: DemoScene, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('sprays a whole band, and those without armor mark a Hit Point instead', () => {
+    const demo = standoff('spray');
     demo.askDefender = false;
-    // Two of the party in reach gives it a reason, and a Fear pays for it.
-    standBehind(demo, 'finn', demo.state.entitiesOf('adversary').find((e) => e.alive)!.tile);
+    const foe = answering(demo, [A_SPRAY_THAT_EATS_ARMOUR(FIXTURE_FOE)]);
+    // Two of the party in reach gives it a reason, and the GM's Fear pays for
+    // the spotlight it spends getting there.
+    standBehind(demo, 'finn', foe.tile);
     demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
-    // Finn's armor is already gone, so the acid costs him a Hit Point instead.
+    // Finn's armor is already gone, so the spray costs him a Hit Point instead.
     const finn = demo.state.entity('finn')!;
     finn.armorSlots = { ...finn.armorSlots, marked: finn.armorSlots.max };
 
     let sprayed = false;
     for (let i = 0; i < 30 && !sprayed; i++) {
       endTurn(demo);
-      sprayed = demo.log.some((l) => l.text.includes('Acid arcs out'));
+      sprayed = demo.log.some((l) => l.text.includes('It sprays the room'));
       if (demo.encounter?.outcome !== 'ongoing') break;
     }
     expect(sprayed).toBe(true);
     // Everyone it beat was rolled for separately, and the log says what happened.
-    expect(demo.log.map((l) => l.text).filter((t) => t.includes('Spit Acid')).length).toBeGreaterThan(0);
+    expect(demo.log.map((l) => l.text).filter((t) => t.includes('Caustic Spray')).length).toBeGreaterThan(0);
   });
 
-  it("bathes the room when a card's own attack is what wounds it", () => {
+  it("answers a card's own attack, and not only damage the world was handed", () => {
     // The reaction has to fire off a script's attack too, not only off damage
     // the world was handed: a card's `attack` goes through the same door an
     // adversary's swing does, and the queue has to drain after a card.
-    const demo = standoff('bath-card');
+    const demo = standoff('answer-card');
     demo.askDefender = false;
     demo.project.abilities.push(
       abilitySchema.parse({
-        id: 'heavy-blow',
+        id: 'fixture-heavy-blow',
         name: 'Heavy Blow',
-        source: { kind: 'granted', characters: ['kara'] },
+        source: { kind: 'domainCard', card: WOUND_CARD },
+        text: 'One swing, with everything behind it.',
         target: { kind: 'adversary', range: 'melee' },
         action: false,
-        // Well past the Burrower's Severe threshold, and not enough to kill it.
+        // Well past the fixture's Severe threshold, and not enough to kill it.
         effects: [{ kind: 'attack', damage: '+16 phy' }],
       }),
     );
-
-    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    holding(demo, [WOUND_CARD]);
+    const foe = answering(demo, [A_WOUND_THAT_ANSWERS(FIXTURE_FOE)]);
     const kara = demo.state.entity('kara')!;
     const before = kara.hitPoints.marked + kara.armorSlots.marked;
 
     // Whether a given swing lands is the seed's business; that the wound
     // answers is not, so swing until one lands.
-    for (let i = 0; i < 20 && !demo.log.some((l) => l.text.includes('Acid blood')); i++) {
-      husk.hitPoints = { max: 40, marked: 0 };
-      expect(useAbility(demo, 'kara', 'heavy-blow', [husk.id]).status).toBe('done');
+    for (let i = 0; i < 20 && !demo.log.some((l) => l.text.includes('The wound opens')); i++) {
+      foe.hitPoints = { max: 40, marked: 0 };
+      expect(useAbility(demo, 'kara', 'fixture-heavy-blow', [foe.id]).status).toBe('done');
     }
-    expect(husk.alive).toBe(true);
-    expect(demo.log.map((l) => l.text)).toContain('Acid blood sprays from the wound.');
+    expect(foe.alive).toBe(true);
+    expect(demo.log.map((l) => l.text)).toContain('The wound opens, and the room pays for it.');
     const after = demo.state.entity('kara')!;
     expect(after.hitPoints.marked + after.armorSlots.marked).toBeGreaterThan(before);
   });
 
-  it('bathes the room in acid when it takes Severe damage', () => {
-    const demo = standoff('bath');
+  it('answers a Severe wound the world handed it', () => {
+    const demo = standoff('answer');
     demo.askDefender = false;
-    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-    husk.hitPoints = { max: 8, marked: 0 };
+    const foe = answering(demo, [A_WOUND_THAT_ANSWERS(FIXTURE_FOE)]);
+    foe.hitPoints = { max: 8, marked: 0 };
     const kara = demo.state.entity('kara')!;
     const before = kara.hitPoints.marked + kara.armorSlots.marked;
-    // Straight past its Severe threshold (8/15), without killing it.
-    demo.world.dealDamage(husk.id, { amount: 16, types: ['physical'] }, demo.rng);
-    expect(husk.alive).toBe(true);
+    // Straight past the fixture's Severe threshold (6/12), without killing it.
+    demo.world.dealDamage(foe.id, { amount: 16, types: ['physical'] }, demo.rng);
+    expect(foe.alive).toBe(true);
     settleFight(demo);
-    expect(demo.log.map((l) => l.text)).toContain('Acid blood sprays from the wound.');
+    expect(demo.log.map((l) => l.text)).toContain('The wound opens, and the room pays for it.');
     // The splash reaches her: a Hit Point, or the Armor Slot that turned it aside.
     const after = demo.state.entity('kara')!;
     expect(after.hitPoints.marked + after.armorSlots.marked).toBeGreaterThan(before);
