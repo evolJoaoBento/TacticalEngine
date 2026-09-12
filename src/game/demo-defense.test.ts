@@ -1176,12 +1176,104 @@ describe("the party's own answer to a blow", () => {
 });
 
 describe('a bonus the card counts out for itself', () => {
-  /** Kara holding a card, in a fight, the party asked rather than decided for. */
-  const holding = (cards: readonly string[], seed: string): DemoScene => {
+  /**
+   * Three abilities on one card, and one string tying them together: the token
+   * store is named by the ability that owns it, so what places the tokens, what
+   * reads them and what clears them all name the same id.
+   *
+   * `perToken` is never folded into a derived character — tokens are scene
+   * state, not sheet state — so the bonus is read where it is used and reads
+   * zero the moment the card is empty.
+   */
+  const FEROCITY = [
+    {
+      id: 'fixture-ferocity',
+      name: 'Ferocity',
+      source: { kind: 'domainCard', card: 'fixture-card-5' },
+      text: 'Having hurt something badly, its holder may spend to become harder to catch.',
+      kind: 'reaction',
+      trigger: 'dealtDamage',
+      cost: { hope: 2 },
+      action: false,
+      effects: [
+        { kind: 'log', text: 'The blow leaves them somewhere else entirely.', tone: 'hope' },
+        { kind: 'addToken', ability: 'fixture-ferocity', amount: 'hitPointsDealt' },
+      ],
+    },
+    {
+      id: 'fixture-ferocity-evasion',
+      name: 'Ferocity',
+      source: { kind: 'domainCard', card: 'fixture-card-5' },
+      text: 'Harder to catch, by as much as the last blow was worth.',
+      kind: 'passive',
+      action: false,
+      modifiers: [{ stat: 'evasion', bonus: 1, perToken: 'fixture-ferocity' }],
+    },
+    {
+      id: 'fixture-ferocity-spent',
+      name: 'Ferocity',
+      source: { kind: 'domainCard', card: 'fixture-card-5' },
+      text: 'It lasts until the next blow aimed their way is over, landed or not.',
+      kind: 'reaction',
+      trigger: 'attacked',
+      action: false,
+      effects: [{ kind: 'spendToken', ability: 'fixture-ferocity', all: true }],
+    },
+  ];
+
+  /** The same three shapes on the other side: wounded, then paid out in damage. */
+  const NEVER_UPSTAGED = [
+    {
+      id: 'fixture-never-upstaged',
+      name: 'Never Upstaged',
+      source: { kind: 'domainCard', card: 'fixture-card-4' },
+      text: 'Wounded, its holder may spend to remember it for the next swing.',
+      kind: 'reaction',
+      trigger: 'tookHitPoints',
+      cost: { stress: 1 },
+      action: false,
+      effects: [
+        { kind: 'log', text: 'They will hear about this one.', tone: 'hope' },
+        { kind: 'addToken', ability: 'fixture-never-upstaged', amount: 'hitPointsTaken' },
+      ],
+    },
+    {
+      id: 'fixture-never-upstaged-damage',
+      name: 'Never Upstaged',
+      source: { kind: 'domainCard', card: 'fixture-card-4' },
+      text: 'Five more behind the blow for every one of them it remembers.',
+      kind: 'passive',
+      action: false,
+      modifiers: [{ stat: 'damageRoll', bonus: 5, perToken: 'fixture-never-upstaged' }],
+    },
+    {
+      id: 'fixture-never-upstaged-spent',
+      name: 'Never Upstaged',
+      source: { kind: 'domainCard', card: 'fixture-card-4' },
+      text: 'Spent by the swing that finally lands.',
+      kind: 'reaction',
+      trigger: 'dealtHit',
+      action: false,
+      effects: [{ kind: 'spendToken', ability: 'fixture-never-upstaged', all: true }],
+    },
+  ];
+
+  /**
+   * Kara holding a card, in a fight, the party asked rather than decided for.
+   * The card and its abilities are the project's, carried before the sheet is
+   * derived over them.
+   */
+  const holding = (
+    abilities: readonly Record<string, unknown>[],
+    card: string,
+    seed: string,
+  ): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = true;
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of abilities) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = demo.sheets.get('kara')!;
-    const grown = { ...sheet, domainCards: [...cards], loadout: [...cards] };
+    const grown = { ...sheet, domainCards: [card], loadout: [card] };
     demo.sheets.set('kara', grown);
     demo.characters.set('kara', deriveCharacter(grown, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
@@ -1190,11 +1282,11 @@ describe('a bonus the card counts out for itself', () => {
   };
 
   it('reads the tokens where they are used, and never off the sheet', () => {
-    const demo = holding(['ferocity'], 'ferocity-evasion');
+    const demo = holding(FEROCITY, 'fixture-card-5', 'ferocity-evasion');
     const derived = demo.characters.get('kara')!.evasion;
     expect(demo.world.poolBonus('kara', 'evasion')).toBe(0);
 
-    demo.world.addTokens('kara', 'ferocity', 3);
+    demo.world.addTokens('kara', 'fixture-ferocity', 3);
     // "Increase your Evasion by the number of Hit Points they marked."
     expect(demo.world.poolBonus('kara', 'evasion')).toBe(3);
     // The sheet is where the fight is not: a token is scene state, and a
@@ -1203,7 +1295,7 @@ describe('a bonus the card counts out for itself', () => {
   });
 
   it('places a token for each Hit Point the blow marked, and none for a blow that marked nothing', () => {
-    const demo = holding(['never-upstaged'], 'upstaged-tokens');
+    const demo = holding(NEVER_UPSTAGED, 'fixture-card-4', 'upstaged-tokens');
     const kara = demo.state.entity('kara')!;
     kara.hitPoints = { max: 40, marked: 0 };
 
@@ -1214,16 +1306,16 @@ describe('a bonus the card counts out for itself', () => {
     // asked about first.
     expect(asked(demo)).toBe('reaction');
     answerPending(demo, { kind: 'choose', index: 1 });
-    expect(demo.world.tokensOn('kara', 'never-upstaged')).toBe(3);
+    expect(demo.world.tokensOn('kara', 'fixture-never-upstaged')).toBe(3);
     expect(kara.stress.marked).toBeGreaterThan(0);
   });
 
   it('adds five to the damage for each token, then clears the card', () => {
-    const demo = holding(['never-upstaged'], 'upstaged-damage');
+    const demo = holding(NEVER_UPSTAGED, 'fixture-card-4', 'upstaged-damage');
     demo.askDefender = false;
     const foe = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     foe.hitPoints = { max: 60, marked: 0 };
-    demo.world.addTokens('kara', 'never-upstaged', 2);
+    demo.world.addTokens('kara', 'fixture-never-upstaged', 2);
     expect(demo.world.rollBonus('kara', 'damageRoll', { melee: true })).toBe(10);
 
     for (let i = 0; i < 20; i++) {
@@ -1234,7 +1326,7 @@ describe('a bonus the card counts out for itself', () => {
     }
     // "On your next successful attack… then clear all tokens."
     expect(demo.log.some((l) => /Kara (hits|lands a critical)/.test(l.text))).toBe(true);
-    expect(demo.world.tokensOn('kara', 'never-upstaged')).toBe(0);
+    expect(demo.world.tokensOn('kara', 'fixture-never-upstaged')).toBe(0);
     // And with the card empty the bonus is gone with it.
     expect(demo.world.rollBonus('kara', 'damageRoll', { melee: true })).toBe(0);
   });
@@ -1242,7 +1334,7 @@ describe('a bonus the card counts out for itself', () => {
   it('places a token for each Hit Point the swing marked, once the Hope is spent', () => {
     // "When you cause an adversary to mark 1 or more Hit Points, you can spend
     // 2 Hope to increase your Evasion by the number of Hit Points they marked."
-    const demo = holding(['ferocity'], 'ferocity-placed');
+    const demo = holding(FEROCITY, 'fixture-card-5', 'ferocity-placed');
     const foe = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     demo.state.entity('kara')!.hope = { max: 6, value: 6 };
 
@@ -1258,26 +1350,26 @@ describe('a bonus the card counts out for itself', () => {
     expect(marked).toBeGreaterThan(0);
 
     answerPending(demo, { kind: 'choose', index: 1 });
-    expect(demo.world.tokensOn('kara', 'ferocity')).toBe(marked);
+    expect(demo.world.tokensOn('kara', 'fixture-ferocity')).toBe(marked);
     expect(demo.state.entity('kara')!.hope!.value).toBe(4);
     // Which is the Evasion the card promised, for as long as it lasts.
     expect(demo.world.poolBonus('kara', 'evasion')).toBe(marked);
   });
 
   it('spends the Ferocity the moment the next attack is over, hit or miss', () => {
-    const demo = holding(['ferocity'], 'ferocity-spent');
+    const demo = holding(FEROCITY, 'fixture-card-5', 'ferocity-spent');
     demo.askDefender = false;
     const kara = demo.state.entity('kara')!;
     kara.hitPoints = { max: 40, marked: 0 };
-    demo.world.addTokens('kara', 'ferocity', 2);
+    demo.world.addTokens('kara', 'fixture-ferocity', 2);
     expect(demo.world.poolBonus('kara', 'evasion')).toBe(2);
 
-    for (let i = 0; i < 12 && demo.world.tokensOn('kara', 'ferocity') > 0; i++) {
+    for (let i = 0; i < 12 && demo.world.tokensOn('kara', 'fixture-ferocity') > 0; i++) {
       kara.armorSlots = { max: kara.armorSlots.max, marked: kara.armorSlots.max };
       endTurn(demo);
     }
     // "This bonus lasts until after the next attack made against you."
-    expect(demo.world.tokensOn('kara', 'ferocity')).toBe(0);
+    expect(demo.world.tokensOn('kara', 'fixture-ferocity')).toBe(0);
     expect(demo.world.poolBonus('kara', 'evasion')).toBe(0);
   });
 });
