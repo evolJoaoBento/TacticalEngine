@@ -6781,7 +6781,81 @@ describe('a stance that holds the ground around it', () => {
  * outside the runner.
  */
 describe('a swing that reaches one more', () => {
+  /**
+   * A mark that makes the next swing reach one creature more -- not by throwing
+   * a second time, but by laying the roll already made against a second
+   * Difficulty. `roll: 'last'` is that, and it is the only place a card reuses a
+   * throw made outside the runner.
+   *
+   * Three things the tests turn on. The mark is cleared before the check, so it
+   * is spent whether or not the second reading beats anybody: the attack it was
+   * waiting for has been made. `except` keeps the echo off the creature already
+   * hit and `nearest` picks exactly one other. And the condition carries nothing
+   * but `grants`, lending its bearer the half of the card that swings -- because
+   * whoever is marked is not whoever cast it.
+   */
+  const ECHO_CARD = 'fixture-card-34';
+
+  /** Incidental: the first two tests apply the mark by hand and only need a
+   * card in hand at all. No ability sits on this one. */
+  const BARE_CARD = 'fixture-card-33';
+
+  /** Nothing while it waits. What it does is written on what spends it. */
+  const ECHO_CONDITION = {
+    id: 'fixture-echo',
+    name: 'Echoing',
+    text: 'The next attack you make also reaches one more creature its roll would have beaten.',
+    grants: { ability: 'fixture-echo-strikes' },
+  };
+
+  const ECHO = [
+    {
+      id: 'fixture-echo-cast',
+      name: 'Echoing Strike',
+      source: { kind: 'domainCard', card: ECHO_CARD },
+      text: 'Spend two Hope to set an echo beside somebody close by, until their next swing.',
+      cost: { hope: 2 },
+      target: { kind: 'ally', range: 'close' },
+      effects: [
+        // One creature at a time: off everybody before it goes on anybody.
+        { kind: 'clearCondition', condition: 'fixture-echo', target: { kind: 'allies' } },
+        { kind: 'log', text: 'The air beside them doubles, and waits.', tone: 'hope' },
+        { kind: 'applyCondition', condition: 'fixture-echo', duration: 'scene', target: { kind: 'target' } },
+      ],
+    },
+    {
+      // The half the marked creature holds, lent to them by the condition.
+      id: 'fixture-echo-strikes',
+      name: 'Echoing Strike',
+      source: { kind: 'domainCard', card: ECHO_CARD },
+      text: 'The swing that spends it also reaches the next creature along its roll would beat.',
+      kind: 'reaction',
+      trigger: 'dealtHit',
+      action: false,
+      available: { kind: 'hasCondition', condition: 'fixture-echo', of: { kind: 'actor' } },
+      effects: [
+        // Spent first: whether the second reading lands or not, the swing it
+        // was waiting for has been made.
+        { kind: 'clearCondition', condition: 'fixture-echo', target: { kind: 'actor' } },
+        {
+          kind: 'check',
+          check: {
+            trait: 'weapon',
+            difficulty: 'target',
+            // The throw already made, read again rather than rolled again.
+            roll: 'last',
+            targets: { kind: 'adversaries', range: 'far', reach: 'weapon', except: 'target', nearest: 1 },
+            always: [{ kind: 'damage', dice: 'weapon', using: 'proficiency', target: { kind: 'hit' } }],
+          },
+        },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(ECHO_CONDITION));
+    for (const ability of ECHO) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
     demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -6792,7 +6866,7 @@ describe('a swing that reaches one more', () => {
   const marked = (seed: string): { demo: DemoScene; first: EntityState; second: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    hold(demo, 'kara', ['bare-bones']);
+    hold(demo, 'kara', [BARE_CARD]);
     const kara = demo.state.entity('kara')!;
     const first = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     // A second husk stood back up beside the first, so the echo has somewhere
@@ -6805,7 +6879,7 @@ describe('a swing that reaches one more', () => {
     demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
       if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== first.tile) demo.state.moveEntity(spare.id, tile);
     });
-    demo.world.applyCondition('kara', 'sitil-echo', 'scene');
+    demo.world.applyCondition('kara', 'fixture-echo', 'scene');
     return { demo, first, second: spare };
   };
 
@@ -6824,7 +6898,7 @@ describe('a swing that reaches one more', () => {
       expect(first.hitPoints.marked).toBeGreaterThan(0);
       expect(second.hitPoints.marked).toBeGreaterThan(0);
       // Spent: the attack it was waiting for has been made.
-      expect(demo.state.entity('kara')!.conditions.has('sitil-echo')).toBe(false);
+      expect(demo.state.entity('kara')!.conditions.has('fixture-echo')).toBe(false);
       return;
     }
     throw new Error('Kara never landed a swing with the echo up, in sixty tries');
@@ -6857,7 +6931,7 @@ describe('a swing that reaches one more', () => {
   it('is only cast on one creature at a time', () => {
     const demo = standoff('sitil-one');
     demo.askDefender = false;
-    hold(demo, 'mira', ['book-of-sitil']);
+    hold(demo, 'mira', [ECHO_CARD]);
     const mira = demo.state.entity('mira')!;
     mira.hope = { max: 6, value: 6 };
     const kara = demo.state.entity('kara')!;
@@ -6870,16 +6944,16 @@ describe('a swing that reaches one more', () => {
     demo.state.moveEntity('finn', demo.grid.indexOf(demo.grid.xOf(mira.tile), demo.grid.yOf(mira.tile) + 1));
     demo.party.select('mira');
 
-    expect(useAbility(demo, 'mira', 'book-of-sitil-echoing-strike', ['kara']).status).not.toBe('refused');
+    expect(useAbility(demo, 'mira', 'fixture-echo-cast', ['kara']).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-    expect(kara.conditions.has('sitil-echo')).toBe(true);
+    expect(kara.conditions.has('fixture-echo')).toBe(true);
 
-    expect(useAbility(demo, 'mira', 'book-of-sitil-echoing-strike', ['finn']).status).not.toBe('refused');
+    expect(useAbility(demo, 'mira', 'fixture-echo-cast', ['finn']).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
     // The mark moved rather than doubling: "you can only hold this spell on
     // one creature at a time".
-    expect(finn.conditions.has('sitil-echo')).toBe(true);
-    expect(kara.conditions.has('sitil-echo')).toBe(false);
+    expect(finn.conditions.has('fixture-echo')).toBe(true);
+    expect(kara.conditions.has('fixture-echo')).toBe(false);
   });
 });
 
