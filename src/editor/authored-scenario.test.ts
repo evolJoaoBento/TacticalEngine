@@ -24,9 +24,15 @@ import { FIXTURE_ADVERSARIES, FIXTURE_CARDS } from '../../tests/fixtures/adversa
 import {
   ANSWERING_CARD,
   AN_ANSWER_TO_A_BLOW_ON_AN_ALLY,
+  A_SHARE_OF_WHAT_THEY_CARRY,
+  A_SPEND_OF_WHATEVER_IS_ON_THE_CARD,
   A_TALLY_THAT_COUNTS_A_MARK,
+  CHAOS_ABILITY,
+  CHAOS_CARD,
   MARKED,
   MARKED_TALLY_CARD,
+  SHARE_ABILITY,
+  SHARING_CARD,
   TALLY,
 } from '../../tests/fixtures/cards';
 import {
@@ -1866,7 +1872,6 @@ describe('asking the player how many', () => {
   /** A caster and a wounded friend, both holding one card. */
   const twoOfThem = (cards: readonly string[], seed: string) => {
     const s = blank();
-    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
     s.run(
       addSheet(
         characterSheetSchema.parse(
@@ -1886,6 +1891,10 @@ describe('asking the player how many', () => {
     s.run(setSpawns('hall', [{ x: 2, y: 4 }, { x: 3, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 5, y: 4 } }));
+    s.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of [...A_SHARE_OF_WHAT_THEY_CARRY, ...A_SPEND_OF_WHATEVER_IS_ON_THE_CARD]) {
+      s.project.abilities.push(abilitySchema.parse(ability));
+    }
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -1894,16 +1903,16 @@ describe('asking the player how many', () => {
   };
 
   it('offers one button per amount, and takes exactly what was pressed', () => {
-    // "Transfer any number of their marked Stress to you, then gain a Hope for
-    // each Stress transferred."
-    const demo = twoOfThem(['share-the-burden'], 'burden');
+    // The mechanism: as much of their marked Stress as the player says, onto the
+    // one offering, and a Hope for each point carried.
+    const demo = twoOfThem([SHARING_CARD], 'burden');
     const kara = demo.state.entity('kara')!;
     const vela = demo.state.entity('vela')!;
     kara.stress = { max: 6, marked: 3 };
     vela.stress = { max: 6, marked: 0 };
     vela.hope = { max: 6, value: 0 };
 
-    const used = useAbility(demo, 'vela', 'share-the-burden', ['kara']);
+    const used = useAbility(demo, 'vela', SHARE_ABILITY, ['kara']);
     expect(used.status).toBe('waiting');
     const prompt = demo.pending!.prompt;
     expect(prompt.kind).toBe('choice');
@@ -1917,32 +1926,32 @@ describe('asking the player how many', () => {
   });
 
   it('will not ask when there is nothing to take', () => {
-    const demo = twoOfThem(['share-the-burden'], 'burden-none');
+    const demo = twoOfThem([SHARING_CARD], 'burden-none');
     demo.state.entity('kara')!.stress = { max: 6, marked: 0 };
-    useAbility(demo, 'vela', 'share-the-burden', ['kara']);
+    useAbility(demo, 'vela', SHARE_ABILITY, ['kara']);
     expect(demo.log.some((l) => l.text.includes('there is none of it to spend'))).toBe(true);
   });
 
   it('rolls as many dice as the tokens the player let go of', () => {
-    // Unleash Chaos was code once: the number of options depends on what is on
-    // the card, which is exactly the question `howMany` asks. Seeds until the
-    // Spellcast Roll lands, because a miss rolls no dice to count.
+    // The number of options depends on what is on the card, which is exactly the
+    // question `howMany` asks. Seeds until the Spellcast Roll lands, because a
+    // miss rolls no dice to count.
     for (let seed = 1; seed < 40; seed++) {
-      const demo = twoOfThem(['unleash-chaos'], `chaos-${seed}`);
-      demo.world.addTokens('vela', 'unleash-chaos', 2);
-      expect(useAbility(demo, 'vela', 'unleash-chaos', ['foe']).status).toBe('waiting');
+      const demo = twoOfThem([CHAOS_CARD], `chaos-${seed}`);
+      demo.world.addTokens('vela', CHAOS_ABILITY, 2);
+      expect(useAbility(demo, 'vela', CHAOS_ABILITY, ['foe']).status).toBe('waiting');
       const prompt = demo.pending!.prompt;
       expect(prompt.kind === 'choice' ? prompt.options.map((o) => o.label) : []).toEqual(['1', '2']);
 
       answerPending(demo, { kind: 'choose', index: 1 });
       // Two tokens go whether the roll lands or not: the card spends them to
       // make the attempt, which is what `each` says and the asking does not.
-      expect(demo.world.tokensOn('vela', 'unleash-chaos')).toBe(0);
+      expect(demo.world.tokensOn('vela', CHAOS_ABILITY)).toBe(0);
       if (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (!demo.log.some((l) => l.text.includes('2d10'))) continue;
       return;
     }
-    throw new Error('no seed landed an Unleash Chaos in forty tries');
+    throw new Error('no seed landed the spend in forty tries');
   });
 });
 

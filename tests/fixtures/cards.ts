@@ -30,6 +30,19 @@ export const SPELL_CARD = 'fixture-other-1';
 export const MARKED_TALLY_CARD = 'fixture-card-9';
 /** A card offered when somebody else is hurt. */
 export const ANSWERING_CARD = 'fixture-card-10';
+/** A card that takes some of what an ally is carrying. */
+export const SHARING_CARD = 'fixture-card-11';
+/** A card that spends whatever is sitting on it. */
+export const CHAOS_CARD = 'fixture-card-12';
+
+/**
+ * The two asking cards, by the id a test names them with.
+ *
+ * The spend's ability id doubles as its token bucket, as the shipped cards do: one
+ * card, one store, one name for both.
+ */
+export const SHARE_ABILITY = 'fixture-share';
+export const CHAOS_ABILITY = 'fixture-chaos';
 
 /**
  * The mark a tally counts, and the bucket it counts into.
@@ -338,6 +351,83 @@ export const AN_ANSWER_TO_A_BLOW_ON_AN_ALLY = [
         difficulty: 15,
         targets: { kind: 'target' },
         onFail: [{ kind: 'damage', amount: 1, target: { kind: 'hit' } }],
+      },
+    ],
+  },
+];
+
+/**
+ * A share of what an ally is carrying, as much of it as the player says.
+ *
+ * `howMany` reads its ceiling off a pool on the TARGET -- how much marked Stress is
+ * there to take -- so the buttons offered are one per point and no more. What each
+ * one costs is written in `each` rather than in the asking: it comes off them, goes
+ * onto whoever is carrying it, and the Hope follows the same number.
+ *
+ * Once per rest, because a card that could be asked twice in a fight would make
+ * the ceiling meaningless.
+ */
+export const A_SHARE_OF_WHAT_THEY_CARRY = [
+  {
+    id: SHARE_ABILITY,
+    name: 'Share the Weight',
+    source: { kind: 'domainCard', card: SHARING_CARD },
+    text: 'Take as much of what they are carrying as you are willing to carry yourself.',
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'ally', range: 'melee' },
+    effects: [
+      {
+        kind: 'howMany',
+        most: { pool: 'stress', of: { kind: 'target' }, measure: 'marked' },
+        title: 'Share the Weight',
+        body: 'How much of it do you take?',
+        each: [
+          { kind: 'clearStress', amount: 'spent', target: { kind: 'target' } },
+          { kind: 'markStress', amount: 'spent', target: { kind: 'actor' } },
+          { kind: 'gainHope', amount: 'spent', target: { kind: 'actor' } },
+        ],
+      },
+    ],
+  },
+];
+
+/**
+ * A spend of whatever is sitting on the card, and dice to match.
+ *
+ * Here `howMany` reads its ceiling off the card's own TOKENS, which is the other
+ * place a number can come from -- and `{n}d10` interpolates what was let go of, so
+ * the dice follow the spend rather than being printed.
+ *
+ * The tokens go whether the roll lands or not: they pay for the attempt, which is
+ * what putting them inside `each` ahead of the check says.
+ */
+export const A_SPEND_OF_WHATEVER_IS_ON_THE_CARD = [
+  {
+    id: CHAOS_ABILITY,
+    name: 'Let It Out',
+    source: { kind: 'domainCard', card: CHAOS_CARD },
+    text: 'Whatever has been gathering on this card, let as much of it go as you like.',
+    target: { kind: 'adversary', range: 'far' },
+    // Refilled at a session's start, which a long rest counts as.
+    tokens: { amount: 'spellcast', refill: 'session' },
+    available: { kind: 'tokens', ability: CHAOS_ABILITY, op: '>=', value: 1 },
+    effects: [
+      {
+        kind: 'howMany',
+        most: { tokens: CHAOS_ABILITY },
+        title: 'Let It Out',
+        body: 'How much of it?',
+        each: [
+          { kind: 'spendToken', ability: CHAOS_ABILITY, amount: 'spent' },
+          {
+            kind: 'check',
+            check: {
+              trait: 'spellcast',
+              difficulty: 'target',
+              onSuccessWithHope: [{ kind: 'damage', dice: '{n}d10', type: 'magic' }],
+            },
+          },
+        ],
       },
     ],
   },
