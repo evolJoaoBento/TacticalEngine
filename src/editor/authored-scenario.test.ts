@@ -396,13 +396,71 @@ describe('a creature that does not stay the same creature', () => {
 });
 
 describe('what the two of them make of each other', () => {
+  /**
+   * A shield read from the *attacker's* chair: `against` is what turns a
+   * modifier on the holder into one on whoever swings at them, and the range
+   * on `when` is how far the arm holding it reaches.
+   */
+  const BLOCKING_SHIELD = {
+    id: 'fixture-blocking-shield',
+    name: 'Blocking Shield',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Anyone close enough to be blocked swings at it the harder.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    modifiers: [{ stat: 'advantage', bonus: -1, against: true, when: { kind: 'withinRange', range: 'melee' } }],
+  };
+
+  /** The same stat the other way round: its own advantage, while a condition holds. */
+  const OUT_OF_NOWHERE = {
+    id: 'fixture-out-of-nowhere',
+    name: 'Out of Nowhere',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Unseen, it strikes the better for it.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    modifiers: [{ stat: 'advantage', bonus: 1, when: { kind: 'hasCondition', condition: 'hidden', of: { kind: 'actor' } } }],
+  };
+
+  /** A flat bonus to how hard it is to hit, which the block never wrote down. */
+  const ON_THE_WING = {
+    id: 'fixture-on-the-wing',
+    name: 'On the Wing',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'It does not stand still to be hit.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    modifiers: [{ stat: 'evasion', bonus: 3 }],
+  };
+
+  /** Something a wound puts on whoever dealt it, which then follows them. */
+  const FROZEN_SCALES = {
+    id: 'fixture-frozen-scales',
+    name: 'Frozen Scales',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Cut it from close in and the cold comes back up the blade.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    available: { kind: 'withinRange', range: 'veryClose' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'markStress', target: { kind: 'target' } },
+      { kind: 'applyCondition', condition: 'chilled', duration: 'scene', target: { kind: 'target' } },
+    ],
+  };
+
   /** Kara and one creature, at the distance the test asks for. */
-  const facing = (adversary: string, at: { x: number; y: number }, seed: string) => {
+  const facing = (seed: string, features: readonly unknown[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'yard', name: 'The yard' })));
-    s.run(addAdversary('hall', 'yard', { id: 'foe', adversary, position: at }));
+    s.run(addAdversary('hall', 'yard', { id: 'foe', adversary: 'fixture-foe', position: at }));
+    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'yard');
@@ -412,36 +470,33 @@ describe('what the two of them make of each other', () => {
   };
 
   it('puts a shield in the way of anyone standing close enough to be blocked', () => {
-    // "Creatures within Melee range of the Gaoler have disadvantage on attack
-    // rolls against them."
-    const near = facing('vault-guardian-gaoler', { x: 3, y: 4 }, 'shield');
+    const near = facing('shield', [BLOCKING_SHIELD]);
     expect(near.world.advantageFor('kara', 'foe')).toEqual({ advantage: 0, disadvantage: 1 });
 
     // And a shield only reaches as far as the arm holding it.
-    const far = facing('vault-guardian-gaoler', { x: 8, y: 4 }, 'shield-far');
+    const far = facing('shield-far', [BLOCKING_SHIELD], { x: 8, y: 4 });
     expect(far.world.advantageFor('kara', 'foe')).toEqual({ advantage: 0, disadvantage: 0 });
   });
 
-  it('hands the Assassin the advantage its own passive names, and only while it holds', () => {
-    const demo = facing('assassin-poisoner', { x: 3, y: 4 }, 'assassin');
+  it('hands a creature the advantage its own passive names, and only while it holds', () => {
+    const demo = facing('assassin', [OUT_OF_NOWHERE]);
     expect(demo.world.advantageFor('foe', 'kara')).toEqual({ advantage: 0, disadvantage: 0 });
 
-    // "The Assassin has advantage on attacks if they are Hidden."
     demo.state.entity('foe')!.conditions.add('hidden');
     expect(demo.world.advantageFor('foe', 'kara')).toEqual({ advantage: 1, disadvantage: 0 });
-    // It is the Assassin's own advantage: nothing about swinging at them.
+    // It is the creature's own advantage: nothing about swinging at them.
     expect(demo.world.advantageFor('kara', 'foe').advantage).toBe(0);
   });
 
   it('reads a bonus to Difficulty straight off a passive nobody had written down', () => {
-    const demo = facing('dire-bat', { x: 3, y: 4 }, 'bat');
-    const bat = demo.state.entity('foe')!;
-    // "While flying, the Bat gains a +3 bonus to their Difficulty."
-    expect(demo.world.defenderOf(bat).difficulty).toBe(14 + 3);
+    const demo = facing('bat', [ON_THE_WING]);
+    const flier = demo.state.entity('foe')!;
+    // Difficulty is the block's own, plus whatever a passive adds to Evasion.
+    expect(demo.world.defenderOf(flier).difficulty).toBe(11 + 3);
   });
 
   it('chills whoever gets close enough to cut it, and a Chilled arm swings worse', () => {
-    const demo = facing('young-ice-dragon', { x: 3, y: 4 }, 'chill');
+    const demo = facing('chill', [FROZEN_SCALES]);
     demo.state.entity('foe')!.hitPoints = { max: 40, marked: 0 };
     for (let i = 0; i < 4 && !demo.state.entity('kara')!.conditions.has('chilled'); i++) {
       if (!demo.encounter!.canAct('kara')) endTurn(demo);
