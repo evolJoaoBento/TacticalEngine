@@ -3338,6 +3338,74 @@ describe('a shell of light over somebody', () => {
 
 describe('a word in the wrong ear', () => {
   /**
+   * One spell, two Difficulties, and a marker that decides which. The branch is
+   * the card: somebody who has heard this once is harder to say it to again,
+   * and the log names the number it was rolled against, which is how two of
+   * these tests tell the halves apart.
+   *
+   * `by: 'target'` is the rest of it. The blow is struck by the creature that
+   * was whispered to, aimed at the nearest of its own and never at the party,
+   * and a blow struck inside a card of the party's is neither an action nor a
+   * spotlight -- which is what the last two tests are really about.
+   */
+  const DISCORD_CARD = 'fixture-card-7';
+  const TURNED = [
+    { kind: 'markStress', target: { kind: 'target' } },
+    {
+      kind: 'attack',
+      by: 'target',
+      target: { kind: 'adversaries', range: 'far', around: 'target', except: 'target', nearest: 1 },
+    },
+    { kind: 'applyCondition', condition: 'fixture-wise', duration: 'scene', target: { kind: 'target' } },
+  ];
+  const whisperCheck = (difficulty: number, prompt: string): Record<string, unknown> => ({
+    kind: 'check',
+    check: {
+      trait: 'spellcast',
+      difficulty,
+      tags: ['social'],
+      prompt,
+      onCriticalSuccess: TURNED,
+      onSuccessWithHope: TURNED,
+      onSuccessWithFear: TURNED,
+    },
+  });
+  const DISCORD = [
+    {
+      id: 'fixture-discord',
+      name: 'Words of Discord',
+      source: { kind: 'domainCard', card: DISCORD_CARD },
+      text: 'Say the wrong thing to something and let it take that out on its own.',
+      target: { kind: 'creature', range: 'melee' },
+      inCombatOnly: true,
+      effects: [
+        {
+          kind: 'branch',
+          when: { kind: 'hasCondition', condition: 'fixture-wise', of: { kind: 'target' } },
+          then: [
+            { kind: 'log', text: 'They have heard this voice before, and are ready for it.', tone: 'fear' },
+            whisperCheck(18, 'A word in the wrong ear, to somebody who is wise to it.'),
+          ],
+          otherwise: [whisperCheck(13, 'A word in the wrong ear: turn them on the one beside them.')],
+        },
+      ],
+    },
+  ];
+
+  /** The marker itself, which carries nothing and only says it has happened. */
+  const WISE = {
+    id: 'fixture-wise',
+    name: 'Wise to It',
+    text: 'They have been whispered to once, and are harder to whisper to again.',
+  };
+
+  const carry = (demo: DemoScene): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(WISE));
+    for (const ability of DISCORD) demo.project.abilities.push(abilitySchema.parse(ability));
+  };
+
+  /**
    * Mira beside one husk with the card in hand, and a second husk beside it.
    * The whisper is a Spellcast Roll, so the one who says it is the wizard.
    */
@@ -3362,7 +3430,8 @@ describe('a word in the wrong ear', () => {
     beside(other.id);
     beside('mira');
 
-    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['words-of-discord'], loadout: ['words-of-discord'] };
+    carry(demo);
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: [DISCORD_CARD], loadout: [DISCORD_CARD] };
     demo.sheets.set('mira', sheet);
     demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
@@ -3372,7 +3441,7 @@ describe('a word in the wrong ear', () => {
   const whisper = (demo: DemoScene, at: string): string[] => {
     const said = demo.log.length;
     demo.party.select('mira');
-    useAbility(demo, 'mira', 'words-of-discord', [at]);
+    useAbility(demo, 'mira', 'fixture-discord', [at]);
     let guard = 0;
     while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
     return demo.log.slice(said).map((l) => l.text);
@@ -3410,7 +3479,7 @@ describe('a word in the wrong ear', () => {
       // Whatever the swing did, it was aimed at the other one and not the party.
       expect(demo.state.entity('kara')!.hitPoints.marked).toBe(0);
       expect(husk.hitPoints.marked).toBe(0);
-      expect(husk.conditions.has('wise-to-discord')).toBe(true);
+      expect(husk.conditions.has('fixture-wise')).toBe(true);
       // And the fight is left in one piece, whether or not the blow landed.
       expect(demo.pending).toBeNull();
       expect(other.alive || demo.encounter?.outcome === 'ongoing').toBe(true);
@@ -3421,7 +3490,7 @@ describe('a word in the wrong ear', () => {
 
   it('is harder to say to somebody who has heard it before', () => {
     const { demo, husk } = whispering('discord-again');
-    demo.world.applyCondition(husk.id, 'wise-to-discord', 'scene');
+    demo.world.applyCondition(husk.id, 'fixture-wise', 'scene');
     const after = whisper(demo, husk.id);
     expect(after.some((t) => t.includes('heard this voice before'))).toBe(true);
     expect(after.some((t) => t.includes('vs 18'))).toBe(true);
