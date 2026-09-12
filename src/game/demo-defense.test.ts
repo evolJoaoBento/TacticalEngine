@@ -3,6 +3,7 @@ import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { abilitySchema, loadoutOf, type AbilityDef } from '../engine/content/abilities';
 import { conditionDefSchema } from '../engine/content/conditions';
+import { adversaryDefSchema } from '../engine/content/pack/schema';
 import { runScript } from '../engine/script/runner';
 import { formatDice } from '../engine/rules/dice';
 import type { Rng } from '../engine/core/rng';
@@ -738,6 +739,67 @@ describe('what a block hangs on its own attack', () => {
 });
 
 describe("an adversary's own features", () => {
+  /**
+   * Two stat-block features the fixture carries. The rest of this block already
+   * writes its own and sources them to whatever the demo placed, which is the
+   * same card-first move on the GM's side of the table.
+   *
+   * The eruption stays aimed at nobody in particular within Very Close: the
+   * chooser prefers an area feature that catches more than one of the party,
+   * and that preference is why the first test crowds three people together.
+   */
+  const eruptionFeature = (demo: DemoScene, husk: string): Record<string, unknown> => ({
+    id: 'fixture-eruption',
+    name: 'Earth Eruption',
+    source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk)!.id] },
+    text: 'Mark a Stress to burst out of the ground and knock over everything close by.',
+    cost: { stress: 1 },
+    target: { kind: 'none', range: 'veryClose' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'The ground splits and heaves.', tone: 'combat' },
+      {
+        kind: 'reactionRoll',
+        difficulty: 14,
+        trait: 'agility',
+        // From a stat block, `allies` is who the feature is aimed at: the
+        // selectors name factions rather than sides.
+        targets: { kind: 'allies', range: 'veryClose' },
+        onFail: [
+          { kind: 'log', text: 'Knocked off their feet.', tone: 'fear' },
+          { kind: 'applyCondition', condition: 'vulnerable', duration: 'temporary', target: { kind: 'hit' } },
+        ],
+      },
+    ],
+  });
+
+  /** A spray with a price the next test rewrites, to watch what the GM pays. */
+  const sprayFeature = (demo: DemoScene, husk: string): Record<string, unknown> => ({
+    id: 'fixture-spray',
+    name: 'Spit Acid',
+    source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk)!.id] },
+    text: 'Spray everything in front of it, and what it hits finds no use in armour.',
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'Acid arcs out in a wide spray.', tone: 'combat' },
+      {
+        kind: 'attack',
+        range: 'close',
+        target: { kind: 'allies', range: 'close' },
+        damage: '2d6',
+        onHit: [{ kind: 'run', hook: 'mark-armor-or-hit-point', args: { fear: true } }],
+      },
+    ],
+  });
+
+  /** Its own features come off, so the one under test is the only one on offer. */
+  const onlyFeature = (demo: DemoScene, feature: Record<string, unknown>): void => {
+    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities.push(abilitySchema.parse(feature));
+    refreshWorld(demo);
+  };
+
   it('erupts when it catches more than one of the party, and the ones who fail are Vulnerable', () => {
     const demo = standoff('eruption');
     // Finn and Mira crowd in beside Kara, so the Burrower has a reason to erupt.
@@ -747,6 +809,8 @@ describe("an adversary's own features", () => {
     });
     demo.state.moveEntity('finn', around[0]!);
     demo.state.moveEntity('mira', around[1]!);
+    const erupting = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    onlyFeature(demo, eruptionFeature(demo, erupting.id));
 
     let erupted = false;
     for (let i = 0; i < 20 && !erupted; i++) {
@@ -780,7 +844,8 @@ describe("an adversary's own features", () => {
     // Nothing left to mark, so the feature that costs Stress is out of the way
     // and Spit Acid — repriced here at two Fear — is the only one on offer.
     husk.stress = { ...husk.stress, marked: husk.stress.max };
-    const spit = demo.project.abilities.find((a) => a.id === 'acid-burrower-spit-acid')!;
+    onlyFeature(demo, sprayFeature(demo, husk.id));
+    const spit = demo.project.abilities.find((a) => a.id === 'fixture-spray')!;
     spit.cost = { fear: 2 };
     refreshWorld(demo);
 
@@ -838,8 +903,11 @@ describe("an adversary's own features", () => {
     expect(gored).toBe(true);
     // It swung at someone: no refusal for want of anyone to swing at.
     expect(demo.log.map((l) => l.text).join(' ')).not.toContain('nothing to attack');
-    // Kara is the nearest, so Kara is who it went for — hit or missed.
-    const swung = demo.log.map((l) => l.text).find((t) => t.includes('the Claws'));
+    // Kara is the nearest, so Kara is who it went for — hit or missed. The
+    // gore carries no attack name of its own, so the blow is logged under the
+    // block's: read it off the creature rather than naming it here.
+    const attack = adversaryDefOf(demo, husk.id)!.attackName;
+    const swung = demo.log.map((l) => l.text).find((t) => t.includes(attack));
     expect(swung).toContain('Kara');
   });
 
@@ -953,8 +1021,39 @@ describe("an adversary's own features", () => {
     demo.askDefender = false;
     demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-    // The Acid Burrower is Relentless (3).
-    expect(adversaryTraits(adversaryDefOf(demo, husk.id)!).spotlights).toBe(3);
+    // The feature is the whole subject here, so the creature carrying it is
+    // authored beside the assertion rather than borrowed from a catalogue --
+    // and stood up rather than written over the one already there, because
+    // what a creature is comes from its placement.
+    demo.project.adversaries.push(
+      adversaryDefSchema.parse({
+        id: 'fixture-relentless',
+        name: 'Tireless',
+        tier: 1,
+        role: 'solo',
+        difficulty: 13,
+        thresholds: { major: 10, severe: 20 },
+        hitPoints: 12,
+        stress: 4,
+        attackName: 'Long Reach',
+        attackModifier: { count: 0, sides: 0, modifier: 3 },
+        attackRange: 'melee',
+        attackDamage: { count: 1, sides: 8, modifier: 2, types: ['physical'] },
+        features: [
+          {
+            name: 'Relentless (3)',
+            kind: 'passive',
+            text: 'It can be spotlighted up to three times a turn, and every one past the first costs the GM.',
+          },
+        ],
+      }),
+    );
+    const tireless = demo.state.addEntity(
+      createAdversaryEntity('tireless', 'fixture-relentless', husk.tile, { hitPoints: 12, stress: 4 }),
+    );
+    demo.state.removeEntity(husk.id);
+    refreshWorld(demo);
+    expect(adversaryTraits(adversaryDefOf(demo, tireless.id)!).spotlights).toBe(3);
     const fearBefore = demo.state.fear.value;
     const before = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed').length;
     endTurn(demo);
