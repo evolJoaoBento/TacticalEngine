@@ -3297,7 +3297,71 @@ describe('a card aimed at the ground', () => {
 
 
 describe('a run in a straight line', () => {
+  /**
+   * A card aimed at the ground rather than at anybody: she picks a tile, runs
+   * to it, and one roll goes against everything the path went through. `inPath`
+   * is the whole of it, and the card reads that path from her own chair.
+   *
+   * The GM's side of the same idea is below, on a creature that charges when a
+   * wound costs it enough: same `inPath`, other `side`.
+   */
+  const RUN_CARD = 'fixture-card-36';
+
+  const RUN = [
+    {
+      id: 'fixture-run',
+      name: 'Straight Line',
+      source: { kind: 'domainCard', card: RUN_CARD },
+      text: 'Spend three Hope to run a straight line through everything in the way.',
+      cost: { hope: 3 },
+      inCombatOnly: true,
+      target: { kind: 'point', range: 'far' },
+      effects: [
+        { kind: 'log', text: 'Head down, straight through the middle, and no stopping.', tone: 'hope' },
+        { kind: 'move', to: 'point', budget: 'far' },
+        {
+          kind: 'check',
+          check: {
+            trait: 'weapon',
+            difficulty: 'target',
+            targets: { kind: 'inPath', side: 'adversaries', reach: 'weapon' },
+            prompt: 'One roll, against everything the path went through?',
+            always: [{ kind: 'damage', dice: 'weapon', using: 'proficiency', target: { kind: 'hit' } }],
+          },
+        },
+      ],
+    },
+  ];
+
+  /**
+   * The same shape on the GM's side: a creature that charges when a wound costs
+   * it two Hit Points or more.
+   *
+   * The damage comes before the move deliberately. What the charge ran through
+   * is measured from where it started, so a line read after it arrived would be
+   * a line from the wrong end.
+   */
+  const charge = (demo: DemoScene, who: string): Record<string, unknown> => ({
+    id: 'fixture-charge',
+    name: 'Charge',
+    source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, who)!.id] },
+    text: 'When a wound costs it two Hit Points or more, it puts its head down and runs.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    available: { kind: 'count', of: 'hitPointsTaken', op: '>=', value: 2 },
+    target: { kind: 'none', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'It puts its head down and goes.', tone: 'fear' },
+      { kind: 'damage', dice: '2d6+3', type: 'physical', direct: true, target: { kind: 'inPath', side: 'allies' } },
+      { kind: 'move', to: 'point', budget: 'close' },
+    ],
+  });
+
   const hold = (demo: DemoScene, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of RUN) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -3306,9 +3370,9 @@ describe('a run in a straight line', () => {
 
   it('takes Deathrun through everything the path went past, and moves her there', () => {
     for (let seed = 1; seed < 40; seed++) {
-      const demo = standoff(`deathrun-${seed}`);
+      const demo = standoff(`run-${seed}`);
       demo.askDefender = false;
-      hold(demo, ['deathrun']);
+      hold(demo, [RUN_CARD]);
       const kara = demo.state.entity('kara')!;
       kara.hope = { max: 6, value: 6 };
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -3319,12 +3383,12 @@ describe('a run in a straight line', () => {
         Math.min(demo.grid.width - 1, demo.grid.xOf(husk.tile) + 2),
         demo.grid.yOf(husk.tile),
       );
-      const card = demo.project.abilities.find((a) => a.id === 'deathrun')!;
+      const card = demo.project.abilities.find((a) => a.id === 'fixture-run')!;
       if (!pointTiles(demo, 'kara', card).includes(past)) continue;
       if (!shapeAt(demo, 'kara', card, past).includes(husk.id)) continue;
 
       const from = kara.tile;
-      expect(useAbility(demo, 'kara', 'deathrun', [], { point: past }).status).not.toBe('refused');
+      expect(useAbility(demo, 'kara', 'fixture-run', [], { point: past }).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
 
       // "Spend 3 Hope", and the run happened. What the roll gives back is the
@@ -3334,17 +3398,17 @@ describe('a run in a straight line', () => {
       // On a success the husk is hurt; on a failure it is not, and either way
       // the path was run.
       if (husk.hitPoints.marked > 0) return;
-      expect(demo.log.some((l) => l.text.includes('straight line through the middle'))).toBe(true);
+      expect(demo.log.some((l) => l.text.includes('straight through the middle'))).toBe(true);
       return;
     }
     throw new Error('the path never lined up in forty tries');
   });
 
   it('refuses Deathrun with nowhere to aim it', () => {
-    const demo = standoff('deathrun-nowhere');
-    hold(demo, ['deathrun']);
+    const demo = standoff('run-nowhere');
+    hold(demo, [RUN_CARD]);
     demo.state.entity('kara')!.hope = { max: 6, value: 6 };
-    expect(useAbility(demo, 'kara', 'deathrun', []).status).toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-run', []).status).toBe('refused');
     expect(demo.log.some((l) => l.text.includes('needs somewhere to aim'))).toBe(true);
   });
 
@@ -3352,11 +3416,14 @@ describe('a run in a straight line', () => {
     // A stat block cannot pick a point, so it runs at whoever is nearest - the
     // same rule its swing already uses to choose whom to hit.
     for (let seed = 1; seed < 40; seed++) {
-      const demo = standoff(`rampage-${seed}`);
+      const demo = standoff(`charge-${seed}`);
       demo.askDefender = false;
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-      // Stand an Ogre in for it, and wound it enough to set the feature off.
-      const ogre = demo.project.abilities.find((a) => a.id === 'cave-ogre-rampaging-fury')!;
+      // The charging creature is the one standing there, carrying the feature
+      // under test and nothing else.
+      demo.project.abilities.push(abilitySchema.parse(charge(demo, husk.id)));
+      refreshWorld(demo);
+      const ogre = demo.project.abilities.find((a) => a.id === 'fixture-charge')!;
       expect(ogre.trigger).toBe('tookHitPoints');
       demo.state.entity('kara')!.hitPoints = { max: 12, marked: 0 };
 
