@@ -3638,20 +3638,79 @@ describe('the same blow again', () => {
 
 
 describe('a smite held back for the next blow', () => {
+  /**
+   * A charge put into a weapon and kept there until a blow lands.
+   *
+   * Two abilities on one card. The first is what the player spends; the second
+   * is where the card happens -- a reaction on `rollingDamage`, which is raised
+   * only once a swing has landed and before anything counts it. So "the next
+   * attack that *succeeds*", and "with a weapon", are both the trigger's own:
+   * nothing below asks for either, and the charge surviving a miss falls out of
+   * that rather than out of a gate.
+   */
+  const SMITE_CARD = 'fixture-card-22';
+
+  /** Carries nothing. What it does is written on the card that spends it. */
+  const CHARGE_CONDITION = {
+    id: 'fixture-charge',
+    name: 'Charged',
+    text: 'Something is waiting in the weapon, and the next blow that lands spends it.',
+  };
+
+  const SMITE = [
+    {
+      id: 'fixture-smite',
+      name: 'Charge the Blade',
+      source: { kind: 'domainCard', card: SMITE_CARD },
+      text: 'Spend three Hope to put a charge in your weapon, once between rests.',
+      cost: { hope: 3 },
+      uses: { count: 1, per: 'rest' },
+      action: false,
+      available: { kind: 'not', of: { kind: 'hasCondition', condition: 'fixture-charge', of: { kind: 'actor' } } },
+      effects: [
+        { kind: 'log', text: 'The blade takes on a light the room did not give it.', tone: 'hope' },
+        // As long as the use it cost: a charge cleared when the fight ended
+        // would leave the card spent until a rest and nothing to show for it.
+        { kind: 'applyCondition', condition: 'fixture-charge', duration: 'rest', target: { kind: 'actor' } },
+      ],
+    },
+    {
+      id: 'fixture-smite-spends',
+      name: 'Charge the Blade',
+      source: { kind: 'domainCard', card: SMITE_CARD },
+      text: 'The next blow that lands spends the charge, and lands as magic.',
+      kind: 'reaction',
+      trigger: 'rollingDamage',
+      action: false,
+      inCombatOnly: true,
+      available: { kind: 'hasCondition', condition: 'fixture-charge', of: { kind: 'actor' } },
+      effects: [
+        { kind: 'log', text: 'What was waiting in the blade goes into the blow.', tone: 'hope' },
+        // One effect for both halves: twice the damage, and no longer the
+        // sword's kind of damage.
+        { kind: 'boostDamage', double: true, type: 'magic' },
+        { kind: 'clearCondition', condition: 'fixture-charge', target: { kind: 'actor' } },
+      ],
+    },
+  ];
+
   /** Kara beside the husk with the card in hand and Hope to spend it. */
   const charged = (seed: string, spend: boolean) => {
     const demo = standoff(seed);
     demo.askDefender = false;
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(CHARGE_CONDITION));
+    for (const ability of SMITE) demo.project.abilities.push(abilitySchema.parse(ability));
     // The same sheet in both runs, charged or not: a loadout that differs is a
     // character that differs, and the two blows would not be comparable.
-    const sheet = { ...demo.sheets.get('kara')!, domainCards: ['smite'], loadout: ['smite'] };
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: [SMITE_CARD], loadout: [SMITE_CARD] };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.state.entity('kara')!.hope = { max: 6, value: 6 };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 60, marked: 0 };
-    if (spend) expect(useAbility(demo, 'kara', 'smite', []).status).not.toBe('refused');
+    if (spend) expect(useAbility(demo, 'kara', 'fixture-smite', []).status).not.toBe('refused');
     return { demo, husk };
   };
 
@@ -3665,12 +3724,12 @@ describe('a smite held back for the next blow', () => {
       // the card rolls anything, so the dice fall the same way in both.
       const lit = charged(`smite-${seed}`, true);
       expect(lit.demo.state.entity('kara')!.hope!.value).toBe(3);
-      expect(lit.demo.state.entity('kara')!.conditions.has('smiting')).toBe(true);
+      expect(lit.demo.state.entity('kara')!.conditions.has('fixture-charge')).toBe(true);
       attackWithSelected(lit.demo, lit.husk.id);
 
       expect(lit.husk.hitPoints.marked).toBeGreaterThan(bare.husk.hitPoints.marked);
       // Spent: the charge is gone and the swing after it is an ordinary one.
-      expect(lit.demo.state.entity('kara')!.conditions.has('smiting')).toBe(false);
+      expect(lit.demo.state.entity('kara')!.conditions.has('fixture-charge')).toBe(false);
       return;
     }
     throw new Error('Kara never landed a blow to smite with');
@@ -3698,13 +3757,13 @@ describe('a smite held back for the next blow', () => {
   it('charges once between rests, and not twice over', () => {
     const { demo } = charged('smite-once', true);
     // Already lit: the card has nothing to add to a charge that is waiting.
-    expect(useAbility(demo, 'kara', 'smite', []).status).toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-smite', []).status).toBe('refused');
     expect(demo.log.some((l) => l.text.includes('already'))).toBe(false);
     // And with the charge spent, the use is spent with it.
-    demo.world.clearCondition('kara', 'smiting');
+    demo.world.clearCondition('kara', 'fixture-charge');
     demo.state.entity('kara')!.hope = { max: 6, value: 6 };
     const said = demo.log.length;
-    expect(useAbility(demo, 'kara', 'smite', []).status).toBe('refused');
+    expect(useAbility(demo, 'kara', 'fixture-smite', []).status).toBe('refused');
     expect(demo.log.slice(said).some((l) => l.text.includes('used until the next rest'))).toBe(true);
   });
 
@@ -3713,9 +3772,9 @@ describe('a smite held back for the next blow', () => {
     // The fight ending does not put it out: the card is spent until a rest,
     // and a charge that went out with the fight would be spent for nothing.
     demo.state.clearConditions('scene');
-    expect(demo.state.entity('kara')!.conditions.has('smiting')).toBe(true);
+    expect(demo.state.entity('kara')!.conditions.has('fixture-charge')).toBe(true);
     demo.state.clearConditions('rest');
-    expect(demo.state.entity('kara')!.conditions.has('smiting')).toBe(false);
+    expect(demo.state.entity('kara')!.conditions.has('fixture-charge')).toBe(false);
   });
 
   it('keeps the charge through a swing that misses', () => {
@@ -3724,7 +3783,7 @@ describe('a smite held back for the next blow', () => {
       attackWithSelected(demo, husk.id);
       if (husk.hitPoints.marked > 0) continue;
       // "When you next successfully attack": a miss is not that swing.
-      expect(demo.state.entity('kara')!.conditions.has('smiting')).toBe(true);
+      expect(demo.state.entity('kara')!.conditions.has('fixture-charge')).toBe(true);
       return;
     }
     throw new Error('Kara never missed');
