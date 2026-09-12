@@ -58,12 +58,9 @@ const block = (
 
 /**
  * One of each role a fight can ask for, so a test picks the shape it needs
- * rather than the name it remembers.
+ * rather than the name it remembers. `fixture-foe` is the one to reach for when
+ * the creature genuinely does not matter, which is most of the time.
  *
- * `fixture-foe` is the one to reach for when the creature genuinely does not
- * matter, which is most of the time.
- */
-/**
  * Names are bare nouns on purpose. The fight writes its own log lines out of
  * them — "Foe is gone: 2 Runts in their place", "the Foe's Swing misses" — and
  * a name carrying its own article reads badly in every one of them.
@@ -85,14 +82,13 @@ export const FIXTURE_FOE = 'fixture-foe';
 /**
  * Cards for a test to hold.
  *
- * Most tests about a card want the card's *ability*, which a `granted` source
- * hands to a character without any card at all. These are for the other kind:
- * a card whose effect reads the loadout it is sitting in — "while you have four
- * or more Blade cards in your loadout" — where what is under test is the
- * counting, so there has to be something to count.
+ * Everything a character has is a card, so these are the slots the abilities in
+ * `cards.ts` sit in: a test carries the cards, puts the ones it cares about in a
+ * hand, and the abilities come with them.
  *
- * They carry no rules text of their own. The ability does the work; these are
- * the slots it sits in.
+ * They carry no rules text of their own — the ability does the work. Some cards
+ * also count each other, which is why there are more than a handful and why
+ * they are not all in one domain.
  */
 const card = (id: string, name: string, domain = 'fixture'): ReturnType<typeof domainCardDefSchema.parse> =>
   domainCardDefSchema.parse({ id, name, domain, type: 'ability', level: 1, recallCost: 0, text: '', features: [] });

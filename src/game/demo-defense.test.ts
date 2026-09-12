@@ -51,6 +51,35 @@ import {
 
 const scene = (seed = 'defense'): DemoScene => buildDemoScene(demoMap(), seed);
 
+/**
+ * What a watch pays out: a Hope for having seen it, and then the offer of a
+ * Stress to take something off the GM. Three faces of one check share it.
+ */
+const WATCHED: Record<string, unknown>[] = [
+  { kind: 'log', text: 'They watch a while longer, and something about it gives.', tone: 'hope' },
+  {
+    kind: 'branch',
+    when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+    then: [{ kind: 'spendHope', amount: 1 }],
+    otherwise: [{ kind: 'log', text: 'What they saw will not stay.', tone: 'fear' }],
+  },
+  {
+    kind: 'choice',
+    title: 'Know What It Is',
+    body: 'Something in what you have seen takes the wind out of the room.',
+    options: [
+      {
+        label: 'Mark a Stress to take one off the GM',
+        effects: [
+          { kind: 'markStress', amount: 1, target: { kind: 'actor' } },
+          { kind: 'loseFear', amount: 1 },
+        ],
+      },
+      { label: 'Keep it to yourself', effects: [{ kind: 'none' }] },
+    ],
+  },
+];
+
 describe('passives on the sheet', () => {
   it('Unwavering adds one to Kara\'s thresholds, and Bare Bones rewrites them when the mail comes off', () => {
     const demo = scene();
@@ -6088,6 +6117,108 @@ describe('a Hope Die that is not a d12', () => {
  * look at a creature that takes the wind out of the room.
  */
 describe('coming at them well, and knowing them', () => {
+  /**
+   * One card, three ways to spend it, and a token pile counted off a trait with
+   * a floor under it. The labels are matched by pattern below, so the wording of
+   * the three options is behaviour here rather than prose.
+   *
+   * `around: 'target'` in the middle option is the whole of one test: the band
+   * is measured from the creature it was aimed at, not from whoever played it.
+   */
+  const APPROACH_CARD = 'fixture-card-3';
+  const APPROACH = [
+    {
+      id: 'fixture-approach',
+      name: 'Strategic Approach',
+      source: { kind: 'domainCard', card: APPROACH_CARD },
+      text: 'Come at them in one of three ways, while there is anything left to spend.',
+      tokens: { amount: 'knowledge', minimum: 1, refill: 'longRest' },
+      target: { kind: 'adversary', range: 'close' },
+      action: false,
+      inCombatOnly: true,
+      available: { kind: 'tokens', ability: 'fixture-approach', op: '>=', value: 1 },
+      effects: [
+        {
+          kind: 'choice',
+          title: 'Strategic Approach',
+          body: 'How do you come at them?',
+          options: [
+            {
+              label: 'Pick your line: advantage on the attack',
+              effects: [
+                { kind: 'spendToken', ability: 'fixture-approach', amount: 1 },
+                { kind: 'applyCondition', condition: 'strategic-advantage', duration: 'scene', target: { kind: 'actor' } },
+              ],
+            },
+            {
+              label: 'Steady an ally standing beside them',
+              effects: [
+                { kind: 'spendToken', ability: 'fixture-approach', amount: 1 },
+                { kind: 'clearStress', amount: 1, target: { kind: 'allies', range: 'melee', around: 'target' } },
+              ],
+            },
+            {
+              label: 'Put a d8 behind the blow',
+              effects: [
+                { kind: 'spendToken', ability: 'fixture-approach', amount: 1 },
+                { kind: 'applyCondition', condition: 'strategic-force', duration: 'scene', target: { kind: 'actor' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'fixture-approach-force',
+      name: 'Strategic Approach',
+      source: { kind: 'domainCard', card: APPROACH_CARD },
+      text: 'The d8, put behind the blow at the moment a blow is counted.',
+      kind: 'reaction',
+      trigger: 'rollingDamage',
+      action: false,
+      available: { kind: 'hasCondition', condition: 'strategic-force', of: { kind: 'actor' } },
+      effects: [
+        { kind: 'boostDamage', dice: '1d8' },
+        { kind: 'clearCondition', condition: 'strategic-force', target: { kind: 'actor' } },
+      ],
+    },
+  ];
+
+  /**
+   * The watching check again, but the one that pays out: the shared card in
+   * `cards.ts` resolves into a line of log, and this test is about what the
+   * payout costs its holder and what it takes off the GM.
+   */
+  const WATCH_CARD = 'fixture-card-4';
+  const WATCH_AND_PAY = [
+    {
+      id: 'fixture-watch-pay',
+      name: 'Know What It Is',
+      source: { kind: 'domainCard', card: WATCH_CARD },
+      text: 'Watch something long enough and it costs them to have been seen.',
+      target: { kind: 'adversary', range: 'far' },
+      action: false,
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'instinct',
+            difficulty: 'target',
+            prompt: 'Watch them, and see what shows.',
+            onCriticalSuccess: WATCHED,
+            onSuccessWithHope: WATCHED,
+            onSuccessWithFear: WATCHED,
+          },
+        },
+      ],
+    },
+  ];
+
+  const carry = (demo: DemoScene, abilities: readonly Record<string, unknown>[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of abilities) demo.project.abilities.push(abilitySchema.parse(ability));
+  };
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
@@ -6098,11 +6229,12 @@ describe('coming at them well, and knowing them', () => {
   const approaching = (seed: string): { demo: DemoScene; kara: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    hold(demo, 'kara', ['strategic-approach']);
+    carry(demo, APPROACH);
+    hold(demo, 'kara', [APPROACH_CARD]);
     const kara = demo.state.entity('kara')!;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 90, marked: 0 };
-    demo.world.addTokens('kara', 'strategic-approach', 3);
+    demo.world.addTokens('kara', 'fixture-approach', 3);
     demo.party.select('kara');
     return { demo, kara, husk };
   };
@@ -6117,24 +6249,25 @@ describe('coming at them well, and knowing them', () => {
 
   it('counts its tokens off Knowledge, and offers all three approaches', () => {
     const demo = standoff('approach-tokens');
-    hold(demo, 'kara', ['strategic-approach']);
+    carry(demo, APPROACH);
+    hold(demo, 'kara', [APPROACH_CARD]);
     // Kara's Knowledge is below one, and the card floors it at one.
-    expect(demo.world.tokenCount('kara', 'strategic-approach')).toBe(1);
+    expect(demo.world.tokenCount('kara', 'fixture-approach')).toBe(1);
 
     const { demo: ready, husk } = approaching('approach-offer');
-    expect(useAbility(ready, 'kara', 'strategic-approach', [husk.id]).status).toBe('waiting');
+    expect(useAbility(ready, 'kara', 'fixture-approach', [husk.id]).status).toBe('waiting');
     if (ready.pending?.prompt.kind !== 'choice') throw new Error('expected the three approaches');
     expect(ready.pending.prompt.options).toHaveLength(3);
   });
 
   it('picks a line, and the next swing is made with advantage', () => {
     const { demo, kara, husk } = approaching('approach-advantage');
-    useAbility(demo, 'kara', 'strategic-approach', [husk.id]);
+    useAbility(demo, 'kara', 'fixture-approach', [husk.id]);
     pick(demo, /advantage/);
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
 
     expect(kara.conditions.has('strategic-advantage')).toBe(true);
-    expect(demo.world.tokensOn('kara', 'strategic-approach')).toBe(2);
+    expect(demo.world.tokensOn('kara', 'fixture-approach')).toBe(2);
     expect(demo.world.advantageFor('kara', husk.id)).toEqual({ advantage: 1, disadvantage: 0 });
 
     // And it is spent by that swing, hit or miss.
@@ -6157,7 +6290,7 @@ describe('coming at them well, and knowing them', () => {
       }
     });
 
-    useAbility(demo, 'kara', 'strategic-approach', [husk.id]);
+    useAbility(demo, 'kara', 'fixture-approach', [husk.id]);
     pick(demo, /Steady/);
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
 
@@ -6170,7 +6303,7 @@ describe('coming at them well, and knowing them', () => {
   it('puts a d8 behind the blow, once', () => {
     for (let seed = 1; seed < 40; seed++) {
       const { demo, kara, husk } = approaching('approach-d8-' + seed);
-      useAbility(demo, 'kara', 'strategic-approach', [husk.id]);
+      useAbility(demo, 'kara', 'fixture-approach', [husk.id]);
       pick(demo, /d8/);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       expect(kara.conditions.has('strategic-force')).toBe(true);
@@ -6191,14 +6324,15 @@ describe('coming at them well, and knowing them', () => {
       demo.askDefender = false;
       // An Instinct Roll, not a Spellcast one, so the Guardian can make it -
       // and she is already stood next to the thing she is watching.
-      hold(demo, 'kara', ['know-thy-enemy']);
+      carry(demo, WATCH_AND_PAY);
+      hold(demo, 'kara', [WATCH_CARD]);
       const kara = demo.state.entity('kara')!;
       kara.hope = { max: 6, value: 6 };
       kara.stress = { max: 6, marked: 0 };
       demo.state.fear = { max: 12, value: 5 };
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
 
-      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+      expect(useAbility(demo, 'kara', 'fixture-watch-pay', [husk.id]).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
       // A failed roll asks nothing; try again.
       if (demo.pending?.prompt.kind !== 'choice') continue;
