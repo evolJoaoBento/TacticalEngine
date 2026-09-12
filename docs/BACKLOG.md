@@ -124,11 +124,30 @@ git history and in the exported pack.
 3. Delete `tools/srd-sources/`, the SRD catalogues, the generated `ADVERSARIES.md` / `CARDS.md`, and
    their generators.
 
-**Two files in `content/srd/` are engine-native and misfiled — `hooks.ts` and `conditions.ts`. Move
-them, do not delete them.** `hooksFor` returns `SRD_HOOKS` as the base every project merges over, and
-`withSrdConditions` folds the engine's own conditions (Restrained, Vulnerable and the rest) into
-every project. Deleting either takes working rules out with the content. The card-specific entries
-inside `conditions.ts` — the markers a departing card set — do go.
+**What the folder actually holds, listed rather than assumed:** `abilities.ts` (182 KB),
+`adversary-abilities.ts` (162 KB), `hooks.ts`, `seansbox-adversaries.ts`, and two test files. Ten
+files under `src/` import from it, not the spec's eight.
+
+**`hooks.ts` is engine-native and misfiled. Move it, do not delete it** — `hooksFor` returns
+`SRD_HOOKS` as the base every project merges over, so deleting it takes working rules out with the
+content.
+
+**`conditions.ts` is not in that folder at all.** It lives at `src/engine/content/conditions.ts`,
+outside anything slice 3 sweeps, so there is nothing to move. It needs *pruning* instead: the
+card-specific markers inside it (`sigiled`, `tolled`, `broken`, `glyphed`, `enraptured` — names only
+a departing card reads) go with those cards, while the engine's own conditions, which its own rules
+read through `withSrdConditions`, stay. Nine files read it; check each before cutting an entry.
+
+**Two test files in the folder test the departing catalogue and are deleted, not converted:**
+`library.test.ts` sweeps the whole SRD library through the runner, and `seansbox-adversaries.test.ts`
+tests an importer for one vendored source. Item 0's count deliberately excludes them — converting a
+test whose subject is about to be deleted is wasted work.
+
+**`tools/srd-sources/` is three sources, not one:** `official-2.0`, `daggersearch`, `seansbox`,
+2.1 MB together. `seansbox-adversaries.ts` is the importer for the third and goes with it.
+
+**`.gitignore` has no `packs` entry yet.** The spec calls the export target "gitignored `packs/`";
+adding that rule is a step of this slice, not a precondition somebody already did.
 
 *Done means:* no tracked file names a source, the app boots on the starter pack alone, and `tsc`,
 `vitest` and `playwright` are green.
