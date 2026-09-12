@@ -5153,10 +5153,44 @@ describe('a shout the next one hears', () => {
 
 
 describe('one swing through all of them', () => {
+  /**
+   * One swing that reaches everything the weapon reaches, for a Hope, once
+   * between long rests.
+   *
+   * The damage die sits on an `attack` effect deliberately: the second test
+   * rebuilds this ability with `damageDice` stripped off that effect and compares
+   * what the two versions mark over eighty seeds. A specimen that put its extra
+   * die anywhere else would leave that comparison stripping nothing and measuring
+   * two identical cards.
+   */
+  const SPLINTER_CARD = 'fixture-card-63';
+
+  const SPLINTER = [
+    {
+      id: 'fixture-splinter',
+      name: 'One Swing',
+      source: { kind: 'domainCard', card: SPLINTER_CARD },
+      text: 'Spend a Hope to swing once at everything your weapon can reach, once between long rests.',
+      cost: { hope: 1 },
+      uses: { count: 1, per: 'longRest' },
+      inCombatOnly: true,
+      target: { kind: 'none' },
+      effects: [
+        {
+          kind: 'attack',
+          target: { kind: 'adversaries', range: 'far', reach: 'weapon' },
+          damageDice: '1d8',
+        },
+      ],
+    },
+  ];
+
   /** Kara with the card in hand and two husks standing beside her. */
   const surrounded = (seed: string, cards: string[]) => {
     const demo = standoff(seed);
     demo.askDefender = false;
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of SPLINTER) demo.project.abilities.push(abilitySchema.parse(ability));
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 60, marked: 0 };
     const other = demo.state.entitiesOf('adversary').find((e) => !e.alive)!;
@@ -5178,9 +5212,9 @@ describe('one swing through all of them', () => {
 
   it('swings at everything within the weapon and spends a Hope for it', () => {
     for (let seed = 1; seed < 40; seed++) {
-      const { demo, husk, other } = surrounded(`splinter-${seed}`, ['splintering-strike']);
+      const { demo, husk, other } = surrounded(`splinter-${seed}`, [SPLINTER_CARD]);
       const said = demo.log.length;
-      expect(useAbility(demo, 'kara', 'splintering-strike', []).status).not.toBe('refused');
+      expect(useAbility(demo, 'kara', 'fixture-splinter', []).status).not.toBe('refused');
       let guard = 0;
       while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
       const after = demo.log.slice(said).map((l) => l.text);
@@ -5192,7 +5226,7 @@ describe('one swing through all of them', () => {
       // straight back, so the number on the sheet says nothing about the cost.
       expect(after.some((t) => t.includes('Spends 1 Hope.'))).toBe(true);
       // "Once per long rest": the use is spent, and a short rest is not it.
-      expect(demo.scenario.abilityUses.get(useKey('kara', 'splintering-strike'))).toBe(1);
+      expect(demo.scenario.abilityUses.get(useKey('kara', 'fixture-splinter'))).toBe(1);
       return;
     }
     throw new Error('the card never ran');
@@ -5204,10 +5238,10 @@ describe('one swing through all of them', () => {
     const total = (extra: boolean): number => {
       let marked = 0;
       for (let seed = 1; seed < 80; seed++) {
-        const { demo, husk, other } = surrounded(`splinter-die-${seed}`, ['splintering-strike']);
+        const { demo, husk, other } = surrounded(`splinter-die-${seed}`, [SPLINTER_CARD]);
         if (!extra) {
           const plain = demo.project.abilities.map((a) =>
-            a.id !== 'splintering-strike'
+            a.id !== 'fixture-splinter'
               ? a
               : abilitySchema.parse({
                   ...a,
@@ -5217,7 +5251,7 @@ describe('one swing through all of them', () => {
           demo.project.abilities = plain;
           refreshWorld(demo);
         }
-        useAbility(demo, 'kara', 'splintering-strike', []);
+        useAbility(demo, 'kara', 'fixture-splinter', []);
         let guard = 0;
         while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
         marked += husk.hitPoints.marked + other.hitPoints.marked;
@@ -5476,13 +5510,73 @@ describe('a step across the room without crossing it', () => {
 
 describe('a line of light down the room', () => {
   /**
+   * A card that spends as much as its caster chooses: the offer runs from one up
+   * to the Stress she has free, and each step marks that much and carries that
+   * many Hit Points down the line.
+   *
+   * `spread` is the whole of what these two tests are about. The Hit Points are
+   * shared out along the line rather than given to each of them, so three Stress
+   * is three cleared in all -- and the other test is the far end of the same
+   * rule: one wound between them, every Stress on offer, and the beam stops at
+   * the wounds rather than spending what it was given.
+   */
+  const BEAM_CARD = 'fixture-card-62';
+
+  /** Shared by all three success faces: the offer, and what each step does. */
+  const CARRIED = [
+    {
+      kind: 'howMany',
+      most: { pool: 'stress', measure: 'available' },
+      least: 1,
+      title: 'A line of light',
+      body: 'A Stress for each Hit Point the light carries.',
+      each: [
+        { kind: 'markStress', amount: 'spent' },
+        {
+          kind: 'heal',
+          amount: 'spent',
+          // Shared out along the line, not given to each of them.
+          spread: true,
+          target: { kind: 'inPath', side: 'allies' },
+        },
+      ],
+    },
+  ];
+
+  const BEAM = [
+    {
+      id: 'fixture-beam',
+      name: 'Line of Light',
+      source: { kind: 'domainCard', card: BEAM_CARD },
+      text: 'Draw a line of light down the room and spend what you like carrying wounds out of it.',
+      target: { kind: 'point', range: 'far' },
+      inCombatOnly: true,
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 16,
+            prompt: 'A line of light down the room?',
+            onCriticalSuccess: CARRIED,
+            onSuccessWithHope: CARRIED,
+            onSuccessWithFear: CARRIED,
+          },
+        },
+      ],
+    },
+  ];
+
+  /**
    * Mira with the beam in hand and the rest of the party wounded, standing in
    * a row so a line from her runs over them.
    */
   const beaming = (seed: string): { demo: DemoScene; at: number } => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['salvation-beam'], loadout: ['salvation-beam'] };
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of BEAM) demo.project.abilities.push(abilitySchema.parse(ability));
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: [BEAM_CARD], loadout: [BEAM_CARD] };
     demo.sheets.set('mira', sheet);
     demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
@@ -5521,7 +5615,7 @@ describe('a line of light down the room', () => {
 
   it('clears Hit Points along the line, shared out rather than given to each', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const { demo, at } = beaming(`beam-${seed}`);
+      const { demo, at } = beaming(`light-${seed}`);
       const along = caught(demo, at);
       if (along.length < 2) continue;
       // Two Hit Points on each of them, and three Stress in the beam: shared
@@ -5529,7 +5623,7 @@ describe('a line of light down the room', () => {
       for (const id of along) demo.state.entity(id)!.hitPoints = { max: 8, marked: 2 };
       const before = along.reduce((sum, id) => sum + demo.state.entity(id)!.hitPoints.marked, 0);
 
-      expect(useAbility(demo, 'mira', 'salvation-beam', [], { point: at }).status).not.toBe('refused');
+      expect(useAbility(demo, 'mira', 'fixture-beam', [], { point: at }).status).not.toBe('refused');
       for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
         const prompt = demo.pending.prompt;
         if (prompt.kind !== 'choice') {
@@ -5554,14 +5648,14 @@ describe('a line of light down the room', () => {
 
   it('runs out of wounds rather than of beam', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const { demo, at } = beaming(`beam-spare-${seed}`);
+      const { demo, at } = beaming(`light-spare-${seed}`);
       const along = caught(demo, at);
       if (along.length < 2) continue;
       // One Hit Point between them and every Stress she has in the beam.
       for (const id of along) demo.state.entity(id)!.hitPoints = { max: 8, marked: 0 };
       demo.state.entity(along[0]!)!.hitPoints = { max: 8, marked: 1 };
 
-      expect(useAbility(demo, 'mira', 'salvation-beam', [], { point: at }).status).not.toBe('refused');
+      expect(useAbility(demo, 'mira', 'fixture-beam', [], { point: at }).status).not.toBe('refused');
       for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
         const prompt = demo.pending.prompt;
         if (prompt.kind !== 'choice') {
@@ -6613,25 +6707,132 @@ describe('the next one', () => {
  * you cost something every time.
  */
 describe('a card that charges the one who swings', () => {
+  /**
+   * Two cards that put a price on the other side of the table.
+   *
+   * The first taunts a creature into a swing it has not thought through: the
+   * disadvantage is on *their* roll rather than on rolls against them, so there
+   * is no `against` on it, and it is spent by the next swing they make either
+   * way.
+   *
+   * The second is a standing price rather than a debt. `keeps` is what stops the
+   * payout clearing itself, so every creature that aims at its wearer pays and
+   * the aura is still there for the next one.
+   */
+  const GOAD_CARD = 'fixture-card-62';
+  const AURA_CARD = 'fixture-card-63';
+
+  /** On the one taunted: their own next swing is the worse for it. */
+  const GOADED_CONDITION = {
+    id: 'fixture-goaded',
+    name: 'Goaded',
+    text: 'Taunted into a swing they have not thought through: their next attack is made with disadvantage.',
+    modifiers: [{ stat: 'advantage', bonus: -1 }],
+    endsWhen: 'attacks',
+  };
+
+  /** On the one wearing it: a price, paid by each creature that aims at them. */
+  const AURA_CONDITION = {
+    id: 'fixture-aura-on',
+    name: 'Hard Air',
+    text: 'An adversary must mark a Stress when they target you with an attack.',
+    payout: {
+      on: 'attacked',
+      auto: true,
+      // A price rather than a debt: it is still there for the next one.
+      keeps: true,
+      effects: [{ kind: 'markStress', amount: 1, target: { kind: 'actor' } }],
+    },
+  };
+
+  const GOADED = [
+    { kind: 'log', text: 'They round on whoever said that.', tone: 'hope' },
+    { kind: 'markStress', target: { kind: 'hit' } },
+    { kind: 'applyCondition', condition: 'fixture-goaded', duration: 'scene', target: { kind: 'hit' } },
+  ];
+
+  const RAISED = [
+    {
+      kind: 'branch',
+      when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 2 },
+      then: [
+        { kind: 'spendHope', amount: 2 },
+        { kind: 'log', text: 'The room fills with them, and standing near it costs something.', tone: 'hope' },
+        { kind: 'applyCondition', condition: 'fixture-aura-on', duration: 'rest', target: { kind: 'actor' } },
+      ],
+      otherwise: [{ kind: 'log', text: 'It gathers and will not hold: there is no Hope to pour into it.', tone: 'fear' }],
+    },
+  ];
+
+  const CHARGERS = [
+    {
+      id: 'fixture-goad',
+      name: 'Say the Wrong Thing',
+      source: { kind: 'domainCard', card: GOAD_CARD },
+      text: 'Make a creature want you, and want it badly enough to swing carelessly.',
+      target: { kind: 'adversary', range: 'close' },
+      inCombatOnly: true,
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'presence',
+            difficulty: 'target',
+            tags: ['social'],
+            prompt: 'Make them want you?',
+            onCriticalSuccess: GOADED,
+            onSuccessWithHope: GOADED,
+            onSuccessWithFear: GOADED,
+          },
+        },
+      ],
+    },
+    {
+      id: 'fixture-aura',
+      name: 'Hard Air',
+      source: { kind: 'domainCard', card: AURA_CARD },
+      text: 'Make the air around you hard to stand in, for two Hope, until a rest.',
+      target: { kind: 'self' },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 15,
+            prompt: 'Make the air around you hard to stand in?',
+            onCriticalSuccess: RAISED,
+            onSuccessWithHope: RAISED,
+            onSuccessWithFear: RAISED,
+          },
+        },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const condition of [GOADED_CONDITION, AURA_CONDITION]) {
+      demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
+    }
+    for (const ability of CHARGERS) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
     demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
-  it('Goad Them On costs them a Stress and their next swing', () => {
+  it('the taunt costs them a Stress and their next swing', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const demo = standoff('goad-' + seed);
+      const demo = standoff('taunt-' + seed);
       demo.askDefender = false;
-      hold(demo, 'kara', ['goad-them-on']);
+      hold(demo, 'kara', [GOAD_CARD]);
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       husk.stress = { max: 6, marked: 0 };
 
-      expect(useAbility(demo, 'kara', 'goad-them-on', [husk.id]).status).not.toBe('refused');
+      expect(useAbility(demo, 'kara', 'fixture-goad', [husk.id]).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       // The taunt did not land this time; try another seed.
-      if (!husk.conditions.has('goaded')) continue;
+      if (!husk.conditions.has('fixture-goaded')) continue;
 
       expect(husk.stress.marked).toBe(1);
       // The disadvantage is on their own swing rather than on rolls against
@@ -6640,16 +6841,17 @@ describe('a card that charges the one who swings', () => {
       expect(demo.world.advantageFor('kara', husk.id)).toEqual({ advantage: 0, disadvantage: 0 });
       return;
     }
-    throw new Error('Goad Them On never landed in sixty tries');
+    throw new Error('the taunt never landed in sixty tries');
   });
 
   it('and the swing it was waiting for spends it', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const demo = standoff('goad-spent-' + seed);
+      const demo = standoff('taunt-spent-' + seed);
       demo.askDefender = false;
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-      demo.world.applyCondition(husk.id, 'goaded', 'scene');
-      expect(husk.conditions.has('goaded')).toBe(true);
+      hold(demo, 'kara', []);
+      demo.world.applyCondition(husk.id, 'fixture-goaded', 'scene');
+      expect(husk.conditions.has('fixture-goaded')).toBe(true);
 
       const before = demo.log.length;
       endTurn(demo);
@@ -6658,22 +6860,23 @@ describe('a card that charges the one who swings', () => {
       // is what spends the goad, and a turn spent walking spends nothing.
       const swung = demo.log.slice(before).some((l) => /misses|Hit Point/.test(l.text));
       if (!swung) continue;
-      expect(husk.conditions.has('goaded')).toBe(false);
+      expect(husk.conditions.has('fixture-goaded')).toBe(false);
       return;
     }
     throw new Error('the husk never swung in sixty tries');
   });
 
-  it('Overwhelming Aura charges an adversary for aiming, and is still up afterwards', () => {
+  it('the aura charges an adversary for aiming, and is still up afterwards', () => {
     const demo = standoff('aura');
     demo.askDefender = false;
     const kara = demo.state.entity('kara')!;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.stress = { max: 12, marked: 0 };
-    demo.world.applyCondition('kara', 'overwhelming-aura', 'rest');
+    hold(demo, 'kara', []);
+    demo.world.applyCondition('kara', 'fixture-aura-on', 'rest');
     // A price rather than a debt: `keeps` is what stops the payout clearing it.
     expect(demo.world.payoutsOn('kara', 'attacked')).toMatchObject([
-      { condition: 'overwhelming-aura', auto: true, keeps: true },
+      { condition: 'fixture-aura-on', auto: true, keeps: true },
     ]);
 
     let paid = 0;
@@ -6691,20 +6894,20 @@ describe('a card that charges the one who swings', () => {
     // Twice, which is the half of it that `keeps` buys: a debt would have paid
     // once and gone.
     expect(paid).toBe(2);
-    expect(kara.conditions.has('overwhelming-aura')).toBe(true);
+    expect(kara.conditions.has('fixture-aura-on')).toBe(true);
   });
 
   it('the aura goes up on a Spellcast Roll, and not without the Hope to hold it', () => {
     for (let seed = 1; seed < 60; seed++) {
       const demo = standoff('aura-cast-' + seed);
       demo.askDefender = false;
-      hold(demo, 'mira', ['overwhelming-aura']);
+      hold(demo, 'mira', [AURA_CARD]);
       const mira = demo.state.entity('mira')!;
       mira.hope = { max: 6, value: 6 };
 
-      expect(useAbility(demo, 'mira', 'overwhelming-aura', []).status).not.toBe('refused');
+      expect(useAbility(demo, 'mira', 'fixture-aura', []).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
-      if (!mira.conditions.has('overwhelming-aura')) continue;
+      if (!mira.conditions.has('fixture-aura-on')) continue;
 
       // Two Hope out of six, and the aura standing.
       expect(mira.hope!.value).toBeLessThanOrEqual(4);
@@ -6717,15 +6920,15 @@ describe('a card that charges the one who swings', () => {
     for (let seed = 1; seed < 60; seed++) {
       const demo = standoff('aura-poor-' + seed);
       demo.askDefender = false;
-      hold(demo, 'mira', ['overwhelming-aura']);
+      hold(demo, 'mira', [AURA_CARD]);
       const mira = demo.state.entity('mira')!;
       mira.hope = { max: 6, value: 1 };
 
-      const used = useAbility(demo, 'mira', 'overwhelming-aura', []);
+      const used = useAbility(demo, 'mira', 'fixture-aura', []);
       if (used.status === 'refused') continue;
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       // However the dice went, two Hope was never there to spend.
-      expect(mira.conditions.has('overwhelming-aura')).toBe(false);
+      expect(mira.conditions.has('fixture-aura-on')).toBe(false);
       return;
     }
     throw new Error('the roll was never made in sixty tries');
@@ -6738,7 +6941,57 @@ describe('a card that charges the one who swings', () => {
  * picked: the ones its roll beat, and the party standing close.
  */
 describe('a card that moves the room', () => {
+  /**
+   * A card that puts other people on the tile its holder picked: the creatures
+   * its roll beat, and the party standing close.
+   *
+   * One Hope buys both halves, which is why an ally moves however the roll went
+   * against the creature -- an ally is never rolled against. `allies` leaves the
+   * actor out, so the one who cast it stays where they were.
+   *
+   * The moves are teleports rather than walks: something hauled across the room
+   * does not have to find a path, which is what being hauled is.
+   */
+  const WRANGLE_CARD = 'fixture-card-61';
+
+  const WRANGLE = [
+    {
+      id: 'fixture-wrangle',
+      name: 'Rearrange the Room',
+      source: { kind: 'domainCard', card: WRANGLE_CARD },
+      text: 'One roll against everything standing close, and a Hope to haul what it beat.',
+      inCombatOnly: true,
+      target: { kind: 'point', range: 'close' },
+      effects: [
+        { kind: 'log', text: 'A whistle, a gesture, and the room rearranges itself.', tone: 'hope' },
+        {
+          kind: 'check',
+          check: {
+            trait: 'agility',
+            difficulty: 'target',
+            targets: { kind: 'adversaries', range: 'close' },
+            prompt: 'One roll, against everything standing close?',
+            always: [
+              {
+                kind: 'branch',
+                when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+                then: [
+                  { kind: 'spendHope', amount: 1 },
+                  { kind: 'move', who: { kind: 'hit' }, to: 'point', teleport: true },
+                  { kind: 'move', who: { kind: 'allies', range: 'close' }, to: 'point', teleport: true },
+                ],
+                otherwise: [{ kind: 'log', text: 'Nobody moves: there is no Hope to spend on it.', tone: 'fear' }],
+              },
+            ],
+          },
+        },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of WRANGLE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
     demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -6759,9 +7012,9 @@ describe('a card that moves the room', () => {
 
   it('hauls the ones it beat onto the spot, and spends the Hope for it', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const demo = standoff('wrangle-' + seed);
+      const demo = standoff('haul-' + seed);
       demo.askDefender = false;
-      hold(demo, 'kara', ['wrangle']);
+      hold(demo, 'kara', [WRANGLE_CARD]);
       const kara = demo.state.entity('kara')!;
       kara.hope = { max: 6, value: 4 };
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -6769,7 +7022,7 @@ describe('a card that moves the room', () => {
       const spot = spotNear(demo, kara.tile);
       if (spot === NO_TILE) continue;
 
-      expect(useAbility(demo, 'kara', 'wrangle', [], { point: spot }).status).not.toBe('refused');
+      expect(useAbility(demo, 'kara', 'fixture-wrangle', [], { point: spot }).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
 
       // Only a roll that beat it moves it, and only then is the Hope gone.
@@ -6782,14 +7035,14 @@ describe('a card that moves the room', () => {
       expect(kara.hope!.value).toBeLessThan(4);
       return;
     }
-    throw new Error('Wrangle never beat the husk in sixty tries');
+    throw new Error('the haul never beat the husk in sixty tries');
   });
 
   it('takes the party standing close along with it', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const demo = standoff('wrangle-allies-' + seed);
+      const demo = standoff('haul-allies-' + seed);
       demo.askDefender = false;
-      hold(demo, 'kara', ['wrangle']);
+      hold(demo, 'kara', [WRANGLE_CARD]);
       const kara = demo.state.entity('kara')!;
       kara.hope = { max: 6, value: 4 };
       // Finn beside her, so he is one of the "willing allies within Close".
@@ -6801,7 +7054,7 @@ describe('a card that moves the room', () => {
       if (spot === NO_TILE || spot === finn.tile) continue;
       const stood = kara.tile;
 
-      expect(useAbility(demo, 'kara', 'wrangle', [], { point: spot }).status).not.toBe('refused');
+      expect(useAbility(demo, 'kara', 'fixture-wrangle', [], { point: spot }).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
 
       // However the roll went against the husk, the ally moved: the Hope buys
@@ -6819,9 +7072,9 @@ describe('a card that moves the room', () => {
     let withFear = false;
     let withHope = false;
     for (let seed = 1; seed < 60 && !(withFear && withHope); seed++) {
-      const demo = standoff('wrangle-poor-' + seed);
+      const demo = standoff('haul-poor-' + seed);
       demo.askDefender = false;
-      hold(demo, 'kara', ['wrangle']);
+      hold(demo, 'kara', [WRANGLE_CARD]);
       const kara = demo.state.entity('kara')!;
       kara.hope = { max: 6, value: 0 };
       const finn = demo.state.entity('finn')!;
@@ -6832,7 +7085,7 @@ describe('a card that moves the room', () => {
       if (spot === NO_TILE || spot === finn.tile) continue;
       const stood = finn.tile;
 
-      expect(useAbility(demo, 'kara', 'wrangle', [], { point: spot }).status).not.toBe('refused');
+      expect(useAbility(demo, 'kara', 'fixture-wrangle', [], { point: spot }).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
 
       // A roll with Hope hands one over *before* the arms run, so the card
@@ -7138,7 +7391,12 @@ describe('a bonus on every action roll', () => {
     demo.askDefender = false;
     hold(demo, 'kara', [SURGE_CARD]);
     const kara = demo.state.entity('kara')!;
-    kara.stress = { max: 12, marked: 0 };
+    // Marked Stress inside the max the derive gives her, because syncPools
+    // rewrites any pool whose max is not the derived one and clamps the marked
+    // count with it. Three leaves room at both ends: a critical has something to
+    // clear, and the drop still has somewhere to put one -- at the max, marking
+    // is a no-op and what this test measures would read zero.
+    kara.stress = { max: 6, marked: 3 };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 60, marked: 0 };
 
@@ -7147,7 +7405,7 @@ describe('a bonus on every action roll', () => {
     // A Stress to channel it, and the die face up on one.
     expect(kara.conditions.has('fixture-surging')).toBe(true);
     expect(demo.world.tokensOn('kara', 'fixture-surge')).toBe(1);
-    expect(kara.stress.marked).toBe(1);
+    expect(kara.stress.marked).toBe(4);
 
     // Six swings: each takes the die it found and leaves it one higher, and
     // the seventh turn of it has nowhere to go.
@@ -7159,6 +7417,7 @@ describe('a bonus on every action roll', () => {
       attackWithSelected(demo, husk.id);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       if (!kara.conditions.has('fixture-surging')) {
+
         // The swing the form dropped on. A critical clears a Stress of its own,
         // so what the drop cost is the difference net of that.
         const crit = demo.rolls[demo.rolls.length - 1]?.roll.critical === true;
