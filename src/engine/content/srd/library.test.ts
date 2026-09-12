@@ -12,7 +12,7 @@ import { SceneScriptWorld, createScenarioState } from '../../script/world';
 import { ScriptRunner } from '../../script/runner';
 import type { Effect } from '../../script/schema';
 import { blankSheet, deriveCharacter, startingPools, type DerivedCharacter } from '../../character/sheet';
-import { importCharacterContent } from './daggersearch';
+import { importContentPack } from '../pack/import';
 import type { AdversaryDef } from '../types';
 import { isScripted, readsATarget, type AbilityDef } from '../abilities';
 import { SRD_CONDITIONS } from '../conditions';
@@ -36,7 +36,7 @@ import { importSeansboxAdversaries, type RawAdversary } from './seansbox-adversa
 const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const read = (name: string): unknown[] =>
   JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
-const content = importCharacterContent({
+const content = importContentPack({
   weapons: read('weapons'),
   armors: read('armors'),
   classes: read('classes'),

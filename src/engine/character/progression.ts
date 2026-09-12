@@ -21,7 +21,7 @@
  * out of reach) and the other multiclass box.
  */
 
-import type { SrdCharacterContent } from '../content/srd/daggersearch';
+import type { ContentPack } from '../content/pack/import';
 import type { Trait } from '../scene/schema';
 import type { CharacterSheet } from './sheet';
 
@@ -190,7 +190,7 @@ export function subclassStage(sheet: CharacterSheet): 'foundation' | 'specializa
 }
 
 /** Every domain a character may draw cards from: the class's, plus a multiclass's chosen one. */
-export function domainsOf(sheet: CharacterSheet, content: SrdCharacterContent): string[] {
+export function domainsOf(sheet: CharacterSheet, content: ContentPack): string[] {
   const domains = [...(content.classes.get(sheet.classId)?.domains ?? [])];
   for (const record of sheet.levels ?? []) {
     for (const advancement of record.advancements) {
@@ -217,7 +217,7 @@ export function heldCards(sheet: CharacterSheet): string[] {
 /** Whether a sheet may take a card: right domain, low enough level, not already held. */
 export function cardAllowed(
   sheet: CharacterSheet,
-  content: SrdCharacterContent,
+  content: ContentPack,
   cardId: string,
   atLevel: number,
 ): { ok: true } | { ok: false; reason: string } {
@@ -262,7 +262,7 @@ export function availableAdvancements(sheet: CharacterSheet, atLevel: number): O
  */
 export function levelUp(
   sheet: CharacterSheet,
-  content: SrdCharacterContent,
+  content: ContentPack,
   plan: LevelUpPlan,
 ): { sheet: CharacterSheet; issues: LevelUpIssue[] } {
   const issues: LevelUpIssue[] = [];

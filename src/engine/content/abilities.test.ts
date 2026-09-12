@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { importCharacterContent } from './srd/daggersearch';
+import { importContentPack } from './pack/import';
 import { SRD_ABILITIES } from './srd/abilities';
 import { abilitiesFor, abilitySchema, isScripted, loadoutOf, vaultOf, LOADOUT_LIMIT, type AbilityDef } from './abilities';
 import { blankSheet, deriveCharacter, type CharacterSheet } from '../character/sheet';
@@ -15,7 +15,7 @@ import { levelUp } from '../character/progression';
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const read = (name: string): unknown[] =>
   JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
-const content = importCharacterContent({
+const content = importContentPack({
   weapons: read('weapons'),
   armors: read('armors'),
   classes: read('classes'),

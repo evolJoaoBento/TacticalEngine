@@ -74,7 +74,7 @@ export function abilityText(demo: DemoScene, ability: AbilityDef): string {
     const spell = card.name === ability.name ? undefined : card.features.find((f) => f.name === ability.name);
     return spell?.text ?? card.text;
   }
-  if (source.kind === 'classHope') return SRD_CHARACTERS.classes.get(source.classId)?.hopeFeature?.text ?? '';
+  if (source.kind === 'classHope') return SRD_CHARACTERS.classes.get(source.classId)?.signatureFeature?.text ?? '';
   if (source.kind === 'classFeature') {
     return SRD_CHARACTERS.classes.get(source.classId)?.features.find((f) => f.name === ability.name)?.text ?? '';
   }

@@ -87,7 +87,7 @@ import {
   type DerivedCharacter,
 } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
-import { importCharacterContent, type WeaponDef } from '../engine/content/srd/daggersearch';
+import { importContentPack, type WeaponDef } from '../engine/content/pack/import';
 import {
   importSeansboxAdversaries,
   type RawAdversary,
@@ -155,7 +155,7 @@ export const DEMO_MODELS: Readonly<Record<string, string>> = {
 };
 
 /** Classes, ancestries, communities, armor and weapons, from the vendored SRD. */
-export const SRD_CHARACTERS = importCharacterContent({
+export const SRD_CHARACTERS = importContentPack({
   weapons: weaponJson as unknown[],
   armors: armorJson as unknown[],
   classes: classJson as unknown[],

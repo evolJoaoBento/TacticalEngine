@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { blankSheet } from '../engine/character/sheet';
-import { importCharacterContent } from '../engine/content/srd/daggersearch';
+import { importContentPack } from '../engine/content/pack/import';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
 import { EditorSession, addSheet, removeSheet, updateSheet, type PartySheet } from './session';
@@ -17,7 +17,7 @@ import { validateProject } from './validate';
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 const read = (name: string): unknown[] =>
   JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
-const content = importCharacterContent({
+const content = importContentPack({
   weapons: read('weapons'),
   armors: read('armors'),
   classes: read('classes'),

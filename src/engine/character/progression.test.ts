@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { importCharacterContent, type SrdCharacterContent } from '../content/srd/daggersearch';
+import { importContentPack, type ContentPack } from '../content/pack/import';
 import { blankSheet, deriveCharacter, type CharacterSheet } from './sheet';
 import {
   availableAdvancements,
@@ -26,7 +26,7 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const read = (name: string): unknown[] =>
   JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
 
-const imported = importCharacterContent({
+const imported = importContentPack({
   weapons: read('weapons'),
   armors: read('armors'),
   classes: read('classes'),
@@ -35,7 +35,7 @@ const imported = importCharacterContent({
   subclasses: read('subclasses'),
   domainCards: read('domain-cards'),
 });
-const content: SrdCharacterContent = imported.content;
+const content: ContentPack = imported.content;
 
 const kara = (overrides: Partial<CharacterSheet> = {}): CharacterSheet =>
   blankSheet('kara', 'guardian', {

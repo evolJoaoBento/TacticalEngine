@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'preact/hooks';
-import type { SrdCharacterContent } from '../../engine/content/srd/daggersearch';
+import type { ContentPack } from '../../engine/content/pack/import';
 import type { CharacterSheet } from '../../engine/character/sheet';
 import {
   ACHIEVEMENT_LEVELS,
@@ -27,7 +27,7 @@ import type { Trait } from '../../engine/scene/primitives';
 
 export interface LevelUpPanelProps {
   sheet: CharacterSheet;
-  content: SrdCharacterContent;
+  content: ContentPack;
   /** Reasons the last attempt was refused, if any. */
   issues: readonly LevelUpIssue[];
   onApply: (plan: LevelUpPlan) => void;
@@ -90,7 +90,7 @@ function button(primary: boolean): Record<string, string | number> {
 }
 
 /** A pick with everything it needs filled in with a sensible first choice. */
-function blank(kind: AdvancementKind, sheet: CharacterSheet, content: SrdCharacterContent, level: number): Advancement {
+function blank(kind: AdvancementKind, sheet: CharacterSheet, content: ContentPack, level: number): Advancement {
   switch (kind) {
     case 'traits': {
       const marked = markedTraits(sheet);
@@ -112,7 +112,7 @@ function blank(kind: AdvancementKind, sheet: CharacterSheet, content: SrdCharact
   }
 }
 
-function allowedCards(sheet: CharacterSheet, content: SrdCharacterContent, level: number) {
+function allowedCards(sheet: CharacterSheet, content: ContentPack, level: number) {
   return [...content.domainCards.values()]
     .filter((card) => cardAllowed(sheet, content, card.id, level).ok)
     .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));

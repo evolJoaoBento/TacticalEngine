@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { Rng } from '../core/rng';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
-import { importCharacterContent } from '../content/srd/daggersearch';
+import { importContentPack } from '../content/pack/import';
 import type { AdversaryDef } from '../content/types';
 import { blankSheet, deriveCharacter, startingPools, type DerivedCharacter } from '../character/sheet';
 import { ScriptRunner, runScript, type JournalEntry } from './runner';
@@ -27,7 +27,7 @@ import { compileHooks, mergeHooks } from './hooks';
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const read = (name: string): unknown[] =>
   JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
-const content = importCharacterContent({
+const content = importContentPack({
   weapons: read('weapons'),
   armors: read('armors'),
   classes: read('classes'),

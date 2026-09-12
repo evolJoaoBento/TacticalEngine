@@ -27,7 +27,7 @@ import {
 import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-from-scene';
 import { deriveCharacter } from '../engine/character/sheet';
 import { domainsOf, heldCards } from '../engine/character/progression';
-import type { SrdCharacterContent } from '../engine/content/srd/daggersearch';
+import type { ContentPack } from '../engine/content/pack/import';
 import type { AbilityDef } from '../engine/content/abilities';
 import { parseDice } from '../engine/rules/dice';
 import { compileHooks } from '../engine/script/hooks';
@@ -61,7 +61,7 @@ export interface ValidationOptions {
    * The SRD content a sheet's ids are checked against. Omit to skip the party
    * check — a headless caller that has not loaded the content is not wrong.
    */
-  characterContent?: SrdCharacterContent;
+  characterContent?: ContentPack;
 }
 
 /**

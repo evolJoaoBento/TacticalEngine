@@ -19,7 +19,7 @@ import './editor.css';
 import { SRD_CONDITIONS } from '../../engine/content/conditions';
 import type { AbilityDef } from '../../engine/content/abilities';
 import type { AdversaryDef } from '../../engine/content/types';
-import type { SrdCharacterContent } from '../../engine/content/srd/daggersearch';
+import type { ContentPack } from '../../engine/content/pack/import';
 import type { Interactable } from '../../engine/scene/schema';
 import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
@@ -67,7 +67,7 @@ export interface EditorShellProps {
   /** The cards the engine ships, listed beside the project's own. */
   libraryAbilities: readonly AbilityDef[];
   /** The vendored SRD content the Party panel picks from, and validates against. */
-  characterContent: SrdCharacterContent;
+  characterContent: ContentPack;
   /** The scene the party is standing in, which need not be the one being edited. */
   playingScene: string;
   onPlay: () => void;

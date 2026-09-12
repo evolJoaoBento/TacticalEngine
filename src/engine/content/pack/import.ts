@@ -28,7 +28,7 @@ import { toContentId, type ContentIssue, type ImportResult } from '../types';
 // Normalized types
 // ---------------------------------------------------------------------------
 
-export interface SrdFeature {
+export interface PackFeature {
   name: string;
   text: string;
 }
@@ -47,7 +47,7 @@ export interface WeaponDef {
   /** Damage before Proficiency multiplies the dice. */
   damage: ParsedDamage;
   burden: Burden;
-  features: SrdFeature[];
+  features: PackFeature[];
 }
 
 export interface ArmorDef {
@@ -57,7 +57,7 @@ export interface ArmorDef {
   /** Before the wearer's level is added. */
   baseThresholds: DamageThresholds;
   baseScore: number;
-  features: SrdFeature[];
+  features: PackFeature[];
 }
 
 export interface ClassDef {
@@ -66,20 +66,25 @@ export interface ClassDef {
   domains: string[];
   startingEvasion: number;
   startingHitPoints: number;
-  hopeFeature?: SrdFeature;
-  features: SrdFeature[];
+  /**
+   * The feature a class grants for its own resource. Named for what it is
+   * rather than for the resource, so renaming that resource never reaches a
+   * stored pack.
+   */
+  signatureFeature?: PackFeature;
+  features: PackFeature[];
 }
 
 export interface AncestryDef {
   id: string;
   name: string;
-  features: SrdFeature[];
+  features: PackFeature[];
 }
 
 export interface CommunityDef {
   id: string;
   name: string;
-  features: SrdFeature[];
+  features: PackFeature[];
 }
 
 export interface SubclassDef {
@@ -89,9 +94,9 @@ export interface SubclassDef {
   classId: string;
   domains: string[];
   spellcastTrait?: Trait;
-  foundation: SrdFeature[];
-  specialization: SrdFeature[];
-  mastery: SrdFeature[];
+  foundation: PackFeature[];
+  specialization: PackFeature[];
+  mastery: PackFeature[];
 }
 
 export interface DomainCardDef {
@@ -104,11 +109,11 @@ export interface DomainCardDef {
   recallCost: number;
   text: string;
   /** The card's named features: a grimoire's spells. Most cards have one, unnamed. */
-  features: readonly SrdFeature[];
+  features: readonly PackFeature[];
 }
 
 /** Everything a character can be built from. */
-export interface SrdCharacterContent {
+export interface ContentPack {
   weapons: ReadonlyMap<string, WeaponDef>;
   armors: ReadonlyMap<string, ArmorDef>;
   classes: ReadonlyMap<string, ClassDef>;
@@ -152,9 +157,9 @@ function describe(value: unknown): string {
   return parts.join('\n');
 }
 
-function readFeatures(value: unknown): SrdFeature[] {
+function readFeatures(value: unknown): PackFeature[] {
   if (!Array.isArray(value)) return [];
-  const out: SrdFeature[] = [];
+  const out: PackFeature[] = [];
   for (const raw of value as Record<string, unknown>[]) {
     out.push({ name: localized(raw['name']) ?? '', text: describe(raw['description']) });
   }
@@ -334,7 +339,7 @@ export function importClasses(raw: readonly unknown[]): ImportResult<ClassDef> {
     };
     if (typeof hope === 'object' && hope !== null) {
       const feature = hope as Record<string, unknown>;
-      def.hopeFeature = {
+      def.signatureFeature = {
         name: localized(feature['name']) ?? '',
         text: describe(feature['description']),
       };
@@ -366,7 +371,7 @@ export function importSubclasses(raw: readonly unknown[]): ImportResult<Subclass
       fail('class', 'expected a class name');
       return null;
     }
-    const stage = (key: string): SrdFeature[] => {
+    const stage = (key: string): PackFeature[] => {
       const block = entry[key];
       return typeof block === 'object' && block !== null
         ? readFeatures((block as Record<string, unknown>)['features'])
@@ -433,9 +438,9 @@ export interface RawCharacterSources {
 }
 
 /** Import every character source at once. */
-export function importCharacterContent(
+export function importContentPack(
   raw: RawCharacterSources,
-): { content: SrdCharacterContent; issues: ContentIssue[] } {
+): { content: ContentPack; issues: ContentIssue[] } {
   const weapons = importWeapons(raw.weapons);
   const armors = importArmors(raw.armors);
   const classes = importClasses(raw.classes);

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { importCharacterContent, type SrdCharacterContent } from '../content/srd/daggersearch';
+import { importContentPack, type ContentPack } from '../content/pack/import';
 import {
   UNARMED,
   attackProfile,
@@ -16,14 +16,14 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const read = (name: string): unknown[] =>
   JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
 
-const imported = importCharacterContent({
+const imported = importContentPack({
   weapons: read('weapons'),
   armors: read('armors'),
   classes: read('classes'),
   ancestries: read('ancestries'),
   communities: read('communities'),
 });
-const content: SrdCharacterContent = imported.content;
+const content: ContentPack = imported.content;
 
 const guardian = (overrides: Partial<CharacterSheet> = {}): CharacterSheet =>
   blankSheet('kara', 'guardian', {
@@ -56,7 +56,7 @@ describe('the vendored character content', () => {
     expect(klass.startingEvasion).toBeGreaterThan(0);
     expect(klass.startingHitPoints).toBeGreaterThan(0);
     expect(klass.domains.length).toBeGreaterThan(0);
-    expect(klass.hopeFeature?.name).toBeTruthy();
+    expect(klass.signatureFeature?.name).toBeTruthy();
   });
 
   it('reads a weapon as a rollable attack', () => {

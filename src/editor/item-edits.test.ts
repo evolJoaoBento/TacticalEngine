@@ -4,7 +4,7 @@ import { blankScene } from '../engine/scene/grid-from-scene';
 import { interactableSchema, projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { importCharacterContent } from '../engine/content/srd/daggersearch';
+import { importContentPack } from '../engine/content/pack/import';
 import {
   EditorSession,
   addItem,
@@ -26,7 +26,7 @@ import { validateProject } from './validate';
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 const read = (name: string): unknown[] =>
   JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
-const content = importCharacterContent({
+const content = importContentPack({
   weapons: read('weapons'),
   armors: read('armors'),
   classes: read('classes'),

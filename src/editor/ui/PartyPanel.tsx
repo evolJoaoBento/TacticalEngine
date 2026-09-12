@@ -25,7 +25,7 @@ import { blankSheet, deriveCharacter, type DerivedCharacter } from '../../engine
 import { characterSheetSchema } from '../../engine/character/sheet-schema';
 import { domainsOf, heldCards } from '../../engine/character/progression';
 import { LOADOUT_LIMIT } from '../../engine/content/abilities';
-import type { SrdCharacterContent } from '../../engine/content/srd/daggersearch';
+import type { ContentPack } from '../../engine/content/pack/import';
 import type { Trait } from '../../engine/scene/schema';
 
 export interface PartyPanelProps {
@@ -33,7 +33,7 @@ export interface PartyPanelProps {
   onChange: () => void;
   onClose: () => void;
   /** The vendored SRD content every dropdown here is drawn from. */
-  content: SrdCharacterContent;
+  content: ContentPack;
 }
 
 const TRAITS: readonly Trait[] = ['agility', 'strength', 'finesse', 'instinct', 'presence', 'knowledge'];

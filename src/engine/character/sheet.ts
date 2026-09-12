@@ -18,7 +18,7 @@
  */
 
 import type { AttackProfile, DefenderProfile } from '../combat/attack';
-import type { DomainCardDef, SrdCharacterContent, SubclassDef, WeaponDef } from '../content/srd/daggersearch';
+import type { DomainCardDef, ContentPack, SubclassDef, WeaponDef } from '../content/pack/import';
 import { armorScore, pcThresholds, type DamageThresholds } from '../rules/damage';
 import type { ParsedDamage } from '../rules/dice';
 import type { RangeBand } from '../rules/range';
@@ -53,7 +53,7 @@ export interface CharacterSheet {
   id: string;
   name: string;
   level: number;
-  /** Content ids into `SrdCharacterContent`. */
+  /** Content ids into `ContentPack`. */
   classId: string;
   ancestryId?: string;
   communityId?: string;
@@ -154,7 +154,7 @@ export interface SheetIssue {
  */
 export function deriveCharacter(
   sheet: CharacterSheet,
-  content: SrdCharacterContent,
+  content: ContentPack,
   abilities: readonly AbilityDef[] = [],
 ): { character: DerivedCharacter; issues: SheetIssue[] } {
   const issues: SheetIssue[] = [];
@@ -309,7 +309,7 @@ function collectFeatures(
 
 function lookupWeapon(
   id: string | undefined,
-  content: SrdCharacterContent,
+  content: ContentPack,
   sheet: CharacterSheet,
   issues: SheetIssue[],
   field: string,

@@ -24,7 +24,7 @@ import {
 } from '../session';
 import { itemSchema, lootTableSchema, type ItemDef, type LootTable } from '../../engine/content/items';
 import type { QuestDef } from '../../engine/content/quests';
-import type { SrdCharacterContent } from '../../engine/content/srd/daggersearch';
+import type { ContentPack } from '../../engine/content/pack/import';
 import { EffectList } from './EffectList';
 
 export interface ItemPanelProps {
@@ -38,7 +38,7 @@ export interface ItemPanelProps {
   encounterIds: readonly string[];
   quests: readonly QuestDef[];
   /** The vendored SRD content a weapon or armour item stands for. */
-  content: SrdCharacterContent;
+  content: ContentPack;
 }
 
 /** Sorted `id → name` pairs, so a dropdown reads as words and writes an id. */
