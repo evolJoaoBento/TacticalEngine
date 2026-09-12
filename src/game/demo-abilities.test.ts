@@ -62,27 +62,36 @@ const names = (demo: DemoScene, id: string): string[] => abilitiesOf(demo, id).m
 describe('who has what', () => {
   it('lists class, Hope, subclass and loadout abilities per character', () => {
     const demo = scene();
-    expect(names(demo, 'kara')).toEqual(['guardian-frontline-tank', 'stalwart-unwavering', 'stalwart-iron-will', 'bare-bones', 'get-back-up', 'rally-the-line']);
-    expect(names(demo, 'finn')).toEqual(['rogue-rogues-dodge', 'pick-and-pull', 'rain-of-blades']);
+    // The class's, then the subclass's, then the cards in loadout order, which
+    // is the order a sheet lists them.
+    expect(names(demo, 'kara')).toEqual([
+      'sentinel-drilled',
+      'sentinel-hold-fast',
+      'shieldbearer-set-feet',
+      'power-slash',
+      'iron-stance',
+      'rally-the-line',
+    ]);
+    expect(names(demo, 'finn')).toEqual(['cutpurse-slip-away', 'lampsnuffer-softstep', 'quick-hands', 'backstab']);
     expect(names(demo, 'mira')).toEqual([
-      'wizard-not-this-time',
-      'book-of-ava-power-push',
-      'book-of-ava-tavas-armor',
-      'book-of-ava-ice-spike',
-      'rune-ward',
+      'emberwright-bank-the-coals',
+      'flamecaller-emberflow',
+      'arcane-ward',
+      'healing-word',
     ]);
   });
 
-  it("shows the SRD's words and says why a card is greyed out", () => {
+  it('shows the card\'s words and says why it is greyed out', () => {
     const demo = scene();
     const list = abilityList(demo, 'kara');
-    const tank = list.find((v) => v.ability.id === 'guardian-frontline-tank')!;
-    expect(tank.text).toContain('Spend 3 Hope to clear 2 Armor Slots');
-    expect(tank.usable).toBe(false);
-    expect(tank.reason).toBe('needs 3 Hope');
-    const bones = list.find((v) => v.ability.id === 'bare-bones')!;
-    expect(bones.reason).toBe('always on');
-    expect(bones.text).toContain('Armor Score');
+    const hope = list.find((v) => v.ability.id === 'sentinel-hold-fast')!;
+    expect(hope.text).toContain('Spend 3 Hope to clear 2 Armor Slots');
+    expect(hope.usable).toBe(false);
+    expect(hope.reason).toBe('needs 3 Hope');
+    // And a passive, which is never usable for a different reason.
+    const passive = list.find((v) => v.ability.id === 'sentinel-drilled')!;
+    expect(passive.reason).toBe('always on');
+    expect(passive.text).toContain('Armor Score');
   });
 });
 

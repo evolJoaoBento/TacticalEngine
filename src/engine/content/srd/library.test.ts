@@ -117,9 +117,20 @@ const EXPECTED_REFUSALS: ReadonlyMap<string, string> = new Map([
   ['book-of-sitil-echo-strikes', 'no attack roll to lay against a second target until a swing has been made'],
   ['strategic-approach', 'no tokens on the card until a long rest places them'],
   ['invisibility-spends', 'nothing to spend until the spell has been cast on somebody'],
-  ['green-ooze-split', 'splits into a variant the adversary set does not index'],
-  ['red-ooze-split', 'splits into a variant the adversary set does not index'],
-  ['huge-green-ooze-split', 'splits into a variant the adversary set does not index'],
+  ['arch-necromancer-open-the-gates-of-death', 'summons a creature the adversary set does not index'],
+  ['fallen-warlord-realm-breaker-i-have-never-known-defeat', 'summons a creature the adversary set does not index'],
+  ['fallen-warlord-undefeated-champion-endless-legions', 'summons a creature the adversary set does not index'],
+  ['giant-beastmaster-deadly-companion', 'summons a creature the adversary set does not index'],
+  ['green-ooze-split', 'summons a creature the adversary set does not index'],
+  ['head-vampire-the-hunt-is-on', 'summons a creature the adversary set does not index'],
+  ['huge-green-ooze-split', 'summons a creature the adversary set does not index'],
+  ['jagged-knife-lieutenant-more-where-that-came-from', 'summons a creature the adversary set does not index'],
+  ['petty-noble-guards-seize-them', 'summons a creature the adversary set does not index'],
+  ['pirate-captain-reinforcements', 'summons a creature the adversary set does not index'],
+  ['red-ooze-split', 'summons a creature the adversary set does not index'],
+  ['secret-keeper-fallen-hounds', 'summons a creature the adversary set does not index'],
+  ['volcanic-dragon-molten-scourge-ashen-vengeance', 'summons a creature the adversary set does not index'],
+  ['volcanic-dragon-obsidian-predator-erupting-rage', 'summons a creature the adversary set does not index'],
 ]);
 
 const husk = (id: string, difficulty: number): AdversaryDef => ({
