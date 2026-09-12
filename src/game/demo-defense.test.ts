@@ -368,73 +368,208 @@ describe('a card that reads its own holder', () => {
 });
 
 describe('conditions with modifiers', () => {
-  it("Rogue's Dodge raises Evasion until an attack lands, then ends", () => {
+  /**
+   * Two cards whose whole effect is a condition that changes a number on the
+   * sheet: one raises Evasion until the next blow lands, the other is worth an
+   * Armor Slot until a rest.
+   *
+   * The first keeps its `available` gate, because one test spends the cost
+   * twice and expects the second to be refused for the condition already being
+   * there rather than for the Hope.
+   *
+   * The second moves rather than stacks: it clears itself from the whole party
+   * before applying, which is what lets a test put it on one person, then
+   * another, and watch the first one's slot go back.
+   */
+  const DODGE_CARD = 'fixture-card-46';
+  const WORN_CARD = 'fixture-card-47';
+
+  const DODGING_CONDITION = {
+    id: 'fixture-dodging',
+    name: 'Dodging',
+    text: '+2 to your Evasion until the next time an attack succeeds against you.',
+    modifiers: [{ stat: 'evasion', bonus: 2 }],
+    endsWhen: 'hit',
+  };
+
+  const WORN_CONDITION = {
+    id: 'fixture-worn',
+    name: 'Borrowed Plate',
+    text: '+1 to your Armor Score until your next rest.',
+    modifiers: [{ stat: 'armorScore', bonus: 1 }],
+  };
+
+  const MODIFIERS = [
+    {
+      id: 'fixture-dodge',
+      name: 'Give Them Nothing',
+      source: { kind: 'domainCard', card: DODGE_CARD },
+      text: 'Spend three Hope to be harder to hit until somebody manages it.',
+      cost: { hope: 3 },
+      action: false,
+      // Not twice over: the second use is refused for this rather than for the
+      // Hope, which one test spends again to prove.
+      available: { kind: 'not', of: { kind: 'hasCondition', condition: 'fixture-dodging', of: { kind: 'actor' } } },
+      effects: [{ kind: 'applyCondition', condition: 'fixture-dodging', duration: 'rest', target: { kind: 'actor' } }],
+    },
+    {
+      id: 'fixture-worn-armor',
+      name: 'Borrowed Plate',
+      source: { kind: 'domainCard', card: WORN_CARD },
+      text: 'Spend a Hope to put something of yours around somebody beside you.',
+      cost: { hope: 1 },
+      target: { kind: 'ally', range: 'melee' },
+      effects: [
+        // It moves rather than stacks.
+        { kind: 'clearCondition', condition: 'fixture-worn', target: { kind: 'party' } },
+        { kind: 'applyCondition', condition: 'fixture-worn', duration: 'rest', target: { kind: 'target' } },
+      ],
+    },
+  ];
+
+  const carry = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const condition of [DODGING_CONDITION, WORN_CONDITION]) {
+      demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
+    }
+    for (const ability of MODIFIERS) demo.project.abilities.push(abilitySchema.parse(ability));
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('a carried card raises Evasion until an attack lands, then ends', () => {
     const demo = scene();
     const finn = demo.state.entity('finn')!;
+    carry(demo, 'finn', [DODGE_CARD]);
     finn.hope = { max: 6, value: 3 };
     const before = demo.world.defenderOf(finn).difficulty;
-    expect(useAbility(demo, 'finn', 'rogue-rogues-dodge').status).toBe('done');
-    expect(finn.conditions.has('dodging')).toBe(true);
+    expect(useAbility(demo, 'finn', 'fixture-dodge').status).toBe('done');
+    expect(finn.conditions.has('fixture-dodging')).toBe(true);
     expect(demo.world.defenderOf(finn).difficulty).toBe(before + 2);
     // Twice is refused: the condition is already there.
     finn.hope = { max: 6, value: 3 };
-    expect(useAbility(demo, 'finn', 'rogue-rogues-dodge').status).toBe('refused');
-    expect(demo.world.endsOnHit('finn')).toEqual(['dodging']);
+    expect(useAbility(demo, 'finn', 'fixture-dodge').status).toBe('refused');
+    expect(demo.world.endsOnHit('finn')).toEqual(['fixture-dodging']);
     expect(demo.world.defenderOf(finn).difficulty).toBe(before);
   });
 
-  it("Tava's Armor adds an Armor Slot to whoever wears it until a rest", () => {
+  it('a carried card is worth an Armor Slot to whoever wears it, until a rest', () => {
     const demo = scene();
     const kara = demo.state.entity('kara')!;
     const mira = demo.state.entity('mira')!;
+    carry(demo, 'mira', [WORN_CARD]);
     demo.state.moveEntity('mira', demo.grid.indexOf(demo.grid.xOf(kara.tile) + 1, demo.grid.yOf(kara.tile)));
     mira.hope = { max: 6, value: 2 };
     const max = kara.armorSlots.max;
-    expect(useAbility(demo, 'mira', 'book-of-ava-tavas-armor', ['kara']).status).toBe('done');
-    expect(kara.conditions.has('tavas-armor')).toBe(true);
+    expect(useAbility(demo, 'mira', 'fixture-worn-armor', ['kara']).status).toBe('done');
+    expect(kara.conditions.has('fixture-worn')).toBe(true);
     expect(kara.armorSlots.max).toBe(max + 1);
     // Cast on Mira instead: Kara's goes, Mira's comes.
     mira.hope = { max: 6, value: 2 };
-    expect(useAbility(demo, 'mira', 'book-of-ava-tavas-armor', ['mira']).status).toBe('done');
+    expect(useAbility(demo, 'mira', 'fixture-worn-armor', ['mira']).status).toBe('done');
     expect(kara.armorSlots.max).toBe(max);
     expect(mira.armorSlots.max).toBe(demo.characters.get('mira')!.armorScore + 1);
     // A rest ends it.
     expect(rest(demo, 'short', { moves: {} }).ok).toBe(true);
-    expect(mira.conditions.has('tavas-armor')).toBe(false);
+    expect(mira.conditions.has('fixture-worn')).toBe(false);
     expect(mira.armorSlots.max).toBe(demo.characters.get('mira')!.armorScore);
     syncPools(demo);
   });
 });
 
 describe('reactions when a hit lands', () => {
-  it('Get Back Up and Iron Will answer a Severe hit on Kara, automatically', () => {
+  /**
+   * Defence reactions: cards that carry a `reaction` rather than an effect
+   * list, and are read inside the defence rather than run afterwards.
+   *
+   * The order the first test asserts is the resolver's, not these cards'. Every
+   * armour reaction is applied, then the damage is resolved, then every
+   * severity reaction -- so the armour one is always journalled first whatever
+   * order they were written in.
+   *
+   * None of them says `auto: false`: the test's word is automatically, and an
+   * offered reaction is never taken by a script.
+   */
+  const SLOT_CARD = 'fixture-card-43';
+  const SHRUG_CARD = 'fixture-card-44';
+  const WARD_CARD = 'fixture-card-45';
+
+  const DEFENCES = [
+    {
+      id: 'fixture-second-slot',
+      name: 'Second Slot',
+      source: { kind: 'domainCard', card: SLOT_CARD },
+      text: 'Long practice in armour: a physical blow can cost you one slot more.',
+      kind: 'reaction',
+      trigger: 'incomingDamage',
+      action: false,
+      reaction: { kind: 'extraArmor', slots: 1, only: 'physical' },
+    },
+    {
+      id: 'fixture-shrug-off',
+      name: 'Shrug It Off',
+      source: { kind: 'domainCard', card: SHRUG_CARD },
+      text: 'Mark a Stress to take the worst of a bad wound off it.',
+      kind: 'reaction',
+      trigger: 'incomingDamage',
+      cost: { stress: 1 },
+      action: false,
+      reaction: { kind: 'reduceSeverity', steps: 1, only: 'severe' },
+    },
+    {
+      id: 'fixture-warding-die',
+      name: 'Warding Die',
+      source: { kind: 'domainCard', card: WARD_CARD },
+      text: 'Spend a Hope to put a die between you and the blow.',
+      kind: 'reaction',
+      trigger: 'incomingDamage',
+      cost: { hope: 1 },
+      action: false,
+      reaction: { kind: 'reduceDamage', dice: '1d8' },
+    },
+  ];
+
+  const carry = (demo: DemoScene, who: string, cards: string[]): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of DEFENCES) demo.project.abilities.push(abilitySchema.parse(ability));
+    const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards };
+    demo.sheets.set(who, sheet);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
+    refreshWorld(demo);
+  };
+
+  it('two carried reactions answer a Severe hit on Kara, automatically', () => {
     const demo = scene();
     const kara = demo.state.entity('kara')!;
-    // 20 physical against 9/17 is Severe: the slot, Iron Will's second slot,
-    // and Get Back Up bring it to nothing.
+    carry(demo, 'kara', [SLOT_CARD, SHRUG_CARD]);
+    // 20 physical against 9/17 is Severe: the slot, the card's second slot,
+    // and the one that steps the band bring it to nothing.
     demo.scenario.actorId = 'mira';
     const journal = runScript([{ kind: 'damage', dice: '20 phy', target: { kind: 'entity', id: 'kara' } }], demo.world, demo.rng);
-    expect(journal.filter((e) => e.kind === 'defended').map((e) => (e.kind === 'defended' ? e.ability : ''))).toEqual(['Iron Will', 'Get Back Up']);
+    expect(journal.filter((e) => e.kind === 'defended').map((e) => (e.kind === 'defended' ? e.ability : ''))).toEqual(['Second Slot', 'Shrug It Off']);
     expect(kara.hitPoints.marked).toBe(0);
     expect(kara.armorSlots.marked).toBe(2);
     expect(kara.stress.marked).toBe(1);
   });
 
-  it('a Rune Ward spends a Hope on Mira when its die helps', () => {
+  it('a carried ward spends a Hope on Mira when its die helps', () => {
     const demo = scene();
     const mira = demo.state.entity('mira')!;
     mira.hope = { max: 6, value: 2 };
-    // Gambeson is 5/11 at level 1, 6/12: 13 is Severe. Try seeds until the d8
+    // The padded coat is 5/11 at level 1, 6/12: 13 is Severe. Try seeds until the d8
     // takes it under 12, which is any roll of 2 or more.
     for (let seed = 1; seed < 20; seed++) {
       const demo2 = scene(`ward-${seed}`);
       const m = demo2.state.entity('mira')!;
+      carry(demo2, 'mira', [WARD_CARD]);
       m.hope = { max: 6, value: 2 };
       demo2.scenario.actorId = 'kara';
       const journal = runScript([{ kind: 'damage', dice: '13 mag', target: { kind: 'entity', id: 'mira' } }], demo2.world, demo2.rng);
       const ward = journal.find((e) => e.kind === 'defended');
       if (ward === undefined) continue;
-      expect(ward).toMatchObject({ ability: 'Rune Ward', hopeSpent: 1 });
+      expect(ward).toMatchObject({ ability: 'Warding Die', hopeSpent: 1 });
       expect(m.hope!.value).toBe(1);
       expect(m.hitPoints.marked).toBeLessThan(3);
       return;
