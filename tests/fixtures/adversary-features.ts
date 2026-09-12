@@ -369,3 +369,104 @@ export const A_HUNGER_DRAWN_TO_A_WOUND = (definition: string): Record<string, un
     { kind: 'attack', target: { kind: 'hit' } },
   ],
 });
+
+/**
+ * A rain that everyone in reach has to answer for themselves.
+ *
+ * The damage is rolled ONCE, before anybody rolls to avoid it, and both branches
+ * spend that same number -- the successes halving it. That is the shape nearly
+ * every area attack is written in, and it is why the halves always match the roll
+ * rather than each being halved separately.
+ *
+ * The difficulty is a literal because it can only be one: `reactionRoll` takes a
+ * number or 'roll', and cannot read the acting creature's own Difficulty. Any
+ * test claiming otherwise is reading a coincidence.
+ */
+export const A_RAIN_THAT_EVERYONE_ANSWERS = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-rain-of-cinders`,
+  name: 'Rain of Cinders',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'It brings something down over everything in reach, and each of them answers for themselves.',
+  cost: { fear: 1 },
+  target: { kind: 'none', range: 'far' },
+  inCombatOnly: true,
+  effects: [
+    { kind: 'log', text: 'Cinders come down over everything in reach.', tone: 'combat' },
+    {
+      kind: 'reactionRoll',
+      difficulty: 14,
+      trait: 'agility',
+      targets: { kind: 'allies', range: 'far' },
+      damage: { dice: '1d20+3', type: 'magic' },
+      onFail: [{ kind: 'damage', dice: 'same' }],
+      onSuccess: [{ kind: 'damage', dice: 'same', half: true }],
+    },
+  ],
+});
+
+/**
+ * A call for more of them: three more blocks on the map, at range.
+ *
+ * Two parameters, because what it calls in is not the same as what calls: the
+ * summoned definition has to be a block the fight can actually index, and a
+ * specimen that guessed would simply never arrive.
+ */
+export const A_CALL_FOR_MORE_OF_THEM = (definition: string, summons: string): Record<string, unknown> => ({
+  id: `${definition}-plenty-more`,
+  name: 'Plenty More',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'There were always more of them than anyone counted.',
+  cost: { fear: 1 },
+  target: { kind: 'none' },
+  inCombatOnly: true,
+  effects: [{ kind: 'summon', adversary: summons, count: '3', range: 'far' }],
+});
+
+/**
+ * A rally: its own turn, and a Stress to hand two others a turn as well.
+ *
+ * The Stress is what makes this interesting. An ordinary second spotlight is
+ * bought with the GM's Fear and would be refused with an empty pool, so what this
+ * buys has to be honoured on its own terms -- which is the half a test pins by
+ * counting who acted and checking that nothing was billed beyond the first, free
+ * spotlight.
+ */
+export const A_RALLY_THAT_BUYS_TWO_TURNS = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-press-the-advantage`,
+  name: 'Press the Advantage',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'It spends its own breath putting two others where they will do the most harm.',
+  kind: 'reaction',
+  trigger: 'spotlighted',
+  cost: { stress: 1 },
+  target: { kind: 'none', range: 'close' },
+  inCombatOnly: true,
+  effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'close' }, count: '2' }],
+});
+
+/**
+ * Roots put down once, and then never again.
+ *
+ * The gate is the whole specimen: without it a creature that rooted itself would
+ * spend every other turn rooting again, because nothing it gains is visible to
+ * the thing choosing its next move. `not hasCondition` is how a feature says
+ * "there is nothing left here to do".
+ *
+ * Simplified: it stays where it is by choice rather than by rule. An adversary the
+ * engine holds still spends its spotlight tearing free, which would undo the
+ * feature every other turn.
+ */
+export const ROOTS_PUT_DOWN_ONCE = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-put-down-roots`,
+  name: 'Put Down Roots',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'It sets itself into the ground, and what is rooted is harder to move than to hit.',
+  cost: { stress: 1 },
+  target: { kind: 'self', range: 'melee' },
+  inCombatOnly: true,
+  available: { kind: 'not', of: { kind: 'hasCondition', condition: 'rooted', of: { kind: 'actor' } } },
+  effects: [
+    { kind: 'log', text: 'Roots go down into the stone.', tone: 'combat' },
+    { kind: 'applyCondition', condition: 'rooted', duration: 'scene', target: { kind: 'actor' } },
+  ],
+});

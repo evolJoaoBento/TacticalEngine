@@ -22,8 +22,11 @@ import {
 import { validateProject } from './validate';
 import { FIXTURE_ADVERSARIES } from '../../tests/fixtures/adversaries';
 import {
+  A_CALL_FOR_MORE_OF_THEM,
   A_HIDE_THAT_SHRUGS_OFF_STEEL,
   A_HUNGER_DRAWN_TO_A_WOUND,
+  A_RAIN_THAT_EVERYONE_ANSWERS,
+  A_RALLY_THAT_BUYS_TWO_TURNS,
   A_SPEND_GATED_ON_WHAT_THEY_CARRY,
   A_STORE_THAT_HOLDS_WHOEVER_IT_HIT,
   A_STORE_TORN_OFF_BY_A_REAL_WOUND,
@@ -33,6 +36,7 @@ import {
   AN_OVERLOAD_THAT_BUYS_ANOTHER_TURN,
   PLATE_THAT_ROLLS_WHAT_IT_TURNS,
   PLATE_THAT_TURNS_A_FLAT_AMOUNT,
+  ROOTS_PUT_DOWN_ONCE,
 } from '../../tests/fixtures/adversary-features';
 import { SRD_ABILITIES } from '../engine/content/srd/abilities';
 import { runScript } from '../engine/script/runner';
@@ -168,9 +172,10 @@ describe("a room with a stat block the engine did not write", () => {
     s.run(addSheet(characterSheetSchema.parse({ ...KARA, id: 'lio', name: 'Lio' })));
     s.run(setSpawns('hall', [{ x: 1, y: 3 }, { x: 1, y: 5 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'demon', name: 'A demon' })));
-    // The Minor Demon's Hellfire: a Fear, an Agility Reaction Roll from
-    // everyone within Far range, and magic damage on those who fail.
+    // The mechanism: a Fear, an Agility Reaction Roll from everyone within Far
+    // range, and magic damage on those who fail -- halved for those who do not.
     s.run(addAdversary('hall', 'demon', { id: 'demon-1', adversary: 'fixture-brute', position: { x: 5, y: 4 } }));
+    s.project.abilities.push(abilitySchema.parse(A_RAIN_THAT_EVERYONE_ANSWERS('fixture-brute')));
 
     const demo = buildProjectScene(s.project, 'hellfire');
     demo.askDefender = false;
@@ -180,10 +185,12 @@ describe("a room with a stat block the engine did not write", () => {
     let rained = false;
     for (let i = 0; i < 6 && !rained && demo.encounter?.outcome === 'ongoing'; i++) {
       endTurn(demo);
-      rained = demo.log.some((l) => l.text.includes('uses Hellfire'));
+      rained = demo.log.some((l) => l.text.includes('uses Rain of Cinders'));
     }
     expect(rained).toBe(true);
-    // Everyone it caught rolled against the block's own Difficulty of 14.
+    // Everyone it caught rolled against the 14 the feature names. It cannot be
+    // read off the creature: `reactionRoll` takes a literal or 'roll', so a test
+    // reading the two as the same number is reading a coincidence.
     const rolls = demo.log.map((l) => l.text).filter((t) => t.includes('reacts:'));
     expect(rolls.length).toBeGreaterThanOrEqual(2);
     expect(rolls[0]).toContain('against 14');
@@ -225,12 +232,13 @@ describe('a block that shrugs the party off', () => {
 });
 
 describe('a Lieutenant with more where that came from', () => {
-  it('calls three Lackeys onto the map, and they are in the fight from that moment', () => {
+  it('calls three more of them onto the map, and they are in the fight from that moment', () => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'thieves', name: 'Thieves' })));
     s.run(addAdversary('hall', 'thieves', { id: 'boss', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
+    s.project.abilities.push(abilitySchema.parse(A_CALL_FOR_MORE_OF_THEM('fixture-captain', 'fixture-runt')));
 
     const demo = buildProjectScene(s.project, 'knives');
     demo.askDefender = false;
@@ -241,19 +249,19 @@ describe('a Lieutenant with more where that came from', () => {
     let called = false;
     for (let i = 0; i < 4 && !called && demo.encounter?.outcome === 'ongoing'; i++) {
       endTurn(demo);
-      called = demo.log.some((l) => l.text.includes('uses More Where That Came From'));
+      called = demo.log.some((l) => l.text.includes('uses Plenty More'));
     }
     expect(called).toBe(true);
 
-    // Three Lackeys, on the map, off the shipped stat block.
+    // Three more of them, on the map, off the specimen the test carries.
     const now = demo.state.entitiesOf('adversary');
     expect(now.length).toBe(before + 3);
     const lackeys = now.filter((e) => e.definition === 'fixture-runt');
     expect(lackeys).toHaveLength(3);
     expect(demo.log.some((l) => l.text.includes('3 Runts arrive.'))).toBe(true);
 
-    // They are in the fight: the encounter waits on them, so killing the
-    // Lieutenant alone does not end it.
+    // They are in the fight: the encounter waits on them, so killing the one
+    // that called them does not end it.
     demo.state.entity('boss')!.alive = false;
     settleFight(demo);
     expect(demo.encounter!.outcome).toBe('ongoing');
@@ -262,7 +270,7 @@ describe('a Lieutenant with more where that came from', () => {
 });
 
 describe('a Leader buying its own side a turn', () => {
-  /** A Lieutenant and two Lackeys down the hall from Kara. */
+  /** A leader and two of its own down the hall from Kara. */
   const gang = (seed: string, fear: number) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -271,6 +279,7 @@ describe('a Leader buying its own side a turn', () => {
     s.run(addAdversary('hall', 'thieves', { id: 'boss', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
     s.run(addAdversary('hall', 'thieves', { id: 'knife-1', adversary: 'fixture-runt', position: { x: 7, y: 3 } }));
     s.run(addAdversary('hall', 'thieves', { id: 'knife-2', adversary: 'fixture-runt', position: { x: 7, y: 5 } }));
+    s.project.abilities.push(abilitySchema.parse(A_RALLY_THAT_BUYS_TWO_TURNS('fixture-captain')));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'thieves');
@@ -280,17 +289,17 @@ describe('a Leader buying its own side a turn', () => {
   };
 
   it('hands the spotlight to two allies on its own turn, with no Fear in the pool', () => {
-    // Not a single Fear: an ordinary second spotlight would be refused, and
-    // the turn would stop. "Mark a Stress to also spotlight two allies within
-    // Close range" pays in Stress, and what it buys has to be honoured.
+    // Not a single Fear: an ordinary second spotlight would be refused and the
+    // turn would stop. This one pays in Stress, and what a Stress buys has to be
+    // honoured on its own terms.
     const demo = gang('tactician', 0);
     const stress = demo.state.entity('boss')!.stress.marked;
     endTurn(demo);
 
-    expect(demo.log.some((l) => l.text.includes('uses Tactician'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('uses Press the Advantage'))).toBe(true);
     expect(demo.state.entity('boss')!.stress.marked).toBe(stress + 1);
 
-    // Both Lackeys acted, this turn, exactly once each.
+    // Both of the others acted, this turn, exactly once each.
     const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string }[];
     expect(acted.filter((e) => e.id === 'knife-1')).toHaveLength(1);
     expect(acted.filter((e) => e.id === 'knife-2')).toHaveLength(1);
@@ -304,9 +313,9 @@ describe('a Leader buying its own side a turn', () => {
     demo.state.entity('knife-2')!.alive = false;
     const stress = demo.state.entity('boss')!.stress.marked;
     endTurn(demo);
-    // A Lieutenant standing alone would otherwise bleed a Stress every turn
-    // for a rally nobody answers.
-    expect(demo.log.some((l) => l.text.includes('uses Tactician'))).toBe(false);
+    // One standing alone would otherwise bleed a Stress every turn for a rally
+    // nobody answers.
+    expect(demo.log.some((l) => l.text.includes('uses Press the Advantage'))).toBe(false);
     expect(demo.state.entity('boss')!.stress.marked).toBe(stress);
   });
 });
@@ -3188,6 +3197,7 @@ describe('a Treant that puts its roots down', () => {
     s.run(setSpawns('hall', [{ x: 3, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'grove', name: 'The grove' })));
     s.run(addAdversary('hall', 'grove', { id: 'treant-1', adversary: 'fixture-brute', position: { x: 4, y: 4 } }));
+    s.project.abilities.push(abilitySchema.parse(ROOTS_PUT_DOWN_ONCE('fixture-brute')));
 
     const demo = buildProjectScene(s.project, 'grove');
     demo.askDefender = false;
@@ -3196,9 +3206,9 @@ describe('a Treant that puts its roots down', () => {
     for (let i = 0; i < 4 && demo.encounter?.outcome === 'ongoing'; i++) endTurn(demo);
 
     const said = demo.log.map((l) => l.text);
-    // Once, because a Treant already rooted has nothing to gain by rooting
-    // again — and then it uses its turns on the party.
-    expect(said.filter((t) => t.includes('uses Take Root')).length).toBe(1);
+    // Once, because something already rooted has nothing to gain by rooting
+    // again -- and then it uses its turns on the party.
+    expect(said.filter((t) => t.includes('uses Put Down Roots')).length).toBe(1);
     expect(said.some((t) => t.includes('Kara'))).toBe(true);
     expect(demo.world.hasCondition('treant-1', 'rooted')).toBe(true);
   });
