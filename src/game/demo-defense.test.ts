@@ -12,11 +12,11 @@ import { adversaryTraits } from '../engine/combat/adversary-features';
 import type { DefenseChoice, HeldSwing, PendingDeath, PendingDefense } from './demo-scene';
 import type { EntityState } from '../engine/scene/state';
 import {
-  DEMO_CHARACTERS,
   adversaryDefOf,
   answerPending,
   attackWithSelected,
   buildDemoScene,
+  characterContentFor,
   defenseChoices,
   endTurn,
   refreshWorld,
@@ -26,6 +26,7 @@ import {
   type DemoScene,
 } from './demo-scene';
 import { restoreScenario, scenarioSnapshot, useKey } from '../engine/script/world';
+import { FIXTURE_CARDS, FIXTURE_DOMAIN_FOUR } from '../../tests/fixtures/adversaries';
 
 /**
  * Passives and reactions in play: what a held card changes on the sheet,
@@ -45,12 +46,12 @@ describe('passives on the sheet', () => {
     expect(kara.modifiers.some((m) => m.stat === 'bareBones')).toBe(false);
 
     const { armorId: _off, ...unarmored } = demo.sheets.get('kara')!;
-    const bare = deriveCharacter(unarmored, DEMO_CHARACTERS, demo.project.abilities).character;
+    const bare = deriveCharacter(unarmored, characterContentFor(demo.project), demo.project.abilities).character;
     // Tier 1: 9/19, plus level, plus Unwavering; Armor Score 3 + Strength 2.
     expect(bare.thresholds).toEqual({ major: 11, severe: 21 });
     expect(bare.armorScore).toBe(5);
     // Without the card it would be level / twice level, and no armor at all.
-    const plain = deriveCharacter({ ...unarmored, domainCards: ['get-back-up'] }, DEMO_CHARACTERS, demo.project.abilities).character;
+    const plain = deriveCharacter({ ...unarmored, domainCards: ['get-back-up'] }, characterContentFor(demo.project), demo.project.abilities).character;
     expect(plain.thresholds).toEqual({ major: 2, severe: 3 });
     expect(plain.armorScore).toBe(0);
   });
@@ -60,7 +61,7 @@ describe('passives on the sheet', () => {
     const sheet = demo.sheets.get('kara')!;
     const grown = { ...sheet, domainCards: ['bare-bones', 'body-basher'] };
     demo.sheets.set('kara', grown);
-    demo.characters.set('kara', deriveCharacter(grown, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(grown, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     // Body Basher: Strength (+2) to damage with a Melee weapon, and nothing at range.
     expect(demo.world.rollBonus('kara', 'damageRoll', { melee: true })).toBe(2);
@@ -80,26 +81,81 @@ describe('a card that reads its own holder', () => {
   const holding = (demo: DemoScene, cards: string[]): void => {
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
-  it('On the Brink is offered only while its holder is nearly out, whoever is attacking', () => {
+  /**
+   * A reaction offered only while its holder is nearly out. `available` reads
+   * a pool, and the pool it reads is the *holder's* — which is the whole point
+   * when somebody else is the one swinging.
+   */
+  const ON_THE_BRINK = {
+    id: 'fixture-on-the-brink',
+    name: 'On the Brink',
+    source: { kind: 'granted', characters: ['kara'] },
+    text: 'Nearly out, and the smallest blows stop telling.',
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    available: { kind: 'pool', pool: 'hitPoints', measure: 'available', op: '<=', value: 2 },
+    reaction: { kind: 'reduceSeverity', steps: 1, only: 'minor' },
+  };
+
+  /** A reaction whose effects are read from the holder's chair, not the attacker's. */
+  const SWIFT_STEP = {
+    id: 'fixture-swift-step',
+    name: 'Swift Step',
+    source: { kind: 'granted', characters: ['kara'] },
+    text: 'A blow that misses leaves them better off than it found them.',
+    kind: 'reaction',
+    trigger: 'attackMissed',
+    action: false,
+    effects: [
+      {
+        kind: 'branch',
+        when: { kind: 'pool', pool: 'stress', measure: 'marked', op: '>=', value: 1 },
+        then: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }],
+        otherwise: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }],
+      },
+    ],
+  };
+
+  /**
+   * The one kind of card a `granted` source cannot stand in for: its bonus is
+   * gated on what else is in the loadout, so there has to be a loadout to
+   * count. The card it sits on and the four it counts are the project's own.
+   */
+  const WELL_ARMED = {
+    id: 'fixture-well-armed',
+    name: 'Well Armed',
+    source: { kind: 'domainCard', card: 'fixture-card-5' },
+    text: 'Carrying enough of a kind, its holder is harder to put down.',
+    kind: 'passive',
+    action: false,
+    modifiers: [
+      { stat: 'attackRoll', bonus: 2, when: { kind: 'loadout', domain: 'fixture', op: '>=', value: 4 } },
+      { stat: 'severeThreshold', bonus: 4, when: { kind: 'loadout', domain: 'fixture', op: '>=', value: 4 } },
+    ],
+  };
+
+  it('is offered only while its holder is nearly out, whoever is attacking', () => {
     const demo = scene();
-    holding(demo, ['on-the-brink']);
+    demo.project.abilities.push(abilitySchema.parse(ON_THE_BRINK));
+    holding(demo, []);
     const kara = demo.state.entity('kara')!;
     // The GM's turn is on, so the actor is an adversary: the card still has to
     // read Kara's Hit Points and not the husk's.
     demo.scenario.actorId = demo.state.entitiesOf('adversary')[0]!.id;
 
-    // Kara's subclass brings Iron Will along; this is about the one card.
+    // Her own subclass features are read here too; this is about the one card.
     const offered = (): string[] =>
-      demo.world.reactionsFor('kara', 'incomingDamage').map((a) => a.id).filter((id) => id === 'on-the-brink');
+      demo.world.reactionsFor('kara', 'incomingDamage').map((a) => a.id).filter((id) => id === 'fixture-on-the-brink');
 
     kara.hitPoints = { max: 6, marked: 3 };
     expect(offered()).toEqual([]);
     kara.hitPoints = { max: 6, marked: 4 };
-    expect(offered()).toEqual(['on-the-brink']);
+    expect(offered()).toEqual(['fixture-on-the-brink']);
 
     // And it does what it says: with no Armor Slots left to hide behind,
     // Minor damage marks nothing at all.
@@ -109,9 +165,10 @@ describe('a card that reads its own holder', () => {
     expect(demo.world.dealDamage('kara', { amount: 1, types: ['physical'] }, demo.rng).hpMarked).toBe(1);
   });
 
-  it("Swift Step clears its holder's Stress, not the attacker's", () => {
+  it("clears its holder's Stress, not the attacker's", () => {
     const demo = scene();
-    holding(demo, ['swift-step']);
+    demo.project.abilities.push(abilitySchema.parse(SWIFT_STEP));
+    holding(demo, []);
     const kara = demo.state.entity('kara')!;
     kara.stress = { max: 6, marked: 2 };
     const husk = demo.state.entitiesOf('adversary')[0]!;
@@ -129,14 +186,19 @@ describe('a card that reads its own holder', () => {
     expect(demo.state.entity(husk.id)!.stress.marked).toBe(3);
   });
 
-  it("Blade-Touched raises its holder's Severe threshold while an adversary is the one acting", () => {
+  it("raises its holder's Severe threshold while an adversary is the one acting", () => {
     const demo = scene();
-    const blade = ['whirlwind', 'not-good-enough', 'i-am-your-shield', 'reckless'];
-    holding(demo, ['blade-touched']);
+    // The cards are the project's: what is under test is a bonus counted off
+    // the loadout, so the loadout has to have something in it to count.
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.abilities.push(abilitySchema.parse(WELL_ARMED));
+
+    holding(demo, ['fixture-card-5']);
     const alone = demo.world.defenderOf(demo.state.entity('kara')!).thresholds.severe;
-    holding(demo, [...blade, 'blade-touched']);
+
+    holding(demo, [...FIXTURE_DOMAIN_FOUR, 'fixture-card-5']);
     demo.scenario.actorId = demo.state.entitiesOf('adversary')[0]!.id;
-    // Four Blade cards in the loadout beside it: the bonus holds when it is
+    // Four of a kind in the loadout beside it: the bonus holds when it is
     // read, which is while somebody else is swinging.
     expect(demo.world.defenderOf(demo.state.entity('kara')!).thresholds.severe).toBe(alone + 4);
   });
@@ -389,7 +451,7 @@ describe('an ally interrupting', () => {
     const demo = standoff('shield');
     // Finn holds the card and stands beside Kara.
     demo.sheets.set('finn', { ...demo.sheets.get('finn')!, domainCards: ['i-am-your-shield'], loadout: ['i-am-your-shield'] });
-    demo.characters.set('finn', deriveCharacter(demo.sheets.get('finn')!, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('finn', deriveCharacter(demo.sheets.get('finn')!, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     standBehind(demo, 'finn', demo.state.entitiesOf('adversary').find((e) => e.alive)!.tile);
     // Spit Acid catches the whole party; Finn has to still be standing when a
@@ -447,7 +509,7 @@ describe('answering a miss', () => {
     const demo = standoff('vanish');
     const sheet = { ...demo.sheets.get('kara')!, domainCards: ['vanishing-dodge'], loadout: ['vanishing-dodge'] };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.state.entity('kara')!.hope = { max: 6, value: 6 };
 
@@ -901,7 +963,7 @@ describe("the party's own answer to a blow", () => {
     const sheet = demo.sheets.get('kara')!;
     const grown = { ...sheet, domainCards: [...cards], loadout: [...cards] };
     demo.sheets.set('kara', grown);
-    demo.characters.set('kara', deriveCharacter(grown, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(grown, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     syncPools(demo);
     return demo;
@@ -914,10 +976,66 @@ describe("the party's own answer to a blow", () => {
     return foe.id;
   };
 
+  /**
+   * A card played in answer to a blow that already landed. The question put to
+   * the player is whether to spend, so it is offered rather than taken — and
+   * nothing is spent while the question stands.
+   */
+  const HEALING_STRIKE = {
+    id: 'fixture-healing-strike',
+    name: 'Healing Strike',
+    source: { kind: 'granted', characters: ['kara'] },
+    text: 'Having hurt something, its holder may spend to mend somebody nearby.',
+    kind: 'reaction',
+    trigger: 'dealtDamage',
+    cost: { hope: 2 },
+    action: false,
+    target: { kind: 'ally', range: 'close' },
+    effects: [{ kind: 'heal', amount: 1, target: { kind: 'allies', range: 'close', nearest: 1 } }],
+  };
+
+  /**
+   * Two halves on one card, and the reason it has to be a card rather than
+   * something granted: the standing bonus is read off the loadout the card
+   * sits in, while the Stress it clears is automatic — nothing about it is a
+   * decision, so nobody is asked.
+   */
+  const RISE_UP = {
+    id: 'fixture-rise-up',
+    name: 'Rise Up',
+    source: { kind: 'domainCard', card: 'fixture-card-5' },
+    text: 'Harder to put down, and shaking off what the blow cost as it comes.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    modifiers: [{ stat: 'severeThreshold', plusProficiency: true }],
+    effects: [{ kind: 'clearStress', target: { kind: 'actor' } }],
+  };
+
+  /** Both fixtures, and the card the second one sits on. */
+  const carry = (demo: DemoScene, ability: Record<string, unknown>): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.abilities.push(abilitySchema.parse(ability));
+  };
+
+  /**
+   * Re-derive after carrying something, since `holding` ran before the project
+   * had it. A granted ability needs no card; one that sits on a card is named.
+   */
+  const holdingAgain = (demo: DemoScene, cards: readonly string[] = []): void => {
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: [...cards], loadout: [...cards] };
+    demo.sheets.set('kara', sheet);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
+    refreshWorld(demo);
+    syncPools(demo);
+  };
+
   it('asks before it spends the Hope, and spends it only when the answer is yes', () => {
     // "When you deal damage to an adversary, you can spend 2 Hope to clear a
     // Hit Point on an ally within Close range."
-    const demo = holding(['healing-strike'], 'healing-yes');
+    const demo = holding([], 'healing-yes');
+    carry(demo, HEALING_STRIKE);
+    holdingAgain(demo);
     const foe = foeOf(demo);
     const mira = demo.state.entity('mira')!;
     mira.hitPoints = { max: mira.hitPoints.max, marked: 2 };
@@ -934,7 +1052,7 @@ describe("the party's own answer to a blow", () => {
     const waiting = demo.pending;
     expect(waiting?.kind).toBe('reaction');
     if (waiting?.kind !== 'reaction') throw new Error('nothing was offered');
-    expect(waiting.offers.map((o) => o.ability.id)).toEqual(['healing-strike']);
+    expect(waiting.offers.map((o) => o.ability.id)).toEqual(['fixture-healing-strike']);
     // Nothing has been spent while the question stands.
     expect(demo.state.entity('kara')!.hope!.value).toBe(6);
 
@@ -945,7 +1063,9 @@ describe("the party's own answer to a blow", () => {
   });
 
   it('lets it pass without spending anything', () => {
-    const demo = holding(['healing-strike'], 'healing-no');
+    const demo = holding([], 'healing-no');
+    carry(demo, HEALING_STRIKE);
+    holdingAgain(demo);
     const foe = foeOf(demo);
     const mira = demo.state.entity('mira')!;
     mira.hitPoints = { max: mira.hitPoints.max, marked: 2 };
@@ -968,7 +1088,9 @@ describe("the party's own answer to a blow", () => {
   it('never offers a card the table is not being asked about', () => {
     // The demo deciding for the party: an optional card is not played, because
     // spending somebody's Hope for them is worse than letting the moment pass.
-    const demo = holding(['healing-strike'], 'healing-quiet');
+    const demo = holding([], 'healing-quiet');
+    carry(demo, HEALING_STRIKE);
+    holdingAgain(demo);
     demo.askDefender = false;
     const foe = foeOf(demo);
     const mira = demo.state.entity('mira')!;
@@ -987,7 +1109,9 @@ describe("the party's own answer to a blow", () => {
   it('clears the Stress on its own, because nothing about it is a decision', () => {
     // "Gain a bonus to your Severe threshold equal to your Proficiency. When
     // you mark 1 or more Hit Points from an attack, clear a Stress."
-    const demo = holding(['rise-up'], 'rise-up');
+    const demo = holding([], 'rise-up');
+    carry(demo, RISE_UP);
+    holdingAgain(demo, ['fixture-card-5']);
     demo.askDefender = false;
     const kara = demo.state.entity('kara')!;
     kara.stress = { max: kara.stress.max, marked: 2 };
@@ -1006,7 +1130,9 @@ describe("the party's own answer to a blow", () => {
     // The free half of Rise Up runs inside the GM's own swing, which is a
     // place a script must not restart the turn it is standing in: the GM has
     // adversaries left to spotlight, and they are the caller's to play.
-    const demo = holding(['rise-up'], 'rise-up-mid-turn');
+    const demo = holding([], 'rise-up-mid-turn');
+    carry(demo, RISE_UP);
+    holdingAgain(demo, ['fixture-card-5']);
     demo.askDefender = false;
     const kara = demo.state.entity('kara')!;
     kara.hitPoints = { max: 40, marked: 0 };
@@ -1034,10 +1160,15 @@ describe("the party's own answer to a blow", () => {
     // between them is "a bonus to your Severe threshold equal to your
     // Proficiency".
     const demo = scene('sheet');
+    carry(demo, RISE_UP);
     const cards = demo.project.abilities;
     const sheet = { ...demo.sheets.get('kara')!, domainCards: [], loadout: [] };
-    const plain = deriveCharacter(sheet, DEMO_CHARACTERS, cards).character;
-    const risen = deriveCharacter({ ...sheet, domainCards: ['rise-up'], loadout: ['rise-up'] }, DEMO_CHARACTERS, cards).character;
+    const plain = deriveCharacter(sheet, characterContentFor(demo.project), cards).character;
+    const risen = deriveCharacter(
+      { ...sheet, domainCards: ['fixture-card-5'], loadout: ['fixture-card-5'] },
+      characterContentFor(demo.project),
+      cards,
+    ).character;
     expect(risen.proficiency).toBeGreaterThan(0);
     expect(risen.thresholds.severe).toBe(plain.thresholds.severe + risen.proficiency);
     expect(risen.thresholds.major).toBe(plain.thresholds.major);
@@ -1052,7 +1183,7 @@ describe('a bonus the card counts out for itself', () => {
     const sheet = demo.sheets.get('kara')!;
     const grown = { ...sheet, domainCards: [...cards], loadout: [...cards] };
     demo.sheets.set('kara', grown);
-    demo.characters.set('kara', deriveCharacter(grown, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(grown, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     syncPools(demo);
     return demo;
@@ -1068,7 +1199,7 @@ describe('a bonus the card counts out for itself', () => {
     expect(demo.world.poolBonus('kara', 'evasion')).toBe(3);
     // The sheet is where the fight is not: a token is scene state, and a
     // character derived again finds the same Evasion it always had.
-    expect(deriveCharacter(demo.sheets.get('kara')!, DEMO_CHARACTERS, demo.project.abilities).character.evasion).toBe(derived);
+    expect(deriveCharacter(demo.sheets.get('kara')!, characterContentFor(demo.project), demo.project.abilities).character.evasion).toBe(derived);
   });
 
   it('places a token for each Hit Point the blow marked, and none for a blow that marked nothing', () => {
@@ -1271,7 +1402,7 @@ describe('answering a miss', () => {
     const demo = standoff('riposte');
     const sheet = { ...demo.sheets.get('kara')!, domainCards: ['rapid-riposte'], loadout: ['rapid-riposte'] };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
 
     // A second card of Kara's, gated on a mark the attacker does not carry.
@@ -1335,7 +1466,7 @@ describe('a card that answers the blow in its own words', () => {
   const holding = (demo: DemoScene, cards: string[]): void => {
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -1525,7 +1656,7 @@ describe('what a card leaves on its holder', () => {
   const holding = (demo: DemoScene, cards: string[]): void => {
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -1754,7 +1885,7 @@ describe('a death move', () => {
       // And the character was re-derived over it, so a fresh scene is short a
       // Hope without anybody writing the pool by hand.
       expect(demo.characters.get('kara')!.hope.max).toBe(slots - 1);
-      expect(deriveCharacter({ ...sheet, scars: 1 }, DEMO_CHARACTERS, demo.project.abilities).character.hope.max).toBe(slots - 1);
+      expect(deriveCharacter({ ...sheet, scars: 1 }, characterContentFor(demo.project), demo.project.abilities).character.hope.max).toBe(slots - 1);
 
       // "They return to consciousness when an ally clears 1 or more of their
       // marked Hit Points."
@@ -1886,7 +2017,7 @@ describe('a death move', () => {
   const carrying = (demo: DemoScene, cards: string[]): void => {
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -2015,7 +2146,7 @@ describe('a card with a limit on it, answering something', () => {
   const hold = (demo: DemoScene, cards: string[]): void => {
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -2079,7 +2210,7 @@ describe('a swing that missed', () => {
   const hold = (demo: DemoScene, cards: string[]): void => {
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -2154,7 +2285,7 @@ describe('a swing that missed', () => {
     const sheet = demo.sheets.get('kara')!;
     // Proficiency 1 halves to 1: a die is a die.
     expect(demo.world.proficiencyOf('kara')).toBe(1);
-    const one = deriveCharacter({ ...sheet, proficiency: 5 }, DEMO_CHARACTERS, demo.project.abilities).character;
+    const one = deriveCharacter({ ...sheet, proficiency: 5 }, characterContentFor(demo.project), demo.project.abilities).character;
     demo.characters.set('kara', one);
     demo.sheets.set('kara', one.sheet);
     refreshWorld(demo);
@@ -2179,7 +2310,7 @@ describe('a swing lifted, and a swing that names its own number', () => {
   const hold = (demo: DemoScene, cards: string[]): void => {
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -2274,7 +2405,7 @@ describe('a card that moves before it swings', () => {
   const hold = (demo: DemoScene, cards: string[]): void => {
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -2492,7 +2623,7 @@ describe('a run in a straight line', () => {
   const hold = (demo: DemoScene, cards: string[]): void => {
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -2582,7 +2713,7 @@ describe('what a charge runs over', () => {
   const holds = (demo: DemoScene, cards: string[]): void => {
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -2710,7 +2841,7 @@ describe('the same blow again', () => {
   const gives = (demo: DemoScene, id: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(id)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(id, sheet);
-    demo.characters.set(id, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(id, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -2838,7 +2969,7 @@ describe('a smite held back for the next blow', () => {
     // character that differs, and the two blows would not be comparable.
     const sheet = { ...demo.sheets.get('kara')!, domainCards: ['smite'], loadout: ['smite'] };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.state.entity('kara')!.hope = { max: 6, value: 6 };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -2948,12 +3079,12 @@ describe('a shell of light over somebody', () => {
     );
     const sheet = { ...demo.sheets.get('mira')!, domainCards: ['shield-aura'], loadout: ['shield-aura'] };
     demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     // Kara's own cards come off: Iron Will and Get Back Up answer a blow the
     // same way the aura does, and what is under test is the aura.
     const hers = { ...demo.sheets.get('kara')!, domainCards: [], loadout: [] };
     demo.sheets.set('kara', hers);
-    demo.characters.set('kara', deriveCharacter(hers, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(hers, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
     demo.state.entity('kara')!.hitPoints = { max: 20, marked: 0 };
@@ -3095,7 +3226,7 @@ describe('a word in the wrong ear', () => {
 
     const sheet = { ...demo.sheets.get('mira')!, domainCards: ['words-of-discord'], loadout: ['words-of-discord'] };
     demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     return { demo, husk, other };
   };
@@ -3224,7 +3355,7 @@ describe('a shout the next one hears', () => {
     demo.state.moveEntity('finn', stand);
     const sheet = { ...demo.sheets.get('kara')!, domainCards: ['lead-by-example'], loadout: ['lead-by-example'] };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     return { demo, husk };
   };
@@ -3352,7 +3483,7 @@ describe('a shout the next one hears', () => {
       );
       const his = { ...demo.sheets.get('finn')!, domainCards: ['rune-ward'], loadout: ['rune-ward'] };
       demo.sheets.set('finn', his);
-      demo.characters.set('finn', deriveCharacter(his, DEMO_CHARACTERS, demo.project.abilities).character);
+      demo.characters.set('finn', deriveCharacter(his, characterContentFor(demo.project), demo.project.abilities).character);
       refreshWorld(demo);
       if (!shout(demo, husk.id)) continue;
 
@@ -3421,7 +3552,7 @@ describe('one swing through all of them', () => {
     demo.state.moveEntity(other.id, stand);
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.state.entity('kara')!.hope = { max: 6, value: 6 };
     return { demo, husk, other };
@@ -3489,7 +3620,7 @@ describe('a step across the room without crossing it', () => {
     standBehind(demo, 'mira', husk.tile);
     const sheet = { ...demo.sheets.get('mira')!, domainCards: ['blink-out'], loadout: ['blink-out'] };
     demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.state.entity('mira')!.hope = { max: 6, value: 6 };
     demo.party.select('mira');
@@ -3663,7 +3794,7 @@ describe('a line of light down the room', () => {
     demo.askDefender = false;
     const sheet = { ...demo.sheets.get('mira')!, domainCards: ['salvation-beam'], loadout: ['salvation-beam'] };
     demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.state.entity('mira')!.stress = { max: 6, marked: 0 };
     demo.party.select('mira');
@@ -3918,11 +4049,11 @@ describe('ground worth standing on', () => {
     demo.askDefender = false;
     const sheet = { ...demo.sheets.get('mira')!, domainCards: ['zone-of-protection'], loadout: ['zone-of-protection'] };
     demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     // Kara's own cards come off: what is under test is what the ground does.
     const hers = { ...demo.sheets.get('kara')!, domainCards: [], loadout: [] };
     demo.sheets.set('kara', hers);
-    demo.characters.set('kara', deriveCharacter(hers, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(hers, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.party.select('mira');
     return demo;
@@ -4019,7 +4150,7 @@ describe('a room put out', () => {
     demo.askDefender = false;
     const sheet = { ...demo.sheets.get('mira')!, domainCards: ['eclipse'], loadout: ['eclipse'] };
     demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     // The dark reaches Far from where she stands, so she stands with them.
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -4140,7 +4271,7 @@ describe('half of what somebody is', () => {
       loadout: cards,
     };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     return demo;
   };
@@ -4179,7 +4310,7 @@ describe('a sigil that answers a fall', () => {
     standBehind(demo, 'mira', husk.tile);
     const sheet = { ...demo.sheets.get('mira')!, domainCards: ['life-ward'], loadout: ['life-ward'] };
     demo.sheets.set('mira', sheet);
-    demo.characters.set('mira', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.state.entity('mira')!.hope = { max: 6, value: 6 };
     if (on !== null) {
@@ -4258,7 +4389,7 @@ describe('a throw worth making again', () => {
     husk.hitPoints = { max: 90, marked: 0 };
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.party.select('kara');
     return { demo, husk };
@@ -4324,7 +4455,7 @@ describe('the next one', () => {
     demo.state.moveEntity('finn', stand);
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
     demo.sheets.set('kara', sheet);
-    demo.characters.set('kara', deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
     demo.party.select('kara');
     return { demo, husk };
@@ -4469,7 +4600,7 @@ describe('a card that charges the one who swings', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -4594,7 +4725,7 @@ describe('a card that moves the room', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -4713,7 +4844,7 @@ describe('a card that throws the dice again', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -4863,7 +4994,7 @@ describe('a bonus on every action roll', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -4951,7 +5082,7 @@ describe('a circle burnt into the floor', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -5073,7 +5204,7 @@ describe('a stance that holds the ground around it', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -5192,7 +5323,7 @@ describe('a swing that reaches one more', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -5300,7 +5431,7 @@ describe('the last of the Codex', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -5499,7 +5630,7 @@ describe('the weather, and the thing that wears it', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -5621,7 +5752,7 @@ describe('a card that saves a roll already made', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -5727,7 +5858,7 @@ describe('a Hope Die that is not a d12', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -5812,7 +5943,7 @@ describe('coming at them well, and knowing them', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -5948,7 +6079,7 @@ describe('out of sight, and under the skin', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -6055,7 +6186,7 @@ describe('asking for somebody back', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -6125,7 +6256,7 @@ describe('a check the room can answer', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -6234,7 +6365,7 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -6307,7 +6438,7 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
 
     // What it leaves is read live: a threshold as a blow arrives, a pool when
     // the pools are next squared up.
-    const base = deriveCharacter(demo.sheets.get('kara')!, DEMO_CHARACTERS, demo.project.abilities).character;
+    const base = deriveCharacter(demo.sheets.get('kara')!, characterContentFor(demo.project), demo.project.abilities).character;
     expect(demo.world.defenderOf(kara).thresholds.major).toBe(base.thresholds.major + 2);
     syncPools(demo);
     expect(kara.stress.max).toBe(stress + 1);
@@ -6329,7 +6460,7 @@ describe('reaching past the dice', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -6425,7 +6556,7 @@ describe('a roll with a purpose', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 
@@ -6509,7 +6640,7 @@ describe('unmaking what you can reach', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
-    demo.characters.set(who, deriveCharacter(sheet, DEMO_CHARACTERS, demo.project.abilities).character);
+    demo.characters.set(who, deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
   };
 

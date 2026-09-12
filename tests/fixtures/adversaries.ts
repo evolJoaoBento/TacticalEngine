@@ -15,7 +15,7 @@
  * never become content the engine ships.
  */
 
-import { adversaryDefSchema } from '../../src/engine/content/pack/schema';
+import { adversaryDefSchema, domainCardDefSchema } from '../../src/engine/content/pack/schema';
 
 /**
  * One stat block. Flat and positional, like the pack's own: the shape is wide,
@@ -81,3 +81,30 @@ export const FIXTURE_ADVERSARIES = [
 
 /** The ids above, for a test that wants to name one without repeating a literal. */
 export const FIXTURE_FOE = 'fixture-foe';
+
+/**
+ * Cards for a test to hold.
+ *
+ * Most tests about a card want the card's *ability*, which a `granted` source
+ * hands to a character without any card at all. These are for the other kind:
+ * a card whose effect reads the loadout it is sitting in — "while you have four
+ * or more Blade cards in your loadout" — where what is under test is the
+ * counting, so there has to be something to count.
+ *
+ * They carry no rules text of their own. The ability does the work; these are
+ * the slots it sits in.
+ */
+const card = (id: string, name: string): ReturnType<typeof domainCardDefSchema.parse> =>
+  domainCardDefSchema.parse({ id, name, domain: 'fixture', type: 'ability', level: 1, recallCost: 0, text: '', features: [] });
+
+export const FIXTURE_CARDS = [
+  card('fixture-card-1', 'Fixture Card I'),
+  card('fixture-card-2', 'Fixture Card II'),
+  card('fixture-card-3', 'Fixture Card III'),
+  card('fixture-card-4', 'Fixture Card IV'),
+  card('fixture-card-5', 'Fixture Card V'),
+];
+
+/** The four a gate of "four or more of one domain" is satisfied by. */
+export const FIXTURE_DOMAIN_FOUR = ['fixture-card-1', 'fixture-card-2', 'fixture-card-3', 'fixture-card-4'];
+
