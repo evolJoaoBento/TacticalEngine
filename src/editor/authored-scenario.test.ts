@@ -2160,16 +2160,95 @@ describe('the blow that has landed and not yet been counted', () => {
 });
 
 describe('one of its own, standing beside the target', () => {
+  /**
+   * A swing that changes when the creature is not alone. The gate counts
+   * creatures *around the target*, off the same block, and never the one
+   * asking — a creature is within Melee of itself, so without `except` it
+   * would always be its own pack.
+   */
+  const PACK_TACTICS = {
+    id: 'fixture-pack-tactics',
+    name: 'Pack Tactics',
+    source: { kind: 'adversary', adversaries: ['fixture-swarm'] },
+    text: 'With another of its kind on the same target, it bites to better effect.',
+    kind: 'passive',
+    action: false,
+    target: { kind: 'none' },
+    standardAttack: {
+      damage: '1d6+5 phy',
+      when: {
+        kind: 'nearby',
+        of: { kind: 'adversaries', range: 'melee', around: 'target', except: 'actor', sameKind: true },
+        op: '>=',
+        value: 1,
+      },
+    },
+  };
+
+  /** The rider on the same condition, which is a reaction rather than a swing. */
+  const PACK_TACTICS_FEAR = {
+    id: 'fixture-pack-tactics-fear',
+    name: 'Pack Tactics',
+    source: { kind: 'adversary', adversaries: ['fixture-swarm'] },
+    text: 'Biting alongside its own kind is worth something to the one running them.',
+    kind: 'reaction',
+    trigger: 'dealtHit',
+    action: false,
+    available: {
+      kind: 'nearby',
+      of: { kind: 'adversaries', range: 'melee', around: 'target', except: 'actor', sameKind: true },
+      op: '>=',
+      value: 1,
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The pack closes, and the GM takes something for it.', tone: 'fear' },
+      { kind: 'gainFear', amount: 1 },
+    ],
+  };
+
+  /**
+   * Somebody to eat, and a wound worth eating for: a creature at full strength
+   * has no reason to open one of its own.
+   */
+  const FEED_ON_ITS_OWN = {
+    id: 'fixture-feed-on-its-own',
+    name: 'Feed on Its Own',
+    source: { kind: 'adversary', adversaries: ['fixture-swarm'] },
+    text: 'Hurt, and beside one of its own, it takes what it needs from them.',
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'nearby', of: { kind: 'adversaries', range: 'melee', except: 'actor' }, op: '>=', value: 1 },
+        { kind: 'pool', pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked', op: '>=', value: 1 },
+      ],
+    },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'It takes what it needs from one of its own.', tone: 'fear' },
+      { kind: 'damage', amount: 1, target: { kind: 'adversaries', range: 'melee', except: 'actor', nearest: 1 } },
+      { kind: 'heal', amount: 1, target: { kind: 'actor' } },
+    ],
+  };
+
   /** Kara with two of a kind on her, or one of them standing off. */
-  const pack = (adversary: string, seed: string, together = true) => {
+  const pack = (seed: string, features: readonly unknown[], together = true) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
-    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-swarm', position: { x: 3, y: 4 } }));
     // Standing off means the far corner of this hall, not off the map: a
     // placement outside the board is authored scenery and never enters play.
-    s.run(addAdversary('hall', 'duel', { id: 'pack-mate', adversary, position: together ? { x: 2, y: 5 } : { x: 11, y: 7 } }));
+    s.run(
+      addAdversary('hall', 'duel', {
+        id: 'pack-mate',
+        adversary: 'fixture-swarm',
+        position: together ? { x: 2, y: 5 } : { x: 11, y: 7 },
+      }),
+    );
+    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2181,23 +2260,19 @@ describe('one of its own, standing beside the target', () => {
   };
 
   it('swaps the dice only while another of its own is on the target', () => {
-    // "If the Wolf makes a successful standard attack and another Dire Wolf is
-    // within Melee range of the target, deal 1d6+5 instead."
-    const together = pack('dire-wolf', 'wolves');
-    expect(together.world.standardAttackOf('dire-wolf', { attacker: 'foe', target: 'kara' }).damage).toMatchObject({
-      count: 1,
-      sides: 6,
-      modifier: 5,
-    });
+    const together = pack('wolves', [PACK_TACTICS]);
+    expect(
+      together.world.standardAttackOf('fixture-swarm', { attacker: 'foe', target: 'kara' }).damage,
+    ).toMatchObject({ count: 1, sides: 6, modifier: 5 });
 
-    const alone = pack('dire-wolf', 'lone-wolf', false);
-    expect(alone.world.standardAttackOf('dire-wolf', { attacker: 'foe', target: 'kara' }).damage).toBeUndefined();
+    const alone = pack('lone-wolf', [PACK_TACTICS], false);
+    expect(alone.world.standardAttackOf('fixture-swarm', { attacker: 'foe', target: 'kara' }).damage).toBeUndefined();
   });
 
   it('does not count the one asking', () => {
-    // A creature is within Melee of itself, so a Wolf with nobody beside it
-    // would otherwise be its own pack.
-    const alone = pack('dire-wolf', 'self-count', false);
+    // A creature is within Melee of itself, so one with nobody beside it would
+    // otherwise be its own pack.
+    const alone = pack('self-count', [PACK_TACTICS], false);
     alone.state.entity('pack-mate')!.alive = false;
     expect(
       alone.world.resolveTargets(
@@ -2208,18 +2283,20 @@ describe('one of its own, standing beside the target', () => {
   });
 
   it('counts its own kind, not whoever else is standing there', () => {
-    // "Another *Sylvan Soldier*": a Wolf beside the target is not a Soldier.
+    // `sameKind` means the same block, so a creature off a different one
+    // standing beside the target is not part of this pack.
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
-    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'sylvan-soldier', position: { x: 3, y: 4 } }));
-    s.run(addAdversary('hall', 'duel', { id: 'stranger', adversary: 'dire-wolf', position: { x: 2, y: 5 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-swarm', position: { x: 3, y: 4 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'stranger', adversary: 'fixture-lurker', position: { x: 2, y: 5 } }));
+    s.run(addAbility(abilitySchema.parse(PACK_TACTICS)));
     const demo = buildProjectScene(s.project, 'mixed');
     demo.askDefender = false;
     startEncounter(demo, 'duel');
     demo.party.select('kara');
-    expect(demo.world.standardAttackOf('sylvan-soldier', { attacker: 'foe', target: 'kara' }).damage).toBeUndefined();
+    expect(demo.world.standardAttackOf('fixture-swarm', { attacker: 'foe', target: 'kara' }).damage).toBeUndefined();
   });
 
   it('eats one of its own, but only with a wound to close', () => {
@@ -2227,9 +2304,9 @@ describe('one of its own, standing beside the target', () => {
     // ally to mark a HP. The Vampire then clears a HP." Somebody beside it is
     // a count of creatures; a reason to bite is a pool on itself.
     const fed = (marked: number): ReturnType<typeof pack> => {
-      const demo = pack('head-vampire', `vampire-${marked}`);
-      // One Fear: enough to spotlight the second Vampire, not enough for The
-      // Hunt Is On, which would otherwise be the first thing it reaches for.
+      const demo = pack(`vampire-${marked}`, [FEED_ON_ITS_OWN]);
+      // One Fear: enough to spotlight the second of them, and nothing here is
+      // worth more than that, so the feature is what the turn reaches for.
       demo.state.fear = { ...demo.state.fear, value: 1 };
       demo.state.entity('foe')!.hitPoints = { max: 12, marked };
       demo.state.entity('pack-mate')!.hitPoints = { max: 12, marked: 0 };
@@ -2240,6 +2317,7 @@ describe('one of its own, standing beside the target', () => {
 
     const hungry = fed(3);
     expect(hungry.log.some((l) => l.text.includes('takes what it needs'))).toBe(true);
+    // It closed one of its own wounds with one of theirs.
     expect(hungry.state.entity('foe')!.hitPoints.marked).toBe(2);
     expect(hungry.state.entity('pack-mate')!.hitPoints.marked).toBe(1);
 
@@ -2250,9 +2328,9 @@ describe('one of its own, standing beside the target', () => {
   });
 
   it('takes the Fear on the hit, and only with the pack there', () => {
-    // "…and you gain a Fear", which only the Wolf's half says. The Fear itself
-    // is hard to read off a finished turn - the GM spends it again to spotlight
-    // the second Wolf - so what is asserted is the rider running at all.
+    // The rider is its own reaction rather than part of the swing. The Fear is
+    // hard to read off a finished turn — the GM spends it again to spotlight
+    // the second of them — so what is asserted is the rider running at all.
     const closed = (demo: ReturnType<typeof pack>): boolean => {
       for (let i = 0; i < 8; i++) {
         const kara = demo.state.entity('kara')!;
@@ -2261,13 +2339,13 @@ describe('one of its own, standing beside the target', () => {
         kara.alive = true;
         endTurn(demo);
       }
-      // A Wolf that never got its claws in says nothing either way, so the
-      // lone half only means something once it has swung.
-      expect(demo.log.some((l) => l.text.includes('Claws'))).toBe(true);
+      // One that never got its teeth in says nothing either way, so the lone
+      // half only means something once it has swung.
+      expect(demo.log.some((l) => l.text.includes('Press of Bodies'))).toBe(true);
       return demo.log.some((l) => l.text.includes('The pack closes'));
     };
-    expect(closed(pack('dire-wolf', 'wolf-fear'))).toBe(true);
-    expect(closed(pack('dire-wolf', 'wolf-alone', false))).toBe(false);
+    expect(closed(pack('wolf-fear', [PACK_TACTICS, PACK_TACTICS_FEAR]))).toBe(true);
+    expect(closed(pack('wolf-alone', [PACK_TACTICS, PACK_TACTICS_FEAR], false))).toBe(false);
   });
 });
 
