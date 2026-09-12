@@ -454,13 +454,73 @@ describe('what the two of them make of each other', () => {
 });
 
 describe('a wound that answers back', () => {
-  /** Kara toe to toe with something, the fight already on. */
-  const duel = (adversary: string, seed: string) => {
+  /**
+   * A hide that bites the hand: a reaction on the creature's own wound, priced
+   * in Stress and measured back to whoever swung.
+   */
+  const BARBED_HIDE = {
+    id: 'fixture-barbed-hide',
+    name: 'Barbed Hide',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Wounded from close in, it may spend itself to drive its hide back into the blow.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    cost: { stress: 1 },
+    available: { kind: 'withinRange', range: 'melee' },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'Barbs drive back into the blow.', tone: 'fear' },
+      { kind: 'damage', dice: '1d10+5', type: 'physical', target: { kind: 'target' } },
+    ],
+  };
+
+  /** The other half: a clock the first wound starts, and no later wound restarts. */
+  const RISING_HUM = {
+    id: 'fixture-rising-hum',
+    name: 'Rising Hum',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'The first wound it takes sets something humming, and it builds from there.',
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    uses: { count: 1, per: 'scene' },
+    target: { kind: 'none', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'countdown',
+        countdown: 'fixture-rising-hum',
+        name: 'Rising Hum',
+        start: '1d6',
+        loop: 'reset',
+        effects: [
+          { kind: 'log', text: 'The hum breaks over everyone.', tone: 'fear' },
+          {
+            kind: 'reactionRoll',
+            difficulty: 14,
+            trait: 'instinct',
+            targets: { kind: 'allies', range: 'far' },
+            onFail: [
+              { kind: 'markStress', target: { kind: 'hit' } },
+              { kind: 'loseHope', target: { kind: 'hit' } },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  /** Kara toe to toe with something carrying the feature under test. */
+  const duel = (seed: string, features: readonly unknown[]) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
-    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
+    // The stat block is a fixture with no features of its own, so the only
+    // thing that can answer a wound here is the one the test wrote.
+    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -469,46 +529,46 @@ describe('a wound that answers back', () => {
     return demo;
   };
 
-  it('drives thorns back into the one who struck, and marks the Stress for it', () => {
-    const demo = duel('stag-knight', 'thorns');
+  it('drives the hide back into the one who struck, and marks the Stress for it', () => {
+    const demo = duel('thorns', [BARBED_HIDE]);
     const before = demo.state.entity('kara')!;
     const wounds = before.hitPoints.marked + before.armorSlots.marked;
     const stress = demo.state.entity('foe')!.stress.marked;
 
     attackWithSelected(demo, 'foe');
 
-    // "When the Knight takes damage from an attack within Melee range, you can
-    // mark a Stress to deal 1d10+5 physical damage to the attacker."
-    expect(demo.log.some((l) => l.text.includes('Thorns drive back into the blow.'))).toBe(true);
+    // A wound from Melee range, so the reaction is available; it costs a Stress
+    // and the damage lands back on whoever the blow came from.
+    expect(demo.log.some((l) => l.text.includes('Barbs drive back into the blow.'))).toBe(true);
     expect(demo.state.entity('foe')!.stress.marked).toBe(stress + 1);
     const after = demo.state.entity('kara')!;
     expect(after.hitPoints.marked + after.armorSlots.marked).toBeGreaterThan(wounds);
   });
 
   it('stays quiet when the wound has nobody behind it', () => {
-    const demo = duel('stag-knight', 'thorns-nobody');
+    const demo = duel('thorns-nobody', [BARBED_HIDE]);
     const stress = demo.state.entity('foe')!.stress.marked;
     // Damage out of a script - a trap, a countdown, a spell with no attacker.
-    // "From an attack within Melee range" has nobody to measure to, so the
-    // armor answers nothing and the Stress stays unmarked.
+    // "Within Melee range" has nobody to measure to, so the hide answers
+    // nothing and the Stress stays unmarked.
     demo.world.dealDamage('foe', { amount: 9, types: ['physical'] }, demo.rng);
     settleFight(demo);
-    expect(demo.log.some((l) => l.text.includes('Thorns drive back'))).toBe(false);
+    expect(demo.log.some((l) => l.text.includes('Barbs drive back'))).toBe(false);
     expect(demo.state.entity('foe')!.stress.marked).toBe(stress);
   });
 
-  it('answers the first wound only, which is what arms a Flickerfly', () => {
-    const demo = duel('juvenile-flickerfly', 'flicker');
+  it('answers the first wound only, and not again in the same scene', () => {
+    const demo = duel('flicker', [RISING_HUM]);
     const foe = demo.state.entity('foe')!;
     foe.hitPoints = { max: 40, marked: 0 };
     for (let i = 0; i < 4; i++) {
       if (!demo.encounter!.canAct('kara')) endTurn(demo);
       attackWithSelected(demo, 'foe');
     }
-    // "When the Flickerfly takes damage for the first time, activate the
-    // countdown": a `uses` of one, however many times Kara connects.
-    expect(demo.log.filter((l) => l.text.includes('Hallucinatory Breath begins')).length).toBe(1);
-    expect(demo.scenario.countdowns.has('juvenile-flickerfly-hallucinatory-breath')).toBe(true);
+    // A `uses` of one per scene: the clock starts once, however many times Kara
+    // connects, and the countdown it started is the one on the board.
+    expect(demo.log.filter((l) => l.text.includes('Rising Hum begins')).length).toBe(1);
+    expect(demo.scenario.countdowns.has('fixture-rising-hum')).toBe(true);
   });
 });
 
