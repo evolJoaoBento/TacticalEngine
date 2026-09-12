@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { blankSheet } from '../engine/character/sheet';
-import { importContentPack } from '../engine/content/pack/import';
+import { STARTER_CHARACTERS } from '../engine/content/pack/starter';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
 import { EditorSession, addSheet, removeSheet, updateSheet, type PartySheet } from './session';
@@ -14,27 +12,18 @@ import { validateProject } from './validate';
  * against the content it names.
  */
 
-const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
-const read = (name: string): unknown[] =>
-  JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
-const content = importContentPack({
-  weapons: read('weapons'),
-  armors: read('armors'),
-  classes: read('classes'),
-  ancestries: read('ancestries'),
-  communities: read('communities'),
-  subclasses: read('subclasses'),
-  domainCards: read('domain-cards'),
-}).content;
+// The pack the app ships. Everything here is about the validator reading a document
+// against content, not about which content that is.
+const content = STARTER_CHARACTERS;
 
-const KARA = blankSheet('kara', 'guardian', {
+const KARA = blankSheet('kara', 'sentinel', {
   name: 'Kara',
   traits: { agility: 0, strength: 2, finesse: 0, instinct: 1, presence: 1, knowledge: -1 },
   ancestryId: 'human',
-  armorId: 'chainmail-armor',
-  primaryWeaponId: 'broadsword',
-  subclassId: 'stalwart',
-  domainCards: ['bare-bones', 'get-back-up'],
+  armorId: 'ringmail',
+  primaryWeaponId: 'longsword',
+  subclassId: 'shieldbearer',
+  domainCards: ['power-slash', 'iron-stance'],
 }) as PartySheet;
 
 function project(): ProjectDoc {
@@ -53,7 +42,7 @@ const kara = (s: EditorSession) => s.project.party[0]!;
 describe('the party in the project', () => {
   it('adds and removes a character, putting them back where they were', () => {
     const s = session();
-    s.run(addSheet(blankSheet('finn', 'rogue', { name: 'Finn' }) as PartySheet));
+    s.run(addSheet(blankSheet('finn', 'cutpurse', { name: 'Finn' }) as PartySheet));
     expect(s.project.party.map((p) => p.id)).toEqual(['kara', 'finn']);
 
     expect(s.run(removeSheet('kara'))).toBe(true);
@@ -72,9 +61,9 @@ describe('the party in the project', () => {
     const s = session();
     for (const name of ['K', 'Ka', 'Kar', 'Karah']) s.run(updateSheet('kara', { name }));
     expect(kara(s).name).toBe('Karah');
-    s.run(updateSheet('kara', { armorId: 'gambeson-armor' }));
+    s.run(updateSheet('kara', { armorId: 'padded-coat' }));
     s.undo();
-    expect(kara(s).armorId).toBe('chainmail-armor');
+    expect(kara(s).armorId).toBe('ringmail');
     expect(kara(s).name).toBe('Karah');
     s.undo();
     expect(kara(s).name).toBe('Kara');
@@ -85,7 +74,7 @@ describe('the party in the project', () => {
     s.run(updateSheet('kara', { name: 'Karah' }));
     // The table levels her up between the edit and the undo: the panel never
     // knew about it, and must not take it back.
-    s.project.party[0] = { ...s.project.party[0]!, level: 2, levels: [{ level: 2, advancements: [], domainCard: 'whirlwind' }] };
+    s.project.party[0] = { ...s.project.party[0]!, level: 2, levels: [{ level: 2, advancements: [], domainCard: 'rallying-cry' }] };
 
     s.undo();
     expect(kara(s).name).toBe('Kara');
@@ -99,7 +88,7 @@ describe('the party in the project', () => {
       updateSheet('kara', {
         level: 3,
         levels: [
-          { level: 2, advancements: [{ kind: 'hitPoint' }, { kind: 'stress' }], domainCard: 'whirlwind' },
+          { level: 2, advancements: [{ kind: 'hitPoint' }, { kind: 'stress' }], domainCard: 'rallying-cry' },
           { level: 3, advancements: [{ kind: 'traits', traits: ['strength', 'instinct'] }], domainCard: 'reckless' },
         ],
       }),
@@ -132,15 +121,15 @@ describe('checking a party', () => {
   });
 
   it('warns when the loadout names a card the character does not hold', () => {
-    expect(check({ loadout: ['whirlwind'] }).join(' ')).toContain('does not hold it');
+    expect(check({ loadout: ['shield-wall'] }).join(' ')).toContain('does not hold it');
   });
 
   it('warns about a card from outside their domains', () => {
-    // Rune Ward is Arcana; a Guardian's domains are Valor and Blade.
-    expect(check({ domainCards: ['bare-bones', 'rune-ward'] }).join(' ')).toContain('outside their domains');
+    // Arcane Ward is an Ember card; a Shieldbearer's domain is Bulwark alone.
+    expect(check({ domainCards: ['power-slash', 'arcane-ward'] }).join(' ')).toContain('outside their domains');
   });
 
-  it("warns when the traits are not the SRD's starting spread", () => {
+  it('warns when the traits are not the starting spread', () => {
     expect(check({ traits: { agility: 3, strength: 3, finesse: 3, instinct: 3, presence: 3, knowledge: 3 } }).join(' ')).toContain(
       'starting spread',
     );
@@ -149,7 +138,7 @@ describe('checking a party', () => {
       check({
         traits: { agility: 1, strength: 3, finesse: 0, instinct: 2, presence: 1, knowledge: -1 },
         level: 2,
-        levels: [{ level: 2, advancements: [{ kind: 'traits', traits: ['strength', 'instinct'] }], domainCard: 'whirlwind' }],
+        levels: [{ level: 2, advancements: [{ kind: 'traits', traits: ['strength', 'instinct'] }], domainCard: 'rallying-cry' }],
       }),
     ).toEqual([]);
   });
