@@ -26,6 +26,20 @@ export const OWN_REROLL_CARD = 'fixture-card-6';
 export const LIFT_CARD = 'fixture-card-8';
 /** In the other domain, so holding it never adds to that count. */
 export const SPELL_CARD = 'fixture-other-1';
+/** A card that keeps a running count against a marked creature. */
+export const MARKED_TALLY_CARD = 'fixture-card-9';
+/** A card offered when somebody else is hurt. */
+export const ANSWERING_CARD = 'fixture-card-10';
+
+/**
+ * The mark a tally counts, and the bucket it counts into.
+ *
+ * Both are plain names. A marker condition needs no definition -- `hasCondition`
+ * reads the entity's own set -- and a token bucket is a label the card and the
+ * tests agree on, not an ability id.
+ */
+export const MARKED = 'fixture-marked';
+export const TALLY = 'fixture-tally';
 
 /**
  * A check that stops to have its dice read.
@@ -217,3 +231,114 @@ export const SILENT_CARD = 'fixture-card-1';
 
 /** The cards themselves, for a project that has to carry them. */
 export { FIXTURE_CARDS };
+
+/**
+ * A tally that counts what a marked creature does, and spends it on one blow.
+ *
+ * Four abilities on one card, which is how a card that watches, counts and then
+ * pays out is written: the mark is set by an action, two reactions count -- one
+ * for a wound the holder takes and one for a wound an ally takes -- and the
+ * payout puts a die per token behind the next blow and clears the card.
+ *
+ * The counting reactions are the interesting half. They are gated on the mark
+ * being on the creature that dealt the damage, so an unmarked attacker adds
+ * nothing; and the ally one fires on a wound the holder never took, from across
+ * the room. Both bank into the same bucket, because it is one card's count.
+ */
+export const A_TALLY_THAT_COUNTS_A_MARK = [
+  {
+    id: 'fixture-tally-set',
+    name: 'Set the Mark',
+    source: { kind: 'domainCard', card: MARKED_TALLY_CARD },
+    text: 'Put a mark on something and begin keeping count of what it does.',
+    target: { kind: 'adversary', range: 'close' },
+    effects: [
+      // One at a time: setting it again moves it rather than adding a second.
+      { kind: 'clearCondition', condition: MARKED, target: { kind: 'adversaries', range: 'veryFar' } },
+      { kind: 'log', text: 'The mark is set, and it will be answered for.', tone: 'hope' },
+      { kind: 'applyCondition', condition: MARKED, duration: 'scene', target: { kind: 'target' } },
+    ],
+  },
+  {
+    id: 'fixture-tally-own',
+    name: 'Set the Mark',
+    source: { kind: 'domainCard', card: MARKED_TALLY_CARD },
+    kind: 'reaction',
+    trigger: 'tookDamage',
+    action: false,
+    available: { kind: 'hasCondition', condition: MARKED, of: { kind: 'target' } },
+    target: { kind: 'none' },
+    effects: [{ kind: 'addToken', ability: TALLY, amount: 1 }],
+  },
+  {
+    id: 'fixture-tally-ally',
+    name: 'Set the Mark',
+    source: { kind: 'domainCard', card: MARKED_TALLY_CARD },
+    kind: 'reaction',
+    trigger: 'allyTookDamage',
+    action: false,
+    available: { kind: 'hasCondition', condition: MARKED, of: { kind: 'target' } },
+    target: { kind: 'none' },
+    effects: [{ kind: 'addToken', ability: TALLY, amount: 1 }],
+  },
+  {
+    id: 'fixture-tally-paid',
+    name: 'Set the Mark',
+    source: { kind: 'domainCard', card: MARKED_TALLY_CARD },
+    kind: 'reaction',
+    trigger: 'rollingDamage',
+    action: false,
+    // Nothing is asked and nothing is spent, so it simply happens -- and what it
+    // rolled has to reach the blow being held rather than the log alone.
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'tokens', ability: TALLY, op: '>=', value: 1 },
+        { kind: 'hasCondition', condition: MARKED, of: { kind: 'target' } },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'boostDamage', dice: 'd8', times: { tokens: TALLY } },
+      { kind: 'spendToken', ability: TALLY, all: true },
+    ],
+  },
+];
+
+/**
+ * An answer offered when a blow lands on somebody else.
+ *
+ * `auto: false` is what makes it a question rather than a rule: it costs a Stress,
+ * so it has to be put to the player instead of firing itself. The range is read
+ * from the holder to the one who dealt the damage -- a reach a selector can name,
+ * where a weapon's own range is not.
+ *
+ * What it buys is a Reaction Roll the attacker has to make, and a Hit Point if
+ * they fail it. Either way they were made to answer, which is the half a test
+ * pins.
+ */
+export const AN_ANSWER_TO_A_BLOW_ON_AN_ALLY = [
+  {
+    id: 'fixture-answer',
+    name: 'Not Finished',
+    source: { kind: 'domainCard', card: ANSWERING_CARD },
+    text: 'Hurt somebody standing near enough and you will be asked to account for it.',
+    kind: 'reaction',
+    trigger: 'allyTookDamage',
+    action: false,
+    auto: false,
+    cost: { stress: 1 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    available: { kind: 'withinRange', range: 'close', of: { kind: 'target' } },
+    effects: [
+      { kind: 'log', text: 'They are not finished with you.', tone: 'hope' },
+      {
+        kind: 'reactionRoll',
+        difficulty: 15,
+        targets: { kind: 'target' },
+        onFail: [{ kind: 'damage', amount: 1, target: { kind: 'hit' } }],
+      },
+    ],
+  },
+];

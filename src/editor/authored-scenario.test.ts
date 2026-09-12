@@ -20,7 +20,15 @@ import {
   updateSheet,
 } from './session';
 import { validateProject } from './validate';
-import { FIXTURE_ADVERSARIES } from '../../tests/fixtures/adversaries';
+import { FIXTURE_ADVERSARIES, FIXTURE_CARDS } from '../../tests/fixtures/adversaries';
+import {
+  ANSWERING_CARD,
+  AN_ANSWER_TO_A_BLOW_ON_AN_ALLY,
+  A_TALLY_THAT_COUNTS_A_MARK,
+  MARKED,
+  MARKED_TALLY_CARD,
+  TALLY,
+} from '../../tests/fixtures/cards';
 import {
   A_BONUS_READ_OFF_ITS_OWN_WOUNDS,
   A_CALL_THAT_ARRIVES_SWINGING,
@@ -1748,10 +1756,9 @@ describe('a breath that only comes when the dice say so', () => {
 });
 
 describe('what a card makes of somebody else being hit', () => {
-  /** The caster holding a sigil, a friend to stand in front of it, and a foe. */
-  const pair = (seed: string, cards: readonly string[] = ['sigil-of-retribution']) => {
+  /** The caster holding a tally, a friend to stand in front of it, and a foe. */
+  const pair = (seed: string, cards: readonly string[] = [MARKED_TALLY_CARD]) => {
     const s = blank();
-    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
     s.run(
       addSheet(
         characterSheetSchema.parse(
@@ -1771,35 +1778,42 @@ describe('what a card makes of somebody else being hit', () => {
     s.run(setSpawns('hall', [{ x: 8, y: 4 }, { x: 4, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 5, y: 4 } }));
+    // The cards the hands are drawn from, and the specimens that come with them.
+    // A card nobody holds is offered to nobody, so both families are carried
+    // whichever one this run puts in a loadout.
+    s.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of [...A_TALLY_THAT_COUNTS_A_MARK, ...AN_ANSWER_TO_A_BLOW_ON_AN_ALLY]) {
+      s.project.abilities.push(abilitySchema.parse(ability));
+    }
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
-    demo.state.entity('foe')!.conditions.add('sigiled');
+    demo.state.entity('foe')!.conditions.add(MARKED);
     demo.party.select('vela');
     return demo;
   };
 
   it('puts a die on the card when the marked creature hurts an ally', () => {
-    // "When the marked adversary deals damage to you or your allies, place a
-    // d8 on this card." Kara is the one standing in front of it; the card is
-    // Vela's, and it hears about her wound from across the room.
+    // The mechanism: a marked creature hurting anybody adds to the count. Kara is
+    // the one standing in front of it; the card is Vela's, and it hears about her
+    // wound from across the room.
     for (let seed = 1; seed < 30; seed++) {
       const demo = pair(`ally-${seed}`);
       const kara = demo.state.entity('kara')!;
       for (let turn = 0; turn < 3 && kara.hitPoints.marked === 0; turn++) endTurn(demo);
       if (kara.hitPoints.marked === 0) continue;
-      expect(demo.world.tokensOn('vela', 'sigil-of-retribution')).toBeGreaterThan(0);
+      expect(demo.world.tokensOn('vela', TALLY)).toBeGreaterThan(0);
       return;
     }
-    throw new Error('the burrower never landed a blow on Kara in thirty tries');
+    throw new Error('nothing landed a blow on Kara in thirty tries');
   });
 
   it('answers a blow that landed on somebody else, once it is offered', () => {
-    // "When a creature within your weapon's range deals damage to an ally with
-    // an attack that doesn't include you, mark a Stress to force them to make
-    // a Reaction Roll (15). On a failure, the target must mark a Hit Point."
+    // The mechanism: a blow on an ally, within reach of the one holding the card,
+    // bought with a Stress -- and what it buys is a Reaction Roll the attacker has
+    // to make, with a Hit Point for failing it.
     for (let seed = 1; seed < 30; seed++) {
-      const demo = pair(`onslaught-${seed}`, ['onslaught']);
+      const demo = pair(`answer-${seed}`, [ANSWERING_CARD]);
       demo.askDefender = true;
 
       // Turns until the card is the question on the table, answering every
@@ -1810,7 +1824,7 @@ describe('what a card makes of somebody else being hit', () => {
         while (demo.pending !== null && offered < 0) {
           const waiting = demo.pending;
           if (waiting.kind === 'reaction') {
-            const found = waiting.offers.findIndex((o) => o.ability.id === 'onslaught-answer');
+            const found = waiting.offers.findIndex((o) => o.ability.id === 'fixture-answer');
             if (found >= 0) {
               offered = found + 1;
               break;
@@ -1825,26 +1839,26 @@ describe('what a card makes of somebody else being hit', () => {
       const before = { hp: foe.hitPoints.marked, stress: demo.state.entity('vela')!.stress.marked };
       answerPending(demo, { kind: 'choose', index: offered });
       expect(demo.state.entity('vela')!.stress.marked).toBe(before.stress + 1);
-      // The Burrower rolls its d20 against the 15 the card names; a failure
-      // costs it a Hit Point, and either way it was made to answer.
+      // It rolls against the 15 the card names; a failure costs it a Hit Point,
+      // and either way it was made to answer.
       expect(demo.log.some((l) => /reacts: \d+ against 15/.test(l.text))).toBe(true);
       expect(foe.hitPoints.marked).toBeGreaterThanOrEqual(before.hp);
       return;
     }
-    throw new Error('the burrower never landed a blow on Kara in thirty tries');
+    throw new Error('nothing landed a blow on Kara in thirty tries');
   });
 
-  it('says nothing about a blow from something that carries no sigil', () => {
+  it('says nothing about a blow from something that carries no mark', () => {
     for (let seed = 1; seed < 30; seed++) {
       const demo = pair(`plain-${seed}`);
-      demo.state.entity('foe')!.conditions.delete('sigiled');
+      demo.state.entity('foe')!.conditions.delete(MARKED);
       const kara = demo.state.entity('kara')!;
       for (let turn = 0; turn < 3 && kara.hitPoints.marked === 0; turn++) endTurn(demo);
       if (kara.hitPoints.marked === 0) continue;
-      expect(demo.world.tokensOn('vela', 'sigil-of-retribution')).toBe(0);
+      expect(demo.world.tokensOn('vela', TALLY)).toBe(0);
       return;
     }
-    throw new Error('the burrower never landed a blow on Kara in thirty tries');
+    throw new Error('nothing landed a blow on Kara in thirty tries');
   });
 });
 
