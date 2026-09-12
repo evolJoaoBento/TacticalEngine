@@ -27,6 +27,15 @@ import {
 } from './demo-scene';
 import { restoreScenario, scenarioSnapshot, useKey } from '../engine/script/world';
 import { FIXTURE_CARDS, FIXTURE_DOMAIN_FOUR } from '../../tests/fixtures/adversaries';
+import {
+  REASSURANCE,
+  REASSURANCE_CARD,
+  SILENT_CARD,
+  SUPPORT_CARD,
+  SUPPORT_TANK,
+  WATCHING_CARD,
+  WATCHING_CHECK,
+} from '../../tests/fixtures/cards';
 
 /**
  * Passives and reactions in play: what a held card changes on the sheet,
@@ -4940,13 +4949,25 @@ describe('a card that throws the dice again', () => {
     refreshWorld(demo);
   };
 
-  /** Kara swinging with the room able to answer, and a husk that will not fall. */
-  const swinging = (seed: string, cards: string[], hope = 6): { demo: DemoScene; husk: EntityState } => {
+  /**
+   * Kara swinging with the room able to answer, and a husk that will not fall.
+   * The cards and what they do are the project's, carried before any sheet is
+   * derived over them.
+   */
+  const swinging = (
+    seed: string,
+    abilities: readonly Record<string, unknown>[],
+    card: string | null,
+    hope = 6,
+  ): { demo: DemoScene; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    // Nothing of Kara's own answers a swing, so an offer is always Finn's.
-    hold(demo, 'kara', ['bare-bones']);
-    hold(demo, 'finn', cards);
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of abilities) demo.project.abilities.push(abilitySchema.parse(ability));
+    // Nothing of Kara's own answers a swing, so an offer is always Finn's: the
+    // card in her hand carries nothing at all.
+    hold(demo, 'kara', [SILENT_CARD]);
+    hold(demo, 'finn', card === null ? [] : [card]);
     const finn = demo.state.entity('finn')!;
     finn.hope = { max: 6, value: hope };
     // Close enough to say something: Support Tank asks for an ally within Close.
@@ -4963,24 +4984,24 @@ describe('a card that throws the dice again', () => {
   };
 
   it('Reassurance is offered on an ally\'s roll and not on the holder\'s own', () => {
-    const { demo, husk } = swinging('reassure-offered', ['reassurance']);
+    const { demo, husk } = swinging('reassure-offered', REASSURANCE, REASSURANCE_CARD);
     const first = attackWithSelected(demo, husk.id);
     // Kara rolled; Finn holds the card, so Finn is asked.
     expect(first?.waiting).toBe(true);
     expect(demo.pending?.kind).toBe('reaction');
     if (demo.pending?.kind !== 'reaction') throw new Error('expected a reaction prompt');
-    expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['reassurance']);
+    expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-reassurance']);
     expect(demo.pending.offers[0]!.by).toBe('finn');
 
     // The same card in the roller's own hand answers nothing: `not self`.
-    const mine = swinging('reassure-mine', []);
-    hold(mine.demo, 'kara', ['reassurance']);
+    const mine = swinging('reassure-mine', REASSURANCE, null);
+    hold(mine.demo, 'kara', [REASSURANCE_CARD]);
     expect(attackWithSelected(mine.demo, mine.husk.id)?.waiting).not.toBe(true);
   });
 
   it('turns a miss into a hit, damage and all', () => {
     for (let seed = 1; seed < 200; seed++) {
-      const { demo, husk } = swinging('reassure-hit-' + seed, ['reassurance']);
+      const { demo, husk } = swinging('reassure-hit-' + seed, REASSURANCE, REASSURANCE_CARD);
       const first = attackWithSelected(demo, husk.id);
       if (first?.waiting !== true || first.hit) continue;
 
@@ -5003,7 +5024,7 @@ describe('a card that throws the dice again', () => {
 
   it('and can just as easily turn a hit into a miss', () => {
     for (let seed = 1; seed < 200; seed++) {
-      const { demo, husk } = swinging('reassure-miss-' + seed, ['reassurance']);
+      const { demo, husk } = swinging('reassure-miss-' + seed, REASSURANCE, REASSURANCE_CARD);
       const first = attackWithSelected(demo, husk.id);
       if (first?.waiting !== true || !first.hit) continue;
 
@@ -5021,7 +5042,7 @@ describe('a card that throws the dice again', () => {
 
   it('letting it pass leaves the roll exactly as it was thrown', () => {
     for (let seed = 1; seed < 200; seed++) {
-      const { demo, husk } = swinging('reassure-pass-' + seed, ['reassurance']);
+      const { demo, husk } = swinging('reassure-pass-' + seed, REASSURANCE, REASSURANCE_CARD);
       const first = attackWithSelected(demo, husk.id);
       if (first?.waiting !== true) continue;
 
@@ -5038,12 +5059,12 @@ describe('a card that throws the dice again', () => {
     let onFailure = false;
     let onSuccess = false;
     for (let seed = 1; seed < 120 && !(onFailure && onSuccess); seed++) {
-      const { demo, husk } = swinging('tank-' + seed, ['support-tank']);
+      const { demo, husk } = swinging('tank-' + seed, SUPPORT_TANK, SUPPORT_CARD);
       const first = attackWithSelected(demo, husk.id);
       // A hit is a successful roll; the card only answers a failed one.
       if (first?.waiting === true) {
         if (demo.pending?.kind !== 'reaction') throw new Error('expected a reaction prompt');
-        expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['support-tank']);
+        expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-support-tank']);
         expect(first.hit).toBe(false);
         // Two Hope, and only the Fear Die goes back in the cup.
         const before = demo.state.entity('finn')!.hope!.value;
@@ -5061,13 +5082,13 @@ describe('a card that throws the dice again', () => {
 
   it('and is not even offered when the two Hope are not there', () => {
     for (let seed = 1; seed < 120; seed++) {
-      const rich = swinging('tank-hope-' + seed, ['support-tank'], 6);
+      const rich = swinging('tank-hope-' + seed, SUPPORT_TANK, SUPPORT_CARD, 6);
       if (attackWithSelected(rich.demo, rich.husk.id)?.waiting !== true) continue;
 
       // The same seed, so the same roll: what changes is the purse. A card
       // nobody can pay for is never put to them - the offer is the question,
       // and there is no point asking one whose answer is refused.
-      const poor = swinging('tank-hope-' + seed, ['support-tank'], 1);
+      const poor = swinging('tank-hope-' + seed, SUPPORT_TANK, SUPPORT_CARD, 1);
       expect(attackWithSelected(poor.demo, poor.husk.id)?.waiting).not.toBe(true);
       expect(poor.demo.log.some((l) => /throws again/.test(l.text))).toBe(false);
       return;
@@ -6352,12 +6373,22 @@ describe('a check the room can answer', () => {
     refreshWorld(demo);
   };
 
-  /** Kara about to make a check, with Finn holding something to say about it. */
-  const rolling = (seed: string, cards: string[]): { demo: DemoScene; kara: EntityState; husk: EntityState } => {
+  /**
+   * Kara about to make a check, with Finn holding something to say about it.
+   * She always holds the card that stops for its dice to be read; what Finn
+   * holds is what the test is about.
+   */
+  const rolling = (
+    seed: string,
+    abilities: readonly Record<string, unknown>[],
+    card: string | null,
+  ): { demo: DemoScene; kara: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    hold(demo, 'kara', ['know-thy-enemy']);
-    hold(demo, 'finn', cards);
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of [...WATCHING_CHECK, ...abilities]) demo.project.abilities.push(abilitySchema.parse(ability));
+    hold(demo, 'kara', [WATCHING_CARD]);
+    hold(demo, 'finn', card === null ? [] : [card]);
     const finn = demo.state.entity('finn')!;
     finn.hope = { max: 6, value: 6 };
     const kara = demo.state.entity('kara')!;
@@ -6372,9 +6403,9 @@ describe('a check the room can answer', () => {
 
   it('stops for nobody when nobody is holding anything', () => {
     // The gate that keeps every chest, door and conversation exactly as it was.
-    const { demo, husk } = rolling('check-quiet', ['bare-bones']);
+    const { demo, husk } = rolling('check-quiet', [], SILENT_CARD);
     expect(demo.world.answersRoll('kara', { total: 10, outcome: 'failureWithFear' })).toBe(false);
-    expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+    expect(useAbility(demo, 'kara', 'fixture-watching', [husk.id]).status).toBe('waiting');
     // One answer settles it: the roll goes straight to its arms as it always did.
     answerPending(demo, { kind: 'roll' });
     expect(demo.pending?.prompt.kind).not.toBe('rolled');
@@ -6382,14 +6413,14 @@ describe('a check the room can answer', () => {
 
   it('puts the roll to an ally holding Reassurance, and throws again when they take it', () => {
     for (let seed = 1; seed < 80; seed++) {
-      const { demo, husk } = rolling('check-reassure-' + seed, ['reassurance']);
+      const { demo, husk } = rolling('check-reassure-' + seed, REASSURANCE, REASSURANCE_CARD);
       expect(demo.world.answersRoll('kara', { total: 10, outcome: 'failureWithFear' })).toBe(true);
-      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+      expect(useAbility(demo, 'kara', 'fixture-watching', [husk.id]).status).toBe('waiting');
 
       // The dice are read, and the question that follows is Finn's, not Kara's.
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
-      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['reassurance']);
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-reassurance']);
       expect(demo.pending.offers[0]!.by).toBe('finn');
       // The throw is on the offer, not in the log: nothing has been journalled
       // yet, which is the point - the roll has not decided anything.
@@ -6408,8 +6439,8 @@ describe('a check the room can answer', () => {
 
   it('leaves the roll exactly as thrown when the ally lets it pass', () => {
     for (let seed = 1; seed < 80; seed++) {
-      const { demo, husk } = rolling('check-pass-' + seed, ['reassurance']);
-      useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]);
+      const { demo, husk } = rolling('check-pass-' + seed, REASSURANCE, REASSURANCE_CARD);
+      useAbility(demo, 'kara', 'fixture-watching', [husk.id]);
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
       const thrown = demo.pending.offers[0]!.swing!;
@@ -6427,12 +6458,12 @@ describe('a check the room can answer', () => {
     let asked = false;
     let quiet = false;
     for (let seed = 1; seed < 80 && !(asked && quiet); seed++) {
-      const { demo, husk } = rolling('check-tank-' + seed, ['support-tank']);
-      useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]);
+      const { demo, husk } = rolling('check-tank-' + seed, SUPPORT_TANK, SUPPORT_CARD);
+      useAbility(demo, 'kara', 'fixture-watching', [husk.id]);
       answerPending(demo, { kind: 'roll' });
 
       if (demo.pending?.kind === 'reaction') {
-        expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['support-tank']);
+        expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-support-tank']);
         // Only a failure: the card says so and the gate is read before asking.
         expect(demo.pending.offers[0]!.swing!.success).toBe(false);
         const before = demo.state.entity('finn')!.hope!.value;
