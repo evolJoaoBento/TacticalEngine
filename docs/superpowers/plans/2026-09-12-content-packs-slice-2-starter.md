@@ -87,7 +87,21 @@ describe('adversaries', () => {
   });
 
   it('refuses a role it does not know', () => {
-    expect(adversaryDefSchema.safeParse({ /* ...as above... */ role: 'boss' }).success).toBe(false);
+    const bad = adversaryDefSchema.safeParse({
+      id: 'fen-lurker',
+      name: 'Fen Lurker',
+      tier: 1,
+      role: 'boss',
+      difficulty: 11,
+      thresholds: { major: 6, severe: 12 },
+      hitPoints: 4,
+      stress: 3,
+      attackName: 'Grasping Arms',
+      attackModifier: { count: 0, sides: 0, modifier: 2 },
+      attackRange: 'melee',
+      attackDamage: { count: 1, sides: 6, modifier: 1 },
+    });
+    expect(bad.success).toBe(false);
   });
 });
 ```
@@ -178,7 +192,13 @@ Everything here is invented for this engine. Names are plain high fantasy so tha
 | `cutpurse` | Cutpurse | shadow-step | 12 | 5 | **Slip the Knot** — once per rest, escape a grapple, bind or snare without a roll. |
 | `emberwright` | Emberwright | ember | 10 | 5 | **Kindle** — your next spell this turn deals +2 damage. |
 
-**Three subclasses**, one per class: `shieldbearer` (Sentinel), `nightwalker-original` → **`lampsnuffer`** (Cutpurse), `flamecaller` (Emberwright). Each carries one foundation feature, one specialization, one mastery.
+**Three subclasses**, one per class, each with one foundation feature, one specialization and one mastery:
+
+| id | class | foundation |
+|---|---|---|
+| `shieldbearer` | `sentinel` | **Bulwark Stance** — allies behind you count as having cover. |
+| `lampsnuffer` | `cutpurse` | **Douse** — put out a light within Close range as a free action. |
+| `flamecaller` | `emberwright` | **Emberhand** — your Ember spells ignore one point of resistance. |
 
 **Three ancestries** and **two communities**, generic tropes, one feature each: `human`, `stoneborn` (dwarf-like), `sylvan` (elf-like); communities `wayfarer`, `guildsworn`.
 
@@ -232,7 +252,7 @@ Each card's `source` is `{ kind: 'domainCard', card: '<id>' }`. Scripts use the 
 
 **Files:** `src/game/demo-scene.ts`.
 
-- [ ] **Step 1:** `SRD_CHARACTERS` becomes `STARTER_CHARACTERS`, built from the starter pack rather than `importContentPack({ …json })`. Leave the eight JSON imports in place, unused, for slice 3 to remove — cutting them here would break nothing but hides what slice 3 must do.
+- [ ] **Step 1:** `SRD_CHARACTERS` becomes `STARTER_CHARACTERS`, built from the starter pack rather than `importContentPack({ …json })`. Leave the eight JSON imports in place, unused, for slice 3 to remove — cutting them here would break nothing but would hide what slice 3 must do. This compiles: `tsconfig.json` sets `strict` but not `noUnusedLocals`, so an unused import is not an error here. Say so in the commit, or the next reader will take it for an oversight.
 - [ ] **Step 2:** `SRD_ADVERSARIES` becomes the starter adversaries, indexed by id. `DEMO_ADVERSARY_ID` becomes `'hollow-knight'`.
 - [ ] **Step 3:** `PARTY_SHEETS` re-points: `kara` → `sentinel`/`stoneborn`/`ringmail`/`longsword`/`shieldbearer`/`['power-slash','iron-stance']`; `finn` → `cutpurse`/`sylvan`/`padded-coat`/`hunting-bow`/`lampsnuffer`/`['quick-hands','backstab']`; `mira` → `emberwright`/`human`/`padded-coat`/`ember-staff`/`flamecaller`/`['arcane-ward','healing-word']`.
 - [ ] **Step 4:** `DEMO_MODELS` maps the new class ids onto the existing procedural bodies: `sentinel: 'knight'`, `cutpurse: 'rogue'`, `emberwright: 'mage'`, and the new adversary ids onto `husk`/`bramble` as suits them. These are the engine's own art and do not change.
