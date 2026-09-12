@@ -52,14 +52,14 @@ import {
  */
 
 const KARA = characterSheetSchema.parse(
-  blankSheet('kara', 'guardian', {
+  blankSheet('kara', 'sentinel', {
     name: 'Kara',
     traits: { agility: 0, strength: 2, finesse: 1, instinct: 1, presence: 0, knowledge: -1 },
     ancestryId: 'human',
-    armorId: 'chainmail-armor',
-    primaryWeaponId: 'broadsword',
-    subclassId: 'stalwart',
-    domainCards: ['bare-bones', 'get-back-up'],
+    armorId: 'ringmail',
+    primaryWeaponId: 'longsword',
+    subclassId: 'shieldbearer',
+    domainCards: ['power-slash', 'iron-stance'],
   }),
 );
 
@@ -132,7 +132,7 @@ function author(): EditorSession {
 
   // Something waiting past it, and the cell that wakes it.
   s.run(addEncounter('hall', encounterSchema.parse({ id: 'ambush', name: 'An ambush' })));
-  s.run(addAdversary('hall', 'ambush', { id: 'burrower-1', adversary: 'acid-burrower', position: { x: 8, y: 4 } }));
+  s.run(addAdversary('hall', 'ambush', { id: 'foe-1', adversary: 'fixture-foe', position: { x: 8, y: 4 } }));
   s.run(toggleTriggerCell('hall', 'ambush', { x: 7, y: 4 }));
   s.run(setSpawns('hall', [{ x: 1, y: 4 }]));
 
@@ -210,7 +210,7 @@ describe('a block that shrugs the party off', () => {
       return demo.state.entity('warrior-1')!.hitPoints.marked;
     };
 
-    // One seed, so both runs roll the same swing: Kara's broadsword deals
+    // One seed, so both runs roll the same swing: Kara's longsword deals
     // physical damage, which is what a pile of bones shrugs off. Major on the
     // Warrior's thresholds, and Minor once it is halved.
     const plain = build(true, 's5');
@@ -368,7 +368,7 @@ describe('a creature that does not stay the same creature', () => {
     const said = demo.log.map((l) => l.text);
     expect(said).toContain('Green Ooze is gone: 2 Tiny Green Oozes in their place.');
     expect(said.indexOf('Green Ooze is gone: 2 Tiny Green Oozes in their place.')).toBeGreaterThan(
-      said.findIndex((t) => t.includes('Kara hits with the Broadsword')),
+      said.findIndex((t) => t.includes('Kara hits with the Longsword')),
     );
 
     const oozes = demo.state.entitiesOf('adversary').filter((e) => e.alive);
@@ -2532,7 +2532,7 @@ describe('a block wearing enough plate to matter', () => {
   };
 
   it('takes a flat 3 off the swing that lands, and rolls the dice kind', () => {
-    // One seed, so both runs roll the same broadsword: physical damage, which
+    // One seed, so both runs roll the same longsword: physical damage, which
     // is what plate answers. 13/26 thresholds, and a swing in the low teens is
     // Major until the plate takes three off it.
     const knight = 'knight-of-the-realm';
@@ -2614,11 +2614,11 @@ describe('a scenario built with nothing but the editor', () => {
     expect(demo.encounter).not.toBeNull();
 
     const foe = demo.state.entitiesOf('adversary')[0]!;
-    expect(foe.definition).toBe('acid-burrower');
+    expect(foe.definition).toBe('fixture-foe');
     const swing = attackWithSelected(demo, foe.id);
     expect(swing).not.toBeNull();
     expect(swing!.refused).toBeNull();
-    expect(demo.log.map((line) => line.text).join(' ')).toMatch(/Broadsword/);
+    expect(demo.log.map((line) => line.text).join(' ')).toMatch(/Longsword/);
   });
 
   it('refuses to stand up a room that places a creature nobody can look up', () => {
@@ -2627,7 +2627,7 @@ describe('a scenario built with nothing but the editor', () => {
     expect(() => buildProjectScene(s.project)).toThrow(/goblin-warror/);
     // And the validator says the same thing before it is ever played.
     expect(
-      validateProject(s.project, { knownAdversaries: new Set(['acid-burrower']) })
+      validateProject(s.project, { knownAdversaries: new Set(['fixture-foe']) })
         .map((p) => p.message)
         .join(' '),
     ).toContain('goblin-warror');
