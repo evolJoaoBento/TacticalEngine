@@ -14,7 +14,7 @@
  * bundles may import them, so a fixture can never become shipped content.
  */
 
-import { FIXTURE_CARDS } from './adversaries';
+import { FIXTURE_CARDS, FIXTURE_GRIMOIRE } from './adversaries';
 
 /** Which of the generic cards each specimen sits on. */
 export const WATCHING_CARD = 'fixture-card-3';
@@ -1077,6 +1077,53 @@ export const A_TOLL_CALLED_IN = [
           { kind: 'spendToken', ability: TOLL_ABILITY, amount: 'spent' },
           { kind: 'boostDamage', dice: '{n}d12' },
         ],
+      },
+    ],
+  },
+];
+
+/**
+ * Two spells in one book, which is what a grimoire is.
+ *
+ * Each ability is named for the feature it is: `abilityText` looks the ABILITY's
+ * name up among the card's features and falls back to the card's own text, so a
+ * book whose name matched one of its spells would shadow the lookup a test is
+ * about. One reaches Melee and shoves; the other reaches Far, and exists so that
+ * asking for the first never answers with the second.
+ */
+export const A_BOOK_OF_TWO_SPELLS = [
+  {
+    id: 'fixture-grimoire-shove',
+    name: 'Shove',
+    source: { kind: 'domainCard', card: FIXTURE_GRIMOIRE },
+    target: { kind: 'adversary', range: 'melee' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          onSuccessWithHope: [
+            { kind: 'damage', dice: 'd10+2', type: 'magic', using: 'proficiency' },
+            { kind: 'push', to: 'far', target: { kind: 'hit' } },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'fixture-grimoire-splinter',
+    name: 'Splinter',
+    source: { kind: 'domainCard', card: FIXTURE_GRIMOIRE },
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          onSuccessWithHope: [{ kind: 'damage', dice: 'd6', type: 'physical', using: 'proficiency' }],
+        },
       },
     ],
   },

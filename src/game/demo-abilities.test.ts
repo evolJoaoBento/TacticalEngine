@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
+import { abilitySchema } from '../engine/content/abilities';
+import { FIXTURE_CARDS, FIXTURE_GRIMOIRE, FIXTURE_HAND } from '../../tests/fixtures/adversaries';
+import { A_BOOK_OF_TWO_SPELLS } from '../../tests/fixtures/cards';
 import { useKey } from '../engine/script/world';
 import { SRD_ABILITY_MAP } from '../engine/content/srd/abilities';
 import { NO_TILE } from '../engine/grid/grid';
@@ -202,8 +205,9 @@ describe('a spell in a fight', () => {
 
 describe('the loadout and the vault', () => {
   const grow = (demo: DemoScene): void => {
+    demo.project.domainCards.push(...FIXTURE_CARDS);
     const sheet = demo.sheets.get('kara')!;
-    const cards = ['bare-bones', 'get-back-up', 'forceful-push', 'i-am-your-shield', 'not-good-enough', 'reckless'];
+    const cards = [...FIXTURE_HAND];
     const grown = { ...sheet, domainCards: cards };
     demo.sheets.set('kara', grown);
     demo.characters.set('kara', deriveCharacter(grown, characterContentFor(demo.project), demo.project.abilities).character);
@@ -214,31 +218,34 @@ describe('the loadout and the vault', () => {
     const demo = scene();
     grow(demo);
     const view = loadoutView(demo, 'kara');
-    expect(view.loadout.map((c) => c.id)).toEqual(['bare-bones', 'get-back-up', 'forceful-push', 'i-am-your-shield', 'not-good-enough']);
-    expect(view.vault.map((c) => c.id)).toEqual(['reckless']);
-    expect(names(demo, 'kara')).not.toContain('reckless');
+    expect(view.loadout.map((c) => c.id)).toEqual(FIXTURE_HAND.slice(0, 5));
+    expect(view.vault.map((c) => c.id)).toEqual([FIXTURE_HAND[5]]);
+    expect(names(demo, 'kara')).not.toContain(FIXTURE_HAND[5]);
   });
 
   it('recalls a card for Stress equal to its Recall Cost, and free at a rest', () => {
     const demo = scene();
     grow(demo);
     const kara = demo.state.entity('kara')!;
-    // The card recalled and the one vaulted both cost 1 to recall.
-    expect(characterContentFor(demo.project).domainCards.get('rallying-cry')!.recallCost).toBe(1);
-    expect(swapCard(demo, 'kara', 'reckless')).toEqual({ ok: false, reason: expect.stringContaining('holds 5') });
-    const swapped = swapCard(demo, 'kara', 'reckless', 'not-good-enough');
+    // The card recalled and the one vaulted both cost 1 to recall, which is what
+    // makes the refusal at full Stress further down mean anything.
+    const content = characterContentFor(demo.project);
+    expect(content.domainCards.get(FIXTURE_HAND[5]!)!.recallCost).toBe(1);
+    expect(content.domainCards.get(FIXTURE_HAND[4]!)!.recallCost).toBe(1);
+    expect(swapCard(demo, 'kara', FIXTURE_HAND[5]!)).toEqual({ ok: false, reason: expect.stringContaining('holds 5') });
+    const swapped = swapCard(demo, 'kara', FIXTURE_HAND[5]!, FIXTURE_HAND[4]!);
     expect(swapped).toEqual({ ok: true, stress: 1 });
     expect(kara.stress.marked).toBe(1);
-    expect(loadoutView(demo, 'kara').vault.map((c) => c.id)).toEqual(['not-good-enough']);
-    expect(demo.log.at(-1)!.text).toBe('Kara recalls Reckless and vaults Not Good Enough, marking 1 Stress.');
+    expect(loadoutView(demo, 'kara').vault.map((c) => c.id)).toEqual([FIXTURE_HAND[4]]);
+    expect(demo.log.at(-1)!.text).toBe('Kara recalls Hand VI and vaults Hand V, marking 1 Stress.');
 
     // Full Stress: no room to mark the cost.
     kara.stress = { max: kara.stress.max, marked: kara.stress.max };
-    expect(swapCard(demo, 'kara', 'not-good-enough', 'reckless').ok).toBe(false);
+    expect(swapCard(demo, 'kara', FIXTURE_HAND[4]!, FIXTURE_HAND[5]!).ok).toBe(false);
     // At a rest the swap is free.
-    expect(swapCard(demo, 'kara', 'not-good-enough', 'reckless', { resting: true })).toEqual({ ok: true, stress: 0 });
+    expect(swapCard(demo, 'kara', FIXTURE_HAND[4]!, FIXTURE_HAND[5]!, { resting: true })).toEqual({ ok: true, stress: 0 });
     // The loadout rides on the sheet, so a save carries it.
-    expect(demo.sheets.get('kara')!.loadout).toEqual(['bare-bones', 'get-back-up', 'forceful-push', 'i-am-your-shield', 'not-good-enough']);
+    expect(demo.sheets.get('kara')!.loadout).toEqual(FIXTURE_HAND.slice(0, 5));
   });
 });
 
@@ -441,10 +448,19 @@ describe('stepping back from a roll', () => {
 describe("a grimoire spell's words", () => {
   it('are the spell\'s own feature text, not the whole book', () => {
     const demo = scene();
-    const push = abilitiesOf(demo, 'mira').find((a) => a.id === 'book-of-ava-power-push')!;
+    // The book has to be in her hand: this reads the abilities she actually holds.
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of A_BOOK_OF_TWO_SPELLS) demo.project.abilities.push(abilitySchema.parse(ability));
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: [FIXTURE_GRIMOIRE], loadout: [FIXTURE_GRIMOIRE] };
+    demo.sheets.set('mira', sheet);
+    demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
+    refreshWorld(demo);
+
+    const push = abilitiesOf(demo, 'mira').find((a) => a.id === 'fixture-grimoire-shove')!;
     const text = abilityText(demo, push);
-    expect(text.startsWith('Make a Spellcast Roll against a target within Melee range.')).toBe(true);
-    expect(text).not.toContain('Ice Spike');
+    expect(text.startsWith('Shove something away from you, hard')).toBe(true);
+    // The other spell in the same book stays out of the answer.
+    expect(text).not.toContain('Splinter');
   });
 });
 

@@ -108,8 +108,16 @@ export const FIXTURE_FOE = 'fixture-foe';
  * also count each other, which is why there are more than a handful and why
  * they are not all in one domain.
  */
-const card = (id: string, name: string, domain = 'fixture'): ReturnType<typeof domainCardDefSchema.parse> =>
-  domainCardDefSchema.parse({ id, name, domain, type: 'ability', level: 1, recallCost: 0, text: '', features: [] });
+const card = (
+  id: string,
+  name: string,
+  domain = 'fixture',
+  // Both default to what every card in the pool had when there was no way to ask
+  // for anything else: free to recall, and carrying no named features.
+  recallCost = 0,
+  features: readonly { name: string; text: string }[] = [],
+): ReturnType<typeof domainCardDefSchema.parse> =>
+  domainCardDefSchema.parse({ id, name, domain, type: 'ability', level: 1, recallCost, text: '', features: [...features] });
 
 /**
  * Two domains, because some cards count each other.
@@ -245,7 +253,34 @@ export const FIXTURE_CARDS = [
   card('fixture-other-4', 'Other Card IV', 'other'),
   card('fixture-other-5', 'Other Card V', 'other'),
   card('fixture-other-6', 'Other Card VI', 'other'),
+  // A hand of six, for a loadout that holds five and vaults the rest. The last
+  // two cost a Stress to recall; a test swaps one out and the other back.
+  card('fixture-hand-1', 'Hand I'),
+  card('fixture-hand-2', 'Hand II'),
+  card('fixture-hand-3', 'Hand III'),
+  card('fixture-hand-4', 'Hand IV'),
+  card('fixture-hand-5', 'Hand V', 'fixture', 1),
+  card('fixture-hand-6', 'Hand VI', 'fixture', 1),
+  // A book with two spells in it, named so that one can be asked for and the
+  // other must stay out of the answer.
+  card('fixture-grimoire', 'A Book of Two Spells', 'fixture', 0, [
+    { name: 'Shove', text: 'Shove something away from you, hard enough that it has to come back.' },
+    { name: 'Splinter', text: 'Throw a shard of something at what is too far off to reach.' },
+  ]),
 ];
+
+/** Six cards for a loadout of five: the sixth is vaulted, and costs 1 to recall. */
+export const FIXTURE_HAND = [
+  'fixture-hand-1',
+  'fixture-hand-2',
+  'fixture-hand-3',
+  'fixture-hand-4',
+  'fixture-hand-5',
+  'fixture-hand-6',
+];
+
+/** The book, and the names its two spells answer to. */
+export const FIXTURE_GRIMOIRE = 'fixture-grimoire';
 
 /** The four a gate of "four or more of one domain" is satisfied by. */
 export const FIXTURE_DOMAIN_FOUR = ['fixture-card-1', 'fixture-card-2', 'fixture-card-3', 'fixture-card-4'];
