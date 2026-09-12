@@ -63,15 +63,20 @@ const block = (
  * `fixture-foe` is the one to reach for when the creature genuinely does not
  * matter, which is most of the time.
  */
+/**
+ * Names are bare nouns on purpose. The fight writes its own log lines out of
+ * them — "Foe is gone: 2 Runts in their place", "the Foe's Swing misses" — and
+ * a name carrying its own article reads badly in every one of them.
+ */
 export const FIXTURE_ADVERSARIES = [
-  block('fixture-foe', 'A Foe', 'standard', 11, 6, 12, 5, 3, 'A Swing', 2, 'melee', 1, 6, 1),
-  block('fixture-archer', 'An Archer', 'ranged', 11, 5, 11, 4, 3, 'A Loosed Arrow', 3, 'far', 1, 6, 1),
-  block('fixture-swarm', 'A Swarm', 'horde', 10, 5, 10, 6, 2, 'A Press of Bodies', 1, 'melee', 1, 6, 0),
-  block('fixture-runt', 'A Runt', 'minion', 9, 4, 8, 1, 1, 'A Jab', 1, 'veryClose', 1, 4, 0),
-  block('fixture-brute', 'A Brute', 'bruiser', 14, 12, 24, 9, 3, 'A Heavy Arm', 4, 'melee', 2, 8, 2),
-  block('fixture-captain', 'A Captain', 'leader', 14, 10, 20, 8, 4, 'A Sabre', 3, 'melee', 1, 10, 2),
-  block('fixture-champion', 'A Champion', 'solo', 15, 13, 26, 12, 5, 'A Greatsword', 4, 'melee', 2, 10, 2),
-  block('fixture-lurker', 'A Lurker', 'skulk', 11, 6, 12, 4, 3, 'A Grasp', 2, 'melee', 1, 6, 1),
+  block('fixture-foe', 'Foe', 'standard', 11, 6, 12, 5, 3, 'Swing', 2, 'melee', 1, 6, 1),
+  block('fixture-archer', 'Archer', 'ranged', 11, 5, 11, 4, 3, 'Loosed Arrow', 3, 'far', 1, 6, 1),
+  block('fixture-swarm', 'Swarm', 'horde', 10, 5, 10, 6, 2, 'Press of Bodies', 1, 'melee', 1, 6, 0),
+  block('fixture-runt', 'Runt', 'minion', 9, 4, 8, 1, 1, 'Jab', 1, 'veryClose', 1, 4, 0),
+  block('fixture-brute', 'Brute', 'bruiser', 14, 12, 24, 9, 3, 'Heavy Arm', 4, 'melee', 2, 8, 2),
+  block('fixture-captain', 'Captain', 'leader', 14, 10, 20, 8, 4, 'Sabre', 3, 'melee', 1, 10, 2),
+  block('fixture-champion', 'Champion', 'solo', 15, 13, 26, 12, 5, 'Greatsword', 4, 'melee', 2, 10, 2),
+  block('fixture-lurker', 'Lurker', 'skulk', 11, 6, 12, 4, 3, 'Grasp', 2, 'melee', 1, 6, 1),
 ] as const;
 
 /** The ids above, for a test that wants to name one without repeating a literal. */

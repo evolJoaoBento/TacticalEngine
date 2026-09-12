@@ -308,12 +308,49 @@ describe('a Leader buying its own side a turn', () => {
 });
 
 describe('a creature that does not stay the same creature', () => {
-  const arena = (adversary: string, seed: string, fear: number) => {
+  /**
+   * A second form, stood up the moment the first one falls. `defeated` is the
+   * trigger, and the replacement is spotlighted rather than left waiting — so
+   * the fight is not over at the very moment it looked won.
+   */
+  const SECOND_WIND = {
+    id: 'fixture-second-wind',
+    name: 'Second Wind',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Put down, it gets back up as something worse.',
+    kind: 'reaction',
+    trigger: 'defeated',
+    action: false,
+    target: { kind: 'none' },
+    effects: [{ kind: 'replace', adversary: 'fixture-champion', spotlight: true }],
+  };
+
+  /**
+   * The same move on a different trigger, and paid for: a wound deep enough
+   * splits it into two smaller ones, which stand up unmarked.
+   */
+  const SPLITS_IN_TWO = {
+    id: 'fixture-splits-in-two',
+    name: 'Splits in Two',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Wounded deeply enough, and at a price, it comes apart into two of itself.',
+    kind: 'reaction',
+    trigger: 'tookHitPoints',
+    action: false,
+    cost: { fear: 1 },
+    available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 3 },
+    target: { kind: 'none' },
+    inCombatOnly: true,
+    effects: [{ kind: 'replace', adversary: 'fixture-runt', count: '2', spotlight: true }],
+  };
+
+  const arena = (seed: string, fear: number, features: readonly unknown[]) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'arena', name: 'The arena' })));
-    s.run(addAdversary('hall', 'arena', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
+    s.run(addAdversary('hall', 'arena', { id: 'foe', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
+    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'arena');
@@ -324,9 +361,9 @@ describe('a creature that does not stay the same creature', () => {
   };
 
   it('stands the next form up before anybody says the fight is won', () => {
-    const demo = arena('volcanic-dragon-obsidian-predator', 'phase', 0);
+    const demo = arena('phase', 0, [SECOND_WIND]);
     const where = demo.state.entity('foe')!.tile;
-    // The killing blow, delivered by hand: the Predator marks its last HP.
+    // The killing blow, delivered by hand: it marks its last Hit Point.
     demo.state.entity('foe')!.hitPoints = { max: 6, marked: 5 };
     attackWithSelected(demo, 'foe');
     if (demo.state.entity('foe')?.alive === true) {
@@ -337,27 +374,20 @@ describe('a creature that does not stay the same creature', () => {
       settleFight(demo);
     }
 
-    // "Replace them with the Molten Scourge and immediately spotlight them."
     expect(demo.state.entity('foe')).toBeUndefined();
     const next = demo.state.entitiesOf('adversary').filter((e) => e.alive);
-    expect(next.map((e) => e.definition)).toEqual(['volcanic-dragon-molten-scourge']);
+    expect(next.map((e) => e.definition)).toEqual(['fixture-champion']);
     // In the same place the fight left it, at full strength off its own block.
     expect(next[0]!.tile).toBe(where);
     expect(next[0]!.hitPoints.marked).toBe(0);
     // And the fight is not over: the party won nothing yet.
     expect(demo.encounter!.outcome).toBe('ongoing');
-    // One feature on the block, not two: the printed name carries "(Phase
-    // Change)" and the scripted one does not, and nothing merges by name.
-    const named = demo.world
-      .abilitiesForAdversary('volcanic-dragon-obsidian-predator')
-      .filter((a) => a.name.startsWith('Erupting Rage'));
-    expect(named).toHaveLength(1);
   });
 
-  it('splits an Ooze in two, on the Fear that says so', () => {
-    const demo = arena('green-ooze', 'ooze', 3);
+  it('splits a creature in two, on the Fear that says so', () => {
+    const demo = arena('ooze', 3, [SPLITS_IN_TWO]);
     const foe = demo.state.entity('foe')!;
-    // "When the Ooze has 3 or more HP marked": one short, so the blow that
+    // Three or more Hit Points marked, and it is one short: the blow that
     // lands is the one that splits it.
     foe.hitPoints = { max: 8, marked: 2 };
     const fear = demo.state.fear.value;
@@ -366,32 +396,32 @@ describe('a creature that does not stay the same creature', () => {
     // The log names what is gone, which nothing can look up once it is: the
     // line comes after the swing that caused it, not before.
     const said = demo.log.map((l) => l.text);
-    expect(said).toContain('Green Ooze is gone: 2 Tiny Green Oozes in their place.');
-    expect(said.indexOf('Green Ooze is gone: 2 Tiny Green Oozes in their place.')).toBeGreaterThan(
+    expect(said).toContain('Foe is gone: 2 Runts in their place.');
+    expect(said.indexOf('Foe is gone: 2 Runts in their place.')).toBeGreaterThan(
       said.findIndex((t) => t.includes('Kara hits with the Longsword')),
     );
 
-    const oozes = demo.state.entitiesOf('adversary').filter((e) => e.alive);
-    expect(oozes.map((e) => e.definition)).toEqual(['tiny-green-ooze', 'tiny-green-ooze']);
-    // "(with no marked HP or Stress)"
-    expect(oozes.every((e) => e.hitPoints.marked === 0 && e.stress.marked === 0)).toBe(true);
+    const halves = demo.state.entitiesOf('adversary').filter((e) => e.alive);
+    expect(halves.map((e) => e.definition)).toEqual(['fixture-runt', 'fixture-runt']);
+    // They stand up with nothing marked against them.
+    expect(halves.every((e) => e.hitPoints.marked === 0 && e.stress.marked === 0)).toBe(true);
     expect(demo.state.entity('foe')).toBeUndefined();
     expect(fear - demo.state.fear.value).toBe(1);
   });
 
-  it('leaves an Ooze whole while the wound is shallow, and while the pool is empty', () => {
-    const shallow = arena('green-ooze', 'ooze-shallow', 3);
+  it('leaves it whole while the wound is shallow, and while the pool is empty', () => {
+    const shallow = arena('ooze-shallow', 3, [SPLITS_IN_TWO]);
     shallow.state.entity('foe')!.hitPoints = { max: 8, marked: 0 };
     attackWithSelected(shallow, 'foe');
-    expect(shallow.state.entity('foe')?.definition).toBe('green-ooze');
+    expect(shallow.state.entity('foe')?.definition).toBe('fixture-foe');
 
-    const broke = arena('green-ooze', 'ooze-broke', 0);
+    const broke = arena('ooze-broke', 0, [SPLITS_IN_TWO]);
     broke.state.entity('foe')!.hitPoints = { max: 8, marked: 2 };
     // Damage rather than a swing, so no roll hands the GM the Fear back.
     broke.world.dealDamage('foe', { amount: 4, types: ['physical'] }, broke.rng);
     settleFight(broke);
-    // Nothing to spend: "spend a Fear to split them" is not a suggestion.
-    expect(broke.state.entity('foe')?.definition).toBe('green-ooze');
+    // Nothing to spend, and a cost is not a suggestion.
+    expect(broke.state.entity('foe')?.definition).toBe('fixture-foe');
   });
 });
 
@@ -2715,16 +2745,40 @@ describe('a clock the fight carries', () => {
   });
 });
 
-describe('a swarm of Giant Rats', () => {
-  /** Rats loose in the hall, and Kara alone in the middle of it. */
-  const hall = (rats: readonly { x: number; y: number }[], fear: number) => {
+describe('a swarm that piles onto one target', () => {
+  /**
+   * One attack the rest of its own kind joins. `joinedBy` is what makes it a
+   * swarm rather than a swing: the pack gathers around the target, `sameKind`
+   * keeps it to creatures off the same block, and the whole pile is one roll
+   * the GM pays for once.
+   */
+  const PACK_RUSH = {
+    id: 'fixture-pack-rush',
+    name: 'Pack Rush',
+    source: { kind: 'adversary', adversaries: ['fixture-swarm'] },
+    text: 'At a price, everything of its kind nearby piles onto one target at once.',
+    cost: { fear: 1 },
+    target: { kind: 'creature', range: 'close' },
+    inCombatOnly: true,
+    effects: [
+      {
+        kind: 'attack',
+        target: { kind: 'target' },
+        joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
+      },
+    ],
+  };
+
+  /** A pack loose in the hall, and Kara alone in the middle of it. */
+  const hall = (pack: readonly { x: number; y: number }[], fear: number) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 4, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'vermin', name: 'Vermin' })));
-    rats.forEach((at, i) => {
-      s.run(addAdversary('hall', 'vermin', { id: `rat-${i + 1}`, adversary: 'giant-rat', position: at }));
+    pack.forEach((at, i) => {
+      s.run(addAdversary('hall', 'vermin', { id: `rat-${i + 1}`, adversary: 'fixture-swarm', position: at }));
     });
+    s.run(addAbility(abilitySchema.parse(PACK_RUSH)));
     const demo = buildProjectScene(s.project, 'rats');
     demo.askDefender = false;
     startEncounter(demo, 'vermin');
@@ -2732,33 +2786,32 @@ describe('a swarm of Giant Rats', () => {
     return demo;
   };
 
-  it('calls the rest of the pack in for one shared bite, and each rat swings once', () => {
-    // Four rats, none of them next to Kara: Close range of her, which is what
-    // the feature gathers.
+  it('calls the rest of the pack in for one shared bite, and each of them swings once', () => {
+    // Four of them, none next to Kara: Close range of her, which is what the
+    // feature gathers.
     const demo = hall([{ x: 7, y: 4 }, { x: 7, y: 3 }, { x: 7, y: 5 }, { x: 8, y: 4 }], 6);
     endTurn(demo);
 
     const said = demo.log.map((l) => l.text);
-    expect(said.filter((t) => t.includes('uses Group Attack')).length).toBe(1);
-    // One roll, and the bite counted for every rat that got there.
+    expect(said.filter((t) => t.includes('uses Pack Rush')).length).toBe(1);
+    // One roll, and the bite counted for every one of them that got there.
     expect(said.some((t) => /of them at once/.test(t))).toBe(true);
-    // A rat that piled in has had its turn: four rats, and no more than four
+    // One that piled in has had its turn: four of them, and no more than four
     // acts in the whole GM turn — without the spotlight bookkeeping the three
     // that joined would each come round again and bite a second time.
-    const bites = said.filter((t) => t.includes('Bite') || t.includes('Group Attack')).length;
+    const bites = said.filter((t) => t.includes('Press of Bodies') || t.includes('Pack Rush')).length;
     expect(bites).toBeLessThanOrEqual(4);
   });
 
-  it('spends the one Fear the feature costs, not one for every rat that piles in', () => {
-    // Three rats, all of them close enough to join: the whole pack acts on the
-    // one feature, so nothing else in the turn is left to spend Fear on.
+  it('spends the one Fear the feature costs, not one for every creature that piles in', () => {
+    // Three of them, all close enough to join: the whole pack acts on the one
+    // feature, so nothing else in the turn is left to spend Fear on.
     const demo = hall([{ x: 7, y: 4 }, { x: 7, y: 3 }, { x: 7, y: 5 }], 6);
     const before = demo.state.fear.value;
     endTurn(demo);
     expect(demo.log.some((l) => l.text.includes('3 of them at once'))).toBe(true);
-    // "Spend a Fear to choose a target and spotlight all Giant Rats within
-    // Close range": the Fear buys the whole pack's one shared bite. The rats
-    // that joined have had their spotlight, and the GM pays for it once.
+    // The Fear buys the whole pack's one shared bite: the ones that joined
+    // have had their spotlight, and the GM pays for it once.
     expect(before - demo.state.fear.value).toBe(1);
   });
 
@@ -2767,7 +2820,7 @@ describe('a swarm of Giant Rats', () => {
     const before = demo.state.fear.value;
     endTurn(demo);
     const said = demo.log.map((l) => l.text);
-    expect(said.some((t) => t.includes('uses Group Attack'))).toBe(false);
+    expect(said.some((t) => t.includes('uses Pack Rush'))).toBe(false);
     expect(demo.state.fear.value).toBe(before);
   });
 });
