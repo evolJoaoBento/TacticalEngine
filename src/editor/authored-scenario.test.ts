@@ -20,6 +20,7 @@ import {
   updateSheet,
 } from './session';
 import { validateProject } from './validate';
+import { FIXTURE_ADVERSARIES } from '../../tests/fixtures/adversaries';
 import { SRD_ABILITIES } from '../engine/content/srd/abilities';
 import { runScript } from '../engine/script/runner';
 import type { Rng } from '../engine/core/rng';
@@ -70,7 +71,7 @@ const KARA = characterSheetSchema.parse(
  * parking them off the board, which is authored scenery and never enters play.
  */
 function blank(width = 12, height = 8): EditorSession {
-  return new EditorSession(
+  const session = new EditorSession(
     projectSchema.parse({
       id: 'authored',
       name: 'Authored',
@@ -78,6 +79,12 @@ function blank(width = 12, height = 8): EditorSession {
       startScene: 'hall',
     }),
   );
+  // The stat blocks its fights place. A project that names a creature nobody can
+  // look up is a broken document and the engine says so, so the creatures a
+  // fixture fights are carried by the fixture — not borrowed from whatever pack
+  // the app happens to ship.
+  session.project.adversaries.push(...FIXTURE_ADVERSARIES);
+  return session;
 }
 
 /** Every edit the panels would run, in the order a designer would run them. */
