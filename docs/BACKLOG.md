@@ -4,12 +4,13 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
-**Pinned to commit `06f9227`.** At that commit: `npx tsc --noEmit` clean, **1826 of 1835 unit tests
-passing across 92 files**. The 9 failures are known and scoped — 8 in `demo-cards.test.ts` (item 0
-below) and 1 deliberate in `demo-defense.test.ts`. **Playwright has not run since the demo was
-repointed onto the starter pack**, so its count is unverified; do not quote the old 103 until it has.
-If the passing count comes back lower than 1826, something was lost — check before building on it.
-Symbol names are the stable handles here; line numbers move.
+**Pinned to commit `01b4c83`.** At that commit: `npx tsc --noEmit` clean, **1834 of 1835 unit tests
+passing across 92 files**. The single failure is the documented deliberate one in
+`demo-defense.test.ts` — a Stress assertion left red after four attempts rather than guessed at, with
+what was ruled out recorded in its commit. **Playwright has not run since the demo was repointed onto
+the starter pack**, so its count is unverified; do not quote the old 103 until it has. If the passing
+count comes back lower than 1834, something was lost — check before building on it. Symbol names are
+the stable handles here; line numbers move.
 
 ---
 
@@ -74,45 +75,28 @@ it in the matching `CRPG-GAPS.md` section as done, and re-pin the commit and sui
 header. A backlog nobody prunes is wrong within a week, and then it costs the next agent the startup
 time it was written to save.
 
-### 0. Finish the fixture conversion — the precondition for slice 3
+### 0. ~~Finish the fixture conversion~~ — **done**, and slice 3 is unblocked
 
-Slice 3 deletes the vendored catalogue. It is only safe once **no test depends on that content**,
-because a test that borrows a card it no longer ships is a test that cannot tell you whether the
-deletion broke the engine or merely broke itself.
+Every game-layer test now carries its own content instead of borrowing the catalogue's.
+`authored-scenario.test.ts` 49 → 0, `demo-abilities.test.ts` 14 → 0, `demo-cards.test.ts` 14 → 0,
+and the earlier `demo-defense.test.ts` conversion. **This is the precondition for slice 3 and it is
+met**: nothing under `src/` asserts against a card, creature or condition the vendored catalogue
+owns, so deleting that catalogue can only break the engine, never merely strip a test of its props.
 
-Three of four files are done: `authored-scenario.test.ts` (49 → 0), `demo-abilities.test.ts`
-(14 → 0), and the earlier `demo-defense.test.ts` conversion. **8 remain in `demo-cards.test.ts`**,
-all of one shape: a card that no longer exists, so `useAbility` answers `'missing'`.
+Roughly forty specimens live in `tests/fixtures/cards.ts` and `tests/fixtures/adversary-features.ts`,
+named for the mechanism rather than anything they were read off, so one serves several tests. They
+are also an unplanned proof that importing works: each pushes content into a project and plays it,
+which is exactly what an imported pack does.
 
-The pattern, which the other three files establish: a test pushes `FIXTURE_CARDS` into
-`project.domainCards`, pushes specimen abilities into `project.abilities` (and condition
-definitions, and project code if the card runs a hook), puts the card in a hand, and plays it.
-Specimens live in `tests/fixtures/cards.ts` and `tests/fixtures/adversary-features.ts`, named for
-the **mechanism** rather than anything they were read off, so one specimen serves several tests.
+Two findings from that work worth keeping:
 
-What is left:
-
-- **Bold Presence** (2) — a reaction on a failed Presence roll that raises it by Strength. Needs a
-  Presence-rolling companion and an Instinct-rolling one; the second test proves the gate refuses a
-  different trait, and asserts the companion succeeds sometimes, so it must genuinely roll.
-- **The three `*-Touched`** (4, counting the weapon-swing variant) — each gated on
-  `{ kind: 'loadout', domain, op: '>=', value: 4 }`. Each needs a hand of four cards in one domain
-  plus a companion in **another** domain that makes a real roll; `FIXTURE_DOMAIN_FOUR` and
-  `FIXTURE_OTHER_FOUR` exist for exactly that pairing.
-- **Confusing Aura** (2) — the specimen is already written (`AN_AURA_OF_LAYERS`, `per: 'longRest'`,
-  a `chance` roll per layer). Needs only a hand and two re-pins: the token bucket, and
-  `'The aura is gone'` → the specimen's own wording.
-- **Bone-Touched** (1) — `incomingDamage`, three Light, once per rest, `avoidBlow`, same domain gate.
-
-**Open question, answer before writing the `*-Touched` specimens:** does the `loadout` availability
-condition read a card's **domain** from the shipped pack or from `characterContentFor(project)`? If
-the shipped pack, four fixture-domain cards can never satisfy the gate and those tests are
-unfixable by carrying content — it would be a fourth instance of the engine-seam bug fixed in
-`43e28ed`, not a test problem.
-
-Also in this item: **two tests pass for the wrong reason.** "Is not offered with three cards" holds
-because the hands name ids that no longer resolve, so nothing is offered at all. Carrying the
-specimens has to make them real, not merely leave them green.
+- **`loadoutDomain` reads the merged content.** It counts `character.cards` filtered by
+  `card.domain`, and those cards come from `deriveCharacter(sheet, characterContentFor(project), …)`.
+  So a project's own cards satisfy a `{ kind: 'loadout', domain, op, value }` gate exactly as shipped
+  cards do — which is what any content author needs to know, and what made three tests fixable.
+- **A weapon swing is a roll with the weapon's trait**, passed at the attack site as
+  `rollingOffers(…, profile.trait)`. A card gated on traits no equipped weapon rolls can never be
+  offered, however many seeds are tried.
 
 ### 1. Slice 3 — export and purge (destructive, on a branch)
 
