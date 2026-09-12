@@ -5092,11 +5092,79 @@ describe('ground that means something', () => {
 
 
 describe('ground worth standing on', () => {
+  /**
+   * A patch of ground that takes a die off anything its own side is hit for
+   * while they stand in it, turns that die up each time it answers a blow, and
+   * stops meaning anything once the die would pass six.
+   *
+   * The number lives on the zone rather than on the card or the condition --
+   * `value` with `grows` -- which is how one die on one card becomes a number
+   * everybody standing there reads the same. The condition is a bare marker:
+   * what comes off a blow is read from the zone through it.
+   *
+   * The zone's id and the condition's are deliberately different. The catalogue
+   * happens to use one string for both, which reads like a requirement and is
+   * not one.
+   */
+  const LIGHT_CARD = 'fixture-card-32';
+
+  /** Carries nothing. The die it is read for belongs to the ground. */
+  const IN_LIGHT_CONDITION = {
+    id: 'fixture-in-light',
+    name: 'Standing in It',
+    text: 'Damage taken here is reduced by the value of the die on the ground.',
+    color: '#6ed6a0',
+  };
+
+  /** One patch of ground, and the die that climbs while it answers blows. */
+  const LAID = [
+    {
+      kind: 'zone',
+      zone: 'fixture-light-ground',
+      name: 'Standing Ground',
+      condition: 'fixture-in-light',
+      at: 'point',
+      band: 'veryClose',
+      side: 'allies',
+      value: 1,
+      grows: { by: 1, until: 6 },
+    },
+    { kind: 'log', text: 'The air over that ground goes hard and bright.', tone: 'hope' },
+  ];
+
+  const LIGHT = [
+    {
+      id: 'fixture-light',
+      name: 'Standing Ground',
+      source: { kind: 'domainCard', card: LIGHT_CARD },
+      text: 'Once between long rests, make a patch of ground worth standing on.',
+      uses: { count: 1, per: 'longRest' },
+      target: { kind: 'point', range: 'far' },
+      inCombatOnly: true,
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 16,
+            prompt: 'Ground worth standing on?',
+            onCriticalSuccess: LAID,
+            onSuccessWithHope: LAID,
+            onSuccessWithFear: LAID,
+          },
+        },
+      ],
+    },
+  ];
+
   /** Mira with the spell in hand and Kara beside the husk, in reach of it. */
   const warding = (seed: string) => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    const sheet = { ...demo.sheets.get('mira')!, domainCards: ['zone-of-protection'], loadout: ['zone-of-protection'] };
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(IN_LIGHT_CONDITION));
+    for (const ability of LIGHT) demo.project.abilities.push(abilitySchema.parse(ability));
+    const sheet = { ...demo.sheets.get('mira')!, domainCards: [LIGHT_CARD], loadout: [LIGHT_CARD] };
     demo.sheets.set('mira', sheet);
     demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     // Kara's own cards come off: what is under test is what the ground does.
@@ -5111,13 +5179,13 @@ describe('ground worth standing on', () => {
   /** Cast it on Kara's ground; true when the roll got there. */
   const cast = (demo: DemoScene): boolean => {
     const at = demo.state.entity('kara')!.tile;
-    if (useAbility(demo, 'mira', 'zone-of-protection', [], { point: at }).status === 'refused') return false;
+    if (useAbility(demo, 'mira', 'fixture-light', [], { point: at }).status === 'refused') return false;
     for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
       const prompt = demo.pending.prompt;
       if (prompt.kind === 'choice') answerPending(demo, { kind: 'choose', index: 0 });
       else answerPending(demo, { kind: 'roll' });
     }
-    return demo.world.zones().some((z) => z.id === 'zone-of-protection');
+    return demo.world.zones().some((z) => z.id === 'fixture-light-ground');
   };
 
   it('stands over the party and takes its die off what they are hit for', () => {
@@ -5126,10 +5194,10 @@ describe('ground worth standing on', () => {
       if (!cast(demo)) continue;
 
       const kara = demo.state.entity('kara')!;
-      expect(kara.conditions.has('zone-of-protection')).toBe(true);
+      expect(kara.conditions.has('fixture-in-light')).toBe(true);
       // The husk is not one of theirs, so the light is nothing to it.
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-      expect(husk.conditions.has('zone-of-protection')).toBe(false);
+      expect(husk.conditions.has('fixture-in-light')).toBe(false);
       // A die of one, coming off any blow taken there.
       expect(demo.world.defensesOf('kara').reduce).toEqual([{ dice: '1' }]);
       expect(demo.world.defensesOf(husk.id).reduce ?? []).toEqual([]);
@@ -5156,7 +5224,7 @@ describe('ground worth standing on', () => {
       // anything and the light comes off her with it.
       demo.world.damage({ kind: 'entity', id: 'kara' }, 1);
       expect(demo.world.zones().length).toBe(0);
-      expect(kara.conditions.has('zone-of-protection')).toBe(false);
+      expect(kara.conditions.has('fixture-in-light')).toBe(false);
       expect(demo.world.defensesOf('kara').reduce ?? []).toEqual([]);
       return;
     }
@@ -5181,7 +5249,7 @@ describe('ground worth standing on', () => {
       expect(away).not.toBe(NO_TILE);
       demo.state.moveEntity('kara', away);
       demo.world.refreshZones();
-      expect(kara.conditions.has('zone-of-protection')).toBe(false);
+      expect(kara.conditions.has('fixture-in-light')).toBe(false);
       expect(demo.world.defensesOf('kara').reduce ?? []).toEqual([]);
       // And the ground is still there for whoever is standing on it.
       expect(demo.world.zones().length).toBe(1);
