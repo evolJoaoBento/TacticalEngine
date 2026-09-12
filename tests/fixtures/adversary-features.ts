@@ -579,3 +579,68 @@ export const A_WOUND_HANDED_BACK = (definition: string): Record<string, unknown>
     { kind: 'damage', amount: 'hitPointsTaken', target: { kind: 'target' } },
   ],
 });
+
+/**
+ * A rally that hands two others at range a turn, out of the GM's pool.
+ *
+ * Priced in Fear rather than Stress, which is the interesting half: the turn must
+ * honour what the feature bought even when the pool cannot afford a second
+ * spotlight of its own. A test pins exactly that -- both of the rallied act, though
+ * the first of them could have gone again and the GM could not pay for it.
+ *
+ * Simplified: "two others of its own kind" is not something a target selector can
+ * ask for, so the two nearest allies answer.
+ */
+export const A_RALLY_OF_TWO_AT_RANGE = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-push-them-forward`,
+  name: 'Push Them Forward',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'It spends the room\'s dread putting two others in front of itself.',
+  cost: { fear: 1 },
+  target: { kind: 'none', range: 'far' },
+  inCombatOnly: true,
+  effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '2' }],
+});
+
+/**
+ * A call that arrives already swinging.
+ *
+ * `spotlight: true` on the summon is the whole point: what it calls in acts on the
+ * turn it arrived, and the Fear the feature paid covers that -- so the turn must
+ * not bill the GM again for it. A test reads `fearSpent` on each arrival and
+ * expects nothing.
+ *
+ * Two parameters, because what arrives is not what called it.
+ */
+export const A_CALL_THAT_ARRIVES_SWINGING = (definition: string, summons: string): Record<string, unknown> => ({
+  id: `${definition}-the-hunt`,
+  name: 'The Hunt',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'It calls, and what answers is already moving.',
+  cost: { fear: 2 },
+  target: { kind: 'none' },
+  inCombatOnly: true,
+  effects: [{ kind: 'summon', adversary: summons, count: '1d4', range: 'far', spotlight: true }],
+});
+
+/**
+ * A rally with a rider: what it hands out strikes for half.
+ *
+ * `halfDamage` rides on the spotlight rather than on the creatures, so it lasts
+ * the turn it bought and no longer -- a creature that takes a second spotlight the
+ * GM paid for swings at full strength. That distinction is the whole of one test,
+ * which counts which of four swings was softened.
+ *
+ * Simplified: the Fear that would buy full damage is a choice made after the
+ * allies are named, which nothing here asks for; it takes the half.
+ */
+export const A_RALLY_THAT_STRIKES_FOR_HALF = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-borrowed-time`,
+  name: 'Borrowed Time',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'The turns it hands out are not really theirs, and they land like it.',
+  cost: { stress: 1 },
+  target: { kind: 'none', range: 'far' },
+  inCombatOnly: true,
+  effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '1d4', halfDamage: true }],
+});

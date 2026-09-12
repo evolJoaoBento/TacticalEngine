@@ -23,12 +23,15 @@ import { validateProject } from './validate';
 import { FIXTURE_ADVERSARIES } from '../../tests/fixtures/adversaries';
 import {
   A_BONUS_READ_OFF_ITS_OWN_WOUNDS,
+  A_CALL_THAT_ARRIVES_SWINGING,
   A_BREATH_GATED_ON_A_DIE,
   A_CALL_FOR_MORE_OF_THEM,
   A_HIDE_THAT_SHRUGS_OFF_STEEL,
   A_HUNGER_DRAWN_TO_A_WOUND,
   A_RAIN_THAT_EVERYONE_ANSWERS,
+  A_RALLY_OF_TWO_AT_RANGE,
   A_RALLY_THAT_BUYS_TWO_TURNS,
+  A_RALLY_THAT_STRIKES_FOR_HALF,
   A_SPEND_GATED_ON_WHAT_THEY_CARRY,
   A_STORE_THAT_HOLDS_WHOEVER_IT_HIT,
   A_STORE_TORN_OFF_BY_A_REAL_WOUND,
@@ -2714,7 +2717,7 @@ describe("what a block's own teeth do to this target", () => {
 });
 
 describe('a Demon rallying Relentless allies', () => {
-  /** A Demon of Hubris and two Minor Demons, who can each be spotlighted twice. */
+  /** Something that rallies, and two that can each be spotlighted twice. */
   const pit = (fear: number, seed: string) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -2723,8 +2726,9 @@ describe('a Demon rallying Relentless allies', () => {
     s.run(addAdversary('hall', 'pit', { id: 'hubris', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
     // The imps stand in Far range of Kara and past a Close-range walk of her:
     // rallied, they close in and stop short, and the fight makes no Fear of its own.
-    s.run(addAdversary('hall', 'pit', { id: 'imp-1', adversary: 'fixture-runt', position: { x: 10, y: 3 } }));
-    s.run(addAdversary('hall', 'pit', { id: 'imp-2', adversary: 'fixture-runt', position: { x: 10, y: 5 } }));
+    s.run(addAdversary('hall', 'pit', { id: 'imp-1', adversary: 'fixture-relentless-runt', position: { x: 10, y: 3 } }));
+    s.run(addAdversary('hall', 'pit', { id: 'imp-2', adversary: 'fixture-relentless-runt', position: { x: 10, y: 5 } }));
+    s.project.abilities.push(abilitySchema.parse(A_RALLY_OF_TWO_AT_RANGE('fixture-captain')));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'pit');
@@ -2736,13 +2740,13 @@ describe('a Demon rallying Relentless allies', () => {
 
   it('lets the second one act, though the first could have been spotlighted again', () => {
     // Exactly the Fear the feature costs. A Relentless ally keeps its place at
-    // the head of the queue after its granted spotlight, and the GM cannot
-    // afford the second one - which must not end the turn while somebody
-    // behind it is standing on a spotlight the Demon already paid for.
+    // the head of the queue after its granted spotlight, and the GM cannot afford
+    // the second one - which must not end the turn while somebody behind it is
+    // standing on a spotlight the feature already paid for.
     const demo = pit(1, 'hubris');
     endTurn(demo);
 
-    expect(demo.log.some((l) => l.text.includes('uses The Root of Villainy'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('uses Push Them Forward'))).toBe(true);
     const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string }[];
     expect(acted.filter((e) => e.id === 'imp-1')).toHaveLength(1);
     expect(acted.filter((e) => e.id === 'imp-2')).toHaveLength(1);
@@ -2756,17 +2760,18 @@ describe('what a feature calls in and spotlights', () => {
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'crypt', name: 'The crypt' })));
     s.run(addAdversary('hall', 'crypt', { id: 'lord', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
+    s.project.abilities.push(abilitySchema.parse(A_CALL_THAT_ARRIVES_SWINGING('fixture-captain', 'fixture-runt')));
     const demo = buildProjectScene(s.project, 'the-hunt');
     demo.askDefender = false;
     startEncounter(demo, 'crypt');
-    // Exactly what "The Hunt Is On" costs, and not a Fear more: what it calls
-    // in was paid for by the feature, so the turn must not stop billing for it.
+    // Exactly what the feature costs, and not a Fear more: what it calls in was
+    // paid for when it was called, so the turn must not bill the GM again.
     demo.state.fear = { ...demo.state.fear, value: 2 };
     demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
     endTurn(demo);
 
-    expect(demo.log.some((l) => l.text.includes('uses The Hunt Is On'))).toBe(true);
-    const arrivals = demo.state.entitiesOf('adversary').filter((e) => e.definition === 'vampire');
+    expect(demo.log.some((l) => l.text.includes('uses The Hunt'))).toBe(true);
+    const arrivals = demo.state.entitiesOf('adversary').filter((e) => e.definition === 'fixture-runt');
     expect(arrivals.length).toBeGreaterThan(0);
     const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string; fearSpent: number }[];
     for (const arrival of arrivals) {
@@ -2778,12 +2783,13 @@ describe('what a feature calls in and spotlights', () => {
 
 describe('a Necromancer who buys their troops a turn', () => {
   /**
-   * "Attacks they make while spotlighted in this way deal half damage."
+   * The rider: what the rally hands out strikes for half.
    *
-   * Two runs of the same seed, the second with the shipped feature overridden
-   * by one that rallies without the rider, so the only difference between them
-   * is the halving. A Fallen Shock Troop hits for 12, which crosses a level 1
-   * Guardian's Major threshold going full and does not going half.
+   * Two runs of the same seed, one carrying the rally with its rider and one
+   * carrying a rally without it, so the halving is the only difference between
+   * them. Carrying one or the other rather than overriding by id, because nothing
+   * shipped is sourced to a fixture block and two abilities with one id would both
+   * fire.
    */
   const gates = (half: boolean) => {
     const s = blank();
@@ -2791,13 +2797,19 @@ describe('a Necromancer who buys their troops a turn', () => {
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'lists', name: 'The gates' })));
     s.run(addAdversary('hall', 'lists', { id: 'necromancer', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
-    s.run(addAdversary('hall', 'lists', { id: 'troop-1', adversary: 'fixture-runt', position: { x: 6, y: 3 } }));
-    s.run(addAdversary('hall', 'lists', { id: 'troop-2', adversary: 'fixture-runt', position: { x: 6, y: 5 } }));
-    if (!half) {
+    // Troops that hit hard enough for the halving to show. A minion's jab is at
+    // most 4 against thresholds of roughly 8 and 16, so it marks nothing either
+    // way and the rider would be invisible rather than absent.
+    s.run(addAdversary('hall', 'lists', { id: 'troop-1', adversary: 'fixture-brute', position: { x: 6, y: 3 } }));
+    s.run(addAdversary('hall', 'lists', { id: 'troop-2', adversary: 'fixture-brute', position: { x: 6, y: 5 } }));
+    if (half) {
+      s.project.abilities.push(abilitySchema.parse(A_RALLY_THAT_STRIKES_FOR_HALF('fixture-captain')));
+    } else {
+      // The same rally without the rider, under its own id.
       s.project.abilities.push(
         abilitySchema.parse({
-          id: 'fixture-captain-dance-of-death',
-          name: 'Dance of Death',
+          id: 'fixture-captain-rally-at-full',
+          name: 'Rally',
           source: { kind: 'adversary', adversaries: ['fixture-captain'] },
           cost: { stress: 1 },
           target: { kind: 'none', range: 'far' },
@@ -2816,7 +2828,7 @@ describe('a Necromancer who buys their troops a turn', () => {
 
   it('halves what they deal on the turn they were handed', () => {
     const halved = gates(true);
-    expect(halved.log.some((l) => l.text.includes('uses Dance of Death'))).toBe(true);
+    expect(halved.log.some((l) => l.text.includes('uses Borrowed Time'))).toBe(true);
     expect(halved.log.filter((l) => l.text.includes("somebody else's word")).length).toBeGreaterThan(0);
 
     const full = gates(false);
@@ -2828,17 +2840,18 @@ describe('a Necromancer who buys their troops a turn', () => {
   });
 
   it('carries the half through the turn it bought and no further', () => {
-    // A Necromancer rallies two Minor Demons, who are Relentless (2): each
-    // takes the spotlight it was handed and then a second the GM pays a Fear
-    // for. The whole turn, on one seed, because the claim is about which of
-    // the four swings is at half strength and which is not.
+    // It rallies two that are Relentless (2): each takes the spotlight it was
+    // handed and then a second the GM pays a Fear for. The whole turn, on one
+    // seed, because the claim is about which of the four swings is at half
+    // strength and which is not.
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'gates', name: 'The gates' })));
     s.run(addAdversary('hall', 'gates', { id: 'necromancer', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
-    s.run(addAdversary('hall', 'gates', { id: 'imp-1', adversary: 'fixture-runt', position: { x: 6, y: 3 } }));
-    s.run(addAdversary('hall', 'gates', { id: 'imp-2', adversary: 'fixture-runt', position: { x: 6, y: 5 } }));
+    s.run(addAdversary('hall', 'gates', { id: 'imp-1', adversary: 'fixture-relentless-runt', position: { x: 6, y: 3 } }));
+    s.run(addAdversary('hall', 'gates', { id: 'imp-2', adversary: 'fixture-relentless-runt', position: { x: 6, y: 5 } }));
+    s.project.abilities.push(abilitySchema.parse(A_RALLY_THAT_STRIKES_FOR_HALF('fixture-captain')));
     const demo = buildProjectScene(s.project, 'dance');
     demo.askDefender = false;
     startEncounter(demo, 'gates');
@@ -2847,17 +2860,18 @@ describe('a Necromancer who buys their troops a turn', () => {
     endTurn(demo);
 
     expect(demo.log.map((l) => l.text)).toEqual([
-      'The Arch-Necromancer uses Dance of Death.',
-      'Minor Demon, Minor Demon are called into the fight, striking for half.',
-      "The Minor Demon's Claws misses Kara.",
-      'The GM gains 1 Fear.',
-      "The Minor Demon's Claws hits Kara: 1 Hit Point.",
-      "The Minor Demon's Claws misses Kara.",
-      "The Minor Demon's Claws misses Kara.",
+      'The Captain uses Borrowed Time.',
+      'Runt, Runt are called into the fight, striking for half.',
+      "The Runt's Jab misses Kara.",
+      "The Runt's Jab hits Kara, and is turned aside.",
+      "The Runt's Jab misses Kara.",
+      "The Runt's Jab misses Kara.",
     ]);
-    // Four swings for two demons: the two the Necromancer bought, and one
-    // more each that the GM paid a Fear for. The hit landed on a paid
-    // spotlight, so nothing says it struck for half.
+    // Four swings for two of them: the two the rally bought, and one more each
+    // that the GM paid a Fear for. Nothing in the log says any of them struck for
+    // half, and nothing should -- that line prints on a blow that marks a Hit
+    // Point, and the only one that landed was turned aside before anything was
+    // counted.
     const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string; fearSpent: number }[];
     expect(acted.filter((e) => e.id === 'imp-1')).toHaveLength(2);
     expect(acted.filter((e) => e.id === 'imp-2')).toHaveLength(2);

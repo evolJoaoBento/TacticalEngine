@@ -74,6 +74,24 @@ export const FIXTURE_ADVERSARIES = [
   block('fixture-captain', 'Captain', 'leader', 14, 10, 20, 8, 4, 'Sabre', 3, 'melee', 1, 10, 2),
   block('fixture-champion', 'Champion', 'solo', 15, 13, 26, 12, 5, 'Greatsword', 4, 'melee', 2, 10, 2),
   block('fixture-lurker', 'Lurker', 'skulk', 11, 6, 12, 4, 3, 'Grasp', 2, 'melee', 1, 6, 1),
+  // A minion that takes two spotlights instead of one.
+  //
+  // Relentless cannot be lent by an ability: `adversaryTraits` reads it by name
+  // off this list and takes the number in brackets, so a test that needs a
+  // creature to act twice needs a block that says so. It is its own block rather
+  // than a flag on the Runt because the Runt stands in a great many fights, and
+  // none of the others asked for a second turn.
+  adversaryDefSchema.parse({
+    ...block('fixture-relentless-runt', 'Runt', 'minion', 9, 4, 8, 1, 1, 'Jab', 1, 'veryClose', 1, 4, 0),
+    features: [
+      {
+        name: 'Relentless',
+        kind: 'passive',
+        parameter: '2',
+        text: 'It can be spotlighted twice in a turn.',
+      },
+    ],
+  }),
 ] as const;
 
 /** The ids above, for a test that wants to name one without repeating a literal. */
