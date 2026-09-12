@@ -115,7 +115,7 @@ stops the mover there rather than letting them run past the ambush.
 
 ### ~~5. Characters — classes, ancestries, equipment~~ — mostly done
 
-`content/srd/daggersearch.ts` imports the 9 classes, 18 ancestries, 9 communities, 34 armors and
+`content/pack/import.ts` imports the 9 classes, 18 ancestries, 9 communities, 34 armors and
 192 weapons; `character/sheet.ts` turns a sheet naming those by id into the numbers the rules
 already consume — Evasion and Hit Points from the class, damage thresholds and Armor Slots from
 the armor plus level, and an attack profile whose trait, range and dice come from the weapon.

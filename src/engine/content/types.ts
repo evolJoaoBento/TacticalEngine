@@ -2,7 +2,7 @@
  * Normalized content types.
  *
  * Vendored SRD data is stringly typed ("atk": "+3", "thresholds": "8/15",
- * "damage": "1d12+2 phy"). Importers under `content/srd/` turn it into these
+ * "damage": "1d12+2 phy"). Importers under `content/pack/` turn it into these
  * shapes once, at load time, so the rules and the runtime only ever see numbers,
  * parsed dice and enums.
  */

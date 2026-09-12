@@ -4,8 +4,14 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
-**Pinned to commit `7b99649`.** At that commit: `npx tsc --noEmit` clean, **1796 unit tests across
-89 files**, **103 Playwright tests** (about 3.7 minutes). If those numbers come back lower, something
+**Pinned to commit `957c137`.** At that commit: `npx tsc --noEmit` clean, **1806 unit tests across
+90 files**, **103 Playwright tests** (about 3.7 minutes).
+
+**In progress: making the engine generic.** The project carries no Daggerheart IP going forward —
+the engine is the base, and anything IP-bearing becomes an importable content pack. The design is
+`docs/superpowers/specs/2026-09-12-generic-engine-content-packs-design.md` and it runs in four
+slices; slice 1 (the pack architecture) is done and deleted nothing. Slice 3 is the destructive one.
+Read the spec before adding anything that names a source. If those numbers come back lower, something
 was lost — check before building on it. Symbol names are the stable handles here; line numbers move.
 
 ---

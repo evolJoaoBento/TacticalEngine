@@ -115,7 +115,8 @@ adapter: the rest of the core does not know it exists.
 | `content/abilities.ts` | `AbilityDef` and its sub-schemas; `abilitiesFor`, `loadoutOf`, `isScripted`, `isAutomatic`, `readsATarget`. A modifier's `advantage` stat is a signed count of dice, `against: true` puts it on rolls made at the holder, `plusProficiency` adds their Proficiency, and `perToken` multiplies the whole bonus by the tokens on a card — never folded into a derived character, because tokens are scene state. A passive's `standardAttack` changes the block's own swing (`direct`, `damage`, `double`), with `when` read from the attacker's chair and the target bound. `target.when` says what makes a creature worth aiming at, read once per candidate by both the player's list and the GM's. |
 | `content/conditions.ts` | `ConditionDef` — what a *status* on a creature does. `SRD_CONDITIONS`. |
 | `content/items.ts`, `content/quests.ts` | Item and quest content shapes. |
-| `content/srd/daggersearch.ts` | Normalises the vendored SRD 1.0 character data (470 lines). |
+| `content/pack/schema.ts` | What a content pack *is*, as zod: `featureSchema`, `weaponDefSchema`, `armorDefSchema`, `classDefSchema`, `ancestryDefSchema`, `communityDefSchema`, `subclassDefSchema`, `domainCardDefSchema`, and `contentPackSchema` over all seven. The contract a pack is validated against, wherever it comes from. |
+| `content/pack/import.ts` | The readers that turn a source's raw shapes into those types (470 lines). Each takes `raw: readonly unknown[]` and returns an `ImportResult`, so it is bound to no particular data set. `importContentPack` does all seven at once and indexes them by id. |
 | `content/srd/seansbox-adversaries.ts` | Normalises the 129 stringly-typed adversaries (300 lines). |
 | `content/srd/abilities.ts` | `SRD_ABILITIES`, `SRD_ABILITY_MAP` — hand-written domain cards (1131 lines). |
 | `content/srd/adversary-abilities.ts` | `SRD_ADVERSARY_ABILITIES` — hand-written stat-block features (1556 lines). |
@@ -428,13 +429,17 @@ ProjectDoc
 ├─ formatVersion: 1        ├─ quests[]        ├─ code[]              (project JS, run as hooks)
 ├─ id, name                ├─ assets[]        ├─ conditionDefs[]     (ConditionDef)
 ├─ terrainPalette?         ├─ abilities[]     ├─ party[]             (CharacterSheet)
-├─ scenes[]  (min 1)       ├─ items[]         └─ startScene
-├─ dialogues[]             ├─ lootTables[]
+├─ scenes[]  (min 1)       ├─ items[]         ├─ adversaryModels{}   (type id -> model id)
+├─ dialogues[]             ├─ lootTables[]    └─ startScene
+│
+├─ the content pack a character is built from, all defaulted:
+│  classes[]  ancestries[]  communities[]  subclasses[]  domainCards[]  weapons[]  armors[]
+│
 └─ superRefine: duplicate scene ids, duplicate dialogue ids, cross-references
 ```
 
 Almost every array is `.default([])`, deliberately: a project written before quests, abilities,
-code, conditions or an authored party existed is still a valid project.
+code, conditions, an authored party or its own content existed is still a valid project.
 
 ---
 
@@ -712,6 +717,23 @@ the last four commits are that pattern. Do not amend the reviewed commit; the pa
 ---
 
 ## 10. Content and licensing
+
+### Content packs
+
+A **pack** is the seven lists a character is built from — classes, ancestries, communities,
+subclasses, domain cards, weapons and armors. `content/pack/schema.ts` says what one is;
+`content/pack/import.ts` turns a source's raw JSON into it. Nothing about the engine knows which
+catalogue it is reading: `character/sheet.ts` takes a `ContentPack` as a parameter, and the importers
+take `readonly unknown[]`.
+
+A project may carry its own pack in the seven `ProjectDoc` fields above, exactly as it already
+carries its abilities, items and conditions. An empty list means "whatever pack the app was given".
+
+Two shapes are named for what they are rather than for a rule: a class's `signatureFeature` (the
+feature it grants for its own resource), and armor thresholds, which must be finite integers because
+`NO_THRESHOLDS` uses `Infinity` and `JSON.stringify` writes that as `null`.
+
+### The vendored sources
 
 Everything is vendored under `tools/srd-sources/`; nothing is fetched at runtime or at build time.
 
