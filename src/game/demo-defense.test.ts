@@ -53,6 +53,51 @@ import {
 
 const scene = (seed = 'defense'): DemoScene => buildDemoScene(demoMap(), seed);
 
+/** What the Codex block's checks resolve into, shared by their success faces. */
+const ENERVATED_ARMS: Record<string, unknown>[] = [
+  { kind: 'log', text: 'Something goes out of them that is not coming back.', tone: 'hope' },
+  { kind: 'applyCondition', condition: 'vulnerable', duration: 'permanent', target: { kind: 'hit' } },
+];
+
+const STOPPED_ARMS: Record<string, unknown>[] = [
+  { kind: 'log', text: 'Every mote of dust in the room stops where it is.', tone: 'hope' },
+  { kind: 'applyCondition', condition: 'time-stopped', duration: 'scene', target: { kind: 'adversaries', range: 'far' } },
+  { kind: 'applyCondition', condition: 'time-jamming', duration: 'scene', target: { kind: 'actor' } },
+];
+
+const RESUMES_ARMS: Record<string, unknown>[] = [
+  { kind: 'log', text: 'They move, and the room remembers how to.', tone: 'combat' },
+  { kind: 'clearCondition', condition: 'time-stopped', target: { kind: 'adversaries', range: 'veryFar' } },
+  { kind: 'clearCondition', condition: 'time-jamming', target: { kind: 'actor' } },
+];
+
+const FLAME_ARMS: Record<string, unknown>[] = [
+  { kind: 'log', text: 'A sheet of fire stands up out of the floor.', tone: 'hope' },
+  {
+    kind: 'zone',
+    zone: 'fixture-flame',
+    name: 'Sheet of Flame',
+    condition: 'fixture-flame',
+    at: 'point',
+    band: 'veryClose',
+    side: 'adversaries',
+    onDeath: 'end',
+  },
+];
+
+const DOORWAY_ARMS: Record<string, unknown>[] = [
+  {
+    kind: 'branch',
+    when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+    then: [
+      { kind: 'spendHope', amount: 1 },
+      { kind: 'log', text: 'A door that was not there, and then neither are they.', tone: 'hope' },
+      { kind: 'move', to: 'point', teleport: true, budget: 'far' },
+    ],
+    otherwise: [{ kind: 'log', text: 'The way opens onto nothing: there is no Hope to hold it.', tone: 'fear' }],
+  },
+];
+
 /**
  * What a watch pays out: a Hope for having seen it, and then the offer of a
  * Stress to take something off the GM. Three faces of one check share it.
@@ -5923,6 +5968,221 @@ describe('a swing that reaches one more', () => {
  * cast by the one member of the party who has a Spellcast trait.
  */
 describe('the last of the Codex', () => {
+  /**
+   * Five cards, one at a time, and the widest span of machinery here: a
+   * condition made permanent, an immunity, a room stopped and started again, a
+   * patch of burning ground, a way out that refuses with something in reach, a
+   * roll that strips a condition off everything it beats, and one card that is
+   * only ever read rather than played.
+   *
+   * The burning ground is the interesting one. The zone effect is geography and
+   * names a condition; the condition carries what happens to whoever walks
+   * through. So that card needs a condition beside it, and the fixture carries
+   * both.
+   */
+  const CODEX_CARD = 'fixture-card-9';
+
+  /** Permanent outlives the scene, where everything else a card hands out does not. */
+  const ENERVATION = [
+    {
+      id: 'fixture-enervation',
+      name: 'Eternal Enervation',
+      source: { kind: 'domainCard', card: CODEX_CARD },
+      text: 'Take something out of them that is not coming back.',
+      uses: { count: 1, per: 'longRest' },
+      target: { kind: 'adversary', range: 'close' },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 'target',
+            prompt: 'Take something out of them for good.',
+            onCriticalSuccess: ENERVATED_ARMS,
+            onSuccessWithHope: ENERVATED_ARMS,
+            onSuccessWithFear: ENERVATED_ARMS,
+          },
+        },
+      ],
+    },
+  ];
+
+  /** A price on the ability itself, and a defence that lives on a condition. */
+  const IMMUNITY = [
+    {
+      id: 'fixture-immunity',
+      name: 'Magic Immunity',
+      source: { kind: 'domainCard', card: CODEX_CARD },
+      text: 'Whatever magic is for, it stops being for them.',
+      cost: { hope: 5 },
+      target: { kind: 'self' },
+      action: false,
+      effects: [
+        { kind: 'log', text: 'Whatever magic is for, it stops being for them.', tone: 'hope' },
+        { kind: 'applyCondition', condition: 'magic-immune', duration: 'rest', target: { kind: 'actor' } },
+      ],
+    },
+  ];
+
+  /**
+   * The room held still, and let go by its own caster's next swing -- landed or
+   * missed, which is two triggers for one idea.
+   */
+  const JAMMER = [
+    {
+      id: 'fixture-jammer',
+      name: 'Timejammer',
+      source: { kind: 'domainCard', card: CODEX_CARD },
+      text: 'Stop the room, and start it again by moving in it.',
+      target: { kind: 'none' },
+      inCombatOnly: true,
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 18,
+            prompt: 'Stop the room.',
+            onCriticalSuccess: STOPPED_ARMS,
+            onSuccessWithHope: STOPPED_ARMS,
+            onSuccessWithFear: STOPPED_ARMS,
+          },
+        },
+      ],
+    },
+    {
+      id: 'fixture-jammer-ends',
+      name: 'Timejammer',
+      source: { kind: 'domainCard', card: CODEX_CARD },
+      text: 'Moving in the stopped room is what lets it go.',
+      kind: 'reaction',
+      trigger: 'dealtHit',
+      action: false,
+      available: { kind: 'hasCondition', condition: 'time-jamming', of: { kind: 'actor' } },
+      effects: RESUMES_ARMS,
+    },
+    {
+      id: 'fixture-jammer-ends-on-a-miss',
+      name: 'Timejammer',
+      source: { kind: 'domainCard', card: CODEX_CARD },
+      text: 'A swing that missed is still a swing.',
+      kind: 'reaction',
+      trigger: 'dealtMiss',
+      action: false,
+      available: { kind: 'hasCondition', condition: 'time-jamming', of: { kind: 'actor' } },
+      effects: RESUMES_ARMS,
+    },
+  ];
+
+  /** Ground that bites whoever crosses it, and the condition that does the biting. */
+  const FLAME_CONDITION = {
+    id: 'fixture-flame',
+    name: 'Sheet of Flame',
+    text: 'A standing sheet of fire: anything that crosses it is burned for doing so.',
+    color: '#ff7a3a',
+    onEnter: {
+      effects: [
+        { kind: 'log', text: 'They cross the fire, and the fire answers.', tone: 'fear' },
+        { kind: 'damage', dice: '4d10+3', type: 'magic', target: { kind: 'target' } },
+      ],
+    },
+  };
+
+  const FLAME = [
+    {
+      id: 'fixture-flame-wall',
+      name: 'Wall of Flame',
+      source: { kind: 'domainCard', card: CODEX_CARD },
+      text: 'Stand a sheet of fire up out of the floor, over there.',
+      target: { kind: 'point', range: 'far' },
+      inCombatOnly: true,
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 15,
+            prompt: 'Stand it up there.',
+            onCriticalSuccess: FLAME_ARMS,
+            onSuccessWithHope: FLAME_ARMS,
+            onSuccessWithFear: FLAME_ARMS,
+          },
+        },
+      ],
+    },
+  ];
+
+  /** A way out, which will not open with something already in reach. */
+  const DOOR = [
+    {
+      id: 'fixture-door',
+      name: 'Arcane Door',
+      source: { kind: 'domainCard', card: CODEX_CARD },
+      text: 'Open a way to a spot across the room, if nothing has hold of you.',
+      target: { kind: 'point', range: 'far' },
+      available: { kind: 'not', of: { kind: 'withinRange', range: 'melee', of: { kind: 'adversaries', range: 'melee' } } },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 13,
+            prompt: 'Open a way to that spot.',
+            onCriticalSuccess: DOORWAY_ARMS,
+            onSuccessWithHope: DOORWAY_ARMS,
+            onSuccessWithFear: DOORWAY_ARMS,
+          },
+        },
+      ],
+    },
+  ];
+
+  /** One roll against everything Close, and whatever it beats stops hiding. */
+  const REVEAL = [
+    {
+      id: 'fixture-reveal',
+      name: 'Reveal',
+      source: { kind: 'domainCard', card: CODEX_CARD },
+      text: 'Show whatever is standing there without being seen.',
+      target: { kind: 'none' },
+      effects: [
+        {
+          kind: 'check',
+          check: {
+            trait: 'spellcast',
+            difficulty: 'target',
+            targets: { kind: 'adversaries', range: 'close' },
+            prompt: 'Show what is hiding.',
+            always: [
+              { kind: 'log', text: 'The air goes thin, and what was not there is.', tone: 'hope' },
+              { kind: 'clearCondition', condition: 'hidden', target: { kind: 'hit' } },
+            ],
+          },
+        },
+      ],
+    },
+  ];
+
+  /**
+   * Never played, only read: the last test asserts its shape and nothing else,
+   * because four steps of severity is what negating a blow comes to.
+   */
+  const DEFLECTION = [
+    {
+      id: 'fixture-deflection',
+      name: 'Arcane Deflection',
+      source: { kind: 'domainCard', card: CODEX_CARD },
+      text: 'Once between rests, a blow aimed at its holder comes to nothing.',
+      kind: 'reaction',
+      trigger: 'incomingDamage',
+      uses: { count: 1, per: 'longRest' },
+      cost: { hope: 1 },
+      action: false,
+      auto: false,
+      reaction: { kind: 'reduceSeverity', steps: 4 },
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
@@ -5930,11 +6190,17 @@ describe('the last of the Codex', () => {
     refreshWorld(demo);
   };
 
-  /** Mira holding a Book, stood beside Kara and holding the spotlight. */
-  const casting = (seed: string, book: string): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
+  /** Mira holding one card, stood beside Kara and holding the spotlight. */
+  const casting = (
+    seed: string,
+    family: readonly Record<string, unknown>[],
+  ): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    hold(demo, 'mira', [book]);
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.conditionDefs.push(conditionDefSchema.parse(FLAME_CONDITION));
+    for (const ability of family) demo.project.abilities.push(abilitySchema.parse(ability));
+    hold(demo, 'mira', [CODEX_CARD]);
     const mira = demo.state.entity('mira')!;
     mira.hope = { max: 6, value: 6 };
     const kara = demo.state.entity('kara')!;
@@ -5950,8 +6216,8 @@ describe('the last of the Codex', () => {
 
   it('Eternal Enervation leaves them Vulnerable for good, and the next spell reads it', () => {
     for (let seed = 1; seed < 80; seed++) {
-      const { demo, husk } = casting('ronin-' + seed, 'book-of-ronin');
-      expect(useAbility(demo, 'mira', 'book-of-ronin-eternal-enervation', [husk.id]).status).not.toBe('refused');
+      const { demo, husk } = casting('ronin-' + seed, ENERVATION);
+      expect(useAbility(demo, 'mira', 'fixture-enervation', [husk.id]).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (!husk.conditions.has('vulnerable')) continue;
 
@@ -5969,8 +6235,8 @@ describe('the last of the Codex', () => {
   });
 
   it('Magic Immunity stops magic and lets a blade through', () => {
-    const { demo, mira } = casting('yarrow-immune', 'book-of-yarrow');
-    expect(useAbility(demo, 'mira', 'book-of-yarrow-magic-immunity', []).status).not.toBe('refused');
+    const { demo, mira } = casting('yarrow-immune', IMMUNITY);
+    expect(useAbility(demo, 'mira', 'fixture-immunity', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
     expect(mira.hope!.value).toBe(1);
     expect(mira.conditions.has('magic-immune')).toBe(true);
@@ -5984,8 +6250,8 @@ describe('the last of the Codex', () => {
 
   it('Timejammer holds the room, and her next roll lets it go', () => {
     for (let seed = 1; seed < 120; seed++) {
-      const { demo, mira, husk } = casting('yarrow-jam-' + seed, 'book-of-yarrow');
-      expect(useAbility(demo, 'mira', 'book-of-yarrow-timejammer', []).status).toBe('waiting');
+      const { demo, mira, husk } = casting('yarrow-jam-' + seed, JAMMER);
+      expect(useAbility(demo, 'mira', 'fixture-jammer', []).status).toBe('waiting');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       // The caster's own marker is what says the spell landed: it is the half
       // that cannot be shaken off, where the stillness is a `blocks: act` and
@@ -5994,7 +6260,18 @@ describe('the last of the Codex', () => {
       expect(demo.log.some((l) => /mote of dust/.test(l.text))).toBe(true);
 
       // Her next action roll lets it go - any roll, which is the simplification.
+      // Casting it was her action, so the spotlight has to come back round
+      // before she can swing: `attackWithSelected` answers nothing at all to
+      // somebody who cannot act, which reads exactly like a swing that missed.
+      //
+      // And the GM's purse is emptied first. A creature that cannot act spends
+      // its spotlight shaking the condition off and pays a Fear to do it, so
+      // with anything in the pool the stillness would be bought off before she
+      // swung - and the assertion below would pass without the card doing a
+      // thing.
+      demo.state.fear = { ...demo.state.fear, value: 0 };
       demo.party.select('mira');
+      if (!demo.encounter!.canAct('mira')) endTurn(demo);
       attackWithSelected(demo, husk.id);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       expect(mira.conditions.has('time-jamming')).toBe(false);
@@ -6006,7 +6283,7 @@ describe('the last of the Codex', () => {
   });
 
   it('and what the stillness is worth is nothing they can do', () => {
-    const { demo, husk } = casting('yarrow-still', 'book-of-yarrow');
+    const { demo, husk } = casting('yarrow-still', JAMMER);
     demo.world.applyCondition(husk.id, 'time-stopped', 'scene');
     expect(demo.world.blocks(husk.id, 'act')).toBe(true);
     expect(demo.world.blocks(husk.id, 'move')).toBe(true);
@@ -6016,7 +6293,7 @@ describe('the last of the Codex', () => {
 
   it('Wall of Flame burns whatever walks through it', () => {
     for (let seed = 1; seed < 80; seed++) {
-      const { demo, mira, husk } = casting('grynn-wall-' + seed, 'book-of-grynn');
+      const { demo, mira, husk } = casting('grynn-wall-' + seed, FLAME);
       // A spot a few tiles off, and somewhere further still to park the husk
       // so the wall goes up with nobody in it. Searched rather than guessed:
       // the demo map is a vault, not an open field.
@@ -6035,9 +6312,9 @@ describe('the last of the Codex', () => {
       }
       if (spot === NO_TILE) continue;
 
-      expect(useAbility(demo, 'mira', 'book-of-grynn-wall-of-flame', [], { point: spot }).status).not.toBe('refused');
+      expect(useAbility(demo, 'mira', 'fixture-flame-wall', [], { point: spot }).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
-      if (!demo.world.zones().some((z) => z.id === 'wall-of-flame')) continue;
+      if (!demo.world.zones().some((z) => z.id === 'fixture-flame')) continue;
       // It went up with nobody in it.
       expect(husk.hitPoints.marked).toBe(0);
 
@@ -6045,7 +6322,7 @@ describe('the last of the Codex', () => {
       demo.state.moveEntity(husk.id, spot);
       settleFight(demo);
       expect(husk.hitPoints.marked).toBeGreaterThan(0);
-      expect(demo.log.some((l) => /the flame notices/.test(l.text))).toBe(true);
+      expect(demo.log.some((l) => /the fire answers/.test(l.text))).toBe(true);
       return;
     }
     throw new Error('the wall never went up in eighty tries');
@@ -6053,7 +6330,7 @@ describe('the last of the Codex', () => {
 
   it('Arcane Door puts her across the room, and refuses with something in her face', () => {
     for (let seed = 1; seed < 80; seed++) {
-      const { demo, mira, husk } = casting('vagras-door-' + seed, 'book-of-vagras');
+      const { demo, mira, husk } = casting('vagras-door-' + seed, DOOR);
       // Nothing in Melee of her, and a spot to go to.
       const away = demo.grid.indexOf(demo.grid.xOf(mira.tile) + 6, demo.grid.yOf(mira.tile));
       if (away === NO_TILE || !demo.grid.isPassable(away)) continue;
@@ -6062,7 +6339,7 @@ describe('the last of the Codex', () => {
       if (spot === NO_TILE || !demo.grid.isPassable(spot)) continue;
       const stood = mira.tile;
 
-      const used = useAbility(demo, 'mira', 'book-of-vagras-arcane-door', [], { point: spot });
+      const used = useAbility(demo, 'mira', 'fixture-door', [], { point: spot });
       expect(used.status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (mira.tile === stood) continue;
@@ -6075,7 +6352,7 @@ describe('the last of the Codex', () => {
       demo.grid.forEachNeighbor(mira.tile, false, (tile) => {
         if (demo.grid.isPassable(tile) && !blocked(tile)) demo.state.moveEntity(husk.id, tile);
       });
-      expect(useAbility(demo, 'mira', 'book-of-vagras-arcane-door', [], { point: stood }).status).toBe('refused');
+      expect(useAbility(demo, 'mira', 'fixture-door', [], { point: stood }).status).toBe('refused');
       return;
     }
     throw new Error('the door never opened in eighty tries');
@@ -6083,10 +6360,10 @@ describe('the last of the Codex', () => {
 
   it('Reveal takes Hidden off what the roll found', () => {
     for (let seed = 1; seed < 80; seed++) {
-      const { demo, husk } = casting('vagras-reveal-' + seed, 'book-of-vagras');
+      const { demo, husk } = casting('vagras-reveal-' + seed, REVEAL);
       demo.world.applyCondition(husk.id, 'hidden', 'scene');
 
-      expect(useAbility(demo, 'mira', 'book-of-vagras-reveal', []).status).not.toBe('refused');
+      expect(useAbility(demo, 'mira', 'fixture-reveal', []).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (husk.conditions.has('hidden')) continue;
 
@@ -6100,15 +6377,17 @@ describe('the last of the Codex', () => {
   it('Arcane Deflection takes a blow to nothing, once', () => {
     const demo = standoff('grynn-deflect');
     demo.askDefender = false;
-    hold(demo, 'kara', ['book-of-grynn']);
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of DEFLECTION) demo.project.abilities.push(abilitySchema.parse(ability));
+    hold(demo, 'kara', [CODEX_CARD]);
     const kara = demo.state.entity('kara')!;
     kara.hope = { max: 6, value: 6 };
     kara.hitPoints = { max: 12, marked: 0 };
     // Four steps of severity takes any blow to nothing, which is what the card
     // asks for without a vocabulary of its own.
     const offered = demo.world.reactionsFor('kara', 'incomingDamage');
-    expect(offered.map((a) => a.id)).toContain('book-of-grynn-arcane-deflection');
-    const card = offered.find((a) => a.id === 'book-of-grynn-arcane-deflection')!;
+    expect(offered.map((a) => a.id)).toContain('fixture-deflection');
+    const card = offered.find((a) => a.id === 'fixture-deflection')!;
     expect(card.reaction).toMatchObject({ kind: 'reduceSeverity', steps: 4 });
     expect(card.uses).toMatchObject({ count: 1, per: 'longRest' });
     expect(card.cost.hope).toBe(1);
