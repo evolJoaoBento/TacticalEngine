@@ -120,3 +120,163 @@ export const PLATE_THAT_ROLLS_WHAT_IT_TURNS = (definition: string): Record<strin
   action: false,
   defenses: { reduce: [{ dice: '1d10' }] },
 });
+
+/**
+ * A wind-up: the first spotlight is spent getting ready, the next one acting.
+ *
+ * The token is the whole state, and it lives on the creature rather than on the
+ * feature -- which is what lets two of these wind up side by side without
+ * handing each other a turn. `endSpotlight` is what makes the first turn cost
+ * something: without it the creature would gather itself AND swing.
+ *
+ * The token id is bare on purpose. More than one kind of slow thing shares this
+ * one store, exactly as the shipped content does, and a test that places two of
+ * them reads `tokensOn(entity, 'slow')` per creature.
+ */
+export const A_WIND_UP_THAT_COSTS_A_TURN = (definition: string): Record<string, unknown> => ({
+  id: 'slow',
+  name: 'Slow',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'Spotlight it with nothing gathered and it only gathers; spotlight it gathered and it acts.',
+  kind: 'reaction',
+  trigger: 'spotlighted',
+  target: { kind: 'none' },
+  inCombatOnly: true,
+  effects: [
+    {
+      kind: 'branch',
+      when: { kind: 'tokens', ability: 'slow', of: { kind: 'actor' }, op: '>=', value: 1 },
+      then: [
+        { kind: 'spendToken', ability: 'slow', all: true },
+        { kind: 'log', text: 'What it was gathering itself for, it does now.', tone: 'fear' },
+      ],
+      otherwise: [
+        { kind: 'addToken', ability: 'slow', amount: 1 },
+        { kind: 'log', text: 'It gathers itself, and does nothing else.', tone: 'fear' },
+        { kind: 'endSpotlight' },
+      ],
+    },
+  ],
+});
+
+/**
+ * The same wind-up with its own store and its own line.
+ *
+ * Simplified, and worth knowing: the winding turn costs this creature the whole
+ * turn, where a block might only take its standard attack away. Nothing here can
+ * forbid one attack and leave the rest of a turn standing, so anything else it
+ * would have reached for waits too -- which is what one test pins.
+ */
+export const A_WIND_UP_WITH_ITS_OWN_STORE = (definition: string): Record<string, unknown> => ({
+  id: 'slow-firing',
+  name: 'Slow Firing',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'It spends a turn coming to bear, and fires on the next one.',
+  kind: 'reaction',
+  trigger: 'spotlighted',
+  target: { kind: 'none' },
+  inCombatOnly: true,
+  effects: [
+    {
+      kind: 'branch',
+      when: { kind: 'tokens', ability: 'slow-firing', of: { kind: 'actor' }, op: '>=', value: 1 },
+      then: [
+        { kind: 'spendToken', ability: 'slow-firing', all: true },
+        { kind: 'log', text: 'It comes to rest, and lets fly.', tone: 'fear' },
+      ],
+      otherwise: [
+        { kind: 'addToken', ability: 'slow-firing', amount: 1 },
+        { kind: 'log', text: 'It grinds around, winding up.', tone: 'fear' },
+        { kind: 'endSpotlight' },
+      ],
+    },
+  ],
+});
+
+/**
+ * A store that goes onto whoever it hit, and holds them there.
+ *
+ * One token holds a target in place; three also leave them open. The store is
+ * kept under the definition's own id so that what is counted is "what this
+ * creature put on them" rather than a shared pile.
+ *
+ * Simplified: a target's own way out of it is a roll they make on their own
+ * turn, and nothing in the fight loop asks a PC for one, so only the half the
+ * creature does is here -- along with what that roll would have spawned, which
+ * therefore never arrives.
+ */
+export const A_STORE_THAT_HOLDS_WHOEVER_IT_HIT = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-encumber`,
+  name: 'Encumber',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'What it hits, it winds tighter; enough of it and they are open as well as held.',
+  kind: 'reaction',
+  trigger: 'dealtHit',
+  action: false,
+  target: { kind: 'none' },
+  effects: [
+    { kind: 'addToken', ability: `${definition}-encumber`, amount: 1, target: { kind: 'target' } },
+    { kind: 'log', text: 'It winds tighter around them.', tone: 'fear' },
+    { kind: 'applyCondition', condition: 'restrained', duration: 'scene', target: { kind: 'target' } },
+    {
+      kind: 'branch',
+      when: { kind: 'tokens', ability: `${definition}-encumber`, of: { kind: 'target' }, op: '>=', value: 3 },
+      then: [{ kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: { kind: 'target' } }],
+    },
+  ],
+});
+
+/**
+ * Hurt the thing holding them badly enough and the whole store comes off.
+ *
+ * The band is read off the blow itself: two Hit Points is Major, which is what a
+ * resolved hit reports, so the gate is a count of Hit Points taken rather than a
+ * severity name.
+ *
+ * Simplified: it comes off everyone at once, and takes the conditions with it,
+ * so somebody held by something else is freed too. Naming "whoever is carrying
+ * tokens" as a target is not something the effect list can ask for.
+ */
+export const A_STORE_TORN_OFF_BY_A_REAL_WOUND = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-torn-free`,
+  name: 'Torn Free',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'A wound that tells goes through whatever it was holding with.',
+  kind: 'reaction',
+  trigger: 'tookHitPoints',
+  action: false,
+  available: { kind: 'count', of: 'hitPointsTaken', op: '>=', value: 2 },
+  target: { kind: 'none' },
+  effects: [
+    { kind: 'log', text: 'It comes apart, and what it held falls away.', tone: 'success' },
+    { kind: 'spendToken', ability: `${definition}-encumber`, all: true, target: { kind: 'allies' } },
+    { kind: 'clearCondition', condition: 'restrained', target: { kind: 'allies' } },
+    { kind: 'clearCondition', condition: 'vulnerable', target: { kind: 'allies' } },
+  ],
+});
+
+/**
+ * A Stress spent on somebody already carrying enough of the store.
+ *
+ * The gate is on the TARGET, not on the feature. The GM aims at the nearest
+ * creature in reach, so a feature-level gate would let this pay its Stress and
+ * swing at whoever that turned out to be. Direct damage, because what is being
+ * tested is the gate and the spend, not armour.
+ */
+export const A_SPEND_GATED_ON_WHAT_THEY_CARRY = (definition: string): Record<string, unknown> => ({
+  id: `${definition}-crush`,
+  name: 'Crush',
+  source: { kind: 'adversary', adversaries: [definition] },
+  text: 'Somebody wound tight enough is worth the effort of closing on.',
+  cost: { stress: 1 },
+  target: {
+    kind: 'creature',
+    range: 'melee',
+    when: { kind: 'tokens', ability: `${definition}-encumber`, of: { kind: 'target' }, op: '>=', value: 3 },
+  },
+  inCombatOnly: true,
+  effects: [
+    { kind: 'log', text: 'It closes, and squeezes.', tone: 'fear' },
+    { kind: 'damage', dice: '2d6+8', type: 'physical', direct: true, target: { kind: 'target' } },
+  ],
+});

@@ -23,6 +23,11 @@ import { validateProject } from './validate';
 import { FIXTURE_ADVERSARIES } from '../../tests/fixtures/adversaries';
 import {
   A_HIDE_THAT_SHRUGS_OFF_STEEL,
+  A_SPEND_GATED_ON_WHAT_THEY_CARRY,
+  A_STORE_THAT_HOLDS_WHOEVER_IT_HIT,
+  A_STORE_TORN_OFF_BY_A_REAL_WOUND,
+  A_WIND_UP_THAT_COSTS_A_TURN,
+  A_WIND_UP_WITH_ITS_OWN_STORE,
   PLATE_THAT_ROLLS_WHAT_IT_TURNS,
   PLATE_THAT_TURNS_A_FLAT_AMOUNT,
 } from '../../tests/fixtures/adversary-features';
@@ -2406,6 +2411,20 @@ describe('a token on the stat block', () => {
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
     if (second) s.run(addAdversary('hall', 'duel', { id: 'other', adversary, position: { x: 2, y: 5 } }));
+    // What the block standing there carries. Each specimen is sourced to one
+    // definition, so a test that stands up two of the same block gets one
+    // store per creature rather than one between them.
+    const carried =
+      adversary === 'fixture-archer'
+        ? [A_WIND_UP_WITH_ITS_OWN_STORE(adversary)]
+        : adversary === 'fixture-swarm'
+          ? [
+              A_STORE_THAT_HOLDS_WHOEVER_IT_HIT(adversary),
+              A_STORE_TORN_OFF_BY_A_REAL_WOUND(adversary),
+              A_SPEND_GATED_ON_WHAT_THEY_CARRY(adversary),
+            ]
+          : [A_WIND_UP_THAT_COSTS_A_TURN(adversary)];
+    for (const feature of carried) s.project.abilities.push(abilitySchema.parse(feature));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2426,10 +2445,9 @@ describe('a token on the stat block', () => {
   };
 
   it('spends one spotlight winding up and the next one swinging', () => {
-    // "When you spotlight the Zombie and they don't have a token on their stat
-    // block, they can't act yet." The Zombie's attack is its Slam, so whether
-    // it swung is whether Slam is in the log - a miss says so as loudly as a
-    // hit, which a Hit Point count would not.
+    // The mechanism: a spotlight with nothing gathered buys only the gathering.
+    // Whether it swung is whether its attack name is in the log -- a miss says
+    // so as loudly as a hit, which a Hit Point count would not.
     const demo = winding('fixture-foe', 'slow-zombie');
     const first = spotlight(demo);
     expect(first.tokens).toBe(1);
@@ -2447,8 +2465,8 @@ describe('a token on the stat block', () => {
   });
 
   it('counts the token on the creature, not on the card', () => {
-    // One card for four stat blocks: two Zombies winding up separately do not
-    // hand each other a turn.
+    // One specimen, two creatures: each winds up in its own store, and neither
+    // hands the other a turn.
     const demo = winding('fixture-foe', 'two-zombies', true);
     demo.state.entity('other')!.hitPoints = { max: 60, marked: 0 };
     demo.world.addTokens('other', 'slow', 1);
@@ -2459,9 +2477,9 @@ describe('a token on the stat block', () => {
   });
 
   it('hands the token to whoever it hit, and takes it back when it is torn apart', () => {
-    // "Give the target a bramble token. If a target has any bramble tokens,
-    // they are Restrained. If a target has 3 or more, they are also
-    // Vulnerable." The same store, on a creature the block does not own.
+    // The mechanism: a store kept on whoever was hit. One holds them, three
+    // also leaves them open -- and the store sits on the target, which is not
+    // the creature that owns the feature.
     const demo = winding('fixture-swarm', 'brambles');
     const kara = demo.state.entity('kara')!;
     const brambles = (): number => demo.world.tokensOn('kara', 'fixture-swarm-encumber');
@@ -2475,35 +2493,34 @@ describe('a token on the stat block', () => {
     expect(kara.conditions.has('restrained')).toBe(true);
     expect(kara.conditions.has('vulnerable')).toBe(true);
 
-    // "All bramble tokens can be removed by dealing Major or greater damage to
-    // the Swarm": two Hit Points is Major, and the thorns come off.
+    // Two Hit Points is Major, which is the band that tears the store off.
     demo.world.noteDamage('foe', { attacker: 'kara', hitPoints: 2, damage: 8, types: ['physical'] });
     settleFight(demo);
-    expect(demo.log.some((l) => l.text.includes('the thorns fall away'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('what it held falls away'))).toBe(true);
     expect(brambles()).toBe(0);
     expect(kara.conditions.has('restrained')).toBe(false);
     expect(kara.conditions.has('vulnerable')).toBe(false);
   });
 
   it('spends the Stress only on somebody carrying enough of them', () => {
-    // "Mark a Stress to deal 2d6+8 direct physical damage to a target with 3
-    // or more bramble tokens." The GM aims at the nearest creature in reach,
-    // so without a gate on the target it would pay for the wrong one.
+    // The mechanism: a Stress spent only on somebody carrying three. The GM
+    // aims at the nearest creature in reach, so without the gate on the target
+    // it would pay for the wrong one.
     const short = winding('fixture-swarm', 'crush-short');
     short.world.addTokens('kara', 'fixture-swarm-encumber', 2);
     const before = short.state.entity('foe')!.stress.marked;
     endTurn(short);
-    expect(short.log.some((l) => l.text.includes('The brambles close and squeeze'))).toBe(false);
+    expect(short.log.some((l) => l.text.includes('It closes, and squeezes'))).toBe(false);
     expect(short.state.entity('foe')!.stress.marked).toBe(before);
 
     const ready = winding('fixture-swarm', 'crush-ready');
     ready.world.addTokens('kara', 'fixture-swarm-encumber', 3);
     endTurn(ready);
-    expect(ready.log.some((l) => l.text.includes('The brambles close and squeeze'))).toBe(true);
+    expect(ready.log.some((l) => l.text.includes('It closes, and squeezes'))).toBe(true);
   });
 
   it('leaves the thorns on for a scratch', () => {
-    // One Hit Point is Minor, and Minor is not "Major or greater".
+    // One Hit Point is Minor, which is under the band, so nothing comes off.
     const demo = winding('fixture-swarm', 'brambles-scratch');
     demo.world.addTokens('kara', 'fixture-swarm-encumber', 2);
     demo.world.noteDamage('foe', { attacker: 'kara', hitPoints: 1, damage: 4, types: ['physical'] });
@@ -2512,9 +2529,9 @@ describe('a token on the stat block', () => {
   });
 
   it('takes the whole turn, not just the swing', () => {
-    // Simplified, and worth pinning: the Turret's block only forbids its
-    // standard attack while it winds, but nothing here can take the swing away
-    // and leave the turn standing, so Mark Target waits too.
+    // Simplified, and worth pinning: the winding turn costs the whole turn.
+    // Nothing here can forbid one attack and leave the rest of a turn standing,
+    // so anything else it would have reached for waits too.
     const demo = winding('fixture-archer', 'turret');
     const first = spotlight(demo);
     expect(demo.world.tokensOn('foe', 'slow-firing')).toBe(1);
