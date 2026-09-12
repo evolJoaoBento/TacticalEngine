@@ -2013,37 +2013,77 @@ describe('a blow that names its band', () => {
  * what it hits back at.
  */
 describe('answering a miss', () => {
+  /**
+   * A card that answers a swing that went wide by hitting back, and beside it a
+   * card that must *not* be offered.
+   *
+   * The second is the point of the test. It is gated on a condition carried by
+   * the target -- and on a miss the target is whoever swung. Kara carries that
+   * condition herself, so a card offered on a self-binding would appear in the
+   * choices; the test asserts it does not.
+   *
+   * The riposte's own gate is measured to the creature that missed rather than
+   * from its holder, which is what "an attack made against you from within Melee
+   * range" comes to once the attacker is the bound target.
+   */
+  const RIPOSTE_CARD = 'fixture-card-51';
+  const GRUDGE_CARD = 'fixture-card-52';
+
+  const RIPOSTE = [
+    {
+      id: 'fixture-riposte',
+      name: 'Come Back Swinging',
+      source: { kind: 'domainCard', card: RIPOSTE_CARD },
+      text: 'Mark a Stress to answer a blow that went wide from somebody in reach.',
+      kind: 'reaction',
+      trigger: 'attackMissed',
+      action: false,
+      auto: false,
+      cost: { stress: 1 },
+      target: { kind: 'none', range: 'melee' },
+      inCombatOnly: true,
+      // Read from the one who missed, who is bound as the target for both the
+      // gate and the blow that answers it.
+      available: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } },
+      effects: [
+        { kind: 'log', text: 'The blade comes back the way it went.', tone: 'hope' },
+        { kind: 'damage', dice: 'weapon', using: 'proficiency', target: { kind: 'target' } },
+      ],
+    },
+    {
+      // The control: gated on a mark the one who missed does not carry. Kara
+      // does carry it, so a card offered on a self-binding would show here.
+      id: 'fixture-grudge',
+      name: 'Grudge',
+      source: { kind: 'domainCard', card: GRUDGE_CARD },
+      text: 'Something owed by whoever swung at you, if they are the one carrying it.',
+      kind: 'reaction',
+      trigger: 'attackMissed',
+      action: false,
+      auto: false,
+      target: { kind: 'none' },
+      available: { kind: 'hasCondition', condition: 'guilty', of: { kind: 'target' } },
+      effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }],
+    },
+  ];
+
   it('hits back at whatever swung and missed from within reach', () => {
     const demo = standoff('riposte');
-    const sheet = { ...demo.sheets.get('kara')!, domainCards: ['rapid-riposte'], loadout: ['rapid-riposte'] };
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of RIPOSTE) demo.project.abilities.push(abilitySchema.parse(ability));
+    const sheet = { ...demo.sheets.get('kara')!, domainCards: [RIPOSTE_CARD, GRUDGE_CARD], loadout: [RIPOSTE_CARD, GRUDGE_CARD] };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
 
-    // A second card of Kara's, gated on a mark the attacker does not carry.
-    // She does carry it, so a card offered on a self-binding would be offered
-    // here - which is the thing being ruled out.
-    demo.project.abilities.push(
-      abilitySchema.parse({
-        id: 'grudge',
-        name: 'Grudge',
-        source: { kind: 'granted', characters: ['kara'] },
-        kind: 'reaction',
-        trigger: 'attackMissed',
-        action: false,
-        auto: false,
-        target: { kind: 'none' },
-        available: { kind: 'hasCondition', condition: 'guilty', of: { kind: 'target' } },
-        effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }],
-      }),
-    );
-    refreshWorld(demo);
+    // The control is carried with the card above: she holds both, and only one
+    // of them may be offered.
     demo.state.entity('kara')!.conditions.add('guilty');
 
     const asked = untilChoice(demo, 'react');
     expect(asked).not.toBeNull();
     const index = asked!.choices.findIndex((c) => c.kind === 'react');
-    expect(asked!.choices[index]!.label).toContain('Rapid Riposte');
+    expect(asked!.choices[index]!.label).toContain('Come Back Swinging');
     expect(asked!.choices.some((c) => c.label.includes('Grudge'))).toBe(false);
 
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
