@@ -1039,13 +1039,66 @@ describe('a creature that walks before it swings', () => {
 });
 
 describe('what the room makes of a roll', () => {
+  /**
+   * A trigger on the party's *own* dice. The one who rolled is bound as the
+   * target, so the distance is a plain `withinRange`, and what the dice said
+   * is a `rolled` gate — the two composing under `all`.
+   */
+  const COLD_WATCH = {
+    id: 'fixture-cold-watch',
+    name: 'Cold Watch',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'Roll badly in front of it and something goes out of you.',
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'far' },
+        { kind: 'rolled', is: 'withFear' },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [
+      { kind: 'log', text: 'The cold takes something out of them.', tone: 'fear' },
+      { kind: 'loseHope', target: { kind: 'target' } },
+    ],
+  };
+
+  /**
+   * The same shape read more narrowly: a *failure* with Fear, which is two
+   * gates rather than one. A roll that succeeded with Fear is still a roll
+   * with Fear, and this one costs nothing for it.
+   */
+  const ONLY_ON_A_FAILURE = {
+    id: 'fixture-only-on-a-failure',
+    name: 'Only on a Failure',
+    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
+    text: 'It answers the rolls that went wrong, and nothing else.',
+    kind: 'reaction',
+    trigger: 'partyRolled',
+    action: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'withinRange', range: 'close' },
+        { kind: 'rolled', is: 'failure' },
+        { kind: 'rolled', is: 'withFear' },
+      ],
+    },
+    target: { kind: 'none' },
+    effects: [{ kind: 'loseHope', target: { kind: 'target' } }],
+  };
+
   /** Kara and something watching her roll, at the distance the test asks for. */
-  const watched = (adversary: string, at: { x: number; y: number }, seed: string) => {
+  const watched = (seed: string, features: readonly unknown[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'watch', name: 'The watch' })));
-    s.run(addAdversary('hall', 'watch', { id: 'foe', adversary, position: at }));
+    s.run(addAdversary('hall', 'watch', { id: 'foe', adversary: 'fixture-foe', position: at }));
+    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'watch');
@@ -1081,10 +1134,8 @@ describe('what the room makes of a roll', () => {
     throw new Error('the dice never came up with Fear');
   };
 
-  it('takes a Hope off a roll with Fear made in front of the Dragon', () => {
-    // "When a PC rolls with Fear while within Far range of the Dragon, they
-    // lose a Hope."
-    const demo = watched('young-ice-dragon', { x: 3, y: 4 }, 'no-hope');
+  it('takes a Hope off a roll with Fear made in front of it', () => {
+    const demo = watched('no-hope', [COLD_WATCH]);
     const { hope, fell } = rollUntilFear(demo);
     expect(fell).toBe(true);
     // Six going in, and the roll with Fear costs one of them.
@@ -1092,14 +1143,15 @@ describe('what the room makes of a roll', () => {
   });
 
   it('leaves a roll made across the room alone', () => {
-    // The same Dragon, out past Far range, with something in reach to swing
-    // at: the dice say the same thing and the Dragon is too far to hear it.
+    // The same creature, out past Far range, with something in reach to swing
+    // at: the dice say the same thing and it is too far off to hear them.
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'watch', name: 'The watch' })));
-    s.run(addAdversary('hall', 'watch', { id: 'foe', adversary: 'young-ice-dragon', position: { x: 11, y: 7 } }));
-    s.run(addAdversary('hall', 'watch', { id: 'husk', adversary: 'acid-burrower', position: { x: 3, y: 4 } }));
+    s.run(addAdversary('hall', 'watch', { id: 'foe', adversary: 'fixture-foe', position: { x: 11, y: 7 } }));
+    s.run(addAdversary('hall', 'watch', { id: 'husk', adversary: 'fixture-lurker', position: { x: 3, y: 4 } }));
+    s.run(addAbility(abilitySchema.parse(COLD_WATCH)));
     const demo = buildProjectScene(s.project, 'no-hope-far');
     demo.askDefender = false;
     startEncounter(demo, 'watch');
@@ -1129,9 +1181,9 @@ describe('what the room makes of a roll', () => {
   });
 
   it('reads what the roll was, not merely that there was one', () => {
-    // The Demon answers a *failure* with Fear. A roll that succeeded with Fear
+    // This one answers a *failure* with Fear. A roll that succeeded with Fear
     // is still a roll with Fear, and it costs nothing.
-    const demo = watched('minor-demon', { x: 3, y: 4 }, 'all-must-fall');
+    const demo = watched('all-must-fall', [ONLY_ON_A_FAILURE]);
     for (let i = 0; i < 12; i++) {
       const kara = demo.state.entity('kara')!;
       kara.hope = { max: 6, value: 6 };
