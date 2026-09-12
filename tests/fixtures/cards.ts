@@ -20,6 +20,8 @@ import { FIXTURE_CARDS } from './adversaries';
 export const WATCHING_CARD = 'fixture-card-3';
 export const REASSURANCE_CARD = 'fixture-card-5';
 export const SUPPORT_CARD = 'fixture-card-4';
+export const TAGGED_CARD = 'fixture-card-2';
+export const OWN_REROLL_CARD = 'fixture-card-1';
 
 /**
  * A check that stops to have its dice read.
@@ -105,6 +107,70 @@ export const SUPPORT_TANK = [
     },
     effects: [
       { kind: 'log', text: 'A shoulder in the way, and room to try it again.', tone: 'hope' },
+      { kind: 'rerollDuality', which: 'fear' },
+    ],
+  },
+];
+
+/**
+ * The same stopping check, with a tag on the roll.
+ *
+ * A card can be gated on what a roll was *for* rather than on what it rolled,
+ * and the only way to test that is to have one roll carry a tag and another
+ * carry none. This is the tagged half; `WATCHING_CHECK` is the untagged one.
+ */
+export const TAGGED_CHECK = [
+  {
+    id: 'fixture-tagged-check',
+    name: 'Getting Under It',
+    source: { kind: 'domainCard', card: TAGGED_CARD },
+    text: 'Say the thing that gets under it, and see what that costs them.',
+    uses: { count: 1, per: 'rest' },
+    target: { kind: 'adversary', range: 'far' },
+    effects: [
+      {
+        kind: 'check',
+        check: {
+          trait: 'presence',
+          difficulty: 'target',
+          tags: ['social'],
+          prompt: 'Say the thing that gets under it.',
+          onCriticalSuccess: [{ kind: 'markStress', target: { kind: 'hit' } }],
+          onSuccessWithHope: [{ kind: 'markStress', target: { kind: 'hit' } }],
+          onSuccessWithFear: [{ kind: 'markStress', target: { kind: 'hit' } }],
+        },
+      },
+    ],
+  },
+];
+
+/**
+ * A reroll its holder takes on their *own* roll, and only a tagged one.
+ *
+ * The mirror of `REASSURANCE`: `self` where that one is `not self`, and gated
+ * on the tag rather than offered on anybody's dice. Between them they say which
+ * chair a card reads from.
+ */
+export const OWN_TAGGED_REROLL = [
+  {
+    id: 'fixture-own-tagged-reroll',
+    name: 'Endless Charisma',
+    source: { kind: 'domainCard', card: OWN_REROLL_CARD },
+    text: 'They talk straight past the thing they just said.',
+    kind: 'reaction',
+    trigger: 'partyRolling',
+    cost: { hope: 1 },
+    action: false,
+    auto: false,
+    available: {
+      kind: 'all',
+      of: [
+        { kind: 'self' },
+        { kind: 'rollTagged', tag: 'social' },
+      ],
+    },
+    effects: [
+      { kind: 'log', text: 'They talk straight past the thing they just said.', tone: 'hope' },
       { kind: 'rerollDuality', which: 'fear' },
     ],
   },

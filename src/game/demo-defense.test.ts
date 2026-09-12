@@ -33,6 +33,10 @@ import {
   SILENT_CARD,
   SUPPORT_CARD,
   SUPPORT_TANK,
+  OWN_REROLL_CARD,
+  OWN_TAGGED_REROLL,
+  TAGGED_CARD,
+  TAGGED_CHECK,
   WATCHING_CARD,
   WATCHING_CHECK,
 } from '../../tests/fixtures/cards';
@@ -6580,6 +6584,31 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
  * name a roll's total instead of throwing the dice again.
  */
 describe('reaching past the dice', () => {
+  /**
+   * Reaching past the dice: the number becomes exactly what was needed and the
+   * throw itself is left alone. Paid for, and only ever offered on a failure —
+   * one block wants this, so it lives here rather than in the shared cards.
+   */
+  const NAME_CARD = 'fixture-card-2';
+  const NAME_THE_ROLL = [
+    {
+      id: 'fixture-name-the-roll',
+      name: 'Name the Roll',
+      source: { kind: 'domainCard', card: NAME_CARD },
+      text: 'Reach past the dice and put the number where it should have been.',
+      kind: 'reaction',
+      trigger: 'partyRolling',
+      cost: { hope: 5 },
+      action: false,
+      auto: false,
+      available: { kind: 'rolled', is: 'failure' },
+      effects: [
+        { kind: 'log', text: 'They reach past the dice and set the number where it belonged.', tone: 'hope' },
+        { kind: 'nameRoll' },
+      ],
+    },
+  ];
+
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
@@ -6590,8 +6619,12 @@ describe('reaching past the dice', () => {
   const rolling = (seed: string): { demo: DemoScene; kara: EntityState; mira: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    hold(demo, 'kara', ['know-thy-enemy']);
-    hold(demo, 'mira', ['adjust-reality']);
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of [...WATCHING_CHECK, ...NAME_THE_ROLL]) {
+      demo.project.abilities.push(abilitySchema.parse(ability));
+    }
+    hold(demo, 'kara', [WATCHING_CARD]);
+    hold(demo, 'mira', [NAME_CARD]);
     const kara = demo.state.entity('kara')!;
     const mira = demo.state.entity('mira')!;
     mira.hope = { max: 6, value: 6 };
@@ -6606,11 +6639,11 @@ describe('reaching past the dice', () => {
   it('is offered only on a failure, and turns one into a success for five Hope', () => {
     for (let seed = 1; seed < 80; seed++) {
       const { demo, mira, husk } = rolling('adjust-' + seed);
-      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+      expect(useAbility(demo, 'kara', 'fixture-watching', [husk.id]).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
 
-      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['adjust-reality']);
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-name-the-roll']);
       // Never put on a roll that did not need it.
       const thrown = demo.pending.offers[0]!.swing!;
       expect(thrown.success).toBe(false);
@@ -6635,7 +6668,7 @@ describe('reaching past the dice', () => {
   it('leaves the roll alone when the room lets it pass', () => {
     for (let seed = 1; seed < 80; seed++) {
       const { demo, mira, husk } = rolling('adjust-pass-' + seed);
-      useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]);
+      useAbility(demo, 'kara', 'fixture-watching', [husk.id]);
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
       const thrown = demo.pending.offers[0]!.swing!;
@@ -6654,14 +6687,14 @@ describe('reaching past the dice', () => {
   it('is not offered to somebody who cannot pay the five', () => {
     for (let seed = 1; seed < 80; seed++) {
       const rich = rolling('adjust-purse-' + seed);
-      useAbility(rich.demo, 'kara', 'know-thy-enemy', [rich.husk.id]);
+      useAbility(rich.demo, 'kara', 'fixture-watching', [rich.husk.id]);
       answerPending(rich.demo, { kind: 'roll' });
       if (rich.demo.pending?.kind !== 'reaction') continue;
 
       // The same seed, so the same roll; what changes is the purse.
       const poor = rolling('adjust-purse-' + seed);
       poor.mira.hope = { max: 6, value: 4 };
-      useAbility(poor.demo, 'kara', 'know-thy-enemy', [poor.husk.id]);
+      useAbility(poor.demo, 'kara', 'fixture-watching', [poor.husk.id]);
       answerPending(poor.demo, { kind: 'roll' });
       expect(poor.demo.pending?.kind).not.toBe('reaction');
       return;
@@ -6683,11 +6716,18 @@ describe('a roll with a purpose', () => {
     refreshWorld(demo);
   };
 
-  /** Mira holding Endless Charisma, and a card of her own to roll with. */
+  /**
+   * Mira holding the reroll that answers her own tagged rolls, and whatever the
+   * test wants her to roll with. Every card and ability here is the project's.
+   */
   const talking = (seed: string, cards: string[]): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    hold(demo, 'mira', ['endless-charisma', ...cards]);
+    demo.project.domainCards.push(...FIXTURE_CARDS);
+    for (const ability of [...OWN_TAGGED_REROLL, ...TAGGED_CHECK, ...WATCHING_CHECK]) {
+      demo.project.abilities.push(abilitySchema.parse(ability));
+    }
+    hold(demo, 'mira', [OWN_REROLL_CARD, ...cards]);
     const mira = demo.state.entity('mira')!;
     // Room above the six: a roll with Hope hands one over after the card has
     // been paid for, and a full pool would swallow the difference.
@@ -6705,12 +6745,12 @@ describe('a roll with a purpose', () => {
 
   it('is offered on a taunt and throws the Fear Die again', () => {
     for (let seed = 1; seed < 80; seed++) {
-      const { demo, mira, husk } = talking('charisma-' + seed, ['troublemaker']);
-      expect(useAbility(demo, 'mira', 'troublemaker', [husk.id]).status).toBe('waiting');
+      const { demo, mira, husk } = talking('charisma-' + seed, [TAGGED_CARD]);
+      expect(useAbility(demo, 'mira', 'fixture-tagged-check', [husk.id]).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
 
-      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['endless-charisma']);
+      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-own-tagged-reroll']);
       const thrown = demo.pending.offers[0]!.swing!;
 
       answerPending(demo, { kind: 'choose', index: 1 });
@@ -6731,8 +6771,8 @@ describe('a roll with a purpose', () => {
     // Know Thy Enemy is an Instinct Roll to watch somebody, and carries no tag.
     for (let seed = 1; seed < 40; seed++) {
       const { demo, husk } = talking('charisma-quiet-' + seed, []);
-      hold(demo, 'kara', ['know-thy-enemy']);
-      expect(useAbility(demo, 'kara', 'know-thy-enemy', [husk.id]).status).toBe('waiting');
+      hold(demo, 'kara', [WATCHING_CARD]);
+      expect(useAbility(demo, 'kara', 'fixture-watching', [husk.id]).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
       // The card is in Mira's hand and the roll is not one it answers, so the
       // check never stops at all.
