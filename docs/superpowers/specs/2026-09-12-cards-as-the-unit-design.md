@@ -154,9 +154,9 @@ so the record of what was first thought survives: the header's "can ride slice 4
    Horde, Minion, Momentum, Terrifying) stays on the block, read structurally by `adversaryTraits`:
    rules, not abilities, the same boundary as a weapon's features. Whether an ability is a stat
    block's feature is its card's to say now, so `isStatBlockFeature` takes the cards.
-9. **The grant editor offers every grant but `chosen`.** A chosen card needs a domain, a type, a
-   level and a recall cost, and one switched to it without them no longer loads; writing those is
-   the card editor's. A pack's card is shown, not re-granted.
+9. **The grant editor offers every grant but `chosen`** (the grant editor's rule, until item 11). A
+   chosen card needs a domain, a type, a level and a recall cost, and one switched to it without
+   them no longer loads; writing those is the card editor's. A pack's card is shown, not re-granted.
 10. **A granted card's zone is the loadout's Always in play**: face up, counted by no limit, never
     vaulted, in the order a sheet lists abilities. It has no domain, so it wears a colour of its
     own rather than borrowing one.

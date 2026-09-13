@@ -123,8 +123,8 @@ that whoever holds the rights imports, and the counts below are that export's.
 
 **Everything a character has is a card** (format version 3). What a class, subclass, ancestry or
 community prints is a card granted by it, and an ability sits on its card by id, so the
-name-matching that paired a printed feature with its ability is gone. So is the GM's side: a stat
-block's feature is an ability on a card printed on the block. The Cards panel edits every card an
+name-matching that paired a printed feature with its ability is gone, and the GM's side names
+nothing directly any more: a stat block's feature is an ability on a card printed on the block. The Cards panel edits every card an
 ability sits on, a pack's through a copy the project plays instead.
 
 `content/pack/import.ts` imports the 9 classes, 18 ancestries, 9 communities, 34 armors and
