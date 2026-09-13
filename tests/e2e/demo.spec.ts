@@ -2192,6 +2192,15 @@ test('lists a card no ability sits on, rewords a copy of it, and writes a script
   await panel.locator('[data-testid="card-copy-pack"]').click();
   await panel.locator('[data-testid="card-text"]').fill('Call out: every ally who hears you clears a Stress.');
 
+  // Removing the copy puts the pack's own words back, read-only again, beside Edit a copy.
+  await panel.locator('[data-testid="card-remove-copy"]').click();
+  await expect(panel.locator('[data-testid="card-grant-kind"]')).toHaveText("the pack's card");
+  await expect(panel.locator('[data-testid="card-text"]')).not.toHaveValue('Call out: every ally who hears you clears a Stress.');
+  await expect(panel.locator('[data-testid="card-text"]')).toHaveAttribute('readonly', '');
+  await expect(panel.locator('[data-testid="card-name"]')).toHaveValue('Rallying Cry');
+  await panel.locator('[data-testid="card-copy-pack"]').click();
+  await panel.locator('[data-testid="card-text"]').fill('Call out: every ally who hears you clears a Stress.');
+
   // A script on it moves it into the list above, opened, and named for its card.
   await panel.locator('[data-testid="card-add-script"]').click();
   await expect(panel.locator('[data-card="rallying-cry"]')).toHaveCount(0);
