@@ -32,7 +32,14 @@ export const CARD_ART_DIRECTORY = '/cards/';
 /** The index's own path, for the one fetch at boot. */
 export const CARD_ART_INDEX_URL = `${CARD_ART_DIRECTORY}index.json`;
 
-const IMPORT_PREFIX = 'polyheart:card-art:';
+const IMPORT_PREFIX = 'tactical:card-art:';
+
+/**
+ * The prefix this app wrote before it was renamed. Read, never written — a picture somebody
+ * imported keeps showing, and choosing a new one moves it forward. `remove` clears both, or
+ * "Remove" would appear to do nothing for art stored under the old name.
+ */
+const LEGACY_IMPORT_PREFIX = 'polyheart:card-art:';
 
 export type CardArt =
   | { readonly kind: 'image'; readonly src: string }
@@ -86,7 +93,7 @@ export class CardArtImports {
 
   get(cardId: string): string | null {
     try {
-      return this.store.get(IMPORT_PREFIX + cardId);
+      return this.store.get(IMPORT_PREFIX + cardId) ?? this.store.get(LEGACY_IMPORT_PREFIX + cardId);
     } catch {
       return null;
     }
@@ -110,6 +117,7 @@ export class CardArtImports {
   remove(cardId: string): void {
     try {
       this.store.remove(IMPORT_PREFIX + cardId);
+      this.store.remove(LEGACY_IMPORT_PREFIX + cardId);
     } catch {
       // A store that refuses to forget is not worth taking the page down for.
     }

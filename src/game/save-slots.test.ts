@@ -48,10 +48,37 @@ describe('save slots', () => {
   });
 
   it('ignores an index that is not one', () => {
-    const map = new Map<string, string>([['polyheart:saves', 'not json']]);
+    const map = new Map<string, string>([['tactical:saves', 'not json']]);
     expect(slots(map).slots.list()).toEqual([]);
-    map.set('polyheart:saves', JSON.stringify([{ id: 1 }, { id: 'ok', name: 'Ok', savedAt: 5 }]));
+    map.set('tactical:saves', JSON.stringify([{ id: 1 }, { id: 'ok', name: 'Ok', savedAt: 5 }]));
     expect(slots(map).slots.list().map((s) => s.id)).toEqual(['ok']);
+  });
+
+  it('opens a campaign saved before the rename, and forgets it from both keys', () => {
+    // The app wrote `polyheart:*` before it was called Tactical Engine. Somebody's saved campaign
+    // is under those keys and must keep opening; there is no migration step, only a fallback read.
+    const map = new Map<string, string>([
+      ['polyheart:saves', JSON.stringify([{ id: 'old', name: 'Before the rename', savedAt: 5, where: 'The Husk Vault' }])],
+      ['polyheart:save:old', '{"party":1}'],
+    ]);
+    const { slots: s } = slots(map);
+    expect(s.list().map((slot) => slot.name)).toEqual(['Before the rename']);
+    expect(s.read('old')).toBe('{"party":1}');
+
+    // Removing has to clear the old key as well. Clearing only the new one would let the save come
+    // back on the next read, which reads as the delete button not working.
+    expect(s.remove('old')).toBe(true);
+    expect(s.read('old')).toBeNull();
+    expect(map.has('polyheart:save:old')).toBe(false);
+    expect(s.list()).toEqual([]);
+  });
+
+  it('prefers the current key when a slot exists under both', () => {
+    const map = new Map<string, string>([
+      ['tactical:save:quick', 'new'],
+      ['polyheart:save:quick', 'old'],
+    ]);
+    expect(slots(map).slots.read(QUICK_SLOT)).toBe('new');
   });
 
   it('reads a store that throws as empty, and a write that throws as refused', () => {

@@ -13,7 +13,7 @@ for (const source of ['directory', 'import'] as const) {
     }));
     await page.route('**/cards/broken.jpg', route => route.fulfill({ contentType: 'image/jpeg', body: 'not an image' }));
     if (source === 'import') await page.addInitScript(() => {
-      localStorage.setItem('polyheart:card-art:power-slash', 'data:image/jpeg;base64,broken');
+      localStorage.setItem('tactical:card-art:power-slash', 'data:image/jpeg;base64,broken');
     });
     const indexLoaded = page.waitForResponse('**/cards/index.json');
     await page.goto('/');

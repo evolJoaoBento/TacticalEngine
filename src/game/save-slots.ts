@@ -31,8 +31,21 @@ export interface SaveSlot {
 export const QUICK_SLOT = 'quick';
 export const AUTO_SLOT = 'auto';
 
-const INDEX_KEY = 'polyheart:saves';
-const SLOT_PREFIX = 'polyheart:save:';
+const INDEX_KEY = 'tactical:saves';
+const SLOT_PREFIX = 'tactical:save:';
+
+/**
+ * The keys this app wrote before it was renamed.
+ *
+ * **Read, never written.** A campaign somebody saved under the old name keeps opening, and their
+ * next save moves it forward on its own — so there is no migration step to run, nothing to get
+ * half-done, and no version flag to keep.
+ *
+ * `remove` clears both. Clearing only the new key would let a deleted save come back from under the
+ * old one on the very next read, which looks like the delete button not working.
+ */
+const LEGACY_INDEX_KEY = 'polyheart:saves';
+const LEGACY_SLOT_PREFIX = 'polyheart:save:';
 
 export class SaveSlots {
   private readonly store: SlotStore;
@@ -55,7 +68,7 @@ export class SaveSlots {
   /** The saved text for a slot, or null. */
   read(id: string): string | null {
     try {
-      return this.store.get(SLOT_PREFIX + id);
+      return this.store.get(SLOT_PREFIX + id) ?? this.store.get(LEGACY_SLOT_PREFIX + id);
     } catch {
       return null;
     }
@@ -84,6 +97,8 @@ export class SaveSlots {
       const index = this.readIndex();
       if (!index.some((entry) => entry.id === id)) return false;
       this.store.remove(SLOT_PREFIX + id);
+      // Both, or a save written under the old name returns on the next read.
+      this.store.remove(LEGACY_SLOT_PREFIX + id);
       this.store.set(INDEX_KEY, JSON.stringify(index.filter((entry) => entry.id !== id)));
       return true;
     } catch {
@@ -93,7 +108,7 @@ export class SaveSlots {
 
   private readIndex(): SaveSlot[] {
     try {
-      const raw = this.store.get(INDEX_KEY);
+      const raw = this.store.get(INDEX_KEY) ?? this.store.get(LEGACY_INDEX_KEY);
       if (raw === null) return [];
       const parsed: unknown = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];

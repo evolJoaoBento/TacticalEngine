@@ -68,6 +68,27 @@ describe('art a player imported', () => {
     expect(issue).toMatch(/no room/i);
   });
 
+  it('still shows art imported before the rename, and forgets it from both keys', () => {
+    // Imported art was kept under `polyheart:card-art:` before the project was renamed. It is read
+    // as a fallback and never written, so a player's own pictures survive without a migration step.
+    const map = new Map<string, string>([['polyheart:card-art:bare-bones', 'data:image/jpeg;base64,OLD']]);
+    const imports = new CardArtImports(memoryStore(map));
+    expect(imports.get('bare-bones')).toBe('data:image/jpeg;base64,OLD');
+
+    // Remove must clear the old key too, or "Remove" appears to do nothing.
+    imports.remove('bare-bones');
+    expect(imports.get('bare-bones')).toBeNull();
+    expect(map.has('polyheart:card-art:bare-bones')).toBe(false);
+  });
+
+  it('prefers the current key when a card has art under both', () => {
+    const map = new Map<string, string>([
+      ['tactical:card-art:bare-bones', 'data:image/jpeg;base64,NEW'],
+      ['polyheart:card-art:bare-bones', 'data:image/jpeg;base64,OLD'],
+    ]);
+    expect(new CardArtImports(memoryStore(map)).get('bare-bones')).toBe('data:image/jpeg;base64,NEW');
+  });
+
   it('survives a store that refuses to be read or written at all', () => {
     // Some browsers throw on the very first touch of storage; that has to read
     // as "no imported art", not take the page down.
