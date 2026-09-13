@@ -160,6 +160,11 @@ so the record of what was first thought survives: the header's "can ride slice 4
 10. **A granted card's zone is the loadout's Always in play**: face up, counted by no limit, never
     vaulted, in the order a sheet lists abilities. It has no domain, so it wears a colour of its
     own rather than borrowing one.
+11. **The card editor offers `chosen` too, and reaches a pack's card through a copy.** Switching
+    into a loadout writes the grant and the four numbers in one edit, the card's own where it has
+    them; switching out keeps them, since a granted card may carry them. A pack's card is never
+    written: **Edit a copy** adds it to the project, where `mergePack` lays it over the pack's by id,
+    whole. A card with no ability on it stays out of reach, because the panel lists abilities.
 
 **Out of the first slice**, each to be judged on its own: card zones on screen, a grant editor, the
 GM's side as cards the table can see, and a condition lending a card rather than an ability.

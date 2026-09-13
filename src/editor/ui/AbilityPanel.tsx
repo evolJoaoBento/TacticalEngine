@@ -3,23 +3,24 @@
  *
  * A card is a name, its printed text, what it costs, who it can be aimed at,
  * and a script — and the script is the same effect list every other panel
- * edits, so this panel is mostly the fields around it. The engine's own SRD
- * cards are listed beside the project's, greyed, so an author can see what a
- * card looks like without a JSON file open; they are not editable here,
- * because the SRD library is code the engine ships.
+ * edits, so this panel is mostly the fields around it.
  *
  * "+ Card" writes a card of the project's own and the ability on it, `given` to
- * nobody yet. "granted by" says how else that card gets into play -- a class, a
- * subclass stage, an ancestry, a community, or the stat blocks that print it --
- * and ✕ takes card and ability back together.
+ * nobody yet. "granted by" says how else that card gets into play -- a loadout,
+ * with the domain, type, level and recall cost a chosen card carries; a class; a
+ * subclass stage; an ancestry; a community; or the stat blocks that print it --
+ * and ✕ takes card and ability back together. A card the pack prints is shown
+ * as the pack has it, and "Edit a copy" lays a copy into the project: a
+ * project's card lays over the pack's by id, whole, so the pack is never written.
  */
 
 import { useState } from 'preact/hooks';
 import type { EditorSession } from '../session';
-import { addCardWithAbility, removeCardWithAbility, updateAbility, updateCard } from '../session';
+import { addCard, addCardWithAbility, removeCardWithAbility, updateAbility, updateCard } from '../session';
 import { abilitySchema, cardOf, type AbilityDef } from '../../engine/content/abilities';
 import { cardDefSchema } from '../../engine/content/pack/schema';
 import type { ContentPack } from '../../engine/content/pack/import';
+import { MAX_LEVEL } from '../../engine/character/progression';
 import type { QuestDef } from '../../engine/content/quests';
 import { RANGE_BANDS, type RangeBand } from '../../engine/rules/range';
 import { EffectList } from './EffectList';
@@ -78,10 +79,10 @@ const BANDS = RANGE_BANDS.filter((band) => band !== 'outOfRange');
 
 type ProjectCard = EditorSession['project']['cards'][number];
 type Grant = ProjectCard['grant'];
-/** Every grant but `chosen`: a chosen card needs the loadout's four numbers, which are the card editor's. */
-type EditableGrant = Exclude<Grant, { kind: 'chosen' }>;
+type CardType = NonNullable<ProjectCard['type']>;
 
-const GRANT_KINDS: readonly { kind: EditableGrant['kind']; words: string }[] = [
+const GRANT_KINDS: readonly { kind: Grant['kind']; words: string }[] = [
+  { kind: 'chosen', words: 'a loadout' },
   { kind: 'given', words: 'named characters' },
   { kind: 'class', words: 'a class' },
   { kind: 'subclass', words: 'a subclass stage' },
@@ -91,34 +92,51 @@ const GRANT_KINDS: readonly { kind: EditableGrant['kind']; words: string }[] = [
 ];
 
 const STAGES = ['foundation', 'specialization', 'mastery'] as const;
+const CARD_TYPES: readonly CardType[] = ['ability', 'spell', 'grimoire'];
 
 /** Sorted `id -> name` pairs, so a dropdown reads as words and writes an id. */
 function choices(map: ReadonlyMap<string, { id: string; name: string }>): { id: string; name: string }[] {
   return [...map.values()].map((v) => ({ id: v.id, name: v.name })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** A grant of this kind, naming the first thing of that kind there is; null when there is none to name. */
-function freshGrant(kind: EditableGrant['kind'], content: ContentPack): EditableGrant | null {
+/** Every domain a class or a subclass opens: what a chosen card can be in for somebody to take it. */
+function openedDomains(content: ContentPack): string[] {
+  const domains = new Set([...content.classes.values(), ...content.subclasses.values()].flatMap((def) => def.domains));
+  return [...domains].sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * What to write to grant a card this way: the grant, naming the first thing of that kind there is,
+ * and -- for a loadout -- the four numbers a chosen card cannot load without, the card's own where it
+ * has them. Null when there is nothing to name. Leaving a loadout keeps the numbers: a granted card
+ * may carry them, and switching back loses nothing.
+ */
+function regrant(kind: Grant['kind'], card: ProjectCard, content: ContentPack): Partial<ProjectCard> | null {
   switch (kind) {
+    case 'chosen': {
+      const domain = card.domain ?? openedDomains(content)[0];
+      if (domain === undefined) return null;
+      return { grant: { kind }, domain, type: card.type ?? 'ability', level: card.level ?? 1, recallCost: card.recallCost ?? 0 };
+    }
     case 'given':
-      return { kind, characters: [] };
+      return { grant: { kind, characters: [] } };
     case 'adversary':
-      return { kind, adversaries: [] };
+      return { grant: { kind, adversaries: [] } };
     case 'class': {
       const id = choices(content.classes)[0]?.id;
-      return id === undefined ? null : { kind, classId: id };
+      return id === undefined ? null : { grant: { kind, classId: id } };
     }
     case 'subclass': {
       const id = choices(content.subclasses)[0]?.id;
-      return id === undefined ? null : { kind, subclassId: id, stage: 'foundation' };
+      return id === undefined ? null : { grant: { kind, subclassId: id, stage: 'foundation' } };
     }
     case 'ancestry': {
       const id = choices(content.ancestries)[0]?.id;
-      return id === undefined ? null : { kind, ancestryId: id };
+      return id === undefined ? null : { grant: { kind, ancestryId: id } };
     }
     case 'community': {
       const id = choices(content.communities)[0]?.id;
-      return id === undefined ? null : { kind, communityId: id };
+      return id === undefined ? null : { grant: { kind, communityId: id } };
     }
   }
 }
@@ -131,9 +149,9 @@ const idList = (text: string): string[] =>
     .filter((id) => id !== '');
 
 /**
- * How the card an ability sits on gets into play, as the panel can change it. Only the project's own
- * card: a pack's belongs to whoever wrote the pack, and a chosen one's numbers are the card editor's,
- * so both say where they come from and leave it there.
+ * How the card an ability sits on gets into play, and -- for a chosen card -- the four numbers a
+ * loadout reads. The project's own card is edited where it stands. A pack's card is shown as the pack
+ * has it, beside a button that lays a copy into the project, which is then the card played.
  */
 function GrantFields(props: {
   session: EditorSession;
@@ -142,19 +160,38 @@ function GrantFields(props: {
   onChange: () => void;
 }): preact.JSX.Element {
   const card = props.session.project.cards.find((c) => c.id === cardOf(props.ability));
-  if (card === undefined || card.grant.kind === 'chosen') {
-    return label(
-      'granted by',
-      <span data-testid="card-grant-kind" style={{ color: 'var(--ph-muted)' }}>
-        {card === undefined ? "the pack's card" : 'a loadout'}
-      </span>,
+  if (card === undefined) {
+    const packed = props.content.cards.get(cardOf(props.ability));
+    return (
+      <>
+        {label(
+          'granted by',
+          <span data-testid="card-grant-kind" style={{ color: 'var(--ph-muted)' }}>
+            {packed === undefined ? 'no card' : "the pack's card"}
+          </span>,
+        )}
+        {packed === undefined ? null : (
+          <button
+            style={button(false)}
+            data-testid="card-copy-pack"
+            title="Lay a copy of this card into the project, and edit that"
+            onClick={() => {
+              props.session.run(addCard(cardDefSchema.parse(packed)));
+              props.onChange();
+            }}
+          >
+            Edit a copy
+          </button>
+        )}
+      </>
     );
   }
   const grant = card.grant;
-  const set = (next: Grant): void => {
-    props.session.run(updateCard(card.id, { grant: next }));
+  const write = (changes: Partial<ProjectCard>): void => {
+    props.session.run(updateCard(card.id, changes));
     props.onChange();
   };
+  const set = (next: Grant): void => write({ grant: next });
   const pick = (
     value: string,
     list: readonly { id: string; name: string }[],
@@ -180,17 +217,63 @@ function GrantFields(props: {
           data-testid="card-grant-kind"
           value={grant.kind}
           onChange={(e) => {
-            const next = freshGrant((e.target as HTMLSelectElement).value as EditableGrant['kind'], props.content);
-            if (next !== null) set(next);
+            const next = regrant((e.target as HTMLSelectElement).value as Grant['kind'], card, props.content);
+            if (next !== null) write(next);
           }}
         >
           {GRANT_KINDS.map(({ kind, words }) => (
-            <option key={kind} value={kind} disabled={freshGrant(kind, props.content) === null}>
+            <option key={kind} value={kind} disabled={kind !== grant.kind && regrant(kind, card, props.content) === null}>
               {words}
             </option>
           ))}
         </select>,
       )}
+      {grant.kind === 'chosen' ? (
+        <>
+          {label(
+            'domain',
+            pick(card.domain ?? '', openedDomains(props.content).map((domain) => ({ id: domain, name: domain })), (domain) => write({ domain }), 'card-domain'),
+          )}
+          {label(
+            'type',
+            <select
+              style={field}
+              data-testid="card-type"
+              value={card.type ?? 'ability'}
+              onChange={(e) => write({ type: (e.target as HTMLSelectElement).value as CardType })}
+            >
+              {CARD_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>,
+          )}
+          {label(
+            'level',
+            <input
+              type="number"
+              min={1}
+              max={MAX_LEVEL}
+              style={{ ...field, width: '50px' }}
+              data-testid="card-level"
+              value={card.level ?? 1}
+              onInput={(e) => write({ level: Math.min(MAX_LEVEL, Math.max(1, Math.floor(Number((e.target as HTMLInputElement).value)) || 1)) })}
+            />,
+          )}
+          {label(
+            'recall',
+            <input
+              type="number"
+              min={0}
+              style={{ ...field, width: '50px' }}
+              data-testid="card-recall"
+              value={card.recallCost ?? 0}
+              onInput={(e) => write({ recallCost: Math.max(0, Math.floor(Number((e.target as HTMLInputElement).value)) || 0) })}
+            />,
+          )}
+        </>
+      ) : null}
       {grant.kind === 'given'
         ? label(
             'held by',

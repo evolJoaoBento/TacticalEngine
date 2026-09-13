@@ -558,11 +558,16 @@ under it, so a new character joins when the project is next loaded.
 of the ones the engine ships (those live in `content/pack/starter-abilities.ts` and are edited in
 code). **+ Card** writes two things as one undo step: a card of the project's own, handed to nobody
 yet, and the ability on it; **✕** takes both back, leaving a card anything else still needs.
-**granted by** says how that card gets into play: named characters (**held by** lists them), a
-class, a subclass stage, an ancestry, a community, or the stat blocks that print it (**printed
-on**). It edits the card, so it reaches only the project's own: a pack's card, and a chosen one,
-say where they come from instead. **Check** warns when a grant names something nothing defines,
-and about a card given to nobody or printed on no block. A card is its
+**granted by** says how that card gets into play: a loadout, named characters (**held by** lists
+them), a class, a subclass stage, an ancestry, a community, or the stat blocks that print it
+(**printed on**). A card in a loadout carries four numbers more -- its **domain** (one some class
+opens), **type**, **level** and **recall** cost -- and the panel writes all four when a card is
+switched into one; switched out again, the card keeps them. A card the pack prints says so, and
+**Edit a copy** lays a copy of it into the project: a project's card replaces the pack's under the
+same id, whole, so the copy is what the table plays from then on and the pack is never written.
+✕ on its ability leaves the copy, still played; the way back is Undo. **Check** warns when a grant
+names something nothing defines, about a card given to nobody or printed on no block, and about a
+chosen card in a domain no class opens or past level 10. A card is its
 name, the text as printed, who holds it, whether it is an action, a
 reaction (and what it answers) or passive, what it costs in Light, Stress and Shadow, who it can be
 aimed at and how far, whether using it is the character's action, whether it is only for a fight,

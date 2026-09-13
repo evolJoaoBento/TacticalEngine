@@ -59,6 +59,38 @@ describe('a card granted to nobody', () => {
       'Card "blank" is printed on no stat block yet.',
     ]);
   });
+
+  it('says when a chosen card is in a domain no class opens, or past the last level', () => {
+    const chosen = (id: string, domain: string, level: number) => ({
+      id,
+      name: id,
+      grant: { kind: 'chosen' },
+      domain,
+      type: 'ability',
+      level,
+      recallCost: 0,
+    });
+    const project = projectSchema.parse({
+      ...build(),
+      cards: [chosen('steady', 'bulwark', 1), chosen('frostbite', 'frost', 1), chosen('apotheosis', 'bulwark', 11)],
+    });
+    expect(messages(project, { characterContent: STARTER_CHARACTERS }).filter((m) => m.startsWith('Card '))).toEqual([
+      'Card "frostbite" is a frost card, a domain no class opens: nobody can take it.',
+      'Card "apotheosis" is level 11, past the last level there is (10): nobody reaches it.',
+    ]);
+
+    // A project's own class opening the domain is enough; without content only the level can be said.
+    const opened = projectSchema.parse({
+      ...project,
+      classes: [{ id: 'glacier', name: 'Glacier', domains: ['frost'], startingEvasion: 9, startingHitPoints: 6 }],
+    });
+    expect(messages(opened, { characterContent: STARTER_CHARACTERS }).filter((m) => m.startsWith('Card '))).toEqual([
+      'Card "apotheosis" is level 11, past the last level there is (10): nobody reaches it.',
+    ]);
+    expect(messages(project).filter((m) => m.startsWith('Card '))).toEqual([
+      'Card "apotheosis" is level 11, past the last level there is (10): nobody reaches it.',
+    ]);
+  });
 });
 
 describe('a clean project', () => {

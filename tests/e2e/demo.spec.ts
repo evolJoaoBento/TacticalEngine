@@ -2152,6 +2152,64 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
   expect(consoleErrors).toEqual([]);
 });
 
+test("edits a copy of the pack's card, and the loadout plays the copy", async ({ page }) => {
+  const consoleErrors = await boot(page);
+  page.on('dialog', (dialog) => void dialog.accept('Standard Bearer'));
+
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-abilities"]').click();
+  const panel = page.locator('[data-testid="ability-panel"]');
+
+  // Power Slash is the pack's: shown as the pack has it, and edited only as a copy.
+  await panel.locator('[data-ability="power-slash"]').click();
+  await expect(panel.locator('[data-testid="card-grant-kind"]')).toHaveText("the pack's card");
+  await panel.locator('[data-testid="card-copy-pack"]').click();
+  await expect(panel.locator('[data-testid="card-grant-kind"]')).toHaveValue('chosen');
+  await expect(panel.locator('[data-testid="card-domain"]')).toHaveValue('bulwark');
+  await expect(panel.locator('[data-testid="card-recall"]')).toHaveValue('1');
+
+  // Granted by a class for a moment, then back into a loadout: the numbers wait on the card.
+  await panel.locator('[data-testid="card-grant-kind"]').selectOption('class');
+  await expect(panel.locator('[data-testid="card-grant-class"]')).toBeVisible();
+  await panel.locator('[data-testid="card-grant-kind"]').selectOption('chosen');
+  await expect(panel.locator('[data-testid="card-recall"]')).toHaveValue('1');
+  await panel.locator('[data-testid="card-recall"]').fill('3');
+
+  // A card of the project's own, taken into a loadout, is handed the four numbers it cannot load without.
+  await panel.locator('[data-testid="add-ability"]').click();
+  await panel.locator('[data-testid="card-grant-kind"]').selectOption('chosen');
+  await panel.locator('[data-testid="card-level"]').fill('2');
+
+  const written = await page.evaluate(() => {
+    const project = JSON.parse(window.__engine!.exportProject()) as { cards: { id: string }[] };
+    return project.cards.filter((c) => c.id === 'power-slash' || c.id === 'standard-bearer');
+  });
+  expect(written).toEqual([
+    expect.objectContaining({ id: 'power-slash', grant: { kind: 'chosen' }, domain: 'bulwark', type: 'ability', level: 1, recallCost: 3 }),
+    expect.objectContaining({ id: 'standard-bearer', grant: { kind: 'chosen' }, domain: expect.any(String), type: 'ability', level: 2, recallCost: 0 }),
+  ]);
+
+  // Check has nothing to say about the copy.
+  await panel.locator('[data-testid="close-abilities"]').click();
+  await page.locator('[data-testid="open-project"]').click();
+  await page.locator('[data-testid="check-project"]').click();
+  await expect(page.locator('[data-testid="problems"]')).toBeVisible();
+  await expect(page.locator('[data-testid="problems"]')).not.toContainText('power-slash');
+
+  // And the table plays the copy: Kara's Power Slash recalls for three.
+  await page.evaluate(() => {
+    const api = window.__engine!;
+    api.setMode('play');
+    api.select('kara');
+    api.setCards('kara', ['power-slash']);
+  });
+  await page.getByTestId('open-loadout').click();
+  await expect(page.getByTestId('loadout').locator('[data-card="power-slash"] .face-recall')).toContainText('3');
+
+  expect(consoleErrors).toEqual([]);
+});
+
 test("writes a stat block's shape: an area everyone rolls to avoid, and a swing that reaches further", async ({ page }) => {
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Eruption'));

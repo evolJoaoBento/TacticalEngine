@@ -1808,6 +1808,30 @@ export function updateCard(cardId: string, changes: Partial<ProjectCard>): Edit 
   return edit;
 }
 
+/**
+ * Add a card of the project's own. What "Edit a copy" runs on a pack's card: a project's card lays
+ * over the pack's by id, whole, so the copy is the card played from then on and the pack is never
+ * written. A card the project already has under that id is left where it is, and the edit is a no-op.
+ */
+export function addCard(card: ProjectCard): Edit {
+  let added = false;
+  return {
+    label: `Add card ${card.id}`,
+    apply(project) {
+      added = !project.cards.some((c) => c.id === card.id);
+      if (added) project.cards.push(card);
+    },
+    undo(project) {
+      if (!added) return;
+      const on = project.cards.lastIndexOf(card);
+      if (on >= 0) project.cards.splice(on, 1);
+    },
+    isNoop() {
+      return !added;
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Logic in code
 // ---------------------------------------------------------------------------

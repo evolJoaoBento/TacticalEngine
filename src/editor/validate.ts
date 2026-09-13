@@ -26,7 +26,7 @@ import {
 } from '../engine/script/schema';
 import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-from-scene';
 import { deriveCharacter } from '../engine/character/sheet';
-import { domainsOf, heldCards } from '../engine/character/progression';
+import { MAX_LEVEL, domainsOf, heldCards } from '../engine/character/progression';
 import { isDomainCard, type CardDef, type ContentPack } from '../engine/content/pack/import';
 import { cardOf, isStatBlockFeature, type AbilityDef } from '../engine/content/abilities';
 import { parseDice } from '../engine/rules/dice';
@@ -154,6 +154,15 @@ function checkCardGrants(
   };
   // A project with no party of its own plays somebody else's, which this cannot see.
   const party = project.party.length === 0 ? null : new Set(project.party.map((sheet) => sheet.id));
+  // What a chosen card has to be in for anybody to take it: a domain some class or subclass opens.
+  const opened =
+    content === undefined
+      ? null
+      : new Set(
+          [...project.classes, ...content.classes.values(), ...project.subclasses, ...content.subclasses.values()].flatMap(
+            (def) => def.domains,
+          ),
+        );
   for (const card of project.cards) {
     const grant = card.grant;
     const nothing = (what: keyof typeof named, id: string): void => {
@@ -163,6 +172,14 @@ function checkCardGrants(
     };
     switch (grant.kind) {
       case 'chosen':
+        // A held card outside its holder's domains is the party's warning; this one is the card's own,
+        // held or not.
+        if (card.domain !== undefined && opened !== null && !opened.has(card.domain)) {
+          add('warning', `Card "${card.id}" is a ${card.domain} card, a domain no class opens: nobody can take it.`, card.id);
+        }
+        if (card.level !== undefined && card.level > MAX_LEVEL) {
+          add('warning', `Card "${card.id}" is level ${card.level}, past the last level there is (${MAX_LEVEL}): nobody reaches it.`, card.id);
+        }
         break;
       case 'class':
         nothing('class', grant.classId);

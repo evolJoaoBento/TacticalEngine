@@ -3,9 +3,12 @@ import { abilitySchema } from '../engine/content/abilities';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
 import { cardDefSchema } from '../engine/content/pack/schema';
+import { isDomainCard, mergePack } from '../engine/content/pack/import';
+import { STARTER_CHARACTERS } from '../engine/content/pack/starter';
 import {
   EditorSession,
   addAbility,
+  addCard,
   addCardWithAbility,
   removeAbility,
   removeCardWithAbility,
@@ -107,20 +110,44 @@ describe('cards in the project', () => {
       ),
     );
     // `updateCard` merges without parsing, so what it writes has to be something the schema reads
-    // back -- which is why `chosen`, needing four numbers the panel does not ask for, is not offered.
-    const grants: ProjectDoc['cards'][number]['grant'][] = [
-      { kind: 'given', characters: ['kara', 'mira'] },
-      { kind: 'class', classId: 'sentinel' },
-      { kind: 'subclass', subclassId: 'shieldbearer', stage: 'mastery' },
-      { kind: 'ancestry', ancestryId: 'human' },
-      { kind: 'community', communityId: 'wayfarer' },
-      { kind: 'adversary', adversaries: ['husk'] },
+    // back: a loadout goes with the four numbers a chosen card cannot load without, as the panel
+    // writes it, and only then is it a card somebody can take into one.
+    const changes: Partial<ProjectDoc['cards'][number]>[] = [
+      { grant: { kind: 'chosen' }, domain: 'bulwark', type: 'ability', level: 2, recallCost: 1 },
+      { grant: { kind: 'given', characters: ['kara', 'mira'] } },
+      { grant: { kind: 'class', classId: 'sentinel' } },
+      { grant: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'mastery' } },
+      { grant: { kind: 'ancestry', ancestryId: 'human' } },
+      { grant: { kind: 'community', communityId: 'wayfarer' } },
+      { grant: { kind: 'adversary', adversaries: ['husk'] } },
     ];
-    for (const grant of grants) {
-      s.run(updateCard('oath', { grant }));
+    for (const change of changes) {
+      s.run(updateCard('oath', change));
       const loaded = projectSchema.parse(JSON.parse(JSON.stringify(s.project)));
-      expect(loaded.cards.find((c) => c.id === 'oath')!.grant).toEqual(grant);
+      expect(loaded.cards.find((c) => c.id === 'oath')!.grant).toEqual(change.grant);
+      expect(isDomainCard(mergePack(STARTER_CHARACTERS, loaded).cards.get('oath')!)).toBe(change.grant!.kind === 'chosen');
     }
+  });
+
+  it("edits a copy of the pack's card, which the project plays over the pack's until it is undone", () => {
+    const s = session();
+    const packed = STARTER_CHARACTERS.cards.get('power-slash')!;
+    const played = () => mergePack(STARTER_CHARACTERS, s.project).cards.get('power-slash')!;
+
+    expect(s.run(addCard(cardDefSchema.parse(packed)))).toBe(true);
+    s.run(updateCard('power-slash', { recallCost: 3, level: 2 }));
+    expect(played()).toMatchObject({ recallCost: 3, level: 2, domain: 'bulwark', name: 'Power Slash' });
+    // The pack itself is never written: the copy is a copy.
+    expect(packed).toMatchObject({ recallCost: 1, level: 1 });
+
+    // A card the project already has is left where it is, and asking again is not an undo step.
+    expect(s.run(addCard(cardDefSchema.parse(packed)))).toBe(false);
+    expect(s.project.cards.filter((c) => c.id === 'power-slash')).toHaveLength(1);
+
+    s.undo();
+    s.undo();
+    expect(s.project.cards).toEqual([]);
+    expect(played()).toBe(packed);
   });
 
   it('coalesces keystrokes in one field and starts again on another', () => {

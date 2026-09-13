@@ -474,7 +474,8 @@ whenever someone reorders a list in the editor; an id does not.
 
 **A project's content lays over its pack's by id, whole.** `mergePack` (`content/pack/import.ts`)
 lays a project's lists over the pack's: an entry with a pack entry's id replaces it entirely -- not
-a field-by-field merge -- and the pack's other entries survive. What a project places is what it
+a field-by-field merge -- and the pack's other entries survive. The Cards panel's **Edit a copy** is this on purpose: the
+copy of a pack's card it adds to the project is the card played. What a project places is what it
 carries: a stat block brings no scripted feature with it unless a pack or the project prints one
 on it.
 

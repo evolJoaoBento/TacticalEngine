@@ -4,6 +4,27 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The card editor — done
+
+The Cards panel reaches the cards it could only name before. **a loadout** is a grant like the
+others: switching a card into one writes the four numbers a chosen card cannot load without -- a
+domain some class opens, a type, a level, a recall cost -- and a card switched out keeps them. A card
+the pack prints is shown as the pack has it beside
+**Edit a copy** (`addCard`): the copy lays over the pack's by id, whole (`mergePack`), so the table
+plays it and the pack is never written. **Check** warns about a chosen card in a domain no class
+opens, held or not -- the party's own warning covers a held card outside its holder's domains -- and
+about one past level 10. The e2e copies Power Slash, grants it to a class and back, sets its recall
+to 3, and finds 3 on Kara's loadout.
+
+**Still open:** a card with no ability on it -- three of the pack's ship as text -- is reached by
+nothing, because the panel is listed by ability. The only way back to the pack's card is Undo: ✕ on
+the ability leaves the copy, still played. And the card's own name and text are not edited here; the
+ability's are.
+
+`npx tsc --noEmit` clean; vitest **1843 passed (1843)**; Playwright **106 passed (3.7m)**, `EXIT 0`. Four breaks -- a loadout
+written without its numbers, the project's cards laid over nothing, no warning for an unopened
+domain, a second copy counted as an edit -- each fail the test written for them.
+
 ## The lift's red test — resolved
 
 The one failure every run since `f4df9fa` carried was the test, not the card. It read whether the
@@ -129,8 +150,8 @@ deliberate one; Playwright **105 passed (3.7m)**, `EXIT 0`. Five breaks -- the w
 feature reaching every block, a stat block's card granted to a character, the validator asking no
 cards, the migration skipping a stat block -- each fail the tests written for them.
 
-**Next, in order:** a card editor that reaches any card rather than only the project's own (the
-grant editor and the card zones have landed, above).
+**Next, in order:** what *The card editor* lists as still open (the grant editor, the card zones and
+the card editor have landed, above).
 
 ---
 
@@ -171,9 +192,9 @@ generic rules conditions too.
 deliberate `demo-defense` failure; Playwright **105 passed**, `EXIT 0`.
 
 **Still open on the same thread.** Classes and subclasses carry no feature text any more -- what
-they print is cards (above). What is left is editing *any* card: the Cards workspace edits abilities
-and the `given` cards it writes, not a card an imported class grants. And an import cannot be
-written back out as a pack on its own -- Save JSON writes the whole project.
+they print is cards (above), and the Cards panel edits them, an imported class's included (*The card
+editor*, above). What is left is that an import cannot be written back out as a pack on its own --
+Save JSON writes the whole project.
 
 **Known, and not new:** undoing an import while in *play* rewrites the document but not the running
 world. `undoEdit` rebuilds nothing in play, so an undone card stays offered until the next rebuild —
