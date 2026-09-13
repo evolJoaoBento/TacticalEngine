@@ -4,6 +4,15 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The grant pickers, in a browser — done
+
+The Cards panel's subclass-stage, ancestry and community pickers had only unit tests behind them
+(the class picker was already in *The card editor*'s e2e). One e2e now writes a card, grants it by
+each in turn and reads each grant out of the project, then plays: Kara is a Wayfarer, and the card
+granted by the Wayfarer community is in her loadout's **Always in play**.
+
+`npx tsc --noEmit` clean; vitest **1850 passed (1850), run with the next slice applied on top**; Playwright **109 passed (4.0m), run with the next slice applied on top**, `EXIT 0`.
+
 ## Export pack — done
 
 **Project ▾ → Export pack** writes the project's content as a pack file, `<project id>-pack.json`:

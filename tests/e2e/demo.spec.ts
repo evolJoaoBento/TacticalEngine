@@ -2268,6 +2268,47 @@ test("edits a copy of the pack's card, and the loadout plays the copy", async ({
   expect(consoleErrors).toEqual([]);
 });
 
+test('grants a card by subclass stage, ancestry and community, and the one Kara answers to is in her hand', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  page.on('dialog', (dialog) => void dialog.accept('Oathmark'));
+
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-abilities"]').click();
+  const panel = page.locator('[data-testid="ability-panel"]');
+  await panel.locator('[data-testid="add-ability"]').click();
+  const grant = () =>
+    page.evaluate(
+      () => (JSON.parse(window.__engine!.exportProject()) as { cards: { id: string; grant: unknown }[] }).cards.find((c) => c.id === 'oathmark')?.grant,
+    );
+
+  // Each picker writes the grant it names, reading the content's own lists.
+  await panel.locator('[data-testid="card-grant-kind"]').selectOption('subclass');
+  await panel.locator('[data-testid="card-grant-subclass"]').selectOption('shieldbearer');
+  await panel.locator('[data-testid="card-grant-stage"]').selectOption('mastery');
+  expect(await grant()).toEqual({ kind: 'subclass', subclassId: 'shieldbearer', stage: 'mastery' });
+
+  await panel.locator('[data-testid="card-grant-kind"]').selectOption('ancestry');
+  await panel.locator('[data-testid="card-grant-ancestry"]').selectOption('stoneborn');
+  expect(await grant()).toEqual({ kind: 'ancestry', ancestryId: 'stoneborn' });
+
+  await panel.locator('[data-testid="card-grant-kind"]').selectOption('community');
+  await panel.locator('[data-testid="card-grant-community"]').selectOption('wayfarer');
+  expect(await grant()).toEqual({ kind: 'community', communityId: 'wayfarer' });
+
+  // Kara is a Wayfarer, so the card is hers without anyone choosing it.
+  await panel.locator('[data-testid="close-abilities"]').click();
+  await page.evaluate(() => {
+    const api = window.__engine!;
+    api.setMode('play');
+    api.select('kara');
+  });
+  await page.getByTestId('open-loadout').click();
+  await expect(page.getByTestId('granted-zone')).toContainText('Oathmark');
+
+  expect(consoleErrors).toEqual([]);
+});
+
 test("writes a stat block's shape: an area everyone rolls to avoid, and a swing that reaches further", async ({ page }) => {
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Eruption'));
