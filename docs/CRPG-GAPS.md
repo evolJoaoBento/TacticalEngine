@@ -26,7 +26,7 @@ two thirds.
 |---|---|
 | Rules (SRD 2.0) | Duality rolls, GM die, damage/thresholds/armor, resources, range, cover |
 | Space | Tiles underneath as a navmesh (terrain, A*/Dijkstra, line of sight, occupancy); the rules read distance as the crow flies and move by range band, never by counting squares |
-| Content | Content packs imported from a file (Project ▾ → Import pack…) and merged into the project by id; legacy map/campaign importer |
+| Content | Content packs imported from a file (Project ▾ → Import pack…) and merged into the project by id, and written back out as one (Export pack); legacy map/campaign importer |
 | Scene | Authored document (zod), runtime state overlay, JSON save/restore |
 | Combat | One attack, end to end, seeded and replayable |
 | Render | Continuous ground per terrain type (vertex-coloured, a wall only where the ground drops), procedural model library, click-to-move demo |

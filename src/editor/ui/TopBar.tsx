@@ -57,6 +57,8 @@ export interface TopBarProps {
   onLoad: (file: File) => void;
   /** One or more pack files, imported in the order they were picked. */
   onImportPack: (files: readonly File[]) => void;
+  /** The project's content, written out as a pack file another project can import. */
+  onExportPack: () => void;
   onCheck: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -140,6 +142,17 @@ export function TopBar(props: TopBarProps): preact.JSX.Element {
                 }}
               />
             </label>
+            <button
+              class="ph-item"
+              data-testid="export-pack"
+              title="Write this project's classes, cards, creatures, scripts and conditions as a pack another project can import"
+              onClick={() => {
+                props.onMenu(null);
+                props.onExportPack();
+              }}
+            >
+              Export pack
+            </button>
             <button
               class="ph-item"
               data-testid="check-project"

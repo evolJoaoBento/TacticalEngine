@@ -116,7 +116,7 @@ adapter: the rest of the core does not know it exists.
 | `content/items.ts`, `content/quests.ts` | Item and quest content shapes. |
 | `content/pack/schema.ts` | What a content pack *is*, as zod: `featureSchema`, `weaponDefSchema`, `armorDefSchema`, `classDefSchema`, `ancestryDefSchema`, `communityDefSchema`, `subclassDefSchema`, `cardDefSchema` with its `cardGrantSchema`, and `contentPackSchema`. A class, subclass, ancestry or community carries no printed features: those are cards that name what grants them. The contract a pack is validated against, wherever it comes from. |
 | `content/pack/import.ts` | The pack in memory: `ContentPack` (maps by id), the def types, `CardGrant`, `isDomainCard` (a chosen card, with the loadout's numbers), and `mergePack`, which lays a project's lists over a pack's. The readers for a retired data set's shapes are gone; a pack *file* comes in through `document.ts`. |
-| `content/pack/document.ts` | A pack as a **file**: `packDocumentSchema` (`contentPackSchema` plus `abilities` and `conditionDefs`), `readPack` (migrates, then validates each entry on its own and reports what it skipped) and `describePack`. What Project ▾ → Import pack… reads; `importPack` in `editor/session.ts` lays it into the project. |
+| `content/pack/document.ts` | A pack as a **file**: `packDocumentSchema` (`contentPackSchema` plus `abilities` and `conditionDefs`), `readPack` (migrates, then validates each entry on its own and reports what it skipped) and `describePack`. What Project ▾ → Import pack… reads; `importPack` in `editor/session.ts` lays it into the project, and `packOf` writes a project's lists back out as one (Project ▾ → Export pack). |
 | `content/pack/starter.ts` | The pack the engine ships, its own and nobody else's: `STARTER_PACK`, `STARTER_CHARACTERS` (the character side as a `ContentPack`), `STARTER_ADVERSARIES`. Its stat blocks carry printed traits and no scripted features. |
 | `content/pack/starter-abilities.ts`, `starter-conditions.ts` | `STARTER_ABILITIES` and `STARTER_CONDITIONS`: what the starter pack's cards do, and the conditions they apply. |
 | `script/native-hooks.ts` | `SRD_HOOKS` — the four native hooks, for mechanics that are a computation rather than a list of effects. Engine code, which is why it stayed when the catalogue went. |
@@ -744,7 +744,9 @@ carries its abilities, items and conditions. An empty list means "whatever pack 
 plus `adversaries`, `abilities` and `conditionDefs` — through `readPack`, and `importPack` lays it
 into the same project fields by id, replacing a same-id entry where it stands and appending the
 rest, as one undo step. It is not a load; nothing the game is running is replaced. The lists are
-changed **in place**, because the script world holds `project.abilities` by reference.
+changed **in place**, because the script world holds `project.abilities` by reference. **Exporting
+one** is `packOf`: the same lists, copied out of the project under the current `formatVersion`, so
+what it writes reads back through `readPack` entry for entry.
 
 Two shapes are named for what they are rather than for a rule: a class's `signatureFeature` (the
 feature it grants for its own resource), and armor thresholds, which must be finite integers because

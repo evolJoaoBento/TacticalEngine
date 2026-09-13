@@ -4,6 +4,20 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Export pack — done
+
+**Project ▾ → Export pack** writes the project's content as a pack file, `<project id>-pack.json`:
+every list a pack carries (`packOf`, `content/pack/document.ts`) -- classes, ancestries,
+communities, subclasses, cards, weapons, armor, adversaries, the abilities on the cards and the
+conditions they apply -- copied out under the current `formatVersion`, and none of the scenes, party
+or code. It is the other half of Import pack: a test writes the starter pack out and reads it back
+through `readPack` entry for entry, nothing refused and nothing skipped, and the e2e checks the
+downloaded file against the project list for list.
+
+`npx tsc --noEmit` clean; vitest **1849 passed (1849)**; Playwright **108 passed (3.9m)**, `EXIT 0`. Three breaks -- a list
+left out, the file sharing the project's entries, the menu item doing nothing -- each fail the test
+written for them.
+
 ## Text-only cards in the Cards panel — done
 
 The Cards panel lists every card no ability sits on under **Text only** (`unscriptedCards`,
@@ -228,8 +242,8 @@ deliberate `demo-defense` failure; Playwright **105 passed**, `EXIT 0`.
 
 **Still open on the same thread.** Classes and subclasses carry no feature text any more -- what
 they print is cards (above), and the Cards panel edits them, an imported class's included (*The card
-editor*, above). What is left is that an import cannot be written back out as a pack on its own --
-Save JSON writes the whole project.
+editor*, above), and a project's content goes back out as a pack through Project ▾ → Export pack
+(*Export pack*, above). Nothing is left on this thread.
 
 **Known, and not new:** undoing an import while in *play* rewrites the document but not the running
 world. `undoEdit` rebuilds nothing in play, so an undone card stays offered until the next rebuild —

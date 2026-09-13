@@ -86,7 +86,7 @@ import {
 import type { Response } from './engine/script/runner';
 import { loadGameText, saveBlockedBy, serialiseSave } from './game/save';
 import { migrateDocument } from './engine/scene/migrate';
-import { describePack, readPack } from './engine/content/pack/document';
+import { describePack, packOf, readPack } from './engine/content/pack/document';
 import type { AdversaryDef } from './engine/content/types';
 import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore } from './game/save-slots';
 import { CardArtImports, loadCardArtIndex, useCardArtImports, useCardArtIndex } from './game/ui/card-art';
@@ -688,6 +688,7 @@ function renderPanel(): void {
       onSave: saveProject,
       onLoad: loadProject,
       onImportPack: (files: readonly File[]) => void importPacks(files),
+      onExportPack: exportPack,
       onAssetsChanged: () => {
         for (const id of assets.ids()) assets.remove(id);
         for (const asset of session.project.assets) assets.add(asset);
@@ -745,6 +746,21 @@ function saveProject(): void {
   URL.revokeObjectURL(url);
   session.markSaved();
   renderPanel();
+}
+
+/**
+ * Project > Export pack: the project's content -- classes, cards, creatures, the scripts on the cards
+ * and the conditions they apply -- as a pack file, which Import pack reads back into this project or
+ * another. Not a save: no scenes, no party, nothing marked saved.
+ */
+function exportPack(): void {
+  const blob = new Blob([JSON.stringify(packOf(session.project), null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${session.project.id}-pack.json`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 async function loadProject(file: File): Promise<void> {

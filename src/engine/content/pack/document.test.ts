@@ -2,7 +2,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { cardOf } from '../abilities';
-import { describePack, packDocumentSchema, readPack } from './document';
+import { PACK_LISTS, describePack, packDocumentSchema, packOf, readPack } from './document';
+import { STARTER_ABILITIES, STARTER_CONDITIONS, STARTER_PACK } from './starter';
+import { CURRENT_FORMAT_VERSION } from '../../scene/migrate';
+import { blankScene } from '../../scene/grid-from-scene';
+import { projectSchema, sceneSchema } from '../../scene/schema';
 
 /**
  * Reading a pack file: the door the editor's Import pack goes through. Tested on the one genuine
@@ -25,6 +29,33 @@ const AXE = {
 };
 
 const WARDEN = { id: 'lantern-warden', name: 'Lantern Warden', startingEvasion: 10, startingHitPoints: 6 };
+
+describe('writing a project out as a pack', () => {
+  it('carries every list a pack reads and nothing else, and reads back entry for entry', () => {
+    const project = projectSchema.parse({
+      id: 'lantern',
+      name: 'Lantern',
+      scenes: [sceneSchema.parse(blankScene('room', 4, 4))],
+      startScene: 'room',
+      ...STARTER_PACK,
+      abilities: [...STARTER_ABILITIES],
+      conditionDefs: [...STARTER_CONDITIONS],
+    });
+    const pack = packOf(project);
+    expect(pack.formatVersion).toBe(CURRENT_FORMAT_VERSION);
+    expect(Object.keys(pack)).not.toContain('scenes');
+
+    const reading = readPack(JSON.parse(JSON.stringify(pack)), 'lantern-pack.json');
+    expect(reading.refused).toBeNull();
+    expect(reading.issues).toEqual([]);
+    for (const list of PACK_LISTS) expect(reading.pack[list]).toEqual(project[list]);
+    expect(describePack(reading.pack)).toContain('39 cards');
+
+    // A copy: writing to the file touches nothing in the project it came from.
+    pack.cards[0]!.name = 'Renamed';
+    expect(project.cards[0]!.name).not.toBe('Renamed');
+  });
+});
 
 describe('reading a pack', () => {
   it('reads a genuine version-1 project as a pack, rewriting it on the way in', () => {

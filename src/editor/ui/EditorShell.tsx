@@ -81,6 +81,8 @@ export interface EditorShellProps {
   onLoad: (file: File) => void;
   /** Pack files picked under Project, to be laid into the project. */
   onImportPack: (files: readonly File[]) => void;
+  /** Project > Export pack: the project's content as a pack file. */
+  onExportPack: () => void;
   /** The project's model list changed; the loader should follow. */
   onAssetsChanged?: () => void;
   /**
@@ -394,6 +396,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
         onSave={props.onSave}
         onLoad={props.onLoad}
         onImportPack={props.onImportPack}
+        onExportPack={props.onExportPack}
         onCheck={check}
         onUndo={props.onUndo}
         onRedo={props.onRedo}

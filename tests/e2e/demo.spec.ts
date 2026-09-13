@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
 
 /**
@@ -2148,6 +2149,25 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
     return Object.fromEntries(api.party().map((id) => [id, api.stressOf(id).marked]));
   });
   for (const id of Object.keys(before)) expect(after[id]).toBe(before[id]! - 1);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test("writes the project's content out as a pack file, and nothing else", async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.locator('[data-testid="open-project"]').click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('[data-testid="export-pack"]').click()]);
+  expect(download.suggestedFilename()).toMatch(/-pack\.json$/);
+
+  const pack = JSON.parse(readFileSync(await download.path(), 'utf8')) as Record<string, unknown>;
+  const project = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())) as Record<string, unknown>;
+  expect(pack['formatVersion']).toBe(3);
+  // The content, list for list, and none of what makes it a project.
+  for (const list of ['weapons', 'armors', 'classes', 'ancestries', 'communities', 'subclasses', 'cards', 'adversaries', 'abilities', 'conditionDefs']) {
+    expect(pack[list]).toEqual(project[list]);
+  }
+  for (const not of ['scenes', 'party', 'code', 'dialogues']) expect(pack[not]).toBeUndefined();
 
   expect(consoleErrors).toEqual([]);
 });

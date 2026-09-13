@@ -152,6 +152,17 @@ const NAMES: Readonly<Record<PackList, readonly [one: string, many: string]>> = 
   conditionDefs: ['condition', 'conditions'],
 };
 
+/**
+ * A project's content as a pack file: every list a pack carries, copied from the project as it
+ * stands, and none of its scenes, party or code. The other half of Import pack -- what is written
+ * here reads back through `readPack` entry for entry, into this project or another.
+ */
+export function packOf(project: { readonly [K in PackList]: readonly unknown[] }): PackDocument {
+  const pack = packDocumentSchema.parse({ formatVersion: CURRENT_FORMAT_VERSION });
+  for (const list of PACK_LISTS) (pack[list] as unknown[]).push(...structuredClone(project[list]));
+  return pack;
+}
+
 /** "3 classes, 1 card, 2 adversaries" -- what a pack holds, for a person to read. */
 export function describePack(pack: PackDocument): string {
   const parts = PACK_LISTS.filter((list) => pack[list].length > 0).map((list) => {
