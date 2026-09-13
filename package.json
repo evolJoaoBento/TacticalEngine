@@ -1,8 +1,8 @@
 {
-  "name": "daggerheart-engine",
+  "name": "tactical-engine",
   "private": true,
   "version": "0.1.0",
-  "description": "PolyHeart Engine — a Daggerheart-powered CRPG engine and editor (Baldur's Gate-style party RPGs).",
+  "description": "Tactical Engine — a browser CRPG engine and editor (Baldur's Gate-style party RPGs).",
   "type": "module",
   "scripts": {
     "dev": "vite",

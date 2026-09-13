@@ -26,11 +26,11 @@ for (const source of ['directory', 'import'] as const) {
     });
     await page.getByTestId('open-loadout').click();
     const panel = page.getByTestId('loadout');
-    const tile = panel.locator('[data-card="power-slash"] .dh-art');
+    const tile = panel.locator('[data-card="power-slash"] .face-art');
     await expect(tile.locator('svg')).toBeVisible();
     await expect(tile.locator('img')).toHaveCount(0);
     await page.getByRole('button', { name: 'Inspect Power Slash', exact: true }).click();
-    const enlarged = panel.locator('.dh-card-expanded .dh-art');
+    const enlarged = panel.locator('.face-expanded .face-art');
     await expect(enlarged.locator('svg')).toBeVisible();
     await panel.getByTestId('art-file').setInputFiles({ name: 'replacement.png', mimeType: 'image/png', buffer: PIXEL });
     await expect(enlarged.locator('img')).toHaveAttribute('src', /^data:image\/jpeg/);
@@ -58,10 +58,10 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   // Every card shows something without waiting on a fetch: a file from
   // `public/cards/` where the index names one, its own drawn emblem otherwise.
   // Which of the two depends on whether this machine has an art directory.
-  await expect(panel.locator('.dh-art > :is(svg, img)')).toHaveCount(6);
+  await expect(panel.locator('.face-art > :is(svg, img)')).toHaveCount(6);
   await page.screenshot({ path: 'test-results/card-collection.png' });
   await page.getByRole('button', { name: 'Inspect Unbroken', exact: true }).click();
-  await expect(panel.locator('.dh-card-expanded')).toContainText('Unbroken');
+  await expect(panel.locator('.face-expanded')).toContainText('Unbroken');
   await page.screenshot({ path: 'test-results/card-inspect.png' });
   await page.keyboard.press('Escape');
   await expect(panel.locator('.card-lightbox')).toHaveCount(0);
@@ -106,7 +106,7 @@ test('imports custom art for one card, and gives it back', async ({ page }) => {
   await page.getByTestId('open-loadout').click();
   const panel = page.getByTestId('loadout');
   await page.getByRole('button', { name: 'Inspect Power Slash', exact: true }).click();
-  const enlarged = panel.locator('.dh-card-expanded .dh-art');
+  const enlarged = panel.locator('.face-expanded .face-art');
 
   // Whatever it shows now, it is not something this test chose.
   const before = await enlarged.locator('img').count() > 0
@@ -140,7 +140,7 @@ test('imports custom art for one card, and gives it back', async ({ page }) => {
   // Giving it back returns the card to whatever it showed before.
   await page.getByRole('button', { name: 'Inspect Power Slash', exact: true }).click();
   await panel.getByTestId('clear-art').click();
-  await expect(panel.locator('.dh-card-expanded .dh-art img[src^="data:"]')).toHaveCount(0);
+  await expect(panel.locator('.face-expanded .face-art img[src^="data:"]')).toHaveCount(0);
 
   expect(errors, `page errors: ${errors.join(' | ')}`).toEqual([]);
 });

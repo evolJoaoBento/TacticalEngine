@@ -61,12 +61,12 @@ function ImageArtwork({ card, className, src }: { card: { id: string; domain: st
 
 /** A domain card, drawn from the SRD text and whatever art it has. */
 export function CardFace({ card, expanded = false }: { card: LoadoutCard; expanded?: boolean }): preact.JSX.Element {
-  return <div className={`dh-card ${expanded ? 'dh-card-expanded' : ''}`} style={{ '--domain-color': sigilOf(card).color }}>
-    <div className="dh-art"><CardArtwork card={card} />
-      <span className="dh-level"><b>{card.level}</b><small>LEVEL</small></span><span className="dh-recall" title="Recall Cost">{card.recallCost}<small>RECALL</small></span>
-      <span className="dh-domain">{card.domain}</span></div>
-    <div className="dh-title"><h3>{card.name}</h3><span>{card.type}</span></div>
-    <div className="dh-rules">{card.text.split('\n').filter(Boolean).map((text, i) => <p key={i}>{text}</p>)}</div>
-    <div className="dh-card-footer">DAGGERHEART <span>◆</span> {card.domain}</div>
+  return <div className={`face ${expanded ? 'face-expanded' : ''}`} style={{ '--domain-color': sigilOf(card).color }}>
+    <div className="face-art"><CardArtwork card={card} />
+      <span className="face-level"><b>{card.level}</b><small>LEVEL</small></span><span className="face-recall" title="Recall Cost">{card.recallCost}<small>RECALL</small></span>
+      <span className="face-domain">{card.domain}</span></div>
+    <div className="face-title"><h3>{card.name}</h3><span>{card.type}</span></div>
+    <div className="face-rules">{card.text.split('\n').filter(Boolean).map((text, i) => <p key={i}>{text}</p>)}</div>
+    <div className="face-footer"><span>{card.domain}</span><span>{card.type}</span></div>
   </div>;
 }

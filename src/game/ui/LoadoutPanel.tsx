@@ -82,7 +82,7 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
           <div className="deck-grid">{view.vault.filter(matches).map(c => renderCard(c, false))}</div>
           {!view.vault.some(matches) && <p className="deck-empty">{view.vault.length ? 'No vaulted cards match your filters.' : 'The vault is empty. New cards beyond your active hand wait here.'}</p>}</section>
       </div>
-      <footer className="deck-footer">{props.issue ? <span role="alert" data-testid="loadout-issue">{props.issue}</span> : <span>{view.loadout.length + view.vault.length} cards collected · Click any card to inspect</span>}<span>DAGGERHEART <small>SRD</small></span></footer>
+      <footer className="deck-footer">{props.issue ? <span role="alert" data-testid="loadout-issue">{props.issue}</span> : <span>{view.loadout.length + view.vault.length} cards collected · Click any card to inspect</span>}<span>TACTICAL <small>ENGINE</small></span></footer>
       {inspect && <div className="card-lightbox" role="dialog" aria-label={inspect.name} onClick={() => setInspect(null)}>
         <div className="card-detail" onClick={e => e.stopPropagation()}>
           <CardFace key={`${inspect.id}:${artVersion}`} card={inspect} expanded />
