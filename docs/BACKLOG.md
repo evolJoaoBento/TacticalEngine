@@ -344,6 +344,70 @@ editor*, above), and a project's content goes back out as a pack through Project
 
 ---
 
+## Slice 4 — done
+
+- **Light and Shadow.** Landed in two passes. What a player reads became **Light** and **Shadow**
+  (686 display sites, 69 files); what a document stores became `good` and `bad` (74 files, a 1:1
+  substitution). The split has a front and a back because `light` and `shadow` cannot be identifiers
+  here — `spotlight` is the engine's own turn concept with 249 uses, and the renderer has shadow
+  mapping. This was a **document format change**, not a rename: the pool enum, the pool selector,
+  four `checkRequestSchema` keys (real persisted keys), four `RollOutcome` values, the UI labels in
+  `DiceTray` and `PartyHud`, and the pool test ids the pips carry — which the e2e selectors read.
+- **`formatVersion` 1 → 2**, with a load-time migration that rewrites a version-1 document rather
+  than rejecting it. **Exercised on a real version-1 fixture**, or it is a promise rather than a
+  behaviour.
+- **Identity.** ~~Done.~~ `package.json` name → `tactical-engine` (and the derived name in
+  `package-lock.json`), `<title>` → Tactical Engine, the editor top bar, and the retired name gone
+  from 25 files. The e2e driver handle became `window.__engine`, 438 sites across 24 files — one
+  literal, so `src/main.ts`'s `declare global` and `demo.spec.ts`'s hand-written mirror could not
+  drift apart (`6767b90` has the old spelling, which the guard now forbids here). Three populations were protected: the prototype's persisted keys, the app's
+  own three `localStorage` prefixes (now read as a fallback so nobody's saves are orphaned), and the
+  RNG seeds in `rng.test.ts`.
+
+  *This line previously read "Tactical Engine retired", which is nonsense.* The substitution that
+  renamed the product could not tell the name being **adopted** from the name being **retired**, and
+  inverted the sentence. The pass was protected against doubling (`Tactical Engine Engine`) but not
+  against that. An audit for the same shape found one more — the content-pack spec's §11, which read
+  "**Tactical Engine is retired** — its echo of…", where the trailing clause was the reason the
+  *old* name had to go — and no others. Two inversions across 25 files, both in prose that named the
+  retired name in order to retire it. Neither is a boundary breach, and the guard would not have
+  caught either: one is in `docs/superpowers/`, which it exempts by design.
+- **`legacy/` prose.** ~~Done~~, but the amendment's premise was wrong and the correction is worth
+  keeping. The owner's ruling lifted the never-modify rule on the stated grounds that "all eight
+  marks there are cosmetic comments and one editor hint, none functional". Measured: there are
+  **20** marks, and three are functional — `polyheart-campaign` is written at
+  `legacy/js/editor.js:170` and read at `main.js:23`, and `polyheart-map` is read at `main.js:29`.
+  Those are persisted `localStorage` keys, so renaming them orphans any campaign or map somebody
+  saved in the prototype. The prose was rewritten and the keys were left, which is the spirit of the
+  amendment rather than its letter. `legacy/`'s 59 Light/Shadow sites were left too: 19 are live
+  identifiers in `legacy/js/game.js`, and `legacy/README.md:50-65` documents the prototype's
+  mechanics against its own code.
+- **The guard.** ~~Done~~ in `tests/unit/licensing-boundary.test.ts`: three sweeps over what
+  `git ls-files` reports, plus the existing check that `tools/srd-sources/` does not exist.
+
+  The marks rule cannot be "never" — the DPCGL *obliges* the attribution — so an occurrence is
+  legitimate when a licensing phrase sits within **±2 lines**. The window, not the line: attribution
+  paragraphs wrap mid-phrase (that file splits "System Reference / Document" across a break), so a
+  per-line rule fails on the notices themselves, and reflowing a licensing paragraph would fail the
+  boundary for no real reason. Two drafts of the doc passes broke exactly that way.
+
+  Exemptions are named with reasons, never convenience: `legacy/`, `docs/research/`,
+  `docs/superpowers/` (dated design records — a spec arguing for removing this IP must be able to
+  name it), and the guard itself, whose rules have to spell the terms they forbid.
+
+  Shown to fail without its fix, by injection into a tracked file that was clean first and reverted
+  after: a sentence branding the engine as the licensed product made rule 1 fail and name the line,
+  and a line carrying the retired product name made rule 2 fail. The guard was re-run green on the
+  restored tree. Rule 3 needed no injection — it caught a real offender on its first run, a comment
+  in `save.test.ts` naming the old pool field, which was reworded rather than added to the exemption
+  list.
+
+  **Note for whoever edits this entry:** the injected strings cannot be quoted verbatim here. This
+  file is not exempt, so a doc recording the guard's own falsification trips the guard — describe
+  the injections instead of spelling them.
+
+---
+
 ## Slice 3 — done
 
 The vendored catalogue is gone: 88 files, 39,652 deletions, including the 2.1 MB
@@ -388,13 +452,13 @@ explain what `cover.ts`, `los.ts` and `area.ts` implement.
 
 ---
 
-**Pinned to commit `c65508a`.** At that commit: `npx tsc --noEmit` clean, **1821 of 1822 unit tests
-passing across 92 files**. The single failure is the documented deliberate one in
-`demo-defense.test.ts` — a Stress assertion left red after four attempts rather than guessed at, with
-what was ruled out recorded in its commit (resolved since: see *The lift's red test*, at the top).
-**Playwright is green: 105 passed, 3.8 minutes, `EXIT 0`** — a full run, not a tally of targeted
-ones. All 21 failures are fixed. What follows is the diagnosis of the red run that found them, kept
-because the cause and the tiering are the reusable parts.
+**Pinned to commit `542c9f5`.** At that commit: `npx tsc --noEmit` clean, vitest **1861 passed (1861)**
+across 94 files, Playwright **113 passed (4.1m)**, `EXIT 0`.
+
+### History: the red e2e run after the demo was repointed
+
+All 21 failures it found are fixed. The diagnosis is kept because the cause and the tiering are the
+reusable parts.
 
 Read the duration as a signal: green is ~3.6 minutes, and the red runs took 15 because twenty-one
 failing locators each waited out a 90-second timeout.
@@ -486,14 +550,14 @@ mechanics carry on cards**, not a detour from it. `holding-the-line` and `caught
 ids to keep: the starter sentinel already ships a signature feature named Hold the Line, so the name
 is the pack's own. `korvax-circle` is not, and wants a neutral id.
 
-If the passing count comes back lower than 1834, something was lost — check before building on it. Symbol names are
+If the passing count comes back lower than the pin above, something was lost — check before building on it. Symbol names are
 the stable handles here; line numbers move.
 
 ---
 
 ## The two threads
 
-Everything ranked below serves one of two goals, and they are not independent.
+Everything below served one of two goals, and both have landed.
 
 **1. Remove the borrowed DNA.** The project carries no third-party tabletop IP going forward. Usable
 (uncopyrightable) mechanics stay: dual-dice resolution, damage thresholds, armour slots, a stress
@@ -510,8 +574,8 @@ The two specs:
 
 | Spec | Status |
 |---|---|
-| `docs/superpowers/specs/2026-09-12-generic-engine-content-packs-design.md` | 4 slices. 1 and 2 done. 3 is destructive and next. |
-| `docs/superpowers/specs/2026-09-12-cards-as-the-unit-design.md` | Decided 2026-09-12. Not built. Rides slice 4's migration. |
+| `docs/superpowers/specs/2026-09-12-generic-engine-content-packs-design.md` | 4 slices, all done: the catalogue is a pack outside the tree, and the renames and the guard are in. |
+| `docs/superpowers/specs/2026-09-12-cards-as-the-unit-design.md` | Decided 2026-09-12, built 2026-09-13; its §7 records the decisions taken when building. |
 
 Read both before adding anything that names a source or defines a feature.
 
@@ -531,18 +595,17 @@ Do not read the sources first. Forty minutes of reading below saves a day.
 | 6 | `.claude/skills/run-the-demo/SKILL.md` | Driving the app in a real browser. Read it before writing any Playwright of your own. |
 
 `docs/MANUAL.md` is user-facing: playing the demo and authoring content, every panel and field.
-`docs/ADVERSARIES.md` and `docs/CARDS.md` are **generated from the vendored catalogue and are deleted
-by slice 3** along with their generators — do not hand-edit them, and do not build anything that
-reads them. `docs/research/legacy-*.md` are static-analysis notes on the prototype with `file:line`
+The generated `docs/ADVERSARIES.md` and `docs/CARDS.md` went with slice 3, along with their
+generators. `docs/research/legacy-*.md` are static-analysis notes on the prototype with `file:line`
 anchors; read those instead of re-reading `legacy/`.
 
 ---
 
 ## 2. The backlog, ranked
 
-The ranking is the two threads, in dependency order. The editor rebuild — the user's direction of
-2026-09-10 — is **below** them now: it was ahead of a fight-first ranking, not ahead of removing the
-IP, and slice 3 touches content the editor panels read.
+Both threads have landed: the IP is out (slice 3); the renames, the migrations and the guard are in
+(slice 4, then format versions 3 and 4); and everything a character or a creature has is a card.
+What is left is ranked by what a player or an author runs into first.
 
 A *slice* is one behaviour complete: rule, content, editor field, validation, tests, docs. Half a
 slice gets finished by someone with less context.
@@ -552,235 +615,56 @@ it in the matching `CRPG-GAPS.md` section as done, and re-pin the commit and sui
 header. A backlog nobody prunes is wrong within a week, and then it costs the next agent the startup
 time it was written to save.
 
-### 0. ~~Finish the fixture conversion~~ — **done**, and slice 3 is unblocked
+### 1. Movement Under Pressure — the rule is written and nothing calls it
 
-Every **game-layer** test now carries its own content instead of borrowing the catalogue's.
-`authored-scenario.test.ts` 49 → 0, `demo-abilities.test.ts` 14 → 0, `demo-cards.test.ts` 14 → 0,
-and the earlier `demo-defense.test.ts` conversion.
+`moveUnderPressure` in `engine/combat/area.ts` implements the repositioning rule and `area.test.ts`
+pins it. **It has zero callers in `src/game/`.** The demo instead clamps a fighting walk to
+`combatReach` and logs "*<name> can go no further this turn.*"
 
-**The precondition is not met yet, and an earlier version of this file wrongly said it was.**
-Nine test files read the vendored folder off disk at runtime and fail the moment it goes. They
-are engine-layer tests using the catalogue as a content fixture, which is why a game-layer sweep
-never touched them. **Six are done, one dies with the slice, two are left.**
+*Done means:* `moveSelectedTo` offers the Agility Roll when a click lands past Close in a fight
+rather than silently walking as far as it can — the refusal becomes a prompt with a roll behind it,
+answered through the same `pending` channel as a script's check. The adversary side reads the same
+function so the GM's turn stops inventing its own budget.
 
-| File | State |
-|---|---|
-| `editor/item-edits.test.ts` | **done** — reads the shipped pack |
-| `editor/party-edits.test.ts` | **done** — reads the shipped pack |
-| `engine/character/sheet.test.ts` | **done** — split; catalogue half is `sheet-catalogue.test.ts` |
-| `engine/content/abilities.test.ts` | **done** — split; catalogue half is `abilities-catalogue.test.ts` |
-| `engine/combat/adversary-features.test.ts` | **done** — an inline printed block, no catalogue |
-| `tests/unit/demo-map-fight.test.ts` | **done** — both fighters are fixtures |
-| `engine/content/srd/library.test.ts` | **dies with the slice** — all three blocks are about the shipped library |
-| `engine/script/abilities.test.ts` | **left** — specified below |
-| `engine/character/progression.test.ts` | **left** — blocked on content, see below |
+### 2. A project's own card can only be deleted by Undo
 
-**`script/abilities.test.ts`, specified.** Read end to end; the old one-line summary was true and
-the least of it.
+✕ on an ability takes its card with it only when the card is `given` and nothing else sits on it
+(`removeCardWithAbility`, `editor/session.ts`). A card the project wrote that no ability sits on --
+one an imported pack brought as text, or one whose ability was deleted after it was granted some
+other way -- has no delete. `removeCard` already exists behind **Remove copy**; what is missing is a
+button beside it for a card the pack does not print. Check has nothing to add.
 
-* Two hand-written sheets in `scene()` re-pin: Kara guardian/chainmail/broadsword/stalwart holding
-  `bare-bones`+`get-back-up` → sentinel/ringmail/longsword/shieldbearer holding
-  `power-slash`+`iron-stance`; Mira wizard/gambeson/greatstaff/school-of-knowledge holding
-  `book-of-ava`+`rune-ward` → emberwright/padded-coat/ember-staff/flamecaller holding
-  `arcane-ward`+`healing-word`. `deriveCharacter` is asserted issue-free, so both must resolve.
-* The content bag at 147–150 points at `STARTER_ABILITIES` + `SRD_CONDITIONS`. All five conditions
-  the file uses — `hidden`, `in-shadow`, `stunned`, `asleep`, `horrified` — are generic *rules*
-  conditions (blocks, endsWhen, advantage modifiers), not card markers, so they survive the prune
-  and need no fixture. That removes a whole strand of expected work.
-* **Two weapon-arithmetic sites, and one assertion flips.** Line 906 scripts `[10, 2, 6]` against
-  soft-husk (difficulty 10, thresholds 7/12): Light 10 + Shadow 2 + Strength 2 = 14 hits, then the
-  broadsword's `1d8+0` rolls 6 → Minor → `hitPointsMarked: 1`. The longsword is `1d8+1` → **7,
-  which meets the major threshold exactly → 2 Hit Points**, so that assertion and its comment both
-  change. Lines 1328–1330 pin `weaponDamage`: Kara `1d8+0` → `1d8+1`, Mira's greatstaff `1d6` →
-  the ember-staff's `1d8` magic. Nothing else moves — 1119 and 1175 state `damage: '12 phy'`
-  outright rather than rolling a weapon, and 1293's `1d8` belongs to a test that lifts.
-* **A new ungated `incomingDamage` fixture reaction** for the two `reactionsOf('kara')` lines
-  (1380, 1385), which currently expect `get-back-up`. `reactionsOf` is `reactionsFor(id,
-  'incomingDamage')`, and the pack ships no reaction at all. The two fixture reactions that do
-  trigger on it are gated — `fixture-aura-layers` on held tokens, `fixture-bone-bound` on a
-  four-card fixture loadout plus 3 Light — and both are imported by `demo-abilities`/`demo-cards`,
-  so loosening either to suit this file would be wrong. A plain specimen beside the assertion is
-  the idiom `cards.ts` already states.
-* **Four tests lift** to `script/abilities-catalogue.test.ts`: `describe('the shipped cards')`
-  entire (1278–1361, all four about Whirlwind, Bolt Beacon and the rest), plus the two
-  card-specific tests inside `a hook in a script` (1444–1462 Arcane Barrage's option labels,
-  1464–1475 Wild Flame's three-target cap). This is the first file where a describe does **not**
-  split on its boundary: that block's first three tests write their own hooks inline via `code:`
-  and name no content, so they stay.
+### 3. Cards — what is left
 
-**`progression.test.ts` is blocked on content, not naming.** `describe('the import')` is a
-catalogue block and lifts cleanly. The rest cannot convert onto the starter pack: the pack ships
-cards at **levels 1 and 2 only** (nine and six), while the climb runs to level 6 and needs
-`fromTier: 2` picks, `champions-edge`, `fortified-armor` and `deadly-focus`; and `multiclassing`
-needs a class with two domains and a fourth domain to open, where the pack has three classes of
-one domain each (bulwark, shadow, ember) and exactly three card domains. The fixtures ship no
-classes or subclasses at all. So this one wants a fixture module spanning tiers — classes,
-subclasses and levelled cards — which is authoring, not a re-pin, and is the last thing standing
-between here and slice 3.
+The model, the zones, the card editor, text-only cards, pack import and export, and a condition
+lending a card are done: each has its entry at the top of this file, and the spec's §7 has the
+decisions.
 
-Six share one `read()` helper over the seven daggersearch JSONs, so the conversion is one
-repeated move rather than nine problems: point it at `STARTER_PACK` and re-pin the names.
-Every name has a starter substitute — `guardian`→`sentinel`, `stalwart`→`shieldbearer`,
-`chainmail-armor`→`ringmail`, `gambeson-armor`→`padded-coat`, `broadsword`→`longsword`,
-`bare-bones`/`get-back-up`→`power-slash`/`iron-stance`, `human` unchanged. Two assertions need
-more than a rename: a subclass's domains (`['valor','blade']` → `['bulwark']`) and a card's
-recall cost. The two adversary tests want a fixture stat block; `adversary-features` only ever
-asserts bracket parsing, so inline literals suit it better than any catalogue.
-
-Roughly forty specimens live in `tests/fixtures/cards.ts` and `tests/fixtures/adversary-features.ts`,
-named for the mechanism rather than anything they were read off, so one serves several tests. They
-are also an unplanned proof that importing works: each pushes content into a project and plays it,
-which is exactly what an imported pack does.
-
-Two findings from that work worth keeping:
-
-- **`loadoutDomain` reads the merged content.** It counts `character.cards` filtered by
-  `card.domain`, and those cards come from `deriveCharacter(sheet, characterContentFor(project), …)`.
-  So a project's own cards satisfy a `{ kind: 'loadout', domain, op, value }` gate exactly as shipped
-  cards do — which is what any content author needs to know, and what made three tests fixable.
-- **A weapon swing is a roll with the weapon's trait**, passed at the attack site as
-  `rollingOffers(…, profile.trait)`. A card gated on traits no equipped weapon rolls can never be
-  offered, however many seeds are tried.
-
-### 1. Slice 3 — export and purge (destructive, on a branch)
-
-The only destructive slice. It runs after item 0, on a branch, and everything it deletes survives in
-git history and in the exported pack.
-
-1. Export today's catalogue to gitignored `packs/`.
-2. Cut the eight imports that point at the vendored sources.
-3. Delete `tools/srd-sources/`, the SRD catalogues, the generated `ADVERSARIES.md` / `CARDS.md`, and
-   their generators.
-
-**What the folder actually holds, listed rather than assumed:** `abilities.ts` (182 KB),
-`adversary-abilities.ts` (162 KB), `hooks.ts`, `seansbox-adversaries.ts`, and two test files. Ten
-files under `src/` import from it, not the spec's eight.
-
-**`hooks.ts` is engine-native and misfiled. Move it, do not delete it** — `hooksFor` returns
-`SRD_HOOKS` as the base every project merges over, so deleting it takes working rules out with the
-content.
-
-**`conditions.ts` is not in that folder at all.** It lives at `src/engine/content/conditions.ts`,
-outside anything slice 3 sweeps, so there is nothing to move. It needs *pruning* instead: the
-card-specific markers inside it (`sigiled`, `tolled`, `broken`, `glyphed`, `enraptured` — names only
-a departing card reads) go with those cards, while the engine's own conditions, which its own rules
-read through `withSrdConditions`, stay. Nine files read it; check each before cutting an entry.
-
-**Two test files in the folder test the departing catalogue and are deleted, not converted:**
-`library.test.ts` sweeps the whole SRD library through the runner, and `seansbox-adversaries.test.ts`
-tests an importer for one vendored source. Item 0's count deliberately excludes them — converting a
-test whose subject is about to be deleted is wasted work.
-
-**`tools/srd-sources/` is three sources, not one:** `official-2.0`, `daggersearch`, `seansbox`,
-2.1 MB together. `seansbox-adversaries.ts` is the importer for the third and goes with it.
-
-**`.gitignore` has no `packs` entry yet.** The spec calls the export target "gitignored `packs/`";
-adding that rule is a step of this slice, not a precondition somebody already did.
-
-*Done means:* no tracked file names a source, the app boots on the starter pack alone, and `tsc`,
-`vitest` and `playwright` are green.
-
-### 2. Slice 4 — renames, migration, and the guard
-
-- **Light and Shadow.** Landed in two passes. What a player reads became **Light** and **Shadow**
-  (686 display sites, 69 files); what a document stores became `good` and `bad` (74 files, a 1:1
-  substitution). The split has a front and a back because `light` and `shadow` cannot be identifiers
-  here — `spotlight` is the engine's own turn concept with 249 uses, and the renderer has shadow
-  mapping. This was a **document format change**, not a rename: the pool enum, the pool selector,
-  four `checkRequestSchema` keys (real persisted keys), four `RollOutcome` values, the UI labels in
-  `DiceTray` and `PartyHud`, and the pool test ids the pips carry — which the e2e selectors read.
-- **`formatVersion` 1 → 2**, with a load-time migration that rewrites a version-1 document rather
-  than rejecting it. **Exercised on a real version-1 fixture**, or it is a promise rather than a
-  behaviour.
-- **Identity.** ~~Done.~~ `package.json` name → `tactical-engine` (and the derived name in
-  `package-lock.json`), `<title>` → Tactical Engine, the editor top bar, and the retired name gone
-  from 25 files. The e2e driver handle became `window.__engine`, 438 sites across 24 files — one
-  literal, so `src/main.ts`'s `declare global` and `demo.spec.ts`'s hand-written mirror could not
-  drift apart (`6767b90` has the old spelling, which the guard now forbids here). Three populations were protected: the prototype's persisted keys, the app's
-  own three `localStorage` prefixes (now read as a fallback so nobody's saves are orphaned), and the
-  RNG seeds in `rng.test.ts`.
-
-  *This line previously read "Tactical Engine retired", which is nonsense.* The substitution that
-  renamed the product could not tell the name being **adopted** from the name being **retired**, and
-  inverted the sentence. The pass was protected against doubling (`Tactical Engine Engine`) but not
-  against that. An audit for the same shape found one more — the content-pack spec's §11, which read
-  "**Tactical Engine is retired** — its echo of…", where the trailing clause was the reason the
-  *old* name had to go — and no others. Two inversions across 25 files, both in prose that named the
-  retired name in order to retire it. Neither is a boundary breach, and the guard would not have
-  caught either: one is in `docs/superpowers/`, which it exempts by design.
-- **`legacy/` prose.** ~~Done~~, but the amendment's premise was wrong and the correction is worth
-  keeping. The owner's ruling lifted the never-modify rule on the stated grounds that "all eight
-  marks there are cosmetic comments and one editor hint, none functional". Measured: there are
-  **20** marks, and three are functional — `polyheart-campaign` is written at
-  `legacy/js/editor.js:170` and read at `main.js:23`, and `polyheart-map` is read at `main.js:29`.
-  Those are persisted `localStorage` keys, so renaming them orphans any campaign or map somebody
-  saved in the prototype. The prose was rewritten and the keys were left, which is the spirit of the
-  amendment rather than its letter. `legacy/`'s 59 Light/Shadow sites were left too: 19 are live
-  identifiers in `legacy/js/game.js`, and `legacy/README.md:50-65` documents the prototype's
-  mechanics against its own code.
-- **The guard.** ~~Done~~ in `tests/unit/licensing-boundary.test.ts`: three sweeps over what
-  `git ls-files` reports, plus the existing check that `tools/srd-sources/` does not exist.
-
-  The marks rule cannot be "never" — the DPCGL *obliges* the attribution — so an occurrence is
-  legitimate when a licensing phrase sits within **±2 lines**. The window, not the line: attribution
-  paragraphs wrap mid-phrase (that file splits "System Reference / Document" across a break), so a
-  per-line rule fails on the notices themselves, and reflowing a licensing paragraph would fail the
-  boundary for no real reason. Two drafts of the doc passes broke exactly that way.
-
-  Exemptions are named with reasons, never convenience: `legacy/`, `docs/research/`,
-  `docs/superpowers/` (dated design records — a spec arguing for removing this IP must be able to
-  name it), and the guard itself, whose rules have to spell the terms they forbid.
-
-  Shown to fail without its fix, by injection into a tracked file that was clean first and reverted
-  after: a sentence branding the engine as the licensed product made rule 1 fail and name the line,
-  and a line carrying the retired product name made rule 2 fail. The guard was re-run green on the
-  restored tree. Rule 3 needed no injection — it caught a real offender on its first run, a comment
-  in `save.test.ts` naming the old pool field, which was reworded rather than added to the exemption
-  list.
-
-  **Note for whoever edits this entry:** the injected strings cannot be quoted verbatim here. This
-  file is not exempt, so a doc recording the guard's own falsification trips the guard — describe
-  the injections instead of spelling them.
-
-### 3. Cards as the unit — the model is done; what is left is on screen
-
-The decisions taken when building are the spec's §7: an ability points at its card; the card names
-what grants it and nothing lists its cards; only a chosen card has the loadout's numbers; the
-version-3 migration is positional and builds cards from abilities; a stat block's traits stay on the
-block. What landed is the entry at the top of this file. What is left, in order:
-
-- **Zones on screen** are done for a character: the loadout's **Always in play**, and every card's
-  art on the action bar.
-- **Editing any card** is done: the grant editor, a chosen card's domain, type, level and recall
-  cost, and a pack's card through **Edit a copy**, with **Remove copy** the way back.
+- **The GM playing a stat block's cards.** They are face up on the inspect card, and the GM does
+  not play them as cards.
+- **Open, not decided:** whether a card handed over mid-fight -- given, or lent by a condition --
+  should be announced.
 - **Cheaper, not different:** the world's `cards` option is a closure that merges the pack on every
   read. The live read that two tests pin is `inPlay` recomputing a character's granted cards; a map
   built when the world is, if every content change rebuilds the world, would do. Measure first.
-- **A stat block's cards** are face up on the inspect card. The GM playing them as cards is not
-  built.
-- **Open, not decided:** whether a card handed over mid-fight -- given, or lent by a condition --
-  should be announced.
 
 **Not a licence to rebuild the catalogue with a card model instead of a list.** The IP constraints
 are untouched by this.
 
-### 4. The pack surface: choosing one, and editing cards
+### 4. Starter-pack depth
 
-The *mechanism* already exists — the spec is explicit that packs load through the existing project
-load path, and no new runtime is invented. `projectSchema` carries the seven content fields,
-`mergePack` lays a project's lists over the pack's by id (project wins, base survives), and the
-test fixtures are a working demonstration: ~40 specimens across three files push content into a
-project and play it, which is exactly what an import does.
+The starter pack is sized to keep the game-layer tests meaningful, not to be a game: three classes
+of one domain each, generic ancestries, 15 chosen cards at levels 1 and 2 only (nine and six), and
+about ten adversaries. Depth beyond that is a content slice, judged on what it adds to a fight.
+`DEVELOPING.md` §7(c) is still the recipe for scripting a feature. Known gaps in what it has:
 
-What is missing is the surface:
-
-- ~~a picker that reads a pack file, validates it, and hands it to that path~~ — **done**, though not
-  through the load path: Project ▾ → Import pack… lays a pack into the project as an edit;
-- the editor panels that today edit a class's feature text editing **cards** instead — which is what
-  "customise cards" means;
-- card zones in the renderer, and playing from them. New UI, not a rename.
-
-Judge this after item 3: editing cards before the card model collapses means editing it twice.
+- `cut-purse-strings`, `rallying-cry` and `smoke-step` ship as text only. Only the first has a real
+  blocker: `addItem` names a bare item id with no source, so taking what somebody else carries
+  cannot be said.
+- `holding-the-line` and `caught-in-the-line` sit in `content/conditions.ts` rather than beside the
+  feature that arms them.
+- No card is above level 2, which is why `progression.test.ts` climbs on a fixture
+  (`tests/fixtures/characters.ts`) rather than on the pack.
 
 ### 5. The editor rebuild
 
@@ -800,42 +684,20 @@ scale, seating, facing and four animation clips.
 first; part 1 slice 2's remaining edit-view items (objects, spawns, trigger cells) and a rotated
 prop-facing ghost during Alt.
 
-### 6. Starter-pack depth
-
-The old item here counted the vendored catalogue's unscripted remainder — 47 text-only cards, 292
-narrated adversary features. **That item dies with slice 3**, and so do the generated docs that kept
-the count honest.
-
-What replaces it: the starter pack is sized to keep the game-layer tests meaningful, not to be a
-game — 3 classes, generic ancestries, ~15 cards, ~10 adversaries. Depth beyond that is a content
-slice, judged on what it adds to a fight. `DEVELOPING.md` §7(c) is still the recipe for scripting a
-feature.
-
-### 7. Movement Under Pressure — the rule is written and nothing calls it
-
-`moveUnderPressure` in `engine/combat/area.ts` implements the repositioning rule and `area.test.ts`
-pins it. **It has zero callers in `src/game/`.** The demo instead clamps a fighting walk to
-`combatReach` and logs "*<name> can go no further this turn.*"
-
-*Done means:* `moveSelectedTo` offers the Agility Roll when a click lands past Close in a fight
-rather than silently walking as far as it can — the refusal becomes a prompt with a roll behind it,
-answered through the same `pending` channel as a script's check. The adversary side reads the same
-function so the GM's turn stops inventing its own budget.
-
-### 8. Materials for imported models
+### 6. Materials for imported models
 
 `CRPG-GAPS.md` §9. Textures arrive with a glTF file, but nothing authors materials: there is no way
 to tint one, swap a texture, or override what the file ships with. The file picker that was the other
 half of this item landed on 2026-09-12.
 
-### 9. Extend measured rendering budgets beyond construction
+### 7. Extend measured rendering budgets beyond construction
 
 Construction has chunk instancing, frustum/distance culling, three LODs and a tested residency
 budget (`render/building-view.ts`). Extend those to the legacy height field and props. Large
 populated worlds still need hardware FPS/memory profiling; geometry counters are available through
-`window.__engine.buildingStats()` — a handle whose name changes with the identity rename.
+`window.__engine.buildingStats()`.
 
-### 10. Zip project export
+### 8. Zip project export
 
 `fflate` is a dependency and is imported nowhere under `src/`. `CONTEXT.md`'s "zip import and export
 of projects with assets" is not implemented — export is `JSON.stringify` into a `Blob`, so a project
