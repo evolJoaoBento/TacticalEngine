@@ -1322,7 +1322,8 @@ footer {
       <code>src/editor/ability-edits.test.ts</code> for the panel writing it, and
       <code>tests/e2e/demo.spec.ts</code> if a person has to be able to click it.</li>
     <li><strong>Docs.</strong> <code>docs/MANUAL.md</code> gains the row in the effect table. If the
-      effect lets a previously text-only SRD feature be scripted, rerun the relevant generator.</li>
+      effect lets a card the starter pack ships as text be scripted, script it in
+      <code>src/engine/content/pack/starter-abilities.ts</code>.</li>
   </ol>
 
 
@@ -1333,7 +1334,7 @@ footer {
     standing there when it lands. It is a <em>field on an existing effect</em> rather than a new kind,
     so there is no new <code>case</code> in the switch and no new <code>JournalEntry</code>; it went
     <code>schema.ts</code> → <code>runner.ts</code> → <code>world.ts</code> →
-    <code>EffectList.tsx</code> → tests → <code>python tools/adversaries-doc.py</code>, which is
+    <code>EffectList.tsx</code> → tests → the docs, which is
     steps 1, 2, 3, 4, 6 and 7 above, in order. Step 5 was skipped because the field names no content
     that has to exist. One field scripted Group Attack on sixteen stat blocks, which is the shape to
     aim for: a feature printed many times with one number changed is one field, not sixteen

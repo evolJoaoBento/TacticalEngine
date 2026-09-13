@@ -525,8 +525,8 @@ Worked example: `loseGood`, engine side in commit `8c80bc2`, editor row in `d19c
 6. **Tests.** `src/engine/script/runner.test.ts` for the stepper's handling,
    `src/engine/script/abilities.test.ts` for it inside a real card, `src/editor/ability-edits.test.ts`
    for the panel writing it, and `tests/e2e/demo.spec.ts` if a person has to be able to click it.
-7. **Docs.** `docs/MANUAL.md` gains the row in the effect table. If the effect lets a previously
-   text-only SRD feature be scripted, rerun the relevant generator.
+7. **Docs.** `docs/MANUAL.md` gains the row in the effect table. If the effect lets a card the
+   starter pack ships as text be scripted, script it in `src/engine/content/pack/starter-abilities.ts`.
 
 
 **A second worked example, and the most recent.** `attack.joinedBy`, with `sameKind` on the
@@ -534,7 +534,7 @@ Worked example: `loseGood`, engine side in commit `8c80bc2`, editor row in `d19c
 the damage counted once for each body standing there when it lands. It is a *field on an existing
 effect* rather than a new kind, so there is no new `case` in the switch and no new `JournalEntry`;
 it went `schema.ts` → `runner.ts` → `world.ts` → `EffectList.tsx` → tests →
-`python tools/adversaries-doc.py`, which is steps 1, 2, 3, 4, 6 and 7 above, in order. Step 5 was
+the docs, which is steps 1, 2, 3, 4, 6 and 7 above, in order. Step 5 was
 skipped because the field names no content that has to exist. One field scripted Group Attack on
 sixteen stat blocks, which is the shape to aim for: a feature printed many times with one number
 changed is one field, not sixteen entries.
@@ -569,7 +569,7 @@ Worked example: `defenses.reduce`, commit `6ec74ef` — "a number off the damage
    damage back).
 10. **`tests/fixtures/adversary-features.ts`** — a specimen that carries it, printed on a block with
     `printed(blocks, feature)`: here `PLATE_THAT_TURNS_A_FLAT_AMOUNT` and
-    `PLATE_THAT_ROLLS_WHAT_IT_TURNS`, which two test files play.
+    `PLATE_THAT_ROLLS_WHAT_IT_TURNS`, which `editor/authored-scenario.test.ts` plays.
 11. **Tests:** `rules/damage.test.ts`, `combat/defense.test.ts`, `editor/validate.test.ts`,
     `editor/authored-scenario.test.ts`, and a line in `tests/e2e/demo.spec.ts`.
 12. **The prose** in `docs/MANUAL.md` and `docs/CRPG-GAPS.md`.

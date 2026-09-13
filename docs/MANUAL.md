@@ -1040,8 +1040,8 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   it comes. Damage from a script (a card, a trap) is still resolved automatically, and so is
   everything in a headless run, where there is nobody to ask.
 - **A card or a stat block's feature with no script is text**: shown and read, and the table
-  decides. The starter pack scripts what it ships; an imported pack's cards are as scripted as the
-  pack made them, and an adversary plays the features it can run and otherwise falls back on its
+  decides. The starter pack scripts most of what it ships and leaves a few cards as text; an
+  imported pack's cards are as scripted as the pack made them, and an adversary plays the features it can run and otherwise falls back on its
   standard attack. A card is text when it asks for something the engine has no number for, such as
   flight, teleportation or a GM's discretion.
 - **A temporary condition on a party member ends when their turn does** — "until they next

@@ -19,6 +19,12 @@ doc names a file the repository does not have: this drift had been found by hand
 Playwright **105 passed (3.7m)**, `EXIT 0`. The guard earned its place on its first run: it found one
 reference the rewrite had missed (the build's index, named as if it were a repository file).
 
+A second look found the guard's own hole: it read only a span's first word, so a path behind a
+command (`python tools/adversaries-doc.py`, the deleted generator, named twice) passed. It reads
+every word now, and its own test says so. The same look corrected a recipe that credited two test
+files with what one plays, and a MANUAL line that read as if the starter pack scripted every card
+(three are text).
+
 ## Card zones — done
 
 The loadout shows **Always in play** between the hand and the vault: what a character has

@@ -46,6 +46,14 @@ function known(path: string): boolean {
   }
 }
 
+/** The files one span of code names, wherever they sit in it: `python tools/x.py` names `tools/x.py`. */
+function pathsIn(span: string): string[] {
+  return span
+    .split(/\s+/)
+    .map((word) => word.split(':')[0]!.replace(/^[(]+|[.,;)]+$/g, ''))
+    .filter((word) => FILE.test(word));
+}
+
 /** Every file a doc names in code: `backticks` in Markdown, `<code>` in HTML. */
 function filesNamedIn(doc: string): { line: number; path: string }[] {
   const found: { line: number; path: string }[] = [];
@@ -55,10 +63,7 @@ function filesNamedIn(doc: string): { line: number; path: string }[] {
       const spans = [...text.matchAll(/`([^`]+)`/g), ...text.matchAll(/<code>(.*?)<\/code>/g)].map((match) =>
         match[1]!.replace(/<[^>]+>/g, ''),
       );
-      for (const span of spans) {
-        const path = span.trim().split(/[\s:]/)[0]!.replace(/[.,;)]+$/, '');
-        if (FILE.test(path)) found.push({ line: index + 1, path });
-      }
+      for (const span of spans) for (const path of pathsIn(span)) found.push({ line: index + 1, path });
     });
   return found;
 }
@@ -78,5 +83,7 @@ describe('the reference docs', () => {
     expect(known('src/engine/content/srd/hooks.ts')).toBe(false);
     expect(known('combat/attack.ts')).toBe(true);
     expect(known('src/engine/script/native-hooks.ts')).toBe(true);
+    // A path behind a command is still a path: this one hid from the first version of the guard.
+    expect(pathsIn('python tools/adversaries-doc.py')).toEqual(['tools/adversaries-doc.py']);
   });
 });
