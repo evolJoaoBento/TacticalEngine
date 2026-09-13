@@ -303,7 +303,7 @@ the room the party is in; browsing scenes never moves the party or abandons thei
 
 | Part | What it does |
 |---|---|
-| **Project ▾** | Save JSON · Load… · Check (lists what the validator finds; a red badge counts errors) |
+| **Project ▾** | Save JSON · Load… · Import pack… · Check (lists what the validator finds; a red badge counts errors) |
 | **Content ▾** | Party · Cards · Items & loot · Quests · Code · Models — each opens as a workspace under the bar; its **Close** button or `Esc` closes it |
 | **Inspector · Terrain · Combat · Interaction** | The four modes, also on keys `1`–`4` |
 | **The scene button** (shows the room's name and size) ▾ | Every scene with its size; **▸** marks the one the project opens on and **●** the one the party is in. Click to edit it; **✎** renames, **▸** makes it the opening scene, **✕** deletes (refused for the opening scene or the last one); **+ New scene** adds a blank 12×10 room |
@@ -605,6 +605,28 @@ quest nothing starts; an objective nothing completes.
 if it is playable, replaces the document the *editor* holds, redraws the view, and restarts the
 game on it — the same round trip described under **Playing what you authored** above. A file
 that fails the schema is recorded in `__engine.errors`, and nothing is shown under Project ▾.
+
+### Importing a pack
+
+**Import pack…** adds content somebody else wrote to the project being edited: classes, ancestries,
+communities, subclasses, cards, weapons, armor and adversaries, plus the abilities that make its
+cards do something and the conditions those abilities apply. Pick one file or several; each is read
+in turn, and a message says what each brought.
+
+- A pack is a JSON object carrying any of the lists `weapons`, `armors`, `classes`, `ancestries`,
+  `communities`, `subclasses`, `domainCards`, `adversaries`, `abilities` and `conditionDefs`, each
+  optional. A project file is a pack too: importing one takes its content and leaves its scenes.
+- An entry whose id the project already has **replaces** it where it stands; anything new is added.
+  The message says how many were replaced.
+- An entry that cannot be read is left out and named in the message, and the rest of the file still
+  comes in. A file with nothing readable in it, or one written by a newer build, is refused and
+  changes nothing.
+- A file written before the Light and Shadow rename is rewritten on the way in, as a project is.
+- The whole import is **one** undo step.
+
+What was imported is the project's own from then on: the Party panel offers its classes and cards,
+the Combat strip its creatures, and the **Cards** workspace lists its abilities to edit. Save the
+project to keep it.
 
 ### Undo
 

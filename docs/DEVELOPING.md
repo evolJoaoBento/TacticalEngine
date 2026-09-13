@@ -117,6 +117,7 @@ adapter: the rest of the core does not know it exists.
 | `content/items.ts`, `content/quests.ts` | Item and quest content shapes. |
 | `content/pack/schema.ts` | What a content pack *is*, as zod: `featureSchema`, `weaponDefSchema`, `armorDefSchema`, `classDefSchema`, `ancestryDefSchema`, `communityDefSchema`, `subclassDefSchema`, `domainCardDefSchema`, and `contentPackSchema` over all seven. The contract a pack is validated against, wherever it comes from. |
 | `content/pack/import.ts` | The readers that turn a source's raw shapes into those types (470 lines). Each takes `raw: readonly unknown[]` and returns an `ImportResult`, so it is bound to no particular data set. `importContentPack` does all seven at once and indexes them by id. |
+| `content/pack/document.ts` | A pack as a **file**: `packDocumentSchema` (`contentPackSchema` plus `abilities` and `conditionDefs`), `readPack` (migrates, then validates each entry on its own and reports what it skipped) and `describePack`. What Project ▾ → Import pack… reads; `importPack` in `editor/session.ts` lays it into the project. |
 | `content/srd/seansbox-adversaries.ts` | Normalises the 129 stringly-typed adversaries (300 lines). |
 | `content/srd/abilities.ts` | `SRD_ABILITIES`, `SRD_ABILITY_MAP` — hand-written domain cards (1131 lines). |
 | `content/srd/adversary-abilities.ts` | `SRD_ADVERSARY_ABILITIES` — hand-written stat-block features (1556 lines). |
@@ -728,6 +729,12 @@ take `readonly unknown[]`.
 
 A project may carry its own pack in the seven `ProjectDoc` fields above, exactly as it already
 carries its abilities, items and conditions. An empty list means "whatever pack the app was given".
+
+**Importing one.** Project ▾ → Import pack… reads a pack *file* — `packDocumentSchema`: those lists
+plus `adversaries`, `abilities` and `conditionDefs` — through `readPack`, and `importPack` lays it
+into the same project fields by id, replacing a same-id entry where it stands and appending the
+rest, as one undo step. It is not a load; nothing the game is running is replaced. The lists are
+changed **in place**, because the script world holds `project.abilities` by reference.
 
 Two shapes are named for what they are rather than for a rule: a class's `signatureFeature` (the
 feature it grants for its own resource), and armor thresholds, which must be finite integers because

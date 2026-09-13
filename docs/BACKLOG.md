@@ -4,6 +4,49 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Import pack — done
+
+The exported catalogue is reachable again. **Project ▾ → Import pack…** reads one or more pack files
+and lays their content into the project being edited, id for id, as one undo step. The state the
+handoff called "preserved but unreachable" is closed.
+
+* **The file format** is `packDocumentSchema` (`content/pack/document.ts`): `contentPackSchema` plus
+  `abilities` and `conditionDefs`. That is the fix for "a pack has no conditions field" — a card
+  that applies a condition now travels with the condition, and with its script. A project file
+  reads as a pack too.
+* **The reader**, `readPack`, migrates first like every door, then validates each entry on its own:
+  a broken entry is skipped and reported as a `ContentIssue`, and a newer build's file or one with
+  nothing readable is refused. Importers still never throw.
+* **The edit**, `importPack` in `editor/session.ts`, replaces a same-id entry where it stands and
+  appends the rest, **in place** — the script world holds `project.abilities` by reference, so a
+  fresh array would leave it reading the old one. A test fails exactly that way without it.
+* **Replace, not keep**, on a same-id collision: importing is somebody choosing a file, and a pack
+  re-exported with a fix should land the fix. The cost is a customised card imported over, which is
+  why it is one undo and why the message counts what it replaced.
+* The Combat strip and the validator's known adversaries read `adversaryDefsFor(project)` on every
+  draw instead of a module constant, so an imported stat block can be placed.
+* Not a load. An import is refused only in **play**, mid-prompt or mid-fight, where the world would
+  be rebuilt under the question; in the editor the world is rebuilt on the way back to play, as it
+  is for every other content edit.
+
+**Verified on the real export, locally.** Both `packs/*.json` import with zero issues — 192 weapons,
+34 armors, 9 classes, 18 ancestries, 9 communities, 18 subclasses, 189 cards, 129 adversaries, 185
+abilities, 54 conditions — and an imported card was put in a loadout, offered, played, and applied
+its imported condition. `document.test.ts` keeps the read as a `skipIf`: it runs where the
+git-ignored export exists and reports skipped everywhere else. Importing the abilities file replaces
+the 54 condition ids the demo project already carries, because the export holds the engine's
+generic rules conditions too.
+
+`npx tsc --noEmit` clean; vitest **1821 passed / 1 failed (1822)**, the one being the documented
+deliberate `demo-defense` failure; Playwright **105 passed**, `EXIT 0`.
+
+**Still open on the same thread.** Customising imported content *as cards* waits on §3 below: the
+Cards workspace already lists imported abilities to edit, but classes and subclasses still carry
+feature text rather than card ids. And an import cannot be written back out as a pack on its own —
+Save JSON writes the whole project.
+
+---
+
 ## Slice 3 — done
 
 The vendored catalogue is gone: 88 files, 39,652 deletions, including the 2.1 MB
@@ -38,12 +81,10 @@ explain what `cover.ts`, `los.ts` and `area.ts` implement.
 
 **What slice 3 did not do, and is worth knowing next:**
 
-* `contentPackSchema` still has no `conditions` field, so a card that applies a zone condition
-  cannot be imported with the condition it needs. The export works around it with a sidecar; the
-  schema is the real fix.
-* **Nothing reads a pack from disk.** `packs/srd.json` exists and no code path loads it, so the
-  content is preserved and not yet importable. That is the next slice for "mechanics travel on
-  cards", and it is what would make the export more than an archive.
+* ~~`contentPackSchema` still has no `conditions` field~~ — **closed** by the pack file format,
+  `packDocumentSchema`, which is `contentPackSchema` plus `abilities` and `conditionDefs`. The
+  export's sidecar is simply a second pack.
+* ~~**Nothing reads a pack from disk.**~~ — **closed**: Project ▾ → Import pack…, above.
 * `cut-purse-strings`, `rallying-cry` and `smoke-step` still ship as text only.
 * `holding-the-line` and `caught-in-the-line` still sit in `content/conditions.ts` rather than
   beside the feature that arms them.
@@ -118,7 +159,8 @@ husk stood adjacent, which is the fifth vacuous pass found this way.
 *document* carries `conditionDefs` and `worldOptions` merges them, but a content *pack* cannot. So a
 card that applies a zone condition cannot be imported with the condition it depends on — and a zone
 whose condition is missing is silent *and* writes the condition's id into the log, because
-`conditionName` falls back to it. Closing that is the next slice for mechanics travelling on cards.
+`conditionName` falls back to it. Closing that is the next slice for mechanics travelling on cards. *(Closed since: a pack file is
+`packDocumentSchema`, which carries conditions.)*
 Smaller: `cut-purse-strings`, `rallying-cry` and `smoke-step` are still text only, and only the
 first has a real blocker (`addItem` names a bare item id with no source, so taking what somebody
 else carries cannot be said); and `holding-the-line`/`caught-in-the-line` still sit in
@@ -438,7 +480,8 @@ project and play it, which is exactly what an import does.
 
 What is missing is the surface:
 
-- a picker that reads a pack file, validates it, and hands it to that path;
+- ~~a picker that reads a pack file, validates it, and hands it to that path~~ — **done**, though not
+  through the load path: Project ▾ → Import pack… lays a pack into the project as an edit;
 - the editor panels that today edit a class's feature text editing **cards** instead — which is what
   "customise cards" means;
 - card zones in the renderer, and playing from them. New UI, not a rename.

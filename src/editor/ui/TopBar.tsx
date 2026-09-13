@@ -55,6 +55,8 @@ export interface TopBarProps {
   onWorkspace: (workspace: Workspace) => void;
   onSave: () => void;
   onLoad: (file: File) => void;
+  /** One or more pack files, imported in the order they were picked. */
+  onImportPack: (files: readonly File[]) => void;
   onCheck: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -117,6 +119,24 @@ export function TopBar(props: TopBarProps): preact.JSX.Element {
                   const file = (e.target as HTMLInputElement).files?.[0];
                   props.onMenu(null);
                   if (file !== undefined) props.onLoad(file);
+                }}
+              />
+            </label>
+            <label
+              class="ph-item"
+              data-testid="import-pack"
+              title="Add a pack's classes, cards, creatures and conditions to this project"
+            >
+              Import pack…
+              <input
+                class="ph-file"
+                type="file"
+                accept="application/json,.json"
+                multiple
+                onChange={(e) => {
+                  const files = Array.from((e.target as HTMLInputElement).files ?? []);
+                  props.onMenu(null);
+                  if (files.length > 0) props.onImportPack(files);
                 }}
               />
             </label>

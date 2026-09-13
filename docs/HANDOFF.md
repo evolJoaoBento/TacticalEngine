@@ -208,7 +208,7 @@ disclaimer must stay contiguous on one line — a rewrite once split the rights 
 
 ## 6. What to do next, ranked
 
-### 1. Make packs importable — the owner's stated requirement, currently unmet
+### 1. ~~Make packs importable~~ — done on the next machine; see `BACKLOG.md`, "Import pack — done"
 
 The framing was: *"anything that had ip should be importable and not lost — think of the engine as
 the base that could import [the licensed] IP if we had the rights after"*, and *"when being able to

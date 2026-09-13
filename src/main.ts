@@ -38,6 +38,8 @@ import {
   renameScene,
   setStartScene,
   updateInteractable,
+  importPack,
+  packChanges,
 } from './editor/session';
 import { EditorShell } from './editor/ui/EditorShell';
 import { PlayPanel, TONE, type Inspection, type JournalQuest } from './game/ui/PlayPanel';
@@ -84,6 +86,8 @@ import {
 import type { Response } from './engine/script/runner';
 import { loadGameText, saveBlockedBy, serialiseSave } from './game/save';
 import { migrateDocument } from './engine/scene/migrate';
+import { describePack, readPack } from './engine/content/pack/document';
+import type { AdversaryDef } from './engine/content/types';
 import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore } from './game/save-slots';
 import { CardArtImports, loadCardArtIndex, useCardArtImports, useCardArtIndex } from './game/ui/card-art';
 import {
@@ -116,9 +120,9 @@ import {
   reachableTiles,
   DEMO_ADVERSARY_ID,
   DEMO_MODELS,
-  DEMO_ADVERSARIES,
   DEMO_CHARACTERS,
   characterContentFor,
+  adversaryDefsFor,
   buildProjectScene,
   setSheet,
   type DemoScene,
@@ -283,6 +287,8 @@ declare global {
       problems: () => number;
       exportProject: () => string;
       loadProjectText: (text: string) => string;
+      /** Import a pack file's text into the project being edited, as the Project menu does. */
+      importPackText: (text: string, label?: string) => { imported: boolean; message: string };
     };
   }
 }
@@ -485,7 +491,13 @@ assets.onChange(() => {
 const KNOWN_MODELS = new Set(MODELS.map((m) => m.id));
 const TERRAIN_IDS = demo.grid.palette.types.map((t) => t.id);
 const PROP_MODELS = MODELS.filter((m) => m.category === 'prop').map((m) => m.id);
-const ADVERSARY_DEFS = [...DEMO_ADVERSARIES.values()].sort((a, b) => a.name.localeCompare(b.name));
+/**
+ * The Combat strip's creatures: the pack the app ships, and whatever the project carries or has
+ * imported over it. Asked on every draw, because an import changes it.
+ */
+function adversaryLibrary(): AdversaryDef[] {
+  return [...adversaryDefsFor(session.project).values()].sort((a, b) => a.name.localeCompare(b.name));
+}
 
 /** Redraw whichever panel the current mode owns. */
 function refreshEditor(): void {
@@ -662,9 +674,9 @@ function renderPanel(): void {
       terrainIds: TERRAIN_IDS,
       terrainColors: DEFAULT_TERRAIN_COLORS,
       propModels: PROP_MODELS,
-      adversaries: ADVERSARY_DEFS,
+      adversaries: adversaryLibrary(),
       knownModels: KNOWN_MODELS,
-      knownAdversaries: new Set(DEMO_ADVERSARIES.keys()),
+      knownAdversaries: new Set(adversaryDefsFor(session.project).keys()),
       nativeHooks: [...SRD_HOOKS.keys()],
       libraryAbilities: STARTER_ABILITIES,
       characterContent: characterContentFor(demo.project),
@@ -675,6 +687,7 @@ function renderPanel(): void {
       onRedo: () => void redoEdit(),
       onSave: saveProject,
       onLoad: loadProject,
+      onImportPack: (files: readonly File[]) => void importPacks(files),
       onAssetsChanged: () => {
         for (const id of assets.ids()) assets.remove(id);
         for (const asset of session.project.assets) assets.add(asset);
@@ -805,6 +818,66 @@ function loadProjectText(text: string, label = 'the project'): string {
   refreshPlay();
   renderPanel();
   return '';
+}
+
+/** The files picked under Project > Import pack, one after another. */
+async function importPacks(files: readonly File[]): Promise<void> {
+  const said: string[] = [];
+  for (const file of files) said.push(importPackText(await file.text(), file.name).message);
+  // The picker is the one place a person is waiting on an answer, so they are told it. The
+  // driver's handle hands back the same sentence instead.
+  if (said.length > 0) alert(said.join('\n\n'));
+}
+
+/**
+ * Lay a pack's content into the project being edited.
+ *
+ * Not a load. Nothing the game is running is replaced: the party stays where it stands and the
+ * room stays as it is. What changes is what the project carries -- classes and cards the Party
+ * panel can offer, stat blocks the Combat strip can place, the scripts and conditions play reads --
+ * laid over what it had by id, as one step Undo takes back.
+ *
+ * Returns what it did or why it did nothing, as a sentence either way.
+ */
+function importPackText(text: string, label = 'the pack'): { imported: boolean; message: string } {
+  const refuse = (why: string): { imported: boolean; message: string } => {
+    const message = `Could not import ${label}: ${why}`;
+    errors.push(message);
+    if (mode === 'edit') renderPanel();
+    return { imported: false, message };
+  };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return refuse('it is not JSON');
+  }
+  const reading = readPack(raw, label);
+  if (reading.refused !== null) return refuse(reading.refused);
+  // In play the world is rebuilt over the new content at once, and rebuilding it under a prompt or
+  // a fight's turn order would pull the table out from under the question. The editor rebuilds it
+  // on the way back to play, which is when every other content edit reaches it too.
+  const blocked = mode === 'play' ? saveBlockedBy(demo) : null;
+  if (blocked !== null) return refuse(blocked);
+
+  const { replaced } = packChanges(session.project, reading.pack);
+  session.run(importPack(reading.pack));
+  if (mode === 'play') {
+    rederiveParty();
+    refreshPlay();
+  } else {
+    renderPanel();
+  }
+
+  const parts = [`Imported ${label}: ${describePack(reading.pack)}.`];
+  if (replaced > 0) parts.push(`${replaced} replaced what the project already had under the same id.`);
+  if (reading.issues.length > 0) {
+    const first = reading.issues[0]!;
+    parts.push(
+      `${reading.issues.length} could not be read and were left out; the first, ${first.entry} (${first.field}): ${first.message}.`,
+    );
+  }
+  return { imported: true, message: parts.join(' ') };
 }
 
 // ---------------------------------------------------------------------------
@@ -2387,6 +2460,7 @@ const state = {
   },
   exportProject: (): string => JSON.stringify(session.project),
   loadProjectText: (text: string): string => loadProjectText(text),
+  importPackText: (text: string, label?: string) => importPackText(text, label),
 };
 window.__engine = state;
 

@@ -148,6 +148,7 @@ declare global {
       problems: () => number;
       exportProject: () => string;
       loadProjectText: (text: string) => string;
+      importPackText: (text: string, label?: string) => { imported: boolean; message: string };
     };
   }
 }

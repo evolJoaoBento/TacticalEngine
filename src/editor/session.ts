@@ -21,6 +21,7 @@ import type { QuestDef, QuestObjective } from '../engine/content/quests';
 import type { AbilityDef } from '../engine/content/abilities';
 import type { ItemDef, LootTable } from '../engine/content/items';
 import type { ModelAsset } from '../engine/render/assets';
+import { PACK_LISTS, type PackDocument, type PackList } from '../engine/content/pack/document';
 
 /** One reversible change. `undo` must restore exactly what `apply` replaced. */
 export interface Edit {
@@ -1565,6 +1566,77 @@ export function updateSheet(characterId: string, changes: Partial<PartySheet>): 
   };
   (edit as Edit & { __sheet: Partial<PartySheet> }).__sheet = current;
   return edit;
+}
+
+// ---------------------------------------------------------------------------
+// Packs
+// ---------------------------------------------------------------------------
+
+/** One entry of any list a pack carries. Every one of them is found by its id. */
+type PackEntry = { readonly id: string };
+
+/** How many of a pack's entries a project does not have yet, and how many replace one it has. */
+export function packChanges(project: ProjectDoc, pack: PackDocument): { added: number; replaced: number } {
+  let added = 0;
+  let replaced = 0;
+  for (const list of PACK_LISTS) {
+    const have = new Set((project[list] as readonly PackEntry[]).map((def) => def.id));
+    for (const def of pack[list] as readonly PackEntry[]) {
+      if (have.has(def.id)) replaced++;
+      else {
+        added++;
+        have.add(def.id);
+      }
+    }
+  }
+  return { added, replaced };
+}
+
+/**
+ * Lay a pack's content into the project, id for id: an entry the project already has under that id
+ * is replaced where it stands, and anything new goes on the end.
+ *
+ * Replace rather than keep, because importing is somebody choosing this file -- a pack re-exported
+ * with a fix should land the fix. What that costs is a card customised and then imported over,
+ * which is why the whole import is one undo step, and why the door says how many it replaced.
+ *
+ * In place, never by assigning a new array: the game holds these lists by reference -- the world a
+ * scene is played in reads `project.abilities` as it stands -- and a fresh array would leave it
+ * reading the old one.
+ */
+export function importPack(pack: PackDocument): Edit {
+  let before: Map<PackList, PackEntry[]> | null = null;
+  return {
+    label: 'Import pack',
+    apply(project) {
+      before = new Map();
+      for (const list of PACK_LISTS) {
+        const incoming = pack[list] as readonly PackEntry[];
+        if (incoming.length === 0) continue;
+        const into = project[list] as PackEntry[];
+        before.set(list, [...into]);
+        const at = new Map(into.map((def, index) => [def.id, index]));
+        for (const def of incoming) {
+          const index = at.get(def.id);
+          if (index === undefined) {
+            at.set(def.id, into.length);
+            into.push(def);
+          } else {
+            into[index] = def;
+          }
+        }
+      }
+    },
+    undo(project) {
+      for (const [list, was] of before ?? []) {
+        const into = project[list] as PackEntry[];
+        into.splice(0, into.length, ...was);
+      }
+    },
+    isNoop() {
+      return before !== null && before.size === 0;
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

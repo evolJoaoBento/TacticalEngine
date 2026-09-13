@@ -55,13 +55,15 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
 - **No SRD material is vendored any more.** `tools/srd-sources/` held the official 2.0 text and two
   community data sets; it is gone, along with the card and adversary libraries built from it. The
   engine ships `src/engine/content/pack/starter.ts` — its own high-fantasy pack, nobody else's
-  content — and reads anything else as an imported pack.
+  content — and reads anything else as an imported pack, through **Project ▾ → Import pack…**
+  (`src/engine/content/pack/document.ts`).
 
   The catalogue was not discarded. `tools/export-pack.ts` (deleted with the sources, retrievable
   from history) wrote it out as `packs/srd.json`, the content as one `contentPackSchema` document,
   and `packs/srd-abilities.json`, the 185 ability scripts and 54 conditions that content runs on,
   in the shape `projectSchema` accepts. Both are **gitignored**: an export is for whoever holds the
-  rights to it, not something this repository ships. Three of the four native hooks in
+  rights to it, not something this repository ships; both import whole through that menu. Three
+  of the four native hooks in
   `src/engine/script/native-hooks.ts` exist for cards in that pack — `{ kind: 'run', hook: '…' }`
   is a computation the effect vocabulary cannot express — which is why that module stayed behind
   when the content went.
