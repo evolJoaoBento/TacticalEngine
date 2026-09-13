@@ -1481,28 +1481,33 @@ test('equips a found weapon from the pack, and the card says so', async ({ page 
   await page.evaluate(() => {
     const api = window.__polyheart!;
     api.select('kara');
-    api.giveItem('longsword');
-    api.giveItem('full-plate');
+    // A weapon she does not already wield and an armour she is not already wearing:
+    // `equipItem` refuses an item that is already in the slot, so finding her own
+    // longsword in the pack would move nothing.
+    api.giveItem('hunting-bow');
+    api.giveItem('padded-coat');
   });
   const card = page.locator('[data-member="kara"] [data-testid="gear"]');
-  await expect(card).toContainText('Broadsword · Chainmail');
+  await expect(card).toContainText('Longsword · Ringmail');
 
   const pack = page.locator('[data-testid="pack"]');
-  await pack.locator('[data-item="longsword"] [data-testid="equip"]').click();
-  await expect(card).toContainText('Longsword · Chainmail');
-  // The sword came out of the pack; the broadsword it replaced went in.
-  await expect(pack.locator('[data-item="longsword"]')).toHaveCount(0);
-  await expect(pack.locator('[data-item="broadsword"]')).toHaveCount(1);
+  await pack.locator('[data-item="hunting-bow"] [data-testid="equip"]').click();
+  await expect(card).toContainText('Hunting Bow · Ringmail');
+  // The bow came out of the pack; the longsword it replaced went in.
+  await expect(pack.locator('[data-item="hunting-bow"]')).toHaveCount(0);
+  await expect(pack.locator('[data-item="longsword"]')).toHaveCount(1);
 
-  await pack.locator('[data-item="full-plate"] [data-testid="equip"]').click();
-  await expect(card).toContainText('Longsword · Full Plate Armor');
+  await pack.locator('[data-item="padded-coat"] [data-testid="equip"]').click();
+  await expect(card).toContainText('Hunting Bow · Padded Coat');
   const armor = page.locator('[data-member="kara"] [data-testid="armor"]');
-  // Full plate is Armor Score 4 at tier 1, same as chainmail in this SRD; what
-  // matters is the max follows the sheet.
+  // The coat is lighter than the ringmail it replaces; what matters is that the max
+  // follows the sheet rather than arriving at any particular number.
   const gear = await page.evaluate(() => window.__polyheart!.gear('kara'));
-  expect(gear.armor).toBe('Full Plate Armor');
+  expect(gear.armor).toBe('Padded Coat');
   await expect(armor).toHaveAttribute('data-max', /\d+/);
-  await expect(page.locator('[data-testid="log"]')).toContainText('Kara puts on the Full plate');
+  // The log is built from the item's name, which is spelled "Padded coat"; the gear
+  // line above is built from the pack's armour, which is spelled "Padded Coat".
+  await expect(page.locator('[data-testid="log"]')).toContainText('Kara puts on the Padded coat');
 
   expect(consoleErrors).toEqual([]);
 });
@@ -2395,7 +2400,7 @@ test('loads a project and restarts the game on it, but not in the middle of a fi
   await page.locator('[data-testid="open-party"]').click();
   const panel = page.locator('[data-testid="party-panel"]');
   await panel.locator('[data-testid="add-character"]').click();
-  await panel.locator('[data-testid="character-armor"]').selectOption('chainmail-armor');
+  await panel.locator('[data-testid="character-armor"]').selectOption('ringmail');
   await panel.locator('[data-testid="close-party"]').click();
 
   const result = await page.evaluate(() => {
