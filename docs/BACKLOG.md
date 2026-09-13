@@ -35,7 +35,8 @@ The Cards panel's subclass-stage, ancestry and community pickers had only unit t
 each in turn and reads each grant out of the project, then plays: Kara is a Wayfarer, and the card
 granted by the Wayfarer community is in her loadout's **Always in play**.
 
-`npx tsc --noEmit` clean; vitest **1850 passed (1850), run with the next slice applied on top**; Playwright **109 passed (4.0m), run with the next slice applied on top**, `EXIT 0`.
+`npx tsc --noEmit` clean; vitest **1850 passed (1850)**; Playwright **109 passed (4.0m)**, `EXIT 0` -- both run
+with the next slice (granted cards' art) applied on top, since this one adds only the test.
 
 ## Export pack — done
 
