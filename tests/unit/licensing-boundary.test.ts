@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
@@ -93,5 +94,176 @@ describe('the licensing boundary', () => {
     expect(context).toContain('Darrington Press Community Gaming');
     // The community data sets were SRD 1.0 and carried their own notice; both must survive.
     expect(context).toContain('SRD 1.0');
+  });
+});
+
+/**
+ * The boundary, enforced rather than remembered.
+ *
+ * Slice 4 removed the marks, the retired product name and the paired resource terms from the
+ * engine. Every one of those could come back in a single careless commit, and nothing would say so
+ * — which is the same argument that made the card-art rule a test instead of a note.
+ *
+ * Each rule below is a *whole-repository* sweep over what git actually tracks, with exemptions that
+ * are named and reasoned rather than convenient. When one of these fails, the fix is the source, not
+ * the exemption list.
+ */
+describe('the marks stay out of the repository', () => {
+  /** What git tracks is the honest definition of "in the repository". */
+  const tracked = (): string[] =>
+    execFileSync('git', ['ls-files'], { cwd: repoRoot, encoding: 'utf8' })
+      .split('\n')
+      .filter((line) => line !== '');
+
+  const BINARY = /\.(png|jpe?g|gif|glb|gltf|ktx2|wasm|woff2?|ico|mp3|ogg|wav|pdf)$/i;
+
+  const lines = (relative: string): string[] => read(relative).split(/\r?\n/);
+
+  /**
+   * Paths exempt from the mark and product-name rules. Four, each for a stated reason:
+   *
+   *   `legacy/`            the original prototype, which CLAUDE.md and AGENTS.md both require stay
+   *                        runnable and unmodified. Its marks are its own, and three of its
+   *                        `polyheart` strings are persisted localStorage keys.
+   *   `docs/research/`     static analyses of that prototype, carrying `file:line` anchors into it.
+   *                        They describe another codebase's vocabulary.
+   *   `docs/superpowers/`  dated design and plan records. The spec that argues for removing this IP
+   *                        has to be able to name it; a design record that may not say what it
+   *                        removed is useless.
+   *   this file            the rules below have to spell the terms they forbid. Exactly the same
+   *                        case as `.gitignore:11`, which names Critical Role in order to say the
+   *                        artwork may never be committed. A guard cannot be forbidden its own
+   *                        vocabulary, and contorting these patterns to hide from themselves would
+   *                        make them unreadable and easy to weaken by accident.
+   */
+  const EXEMPT = [
+    /^legacy\//,
+    /^docs\/research\//,
+    /^docs\/superpowers\//,
+    /^tests\/unit\/licensing-boundary\.test\.ts$/,
+  ];
+  const exempt = (path: string): boolean => EXEMPT.some((rule) => rule.test(path));
+
+  const MARK = /daggerheart|critical role|darrington/i;
+
+  /**
+   * The licence *requires* the marks in the attribution, so the rule cannot be "never". These are
+   * the phrases that make an occurrence legitimate: the two DPCGL notices, the trademark
+   * disclaimer, and the explanation of where the ignored card art came from.
+   */
+  const LICENSING = [
+    /System Reference Document/i,
+    /trademark of Critical Role/i,
+    /SRD content is used under/i,
+    /Darrington Press Community Gaming/i,
+    /Critical Role, LLC/i,
+    /Public Game Content under the DPCGL/i,
+    /artwork/i,
+    /daggerheart\.com/i,
+    /daggerheart\.su/i,
+  ];
+
+  it('names the marks only where the licence requires it', () => {
+    // A window, not the line. Attribution paragraphs wrap mid-phrase — this file splits "System
+    // Reference / Document" across a break at :10-11 — so a per-line rule would fail on the
+    // notices themselves, and a harmless reflow would fail the boundary for no real reason.
+    const WINDOW = 2;
+    const offenders: string[] = [];
+
+    for (const path of tracked()) {
+      if (BINARY.test(path) || exempt(path)) continue;
+      const text = lines(path);
+      text.forEach((line, index) => {
+        if (!MARK.test(line)) return;
+        const near = text.slice(Math.max(0, index - WINDOW), index + WINDOW + 1).join('\n');
+        if (!LICENSING.some((ok) => ok.test(near))) {
+          offenders.push(`${path}:${index + 1}: ${line.trim().slice(0, 100)}`);
+        }
+      });
+    }
+
+    expect(
+      offenders,
+      'these name a third-party mark outside the attribution. The engine may not be branded or ' +
+        'documented as somebody else\'s product. Rewrite the sentence; do not add it here.',
+    ).toEqual([]);
+  });
+
+  it('has retired the old product name everywhere but its persisted keys', () => {
+    // `polyheart:saves`, `polyheart:save:` and `polyheart:card-art:` are read as a fallback so a
+    // player's saves and imported art survive the rename, and `rng.test.ts` seeds with the word --
+    // a seed's value picks a dice sequence, so renaming one silently re-rolls a test. Anything else
+    // is branding.
+    const KEY_OR_SEED = /polyheart:|polyheart-|'polyheart'/i;
+    const offenders: string[] = [];
+
+    for (const path of tracked()) {
+      if (BINARY.test(path) || exempt(path)) continue;
+      lines(path).forEach((line, index) => {
+        if (/polyheart/i.test(line) && !KEY_OR_SEED.test(line)) {
+          offenders.push(`${path}:${index + 1}: ${line.trim().slice(0, 100)}`);
+        }
+      });
+    }
+
+    expect(
+      offenders,
+      'the retired product name is back. It is Tactical Engine now; the only survivors are the ' +
+        'legacy storage keys read as a fallback and the RNG seeds.',
+    ).toEqual([]);
+  });
+
+  it('stores the paired pools as good and bad, never the old terms', () => {
+    /**
+     * Five files name the old terms on purpose, and each would be broken by "fixing" it:
+     *
+     *   migrate.ts / migrate.test.ts   the version-1 -> 2 migration reads the old field names and
+     *                                  its test tables them beside the new ones. Renaming these
+     *                                  stops the migration migrating while every test still passes.
+     *   legacy-import.ts / .test.ts    OUTCOME_KEYS maps the prototype's own document keys, which
+     *                                  `legacy/` never changes. Only their values moved.
+     *   pack/schema.test.ts            asserts `costsFear` is ABSENT from a parsed block.
+     */
+    const DELIBERATE = [
+      'src/engine/scene/migrate.ts',
+      'src/engine/scene/migrate.test.ts',
+      'src/engine/scene/legacy-import.ts',
+      'src/engine/scene/legacy-import.test.ts',
+      'src/engine/content/pack/schema.test.ts',
+      // This file: the list below has to spell every token it forbids.
+      'tests/unit/licensing-boundary.test.ts',
+    ];
+
+    // The seven RNG seeds, and English built on the same stems (`hopeful`, `hoped`, `hopes`), which
+    // the word boundaries below do not match anyway.
+    const SEED = /'no-hope'|'wolf-fear'|createRng\('fear'\)|'fear-cost'|'tank-hope-'/;
+
+    const COMPOUND = new RegExp(
+      [
+        'onSuccessWithHope', 'onSuccessWithFear', 'onFailureWithHope', 'onFailureWithFear',
+        'successWithHope', 'successWithFear', 'failureWithHope', 'failureWithFear',
+        'gainHope', 'loseHope', 'spendHope', 'gainFear', 'loseFear',
+        'withHope', 'withFear', 'classHope', 'hopeDie',
+      ].join('|'),
+    );
+    const BARE = /(?<![A-Za-z])(hope|fear|Hope|Fear)(?![A-Za-z])/;
+
+    const offenders: string[] = [];
+    for (const path of tracked()) {
+      if (!/^(src|tests)\/.*\.tsx?$/.test(path)) continue;
+      if (DELIBERATE.includes(path)) continue;
+      lines(path).forEach((line, index) => {
+        if (SEED.test(line)) return;
+        if (COMPOUND.test(line) || BARE.test(line)) {
+          offenders.push(`${path}:${index + 1}: ${line.trim().slice(0, 100)}`);
+        }
+      });
+    }
+
+    expect(
+      offenders,
+      'a document field or enum value is using the old paired-pool terms. What a player reads is ' +
+        'Light and Shadow; what a file stores is `good` and `bad`.',
+    ).toEqual([]);
   });
 });

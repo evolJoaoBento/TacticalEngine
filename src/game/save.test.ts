@@ -82,9 +82,9 @@ describe('a version-1 save at the door', () => {
 
   it('is refused unmigrated, because a scene must carry its pool', () => {
     // `sceneSnapshotSchema` declares `bad: currencySchema` — required, unlike the entity pool's
-    // `good: currencySchema.optional()`. A version-1 scene carries `fear` and no `bad`, so zod
-    // strips the unknown key and then finds the required one missing. That refusal is what makes
-    // the test above load-bearing rather than decorative.
+    // `good: currencySchema.optional()`. A version-1 scene carries the old pool key and no `bad`,
+    // so zod strips the unknown key and then finds the required one missing. That refusal is what
+    // makes the test above load-bearing rather than decorative.
     expect(saveSchema.safeParse(v1Save()).success).toBe(false);
   });
 
