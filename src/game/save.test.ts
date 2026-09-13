@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { migrateDocument } from '../engine/scene/migrate';
 import { demoMap } from '../../legacy/js/data.js';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import {
@@ -57,6 +60,41 @@ function reload(demo: DemoScene, seed = 'demo'): DemoScene {
   expect(result).toEqual({ ok: true });
   return fresh;
 }
+
+/**
+ * A save written by an older build, at the door.
+ *
+ * `loadGameText` migrates before it validates, so the only thing standing between a version-1 file
+ * and a refusal the player reads as "damaged" is whether the migrated document satisfies
+ * `saveSchema`. `tests/fixtures/v1/save.json` is a real version-1 save — see the README beside it —
+ * which is what lets this fail for a reason other than agreeing with itself.
+ */
+describe('a version-1 save at the door', () => {
+  const v1Save = (): unknown =>
+    JSON.parse(
+      readFileSync(`${fileURLToPath(new URL('../../', import.meta.url))}tests/fixtures/v1/save.json`, 'utf8'),
+    );
+
+  it('validates once migrated', () => {
+    const result = saveSchema.safeParse(migrateDocument(v1Save()));
+    expect(result.success ? [] : result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`)).toEqual([]);
+  });
+
+  it('is refused unmigrated, because a scene must carry its pool', () => {
+    // `sceneSnapshotSchema` declares `bad: currencySchema` — required, unlike the entity pool's
+    // `good: currencySchema.optional()`. A version-1 scene carries `fear` and no `bad`, so zod
+    // strips the unknown key and then finds the required one missing. That refusal is what makes
+    // the test above load-bearing rather than decorative.
+    expect(saveSchema.safeParse(v1Save()).success).toBe(false);
+  });
+
+  it('loads into a fresh scene through the public door', () => {
+    // The schema is not the whole door: `loadGameText` also checks the project id and derives every
+    // sheet. This is the path a player's file actually takes.
+    const fresh = scene();
+    expect(loadGameText(fresh, JSON.stringify(v1Save()))).toEqual({ ok: true });
+  });
+});
 
 describe('saving a game', () => {
   it('names the project, the room, and where the dice had got to', () => {

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { migrateDocument, CURRENT_FORMAT_VERSION } from './migrate';
+import { projectSchema } from './schema';
 
 /**
  * Reading a version-1 document with version-2 code.
@@ -202,5 +203,33 @@ describe('migrating a stored document', () => {
       expect(withPool.length).toBeGreaterThan(0);
       for (const entity of Object.values(room.entities)) expect(entity['hope']).toBeUndefined();
     });
+  });
+});
+
+/**
+ * The property the rest of this file does not check: that what comes out the other side is a
+ * document the engine will actually *load*.
+ *
+ * Every test above compares fields — this name is gone, that one arrived. All of them can pass
+ * while `projectSchema` still refuses the result, because renaming fourteen tokens correctly says
+ * nothing about whether the document that remains satisfies a required field, a discriminated
+ * union's literal, or `projectSchema`'s own `superRefine`. Validation is the condition the
+ * production path actually depends on: `main.ts` does
+ * `projectSchema.safeParse(migrateDocument(...))`, and a project that fails it is reported to the
+ * player as damaged.
+ */
+describe('a migrated document satisfies the schema that will load it', () => {
+  /** Zod issues as readable lines, so a failure names the field instead of printing `false`. */
+  const refusals = (result: { success: boolean; error?: { issues: { path: PropertyKey[]; message: string }[] } }): string[] =>
+    result.success ? [] : (result.error?.issues ?? []).map((issue) => `${issue.path.join('.')}: ${issue.message}`);
+
+  it('accepts the captured version-1 project once migrated', () => {
+    expect(refusals(projectSchema.safeParse(migrateDocument(fixture('project'))))).toEqual([]);
+  });
+
+  it('refuses the same project unmigrated, so the migration is load-bearing', () => {
+    // Without this the test above proves nothing: a schema that accepted the old names too would
+    // pass it while the migration did nothing at all.
+    expect(refusals(projectSchema.safeParse(fixture('project')))).not.toEqual([]);
   });
 });
