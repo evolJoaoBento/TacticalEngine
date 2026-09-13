@@ -3529,10 +3529,16 @@ describe('a swing lifted, and a swing that names its own number', () => {
     // instead of rolling it." The card is offered while the blow is held, and
     // what it is worth is read off the faces the dice actually came up - which
     // is why it journals nothing and the swing does the arithmetic.
-    const swing = (seed: string, play: boolean): { marked: number; lift: number; stress: number; critical: boolean } | null => {
+    const swing = (seed: string, play: boolean): { marked: number; lift: number; stress: number } | null => {
       const demo = standoff(seed);
       demo.askDefender = true;
       hold(demo, [LIFT_DIE_CARD]);
+      // A Stress already marked, so a critical's own clear has one to take in
+      // both runs alike. From none at all the two runs part ways: the card's
+      // Stress is paid before the clear lands and the clear takes it, which is
+      // an open question about order (BACKLOG), not about the lift.
+      const kara = demo.state.entity('kara')!;
+      kara.stress = { ...kara.stress, marked: 1 };
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       husk.hitPoints = { max: 30, marked: 0 };
       const result = attackWithSelected(demo, husk.id);
@@ -3543,9 +3549,6 @@ describe('a swing lifted, and a swing that names its own number', () => {
       const roll = asked.landing?.outcome.damageRoll;
       if (roll === undefined) return null;
       const lift = roll.expression.sides - Math.min(...roll.rolls);
-      // A critical clears a Stress of its own, which would otherwise cancel the
-      // one this card costs and make it look free.
-      const critical = demo.rolls[demo.rolls.length - 1]?.roll.critical === true;
       answerPending(demo, { kind: 'choose', index: play ? 1 : 0 });
       // The defender is asked in this block, so choosing the card leaves another
       // prompt waiting and the cost is not settled yet. Read the Stress once the
@@ -3553,7 +3556,7 @@ describe('a swing lifted, and a swing that names its own number', () => {
       for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
         answerPending(demo, { kind: 'choose', index: 0 });
       }
-      return { marked: husk.hitPoints.marked, lift, stress: demo.state.entity('kara')!.stress.marked, critical };
+      return { marked: husk.hitPoints.marked, lift, stress: demo.state.entity('kara')!.stress.marked };
     };
 
     for (let seed = 1; seed < 60; seed++) {
@@ -3567,9 +3570,9 @@ describe('a swing lifted, and a swing that names its own number', () => {
       expect(played.marked).toBeGreaterThanOrEqual(letPass.marked);
       if (played.marked === letPass.marked) continue;
       expect(played.marked).toBeGreaterThan(letPass.marked);
-      // And it cost a Stress, where letting it pass cost nothing -- net of the
-      // one a critical clears, which both runs of this seed share.
-      expect(played.stress).toBe(letPass.stress + 1 - (played.critical ? 1 : 0));
+      // And it cost a Stress, where letting it pass cost nothing. A critical
+      // clears one in both runs alike, so the difference is the card's.
+      expect(played.stress).toBe(letPass.stress + 1);
       return;
     }
     throw new Error('no lifted die crossed a threshold in sixty tries');

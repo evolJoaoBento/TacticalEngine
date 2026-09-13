@@ -4,6 +4,34 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The lift's red test — resolved
+
+The one failure every run since `f4df9fa` carried was the test, not the card. It read whether the
+swing was a critical off `demo.rolls` before the reaction was answered, and a party swing's roll
+only reaches `demo.rolls` when the blow lands, so it read the swing before and said *not a critical*
+every time. On seed `lifted-6` the swing is a critical: letting it pass ends at 0 Stress, playing
+the card ends at 0 as well, and the formula expected 1.
+
+Fixed on the test's own subject. Kara starts the swing with one Stress marked, so a critical's clear
+has one to take in both runs, and the card costs exactly one more than letting the blow pass: the
+critical drops out of the arithmetic. Three breaks -- the lift worth nothing, the card costing
+nothing, no Stress marked before the swing -- each turn it red again.
+
+**Open, and now written down: when a critical clears its Stress.** The engine clears it when the
+blow lands (`applyAttack`, `combat/attack.ts`), after anything that answered the damage roll. The
+SRD's order is the roll first -- the critical clears a Stress -- then the damage roll, then "mark
+a Stress" on it. From 0 Stress the two disagree: the SRD ends at 1, the engine pays the card's
+Stress and the landing clear takes it back, so the card is free. The same deferral holds the roll's
+Light, so a Light-cost card answering the damage roll cannot spend the Light that roll just gave.
+The fix is settling the roll's own economy in `afterRolled` (demo-scene.ts), where nothing can
+change the Duality dice any more -- every card that rerolls, names or raises them answers
+`partyRolling`, earlier. It is its own slice: `applyAttack` has five callers, and the runner's
+`check` defers the same clear on purpose (`runner.ts`, "whoever is acting when the dice are
+settled").
+
+`npx tsc --noEmit` clean; vitest **1841 passed (1841)** -- the first fully green unit run since `f4df9fa`;
+Playwright **105 passed (3.7m)**, `EXIT 0`.
+
 ## The docs stop naming what is gone — done
 
 The reference docs described a repository that no longer exists. `DEVELOPING.md` and
@@ -201,7 +229,8 @@ explain what `cover.ts`, `los.ts` and `area.ts` implement.
 **Pinned to commit `c65508a`.** At that commit: `npx tsc --noEmit` clean, **1821 of 1822 unit tests
 passing across 92 files**. The single failure is the documented deliberate one in
 `demo-defense.test.ts` — a Stress assertion left red after four attempts rather than guessed at, with
-what was ruled out recorded in its commit. **Playwright is green: 105 passed, 3.8 minutes, `EXIT 0`** — a full run, not a tally of targeted
+what was ruled out recorded in its commit (resolved since: see *The lift's red test*, at the top).
+**Playwright is green: 105 passed, 3.8 minutes, `EXIT 0`** — a full run, not a tally of targeted
 ones. All 21 failures are fixed. What follows is the diagnosis of the red run that found them, kept
 because the cause and the tiering are the reusable parts.
 
