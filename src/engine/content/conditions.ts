@@ -10,7 +10,9 @@
  * dodging, which ends the next time an attack succeeds against you".
  *
  * A project may add its own; the engine ships the SRD's and the ones its
- * scripted cards need.
+ * scripted cards need. A card's condition that nothing here reads goes out
+ * with the pack that carries the card: `public/packs/ember-spells.json` is
+ * where the magic circle and the echo went.
  */
 
 import { z } from 'zod';
@@ -311,9 +313,9 @@ const RAW: ConditionInput[] = [
     text: 'A hulking nature spirit: +10 to damage rolls, and a Light for every action roll made.',
     modifiers: [{ stat: 'damageRoll', bonus: 10 }],
   },
-  // The Book of Grynn's wall, on whoever is standing in it. Like the Korvax
-  // circle, the whole of it happens on the crossing: "anything that
-  // subsequently passes through the wall takes 4d10+3 magic damage".
+  // The Book of Grynn's wall, on whoever is standing in it. The whole of it
+  // happens on the crossing: "anything that subsequently passes through the
+  // wall takes 4d10+3 magic damage".
   {
     id: 'wall-of-flame',
     name: 'Wall of Flame',
@@ -347,34 +349,6 @@ const RAW: ConditionInput[] = [
     name: 'Immune to Magic',
     text: 'Magic damage does nothing to you until your next rest.',
     defenses: { immunities: ['magic'] },
-  },
-  // The Book of Sitil's second spell, on whoever it was cast on. It carries
-  // nothing while it waits: what it does is written on the reaction that
-  // spends it, which is the only thing that reads this.
-  {
-    id: 'sitil-echo',
-    name: 'Echoing Strike',
-    text: 'The next attack you make also reaches one more target its roll would have beaten.',
-    // The one being helped does not hold the Book: a pack that prints the
-    // spell lends them its second half on a card this condition lends.
-  },
-  // The Book of Korvax's magic circle, on whoever is standing in it. The
-  // condition carries nothing while it is borne: the whole of the spell happens
-  // on the crossing, which is what the card says - "all adversaries within
-  // Melee range, or who enter Melee range, take 2d12+4 magic damage and are
-  // knocked back to Very Close range".
-  {
-    id: 'korvax-circle',
-    name: 'Magic Circle',
-    text: 'Ground that answers anybody who steps onto it: 2d12+4 magic damage, and knocked back.',
-    color: '#b46cff',
-    onEnter: {
-      effects: [
-        { kind: 'log', text: 'The circle takes them as they cross it.', tone: 'bad' },
-        { kind: 'damage', dice: '2d12+4', type: 'magic', target: { kind: 'target' } },
-        { kind: 'push', to: 'veryClose', target: { kind: 'target' } },
-      ],
-    },
   },
   // Full Surge, while the body will take it. "A +2 bonus to all of your
   // character traits" is +2 on every action roll: a trait is the thing you

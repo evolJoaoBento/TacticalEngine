@@ -81,7 +81,7 @@ card and its cost, the party HUD (HP / Stress / Armor / Light as pips, and
 any conditions under the gear line), the Shadow track, and the narrative log
 bottom-right in tone colours. On the board: a blue ring breathing under
 whoever is selected, shadows under walls and tokens, any zone painted as
-one shape with a border (the Korvax circle is a purple square of nine
+one shape with a border (Warding Flame's ring is an orange square of nine
 tiles at Melee - a diagonal is Melee too), in a fight the ground the selected
 one can reach lit with an edge round it - a serrated diamond, not a disc,
 since the move is Close range spent along the path with diagonals at root

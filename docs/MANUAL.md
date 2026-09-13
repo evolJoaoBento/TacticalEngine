@@ -681,6 +681,14 @@ What was imported is the project's own from then on: the Party panel offers its 
 the Combat strip its creatures, and the **Cards** workspace lists its abilities to edit. Save the
 project to keep it.
 
+**A pack to try it with.** The build carries one at `/packs/ember-spells.json` (in the repository,
+`public/packs/ember-spells.json`): open it, save it, and import it. Two ember spells, level 1, so an
+Emberwright can take them from the Party panel. **Biting Circle** marks a Stress to burn a circle
+round the caster; a foe that crosses into it takes 2d12+4 magic damage and is thrown back to Very
+Close. **Echo Mark** spends 2 Light on an ally within Close; the next blow they land reaches the
+nearest other foe the same roll beats. Each brings the condition it applies, so they work in a
+project that never wrote those down.
+
 ### Undo
 
 Every editor change goes through one command history: brush strokes coalesce per drag, typing

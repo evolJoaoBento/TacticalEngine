@@ -19,5 +19,6 @@ public/cards/
 # Content packs exported by tools/export-pack.ts. The vendored catalogue goes out as one
 # importable pack so that deleting the sources loses nothing -- but an export is for whoever
 # holds the rights to it, not for the repository to ship. Same reasoning as the card art above:
-# what is committed here is the engine, not a catalogue packaged for import.
-packs/
+# what is committed here is the engine, not a catalogue packaged for import. Anchored to the root:
+# `public/packs/` is the engine's own pack, written here and shipped with the build.
+/packs/

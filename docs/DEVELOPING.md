@@ -763,7 +763,10 @@ feature it grants for its own resource), and armor thresholds, which must be fin
 
 Nothing is vendored. The engine ships its own starter pack (`content/pack/starter*.ts`), nobody
 else's content, and reads anything else as a pack a user imports (Project ▾ → Import pack…,
-`content/pack/document.ts`). The SRD catalogue this repository once carried was exported before it
+`content/pack/document.ts`). One more pack ships as a file instead of code:
+`public/packs/ember-spells.json`, two ember spells that carry the conditions they apply, served at
+`/packs/ember-spells.json` for anyone to import and read by `src/game/ember-spells-pack.test.ts`.
+The SRD catalogue this repository once carried was exported before it
 was deleted; `docs/CONTEXT.md` says where, and why the export is git-ignored.
 
 **Rules come from the SRD 2.0 text, as settled while it was here.** The section-by-section diff

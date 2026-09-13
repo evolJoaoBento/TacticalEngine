@@ -1,0 +1,113 @@
+{
+  "formatVersion": 4,
+  "cards": [
+    {
+      "id": "biting-circle",
+      "name": "Biting Circle",
+      "grant": { "kind": "chosen" },
+      "domain": "ember",
+      "type": "spell",
+      "level": 1,
+      "recallCost": 1,
+      "text": "Mark a Stress to burn a circle into the floor around you. A foe that crosses into it takes 2d12+4 magic damage and is thrown back to Very Close."
+    },
+    {
+      "id": "echo-mark",
+      "name": "Echo Mark",
+      "grant": { "kind": "chosen" },
+      "domain": "ember",
+      "type": "spell",
+      "level": 1,
+      "recallCost": 1,
+      "text": "Spend 2 Light to mark an ally within Close, one at a time. The next blow they land also reaches the nearest other foe the same roll would beat."
+    },
+    {
+      "id": "echoing-swing",
+      "name": "Echoing Swing",
+      "grant": { "kind": "condition", "conditions": ["echoing"] },
+      "text": "The blow that spends the mark carries on to the next foe along."
+    }
+  ],
+  "abilities": [
+    {
+      "id": "biting-circle",
+      "name": "Biting Circle",
+      "source": { "card": "biting-circle" },
+      "text": "Mark a Stress to burn a circle into the floor around your own feet.",
+      "kind": "action",
+      "cost": { "stress": 1 },
+      "target": { "kind": "self" },
+      "inCombatOnly": true,
+      "effects": [
+        { "kind": "log", "text": "A circle burns itself into the floor around their feet.", "tone": "good" },
+        {
+          "kind": "zone",
+          "zone": "biting-circle",
+          "name": "Biting Circle",
+          "condition": "biting-ground",
+          "at": "actor",
+          "band": "melee",
+          "side": "adversaries",
+          "onDeath": "end"
+        }
+      ]
+    },
+    {
+      "id": "echo-mark",
+      "name": "Echo Mark",
+      "source": { "card": "echo-mark" },
+      "text": "Spend two Light to set an echo beside an ally close by, until their next blow lands.",
+      "kind": "action",
+      "cost": { "good": 2 },
+      "target": { "kind": "ally", "range": "close" },
+      "effects": [
+        { "kind": "clearCondition", "condition": "echoing", "target": { "kind": "allies" } },
+        { "kind": "log", "text": "The air beside them doubles, and waits.", "tone": "good" },
+        { "kind": "applyCondition", "condition": "echoing", "duration": "scene", "target": { "kind": "target" } }
+      ]
+    },
+    {
+      "id": "echoing-swing",
+      "name": "Echoing Swing",
+      "source": { "card": "echoing-swing" },
+      "text": "The blow that spends the mark also reaches the next foe along its roll would beat.",
+      "kind": "reaction",
+      "trigger": "dealtHit",
+      "action": false,
+      "available": { "kind": "hasCondition", "condition": "echoing", "of": { "kind": "actor" } },
+      "effects": [
+        { "kind": "clearCondition", "condition": "echoing", "target": { "kind": "actor" } },
+        {
+          "kind": "check",
+          "check": {
+            "trait": "weapon",
+            "difficulty": "target",
+            "roll": "last",
+            "targets": { "kind": "adversaries", "range": "far", "reach": "weapon", "except": "target", "nearest": 1 },
+            "always": [{ "kind": "damage", "dice": "weapon", "using": "proficiency", "target": { "kind": "hit" } }]
+          }
+        }
+      ]
+    }
+  ],
+  "conditionDefs": [
+    {
+      "id": "biting-ground",
+      "name": "Biting Circle",
+      "text": "Ground that answers anybody who steps onto it: 2d12+4 magic damage, and thrown back.",
+      "color": "#b46cff",
+      "onEnter": {
+        "effects": [
+          { "kind": "log", "text": "The floor bites them as they cross it.", "tone": "bad" },
+          { "kind": "damage", "dice": "2d12+4", "type": "magic", "target": { "kind": "target" } },
+          { "kind": "push", "to": "veryClose", "target": { "kind": "target" } }
+        ]
+      }
+    },
+    {
+      "id": "echoing",
+      "name": "Echoing",
+      "text": "The next blow you land also reaches the nearest other foe the same roll would beat."
+    }
+  ]
+}

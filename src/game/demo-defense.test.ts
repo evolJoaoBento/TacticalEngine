@@ -7846,7 +7846,7 @@ describe('a circle burnt into the floor', () => {
 
 
 /**
- * The second card built on ground that bites: where Korvax's circle hurts
+ * The second card built on ground that bites: where the burnt circle hurts
  * whatever crosses it, this drags it in and holds it.
  */
 describe('a stance that holds the ground around it', () => {

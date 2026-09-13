@@ -4,6 +4,27 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Two spells leave the engine for a pack of their own — done
+
+`sitil-echo` and `korvax-circle` sat in the engine's condition list though no shipped card applied
+either: they were left over from the catalogue, which carries its own copies of both (its export
+reads them, with the four abilities that use them). They are gone from `content/conditions.ts`, and
+the two spells ship instead as a pack of their own, under neutral names, as a file a player imports
+rather than as code: `public/packs/ember-spells.json`, served at `/packs/ember-spells.json`.
+**Biting Circle** is the magic circle (a zone whose `biting-ground` condition bites and throws back
+on the crossing); **Echo Mark** is the echo (an `echoing` marker that lends an `echoing-swing`
+reaction laying the same roll against the next foe). Both are ember and level 1, so Mira can take
+them from the Party panel.
+
+`src/game/ember-spells-pack.test.ts` reads the file itself -- clean, validated, and played: the
+circle bites and throws back and spares the caster's side, the echo reaches a second husk on the
+same dice, and a bare project that imports the pack knows both conditions. The e2e fetches the file
+from the dev server, imports it, and draws the circle in a fight.
+
+`npx tsc --noEmit` clean; vitest **1875 passed (1875)**; Playwright **116 passed (4.1m)**, `EXIT 0`. Three breaks -- the circle
+throwing nobody back, the echo throwing again instead of reading the last roll, and the pack
+leaving its echo condition out -- each fail the tests written for them.
+
 ## Hold the Line's conditions ship with the pack — done
 
 `holding-the-line` and `caught-in-the-line` sat in the engine's own list, `content/conditions.ts`,
@@ -633,7 +654,8 @@ The five cards the pack itself admits ship as text only — `shield-wall`, `rall
 `cut-purse-strings`, `cinder-burst` — are where these belong, so Tier B is the same work as **making
 mechanics carry on cards**, not a detour from it. `holding-the-line` and `caught-in-the-line` are safe
 ids to keep: the starter sentinel already ships a signature feature named Hold the Line, so the name
-is the pack's own. `korvax-circle` is not, and wants a neutral id.
+is the pack's own. ~~`korvax-circle` is not, and wants a neutral id.~~ — **closed**: *Two spells
+leave the engine for a pack of their own*, above.
 
 If the passing count comes back lower than the pin above, something was lost — check before building on it. Symbol names are
 the stable handles here; line numbers move.

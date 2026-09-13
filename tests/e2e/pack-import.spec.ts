@@ -144,3 +144,26 @@ test('a file that is not a pack is refused, and the project is left as it was', 
   expect(result.notPack.message).toMatch(/none of the lists a pack is made of/);
   expect(result.unchanged).toBe(true);
 });
+
+test('the pack the build ships imports from where it is served, and its circle burns in a fight', async ({ page }) => {
+  await boot(page);
+  // Fetched from the server as a player would open it, so a pack left out of `public/` fails here.
+  const text = await page.evaluate(async () => (await fetch('/packs/ember-spells.json')).text());
+  const imported = await page.evaluate((pack) => window.__engine!.importPackText(pack, 'ember-spells.json'), text);
+  expect(imported).toEqual({ imported: true, message: 'Imported ember-spells.json: 3 cards, 3 abilities, 2 conditions.' });
+
+  const drawn = await page.evaluate(() => {
+    const api = window.__engine!;
+    api.setCards('mira', ['biting-circle']);
+    api.select('mira');
+    api.standNear(api.adversaries()[0]!);
+    api.startFight();
+    const offered = api.abilities('mira').map((a) => a.id);
+    return { offered, status: api.useAbility('mira', 'biting-circle'), zones: api.zones().map((z) => z.name) };
+  });
+  expect(drawn.offered).toContain('biting-circle');
+  expect(drawn.status).toBe('done');
+  // Its condition came in with the pack: the engine no longer carries it.
+  expect(drawn.zones).toContain('Biting Circle');
+  await expect(page.locator('[data-testid="log"]')).toContainText('A circle burns itself into the floor');
+});
