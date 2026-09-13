@@ -747,7 +747,10 @@ carries its abilities, items and conditions. An empty list means "whatever pack 
 **Importing one.** Project ▾ → Import pack… reads a pack *file* — `packDocumentSchema`: those lists
 plus `adversaries`, `abilities` and `conditionDefs` — through `readPack`, and `importPack` lays it
 into the same project fields by id, replacing a same-id entry where it stands and appending the
-rest, as one undo step. It is not a load; nothing the game is running is replaced. The lists are
+rest, as one undo step. It is not a load; nothing the game is running is replaced. Undo and redo in
+play rebuild the game over the document the step left (`stepEdit` in `main.ts`), since a passive is
+folded into derived numbers and the world copies stat blocks and conditions when it is built, and
+they are refused where the import is. The lists are
 changed **in place**, because the script world holds `project.abilities` by reference. **Exporting
 one** is `packOf`: the same lists, copied out of the project under the current `formatVersion`, so
 what it writes reads back through `readPack` entry for entry.

@@ -658,6 +658,9 @@ in turn, and a message says what each brought.
   optional (`domainCards` in a file older than format version 3). A project file is a pack too: importing one takes its content and leaves its scenes.
 - An entry whose id the project already has **replaces** it where it stands; anything new is added.
   The message says how many were replaced.
+- One **Undo** takes the whole import back, and **Redo** brings it again. In play the game is
+  rebuilt over what the step left at once; mid-fight or mid-conversation the step is refused, as the
+  import is.
 - An entry that cannot be read is left out and named in the message, and the rest of the file still
   comes in. A file with nothing readable in it, or one written by a newer build, is refused and
   changes nothing.

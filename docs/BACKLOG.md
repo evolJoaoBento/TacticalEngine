@@ -4,6 +4,26 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Undo in play rebuilds the game — done
+
+Undoing an import while in play rewrote the document and left the running game as it was. The card
+itself went at once -- the bar and the loadout read the project live -- but what was built from it
+did not: a passive's bonus stays folded into a character's derived numbers, and the world copies the
+project's stat blocks and conditions when it is built. So a card that gave Kara two more Stress kept
+giving it until the next trip through the editor.
+
+Undo and redo now share `stepEdit` (`main.ts`): in play it rebuilds the party and the world over the
+document the step left, as an import in play already did, and it refuses mid-fight or
+mid-conversation, where the import is refused, rather than rebuilding under a turn order. The fix is
+in the step, not the import, so every kind of edit gets it. Nothing for **Check** to say, and no
+editor field: it is how an existing button behaves. The e2e imports that card in play, undoes it and
+finds her Stress back to 6, redoes it and finds 8, then starts a fight and finds the undo refused
+with the card still in the project.
+
+`npx tsc --noEmit` clean; vitest **1861 passed (1861)**; Playwright **113 passed (4.1m)**, `EXIT 0`. Two breaks -- play
+rebuilding nothing after a step, and a step taken mid-fight -- each fail the test; the first is also
+how the test was written, red before the fix.
+
 ## Remove copy — done
 
 A copy of a pack's card could only be taken back by Undo: ✕ on its ability leaves the copy, still
@@ -319,10 +339,8 @@ they print is cards (above), and the Cards panel edits them, an imported class's
 editor*, above), and a project's content goes back out as a pack through Project ▾ → Export pack
 (*Export pack*, above). Nothing is left on this thread.
 
-**Known, and not new:** undoing an import while in *play* rewrites the document but not the running
-world. `undoEdit` rebuilds nothing in play, so an undone card stays offered until the next rebuild —
-a trip through the editor does it. Every content undo made in play has this shape; the fix belongs in
-`undoEdit` and `redoEdit` for all edit kinds, not in the import.
+**Since fixed:** undoing an import while in *play* rewrote the document but not the running world;
+*Undo in play rebuilds the game*, above, closes it for every kind of edit.
 
 ---
 

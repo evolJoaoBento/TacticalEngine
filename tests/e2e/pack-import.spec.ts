@@ -84,6 +84,50 @@ test('a pack picked under Project brings creatures to place and cards to play, a
   expect(undone.creatures).not.toContain('glass-wraith');
 });
 
+test('undoing an import in play takes it out of the running game at once, and redo puts it back', async ({ page }) => {
+  await boot(page);
+  // A passive handed to Kara: it changes a number her sheet is derived with, which is what the
+  // running game keeps until something rebuilds it.
+  const STEADY = {
+    id: 'lantern-steadiness',
+    name: 'Lantern Steadiness',
+    source: { kind: 'granted', characters: ['kara'] },
+    kind: 'passive',
+    text: 'The lantern steadies her: two more Stress she can carry.',
+    modifiers: [{ stat: 'stress', bonus: 2 }],
+  };
+  const read = () =>
+    page.evaluate(() => {
+      const api = window.__engine!;
+      return { max: api.stressOf('kara').max, granted: api.loadout('kara').granted.includes('lantern-steadiness') };
+    });
+  const before = await read();
+  expect(before.granted).toBe(false);
+
+  const imported = await page.evaluate(
+    (pack) => window.__engine!.importPackText(JSON.stringify(pack), 'steady.json'),
+    { formatVersion: 2, abilities: [STEADY] },
+  );
+  expect(imported.imported).toBe(true);
+  const after = { max: before.max + 2, granted: true };
+  expect(await read()).toEqual(after);
+
+  // Undone in play, the game gives it back now -- not on the next trip through the editor.
+  expect(await page.evaluate(() => window.__engine!.undo())).toBe(true);
+  expect(await read()).toEqual(before);
+  expect(await page.evaluate(() => window.__engine!.redo())).toBe(true);
+  expect(await read()).toEqual(after);
+
+  // Mid-fight it is refused, as the import itself would be: nothing is rebuilt under the turn order.
+  expect(await page.evaluate(() => window.__engine!.startFight())).toBe(true);
+  expect(await page.evaluate(() => window.__engine!.undo())).toBe(false);
+  expect(await read()).toEqual(after);
+  const kept = await page.evaluate(() =>
+    (JSON.parse(window.__engine!.exportProject()) as { abilities: { id: string }[] }).abilities.some((a) => a.id === 'lantern-steadiness'),
+  );
+  expect(kept).toBe(true);
+});
+
 test('a file that is not a pack is refused, and the project is left as it was', async ({ page }) => {
   await boot(page);
   const result = await page.evaluate(() => {

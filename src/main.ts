@@ -571,18 +571,35 @@ function rebuildTerrain(): void {
  * The top bar's button used to call the session alone and left the board stale.
  */
 function undoEdit(): boolean {
-  const ok = session.undo();
-  // `rebuildTerrain` ends in `syncEditorContent`, which is what redraws the
-  // scenery; setting the decos again here drew every prop twice over.
-  rebuildTerrain();
-  if (mode === 'edit') renderPanel();
-  return ok;
+  return stepEdit(() => session.undo());
 }
 
 function redoEdit(): boolean {
-  const ok = session.redo();
+  return stepEdit(() => session.redo());
+}
+
+/**
+ * One step back or forward, and whatever it touched redrawn.
+ *
+ * In play the running game is rebuilt over the document the step left, as an import in play is:
+ * a card's passive is folded into the numbers a sheet is derived with, and the world copies the
+ * project's stat blocks and conditions when it is built, so a step taken there would otherwise
+ * stay in the game until the next trip through the editor. It is refused where the import is,
+ * mid-prompt or mid-fight, since rebuilding the world there pulls the table out from under the
+ * question.
+ */
+function stepEdit(step: () => boolean): boolean {
+  if (mode === 'play' && saveBlockedBy(demo) !== null) return false;
+  const ok = step();
+  // `rebuildTerrain` ends in `syncEditorContent`, which is what redraws the
+  // scenery; setting the decos again here drew every prop twice over.
   rebuildTerrain();
-  if (mode === 'edit') renderPanel();
+  if (mode === 'edit') {
+    renderPanel();
+  } else if (ok) {
+    rederiveParty();
+    refreshPlay();
+  }
   return ok;
 }
 
