@@ -137,7 +137,7 @@ one editor hint string at `editor.js:124`. None is a functional value; `legacy/j
 ## 9. Identity
 
 `package.json` name `daggerheart-engine` → `tactical-engine`; the description loses the marks. The
-product becomes **Tactical Engine**, matching the repository. **Tactical Engine is retired** — its echo of
+product becomes **Tactical Engine**, matching the repository. **PolyHeart is retired** — its echo of
 the product being separated from is the whole reason to drop it. Applied across the editor title,
 docs, `CLAUDE.md` and `AGENTS.md`.
 

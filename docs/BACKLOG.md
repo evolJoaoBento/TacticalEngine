@@ -352,8 +352,22 @@ adding that rule is a step of this slice, not a precondition somebody already di
 - **`formatVersion` 1 → 2**, with a load-time migration that rewrites a version-1 document rather
   than rejecting it. **Exercised on a real version-1 fixture**, or it is a promise rather than a
   behaviour.
-- **Identity.** `package.json` name → `tactical-engine`, product name **Tactical Engine**, Tactical Engine
-  retired, applied across the editor title, docs, `CLAUDE.md` and `AGENTS.md`.
+- **Identity.** ~~Done.~~ `package.json` name → `tactical-engine` (and the derived name in
+  `package-lock.json`), `<title>` → Tactical Engine, the editor top bar, and the retired name gone
+  from 25 files. The e2e driver handle became `window.__engine`, 438 sites across 24 files — one
+  literal, so `src/main.ts`'s `declare global` and `demo.spec.ts`'s hand-written mirror could not
+  drift apart (`6767b90` has the old spelling, which the guard now forbids here). Three populations were protected: the prototype's persisted keys, the app's
+  own three `localStorage` prefixes (now read as a fallback so nobody's saves are orphaned), and the
+  RNG seeds in `rng.test.ts`.
+
+  *This line previously read "Tactical Engine retired", which is nonsense.* The substitution that
+  renamed the product could not tell the name being **adopted** from the name being **retired**, and
+  inverted the sentence. The pass was protected against doubling (`Tactical Engine Engine`) but not
+  against that. An audit for the same shape found one more — the content-pack spec's §11, which read
+  "**Tactical Engine is retired** — its echo of…", where the trailing clause was the reason the
+  *old* name had to go — and no others. Two inversions across 25 files, both in prose that named the
+  retired name in order to retire it. Neither is a boundary breach, and the guard would not have
+  caught either: one is in `docs/superpowers/`, which it exempts by design.
 - **`legacy/` prose.** ~~Done~~, but the amendment's premise was wrong and the correction is worth
   keeping. The owner's ruling lifted the never-modify rule on the stated grounds that "all eight
   marks there are cosmetic comments and one editor hint, none functional". Measured: there are
@@ -364,10 +378,29 @@ adding that rule is a step of this slice, not a precondition somebody already di
   amendment rather than its letter. `legacy/`'s 59 Light/Shadow sites were left too: 19 are live
   identifiers in `legacy/js/game.js`, and `legacy/README.md:50-65` documents the prototype's
   mechanics against its own code.
-- **The guard.** Extend `tests/unit/licensing-boundary.test.ts` to fail on the marks in any tracked
-  file, any path under `tools/srd-sources/`, the retired product name, and the paired terms as
-  identifiers. The boundary becomes enforced rather than remembered — the same reason the card-art
-  rule is a test rather than a note.
+- **The guard.** ~~Done~~ in `tests/unit/licensing-boundary.test.ts`: three sweeps over what
+  `git ls-files` reports, plus the existing check that `tools/srd-sources/` does not exist.
+
+  The marks rule cannot be "never" — the DPCGL *obliges* the attribution — so an occurrence is
+  legitimate when a licensing phrase sits within **±2 lines**. The window, not the line: attribution
+  paragraphs wrap mid-phrase (that file splits "System Reference / Document" across a break), so a
+  per-line rule fails on the notices themselves, and reflowing a licensing paragraph would fail the
+  boundary for no real reason. Two drafts of the doc passes broke exactly that way.
+
+  Exemptions are named with reasons, never convenience: `legacy/`, `docs/research/`,
+  `docs/superpowers/` (dated design records — a spec arguing for removing this IP must be able to
+  name it), and the guard itself, whose rules have to spell the terms they forbid.
+
+  Shown to fail without its fix, by injection into a tracked file that was clean first and reverted
+  after: a sentence branding the engine as the licensed product made rule 1 fail and name the line,
+  and a line carrying the retired product name made rule 2 fail. The guard was re-run green on the
+  restored tree. Rule 3 needed no injection — it caught a real offender on its first run, a comment
+  in `save.test.ts` naming the old pool field, which was reworded rather than added to the exemption
+  list.
+
+  **Note for whoever edits this entry:** the injected strings cannot be quoted verbatim here. This
+  file is not exempt, so a doc recording the guard's own falsification trips the guard — describe
+  the injections instead of spelling them.
 
 ### 3. Cards as the unit
 
