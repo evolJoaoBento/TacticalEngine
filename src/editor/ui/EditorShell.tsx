@@ -327,6 +327,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           libraryAbilities={props.libraryAbilities}
           hookIds={hookIds}
           adversaryIds={props.adversaries.map((a) => a.id)}
+          content={props.characterContent}
           {...ids}
           onChange={bump}
           onClose={closeWorkspace}

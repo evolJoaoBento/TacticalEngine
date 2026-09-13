@@ -5,6 +5,8 @@ import { importLegacyCampaign } from '../engine/scene/legacy-import';
 import { projectSchema, sceneSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
 import { MODELS } from '../engine/render/procedural/registry';
 import { errorsOnly, summarise, validateProject } from './validate';
+import { blankSheet } from '../engine/character/sheet';
+import { STARTER_CHARACTERS } from '../engine/content/pack/starter';
 
 const KNOWN_MODELS = new Set(MODELS.map((m) => m.id));
 
@@ -22,6 +24,42 @@ const messages = (project: ProjectDoc, options = {}): string[] =>
 
 /** The cards a husk's stat block prints, one per feature: what makes an ability a stat block's feature. */
 const onHusk = (...ids: string[]) => ids.map((id) => ({ id, name: id, grant: { kind: 'adversary', adversaries: ['husk'] } }));
+
+describe('a card granted to nobody', () => {
+  it('says when a grant names what nothing defines, and when it names nobody at all', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      party: [blankSheet('kara', 'sentinel')],
+      cards: [
+        { id: 'drill', name: 'Drill', grant: { kind: 'class', classId: 'lamplighter' } },
+        { id: 'stance', name: 'Stance', grant: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'mastery' } },
+        { id: 'roots', name: 'Roots', grant: { kind: 'ancestry', ancestryId: 'treefolk' } },
+        { id: 'oath', name: 'Oath', grant: { kind: 'given', characters: ['kara', 'mira'] } },
+        { id: 'loose', name: 'Loose', grant: { kind: 'given', characters: [] } },
+        { id: 'claws', name: 'Claws', grant: { kind: 'adversary', adversaries: ['husk', 'wraith'] } },
+        { id: 'blank', name: 'Blank', grant: { kind: 'adversary', adversaries: [] } },
+      ],
+    });
+    const said = messages(project, { characterContent: STARTER_CHARACTERS, knownAdversaries: new Set(['husk']) }).filter(
+      (m) => m.startsWith('Card '),
+    );
+    expect(said).toEqual([
+      'Card "drill" is granted by class "lamplighter", which nothing defines: nobody holds it.',
+      'Card "roots" is granted by ancestry "treefolk", which nothing defines: nobody holds it.',
+      'Card "oath" is given to "mira", who is not in the party.',
+      'Card "loose" is given to nobody yet.',
+      'Card "claws" is printed on "wraith", which is not an adversary.',
+      'Card "blank" is printed on no stat block yet.',
+    ]);
+
+    // Handed no content, it says what the project alone shows: its own party, and the empty lists.
+    expect(messages(project).filter((m) => m.startsWith('Card '))).toEqual([
+      'Card "oath" is given to "mira", who is not in the party.',
+      'Card "loose" is given to nobody yet.',
+      'Card "blank" is printed on no stat block yet.',
+    ]);
+  });
+});
 
 describe('a clean project', () => {
   it('reports nothing', () => {

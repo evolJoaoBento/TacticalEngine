@@ -104,6 +104,9 @@ export function validateProject(
   checkAbilitiesAndCode(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkCardGrants(project, options, (severity, message, entity) => {
+    problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
+  });
   checkParty(project, options, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
@@ -128,6 +131,69 @@ const STARTING_TRAITS = [-1, 0, 0, 1, 1, 2];
  * get wrong that deriving does not mind: a loadout naming a card the character
  * does not hold, and a trait spread that is not the one the SRD deals.
  */
+/**
+ * What a project's own card says grants it. A grant naming a class, a subclass, an ancestry, a
+ * community, a character or a stat block that nothing defines hands the card to nobody, and says
+ * nothing while it does -- so Check says it instead.
+ */
+function checkCardGrants(
+  project: ProjectDoc,
+  options: ValidationOptions,
+  add: (severity: ProblemSeverity, message: string, entity?: string) => void,
+): void {
+  const content = options.characterContent;
+  // What a grant can name: the project's own, and the content it is checked against. Without that
+  // content there is nothing to check a class against, and nothing is said.
+  const defined = (own: readonly { id: string }[], packed: ReadonlyMap<string, unknown> | undefined) =>
+    packed === undefined ? null : new Set([...own.map((entry) => entry.id), ...packed.keys()]);
+  const named = {
+    class: defined(project.classes, content?.classes),
+    subclass: defined(project.subclasses, content?.subclasses),
+    ancestry: defined(project.ancestries, content?.ancestries),
+    community: defined(project.communities, content?.communities),
+  };
+  // A project with no party of its own plays somebody else's, which this cannot see.
+  const party = project.party.length === 0 ? null : new Set(project.party.map((sheet) => sheet.id));
+  for (const card of project.cards) {
+    const grant = card.grant;
+    const nothing = (what: keyof typeof named, id: string): void => {
+      if (named[what] !== null && !named[what].has(id)) {
+        add('warning', `Card "${card.id}" is granted by ${what} "${id}", which nothing defines: nobody holds it.`, card.id);
+      }
+    };
+    switch (grant.kind) {
+      case 'chosen':
+        break;
+      case 'class':
+        nothing('class', grant.classId);
+        break;
+      case 'subclass':
+        nothing('subclass', grant.subclassId);
+        break;
+      case 'ancestry':
+        nothing('ancestry', grant.ancestryId);
+        break;
+      case 'community':
+        nothing('community', grant.communityId);
+        break;
+      case 'given':
+        if (grant.characters.length === 0) add('warning', `Card "${card.id}" is given to nobody yet.`, card.id);
+        for (const id of grant.characters) {
+          if (party !== null && !party.has(id)) add('warning', `Card "${card.id}" is given to "${id}", who is not in the party.`, card.id);
+        }
+        break;
+      case 'adversary':
+        if (grant.adversaries.length === 0) add('warning', `Card "${card.id}" is printed on no stat block yet.`, card.id);
+        for (const id of grant.adversaries) {
+          if (options.knownAdversaries !== undefined && !options.knownAdversaries.has(id)) {
+            add('warning', `Card "${card.id}" is printed on "${id}", which is not an adversary.`, card.id);
+          }
+        }
+        break;
+    }
+  }
+}
+
 function checkParty(
   project: ProjectDoc,
   options: ValidationOptions,

@@ -98,6 +98,31 @@ describe('cards in the project', () => {
     expect(s.project.abilities.map((a) => a.id)).toEqual(['rally', 'oath-again']);
   });
 
+  it('grants a card every way the panel offers, and each is a document that loads', () => {
+    const s = session();
+    s.run(
+      addCardWithAbility(
+        cardDefSchema.parse({ id: 'oath', name: 'Oath', grant: { kind: 'given', characters: [] } }),
+        abilitySchema.parse({ id: 'oath', name: 'Oath', source: { card: 'oath' } }),
+      ),
+    );
+    // `updateCard` merges without parsing, so what it writes has to be something the schema reads
+    // back -- which is why `chosen`, needing four numbers the panel does not ask for, is not offered.
+    const grants: ProjectDoc['cards'][number]['grant'][] = [
+      { kind: 'given', characters: ['kara', 'mira'] },
+      { kind: 'class', classId: 'sentinel' },
+      { kind: 'subclass', subclassId: 'shieldbearer', stage: 'mastery' },
+      { kind: 'ancestry', ancestryId: 'human' },
+      { kind: 'community', communityId: 'wayfarer' },
+      { kind: 'adversary', adversaries: ['husk'] },
+    ];
+    for (const grant of grants) {
+      s.run(updateCard('oath', { grant }));
+      const loaded = projectSchema.parse(JSON.parse(JSON.stringify(s.project)));
+      expect(loaded.cards.find((c) => c.id === 'oath')!.grant).toEqual(grant);
+    }
+  });
+
   it('coalesces keystrokes in one field and starts again on another', () => {
     const s = session();
     for (const text of ['S', 'Sh', 'Sho', 'Shout']) s.run(updateAbility('rally', { text }));

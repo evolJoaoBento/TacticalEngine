@@ -4,6 +4,20 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The grant editor — done
+
+The Cards panel's **granted by** re-grants a project's own card: named characters, a class, a
+subclass stage, an ancestry, a community, or the stat blocks that print it. `chosen` is not offered
+-- a chosen card needs the loadout's four numbers, and one switched to it without them no longer
+loads -- and a pack's card is shown, not edited. **Check** warns when a grant names what nothing
+defines, and about a card given to nobody or printed on no block. The e2e that writes a stat
+block's feature from the panel now prints it on a block, and Check has nothing to say about its
+Shadow.
+
+`npx tsc --noEmit` clean; vitest **1837 passed / 1 failed (1838)**, the one failure being the documented deliberate one;
+Playwright **105 passed (3.7m)**, `EXIT 0`. Three breaks -- Check never reading a grant, taking an unknown
+class on trust, not asking about the party -- each fail the test written for them.
+
 ## Cards as the unit — done
 
 Everything a character has is a card, and so is every feature a stat block prints. Format version 3
@@ -53,8 +67,8 @@ deliberate one; Playwright **105 passed (3.7m)**, `EXIT 0`. Five breaks -- the w
 feature reaching every block, a stat block's card granted to a character, the validator asking no
 cards, the migration skipping a stat block -- each fail the tests written for them.
 
-**Next, in order:** card zones on screen, a grant editor, and a card editor that reaches any card
-rather than only the ones "+ Card" writes.
+**Next, in order:** card zones on screen, then a card editor that reaches any card rather than only
+the project's own (the grant editor has landed, above).
 
 ---
 
@@ -512,8 +526,8 @@ block. What landed is the entry at the top of this file. What is left, in order:
 
 - **Zones on screen.** Chosen cards are bound by `LOADOUT_LIMIT` and granted ones are not; the card
   says so now. What is missing is the picture: granted cards face up beside the loadout.
-- **Editing any card.** A grant editor, and a card editor that reaches a card a pack or class
-  grants, not only the `given` ones "+ Card" writes.
+- **Editing any card.** The grant editor is done; left is a card editor that reaches a pack's card,
+  and a chosen card's domain, type, level and recall cost.
 - **Cheaper, not different:** the world's `cards` option is a closure that merges the pack on every
   read. The live read that two tests pin is `inPlay` recomputing a character's granted cards; a map
   built when the world is, if every content change rebuilds the world, would do. Measure first.

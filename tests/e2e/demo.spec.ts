@@ -2161,6 +2161,9 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   await page.locator('[data-testid="open-abilities"]').click();
   const panel = page.locator('[data-testid="ability-panel"]');
   await panel.locator('[data-testid="add-ability"]').click();
+  // Printed on a stat block, which is what makes it one of the block's features.
+  await panel.locator('[data-testid="card-grant-kind"]').selectOption('adversary');
+  await panel.locator('[data-testid="card-grant-adversaries"]').fill('bandit-archer');
   // Shadow is the GM's pool, which is what a stat block's feature spends.
   await panel.locator('[data-testid="ability-bad"]').fill('2');
   // And what the block does with damage coming back at it: half of one type,
@@ -2216,6 +2219,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
 
   const written = await page.evaluate(() => {
     const project = JSON.parse(window.__engine!.exportProject()) as {
+      cards: { id: string; grant: unknown }[];
       abilities: {
         id: string;
         cost: unknown;
@@ -2227,6 +2231,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
     };
     const ability = project.abilities.find((a) => a.id === 'eruption')!;
     return {
+      grant: project.cards.find((c) => c.id === 'eruption')?.grant,
       cost: ability.cost,
       trigger: ability.trigger,
       defenses: ability.defenses,
@@ -2235,6 +2240,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
     };
   });
   expect(written).toEqual({
+    grant: { kind: 'adversary', adversaries: ['bandit-archer'] },
     // Only what the author touched: the Light and Stress fields were left alone.
     cost: { bad: 2 },
     trigger: 'dealtDamage',
@@ -2263,6 +2269,12 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
       },
     ],
   });
+
+  // And Check has nothing to say about its Shadow: on a stat block's card is where Shadow belongs.
+  await page.locator('[data-testid="open-project"]').click();
+  await page.locator('[data-testid="check-project"]').click();
+  await expect(page.locator('[data-testid="problems"]')).toBeVisible();
+  await expect(page.locator('[data-testid="problems"]')).not.toContainText('only the GM spends');
 
   expect(consoleErrors).toEqual([]);
 });

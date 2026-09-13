@@ -8,9 +8,10 @@
  * card looks like without a JSON file open; they are not editable here,
  * because the SRD library is code the engine ships.
  *
- * "+ Card" writes a card of the project's own and the ability on it. The card is
- * `given`: it names the characters who hold it, rather than a domain the deck
- * deals from, and "held by" edits that list on the card. ✕ takes both back.
+ * "+ Card" writes a card of the project's own and the ability on it, `given` to
+ * nobody yet. "granted by" says how else that card gets into play -- a class, a
+ * subclass stage, an ancestry, a community, or the stat blocks that print it --
+ * and ✕ takes card and ability back together.
  */
 
 import { useState } from 'preact/hooks';
@@ -18,16 +19,11 @@ import type { EditorSession } from '../session';
 import { addCardWithAbility, removeCardWithAbility, updateAbility, updateCard } from '../session';
 import { abilitySchema, cardOf, type AbilityDef } from '../../engine/content/abilities';
 import { cardDefSchema } from '../../engine/content/pack/schema';
+import type { ContentPack } from '../../engine/content/pack/import';
 import type { QuestDef } from '../../engine/content/quests';
 import { RANGE_BANDS, type RangeBand } from '../../engine/rules/range';
 import { EffectList } from './EffectList';
 import { ConditionEditor } from './ConditionEditor';
-
-/** The project's own card an ability sits on, when that card is handed to named characters. */
-function givenCard(session: EditorSession, ability: AbilityDef): { id: string; characters: string[] } | null {
-  const card = session.project.cards.find((c) => c.id === cardOf(ability));
-  return card !== undefined && card.grant.kind === 'given' ? { id: card.id, characters: card.grant.characters } : null;
-}
 
 /** What a card's token count can be: a number, a trait, or the Spellcast trait. */
 type TokenAmount = NonNullable<AbilityDef['tokens']>['amount'];
@@ -42,6 +38,8 @@ export interface AbilityPanelProps {
   hookIds: readonly string[];
   /** What a `summon` inside a card's script can name. */
   adversaryIds: readonly string[];
+  /** What a card's grant can name: the classes, subclasses, ancestries and communities there are. */
+  content: ContentPack;
   sceneIds: readonly string[];
   dialogueIds: readonly string[];
   encounterIds: readonly string[];
@@ -77,6 +75,173 @@ const label = (text: string, control: preact.JSX.Element): preact.JSX.Element =>
 );
 
 const BANDS = RANGE_BANDS.filter((band) => band !== 'outOfRange');
+
+type ProjectCard = EditorSession['project']['cards'][number];
+type Grant = ProjectCard['grant'];
+/** Every grant but `chosen`: a chosen card needs the loadout's four numbers, which are the card editor's. */
+type EditableGrant = Exclude<Grant, { kind: 'chosen' }>;
+
+const GRANT_KINDS: readonly { kind: EditableGrant['kind']; words: string }[] = [
+  { kind: 'given', words: 'named characters' },
+  { kind: 'class', words: 'a class' },
+  { kind: 'subclass', words: 'a subclass stage' },
+  { kind: 'ancestry', words: 'an ancestry' },
+  { kind: 'community', words: 'a community' },
+  { kind: 'adversary', words: 'stat blocks' },
+];
+
+const STAGES = ['foundation', 'specialization', 'mastery'] as const;
+
+/** Sorted `id -> name` pairs, so a dropdown reads as words and writes an id. */
+function choices(map: ReadonlyMap<string, { id: string; name: string }>): { id: string; name: string }[] {
+  return [...map.values()].map((v) => ({ id: v.id, name: v.name })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** A grant of this kind, naming the first thing of that kind there is; null when there is none to name. */
+function freshGrant(kind: EditableGrant['kind'], content: ContentPack): EditableGrant | null {
+  switch (kind) {
+    case 'given':
+      return { kind, characters: [] };
+    case 'adversary':
+      return { kind, adversaries: [] };
+    case 'class': {
+      const id = choices(content.classes)[0]?.id;
+      return id === undefined ? null : { kind, classId: id };
+    }
+    case 'subclass': {
+      const id = choices(content.subclasses)[0]?.id;
+      return id === undefined ? null : { kind, subclassId: id, stage: 'foundation' };
+    }
+    case 'ancestry': {
+      const id = choices(content.ancestries)[0]?.id;
+      return id === undefined ? null : { kind, ancestryId: id };
+    }
+    case 'community': {
+      const id = choices(content.communities)[0]?.id;
+      return id === undefined ? null : { kind, communityId: id };
+    }
+  }
+}
+
+/** Comma-separated ids, as typed. */
+const idList = (text: string): string[] =>
+  text
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => id !== '');
+
+/**
+ * How the card an ability sits on gets into play, as the panel can change it. Only the project's own
+ * card: a pack's belongs to whoever wrote the pack, and a chosen one's numbers are the card editor's,
+ * so both say where they come from and leave it there.
+ */
+function GrantFields(props: {
+  session: EditorSession;
+  ability: AbilityDef;
+  content: ContentPack;
+  onChange: () => void;
+}): preact.JSX.Element {
+  const card = props.session.project.cards.find((c) => c.id === cardOf(props.ability));
+  if (card === undefined || card.grant.kind === 'chosen') {
+    return label(
+      'granted by',
+      <span data-testid="card-grant-kind" style={{ color: 'var(--ph-muted)' }}>
+        {card === undefined ? "the pack's card" : 'a loadout'}
+      </span>,
+    );
+  }
+  const grant = card.grant;
+  const set = (next: Grant): void => {
+    props.session.run(updateCard(card.id, { grant: next }));
+    props.onChange();
+  };
+  const pick = (
+    value: string,
+    list: readonly { id: string; name: string }[],
+    onPick: (id: string) => void,
+    testId: string,
+  ): preact.JSX.Element => (
+    <select style={{ ...field, width: '140px' }} data-testid={testId} value={value} onChange={(e) => onPick((e.target as HTMLSelectElement).value)}>
+      {/* A grant naming what the content lacks still shows what it names, so Check's warning has something to point at. */}
+      {list.some((entry) => entry.id === value) ? null : <option value={value}>{value} (not defined)</option>}
+      {list.map((entry) => (
+        <option key={entry.id} value={entry.id}>
+          {entry.name}
+        </option>
+      ))}
+    </select>
+  );
+  return (
+    <>
+      {label(
+        'granted by',
+        <select
+          style={{ ...field, width: '140px' }}
+          data-testid="card-grant-kind"
+          value={grant.kind}
+          onChange={(e) => {
+            const next = freshGrant((e.target as HTMLSelectElement).value as EditableGrant['kind'], props.content);
+            if (next !== null) set(next);
+          }}
+        >
+          {GRANT_KINDS.map(({ kind, words }) => (
+            <option key={kind} value={kind} disabled={freshGrant(kind, props.content) === null}>
+              {words}
+            </option>
+          ))}
+        </select>,
+      )}
+      {grant.kind === 'given'
+        ? label(
+            'held by',
+            <input
+              style={{ ...field, width: '150px' }}
+              data-testid="ability-characters"
+              placeholder="character ids, comma separated"
+              value={grant.characters.join(', ')}
+              onInput={(e) => set({ kind: 'given', characters: idList((e.target as HTMLInputElement).value) })}
+            />,
+          )
+        : null}
+      {grant.kind === 'adversary'
+        ? label(
+            'printed on',
+            <input
+              style={{ ...field, width: '150px' }}
+              data-testid="card-grant-adversaries"
+              placeholder="stat block ids, comma separated"
+              value={grant.adversaries.join(', ')}
+              onInput={(e) => set({ kind: 'adversary', adversaries: idList((e.target as HTMLInputElement).value) })}
+            />,
+          )
+        : null}
+      {grant.kind === 'class' ? pick(grant.classId, choices(props.content.classes), (classId) => set({ kind: 'class', classId }), 'card-grant-class') : null}
+      {grant.kind === 'subclass' ? (
+        <>
+          {pick(grant.subclassId, choices(props.content.subclasses), (subclassId) => set({ ...grant, subclassId }), 'card-grant-subclass')}
+          <select
+            style={field}
+            data-testid="card-grant-stage"
+            value={grant.stage}
+            onChange={(e) => set({ ...grant, stage: (e.target as HTMLSelectElement).value as (typeof STAGES)[number] })}
+          >
+            {STAGES.map((stage) => (
+              <option key={stage} value={stage}>
+                {stage}
+              </option>
+            ))}
+          </select>
+        </>
+      ) : null}
+      {grant.kind === 'ancestry'
+        ? pick(grant.ancestryId, choices(props.content.ancestries), (ancestryId) => set({ kind: 'ancestry', ancestryId }), 'card-grant-ancestry')
+        : null}
+      {grant.kind === 'community'
+        ? pick(grant.communityId, choices(props.content.communities), (communityId) => set({ kind: 'community', communityId }), 'card-grant-community')
+        : null}
+    </>
+  );
+}
 
 export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
   const { session } = props;
@@ -223,32 +388,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
             />
 
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              {label(
-                'held by',
-                <input
-                  style={{ ...field, width: '150px' }}
-                  data-testid="ability-characters"
-                  placeholder="character ids, comma separated"
-                  value={givenCard(session, open)?.characters.join(', ') ?? ''}
-                  disabled={givenCard(session, open) === null}
-                  onInput={(e) => {
-                    const card = givenCard(session, open);
-                    if (card === null) return;
-                    session.run(
-                      updateCard(card.id, {
-                        grant: {
-                          kind: 'given',
-                          characters: (e.target as HTMLInputElement).value
-                            .split(',')
-                            .map((id) => id.trim())
-                            .filter((id) => id !== ''),
-                        },
-                      }),
-                    );
-                    props.onChange();
-                  }}
-                />,
-              )}
+              <GrantFields session={session} ability={open} content={props.content} onChange={props.onChange} />
               {label(
                 'is a',
                 <select
