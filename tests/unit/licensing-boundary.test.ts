@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -78,11 +78,20 @@ describe('the licensing boundary', () => {
     ).toEqual([]);
   });
 
-  it('does not vendor the source PDF, only the extracted text', () => {
-    // The same boundary, one level up: the SRD text is vendored, the PDF it was
-    // extracted from is deliberately not.
-    const readme = read('tools/srd-sources/official-2.0/README.md');
-    expect(readme).toContain('Daggerheart System Reference Document');
-    expect(readme).toContain('Critical Role, LLC');
+  it('vendors no SRD source at all, and keeps the attribution anyway', () => {
+    // This used to read `tools/srd-sources/official-2.0/README.md` and check the notice there,
+    // back when the repository vendored the SRD text and deliberately not the PDF it came from.
+    // The sources are gone now — exported to a gitignored pack and deleted — so the claim is the
+    // stronger one: nothing vendored is here to license.
+    expect(existsSync(resolve(repoRoot, 'tools/srd-sources'))).toBe(false);
+
+    // The attribution outlives the files. AGENTS.md makes keeping both notices a hard rule, and
+    // docs/CONTEXT.md is where their wording lives, so that is what this pins.
+    const context = read('docs/CONTEXT.md');
+    expect(context).toContain('Daggerheart System Reference Document');
+    expect(context).toContain('Critical Role, LLC');
+    expect(context).toContain('Darrington Press Community Gaming');
+    // The community data sets were SRD 1.0 and carried their own notice; both must survive.
+    expect(context).toContain('SRD 1.0');
   });
 });

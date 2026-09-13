@@ -107,7 +107,7 @@ import {
   PLATE_THAT_TURNS_A_FLAT_AMOUNT,
   ROOTS_PUT_DOWN_ONCE,
 } from '../../tests/fixtures/adversary-features';
-import { SRD_ABILITIES } from '../engine/content/srd/abilities';
+import { STARTER_ABILITIES } from '../engine/content/pack/starter';
 import { runScript } from '../engine/script/runner';
 import type { Rng } from '../engine/core/rng';
 import { abilitiesOf, abilityTargets, useAbility } from '../game/demo-abilities';
@@ -1683,7 +1683,10 @@ describe('a creature that acts again, and one that acts out of turn', () => {
   /** Kara, and whatever is standing over her. */
   const room = (seed: string, blocks: readonly { id: string; adversary: string; x: number }[]) => {
     const s = blank();
-    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+    // The pack's abilities, not a catalogue's. The blocks these tests place carry their own
+    // features, pushed into the project a few lines below; the library was breadth for its
+    // own sake.
+    for (const ability of STARTER_ABILITIES) s.run(addAbility(ability));
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 4, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
@@ -1774,7 +1777,10 @@ describe('a breath that only comes when the dice say so', () => {
 
   const dragon = (seed: string) => {
     const s = blank();
-    for (const ability of SRD_ABILITIES) s.run(addAbility(ability));
+    // The pack's abilities, not a catalogue's. The blocks these tests place carry their own
+    // features, pushed into the project a few lines below; the library was breadth for its
+    // own sake.
+    for (const ability of STARTER_ABILITIES) s.run(addAbility(ability));
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));

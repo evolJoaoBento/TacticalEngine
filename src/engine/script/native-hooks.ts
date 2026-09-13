@@ -1,6 +1,10 @@
 /**
- * The engine's own hooks: the few SRD cards whose mechanic is a computation
- * rather than a list of effects.
+ * The engine's native hooks: the few card mechanics that are a computation rather than a list
+ * of effects.
+ *
+ * These are engine code, not content. They live here rather than under `content/` because they
+ * outlast any particular catalogue: a pack that ships a card saying "spend any number of Hope"
+ * needs this to run, and a card naming a hook the engine does not have is inert.
  *
  * These are the native door into `script/hooks.ts` — TypeScript, registered at
  * build time, reached from content by `{ kind: 'run', hook: '…' }`. They read
@@ -11,8 +15,8 @@
  * one of these by using the same id.
  */
 
-import { defineHooks, type HookMap } from '../../script/hooks';
-import type { ChoiceOption, Effect } from '../../script/schema';
+import { defineHooks, type HookMap } from './hooks';
+import type { ChoiceOption, Effect } from './schema';
 
 export const SRD_HOOKS: HookMap = defineHooks({
   /**

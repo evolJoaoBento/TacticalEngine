@@ -11,7 +11,7 @@
  * There are two doors and one lookup:
  *
  * - **Native hooks**, TypeScript registered at build time (`defineHooks`).
- *   The engine's own live in `content/srd/hooks.ts`.
+ *   The engine's own live in `script/native-hooks.ts`.
  * - **Project code**, JavaScript text the project carries (`project.code[]`)
  *   and the editor writes. Compiled here with `new Function`.
  *

@@ -13,8 +13,7 @@
 import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
 import { DEMO_QUESTS } from './demo-quests';
-import { SRD_ADVERSARY_ABILITIES } from '../engine/content/srd/adversary-abilities';
-import { SRD_HOOKS } from '../engine/content/srd/hooks';
+import { SRD_HOOKS } from '../engine/script/native-hooks';
 import { compileHooks, mergeHooks, type HookMap } from '../engine/script/hooks';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES } from './demo-code';
 import { SRD_CONDITIONS, type ConditionDef } from '../engine/content/conditions';
@@ -80,8 +79,6 @@ import {
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { importContentPack, mergePack, type ContentPack, type WeaponDef } from '../engine/content/pack/import';
 import { STARTER_ABILITIES, STARTER_ADVERSARIES, STARTER_CHARACTERS, STARTER_CONDITIONS } from '../engine/content/pack/starter';
-import {
-} from '../engine/content/srd/seansbox-adversaries';
 import type { AdversaryDef } from '../engine/content/types';
 import { createRng, type Rng } from '../engine/core/rng';
 import { NO_TILE, type Spot, type TileGrid } from '../engine/grid/grid';
@@ -719,19 +716,6 @@ function buildRuntime(
  * blocks would roll every spell against the fallback numbers.
  */
 /**
- * A stat block's features come with the block.
- *
- * A project carries its own abilities, and a campaign that places an Acid
- * Burrower has not written the Burrower's Spit Acid — the SRD did, and the
- * engine ships it. So the shipped features are always there, and a project
- * that gives one the same id says something different with it.
- */
-function withStatBlockFeatures(abilities: readonly AbilityDef[]): readonly AbilityDef[] {
-  const own = new Set(abilities.map((ability) => ability.id));
-  return [...abilities, ...SRD_ADVERSARY_ABILITIES.filter((feature) => !own.has(feature.id))];
-}
-
-/**
  * The same for conditions: a project may write its own, and inherits the
  * SRD's for everything it does not name.
  *
@@ -757,7 +741,12 @@ export function worldOptions(
     adversaries: adversaryDefsFor(project),
     bandTiles: DEMO_BAND_TILES,
     movement: DEMO_MOVEMENT,
-    abilities: withStatBlockFeatures(project?.abilities ?? STARTER_ABILITIES),
+    // A stat block's features travel with the block. The engine used to merge a shipped
+    // catalogue's adversary features in here, so a scene placing a creature got that creature's
+    // feature without anyone writing it down; with no catalogue to inherit from, what a project
+    // places is what a project carries. Every shipped adversary has `features: []`, so nothing
+    // the app does changes — and an imported pack brings its own.
+    abilities: project?.abilities ?? STARTER_ABILITIES,
     conditionDefs: withSrdConditions(project?.conditionDefs ?? []),
     // The engine's native hooks, then the project's own code, which may
     // override one of them by using the same id. Asked for each time: the
@@ -1265,9 +1254,9 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     lootTables: [...DEMO_LOOT_TABLES],
     quests: [...DEMO_QUESTS],
     // The party holds the starter pack's cards, so the starter pack's abilities
-    // are what those cards do. `SRD_ADVERSARY_ABILITIES` is not listed: every
-    // project inherits it through `withStatBlockFeatures`, so naming it here
-    // only said twice what the world already does once.
+    // are what those cards do. Nothing else is listed: stat-block features used to be
+    // inherited from a shipped catalogue, and now travel with whatever pack carries the
+    // block.
     abilities: [...STARTER_ABILITIES, ...DEMO_PROJECT_ABILITIES],
     code: [...DEMO_CODE],
     // The pack's own conditions first, so a card that ships one wins over a

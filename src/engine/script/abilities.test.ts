@@ -8,7 +8,7 @@ import { ScriptRunner, runScript, type JournalEntry } from './runner';
 import { SceneScriptWorld, createScenarioState } from './world';
 import type { Effect } from './schema';
 import { STARTER_ABILITIES, STARTER_CHARACTERS } from '../content/pack/starter';
-import { SRD_HOOKS } from '../content/srd/hooks';
+import { SRD_HOOKS } from './native-hooks';
 import { SRD_CONDITIONS } from '../content/conditions';
 import { abilitySchema } from '../content/abilities';
 import { compileHooks, mergeHooks } from './hooks';

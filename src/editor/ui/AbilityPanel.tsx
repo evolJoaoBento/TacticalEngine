@@ -177,7 +177,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
         </button>
 
         <div style={{ marginTop: '8px', color: 'var(--ph-muted)', fontSize: '11px' }}>
-          The engine ships {props.libraryAbilities.length} more (`srd/abilities.ts`), edited in code.
+          The pack the app ships has {props.libraryAbilities.length} more, written in code rather than here.
         </div>
         <div style={{ marginTop: 'auto' }}>
           <button style={button(false)} data-testid="close-abilities" onClick={props.onClose}>

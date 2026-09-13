@@ -52,47 +52,45 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
 - Legacy prototype (what the user built, to be ported/superseded): `legacy/js/*.js`, `legacy/README.md`.
   Static analysis of it lives in `docs/research/legacy-{game,campaign,editor-ui,models}.md` — read those before
   re-reading the legacy sources; they carry `file:line` anchors and a port verdict per behaviour.
-- Daggerheart SRD material is **vendored into the repo** (DPCGL) under `tools/srd-sources/` — no network
-  needed for anything.
+- **No SRD material is vendored any more.** `tools/srd-sources/` held the official 2.0 text and two
+  community data sets; it is gone, along with the card and adversary libraries built from it. The
+  engine ships `src/engine/content/pack/starter.ts` — its own high-fantasy pack, nobody else's
+  content — and reads anything else as an imported pack.
 
-  **Rules text — use `tools/srd-sources/official-2.0/srd-2.0.txt`.** This is the *official* SRD 2.0
-  (ver 2026-08-25), extracted from the daggerheart.com PDF; see that directory's README for how, and why a
-  naive extraction is unusable. Quote it, and cite the section in the code comment. `===== PAGE n =====`
-  markers are preserved; sentences are grep-able in one piece.
+  The catalogue was not discarded. `tools/export-pack.ts` (deleted with the sources, retrievable
+  from history) wrote it out as `packs/srd.json`, the content as one `contentPackSchema` document,
+  and `packs/srd-abilities.json`, the 185 ability scripts and 54 conditions that content runs on,
+  in the shape `projectSchema` accepts. Both are **gitignored**: an export is for whoever holds the
+  rights to it, not something this repository ships. Three of the four native hooks in
+  `src/engine/script/native-hooks.ts` exist for cards in that pack — `{ kind: 'run', hook: '…' }`
+  is a computation the effect vocabulary cannot express — which is why that module stayed behind
+  when the content went.
 
-  **The engine implements SRD 2.0.** A full section-by-section diff pass against 1.0 was done on 2026-09-05.
-  Almost everything is identical — action rolls and the five outcomes, critical damage (add the maximum
-  possible dice result), damage thresholds and 1/2/3 HP, optional Massive Damage, the GM's d20 against
-  Evasion with a natural-20 crit, Hope 6 / Fear 12, Stress 6→12, Armor Score cap 12, resistance and immunity,
-  direct damage, death moves, rests, conditions, range bands. What changed:
-  - **Cover and line of sight were replaced.** 1.0 graded cover Light / Full / Total, worth +1 / +2 Evasion,
-    with Total meaning "cannot be targeted". In 2.0 those three strings do not appear at all: a ranged
-    attacker needs line of sight, a *partial* obstruction gives the target **cover**, an attack through cover
-    is rolled with **disadvantage**, and a *total* obstruction means there is simply no line of sight.
-    `src/engine/rules/cover.ts` and `src/engine/grid/los.ts` implement 2.0; the 1.0 model is gone.
-  - **Area of Effect** is new: a group effect's targets must be within Very Close of one origin point inside
-    the effect's range (`src/engine/combat/area.ts`).
-  - **Movement Under Pressure** is new: a PC may reposition within Close range as part of an action roll,
-    otherwise an Agility Roll; an adversary moves within Close free, or Very Far as an action (same file).
+  **What the 2.0 diff settled, which outlives the text it was read from.** A full section-by-section
+  pass against 1.0 was done on 2026-09-05. Almost everything was identical — action rolls and the
+  five outcomes, critical damage, damage thresholds and 1/2/3 HP, optional Massive Damage, the GM's
+  d20 against Evasion with a natural-20 crit, Hope 6 / Fear 12, Stress 6→12, Armor Score cap 12,
+  resistance and immunity, direct damage, death moves, rests, conditions, range bands. What changed,
+  and what the engine therefore implements:
+  - **Cover and line of sight were replaced.** 1.0 graded cover Light / Full / Total, worth
+    +1 / +2 Evasion, with Total meaning "cannot be targeted". In 2.0 those three strings do not
+    appear at all: a ranged attacker needs line of sight, a *partial* obstruction gives the target
+    **cover**, an attack through cover is rolled with **disadvantage**, and a *total* obstruction
+    means there is simply no line of sight. `src/engine/rules/cover.ts` and `src/engine/grid/los.ts`
+    implement 2.0; the 1.0 model is gone.
+  - **Area of Effect** is 2.0's: a group effect's targets must be within Very Close of one origin
+    point inside the effect's range (`src/engine/combat/area.ts`).
+  - **Movement Under Pressure** is 2.0's: a PC may reposition within Close range as part of an
+    action roll, otherwise an Agility Roll; an adversary moves within Close free, or Very Far as an
+    action (same file).
   - 2.0 states explicitly what 1.0 only implied: "a player never rolls more than one advantage or
     disadvantage die on the same roll". The engine already worked this way.
 
-  **Structured data — use `tools/srd-sources/daggersearch/core/*.json`.** Well-typed, with JSON Schemas in
-  `_schemas/*.schema.json`: ancestries, armors, classes, communities, consumables, domain-cards, items, rules,
-  subclasses, transformations, weapons. Names/descriptions are localized objects (`{"en-US": "…"}`).
-  **No adversaries, no environments.**
-
-  `tools/srd-sources/seansbox/*.json` fills those gaps but is stringly typed (`"atk": "+3"`,
-  `"thresholds": "8/15"`, `"damage": "1d12+2 phy"`, `"tier": "1"`): **adversaries (129)**, environments,
-  beastforms (24), abilities, plus its own ancestries/classes/armor/weapons/items/subclasses.
-  `src/engine/content/srd/seansbox-adversaries.ts` normalizes the adversaries; `tests/unit/srd-content-strings.test.ts`
-  asserts all 129 import with zero issues, so add a case there before trusting a new field.
-
-  **Both community sets are still SRD 1.0** and neither upstream repo had updated as of 2026-09-05. They are
-  fine as *content* — stat blocks, armor and weapon tables are unaffected by the 2.0 rules changes — but never
-  quote them for a rule. `daggersearch/core/rules.json` in particular is a terse summary with known defects
-  (the Failure-with-Fear bullet swaps Hope and Fear, and its critical-damage line contradicts the verbatim
-  text of *both* 1.0 and 2.0).
+  The community sets were SRD **1.0** and were never safe to quote for a rule — fine as content,
+  wrong as rules. `daggersearch/core/rules.json` in particular was a terse summary with known
+  defects (its Failure-with-Fear bullet swapped Hope and Fear, and its critical-damage line
+  contradicted the verbatim text of *both* 1.0 and 2.0). That is recorded because it explains why
+  the engine's numbers came from the official text rather than the convenient JSON.
 
 - **House rules the engine adds, where the SRD is silent.** Each is a decision, not a quotation, and each
   is data or a named constant so a project can change it:

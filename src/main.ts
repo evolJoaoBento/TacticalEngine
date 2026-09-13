@@ -122,8 +122,8 @@ import {
   setSheet,
   type DemoScene,
 } from './game/demo-scene';
-import { SRD_HOOKS } from './engine/content/srd/hooks';
-import { SRD_ABILITIES } from './engine/content/srd/abilities';
+import { SRD_HOOKS } from './engine/script/native-hooks';
+import { STARTER_ABILITIES } from './engine/content/pack/starter';
 
 declare global {
   interface Window {
@@ -665,7 +665,7 @@ function renderPanel(): void {
       knownModels: KNOWN_MODELS,
       knownAdversaries: new Set(DEMO_ADVERSARIES.keys()),
       nativeHooks: [...SRD_HOOKS.keys()],
-      libraryAbilities: SRD_ABILITIES,
+      libraryAbilities: STARTER_ABILITIES,
       characterContent: characterContentFor(demo.project),
       playingScene: demo.scene.id,
       onPlay: () => setMode('play'),
