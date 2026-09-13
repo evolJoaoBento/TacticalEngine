@@ -9,20 +9,64 @@ passing across 92 files**. The single failure is the documented deliberate one i
 `demo-defense.test.ts` — a Stress assertion left red after four attempts rather than guessed at, with
 what was ruled out recorded in its commit. **Playwright is RED on the starter pack: 21 failed, 82 passed**, measured
 twice after the demo was repointed (15.1m and 15.3m, identical counts). An earlier version of this
-line called that green by reading the pass count and not the exit code. The 21 fall into clusters
-that look like separate causes, and the biggest is the repoint's missing half: `7769fa1` and the five
-commits after it changed what the demo plays, and no commit since has touched `tests/e2e/`, so the
-specs still drive the game by names the shipped pack does not define — `Rain of Blades`, `Power
-Push`, `Acid Burrower`, `husk`. Triage before trusting any e2e result:
+line called that green by reading the pass count and not the exit code.
 
-| Cluster | Tests | Suspected cause |
+**All 21 are one cause: the specs name vendored content, the shipped pack names its own.** `7769fa1`
+and the five commits after it changed what the demo plays, and no commit since has touched
+`tests/e2e/`, so the repoint landed without its e2e half. An earlier version of this file guessed
+three or four causes from the shape of the test names; both places where it could have gone the other
+way were checked and did not:
+
+* `card-browser` is not art-tier fallout. It injects `setCards('kara', ['bare-bones', …])` — six
+  vendored ids — so `.deck-slot` resolving to 0 is the correct behaviour of a pack without them.
+* `placement` / `editor-shell` are not construction fallout. `main.ts` hands the editor
+  `adversaries: ADVERSARY_DEFS`, which looks like a second list but is
+  `[...DEMO_ADVERSARIES.values()]`, and `DEMO_ADVERSARIES = STARTER_ADVERSARIES`. So
+  `library-search.fill('wolf')` matches nothing, `[data-item]` never appears, and the click waits
+  out its 90 seconds.
+
+**Tier A — re-pin onto shipped content, no new content needed (14 tests).**
+
+| Spec | Stale | Shipped |
 |---|---|---|
-| `demo.spec.ts` | 8 | the repoint: specs name cards and creatures the starter pack lacks |
-| `card-browser.spec.ts` | 4 | the card-art tier work (`fd6e660`, `3601f7b`, `c81c16b`) |
-| `placement.spec.ts` + `editor-shell.spec.ts` | 4 | the construction / creature-draw layer |
-| `readout.spec.ts` | 2 | readout asserts no player-visible string is a content id |
-| `between-fights.spec.ts`, `playpass.spec.ts` | 3 | unclassified | If the passing
-count comes back lower than 1834, something was lost — check before building on it. Symbol names are
+| `demo:1479` | `Broadsword · Chainmail`, item `full-plate` | `Longsword · Ringmail`, `padded-coat` |
+| `demo:2120` | `adversary: 'acid-burrower'` | `bandit-archer` |
+| `demo:2293` | `gambeson-armor`, card `whirlwind` | `padded-coat`, `shield-wall` |
+| `demo:2387` | `chainmail-armor` | `ringmail` |
+| `demo:1890` | six vendored ids, log `/Acid Burrower's/` | 5 bulwark + `smoke-step`, `Hollow Knight's` |
+| `card-browser` ×4 | `bare-bones`, `not-good-enough`, `reckless`, … | starter ids; Domain `blade`→`bulwark`, count 3→5 |
+| `placement` ×3, `editor-shell` | search `wolf`, `tangle-bramble` | search `hound` (Rot Hound, unique) |
+| `between-fights:141` | `/plate/i` in the payout | the table pays gold, draught, carapace, longsword, round shield |
+
+Two of these are rewrites rather than swaps. `demo:1479` equips `longsword` expecting the displaced
+`broadsword` to land in the pack — but Kara's primary *is* the longsword now, so the equip is a no-op
+and `[data-item="broadsword"]` can never appear; it needs a different weapon to find (`hunting-bow`).
+`card-browser` asserts counts per domain, and the starter domains hold 5 each where the vendored ones
+held 3.
+
+**Tier B — needs starter abilities that do something (7 tests).** The pack ships 14 abilities: eleven
+passives and three `action`s with no effects. These specs exercise the *interactive* paths — arming, a
+ground aim, Escape-disarm, an Experience prompt, a zone, a condition — and none can be renamed onto
+content that does nothing. It is content work, not engine work: the effect vocabulary already has
+`push`, `zone`, `applyCondition`, `check` with `difficulty: 'target'`, `damage`, `move` and
+`vaultCard`, and the SRD originals are templates to write against rather than copy.
+
+| Spec | Wants | Write |
+|---|---|---|
+| `demo:1819` | a Hope cost, a check, an Experience pick, a named target | an ember action with a `check` |
+| `demo:1856` | arm, pick a target, Escape-disarm, push | a bulwark/ember card with `push` |
+| `demo:2436` | a ground aim with `shape()`, `lit()`, and the caster moving | a card aimed at ground |
+| `playpass:134` | a named zone with tiles, damage, a floater, a flinch | `cinder-burst` as a real zone |
+| `playpass:204` | conditions `holding-the-line` / `caught-in-the-line` | a bulwark card with `zone` + `applyCondition` |
+| `readout` ×2 | cards that leave a condition behind | falls out of the two above |
+
+The five cards the pack itself admits ship as text only — `shield-wall`, `rallying-cry`, `smoke-step`,
+`cut-purse-strings`, `cinder-burst` — are where these belong, so Tier B is the same work as **making
+mechanics carry on cards**, not a detour from it. `holding-the-line` and `caught-in-the-line` are safe
+ids to keep: the starter sentinel already ships a signature feature named Hold the Line, so the name
+is the pack's own. `korvax-circle` is not, and wants a neutral id.
+
+If the passing count comes back lower than 1834, something was lost — check before building on it. Symbol names are
 the stable handles here; line numbers move.
 
 ---
