@@ -4,6 +4,17 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Granted cards wear their art on the action bar — done
+
+The action bar drew a picture only on a chosen card; an ability on a card a class, subclass,
+ancestry or community grants -- or one a project hands a character -- had none. Every card draws
+one now (`cardArtOf`, `game/demo-abilities.ts`): a chosen card in its domain's colour, any other in
+the colour the loadout's **Always in play** already gives a card nobody chose. The palette's comment
+stops saying there are nine domains; it lists twelve, and the granted colour.
+
+`npx tsc --noEmit` clean; vitest **1850 passed (1850)**; Playwright **109 passed (4.0m)**, `EXIT 0`. One break -- a granted card
+drawing nothing again -- fails the unit test and the e2e line written for it.
+
 ## The grant pickers, in a browser — done
 
 The Cards panel's subclass-stage, ancestry and community pickers had only unit tests behind them

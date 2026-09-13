@@ -164,7 +164,8 @@ The collection presents domain cards with level, domain and Recall Cost, each we
 picture. Search by name or rules text, or filter by domain. Click a card to open its full
 readable rules; Escape returns to the collection, and Escape again closes it. The browser
 supports keyboard navigation and a two-column layout on phones. The action bar wears the same
-picture on each domain card.
+picture on each card: a domain card in its domain's colour, and one a character has without
+choosing it in the colour **Always in play** gives it.
 
 **A card's picture** comes from the first of three places that has one:
 

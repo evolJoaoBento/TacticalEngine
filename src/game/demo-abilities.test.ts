@@ -147,6 +147,19 @@ describe('who has what', () => {
     expect(passive.reason).toBe('always on');
     expect(passive.text).toContain('Armor Score');
   });
+
+  it("draws every card's art on the action bar, a granted one's in the granted colour", () => {
+    const demo = scene();
+    const list = abilityList(demo, 'kara');
+    const on = (id: string) => list.find((v) => v.ability.id === id)!;
+    // Chosen: its domain's colour, as it always was.
+    expect(on('power-slash').card).toEqual({ id: 'power-slash', domain: 'bulwark' });
+    // Granted by the class, and handed to her by the project: the colour a card nobody chose wears.
+    for (const id of ['sentinel-drilled', 'rally-the-line']) {
+      expect(on(id).card).toEqual({ id: on(id).ability.source.card, domain: 'granted' });
+    }
+    expect(list.every((v) => v.card !== null)).toBe(true);
+  });
 });
 
 describe('a Light feature', () => {

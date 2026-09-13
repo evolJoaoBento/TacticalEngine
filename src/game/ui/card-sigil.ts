@@ -24,7 +24,7 @@
 
 import { createRng, type Rng } from '../../engine/core/rng';
 
-/** The nine domains, and the colour each one wears. */
+/** Every domain the art knows, and the colour each wears -- and the one for a card nobody chose. */
 export const DOMAIN_COLORS: Readonly<Record<string, string>> = {
   // The starter pack's own domains, first because they are the ones that ship.
   bulwark: '#6b7f8c',

@@ -65,7 +65,10 @@ export interface AbilityView {
   usesLeft: number | null;
   /** Valid targets right now, when it wants one. */
   targets: string[];
-  /** The chosen card it sits on, with the domain its art is drawn in; null for any other card. */
+  /**
+   * The card it sits on, with the domain its art is drawn in: a chosen card's own, and `granted` for
+   * a card in play because of what its holder is. Null for a card nothing defines.
+   */
   card: { id: string; domain: string } | null;
 }
 
@@ -86,10 +89,14 @@ export function abilityText(demo: DemoScene, ability: AbilityDef): string {
   return spell?.text ?? card.text;
 }
 
-/** The chosen card an ability sits on, with its domain for the art; null for any other card. */
-function chosenCardOf(demo: DemoScene, ability: AbilityDef): { id: string; domain: string } | null {
+/**
+ * The card an ability sits on, for its art: a chosen card in its domain's colour, and any other in the
+ * colour the loadout's Always in play gives a card nobody chose. Null for a card nothing defines.
+ */
+function cardArtOf(demo: DemoScene, ability: AbilityDef): { id: string; domain: string } | null {
   const card = characterContentFor(demo.project).cards.get(cardOf(ability));
-  return card !== undefined && isDomainCard(card) ? { id: card.id, domain: card.domain } : null;
+  if (card === undefined) return null;
+  return { id: card.id, domain: isDomainCard(card) ? card.domain : 'granted' };
 }
 
 /** Every ability a character has, in sheet order. */
@@ -255,7 +262,7 @@ export function abilityList(demo: DemoScene, characterId: string): AbilityView[]
       reason: can.ok ? null : can.reason,
       usesLeft: usesLeft(demo, characterId, ability),
       targets: abilityTargets(demo, characterId, ability),
-      card: chosenCardOf(demo, ability),
+      card: cardArtOf(demo, ability),
     };
   });
 }

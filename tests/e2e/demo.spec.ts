@@ -2141,6 +2141,8 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
 
   const bar = page.locator('[data-testid="action-bar"]');
   await expect(bar.locator('[data-ability="banner-cry"]')).toHaveAttribute('data-usable', 'true');
+  // A card of the project's own, handed to Kara: drawn in the granted colour, as the loadout draws it.
+  await expect(bar.locator('[data-ability="banner-cry"] .ability-card-art')).toBeVisible();
   await bar.locator('[data-ability="banner-cry"]').click();
 
   await expect(page.locator('[data-testid="log"]')).toContainText('The banner goes up over the field.');
