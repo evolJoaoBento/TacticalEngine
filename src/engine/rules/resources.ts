@@ -11,7 +11,7 @@
  * actually happened, so callers can log the real numbers instead of the requested
  * ones (asking to clear 4 Stress with 2 marked clears 2).
  *
- * SRD 2.0 reference: `tools/srd-sources/official-2.0/srd-2.0.txt`, sections
+ * SRD 2.0 reference: the SRD 2.0 text (no longer vendored — see `docs/CONTEXT.md`), sections
  * "HOPE & FEAR", "HIT POINTS & DAMAGE THRESHOLDS", "STRESS", "ARMOR" and
  * "DOWNTIME" — all unchanged from SRD 1.0.
  */

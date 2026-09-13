@@ -1,5 +1,5 @@
 /**
- * Importer for `tools/srd-sources/daggersearch/core/*.json` — the structured half
+ * Importer for the SRD's structured data (no longer vendored) — the structured half
  * of the vendored SRD: classes, ancestries, communities, armor and weapons.
  *
  * These are the pieces a *character* is made of, as opposed to the adversaries

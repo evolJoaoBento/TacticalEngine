@@ -1,9 +1,9 @@
 /**
  * Range bands.
  *
- * SRD 2.0 reference: `tools/srd-sources/official-2.0/srd-2.0.txt`,
+ * SRD 2.0 reference: the SRD 2.0 text (no longer vendored — see `docs/CONTEXT.md`),
  * "MAPS, RANGE, AND MOVEMENT" — the bands are unchanged from 1.0. Note that the
- * terser `Range Bands` entry in `tools/srd-sources/daggersearch/core/rules.json`
+ * terser `Range Bands` entry in the SRD's rules summary (no longer vendored)
  * omits Melee; the six bands here are the full list.
  */
 

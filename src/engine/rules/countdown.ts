@@ -11,7 +11,7 @@
  * by whoever owns the rng and handed here as a number. What a countdown does
  * when it triggers belongs to the script layer.
  *
- * Rule text quoted from SRD 2.0, `tools/srd-sources/official-2.0/srd-2.0.txt`.
+ * Rule text quoted from SRD 2.0, the SRD 2.0 text (no longer vendored — see `docs/CONTEXT.md`).
  */
 
 import type { RollOutcome } from './duality';

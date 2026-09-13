@@ -145,7 +145,7 @@ describe('reduceSeverity', () => {
 
 describe('pcThresholds', () => {
   it('adds the character level to the armor thresholds', () => {
-    // Gambeson Armor from tools/srd-sources/daggersearch/core/armors.json.
+    // Gambeson Armor from the SRD's armour table (no longer vendored).
     expect(pcThresholds(3, { major: 5, severe: 11 })).toEqual({ major: 8, severe: 14 });
   });
 

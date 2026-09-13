@@ -8,7 +8,7 @@
  * previewed, logged, replayed or animated before it takes effect.
  *
  * Rule text used here is quoted from SRD 2.0,
- * `tools/srd-sources/official-2.0/srd-2.0.txt`. Action rolls, the five outcomes,
+ * the SRD 2.0 text (no longer vendored — see `docs/CONTEXT.md`). Action rolls, the five outcomes,
  * Help an Ally and reaction rolls are unchanged from SRD 1.0; 2.0 adds an explicit
  * statement that a player never rolls more than one advantage or disadvantage die.
  */

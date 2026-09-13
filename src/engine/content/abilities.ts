@@ -10,7 +10,7 @@
  *
  * Abilities are project content, like items and quests, so a campaign can add
  * its own and an editor can list, validate and edit them. The engine ships a
- * library for the SRD's cards (`srd/abilities.ts`), which a project includes
+ * library for the SRD's cards (`packs/srd-abilities.json`), which a project includes
  * as it includes the SRD's weapons.
  */
 

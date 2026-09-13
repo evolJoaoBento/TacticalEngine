@@ -1,7 +1,7 @@
 /**
  * The GM's Die.
  *
- * SRD 2.0 reference: `tools/srd-sources/official-2.0/srd-2.0.txt`, "CORE GM MECHANICS"
+ * SRD 2.0 reference: the SRD 2.0 text (no longer vendored — see `docs/CONTEXT.md`), "CORE GM MECHANICS"
  * (unchanged from 1.0):
  * "The GM has no Duality Dice; instead, they roll a single d20 called the GM's
  * Die." Adversary attacks therefore resolve differently from PC attacks — no

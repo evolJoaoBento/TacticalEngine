@@ -1,7 +1,7 @@
 /**
  * Damage: thresholds, severity, Armor Slots, resistance/immunity, damage rolls.
  *
- * SRD 2.0 reference: `tools/srd-sources/official-2.0/srd-2.0.txt`, sections
+ * SRD 2.0 reference: the SRD 2.0 text (no longer vendored — see `docs/CONTEXT.md`), sections
  * "HIT POINTS & DAMAGE THRESHOLDS", "ATTACKING", "REDUCING INCOMING DAMAGE" and
  * "ADDITIONAL RULES / ROUNDING UP". All four are unchanged from SRD 1.0.
  */
@@ -244,7 +244,7 @@ export interface DamageRollOptions {
    * How a critical success adds damage. The official text — SRD 1.0 and 2.0 alike —
    * says "add the maximum possible result of the damage dice to the final total",
    * which is the default here. The community summary in
-   * `tools/srd-sources/daggersearch/core/rules.json` instead says "double the total
+   * the SRD's rules summary (no longer vendored) instead says "double the total
    * result of your damage dice"; that contradicts both official versions and is an
    * error in that file, but it is selectable for a table that plays it that way.
    */

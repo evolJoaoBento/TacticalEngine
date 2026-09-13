@@ -1,7 +1,7 @@
 /**
  * Cover and line of sight.
  *
- * SRD 2.0 reference: `tools/srd-sources/official-2.0/srd-2.0.txt`,
+ * SRD 2.0 reference: the SRD 2.0 text (no longer vendored — see `docs/CONTEXT.md`),
  * "LINE OF SIGHT & COVER":
  *
  * > Unless stated otherwise, a ranged attacker must have line of sight to their

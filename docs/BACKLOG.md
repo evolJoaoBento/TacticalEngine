@@ -4,6 +4,52 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Slice 3 — done
+
+The vendored catalogue is gone: 88 files, 39,652 deletions, including the 2.1 MB
+`tools/srd-sources/` tree, `src/engine/content/srd/` entire, 182 KB of card scripts, 162 KB of
+stat-block features, two doc generators and the two docs they generated. `tsc` clean, **Playwright
+103 passed** — the same count as the baseline taken deliberately *before* the deletion, so the
+deletion is what was verified rather than the deletion plus something else — and 1772 unit tests
+passing with the one documented deliberate failure. The drop from 1828 is the 55
+catalogue-integrity tests leaving with the catalogue they were about, which is exactly what
+splitting them into `*-catalogue.test.ts` files was for.
+
+**Exported before anything was removed**, because the rule is that this content stays importable
+rather than lost. `packs/srd.json` holds the content as one `contentPackSchema` document (192
+weapons, 34 armours, 9 classes, 18 ancestries, 9 communities, 18 subclasses, 189 cards, 129
+adversaries, zero import issues). `packs/srd-abilities.json` holds the mechanics — 185 abilities
+and 54 conditions — in the shape `projectSchema` accepts, because abilities belong to a project and
+a pack alone would have been names and text with every script dropped. Both are git-ignored, and
+the tool that wrote them went with the sources it read.
+
+Four code changes came first, each on a tree that stayed green: `content/srd/hooks.ts` moved to
+`script/native-hooks.ts` (engine code — four computations the effect vocabulary cannot express, one
+of them already named by a fixture); `main.ts` hands the editor the starter pack as its ability
+library, which narrows the Ability panel from 185 entries to 14; `withStatBlockFeatures` is gone, so
+what a project places is what it carries; and `authored-scenario.test.ts` stopped loading 185
+abilities for two tests whose blocks carry their own.
+
+`licensing-boundary.test.ts` used to read `tools/srd-sources/official-2.0/README.md` to prove the
+PDF was never vendored. It now makes the stronger claim — no vendored SRD source in the tree at all
+— and pins both attributions where they live, `docs/CONTEXT.md`. CONTEXT.md itself lost 40 lines of
+sourcing directions and kept what outlives them: the notices, and the 2.0-versus-1.0 findings that
+explain what `cover.ts`, `los.ts` and `area.ts` implement.
+
+**What slice 3 did not do, and is worth knowing next:**
+
+* `contentPackSchema` still has no `conditions` field, so a card that applies a zone condition
+  cannot be imported with the condition it needs. The export works around it with a sidecar; the
+  schema is the real fix.
+* **Nothing reads a pack from disk.** `packs/srd.json` exists and no code path loads it, so the
+  content is preserved and not yet importable. That is the next slice for "mechanics travel on
+  cards", and it is what would make the export more than an archive.
+* `cut-purse-strings`, `rallying-cry` and `smoke-step` still ship as text only.
+* `holding-the-line` and `caught-in-the-line` still sit in `content/conditions.ts` rather than
+  beside the feature that arms them.
+
+---
+
 **Pinned to commit `01b4c83`.** At that commit: `npx tsc --noEmit` clean, **1834 of 1835 unit tests
 passing across 92 files**. The single failure is the documented deliberate one in
 `demo-defense.test.ts` — a Stress assertion left red after four attempts rather than guessed at, with

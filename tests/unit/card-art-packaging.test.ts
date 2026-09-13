@@ -29,15 +29,16 @@ it('indexes uppercase and mixed-case image extensions under the actual card id',
   const root = await mkdtemp(join(tmpdir(), 'polyheart-index-test-'));
   try {
     await mkdir(join(root, 'public/cards'), { recursive: true });
-    await mkdir(join(root, 'tools/srd-sources/daggersearch/core'), { recursive: true });
-    await writeFile(join(root, 'tools/srd-sources/daggersearch/core/domain-cards.json'), JSON.stringify([
-      { name: { 'en-US': 'Bare Bones' } }, { name: { 'en-US': 'Get Back Up' } },
-    ]));
-    await writeFile(join(root, 'public/cards/bare-bones.JPG'), 'indexing does not decode images');
-    await writeFile(join(root, 'public/cards/get-back-up.PnG'), 'fixture');
+    // The indexer matches against an exported pack, which writes a flat `name`.
+    await mkdir(join(root, 'packs'), { recursive: true });
+    await writeFile(join(root, 'packs/srd.json'), JSON.stringify({
+      domainCards: [{ name: 'Power Slash' }, { name: 'Iron Stance' }],
+    }));
+    await writeFile(join(root, 'public/cards/power-slash.JPG'), 'indexing does not decode images');
+    await writeFile(join(root, 'public/cards/iron-stance.PnG'), 'fixture');
     execFileSync(process.execPath, [resolve('tools/index-card-art.mjs')], { cwd: root });
     expect(JSON.parse(await readFile(join(root, 'public/cards/index.json'), 'utf8'))).toEqual({
-      'bare-bones': 'bare-bones.JPG', 'get-back-up': 'get-back-up.PnG',
+      'iron-stance': 'iron-stance.PnG', 'power-slash': 'power-slash.JPG',
     });
   } finally { await rm(root, { recursive: true, force: true }); }
 });
