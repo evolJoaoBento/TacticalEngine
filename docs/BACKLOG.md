@@ -25,10 +25,11 @@ whoever ran a script can tell what came of its roll. The difficulty is a constan
 field: nothing else about fight movement is authored per project yet. **Left:** the hover path
 still draws the part past one move in red without saying a roll would get there.
 
-`npx tsc --noEmit` clean; vitest **1865 passed (1865)**; Playwright **114 passed (4.1m)**, `EXIT 0`. Five
-breaks -- the walk never asking, a success walking one move, a failure walking the whole way, the
-GM's walk kept within Close, the runner saying nothing of its roll -- each fail the tests written
-for them.
+`npx tsc --noEmit` clean; vitest **1865 passed (1865)**; Playwright **114 passed (4.1m)**, `EXIT 0`. Seven
+breaks -- the walk never asking, a success walking one move, a failure walking the whole way, a
+called-off run spending the action, the GM's walk kept within Close, the GM swinging after any
+walk, the runner saying nothing of its roll -- each fail the tests written for them. The GM test
+stands its creature alone, so the no-swing half is asserted rather than skipped.
 
 ## Undo in play rebuilds the game — done
 

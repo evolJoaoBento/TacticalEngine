@@ -1483,11 +1483,13 @@ const RUN_TILES = maxTilesForBand('veryFar', DEMO_BAND_TILES);
  * is made as part of it and needs no roll - the rule's own `withAction`.
  */
 function underPressure(demo: DemoScene, id: string, destination: number): boolean {
+  return asksForRoll(demo, id, destination) && demo.party.reachable(id, { inCombat: true, budget: RUN_TILES }).canReach(destination);
+}
+
+/** Whether the rule asks a fighter for an Agility Roll to walk from where they stand to here, as the crow flies. */
+function asksForRoll(demo: DemoScene, id: string, destination: number): boolean {
   const from = demo.state.entity(id)!.tile;
-  if (moveUnderPressure(demo.grid, 'pc', from, destination, { bandTiles: DEMO_BAND_TILES, withAction: true }) !== 'agilityRoll') {
-    return false;
-  }
-  return demo.party.reachable(id, { inCombat: true, budget: RUN_TILES }).canReach(destination);
+  return moveUnderPressure(demo.grid, 'pc', from, destination, { bandTiles: DEMO_BAND_TILES, withAction: true }) === 'agilityRoll';
 }
 
 /**
@@ -1499,7 +1501,8 @@ export function underPressureTiles(demo: DemoScene): number[] {
   if (id === null || !inCombat(demo) || !demo.encounter!.canAct(id)) return [];
   const inReach = new Set(demo.party.reachable(id, { inCombat: true }).tiles());
   const run = demo.party.reachable(id, { inCombat: true, budget: RUN_TILES }).tiles();
-  return run.filter((tile) => !inReach.has(tile) && underPressure(demo, id, tile));
+  // Every tile of the run is a way there already, so only the rule is asked of each.
+  return run.filter((tile) => !inReach.has(tile) && asksForRoll(demo, id, tile));
 }
 
 /**

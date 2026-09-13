@@ -584,6 +584,8 @@ describe('movement under pressure', () => {
     })!;
     expect(from).toBeDefined();
     demo.state.moveEntity(husk.id, from);
+    // Alone, so a blow the party takes this turn could only be its.
+    for (const other of demo.state.entitiesOf('adversary')) if (other.id !== husk.id) other.alive = false;
     const hitPoints = party.map((p) => p.hitPoints.marked);
 
     endTurn(demo);
@@ -591,9 +593,7 @@ describe('movement under pressure', () => {
     expect(walked).toBeGreaterThan(DEMO_BAND_TILES.close);
     expect(nearest(husk.tile)).toBeLessThan(nearest(from));
     // The walk was the action: nobody it reached was struck by it.
-    if (demo.state.entitiesOf('adversary').filter((e) => e.alive).length === 1) {
-      expect(party.map((p) => p.hitPoints.marked)).toEqual(hitPoints);
-    }
+    expect(party.map((p) => p.hitPoints.marked)).toEqual(hitPoints);
   });
 });
 
