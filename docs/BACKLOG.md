@@ -173,21 +173,64 @@ Every **game-layer** test now carries its own content instead of borrowing the c
 and the earlier `demo-defense.test.ts` conversion.
 
 **The precondition is not met yet, and an earlier version of this file wrongly said it was.**
-Nine more test files read the vendored folder off disk at runtime and fail the moment it goes.
-They are engine-layer tests using the catalogue as a content fixture, which is why a game-layer
-sweep never touched them:
+Nine test files read the vendored folder off disk at runtime and fail the moment it goes. They
+are engine-layer tests using the catalogue as a content fixture, which is why a game-layer sweep
+never touched them. **Six are done, one dies with the slice, two are left.**
 
-| File | What it wants |
+| File | State |
 |---|---|
-| `editor/item-edits.test.ts` | a weapon id |
-| `editor/party-edits.test.ts` | a class, subclass, ancestry, armour, weapon, two cards |
-| `engine/character/progression.test.ts` | the same, plus a subclass's domains and a card's recall cost |
-| `engine/character/sheet.test.ts` | a class, armour, weapon |
-| `engine/content/abilities.test.ts` | a class, subclass, two cards |
-| `engine/script/abilities.test.ts` | a class, subclass, armour, weapon, two cards |
-| `engine/combat/adversary-features.test.ts` | one stat block — and only to parse brackets |
-| `engine/content/srd/library.test.ts` | the whole catalogue; **dies with the slice** |
-| `tests/unit/demo-map-fight.test.ts` | one stat block |
+| `editor/item-edits.test.ts` | **done** — reads the shipped pack |
+| `editor/party-edits.test.ts` | **done** — reads the shipped pack |
+| `engine/character/sheet.test.ts` | **done** — split; catalogue half is `sheet-catalogue.test.ts` |
+| `engine/content/abilities.test.ts` | **done** — split; catalogue half is `abilities-catalogue.test.ts` |
+| `engine/combat/adversary-features.test.ts` | **done** — an inline printed block, no catalogue |
+| `tests/unit/demo-map-fight.test.ts` | **done** — both fighters are fixtures |
+| `engine/content/srd/library.test.ts` | **dies with the slice** — all three blocks are about the shipped library |
+| `engine/script/abilities.test.ts` | **left** — specified below |
+| `engine/character/progression.test.ts` | **left** — blocked on content, see below |
+
+**`script/abilities.test.ts`, specified.** Read end to end; the old one-line summary was true and
+the least of it.
+
+* Two hand-written sheets in `scene()` re-pin: Kara guardian/chainmail/broadsword/stalwart holding
+  `bare-bones`+`get-back-up` → sentinel/ringmail/longsword/shieldbearer holding
+  `power-slash`+`iron-stance`; Mira wizard/gambeson/greatstaff/school-of-knowledge holding
+  `book-of-ava`+`rune-ward` → emberwright/padded-coat/ember-staff/flamecaller holding
+  `arcane-ward`+`healing-word`. `deriveCharacter` is asserted issue-free, so both must resolve.
+* The content bag at 147–150 points at `STARTER_ABILITIES` + `SRD_CONDITIONS`. All five conditions
+  the file uses — `hidden`, `in-shadow`, `stunned`, `asleep`, `horrified` — are generic *rules*
+  conditions (blocks, endsWhen, advantage modifiers), not card markers, so they survive the prune
+  and need no fixture. That removes a whole strand of expected work.
+* **Two weapon-arithmetic sites, and one assertion flips.** Line 906 scripts `[10, 2, 6]` against
+  soft-husk (difficulty 10, thresholds 7/12): Hope 10 + Fear 2 + Strength 2 = 14 hits, then the
+  broadsword's `1d8+0` rolls 6 → Minor → `hitPointsMarked: 1`. The longsword is `1d8+1` → **7,
+  which meets the major threshold exactly → 2 Hit Points**, so that assertion and its comment both
+  change. Lines 1328–1330 pin `weaponDamage`: Kara `1d8+0` → `1d8+1`, Mira's greatstaff `1d6` →
+  the ember-staff's `1d8` magic. Nothing else moves — 1119 and 1175 state `damage: '12 phy'`
+  outright rather than rolling a weapon, and 1293's `1d8` belongs to a test that lifts.
+* **A new ungated `incomingDamage` fixture reaction** for the two `reactionsOf('kara')` lines
+  (1380, 1385), which currently expect `get-back-up`. `reactionsOf` is `reactionsFor(id,
+  'incomingDamage')`, and the pack ships no reaction at all. The two fixture reactions that do
+  trigger on it are gated — `fixture-aura-layers` on held tokens, `fixture-bone-bound` on a
+  four-card fixture loadout plus 3 Hope — and both are imported by `demo-abilities`/`demo-cards`,
+  so loosening either to suit this file would be wrong. A plain specimen beside the assertion is
+  the idiom `cards.ts` already states.
+* **Four tests lift** to `script/abilities-catalogue.test.ts`: `describe('the shipped cards')`
+  entire (1278–1361, all four about Whirlwind, Bolt Beacon and the rest), plus the two
+  card-specific tests inside `a hook in a script` (1444–1462 Arcane Barrage's option labels,
+  1464–1475 Wild Flame's three-target cap). This is the first file where a describe does **not**
+  split on its boundary: that block's first three tests write their own hooks inline via `code:`
+  and name no content, so they stay.
+
+**`progression.test.ts` is blocked on content, not naming.** `describe('the import')` is a
+catalogue block and lifts cleanly. The rest cannot convert onto the starter pack: the pack ships
+cards at **levels 1 and 2 only** (nine and six), while the climb runs to level 6 and needs
+`fromTier: 2` picks, `champions-edge`, `fortified-armor` and `deadly-focus`; and `multiclassing`
+needs a class with two domains and a fourth domain to open, where the pack has three classes of
+one domain each (bulwark, shadow, ember) and exactly three card domains. The fixtures ship no
+classes or subclasses at all. So this one wants a fixture module spanning tiers — classes,
+subclasses and levelled cards — which is authoring, not a re-pin, and is the last thing standing
+between here and slice 3.
 
 Six share one `read()` helper over the seven daggersearch JSONs, so the conversion is one
 repeated move rather than nine problems: point it at `STARTER_PACK` and re-pin the names.
