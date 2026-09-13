@@ -155,7 +155,7 @@ not have. It now matches the sheet, including the "or any from the previous tier
 extra-card caps (level 4 on the tier 2 sheet, 7 on tier 3) and the cross-outs between the
 subclass-upgrade and multiclass boxes.
 
-**Cards do things now** (`content/abilities.ts`, `content/srd/abilities.ts`, `game/demo-abilities.ts`).
+**Cards do things now** (`content/abilities.ts`, `content/pack/starter-abilities.ts`, `game/demo-abilities.ts`).
 An ability — a domain card, a class's Light feature, a subclass card — is a script in the one
 effect vocabulary with a cost, a target, uses and a reason it is greyed out. The vocabulary
 learned what a card needs: a `check` can roll the Spellcast or weapon trait against each
@@ -169,11 +169,10 @@ downtime moves; Utilize an Experience spends a Light on a roll; the action bar, 
 mode, a loadout panel and a rest panel put all of it on screen. The GM's adversaries approach
 before attacking; a condition that `blocks` acting (Stunned, Asleep) or moving (Restrained)
 costs them the spotlight, and the GM spends a Shadow to wake a sleeper when there is one. A
-grimoire's spells read their words from the card's named features in the vendored SRD
-content; the engine ships no card text of its own.
+grimoire's spells read their words from the card's named features.
 
 Logic the vocabulary cannot say is **code**: `{ kind: 'run', hook }` and `{ kind: 'hook' }` reach
-either a native TypeScript hook (`engine/content/srd/hooks.ts`) or a `project.code[]` entry the
+either a native TypeScript hook (`engine/script/native-hooks.ts`) or a `project.code[]` entry the
 editor's Code panel writes. A hook reads the world and *queues effects*, so nothing escapes the
 journal, and rolls only off the seeded stream (`Math.random` throws). The demo ships one card
 written that way.
@@ -186,14 +185,11 @@ Cards that carry tokens hold them (`tokens` on an ability, `addToken` / `spendTo
 `tokens` condition), refilled at the rest the card names. A miss can be answered too, which is
 what applies Hidden — Vanishing Dodge. Adversaries play their own stat blocks: Relentless, Horde,
 Minion, Momentum and Terrifying are read off the block, and action or reaction features are
-abilities in the same vocabulary (`docs/ADVERSARIES.md` lists which of the 417 printed features
-the engine runs).
+abilities in the same vocabulary, on cards printed on the blocks that carry them.
 
-**Still open:** 142 of 189 cards are scripted (`docs/CARDS.md`, which counts them itself); the
-rest are text, and each one now carries its own line saying why - the generator refuses to build
-if a text card has no reason, so this number is the only one here anybody has to keep by hand. On the stat blocks, 73 of 417 features are read off the block and 52 are
-scripted; the other 292 are the GM's to narrate, and `docs/ADVERSARIES.md` now groups the
-reasons rather than leaving them unsaid. Resistance, immunity and the number a block takes off the
+**Still open:** the engine ships only its starter pack, so how much of a catalogue is scripted is
+the pack's to say rather than a number kept here; what a pack leaves unscripted is text the table
+reads. Resistance, immunity and the number a block takes off the
 damage are now a `defenses` line on a passive or a condition, read wherever damage lands; the
 swing a block prints is a `standardAttack` line, and a rider that follows it is a reaction to
 `dealtHit` or `dealtDamage`. What is left of that group is the passives on a number the engine

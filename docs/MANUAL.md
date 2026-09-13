@@ -790,8 +790,9 @@ the condition `{ kind: 'hook', hook: 'id', args? }`.
 There are two doors and one lookup:
 
 - **Native hooks** — TypeScript registered with the engine (`defineHooks` in
-  `engine/script/hooks.ts`). The engine's own are in `engine/content/srd/hooks.ts`:
-  `arcane-barrage` and `wild-flame`, the two SRD cards whose mechanic is a count.
+  `engine/script/hooks.ts`). The engine's own four are in `engine/script/native-hooks.ts` --
+  `arcane-barrage`, `falling-sky`, `mark-armor-or-hit-point` and `wild-flame`: mechanics that are
+  a computation rather than a list of effects, for whatever card names them.
 - **Project code** — JavaScript the project carries in `code[]` (`id`, `name`, `notes`,
   `source`) and the editor's **Code** panel writes. Compiled with `new Function` when the
   project loads and again whenever the text changes.
@@ -887,12 +888,10 @@ reaction to damage: `reduceSeverity` `steps` `only?`, `reduceDamage` `dice`, `ex
 `only?`, `redirect`, `reroll` `what`), `tokens?` (`amount` — a number, a trait or `spellcast` —
 `minimum`, `refill` session \| longRest \| rest \| scene \| never — a `session` card refills on a
 long rest, which is where a session boundary falls in play), `auto` (whether a reaction
-fires on its own; an interrupt never does). `src/engine/content/srd/abilities.ts` is the library
-for the SRD's cards and `docs/CARDS.md` lists what is scripted;
-`src/engine/content/srd/adversary-abilities.ts` is the same for stat-block features, listed in
-`docs/ADVERSARIES.md`. Those come with the block: a project that places an Acid Burrower gets
-Spit Acid without writing it, and a project ability with the same id says something different
-with it.
+fires on its own; an interrupt never does). The engine's own cards are the starter pack's
+(`src/engine/content/pack/starter-abilities.ts`). A stat block's features come with whatever pack
+or project prints them on it -- the starter pack's creatures carry none -- as abilities on cards
+granted by `adversary`; a project ability with a pack ability's id replaces it.
 
 A stat block holds reactions the same way a character does: `reactionsFor` reads what the
 creature holds on either side of the table, so an adversary's `reaction` to incoming damage
@@ -1040,13 +1039,11 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   turn stops on the question and picks up when it is answered; stepping back takes the hit as
   it comes. Damage from a script (a card, a trap) is still resolved automatically, and so is
   everything in a headless run, where there is nobody to ask.
-- **53 of the 189 domain cards are scripted** (`docs/CARDS.md`, which lists every one and what
-  each scripted card leaves to the table). The rest are shown as text, and the same holds for
-  the stat-block features the engine does not run (`docs/ADVERSARIES.md`, which groups the
-  reasons) — an adversary plays the ones the engine knows and otherwise falls back on its
-  standard attack. A card is text when it asks for
-  something the engine has no number for: a Countdown, flight, teleportation, a summon, being
-  unseen, or a GM's discretion.
+- **A card or a stat block's feature with no script is text**: shown and read, and the table
+  decides. The starter pack scripts what it ships; an imported pack's cards are as scripted as the
+  pack made them, and an adversary plays the features it can run and otherwise falls back on its
+  standard attack. A card is text when it asks for something the engine has no number for, such as
+  flight, teleportation or a GM's discretion.
 - **A temporary condition on a party member ends when their turn does** — "until they next
   act", read as the moment the party hands the spotlight back. It is how a hold the SRD ends
   with a Strength Roll comes off at all, since nothing here can ask for that roll.
@@ -1056,7 +1053,7 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
 - **Quests have no stages**: steps can be hidden and revealed, but the summary is one string
   and is never rewritten.
 - **Domain-card and subclass features without a script are text**, shown on the action bar and
-  the level-up sheet but not executed; see `docs/CARDS.md`.
+  the level-up sheet but not executed.
 - **No items or loot-table UI**, no sheet editor, no tint tool though `tints` is document
   data.
 - **Construction navigation**: building tiles have visual LOD but do not yet affect walking,

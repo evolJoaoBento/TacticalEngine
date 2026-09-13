@@ -236,7 +236,7 @@ footer {
     <li><a href="#recipes">9 · Recipes</a></li>
     <li class="sub"><a href="#recipe-a">a · A new effect</a></li>
     <li class="sub"><a href="#recipe-b">b · A field on AbilityDef</a></li>
-    <li class="sub"><a href="#recipe-c">c · An SRD feature</a></li>
+    <li class="sub"><a href="#recipe-c">c · A stat block's feature</a></li>
     <li class="sub"><a href="#recipe-d">d · A condition</a></li>
     <li><a href="#testing">10 · Testing</a></li>
     <li><a href="#loop">11 · The working loop</a></li>
@@ -278,10 +278,8 @@ footer {
     </tbody>
   </table>
 
-  <p>Two further docs are <strong>generated</strong> and must never be hand-edited:
-  <code>docs/ADVERSARIES.md</code> (470 lines, from <code>python tools/adversaries-doc.py</code>) and
-  <code>docs/CARDS.md</code> (257 lines, from <code>python tools/cards-doc.py</code>).
-  <code>docs/CRPG-GAPS.md</code> (491 lines) is an honest audit against the CRPG goal — read it
+  <p>Nothing in <code>docs/</code> is generated any more: the card and adversary listings went with
+  the catalogue they listed. <code>docs/CRPG-GAPS.md</code> is an honest audit against the CRPG goal — read it
   before claiming a system exists. <code>docs/research/legacy-{game,campaign,editor-ui,models}.md</code>
   are static-analysis notes on the legacy prototype with <code>file:line</code> anchors; read those
   rather than re-reading <code>legacy/</code>.</p>
@@ -290,8 +288,8 @@ footer {
   which says the same things in the same order.</p>
 
   <div class="callout">
-    <p><strong>Line counts and <code>file:line</code> anchors on this page are as of commit
-    <code>058c3af</code>, the current HEAD.</strong> A working tree part-way through a slice moves
+    <p><strong>Line counts and <code>file:line</code> anchors on this page were taken at commit
+    <code>058c3af</code> and have drifted since.</strong> A working tree part-way through a slice moves
     them; the symbol name is the stable handle, and <code>grep -a</code> finds it.</p>
   </div>
 
@@ -453,14 +451,14 @@ footer {
       <tr><td><code>script/countdowns.ts</code></td><td>The board a scenario carries: <code>RunningCountdown</code> (a clock plus what it is counting towards), <code>advanceBoard</code>, <code>reapBoard</code>, <code>endCreatureCountdowns</code>, and the snapshot schema a save uses.</td></tr>
       <tr><td><code>script/hooks.ts</code></td><td>Running project code: <code>HookContext</code>, <code>runHook</code>, <code>SAFE_MATH</code>.</td></tr>
       <tr><td><code>content/types.ts</code></td><td><code>AdversaryDef</code>, <code>AdversaryFeature</code>, <code>ContentIssue</code>, <code>ImportResult</code>, <code>toContentId</code>.</td></tr>
-      <tr><td><code>content/abilities.ts</code></td><td>A modifier's <code>advantage</code> stat is a signed count of dice and <code>against: true</code> puts it on rolls made at the holder. <code>AbilityDef</code> and its sub-schemas; <code>abilitiesFor</code>, <code>loadoutOf</code>, <code>isScripted</code>, <code>isAutomatic</code>, <code>readsATarget</code>.</td></tr>
+      <tr><td><code>content/abilities.ts</code></td><td><code>AbilityDef</code> and its sub-schemas; <code>abilitiesFor</code>, <code>loadoutOf</code>, <code>cardOf</code>, <code>grantRank</code>, <code>statBlocksOf</code>, <code>isStatBlockFeature</code>, <code>isScripted</code>, <code>isAutomatic</code>, <code>readsATarget</code>. An ability sits on a card (<code>source: { card }</code>) and is in play when its card is — chosen and in the loadout, or granted; a stat block's feature is an ability on a card granted by <code>adversary</code>. A modifier's <code>advantage</code> stat is a signed count of dice and <code>against: true</code> puts it on rolls made at the holder.</td></tr>
       <tr><td><code>content/conditions.ts</code></td><td><code>ConditionDef</code> — what a <em>status</em> on a creature does. <code>SRD_CONDITIONS</code>.</td></tr>
       <tr><td><code>content/items.ts</code>, <code>content/quests.ts</code></td><td>Item and quest content shapes.</td></tr>
-      <tr><td><code>content/srd/daggersearch.ts</code></td><td>Normalises the vendored character data (470 lines).</td></tr>
-      <tr><td><code>content/srd/seansbox-adversaries.ts</code></td><td>Normalises the 129 stringly-typed adversaries (300 lines).</td></tr>
-      <tr><td><code>content/srd/abilities.ts</code></td><td><code>SRD_ABILITIES</code>, <code>SRD_ABILITY_MAP</code> — hand-written domain cards (1131 lines).</td></tr>
-      <tr><td><code>content/srd/adversary-abilities.ts</code></td><td><code>SRD_ADVERSARY_ABILITIES</code> — hand-written stat-block features (1556 lines).</td></tr>
-      <tr><td><code>content/srd/hooks.ts</code></td><td><code>SRD_HOOKS</code> — native hooks for what the vocabulary cannot say.</td></tr>
+      <tr><td><code>content/pack/schema.ts</code></td><td>What a content pack <em>is</em>, as zod: the def schemas, <code>cardDefSchema</code> with its <code>cardGrantSchema</code>, and <code>contentPackSchema</code>. A class, subclass, ancestry or community carries no printed features: those are cards that name what grants them.</td></tr>
+      <tr><td><code>content/pack/import.ts</code></td><td>The pack in memory: <code>ContentPack</code> (maps by id), <code>CardGrant</code>, <code>isDomainCard</code>, and <code>mergePack</code>, which lays a project's lists over a pack's.</td></tr>
+      <tr><td><code>content/pack/document.ts</code></td><td>A pack as a <strong>file</strong>: <code>packDocumentSchema</code>, <code>readPack</code> (migrates, then validates each entry on its own) and <code>describePack</code>. What Project ▾ → Import pack… reads.</td></tr>
+      <tr><td><code>content/pack/starter.ts</code></td><td>The pack the engine ships, its own and nobody else's: <code>STARTER_PACK</code>, <code>STARTER_CHARACTERS</code>, <code>STARTER_ADVERSARIES</code>; with <code>starter-abilities.ts</code> and <code>starter-conditions.ts</code>, what its cards do and the conditions they apply.</td></tr>
+      <tr><td><code>script/native-hooks.ts</code></td><td><code>SRD_HOOKS</code> — the four native hooks, for mechanics that are a computation rather than a list of effects.</td></tr>
       <tr><td><code>scene/primitives.ts</code></td><td><code>contentIdSchema</code>, <code>traitSchema</code>, <code>pointSchema</code>. Exists to break an import cycle between the two zod modules.</td></tr>
       <tr><td><code>scene/schema.ts</code></td><td>The authored document: <code>sceneSchema</code>, <code>projectSchema</code>, <code>ProjectDoc</code>, <code>codeSchema</code>.</td></tr>
       <tr><td><code>scene/state.ts</code></td><td>The runtime overlay: <code>EntityState</code>, <code>SceneState</code>, <code>SceneStateSnapshot</code>, <code>sceneStateFromScene</code>.</td></tr>
@@ -525,20 +523,19 @@ footer {
 
   <h3>tests/ and tools/</h3>
 
-  <p><code>tests/unit/</code> holds the six tests that are about the repository rather than about a
-  module: <code>engine-is-headless.test.ts</code>, <code>srd-content-strings.test.ts</code>,
-  <code>demo-scene.test.ts</code>, <code>demo-map-fight.test.ts</code>,
-  <code>legacy-campaign-import.test.ts</code>, and <code>spike.test.ts</code>, which asserts three.js
-  resolves as ESM under Vitest. <code>tests/e2e/</code> holds <code>between-fights.spec.ts</code>,
-  <code>card-browser.spec.ts</code>, <code>demo.spec.ts</code>, <code>editor-panels.spec.ts</code>,
-  <code>editor-shell.spec.ts</code>, <code>playpass.spec.ts</code>, <code>readout.spec.ts</code>,
-  <code>save-load.spec.ts</code> and <code>warden.spec.ts</code>.
-  <code>tests/fixtures/models/</code> holds <code>BoxTextured.glb</code>, <code>Duck.glb</code> and
-  <code>Fox.glb</code>.</p>
+  <p><code>tests/unit/</code> holds the tests that are about the repository rather than about a
+  module: <code>engine-is-headless.test.ts</code>, <code>licensing-boundary.test.ts</code>,
+  <code>doc-references.test.ts</code>, the three card-art tests, <code>demo-scene.test.ts</code>,
+  <code>demo-map-fight.test.ts</code>, <code>legacy-campaign-import.test.ts</code>, and
+  <code>spike.test.ts</code>, which asserts three.js resolves as ESM under Vitest.
+  <code>tests/e2e/</code> holds twelve specs: between-fights, building, card-browser, demo,
+  editor-panels, editor-shell, pack-import, placement, playpass, readout, save-load and warden.
+  <code>tests/fixtures/</code> holds the specimens tests play, the frozen version-1 documents in
+  <code>v1/</code>, and <code>models/</code>.</p>
 
-  <p><code>tools/</code> holds exactly two Python scripts — <code>adversaries-doc.py</code> and
-  <code>cards-doc.py</code> — plus the vendored <code>tools/srd-sources/</code> tree. They are not npm
-  scripts; run them from the repository root.</p>
+  <p><code>tools/</code> holds <code>index-card-art.mjs</code>, which writes
+  <code>public/cards/index.json</code> by listing that directory, and
+  <code>build-public-assets.ts</code>, which keeps the directory out of a production build.</p>
 </section>
 
 <section id="boot">
@@ -1138,7 +1135,7 @@ footer {
       <tr><td><code>SceneState</code></td><td><code>engine/scene/state.ts</code></td><td>The whole runtime overlay, keyed by content id, plus the tile occupancy index and the GM's Shadow. Serialises through <code>sceneSnapshotSchema</code>.</td></tr>
       <tr><td><code>JournalEntry</code></td><td><code>engine/script/runner.ts</code></td><td>One thing that happened, as a tagged union of roughly thirty variants. A UI renders these; a test asserts on them.</td></tr>
       <tr><td><code>Prompt</code></td><td><code>engine/script/runner.ts</code></td><td>What the runner is waiting for: <code>choice</code>, <code>check</code> or <code>dialogue</code>. Answered with a <code>Response</code>.</td></tr>
-      <tr><td><code>ProjectDoc</code></td><td><code>engine/scene/schema.ts</code></td><td>The authored document. <code>formatVersion</code> is a literal <code>1</code>, so an old file fails loudly rather than half-loading.</td></tr>
+      <tr><td><code>ProjectDoc</code></td><td><code>engine/scene/schema.ts</code></td><td>The authored document, <code>formatVersion</code> 3. An older file is migrated on the way in (<code>scene/migrate.ts</code>); one from a newer build fails loudly.</td></tr>
       <tr><td><code>Rng</code></td><td><code>engine/core/rng.ts</code></td><td><code>next</code>, <code>nextInt</code>, <code>die</code>, <code>dice</code>, <code>pick</code>, <code>shuffle</code>, <code>fork</code>, <code>save</code>, <code>restore</code>.</td></tr>
     </tbody>
   </table>
@@ -1161,7 +1158,7 @@ footer {
 
       <g class="lane">
         <rect x="10" y="10" width="920" height="196" rx="10" class="lane-box" />
-        <text x="24" y="34" class="lane-label">ProjectDoc — scene/schema.ts:210 · formatVersion is a literal 1 · almost every array defaults to empty</text>
+        <text x="24" y="34" class="lane-label">ProjectDoc — scene/schema.ts · formatVersion 3, older files migrated · almost every array defaults to empty</text>
       </g>
       <g class="node"><rect x="24" y="48" width="167" height="44" rx="8" /><text x="107" y="69" class="t">scenes[]</text><text x="107" y="84" class="s">min 1</text></g>
       <g class="node"><rect x="205" y="48" width="167" height="44" rx="8" /><text x="288" y="69" class="t">dialogues[]</text><text x="288" y="84" class="s">by id, not per scene</text></g>
@@ -1203,8 +1200,8 @@ footer {
   <p>Almost every array is <code>.default([])</code>, deliberately: a project written before quests,
   abilities, code, conditions or an authored party existed is still a valid project. The exception is
   <code>scenes</code>, which is <code>.min(1)</code> — a project with no scene is nothing to play.
-  <code>formatVersion</code> is a literal, so a file from a future format fails at the door rather
-  than half-loading.</p>
+  <code>formatVersion</code> is 3: an older file is migrated as it is read, and one from a newer
+  build fails at the door rather than half-loading.</p>
 </section>
 
 <section id="invariants">
@@ -1246,20 +1243,16 @@ footer {
     <h3>Content ids are stable kebab or snake case; never rely on array order</h3>
     <p><code>contentIdSchema</code> in <code>scene/primitives.ts</code> is
     <code>/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/</code>, and <code>toContentId()</code> in
-    <code>content/types.ts</code> normalises a display name to it. Both Python doc generators
-    reimplement the same transform so a doc anchor matches a runtime id. Array order changes whenever
+    <code>content/types.ts</code> normalises a display name to it. Array order changes whenever
     someone reorders a list in the editor; an id does not.</p>
   </div>
 
   <div class="card">
-    <h3>A project ability with the same id overrides an SRD one, whole</h3>
-    <p><code>withStatBlockFeatures</code> (<code>src/game/demo-scene.ts:438</code>) is
-    <code>[...abilities, ...SRD_ADVERSARY_ABILITIES.filter(f =&gt; !own.has(f.id))]</code>. A campaign
-    that places an Acid Burrower has not written Spit Acid — the SRD did, and the engine ships it —
-    so the shipped features are always there unless a project says something different with the same
-    id. The override replaces the definition entirely; it is not a field-by-field merge.
-    <code>worldOptions</code> in the same file composes <code>abilities</code>,
-    <code>conditionDefs</code> and <code>hooks</code> the same way.</p>
+    <h3>A project's content lays over its pack's by id, whole</h3>
+    <p><code>mergePack</code> (<code>content/pack/import.ts</code>) lays a project's lists over the
+    pack's: an entry with a pack entry's id replaces it entirely — not a field-by-field merge — and
+    the pack's other entries survive. What a project places is what it carries: a stat block brings
+    no scripted feature with it unless a pack or the project prints one on it.</p>
   </div>
 
   <div class="card">
@@ -1268,17 +1261,6 @@ footer {
     down a whole project. Anything arriving from outside the process — a save file,
     <code>localStorage</code>, an imported project — parses through a zod schema at the door, so a
     corrupted file fails loudly there rather than as a crash three moves into play.</p>
-  </div>
-
-  <div class="card">
-    <h3>Generated docs are regenerated, never hand-edited</h3>
-    <p><code>docs/ADVERSARIES.md</code> and <code>docs/CARDS.md</code> come from
-    <code>python tools/adversaries-doc.py</code> and <code>python tools/cards-doc.py</code>. Both read
-    the vendored SRD JSON <em>and</em> the engine's own <code>.ts</code> content files, so a generated
-    doc cannot claim more than the code does. <code>adversaries-doc.py</code> regexes on the literal
-    name <code>IMPLEMENTED_FEATURES</code> in <code>combat/adversary-features.ts</code> and on the
-    <code>id:</code>, <code>name:</code>, <code>source: from(...)</code> shape of
-    <code>adversary-abilities.ts</code>: renaming either breaks the generator silently.</p>
   </div>
 
   <div class="card">
@@ -1393,42 +1375,44 @@ footer {
     <li><strong><code>src/editor/validate.ts</code></strong> — refuse what would silently do nothing.
       Here: a reduction that is not dice, and a reduction whose modifier is negative, because
       <code>"1d10-2"</code> would hand the attacker two damage back.</li>
-    <li><strong><code>src/engine/content/srd/adversary-abilities.ts</code></strong> — the features
-      that now have a home: Heavily Armored, Immovable Object, Faltering Armor, Firespite Plate
-      Armor, Unreal Form.</li>
+    <li><strong><code>tests/fixtures/adversary-features.ts</code></strong> — a specimen that carries
+      it, printed on a block with <code>printed(blocks, feature)</code>: here
+      <code>PLATE_THAT_TURNS_A_FLAT_AMOUNT</code> and <code>PLATE_THAT_ROLLS_WHAT_IT_TURNS</code>.</li>
     <li><strong>Tests:</strong> <code>rules/damage.test.ts</code>, <code>combat/defense.test.ts</code>,
       <code>editor/validate.test.ts</code>, <code>editor/authored-scenario.test.ts</code>, and a line
       in <code>tests/e2e/demo.spec.ts</code>.</li>
-    <li><strong><code>python tools/adversaries-doc.py</code></strong>, then the prose in
-      <code>docs/MANUAL.md</code> and <code>docs/CRPG-GAPS.md</code>.</li>
+    <li><strong>The prose</strong> in <code>docs/MANUAL.md</code> and <code>docs/CRPG-GAPS.md</code>.</li>
   </ol>
 
-  <h3 id="recipe-c">c · Script an SRD adversary feature</h3>
+  <h3 id="recipe-c">c · Script a stat block's feature</h3>
+
+  <p>A stat block's feature is content, not engine code: the engine ships none — the starter
+  pack's creatures carry printed traits only — and a pack or a project brings its own.</p>
 
   <ol>
-    <li><strong>Read the printed text.</strong> <code>docs/ADVERSARIES.md</code> lists every feature
-      and its state — <strong>read</strong> (a rule the fight obeys, from
-      <code>combat/adversary-features.ts</code>), <strong>scripted</strong>, or <strong>text</strong>.
-      Pick from the text list; the doc also names why each one is still text.</li>
-    <li><strong>Quote the rule from the official source.</strong>
-      <code>tools/srd-sources/official-2.0/srd-2.0.txt</code> and nothing else. The community JSON is
-      content, never a rule.</li>
-    <li><strong><code>src/engine/content/srd/adversary-abilities.ts</code></strong> — add an entry to
-      <code>RAW</code>: <code>id</code> in the form <code>&lt;adversary-id&gt;-&lt;feature-kebab&gt;</code>,
-      <code>name</code>, <code>source: from('adversary-id', …)</code>, <code>text</code> verbatim,
-      <code>kind</code>, <code>cost</code>, <code>target</code>, <code>inCombatOnly</code>, and
-      <code>effects</code> in the one vocabulary. <strong>Comment every departure from the printed
-      text</strong>, in the entry, next to the thing that departs.</li>
-    <li>If the vocabulary cannot say it, either add an effect (recipe a) or a native hook in
-      <code>src/engine/content/srd/hooks.ts</code>. If you do neither, leave the feature as text and
-      let the generated doc say so — an unscripted feature the GM narrates is honest; a half-scripted
-      one is not.</li>
-    <li><strong><code>src/engine/content/srd/library.test.ts</code></strong> — the whole-library
-      sanity check runs over the new entry automatically; add a case for anything specific.</li>
-    <li><strong><code>src/engine/script/abilities.test.ts</code></strong> — play the feature against a
-      real world and assert on the journal.</li>
-    <li><strong><code>python tools/adversaries-doc.py</code>.</strong> The counts at the top of
-      <code>docs/ADVERSARIES.md</code> move on their own; do not type them.</li>
+    <li><strong>Trait or feature?</strong> Relentless, Horde, Minion, Momentum and Terrifying are
+      read structurally off the block (<code>combat/adversary-features.ts</code>,
+      <code>IMPLEMENTED_FEATURES</code>): a trait belongs there, as a rule the fight obeys.
+      Anything the GM <em>plays</em> is a feature, and is scripted.</li>
+    <li><strong>A card printed on the block, and the ability on it.</strong> In
+      <code>cards</code>, a card whose <code>grant</code> is <code>{ kind: 'adversary', adversaries:
+      [...] }</code>; in <code>abilities</code>, the feature with <code>source: { card }</code>,
+      <code>text</code> as printed, <code>kind</code>, <code>cost</code> (Shadow is the GM's pool),
+      <code>target</code>, <code>inCombatOnly</code>, and <code>effects</code> in the one vocabulary.
+      In the editor, write it in the Cards panel and set <strong>granted by</strong> to stat
+      blocks. <strong>Comment every departure from the printed text</strong> next to the thing
+      that departs.</li>
+    <li>If the vocabulary cannot say it, add an effect (recipe a) or a native hook in
+      <code>src/engine/script/native-hooks.ts</code>. If you do neither, leave the feature as text
+      for the GM to narrate — an unscripted feature is honest; a half-scripted one is not.</li>
+    <li><strong><code>src/editor/validate.ts</code></strong> already knows what only a stat block
+      may do and what only the party's own swing obeys; <code>isStatBlockFeature</code> asks the
+      cards, and a new rule of that kind asks the same question.</li>
+    <li><strong>Test it on a fixture block.</strong> Write the feature once in
+      <code>tests/fixtures/adversary-features.ts</code> and print it with
+      <code>printed(blocks, feature)</code>; <code>print(project, ...)</code> lays card and ability
+      into a project. Play it in <code>src/editor/authored-scenario.test.ts</code> or
+      <code>src/engine/script/abilities.test.ts</code> and assert on the journal.</li>
   </ol>
 
   <h3 id="recipe-d">d · Add a condition (a status on a creature)</h3>
@@ -1586,102 +1570,23 @@ Claude-Session: https://claude.ai/code/session_01YW7ZQM2cmKNB9XJAbtx69u</code></
 <section id="content">
   <h2><span class="num">12</span>Content and licensing</h2>
 
-  <figure>
-    <svg class="diagram" viewBox="0 0 940 430" role="img" aria-labelledby="d4title d4desc">
-      <title id="d4title">Where content comes from</title>
-      <desc id="d4desc">Vendored SRD JSON is normalised into typed content, merged with a project's own abilities by id, and handed to the world; two Python scripts read the same sources to regenerate the coverage docs.</desc>
+  <h3>Where content comes from</h3>
 
-      <g class="lane">
-        <rect x="10" y="10" width="920" height="112" rx="10" class="lane-box" />
-        <text x="24" y="34" class="lane-label">tools/srd-sources/ — vendored, DPCGL, never fetched at runtime</text>
-      </g>
-      <g class="node"><rect x="24" y="48" width="284" height="60" rx="8" />
-        <text x="166" y="72" class="t">official-2.0/srd-2.0.txt</text>
-        <text x="166" y="92" class="s">rules text — quote this one only</text></g>
-      <g class="node"><rect x="328" y="48" width="284" height="60" rx="8" />
-        <text x="470" y="72" class="t">daggersearch/core/*.json</text>
-        <text x="470" y="92" class="s">classes, cards, weapons, armor</text></g>
-      <g class="node"><rect x="632" y="48" width="280" height="60" rx="8" />
-        <text x="772" y="72" class="t">seansbox/*.json</text>
-        <text x="772" y="92" class="s">129 adversaries, environments</text></g>
+  <p>Nothing is vendored. The engine ships its own starter pack (<code>content/pack/starter.ts</code>,
+  with <code>starter-abilities.ts</code> and <code>starter-conditions.ts</code>), nobody else's
+  content, and reads anything else as a pack a user imports — Project ▾ → Import pack…, through
+  <code>content/pack/document.ts</code>. The SRD catalogue this repository once carried was
+  exported before it was deleted; <code>docs/CONTEXT.md</code> says where, and why the export is
+  git-ignored.</p>
 
-      <g class="node"><rect x="328" y="152" width="284" height="60" rx="8" />
-        <text x="470" y="176" class="t">content/srd/daggersearch.ts</text>
-        <text x="470" y="196" class="s">typed, validated by zod</text></g>
-      <g class="node"><rect x="632" y="152" width="280" height="60" rx="8" />
-        <text x="772" y="176" class="t">content/srd/seansbox-adversaries.ts</text>
-        <text x="772" y="196" class="s">"+3", "8/15", "1d12+2 phy" parsed</text></g>
-      <path d="M470,108 V148" class="edge" marker-end="url(#arrow)" />
-      <path d="M772,108 V148" class="edge" marker-end="url(#arrow)" />
+  <h3>Where the rules come from</h3>
 
-      <g class="node accent"><rect x="328" y="242" width="584" height="64" rx="8" />
-        <text x="620" y="268" class="t">content/srd/abilities.ts (cards) · adversary-abilities.ts (stat-block features)</text>
-        <text x="620" y="288" class="s">hand-written AbilityDefs: SRD text verbatim, one script each, every departure commented</text></g>
-      <path d="M470,212 V238" class="edge" marker-end="url(#arrow)" />
-      <path d="M772,212 V238" class="edge" marker-end="url(#arrow)" />
-
-      <g class="node result"><rect x="328" y="336" width="584" height="70" rx="8" />
-        <text x="620" y="362" class="t">withStatBlockFeatures(project?.abilities ?? SRD_ABILITIES)</text>
-        <text x="620" y="382" class="s">a project ability with the same id wins; the rest of the library is added</text>
-        <text x="620" y="398" class="s">src/game/demo-scene.ts → SceneScriptWorld</text></g>
-      <path d="M620,306 V332" class="edge" marker-end="url(#arrow)" />
-
-      <g class="node muted"><rect x="24" y="152" width="284" height="154" rx="8" />
-        <text x="166" y="184" class="t">tools/adversaries-doc.py</text>
-        <text x="166" y="204" class="s">tools/cards-doc.py</text>
-        <text x="166" y="232" class="s">read the same JSON *and*</text>
-        <text x="166" y="250" class="s">the .ts above, then rewrite</text>
-        <text x="166" y="268" class="s">docs/ADVERSARIES.md</text>
-        <text x="166" y="286" class="s">docs/CARDS.md</text></g>
-      <path d="M166,108 V148" class="edge" marker-end="url(#arrow)" />
-      <path d="M324,274 H312" class="edge dashed-edge" marker-end="url(#arrow)" />
-      <text x="166" y="330" class="note">so a doc cannot claim more than the code does</text>
-    </svg>
-    <figcaption>D4 — Content comes from three vendored sources and nowhere else. Nothing is fetched at runtime or at build time.</figcaption>
-  </figure>
-
-  <h3>The three sources</h3>
-
-  <table>
-    <thead><tr><th>Source</th><th>What it is</th><th>Use it for</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><code>official-2.0/srd-2.0.txt</code></td>
-        <td>Vendored while the catalogue was built, and <strong>deleted with it</strong>. Nothing in the tree quotes a rule from a vendored source any more.</td>
-        <td><strong>Rules text. The only thing to quote.</strong> Cite the section in the code comment.</td>
-      </tr>
-      <tr>
-        <td><code>daggersearch/core/*.json</code></td>
-        <td>Community SRD <strong>1.0</strong>, well typed, with JSON Schemas in <code>_schemas/</code>: ancestries, armors, classes, communities, consumables, domain-cards, items, rules, subclasses, transformations, weapons. Names and descriptions are localized objects (<code>{"en-US": …}</code>). No adversaries, no environments.</td>
-        <td>Structured content only.</td>
-      </tr>
-      <tr>
-        <td><code>seansbox/*.json</code></td>
-        <td>Community SRD <strong>1.0</strong>, stringly typed (<code>"atk": "+3"</code>, <code>"thresholds": "8/15"</code>): 129 adversaries, environments, 24 beastforms, abilities, plus its own character data.</td>
-        <td>The adversaries and environments the other set lacks.</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h3>Which is authoritative</h3>
-
-  <p>For a <em>rule</em>, <code>official-2.0/srd-2.0.txt</code> and nothing else. The engine implements
-  SRD 2.0, and a section-by-section diff against 1.0 is recorded in <code>docs/CONTEXT.md</code>. The
-  two community sets are still 1.0, and neither upstream had updated as of 2026-09-05. They are fine
-  as <em>content</em> — stat blocks, weapon and armor tables are unaffected by the 2.0 changes — and
-  never as a rule.</p>
-
-  <h3>Known defects in the community data</h3>
-
-  <p><code>daggersearch/core/rules.json</code> is a terse summary with two errors that would propagate
-  if anyone quoted it: its Failure-with-Shadow bullet swaps Light and Shadow, and its critical-damage line
-  ("double the total result of your damage dice") contradicts the verbatim text of both 1.0 and 2.0
-  ("add the maximum possible result of the damage dice"). The engine's default is the official one;
-  the other is selectable as <code>criticalRule: 'doubleDice'</code> for a table that plays it that
-  way, and <code>rules/damage.ts</code> says so in a comment above the flag.
-  <code>seansbox/adversaries.json</code> is stringly typed throughout, which is why
-  <code>content/srd/seansbox-adversaries.ts</code> exists; two stat blocks print
-  <code>"Horde (/HP)"</code> with the number missing.</p>
+  <p>The SRD 2.0 text, as settled while it was here. The section-by-section diff against 1.0 is
+  recorded in <code>docs/CONTEXT.md</code>, which is now the reference for what the engine
+  implements and why. One number is a choice the engine exposes rather than a quotation: critical
+  damage adds the dice's maximum, as both SRD versions say, and a table that doubles the dice
+  instead can set <code>criticalRule: 'doubleDice'</code> — <code>rules/damage.ts</code> says so
+  above the flag.</p>
 
   <h3>The two attributions</h3>
 
@@ -1692,15 +1597,15 @@ Claude-Session: https://claude.ai/code/session_01YW7ZQM2cmKNB9XJAbtx69u</code></
   Daggerheart is a trademark of Critical Role, LLC, and this project is unaffiliated.
   More information: <a href="https://www.daggerheart.com">daggerheart.com</a>.</p>
 
-  <div class="callout">
-    <p><strong>The boundary.</strong> Only vendored SRD <em>text</em> enters the repository. The
-    source PDF is deliberately not committed; only the extracted text is, along with the script that
-    extracted it.</p>
-  </div>
+  <h3>Card art</h3>
 
-  <p>Adding a field to the normalised adversaries: <code>content/srd/seansbox-adversaries.ts</code>
-  normalises all 129, and <code>tests/unit/srd-content-strings.test.ts</code> asserts they all import
-  with zero issues. Add a case there before trusting a new field.</p>
+  <p><code>ui/card-sigil.ts</code> draws each card's emblem from its own id, so nothing in
+  <code>src/</code> reads an image file. <code>ui/card-art.ts</code> layers two optional sources over
+  it: a file named in <code>public/cards/index.json</code>, and art a player imported into their own
+  browser. <code>public/cards/</code> is git-ignored, <code>tools/build-public-assets.ts</code> keeps
+  it out of a production build, <code>tests/unit/licensing-boundary.test.ts</code> pins the ignore
+  rule and <code>tests/unit/card-art-packaging.test.ts</code> the build. See
+  <code>AGENTS.md</code>.</p>
 </section>
 
 <section id="gotchas">
@@ -1740,8 +1645,6 @@ Claude-Session: https://claude.ai/code/session_01YW7ZQM2cmKNB9XJAbtx69u</code></
     <li><strong>No TTS, no speech synthesis, no "voice" features.</strong> A hard constraint from the
       user; both previous attempts were removed.</li>
     <li><strong>All content text is English.</strong></li>
-    <li><strong><code>docs/ADVERSARIES.md</code> and <code>docs/CARDS.md</code> are generated.</strong>
-      Editing them by hand is work the next <code>python tools/*-doc.py</code> throws away.</li>
   </ul>
 </section>
 

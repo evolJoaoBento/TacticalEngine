@@ -4,6 +4,21 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The docs stop naming what is gone — done
+
+The reference docs described a repository that no longer exists. `DEVELOPING.md` and
+`developer-guide.html` lose the vendored-sources section, the generated-docs rules, the
+`content/srd/` rows and a recipe that edited a deleted library; recipe (c) is now how a stat
+block's feature is written, as a card printed on a block. The HTML guide also stops saying
+`formatVersion` is 1, and gains the content-pack rows it never had. `MANUAL.md` and `CRPG-GAPS.md`
+stop pointing at `docs/CARDS.md`, `docs/ADVERSARIES.md` and the catalogue's counts, and say which
+four native hooks exist. A new guard, `tests/unit/doc-references.test.ts`, fails when a reference
+doc names a file the repository does not have: this drift had been found by hand three times.
+
+`npx tsc --noEmit` clean; vitest **1840 passed / 1 failed (1841)**, the one failure being the documented deliberate one;
+Playwright **105 passed (3.7m)**, `EXIT 0`. The guard earned its place on its first run: it found one
+reference the rewrite had missed (the build's index, named as if it were a repository file).
+
 ## Card zones — done
 
 The loadout shows **Always in play** between the hand and the vault: what a character has
@@ -636,10 +651,11 @@ product: a pack with art is the same problem.
 `DEVELOPING.md` labels its old line anchors as historical; use symbol names to find current
 implementations.
 
-Slice 3 invalidates documentation, not only code. `ADVERSARIES.md` and `CARDS.md` go with their
-generators. `CONTEXT.md` still describes the SRD sourcing as the working agreement and needs the
-same treatment as the backlog header. Anything quoting a count of catalogue content is stale the
-moment the catalogue is exported.
+Slice 3's drift is cleaned up: no reference doc -- `DEVELOPING.md`, its HTML twin, `MANUAL.md`,
+`CRPG-GAPS.md` -- names a file the repository does not have, and
+`tests/unit/doc-references.test.ts` keeps it that way. A record of what was removed (this file,
+`CONTEXT.md`, `AGENTS.md`) still names what it removed, which is its job. No doc quotes a count of
+catalogue content any more: the catalogue is a pack now, and its numbers are its own.
 
 ---
 

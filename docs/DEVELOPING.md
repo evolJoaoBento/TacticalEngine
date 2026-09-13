@@ -8,14 +8,13 @@ that keep recurring. It is a reference to look things up in, not a tutorial to r
 
 | Doc | Covers |
 |---|---|
-| `docs/CONTEXT.md` (144 lines) | The goal, the hard constraints, the chosen stack, the SRD sourcing and the house rules. Read it first; it is the working agreement. |
+| `docs/CONTEXT.md` | The goal, the hard constraints, the chosen stack, what became of the SRD sources, and the house rules. Read it first; it is the working agreement. |
 | `docs/BACKLOG.md` | What to build next, ranked, and the working rules learned the expensive way: the patch-script protocol, the driver-type mirror, what to run before claiming done. Read it second. |
-| `docs/MANUAL.md` (951 lines) | Playing the demo and authoring content in the editor. Every panel, every field, every verb. Hand-written, user-facing. |
+| `docs/MANUAL.md` | Playing the demo and authoring content in the editor. Every panel, every field, every verb. Hand-written, user-facing. |
 | **this file** | Extending the engine: adding an effect, a condition, a passive, a panel field, an SRD feature, a rule. |
 
-Two further docs are *generated* and must never be hand-edited: `docs/ADVERSARIES.md` (470 lines,
-`python tools/adversaries-doc.py`) and `docs/CARDS.md` (257 lines, `python tools/cards-doc.py`).
-`docs/CRPG-GAPS.md` (491 lines) is an honest audit against the CRPG goal — read it before claiming
+Nothing in `docs/` is generated any more: the card and adversary listings went with the catalogue
+they listed. `docs/CRPG-GAPS.md` is an honest audit against the CRPG goal — read it before claiming
 a system exists. `docs/research/legacy-{game,campaign,editor-ui,models}.md` are static-analysis
 notes on the legacy prototype with `file:line` anchors; read those instead of re-reading `legacy/`.
 
@@ -112,16 +111,15 @@ adapter: the rest of the core does not know it exists.
 | `script/countdowns.ts` | The board a scenario carries: `RunningCountdown` (a clock plus what it is counting towards), `advanceBoard`, `reapBoard`, `endCreatureCountdowns`, and the snapshot schema a save uses. |
 | `script/hooks.ts` | Running project code: `HookContext`, `runHook`, `SAFE_MATH`. |
 | `content/types.ts` | `AdversaryDef`, `AdversaryFeature`, `ContentIssue`, `ImportResult`, `toContentId`. |
-| `content/abilities.ts` | `AbilityDef` and its sub-schemas; `abilitiesFor`, `loadoutOf`, `cardOf`, `statBlocksOf`, `isStatBlockFeature`, `isScripted`, `isAutomatic`, `readsATarget`. An ability sits on a card (`source: { card }`) and is in play when its card is -- chosen and in the loadout, or granted; a stat block's feature still names its adversaries (`source: { kind: 'adversary' }`) until the GM's side becomes cards. A modifier's `advantage` stat is a signed count of dice, `against: true` puts it on rolls made at the holder, `plusProficiency` adds their Proficiency, and `perToken` multiplies the whole bonus by the tokens on a card — never folded into a derived character, because tokens are scene state. A passive's `standardAttack` changes the block's own swing (`direct`, `damage`, `double`), with `when` read from the attacker's chair and the target bound. `target.when` says what makes a creature worth aiming at, read once per candidate by both the player's list and the GM's. |
+| `content/abilities.ts` | `AbilityDef` and its sub-schemas; `abilitiesFor`, `loadoutOf`, `cardOf`, `grantRank`, `statBlocksOf`, `isStatBlockFeature`, `isScripted`, `isAutomatic`, `readsATarget`. An ability sits on a card (`source: { card }`) and is in play when its card is -- chosen and in the loadout, or granted; a stat block's feature is an ability on a card granted by `adversary`, and `statBlocksOf` says which blocks print it. A modifier's `advantage` stat is a signed count of dice, `against: true` puts it on rolls made at the holder, `plusProficiency` adds their Proficiency, and `perToken` multiplies the whole bonus by the tokens on a card — never folded into a derived character, because tokens are scene state. A passive's `standardAttack` changes the block's own swing (`direct`, `damage`, `double`), with `when` read from the attacker's chair and the target bound. `target.when` says what makes a creature worth aiming at, read once per candidate by both the player's list and the GM's. |
 | `content/conditions.ts` | `ConditionDef` — what a *status* on a creature does. `SRD_CONDITIONS`. |
 | `content/items.ts`, `content/quests.ts` | Item and quest content shapes. |
 | `content/pack/schema.ts` | What a content pack *is*, as zod: `featureSchema`, `weaponDefSchema`, `armorDefSchema`, `classDefSchema`, `ancestryDefSchema`, `communityDefSchema`, `subclassDefSchema`, `cardDefSchema` with its `cardGrantSchema`, and `contentPackSchema`. A class, subclass, ancestry or community carries no printed features: those are cards that name what grants them. The contract a pack is validated against, wherever it comes from. |
 | `content/pack/import.ts` | The pack in memory: `ContentPack` (maps by id), the def types, `CardGrant`, `isDomainCard` (a chosen card, with the loadout's numbers), and `mergePack`, which lays a project's lists over a pack's. The readers for a retired data set's shapes are gone; a pack *file* comes in through `document.ts`. |
 | `content/pack/document.ts` | A pack as a **file**: `packDocumentSchema` (`contentPackSchema` plus `abilities` and `conditionDefs`), `readPack` (migrates, then validates each entry on its own and reports what it skipped) and `describePack`. What Project ▾ → Import pack… reads; `importPack` in `editor/session.ts` lays it into the project. |
-| `content/srd/seansbox-adversaries.ts` | Normalises the 129 stringly-typed adversaries (300 lines). |
-| `content/srd/abilities.ts` | `SRD_ABILITIES`, `SRD_ABILITY_MAP` — hand-written domain cards (1131 lines). |
-| `content/srd/adversary-abilities.ts` | `SRD_ADVERSARY_ABILITIES` — hand-written stat-block features (1556 lines). |
-| `content/srd/hooks.ts` | `SRD_HOOKS` — native hooks for what the vocabulary cannot say. |
+| `content/pack/starter.ts` | The pack the engine ships, its own and nobody else's: `STARTER_PACK`, `STARTER_CHARACTERS` (the character side as a `ContentPack`), `STARTER_ADVERSARIES`. Its stat blocks carry printed traits and no scripted features. |
+| `content/pack/starter-abilities.ts`, `starter-conditions.ts` | `STARTER_ABILITIES` and `STARTER_CONDITIONS`: what the starter pack's cards do, and the conditions they apply. |
+| `script/native-hooks.ts` | `SRD_HOOKS` — the four native hooks, for mechanics that are a computation rather than a list of effects. Engine code, which is why it stayed when the catalogue went. |
 | `scene/primitives.ts` | `contentIdSchema`, `traitSchema`, `pointSchema`. Exists to break an import cycle between the two zod modules. |
 | `scene/schema.ts` | The authored document: `sceneSchema`, `projectSchema`, `ProjectDoc`, `codeSchema`. |
 | `scene/state.ts` | Runtime overlay: `EntityState`, `SceneState`, `SceneStateSnapshot`, `sceneStateFromScene`. |
@@ -180,16 +178,18 @@ loads `/src/main.ts`.
 
 ### `tests/`, `tools/`
 
-`tests/unit/` holds the six tests that are about the repository rather than a module:
-`engine-is-headless.test.ts`, `srd-content-strings.test.ts`, `demo-scene.test.ts`,
-`demo-map-fight.test.ts`, `legacy-campaign-import.test.ts`, `spike.test.ts`. `tests/e2e/` holds
-`between-fights.spec.ts`, `card-browser.spec.ts`, `demo.spec.ts`, `editor-panels.spec.ts`,
-`editor-shell.spec.ts`, `playpass.spec.ts`, `readout.spec.ts`, `save-load.spec.ts` and
-`warden.spec.ts`. `tests/fixtures/models/` holds `BoxTextured.glb`, `Duck.glb`, `Fox.glb`.
+`tests/unit/` holds the tests that are about the repository rather than a module:
+`engine-is-headless.test.ts`, `licensing-boundary.test.ts`, `doc-references.test.ts`, the three
+card-art tests (`card-art.test.ts`, `card-art-packaging.test.ts`, `card-sigil.test.ts`),
+`demo-scene.test.ts`, `demo-map-fight.test.ts`, `legacy-campaign-import.test.ts` and
+`spike.test.ts`. `tests/e2e/` holds `between-fights`, `building`, `card-browser`, `demo`,
+`editor-panels`, `editor-shell`, `pack-import`, `placement`, `playpass`, `readout`, `save-load`
+and `warden`, each a `.spec.ts`. `tests/fixtures/` holds the specimens tests play -- `cards.ts`,
+`adversaries.ts`, `adversary-features.ts`, `characters.ts` -- the frozen version-1 documents in
+`v1/`, and `models/` (`BoxTextured.glb`, `Duck.glb`, `Fox.glb`).
 
-`tools/` holds exactly two Python scripts — `adversaries-doc.py` and `cards-doc.py` — plus the
-vendored `tools/srd-sources/` tree. They are not npm scripts; run them from the repo root with
-`python tools/adversaries-doc.py`.
+`tools/` holds `index-card-art.mjs`, which writes `public/cards/index.json` by listing that
+directory, and `build-public-assets.ts`, which keeps the directory out of a production build.
 
 ---
 
@@ -469,27 +469,18 @@ step"*, and shadows `Date` so a stray `Date.now()` is a `TypeError` the author s
 
 **Content ids are stable kebab or snake case; never rely on array order.**
 `contentIdSchema` in `scene/primitives.ts` is `/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/`, and
-`toContentId()` in `content/types.ts` normalises a display name to it. Both Python doc generators
-reimplement the same transform so a doc anchor matches a runtime id. Array order changes whenever
-someone reorders a list in the editor; an id does not.
+`toContentId()` in `content/types.ts` normalises a display name to it. Array order changes
+whenever someone reorders a list in the editor; an id does not.
 
-**A project ability with the same id overrides an SRD one, whole.**
-`withStatBlockFeatures` in `src/game/demo-scene.ts:438` is
-`[...abilities, ...SRD_ADVERSARY_ABILITIES.filter(f => !own.has(f.id))]`. A campaign that places an
-Acid Burrower has not written Spit Acid — the SRD did, and the engine ships it — so the shipped
-features are always there unless a project says something different with the same id. The override
-replaces the definition entirely; it is not a field-by-field merge.
+**A project's content lays over its pack's by id, whole.** `mergePack` (`content/pack/import.ts`)
+lays a project's lists over the pack's: an entry with a pack entry's id replaces it entirely -- not
+a field-by-field merge -- and the pack's other entries survive. What a project places is what it
+carries: a stat block brings no scripted feature with it unless a pack or the project prints one
+on it.
 
 **Importers never throw.** A broken entry is skipped and reported as a `ContentIssue`, so one typo
 cannot take down a whole project. Anything arriving from outside the process — a save file,
 `localStorage`, an imported project — parses through a zod schema at the door.
-
-**Generated docs are regenerated, never hand-edited.** `docs/ADVERSARIES.md` and `docs/CARDS.md`
-come from `python tools/adversaries-doc.py` and `python tools/cards-doc.py`. Both scripts read the
-vendored SRD JSON *and* the engine's own `.ts` content files, so a generated doc cannot claim more
-than the code does. `adversaries-doc.py` regexes on the literal name `IMPLEMENTED_FEATURES` in
-`combat/adversary-features.ts` and on the `id:`/`name:`/`source: from(...)` shape of
-`adversary-abilities.ts`: renaming either breaks the generator silently.
 
 **Optional rules stay opt-in.** Massive Damage (`SeverityOptions.massiveDamage`) is off by default
 because the SRD prints it as optional, and the critical-damage rule is a flag
@@ -576,33 +567,39 @@ Worked example: `defenses.reduce`, commit `6ec74ef` — "a number off the damage
 9. **`src/editor/validate.ts`** — refuse what would silently do nothing. Here: a reduction that is
    not dice, and a reduction whose modifier is negative (`"1d10-2"` would hand the attacker two
    damage back).
-10. **`src/engine/content/srd/adversary-abilities.ts`** — the features that now have a home
-    (Heavily Armored, Immovable Object, Faltering Armor, Firespite Plate Armor, Unreal Form).
+10. **`tests/fixtures/adversary-features.ts`** — a specimen that carries it, printed on a block with
+    `printed(blocks, feature)`: here `PLATE_THAT_TURNS_A_FLAT_AMOUNT` and
+    `PLATE_THAT_ROLLS_WHAT_IT_TURNS`, which two test files play.
 11. **Tests:** `rules/damage.test.ts`, `combat/defense.test.ts`, `editor/validate.test.ts`,
     `editor/authored-scenario.test.ts`, and a line in `tests/e2e/demo.spec.ts`.
-12. **`python tools/adversaries-doc.py`**, then the prose in `docs/MANUAL.md` and
-    `docs/CRPG-GAPS.md`.
+12. **The prose** in `docs/MANUAL.md` and `docs/CRPG-GAPS.md`.
 
-### (c) Script an SRD adversary feature
+### (c) Script a stat block's feature
 
-1. **Read the printed text.** `docs/ADVERSARIES.md` lists every feature and its state — **read**
-   (a rule the fight obeys, from `combat/adversary-features.ts`), **scripted**, or **text**. Pick
-   from the text list; the doc also names why each one is still text.
-2. **Quote the rule from the official source.** `tools/srd-sources/official-2.0/srd-2.0.txt` only.
-   The community JSON is content, never a rule.
-3. **`src/engine/content/srd/adversary-abilities.ts`** — add an entry to `RAW`:
-   `id` (`<adversary-id>-<feature-kebab>`), `name`, `source: from('adversary-id', ...)`, `text`
-   verbatim, `kind`, `cost`, `target`, `inCombatOnly`, and `effects` in the one vocabulary.
-   **Comment every departure from the printed text**, in the entry, next to the thing that departs.
-4. If the vocabulary cannot say it, either add an effect (recipe a) or a native hook in
-   `src/engine/content/srd/hooks.ts` — and if you do neither, leave the feature as text and let the
-   generated doc say so.
-5. **`src/engine/content/srd/library.test.ts`** — the whole-library sanity check runs over the new
-   entry automatically; add a case for anything specific.
-6. **`src/engine/script/abilities.test.ts`** — play the feature against a real world and assert on
+A stat block's feature is content, not engine code: the engine ships none -- the starter pack's
+creatures carry printed traits only -- and a pack or a project brings its own.
+
+1. **Trait or feature?** Relentless, Horde, Minion, Momentum and Terrifying are read structurally
+   off the block (`combat/adversary-features.ts`, `IMPLEMENTED_FEATURES`): a trait belongs there,
+   as a rule the fight obeys. Anything the GM *plays* -- an action, a reaction, a passive on the
+   block's numbers -- is a feature, and is scripted.
+2. **A card printed on the block, and the ability on it.** In the project's (or the pack's)
+   `cards`, `{ id, name, grant: { kind: 'adversary', adversaries: ['<block-id>'] } }`; in
+   `abilities`, the feature with `source: { card: '<that id>' }`, `text` as printed, `kind`, `cost`
+   (Shadow is the GM's pool), `target`, `inCombatOnly`, and `effects` in the one vocabulary. In
+   the editor: write it in the Cards panel and set **granted by** to stat blocks. **Comment every
+   departure from the printed text** next to the thing that departs.
+3. If the vocabulary cannot say it, add an effect (recipe a) or a native hook in
+   `src/engine/script/native-hooks.ts` -- and if you do neither, leave the feature as text for the
+   GM to narrate. An unscripted feature is honest; a half-scripted one is not.
+4. **`src/editor/validate.ts`** already knows what only a stat block may do -- spend Shadow, hand
+   out the spotlight, count the Hit Points its owner marks -- and what only the party's own swing
+   obeys. `isStatBlockFeature` asks the cards; a new rule of that kind asks the same question.
+5. **Test it on a fixture block.** Write the feature once, in `tests/fixtures/adversary-features.ts`
+   or beside the one test that reads it, and print it with `printed(blocks, feature)`;
+   `print(project, ...)` lays card and ability into a project. Play it in
+   `src/editor/authored-scenario.test.ts` or `src/engine/script/abilities.test.ts` and assert on
    the journal.
-7. **`python tools/adversaries-doc.py`.** The counts at the top of `docs/ADVERSARIES.md` move on
-   their own; do not type them.
 
 ### (d) Add a condition (a status on a creature)
 
@@ -749,30 +746,18 @@ Two shapes are named for what they are rather than for a rule: a class's `signat
 feature it grants for its own resource), and armor thresholds, which must be finite integers because
 `NO_THRESHOLDS` uses `Infinity` and `JSON.stringify` writes that as `null`.
 
-### The vendored sources
+### Where content comes from
 
-Everything is vendored under `tools/srd-sources/`; nothing is fetched at runtime or at build time.
+Nothing is vendored. The engine ships its own starter pack (`content/pack/starter*.ts`), nobody
+else's content, and reads anything else as a pack a user imports (Project ▾ → Import pack…,
+`content/pack/document.ts`). The SRD catalogue this repository once carried was exported before it
+was deleted; `docs/CONTEXT.md` says where, and why the export is git-ignored.
 
-| Source | What it is | Use it for |
-|---|---|---|
-| the official rules text | Vendored while the catalogue was built, and **deleted with it**. Nothing in the tree quotes a rule from a vendored source any more. | Nothing — it is gone. See `docs/CONTEXT.md` for what was settled and why. |
-| `daggersearch/core/*.json` | Community SRD **1.0**, well typed, with JSON Schemas in `_schemas/`: ancestries, armors, classes, communities, consumables, domain-cards, items, rules, subclasses, transformations, weapons. Names and descriptions are localized objects (`{"en-US": …}`). No adversaries, no environments. | Structured content only. |
-| `seansbox/*.json` | Community SRD **1.0**, stringly typed (`"atk": "+3"`, `"thresholds": "8/15"`): 129 adversaries, environments, 24 beastforms, abilities, plus its own character data. | The adversaries and environments the other set lacks. |
-
-**Which is authoritative.** For a *rule*, `official-2.0/srd-2.0.txt` and nothing else. The engine
-implements SRD 2.0; a section-by-section diff against 1.0 is recorded in `docs/CONTEXT.md`. The two
-community sets are still 1.0 and neither upstream had updated as of 2026-09-05. They are fine as
-*content* — stat blocks, weapon and armor tables are unaffected by the 2.0 changes — and never as a
-rule.
-
-**Known defects in the community data.** `daggersearch/core/rules.json` is a terse summary with two
-errors that would propagate: its Failure-with-Shadow bullet swaps Light and Shadow, and its
-critical-damage line ("double the total result of your damage dice") contradicts the verbatim text
-of both 1.0 and 2.0 ("add the maximum possible result of the damage dice"). The engine's default is
-the official one; the other is selectable as `criticalRule: 'doubleDice'` for a table that plays it
-that way, and `rules/damage.ts` says so in a comment above the flag. `seansbox/adversaries.json` is
-stringly typed throughout, which is why `content/srd/seansbox-adversaries.ts` exists; two stat blocks
-print `"Horde (/HP)"` with the number missing.
+**Rules come from the SRD 2.0 text, as settled while it was here.** The section-by-section diff
+against 1.0 is recorded in `docs/CONTEXT.md`, which is now the reference for what the engine
+implements and why. One number is a choice the engine exposes rather than a quotation: critical
+damage adds the dice's maximum, as both SRD versions say, and a table that doubles the dice
+instead can set `criticalRule: 'doubleDice'` -- `rules/damage.ts` says so above the flag.
 
 **Both attributions must survive.** The SRD 2.0 DPCGL attribution and the SRD 1.0 one that the
 community sets carry are separate obligations and both are kept — the exact 2.0 wording is in
@@ -780,7 +765,8 @@ community sets carry are separate obligations and both are kept — the exact 2.
 with the sources they described.
 Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
 
-**Sources.** The source PDF is deliberately not committed; its extracted SRD text is.
+**Sources.** The source PDF was never committed, and the text extracted from it went with the
+catalogue.
 **Card art is generated, not sourced.** `ui/card-sigil.ts` draws each domain card's emblem from
 its own id, seeded through `createRng`, so nothing in `src/` reads an image file and the licence
 question never arises. `ui/card-art.ts` then layers two optional sources over it: a file named in
@@ -794,15 +780,12 @@ cover. See `AGENTS.md`.
 
 **Distribution is guarded separately from Git.** `tools/build-public-assets.ts` disables Vite's
 automatic public-directory copy, emits other regular public files, excludes the entire `cards`
-subtree, and emits an empty `cards/index.json`. Local directory art remains available in dev;
+subtree, and emits an empty index where `public/cards/index.json` would go. Local directory art
+remains available in dev;
 production uses generated emblems and per-browser imports. `card-art-packaging.test.ts` builds
 a fixture with private nested images to verify the output, and exercises mixed-case extensions
 through the real indexer. `CardArtwork` falls back on decode/load errors and resets the attempt
 when the source changes; browser tests cover broken directory art, corrupt imports and replacement.
-
-**Adding a field to the normalised adversaries.** `content/srd/seansbox-adversaries.ts` normalises
-all 129, and `tests/unit/srd-content-strings.test.ts` asserts they all import with zero issues. Add
-a case there before trusting a new field.
 
 ---
 
@@ -848,5 +831,3 @@ a case there before trusting a new field.
 - **No TTS, no speech synthesis, no "voice" features.** A hard constraint from the user; both
   attempts were removed.
 - **All content text is English.**
-- **`docs/ADVERSARIES.md` and `docs/CARDS.md` are generated.** Editing them by hand is work that the
-  next `python tools/*-doc.py` throws away.
