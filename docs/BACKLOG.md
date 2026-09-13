@@ -4,6 +4,19 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The GM's cards, face up — done
+
+Looking at a creature (right click, or the driver's `inspect`) now shows the cards its stat block
+prints, under its facts: every card granted by `adversary` to that block, scripted or not, named as
+the card is and worded as the card is -- or, for a card the editor wrote, as the ability on it is
+(`statBlockCards`, `game/demo-abilities.ts`). It reads the project as it stands, so a card printed
+in the editor is on the block the next time anybody looks. The e2e prints a card on the Hollow
+Knight from the Cards panel and finds it, name and words, on the inspect card in play.
+
+`npx tsc --noEmit` clean; vitest **1851 passed (1851)**; Playwright **110 passed (4.1m)**, `EXIT 0`. Two breaks -- the
+inspection carrying no cards, the list taking a card printed on another block -- each fail the test
+written for them.
+
 ## Granted cards wear their art on the action bar — done
 
 The action bar drew a picture only on a chosen card; an ability on a card a class, subclass,

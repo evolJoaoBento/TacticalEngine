@@ -61,6 +61,7 @@ import {
   swapCard,
   useAbility,
   type RestPlan,
+  statBlockCards,
 } from './game/demo-abilities';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
@@ -1733,6 +1734,8 @@ function inspectTile(tile: number): Inspection | null {
         ...(def === undefined ? [] : [`Difficulty ${def.difficulty}`]),
         ...[...entity.conditions].map((c) => demo.world.conditionName(c)),
       ],
+      // What its block prints, face up: the GM's side of the table.
+      cards: statBlockCards(demo, entity.definition),
     };
   }
   const objectId = objectOn(tile);

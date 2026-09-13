@@ -46,7 +46,7 @@ switches between play and edit at any time.
 | Left click | Party member: select. Adversary: attack with the selected character. Object: use it. Ground: walk there. | Apply the current tool to the tile |
 | Left drag | Orbit the camera | Paint / drag with the current tool |
 | Right or middle drag | Pan the camera | Pan the camera |
-| Right click (still) | Inspect what is under the pointer: a card with a character's pools, Evasion and gear, an adversary's tier, role and Difficulty, or an object's kind, state and the roll it asks for | — |
+| Right click (still) | Inspect what is under the pointer: a card with a character's pools, Evasion and gear, an adversary's tier, role, Difficulty and the cards its stat block prints, or an object's kind, state and the roll it asks for | — |
 | `Escape` | Close the inspect card | — |
 | Mouse wheel | Zoom | Zoom |
 | `W A S D` / arrow keys | Pan (held; smooth) | — |

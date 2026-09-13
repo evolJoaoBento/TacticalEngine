@@ -638,3 +638,26 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
   note(demo, `The GM gains ${gained.applied} Shadow.`, 'bad');
   return { ok: true, badGained: gained.applied };
 }
+
+/** A card a stat block prints, as somebody looking at the creature reads it. */
+export interface PrintedCard {
+  id: string;
+  name: string;
+  text: string;
+}
+
+/**
+ * The cards a stat block prints, as the table sees them when somebody looks at the creature: every
+ * card granted by `adversary` to this block, scripted or not, named as the card is and worded as the
+ * card is -- or, for a card the editor wrote, as the ability on it is. Read from the project as it
+ * stands, so a card printed a moment ago is on the block at once.
+ */
+export function statBlockCards(demo: DemoScene, definition: string): PrintedCard[] {
+  const cards = [...characterContentFor(demo.project).cards.values()].filter(
+    (card) => card.grant.kind === 'adversary' && card.grant.adversaries.includes(definition),
+  );
+  return cards.map((card) => {
+    const ability = demo.project.abilities.find((a) => cardOf(a) === card.id);
+    return { id: card.id, name: card.name, text: card.text !== '' ? card.text : (ability?.text ?? '') };
+  });
+}

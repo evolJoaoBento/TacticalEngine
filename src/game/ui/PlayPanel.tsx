@@ -72,6 +72,8 @@ export interface Inspection {
   text: string;
   /** Short facts: "HP 2/6", "Difficulty 13", "Open". */
   facts: readonly string[];
+  /** For a creature, the cards its stat block prints: the GM's side of the table, face up. */
+  cards?: readonly { id: string; name: string; text: string }[];
 }
 
 export interface PlayPanelProps {
@@ -254,6 +256,16 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
           <div style={{ color: '#8ea3b0', fontSize: '11px' }}>{props.inspecting.line}</div>
           {props.inspecting.text !== '' ? <div style={{ margin: '4px 0', color: '#d8d4c8' }}>{props.inspecting.text}</div> : null}
           <div style={{ color: '#c8b88a', fontSize: '12px' }}>{props.inspecting.facts.join(' · ')}</div>
+          {props.inspecting.cards !== undefined && props.inspecting.cards.length > 0 ? (
+            <div data-testid="inspect-cards" style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {props.inspecting.cards.map((card) => (
+                <div key={card.id} data-card={card.id} style={{ border: '1px solid #39404d', borderRadius: '3px', padding: '4px 6px' }}>
+                  <div style={{ color: '#e8e6df', fontWeight: 600, fontSize: '12px' }}>{card.name}</div>
+                  {card.text !== '' ? <div style={{ color: '#d8d4c8', fontSize: '12px' }}>{card.text}</div> : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

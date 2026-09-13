@@ -167,5 +167,9 @@ so the record of what was first thought survives: the header's "can ride slice 4
     whole. A card with no ability on it was out of reach while the panel listed only abilities;
     it is listed under Text only now.
 
+12. **The GM's side is face up where somebody looks.** Inspecting a creature shows the cards its
+    block prints -- every card granted by `adversary` to it, scripted or not -- read from the project
+    as it stands.
+
 **Out of the first slice**, each to be judged on its own: card zones on screen, a grant editor, the
 GM's side as cards the table can see, and a condition lending a card rather than an ability.

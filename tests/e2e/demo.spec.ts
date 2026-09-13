@@ -2311,6 +2311,35 @@ test('grants a card by subclass stage, ancestry and community, and the one Kara 
   expect(consoleErrors).toEqual([]);
 });
 
+test('shows the cards a stat block prints when somebody looks at the creature', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  page.on('dialog', (dialog) => void dialog.accept('Grasping Roots'));
+
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-abilities"]').click();
+  const panel = page.locator('[data-testid="ability-panel"]');
+  await panel.locator('[data-testid="add-ability"]').click();
+  await panel.locator('[data-testid="card-grant-kind"]').selectOption('adversary');
+  await panel.locator('[data-testid="card-grant-adversaries"]').fill('hollow-knight');
+  await panel.locator('[data-testid="ability-text"]').fill('Roots hold whoever it hits.');
+  await panel.locator('[data-testid="close-abilities"]').click();
+
+  // In play, looking at a Hollow Knight shows what its block prints.
+  const looked = await page.evaluate(() => {
+    const api = window.__engine!;
+    api.setMode('play');
+    const foe = api.adversaries()[0]!;
+    return api.inspect(api.tileOf(foe));
+  });
+  expect(looked?.kind).toBe('adversary');
+  const printed = page.locator('[data-testid="inspect"] [data-testid="inspect-cards"] [data-card="grasping-roots"]');
+  await expect(printed).toContainText('Grasping Roots');
+  await expect(printed).toContainText('Roots hold whoever it hits.');
+
+  expect(consoleErrors).toEqual([]);
+});
+
 test("writes a stat block's shape: an area everyone rolls to avoid, and a swing that reaches further", async ({ page }) => {
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Eruption'));

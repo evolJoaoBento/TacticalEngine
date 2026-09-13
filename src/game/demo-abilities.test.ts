@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { abilitySchema } from '../engine/content/abilities';
+import { cardDefSchema } from '../engine/content/pack/schema';
 import { codeSchema } from '../engine/scene/schema';
 import {
   FIXTURE_AREA_CARD,
@@ -31,6 +32,7 @@ import {
   abilitiesOf,
   loadoutView,
   rest,
+  statBlockCards,
   swapCard,
   useAbility,
 } from './demo-abilities';
@@ -637,5 +639,29 @@ describe('tokens on a card', () => {
     // Spending them all leaves the card unusable until the next long rest.
     const after = abilityList(demo, 'mira').find((a) => a.ability.id === CHAOS_ABILITY)!;
     expect(after.usable).toBe(false);
+  });
+});
+
+describe("a stat block's cards", () => {
+  it('are every card printed on it, named and worded, and none printed elsewhere', () => {
+    const demo = scene();
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const block = adversaryDefOf(demo, husk.id)!.id;
+    const before = statBlockCards(demo, block).length;
+
+    const printedOn = (id: string, name: string, adversaries: string[], text = '') =>
+      cardDefSchema.parse({ id, name, text, grant: { kind: 'adversary', adversaries } });
+    // One that is only words, one whose words are on the ability the editor wrote on it, one elsewhere.
+    demo.project.cards.push(printedOn('grasp', 'Grasping Roots', [block], 'Roots hold whoever it hits.'));
+    demo.project.cards.push(printedOn('howl', 'Howl', ['someone-else', block]));
+    demo.project.abilities.push(abilitySchema.parse({ id: 'howl', name: 'Howl', source: { card: 'howl' }, text: 'Everyone near marks a Stress.' }));
+    demo.project.cards.push(printedOn('elsewhere', 'Elsewhere', ['someone-else']));
+
+    const shown = statBlockCards(demo, block);
+    expect(shown).toHaveLength(before + 2);
+    expect(shown.slice(before)).toEqual([
+      { id: 'grasp', name: 'Grasping Roots', text: 'Roots hold whoever it hits.' },
+      { id: 'howl', name: 'Howl', text: 'Everyone near marks a Stress.' },
+    ]);
   });
 });
