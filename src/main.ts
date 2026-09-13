@@ -83,6 +83,7 @@ import {
 } from './engine/scene/schema';
 import type { Response } from './engine/script/runner';
 import { loadGameText, saveBlockedBy, serialiseSave } from './game/save';
+import { migrateDocument } from './engine/scene/migrate';
 import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore } from './game/save-slots';
 import { CardArtImports, loadCardArtIndex, useCardArtImports, useCardArtIndex } from './game/ui/card-art';
 import {
@@ -746,7 +747,9 @@ async function loadProject(file: File): Promise<void> {
  * would not, or an empty string.
  */
 function loadProjectText(text: string, label = 'the project'): string {
-  const parsed = projectSchema.safeParse(JSON.parse(text));
+  // Migrate before validating, for the same reason a save is: a project written by an older
+  // build is rewritten on the way in rather than refused.
+  const parsed = projectSchema.safeParse(migrateDocument(JSON.parse(text)));
   if (!parsed.success) {
     const reason = `Could not load ${label}: ${parsed.error.issues[0]?.message ?? 'invalid'}`;
     errors.push(reason);

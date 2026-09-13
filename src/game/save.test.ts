@@ -341,7 +341,9 @@ describe('loading a game', () => {
 
   it('reports damaged text rather than throwing', () => {
     expect(loadGameText(scene(), 'not json at all').ok).toBe(false);
-    expect(loadGameText(scene(), '{"formatVersion":2}').ok).toBe(false);
+    // A version this build does not know, rather than one it writes: the door migrates what it
+    // understands and refuses what it cannot.
+    expect(loadGameText(scene(), '{"formatVersion":99}').ok).toBe(false);
   });
 
   it('drops a fight and a pending prompt on load', () => {

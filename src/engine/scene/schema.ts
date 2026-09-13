@@ -233,10 +233,25 @@ export const codeSchema = z.object({
 
 export type CodeDef = z.infer<typeof codeSchema>;
 
+/**
+ * The document version this build writes.
+ *
+ * A stored document older than this is rewritten at the door by `migrateDocument` before any
+ * schema sees it; one newer is refused, because guessing at a format from a build that does not
+ * exist yet is how a file gets quietly corrupted.
+ */
+export const CURRENT_FORMAT_VERSION = 2;
+
+
 export const projectSchema = z
   .object({
-    /** Bumped when a migration is needed; validated so old files fail loudly. */
-    formatVersion: z.literal(1).default(1),
+    /**
+     * Bumped when a persisted name changes. Both versions are accepted because a document
+     * arrives here already migrated — `migrateDocument` runs at the door, before any schema —
+     * and a project built in code is current by construction. A version this build does not
+     * know is refused, which is what tells a player their file is from a newer build.
+     */
+    formatVersion: z.union([z.literal(1), z.literal(2)]).default(CURRENT_FORMAT_VERSION),
     id: contentIdSchema,
     name: z.string().default(''),
     /** Omitted means the engine's default palette. */

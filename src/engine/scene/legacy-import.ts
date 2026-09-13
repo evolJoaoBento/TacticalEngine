@@ -22,6 +22,7 @@
 
 import type { ContentIssue } from '../content/types';
 import { toContentId } from '../content/types';
+import { CURRENT_FORMAT_VERSION } from './schema';
 import type {
   Deco,
   Effect,
@@ -189,7 +190,7 @@ export function importLegacyCampaign(
   const name = asString((document as LegacyCampaign).name) ?? options.name ?? 'Imported Campaign';
   return {
     project: {
-      formatVersion: 1,
+      formatVersion: CURRENT_FORMAT_VERSION,
       // toContentId returns '' (not undefined) for a name with no usable characters.
       id: options.id ?? (toContentId(name) || 'imported'),
       name,

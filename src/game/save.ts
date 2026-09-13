@@ -28,10 +28,15 @@ import {
   scenarioSnapshotSchema,
 } from '../engine/script/world';
 import { sceneSnapshotSchema } from '../engine/scene/state';
+import { migrateDocument, CURRENT_FORMAT_VERSION } from '../engine/scene/migrate';
 
 export const saveSchema = z.object({
-  /** Bumped when the shape changes, so an old save fails at the door. */
-  formatVersion: z.literal(1),
+  /**
+   * Bumped when a persisted name changes. Both known versions are accepted: a save is migrated
+   * at the door before this schema sees it, and one from a newer build is refused there rather
+   * than guessed at.
+   */
+  formatVersion: z.union([z.literal(1), z.literal(2)]),
   /** The project this save is state for. Loading it into another is refused. */
   projectId: z.string(),
   /** The room being played when the game was put down. */
@@ -97,7 +102,7 @@ export function saveGame(demo: DemoScene): SaveGame | null {
   scenes[demo.scene.id] = demo.state.snapshot();
 
   return {
-    formatVersion: 1,
+    formatVersion: CURRENT_FORMAT_VERSION,
     projectId: demo.project.id,
     sceneId: demo.scene.id,
     rng: demo.rng.save(),
@@ -184,7 +189,9 @@ export function loadGameText(demo: DemoScene, text: string): LoadResult {
   } catch {
     return { ok: false, reason: 'this is not a save file' };
   }
-  const result = saveSchema.safeParse(parsed);
-  if (!result.success) return { ok: false, reason: 'this save is damaged or from an older build' };
+  // Migrate before validating. A save older than this build is rewritten on the way in; one
+  // newer is left alone so the schema refuses it and the reason below is the true one.
+  const result = saveSchema.safeParse(migrateDocument(parsed));
+  if (!result.success) return { ok: false, reason: 'this save is damaged or from a newer build' };
   return loadGame(demo, result.data);
 }

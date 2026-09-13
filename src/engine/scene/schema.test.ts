@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { blankScene } from './grid-from-scene';
-import { contentIdSchema, effectSchema, projectSchema, sceneSchema } from './schema';
+import { CURRENT_FORMAT_VERSION, contentIdSchema, effectSchema, projectSchema, sceneSchema } from './schema';
 
 const scene = (overrides: Record<string, unknown> = {}) => ({
   ...blankScene('room', 3, 2),
@@ -195,8 +195,12 @@ describe('projectSchema', () => {
     ...overrides,
   });
 
-  it('accepts a project and defaults the format version', () => {
-    expect(projectSchema.parse(project()).formatVersion).toBe(1);
+  it('accepts a project and defaults the format version to the current one', () => {
+    expect(projectSchema.parse(project()).formatVersion).toBe(CURRENT_FORMAT_VERSION);
+  });
+
+  it('still accepts a version-1 document, which the door has already migrated', () => {
+    expect(projectSchema.safeParse(project({ formatVersion: 1 })).success).toBe(true);
   });
 
   it('defaults the per-type model map, so a project written before it is still a project', () => {
@@ -258,8 +262,8 @@ describe('projectSchema', () => {
     expect(bad.success).toBe(false);
   });
 
-  it('rejects a future format version rather than guessing at it', () => {
-    expect(projectSchema.safeParse(project({ formatVersion: 2 })).success).toBe(false);
+  it('rejects a format version from a build that does not exist yet, rather than guessing', () => {
+    expect(projectSchema.safeParse(project({ formatVersion: 99 })).success).toBe(false);
   });
 
   it('requires startScene to name a scene that exists', () => {
