@@ -1,6 +1,6 @@
 # Legacy prototype research: `legacy/js/game.js` + `legacy/js/data.js`
 
-Research document for the PolyHeart Engine port. Everything below was obtained by **static reading** of the
+Research document for the Tactical Engine port. Everything below was obtained by **static reading** of the
 legacy sources; nothing was executed. Where a claim depends on runtime behaviour it is marked *unverified*.
 
 ## 0. Scope and method

@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { build } from 'vite';
 
 it('builds without private card files while preserving other public assets', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'polyheart-build-test-'));
+  const root = await mkdtemp(join(tmpdir(), 'tactical-build-test-'));
   try {
     await mkdir(join(root, 'public/cards/nested'), { recursive: true });
     await mkdir(join(root, 'public/models'), { recursive: true });
@@ -26,7 +26,7 @@ it('builds without private card files while preserving other public assets', asy
 });
 
 it('indexes uppercase and mixed-case image extensions under the actual card id', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'polyheart-index-test-'));
+  const root = await mkdtemp(join(tmpdir(), 'tactical-index-test-'));
   try {
     await mkdir(join(root, 'public/cards'), { recursive: true });
     // The indexer matches against an exported pack, which writes a flat `name`.

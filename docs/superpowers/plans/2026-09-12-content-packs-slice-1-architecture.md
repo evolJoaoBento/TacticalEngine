@@ -52,7 +52,7 @@
 
 Two decisions are made here deliberately, and both save work later:
 
-1. `ClassDef.hopeFeature` becomes **`signatureFeature`** in the schema. The field is about to become persisted project data, and slice 4 renames Hope to Light; naming it neutrally at birth means there is nothing to migrate. The importer maps the old key to the new field in Task 2.
+1. `ClassDef.goodFeature` becomes **`signatureFeature`** in the schema. The field is about to become persisted project data, and slice 4 renames Light to Light; naming it neutrally at birth means there is nothing to migrate. The importer maps the old key to the new field in Task 2.
 2. `DamageThresholds` is `{ major, severe }`, and `NO_THRESHOLDS` uses `Infinity`. `JSON.stringify(Infinity)` is `null`, so an infinite threshold cannot survive a saved project. The schema requires **finite non-negative integers**; a pack that wants "no threshold" writes a large number, not infinity.
 
 - [ ] **Step 1: Write the failing test**
@@ -114,7 +114,7 @@ describe('classes', () => {
       signatureFeature: { name: 'Hold the Line', text: 'Stand your ground.' },
     });
     expect(parsed.signatureFeature?.name).toBe('Hold the Line');
-    expect('hopeFeature' in parsed).toBe(false);
+    expect('goodFeature' in parsed).toBe(false);
   });
 });
 
@@ -342,11 +342,11 @@ export type DomainCardDef = z.infer<typeof domainCardDefSchema>;
 
 Expect the compiler to object where an importer builds a value that a schema defaults. A field with `.default([])` is **required on the way out**, so `features: []` must be set explicitly rather than left off. Fix those where `tsc` points, and do not weaken a schema to silence one.
 
-In `ClassDef`, rename `hopeFeature` to `signatureFeature`, and in `importClasses` map the source's key onto it:
+In `ClassDef`, rename `goodFeature` to `signatureFeature`, and in `importClasses` map the source's key onto it:
 
 ```ts
 // The source calls this after its own resource; the engine does not.
-signatureFeature: feature(entry['hopeFeature']) ?? undefined,
+signatureFeature: feature(entry['goodFeature']) ?? undefined,
 ```
 
 - [ ] **Step 3: Let the compiler find every consumer**

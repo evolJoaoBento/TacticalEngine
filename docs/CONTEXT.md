@@ -1,4 +1,4 @@
-# PolyHeart Engine — Working Context (read this first)
+# Tactical Engine — Working Context (read this first)
 
 **Absolute project path (has a space — always quote it):** `D:\New folder\daggerheart game`
 (Git Bash form: `"D:/New folder/daggerheart game"`). The repo has moved between machines before — prefer
@@ -6,9 +6,9 @@ repo-relative paths in code, scripts and docs; never hardcode a home directory.
 
 ## Goal
 
-Turn the PolyHeart prototype into a **full CRPG engine + editor** for making party-based tactical RPGs in the style of
-Baldur's Gate 3, but running on the **Daggerheart** rules system (duality dice, Hope/Fear, Stress, damage thresholds,
-Armor Slots, domains/cards, classes/subclasses, ancestries/communities, adversaries with Fear features, rests, leveling).
+Turn the Tactical Engine prototype into a **full CRPG engine + editor** for making party-based tactical RPGs in the style of
+Baldur's Gate 3, but running on the **Daggerheart** rules system (duality dice, Light/Shadow, Stress, damage thresholds,
+Armor Slots, domains/cards, classes/subclasses, ancestries/communities, adversaries with Shadow features, rests, leveling).
 
 Engine, not just a game: data-driven content, an in-browser editor (terrain, props, imported assets, encounters,
 dialogue graphs, quests, triggers/scripts), asset import (glTF/GLB, textures, audio, data packs), save/load, and a
@@ -69,7 +69,7 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
   **What the 2.0 diff settled, which outlives the text it was read from.** A full section-by-section
   pass against 1.0 was done on 2026-09-05. Almost everything was identical — action rolls and the
   five outcomes, critical damage, damage thresholds and 1/2/3 HP, optional Massive Damage, the GM's
-  d20 against Evasion with a natural-20 crit, Hope 6 / Fear 12, Stress 6→12, Armor Score cap 12,
+  d20 against Evasion with a natural-20 crit, Light 6 / Shadow 12, Stress 6→12, Armor Score cap 12,
   resistance and immunity, direct damage, death moves, rests, conditions, range bands. What changed,
   and what the engine therefore implements:
   - **Cover and line of sight were replaced.** 1.0 graded cover Light / Full / Total, worth
@@ -88,7 +88,7 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
 
   The community sets were SRD **1.0** and were never safe to quote for a rule — fine as content,
   wrong as rules. `daggersearch/core/rules.json` in particular was a terse summary with known
-  defects (its Failure-with-Fear bullet swapped Hope and Fear, and its critical-damage line
+  defects (its Failure-with-Shadow bullet swapped Light and Shadow, and its critical-damage line
   contradicted the verbatim text of *both* 1.0 and 2.0). That is recorded because it explains why
   the engine's numbers came from the official text rather than the convenient JSON.
 
@@ -108,13 +108,13 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
     against you", so a Spellcast Roll reads them as an attack does — but a check is *one* roll and may name a
     group. The engine takes the best any target grants and the worst any target imposes, added: one Vulnerable
     creature in the group gives the die, one Hidden creature costs it, and they cancel as dice always do.
-  - **When a check's own Hope is spendable by the check's own arms.** A check hands over the Hope it rolled
-    *before* it runs `onSuccess…`/`always`, so a card whose arm branches on the pool sees it — a roll with Hope
+  - **When a check's own Light is spendable by the check's own arms.** A check hands over the Light it rolled
+    *before* it runs `onSuccess…`/`always`, so a card whose arm branches on the pool sees it — a roll with Light
     can pay for its own effect. Not a card quirk: every `branch` on a pool inside a check inherits it. Named on
     `wrangle` in `src/engine/content/srd/abilities.ts`, where it first mattered.
-  - **What a card offers versus what it simply does**, where the SRD says "spend a Hope to…" inside an effect
+  - **What a card offers versus what it simply does**, where the SRD says "spend a Light to…" inside an effect
     rather than as a cost. Wrangle spends it whenever there is one, because a wrangle nobody wanted is a card
-    nobody would have played; Support Tank always throws the Fear Die rather than asking which, it being the one
+    nobody would have played; Support Tank always throws the Shadow Die rather than asking which, it being the one
     anybody would pick. Both are decisions there is nobody at that end of the table to make.
 
   *(The 1.0-era house rule "cover raises an adversary's Difficulty" is gone: 2.0 puts cover on the attack

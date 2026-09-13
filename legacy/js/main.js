@@ -1,4 +1,4 @@
-// ============ POLYHEART BOOTSTRAP ============
+// ============ TACTICAL ENGINE BOOTSTRAP ============
 import { SceneManager } from './scene.js';
 import { GridWorld } from './grid.js';
 import { DiceManager } from './dice.js';

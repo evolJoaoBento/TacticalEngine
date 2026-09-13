@@ -83,7 +83,7 @@ export function TopBar(props: TopBarProps): preact.JSX.Element {
   return (
     <header class="ph-topbar" data-testid="top-bar">
       <div class="ph-brand">
-        <b>◆</b> PolyHeart Editor
+        <b>◆</b> Tactical Engine Editor
       </div>
 
       <div class="ph-menu-wrap">

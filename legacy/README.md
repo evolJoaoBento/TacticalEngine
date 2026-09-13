@@ -1,4 +1,4 @@
-# ⬡ PolyHeart — Tactical RPG
+# ⬡ Tactical Engine — Tactical RPG
 
 A low-poly tactical RPG with a rich narrative text pane, powered by an adaptation of the
 **Daggerheart** duality-dice system. Includes a full **Map Creator Suite** and a complete

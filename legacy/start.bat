@@ -1,7 +1,7 @@
 @echo off
-REM PolyHeart launcher — serves the game on http://localhost:8420
+REM Tactical Engine launcher — serves the game on http://localhost:8420
 cd /d "%~dp0"
-echo Starting PolyHeart at http://localhost:8420 ...
+echo Starting Tactical Engine at http://localhost:8420 ...
 start "" http://localhost:8420
 where python >nul 2>nul
 if %errorlevel%==0 (

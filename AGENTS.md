@@ -1,4 +1,4 @@
-# PolyHeart — instructions for agents
+# Tactical Engine — instructions for agents
 
 A browser CRPG engine and editor running the **Daggerheart SRD 2.0** rules. TypeScript (strict),
 Vite, three.js, Preact + signals, zod, Vitest, Playwright.

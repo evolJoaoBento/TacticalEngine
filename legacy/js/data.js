@@ -1,4 +1,4 @@
-// ============ POLYHEART DATA ============
+// ============ TACTICAL ENGINE DATA ============
 // Static definitions: heroes, enemy templates, node defaults, demo map.
 
 export const TRAITS = ['Agility', 'Strength', 'Finesse', 'Instinct', 'Presence', 'Knowledge'];

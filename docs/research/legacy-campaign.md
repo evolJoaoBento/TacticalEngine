@@ -1,7 +1,7 @@
 # Legacy one-shot research: "The Conductor's Stage"
 
 Research document for porting the scripted one-shot in `legacy/js/campaign.js` (480 lines) and
-`legacy/js/data-campaign.js` (411 lines) to the PolyHeart Engine as **data**, not code.
+`legacy/js/data-campaign.js` (411 lines) to the Tactical Engine as **data**, not code.
 
 Supporting files read to resolve what the campaign calls into: `legacy/js/game.js` (862 lines,
 hook system, rolls, combat), `legacy/js/data.js` (238, enemy stat blocks, `makeEnemy`),

@@ -6,7 +6,7 @@ import type { Plugin } from 'vite';
 export function publicAssets(): Plugin {
   let directory: string | false = false;
   return {
-    name: 'polyheart-public-assets',
+    name: 'tactical-public-assets',
     apply: 'build',
     config: () => ({ build: { copyPublicDir: false } }),
     configResolved(config) { directory = config.publicDir || false; },

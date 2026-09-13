@@ -1,6 +1,6 @@
 ---
 name: run-the-demo
-description: Launch and drive the PolyHeart demo in a real browser - open the app, walk the party into the vault fight, use cards, and screenshot what is on screen. Use when asked to run the app, play a fight, see a change working, or check the HUD and log rather than only the tests.
+description: Launch and drive the Tactical Engine demo in a real browser - open the app, walk the party into the vault fight, use cards, and screenshot what is on screen. Use when asked to run the app, play a fight, see a change working, or check the HUD and log rather than only the tests.
 ---
 
 # Running the demo
@@ -77,8 +77,8 @@ ids too. Screenshots are how you catch the class of bug where the engine
 is right and the presentation is not.
 
 What should be on screen after a card is used: the action bar with the
-card and its cost, the party HUD (HP / Stress / Armor / Hope as pips, and
-any conditions under the gear line), the Fear track, and the narrative log
+card and its cost, the party HUD (HP / Stress / Armor / Light as pips, and
+any conditions under the gear line), the Shadow track, and the narrative log
 bottom-right in tone colours. On the board: a blue ring breathing under
 whoever is selected, shadows under walls and tokens, any zone painted as
 one shape with a border (the Korvax circle is a purple square of nine

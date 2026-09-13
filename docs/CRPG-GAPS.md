@@ -102,7 +102,7 @@ conditions and the effects a reply runs — and validated with everything else.
 ### ~~3. The turn loop~~ — done
 
 `combat/encounter.ts`. No initiative, as the SRD has none: the party acts until a roll hands the
-spotlight over, the GM spotlights one adversary free and spends a Fear for each additional one,
+spotlight over, the GM spotlights one adversary free and spends a Shadow for each additional one,
 then it passes back. The SRD's optional Spotlight Tracker is a second policy rather than a
 different code path. Victory and defeat settle themselves.
 
@@ -145,19 +145,19 @@ extra-card caps (level 4 on the tier 2 sheet, 7 on tier 3) and the cross-outs be
 subclass-upgrade and multiclass boxes.
 
 **Cards do things now** (`content/abilities.ts`, `content/srd/abilities.ts`, `game/demo-abilities.ts`).
-An ability — a domain card, a class's Hope feature, a subclass card — is a script in the one
+An ability — a domain card, a class's Light feature, a subclass card — is a script in the one
 effect vocabulary with a cost, a target, uses and a reason it is greyed out. The vocabulary
 learned what a card needs: a `check` can roll the Spellcast or weapon trait against each
 target's own Difficulty and bind the ones it beat to a `hit` selector; `damage` rolls dice
-through thresholds, armor and reactions once for every target; Stress, Hope, conditions with a
+through thresholds, armor and reactions once for every target; Stress, Light, conditions with a
 duration, a weapon attack, a knockback and reaction rolls are effects. Passives fold into the
 sheet (`modifiers`), conditions are content with modifiers of their own, and a defence step
 (`combat/defense.ts`) decides Armor Slots and damage reactions automatically. The loadout holds
 five cards with the rest in a vault (Recall Cost in Stress outside a rest); rests take the SRD's
-downtime moves; Utilize an Experience spends a Hope on a roll; the action bar, a targeting
+downtime moves; Utilize an Experience spends a Light on a roll; the action bar, a targeting
 mode, a loadout panel and a rest panel put all of it on screen. The GM's adversaries approach
 before attacking; a condition that `blocks` acting (Stunned, Asleep) or moving (Restrained)
-costs them the spotlight, and the GM spends a Fear to wake a sleeper when there is one. A
+costs them the spotlight, and the GM spends a Shadow to wake a sleeper when there is one. A
 grimoire's spells read their words from the card's named features in the vendored SRD
 content; the engine ships no card text of its own.
 
@@ -308,8 +308,8 @@ quest. What is written in the form is what the journal shows, checked end to end
 ### ~~11. Scene travel~~ — done
 
 `travelTo` in `game/demo-scene.ts` swaps the per-scene half of the world — scene, grid, state,
-pathfinder, party, triggers, script world — and keeps the campaign half. Wounds, Stress, Hope and
-the GM's Fear travel with the party; where everyone stood does not, so they arrive on the new
+pathfinder, party, triggers, script world — and keeps the campaign half. Wounds, Stress, Light and
+the GM's Shadow travel with the party; where everyone stood does not, so they arrive on the new
 scene's spawns. A room already visited is restored from its snapshot, minus its stale party
 entities. `SceneDoc.intro` is finally read by something.
 
@@ -511,8 +511,8 @@ the target is pulled just far enough to keep them within a third of the view's d
 while the player is dragging or holding a key.
 
 A **HUD** (`game/ui/PartyHud.tsx`) shows each party member as pips — every Hit Point, Stress and
-Armor Slot a box, filled when marked, the way the character sheet looks — plus Hope, conditions,
-the GM's Fear and the round. Clicking a card selects. The tile under the pointer is **marked**,
+Armor Slot a box, filled when marked, the way the character sheet looks — plus Light, conditions,
+the GM's Shadow and the round. Clicking a card selects. The tile under the pointer is **marked**,
 so a click has a visible target.
 
 **Zones are on the floor.** A standing zone paints the tiles it holds (`SceneView.showZones`, one
@@ -535,7 +535,7 @@ own rather than a recoloured base ring, because tokens share materials. Every SR
 a hero body (`DEMO_MODELS`), so a character added in the panel stands as a person and not as
 the magenta placeholder - which stays what it is, the library's honest "no model for this id".
 
-**Numbers over heads.** A wound, a miss, Stress marked or cleared, Armor cleared, Hope gained, a
+**Numbers over heads.** A wound, a miss, Stress marked or cleared, Armor cleared, Light gained, a
 healing, a condition going on - each rises over the creature it happened to, in the log line's
 tone colour (`DemoScene.floaters`, written beside the log line from the same journal entry;
 `main.ts` draws them as positioned divs projected from the tile, so they use the page's font and
@@ -557,8 +557,8 @@ standing again gets up the same way round; a fall wins over a flinch landing at 
 and a load (`snap`) poses the body outright. The old instant -90° rotation is what a token first
 seen lying still gets.
 
-**Dice** are read out rather than rolled on screen: "Hope 8 + Fear 7 + 2 = 17 vs 12. Success,
-with Hope." Only the parts that applied are named. That is the part of dice presentation a
+**Dice** are read out rather than rolled on screen: "Light 8 + Shadow 7 + 2 = 17 vs 12. Success,
+with Light." Only the parts that applied are named. That is the part of dice presentation a
 player needs to trust the outcome; a 3D roll is theatre on top of it.
 
 A still **right-click** inspects what is under the pointer — a party member (class, level,
@@ -667,10 +667,10 @@ moves. The line has moved past authoring, past the empty `loot`, and past a game
 play in one sitting. What is left is what a campaign needs to be more than a session: quests to
 track (7), characters who grow and can change what they carry (5, 6). The camera moves now (10).
 
-A scripted check now moves the pools the way an attack does: a roll with Hope hands a Hope to
+A scripted check now moves the pools the way an attack does: a roll with Light hands a Light to
 whoever used the thing (`ScenarioState.actorId`, which is the selected character — the check
-rolls with the party's *best* trait, the Hope goes to the one who touched it), a roll with Fear
-hands the GM a Fear. And an interactable can be marked **repeatable**: the demo's pillar is, so
+rolls with the party's *best* trait, the Light goes to the one who touched it), a roll with Shadow
+hands the GM a Shadow. And an interactable can be marked **repeatable**: the demo's pillar is, so
 the Warden can be talked to again and the reply gated on knowing the name is reachable.
 
 The vault door is picked, not force-opened: the last workaround in `buildDemoScene` is gone. A

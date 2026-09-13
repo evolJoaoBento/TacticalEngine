@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PolyHeart Engine — Developer Guide</title>
+<title>Tactical Engine — Developer Guide</title>
 <style>
 :root {
   color-scheme: light dark;
@@ -220,7 +220,7 @@ footer {
 <div class="wrap">
 
 <nav>
-  <div class="brand">PolyHeart Engine<span>Developer Guide</span></div>
+  <div class="brand">Tactical Engine<span>Developer Guide</span></div>
   <ol>
     <li><a href="#orientation">1 · Orientation</a></li>
     <li><a href="#layers">2 · The layers</a></li>
@@ -248,7 +248,7 @@ footer {
 <main>
 
 <header class="title">
-  <h1>Extending the PolyHeart Engine</h1>
+  <h1>Extending the Tactical Engine</h1>
   <p>Where things are, which way they point, what may not be broken, and the order to touch files in
   for the changes that keep recurring. Written for whoever picks up work in this repository next.</p>
   <div class="meta">D:\New folder\daggerheart game · SRD 2.0 · TypeScript 7 · Vite 8 · three.js 0.185 · Preact 10 · zod 4</div>
@@ -257,7 +257,7 @@ footer {
 <section id="orientation">
   <h2><span class="num">1</span>Orientation</h2>
 
-  <p>PolyHeart is a browser CRPG engine and editor running the Daggerheart SRD 2.0 rules. A
+  <p>Tactical Engine is a browser CRPG engine and editor running the Daggerheart SRD 2.0 rules. A
   <em>project</em> is a JSON document — <code>projectSchema</code>,
   <code>src/engine/scene/schema.ts:210</code> — holding scenes, dialogues, items, loot tables,
   quests, assets, abilities, code, condition definitions and the party. The engine executes that
@@ -428,13 +428,13 @@ footer {
     <tbody>
       <tr><td><code>core/rng.ts</code></td><td><code>Rng</code> (SplitMix32), <code>createRng</code>, <code>hashSeed</code>. <code>save</code>/<code>restore</code>/<code>fork</code> for replays.</td></tr>
       <tr><td><code>rules/dice.ts</code></td><td><code>parseDice</code>, <code>rollDice</code>, <code>withProficiency</code>, <code>maxDice</code>, <code>formatDice</code>; <code>DiceExpression</code>, <code>ParsedDamage</code>, <code>DamageType</code>.</td></tr>
-      <tr><td><code>rules/duality.ts</code></td><td><code>rollDuality</code> — a PC's two dice, the five outcomes, Hope, Fear and the spotlight.</td></tr>
+      <tr><td><code>rules/duality.ts</code></td><td><code>rollDuality</code> — a PC's two dice, the five outcomes, Light, Shadow and the spotlight.</td></tr>
       <tr><td><code>rules/gm-die.ts</code></td><td><code>rollGmDie</code> — the GM's single d20 against Evasion, natural-20 crit.</td></tr>
       <tr><td><code>rules/damage.ts</code></td><td>Thresholds, severity bands, Armor Slots, resistance, immunity and reduction, <code>rollDamage</code>, <code>resolveDamage</code>.</td></tr>
       <tr><td><code>rules/countdown.ts</code></td><td>The clock: <code>advanceCountdown</code>, <code>stepsFor</code>, <code>dynamicSteps</code> (the SRD's progress and consequence chart), loops. No effects, no rng.</td></tr>
       <tr><td><code>rules/cover.ts</code></td><td>SRD 2.0 cover: a partial obstruction costs the attacker a disadvantage die.</td></tr>
       <tr><td><code>rules/range.ts</code></td><td><code>RANGE_BANDS</code>, <code>DEFAULT_BAND_TILES</code> (a house rule — see CONTEXT.md).</td></tr>
-      <tr><td><code>rules/resources.ts</code></td><td><code>MarkPool</code> and <code>Currency</code>: Hit Points, Stress, Armor Slots, Hope, Fear; <code>mark</code>, <code>unmarked</code>, <code>canAfford</code>, <code>markHitPoints</code>.</td></tr>
+      <tr><td><code>rules/resources.ts</code></td><td><code>MarkPool</code> and <code>Currency</code>: Hit Points, Stress, Armor Slots, Light, Shadow; <code>mark</code>, <code>unmarked</code>, <code>canAfford</code>, <code>markHitPoints</code>.</td></tr>
       <tr><td><code>combat/attack.ts</code></td><td><code>resolveAttack</code> (pure) and <code>applyAttack</code> (the only mutator here); <code>AttackProfile</code>, <code>DefenderProfile</code>, <code>AttackOutcome</code>.</td></tr>
       <tr><td><code>combat/defense.ts</code></td><td>The defender's side: <code>Defender</code>, <code>resolveDefense</code>, <code>resolveDefensePlan</code>, <code>previewPlan</code>, <code>canPayFor</code>.</td></tr>
       <tr><td><code>combat/targeting.ts</code></td><td><code>evaluateTarget</code> — range band, line of sight, cover, refusals.</td></tr>
@@ -682,7 +682,7 @@ footer {
   └─ resolveAttack (engine/combat/attack.ts)          — pure, rolls and reports
        ├─ evaluateTarget (combat/targeting.ts)        — band, LOS, cover, refusal
        ├─ rollDice(profile.modifier)                  — the attack modifier's own dice
-       ├─ rollDuality (rules/duality.ts)              — hit, crit, Hope, Fear, spotlight
+       ├─ rollDuality (rules/duality.ts)              — hit, crit, Light, Shadow, spotlight
        ├─ rollDamage (rules/damage.ts)                — Proficiency, crit bonus, flat bonus
        ├─ rollReduction (rules/damage.ts)             — the dice half of the defender's reduction
        └─ resolveDamage (rules/damage.ts)             — resistance, reduction, band, Armor Slots
@@ -716,7 +716,7 @@ footer {
   <code>playDamageReactions</code> drains the notes and reads them for both sides: a stat
   block's reactions run on their own, and so does a party card that costs nothing and asks
   nothing (Rise Up's &ldquo;clear a Stress&rdquo;). A card with a price &mdash; &ldquo;you can
-  spend 2 Hope to&hellip;&rdquo; &mdash; is put to the player as a third kind of
+  spend 2 Light to&hellip;&rdquo; &mdash; is put to the player as a third kind of
   <code>demo.pending</code>, a <code>PendingReaction</code>, whose first option is always letting
   it pass. The line between the two is <code>auto</code> and no cost: a card that should be asked
   about anyway sets <code>auto: false</code>. A swing at somebody also raises <code>attacked</code>
@@ -725,7 +725,7 @@ footer {
   <code>partyRolled</code> on every adversary standing: the one who rolled is bound as the target,
   so the distance is a plain <code>withinRange</code>, and what the dice said is a
   <code>rolled</code> condition &mdash; the five readings compose, so &ldquo;a failure with
-  Fear&rdquo; is an <code>all</code> of two. The same happens on the party's own swing: <code>playAttackRiders</code> reads
+  Shadow&rdquo; is an <code>all</code> of two. The same happens on the party's own swing: <code>playAttackRiders</code> reads
   <code>dealtHit</code> and <code>dealtDamage</code> for whoever swung, so Healing Strike is
   offered after a player's attack the way a stat block's rider runs after the GM's. Every note is
   read before anyone is asked, because <code>drainDamage</code> clears as it reports; what is not
@@ -836,7 +836,7 @@ footer {
   <code>standardAttack</code> carries <code>direct</code>, <code>damage</code> (dice instead of
   the printed ones) and <code>double</code>, each under an optional <code>when</code> read from
   the attacker's chair with the target bound &mdash; so &ldquo;while Hidden&rdquo; is a
-  <code>hasCondition</code> on the actor and &ldquo;against a PC with 0 Hope&rdquo; a
+  <code>hasCondition</code> on the actor and &ldquo;against a PC with 0 Light&rdquo; a
   <code>pool</code> on the target. Doubling happens once the dice have settled, so a bonus
   doubles with them and the thresholds read what actually landed.</p>
 
@@ -873,12 +873,12 @@ footer {
   SRD makes that a decision &mdash; a death move &mdash; and it is the only question in a fight
   the engine cannot answer for the player, because two of the three answers put the character
   back on their feet. Avoid Death drops them unconscious, which is what a fallen character
-  already is here, and rolls the Hope Die against their level for a scar; a scar crosses out a
-  Hope slot on the sheet for good, and the fight after this one starts a Hope short. Blaze of
+  already is here, and rolls the Light Die against their level for a scar; a scar crosses out a
+  Light slot on the sheet for good, and the fight after this one starts a Light short. Blaze of
   Glory takes one final swing at the nearest adversary still in reach, which does not roll at
   all &mdash; it automatically critically succeeds &mdash; and then they cross through the veil.
-  Risk It All rolls the Duality Dice with nothing to beat: Hope high and they stay up clearing
-  the Hope Die's worth, Fear high and they do not, matching and they stand with nothing marked.
+  Risk It All rolls the Duality Dice with nothing to beat: Light high and they stay up clearing
+  the Light Die's worth, Shadow high and they do not, matching and they stand with nothing marked.
   The question is asked before anybody counts who is left standing, which is why a lone
   character who risks it and wins is still in a fight that is going on.</p>
 
@@ -959,7 +959,7 @@ footer {
   warns on a stat block and outside <code>rollingDamage</code>.</p>
 
   <p>Its softer sibling is <code>forceSeverity</code>, which names the band rather than the
-  Hit Points: &ldquo;spend a Fear to deal Severe damage instead of their standard damage&rdquo;.
+  Hit Points: &ldquo;spend a Shadow to deal Severe damage instead of their standard damage&rdquo;.
   A band is not a number of marks, so the defender's Armor Slots still step it down the way
   they step down a Severe hit that was rolled for &mdash; what they cannot do is take damage
   off a total, because there is no total left. Both sides of the fight obey it, and a stat
@@ -1025,14 +1025,14 @@ footer {
   Proficiency &mdash; if any roll a 6&rdquo;. <code>diceCheck</code> is that shape:
   <code>dice</code> rolled <code>times</code> over, <code>needed</code> of them showing
   <code>atLeast</code>, then one of two lists. Every card that asks it counts out a different
-  pile &mdash; one per Hope spent, one per point of Proficiency, one per token &mdash; so
+  pile &mdash; one per Light spent, one per point of Proficiency, one per token &mdash; so
   <code>times</code> is an amount like any other, and <code>proficiency</code> joins the
   traits an amount can read. No dice at all is not a failed roll: <code>otherwise</code> runs
   and nothing is journalled, because a holder who spent nothing has not rolled and lost.</p>
 
   <p>A card can ask what the dice said. <code>rolled</code> has always been able to read a
   roll &mdash; it is how a stat block answers &ldquo;when a PC rolls a failure with
-  Fear&rdquo; &mdash; but the moment a swing lands carried no roll with it, so a card asking
+  Shadow&rdquo; &mdash; but the moment a swing lands carried no roll with it, so a card asking
   &ldquo;when you critically succeed on an attack&rdquo; read nothing and never fired. The
   roll now travels with the offer: into the gate that decides whether the card is offered at
   all, and into the script it runs, so an effect can branch on it as well. Four cards were
@@ -1066,7 +1066,7 @@ footer {
   tokens&rdquo; from being paid for and aimed at somebody carrying none.</p>
 
   <p>Some cards ask the player for a number rather than naming one: &ldquo;spend any number of
-  Hope to roll that many d6s&rdquo;, &ldquo;transfer any number of their marked Stress&rdquo;.
+  Light to roll that many d6s&rdquo;, &ldquo;transfer any number of their marked Stress&rdquo;.
   <code>howMany</code> is that question. It says the <code>most</code> that can be asked for
   (a number, a pool, or tokens on a card), the <code>least</code> that may be answered, and
   <code>each</code> &mdash; what one of them does. It asks; it does not pay: what the number
@@ -1088,7 +1088,7 @@ footer {
 
   <p>It carries numbers as well as creatures. Wherever an amount is written &mdash;
   <code>damage.amount</code>, <code>markStress</code>, <code>clearStress</code>,
-  <code>heal</code>, <code>loseHope</code>, <code>gainFear</code> &mdash; a count may stand in
+  <code>heal</code>, <code>loseGood</code>, <code>gainBad</code> &mdash; a count may stand in
   its place: <code>hitPointsTaken</code>, the Hit Points the blow that called for this script
   marked on whoever is answering it; <code>hitPointsDealt</code>, what this script's own damage
   has marked; <code>targetsHit</code>, how many creatures its last roll beat. A
@@ -1132,10 +1132,10 @@ footer {
       <tr><td><code>DamageThresholds</code></td><td><code>engine/rules/damage.ts</code></td><td><code>{ major, severe }</code>; <code>Infinity</code> means "None" on the stat block, which is every Minion.</td></tr>
       <tr><td><code>AttackProfile</code></td><td><code>engine/combat/attack.ts</code></td><td>The attacker's side: <code>kind</code> (<code>pc</code> or <code>adversary</code>), <code>name</code>, <code>modifier</code>, <code>range</code>, <code>damage</code>, <code>proficiency</code>, <code>direct</code>.</td></tr>
       <tr><td><code>DefenderProfile</code></td><td><code>engine/combat/attack.ts</code></td><td>The target as an attack sees it: <code>difficulty</code>, <code>thresholds</code>, <code>defenses</code>.</td></tr>
-      <tr><td><code>Defender</code></td><td><code>engine/combat/defense.ts</code></td><td>The target as a defence sees it: <code>thresholds</code>, <code>defenses</code>, <code>armorSlots</code>, <code>stress</code>, <code>hope</code>, <code>reactions</code>.</td></tr>
-      <tr><td><code>AttackOutcome</code></td><td><code>engine/combat/attack.ts</code></td><td>Everything one roll produced: <code>refused</code>, <code>dualityRoll</code> or <code>gmRoll</code>, <code>hit</code>, <code>critical</code>, <code>damageRoll</code>, <code>damage</code>, and the Hope, Fear and spotlight movement.</td></tr>
-      <tr><td><code>EntityState</code></td><td><code>engine/scene/state.ts</code></td><td>A creature on the map: <code>id</code>, <code>faction</code>, <code>definition</code>, <code>tile</code>, <code>hitPoints</code>, <code>stress</code>, <code>armorSlots</code>, <code>hope?</code>, <code>conditions</code>, <code>conditionDurations</code>, <code>alive</code>.</td></tr>
-      <tr><td><code>SceneState</code></td><td><code>engine/scene/state.ts</code></td><td>The whole runtime overlay, keyed by content id, plus the tile occupancy index and the GM's Fear. Serialises through <code>sceneSnapshotSchema</code>.</td></tr>
+      <tr><td><code>Defender</code></td><td><code>engine/combat/defense.ts</code></td><td>The target as a defence sees it: <code>thresholds</code>, <code>defenses</code>, <code>armorSlots</code>, <code>stress</code>, <code>good</code>, <code>reactions</code>.</td></tr>
+      <tr><td><code>AttackOutcome</code></td><td><code>engine/combat/attack.ts</code></td><td>Everything one roll produced: <code>refused</code>, <code>dualityRoll</code> or <code>gmRoll</code>, <code>hit</code>, <code>critical</code>, <code>damageRoll</code>, <code>damage</code>, and the Light, Shadow and spotlight movement.</td></tr>
+      <tr><td><code>EntityState</code></td><td><code>engine/scene/state.ts</code></td><td>A creature on the map: <code>id</code>, <code>faction</code>, <code>definition</code>, <code>tile</code>, <code>hitPoints</code>, <code>stress</code>, <code>armorSlots</code>, <code>good?</code>, <code>conditions</code>, <code>conditionDurations</code>, <code>alive</code>.</td></tr>
+      <tr><td><code>SceneState</code></td><td><code>engine/scene/state.ts</code></td><td>The whole runtime overlay, keyed by content id, plus the tile occupancy index and the GM's Shadow. Serialises through <code>sceneSnapshotSchema</code>.</td></tr>
       <tr><td><code>JournalEntry</code></td><td><code>engine/script/runner.ts</code></td><td>One thing that happened, as a tagged union of roughly thirty variants. A UI renders these; a test asserts on them.</td></tr>
       <tr><td><code>Prompt</code></td><td><code>engine/script/runner.ts</code></td><td>What the runner is waiting for: <code>choice</code>, <code>check</code> or <code>dialogue</code>. Answered with a <code>Response</code>.</td></tr>
       <tr><td><code>ProjectDoc</code></td><td><code>engine/scene/schema.ts</code></td><td>The authored document. <code>formatVersion</code> is a literal <code>1</code>, so an old file fails loudly rather than half-loading.</td></tr>
@@ -1291,7 +1291,7 @@ footer {
 
   <div class="card">
     <h3>applyAttack reports what actually happened</h3>
-    <p>Not what was asked for. Hope at its cap does not accrue; a target with one Hit Point left marks
+    <p>Not what was asked for. Light at its cap does not accrue; a target with one Hit Point left marks
     one however severe the hit was. Anything that reads the result reads the truth, which is what
     lets a log, a save and a test all read the same value.</p>
   </div>
@@ -1305,7 +1305,7 @@ footer {
 
   <h3 id="recipe-a">a · Add an effect to the script vocabulary, end to end</h3>
 
-  <p>Worked example: <code>loseHope</code> — the engine side in commit <code>8c80bc2</code>, the
+  <p>Worked example: <code>loseGood</code> — the engine side in commit <code>8c80bc2</code>, the
   editor row in <code>d19c101</code>.</p>
 
   <ol>
@@ -1317,8 +1317,8 @@ footer {
       walk that forgets to descend reports a clean bill of health for a broken file.</li>
     <li><strong><code>src/engine/script/runner.ts</code></strong> — three edits in one file: a method
       on the <code>ScriptWorld</code> interface if the effect needs the world to do something new
-      (<code>loseHope(id: string, amount: number): number</code>); a <code>JournalEntry</code> variant
-      for what it did (<code>{ kind: 'hopeLost'; lost: number; id: string }</code>); and a
+      (<code>loseGood(id: string, amount: number): number</code>); a <code>JournalEntry</code> variant
+      for what it did (<code>{ kind: 'goodLost'; lost: number; id: string }</code>); and a
       <code>case</code> in the <code>apply</code> switch at <code>runner.ts:549</code>.
       <em>The switch has no <code>default</code></em>, and <code>apply</code> returns
       <code>Prompt | null</code>, so a missing case is a <code>tsc --noEmit</code> error — that is
@@ -1328,7 +1328,7 @@ footer {
       <code>EntityState</code>.</li>
     <li><strong><code>src/editor/ui/EffectList.tsx</code></strong> — add the kind to
       <code>ADDABLE</code>, a human label to the label map
-      (<code>loseHope: 'Take their Hope'</code>), a <code>case</code> in the row renderer and a
+      (<code>loseGood: 'Take their Light'</code>), a <code>case</code> in the row renderer and a
       <code>case</code> in the default-value builder. The panel shows what it cannot build rather
       than hiding it, so this step can lag the engine by a commit — but it must land, or the effect
       exists and nobody can author it.</li>
@@ -1674,7 +1674,7 @@ Claude-Session: https://claude.ai/code/session_01YW7ZQM2cmKNB9XJAbtx69u</code></
   <h3>Known defects in the community data</h3>
 
   <p><code>daggersearch/core/rules.json</code> is a terse summary with two errors that would propagate
-  if anyone quoted it: its Failure-with-Fear bullet swaps Hope and Fear, and its critical-damage line
+  if anyone quoted it: its Failure-with-Shadow bullet swaps Light and Shadow, and its critical-damage line
   ("double the total result of your damage dice") contradicts the verbatim text of both 1.0 and 2.0
   ("add the maximum possible result of the damage dice"). The engine's default is the official one;
   the other is selectable as <code>criticalRule: 'doubleDice'</code> for a table that plays it that
@@ -1747,7 +1747,7 @@ Claude-Session: https://claude.ai/code/session_01YW7ZQM2cmKNB9XJAbtx69u</code></
 </section>
 
 <footer>
-  <p>PolyHeart Engine developer guide. The same material, arranged for lookup, is
+  <p>Tactical Engine developer guide. The same material, arranged for lookup, is
   <code>docs/DEVELOPING.md</code>; the two do not disagree. Playing and authoring are
   <code>docs/MANUAL.md</code>; the goal and the constraints are <code>docs/CONTEXT.md</code>.</p>
   <p>This product includes materials from the Daggerheart System Reference Document 2.0,

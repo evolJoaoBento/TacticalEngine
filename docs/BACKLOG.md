@@ -109,8 +109,8 @@ bonus to someone else is a condition with a duration.
 
 Three rewrites dropped an assertion each, and each drop was a correction rather than a concession:
 `shield-wall` carries no check so a `check-prompt` could never appear; `cinder-burst` moves nobody
-so the caster-runs-the-line assertion left with Deathrun; and `demo:1819`'s Hope-cost assertion
-contradicted the pack's rule of spending no Hope. One silent guard became an assertion and fired
+so the caster-runs-the-line assertion left with Deathrun; and `demo:1819`'s Light-cost assertion
+contradicted the pack's rule of spending no Light. One silent guard became an assertion and fired
 immediately — `if (targets.length > 1)` had been skipping a whole arm-and-disarm path whenever one
 husk stood adjacent, which is the fifth vacuous pass found this way.
 
@@ -133,7 +133,7 @@ content that does nothing. It is content work, not engine work: the effect vocab
 
 | Spec | Wants | Write |
 |---|---|---|
-| `demo:1819` | a Hope cost, a check, an Experience pick, a named target | an ember action with a `check` |
+| `demo:1819` | a Light cost, a check, an Experience pick, a named target | an ember action with a `check` |
 | `demo:1856` | arm, pick a target, Escape-disarm, push | a bulwark/ember card with `push` |
 | `demo:2436` | a ground aim with `shape()`, `lit()`, and the caster moving | a card aimed at ground |
 | `playpass:134` | a named zone with tiles, damage, a floater, a flinch | `cinder-burst` as a real zone |
@@ -248,7 +248,7 @@ the least of it.
   conditions (blocks, endsWhen, advantage modifiers), not card markers, so they survive the prune
   and need no fixture. That removes a whole strand of expected work.
 * **Two weapon-arithmetic sites, and one assertion flips.** Line 906 scripts `[10, 2, 6]` against
-  soft-husk (difficulty 10, thresholds 7/12): Hope 10 + Fear 2 + Strength 2 = 14 hits, then the
+  soft-husk (difficulty 10, thresholds 7/12): Light 10 + Shadow 2 + Strength 2 = 14 hits, then the
   broadsword's `1d8+0` rolls 6 → Minor → `hitPointsMarked: 1`. The longsword is `1d8+1` → **7,
   which meets the major threshold exactly → 2 Hit Points**, so that assertion and its comment both
   change. Lines 1328–1330 pin `weaponDamage`: Kara `1d8+0` → `1d8+1`, Mira's greatstaff `1d6` →
@@ -258,7 +258,7 @@ the least of it.
   (1380, 1385), which currently expect `get-back-up`. `reactionsOf` is `reactionsFor(id,
   'incomingDamage')`, and the pack ships no reaction at all. The two fixture reactions that do
   trigger on it are gated — `fixture-aura-layers` on held tokens, `fixture-bone-bound` on a
-  four-card fixture loadout plus 3 Hope — and both are imported by `demo-abilities`/`demo-cards`,
+  four-card fixture loadout plus 3 Light — and both are imported by `demo-abilities`/`demo-cards`,
   so loosening either to suit this file would be wrong. A plain specimen beside the assertion is
   the idiom `cards.ts` already states.
 * **Four tests lift** to `script/abilities-catalogue.test.ts`: `describe('the shipped cards')`
@@ -342,15 +342,17 @@ adding that rule is a step of this slice, not a precondition somebody already di
 
 ### 2. Slice 4 — renames, migration, and the guard
 
-- **Light and Shadow.** `hope` → `light`, `fear` → `shadow`, across 71 files. This is a **document
-  format change**, not a rename: `poolNameSchema`, the pool selector enum, four
-  `checkRequestSchema` keys (`onSuccessWithHope` and its three siblings are real persisted keys),
-  four `RollOutcome` values, the UI labels in `DiceTray` and `PartyHud`, and the `hope`/`fear` test
-  ids those pips carry — which the e2e selectors read.
+- **Light and Shadow.** Landed in two passes. What a player reads became **Light** and **Shadow**
+  (686 display sites, 69 files); what a document stores became `good` and `bad` (74 files, a 1:1
+  substitution). The split has a front and a back because `light` and `shadow` cannot be identifiers
+  here — `spotlight` is the engine's own turn concept with 249 uses, and the renderer has shadow
+  mapping. This was a **document format change**, not a rename: the pool enum, the pool selector,
+  four `checkRequestSchema` keys (real persisted keys), four `RollOutcome` values, the UI labels in
+  `DiceTray` and `PartyHud`, and the pool test ids the pips carry — which the e2e selectors read.
 - **`formatVersion` 1 → 2**, with a load-time migration that rewrites a version-1 document rather
   than rejecting it. **Exercised on a real version-1 fixture**, or it is a promise rather than a
   behaviour.
-- **Identity.** `package.json` name → `tactical-engine`, product name **Tactical Engine**, PolyHeart
+- **Identity.** `package.json` name → `tactical-engine`, product name **Tactical Engine**, Tactical Engine
   retired, applied across the editor title, docs, `CLAUDE.md` and `AGENTS.md`.
 - **`legacy/` prose.** The never-modify rule is amended by the owner's ruling: all eight marks there
   are cosmetic comments and one editor hint, none functional. A prose rewrite cannot break the demo.

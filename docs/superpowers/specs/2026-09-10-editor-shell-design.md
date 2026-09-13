@@ -82,7 +82,7 @@ and each panel turns them back on, as `#app` does today.
 
 ### 4.1 Top bar (46 px, full width)
 
-- **Left:** `◆ PolyHeart Editor` · **Project ▾** · **Content ▾**
+- **Left:** `◆ Tactical Engine Editor` · **Project ▾** · **Content ▾**
 - **Centre:** the mode switch — **Inspector 1 · Terrain 2 · Combat 3 · Interaction 4** — keys 1–4.
 - **Right:** scene picker (`The Husk Vault 22×16 ▾`) · undo · redo · `● unsaved` · **▶ Play here**
   (`data-testid="play-here"`, kept) · **▶ Play**.
@@ -332,7 +332,7 @@ Each regression test is shown failing without its fix, per `DEVELOPING.md` §8.
 **Existing specs updated in the same slice:**
 - `editor-panels.spec.ts` opens Content ▾ before its panel testids.
 - `demo.spec.ts`:
-  - The "shows the editor panel" text checks still pass: the brand reads "PolyHeart Editor" and a
+  - The "shows the editor panel" text checks still pass: the brand reads "Tactical Engine Editor" and a
     mode tab reads "Terrain".
   - "shows the inspector for a clicked object" finds the name field by testid and the roll in
     Interaction.

@@ -93,20 +93,23 @@ conditions. Packs are imported through the existing project load path; no new ru
 
 ## 6. The renames, and the migration
 
-`hope` → `light`, `fear` → `shadow`, across 71 source files. This is a **document format change**,
-not only a rename. Persisted names carrying the terms:
+The paired pools were renamed across 74 source files. This is a **document format change**, not
+only a rename, and it has a front and a back: what a player reads is **Light** and **Shadow**, and
+what a file stores is `good` and `bad`. The display words could not double as identifiers, because
+`spotlight` is already the engine's own turn concept and the renderer has shadow mapping. Persisted
+names that carried the terms:
 
-- `poolNameSchema`: `'hope'` → `'light'`
-- the pool selector enum `'hope' | 'fear' | 'both'`
-- four `checkRequestSchema` keys: `onSuccessWithHope`, `onSuccessWithFear`, `onFailureWithHope`,
-  `onFailureWithFear` (real persisted keys — the `get` accessors are zod's lazy idiom for the
+- the pool name enum, whose value became `'good'`
+- the pool selector enum, whose two pool values became `'good'` and `'bad'`
+- four `checkRequestSchema` keys: `onSuccessWithGood`, `onSuccessWithBad`, `onFailureWithGood`,
+  `onFailureWithBad` (real persisted keys — the `get` accessors are zod's lazy idiom for the
   circular `effectSchema` reference, not aliases over another store)
-- four `RollOutcome` values: `successWithHope` … `failureWithFear`
+- four `RollOutcome` values: `successWithGood` … `failureWithBad`
 
 `formatVersion` goes **1 → 2**, with a load-time migration that rewrites a version-1 document rather
 than rejecting it, so existing saved projects keep working. The rename also reaches UI labels
-(`DiceTray` builds `Hope N + Fear N` and the outcome phrasing; `PartyHud` renders pips labelled
-Hope and Fear) and the `hope`/`fear` test ids those pips carry.
+(`DiceTray` builds the paired total and the outcome phrasing; `PartyHud` renders pips labelled
+Light and Shadow) and the pool test ids those pips carry.
 
 17 files name the outcome fields, 17 name the outcome values, 4 test files touch the terms.
 
@@ -134,7 +137,7 @@ one editor hint string at `editor.js:124`. None is a functional value; `legacy/j
 ## 9. Identity
 
 `package.json` name `daggerheart-engine` → `tactical-engine`; the description loses the marks. The
-product becomes **Tactical Engine**, matching the repository. **PolyHeart is retired** — its echo of
+product becomes **Tactical Engine**, matching the repository. **Tactical Engine is retired** — its echo of
 the product being separated from is the whole reason to drop it. Applied across the editor title,
 docs, `CLAUDE.md` and `AGENTS.md`.
 
@@ -182,7 +185,7 @@ Each slice ends green: `tsc`, `vitest`, `playwright`.
 - **Slice 3 is destructive**, and is the only one that is. It runs on a branch, it happens only after
   slice 2 has put replacement content in place, and everything it deletes survives in git history and
   in the exported pack.
-- The e2e suite leans on demo content; renaming the `hope`/`fear` test ids touches selectors.
+- The e2e suite leans on demo content; renaming the pool test ids touches selectors.
 
 ## 14. Done means
 

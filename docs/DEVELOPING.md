@@ -1,4 +1,4 @@
-# PolyHeart Engine — Developer Guide
+# Tactical Engine — Developer Guide
 
 For whoever picks up work in this repository next, human or agent. It says where things are,
 which way they point, what may not be broken, and the order to touch files in for the changes
@@ -30,7 +30,7 @@ A working tree part-way through a slice moves them; the symbol name is the stabl
 
 ## 1. Orientation
 
-PolyHeart is a browser CRPG engine and editor running the Daggerheart SRD 2.0 rules. A *project* is
+Tactical Engine is a browser CRPG engine and editor running the Daggerheart SRD 2.0 rules. A *project* is
 a JSON document (`projectSchema`, `src/engine/scene/schema.ts:210`) holding scenes, dialogues,
 items, loot tables, quests, assets, abilities, code, condition definitions and the party. The engine
 executes that document directly; the editor writes it in the browser. There is one page, one canvas
@@ -87,13 +87,13 @@ adapter: the rest of the core does not know it exists.
 |---|---|
 | `core/rng.ts` | `Rng` (SplitMix32), `createRng`, `hashSeed`. `save`/`restore`/`fork` for replays. |
 | `rules/dice.ts` | `parseDice`, `rollDice`, `withProficiency`, `maxDice`, `formatDice`; `DiceExpression`, `ParsedDamage`, `DamageType`. |
-| `rules/duality.ts` | `rollDuality` — a PC's two dice, the five outcomes, Hope/Fear/spotlight. |
+| `rules/duality.ts` | `rollDuality` — a PC's two dice, the five outcomes, Light/Shadow/spotlight. |
 | `rules/gm-die.ts` | `rollGmDie` — the GM's single d20 against Evasion, natural-20 crit. |
 | `rules/damage.ts` | Thresholds, severity bands, Armor Slots, resistance/immunity/reduction, `rollDamage`, `resolveDamage`. |
 | `rules/countdown.ts` | The clock: `advanceCountdown`, `stepsFor`, `dynamicSteps` (the SRD's progress/consequence chart), loops. No effects, no rng. |
 | `rules/cover.ts` | SRD 2.0 cover: a partial obstruction costs the attacker a disadvantage die. |
 | `rules/range.ts` | `RANGE_BANDS`, `DEFAULT_BAND_TILES` (a house rule — see CONTEXT.md). |
-| `rules/resources.ts` | `MarkPool` and `Currency`: Hit Points, Stress, Armor Slots, Hope, Fear; `mark`, `unmarked`, `canAfford`, `markHitPoints`. |
+| `rules/resources.ts` | `MarkPool` and `Currency`: Hit Points, Stress, Armor Slots, Light, Shadow; `mark`, `unmarked`, `canAfford`, `markHitPoints`. |
 | `combat/attack.ts` | `resolveAttack` (pure) and `applyAttack` (the only mutator here); `AttackProfile`, `DefenderProfile`, `AttackOutcome`. |
 | `combat/defense.ts` | The defender's side: `Defender`, `resolveDefense`, `resolveDefensePlan`, `previewPlan`, `canPayFor`. |
 | `combat/targeting.ts` | `evaluateTarget` — range band, line of sight, cover, refusals. |
@@ -252,7 +252,7 @@ attackWithSelected (game/demo-scene.ts:884)
   └─ resolveAttack (engine/combat/attack.ts)          — pure, rolls and reports
        ├─ evaluateTarget (combat/targeting.ts)        — band, LOS, cover, refusal
        ├─ rollDice(profile.modifier)                  — the attack modifier's own dice
-       ├─ rollDuality (rules/duality.ts)              — hit, crit, Hope, Fear, spotlight
+       ├─ rollDuality (rules/duality.ts)              — hit, crit, Light, Shadow, spotlight
        ├─ rollDamage (rules/damage.ts)                — Proficiency, crit bonus, flat bonus
        ├─ rollReduction (rules/damage.ts)             — the dice half of the defender's reduction
        └─ resolveDamage (rules/damage.ts)             — resistance, reduction, band, Armor Slots
@@ -286,7 +286,7 @@ playGmTurn / runGmTurn (demo-scene.ts:938, :959)
 Once the blow is resolved, whoever it happened to gets to answer it. `playDamageReactions`
 drains the notes and reads them for both sides: a stat block's reactions run on their own, and
 so does a party card that costs nothing and asks nothing (Rise Up's "clear a Stress"). A card
-with a price — "you can spend 2 Hope to…" — is put to the player as a third kind of
+with a price — "you can spend 2 Light to…" — is put to the player as a third kind of
 `demo.pending`, a `PendingReaction`, whose first option is always letting it pass. The line
 between the two is `auto && no cost`: a card that would be asked about anyway sets `auto: false`.
 A swing at somebody also raises `attacked` on them, hit or miss, which is how a bonus that lasts
@@ -297,8 +297,8 @@ answers on somebody else's turn. It is not `attackMissed`, which is a swing that
 A roll the *party* makes
 raises `partyRolled` on every adversary standing: the one who rolled is bound as the target, so
 the distance is a plain `withinRange`, and what the dice said is a `rolled` condition — the five
-readings (`failure`, `success`, `withFear`, `withHope`, `critical`) compose, so "a failure with
-Fear" is an `all` of two. The same
+readings (`failure`, `success`, `withBad`, `withGood`, `critical`) compose, so "a failure with
+Shadow" is an `all` of two. The same
 happens on the party's own swing: `playAttackRiders` reads `dealtHit` and `dealtDamage` for
 whoever swung, so Healing Strike is offered after a player's attack the way a stat block's rider
 runs after the GM's. Every note is read before anyone is asked, because `drainDamage` clears as
@@ -333,13 +333,13 @@ in the order is the whole rule: `EncounterRunner.checkEnd` only runs when the en
 to `act` or to `spotlight`, and `runGmTurn` will not ask for either while a question is standing,
 so a lone character who Risks It All and wins is one the fight never counted out. The three moves
 are the SRD's, and two of them can put the character back on their feet: **Avoid Death** (down
-until an ally clears a Hit Point, then the Hope Die against the character's level for a scar),
+until an ally clears a Hit Point, then the Light Die against the character's level for a scar),
 **Blaze of Glory** (one final swing at the nearest adversary in reach, resolved with
 `options.automatic: 'criticalSuccess'`, and then the veil), **Risk It All** (the Duality Dice
-rolled as a reaction rolls them — Hope high stands them up, Fear high does not, matching clears
+rolled as a reaction rolls them — Light high stands them up, Shadow high does not, matching clears
 everything). Avoid Death is offered first because stepping back from a question always takes its
 first option, and it is the one that leaves the fight where it stands. A scar is written through `setSheet` to
-`sheet.scars`, which `deriveCharacter` folds into the Hope pool's maximum, so it outlives the
+`sheet.scars`, which `deriveCharacter` folds into the Light pool's maximum, so it outlives the
 scene; crossing out the last slot sets `entity.dead`, which is the one thing `world.heal` will
 not stand back up. Blaze of Glory is also the one swing whose attacker cannot `act` — and `act`
 is where the encounter counts who is left standing — so `landPartyAttack` asks the encounter
@@ -409,10 +409,10 @@ and successes each read the right list however the next roll goes.
 | `DamageThresholds` | `engine/rules/damage.ts` | `{ major, severe }`; `Infinity` means "None" on the stat block. |
 | `AttackProfile` | `engine/combat/attack.ts` | The attacker's side: `kind` (`pc`/`adversary`), `name`, `modifier`, `range`, `damage`, `proficiency`, `direct`. |
 | `DefenderProfile` | `engine/combat/attack.ts` | The target's side *as an attack sees it*: `difficulty`, `thresholds`, `defenses`. |
-| `Defender` | `engine/combat/defense.ts` | The target's side *as a defence sees it*: `thresholds`, `defenses`, `armorSlots`, `stress`, `hope`, `reactions`. Different type, different file, different job. |
-| `AttackOutcome` | `engine/combat/attack.ts` | Everything one roll produced, including `refused`, `dualityRoll`/`gmRoll`, `damageRoll`, `damage`, and the Hope/Fear/spotlight movement. |
-| `EntityState` | `engine/scene/state.ts` | A creature on the map: `id`, `faction`, `definition`, `tile`, `hitPoints`, `stress`, `armorSlots`, `hope?`, `conditions`, `conditionDurations`, `alive`. |
-| `SceneState` | `engine/scene/state.ts` | The whole runtime overlay, keyed by content id, plus the tile occupancy index and the GM's Fear. Serialises through `sceneSnapshotSchema`. |
+| `Defender` | `engine/combat/defense.ts` | The target's side *as a defence sees it*: `thresholds`, `defenses`, `armorSlots`, `stress`, `good`, `reactions`. Different type, different file, different job. |
+| `AttackOutcome` | `engine/combat/attack.ts` | Everything one roll produced, including `refused`, `dualityRoll`/`gmRoll`, `damageRoll`, `damage`, and the Light/Shadow/spotlight movement. |
+| `EntityState` | `engine/scene/state.ts` | A creature on the map: `id`, `faction`, `definition`, `tile`, `hitPoints`, `stress`, `armorSlots`, `good?`, `conditions`, `conditionDurations`, `alive`. |
+| `SceneState` | `engine/scene/state.ts` | The whole runtime overlay, keyed by content id, plus the tile occupancy index and the GM's Shadow. Serialises through `sceneSnapshotSchema`. |
 | `JournalEntry` | `engine/script/runner.ts` | One thing that happened, as a tagged union of ~30 variants. A UI renders these; a test asserts on them. |
 | `Prompt` | `engine/script/runner.ts` | What the runner is waiting for: `choice`, `check` or `dialogue`. Answered with a `Response`. |
 | `ProjectDoc` | `engine/scene/schema.ts` | The authored document. `formatVersion` is a literal `1`, so an old file fails loudly. |
@@ -494,7 +494,7 @@ because the SRD prints it as optional, and the critical-damage rule is a flag
 (`criticalRule: 'maxDicePlusRoll' | 'doubleDice'`) because the community summary contradicts both
 official versions. Neither becomes the default without a citation.
 
-**`applyAttack` reports what actually happened, not what was asked for.** Hope at its cap does not
+**`applyAttack` reports what actually happened, not what was asked for.** Light at its cap does not
 accrue; a target with one Hit Point left marks one however severe the hit was. Anything that reads
 the result reads the truth.
 
@@ -506,7 +506,7 @@ Numbered, in order, with the real files. Each is derived from a commit that did 
 
 ### (a) Add an effect to the script vocabulary, end to end
 
-Worked example: `loseHope`, engine side in commit `8c80bc2`, editor row in `d19c101`.
+Worked example: `loseGood`, engine side in commit `8c80bc2`, editor row in `d19c101`.
 
 1. **`src/engine/script/schema.ts`** — add a variant to `effectSchema`'s discriminated union, with
    a doc comment saying what the SRD sentence is and how this departs from it. If it nests effects,
@@ -515,15 +515,15 @@ Worked example: `loseHope`, engine side in commit `8c80bc2`, editor row in `d19c
    forgets to descend reports a clean bill of health for a broken file.
 2. **`src/engine/script/runner.ts`** — three edits in this file:
    - a method on the `ScriptWorld` interface, if the effect needs the world to do something new
-     (`loseHope(id: string, amount: number): number`);
-   - a `JournalEntry` variant for what it did (`{ kind: 'hopeLost'; lost: number; id: string }`);
+     (`loseGood(id: string, amount: number): number`);
+   - a `JournalEntry` variant for what it did (`{ kind: 'goodLost'; lost: number; id: string }`);
    - a `case` in the `apply` switch (`runner.ts:549`). The switch has **no `default`**, and `apply`
      returns `Prompt | null`, so a missing case is a `tsc --noEmit` error — that is the check that a
      new variant was actually wired up.
 3. **`src/engine/script/world.ts`** — implement the `ScriptWorld` method on `SceneScriptWorld`. It
    is the only writer of state; nothing else may reach into `EntityState`.
 4. **`src/editor/ui/EffectList.tsx`** — add the kind to `ADDABLE`, a human label to the label map
-   (`loseHope: 'Take their Hope'`), a `case` in the row renderer and a `case` in the default-value
+   (`loseGood: 'Take their Light'`), a `case` in the row renderer and a `case` in the default-value
    builder. The panel shows what it cannot build rather than hiding it, so this step can lag the
    engine by a commit — but it must land, or the effect exists and nobody can author it.
 5. **`src/editor/validate.ts`** — if the effect names content that must exist, or holds a string
@@ -750,7 +750,7 @@ community sets are still 1.0 and neither upstream had updated as of 2026-09-05. 
 rule.
 
 **Known defects in the community data.** `daggersearch/core/rules.json` is a terse summary with two
-errors that would propagate: its Failure-with-Fear bullet swaps Hope and Fear, and its
+errors that would propagate: its Failure-with-Shadow bullet swaps Light and Shadow, and its
 critical-damage line ("double the total result of your damage dice") contradicts the verbatim text
 of both 1.0 and 2.0 ("add the maximum possible result of the damage dice"). The engine's default is
 the official one; the other is selectable as `criticalRule: 'doubleDice'` for a table that plays it

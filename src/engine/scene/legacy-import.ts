@@ -1,5 +1,5 @@
 /**
- * Importer for the legacy PolyHeart map and campaign format.
+ * Importer for the legacy Tactical Engine map and campaign format.
  *
  * The prototype in `legacy/` is the user's existing content and stays runnable and
  * unmodified; this reads its documents and produces engine `SceneDoc`s. Shapes are

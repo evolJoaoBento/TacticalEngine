@@ -1,13 +1,13 @@
-# PolyHeart Engine — User's Manual
+# Tactical Engine — User's Manual
 
 Everything below is taken from the code and docs in this repository as they stand. Where a
 detail could not be confirmed from source it is marked **not verified**.
 
-## 1. What PolyHeart is
+## 1. What Tactical Engine is
 
-PolyHeart is a browser-based engine and editor for party-based tactical RPGs in the style of
-Baldur's Gate 3, running on the Daggerheart tabletop rules (SRD 2.0): duality dice, Hope and
-Fear, Stress, damage thresholds, Armor Slots, classes, subclasses, ancestries, communities,
+Tactical Engine is a browser-based engine and editor for party-based tactical RPGs in the style of
+Baldur's Gate 3, running on the Daggerheart tabletop rules (SRD 2.0): duality dice, Light and
+Shadow, Stress, damage thresholds, Armor Slots, classes, subclasses, ancestries, communities,
 domain cards, adversaries, and milestone levelling. A project is a JSON document — scenes,
 objects, conversations, quests, items, loot tables — that the engine executes directly, so a
 designer builds a scenario in the editor without writing engine code.
@@ -64,18 +64,18 @@ Q/E) are ignored while a text field has focus; the other keys are not (see Limit
 
 ### The screen
 
-- **The Duality Dice** (over the map, when a party member rolls): two d12s — gold for Hope,
-  violet for Fear — tumbling and settling on the faces that were rolled, with the sum and the
+- **The Duality Dice** (over the map, when a party member rolls): two d12s — gold for Light,
+  violet for Shadow — tumbling and settling on the faces that were rolled, with the sum and the
   outcome underneath. They are a view of a roll that has already happened, not the roll itself:
   the rules resolve, and the dice are then told what to land on, so nothing waits for them and
   a seeded replay shows the same faces. Only the party's Duality rolls are shown — an adversary
   rolls a single d20, and the log says what it did. Several at once (a feature everyone has to
   dodge) queue and are shown in the order they were rolled.
 - **HUD** (bottom left): one card per party member — name, class, and pips for HP, Stress,
-  Armor, and Hope (each box one slot, filled when marked), any conditions, and a line naming
+  Armor, and Light (each box one slot, filled when marked), any conditions, and a line naming
   what they wield and wear. The selected card has a blue border; a fallen member is dimmed.
   Clicking a card selects that character. A yellow **Level up** button appears on a card when
-  a level is waiting (see Levelling up). The last card shows the GM's **Fear** pips and either
+  a level is waiting (see Levelling up). The last card shows the GM's **Shadow** pips and either
   "Exploring" or "Round N".
 - **Play panel** (bottom right), top to bottom:
   - **Save / Load** buttons.
@@ -119,9 +119,9 @@ tiles are still there underneath, for the pathfinder and the editor, but nothing
 them.
 
 In a fight there is no initiative. The party acts until an action roll — an attack, a card's
-Spellcast Roll — comes up with Fear or fails, which hands the spotlight to the GM; or until you
+Spellcast Roll — comes up with Shadow or fails, which hands the spotlight to the GM; or until you
 press **Pass to GM** (or `Space` / `Enter`). On the GM's turn the GM spotlights one adversary
-free and spends a Fear for each further one while Fear lasts. A spotlighted adversary moves
+free and spends a Shadow for each further one while Shadow lasts. A spotlighted adversary moves
 within Close range of the nearest party member and attacks; one held in place by Restrained
 spends its spotlight tearing free instead. Then the spotlight returns to the party. When the
 last adversary falls the log says so and the scene's conditions end.
@@ -133,9 +133,9 @@ adversary that cannot be attacked (out of range, the GM's turn) does nothing vis
 ### The action bar
 
 Along the top of the screen sits the selected character's action bar: **Attack** with the weapon in
-hand (click an adversary on the board), then one button per ability — the class's Hope feature,
-subclass cards, and the domain cards in the loadout. Under each name is what it costs ("1 Hope",
-"2 Stress", "1 left") or, greyed, why it cannot be used now ("needs 3 Hope", "the GM's turn",
+hand (click an adversary on the board), then one button per ability — the class's Light feature,
+subclass cards, and the domain cards in the loadout. Under each name is what it costs ("1 Light",
+"2 Stress", "1 left") or, greyed, why it cannot be used now ("needs 3 Light", "the GM's turn",
 "nothing in range", "always on" for a passive, "a reaction" for a card that fires on its own,
 "the table adjudicates this one" for a card the engine has no script for). Hover a button for
 the card's text. Below: **Pass to GM** in a fight, **Rest…** out of one, and **Loadout…**.
@@ -152,8 +152,8 @@ back in the panel.
 
 **Rest…** opens the rest panel out of combat. Short or long; each character picks two of the
 SRD's downtime moves — tend to wounds (their own or an ally's), clear Stress, repair armor (own
-or an ally's), prepare for Hope. A short rest clears 1d4 + tier of the thing; a long rest clears
-all of it. Two or more characters preparing together gain 2 Hope each. The GM gains 1d4 Fear on
+or an ally's), prepare for Light. A short rest clears 1d4 + tier of the thing; a long rest clears
+all of it. Two or more characters preparing together gain 2 Light each. The GM gains 1d4 Shadow on
 a short rest and 1d4 plus the party's size on a long one. A rest refreshes "once per rest"
 cards (a long rest also "once per long rest" ones), ends conditions that last until a rest, and
 is where the loadout changes for free.
@@ -206,20 +206,20 @@ Everything else — walking, using, saving, levelling — waits until the conver
 
 ### Rolls
 
-An action roll is two d12: the Hope die and the Fear die, plus the trait modifier, against a
+An action roll is two d12: the Light die and the Shadow die, plus the trait modifier, against a
 Difficulty. The log reads it out, naming only the parts that applied:
 
-    Hope 8 + Fear 7 + 2 = 17 vs 12. Success, with Hope.
+    Light 8 + Shadow 7 + 2 = 17 vs 12. Success, with Light.
 
 Extra parts appear as `+ d6 N` / `− d6 N` (advantage or disadvantage) and `+ help N`. The five
-outcomes are critical success (both dice match), success with Hope, success with Fear, failure
-with Hope, failure with Fear. A roll with Hope gives the roller a Hope; a roll with Fear gives
-the GM a Fear; a critical also clears a Stress. **Step back** declines the roll at no cost: the
+outcomes are critical success (both dice match), success with Light, success with Shadow, failure
+with Light, failure with Shadow. A roll with Light gives the roller a Light; a roll with Shadow gives
+the GM a Shadow; a critical also clears a Stress. **Step back** declines the roll at no cost: the
 outcome lists and `always` are skipped, any effects written after the check still run, and the
 object can be tried again.
 
 The prompt offers **Utilize an Experience**: pick one of the acting character's Experiences
-to spend a Hope and add its modifier to the roll ("Draws on "Held the line" (+2)." in the log).
+to spend a Light and add its modifier to the roll ("Draws on "Held the line" (+2)." in the log).
 A roll against a creature ("Roll spellcast against Acid Burrower?") is made once and beats each
 target on its own Difficulty.
 
@@ -249,7 +249,7 @@ button.
 ### Travel
 
 A portal (the demo's stairs) carries a `goto` effect. Travel happens once the script that
-asked for it has finished asking you things. Wounds, Stress, Hope and the GM's Fear travel with
+asked for it has finished asking you things. Wounds, Stress, Light and the GM's Shadow travel with
 the party; positions do not — you arrive on the new scene's spawns. A room you return to is as
 you left it (open chests stay open; adversaries stand where they stood), and the scene's intro
 text is logged on arrival. Walking out abandons a fight.
@@ -419,7 +419,7 @@ An effect list shows each effect with a one-word label and its fields, **✕** t
 Remove it, Mark it used, Give loot, Deal damage, Heal, Start a fight, Travel to a scene, Start a
 conversation, Start a quest, Complete an objective, Complete a quest, Fail a quest, Level the
 party up — and the combat vocabulary a card is written in: Make an attack, Mark/Clear Stress,
-Mark/Clear Armor Slots, Gain/Spend Hope, GM gains Fear, Apply/Clear a condition, Put tokens on a
+Mark/Clear Armor Slots, Gain/Spend Light, GM gains Shadow, Apply/Clear a condition, Put tokens on a
 card, Spend tokens on a card, Push them back, Ask for a reaction roll, and Run code. Scene,
 conversation, encounter and quest ids are dropdowns over what the project holds; the objective
 dropdown follows its quest. Flag, key and loot-table ids are typed.
@@ -551,7 +551,7 @@ under it, so a new character joins when the project is next loaded.
 **Write a card…** opens the Cards panel: the project's own cards, one at a time, beside a count
 of the ones the engine ships (those live in `srd/abilities.ts` and are edited in code). A card
 is its name, the text as printed, the character ids that hold it, whether it is an action, a
-reaction (and what it answers) or passive, what it costs in Hope, Stress and Fear, who it can be
+reaction (and what it answers) or passive, what it costs in Light, Stress and Shadow, who it can be
 aimed at and how far, whether using it is the character's action, whether it is only for a fight,
 whether it holds tokens and when they refill, what it resists, what it takes off the damage,
 whether the swing its stat block prints goes through armour — and then the effect list, which
@@ -649,7 +649,7 @@ An **encounter**: `id`, `name`, `adversaries[]` (`id`, `adversary` = SRD adversa
 `position`, `name?`, `hitPoints?`), `triggerCells[]`, `startsOnTrigger`. A **deco**: `model`,
 `position`, `rotation` (radians), `id?`.
 
-Log tones: `narration` (default text), `system`, `hope`, `fear`, `combat`, `success`.
+Log tones: `narration` (default text), `system`, `good`, `bad`, `combat`, `success`.
 Traits: agility, strength, finesse, instinct, presence, knowledge.
 Target selectors: `{kind:'actor'}` (whoever used the thing; the default), `{kind:'party'}`
 (living members), `{kind:'entity', id}`.
@@ -672,7 +672,7 @@ Target selectors: `{kind:'actor'}` (whoever used the thing; the default), `{kind
 | `objectiveDone` | `quest`, `objective` | that step is ticked |
 | `partyAlive` | `op`, `value` | living party count compares so |
 | `adversariesAlive` | `op`, `value` | living adversary count compares so |
-| `pool` | `pool` (hitPoints \| stress \| armorSlots \| hope), `of?`, `measure?` (available \| marked \| max), `op`, `value` | a creature's pool compares so; `of` defaults to the actor |
+| `pool` | `pool` (hitPoints \| stress \| armorSlots \| good), `of?`, `measure?` (available \| marked \| max), `op`, `value` | a creature's pool compares so; `of` defaults to the actor |
 | `inCombat` | — | a fight is on |
 | `loadout` | `domain`, `of?`, `op`, `value` | how many of that domain's cards are in the loadout, for whoever `of` names (the actor by default) — what the "-Touched" cards read |
 | `hasCondition` | `condition`, `of?` | any of `of` (default: the chosen target) bears the condition |
@@ -705,17 +705,17 @@ leaves the chosen target out — "all other targets within range").
 | `heal` | `amount` **or** `dice` ("1d4"), `target?` | clears Hit Points; brings a fallen character back up. `dice` is rolled once and the same number clears for every target |
 | `markStress` / `clearStress` | `amount?` (1), `target?` (actor) | a full Stress track marks a Hit Point instead |
 | `clearArmor` | `amount?`, `target?` | clears Armor Slots |
-| `gainHope` | `amount?`, `target?` | Hope to the target(s); an adversary gains none |
-| `spendHope` | `amount?` | the actor spends Hope; refused (and logged) without enough |
-| `loseHope` | `amount?` (1), `target?` (hit) | Hope taken rather than spent — "all targets within Far range lose a Hope". Never refused: a creature with one loses one, a creature with none loses nothing. "If they can't lose a Hope, they mark 2 Stress instead" is a branch on how much was taken, which is the GM's to read |
+| `gainGood` | `amount?`, `target?` | Light to the target(s); an adversary gains none |
+| `spendGood` | `amount?` | the actor spends Light; refused (and logged) without enough |
+| `loseGood` | `amount?` (1), `target?` (hit) | Light taken rather than spent — "all targets within Far range lose a Light". Never refused: a creature with one loses one, a creature with none loses nothing. "If they can't lose a Light, they mark 2 Stress instead" is a branch on how much was taken, which is the GM's to read |
 | `applyCondition` / `clearCondition` | `condition`, `duration?` (temporary \| scene \| rest \| permanent), `target?` (the chosen target) | a condition cannot stack; `temporary` is what an adversary shakes off, `scene` ends with the fight, `rest` at a rest |
-| `attack` | `weapon?` (primary), `target?`, `advantage?`, `damageBonus?`, `damage?` (dice instead of the attacker's own), `range?` (reach instead of the attacker's own — a stat block prints one reach for its claws and its features say their own), `direct?` (damage no Armor Slot reduces), `onHit[]?`, `onMiss[]?` | a weapon attack as an action roll: Hope or Fear, the spotlight, a critical's extra dice. A selector naming several creatures is swung at in turn, each with its own roll, and `onHit` runs once with everyone it beat bound to `hit`. An adversary swings what its stat block prints |
+| `attack` | `weapon?` (primary), `target?`, `advantage?`, `damageBonus?`, `damage?` (dice instead of the attacker's own), `range?` (reach instead of the attacker's own — a stat block prints one reach for its claws and its features say their own), `direct?` (damage no Armor Slot reduces), `onHit[]?`, `onMiss[]?` | a weapon attack as an action roll: Light or Shadow, the spotlight, a critical's extra dice. A selector naming several creatures is swung at in turn, each with its own roll, and `onHit` runs once with everyone it beat bound to `hit`. An adversary swings what its stat block prints |
 | `markArmor` | `amount?`, `target?` | marks Armor Slots with no benefit — the SRD's "must mark an Armor Slot without receiving its benefits" |
-| `gainFear` | `amount?` | the GM gains Fear |
+| `gainBad` | `amount?` | the GM gains Shadow |
 | `addToken` / `spendToken` | `ability`, `amount?`, `target?` | puts tokens on a card the actor holds, or takes them off. `addToken` with no amount places the card's own count; spending more than are there is refused and logged |
 | `summon` | `adversary` (a stat block id), `count?` (dice, one when left out), `perPc?`, `range?` (the band they appear in, Close by default), `spotlight?` | Puts creatures on the map around whoever is acting, in the band named — a ring, not a disc, falling inward when there is no room in it. They are in the fight the moment they stand there, because the encounter reads the map rather than a roster. `spotlight` makes them act at once instead of next turn; `perPc` multiplies the count by the party still standing |
 | `push` | `to` (band), `target?` | knocks the target(s) straight away from the actor until the distance reads as that band, stopping at a wall or a creature |
-| `reactionRoll` | `difficulty` (number \| `roll` = the actor's last total), `trait?`, `targets?` (hit), `damage?` (`dice`, `type?`), `onFail[]?`, `onSuccess[]?` | adversaries roll a d20, party members their Duality Dice (no Hope or Fear); `onFail` runs with the failures bound to `hit`, then `onSuccess` with the rest. `damage` is rolled once, before anyone rolls to avoid it, and both branches spend it with `{ kind: 'damage', dice: 'same' }` — the successes adding `half`. That is what "targets who succeed take half damage" means: half of the number that landed, and something to halve even when nobody failed |
+| `reactionRoll` | `difficulty` (number \| `roll` = the actor's last total), `trait?`, `targets?` (hit), `damage?` (`dice`, `type?`), `onFail[]?`, `onSuccess[]?` | adversaries roll a d20, party members their Duality Dice (no Light or Shadow); `onFail` runs with the failures bound to `hit`, then `onSuccess` with the rest. `damage` is rolled once, before anyone rolls to avoid it, and both branches spend it with `{ kind: 'damage', dice: 'same' }` — the successes adding `half`. That is what "targets who succeed take half damage" means: half of the number that landed, and something to halve even when nobody failed |
 | `startEncounter` | `encounter`, `intro?` | starts a fight; logs `intro` or "Something moves." |
 | `endEncounter` | `encounter` | marks the encounter ended |
 | `goto` | `scene` | travel, taken once the script has stopped asking |
@@ -735,19 +735,19 @@ leaves the chosen target out — "all other targets within range").
 the weapon in hand), `difficulty` (a number, or `target` for each target's own Difficulty —
 an adversary's, or a party member's Evasion), `targets?` (a selector; the chosen target when
 left out), `roll?: last` (reuse the last action roll made in this script — Whirlwind's "the
-same attack roll against all other targets" — no dice, no prompt, no Hope, Fear or spotlight;
-the total stands against each target's Difficulty), `tags?`, `prompt?`, and effect lists `onCriticalSuccess`, `onSuccessWithHope`,
-`onSuccessWithFear`, `onFailureWithHope`, `onFailureWithFear`, `always` (runs after the outcome
+same attack roll against all other targets" — no dice, no prompt, no Light, Shadow or spotlight;
+the total stands against each target's Difficulty), `tags?`, `prompt?`, and effect lists `onCriticalSuccess`, `onSuccessWithGood`,
+`onSuccessWithBad`, `onFailureWithGood`, `onFailureWithBad`, `always` (runs after the outcome
 list). One roll is made; against targets it succeeds against each one it meets or exceeds, and
 those are bound to the `hit` selector for the outcome lists. A Spellcast Roll by a character
-whose subclass has no Spellcast trait is refused before any die. Fallbacks when a list is missing: critical → success with Hope → success with Fear; each
+whose subclass has no Spellcast trait is refused before any die. Fallbacks when a list is missing: critical → success with Light → success with Shadow; each
 success falls back to the other success; each failure to the other failure. Writing one success
 and one failure list therefore covers all five.
 
 ### Logic in code
 
 Everything above is data: serialisable, editable in the panel, safe to replay. Some things a
-designer wants are not — "spend any number of Hope and roll that many d6", "one option per
+designer wants are not — "spend any number of Light and roll that many d6", "one option per
 adversary in reach", a house rule the vocabulary never anticipated. Those are **hooks**, and
 they are reached from the same vocabulary: the effect `{ kind: 'run', hook: 'id', args? }` and
 the condition `{ kind: 'hook', hook: 'id', args? }`.
@@ -814,15 +814,15 @@ ctx.queue(effects);
 
 ### Abilities and conditions
 
-An **ability** (`project.abilities[]`): `id`, `name`, `source` (`domainCard` `card` \| `classHope`
+An **ability** (`project.abilities[]`): `id`, `name`, `source` (`domainCard` `card` \| `classGood`
 `classId` \| `classFeature` `classId` \| `subclass` `subclassId` + `stage` \| `granted`
 `characters[]` \| `adversary` `adversaries[]`), `text` (the card's SRD text when empty), `kind`
 (action \| reaction \| passive),
 `trigger?` (incomingDamage \| attackHit \| attackMissed \| tookSevere — things that happen to the
 holder — plus `dealtHit` and `dealtDamage`, which answer the holder's *own* standard attack:
 `dealtHit` whenever it lands, `dealtDamage` only when a Hit Point was marked. Both are read on
-the GM's swing alone, so a card that carried one would be read by nothing), `cost` (`hope?`, `stress?`,
-`fear?` — the GM's pool, so it belongs to a stat block's features; a character ability that states
+the GM's swing alone, so a card that carried one would be read by nothing), `cost` (`good?`, `stress?`,
+`bad?` — the GM's pool, so it belongs to a stat block's features; a character ability that states
 one is refused at the table and warned about by **Check**), `uses?`
 (`count`, `per` rest \| longRest \| scene), `target` (`kind` none \| self \| adversary \| ally \|
 creature \| group, `range`), `available?` (a condition read with the card's *holder* standing
@@ -857,11 +857,11 @@ block's own attack.
 
 **Adversary features.** The role features every third stat block shares are read straight off
 the block (`src/engine/combat/adversary-features.ts`): **Relentless (X)** spotlights it up to X
-times a GM turn, each past the first costing a Fear; **Horde (X)** switches its standard attack's
+times a GM turn, each past the first costing a Shadow; **Horde (X)** switches its standard attack's
 damage once half its Hit Points are marked; **Minion (X)** falls to any damage and takes one more
-of its kind down per X damage; **Momentum** hands the GM a Fear on a successful attack;
-**Terrifying** does that and costs every PC in Close range a Hope. Action and reaction features
-are abilities sourced to the adversary. The GM plays one a turn and pays what the block says it costs — a Fear for one that names no
+of its kind down per X damage; **Momentum** hands the GM a Shadow on a successful attack;
+**Terrifying** does that and costs every PC in Close range a Light. Action and reaction features
+are abilities sourced to the adversary. The GM plays one a turn and pays what the block says it costs — a Shadow for one that names no
 cost at all, so that a free feature is not simply what the adversary does every turn. Which one:
 a feature that goes off around the adversary is used when it would catch two or more of the
 party; one that names a creature ("make an attack against a target within Close range") only
@@ -880,7 +880,7 @@ cards in the loadout (`sheet.loadout`, at most five; the first five held when un
 A **condition definition** (`project.conditionDefs[]`): `id`, `name`, `text`, `modifiers[]` (the
 same shape), `defenses?` (the same shape as a passive's: what carrying it does to damage coming
 in), `blocks[]` (act \| move \| reactions — an adversary that cannot act spends its
-spotlight shaking the condition off, or the GM spends a Fear to clear one that only ends on
+spotlight shaking the condition off, or the GM spends a Shadow to clear one that only ends on
 damage; one that cannot move tears free instead of closing in; `reactions` silences its damage
 reactions), `endsWhen?` (hit \| attacks \| damaged). `vulnerable` and `hidden` are read by the attack rules
 directly; Tava's Armor and Rogue's Dodge are modifiers on a condition.
@@ -1021,7 +1021,7 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   **F** (frame the selected character) is still play-only.
 - No entity-hover links in the log.
 - An impossible attack click is silent.
-- A scripted check (an object, a conversation) awards Hope to whoever used the thing and Fear
+- A scripted check (an object, a conversation) awards Light to whoever used the thing and Shadow
   to the GM, the same as an attack; an object's check rolls with the party's best trait.
 - Travel rebuilds the whole scene view; fine for two rooms, not measured for fifty.
 - `story` renders as a single log line; its `button` field is ignored.
@@ -1073,5 +1073,5 @@ Play panel:  Save (quick slot) · Save as… (named) · Load (list; load or dele
              Use / Equip beside a pack item · Level up beside a name when a level is owed
 Action bar:  Attack · one button per ability (cost or reason underneath) · Pass to GM
              Rest… (out of combat) · Loadout… (recall costs Stress outside a rest)
-Roll prompt: Utilize an Experience (1 Hope) · Roll · Step back
+Roll prompt: Utilize an Experience (1 Light) · Roll · Step back
 ```

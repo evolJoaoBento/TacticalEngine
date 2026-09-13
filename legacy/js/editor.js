@@ -343,7 +343,7 @@ export class Editor {
         m.id ??= 'scene-' + Math.random().toString(36).slice(2, 8);
       }
     } else {
-      if (!doc.tiles || !doc.w || !doc.h) throw new Error('Not a PolyHeart map or campaign');
+      if (!doc.tiles || !doc.w || !doc.h) throw new Error('Not a Tactical Engine map or campaign');
       doc.nodes ??= []; doc.enemies ??= []; doc.triggers ??= []; doc.decos ??= []; doc.spawns ??= [[1, 1]];
       campaign = makeCampaign([doc], doc.name || 'Imported Map');
     }

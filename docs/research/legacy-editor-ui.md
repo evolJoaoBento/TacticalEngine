@@ -1,4 +1,4 @@
-# Legacy PolyHeart Editor & UI — Research Notes
+# Legacy Tactical Engine Editor & UI — Research Notes
 
 Source of truth: `legacy/` as of 2026-09-04 (files dated 2026-06-12). Every claim below was read from the code;
 `file:line` anchors point at `legacy/js/*.js`, `legacy/index.html` and `legacy/css/style.css`. Nothing in this
@@ -103,7 +103,7 @@ Extra literal colours: mode-button dark text `#0c1018`, primary-button dark text
 ```
 #app (flex column, 100%)
 ├─ header#topbar   flex row, gap 16, padding 6px 14px, bg --panel, border-bottom --line, user-select none
-│   ├─ .brand "⬡ POLYHEART"      weight 800, letter-spacing 3px, --hope, .95rem
+│   ├─ .brand "⬡ TACTICAL ENGINE"      weight 800, letter-spacing 3px, --hope, .95rem
 │   ├─ .mode-buttons  #btn-play "▶ Play" · #btn-campaign.gold "★ One-Shot" · #btn-editor "✎ Editor"
 │   └─ .file-buttons (margin-left:auto)  #btn-new "New" · #btn-save "Save" · #btn-load "Load" · input#file-input[type=file accept=.json hidden]
 └─ #main (flex:1, flex row, min-height 0)
