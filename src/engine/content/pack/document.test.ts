@@ -133,10 +133,12 @@ describe('reading a pack', () => {
         // printed, each a card granted by what printed it since format version 3.
         '192 weapons, 34 armors, 9 classes, 18 ancestries, 9 communities, 18 subclasses, 334 cards, 129 adversaries',
       );
-      // The eight cards are built from abilities that sat on no card: three of a class's own
+      // Eight of the cards are built from abilities that sat on no card: three of a class's own
       // resource and five a subclass printed. Imported beside the content file, each duplicates a
       // printed card it built by name -- the two files were exported apart, and are read apart.
-      expect(describePack(mechanics.pack)).toBe('8 cards, 185 abilities, 54 conditions');
+      // The other two are what Invisible and Echoing Strike lend, since format version 4: each
+      // spell's second half, moved off the spell onto a card of its own.
+      expect(describePack(mechanics.pack)).toBe('10 cards, 185 abilities, 54 conditions');
     },
   );
 });

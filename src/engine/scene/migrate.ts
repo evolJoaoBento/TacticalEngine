@@ -248,6 +248,74 @@ function toVersion3(doc: Raw): void {
 }
 
 /**
+ * Version 3 to 4: what a condition lends is a card, and the card says so.
+ *
+ * A condition named the one ability it put in its bearer's hands (`grants: { ability }`). Every
+ * other card names what grants it and nothing lists its cards; this was the last list on the
+ * granting side, and it goes. Only the document's own lists are read, as in version 3:
+ *
+ * - An ability that shares its card with another -- the half of a spell somebody else answers
+ *   with -- moves onto a card of its own, lent by the condition. Whoever holds the first card keeps
+ *   the rest of it.
+ * - An ability alone on its card is copied instead, onto the lent card, so whoever holds the card
+ *   it sat on keeps it, as they did.
+ * - A lend naming an ability the document does not carry lent nothing, and is dropped.
+ *
+ * Two conditions lending one ability lend one card.
+ */
+function toVersion4(doc: Raw): void {
+  const lending = objects(doc['conditionDefs']).filter((def) => 'grants' in def);
+  if (lending.length === 0) return;
+  const abilities: unknown[] = Array.isArray(doc['abilities']) ? (doc['abilities'] as unknown[]) : [];
+  const cards: unknown[] = Array.isArray(doc['cards']) ? (doc['cards'] as unknown[]) : [];
+  const onCard = (ability: Raw): unknown => (isObject(ability['source']) ? ability['source']['card'] : undefined);
+  const fresh = (id: string, taken: Set<string>): string => {
+    let at = id;
+    for (let n = 2; taken.has(at); n++) at = `${id}-${n}`;
+    taken.add(at);
+    return at;
+  };
+  const abilityIds = new Set(objects(abilities).map((ability) => String(ability['id'])));
+  const cardIds = new Set(objects(cards).map((card) => String(card['id'])));
+  // The grant each lent ability's card carries, so a second condition lending it joins the first.
+  const lent = new Map<string, { conditions: string[] }>();
+  for (const def of lending) {
+    const granted = def['grants'];
+    delete def['grants'];
+    const abilityId = isObject(granted) ? granted['ability'] : undefined;
+    const ability = objects(abilities).find((entry) => entry['id'] === abilityId);
+    if (typeof abilityId !== 'string' || ability === undefined) continue;
+    const conditionId = String(def['id']);
+    const known = lent.get(abilityId);
+    if (known !== undefined) {
+      known.conditions.push(conditionId);
+      continue;
+    }
+    const card = onCard(ability);
+    const shared = card !== undefined && objects(abilities).some((other) => other !== ability && onCard(other) === card);
+    let holder = ability;
+    if (!shared) {
+      holder = { ...structuredClone(ability), id: fresh(`${abilityId}-lent`, abilityIds) };
+      abilities.push(holder);
+    }
+    const grant = { kind: 'condition', conditions: [conditionId] };
+    const id = fresh(String(holder['id']), cardIds);
+    cards.push({
+      id,
+      name: typeof ability['name'] === 'string' ? ability['name'] : abilityId,
+      text: typeof ability['text'] === 'string' ? ability['text'] : '',
+      grant,
+    });
+    holder['source'] = { card: id };
+    lent.set(abilityId, grant);
+  }
+  if (lent.size > 0) {
+    doc['abilities'] = abilities;
+    doc['cards'] = cards;
+  }
+}
+
+/**
  * Walk a raw document and everything inside it, applying one rewrite at every level.
  *
  * Depth-first and total: version 2's names appear at every depth — an ability's cost, an effect's
@@ -275,6 +343,7 @@ function walk(value: unknown, apply: (raw: Raw) => void): void {
 const STEPS: readonly { to: number; migrate: (doc: Raw) => void }[] = [
   { to: 2, migrate: (doc) => walk(doc, toVersion2) },
   { to: 3, migrate: toVersion3 },
+  { to: 4, migrate: toVersion4 },
 ];
 
 /**

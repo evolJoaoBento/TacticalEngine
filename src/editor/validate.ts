@@ -154,6 +154,9 @@ function checkCardGrants(
   };
   // A project with no party of its own plays somebody else's, which this cannot see.
   const party = project.party.length === 0 ? null : new Set(project.party.map((sheet) => sheet.id));
+  // The conditions there are: the project's and the engine's, once the caller says what the engine's are.
+  const conditions =
+    options.knownConditions === undefined ? null : new Set([...project.conditionDefs.map((c) => c.id), ...options.knownConditions]);
   // What a chosen card has to be in for anybody to take it: a domain some class or subclass opens.
   const opened =
     content === undefined
@@ -204,6 +207,14 @@ function checkCardGrants(
         for (const id of grant.adversaries) {
           if (options.knownAdversaries !== undefined && !options.knownAdversaries.has(id)) {
             add('warning', `Card "${card.id}" is printed on "${id}", which is not an adversary.`, card.id);
+          }
+        }
+        break;
+      case 'condition':
+        if (grant.conditions.length === 0) add('warning', `Card "${card.id}" is lent by no condition yet.`, card.id);
+        for (const id of grant.conditions) {
+          if (conditions !== null && !conditions.has(id)) {
+            add('warning', `Card "${card.id}" is lent by condition "${id}", which nothing defines: nobody holds it.`, card.id);
           }
         }
         break;

@@ -26,6 +26,25 @@ const messages = (project: ProjectDoc, options = {}): string[] =>
 const onHusk = (...ids: string[]) => ids.map((id) => ({ id, name: id, grant: { kind: 'adversary', adversaries: ['husk'] } }));
 
 describe('a card granted to nobody', () => {
+  it('says when a card is lent by a condition nothing defines, or by none at all', () => {
+    const project = projectSchema.parse({
+      ...build(),
+      conditionDefs: [{ id: 'steadied', name: 'Steadied' }],
+      cards: [
+        { id: 'steady', name: 'Steady', grant: { kind: 'condition', conditions: ['steadied', 'vulnerable'] } },
+        { id: 'stray', name: 'Stray', grant: { kind: 'condition', conditions: ['unheard-of'] } },
+        { id: 'idle', name: 'Idle', grant: { kind: 'condition', conditions: [] } },
+      ],
+    });
+    const said = (options = {}): string[] => messages(project, options).filter((m) => m.startsWith('Card '));
+    expect(said({ knownConditions: new Set(['vulnerable']) })).toEqual([
+      'Card "stray" is lent by condition "unheard-of", which nothing defines: nobody holds it.',
+      'Card "idle" is lent by no condition yet.',
+    ]);
+    // Not told the engine's conditions, it says only what the project alone shows.
+    expect(said()).toEqual(['Card "idle" is lent by no condition yet.']);
+  });
+
   it('says when a grant names what nothing defines, and when it names nobody at all', () => {
     const project = projectSchema.parse({
       ...build(),

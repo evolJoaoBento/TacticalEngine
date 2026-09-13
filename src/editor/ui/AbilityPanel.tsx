@@ -90,6 +90,7 @@ type CardType = NonNullable<ProjectCard['type']>;
 const GRANT_KINDS: readonly { kind: Grant['kind']; words: string }[] = [
   { kind: 'chosen', words: 'a loadout' },
   { kind: 'given', words: 'named characters' },
+  { kind: 'condition', words: 'a condition on them' },
   { kind: 'class', words: 'a class' },
   { kind: 'subclass', words: 'a subclass stage' },
   { kind: 'ancestry', words: 'an ancestry' },
@@ -128,6 +129,8 @@ function regrant(kind: Grant['kind'], card: ProjectCard, content: ContentPack): 
       return { grant: { kind, characters: [] } };
     case 'adversary':
       return { grant: { kind, adversaries: [] } };
+    case 'condition':
+      return { grant: { kind, conditions: [] } };
     case 'class': {
       const id = choices(content.classes)[0]?.id;
       return id === undefined ? null : { grant: { kind, classId: id } };
@@ -301,6 +304,18 @@ function GrantFields(props: {
               placeholder="stat block ids, comma separated"
               value={grant.adversaries.join(', ')}
               onInput={(e) => set({ kind: 'adversary', adversaries: idList((e.target as HTMLInputElement).value) })}
+            />,
+          )
+        : null}
+      {grant.kind === 'condition'
+        ? label(
+            'lent by',
+            <input
+              style={{ ...field, width: '150px' }}
+              data-testid="card-grant-conditions"
+              placeholder="condition ids, comma separated"
+              value={grant.conditions.join(', ')}
+              onInput={(e) => set({ kind: 'condition', conditions: idList((e.target as HTMLInputElement).value) })}
             />,
           )
         : null}

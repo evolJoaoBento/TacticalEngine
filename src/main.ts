@@ -238,6 +238,8 @@ declare global {
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
       rest: (kind: 'short' | 'long', plan: unknown) => boolean;
       conditionsOf: (id: string) => string[];
+      /** Put a condition on somebody, or take it off, for a test about what it does while it lasts. */
+      setCondition: (id: string, condition: string, on: boolean) => boolean;
       targeting: () => string | null;
       standNear: (id: string) => boolean;
       setCards: (id: string, cards: string[]) => void;
@@ -2210,6 +2212,11 @@ const state = {
     return result.ok;
   },
   conditionsOf: (id: string): string[] => [...(demo.state.entity(id)?.conditions ?? [])],
+  setCondition: (id: string, condition: string, on: boolean): boolean => {
+    const changed = on ? demo.world.applyCondition(id, condition, 'scene') : demo.world.clearCondition(id, condition);
+    refreshPlay();
+    return changed;
+  },
   targeting: (): string | null => targeting?.abilityId ?? null,
   turnSide: (): string | null => (inCombat(demo) ? demo.encounter!.view().side : null),
   /** Start the room's first encounter where the party stands, for a test. */

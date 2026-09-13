@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { abilitySchema } from '../engine/content/abilities';
+import { conditionDefSchema } from '../engine/content/conditions';
 import { cardDefSchema } from '../engine/content/pack/schema';
 import { codeSchema } from '../engine/scene/schema';
 import {
@@ -663,5 +664,57 @@ describe("a stat block's cards", () => {
       { id: 'grasp', name: 'Grasping Roots', text: 'Roots hold whoever it hits.' },
       { id: 'howl', name: 'Howl', text: 'Everyone near marks a Stress.' },
     ]);
+  });
+});
+
+describe('a card a condition lends', () => {
+  /** A mark that lends a card with two abilities on it: a passive, and one to play. */
+  const lending = (seed: string): DemoScene => {
+    const demo = scene(seed);
+    demo.project.conditionDefs.push(conditionDefSchema.parse({ id: 'steadied', name: 'Steadied', text: 'Somebody has your back.' }));
+    demo.project.cards.push(
+      cardDefSchema.parse({ id: 'steady-hand', name: 'Steady Hand', text: 'Held while you are steadied.', grant: { kind: 'condition', conditions: ['steadied'] } }),
+    );
+    demo.project.abilities.push(
+      abilitySchema.parse({ id: 'steady-footing', name: 'Steady Footing', source: { card: 'steady-hand' }, kind: 'passive', modifiers: [{ stat: 'evasion', bonus: 1 }] }),
+      abilitySchema.parse({ id: 'steady-strike', name: 'Steady Strike', source: { card: 'steady-hand' }, effects: [{ kind: 'log', text: 'Steady.', tone: 'good' }] }),
+    );
+    refreshWorld(demo);
+    return demo;
+  };
+  const zone = (demo: DemoScene): string[] => loadoutView(demo, 'kara').granted.map((card) => card.id);
+
+  it('is in the hands of whoever bears the condition, for as long as it lasts', () => {
+    const demo = lending('lent');
+    const evasion = demo.world.poolBonus('kara', 'evasion');
+    expect(names(demo, 'kara')).not.toContain('steady-strike');
+    expect(zone(demo)).not.toContain('steady-hand');
+
+    demo.world.applyCondition('kara', 'steadied', 'scene');
+    // Last, after everything she has for good: on the bar, in the world's hands, and face up.
+    expect(names(demo, 'kara').slice(-2)).toEqual(['steady-footing', 'steady-strike']);
+    expect(demo.world.heldBy('kara').map((a) => a.id).slice(-2)).toEqual(['steady-footing', 'steady-strike']);
+    expect(loadoutView(demo, 'kara').granted.at(-1)).toEqual({
+      id: 'steady-hand',
+      name: 'Steady Hand',
+      text: 'Held while you are steadied.',
+      from: 'Lent by Steadied',
+    });
+    expect(names(demo, 'mira')).not.toContain('steady-strike');
+    // Never derived into the numbers her sheet keeps, so read as the world reads a condition's own.
+    expect(demo.world.poolBonus('kara', 'evasion')).toBe(evasion + 1);
+
+    demo.world.clearCondition('kara', 'steadied');
+    expect(names(demo, 'kara')).not.toContain('steady-strike');
+    expect(zone(demo)).not.toContain('steady-hand');
+    expect(demo.world.poolBonus('kara', 'evasion')).toBe(evasion);
+  });
+
+  it('lends a creature the same card, beside what its block prints', () => {
+    const demo = lending('lent-foe');
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const printed = demo.world.heldBy(husk.id).map((a) => a.id);
+    demo.world.applyCondition(husk.id, 'steadied', 'scene');
+    expect(demo.world.heldBy(husk.id).map((a) => a.id)).toEqual([...printed, 'steady-footing', 'steady-strike']);
   });
 });

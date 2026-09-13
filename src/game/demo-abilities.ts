@@ -25,7 +25,7 @@ import { canMarkStress, gain, spend } from '../engine/rules/resources';
 import { reaches, type RangeBand } from '../engine/rules/range';
 import { tierOf } from '../engine/character/progression';
 import { isDomainCard, type CardGrant, type ContentPack } from '../engine/content/pack/import';
-import { deriveCharacter, grantedCards } from '../engine/character/sheet';
+import { deriveCharacter, grantedCards, lentCards } from '../engine/character/sheet';
 import { evaluateOptional } from '../engine/script/conditions';
 import { ScriptRunner } from '../engine/script/runner';
 import { useKey } from '../engine/script/world';
@@ -103,8 +103,11 @@ function cardArtOf(demo: DemoScene, ability: AbilityDef): { id: string; domain: 
 export function abilitiesOf(demo: DemoScene, characterId: string): AbilityDef[] {
   const character = demo.characters.get(characterId);
   if (character === undefined) return [];
-  // The cards in play as the project stands now, which is how the world reads them too.
-  const granted = grantedCards(character.sheet, characterContentFor(demo.project).cards.values());
+  // The cards in play as the project stands now, which is how the world reads them too, and
+  // whatever a condition on them lends while it lasts.
+  const cards = characterContentFor(demo.project).cards;
+  const bearing = demo.state.entity(characterId)?.conditions ?? [];
+  const granted = [...grantedCards(character.sheet, cards.values()), ...lentCards(bearing, cards.values())];
   return abilitiesFor({ ...character, granted }, demo.project.abilities);
 }
 
@@ -450,14 +453,16 @@ export function loadoutView(demo: DemoScene, characterId: string): LoadoutView {
   };
   if (character === undefined) return { loadout: [], vault: [], granted: [], limit: LOADOUT_LIMIT };
   // Read as the cards stand now, the way the world reads them, so a card handed over is shown at
-  // once; in the order a sheet lists what they have, and the pack's order within that.
-  const granted = grantedCards(character.sheet, content.cards.values())
+  // once; in the order a sheet lists what they have, and the pack's order within that. What a
+  // condition on them lends comes last, read off the creature, since no sheet ever holds it.
+  const bearing = demo.state.entity(characterId)?.conditions ?? new Set<string>();
+  const granted = [...grantedCards(character.sheet, content.cards.values()), ...lentCards(bearing, content.cards.values())]
     .sort((a, b) => grantRank(a.grant) - grantRank(b.grant))
     .map((card) => ({
       id: card.id,
       name: card.name,
       text: card.text !== '' ? card.text : card.features.map((f) => (f.name ? `${f.name}\n${f.text}` : f.text)).join('\n\n'),
-      from: grantedBy(card.grant, content),
+      from: card.grant.kind === 'condition' ? lentBy(card.grant.conditions, bearing, demo) : grantedBy(card.grant, content),
     }));
   return {
     loadout: loadoutOf(character).map(describe),
@@ -480,11 +485,20 @@ function grantedBy(grant: CardGrant, content: ContentPack): string {
       return content.communities.get(grant.communityId)?.name ?? grant.communityId;
     case 'given':
       return 'Given';
+    // Which of them lent it is the creature's to say, not the card's: `lentBy`.
+    case 'condition':
+      return 'Lent';
     // Neither is ever granted to a character: one is chosen, the other printed on a stat block.
     case 'chosen':
     case 'adversary':
       return '';
   }
+}
+
+/** Which condition on somebody lent them a card, in the words the table uses: "Lent by Steadied". */
+function lentBy(conditions: readonly string[], bearing: ReadonlySet<string>, demo: DemoScene): string {
+  const by = conditions.find((id) => bearing.has(id));
+  return by === undefined ? 'Lent' : `Lent by ${demo.world.conditionName(by)}`;
 }
 
 export type SwapResult = { ok: true; stress: number } | { ok: false; reason: string };

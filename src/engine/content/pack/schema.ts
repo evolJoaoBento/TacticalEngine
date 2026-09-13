@@ -127,6 +127,12 @@ export const cardGrantSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('given'), characters: z.array(contentIdSchema) }),
   /** Printed on stat blocks: a feature of every creature of these blocks, and never a character's. */
   z.object({ kind: z.literal('adversary'), adversaries: z.array(contentIdSchema) }),
+  /**
+   * Lent by a condition, to whoever bears one of these for as long as it lasts: the half of a spell
+   * somebody else answers with. Never a sheet's -- the world hands it over while the condition is on
+   * them, character or creature alike.
+   */
+  z.object({ kind: z.literal('condition'), conditions: z.array(contentIdSchema) }),
 ]);
 
 /**

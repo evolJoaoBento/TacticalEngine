@@ -3,7 +3,7 @@ import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
 import { abilitySchema, isStatBlockFeature, loadoutOf, type AbilityDef } from '../engine/content/abilities';
 import { conditionDefSchema } from '../engine/content/conditions';
-import { adversaryDefSchema } from '../engine/content/pack/schema';
+import { adversaryDefSchema, cardDefSchema } from '../engine/content/pack/schema';
 import { runScript } from '../engine/script/runner';
 import { formatDice } from '../engine/rules/dice';
 import type { Rng } from '../engine/core/rng';
@@ -8074,8 +8074,8 @@ describe('a swing that reaches one more', () => {
    * Three things the tests turn on. The mark is cleared before the check, so it
    * is spent whether or not the second reading beats anybody: the attack it was
    * waiting for has been made. `except` keeps the echo off the creature already
-   * hit and `nearest` picks exactly one other. And the condition carries nothing
-   * but `grants`, lending its bearer the half of the card that swings -- because
+   * hit and `nearest` picks exactly one other. And the condition carries nothing:
+   * the half that swings is a card of its own, lent to whoever bears it -- because
    * whoever is marked is not whoever cast it.
    */
   const ECHO_CARD = 'fixture-card-34';
@@ -8089,8 +8089,10 @@ describe('a swing that reaches one more', () => {
     id: 'fixture-echo',
     name: 'Echoing',
     text: 'The next attack you make also reaches one more creature its roll would have beaten.',
-    grants: { ability: 'fixture-echo-strikes' },
   };
+
+  /** The half the marked creature answers with: a card of its own, lent by the mark while it lasts. */
+  const ECHO_LENT = { id: 'fixture-echo-strikes', name: 'Echoing Strike', grant: { kind: 'condition', conditions: ['fixture-echo'] } };
 
   const ECHO = [
     {
@@ -8108,10 +8110,10 @@ describe('a swing that reaches one more', () => {
       ],
     },
     {
-      // The half the marked creature holds, lent to them by the condition.
+      // The half the marked creature holds, on the card the mark lends them.
       id: 'fixture-echo-strikes',
       name: 'Echoing Strike',
-      source: { kind: 'domainCard', card: ECHO_CARD },
+      source: { card: ECHO_LENT.id },
       text: 'The swing that spends it also reaches the next creature along its roll would beat.',
       kind: 'reaction',
       trigger: 'dealtHit',
@@ -8139,6 +8141,7 @@ describe('a swing that reaches one more', () => {
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
     demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(ECHO_CONDITION));
+    demo.project.cards.push(cardDefSchema.parse(ECHO_LENT));
     for (const ability of ECHO) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
@@ -9470,17 +9473,19 @@ describe('out of sight, and under the skin', () => {
   const TAUNT_CARD = 'fixture-card-31';
 
   /**
-   * On whoever was hidden. The die is this; not being seen is the table's. It
-   * lends the bearer the other half of the card, because the one who is hidden
-   * is not the one holding the spell.
+   * On whoever was hidden. The die is this; not being seen is the table's. The
+   * spell's other half is a card it lends, because the one who is hidden is not
+   * the one holding the spell.
    */
   const HIDDEN_CONDITION = {
     id: 'fixture-hidden',
     name: 'Out of Sight',
     text: 'Not there to look at: attack rolls against you are made with disadvantage.',
     modifiers: [{ stat: 'advantage', bonus: -1, against: true }],
-    grants: { ability: 'fixture-hide-spends' },
   };
+
+  /** The half the hidden creature spends: a card of its own, lent while they are out of sight. */
+  const HIDE_LENT = { id: 'fixture-hide-spends', name: 'Out of Sight', grant: { kind: 'condition', conditions: ['fixture-hidden'] } };
 
   /** One creature at a time: it comes off everybody before it goes on anybody. */
   const UNSEEN = [
@@ -9527,10 +9532,10 @@ describe('out of sight, and under the skin', () => {
       ],
     },
     {
-      // The half the hidden creature holds, lent to them by the condition.
+      // The half the hidden creature holds, on the card the condition lends them.
       id: 'fixture-hide-spends',
       name: 'Out of Sight',
-      source: { kind: 'domainCard', card: HIDE_CARD },
+      source: { card: HIDE_LENT.id },
       text: 'Every action taken out of sight spends some of it, and the last one ends it.',
       kind: 'reaction',
       trigger: 'partyRolled',
@@ -9591,6 +9596,7 @@ describe('out of sight, and under the skin', () => {
     demo.askDefender = false;
     demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(HIDDEN_CONDITION));
+    demo.project.cards.push(cardDefSchema.parse(HIDE_LENT));
     for (const ability of [...UNSEEN_FAMILY, ...TAUNT]) demo.project.abilities.push(abilitySchema.parse(ability));
     hold(demo, 'mira', [card]);
     const mira = demo.state.entity('mira')!;

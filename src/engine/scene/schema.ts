@@ -240,7 +240,7 @@ export type CodeDef = z.infer<typeof codeSchema>;
  * schema sees it; one newer is refused, because guessing at a format from a build that does not
  * exist yet is how a file gets quietly corrupted.
  */
-export const CURRENT_FORMAT_VERSION = 3;
+export const CURRENT_FORMAT_VERSION = 4;
 
 
 export const projectSchema = z
@@ -251,7 +251,7 @@ export const projectSchema = z
      * and a project built in code is current by construction. A version this build does not
      * know is refused, which is what tells a player their file is from a newer build.
      */
-    formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]).default(CURRENT_FORMAT_VERSION),
+    formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).default(CURRENT_FORMAT_VERSION),
     id: contentIdSchema,
     name: z.string().default(''),
     /** Omitted means the engine's default palette. */

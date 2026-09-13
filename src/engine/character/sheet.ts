@@ -293,6 +293,17 @@ export function grantedCards(sheet: CharacterSheet, cards: Iterable<CardDef>): C
   return [...cards].filter((card) => grantedTo(card.grant, sheet, reached));
 }
 
+/**
+ * The cards the conditions on a creature lend it, character or stat block alike: every card lent by
+ * a condition it bears, in the order the cards come. Read off the creature each time, because a
+ * condition comes and goes in the middle of a fight.
+ */
+export function lentCards(conditions: Iterable<string>, cards: Iterable<CardDef>): CardDef[] {
+  const bearing = new Set(conditions);
+  if (bearing.size === 0) return [];
+  return [...cards].filter((card) => card.grant.kind === 'condition' && card.grant.conditions.some((id) => bearing.has(id)));
+}
+
 /** Whether a card's grant puts it in play for this sheet. A chosen card is the loadout's to say. */
 function grantedTo(grant: CardGrant, sheet: CharacterSheet, reached: number): boolean {
   switch (grant.kind) {
@@ -309,6 +320,10 @@ function grantedTo(grant: CardGrant, sheet: CharacterSheet, reached: number): bo
     case 'given':
       return grant.characters.includes(sheet.id);
     case 'adversary':
+      return false;
+    // What a condition lends is the world's to hand over while it lasts, never the sheet's:
+    // `deriveCharacter` must not fold a passing condition into the numbers it keeps.
+    case 'condition':
       return false;
   }
 }

@@ -585,6 +585,9 @@ export function grantRank(grant: CardGrant): number {
       return 60;
     case 'given':
       return 100;
+    // Lent while a condition lasts: after everything the character has for good.
+    case 'condition':
+      return 150;
     case 'adversary':
       // Never a character's: `grantedCards` hands a stat block's card to nobody, so nothing ranks it.
       return 1000;

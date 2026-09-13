@@ -49,8 +49,8 @@ import {
 } from '../rules/range';
 import { applyAttack, conditionModifiers, resolveAttack, type AttackProfile } from '../combat/attack';
 import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
-import { attackProfile, grantedCards, traitPart, UNARMED, type DerivedCharacter } from '../character/sheet';
-import { abilitiesFor, loadoutOf, statBlocksOf, type AbilityDef, type AbilityModifier } from '../content/abilities';
+import { attackProfile, grantedCards, lentCards, traitPart, UNARMED, type DerivedCharacter } from '../character/sheet';
+import { abilitiesFor, cardOf, loadoutOf, statBlocksOf, type AbilityDef, type AbilityModifier } from '../content/abilities';
 import type { ConditionBlock, ConditionDef } from '../content/conditions';
 import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
 import type { AdversaryDef } from '../content/types';
@@ -801,17 +801,22 @@ export class SceneScriptWorld implements ScriptWorld {
    */
   heldBy(id: string): readonly AbilityDef[] {
     const character = this.characters.get(id);
-    const own = character !== undefined ? abilitiesFor(this.inPlay(character), this.abilities) : this.abilitiesOfEntity(id);
-    // And whatever a condition has lent them. A spell cast *on* somebody puts
-    // the card's own reaction in their hands for as long as it lasts, which is
-    // the only way an ally who does not hold the card can answer with it.
-    const lent = this.lentTo(id);
+    if (character !== undefined) return abilitiesFor(this.inPlay(id, character), this.abilities);
+    // A creature holds what its block prints, and whatever a condition on it lends.
+    const own = this.abilitiesOfEntity(id);
+    const lent = this.abilitiesOn(this.lentTo(id));
     return lent.length === 0 ? own : [...own, ...lent];
   }
 
-  /** A character with the cards granted to them as the content stands now, not as it stood. */
-  private inPlay(character: DerivedCharacter): DerivedCharacter {
-    return this.cards === null ? character : { ...character, granted: grantedCards(character.sheet, this.cards().values()) };
+  /**
+   * A character with the cards granted to them as the content stands now, not as it stood -- and
+   * whatever a condition on them lends. A spell cast *on* somebody puts the card's own reaction in
+   * their hands for as long as it lasts, which is the only way an ally who does not hold the card
+   * can answer with it.
+   */
+  private inPlay(id: string, character: DerivedCharacter): DerivedCharacter {
+    if (this.cards === null) return character;
+    return { ...character, granted: [...grantedCards(character.sheet, this.cards().values()), ...this.lentTo(id)] };
   }
 
   private abilitiesOfEntity(id: string): readonly AbilityDef[] {
@@ -819,18 +824,18 @@ export class SceneScriptWorld implements ScriptWorld {
     return entity === undefined ? [] : this.abilitiesForAdversary(entity.definition);
   }
 
-  /** The abilities the conditions on a creature grant them, in a stable order. */
-  private lentTo(id: string): AbilityDef[] {
+  /** The cards the conditions on a creature lend it: none in a world handed no cards. */
+  private lentTo(id: string): CardDef[] {
     const entity = this.state.entity(id);
-    if (entity === undefined || entity.conditions.size === 0) return [];
-    const lent: AbilityDef[] = [];
-    for (const name of [...entity.conditions].sort()) {
-      const granted = this.conditionDefs.get(name)?.grants;
-      if (granted === undefined) continue;
-      const ability = this.abilities.find((a) => a.id === granted.ability);
-      if (ability !== undefined) lent.push(ability);
-    }
-    return lent;
+    if (entity === undefined || this.cards === null) return [];
+    return lentCards(entity.conditions, this.cards().values());
+  }
+
+  /** The abilities on these cards, in the library's order. */
+  private abilitiesOn(cards: readonly CardDef[]): AbilityDef[] {
+    if (cards.length === 0) return [];
+    const on = new Set(cards.map((card) => card.id));
+    return this.abilities.filter((a) => on.has(cardOf(a)));
   }
 
   modifiersOf(id: string, scope: 'roll' | 'pool', bindings: TargetBindings = { targets: [], hit: [] }): AbilityModifier[] {
@@ -843,6 +848,17 @@ export class SceneScriptWorld implements ScriptWorld {
       character !== undefined
         ? character.modifiers
         : this.heldBy(id).filter((a) => a.kind === 'passive').flatMap((a) => a.modifiers);
+    // Read from the holder's chair: "while within Melee range" on a stat
+    // block means within Melee of *it*, and the bindings name whoever the
+    // question is about - the creature swinging at it, usually.
+    const holds = (m: AbilityModifier): boolean => {
+      if (m.when === undefined) return true;
+      const was = this.scenario.actorId;
+      this.scenario.actorId = id;
+      const held = evaluate(m.when, this, bindings);
+      this.scenario.actorId = was;
+      return held;
+    };
     const own = mine.filter((m) => {
       // A character's unconditional modifiers are already in the numbers
       // `deriveCharacter` worked out, so only the scene-dependent ones are
@@ -851,22 +867,24 @@ export class SceneScriptWorld implements ScriptWorld {
       // …except one that counts tokens, which `deriveCharacter` deliberately
       // left out: it is read here, with however many are on the card now.
       if (scope === 'pool' && m.when === undefined && m.perToken === undefined && character !== undefined) return false;
-      if (m.when === undefined) return true;
-      // Read from the holder's chair: "while within Melee range" on a stat
-      // block means within Melee of *it*, and the bindings name whoever the
-      // question is about - the creature swinging at it, usually.
-      const was = this.scenario.actorId;
-      this.scenario.actorId = id;
-      const holds = evaluate(m.when, this, bindings);
-      this.scenario.actorId = was;
-      return holds;
+      return holds(m);
     });
+    // What a condition lends a character was never derived into their numbers
+    // -- no sheet holds it -- so all of it is read here, the way what the
+    // condition itself says is. A creature's is in `heldBy` already.
+    const lent =
+      character === undefined
+        ? []
+        : this.abilitiesOn(this.lentTo(id))
+            .filter((a) => a.kind === 'passive')
+            .flatMap((a) => a.modifiers)
+            .filter(holds);
     const worn: AbilityModifier[] = [];
     for (const condition of entity.conditions) {
       const def = this.conditionDefs.get(condition);
       if (def !== undefined) worn.push(...def.modifiers);
     }
-    return [...own, ...worn];
+    return [...own, ...lent, ...worn];
   }
 
   /**

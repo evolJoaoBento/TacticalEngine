@@ -419,7 +419,7 @@ and successes each read the right list however the next roll goes.
 | `SceneState` | `engine/scene/state.ts` | The whole runtime overlay, keyed by content id, plus the tile occupancy index and the GM's Shadow. Serialises through `sceneSnapshotSchema`. |
 | `JournalEntry` | `engine/script/runner.ts` | One thing that happened, as a tagged union of ~30 variants. A UI renders these; a test asserts on them. |
 | `Prompt` | `engine/script/runner.ts` | What the runner is waiting for: `choice`, `check` or `dialogue`. Answered with a `Response`. |
-| `ProjectDoc` | `engine/scene/schema.ts` | The authored document, `formatVersion` 3. An older file is migrated on the way in (`scene/migrate.ts`); one from a newer build fails loudly. |
+| `ProjectDoc` | `engine/scene/schema.ts` | The authored document, `formatVersion` 4. An older file is migrated on the way in (`scene/migrate.ts`); one from a newer build fails loudly. |
 | `Rng` | `engine/core/rng.ts` | `next`, `nextInt`, `die`, `dice`, `pick`, `shuffle`, `fork`, `save`, `restore`. |
 
 The document is immutable and the overlay is mutable. The legacy prototype wrote play state into its
@@ -430,7 +430,7 @@ re-parsing the source JSON; here nothing in a `SceneDoc` ever changes.
 
 ```
 ProjectDoc
-├─ formatVersion: 3        ├─ quests[]        ├─ code[]              (project JS, run as hooks)
+├─ formatVersion: 4        ├─ quests[]        ├─ code[]              (project JS, run as hooks)
 ├─ id, name                ├─ assets[]        ├─ conditionDefs[]     (ConditionDef)
 ├─ terrainPalette?         ├─ abilities[]     ├─ party[]             (CharacterSheet)
 ├─ scenes[]  (min 1)       ├─ items[]         ├─ adversaryModels{}   (type id -> model id)
@@ -729,13 +729,15 @@ what one is and `content/pack/document.ts` reads one from a file. Nothing about 
 which catalogue it is reading: `character/sheet.ts` takes a `ContentPack` as a parameter.
 
 **Everything a character has is a card.** A card's `grant` says how it came to be in play -- `chosen`
-into a loadout, or granted by a class, a subclass stage, an ancestry, a community, or a project
-handing it to named characters -- and an ability sits on a card by id (`source: { card }`), in play
+into a loadout, or granted by a class, a subclass stage, an ancestry, a community, a project
+handing it to named characters, or a condition lending it to whoever bears it -- and an ability sits on a card by id (`source: { card }`), in play
 when its card is. Nothing lists a class's cards: each card names what grants it, so a pack of extra
 cards for somebody else's class imports without editing the class. `deriveCharacter` works out
 `DerivedCharacter.granted` for the numbers; the world and the action bar recompute it from the cards
 as they stand each time they read (`grantedCards`), so a card handed over mid-scene is in hand at
-once.
+once. A card a condition lends is never a sheet's: `grantedCards` never answers with one, so
+`deriveCharacter` folds nothing passing into the numbers. `lentCards` reads it off the creature, and
+the world adds its passives at roll time, the way it adds the condition's own.
 
 A project may carry its own pack in the seven `ProjectDoc` fields above, exactly as it already
 carries its abilities, items and conditions. An empty list means "whatever pack the app was given".

@@ -166,10 +166,20 @@ so the record of what was first thought survives: the header's "can ride slice 4
     written: **Edit a copy** adds it to the project, where `mergePack` lays it over the pack's by id,
     whole. A card with no ability on it was out of reach while the panel listed only abilities;
     it is listed under Text only now.
-
 12. **The GM's side is face up where somebody looks.** Inspecting a creature shows the cards its
     block prints -- every card granted by `adversary` to it, scripted or not -- read from the project
     as it stands.
+13. **A condition lends a card, and the card says so: `grant: { kind: 'condition', conditions }`.**
+    A condition's `grants: { ability }` was the last list on the granting side, against item 2, and
+    it goes. The card is in the hands of whoever bears one of those conditions while it lasts,
+    character or creature, and never a sheet's: `grantedCards` does not hand it over, so
+    `deriveCharacter` folds nothing passing into the numbers. Lending the card an ability already sat
+    on would have handed a marked ally the whole spell, the half that casts included, so the lent
+    half is a card of its own. That is **version 4**: its migration moves an ability that shared its
+    card onto a lent card, copies one that sat alone (so whoever held that card keeps it), and drops
+    a lend of an ability the document does not carry. No panel edits a status condition; the card's
+    **granted by** is where a lend is written.
 
 **Out of the first slice**, each to be judged on its own: card zones on screen, a grant editor, the
-GM's side as cards the table can see, and a condition lending a card rather than an ability.
+GM's side as cards the table can see, and a condition lending a card rather than an ability. Each
+has since been judged and built: items 9 to 13.

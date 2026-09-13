@@ -111,19 +111,6 @@ export const conditionDefSchema = z.object({
     })
     .optional(),
   /**
-   * An ability this puts in the bearer's hands for as long as it lasts.
-   *
-   * A spell cast *on* somebody - "cast this on yourself or an ally within Close
-   * range; the next time the target makes an attack, they can hit an additional
-   * target" - leaves the ally answering with a card they do not hold and have
-   * never seen. The condition lends it to them: it names an ability in the
-   * project's library, and `heldBy` hands it over beside their own.
-   *
-   * The lent ability is read from the bearer's chair like any other of theirs,
-   * so its `available` gate and its cost are theirs too.
-   */
-  grants: z.object({ ability: contentIdSchema }).optional(),
-  /**
    * What happens to somebody the moment they come to bear this - "all
    * adversaries within Melee range, *or who enter Melee range*, take 2d12+4
    * magic damage and are knocked back".
@@ -250,14 +237,14 @@ const RAW: ConditionInput[] = [
   // Invisibility, on whoever it was cast on. "An Invisible creature can't be
   // seen except through magical means and attack rolls against them are made
   // with disadvantage" - the not-being-seen is the table's, and the die is
-  // this. It lends the bearer the card's other half, because the one who is
-  // invisible is not the one holding the spell.
+  // this. A pack whose spell leaves the invisible one something to answer
+  // with prints that half on a card this condition lends, because the one who
+  // is invisible is not the one holding the spell.
   {
     id: 'invisible',
     name: 'Invisible',
     text: 'Not there to look at: attack rolls against you are made with disadvantage.',
     modifiers: [{ stat: 'advantage', bonus: -1, against: true }],
-    grants: { ability: 'invisibility-spends' },
   },
   // Strategic Approach, declared and waiting on the swing it was declared for.
   // Two of its three options leave something behind; the third - steadying an
@@ -368,9 +355,8 @@ const RAW: ConditionInput[] = [
     id: 'sitil-echo',
     name: 'Echoing Strike',
     text: 'The next attack you make also reaches one more target its roll would have beaten.',
-    // The one being helped does not hold the Book: the spell lends them its
-    // second half for as long as the mark is on them.
-    grants: { ability: 'book-of-sitil-echo-strikes' },
+    // The one being helped does not hold the Book: a pack that prints the
+    // spell lends them its second half on a card this condition lends.
   },
   // Hold the Line, on the one holding it. It does nothing by itself: it is the
   // marker that says the stance is still up, so the card that drops it on a

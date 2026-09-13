@@ -191,7 +191,9 @@ so a save carries it.
 
 **Always in play**, between the hand and the vault, is what a character has without choosing it:
 the cards their class, their subclass (up to the stage reached), their ancestry and their
-community grant, and any a project hands them, in the order a sheet lists them. They are face up,
+community grant, and any a project hands them, in the order a sheet lists them. Last come any a
+condition on them lends, while it lasts: a spell cast on an ally can leave them its other half to
+answer with, and the card goes when the condition does ("Lent by Hidden"). They are face up,
 no limit counts them, they are never vaulted, and each says what granted it. A search reaches
 them; a domain filter puts them away, since none of them has a domain.
 
@@ -563,8 +565,9 @@ of the ones the engine ships (those live in `content/pack/starter-abilities.ts` 
 code). **+ Card** writes two things as one undo step: a card of the project's own, handed to nobody
 yet, and the ability on it; **✕** takes both back, leaving a card anything else still needs.
 **granted by** says how that card gets into play: a loadout, named characters (**held by** lists
-them), a class, a subclass stage, an ancestry, a community, or the stat blocks that print it
-(**printed on**). A card in a loadout carries four numbers more -- its **domain** (one some class
+them), a class, a subclass stage, an ancestry, a community, the stat blocks that print it
+(**printed on**), or a condition on whoever bears it (**lent by** lists the condition ids; the card
+is in their hands while one of them lasts). A card in a loadout carries four numbers more -- its **domain** (one some class
 opens), **type**, **level** and **recall** cost -- and the panel writes all four when a card is
 switched into one; switched out again, the card keeps them. A card the pack prints says so, and
 **Edit a copy** lays a copy of it into the project: a project's card replaces the pack's under the
@@ -674,7 +677,7 @@ the buttons' tooltips name the step.
 
 ### Project document
 
-`formatVersion` (3) · `id` · `name` · `terrainPalette?` (id, name, passable, cost,
+`formatVersion` (4) · `id` · `name` · `terrainPalette?` (id, name, passable, cost,
 providesCover, blocksSight) · `scenes[]` · `dialogues[]` · `items[]` · `lootTables[]` ·
 `quests[]` · `abilities[]` · `conditionDefs[]` · `code[]` · `party[]` · `startScene`. All ids
 are stable kebab-case strings; duplicates are rejected.
@@ -949,7 +952,10 @@ in), `blocks[]` (act \| move \| reactions — an adversary that cannot act spend
 spotlight shaking the condition off, or the GM spends a Shadow to clear one that only ends on
 damage; one that cannot move tears free instead of closing in; `reactions` silences its damage
 reactions), `endsWhen?` (hit \| attacks \| damaged). `vulnerable` and `hidden` are read by the attack rules
-directly; Tava's Armor and Rogue's Dodge are modifiers on a condition.
+directly; Tava's Armor and Rogue's Dodge are modifiers on a condition. A condition lends nothing
+by itself: a card granted by it (`grant: { kind: 'condition', conditions }`) is in the hands of
+whoever bears one of those, character or creature, while it lasts. A file older than format version
+4 whose condition lent an ability through `grants` is migrated to such a card.
 
 ### Dialogue
 
@@ -1090,7 +1096,7 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   to the GM, the same as an attack; an object's check rolls with the party's best trait.
 - Travel rebuilds the whole scene view; fine for two rooms, not measured for fifty.
 - `story` renders as a single log line; its `button` field is ignored.
-- Project format is `formatVersion` 3; an older file is migrated as it is read, and a newer one is
+- Project format is `formatVersion` 4; an older file is migrated as it is read, and a newer one is
   refused. CONTEXT.md mentions zip
   packaging via fflate; only JSON save/load exists in the code read for this manual.
 

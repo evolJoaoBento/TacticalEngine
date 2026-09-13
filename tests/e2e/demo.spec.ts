@@ -107,6 +107,7 @@ declare global {
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
       rest: (kind: 'short' | 'long', plan: unknown) => boolean;
       conditionsOf: (id: string) => string[];
+      setCondition: (id: string, condition: string, on: boolean) => boolean;
       targeting: () => string | null;
       standNear: (id: string) => boolean;
       setCards: (id: string, cards: string[]) => void;
@@ -2164,7 +2165,7 @@ test("writes the project's content out as a pack file, and nothing else", async 
 
   const pack = JSON.parse(readFileSync(await download.path(), 'utf8')) as Record<string, unknown>;
   const project = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())) as Record<string, unknown>;
-  expect(pack['formatVersion']).toBe(3);
+  expect(pack['formatVersion']).toBe(4);
   // The content, list for list, and none of what makes it a project.
   for (const list of ['weapons', 'armors', 'classes', 'ancestries', 'communities', 'subclasses', 'cards', 'adversaries', 'abilities', 'conditionDefs']) {
     expect(pack[list]).toEqual(project[list]);
@@ -2266,6 +2267,46 @@ test("edits a copy of the pack's card, and the loadout plays the copy", async ({
   });
   await page.getByTestId('open-loadout').click();
   await expect(page.getByTestId('loadout').locator('[data-card="power-slash"] .face-recall')).toContainText('3');
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('lends a card by a condition, and Kara holds it while the condition is on her and not after', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  page.on('dialog', (dialog) => void dialog.accept('Oathmark'));
+
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-abilities"]').click();
+  const panel = page.locator('[data-testid="ability-panel"]');
+  await panel.locator('[data-testid="add-ability"]').click();
+  await panel.locator('[data-testid="card-grant-kind"]').selectOption('condition');
+  await panel.locator('[data-testid="card-grant-conditions"]').fill('vulnerable');
+  expect(
+    await page.evaluate(
+      () => (JSON.parse(window.__engine!.exportProject()) as { cards: { id: string; grant: unknown }[] }).cards.find((c) => c.id === 'oathmark')?.grant,
+    ),
+  ).toEqual({ kind: 'condition', conditions: ['vulnerable'] });
+
+  await panel.locator('[data-testid="close-abilities"]').click();
+  await page.evaluate(() => {
+    const api = window.__engine!;
+    api.setMode('play');
+    api.select('kara');
+  });
+  const holding = () => page.evaluate(() => window.__engine!.abilities('kara').some((a) => a.id === 'oathmark'));
+  expect(await holding()).toBe(false);
+
+  // On her, it is in her hands and face up among what is always in play, saying what lent it.
+  expect(await page.evaluate(() => window.__engine!.setCondition('kara', 'vulnerable', true))).toBe(true);
+  expect(await holding()).toBe(true);
+  await page.getByTestId('open-loadout').click();
+  await expect(page.getByTestId('granted-zone').locator('[data-card="oathmark"]')).toContainText('Lent by Vulnerable');
+
+  // Off her, it is gone.
+  expect(await page.evaluate(() => window.__engine!.setCondition('kara', 'vulnerable', false))).toBe(true);
+  expect(await holding()).toBe(false);
+  expect(await page.evaluate(() => window.__engine!.loadout('kara').granted)).not.toContain('oathmark');
 
   expect(consoleErrors).toEqual([]);
 });

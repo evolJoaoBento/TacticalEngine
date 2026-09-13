@@ -454,7 +454,7 @@ footer {
       <tr><td><code>content/abilities.ts</code></td><td><code>AbilityDef</code> and its sub-schemas; <code>abilitiesFor</code>, <code>loadoutOf</code>, <code>cardOf</code>, <code>grantRank</code>, <code>statBlocksOf</code>, <code>isStatBlockFeature</code>, <code>isScripted</code>, <code>isAutomatic</code>, <code>readsATarget</code>. An ability sits on a card (<code>source: { card }</code>) and is in play when its card is — chosen and in the loadout, or granted; a stat block's feature is an ability on a card granted by <code>adversary</code>. A modifier's <code>advantage</code> stat is a signed count of dice and <code>against: true</code> puts it on rolls made at the holder.</td></tr>
       <tr><td><code>content/conditions.ts</code></td><td><code>ConditionDef</code> — what a <em>status</em> on a creature does. <code>SRD_CONDITIONS</code>.</td></tr>
       <tr><td><code>content/items.ts</code>, <code>content/quests.ts</code></td><td>Item and quest content shapes.</td></tr>
-      <tr><td><code>content/pack/schema.ts</code></td><td>What a content pack <em>is</em>, as zod: the def schemas, <code>cardDefSchema</code> with its <code>cardGrantSchema</code>, and <code>contentPackSchema</code>. A class, subclass, ancestry or community carries no printed features: those are cards that name what grants them.</td></tr>
+      <tr><td><code>content/pack/schema.ts</code></td><td>What a content pack <em>is</em>, as zod: the def schemas, <code>cardDefSchema</code> with its <code>cardGrantSchema</code>, and <code>contentPackSchema</code>. A class, subclass, ancestry or community carries no printed features: those are cards that name what grants them. A card a condition lends names the condition the same way.</td></tr>
       <tr><td><code>content/pack/import.ts</code></td><td>The pack in memory: <code>ContentPack</code> (maps by id), <code>CardGrant</code>, <code>isDomainCard</code>, and <code>mergePack</code>, which lays a project's lists over a pack's.</td></tr>
       <tr><td><code>content/pack/document.ts</code></td><td>A pack as a <strong>file</strong>: <code>packDocumentSchema</code>, <code>readPack</code> (migrates, then validates each entry on its own), <code>describePack</code>, and <code>packOf</code>, which writes a project's lists back out as one (Project ▾ → Export pack). What Project ▾ → Import pack… reads.</td></tr>
       <tr><td><code>content/pack/starter.ts</code></td><td>The pack the engine ships, its own and nobody else's: <code>STARTER_PACK</code>, <code>STARTER_CHARACTERS</code>, <code>STARTER_ADVERSARIES</code>; with <code>starter-abilities.ts</code> and <code>starter-conditions.ts</code>, what its cards do and the conditions they apply.</td></tr>
@@ -1160,7 +1160,7 @@ footer {
 
       <g class="lane">
         <rect x="10" y="10" width="920" height="196" rx="10" class="lane-box" />
-        <text x="24" y="34" class="lane-label">ProjectDoc — scene/schema.ts · formatVersion 3, older files migrated · almost every array defaults to empty</text>
+        <text x="24" y="34" class="lane-label">ProjectDoc — scene/schema.ts · formatVersion 4, older files migrated · almost every array defaults to empty</text>
       </g>
       <g class="node"><rect x="24" y="48" width="167" height="44" rx="8" /><text x="107" y="69" class="t">scenes[]</text><text x="107" y="84" class="s">min 1</text></g>
       <g class="node"><rect x="205" y="48" width="167" height="44" rx="8" /><text x="288" y="69" class="t">dialogues[]</text><text x="288" y="84" class="s">by id, not per scene</text></g>

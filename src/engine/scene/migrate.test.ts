@@ -25,6 +25,8 @@ import { projectSchema } from './schema';
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const fixture = (name: string): unknown =>
   JSON.parse(readFileSync(`${repoRoot}tests/fixtures/v1/${name}.json`, 'utf8'));
+/** The version-3 project, captured before version 4 existed: `tests/fixtures/v3/README.md`. */
+const captured3 = (): unknown => JSON.parse(readFileSync(`${repoRoot}tests/fixtures/v3/project.json`, 'utf8'));
 
 /** Every value at every depth, for asking what a whole document still contains. */
 function values(node: unknown, into: string[] = []): string[] {
@@ -322,6 +324,70 @@ describe('version 2 to 3: a card list is `cards`, and only at the root', () => {
   });
 });
 
+describe('version 3 to 4: what a condition lends is a card, lent by the condition', () => {
+  type Doc = { cards: Record<string, unknown>[]; abilities: Record<string, unknown>[]; conditionDefs: Record<string, unknown>[] };
+
+  it('moves the half somebody else answers with onto a card of its own, and the condition says nothing', () => {
+    const doc = migrateDocument({
+      formatVersion: 3,
+      cards: [{ id: 'echo', name: 'Echo', text: '', grant: { kind: 'chosen' }, domain: 'grace', type: 'spell', level: 1, recallCost: 1 }],
+      abilities: [
+        { id: 'echo-cast', name: 'Echo', source: { card: 'echo' } },
+        { id: 'echo-strikes', name: 'Echoing Strike', text: 'Reaches one more.', source: { card: 'echo' } },
+      ],
+      conditionDefs: [{ id: 'echoing', name: 'Echoing', grants: { ability: 'echo-strikes' } }],
+    }) as Doc;
+    expect(doc.conditionDefs).toEqual([{ id: 'echoing', name: 'Echoing' }]);
+    expect(doc.cards[1]).toEqual({ id: 'echo-strikes', name: 'Echoing Strike', text: 'Reaches one more.', grant: { kind: 'condition', conditions: ['echoing'] } });
+    // The caster keeps the rest of the card; the half that was lent is on the lent card alone.
+    expect(doc.abilities.map((a) => [a['id'], a['source']])).toEqual([
+      ['echo-cast', { card: 'echo' }],
+      ['echo-strikes', { card: 'echo-strikes' }],
+    ]);
+  });
+
+  it('copies an ability alone on its card, so whoever holds that card keeps it: the captured project', () => {
+    const before = captured3() as Doc & { formatVersion: number };
+    expect(before.formatVersion).toBe(3);
+    expect(before.conditionDefs.find((c) => c['id'] === 'captured-lend')?.['grants']).toEqual({ ability: 'power-slash' });
+
+    const after = migrateDocument(before) as Doc;
+    expect(after.conditionDefs.some((c) => 'grants' in c)).toBe(false);
+    const original = after.abilities.find((a) => a['id'] === 'power-slash')!;
+    const copy = after.abilities.find((a) => a['id'] === 'power-slash-lent')!;
+    expect(original['source']).toEqual({ card: 'power-slash' });
+    expect(copy['source']).toEqual({ card: 'power-slash-lent' });
+    expect({ ...copy, id: 'power-slash', source: original['source'] }).toEqual(original);
+    expect(after.cards.find((c) => c['id'] === 'power-slash-lent')).toMatchObject({
+      name: original['name'],
+      grant: { kind: 'condition', conditions: ['captured-lend'] },
+    });
+  });
+
+  it('lends one card for one ability, however many conditions lend it', () => {
+    const doc = migrateDocument({
+      formatVersion: 3,
+      abilities: [
+        { id: 'x', name: 'X', source: { card: 'xy' } },
+        { id: 'y', name: 'Y', source: { card: 'xy' } },
+      ],
+      conditionDefs: [
+        { id: 'a', name: 'A', grants: { ability: 'x' } },
+        { id: 'b', name: 'B', grants: { ability: 'x' } },
+      ],
+    }) as Doc;
+    expect(doc.cards).toEqual([{ id: 'x', name: 'X', text: '', grant: { kind: 'condition', conditions: ['a', 'b'] } }]);
+  });
+
+  it('drops a lend naming an ability the document does not carry: it lent nothing already', () => {
+    const before = fixture('project');
+    expect(values(before)).toContain('invisibility-spends');
+    const after = migrateDocument(before) as Doc;
+    expect(after.conditionDefs.some((c) => 'grants' in c)).toBe(false);
+    expect(after.cards.some((card) => (card['grant'] as { kind: string }).kind === 'condition')).toBe(false);
+  });
+});
+
 /**
  * The property the rest of this file does not check: that what comes out the other side is a
  * document the engine will actually *load*.
@@ -341,6 +407,18 @@ describe('a migrated document satisfies the schema that will load it', () => {
 
   it('accepts the captured version-1 project once migrated', () => {
     expect(refusals(projectSchema.safeParse(migrateDocument(fixture('project'))))).toEqual([]);
+  });
+
+  it('accepts the captured version-3 project once migrated, with its lend on a card', () => {
+    const loaded = projectSchema.parse(migrateDocument(captured3()));
+    expect(loaded.cards.find((card) => card.id === 'power-slash-lent')?.grant).toEqual({ kind: 'condition', conditions: ['captured-lend'] });
+  });
+
+  it('loses the lend reading the version-3 project unmigrated, so that migration is load-bearing too', () => {
+    // Version 3 is a version this build still names, and the schema drops a key it no longer
+    // declares: read straight, the file loads, and what the condition lent is simply gone.
+    const loaded = projectSchema.parse(captured3());
+    expect(loaded.cards.some((card) => card.grant.kind === 'condition')).toBe(false);
   });
 
   it('refuses the same project unmigrated, so the migration is load-bearing', () => {

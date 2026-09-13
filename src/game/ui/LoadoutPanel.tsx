@@ -87,7 +87,7 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
         <section><div className="deck-section-title"><h2>Active hand</h2><span>{view.loadout.length} / {view.limit}</span><p>{full ? 'Choose a card to make room for a recall.' : 'These cards are ready for your adventure.'}</p></div>
           <div className="deck-grid">{view.loadout.filter(matches).map(c => renderCard(c, true))}</div>
           {!view.loadout.some(matches) && <p className="deck-empty">{view.loadout.length ? 'No active cards match your filters.' : 'Nothing active.'}</p>}</section>
-        {view.granted.length > 0 && domain === 'all' && <section data-testid="granted-zone"><div className="deck-section-title"><h2>Always in play</h2><span>{view.granted.length} {view.granted.length === 1 ? 'card' : 'cards'}</span><p>Granted by what {props.name} is: no limit, and never vaulted.</p></div>
+        {view.granted.length > 0 && domain === 'all' && <section data-testid="granted-zone"><div className="deck-section-title"><h2>Always in play</h2><span>{view.granted.length} {view.granted.length === 1 ? 'card' : 'cards'}</span><p>Granted by what {props.name} is, or lent by what is on them: no limit, and never vaulted.</p></div>
           <div className="deck-grid">{view.granted.filter(matchesGranted).map(renderGranted)}</div>
           {!view.granted.some(matchesGranted) && <p className="deck-empty">Nothing always in play matches your search.</p>}</section>}
         <section><div className="deck-section-title"><h2>The vault</h2><span>{view.vault.length} {view.vault.length === 1 ? 'card' : 'cards'}</span><p>Your reserve. Recall a card to change your hand.</p></div>

@@ -4,6 +4,30 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A condition lends a card — done
+
+A condition used to lend one ability (`grants: { ability }`). Now a card says it is lent by a
+condition -- `grant: { kind: 'condition', conditions }` -- and whoever bears one of those holds the
+card while it lasts, character or creature. It is never a sheet's: the world, the action bar and the
+loadout read it off the creature (`lentCards`, `character/sheet.ts`), it shows last under **Always in
+play** as "Lent by" its condition, and the world counts its passives at roll time, since
+`deriveCharacter` never saw them. The Cards panel's **granted by** offers "a condition on them", and
+**Check** warns when a card is lent by no condition, or by one nothing defines.
+
+Lending the card an ability already sat on would have handed a marked ally the whole spell, the
+half that casts included, so the lent half is a card of its own. That is **format version 4**
+(`toVersion4`, `scene/migrate.ts`): an ability that shared its card moves onto a lent card, one alone
+on its card is copied so whoever held that card keeps it, and a lend of an ability the file does not
+carry is dropped. Version 3 was pushed, so the migration is proved on a real version-3 project
+captured before the change (`tests/fixtures/v3/README.md`). On a machine with the old catalogue
+export, its two spells' second halves come out as two cards of their own. The engine's own
+conditions lend nothing now: the two that did named abilities nothing ships.
+
+`npx tsc --noEmit` clean; vitest **1860 passed (1860)**; Playwright **111 passed (4.0m)**, `EXIT 0`. Seven
+breaks -- the world folding in no lent card, the migration doing nothing, moving where it should
+copy, the zone reading the sheet only, Check trusting an unknown condition, a lent passive counting
+for nothing, the bar dropping lent cards -- each fail the tests written for them.
+
 ## The GM's cards, face up — done
 
 Looking at a creature (right click, or the driver's `inspect`) now shows the cards its stat block
@@ -691,16 +715,17 @@ what grants it and nothing lists its cards; only a chosen card has the loadout's
 version-3 migration is positional and builds cards from abilities; a stat block's traits stay on the
 block. What landed is the entry at the top of this file. What is left, in order:
 
-- **Zones on screen** are done for a character: the loadout's **Always in play**. The action bar
-  still wears art only on a chosen card's ability.
-- **Editing any card.** The grant editor is done; left is a card editor that reaches a pack's card,
-  and a chosen card's domain, type, level and recall cost.
+- **Zones on screen** are done for a character: the loadout's **Always in play**, and every card's
+  art on the action bar.
+- **Editing any card** is done: the grant editor, a chosen card's domain, type, level and recall
+  cost, and a pack's card through **Edit a copy**.
 - **Cheaper, not different:** the world's `cards` option is a closure that merges the pack on every
   read. The live read that two tests pin is `inPlay` recomputing a character's granted cards; a map
   built when the world is, if every content change rebuilds the world, would do. Measure first.
-- **A stat block's cards on the table.** They are data only: nothing shows the GM's side as cards.
-- **Open, not decided:** a condition that lends a *card* rather than an ability
-  (`conditionDefSchema.grants`), and whether a card handed over mid-fight should be announced.
+- **A stat block's cards** are face up on the inspect card. The GM playing them as cards is not
+  built.
+- **Open, not decided:** whether a card handed over mid-fight -- given, or lent by a condition --
+  should be announced.
 
 **Not a licence to rebuild the catalogue with a card model instead of a list.** The IP constraints
 are untouched by this.
