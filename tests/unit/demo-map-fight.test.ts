@@ -6,20 +6,19 @@
  * whole fight replays identically — which is the property a save file, a replay
  * and a regression test all depend on.
  *
- * The map is the prototype's own demo vault, and the stat block is the SRD's Acid
- * Burrower, imported from the vendored adversary JSON rather than typed in here.
+ * The map is the prototype's own demo vault, and both fighters are fixtures: Kara is
+ * written out below, and the thing she swings at comes from `tests/fixtures`. Neither
+ * is content the app ships, which is the point -- a test about the engine should not
+ * depend on a catalogue for the creature in front of it. The fixture's numbers are the
+ * ones these assertions need: 8/15 thresholds, so a d10+3 lands major often enough to
+ * finish 8 Hit Points inside forty rounds, and 1d12+2 at +3, so Kara is marked through
+ * Evasion 11 and a 5/11 coat.
  */
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { demoMap } from '../../legacy/js/data.js';
 import { createRng, type Rng } from '../../src/engine/core/rng';
-import {
-  importSeansboxAdversaries,
-  type RawAdversary,
-} from '../../src/engine/content/srd/seansbox-adversaries';
-import type { AdversaryDef } from '../../src/engine/content/types';
+import { FIXTURE_ADVERSARIES, FIXTURE_DIGGER } from '../fixtures/adversaries';
 import { Pathfinder, tracePath } from '../../src/engine/grid/pathfinding';
 import { applyAttack, resolveAttack, type AttackProfile } from '../../src/engine/combat/attack';
 import { parseDice } from '../../src/engine/rules/dice';
@@ -32,20 +31,12 @@ import {
   type SceneState,
 } from '../../src/engine/scene/state';
 
-const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
-const rawAdversaries = JSON.parse(
-  readFileSync(`${repoRoot}tools/srd-sources/seansbox/adversaries.json`, 'utf8'),
-) as RawAdversary[];
-const srd = new Map<string, AdversaryDef>(
-  importSeansboxAdversaries(rawAdversaries).defs.map((def) => [def.id, def]),
-);
-
-const burrower = srd.get('acid-burrower')!;
+const digger = FIXTURE_ADVERSARIES.find((def) => def.id === FIXTURE_DIGGER)!;
 
 /** A tight band table so the demo vault spans more than one band. */
 const bandTiles = { melee: 1, veryClose: 2, close: 4, far: 8, veryFar: 12 };
 
-/** Kara from the legacy party, restated in SRD terms: level 1, gambeson armor. */
+/** Kara from the legacy party, restated in the engine's terms: level 1, a padded coat. */
 const kara = {
   evasion: 11,
   level: 1,
@@ -68,45 +59,46 @@ function buildFight(seed: string): {
   rng: Rng;
   state: SceneState;
   pathfinder: Pathfinder;
-  burrowerId: string;
+  diggerId: string;
 } {
   const scene = importLegacyScene(demoMap()).scene!;
   const { grid, issues: gridIssues } = gridFromScene(scene);
   expect(gridIssues).toEqual([]);
 
-  // The demo map's own enemies are the prototype's homebrew Hollow Husks, which
-  // have no SRD stat block. Standing the scene up with the SRD's Acid Burrower in
-  // their place is what makes this a Daggerheart fight rather than a legacy one.
+  // The demo map's own enemies are the prototype's Hollow Husks, which no content
+  // pack defines. Standing a shipped stat block in their place is what makes this a
+  // fight the engine runs rather than a legacy one -- and it is the same move any
+  // pack would need, which is why the premise survives the catalogue going.
   const { state, issues } = sceneStateFromScene(scene, grid, {
     adversaries: new Map(
-      [...srd.values()].map((def) => [
+      FIXTURE_ADVERSARIES.map((def) => [
         def.id,
         { id: def.id, hitPoints: def.hitPoints, stress: def.stress },
       ]),
     ),
     party: [createPartyEntity('kara', 'sentinel', -1)],
   });
-  // Every placement asks for hollow-husk, which the SRD does not have.
+  // Every placement asks for hollow-husk, which the pack does not define.
   expect(issues.every((i) => i.message.includes('hollow-husk'))).toBe(true);
 
-  // Open the vault door, then put a Burrower just inside it.
+  // Open the vault door, then put the digger just inside it.
   const door = scene.interactables.find((i) => i.kind === 'door')!;
   state.setInteractableBlocking(tileOf(grid, door.position), false);
 
   // Just inside the door, on open floor — (door.x + 2) is the legacy pillar's
   // tile, which sceneStateFromScene registers as blocking.
-  const burrowerTile = grid.indexOf(door.position.x + 1, door.position.y);
-  expect(state.blockedFor('nobody')(burrowerTile)).toBe(false);
-  expect(grid.isPassable(burrowerTile)).toBe(true);
-  const burrowerId = 'burrower-1';
+  const diggerTile = grid.indexOf(door.position.x + 1, door.position.y);
+  expect(state.blockedFor('nobody')(diggerTile)).toBe(false);
+  expect(grid.isPassable(diggerTile)).toBe(true);
+  const diggerId = 'digger-1';
   state.addEntity({
-    id: burrowerId,
+    id: diggerId,
     faction: 'adversary',
-    definition: burrower.id,
-    tile: burrowerTile,
-    at: grid.spotOf(burrowerTile),
-    hitPoints: { max: burrower.hitPoints, marked: 0 },
-    stress: { max: burrower.stress, marked: 0 },
+    definition: digger.id,
+    tile: diggerTile,
+    at: grid.spotOf(diggerTile),
+    hitPoints: { max: digger.hitPoints, marked: 0 },
+    stress: { max: digger.stress, marked: 0 },
     armorSlots: { max: 0, marked: 0 },
     conditions: new Set(),
     conditionDurations: new Map(),
@@ -118,12 +110,12 @@ function buildFight(seed: string): {
   karaEntity.stress = { max: kara.stress, marked: 0 };
   karaEntity.armorSlots = { max: kara.armorScore, marked: 0 };
 
-  return { rng: createRng(seed), state, pathfinder: new Pathfinder(grid), burrowerId };
+  return { rng: createRng(seed), state, pathfinder: new Pathfinder(grid), diggerId };
 }
 
-const burrowerDefence = () => ({
-  difficulty: burrower.difficulty,
-  thresholds: burrower.thresholds,
+const diggerDefence = () => ({
+  difficulty: digger.difficulty,
+  thresholds: digger.thresholds,
 });
 
 const karaDefence = () => ({
@@ -131,18 +123,18 @@ const karaDefence = () => ({
   thresholds: pcThresholds(kara.level, kara.armor),
 });
 
-const burrowerAttack: AttackProfile = {
+const diggerAttack: AttackProfile = {
   kind: 'adversary',
-  name: burrower.attackName,
-  modifier: burrower.attackModifier,
-  range: burrower.attackRange,
-  damage: burrower.attackDamage,
+  name: digger.attackName,
+  modifier: digger.attackModifier,
+  range: digger.attackRange,
+  damage: digger.attackDamage,
 };
 
-describe('the imported SRD stat block is the one being fought', () => {
-  it('reads the Acid Burrower off the vendored JSON', () => {
-    expect(burrower).toMatchObject({
-      name: 'Acid Burrower',
+describe('the fixture stat block is the one being fought', () => {
+  it('reads the block the fixtures hand it', () => {
+    expect(digger).toMatchObject({
+      name: 'Digger',
       tier: 1,
       role: 'solo',
       difficulty: 14,
@@ -152,8 +144,8 @@ describe('the imported SRD stat block is the one being fought', () => {
       attackRange: 'veryClose',
       thresholds: { major: 8, severe: 15 },
     });
-    expect(burrower.attackModifier).toEqual({ count: 0, sides: 0, modifier: 3 });
-    expect(burrower.attackDamage).toEqual({
+    expect(digger.attackModifier).toEqual({ count: 0, sides: 0, modifier: 3 });
+    expect(digger.attackDamage).toEqual({
       count: 1,
       sides: 12,
       modifier: 2,
@@ -163,11 +155,11 @@ describe('the imported SRD stat block is the one being fought', () => {
 });
 
 describe('a full melee exchange on the demo map', () => {
-  it('walks Kara into Melee range and fights until the Burrower falls', () => {
-    const { rng, state, pathfinder, burrowerId } = buildFight('the-vault');
+  it('walks Kara into Melee range and fights until the digger falls', () => {
+    const { rng, state, pathfinder, diggerId } = buildFight('the-vault');
     const grid = state.grid;
     const kara2 = state.entity('kara')!;
-    const target = state.entity(burrowerId)!;
+    const target = state.entity(diggerId)!;
 
     // --- move ------------------------------------------------------------
     const field = pathfinder.reachable(kara2.tile, Infinity, {
@@ -196,24 +188,24 @@ describe('a full melee exchange on the demo map', () => {
         attacker: kara2,
         target,
         profile: kara.weapon,
-        defender: burrowerDefence(),
+        defender: diggerDefence(),
         options: { bandTiles },
       });
       expect(swing.refused).toBeNull();
       expect(swing.dualityRoll).toBeDefined();
       const hit = applyAttack(state, swing);
       log.push(
-        `kara ${swing.dualityRoll!.outcome} total ${swing.dualityRoll!.total} vs ${burrower.difficulty}` +
+        `kara ${swing.dualityRoll!.outcome} total ${swing.dualityRoll!.total} vs ${digger.difficulty}` +
           (swing.hit ? ` -> ${swing.damageRoll!.total} damage, ${hit.hitPointsMarked} HP` : ' -> miss'),
       );
       if (!target.alive) break;
 
-      // The GM answers with the Burrower's standard attack.
+      // The GM answers with the digger's standard attack.
       const claw = resolveAttack(rng, {
         grid,
         attacker: target,
         target: kara2,
-        profile: burrowerAttack,
+        profile: diggerAttack,
         defender: karaDefence(),
         options: { bandTiles, armorSlotsMarked: 0 },
       });
@@ -221,7 +213,7 @@ describe('a full melee exchange on the demo map', () => {
       expect(claw.gmRoll).toBeDefined();
       const bite = applyAttack(state, claw);
       log.push(
-        `burrower d20 ${claw.gmRoll!.die}+${claw.gmRoll!.modifier} vs ${kara.evasion}` +
+        `digger d20 ${claw.gmRoll!.die}+${claw.gmRoll!.modifier} vs ${kara.evasion}` +
           (claw.hit ? ` -> ${claw.damageRoll!.total} damage, ${bite.hitPointsMarked} HP` : ' -> miss'),
       );
     }
@@ -242,10 +234,10 @@ describe('a full melee exchange on the demo map', () => {
 
   it('replays identically from the same seed, and differently from another', () => {
     const run = (seed: string): string => {
-      const { rng, state, burrowerId } = buildFight(seed);
+      const { rng, state, diggerId } = buildFight(seed);
       const grid = state.grid;
       const kara2 = state.entity('kara')!;
-      const target = state.entity(burrowerId)!;
+      const target = state.entity(diggerId)!;
       state.moveEntity('kara', grid.indexOf(grid.xOf(target.tile) - 1, grid.yOf(target.tile)));
 
       const trace: string[] = [];
@@ -255,7 +247,7 @@ describe('a full melee exchange on the demo map', () => {
           attacker: kara2,
           target,
           profile: kara.weapon,
-          defender: burrowerDefence(),
+          defender: diggerDefence(),
           options: { bandTiles },
         });
         applyAttack(state, swing);
@@ -268,16 +260,16 @@ describe('a full melee exchange on the demo map', () => {
     expect(run('same-seed')).not.toBe(run('other-seed'));
   });
 
-  it('refuses the Burrower a shot at Kara from across the vault', () => {
-    const { rng, state, burrowerId } = buildFight('range');
-    const target = state.entity(burrowerId)!;
+  it('refuses the digger a shot at Kara from across the vault', () => {
+    const { rng, state, diggerId } = buildFight('range');
+    const target = state.entity(diggerId)!;
     const kara2 = state.entity('kara')!;
-    // Kara starts at the spawn, on the far side of the wall from the Burrower.
+    // Kara starts at the spawn, on the far side of the wall from the digger.
     const outcome = resolveAttack(rng, {
       grid: state.grid,
       attacker: target,
       target: kara2,
-      profile: burrowerAttack,
+      profile: diggerAttack,
       defender: karaDefence(),
       options: { bandTiles },
     });
@@ -289,10 +281,10 @@ describe('a full melee exchange on the demo map', () => {
 describe('the fight obeys the rules it is built on', () => {
   it('never marks more Hit Points than a hit is worth, over many seeded fights', () => {
     for (let seed = 0; seed < 40; seed++) {
-      const { rng, state, burrowerId } = buildFight(`fight-${seed}`);
+      const { rng, state, diggerId } = buildFight(`fight-${seed}`);
       const grid = state.grid;
       const kara2 = state.entity('kara')!;
-      const target = state.entity(burrowerId)!;
+      const target = state.entity(diggerId)!;
       state.moveEntity('kara', grid.indexOf(grid.xOf(target.tile) - 1, grid.yOf(target.tile)));
 
       for (let i = 0; i < 20 && target.alive; i++) {
@@ -301,13 +293,13 @@ describe('the fight obeys the rules it is built on', () => {
           attacker: kara2,
           target,
           profile: kara.weapon,
-          defender: burrowerDefence(),
+          defender: diggerDefence(),
           options: { bandTiles },
         });
         if (swing.hit) {
           const damage = swing.damageRoll!.total;
           const expected =
-            damage >= burrower.thresholds.severe ? 3 : damage >= burrower.thresholds.major ? 2 : 1;
+            damage >= digger.thresholds.severe ? 3 : damage >= digger.thresholds.major ? 2 : 1;
           expect(swing.hitPointsMarked).toBe(expected);
           // A critical success always adds the maximum of the damage dice.
           if (swing.critical) {
@@ -325,10 +317,10 @@ describe('the fight obeys the rules it is built on', () => {
   });
 
   it('gives the party exactly one of Hope or Fear per attack roll', () => {
-    const { rng, state, burrowerId } = buildFight('economy');
+    const { rng, state, diggerId } = buildFight('economy');
     const grid = state.grid;
     const kara2 = state.entity('kara')!;
-    const target = state.entity(burrowerId)!;
+    const target = state.entity(diggerId)!;
     state.moveEntity('kara', grid.indexOf(grid.xOf(target.tile) - 1, grid.yOf(target.tile)));
     target.hitPoints = { max: 99, marked: 0 }; // keep it standing to count rolls
 
@@ -339,7 +331,7 @@ describe('the fight obeys the rules it is built on', () => {
         attacker: kara2,
         target,
         profile: kara.weapon,
-        defender: burrowerDefence(),
+        defender: diggerDefence(),
         options: { bandTiles },
       });
       expect(swing.hopeGained + swing.fearGained).toBe(1);

@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { adversaryTraits, attackDamageOf, isFeatureImplemented } from './adversary-features';
-import { importSeansboxAdversaries } from '../content/srd/seansbox-adversaries';
 import type { AdversaryFeature } from '../content/types';
 
 /**
@@ -11,11 +8,6 @@ import type { AdversaryFeature } from '../content/types';
  * spotlights, Horde (1d4+1) is a second damage line, Minion (3) is three
  * damage per extra minion.
  */
-
-const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
-const adversaries = importSeansboxAdversaries(
-  JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/seansbox/adversaries.json`, 'utf8')),
-).defs;
 
 const feature = (name: string, parameter?: string): AdversaryFeature => ({
   name,
@@ -46,10 +38,23 @@ describe('reading a stat block', () => {
     expect(attackDamageOf(def, { max: 4, marked: 2 })).toMatchObject({ count: 1, sides: 4, modifier: 1 });
   });
 
-  it('says which of a real adversary\'s features it runs', () => {
-    const burrower = adversaries.find((a) => a.id === 'acid-burrower')!;
-    expect(adversaryTraits(burrower).spotlights).toBe(3);
-    const names = burrower.features.filter(isFeatureImplemented).map((f) => f.name);
+  /**
+   * A block as it arrives off a printed stat line, with the parenthetical still
+   * in the name. `parameterOf` reads `feature.parameter` when the importer has
+   * split one out and falls back to a regex over the name when it has not, and
+   * this is the only test of that second path -- the `feature()` helper above
+   * always sets `parameter`, so using it here would quietly stop covering the
+   * branch this case exists for.
+   */
+  it('reads a block whose parameter is still in the printed name', () => {
+    const printed = {
+      features: [
+        { name: 'Relentless (3)', kind: 'passive', text: '', costsGmResource: false },
+        { name: 'Earth Eruption - Action', kind: 'action', text: '', costsGmResource: true },
+      ] satisfies AdversaryFeature[],
+    };
+    expect(adversaryTraits(printed).spotlights).toBe(3);
+    const names = printed.features.filter(isFeatureImplemented).map((f) => f.name);
     expect(names.some((n) => n.startsWith('Relentless'))).toBe(true);
     // Earth Eruption is a script, not a rule read off the block, so not here.
     expect(names.some((n) => n.startsWith('Earth Eruption'))).toBe(false);

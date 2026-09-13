@@ -92,10 +92,20 @@ export const FIXTURE_ADVERSARIES = [
       },
     ],
   }),
+  // Something that can take a level-1 swing and answer it.
+  //
+  // `demo-map-fight` trades blows until one side falls, and both halves of that
+  // are threshold arithmetic rather than totals: a swing pays 1 Hit Point for a
+  // minor, 2 for a major, 3 for a severe. 8/15 is what lets a d10+3 land major
+  // often enough to finish 8 Hit Points inside forty rounds, and 1d12+2 at +3 is
+  // what marks a level-1 character through Evasion 11 and a 5/11 coat. Every
+  // other block here is either too soft to wound back or too armoured to fall.
+  block('fixture-digger', 'Digger', 'solo', 14, 8, 15, 8, 3, 'Claws', 3, 'veryClose', 1, 12, 2),
 ] as const;
 
 /** The ids above, for a test that wants to name one without repeating a literal. */
 export const FIXTURE_FOE = 'fixture-foe';
+export const FIXTURE_DIGGER = 'fixture-digger';
 
 /**
  * Cards for a test to hold.
