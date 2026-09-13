@@ -7,10 +7,12 @@ handful of working rules that are learned the expensive way rather than read.
 **Pinned to commit `01b4c83`.** At that commit: `npx tsc --noEmit` clean, **1834 of 1835 unit tests
 passing across 92 files**. The single failure is the documented deliberate one in
 `demo-defense.test.ts` — a Stress assertion left red after four attempts rather than guessed at, with
-what was ruled out recorded in its commit. **Playwright: all 21 of those failures are fixed, each verified in a targeted run. A full run
-has not confirmed it yet** — the last complete run was the red one, so do not quote a green suite
-until one finishes. What follows is the diagnosis of that red run, kept because the cause and the
-tiering are the reusable parts.
+what was ruled out recorded in its commit. **Playwright is green: 103 passed, 3.6 minutes, `EXIT 0`** — a full run, not a tally of targeted
+ones. All 21 failures are fixed. What follows is the diagnosis of the red run that found them, kept
+because the cause and the tiering are the reusable parts.
+
+Read the duration as a signal: green is ~3.6 minutes, and the red runs took 15 because twenty-one
+failing locators each waited out a 90-second timeout.
 
 The run was **RED: 21 failed, 82 passed**, measured
 twice after the demo was repointed (15.1m and 15.3m, identical counts). An earlier version of this
@@ -512,8 +514,14 @@ from a phone and will not scroll a terminal.
 ### Before claiming done
 
 `npx tsc --noEmit`, `npx vitest run`, **and** `npx playwright test`. All three, every time — the e2e
-suite is the only thing that catches a broken boot. **It takes about 15 minutes** (103 tests), so start
-it in the background and do something else while it runs rather than deciding to skip it.
+suite is the only thing that catches a broken boot. **A green run is about 3.6 minutes** (103 tests),
+so there is no reason to skip it.
+
+A RED run takes far longer -- the two runs that found the repoint's damage took 15.1 and 15.3 minutes,
+because a failing locator waits out a 90-second timeout and twenty-one of them is most of that
+difference. So a slow run is itself a signal, and a long one is not evidence the suite is expensive.
+An earlier version of this file turned that timeout cost into the suite's runtime and told you to
+expect fifteen minutes.
 
 **Read the exit code, not the pass count.** Playwright prints `82 passed (15.1m)` as its last
 line and the failure count *above* it, so a red run's final line looks like a green one. `EXIT 1`,
