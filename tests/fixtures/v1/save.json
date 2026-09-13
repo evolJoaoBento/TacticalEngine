@@ -1,0 +1,287 @@
+{
+  "formatVersion": 1,
+  "projectId": "demo",
+  "sceneId": "the-husk-vault",
+  "rng": 1572850888,
+  "scenario": {
+    "variables": {},
+    "flags": [],
+    "items": [],
+    "actorId": null,
+    "quests": [],
+    "partyLevel": 1,
+    "abilityUses": [],
+    "abilityTokens": [],
+    "countdowns": [],
+    "zones": []
+  },
+  "scenes": {
+    "the-husk-vault": {
+      "sceneId": "the-husk-vault",
+      "entities": {
+        "group-1-husk-16-8": {
+          "id": "group-1-husk-16-8",
+          "faction": "adversary",
+          "definition": "hollow-knight",
+          "tile": 192,
+          "at": {
+            "x": 16,
+            "y": 8
+          },
+          "hitPoints": {
+            "max": 12,
+            "marked": 0
+          },
+          "stress": {
+            "max": 5,
+            "marked": 0
+          },
+          "armorSlots": {
+            "max": 0,
+            "marked": 0
+          },
+          "conditions": [],
+          "conditionDurations": {},
+          "alive": true
+        },
+        "group-1-husk-18-3": {
+          "id": "group-1-husk-18-3",
+          "faction": "adversary",
+          "definition": "hollow-knight",
+          "tile": 84,
+          "at": {
+            "x": 18,
+            "y": 3
+          },
+          "hitPoints": {
+            "max": 12,
+            "marked": 0
+          },
+          "stress": {
+            "max": 5,
+            "marked": 0
+          },
+          "armorSlots": {
+            "max": 0,
+            "marked": 0
+          },
+          "conditions": [],
+          "conditionDurations": {},
+          "alive": true
+        },
+        "group-1-husk-19-11": {
+          "id": "group-1-husk-19-11",
+          "faction": "adversary",
+          "definition": "hollow-knight",
+          "tile": 261,
+          "at": {
+            "x": 19,
+            "y": 11
+          },
+          "hitPoints": {
+            "max": 12,
+            "marked": 0
+          },
+          "stress": {
+            "max": 5,
+            "marked": 0
+          },
+          "armorSlots": {
+            "max": 0,
+            "marked": 0
+          },
+          "conditions": [],
+          "conditionDurations": {},
+          "alive": true
+        },
+        "kara": {
+          "id": "kara",
+          "faction": "party",
+          "definition": "sentinel",
+          "tile": 156,
+          "at": {
+            "x": 2,
+            "y": 7
+          },
+          "hitPoints": {
+            "max": 7,
+            "marked": 0
+          },
+          "stress": {
+            "max": 6,
+            "marked": 0
+          },
+          "armorSlots": {
+            "max": 6,
+            "marked": 0
+          },
+          "hope": {
+            "value": 4,
+            "max": 6
+          },
+          "conditions": [],
+          "conditionDurations": {},
+          "alive": true
+        },
+        "finn": {
+          "id": "finn",
+          "faction": "party",
+          "definition": "cutpurse",
+          "tile": 178,
+          "at": {
+            "x": 2,
+            "y": 8
+          },
+          "hitPoints": {
+            "max": 5,
+            "marked": 0
+          },
+          "stress": {
+            "max": 6,
+            "marked": 0
+          },
+          "armorSlots": {
+            "max": 3,
+            "marked": 0
+          },
+          "hope": {
+            "max": 6,
+            "value": 2
+          },
+          "conditions": [],
+          "conditionDurations": {},
+          "alive": true
+        },
+        "mira": {
+          "id": "mira",
+          "faction": "party",
+          "definition": "emberwright",
+          "tile": 157,
+          "at": {
+            "x": 3,
+            "y": 7
+          },
+          "hitPoints": {
+            "max": 5,
+            "marked": 0
+          },
+          "stress": {
+            "max": 6,
+            "marked": 0
+          },
+          "armorSlots": {
+            "max": 5,
+            "marked": 0
+          },
+          "hope": {
+            "max": 6,
+            "value": 2
+          },
+          "conditions": [],
+          "conditionDurations": {},
+          "alive": true
+        }
+      },
+      "interactables": {},
+      "encounters": {},
+      "fear": {
+        "value": 3,
+        "max": 12
+      }
+    }
+  },
+  "selected": "kara",
+  "sheets": [
+    {
+      "id": "kara",
+      "name": "Kara",
+      "level": 1,
+      "classId": "sentinel",
+      "ancestryId": "stoneborn",
+      "communityId": "wayfarer",
+      "traits": {
+        "agility": 0,
+        "strength": 2,
+        "finesse": 0,
+        "instinct": 1,
+        "presence": 1,
+        "knowledge": -1
+      },
+      "proficiency": 1,
+      "primaryWeaponId": "longsword",
+      "armorId": "ringmail",
+      "experiences": [
+        {
+          "name": "Held the line",
+          "modifier": 2
+        }
+      ],
+      "subclassId": "shieldbearer",
+      "domainCards": [
+        "power-slash",
+        "iron-stance"
+      ]
+    },
+    {
+      "id": "finn",
+      "name": "Finn",
+      "level": 1,
+      "classId": "cutpurse",
+      "ancestryId": "sylvan",
+      "communityId": "guildsworn",
+      "traits": {
+        "agility": 2,
+        "strength": -1,
+        "finesse": 2,
+        "instinct": 1,
+        "presence": 0,
+        "knowledge": 0
+      },
+      "proficiency": 1,
+      "primaryWeaponId": "hunting-bow",
+      "armorId": "padded-coat",
+      "experiences": [
+        {
+          "name": "Knows a locksmith",
+          "modifier": 2
+        }
+      ],
+      "subclassId": "lampsnuffer",
+      "domainCards": [
+        "quick-hands",
+        "backstab"
+      ]
+    },
+    {
+      "id": "mira",
+      "name": "Mira",
+      "level": 1,
+      "classId": "emberwright",
+      "ancestryId": "human",
+      "communityId": "guildsworn",
+      "traits": {
+        "agility": 0,
+        "strength": -1,
+        "finesse": 1,
+        "instinct": 2,
+        "presence": 1,
+        "knowledge": 2
+      },
+      "proficiency": 1,
+      "primaryWeaponId": "ember-staff",
+      "armorId": "padded-coat",
+      "experiences": [
+        {
+          "name": "Read the old script",
+          "modifier": 2
+        }
+      ],
+      "subclassId": "flamecaller",
+      "domainCards": [
+        "arcane-ward",
+        "healing-word"
+      ]
+    }
+  ],
+  "log": []
+}

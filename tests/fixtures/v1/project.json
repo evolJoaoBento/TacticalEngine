@@ -1,0 +1,3538 @@
+{
+  "formatVersion": 1,
+  "id": "demo",
+  "name": "Demo Vault",
+  "scenes": [
+    {
+      "id": "the-husk-vault",
+      "name": "The Husk Vault",
+      "intro": "Cold air drifts from the vault mouth. Moss-slick stone steps descend into a chamber half-swallowed by marsh water.",
+      "width": 22,
+      "height": 16,
+      "terrain": [
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "cover",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "cover",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "cover",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "cover",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "cover",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "difficult",
+        "difficult",
+        "difficult",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor"
+      ],
+      "heights": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tints": [
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#454a59",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#41615a",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#454a59",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#41615a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#454a59",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#548045",
+        "#5d8a4a",
+        "#454a59",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#4a6b5d",
+        "#41615a",
+        "#4a6b5d",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#454a59",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#565b6b",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#454a59",
+        "#70757f",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#41615a",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#5d8a4a",
+        "#548045",
+        "#454a59",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#41615a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#454a59",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#4a6b5d",
+        "#41615a",
+        "#4a6b5d",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#454a59",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#454a59",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#41615a",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#454a59",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#41615a",
+        "#548045",
+        "#5d8a4a",
+        "#454a59",
+        "#70757f",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#4a6b5d",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#454a59",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#4a6b5d",
+        "#41615a",
+        "#4a6b5d",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#454a59",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#5d8a4a",
+        "#5d8a4a",
+        "#548045",
+        "#454a59",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#70757f",
+        "#7a7f8c",
+        "#7a7f8c",
+        "#7a7f8c"
+      ],
+      "spawns": [
+        {
+          "x": 2,
+          "y": 7
+        },
+        {
+          "x": 2,
+          "y": 8
+        },
+        {
+          "x": 3,
+          "y": 7
+        }
+      ],
+      "interactables": [
+        {
+          "id": "door-12-7",
+          "kind": "door",
+          "position": {
+            "x": 12,
+            "y": 7
+          },
+          "name": "Vault Door",
+          "flavor": "An iron-banded vault door seals the eastern chamber. Its lock is ancient — but the tumblers may still turn.",
+          "model": null,
+          "blocksMovement": true,
+          "effects": [],
+          "check": {
+            "trait": "finesse",
+            "difficulty": 13,
+            "onSuccessWithHope": [
+              {
+                "kind": "log",
+                "text": "The mechanism yields silently. The way is open.",
+                "tone": "narration"
+              },
+              {
+                "kind": "open"
+              }
+            ],
+            "onSuccessWithFear": [
+              {
+                "kind": "log",
+                "text": "The door grinds open — far too loudly. Something stirs beyond.",
+                "tone": "narration"
+              },
+              {
+                "kind": "open"
+              }
+            ],
+            "onFailureWithHope": [
+              {
+                "kind": "log",
+                "text": "The door refuses to budge, but you sense the trick of it now.",
+                "tone": "narration"
+              }
+            ],
+            "onFailureWithFear": [
+              {
+                "kind": "log",
+                "text": "Your effort echoes like a war drum. The door stays shut.",
+                "tone": "narration"
+              }
+            ]
+          },
+          "repeatable": true,
+          "lockedText": "",
+          "tags": [],
+          "data": {}
+        },
+        {
+          "id": "chest-19-13",
+          "kind": "chest",
+          "position": {
+            "x": 19,
+            "y": 13
+          },
+          "name": "Old Wooden Chest",
+          "flavor": "An old wooden chest sits rotting in the corner, its lock crusted with rust.",
+          "model": null,
+          "blocksMovement": true,
+          "effects": [],
+          "check": {
+            "trait": "finesse",
+            "difficulty": 12,
+            "onSuccessWithHope": [
+              {
+                "kind": "log",
+                "text": "The lock clicks open smoothly. Inside, treasure glints in the dim light.",
+                "tone": "narration"
+              },
+              {
+                "kind": "loot",
+                "table": "vault-chest"
+              }
+            ],
+            "onSuccessWithFear": [
+              {
+                "kind": "log",
+                "text": "The lid creaks open — but the rusted hinge SHRIEKS, echoing down the corridors...",
+                "tone": "narration"
+              },
+              {
+                "kind": "loot",
+                "table": "vault-chest"
+              }
+            ],
+            "onFailureWithHope": [
+              {
+                "kind": "log",
+                "text": "The lock holds, but you withdraw your pick before it snaps. You can try again.",
+                "tone": "narration"
+              }
+            ],
+            "onFailureWithFear": [
+              {
+                "kind": "log",
+                "text": "A needle springs from the lock mechanism and bites your hand. Poison burns.",
+                "tone": "narration"
+              },
+              {
+                "kind": "damage",
+                "amount": 2
+              }
+            ]
+          },
+          "repeatable": false,
+          "lockedText": "",
+          "tags": [],
+          "data": {}
+        },
+        {
+          "id": "pillar-14-7",
+          "kind": "pillar",
+          "position": {
+            "x": 14,
+            "y": 7
+          },
+          "name": "Crumbling Pillar",
+          "flavor": "Just past the door, a crumbling pillar leans over the vault floor. One good shove could bring it down.",
+          "model": null,
+          "blocksMovement": true,
+          "effects": [
+            {
+              "kind": "startDialogue",
+              "dialogue": "the-listening-pillar"
+            }
+          ],
+          "repeatable": true,
+          "lockedText": "",
+          "tags": [],
+          "data": {}
+        },
+        {
+          "id": "stair-down",
+          "kind": "portal",
+          "position": {
+            "x": 20,
+            "y": 9
+          },
+          "name": "A stair down",
+          "flavor": "Behind the husks, steps drop away into the dark.",
+          "model": null,
+          "blocksMovement": false,
+          "effects": [
+            {
+              "kind": "goto",
+              "scene": "the-pit"
+            }
+          ],
+          "repeatable": false,
+          "lockedText": "",
+          "tags": [],
+          "data": {}
+        }
+      ],
+      "encounters": [
+        {
+          "id": "group-1",
+          "name": "Group 1",
+          "adversaries": [
+            {
+              "id": "group-1-husk-16-8",
+              "adversary": "hollow-knight",
+              "position": {
+                "x": 16,
+                "y": 8
+              },
+              "name": "Hollow Husk"
+            },
+            {
+              "id": "group-1-husk-18-3",
+              "adversary": "hollow-knight",
+              "position": {
+                "x": 18,
+                "y": 3
+              },
+              "name": "Hollow Husk"
+            },
+            {
+              "id": "group-1-husk-19-11",
+              "adversary": "hollow-knight",
+              "position": {
+                "x": 19,
+                "y": 11
+              },
+              "name": "Hollow Husk"
+            }
+          ],
+          "triggerCells": [
+            {
+              "x": 13,
+              "y": 6
+            },
+            {
+              "x": 13,
+              "y": 7
+            },
+            {
+              "x": 13,
+              "y": 8
+            },
+            {
+              "x": 14,
+              "y": 6
+            },
+            {
+              "x": 14,
+              "y": 8
+            },
+            {
+              "x": 15,
+              "y": 7
+            }
+          ],
+          "startsOnTrigger": true
+        }
+      ],
+      "decos": [
+        {
+          "model": "pine",
+          "position": {
+            "x": 2,
+            "y": 2
+          },
+          "rotation": 0
+        },
+        {
+          "model": "pine",
+          "position": {
+            "x": 5,
+            "y": 1
+          },
+          "rotation": 0
+        },
+        {
+          "model": "pine",
+          "position": {
+            "x": 1,
+            "y": 9
+          },
+          "rotation": 0
+        },
+        {
+          "model": "pine",
+          "position": {
+            "x": 4,
+            "y": 13
+          },
+          "rotation": 0.4
+        },
+        {
+          "model": "pine",
+          "position": {
+            "x": 2,
+            "y": 12
+          },
+          "rotation": 0
+        },
+        {
+          "model": "pine",
+          "position": {
+            "x": 6,
+            "y": 14
+          },
+          "rotation": 0.7
+        },
+        {
+          "model": "deadTree",
+          "position": {
+            "x": 5,
+            "y": 9
+          },
+          "rotation": 0
+        },
+        {
+          "model": "rock",
+          "position": {
+            "x": 1,
+            "y": 5
+          },
+          "rotation": 0
+        },
+        {
+          "model": "rock",
+          "position": {
+            "x": 6,
+            "y": 4
+          },
+          "rotation": 0
+        },
+        {
+          "model": "rock",
+          "position": {
+            "x": 3,
+            "y": 14
+          },
+          "rotation": 0
+        },
+        {
+          "model": "brazier",
+          "position": {
+            "x": 14,
+            "y": 6
+          },
+          "rotation": 0
+        },
+        {
+          "model": "brazier",
+          "position": {
+            "x": 14,
+            "y": 8
+          },
+          "rotation": 0
+        },
+        {
+          "model": "crate",
+          "position": {
+            "x": 15,
+            "y": 14
+          },
+          "rotation": 0
+        },
+        {
+          "model": "barrel",
+          "position": {
+            "x": 16,
+            "y": 14
+          },
+          "rotation": 0
+        },
+        {
+          "model": "crate",
+          "position": {
+            "x": 20,
+            "y": 1
+          },
+          "rotation": 0
+        },
+        {
+          "model": "barrel",
+          "position": {
+            "x": 20,
+            "y": 14
+          },
+          "rotation": 0
+        },
+        {
+          "model": "banner",
+          "position": {
+            "x": 13,
+            "y": 2
+          },
+          "rotation": 0
+        },
+        {
+          "model": "banner",
+          "position": {
+            "x": 13,
+            "y": 12
+          },
+          "rotation": 3.141592653589793
+        },
+        {
+          "model": "cart",
+          "position": {
+            "x": 3,
+            "y": 7
+          },
+          "rotation": -0.8
+        }
+      ]
+    },
+    {
+      "id": "the-pit",
+      "name": "The Sounding Pit",
+      "intro": "The stair gives out into a round chamber. Water moves somewhere below, and the walls carry every sound twice.",
+      "width": 10,
+      "height": 8,
+      "terrain": [
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "wall",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "wall",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "wall",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "wall",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "wall",
+        "wall",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall",
+        "wall"
+      ],
+      "heights": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "spawns": [
+        {
+          "x": 2,
+          "y": 6
+        },
+        {
+          "x": 3,
+          "y": 6
+        },
+        {
+          "x": 4,
+          "y": 6
+        }
+      ],
+      "interactables": [
+        {
+          "id": "stair-up",
+          "kind": "portal",
+          "position": {
+            "x": 2,
+            "y": 5
+          },
+          "name": "The stair up",
+          "flavor": "The steps you came down. They go back.",
+          "model": null,
+          "blocksMovement": false,
+          "effects": [
+            {
+              "kind": "goto",
+              "scene": "the-husk-vault"
+            }
+          ],
+          "repeatable": false,
+          "lockedText": "",
+          "tags": [],
+          "data": {}
+        },
+        {
+          "id": "strongbox",
+          "kind": "chest",
+          "position": {
+            "x": 7,
+            "y": 2
+          },
+          "name": "A banded strongbox",
+          "flavor": "Someone left in a hurry, and left this behind.",
+          "model": null,
+          "blocksMovement": true,
+          "effects": [
+            {
+              "kind": "log",
+              "text": "The word you were given does the work for you.",
+              "tone": "hope"
+            },
+            {
+              "kind": "loot",
+              "table": "pit-strongbox"
+            },
+            {
+              "kind": "completeObjective",
+              "quest": "the-wardens-word",
+              "objective": "open-the-strongbox"
+            },
+            {
+              "kind": "completeQuest",
+              "quest": "the-wardens-word"
+            },
+            {
+              "kind": "levelUp"
+            }
+          ],
+          "repeatable": false,
+          "requiresKey": "wardens-word",
+          "lockedText": "The lid will not shift. Whatever holds it is not a lock.",
+          "tags": [],
+          "data": {}
+        }
+      ],
+      "encounters": [],
+      "decos": [
+        {
+          "model": "crate",
+          "position": {
+            "x": 7,
+            "y": 5
+          },
+          "rotation": 0
+        },
+        {
+          "model": "barrel",
+          "position": {
+            "x": 8,
+            "y": 5
+          },
+          "rotation": 0
+        },
+        {
+          "model": "campfire",
+          "position": {
+            "x": 5,
+            "y": 3
+          },
+          "rotation": 0
+        }
+      ]
+    }
+  ],
+  "dialogues": [
+    {
+      "id": "the-listening-pillar",
+      "start": "wakes",
+      "nodes": [
+        {
+          "id": "wakes",
+          "lines": [
+            {
+              "text": "The carving in the pillar opens its eyes."
+            },
+            {
+              "speaker": "The Warden",
+              "text": "Three hundred years, and the first thing through that door is a thief with a lantern."
+            }
+          ],
+          "onEnter": [
+            {
+              "kind": "startQuest",
+              "quest": "the-wardens-word"
+            }
+          ],
+          "choices": [
+            {
+              "text": "We are not thieves. We came for the vault.",
+              "goto": "vault"
+            },
+            {
+              "text": "Who are you?",
+              "goto": "name"
+            },
+            {
+              "text": "Warden. I know what you are.",
+              "available": {
+                "kind": "flag",
+                "flag": "knows-the-wardens-name"
+              },
+              "goto": "known"
+            },
+            {
+              "text": "[Say nothing and walk away.]",
+              "effects": [
+                {
+                  "kind": "log",
+                  "text": "The eyes close again.",
+                  "tone": "narration"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "name",
+          "lines": [
+            {
+              "speaker": "The Warden",
+              "text": "I was left here to keep count. I have counted very carefully."
+            }
+          ],
+          "onEnter": [
+            {
+              "kind": "setFlag",
+              "flag": "knows-the-wardens-name"
+            }
+          ],
+          "choices": [
+            {
+              "text": "Count of what?",
+              "goto": "vault"
+            }
+          ]
+        },
+        {
+          "id": "vault",
+          "lines": [
+            {
+              "speaker": "The Warden",
+              "text": "The door does not open for the living. It never did. But it might open for the polite."
+            }
+          ],
+          "choices": [
+            {
+              "text": "Then let us ask it politely.",
+              "detail": "Presence 13",
+              "check": {
+                "trait": "presence",
+                "difficulty": 13,
+                "onSuccessWithHope": [
+                  {
+                    "kind": "log",
+                    "text": "Something in the stone unclenches.",
+                    "tone": "hope"
+                  },
+                  {
+                    "kind": "giveKey",
+                    "key": "wardens-word"
+                  },
+                  {
+                    "kind": "completeObjective",
+                    "quest": "the-wardens-word",
+                    "objective": "win-the-word"
+                  },
+                  {
+                    "kind": "revealObjective",
+                    "quest": "the-wardens-word",
+                    "objective": "open-the-strongbox"
+                  }
+                ],
+                "onSuccessWithFear": [
+                  {
+                    "kind": "log",
+                    "text": "It yields — and something deeper in the vault notices.",
+                    "tone": "fear"
+                  },
+                  {
+                    "kind": "giveKey",
+                    "key": "wardens-word"
+                  },
+                  {
+                    "kind": "completeObjective",
+                    "quest": "the-wardens-word",
+                    "objective": "win-the-word"
+                  },
+                  {
+                    "kind": "revealObjective",
+                    "quest": "the-wardens-word",
+                    "objective": "open-the-strongbox"
+                  }
+                ],
+                "onFailureWithHope": [
+                  {
+                    "kind": "log",
+                    "text": "The Warden is unmoved, but not unkind.",
+                    "tone": "narration"
+                  }
+                ],
+                "onFailureWithFear": [
+                  {
+                    "kind": "log",
+                    "text": "The eyes narrow. You have been counted.",
+                    "tone": "fear"
+                  }
+                ],
+                "gotoOnSuccess": "granted",
+                "gotoOnFailure": "refused"
+              }
+            },
+            {
+              "text": "We will find our own way in.",
+              "goto": "refused"
+            }
+          ]
+        },
+        {
+          "id": "known",
+          "lines": [
+            {
+              "speaker": "The Warden",
+              "text": "Then you know what I am owed. Ask, and ask well."
+            }
+          ],
+          "goto": "vault"
+        },
+        {
+          "id": "granted",
+          "lines": [
+            {
+              "speaker": "The Warden",
+              "text": "Go on, then. Mind the third step; it remembers."
+            }
+          ]
+        },
+        {
+          "id": "refused",
+          "lines": [
+            {
+              "speaker": "The Warden",
+              "text": "Then we are done talking."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "gold",
+      "name": "Gold",
+      "kind": "trinket",
+      "description": "Coins, mostly. Some of them are even coins from here.",
+      "stackable": true,
+      "use": []
+    },
+    {
+      "id": "wardens-word",
+      "name": "The Warden's word",
+      "kind": "key",
+      "description": "Not written down anywhere. The door knows it when it hears it.",
+      "stackable": false,
+      "use": []
+    },
+    {
+      "id": "brass-key",
+      "name": "Brass key",
+      "kind": "key",
+      "description": "Small, and green with age.",
+      "stackable": false,
+      "use": []
+    },
+    {
+      "id": "healing-draught",
+      "name": "Healing draught",
+      "kind": "consumable",
+      "description": "Tastes of iron and mint.",
+      "stackable": true,
+      "use": [
+        {
+          "kind": "heal",
+          "amount": 2,
+          "target": {
+            "kind": "actor"
+          }
+        },
+        {
+          "kind": "log",
+          "text": "Iron and mint. The cuts close.",
+          "tone": "hope"
+        }
+      ]
+    },
+    {
+      "id": "husk-carapace",
+      "name": "Husk carapace",
+      "kind": "trinket",
+      "description": "Light, and still faintly warm.",
+      "stackable": true,
+      "use": []
+    },
+    {
+      "id": "longsword",
+      "name": "Longsword",
+      "kind": "weapon",
+      "description": "Older than the vault, and better kept.",
+      "contentId": "longsword",
+      "stackable": false,
+      "use": []
+    },
+    {
+      "id": "round-shield",
+      "name": "Round shield",
+      "kind": "weapon",
+      "description": "Dented on the rim where it did its job.",
+      "contentId": "round-shield",
+      "stackable": false,
+      "use": []
+    },
+    {
+      "id": "hunting-bow",
+      "name": "Hunting bow",
+      "kind": "weapon",
+      "description": "",
+      "contentId": "hunting-bow",
+      "stackable": false,
+      "use": []
+    },
+    {
+      "id": "ember-staff",
+      "name": "Ember staff",
+      "kind": "weapon",
+      "description": "",
+      "contentId": "ember-staff",
+      "stackable": false,
+      "use": []
+    },
+    {
+      "id": "ringmail",
+      "name": "Ringmail",
+      "kind": "armor",
+      "description": "",
+      "contentId": "ringmail",
+      "stackable": false,
+      "use": []
+    },
+    {
+      "id": "padded-coat",
+      "name": "Padded coat",
+      "kind": "armor",
+      "description": "",
+      "contentId": "padded-coat",
+      "stackable": false,
+      "use": []
+    }
+  ],
+  "lootTables": [
+    {
+      "id": "vault-chest",
+      "rolls": 2,
+      "entries": [
+        {
+          "item": "gold",
+          "quantity": {
+            "min": 4,
+            "max": 12
+          },
+          "weight": 5
+        },
+        {
+          "item": "healing-draught",
+          "quantity": 1,
+          "weight": 2
+        },
+        {
+          "item": "brass-key",
+          "quantity": 1,
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "pit-strongbox",
+      "rolls": 3,
+      "entries": [
+        {
+          "item": "gold",
+          "quantity": {
+            "min": 20,
+            "max": 40
+          },
+          "weight": 4
+        },
+        {
+          "item": "healing-draught",
+          "quantity": 2,
+          "weight": 2
+        },
+        {
+          "item": "husk-carapace",
+          "quantity": 1,
+          "weight": 1
+        },
+        {
+          "item": "longsword",
+          "quantity": 1,
+          "weight": 2
+        },
+        {
+          "item": "round-shield",
+          "quantity": 1,
+          "weight": 1
+        }
+      ]
+    }
+  ],
+  "quests": [
+    {
+      "id": "the-wardens-word",
+      "name": "The Warden's Word",
+      "summary": "Something in the pillar has kept this vault for three hundred years. It knows a word that opens what is below.",
+      "objectives": [
+        {
+          "id": "win-the-word",
+          "text": "Get the word out of the Warden.",
+          "hidden": false,
+          "summary": "The Warden gave up its word. Whatever it opens is below, in the pit."
+        },
+        {
+          "id": "open-the-strongbox",
+          "text": "Open the strongbox in the pit.",
+          "hidden": true,
+          "summary": ""
+        }
+      ]
+    }
+  ],
+  "assets": [],
+  "adversaryModels": {},
+  "classes": [],
+  "ancestries": [],
+  "communities": [],
+  "subclasses": [],
+  "domainCards": [],
+  "weapons": [],
+  "armors": [],
+  "adversaries": [],
+  "abilities": [
+    {
+      "id": "power-slash",
+      "name": "Power Slash",
+      "source": {
+        "kind": "domainCard",
+        "card": "power-slash"
+      },
+      "text": "Put your weight behind the swing: deal 2 additional damage.",
+      "kind": "passive",
+      "cost": {},
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [
+        {
+          "stat": "damageRoll",
+          "bonus": 2
+        }
+      ],
+      "auto": true
+    },
+    {
+      "id": "iron-stance",
+      "name": "Iron Stance",
+      "source": {
+        "kind": "domainCard",
+        "card": "iron-stance"
+      },
+      "text": "While you hold your ground, your Armor Score is higher.",
+      "kind": "passive",
+      "cost": {},
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [
+        {
+          "stat": "armorScore",
+          "bonus": 1
+        }
+      ],
+      "auto": true
+    },
+    {
+      "id": "unbroken",
+      "name": "Unbroken",
+      "source": {
+        "kind": "domainCard",
+        "card": "unbroken"
+      },
+      "text": "The first Severe blow you take each fight lands as Major instead.",
+      "kind": "passive",
+      "cost": {},
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [
+        {
+          "stat": "severeThreshold",
+          "bonus": 3
+        }
+      ],
+      "auto": true
+    },
+    {
+      "id": "quick-hands",
+      "name": "Quick Hands",
+      "source": {
+        "kind": "domainCard",
+        "card": "quick-hands"
+      },
+      "text": "Your hands are faster than the eye: gain a bonus to action rolls made to palm or plant something.",
+      "kind": "passive",
+      "cost": {},
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [
+        {
+          "stat": "actionRoll",
+          "bonus": 1
+        }
+      ],
+      "auto": true
+    },
+    {
+      "id": "backstab",
+      "name": "Backstab",
+      "source": {
+        "kind": "domainCard",
+        "card": "backstab"
+      },
+      "text": "Against a target unaware of you, your damage roll is higher.",
+      "kind": "passive",
+      "cost": {},
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [
+        {
+          "stat": "damageRoll",
+          "bonus": 3
+        }
+      ],
+      "auto": true
+    },
+    {
+      "id": "vanish",
+      "name": "Vanish",
+      "source": {
+        "kind": "domainCard",
+        "card": "vanish"
+      },
+      "text": "Break line of sight and you are gone until you act again.",
+      "kind": "action",
+      "cost": {
+        "stress": 1
+      },
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [],
+      "auto": true
+    },
+    {
+      "id": "arcane-ward",
+      "name": "Arcane Ward",
+      "source": {
+        "kind": "domainCard",
+        "card": "arcane-ward"
+      },
+      "text": "A shell of warm air holds: raise your Armor Score until your next rest.",
+      "kind": "passive",
+      "cost": {},
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [
+        {
+          "stat": "armorScore",
+          "bonus": 2
+        }
+      ],
+      "auto": true
+    },
+    {
+      "id": "emberbolt",
+      "name": "Emberbolt",
+      "source": {
+        "kind": "domainCard",
+        "card": "emberbolt"
+      },
+      "text": "A thrown coal of fire. Your spells deal more damage.",
+      "kind": "passive",
+      "cost": {},
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [
+        {
+          "stat": "spellcastRoll",
+          "bonus": 1
+        }
+      ],
+      "auto": true
+    },
+    {
+      "id": "healing-word",
+      "name": "Healing Word",
+      "source": {
+        "kind": "domainCard",
+        "card": "healing-word"
+      },
+      "text": "Speak an ally steady: they clear a Stress.",
+      "kind": "action",
+      "cost": {
+        "stress": 1
+      },
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [],
+      "auto": true
+    },
+    {
+      "id": "warding-flame",
+      "name": "Warding Flame",
+      "source": {
+        "kind": "domainCard",
+        "card": "warding-flame"
+      },
+      "text": "A ring of low fire. Foes crossing it are struck as they come.",
+      "kind": "action",
+      "cost": {
+        "stress": 1
+      },
+      "target": {
+        "kind": "self",
+        "range": "melee"
+      },
+      "inCombatOnly": true,
+      "action": true,
+      "effects": [
+        {
+          "kind": "log",
+          "text": "Low fire takes in a ring around their feet.",
+          "tone": "hope"
+        },
+        {
+          "kind": "zone",
+          "zone": "warding-flame",
+          "name": "Warding Flame",
+          "condition": "warding-flame-ring",
+          "at": "actor",
+          "band": "melee",
+          "side": "adversaries",
+          "onDeath": "end"
+        }
+      ],
+      "modifiers": [],
+      "auto": true
+    },
+    {
+      "id": "cinder-burst",
+      "name": "Cinder Burst",
+      "source": {
+        "kind": "domainCard",
+        "card": "cinder-burst"
+      },
+      "text": "Fire blooms: every foe within Very Close of a point takes damage.",
+      "kind": "action",
+      "cost": {
+        "stress": 1
+      },
+      "target": {
+        "kind": "point",
+        "range": "far"
+      },
+      "inCombatOnly": true,
+      "action": true,
+      "effects": [
+        {
+          "kind": "log",
+          "text": "They choose a spot across the room, and it blooms.",
+          "tone": "hope"
+        },
+        {
+          "kind": "check",
+          "check": {
+            "trait": "spellcast",
+            "difficulty": "target",
+            "targets": {
+              "kind": "adversaries",
+              "range": "veryClose",
+              "around": "point"
+            },
+            "prompt": "Cinder Burst: one roll, against everything the bloom covers.",
+            "always": [
+              {
+                "kind": "damage",
+                "dice": "1d10",
+                "type": "magic",
+                "using": "proficiency",
+                "target": {
+                  "kind": "hit"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "modifiers": [],
+      "auto": true
+    },
+    {
+      "id": "shield-wall",
+      "name": "Shield Wall",
+      "source": {
+        "kind": "domainCard",
+        "card": "shield-wall"
+      },
+      "text": "Until your next turn, allies within Melee range gain a bonus to Evasion.",
+      "kind": "action",
+      "cost": {
+        "stress": 1
+      },
+      "target": {
+        "kind": "ally",
+        "range": "melee"
+      },
+      "inCombatOnly": true,
+      "action": true,
+      "effects": [
+        {
+          "kind": "log",
+          "text": "A shield comes across, and there is somewhere to stand.",
+          "tone": "hope"
+        },
+        {
+          "kind": "applyCondition",
+          "condition": "behind-the-shield",
+          "duration": "scene",
+          "target": {
+            "kind": "target"
+          }
+        }
+      ],
+      "modifiers": [],
+      "auto": true
+    },
+    {
+      "id": "sentinel-drilled",
+      "name": "Drilled",
+      "source": {
+        "kind": "classFeature",
+        "classId": "sentinel"
+      },
+      "text": "Long practice in armour: your Armor Score is 1 higher.",
+      "kind": "passive",
+      "cost": {},
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [
+        {
+          "stat": "armorScore",
+          "bonus": 1
+        }
+      ],
+      "auto": true
+    },
+    {
+      "id": "shieldbearer-set-feet",
+      "name": "Set Feet",
+      "source": {
+        "kind": "subclass",
+        "subclassId": "shieldbearer",
+        "stage": "foundation"
+      },
+      "text": "You take a blow square rather than glancing: your damage thresholds are 1 higher.",
+      "kind": "passive",
+      "cost": {},
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [
+        {
+          "stat": "thresholds",
+          "bonus": 1
+        }
+      ],
+      "auto": true
+    },
+    {
+      "id": "lampsnuffer-softstep",
+      "name": "Softstep",
+      "source": {
+        "kind": "subclass",
+        "subclassId": "lampsnuffer",
+        "stage": "foundation"
+      },
+      "text": "You are never quite where the eye expects: your Evasion is 1 higher.",
+      "kind": "passive",
+      "cost": {},
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [
+        {
+          "stat": "evasion",
+          "bonus": 1
+        }
+      ],
+      "auto": true
+    },
+    {
+      "id": "sentinel-hold-the-line",
+      "name": "Hold the Line",
+      "source": {
+        "kind": "classFeature",
+        "classId": "sentinel"
+      },
+      "text": "When an ally within Melee range is attacked, you may take the blow in their place.",
+      "kind": "action",
+      "cost": {
+        "stress": 1
+      },
+      "target": {
+        "kind": "self",
+        "range": "melee"
+      },
+      "inCombatOnly": true,
+      "action": false,
+      "effects": [
+        {
+          "kind": "log",
+          "text": "They set their feet, and the ground around them stops being neutral.",
+          "tone": "hope"
+        },
+        {
+          "kind": "applyCondition",
+          "condition": "holding-the-line",
+          "duration": "scene",
+          "target": {
+            "kind": "actor"
+          }
+        },
+        {
+          "kind": "zone",
+          "zone": "hold-the-line",
+          "name": "Hold the Line",
+          "condition": "caught-in-the-line",
+          "at": "actor",
+          "band": "veryClose",
+          "side": "adversaries",
+          "onDeath": "end"
+        }
+      ],
+      "modifiers": [],
+      "auto": true
+    },
+    {
+      "id": "flamecaller-emberflow",
+      "name": "Emberflow",
+      "source": {
+        "kind": "subclass",
+        "subclassId": "flamecaller",
+        "stage": "foundation"
+      },
+      "text": "The heat answers quickly: your spellcast rolls are 1 higher.",
+      "kind": "passive",
+      "cost": {},
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [],
+      "modifiers": [
+        {
+          "stat": "spellcastRoll",
+          "bonus": 1
+        }
+      ],
+      "auto": true
+    },
+    {
+      "id": "sentinel-hold-fast",
+      "name": "Hold Fast",
+      "source": {
+        "kind": "classHope",
+        "classId": "sentinel"
+      },
+      "text": "Spend 3 Hope to clear 2 Armor Slots.",
+      "kind": "action",
+      "cost": {
+        "hope": 3
+      },
+      "target": {
+        "kind": "none",
+        "range": "melee"
+      },
+      "available": {
+        "kind": "pool",
+        "pool": "armorSlots",
+        "measure": "marked",
+        "op": ">=",
+        "value": 1
+      },
+      "inCombatOnly": false,
+      "action": false,
+      "effects": [
+        {
+          "kind": "clearArmor",
+          "amount": 2
+        }
+      ],
+      "modifiers": [],
+      "auto": true
+    },
+    {
+      "id": "rally-the-line",
+      "name": "Rally the Line",
+      "source": {
+        "kind": "granted",
+        "characters": [
+          "kara"
+        ]
+      },
+      "text": "Spend a Hope: every ally within Close range shakes something off — a Hit Point if they are badly hurt, a Stress if they are not.",
+      "kind": "action",
+      "cost": {
+        "hope": 1
+      },
+      "target": {
+        "kind": "self",
+        "range": "close"
+      },
+      "inCombatOnly": false,
+      "action": true,
+      "effects": [
+        {
+          "kind": "run",
+          "hook": "rally-the-line"
+        }
+      ],
+      "modifiers": [],
+      "auto": true
+    }
+  ],
+  "code": [
+    {
+      "id": "rally-the-line",
+      "name": "Rally the Line",
+      "notes": "Each ally in Close range clears a Hit Point when badly hurt, a Stress otherwise.",
+      "source": "// ctx.select takes the same selectors content writes.\nvar allies = ctx.select({ kind: 'allies', range: 'close', includeSelf: true });\nif (allies.length === 0) {\n  ctx.log('Nobody stands close enough to rally.', 'system');\n  return false;\n}\nvar effects = [];\nfor (var i = 0; i < allies.length; i++) {\n  var id = allies[i];\n  var marked = ctx.pool(id, 'hitPoints', 'marked') || 0;\n  var max = ctx.pool(id, 'hitPoints', 'max') || 1;\n  var who = { kind: 'entity', id: id };\n  // More than half their Hit Points marked: the wound is the urgent thing.\n  effects.push(marked * 2 > max\n    ? { kind: 'heal', amount: 1, target: who }\n    : { kind: 'clearStress', amount: 1, target: who });\n}\nctx.log('The line steadies.', 'hope');\nctx.queue(effects);\nreturn true;"
+    }
+  ],
+  "conditionDefs": [
+    {
+      "id": "warding-flame-ring",
+      "name": "Warding Flame",
+      "text": "Low fire on the ground: anything that comes through it is struck as it comes.",
+      "color": "#ff8a3d",
+      "modifiers": [],
+      "blocks": [],
+      "onEnter": {
+        "effects": [
+          {
+            "kind": "log",
+            "text": "The flame takes them as they come through it.",
+            "tone": "combat"
+          },
+          {
+            "kind": "damage",
+            "dice": "1d8",
+            "type": "magic",
+            "target": {
+              "kind": "target"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "behind-the-shield",
+      "name": "Behind the Shield",
+      "text": "Somebody is holding a shield between you and the room: +1 to your Evasion.",
+      "color": "#6fa8d0",
+      "modifiers": [
+        {
+          "stat": "evasion",
+          "bonus": 1
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "vulnerable",
+      "name": "Vulnerable",
+      "text": "All rolls targeting you have advantage.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "hidden",
+      "name": "Hidden",
+      "text": "Any rolls against you have disadvantage.",
+      "modifiers": [],
+      "blocks": [],
+      "endsWhen": "attacks"
+    },
+    {
+      "id": "restrained",
+      "name": "Restrained",
+      "text": "You can't move until this condition is cleared, but you can still take actions from your current position.",
+      "modifiers": [],
+      "blocks": [
+        "move"
+      ]
+    },
+    {
+      "id": "rooted",
+      "name": "Rooted",
+      "text": "Rooted in place, so that physical damage is halved.",
+      "modifiers": [],
+      "defenses": {
+        "resistances": [
+          "physical"
+        ]
+      },
+      "blocks": []
+    },
+    {
+      "id": "smiting",
+      "name": "Smiting",
+      "text": "A smite is charged, and the next weapon attack that lands spends it.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "shield-aura",
+      "name": "Shield Aura",
+      "text": "When you mark an Armor Slot, you reduce the severity of the attack by an additional threshold.",
+      "modifiers": [],
+      "blocks": [],
+      "armor": {
+        "steps": 1,
+        "endsWhenItSaves": true
+      }
+    },
+    {
+      "id": "wise-to-discord",
+      "name": "Wise to Discord",
+      "text": "They have been whispered to once, and are harder to whisper to again.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "led-by-example",
+      "name": "Led by Example",
+      "text": "The next PC to attack them can clear a Stress or gain a Hope.",
+      "modifiers": [],
+      "blocks": [],
+      "payout": {
+        "on": "attacked",
+        "effects": [
+          {
+            "kind": "choice",
+            "title": "They led by example",
+            "body": "Take heart from it.",
+            "options": [
+              {
+                "label": "Clear a Stress",
+                "effects": [
+                  {
+                    "kind": "clearStress",
+                    "amount": 1,
+                    "target": {
+                      "kind": "actor"
+                    }
+                  }
+                ]
+              },
+              {
+                "label": "Gain a Hope",
+                "effects": [
+                  {
+                    "kind": "gainHope",
+                    "amount": 1,
+                    "target": {
+                      "kind": "actor"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "invisible",
+      "name": "Invisible",
+      "text": "Not there to look at: attack rolls against you are made with disadvantage.",
+      "modifiers": [
+        {
+          "stat": "advantage",
+          "bonus": -1,
+          "against": true
+        }
+      ],
+      "blocks": [],
+      "grants": {
+        "ability": "invisibility-spends"
+      }
+    },
+    {
+      "id": "strategic-advantage",
+      "name": "Strategic Approach",
+      "text": "You have picked your line: your next attack is made with advantage.",
+      "modifiers": [
+        {
+          "stat": "advantage",
+          "bonus": 1
+        }
+      ],
+      "blocks": [],
+      "endsWhen": "attacks"
+    },
+    {
+      "id": "strategic-force",
+      "name": "Strategic Approach",
+      "text": "You have picked your moment: a d8 goes behind the next blow that lands.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "vitality-stress",
+      "name": "Hardened",
+      "text": "One more Stress than you had.",
+      "modifiers": [
+        {
+          "stat": "stress",
+          "bonus": 1
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "vitality-hit-points",
+      "name": "Toughened",
+      "text": "One more Hit Point than you had.",
+      "modifiers": [
+        {
+          "stat": "hitPoints",
+          "bonus": 1
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "vitality-thresholds",
+      "name": "Seasoned",
+      "text": "Blows land two points further up your thresholds.",
+      "modifiers": [
+        {
+          "stat": "thresholds",
+          "bonus": 2
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "signature-move",
+      "name": "Signature Move",
+      "text": "The move you are known for: your next action roll throws a d20 as its Hope Die.",
+      "modifiers": [],
+      "hopeDie": {
+        "sides": 20
+      },
+      "blocks": []
+    },
+    {
+      "id": "sandstormed",
+      "name": "Sandstormed",
+      "text": "Lost in blowing sand: attacks aimed at you are made with disadvantage.",
+      "modifiers": [
+        {
+          "stat": "advantage",
+          "bonus": -1,
+          "against": true
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "force-of-nature",
+      "name": "Force of Nature",
+      "text": "A hulking nature spirit: +10 to damage rolls, and a Hope for every action roll made.",
+      "modifiers": [
+        {
+          "stat": "damageRoll",
+          "bonus": 10
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "wall-of-flame",
+      "name": "Wall of Flame",
+      "text": "A standing sheet of magical fire: anything that passes through it takes 4d10+3 magic damage.",
+      "color": "#ff7a3a",
+      "modifiers": [],
+      "blocks": [],
+      "onEnter": {
+        "effects": [
+          {
+            "kind": "log",
+            "text": "They come through the flame, and the flame notices.",
+            "tone": "fear"
+          },
+          {
+            "kind": "damage",
+            "dice": "4d10+3",
+            "type": "magic",
+            "target": {
+              "kind": "target"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "time-stopped",
+      "name": "Stopped in Time",
+      "text": "Time is not moving for you. You can do nothing at all until it starts again.",
+      "modifiers": [],
+      "blocks": [
+        "act",
+        "move",
+        "reactions"
+      ]
+    },
+    {
+      "id": "time-jamming",
+      "name": "Timejammer",
+      "text": "Time is held still around you, and your next action roll lets it go.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "magic-immune",
+      "name": "Immune to Magic",
+      "text": "Magic damage does nothing to you until your next rest.",
+      "modifiers": [],
+      "defenses": {
+        "immunities": [
+          "magic"
+        ]
+      },
+      "blocks": []
+    },
+    {
+      "id": "sitil-echo",
+      "name": "Echoing Strike",
+      "text": "The next attack you make also reaches one more target its roll would have beaten.",
+      "modifiers": [],
+      "blocks": [],
+      "grants": {
+        "ability": "book-of-sitil-echo-strikes"
+      }
+    },
+    {
+      "id": "holding-the-line",
+      "name": "Holding the Line",
+      "text": "A stance taken and kept: anything that comes within Very Close is dragged into reach and held there.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "caught-in-the-line",
+      "name": "Caught",
+      "text": "Dragged into reach of the one holding this ground.",
+      "color": "#e0b04a",
+      "modifiers": [],
+      "blocks": [],
+      "onEnter": {
+        "effects": [
+          {
+            "kind": "log",
+            "text": "They come one step too close and are hauled the rest of the way in.",
+            "tone": "combat"
+          },
+          {
+            "kind": "move",
+            "who": {
+              "kind": "target"
+            },
+            "how": "toward",
+            "of": {
+              "kind": "actor"
+            },
+            "range": "melee",
+            "budget": "veryClose"
+          },
+          {
+            "kind": "applyCondition",
+            "condition": "restrained",
+            "duration": "temporary",
+            "target": {
+              "kind": "target"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "korvax-circle",
+      "name": "Magic Circle",
+      "text": "Ground that answers anybody who steps onto it: 2d12+4 magic damage, and knocked back.",
+      "color": "#b46cff",
+      "modifiers": [],
+      "blocks": [],
+      "onEnter": {
+        "effects": [
+          {
+            "kind": "log",
+            "text": "The circle takes them as they cross it.",
+            "tone": "fear"
+          },
+          {
+            "kind": "damage",
+            "dice": "2d12+4",
+            "type": "magic",
+            "target": {
+              "kind": "target"
+            }
+          },
+          {
+            "kind": "push",
+            "to": "veryClose",
+            "target": {
+              "kind": "target"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "full-surge",
+      "name": "Full Surge",
+      "text": "Pushed past what the body would usually allow: +2 to every action roll.",
+      "modifiers": [
+        {
+          "stat": "actionRoll",
+          "bonus": 2
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "wild-surging",
+      "name": "Wild Surge",
+      "text": "The Wild Surge Die is active: its value is added to every action roll you make.",
+      "modifiers": [
+        {
+          "stat": "actionRoll",
+          "bonus": 1,
+          "perToken": "wild-surge"
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "goaded",
+      "name": "Goaded",
+      "text": "Taunted into a swing they have not thought through: their next attack is made with disadvantage.",
+      "modifiers": [
+        {
+          "stat": "advantage",
+          "bonus": -1
+        }
+      ],
+      "blocks": [],
+      "endsWhen": "attacks"
+    },
+    {
+      "id": "overwhelming-aura",
+      "name": "Overwhelming Aura",
+      "text": "An adversary must mark a Stress when they target you with an attack.",
+      "modifiers": [],
+      "blocks": [],
+      "payout": {
+        "on": "attacked",
+        "auto": true,
+        "keeps": true,
+        "effects": [
+          {
+            "kind": "markStress",
+            "amount": 1,
+            "target": {
+              "kind": "actor"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "zone-of-protection",
+      "name": "Zone of Protection",
+      "text": "Damage taken here is reduced by the value of the die on the card.",
+      "color": "#6ed6a0",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "in-shadow",
+      "name": "In Shadow",
+      "text": "Attack rolls have disadvantage when targeting you.",
+      "color": "#5a4b8a",
+      "modifiers": [
+        {
+          "stat": "advantage",
+          "bonus": -1,
+          "against": true
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "shadowed",
+      "name": "Shadowed",
+      "text": "When somebody succeeds with Hope against you here, you must mark a Stress.",
+      "color": "#3d3358",
+      "modifiers": [],
+      "blocks": [],
+      "payout": {
+        "on": "attacked",
+        "when": {
+          "kind": "all",
+          "of": [
+            {
+              "kind": "rolled",
+              "is": "success"
+            },
+            {
+              "kind": "rolled",
+              "is": "withHope"
+            }
+          ]
+        },
+        "auto": true,
+        "effects": [
+          {
+            "kind": "log",
+            "text": "The dark closes on them.",
+            "tone": "hope"
+          },
+          {
+            "kind": "markStress",
+            "amount": 1,
+            "target": {
+              "kind": "target"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "life-ward",
+      "name": "Life Ward",
+      "text": "When you would make a death move, you clear a Hit Point instead.",
+      "modifiers": [],
+      "blocks": [],
+      "insteadOfDeath": {
+        "clears": 1,
+        "says": "The sigil takes it, and goes out."
+      }
+    },
+    {
+      "id": "inevitable",
+      "name": "Inevitable",
+      "text": "Your next action roll has advantage.",
+      "modifiers": [
+        {
+          "stat": "advantage",
+          "bonus": 1,
+          "anyRoll": true
+        }
+      ],
+      "blocks": [],
+      "endsWhen": "rolls"
+    },
+    {
+      "id": "stunned",
+      "name": "Stunned",
+      "text": "You can't use reactions and can't take any other actions until you clear this condition.",
+      "modifiers": [],
+      "blocks": [
+        "act",
+        "reactions"
+      ]
+    },
+    {
+      "id": "asleep",
+      "name": "Asleep",
+      "text": "Asleep until you take damage or the GM spends a Fear to clear it.",
+      "modifiers": [],
+      "blocks": [
+        "act",
+        "move"
+      ],
+      "endsWhen": "damaged"
+    },
+    {
+      "id": "on-fire",
+      "name": "On Fire",
+      "text": "When you act while On Fire, you take an extra 2d6 magic damage if you are still On Fire at the end of your action.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "frenzied",
+      "name": "Frenzied",
+      "text": "You cannot use Armor Slots, you deal ten more damage, and you are far harder to put down.",
+      "modifiers": [
+        {
+          "stat": "damageRoll",
+          "bonus": 10
+        },
+        {
+          "stat": "severeThreshold",
+          "bonus": 8
+        }
+      ],
+      "blocks": [
+        "armor"
+      ]
+    },
+    {
+      "id": "spectral",
+      "name": "Spectral",
+      "text": "You are barely here: physical damage passes through you.",
+      "modifiers": [],
+      "defenses": {
+        "immunities": [
+          "physical"
+        ]
+      },
+      "blocks": [],
+      "endsWhen": "attacks"
+    },
+    {
+      "id": "poised",
+      "name": "Poised",
+      "text": "You arrived exactly where you meant to. Your next attack is surer for it.",
+      "modifiers": [
+        {
+          "stat": "attackRoll",
+          "bonus": 1
+        }
+      ],
+      "blocks": [],
+      "endsWhen": "attacks"
+    },
+    {
+      "id": "focused",
+      "name": "Focused",
+      "text": "All of your attention is on one creature, and your weapon knows it.",
+      "modifiers": [
+        {
+          "stat": "proficiency",
+          "bonus": 1
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "inspired",
+      "name": "Inspired",
+      "text": "Somebody called out, and you believe them: your attacks have advantage.",
+      "modifiers": [
+        {
+          "stat": "advantage",
+          "bonus": 1
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "horrified",
+      "name": "Horrified",
+      "text": "What you are looking at cannot be looked away from. You are Vulnerable.",
+      "modifiers": [
+        {
+          "stat": "advantage",
+          "bonus": 1,
+          "against": true,
+          "anyRoll": true
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "poisoned",
+      "name": "Poisoned",
+      "text": "Venom is working through you.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "broken",
+      "name": "Broken",
+      "text": "Something in your guard has given way, and the next blow knows where.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "sigiled",
+      "name": "Sigiled",
+      "text": "A sigil of retribution is on you, and it is keeping count.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "tolled",
+      "name": "Tolled",
+      "text": "A toll hangs over you, and the one who set it is counting.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "enraptured",
+      "name": "Enraptured",
+      "text": "Your attention is fixed on the one who enraptured you, and nothing else reaches you.",
+      "modifiers": [
+        {
+          "stat": "evasion",
+          "bonus": -2
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "glyphed",
+      "name": "Glyphed",
+      "text": "A dark glyph on your body exposes your weak points.",
+      "modifiers": [
+        {
+          "stat": "evasion",
+          "bonus": -2
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "entranced",
+      "name": "Entranced",
+      "text": "You are held by the Siren's song until you mark 2 Stress.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "guilty",
+      "name": "Guilty",
+      "text": "You are Guilty in the eyes of the Seraph's god: you gain no Hope on a result with Hope.",
+      "modifiers": [],
+      "blocks": []
+    },
+    {
+      "id": "chilled",
+      "name": "Chilled",
+      "text": "While Chilled, you have disadvantage on attack rolls.",
+      "modifiers": [
+        {
+          "stat": "advantage",
+          "bonus": -1
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "tavas-armor",
+      "name": "Tava's Armor",
+      "text": "+1 to your Armor Score until your next rest.",
+      "modifiers": [
+        {
+          "stat": "armorScore",
+          "bonus": 1
+        }
+      ],
+      "blocks": []
+    },
+    {
+      "id": "dodging",
+      "name": "Rogue's Dodge",
+      "text": "+2 to your Evasion until the next time an attack succeeds against you.",
+      "modifiers": [
+        {
+          "stat": "evasion",
+          "bonus": 2
+        }
+      ],
+      "blocks": [],
+      "endsWhen": "hit"
+    }
+  ],
+  "party": [
+    {
+      "id": "kara",
+      "name": "Kara",
+      "level": 1,
+      "classId": "sentinel",
+      "ancestryId": "stoneborn",
+      "communityId": "wayfarer",
+      "traits": {
+        "agility": 0,
+        "strength": 2,
+        "finesse": 0,
+        "instinct": 1,
+        "presence": 1,
+        "knowledge": -1
+      },
+      "proficiency": 1,
+      "primaryWeaponId": "longsword",
+      "armorId": "ringmail",
+      "experiences": [
+        {
+          "name": "Held the line",
+          "modifier": 2
+        }
+      ],
+      "subclassId": "shieldbearer",
+      "domainCards": [
+        "power-slash",
+        "iron-stance"
+      ]
+    },
+    {
+      "id": "finn",
+      "name": "Finn",
+      "level": 1,
+      "classId": "cutpurse",
+      "ancestryId": "sylvan",
+      "communityId": "guildsworn",
+      "traits": {
+        "agility": 2,
+        "strength": -1,
+        "finesse": 2,
+        "instinct": 1,
+        "presence": 0,
+        "knowledge": 0
+      },
+      "proficiency": 1,
+      "primaryWeaponId": "hunting-bow",
+      "armorId": "padded-coat",
+      "experiences": [
+        {
+          "name": "Knows a locksmith",
+          "modifier": 2
+        }
+      ],
+      "subclassId": "lampsnuffer",
+      "domainCards": [
+        "quick-hands",
+        "backstab"
+      ]
+    },
+    {
+      "id": "mira",
+      "name": "Mira",
+      "level": 1,
+      "classId": "emberwright",
+      "ancestryId": "human",
+      "communityId": "guildsworn",
+      "traits": {
+        "agility": 0,
+        "strength": -1,
+        "finesse": 1,
+        "instinct": 2,
+        "presence": 1,
+        "knowledge": 2
+      },
+      "proficiency": 1,
+      "primaryWeaponId": "ember-staff",
+      "armorId": "padded-coat",
+      "experiences": [
+        {
+          "name": "Read the old script",
+          "modifier": 2
+        }
+      ],
+      "subclassId": "flamecaller",
+      "domainCards": [
+        "arcane-ward",
+        "healing-word"
+      ]
+    }
+  ],
+  "startScene": "the-husk-vault"
+}
