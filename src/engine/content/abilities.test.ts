@@ -1,34 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { importContentPack } from './pack/import';
-import { SRD_ABILITIES } from './srd/abilities';
+import { STARTER_ABILITIES, STARTER_CHARACTERS } from './pack/starter';
 import { abilitiesFor, abilitySchema, isScripted, loadoutOf, vaultOf, LOADOUT_LIMIT, type AbilityDef } from './abilities';
 import { blankSheet, deriveCharacter, type CharacterSheet } from '../character/sheet';
 import { levelUp } from '../character/progression';
 
 /**
  * Abilities as content: the schema's defaults, which of a character's cards
- * count, and that every scripted SRD card names a card the SRD content has.
+ * count, and the order a sheet lists what a character has.
+ *
+ * What the shipped catalogue itself contains is `abilities-catalogue.test.ts`,
+ * which leaves when the catalogue does.
  */
 
-const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
-const read = (name: string): unknown[] =>
-  JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
-const content = importContentPack({
-  weapons: read('weapons'),
-  armors: read('armors'),
-  classes: read('classes'),
-  ancestries: read('ancestries'),
-  communities: read('communities'),
-  subclasses: read('subclasses'),
-  domainCards: read('domain-cards'),
-}).content;
+// The pack the app ships. Which class and which cards these are belongs to the
+// pack; what is being checked here is the engine reading any of them.
+const content = STARTER_CHARACTERS;
 
 const kara = (overrides: Partial<CharacterSheet> = {}): CharacterSheet =>
-  blankSheet('kara', 'guardian', {
-    subclassId: 'stalwart',
-    domainCards: ['bare-bones', 'get-back-up'],
+  blankSheet('kara', 'sentinel', {
+    subclassId: 'shieldbearer',
+    domainCards: ['power-slash', 'iron-stance'],
     experiences: [{ name: 'Held the line', modifier: 2 }],
     ...overrides,
   });
@@ -36,44 +27,37 @@ const derive = (sheet: CharacterSheet) => deriveCharacter(sheet, content).charac
 
 describe('the schema', () => {
   it('fills in the defaults a plain card needs', () => {
-    const parsed = abilitySchema.parse({ id: 'x', name: 'X', source: { kind: 'domainCard', card: 'bare-bones' } });
+    const parsed = abilitySchema.parse({ id: 'x', name: 'X', source: { kind: 'domainCard', card: 'power-slash' } });
     expect(parsed).toMatchObject({ kind: 'action', cost: {}, target: { kind: 'none', range: 'melee' }, effects: [], modifiers: [], action: true, inCombatOnly: false });
     expect(isScripted(parsed)).toBe(false);
-  });
-
-  it('ships a library whose every entry parses and names real content', () => {
-    for (const ability of SRD_ABILITIES) {
-      expect(() => abilitySchema.parse(ability)).not.toThrow();
-      const source = ability.source;
-      if (source.kind === 'domainCard') expect(content.domainCards.has(source.card), ability.id).toBe(true);
-      if (source.kind === 'classHope' || source.kind === 'classFeature') expect(content.classes.has(source.classId), ability.id).toBe(true);
-      if (source.kind === 'subclass') expect(content.subclasses.has(source.subclassId), ability.id).toBe(true);
-    }
-    expect(new Set(SRD_ABILITIES.map((a) => a.id)).size).toBe(SRD_ABILITIES.length);
   });
 });
 
 describe('the loadout', () => {
   it('is the first five held unless the sheet says otherwise, and drops cards no longer held', () => {
     const two = derive(kara());
-    expect(loadoutOf(two)).toEqual(['bare-bones', 'get-back-up']);
+    expect(loadoutOf(two)).toEqual(['power-slash', 'iron-stance']);
     expect(vaultOf(two)).toEqual([]);
-    const six = derive(kara({ domainCards: ['bare-bones', 'get-back-up', 'forceful-push', 'i-am-your-shield', 'whirlwind', 'not-good-enough'] }));
+    // Five bulwark cards and a shadow one. Held cards are not domain-gated -- only a
+    // card a LEVEL grants is -- so the sixth is what lands in the vault.
+    const six = derive(kara({ domainCards: ['power-slash', 'iron-stance', 'shield-wall', 'rallying-cry', 'unbroken', 'smoke-step'] }));
     expect(loadoutOf(six)).toHaveLength(LOADOUT_LIMIT);
-    expect(vaultOf(six)).toEqual(['not-good-enough']);
-    const chosen = derive(kara({ domainCards: ['bare-bones', 'get-back-up', 'forceful-push'], loadout: ['forceful-push', 'reckless', 'bare-bones'] }));
-    expect(loadoutOf(chosen)).toEqual(['forceful-push', 'bare-bones']);
-    expect(vaultOf(chosen)).toEqual(['get-back-up']);
+    expect(vaultOf(six)).toEqual(['smoke-step']);
+    // A loadout naming a card that is not held: it is dropped rather than conjured.
+    const chosen = derive(kara({ domainCards: ['power-slash', 'iron-stance', 'shield-wall'], loadout: ['shield-wall', 'quick-hands', 'power-slash'] }));
+    expect(loadoutOf(chosen)).toEqual(['shield-wall', 'power-slash']);
+    expect(vaultOf(chosen)).toEqual(['iron-stance']);
   });
 
   it('includes the card a level grants', () => {
     const levelled = levelUp(kara(), content, {
       advancements: [{ kind: 'hitPoint' }, { kind: 'stress' }],
-      domainCard: 'forceful-push',
+      // Bulwark, level 2, and not already held: what `cardAllowed` asks of a grant.
+      domainCard: 'rallying-cry',
       experience: { name: 'Vault-born', modifier: 2 },
     });
     expect(levelled.issues).toEqual([]);
-    expect(loadoutOf(derive(levelled.sheet))).toEqual(['bare-bones', 'get-back-up', 'forceful-push']);
+    expect(loadoutOf(derive(levelled.sheet))).toEqual(['power-slash', 'iron-stance', 'rallying-cry']);
   });
 });
 
@@ -81,34 +65,42 @@ describe('abilitiesFor', () => {
   const custom: AbilityDef[] = [
     abilitySchema.parse({ id: 'own', name: 'Own', source: { kind: 'granted', characters: ['kara'] } }),
     abilitySchema.parse({ id: 'theirs', name: 'Theirs', source: { kind: 'granted', characters: ['mira'] } }),
-    abilitySchema.parse({ id: 'stalwart-iron', name: 'Iron Will', source: { kind: 'subclass', subclassId: 'stalwart', stage: 'foundation' } }),
-    abilitySchema.parse({ id: 'stalwart-partners', name: 'Partners', source: { kind: 'subclass', subclassId: 'stalwart', stage: 'specialization' } }),
+    // The pack ships no classHope and no specialization ability, though every
+    // starter subclass prints all three stages. This array exists to supply the
+    // sources the content does not, which is why these two are written here.
+    abilitySchema.parse({ id: 'sentinel-second-wind', name: 'Second Wind', source: { kind: 'classHope', classId: 'sentinel' } }),
+    abilitySchema.parse({ id: 'shieldbearer-iron', name: 'Iron Will', source: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'foundation' } }),
+    abilitySchema.parse({ id: 'shieldbearer-partners', name: 'Partners', source: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'specialization' } }),
   ];
 
   it('orders class, Hope, subclass by stage reached, then the loadout', () => {
-    const ids = abilitiesFor(derive(kara()), [...SRD_ABILITIES, ...custom]).map((a) => a.id);
-    expect(ids).toEqual(['guardian-frontline-tank', 'stalwart-unwavering', 'stalwart-iron-will', 'stalwart-iron', 'bare-bones', 'get-back-up', 'own']);
+    const ids = abilitiesFor(derive(kara()), [...STARTER_ABILITIES, ...custom]).map((a) => a.id);
+    expect(ids).toEqual([
+      'sentinel-drilled',
+      'sentinel-hold-the-line',
+      'sentinel-second-wind',
+      'shieldbearer-set-feet',
+      'shieldbearer-iron',
+      'power-slash',
+      'iron-stance',
+      'own',
+    ]);
   });
 
   it('leaves out vaulted cards and unreached subclass stages', () => {
-    const six = derive(kara({ domainCards: ['bare-bones', 'get-back-up', 'forceful-push', 'i-am-your-shield', 'whirlwind', 'not-good-enough'] }));
-    const ids = abilitiesFor(six, [...SRD_ABILITIES, ...custom]).map((a) => a.id);
-    expect(ids).not.toContain('not-good-enough');
-    expect(ids).not.toContain('stalwart-partners');
+    // The sixth card carries an ability on purpose. Three of the pack's cards ship as
+    // text only, and one of those in this slot would be absent from the list whether
+    // the vault worked or not — passing for two reasons, and still passing if the
+    // vault stopped excluding anything.
+    const six = derive(kara({ domainCards: ['power-slash', 'iron-stance', 'shield-wall', 'rallying-cry', 'unbroken', 'backstab'] }));
+    const ids = abilitiesFor(six, [...STARTER_ABILITIES, ...custom]).map((a) => a.id);
+    expect(ids).not.toContain('backstab');
+    expect(ids).not.toContain('shieldbearer-partners');
     expect(ids).not.toContain('theirs');
-    expect(ids.indexOf('whirlwind')).toBeGreaterThan(ids.indexOf('forceful-push'));
-  });
-});
-
-describe('where the words come from', () => {
-  it('ships no card text of its own: a domain card\'s words are read from the vendored SRD content', () => {
-    for (const ability of SRD_ABILITIES) {
-      if (ability.source.kind === 'domainCard') expect(ability.text, ability.id).toBe('');
-    }
-    // A grimoire's spells are the card's named features, so a spell finds its own words.
-    const ava = content.domainCards.get('book-of-ava')!;
-    expect(ava.features.map((f) => f.name)).toEqual(['Power Push', "Tava's Armor", 'Ice Spike']);
-    expect(ava.features[0]!.text.startsWith('Make a Spellcast Roll against a target within Melee range.')).toBe(true);
-    expect(content.domainCards.get('bolt-beacon')!.features).toHaveLength(1);
+    // Both of these carry an ability, which is what makes them comparable here: a
+    // card the pack ships as text only is held and silent, so it never appears in
+    // this list at all. `rallying-cry` is one of those, and asking where it sits
+    // reads -1 rather than an order.
+    expect(ids.indexOf('unbroken')).toBeGreaterThan(ids.indexOf('shield-wall'));
   });
 });
