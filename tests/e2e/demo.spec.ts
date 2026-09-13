@@ -2307,6 +2307,40 @@ test("edits a copy of the pack's card, and the loadout plays the copy", async ({
   expect(consoleErrors).toEqual([]);
 });
 
+test("deletes a card of the project's own that no ability sits on, and no other kind", async ({ page }) => {
+  const consoleErrors = await boot(page);
+  page.on('dialog', (dialog) => void dialog.accept('Standard Bearer'));
+
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-abilities"]').click();
+  const panel = page.locator('[data-testid="ability-panel"]');
+  // Only the Text only list marks its cards with `data-card`; the cards above it are abilities.
+  const textOnly = panel;
+
+  // The pack's text card is not the project's to delete, and a copy of it is removed, not deleted.
+  await expect(panel.locator('[data-testid="text-only-cards"]')).toBeVisible();
+  await textOnly.locator('[data-card="rallying-cry"]').click();
+  await expect(panel.locator('[data-testid="card-delete"]')).toHaveCount(0);
+  await panel.locator('[data-testid="card-copy-pack"]').click();
+  await expect(panel.locator('[data-testid="card-delete"]')).toHaveCount(0);
+  await panel.locator('[data-testid="card-remove-copy"]').click();
+
+  // A card of the project's own, granted by a class, keeps its card when its ability goes.
+  await panel.locator('[data-testid="add-ability"]').click();
+  await panel.locator('[data-testid="card-grant-kind"]').selectOption('class');
+  // Its ✕ is the button beside it in the list.
+  await panel.locator('[data-ability="standard-bearer"] + button[title="Delete this card"]').click();
+  await textOnly.locator('[data-card="standard-bearer"]').click();
+  await panel.locator('[data-testid="card-delete"]').click();
+  await expect(textOnly.locator('[data-card="standard-bearer"]')).toHaveCount(0);
+  expect(
+    await page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { cards: { id: string }[] }).cards.some((c) => c.id === 'standard-bearer')),
+  ).toBe(false);
+
+  expect(consoleErrors).toEqual([]);
+});
+
 test("takes the copy back out, and the table plays the pack's card again", async ({ page }) => {
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Standard Bearer'));

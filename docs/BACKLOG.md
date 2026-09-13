@@ -4,6 +4,20 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Delete a card of the project's own — done
+
+✕ on an ability takes its card with it only when the card is `given` and nothing else sits on it, so
+a card the project wrote and left without an ability -- one an imported pack brought as text, or one
+whose ability went after it was granted another way -- could only go by Undo. The text-only view now
+has **Delete card** (`removeCard`, the edit behind **Remove copy**) on a card of the project's own
+that the pack does not print: the pack's text cards are not the project's to delete, and a copy is
+removed, not deleted. Nothing new for **Check**: a character still holding a deleted card is already
+reported, since deriving their sheet misses it. The e2e finds no delete on the pack's card or its
+copy, grants a card of its own by a class, deletes its ability, and deletes the card left behind.
+
+`npx tsc --noEmit` clean; vitest **1866 passed (1866)**; Playwright **115 passed (4.2m)**, `EXIT 0`.
+Two breaks -- every text card offering Delete, and none -- each fail the e2e written for them.
+
 ## Movement Under Pressure — done
 
 The rule was written and tested, and nothing called it: a click past one move in a fight walked as
@@ -642,15 +656,7 @@ it in the matching `CRPG-GAPS.md` section as done, and re-pin the commit and sui
 header. A backlog nobody prunes is wrong within a week, and then it costs the next agent the startup
 time it was written to save.
 
-### 1. A project's own card can only be deleted by Undo
-
-✕ on an ability takes its card with it only when the card is `given` and nothing else sits on it
-(`removeCardWithAbility`, `editor/session.ts`). A card the project wrote that no ability sits on --
-one an imported pack brought as text, or one whose ability was deleted after it was granted some
-other way -- has no delete. `removeCard` already exists behind **Remove copy**; what is missing is a
-button beside it for a card the pack does not print. Check has nothing to add.
-
-### 2. Cards — what is left
+### 1. Cards — what is left
 
 The model, the zones, the card editor, text-only cards, pack import and export, and a condition
 lending a card are done: each has its entry at the top of this file, and the spec's §7 has the
@@ -667,7 +673,7 @@ decisions.
 **Not a licence to rebuild the catalogue with a card model instead of a list.** The IP constraints
 are untouched by this.
 
-### 3. Starter-pack depth
+### 2. Starter-pack depth
 
 The starter pack is sized to keep the game-layer tests meaningful, not to be a game: three classes
 of one domain each, generic ancestries, 15 chosen cards at levels 1 and 2 only (nine and six), and
@@ -682,7 +688,7 @@ about ten adversaries. Depth beyond that is a content slice, judged on what it a
 - No card is above level 2, which is why `progression.test.ts` climbs on a fixture
   (`tests/fixtures/characters.ts`) rather than on the pack.
 
-### 4. The editor rebuild
+### 3. The editor rebuild
 
 The user's direction of 2026-09-10, in five parts, each with its own spec, plan and slices:
 Shell + Inspector; 3D multi-level world; TaleSpire-style terrain; combat with factions; interaction
@@ -700,20 +706,20 @@ scale, seating, facing and four animation clips.
 first; part 1 slice 2's remaining edit-view items (objects, spawns, trigger cells) and a rotated
 prop-facing ghost during Alt.
 
-### 5. Materials for imported models
+### 4. Materials for imported models
 
 `CRPG-GAPS.md` §9. Textures arrive with a glTF file, but nothing authors materials: there is no way
 to tint one, swap a texture, or override what the file ships with. The file picker that was the other
 half of this item landed on 2026-09-12.
 
-### 6. Extend measured rendering budgets beyond construction
+### 5. Extend measured rendering budgets beyond construction
 
 Construction has chunk instancing, frustum/distance culling, three LODs and a tested residency
 budget (`render/building-view.ts`). Extend those to the legacy height field and props. Large
 populated worlds still need hardware FPS/memory profiling; geometry counters are available through
 `window.__engine.buildingStats()`.
 
-### 7. Zip project export
+### 6. Zip project export
 
 `fflate` is a dependency and is imported nowhere under `src/`. `CONTEXT.md`'s "zip import and export
 of projects with assets" is not implemented — export is `JSON.stringify` into a `Blob`, so a project

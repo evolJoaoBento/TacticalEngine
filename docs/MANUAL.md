@@ -597,7 +597,9 @@ decides, exactly as an unscripted SRD card is.
 imported pack brings without a script. Opening one shows the card's own **name** and **text** --
 editable once it is the project's, so a pack's card needs **Edit a copy** first -- and how it gets
 into play. **+ Script** writes the first ability on it, named for the card, and the card moves up
-into the list above, where its ability is edited like any other.
+into the list above, where its ability is edited like any other. A card of the project's own that
+the pack does not print also has **Delete card**, one undo step; a character still holding it is
+Check's to report.
 
 ### Items and loot
 

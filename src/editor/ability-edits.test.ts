@@ -5,6 +5,7 @@ import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/sch
 import { cardDefSchema } from '../engine/content/pack/schema';
 import { isDomainCard, mergePack } from '../engine/content/pack/import';
 import { STARTER_CHARACTERS } from '../engine/content/pack/starter';
+import { blankSheet } from '../engine/character/sheet';
 import {
   EditorSession,
   addAbility,
@@ -128,6 +129,26 @@ describe('cards in the project', () => {
       expect(loaded.cards.find((c) => c.id === 'oath')!.grant).toEqual(change.grant);
       expect(isDomainCard(mergePack(STARTER_CHARACTERS, loaded).cards.get('oath')!)).toBe(change.grant!.kind === 'chosen');
     }
+  });
+
+  it('deletes a card of the project\'s own, and Check says so of a sheet still holding it', () => {
+    const s = session();
+    s.project.cards.push(
+      cardDefSchema.parse({ id: 'oath', name: 'Oath', grant: { kind: 'chosen' }, domain: 'bulwark', type: 'ability', level: 1, recallCost: 0 }),
+    );
+    s.project.party.push(...projectSchema.parse({ ...project(), party: [blankSheet('kara', 'sentinel', { domainCards: ['oath'] })] }).party);
+    const said = () =>
+      validateProject(s.project, { characterContent: mergePack(STARTER_CHARACTERS, s.project) })
+        .filter((problem) => problem.message.includes('oath'))
+        .map((problem) => problem.severity);
+    expect(said()).toEqual([]);
+
+    expect(s.run(removeCard('oath'))).toBe(true);
+    expect(s.project.cards).toEqual([]);
+    // Kara still holds it: deleting a card does not reach into a sheet, and Check is where that shows.
+    expect(said()).toEqual(['error']);
+    s.undo();
+    expect(said()).toEqual([]);
   });
 
   it("takes the copy back out, and the pack's card is the one played again, with the abilities on it", () => {

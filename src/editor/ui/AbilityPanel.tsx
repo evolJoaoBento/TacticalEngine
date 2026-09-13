@@ -366,8 +366,8 @@ function GrantFields(props: {
 
 /**
  * A card no ability sits on: its own name and text, how it gets into play, and a button that writes
- * the first ability on it. The project's own card is edited where it stands; a pack's is read-only
- * until "Edit a copy" lays one into the project.
+ * the first ability on it. The project's own card is edited where it stands, and one the pack does
+ * not print can be deleted; a pack's is read-only until "Edit a copy" lays one into the project.
  */
 function CardDetail(props: {
   session: EditorSession;
@@ -429,6 +429,19 @@ function CardDetail(props: {
         >
           + Script
         </button>
+        {own && !props.pack.cards.has(props.card.id) ? (
+          <button
+            style={{ ...button(false), marginLeft: '8px' }}
+            data-testid="card-delete"
+            title="Take this card out of the project"
+            onClick={() => {
+              props.session.run(removeCard(props.card.id));
+              props.onChange();
+            }}
+          >
+            Delete card
+          </button>
+        ) : null}
       </div>
     </>
   );
