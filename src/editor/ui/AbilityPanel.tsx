@@ -10,12 +10,12 @@
  *
  * "+ Card" writes a card of the project's own and the ability on it. The card is
  * `given`: it names the characters who hold it, rather than a domain the deck
- * deals from, and "held by" edits that list on the card.
+ * deals from, and "held by" edits that list on the card. ✕ takes both back.
  */
 
 import { useState } from 'preact/hooks';
 import type { EditorSession } from '../session';
-import { addCardWithAbility, removeAbility, updateAbility, updateCard } from '../session';
+import { addCardWithAbility, removeCardWithAbility, updateAbility, updateCard } from '../session';
 import { abilitySchema, cardOf, type AbilityDef } from '../../engine/content/abilities';
 import { cardDefSchema } from '../../engine/content/pack/schema';
 import type { QuestDef } from '../../engine/content/quests';
@@ -156,7 +156,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
               title="Delete this card"
               onClick={() => {
                 if (!confirm(`Delete "${ability.name}"?`)) return;
-                session.run(removeAbility(ability.id));
+                session.run(removeCardWithAbility(ability.id));
                 if (openId === ability.id) setOpenId(null);
                 props.onChange();
               }}

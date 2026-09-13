@@ -551,7 +551,8 @@ under it, so a new character joins when the project is next loaded.
 **Write a card…** opens the Cards panel: the project's own cards, one at a time, beside a count
 of the ones the engine ships (those live in `content/pack/starter-abilities.ts` and are edited in
 code). **+ Card** writes two things as one undo step: a card of the project's own, handed to nobody
-yet, and the ability on it. **held by** names the characters that card is handed to -- it edits the
+yet, and the ability on it; **✕** takes both back, leaving a card anything else still needs.
+**held by** names the characters that card is handed to -- it edits the
 card, so it is greyed for an ability on a card a class grants or a character chooses. A card is its
 name, the text as printed, who holds it, whether it is an action, a
 reaction (and what it answers) or passive, what it costs in Light, Stress and Shadow, who it can be
@@ -617,8 +618,8 @@ cards do something and the conditions those abilities apply. Pick one file or se
 in turn, and a message says what each brought.
 
 - A pack is a JSON object carrying any of the lists `weapons`, `armors`, `classes`, `ancestries`,
-  `communities`, `subclasses`, `domainCards`, `adversaries`, `abilities` and `conditionDefs`, each
-  optional. A project file is a pack too: importing one takes its content and leaves its scenes.
+  `communities`, `subclasses`, `cards`, `adversaries`, `abilities` and `conditionDefs`, each
+  optional (`domainCards` in a file older than format version 3). A project file is a pack too: importing one takes its content and leaves its scenes.
 - An entry whose id the project already has **replaces** it where it stands; anything new is added.
   The message says how many were replaced.
 - An entry that cannot be read is left out and named in the message, and the rest of the file still
@@ -641,7 +642,7 @@ the buttons' tooltips name the step.
 
 ### Project document
 
-`formatVersion` (1) · `id` · `name` · `terrainPalette?` (id, name, passable, cost,
+`formatVersion` (3) · `id` · `name` · `terrainPalette?` (id, name, passable, cost,
 providesCover, blocksSight) · `scenes[]` · `dialogues[]` · `items[]` · `lootTables[]` ·
 `quests[]` · `abilities[]` · `conditionDefs[]` · `code[]` · `party[]` · `startScene`. All ids
 are stable kebab-case strings; duplicates are rejected.
@@ -1057,7 +1058,8 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   to the GM, the same as an attack; an object's check rolls with the party's best trait.
 - Travel rebuilds the whole scene view; fine for two rooms, not measured for fifty.
 - `story` renders as a single log line; its `button` field is ignored.
-- Project format is `formatVersion` 1 only; there is no migration. CONTEXT.md mentions zip
+- Project format is `formatVersion` 3; an older file is migrated as it is read, and a newer one is
+  refused. CONTEXT.md mentions zip
   packaging via fflate; only JSON save/load exists in the code read for this manual.
 
 ## 7. Licensing

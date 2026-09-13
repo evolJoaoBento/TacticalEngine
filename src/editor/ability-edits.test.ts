@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { abilitySchema } from '../engine/content/abilities';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
-import { EditorSession, addAbility, removeAbility, updateAbility } from './session';
+import { cardDefSchema } from '../engine/content/pack/schema';
+import { EditorSession, addAbility, addCardWithAbility, removeAbility, removeCardWithAbility, updateAbility } from './session';
 import { validateProject } from './validate';
 
 /**
@@ -61,6 +62,30 @@ describe('cards in the project', () => {
     const s = session();
     expect(s.run(removeAbility('nope'))).toBe(false);
     expect(s.canUndo).toBe(false);
+  });
+
+  it('deletes the card "+ Card" wrote with its ability, as one step, and no card anything else needs', () => {
+    const s = session();
+    const oath = (id: string, grant: Record<string, unknown>) => cardDefSchema.parse({ id, name: id, grant });
+    const on = (id: string, card: string) => abilitySchema.parse({ id, name: id, source: { card } });
+    s.run(addCardWithAbility(oath('oath', { kind: 'given', characters: ['kara'] }), on('oath', 'oath')));
+    expect(s.project.cards.map((c) => c.id)).toEqual(['oath']);
+
+    s.run(removeCardWithAbility('oath'));
+    expect(s.project.cards).toEqual([]);
+    expect(s.project.abilities.map((a) => a.id)).toEqual(['rally']);
+    s.undo();
+    expect(s.project.cards.map((c) => c.id)).toEqual(['oath']);
+    expect(s.project.abilities.map((a) => a.id)).toEqual(['rally', 'oath']);
+
+    // A card a class grants is not the author's to lose by deleting what it does; nor is a given
+    // card another ability still sits on.
+    s.run(addCardWithAbility(oath('drill', { kind: 'class', classId: 'sentinel' }), on('drill', 'drill')));
+    s.run(addAbility(on('oath-again', 'oath')));
+    s.run(removeCardWithAbility('drill'));
+    s.run(removeCardWithAbility('oath'));
+    expect(s.project.cards.map((c) => c.id)).toEqual(['oath', 'drill']);
+    expect(s.project.abilities.map((a) => a.id)).toEqual(['rally', 'oath-again']);
   });
 
   it('coalesces keystrokes in one field and starts again on another', () => {

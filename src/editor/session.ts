@@ -18,7 +18,7 @@
 import type { CodeDef, Deco, Encounter, Interactable, Point, ProjectDoc, SceneDoc } from '../engine/scene/schema';
 import type { Dialogue, DialogueChoice, DialogueNode } from '../engine/dialogue/schema';
 import type { QuestDef, QuestObjective } from '../engine/content/quests';
-import type { AbilityDef } from '../engine/content/abilities';
+import { cardOf, type AbilityDef } from '../engine/content/abilities';
 import type { ItemDef, LootTable } from '../engine/content/items';
 import type { ModelAsset } from '../engine/render/assets';
 import { PACK_LISTS, type PackDocument, type PackList } from '../engine/content/pack/document';
@@ -1737,6 +1737,41 @@ export function addCardWithAbility(card: ProjectCard, ability: AbilityDef): Edit
       if (at >= 0) project.abilities.splice(at, 1);
       const on = project.cards.lastIndexOf(card);
       if (on >= 0) project.cards.splice(on, 1);
+    },
+  };
+}
+
+/**
+ * Delete an ability, and the card it sits on when that card is one "+ Card" wrote: the project's
+ * own, handed to named characters, with nothing else sitting on it. A card a pack, a class or a
+ * loadout brings stays -- deleting what a card does is not deleting the card.
+ */
+export function removeCardWithAbility(abilityId: string): Edit {
+  let removed: { index: number; ability: AbilityDef } | null = null;
+  let dropped: { index: number; card: ProjectCard } | null = null;
+  return {
+    label: 'Delete card',
+    apply(project) {
+      removed = null;
+      dropped = null;
+      const index = project.abilities.findIndex((a) => a.id === abilityId);
+      if (index < 0) return;
+      const ability = project.abilities[index]!;
+      removed = { index, ability };
+      project.abilities.splice(index, 1);
+      const cardId = cardOf(ability);
+      const at = project.cards.findIndex((c) => c.id === cardId);
+      if (at < 0 || project.cards[at]!.grant.kind !== 'given') return;
+      if (project.abilities.some((a) => cardOf(a) === cardId)) return;
+      dropped = { index: at, card: project.cards[at]! };
+      project.cards.splice(at, 1);
+    },
+    undo(project) {
+      if (dropped !== null) project.cards.splice(dropped.index, 0, dropped.card);
+      if (removed !== null) project.abilities.splice(removed.index, 0, removed.ability);
+    },
+    isNoop() {
+      return removed === null;
     },
   };
 }

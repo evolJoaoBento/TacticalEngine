@@ -508,6 +508,9 @@ top of this file. What is left, in order:
   says so now. What is missing is the picture: granted cards face up beside the loadout.
 - **Editing any card.** A grant editor, and a card editor that reaches a card a pack or class
   grants, not only the `given` ones "+ Card" writes.
+- **Cheaper, not different:** the world's `cards` option is a closure that merges the pack on every
+  read. The live read that two tests pin is `inPlay` recomputing a character's granted cards; a map
+  built when the world is, if every content change rebuilds the world, would do. Measure first.
 - **Open, not decided:** a condition that lends a *card* rather than an ability
   (`conditionDefSchema.grants`), and whether a card handed over mid-fight should be announced.
 

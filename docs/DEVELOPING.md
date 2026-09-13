@@ -417,7 +417,7 @@ and successes each read the right list however the next roll goes.
 | `SceneState` | `engine/scene/state.ts` | The whole runtime overlay, keyed by content id, plus the tile occupancy index and the GM's Shadow. Serialises through `sceneSnapshotSchema`. |
 | `JournalEntry` | `engine/script/runner.ts` | One thing that happened, as a tagged union of ~30 variants. A UI renders these; a test asserts on them. |
 | `Prompt` | `engine/script/runner.ts` | What the runner is waiting for: `choice`, `check` or `dialogue`. Answered with a `Response`. |
-| `ProjectDoc` | `engine/scene/schema.ts` | The authored document. `formatVersion` is a literal `1`, so an old file fails loudly. |
+| `ProjectDoc` | `engine/scene/schema.ts` | The authored document, `formatVersion` 3. An older file is migrated on the way in (`scene/migrate.ts`); one from a newer build fails loudly. |
 | `Rng` | `engine/core/rng.ts` | `next`, `nextInt`, `die`, `dice`, `pick`, `shuffle`, `fork`, `save`, `restore`. |
 
 The document is immutable and the overlay is mutable. The legacy prototype wrote play state into its
@@ -428,14 +428,14 @@ re-parsing the source JSON; here nothing in a `SceneDoc` ever changes.
 
 ```
 ProjectDoc
-├─ formatVersion: 1        ├─ quests[]        ├─ code[]              (project JS, run as hooks)
+├─ formatVersion: 3        ├─ quests[]        ├─ code[]              (project JS, run as hooks)
 ├─ id, name                ├─ assets[]        ├─ conditionDefs[]     (ConditionDef)
 ├─ terrainPalette?         ├─ abilities[]     ├─ party[]             (CharacterSheet)
 ├─ scenes[]  (min 1)       ├─ items[]         ├─ adversaryModels{}   (type id -> model id)
 ├─ dialogues[]             ├─ lootTables[]    └─ startScene
 │
 ├─ the content pack a character is built from, all defaulted:
-│  classes[]  ancestries[]  communities[]  subclasses[]  domainCards[]  weapons[]  armors[]
+│  classes[]  ancestries[]  communities[]  subclasses[]  cards[]  weapons[]  armors[]
 │
 └─ superRefine: duplicate scene ids, duplicate dialogue ids, cross-references
 ```

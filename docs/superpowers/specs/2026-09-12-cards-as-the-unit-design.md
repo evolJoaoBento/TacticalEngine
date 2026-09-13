@@ -140,7 +140,7 @@ so the record of what was first thought survives: the header's "can ride slice 4
    schema and required by a refinement when `grant.kind` is `chosen`. (§6.4: a granted card has
    neither a loadout nor a vault.)
 5. **The grants:** `chosen` · `class` · `subclass` with its stage · `ancestry` · `community` ·
-   `given` (character ids) · `adversary` (adversary ids).
+   `given` (character ids) · `adversary` (adversary ids), which arrives with the GM's side.
 6. **The version-3 migration is positional.** `domainCards` is both a pack's list and a sheet's held
    cards; `'domainCard'` is both a source kind and a level-up pick; `'adversary'` is both a source
    kind and a target kind. A step that rewrote every depth, as version 2's did, would rewrite all of
