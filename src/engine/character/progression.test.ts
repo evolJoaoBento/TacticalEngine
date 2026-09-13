@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { importContentPack, type ContentPack } from '../content/pack/import';
+import { FIXTURE_CONTENT } from '../../../tests/fixtures/characters';
 import { blankSheet, deriveCharacter, type CharacterSheet } from './sheet';
 import {
   availableAdvancements,
@@ -15,36 +13,29 @@ import {
 } from './progression';
 
 /**
- * Levelling up. The tables are the core rulebook's level-up sheet; what these
- * check is that the sheet is transcribed right (which boxes each tier has,
- * what the previous tier still offers, what crosses what out), that the rule
- * "a plan is legal or nothing happens" holds, and that a level taken shows up
- * in the numbers the rest of the engine reads.
+ * Levelling up. What these check is that the level-up sheet is transcribed right — which
+ * boxes each tier has, what the previous tier still offers, what crosses what out — that
+ * the rule "a plan is legal or nothing happens" holds, and that a level taken shows up in
+ * the numbers the rest of the engine reads.
+ *
+ * The content is a fixture, not a pack: see `tests/fixtures/characters.ts` for why. What the
+ * vendored catalogue itself contains is `progression-catalogue.test.ts`, which leaves when
+ * the catalogue does.
  */
 
-const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
-const read = (name: string): unknown[] =>
-  JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
-
-const imported = importContentPack({
-  weapons: read('weapons'),
-  armors: read('armors'),
-  classes: read('classes'),
-  ancestries: read('ancestries'),
-  communities: read('communities'),
-  subclasses: read('subclasses'),
-  domainCards: read('domain-cards'),
-});
-const content: ContentPack = imported.content;
+// Content shaped for the rules rather than for play: two domains on one class, a third
+// to multiclass into, and cards at the levels the tier tables ask about. The shipped pack
+// stops at level 2, which is a fact about the pack and not about advancement.
+const content = FIXTURE_CONTENT;
 
 const kara = (overrides: Partial<CharacterSheet> = {}): CharacterSheet =>
-  blankSheet('kara', 'guardian', {
+  blankSheet('kara', 'fixture-warden', {
     name: 'Kara',
     traits: { agility: 0, strength: 2, finesse: 0, instinct: 1, presence: 1, knowledge: -1 },
-    armorId: 'chainmail-armor',
-    primaryWeaponId: 'broadsword',
-    subclassId: 'stalwart',
-    domainCards: ['bare-bones', 'get-back-up'],
+    armorId: 'fixture-coat',
+    primaryWeaponId: 'fixture-blade',
+    subclassId: 'fixture-bulwark',
+    domainCards: ['fixture-guard-1', 'fixture-edge-1'],
     experiences: [{ name: 'Held the line', modifier: 2 }],
     ...overrides,
   });
@@ -52,7 +43,7 @@ const kara = (overrides: Partial<CharacterSheet> = {}): CharacterSheet =>
 /** A legal level 2: two cheap picks, a card, and the Experience level 2 grants. */
 const toTwo: LevelUpPlan = {
   advancements: [{ kind: 'hitPoint' }, { kind: 'stress' }],
-  domainCard: 'forceful-push',
+  domainCard: 'fixture-guard-2',
   experience: { name: 'Vault-born', modifier: 2 },
 };
 
@@ -70,28 +61,15 @@ function climb(sheet: CharacterSheet, plans: LevelUpPlan[]): CharacterSheet {
 const toFour = (sheet: CharacterSheet): CharacterSheet =>
   climb(sheet, [
     toTwo,
-    { advancements: [{ kind: 'hitPoint' }, { kind: 'stress' }], domainCard: 'i-am-your-shield' },
-    { advancements: [{ kind: 'evasion' }, { kind: 'traits', traits: ['agility', 'finesse'] }], domainCard: 'whirlwind' },
+    { advancements: [{ kind: 'hitPoint' }, { kind: 'stress' }], domainCard: 'fixture-guard-3' },
+    { advancements: [{ kind: 'evasion' }, { kind: 'traits', traits: ['agility', 'finesse'] }], domainCard: 'fixture-edge-2' },
   ]);
 
 /** A legal level 5 with the given picks. */
-const toFive = (advancements: LevelUpPlan['advancements'], domainCard = 'not-good-enough'): LevelUpPlan => ({
+const toFive = (advancements: LevelUpPlan['advancements'], domainCard = 'fixture-guard-5'): LevelUpPlan => ({
   advancements,
   domainCard,
   experience: { name: 'Read the runes', modifier: 2 },
-});
-
-describe('the import', () => {
-  it('reads subclasses and domain cards, with content ids', () => {
-    expect(imported.issues).toEqual([]);
-    expect(content.subclasses.get('stalwart')?.classId).toBe('guardian');
-    expect(content.subclasses.get('stalwart')?.domains).toEqual(['valor', 'blade']);
-    expect(content.subclasses.get('stalwart')?.foundation.length).toBeGreaterThan(0);
-    expect(content.domainCards.size).toBeGreaterThan(150);
-    const card = content.domainCards.get('bare-bones')!;
-    expect(card).toMatchObject({ domain: 'valor', level: 1, type: 'ability' });
-    expect(card.text.length).toBeGreaterThan(20);
-  });
 });
 
 describe('tiers', () => {
@@ -134,13 +112,13 @@ describe('tiers', () => {
     expect(leftovers.find((o) => o.kind === 'subclass')).toBeUndefined();
 
     // Spend the tier 2 card box at level 5: a level 5 card is over its cap of 4.
-    const overCap = levelUp(four, content, toFive([{ kind: 'domainCard', card: 'champions-edge', fromTier: 2 }, { kind: 'hitPoint' }]));
+    const overCap = levelUp(four, content, toFive([{ kind: 'domainCard', card: 'fixture-edge-5', fromTier: 2 }, { kind: 'hitPoint' }]));
     expect(overCap.issues.map((i) => i.message)).toContainEqual(expect.stringContaining('is level 5'));
     // A tier 2 Hit Point box is gone even though the tier 3 one is open.
     expect(
       levelUp(four, content, toFive([{ kind: 'hitPoint', fromTier: 2 }, { kind: 'stress' }])).issues.map((i) => i.message),
     ).toContainEqual(expect.stringContaining('no boxes left in tier 2'));
-    const five = climb(four, [toFive([{ kind: 'domainCard', card: 'fortified-armor', fromTier: 2 }, { kind: 'hitPoint' }])]);
+    const five = climb(four, [toFive([{ kind: 'domainCard', card: 'fixture-guard-4', fromTier: 2 }, { kind: 'hitPoint' }])]);
     expect(five.level).toBe(5);
     // The tier 2 card box is ticked; the tier 3 sheet has its own, and one Hit Point box left.
     const after = availableAdvancements(five, 6);
@@ -246,7 +224,7 @@ describe('an illegal plan', () => {
   it('cannot tick a box the tier has run out of', () => {
     const grown = climb(kara(), [{ ...toTwo, advancements: [{ kind: 'evasion' }, { kind: 'stress' }] }]);
     expect(
-      issuesOf(grown, { advancements: [{ kind: 'evasion' }, { kind: 'stress' }], domainCard: 'i-am-your-shield' }),
+      issuesOf(grown, { advancements: [{ kind: 'evasion' }, { kind: 'stress' }], domainCard: 'fixture-guard-3' }),
     ).toContainEqual(expect.stringContaining('no boxes left'));
   });
 
@@ -257,7 +235,7 @@ describe('an illegal plan', () => {
     expect(
       issuesOf(grown, {
         advancements: [{ kind: 'traits', traits: ['strength', 'finesse'] }, { kind: 'hitPoint' }],
-        domainCard: 'i-am-your-shield',
+        domainCard: 'fixture-guard-3',
       }),
     ).toContainEqual(expect.stringContaining('strength is already marked'));
   });
@@ -269,9 +247,9 @@ describe('an illegal plan', () => {
   });
 
   it('checks the card: domain, level, and not already held', () => {
-    expect(cardAllowed(kara(), content, 'bare-bones', 2)).toEqual({ ok: false, reason: expect.stringContaining('already held') });
-    expect(cardAllowed(kara(), content, 'a-soldiers-bond', 1).ok).toBe(false);
-    expect(cardAllowed(kara(), content, 'a-soldiers-bond', 2).ok).toBe(true);
+    expect(cardAllowed(kara(), content, 'fixture-guard-1', 2)).toEqual({ ok: false, reason: expect.stringContaining('already held') });
+    expect(cardAllowed(kara(), content, 'fixture-guard-2', 1).ok).toBe(false);
+    expect(cardAllowed(kara(), content, 'fixture-guard-2', 2).ok).toBe(true);
     // A Codex card is a Wizard's, not a Guardian's.
     const codex = [...content.domainCards.values()].find((c) => c.domain === 'codex' && c.level === 1)!;
     expect(cardAllowed(kara(), content, codex.id, 2)).toEqual({ ok: false, reason: expect.stringContaining('outside') });
@@ -283,7 +261,7 @@ describe('an illegal plan', () => {
     expect(issuesOf(kara(), noExperience)).toContainEqual(expect.stringContaining('grants a new Experience'));
     const two = climb(kara(), [toTwo]);
     expect(
-      issuesOf(two, { ...toTwo, domainCard: 'i-am-your-shield', experience: { name: 'Extra', modifier: 2 } }),
+      issuesOf(two, { ...toTwo, domainCard: 'fixture-guard-3', experience: { name: 'Extra', modifier: 2 } }),
     ).toContainEqual(expect.stringContaining('does not grant'));
   });
 
@@ -293,44 +271,44 @@ describe('an illegal plan', () => {
 });
 
 describe('multiclassing', () => {
-  const wizard: LevelUpPlan['advancements'] = [{ kind: 'multiclass', classId: 'wizard', domain: 'codex' }];
+  const wizard: LevelUpPlan['advancements'] = [{ kind: 'multiclass', classId: 'fixture-adept', domain: 'codex' }];
 
   it('is a two-pick choice from tier 3 that opens a new domain', () => {
     const four = toFour(kara());
     expect(four.level).toBe(4);
     const five = climb(four, [toFive(wizard)]);
     expect(five.level).toBe(5);
-    expect(domainsOf(five, content)).toEqual(['valor', 'blade', 'codex']);
+    expect(domainsOf(five, content)).toEqual(['guard', 'edge', 'codex']);
     const codex = [...content.domainCards.values()].find((c) => c.domain === 'codex' && c.level === 1)!;
     expect(cardAllowed(five, content, codex.id, 5).ok).toBe(true);
   });
 
   it('refuses a domain the class does not have, and a second multiclass', () => {
     const four = toFour(kara());
-    const wrong = levelUp(four, content, toFive([{ kind: 'multiclass', classId: 'wizard', domain: 'valor' }]));
-    expect(wrong.issues.map((i) => i.message)).toContainEqual(expect.stringContaining('does not have the valor domain'));
+    const wrong = levelUp(four, content, toFive([{ kind: 'multiclass', classId: 'fixture-adept', domain: 'guard' }]));
+    expect(wrong.issues.map((i) => i.message)).toContainEqual(expect.stringContaining('does not have the guard domain'));
     const five = climb(four, [toFive(wizard)]);
     expect(availableAdvancements(five, 8).find((o) => o.kind === 'multiclass')).toBeUndefined();
     expect(
-      levelUp(five, content, { advancements: wizard, domainCard: 'fortified-armor' }).issues.map((i) => i.message),
+      levelUp(five, content, { advancements: wizard, domainCard: 'fixture-guard-4' }).issues.map((i) => i.message),
     ).toContainEqual(expect.stringContaining('already multiclassed'));
   });
 
   it('crosses out the mastery card, and is crossed out by a subclass card on the same sheet', () => {
     // Multiclass first: one subclass upgrade is still there, the second is crossed out.
     const five = climb(toFour(kara()), [toFive(wizard)]);
-    const six = climb(five, [{ advancements: [{ kind: 'subclass' }, { kind: 'stress' }], domainCard: 'fortified-armor' }]);
+    const six = climb(five, [{ advancements: [{ kind: 'subclass' }, { kind: 'stress' }], domainCard: 'fixture-guard-4' }]);
     expect(subclassStage(six)).toBe('specialization');
     expect(availableAdvancements(six, 8).find((o) => o.kind === 'subclass')).toBeUndefined();
     expect(
-      levelUp(six, content, { advancements: [{ kind: 'subclass' }, { kind: 'stress' }], domainCard: 'deadly-focus' }).issues.map((i) => i.message),
+      levelUp(six, content, { advancements: [{ kind: 'subclass' }, { kind: 'stress' }], domainCard: 'fixture-guard-6' }).issues.map((i) => i.message),
     ).toContainEqual(expect.stringContaining('crossed out the mastery card'));
 
     // Subclass card first: this tier's multiclass box is crossed out, the next tier's is not.
     const upgraded = climb(toFour(kara()), [toFive([{ kind: 'subclass' }, { kind: 'stress' }])]);
     expect(availableAdvancements(upgraded, 6).find((o) => o.kind === 'multiclass')).toBeUndefined();
     expect(
-      levelUp(upgraded, content, { advancements: wizard, domainCard: 'fortified-armor' }).issues.map((i) => i.message),
+      levelUp(upgraded, content, { advancements: wizard, domainCard: 'fixture-guard-4' }).issues.map((i) => i.message),
     ).toContainEqual(expect.stringContaining('crossed out by the tier 3 subclass card'));
     expect(availableAdvancements(upgraded, 8).find((o) => o.kind === 'multiclass')?.tier).toBe(4);
   });

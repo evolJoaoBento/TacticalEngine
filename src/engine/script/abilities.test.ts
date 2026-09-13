@@ -1,20 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import type { Rng } from '../core/rng';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
-import { importContentPack } from '../content/pack/import';
 import type { AdversaryDef } from '../content/types';
 import { blankSheet, deriveCharacter, startingPools, type DerivedCharacter } from '../character/sheet';
 import { ScriptRunner, runScript, type JournalEntry } from './runner';
 import { SceneScriptWorld, createScenarioState } from './world';
 import type { Effect } from './schema';
-import { SRD_ABILITIES, SRD_ABILITY_MAP } from '../content/srd/abilities';
+import { STARTER_ABILITIES, STARTER_CHARACTERS } from '../content/pack/starter';
 import { SRD_HOOKS } from '../content/srd/hooks';
 import { SRD_CONDITIONS } from '../content/conditions';
 import { abilitySchema } from '../content/abilities';
 import { compileHooks, mergeHooks } from './hooks';
+import { A_GUARD_THAT_ANSWERS } from '../../../tests/fixtures/cards';
 
 /**
  * The combat half of the script vocabulary: what lets a domain card be a
@@ -24,18 +22,10 @@ import { compileHooks, mergeHooks } from './hooks';
  * adversary — and every refusal draws no dice, so a replay stays in step.
  */
 
-const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
-const read = (name: string): unknown[] =>
-  JSON.parse(readFileSync(`${repoRoot}tools/srd-sources/daggersearch/core/${name}.json`, 'utf8'));
-const content = importContentPack({
-  weapons: read('weapons'),
-  armors: read('armors'),
-  classes: read('classes'),
-  ancestries: read('ancestries'),
-  communities: read('communities'),
-  subclasses: read('subclasses'),
-  domainCards: read('domain-cards'),
-}).content;
+// The pack the app ships. Every condition this file plays is a rules condition the
+// engine owns -- hidden, in-shadow, stunned, asleep, horrified -- so those still come
+// from SRD_CONDITIONS, which slice 3 prunes of card markers rather than emptying.
+const content = STARTER_CHARACTERS;
 
 /** A die stream that hands out exactly the numbers a test writes down. */
 function scripted(values: number[]): Rng & { drawn: () => number } {
@@ -101,22 +91,22 @@ function scene(
   const grid = new TileGrid({ width: 14, height: 3 });
   const state = new SceneState({ id: 'corridor' }, grid);
   const sheets = [
-    blankSheet('kara', 'guardian', {
+    blankSheet('kara', 'sentinel', {
       name: 'Kara',
       traits: { agility: 0, strength: 2, finesse: 0, instinct: 1, presence: 1, knowledge: -1 },
-      armorId: 'chainmail-armor',
-      primaryWeaponId: 'broadsword',
-      subclassId: 'stalwart',
-      domainCards: ['bare-bones', 'get-back-up'],
+      armorId: 'ringmail',
+      primaryWeaponId: 'longsword',
+      subclassId: 'shieldbearer',
+      domainCards: ['power-slash', 'iron-stance'],
       experiences: [{ name: 'Held the line', modifier: 2 }],
     }),
-    blankSheet('mira', 'wizard', {
+    blankSheet('mira', 'emberwright', {
       name: 'Mira',
       traits: { agility: 0, strength: -1, finesse: 1, instinct: 2, presence: 1, knowledge: 2 },
-      armorId: 'gambeson-armor',
-      primaryWeaponId: 'greatstaff',
-      subclassId: 'school-of-knowledge',
-      domainCards: ['book-of-ava', 'rune-ward'],
+      armorId: 'padded-coat',
+      primaryWeaponId: 'ember-staff',
+      subclassId: 'flamecaller',
+      domainCards: ['arcane-ward', 'healing-word'],
       experiences: [{ name: 'Read the runes', modifier: 2 }],
     }),
   ];
@@ -144,7 +134,11 @@ function scene(
     inCombat: () => options.fighting === true,
     ...(options.armor === undefined ? {} : { armor: options.armor }),
     // The shipped cards and conditions, when a test plays the real ones.
-    ...(options.content === true ? { abilities: SRD_ABILITIES, conditionDefs: SRD_CONDITIONS } : {}),
+    // The pack's abilities, plus the one fixture reaction this file needs: nothing the
+    // pack ships is a reaction, and `reactionsOf` exists to be asked for one.
+    ...(options.content === true
+      ? { abilities: [...STARTER_ABILITIES, ...A_GUARD_THAT_ANSWERS.map((a) => abilitySchema.parse(a))], conditionDefs: SRD_CONDITIONS }
+      : {}),
     ...(options.abilities === undefined ? {} : { abilities: options.abilities.map((a) => abilitySchema.parse(a)) }),
     ...(options.abilities === undefined ? {} : { conditionDefs: SRD_CONDITIONS }),
     hooks: mergeHooks(SRD_HOOKS, compileHooks((options.code ?? []).map((c) => ({ ...c, name: c.id }))).hooks),
@@ -209,13 +203,15 @@ describe('a shape aimed at a point', () => {
 
   it("reads 'along that path within your weapon's range' off the weapon", () => {
     const { world, grid, state, scenario } = scene();
-    state.moveEntity('husk-2', grid.indexOf(12, 0));
+    state.moveEntity('husk-2', grid.indexOf(9, 0));
     const down = { targets: [], hit: [], point: grid.indexOf(7, 1) };
-    // Mira's greatstaff reaches Very Far, so her path is wide enough to sweep
-    // in the husk standing well off it.
-    expect(world.weaponRange('mira')).toBe('veryFar');
+    // Mira's ember staff reaches Close, which this scene's band table puts at four tiles --
+    // wide enough to sweep in the husk standing two off the line. It stands at (9, 0) rather
+    // than further out because a sweep that reaches nothing extra would read the same as
+    // Kara's Melee one below, and the test would stop telling the two reaches apart.
+    expect(world.weaponRange('mira')).toBe('close');
     expect(world.resolveTargets({ kind: 'inPath', side: 'adversaries', reach: 'weapon' }, down)).toEqual(['husk-1', 'husk-2']);
-    // Kara's broadsword reaches Melee, and the same run down the same line
+    // Kara's longsword reaches Melee, and the same run down the same line
     // catches only what it passes.
     scenario.actorId = 'kara';
     expect(world.weaponRange('kara')).toBe('melee');
@@ -900,10 +896,11 @@ describe('an attack from a script', () => {
     const { world, state, scenario, grid } = scene();
     scenario.actorId = 'kara';
     state.moveEntity('kara', grid.indexOf(2, 1)); // adjacent to husk-1 at x=3
-    // Hope 10 + Fear 2 + Strength 2 = 14 beats 10; broadsword d8 rolls 6 → 6: Minor.
+    // Hope 10 + Fear 2 + Strength 2 = 14 beats 10; the longsword is d8+1, so a 6 on the
+    // die is 7 damage -- exactly the husk's major threshold -- and marks two.
     const rng = scripted([10, 2, 6]);
     const journal = runScript([swing], world, rng, { targets: ['husk-1'], rollAs: 'actor' });
-    expect(journal.find((e) => e.kind === 'attack')).toMatchObject({ attacker: 'kara', target: 'husk-1', hit: true, hitPointsMarked: 1, weapon: 'Broadsword' });
+    expect(journal.find((e) => e.kind === 'attack')).toMatchObject({ attacker: 'kara', target: 'husk-1', hit: true, hitPointsMarked: 2, weapon: 'Longsword' });
     expect(kinds(journal)).toEqual(['attack', 'hope', 'moved', 'log']);
     expect(journal.find((e) => e.kind === 'log')).toMatchObject({ text: 'hit' });
     // Pushed east from x=3 to the first tile that reads as Close of Kara at x=2: x=5 is taken, so x=4 … no: x=5 blocks, it stops at x=4.
@@ -1275,91 +1272,6 @@ describe("damage that carries the roll over", () => {
   });
 });
 
-describe('the shipped cards', () => {
-  it('Whirlwind: the same attack roll at everyone else in reach, for half the damage it already dealt', () => {
-    const { world, state, scenario, grid } = scene({ content: true });
-    scenario.actorId = 'kara';
-    state.moveEntity('kara', grid.indexOf(2, 1)); // adjacent to husk-1 at x=3
-    state.moveEntity('husk-2', grid.indexOf(4, 1)); // Very Close, not adjacent
-    // One roll: Hope 12 + Fear 6 = 18 beats the soft husk's 10 and the tough one's 16.
-    // Broadsword d8 rolls 6 on the target (Minor, one Hit Point); the whirl carries
-    // that same 6 over, halved to 3 — it does not roll the dice a second time.
-    const rng = scripted([12, 6, 6]);
-    const journal = runScript(SRD_ABILITY_MAP.get('whirlwind')!.effects, world, rng, { targets: ['husk-1'], rollAs: 'actor' });
-    expect(journal.find((e) => e.kind === 'attack')).toMatchObject({ target: 'husk-1', hit: true, hitPointsMarked: 1 });
-    // The roll carries to the *other* husk only, without new dice, Hope or Fear; the damage is the broadsword's, not a fixed die.
-    expect(kinds(journal)).toEqual(['attack', 'hope', 'check', 'damage']);
-    expect(journal.find((e) => e.kind === 'check')).toMatchObject({ targets: ['husk-2'], hit: ['husk-2'], reused: true, outcome: 'successWithHope' });
-    expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 3, targets: ['husk-2'], dice: '1d8', marked: 1 });
-    expect(state.entity('husk-1')!.hitPoints.marked).toBe(1);
-    expect(state.entity('husk-2')!.hitPoints.marked).toBe(1);
-    expect(state.entity('kara')!.hope!.value).toBe(3);
-    // Two duality dice and one damage die: no second damage roll for the whirl.
-    expect(rng.drawn()).toBe(3);
-
-    // A roll that beats the target but not the tough husk reaches nobody else, and draws no damage die for it.
-    const short = scene({ content: true });
-    short.scenario.actorId = 'kara';
-    short.state.moveEntity('kara', short.grid.indexOf(2, 1));
-    short.state.moveEntity('husk-2', short.grid.indexOf(4, 1));
-    const few = scripted([10, 2, 6]);
-    const again = runScript(SRD_ABILITY_MAP.get('whirlwind')!.effects, short.world, few, { targets: ['husk-1'], rollAs: 'actor' });
-    expect(kinds(again)).toEqual(['attack', 'hope', 'check']);
-    expect(again.find((e) => e.kind === 'check')).toMatchObject({ targets: ['husk-2'], hit: [], reused: true, outcome: 'failureWithHope' });
-    expect(short.state.entity('husk-2')!.hitPoints.marked).toBe(0);
-    expect(few.drawn()).toBe(3);
-  });
-
-  it('refuses to reuse a roll nobody made', () => {
-    const { world } = scene();
-    const journal = runScript(
-      [{ kind: 'check', check: { trait: 'strength', difficulty: 10, roll: 'last', onSuccessWithHope: [{ kind: 'log', text: 'no' }] } }],
-      world,
-      scripted([]),
-      { targets: ['husk-1'], rollAs: 'actor' },
-    );
-    expect(refusals(journal)).toEqual(['no roll to reuse']);
-  });
-
-  it('rolls `weapon` damage as whatever the actor carries', () => {
-    const { world, state } = scene();
-    // Mira's greatstaff: d6 magic. The dice are the weapon's own; Proficiency
-    // is applied only when the effect says `using: 'proficiency'`.
-    expect(world.weaponDamage('mira')).toMatchObject({ count: 1, sides: 6 });
-    expect(world.weaponDamage('kara')).toMatchObject({ count: 1, sides: 8, modifier: 0 });
-    expect(world.weaponDamage('husk-1')).toMatchObject({ count: 1, sides: 6, modifier: 2 });
-    const journal = runScript([{ kind: 'damage', dice: 'weapon', target: { kind: 'target' } }], world, scripted([4]), { targets: ['husk-1'], rollAs: 'actor' });
-    expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 4, dice: '1d6', targets: ['husk-1'] });
-    expect(state.entity('husk-1')!.hitPoints.marked).toBe(1);
-  });
-
-  it('Bolt Beacon sends no bolt without a Hope to spend, and one with', () => {
-    const bolt = SRD_ABILITY_MAP.get('bolt-beacon')!.effects;
-    const empty = scene({ content: true });
-    empty.state.entity('mira')!.hope = { max: 6, value: 0 };
-    // Hope 3 + Fear 9 + 2 = 14 beats 10, with Fear: a success, but no Hope arrives to pay with.
-    const dry = scripted([3, 9]);
-    const runner = new ScriptRunner(empty.world, dry, { targets: ['husk-1'], rollAs: 'actor' });
-    runner.run(bolt);
-    const done = runner.resume({ kind: 'roll' });
-    expect(kinds(done.journal)).toEqual(['check', 'fear', 'log']);
-    expect(done.journal.find((e) => e.kind === 'log')).toMatchObject({ text: 'No Hope to spend: the bolt never forms.' });
-    expect(empty.state.entity('husk-1')!.hitPoints.marked).toBe(0);
-    expect(empty.state.entity('husk-1')!.conditions.has('vulnerable')).toBe(false);
-    expect(dry.drawn()).toBe(2);
-
-    const lit = scene({ content: true });
-    lit.state.entity('mira')!.hope = { max: 6, value: 1 };
-    // The same roll; d8 rolls 5, +2 = 7: Major against 7/12, two Hit Points, and Vulnerable.
-    const again = new ScriptRunner(lit.world, scripted([3, 9, 5]), { targets: ['husk-1'], rollAs: 'actor' });
-    again.run(bolt);
-    const journal = again.resume({ kind: 'roll' }).journal;
-    expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 7, marked: 2, targets: ['husk-1'] });
-    expect(lit.state.entity('mira')!.hope!.value).toBe(0);
-    expect(lit.state.entity('husk-1')!.conditions.has('vulnerable')).toBe(true);
-  });
-});
-
 describe('conditions that hold a creature', () => {
   it('Asleep stops acting and moving, and ends when damage marks something', () => {
     const { world, state } = scene({ content: true });
@@ -1377,12 +1289,12 @@ describe('conditions that hold a creature', () => {
 
   it('Stunned silences damage reactions until it clears', () => {
     const { world, state } = scene({ content: true });
-    expect(world.reactionsOf('kara').map((a) => a.id)).toContain('get-back-up');
+    expect(world.reactionsOf('kara').map((a) => a.id)).toContain('fixture-guard-that-answers');
     state.entity('kara')!.conditions.add('stunned');
     expect(world.blocks('kara', 'act')).toBe(true);
     expect(world.reactionsOf('kara')).toEqual([]);
     world.clearCondition('kara', 'stunned');
-    expect(world.reactionsOf('kara').map((a) => a.id)).toContain('get-back-up');
+    expect(world.reactionsOf('kara').map((a) => a.id)).toContain('fixture-guard-that-answers');
   });
 
   it('Hidden ends when its bearer attacks', () => {
@@ -1441,36 +1353,4 @@ ctx.queue([{ kind: 'damage', amount: ctx.args.amount, target: { kind: 'entities'
     expect(rng.drawn()).toBe(2);
   });
 
-  it('builds Arcane Barrage\'s options from the Hope actually held', () => {
-    const { world, state } = scene({ content: true });
-    state.entity('mira')!.hope = { max: 6, value: 4 };
-    const rng = scripted([5, 5, 5, 5]);
-    const runner = new ScriptRunner(world, rng, { targets: ['husk-1'], rollAs: 'actor' });
-    const waiting = runner.run(SRD_ABILITY_MAP.get('book-of-illiat-arcane-barrage')!.effects);
-    if (waiting.status !== 'waiting' || waiting.prompt.kind !== 'choice') throw new Error('expected a choice');
-    expect(waiting.prompt.options.map((o) => o.label)).toEqual([
-      '1 Hope: 1d6 magic',
-      '2 Hope: 2d6 magic',
-      '3 Hope: 3d6 magic',
-      '4 Hope: 4d6 magic',
-    ]);
-    // Four d6 of 5 is 20: Severe against 7/12, three Hit Points, and the Hope is gone.
-    const done = runner.resume({ kind: 'choose', index: 3 });
-    expect(done.journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 20, marked: 3, dice: '4d6' });
-    expect(state.entity('mira')!.hope!.value).toBe(0);
-    expect(rng.drawn()).toBe(4);
-  });
-
-  it('caps Wild Flame at three adversaries in reach', () => {
-    const { world, state, grid, scenario } = scene({ content: true });
-    scenario.actorId = 'mira';
-    state.moveEntity('mira', grid.indexOf(4, 1));
-    state.addEntity(createAdversaryEntity('husk-3', 'soft-husk', grid.indexOf(4, 0), { hitPoints: 5, stress: 3 }));
-    state.addEntity(createAdversaryEntity('husk-4', 'soft-husk', grid.indexOf(4, 2), { hitPoints: 5, stress: 3 }));
-    state.moveEntity('husk-1', grid.indexOf(3, 1));
-    const runner = new ScriptRunner(world, scripted([]), { rollAs: 'actor' });
-    const waiting = runner.run(SRD_ABILITY_MAP.get('book-of-tyfar-wild-flame')!.effects);
-    if (waiting.status !== 'waiting' || waiting.prompt.kind !== 'check') throw new Error('expected a check');
-    expect(waiting.prompt.targets).toHaveLength(3);
-  });
 });

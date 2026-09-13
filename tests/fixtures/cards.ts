@@ -1610,3 +1610,30 @@ export const BONE_BOUND = [
     ],
   },
 ];
+
+/**
+ * A reaction that answers a blow, with nothing in front of it.
+ *
+ * `reactionsOf` asks for the reactions a creature holds against `incomingDamage`, and a test
+ * about THAT should not also be a test of a gate. The two fixture reactions already on this
+ * trigger are deliberately gated -- one on tokens held, one on a four-card loadout and 3 Hope --
+ * and both are what other suites use to prove a gate refuses. This one is held by a named
+ * character and asks nothing, so what it proves is that the offer arrives at all.
+ *
+ * `granted` rather than a card: no card to hold, no loadout to arrange, nothing to get wrong in
+ * the setup of a test that is about something else.
+ */
+export const A_GUARD_THAT_ANSWERS = [
+  {
+    id: 'fixture-guard-that-answers',
+    name: 'Guard',
+    source: { kind: 'granted', characters: ['kara'] },
+    text: 'A blade already on the way to where the blow was going.',
+    kind: 'reaction',
+    trigger: 'incomingDamage',
+    action: false,
+    auto: false,
+    target: { kind: 'none' },
+    effects: [{ kind: 'log', text: 'The guard comes up in time.', tone: 'hope' }],
+  },
+];
