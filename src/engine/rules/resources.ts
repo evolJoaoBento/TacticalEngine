@@ -17,18 +17,18 @@
  */
 
 /** A PC starts with 2 Light. */
-export const STARTING_HOPE = 2;
+export const STARTING_GOOD = 2;
 /** "A PC can have a maximum of 6 Light at one time." */
-export const MAX_HOPE = 6;
+export const MAX_GOOD = 6;
 /** "The GM can have up to 12 Shadow at one time." */
-export const MAX_FEAR = 12;
+export const MAX_BAD = 12;
 /** "All classes start with 6 Stress slots." */
 export const STARTING_STRESS_SLOTS = 6;
 /** HP and Stress slots both cap at 12 through leveling. */
 export const MAX_SLOTS = 12;
 /** Spending 3 Light initiates a Tag Team Roll and powers Class Light Features. */
-export const TAG_TEAM_HOPE_COST = 3;
-export const CLASS_HOPE_FEATURE_COST = 3;
+export const TAG_TEAM_GOOD_COST = 3;
+export const CLASS_GOOD_FEATURE_COST = 3;
 
 /** A pool that is marked from empty, such as Hit Points, Stress or Armor Slots. */
 export interface MarkPool {
@@ -157,11 +157,11 @@ export interface Currency {
   max: number;
 }
 
-export function createHope(value = STARTING_HOPE, max = MAX_HOPE): Currency {
+export function createGood(value = STARTING_GOOD, max = MAX_GOOD): Currency {
   return { max, value: clamp(value, 0, max) };
 }
 
-export function createFear(value = 0, max = MAX_FEAR): Currency {
+export function createBad(value = 0, max = MAX_BAD): Currency {
   return { max, value: clamp(value, 0, max) };
 }
 
@@ -206,14 +206,14 @@ export function canAfford(currency: Currency, amount = 1): boolean {
  * "If you ever cross out your last Light slot, your character's journey ends."
  */
 export interface ScarResult {
-  hope: Currency;
+  good: Currency;
   /** The character has no Light slots left and their journey ends. */
   journeyEnds: boolean;
 }
 
-export function scar(hope: Currency): ScarResult {
-  const max = Math.max(0, hope.max - 1);
-  return { hope: { max, value: Math.min(hope.value, max) }, journeyEnds: max === 0 };
+export function scar(good: Currency): ScarResult {
+  const max = Math.max(0, good.max - 1);
+  return { good: { max, value: Math.min(good.value, max) }, journeyEnds: max === 0 };
 }
 
 function clamp(value: number, min: number, max: number): number {

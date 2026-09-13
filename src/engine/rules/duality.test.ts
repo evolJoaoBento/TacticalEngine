@@ -46,18 +46,18 @@ describe('netAdvantage', () => {
 describe('classifyRoll', () => {
   const cases: [number, number, number, number, RollOutcome][] = [
     [7, 7, 14, 20, 'criticalSuccess'], // matching dice succeed even under the Difficulty
-    [10, 3, 15, 12, 'successWithHope'],
-    [3, 10, 15, 12, 'successWithFear'],
-    [10, 3, 13, 20, 'failureWithHope'],
-    [3, 10, 13, 20, 'failureWithFear'],
+    [10, 3, 15, 12, 'successWithGood'],
+    [3, 10, 15, 12, 'successWithBad'],
+    [10, 3, 13, 20, 'failureWithGood'],
+    [3, 10, 13, 20, 'failureWithBad'],
   ];
-  it.each(cases)('hope %i / fear %i / total %i vs %i -> %s', (hope, fear, total, dc, expected) => {
-    expect(classifyRoll(hope, fear, total, dc).outcome).toBe(expected);
+  it.each(cases)('good %i / bad %i / total %i vs %i -> %s', (good, bad, total, dc, expected) => {
+    expect(classifyRoll(good, bad, total, dc).outcome).toBe(expected);
   });
 
   it('treats a critical success as a roll with Light', () => {
     const r = classifyRoll(5, 5, 10, 20);
-    expect(r).toMatchObject({ critical: true, success: true, withHope: true });
+    expect(r).toMatchObject({ critical: true, success: true, withGood: true });
   });
 });
 
@@ -74,7 +74,7 @@ describe('groupActionModifier', () => {
 describe('rollDuality', () => {
   it('sums the duality dice and the modifier', () => {
     const r = rollDuality(scriptedRng([8, 5]), { difficulty: 14, modifier: 2 });
-    expect(r).toMatchObject({ hope: 8, fear: 5, total: 15, success: true, outcome: 'successWithHope' });
+    expect(r).toMatchObject({ good: 8, bad: 5, total: 15, success: true, outcome: 'successWithGood' });
     expect(r.advantageDie).toBe(0);
     expect(r.helpDice).toEqual([]);
   });
@@ -107,9 +107,9 @@ describe('rollDuality', () => {
     const rng = createRng('duality-resources');
     for (let i = 0; i < 500; i++) {
       const r = rollDuality(rng, { difficulty: 12, modifier: 1 });
-      expect(r.hopeGained + r.fearGained).toBe(1);
-      expect(r.hopeGained).toBe(r.withHope ? 1 : 0);
-      expect(r.fearGained).toBe(r.withFear ? 1 : 0);
+      expect(r.goodGained + r.badGained).toBe(1);
+      expect(r.goodGained).toBe(r.withGood ? 1 : 0);
+      expect(r.badGained).toBe(r.withBad ? 1 : 0);
     }
   });
 
@@ -118,8 +118,8 @@ describe('rollDuality', () => {
     expect(r).toMatchObject({
       critical: true,
       success: true,
-      hopeGained: 1,
-      fearGained: 0,
+      goodGained: 1,
+      badGained: 0,
       stressCleared: 1,
       spotlightToGm: false,
     });
@@ -130,8 +130,8 @@ describe('rollDuality', () => {
       const rng = createRng('reactions');
       for (let i = 0; i < 200; i++) {
         const r = rollDuality(rng, { difficulty: 13, modifier: 2, reaction: true });
-        expect(r.hopeGained).toBe(0);
-        expect(r.fearGained).toBe(0);
+        expect(r.goodGained).toBe(0);
+        expect(r.badGained).toBe(0);
         expect(r.stressCleared).toBe(0);
         expect(r.spotlightToGm).toBe(false);
       }
@@ -139,7 +139,7 @@ describe('rollDuality', () => {
 
     it('clear no Stress on a critical success but still succeed', () => {
       const r = rollDuality(scriptedRng([11, 11]), { difficulty: 25, reaction: true });
-      expect(r).toMatchObject({ critical: true, success: true, stressCleared: 0, hopeGained: 0 });
+      expect(r).toMatchObject({ critical: true, success: true, stressCleared: 0, goodGained: 0 });
     });
 
     it('cannot be aided by Help an Ally', () => {
@@ -193,35 +193,35 @@ describe('withFaces', () => {
   it('reads the whole roll again from the new pair', () => {
     // 5 + 3 + 2 = 10 against 12: a failure, with Light, and the spotlight goes.
     const first = base();
-    expect(first).toMatchObject({ total: 10, outcome: 'failureWithHope', success: false, spotlightToGm: true });
+    expect(first).toMatchObject({ total: 10, outcome: 'failureWithGood', success: false, spotlightToGm: true });
 
     // The Shadow Die alone comes up 9: 5 + 9 + 2 = 16, a success with Shadow.
-    const again = withFaces(first, { fear: 9 });
+    const again = withFaces(first, { bad: 9 });
     expect(again).toMatchObject({
-      hope: 5,
-      fear: 9,
+      good: 5,
+      bad: 9,
       total: 16,
-      outcome: 'successWithFear',
+      outcome: 'successWithBad',
       success: true,
-      withHope: false,
-      withFear: true,
-      hopeGained: 0,
-      fearGained: 1,
+      withGood: false,
+      withBad: true,
+      goodGained: 0,
+      badGained: 1,
       spotlightToGm: true,
     });
   });
 
   it('finds a critical in a pair that was not one', () => {
-    const again = withFaces(base(), { fear: 5 });
+    const again = withFaces(base(), { bad: 5 });
     expect(again).toMatchObject({ critical: true, success: true, outcome: 'criticalSuccess', stressCleared: 1 });
     // A critical succeeds however the total falls: 5 + 5 + 2 is 12 here, but
     // matched dice would beat any Difficulty.
-    expect(withFaces({ ...base(), difficulty: 40 }, { fear: 5 }).success).toBe(true);
+    expect(withFaces({ ...base(), difficulty: 40 }, { bad: 5 }).success).toBe(true);
   });
 
   it('keeps everything that was not the Duality Dice', () => {
     const advantaged = { ...base(), advantageDie: 4, helpBonus: 3, helpDice: [3] };
-    const again = withFaces(advantaged, { hope: 1, fear: 2 });
+    const again = withFaces(advantaged, { good: 1, bad: 2 });
     // 1 + 2 + 4 (advantage) + 3 (help) + 2 (modifier) = 12.
     expect(again).toMatchObject({ advantageDie: 4, helpBonus: 3, modifier: 2, difficulty: 12, total: 12, success: true });
   });
@@ -229,14 +229,14 @@ describe('withFaces', () => {
   it('leaves a die alone when it is not named, and a reaction roll gains nothing', () => {
     const first = base();
     expect(withFaces(first, {})).toEqual(first);
-    expect(withFaces(first, { hope: 11 })).toMatchObject({ hope: 11, fear: 3 });
+    expect(withFaces(first, { good: 11 })).toMatchObject({ good: 11, bad: 3 });
     // "A critical success on an adversary's reaction roll confers no
     // additional benefit": no Light, no Shadow, no Stress cleared.
     const reaction = { ...base(), reaction: true };
-    expect(withFaces(reaction, { fear: 5 })).toMatchObject({
+    expect(withFaces(reaction, { bad: 5 })).toMatchObject({
       critical: true,
-      hopeGained: 0,
-      fearGained: 0,
+      goodGained: 0,
+      badGained: 0,
       stressCleared: 0,
       spotlightToGm: false,
     });

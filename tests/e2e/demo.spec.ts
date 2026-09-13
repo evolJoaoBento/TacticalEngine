@@ -47,12 +47,12 @@ declare global {
           | { kind: 'choose'; index: number }
           | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number; experience?: string }
           | { kind: 'cancel' }
-          | { kind: 'answered'; reroll?: 'hope' | 'fear' | 'both'; name?: boolean; raise?: number }
+          | { kind: 'answered'; reroll?: 'good' | 'bad' | 'both'; name?: boolean; raise?: number }
           | { kind: 'continue' },
       ) => string;
       log: () => { text: string; tone: string }[];
       setDiceSpeed: (millis: number) => void;
-      dice: () => { hope: number; fear: number; total: number }[];
+      dice: () => { good: number; bad: number; total: number }[];
       clearDice: () => void;
       pendingKind: () => string | null;
       objects: () => string[];
@@ -100,7 +100,7 @@ declare global {
       aim: (ability: string) => number[];
       lit: () => number[];
       shape: (ability: string, tile: number) => string[];
-      setHope: (id: string, value: number) => void;
+      setGood: (id: string, value: number) => void;
       passToGm: () => number;
       loadout: (id: string) => { loadout: string[]; vault: string[] };
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
@@ -590,8 +590,8 @@ test('shows the Duality Dice landing on the faces the roll rolled', async ({ pag
   const tray = page.locator('[data-testid="dice-tray"]');
   await expect(tray).toBeVisible();
   // Two d12s, showing what the rules already decided.
-  await expect(tray).toHaveAttribute('data-hope', String(rolled!.hope));
-  await expect(tray).toHaveAttribute('data-fear', String(rolled!.fear));
+  await expect(tray).toHaveAttribute('data-good', String(rolled!.good));
+  await expect(tray).toHaveAttribute('data-bad', String(rolled!.bad));
   await expect(tray).toHaveAttribute('data-settled', 'false');
   await expect(tray.locator('svg')).toHaveCount(3); // two dice and the sheen defs
 
@@ -865,10 +865,10 @@ test('authors an object in the inspector, and plays what it wrote', async ({ pag
       check: {
         trait: 'strength',
         difficulty: 1,
-        onSuccessWithHope: [{ kind: 'log', text: 'The lever gives with a crack.' }],
-        onSuccessWithFear: [{ kind: 'log', text: 'The lever gives with a crack.' }],
-        onFailureWithHope: [{ kind: 'log', text: 'The lever gives with a crack.' }],
-        onFailureWithFear: [{ kind: 'log', text: 'The lever gives with a crack.' }],
+        onSuccessWithGood: [{ kind: 'log', text: 'The lever gives with a crack.' }],
+        onSuccessWithBad: [{ kind: 'log', text: 'The lever gives with a crack.' }],
+        onFailureWithGood: [{ kind: 'log', text: 'The lever gives with a crack.' }],
+        onFailureWithBad: [{ kind: 'log', text: 'The lever gives with a crack.' }],
       },
     });
 
@@ -1650,7 +1650,7 @@ test('authors a roll and a choice inside an effect list, and outcomes on a reply
   await addTop.selectOption('check');
   const check = list.locator('[data-testid="check-effect"]').first();
   await check.locator('[data-testid="check-trait"]').selectOption('strength');
-  await check.locator('[data-outcome="onSuccessWithHope"] [data-role="add-effect"]').selectOption('log');
+  await check.locator('[data-outcome="onSuccessWithGood"] [data-role="add-effect"]').selectOption('log');
 
   // A choice with a second option.
   await addTop.selectOption('choice');
@@ -1660,7 +1660,7 @@ test('authors a roll and a choice inside an effect list, and outcomes on a reply
   const authored = await page.evaluate(() => window.__polyheart!.objectField('effects') as unknown[]);
   expect(authored.at(-2)).toMatchObject({
     kind: 'check',
-    check: { trait: 'strength', difficulty: 12, onSuccessWithHope: [{ kind: 'log' }] },
+    check: { trait: 'strength', difficulty: 12, onSuccessWithGood: [{ kind: 'log' }] },
   });
   expect(authored.at(-1)).toMatchObject({ kind: 'choice', options: [{ label: 'Go on' }, { label: 'Another option' }] });
 
@@ -2161,7 +2161,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   const panel = page.locator('[data-testid="ability-panel"]');
   await panel.locator('[data-testid="add-ability"]').click();
   // Shadow is the GM's pool, which is what a stat block's feature spends.
-  await panel.locator('[data-testid="ability-fear"]').fill('2');
+  await panel.locator('[data-testid="ability-bad"]').fill('2');
   // And what the block does with damage coming back at it: half of one type,
   // and a flat number off the rest.
   await panel.locator('[data-testid="ability-resist-physical"]').check();
@@ -2181,7 +2181,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   const roll = effects.locator('[data-effect="0"] [data-testid="reaction-roll"]');
   await roll.locator('[data-role="reaction-damage"]').fill('2d10');
   const fail = roll.locator('[data-outcome="onFail"]');
-  await fail.locator('[data-role="add-effect"]').first().selectOption('loseHope');
+  await fail.locator('[data-role="add-effect"]').first().selectOption('loseGood');
 
   // And a swing that reaches further than the creature's own weapon, through
   // armor: the two things a feature says about an attack that a card does not.
@@ -2208,10 +2208,10 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   await effects.locator(':scope > [data-role="add-effect"]').last().selectOption('countdown');
   const countdown = effects.locator('[data-effect="4"] [data-testid="countdown"]');
   await countdown.locator('[data-role="countdown-start"]').fill('1d12');
-  await countdown.locator('[data-role="countdown-advance"]').selectOption('withFear');
+  await countdown.locator('[data-role="countdown-advance"]').selectOption('withBad');
   await countdown.locator('[data-role="countdown-loop"]').selectOption('decreasing');
   await countdown.locator('label:has-text("goes off if they fall") input').check();
-  await countdown.locator('[data-outcome="countdownEffects"] [data-role="add-effect"]').first().selectOption('gainFear');
+  await countdown.locator('[data-outcome="countdownEffects"] [data-role="add-effect"]').first().selectOption('gainBad');
 
   const written = await page.evaluate(() => {
     const project = JSON.parse(window.__polyheart!.exportProject()) as {
@@ -2235,7 +2235,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   });
   expect(written).toEqual({
     // Only what the author touched: the Light and Stress fields were left alone.
-    cost: { fear: 2 },
+    cost: { bad: 2 },
     trigger: 'dealtDamage',
     defenses: { resistances: ['physical'], reduce: [{ dice: '1d10', only: 'magic' }] },
     standardAttack: { direct: true },
@@ -2245,7 +2245,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
         difficulty: 12,
         trait: 'agility',
         damage: { dice: '2d10' },
-        onFail: [{ kind: 'loseHope', amount: 1 }],
+        onFail: [{ kind: 'loseGood', amount: 1 }],
       },
       { kind: 'attack', range: 'close', direct: true },
       { kind: 'summon', adversary: 'bandit-archer', count: '1d4', range: 'far', spotlight: true },
@@ -2255,10 +2255,10 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
         countdown: 'countdown',
         name: 'Countdown',
         start: '1d12',
-        advance: 'withFear',
+        advance: 'withBad',
         loop: 'decreasing',
         onDeath: 'trigger',
-        effects: [{ kind: 'gainFear', amount: 1 }],
+        effects: [{ kind: 'gainBad', amount: 1 }],
       },
     ],
   });
@@ -2288,7 +2288,7 @@ test('writes a card that reuses one roll against every other adversary in reach'
   await check.locator('[data-testid="check-targets"] [data-role="target-kind"]').selectOption('adversaries');
   await check.locator('[data-testid="check-targets"] [data-role="target-except"]').selectOption('target');
 
-  const outcome = check.locator('[data-outcome="onSuccessWithHope"]');
+  const outcome = check.locator('[data-outcome="onSuccessWithGood"]');
   await outcome.locator('[data-role="add-effect"]').first().selectOption('damage');
   await outcome.locator('[data-role="damage-mode"]').selectOption('dice');
   await outcome.locator('[data-role="damage-dice"]').fill('same');
@@ -2314,7 +2314,7 @@ test('writes a card that reuses one roll against every other adversary in reach'
             difficulty: 12,
             roll: 'last',
             targets: { kind: 'adversaries', range: 'veryClose', except: 'target' },
-            onSuccessWithHope: [{ kind: 'damage', dice: 'same', half: true }],
+            onSuccessWithGood: [{ kind: 'damage', dice: 'same', half: true }],
           },
         },
       ],

@@ -85,23 +85,23 @@ export const PILLAR_DIALOGUE: Dialogue = dialogueSchema.parse({
           check: {
             trait: 'presence',
             difficulty: 13,
-            onSuccessWithHope: [
-              { kind: 'log', text: 'Something in the stone unclenches.', tone: 'hope' },
+            onSuccessWithGood: [
+              { kind: 'log', text: 'Something in the stone unclenches.', tone: 'good' },
               { kind: 'giveKey', key: 'wardens-word' },
               { kind: 'completeObjective', quest: WARDENS_WORD_QUEST, objective: OBJECTIVE_WIN_THE_WORD },
               { kind: 'revealObjective', quest: WARDENS_WORD_QUEST, objective: OBJECTIVE_OPEN_THE_STRONGBOX },
             ],
-            onSuccessWithFear: [
-              { kind: 'log', text: 'It yields — and something deeper in the vault notices.', tone: 'fear' },
+            onSuccessWithBad: [
+              { kind: 'log', text: 'It yields — and something deeper in the vault notices.', tone: 'bad' },
               { kind: 'giveKey', key: 'wardens-word' },
               { kind: 'completeObjective', quest: WARDENS_WORD_QUEST, objective: OBJECTIVE_WIN_THE_WORD },
               { kind: 'revealObjective', quest: WARDENS_WORD_QUEST, objective: OBJECTIVE_OPEN_THE_STRONGBOX },
             ],
-            onFailureWithHope: [
+            onFailureWithGood: [
               { kind: 'log', text: 'The Warden is unmoved, but not unkind.', tone: 'narration' },
             ],
-            onFailureWithFear: [
-              { kind: 'log', text: 'The eyes narrow. You have been counted.', tone: 'fear' },
+            onFailureWithBad: [
+              { kind: 'log', text: 'The eyes narrow. You have been counted.', tone: 'bad' },
             ],
             gotoOnSuccess: 'granted',
             gotoOnFailure: 'refused',

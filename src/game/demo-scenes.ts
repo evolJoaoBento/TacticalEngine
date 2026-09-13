@@ -87,7 +87,7 @@ export const PIT_SCENE: SceneDoc = sceneSchema.parse({
       requiresKey: 'wardens-word',
       lockedText: 'The lid will not shift. Whatever holds it is not a lock.',
       effects: [
-        { kind: 'log', text: 'The word you were given does the work for you.', tone: 'hope' },
+        { kind: 'log', text: 'The word you were given does the work for you.', tone: 'good' },
         { kind: 'loot', table: 'pit-strongbox' },
         {
           kind: 'completeObjective',

@@ -33,10 +33,10 @@ export type Trait = z.infer<typeof traitSchema>;
 
 export const rollOutcomeSchema = z.enum([
   'criticalSuccess',
-  'successWithHope',
-  'successWithFear',
-  'failureWithHope',
-  'failureWithFear',
+  'successWithGood',
+  'successWithBad',
+  'failureWithGood',
+  'failureWithBad',
 ]);
 
 export const pointSchema = z.object({

@@ -103,7 +103,7 @@ function holding(seed: string, cards: string[]): DemoScene {
   demo.sheets.set('mira', sheet);
   demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
   refreshWorld(demo);
-  demo.state.entity('mira')!.hope = { max: 6, value: 6 };
+  demo.state.entity('mira')!.good = { max: 6, value: 6 };
   demo.party.select('mira');
   return demo;
 }
@@ -132,14 +132,14 @@ describe('Phantom Step', () => {
 
     expect(useAbility(demo, 'mira', 'fixture-phantom-step', []).status).toBe('done');
     expect(demo.world.marks()).toEqual([{ mark: FIXTURE_SPOT_MARK, owner: 'mira', tile: stood }]);
-    expect(mira.hope!.value).toBe(5);
+    expect(mira.good!.value).toBe(5);
     expect(demo.log.at(-1)?.text).toBe('Mira marks the ground where they stand.');
 
     const away = elsewhere(demo, stood);
     demo.state.moveEntity('mira', away);
     expect(useAbility(demo, 'mira', 'fixture-phantom-step', []).status).toBe('done');
     expect(mira.tile).toBe(stood);
-    expect(mira.hope!.value).toBe(4);
+    expect(mira.good!.value).toBe(4);
     // The spell ends after they reappear: nothing marked, so the next cast marks again.
     expect(demo.world.marks()).toEqual([]);
     expect(demo.log.some((l) => /where they were/.test(l.text))).toBe(true);
@@ -249,7 +249,7 @@ function karaHolding(seed: string, cards: string[]): { demo: DemoScene; kara: En
   demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
   refreshWorld(demo);
   const kara = demo.state.entity('kara')!;
-  kara.hope = { max: 6, value: 6 };
+  kara.good = { max: 6, value: 6 };
   const husk = demo.state
     .entitiesOf('adversary')
     .filter((e) => e.alive)
@@ -290,9 +290,9 @@ describe('Bold Front', () => {
       const settled = demo.rolls[demo.rolls.length - 1]!.roll;
       expect(settled.total).toBe(thrown.total + strength);
       // The dice did not move; only the number behind them did.
-      expect({ hope: settled.hope, fear: settled.fear }).toEqual({ hope: thrown.hope, fear: thrown.fear });
+      expect({ good: settled.good, bad: settled.bad }).toEqual({ good: thrown.good, bad: thrown.bad });
       // A Light for the card, and whatever the roll itself handed over (a failure with Light is still a roll with Light).
-      expect(kara.hope!.value).toBe(6 - 1 + settled.hopeGained);
+      expect(kara.good!.value).toBe(6 - 1 + settled.goodGained);
       expect(demo.log.some((l) => /shoulders into it/.test(l.text))).toBe(true);
       return;
     }
@@ -470,7 +470,7 @@ function untilScriptChoice(demo: DemoScene, who: string, limit = 60): PendingDef
     member.hitPoints = { ...member.hitPoints, marked: 0 };
     member.stress = { ...member.stress, marked: 0 };
     member.alive = true;
-    if (member.hope !== undefined) member.hope = { max: member.hope.max, value: member.hope.max };
+    if (member.good !== undefined) member.good = { max: member.good.max, value: member.good.max };
     endTurn(demo);
     while (demo.pending !== null) {
       const waiting = demo.pending;
@@ -545,7 +545,7 @@ describe('Bone-Bound', () => {
       answerPending(demo, { kind: 'choose', index });
       const after = demo.log.slice(said).map((l) => l.text);
       expect(after.some((t) => t.includes('finds nothing where Mira was'))).toBe(true);
-      expect(mira.hope!.value).toBe(3);
+      expect(mira.good!.value).toBe(3);
       expect(mira.hitPoints.marked).toBe(0);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
 

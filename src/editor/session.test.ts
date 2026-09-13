@@ -756,13 +756,13 @@ describe('editing an object', () => {
         check: {
           trait: 'finesse',
           difficulty: 14,
-          onSuccessWithHope: [{ kind: 'log', text: 'It opens.' }, { kind: 'open' }],
+          onSuccessWithGood: [{ kind: 'log', text: 'It opens.' }, { kind: 'open' }],
         },
       }),
     );
     const check = s.requireScene('room').interactables[0]!.check;
     expect(check?.difficulty).toBe(14);
-    expect(check?.onSuccessWithHope?.length).toBe(2);
+    expect(check?.onSuccessWithGood?.length).toBe(2);
 
     s.undo();
     expect(s.requireScene('room').interactables[0]!.check).toBeUndefined();

@@ -290,10 +290,10 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                   type="number"
                   min={0}
                   style={{ ...field, width: '50px' }}
-                  data-testid="ability-hope"
-                  value={open.cost.hope ?? 0}
+                  data-testid="ability-good"
+                  value={open.cost.good ?? 0}
                   onInput={(e) =>
-                    edit({ cost: { ...open.cost, hope: Math.max(0, Number((e.target as HTMLInputElement).value) || 0) } })
+                    edit({ cost: { ...open.cost, good: Math.max(0, Number((e.target as HTMLInputElement).value) || 0) } })
                   }
                 />,
               )}
@@ -313,10 +313,10 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 type="number"
                 min={0}
                 style={{ ...field, width: '50px' }}
-                data-testid="ability-fear"
-                value={open.cost.fear ?? 0}
+                data-testid="ability-bad"
+                value={open.cost.bad ?? 0}
                 onInput={(e) =>
-                  edit({ cost: { ...open.cost, fear: Math.max(0, Number((e.target as HTMLInputElement).value) || 0) } })
+                  edit({ cost: { ...open.cost, bad: Math.max(0, Number((e.target as HTMLInputElement).value) || 0) } })
                 }
               />
               {/* The GM's pool: a stat block spends it, a card never can. */}

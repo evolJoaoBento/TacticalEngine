@@ -35,7 +35,7 @@ export interface Defender {
   defenses?: DamageDefenses;
   armorSlots: MarkPool;
   stress: MarkPool;
-  hope?: Currency;
+  good?: Currency;
   /** Reactions to incoming damage the defender holds, in the order to try them. */
   reactions: readonly AbilityDef[];
 }
@@ -64,7 +64,7 @@ export const DEFAULT_DEFENSE: DefensePolicy = { armor: 'auto', reactions: true }
 /** One reaction that fired, and what it cost. */
 export interface ReactionUsed {
   ability: AbilityDef;
-  hopeSpent: number;
+  goodSpent: number;
   stressMarked: number;
   /** The dice a `reduceDamage` reaction rolled, if any. */
   rolled?: number;
@@ -75,7 +75,7 @@ export interface Defense {
   /** Armor Slots to mark, the one plus any a reaction added. */
   armorSlotsMarked: number;
   reactions: ReactionUsed[];
-  hopeSpent: number;
+  goodSpent: number;
   stressMarked: number;
 }
 
@@ -93,25 +93,25 @@ export function resolveDefense(
   defender: Defender,
   policy: DefensePolicy = DEFAULT_DEFENSE,
 ): Defense {
-  let hope = defender.hope;
+  let good = defender.good;
   let stressRoom = unmarked(defender.stress);
   const used: ReactionUsed[] = [];
-  let hopeSpent = 0;
+  let goodSpent = 0;
   let stressMarked = 0;
 
   const affordable = (ability: AbilityDef): boolean => {
     const cost = ability.cost;
-    if ((cost.hope ?? 0) > 0 && (hope === undefined || !canAfford(hope, cost.hope))) return false;
+    if ((cost.good ?? 0) > 0 && (good === undefined || !canAfford(good, cost.good))) return false;
     if ((cost.stress ?? 0) > 0 && !canMarkStress({ max: stressRoom, marked: 0 }, cost.stress)) return false;
     return true;
   };
   const pay = (ability: AbilityDef, rolled?: number): void => {
     const cost = ability.cost;
-    const record: ReactionUsed = { ability, hopeSpent: cost.hope ?? 0, stressMarked: cost.stress ?? 0 };
+    const record: ReactionUsed = { ability, goodSpent: cost.good ?? 0, stressMarked: cost.stress ?? 0 };
     if (rolled !== undefined) record.rolled = rolled;
-    if ((cost.hope ?? 0) > 0 && hope !== undefined) {
-      hope = { max: hope.max, value: hope.value - cost.hope! };
-      hopeSpent += cost.hope!;
+    if ((cost.good ?? 0) > 0 && good !== undefined) {
+      good = { max: good.max, value: good.value - cost.good! };
+      goodSpent += cost.good!;
     }
     if ((cost.stress ?? 0) > 0) {
       stressRoom -= cost.stress!;
@@ -185,7 +185,7 @@ export function resolveDefense(
     pay(ability);
   }
 
-  return { resolved, armorSlotsMarked: resolved.armorSlotsSpent, reactions: used, hopeSpent, stressMarked };
+  return { resolved, armorSlotsMarked: resolved.armorSlotsSpent, reactions: used, goodSpent, stressMarked };
 }
 
 /**
@@ -206,12 +206,12 @@ export function resolveDefensePlan(
   plan: DefensePlan,
 ): Defense {
   const used: ReactionUsed[] = [];
-  let hopeSpent = 0;
+  let goodSpent = 0;
   let stressMarked = 0;
   const pay = (ability: AbilityDef, rolled?: number): void => {
-    const record: ReactionUsed = { ability, hopeSpent: ability.cost.hope ?? 0, stressMarked: ability.cost.stress ?? 0 };
+    const record: ReactionUsed = { ability, goodSpent: ability.cost.good ?? 0, stressMarked: ability.cost.stress ?? 0 };
     if (rolled !== undefined) record.rolled = rolled;
-    hopeSpent += record.hopeSpent;
+    goodSpent += record.goodSpent;
     stressMarked += record.stressMarked;
     used.push(record);
   };
@@ -252,7 +252,7 @@ export function resolveDefensePlan(
     pay(ability);
   }
 
-  return { resolved, armorSlotsMarked: resolved.armorSlotsSpent, reactions: used, hopeSpent, stressMarked };
+  return { resolved, armorSlotsMarked: resolved.armorSlotsSpent, reactions: used, goodSpent, stressMarked };
 }
 
 /**
@@ -286,9 +286,9 @@ export function previewPlan(damage: IncomingDamage, defender: Defender, plan: De
 }
 
 /** Whether the defender can pay for this reaction right now. */
-export function canPayFor(defender: Pick<Defender, 'hope' | 'stress'>, ability: AbilityDef): boolean {
+export function canPayFor(defender: Pick<Defender, 'good' | 'stress'>, ability: AbilityDef): boolean {
   const cost = ability.cost;
-  if ((cost.hope ?? 0) > 0 && (defender.hope === undefined || !canAfford(defender.hope, cost.hope))) return false;
+  if ((cost.good ?? 0) > 0 && (defender.good === undefined || !canAfford(defender.good, cost.good))) return false;
   if ((cost.stress ?? 0) > 0 && !canMarkStress(defender.stress, cost.stress)) return false;
   return true;
 }

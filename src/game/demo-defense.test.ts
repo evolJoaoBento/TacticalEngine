@@ -57,12 +57,12 @@ const scene = (seed = 'defense'): DemoScene => buildDemoScene(demoMap(), seed);
 
 /** What the Codex block's checks resolve into, shared by their success faces. */
 const ENERVATED_ARMS: Record<string, unknown>[] = [
-  { kind: 'log', text: 'Something goes out of them that is not coming back.', tone: 'hope' },
+  { kind: 'log', text: 'Something goes out of them that is not coming back.', tone: 'good' },
   { kind: 'applyCondition', condition: 'vulnerable', duration: 'permanent', target: { kind: 'hit' } },
 ];
 
 const STOPPED_ARMS: Record<string, unknown>[] = [
-  { kind: 'log', text: 'Every mote of dust in the room stops where it is.', tone: 'hope' },
+  { kind: 'log', text: 'Every mote of dust in the room stops where it is.', tone: 'good' },
   { kind: 'applyCondition', condition: 'time-stopped', duration: 'scene', target: { kind: 'adversaries', range: 'far' } },
   { kind: 'applyCondition', condition: 'time-jamming', duration: 'scene', target: { kind: 'actor' } },
 ];
@@ -74,7 +74,7 @@ const RESUMES_ARMS: Record<string, unknown>[] = [
 ];
 
 const FLAME_ARMS: Record<string, unknown>[] = [
-  { kind: 'log', text: 'A sheet of fire stands up out of the floor.', tone: 'hope' },
+  { kind: 'log', text: 'A sheet of fire stands up out of the floor.', tone: 'good' },
   {
     kind: 'zone',
     zone: 'fixture-flame',
@@ -90,13 +90,13 @@ const FLAME_ARMS: Record<string, unknown>[] = [
 const DOORWAY_ARMS: Record<string, unknown>[] = [
   {
     kind: 'branch',
-    when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+    when: { kind: 'pool', pool: 'good', measure: 'available', op: '>=', value: 1 },
     then: [
-      { kind: 'spendHope', amount: 1 },
-      { kind: 'log', text: 'A door that was not there, and then neither are they.', tone: 'hope' },
+      { kind: 'spendGood', amount: 1 },
+      { kind: 'log', text: 'A door that was not there, and then neither are they.', tone: 'good' },
       { kind: 'move', to: 'point', teleport: true, budget: 'far' },
     ],
-    otherwise: [{ kind: 'log', text: 'The way opens onto nothing: there is no Light to hold it.', tone: 'fear' }],
+    otherwise: [{ kind: 'log', text: 'The way opens onto nothing: there is no Light to hold it.', tone: 'bad' }],
   },
 ];
 
@@ -105,12 +105,12 @@ const DOORWAY_ARMS: Record<string, unknown>[] = [
  * Stress to take something off the GM. Three faces of one check share it.
  */
 const WATCHED: Record<string, unknown>[] = [
-  { kind: 'log', text: 'They watch a while longer, and something about it gives.', tone: 'hope' },
+  { kind: 'log', text: 'They watch a while longer, and something about it gives.', tone: 'good' },
   {
     kind: 'branch',
-    when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
-    then: [{ kind: 'spendHope', amount: 1 }],
-    otherwise: [{ kind: 'log', text: 'What they saw will not stay.', tone: 'fear' }],
+    when: { kind: 'pool', pool: 'good', measure: 'available', op: '>=', value: 1 },
+    then: [{ kind: 'spendGood', amount: 1 }],
+    otherwise: [{ kind: 'log', text: 'What they saw will not stay.', tone: 'bad' }],
   },
   {
     kind: 'choice',
@@ -121,7 +121,7 @@ const WATCHED: Record<string, unknown>[] = [
         label: 'Mark a Stress to take one off the GM',
         effects: [
           { kind: 'markStress', amount: 1, target: { kind: 'actor' } },
-          { kind: 'loseFear', amount: 1 },
+          { kind: 'loseBad', amount: 1 },
         ],
       },
       { label: 'Keep it to yourself', effects: [{ kind: 'none' }] },
@@ -279,7 +279,7 @@ describe('a card that reads its own holder', () => {
         kind: 'branch',
         when: { kind: 'pool', pool: 'stress', measure: 'marked', op: '>=', value: 1 },
         then: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }],
-        otherwise: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }],
+        otherwise: [{ kind: 'gainGood', amount: 1, target: { kind: 'actor' } }],
       },
     ],
   };
@@ -405,7 +405,7 @@ describe('conditions with modifiers', () => {
       name: 'Give Them Nothing',
       source: { kind: 'domainCard', card: DODGE_CARD },
       text: 'Spend three Light to be harder to hit until somebody manages it.',
-      cost: { hope: 3 },
+      cost: { good: 3 },
       action: false,
       // Not twice over: the second use is refused for this rather than for the
       // Light, which one test spends again to prove.
@@ -417,7 +417,7 @@ describe('conditions with modifiers', () => {
       name: 'Borrowed Plate',
       source: { kind: 'domainCard', card: WORN_CARD },
       text: 'Spend a Light to put something of yours around somebody beside you.',
-      cost: { hope: 1 },
+      cost: { good: 1 },
       target: { kind: 'ally', range: 'melee' },
       effects: [
         // It moves rather than stacks.
@@ -443,13 +443,13 @@ describe('conditions with modifiers', () => {
     const demo = scene();
     const finn = demo.state.entity('finn')!;
     carry(demo, 'finn', [DODGE_CARD]);
-    finn.hope = { max: 6, value: 3 };
+    finn.good = { max: 6, value: 3 };
     const before = demo.world.defenderOf(finn).difficulty;
     expect(useAbility(demo, 'finn', 'fixture-dodge').status).toBe('done');
     expect(finn.conditions.has('fixture-dodging')).toBe(true);
     expect(demo.world.defenderOf(finn).difficulty).toBe(before + 2);
     // Twice is refused: the condition is already there.
-    finn.hope = { max: 6, value: 3 };
+    finn.good = { max: 6, value: 3 };
     expect(useAbility(demo, 'finn', 'fixture-dodge').status).toBe('refused');
     expect(demo.world.endsOnHit('finn')).toEqual(['fixture-dodging']);
     expect(demo.world.defenderOf(finn).difficulty).toBe(before);
@@ -461,13 +461,13 @@ describe('conditions with modifiers', () => {
     const mira = demo.state.entity('mira')!;
     carry(demo, 'mira', [WORN_CARD]);
     demo.state.moveEntity('mira', demo.grid.indexOf(demo.grid.xOf(kara.tile) + 1, demo.grid.yOf(kara.tile)));
-    mira.hope = { max: 6, value: 2 };
+    mira.good = { max: 6, value: 2 };
     const max = kara.armorSlots.max;
     expect(useAbility(demo, 'mira', 'fixture-worn-armor', ['kara']).status).toBe('done');
     expect(kara.conditions.has('fixture-worn')).toBe(true);
     expect(kara.armorSlots.max).toBe(max + 1);
     // Cast on Mira instead: Kara's goes, Mira's comes.
-    mira.hope = { max: 6, value: 2 };
+    mira.good = { max: 6, value: 2 };
     expect(useAbility(demo, 'mira', 'fixture-worn-armor', ['mira']).status).toBe('done');
     expect(kara.armorSlots.max).toBe(max);
     expect(mira.armorSlots.max).toBe(demo.characters.get('mira')!.armorScore + 1);
@@ -525,7 +525,7 @@ describe('reactions when a hit lands', () => {
       text: 'Spend a Light to put a die between you and the blow.',
       kind: 'reaction',
       trigger: 'incomingDamage',
-      cost: { hope: 1 },
+      cost: { good: 1 },
       action: false,
       reaction: { kind: 'reduceDamage', dice: '1d8' },
     },
@@ -557,20 +557,20 @@ describe('reactions when a hit lands', () => {
   it('a carried ward spends a Light on Mira when its die helps', () => {
     const demo = scene();
     const mira = demo.state.entity('mira')!;
-    mira.hope = { max: 6, value: 2 };
+    mira.good = { max: 6, value: 2 };
     // The padded coat is 5/11 at level 1, 6/12: 13 is Severe. Try seeds until the d8
     // takes it under 12, which is any roll of 2 or more.
     for (let seed = 1; seed < 20; seed++) {
       const demo2 = scene(`ward-${seed}`);
       const m = demo2.state.entity('mira')!;
       carry(demo2, 'mira', [WARD_CARD]);
-      m.hope = { max: 6, value: 2 };
+      m.good = { max: 6, value: 2 };
       demo2.scenario.actorId = 'kara';
       const journal = runScript([{ kind: 'damage', dice: '13 mag', target: { kind: 'entity', id: 'mira' } }], demo2.world, demo2.rng);
       const ward = journal.find((e) => e.kind === 'defended');
       if (ward === undefined) continue;
-      expect(ward).toMatchObject({ ability: 'Warding Die', hopeSpent: 1 });
-      expect(m.hope!.value).toBe(1);
+      expect(ward).toMatchObject({ ability: 'Warding Die', goodSpent: 1 });
+      expect(m.good!.value).toBe(1);
       expect(m.hitPoints.marked).toBeLessThan(3);
       return;
     }
@@ -642,7 +642,7 @@ function untilChoice(demo: DemoScene, kind: DefenseChoice['kind'], limit = 80): 
       member.hitPoints = { ...member.hitPoints, marked: 0 };
       member.stress = { ...member.stress, marked: 0 };
       member.armorSlots = { ...member.armorSlots, marked: 0 };
-      if (member.hope !== undefined) member.hope = { max: member.hope.max, value: member.hope.max };
+      if (member.good !== undefined) member.good = { max: member.good.max, value: member.good.max };
       member.alive = true;
     }
     endTurn(demo);
@@ -779,7 +779,7 @@ describe('an ally interrupting', () => {
       text: 'Spend three Light to make something throw its blow again.',
       kind: 'reaction',
       trigger: 'attackHit',
-      cost: { hope: 3 },
+      cost: { good: 3 },
       target: { kind: 'none', range: 'far' },
       inCombatOnly: true,
       action: false,
@@ -831,7 +831,7 @@ describe('an ally interrupting', () => {
     const demo = standoff('reroll');
     const mira = demo.state.entity('mira')!;
     carry(demo, 'mira', [AGAIN_CARD]);
-    mira.hope = { max: 6, value: 6 };
+    mira.good = { max: 6, value: 6 };
     // Mira holds the card, and has to be able to see it happen — within Far
     // range of the adversary.
     standBehind(demo, 'mira', demo.state.entitiesOf('adversary').find((e) => e.alive)!.tile);
@@ -842,7 +842,7 @@ describe('an ally interrupting', () => {
     const reroll = pending!.choices.findIndex((c) => c.kind === 'reroll');
     answerPending(demo, { kind: 'choose', index: reroll });
     // Three Light gone, and the log says the blow came again.
-    expect(demo.state.entity('mira')!.hope!.value).toBe(3);
+    expect(demo.state.entity('mira')!.good!.value).toBe(3);
     expect(demo.log.map((l) => l.text).some((t) => t.includes('Think Again'))).toBe(true);
 
     // If it still landed, the same card is not offered twice for the same hit.
@@ -876,13 +876,13 @@ describe('answering a miss', () => {
       text: 'Spend a Light when a blow goes wide to be somewhere else than it looked.',
       kind: 'reaction',
       trigger: 'attackMissed',
-      cost: { hope: 1 },
+      cost: { good: 1 },
       target: { kind: 'none', range: 'close' },
       inCombatOnly: true,
       action: false,
       auto: false,
       effects: [
-        { kind: 'log', text: 'The dark closes over the space where they stood.', tone: 'hope' },
+        { kind: 'log', text: 'The dark closes over the space where they stood.', tone: 'good' },
         { kind: 'applyCondition', condition: 'hidden', duration: 'scene', target: { kind: 'actor' } },
       ],
     },
@@ -896,7 +896,7 @@ describe('answering a miss', () => {
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
-    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    demo.state.entity('kara')!.good = { max: 6, value: 6 };
 
     const pending = untilChoice(demo, 'react');
     expect(pending, 'the card was offered').not.toBeNull();
@@ -905,11 +905,11 @@ describe('answering a miss', () => {
     answerPending(demo, { kind: 'choose', index: dodge });
 
     expect(demo.world.hasCondition('kara', 'hidden')).toBe(true);
-    expect(demo.state.entity('kara')!.hope!.value).toBe(5);
+    expect(demo.state.entity('kara')!.good!.value).toBe(5);
     expect(demo.log.map((l) => l.text)).toContain('The dark closes over the space where they stood.');
 
     // Hidden until they act: swinging ends it.
-    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    demo.state.entity('kara')!.good = { max: 6, value: 6 };
     const foe = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     attackWithSelected(demo, foe.id);
     expect(demo.world.hasCondition('kara', 'hidden')).toBe(false);
@@ -1067,7 +1067,7 @@ describe("an adversary's own features", () => {
         // selectors name factions rather than sides.
         targets: { kind: 'allies', range: 'veryClose' },
         onFail: [
-          { kind: 'log', text: 'Knocked off their feet.', tone: 'fear' },
+          { kind: 'log', text: 'Knocked off their feet.', tone: 'bad' },
           { kind: 'applyCondition', condition: 'vulnerable', duration: 'temporary', target: { kind: 'hit' } },
         ],
       },
@@ -1089,7 +1089,7 @@ describe("an adversary's own features", () => {
         range: 'close',
         target: { kind: 'allies', range: 'close' },
         damage: '2d6',
-        onHit: [{ kind: 'run', hook: 'mark-armor-or-hit-point', args: { fear: true } }],
+        onHit: [{ kind: 'run', hook: 'mark-armor-or-hit-point', args: { bad: true } }],
       },
     ],
   });
@@ -1147,16 +1147,16 @@ describe("an adversary's own features", () => {
     husk.stress = { ...husk.stress, marked: husk.stress.max };
     onlyFeature(demo, sprayFeature(demo, husk.id));
     const spit = demo.project.abilities.find((a) => a.id === 'fixture-spray')!;
-    spit.cost = { fear: 2 };
+    spit.cost = { bad: 2 };
     refreshWorld(demo);
 
     // One Shadow buys nothing, though one would have paid for it unpriced.
-    demo.state.fear = { ...demo.state.fear, value: 1 };
+    demo.state.bad = { ...demo.state.bad, value: 1 };
     for (let i = 0; i < 4 && demo.encounter?.outcome === 'ongoing'; i++) endTurn(demo);
     expect(demo.log.some((l) => l.text.includes('Spit Acid'))).toBe(false);
 
     // Three, and it spits — spending the two it named.
-    demo.state.fear = { ...demo.state.fear, value: 3 };
+    demo.state.bad = { ...demo.state.bad, value: 3 };
     let sprayed = false;
     for (let i = 0; i < 4 && !sprayed && demo.encounter?.outcome === 'ongoing'; i++) {
       endTurn(demo);
@@ -1194,7 +1194,7 @@ describe("an adversary's own features", () => {
       }),
     );
     refreshWorld(demo);
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
 
     let gored = false;
     for (let i = 0; i < 8 && !gored && demo.encounter?.outcome === 'ongoing'; i++) {
@@ -1224,7 +1224,7 @@ describe("an adversary's own features", () => {
         name: 'Adrenaline Burst',
         source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
         text: 'Once per scene, spend a Shadow to clear 2 Stress.',
-        cost: { fear: 1 },
+        cost: { bad: 1 },
         uses: { count: 1, per: 'scene' },
         target: { kind: 'none', range: 'close' },
         inCombatOnly: true,
@@ -1232,7 +1232,7 @@ describe("an adversary's own features", () => {
       }),
     );
     refreshWorld(demo);
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
 
     let bursts = 0;
     for (let i = 0; i < 8 && demo.encounter?.outcome === 'ongoing'; i++) {
@@ -1262,7 +1262,7 @@ describe("an adversary's own features", () => {
       }),
     );
     refreshWorld(demo);
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
 
     let held = false;
     for (let i = 0; i < 6 && !held && demo.encounter?.outcome === 'ongoing'; i++) {
@@ -1292,7 +1292,7 @@ describe("an adversary's own features", () => {
         name: 'Regeneration',
         source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
         text: 'If the Burrower has any marked HP, spend a Shadow to clear a HP.',
-        cost: { fear: 1 },
+        cost: { bad: 1 },
         available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 1 },
         target: { kind: 'self', range: 'melee' },
         inCombatOnly: true,
@@ -1300,7 +1300,7 @@ describe("an adversary's own features", () => {
       }),
     );
     refreshWorld(demo);
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
 
     // Unhurt: it has nothing to heal, so it does not spend a Shadow on one.
     for (let i = 0; i < 3 && demo.encounter?.outcome === 'ongoing'; i++) endTurn(demo);
@@ -1320,7 +1320,7 @@ describe("an adversary's own features", () => {
   it('lets a Relentless adversary act twice in one GM turn when the GM can pay', () => {
     const demo = standoff('relentless');
     demo.askDefender = false;
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     // The feature is the whole subject here, so the creature carrying it is
     // authored beside the assertion rather than borrowed from a catalogue --
@@ -1355,14 +1355,14 @@ describe("an adversary's own features", () => {
     demo.state.removeEntity(husk.id);
     refreshWorld(demo);
     expect(adversaryTraits(adversaryDefOf(demo, tireless.id)!).spotlights).toBe(3);
-    const fearBefore = demo.state.fear.value;
+    const badBefore = demo.state.bad.value;
     const before = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed').length;
     endTurn(demo);
     const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed').length - before;
     expect(acted).toBeGreaterThan(1);
     expect(acted).toBeLessThanOrEqual(3);
     // Every spotlight past the first costs the GM a Shadow.
-    expect(demo.state.fear.value).toBe(fearBefore - (acted - 1));
+    expect(demo.state.bad.value).toBe(badBefore - (acted - 1));
   });
 });
 
@@ -1411,7 +1411,7 @@ describe('a creature that answers its own wounds', () => {
     // Two of the party in reach gives it a reason, and the GM's Shadow pays for
     // the spotlight it spends getting there.
     standBehind(demo, 'finn', foe.tile);
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     // Finn's armor is already gone, so the spray costs him a Hit Point instead.
     const finn = demo.state.entity('finn')!;
     finn.armorSlots = { ...finn.armorSlots, marked: finn.armorSlots.max };
@@ -1520,7 +1520,7 @@ describe("the party's own answer to a blow", () => {
     text: 'Having hurt something, its holder may spend to mend somebody nearby.',
     kind: 'reaction',
     trigger: 'dealtDamage',
-    cost: { hope: 2 },
+    cost: { good: 2 },
     action: false,
     target: { kind: 'ally', range: 'close' },
     effects: [{ kind: 'heal', amount: 1, target: { kind: 'allies', range: 'close', nearest: 1 } }],
@@ -1573,7 +1573,7 @@ describe("the party's own answer to a blow", () => {
     mira.hitPoints = { max: mira.hitPoints.max, marked: 2 };
     standBehind(demo, 'mira', demo.state.entity(foe)!.tile);
     const kara = demo.state.entity('kara')!;
-    kara.hope = { max: 6, value: 6 };
+    kara.good = { max: 6, value: 6 };
 
     for (let i = 0; i < 20 && demo.pending === null; i++) {
       if (!demo.encounter!.canAct('kara')) endTurn(demo);
@@ -1586,10 +1586,10 @@ describe("the party's own answer to a blow", () => {
     if (waiting?.kind !== 'reaction') throw new Error('nothing was offered');
     expect(waiting.offers.map((o) => o.ability.id)).toEqual(['fixture-healing-strike']);
     // Nothing has been spent while the question stands.
-    expect(demo.state.entity('kara')!.hope!.value).toBe(6);
+    expect(demo.state.entity('kara')!.good!.value).toBe(6);
 
     answerPending(demo, { kind: 'choose', index: 1 });
-    expect(demo.state.entity('kara')!.hope!.value).toBe(4);
+    expect(demo.state.entity('kara')!.good!.value).toBe(4);
     expect(demo.state.entity('mira')!.hitPoints.marked).toBe(1);
     expect(demo.pending).toBeNull();
   });
@@ -1602,7 +1602,7 @@ describe("the party's own answer to a blow", () => {
     const mira = demo.state.entity('mira')!;
     mira.hitPoints = { max: mira.hitPoints.max, marked: 2 };
     standBehind(demo, 'mira', demo.state.entity(foe)!.tile);
-    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    demo.state.entity('kara')!.good = { max: 6, value: 6 };
 
     for (let i = 0; i < 20 && demo.pending === null; i++) {
       if (!demo.encounter!.canAct('kara')) endTurn(demo);
@@ -1612,7 +1612,7 @@ describe("the party's own answer to a blow", () => {
     }
     expect(demo.pending?.kind).toBe('reaction');
     answerPending(demo, { kind: 'choose', index: 0 });
-    expect(demo.state.entity('kara')!.hope!.value).toBe(6);
+    expect(demo.state.entity('kara')!.good!.value).toBe(6);
     expect(demo.state.entity('mira')!.hitPoints.marked).toBe(2);
     expect(demo.pending).toBeNull();
   });
@@ -1627,14 +1627,14 @@ describe("the party's own answer to a blow", () => {
     const foe = foeOf(demo);
     const mira = demo.state.entity('mira')!;
     mira.hitPoints = { max: mira.hitPoints.max, marked: 2 };
-    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    demo.state.entity('kara')!.good = { max: 6, value: 6 };
     for (let i = 0; i < 6; i++) {
       if (!demo.encounter!.canAct('kara')) endTurn(demo);
       demo.state.entity(foe)!.hitPoints = { max: 40, marked: 0 };
       attackWithSelected(demo, foe);
     }
     expect(demo.pending?.kind).not.toBe('reaction');
-    expect(demo.state.entity('kara')!.hope!.value).toBe(6);
+    expect(demo.state.entity('kara')!.good!.value).toBe(6);
     expect(demo.state.entity('mira')!.hitPoints.marked).toBe(2);
   });
 
@@ -1725,10 +1725,10 @@ describe('a bonus the card counts out for itself', () => {
       text: 'Having hurt something badly, its holder may spend to become harder to catch.',
       kind: 'reaction',
       trigger: 'dealtDamage',
-      cost: { hope: 2 },
+      cost: { good: 2 },
       action: false,
       effects: [
-        { kind: 'log', text: 'The blow leaves them somewhere else entirely.', tone: 'hope' },
+        { kind: 'log', text: 'The blow leaves them somewhere else entirely.', tone: 'good' },
         { kind: 'addToken', ability: 'fixture-ferocity', amount: 'hitPointsDealt' },
       ],
     },
@@ -1765,7 +1765,7 @@ describe('a bonus the card counts out for itself', () => {
       cost: { stress: 1 },
       action: false,
       effects: [
-        { kind: 'log', text: 'They will hear about this one.', tone: 'hope' },
+        { kind: 'log', text: 'They will hear about this one.', tone: 'good' },
         { kind: 'addToken', ability: 'fixture-never-upstaged', amount: 'hitPointsTaken' },
       ],
     },
@@ -1868,7 +1868,7 @@ describe('a bonus the card counts out for itself', () => {
     // 2 Light to increase your Evasion by the number of Hit Points they marked."
     const demo = holding(FEROCITY, 'fixture-card-5', 'ferocity-placed');
     const foe = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    demo.state.entity('kara')!.good = { max: 6, value: 6 };
 
     let marked = 0;
     for (let i = 0; i < 20 && asked(demo) !== 'reaction'; i++) {
@@ -1883,7 +1883,7 @@ describe('a bonus the card counts out for itself', () => {
 
     answerPending(demo, { kind: 'choose', index: 1 });
     expect(demo.world.tokensOn('kara', 'fixture-ferocity')).toBe(marked);
-    expect(demo.state.entity('kara')!.hope!.value).toBe(4);
+    expect(demo.state.entity('kara')!.good!.value).toBe(4);
     // Which is the Evasion the card promised, for as long as it lasts.
     expect(demo.world.poolBonus('kara', 'evasion')).toBe(marked);
   });
@@ -1935,7 +1935,7 @@ describe('a blow that names its band', () => {
     );
     refreshWorld(demo);
     outOfReach(demo);
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     return demo;
   };
 
@@ -1971,7 +1971,7 @@ describe('a blow that names its band', () => {
     kind: 'reaction',
     trigger: 'rollingDamage',
     action: false,
-    cost: { fear: 1 },
+    cost: { bad: 1 },
     // The mark here is one nothing else in this fight applies, so the run
     // without it is a control rather than a race against something else
     // knocking her over.
@@ -2063,7 +2063,7 @@ describe('answering a miss', () => {
       // gate and the blow that answers it.
       available: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } },
       effects: [
-        { kind: 'log', text: 'The blade comes back the way it went.', tone: 'hope' },
+        { kind: 'log', text: 'The blade comes back the way it went.', tone: 'good' },
         { kind: 'damage', dice: 'weapon', using: 'proficiency', target: { kind: 'target' } },
       ],
     },
@@ -2080,7 +2080,7 @@ describe('answering a miss', () => {
       auto: false,
       target: { kind: 'none' },
       available: { kind: 'hasCondition', condition: 'guilty', of: { kind: 'target' } },
-      effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }],
+      effects: [{ kind: 'gainGood', amount: 1, target: { kind: 'actor' } }],
     },
   ];
 
@@ -2154,12 +2154,12 @@ describe('a card that answers the blow in its own words', () => {
       name: 'Barbed Skin',
       source: { kind: 'domainCard', card: ANSWER_CARD },
       text: 'Thorns come up through the skin, and wait there.',
-      cost: { hope: 1 },
+      cost: { good: 1 },
       uses: { count: 1, per: 'rest' },
       target: { kind: 'self' },
       action: false,
       effects: [
-        { kind: 'log', text: 'Thorns come up through the skin.', tone: 'hope' },
+        { kind: 'log', text: 'Thorns come up through the skin.', tone: 'good' },
         { kind: 'addToken', ability: 'fixture-thorns', amount: { trait: 'spellcast' } },
       ],
     },
@@ -2205,23 +2205,23 @@ describe('a card that answers the blow in its own words', () => {
       trigger: 'incomingDamage',
       action: false,
       auto: false,
-      available: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+      available: { kind: 'pool', pool: 'good', measure: 'available', op: '>=', value: 1 },
       target: { kind: 'none' },
       effects: [
         {
           kind: 'howMany',
-          most: { pool: 'hope', measure: 'available' },
+          most: { pool: 'good', measure: 'available' },
           title: 'Mirror Shell',
           body: 'How much of it goes into the mirror?',
           each: [
-            { kind: 'spendHope', amount: 'spent' },
+            { kind: 'spendGood', amount: 'spent' },
             {
               kind: 'diceCheck',
               dice: '1d6',
               times: 'spent',
               atLeast: 6,
               then: [
-                { kind: 'log', text: 'The blow turns in the air and goes home.', tone: 'hope' },
+                { kind: 'log', text: 'The blow turns in the air and goes home.', tone: 'good' },
                 { kind: 'avoidBlow' },
                 { kind: 'damage', dice: 'same', target: { kind: 'target' } },
               ],
@@ -2259,7 +2259,7 @@ describe('a card that answers the blow in its own words', () => {
           times: { trait: 'proficiency' },
           atLeast: 6,
           then: [
-            { kind: 'log', text: 'The shot is caught and sent somewhere else.', tone: 'hope' },
+            { kind: 'log', text: 'The shot is caught and sent somewhere else.', tone: 'good' },
             { kind: 'damage', dice: 'theirs', target: { kind: 'adversaries', range: 'veryClose', nearest: 1 } },
           ],
           otherwise: [{ kind: 'log', text: 'Nothing about it can be caught.', tone: 'system' }],
@@ -2287,7 +2287,7 @@ describe('a card that answers the blow in its own words', () => {
           times: { trait: 'proficiency' },
           atLeast: 6,
           then: [
-            { kind: 'log', text: 'The plate holds where it had no right to.', tone: 'hope' },
+            { kind: 'log', text: 'The plate holds where it had no right to.', tone: 'good' },
             { kind: 'stepSeverity', steps: 1 },
           ],
           otherwise: [{ kind: 'log', text: 'The plate gives.', tone: 'system' }],
@@ -2329,7 +2329,7 @@ describe('a card that answers the blow in its own words', () => {
       available: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } },
       target: { kind: 'none' },
       effects: [
-        { kind: 'log', text: 'The blow closes on empty ground.', tone: 'hope' },
+        { kind: 'log', text: 'The blow closes on empty ground.', tone: 'good' },
         { kind: 'avoidBlow' },
         { kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'close' },
       ],
@@ -2594,7 +2594,7 @@ describe('what a card leaves on its holder', () => {
       target: { kind: 'self' },
       inCombatOnly: true,
       effects: [
-        { kind: 'log', text: 'Something in them lets go of the reins.', tone: 'hope' },
+        { kind: 'log', text: 'Something in them lets go of the reins.', tone: 'good' },
         { kind: 'applyCondition', condition: 'fixture-frenzied', duration: 'scene', target: { kind: 'actor' } },
       ],
     },
@@ -2610,7 +2610,7 @@ describe('what a card leaves on its holder', () => {
       target: { kind: 'self' },
       action: false,
       effects: [
-        { kind: 'log', text: 'They go thin, and the dark comes through them.', tone: 'hope' },
+        { kind: 'log', text: 'They go thin, and the dark comes through them.', tone: 'good' },
         { kind: 'applyCondition', condition: 'fixture-spectral', duration: 'scene', target: { kind: 'actor' } },
       ],
     },
@@ -2626,9 +2626,9 @@ describe('what a card leaves on its holder', () => {
       target: { kind: 'none', range: 'far' },
       inCombatOnly: true,
       effects: [
-        { kind: 'log', text: 'The call goes up, and the room answers it.', tone: 'hope' },
+        { kind: 'log', text: 'The call goes up, and the room answers it.', tone: 'good' },
         { kind: 'clearStress', amount: 1, target: { kind: 'allies', range: 'far', includeSelf: true } },
-        { kind: 'gainHope', amount: 1, target: { kind: 'allies', range: 'far', includeSelf: true } },
+        { kind: 'gainGood', amount: 1, target: { kind: 'allies', range: 'far', includeSelf: true } },
         // Not the one who called it: the die is for whoever heard them.
         { kind: 'applyCondition', condition: 'fixture-inspired', duration: 'scene', target: { kind: 'allies', range: 'far' } },
       ],
@@ -2645,7 +2645,7 @@ describe('what a card leaves on its holder', () => {
       target: { kind: 'none', range: 'veryClose' },
       inCombatOnly: true,
       effects: [
-        { kind: 'log', text: 'What they are looking at is no longer a person.', tone: 'hope' },
+        { kind: 'log', text: 'What they are looking at is no longer a person.', tone: 'good' },
         {
           kind: 'reactionRoll',
           difficulty: 16,
@@ -2653,7 +2653,7 @@ describe('what a card leaves on its holder', () => {
           targets: { kind: 'adversaries', range: 'veryClose' },
           onFail: [
             { kind: 'applyCondition', condition: 'fixture-horrified', duration: 'scene', target: { kind: 'hit' } },
-            { kind: 'loseFear', amount: 'targetsHit' },
+            { kind: 'loseBad', amount: 'targetsHit' },
           ],
         },
       ],
@@ -2748,12 +2748,12 @@ describe('what a card leaves on its holder', () => {
     // spawned across the room.
     standBehind(demo, 'finn', husk.tile);
     finn.stress = { max: 6, marked: 2 };
-    if (finn.hope !== undefined) finn.hope = { max: 6, value: 0 };
+    if (finn.good !== undefined) finn.good = { max: 6, value: 0 };
     expect(demo.world.advantageFor('finn', husk.id).advantage).toBe(0);
 
     expect(useAbility(demo, 'kara', 'fixture-call', []).status).toBe('done');
     expect(finn.stress.marked).toBe(1);
-    expect(finn.hope?.value).toBe(1);
+    expect(finn.good?.value).toBe(1);
     expect(finn.conditions.has('fixture-inspired')).toBe(true);
     expect(demo.world.advantageFor('finn', husk.id).advantage).toBe(1);
     // The one who called it is not the one it inspires.
@@ -2765,14 +2765,14 @@ describe('what a card leaves on its holder', () => {
       const demo = standoff(`terror-${seed}`);
       carry(demo, TERROR, TERROR_CONDITION);
       holding(demo, [LEAVES_CARD]);
-      demo.state.fear = { ...demo.state.fear, value: 4 };
+      demo.state.bad = { ...demo.state.bad, value: 4 };
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
 
       expect(useAbility(demo, 'kara', 'fixture-terror', []).status).toBe('done');
       if (!husk.conditions.has('fixture-horrified')) continue;
       // Vulnerable in all but name: rolls against them have advantage.
       expect(demo.world.advantageFor('kara', husk.id).advantage).toBe(1);
-      expect(demo.state.fear.value).toBe(3);
+      expect(demo.state.bad.value).toBe(3);
       return;
     }
     throw new Error('nothing failed a Presence Reaction Roll in thirty tries');
@@ -2851,7 +2851,7 @@ describe('a death move', () => {
     // that nobody on the party's side is standing.
     for (let seed = 1; seed < 40; seed++) {
       const demo = lastStand(`risk-up-${seed}`, 2);
-      demo.state.fear = { ...demo.state.fear, value: 6 };
+      demo.state.bad = { ...demo.state.bad, value: 6 };
       const kara = demo.state.entity('kara')!;
       kara.hitPoints = { max: 6, marked: 5 };
       kara.armorSlots = { ...kara.armorSlots, marked: kara.armorSlots.max };
@@ -2886,7 +2886,7 @@ describe('a death move', () => {
       const kara = demo.state.entity('kara')!;
       const sheet = demo.sheets.get('kara')!;
       expect(sheet.level).toBe(1);
-      const slots = kara.hope!.max;
+      const slots = kara.good!.max;
 
       felled(demo);
       expect(demo.pending?.kind).toBe('death');
@@ -2895,13 +2895,13 @@ describe('a death move', () => {
       expect(demo.pending).toBe(null);
       if (!said(demo, 'takes a scar')) {
         // The die read above her level: nothing permanent happened.
-        expect(kara.hope!.max).toBe(slots);
+        expect(kara.good!.max).toBe(slots);
         expect(demo.characters.get('kara')!.sheet.scars).toBeUndefined();
         continue;
       }
       // "Permanently cross out a Light slot": on the sheet, so the next scene
       // she walks into starts a Light short.
-      expect(kara.hope!.max).toBe(slots - 1);
+      expect(kara.good!.max).toBe(slots - 1);
       expect(demo.characters.get('kara')!.sheet.scars).toBe(1);
       // On the sheets a save writes, and on the project's own copy of the
       // party: the scar outlives this fight either way it is reloaded.
@@ -2909,8 +2909,8 @@ describe('a death move', () => {
       expect(demo.project.party.find((member) => member.id === 'kara')!.scars).toBe(1);
       // And the character was re-derived over it, so a fresh scene is short a
       // Light without anybody writing the pool by hand.
-      expect(demo.characters.get('kara')!.hope.max).toBe(slots - 1);
-      expect(deriveCharacter({ ...sheet, scars: 1 }, characterContentFor(demo.project), demo.project.abilities).character.hope.max).toBe(slots - 1);
+      expect(demo.characters.get('kara')!.good.max).toBe(slots - 1);
+      expect(deriveCharacter({ ...sheet, scars: 1 }, characterContentFor(demo.project), demo.project.abilities).character.good.max).toBe(slots - 1);
 
       // "They return to consciousness when an ally clears 1 or more of their
       // marked Hit Points."
@@ -3019,17 +3019,17 @@ describe('a death move', () => {
       const demo = lastStand(`journey-${seed}`);
       const kara = demo.state.entity('kara')!;
       // Five scars already: this one is the last slot.
-      const sheet = { ...demo.sheets.get('kara')!, scars: kara.hope!.max - 1 };
+      const sheet = { ...demo.sheets.get('kara')!, scars: kara.good!.max - 1 };
       demo.sheets.set('kara', sheet);
       demo.characters.get('kara')!.sheet = sheet;
-      kara.hope = { max: 1, value: 1 };
+      kara.good = { max: 1, value: 1 };
 
       felled(demo);
       choose(demo, 'Avoid Death');
       if (!said(demo, 'takes a scar')) continue;
 
       expect(said(demo, 'journey ends here')).toBe(true);
-      expect(kara.hope!.max).toBe(0);
+      expect(kara.good!.max).toBe(0);
       expect(kara.dead).toBe(true);
       expect(demo.world.heal({ kind: 'entity', id: 'kara' }, 4)).toBeGreaterThan(0);
       expect(kara.alive).toBe(false);
@@ -3063,7 +3063,7 @@ describe('a death move', () => {
       auto: false,
       target: { kind: 'none' },
       effects: [
-        { kind: 'log', text: 'Not today.', tone: 'hope' },
+        { kind: 'log', text: 'Not today.', tone: 'good' },
         { kind: 'heal', dice: '1d6', target: { kind: 'actor' } },
         // The whole cost of it.
         { kind: 'vaultCard' },
@@ -3078,11 +3078,11 @@ describe('a death move', () => {
       trigger: 'defeated',
       action: false,
       auto: false,
-      cost: { hope: 1 },
+      cost: { good: 1 },
       uses: { count: 1, per: 'longRest' },
       target: { kind: 'none' },
       effects: [
-        { kind: 'log', text: 'Not while there is breath left.', tone: 'hope' },
+        { kind: 'log', text: 'Not while there is breath left.', tone: 'good' },
         { kind: 'heal', amount: 1, target: { kind: 'actor' } },
       ],
     },
@@ -3129,7 +3129,7 @@ describe('a death move', () => {
     const demo = lastStand('breath-left');
     carrying(demo, [BREATH_CARD]);
     const kara = demo.state.entity('kara')!;
-    kara.hope = { max: 6, value: 3 };
+    kara.good = { max: 6, value: 3 };
 
     felled(demo);
     expect((demo.pending as PendingDeath).offers.map((o) => o.ability.id)).toEqual(['fixture-breath-left']);
@@ -3138,7 +3138,7 @@ describe('a death move', () => {
     // "Spend a Light to clear a Hit Point instead."
     expect(kara.alive).toBe(true);
     expect(kara.hitPoints.marked).toBe(kara.hitPoints.max - 1);
-    expect(kara.hope!.value).toBe(2);
+    expect(kara.good!.value).toBe(2);
 
     // "Once per long rest": down again, and there is nothing to answer with.
     felled(demo);
@@ -3148,7 +3148,7 @@ describe('a death move', () => {
   it('is not offered a card whose Light the fallen character cannot pay', () => {
     const demo = lastStand('no-hope');
     carrying(demo, [BREATH_CARD]);
-    demo.state.entity('kara')!.hope = { max: 6, value: 0 };
+    demo.state.entity('kara')!.good = { max: 6, value: 0 };
     felled(demo);
     expect((demo.pending as PendingDeath).offers).toEqual([]);
   });
@@ -3165,7 +3165,7 @@ describe('a death move', () => {
         trigger: 'defeated',
         action: false,
         auto: false,
-        effects: [{ kind: 'log', text: 'She says something bitter.', tone: 'fear' }],
+        effects: [{ kind: 'log', text: 'She says something bitter.', tone: 'bad' }],
       }),
     );
     refreshWorld(demo);
@@ -3247,7 +3247,7 @@ describe('a card with a limit on it, answering something', () => {
       available: { kind: 'withinRange', range: 'melee', of: { kind: 'target' } },
       target: { kind: 'none' },
       effects: [
-        { kind: 'log', text: 'The blow closes on empty ground.', tone: 'hope' },
+        { kind: 'log', text: 'The blow closes on empty ground.', tone: 'good' },
         { kind: 'avoidBlow' },
         { kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'close' },
       ],
@@ -3478,7 +3478,7 @@ describe('a swing lifted, and a swing that names its own number', () => {
       cost: { stress: 1 },
       target: { kind: 'none' },
       effects: [
-        { kind: 'log', text: 'The blow lands exactly where it was meant to.', tone: 'hope' },
+        { kind: 'log', text: 'The blow lands exactly where it was meant to.', tone: 'good' },
         { kind: 'maxOneDie' },
       ],
     },
@@ -3487,7 +3487,7 @@ describe('a swing lifted, and a swing that names its own number', () => {
       name: 'Name the Number',
       source: { kind: 'domainCard', card: REAP_CARD },
       text: 'Spend a Light, once between long rests, to force five Hit Points on what your roll beat.',
-      cost: { hope: 1 },
+      cost: { good: 1 },
       uses: { count: 1, per: 'longRest' },
       inCombatOnly: true,
       target: { kind: 'none' },
@@ -3575,8 +3575,8 @@ describe('a swing lifted, and a swing that names its own number', () => {
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       husk.hitPoints = { max: 30, marked: 0 };
       husk.armorSlots = { max: 6, marked: 0 };
-      const hope = demo.state.entity('kara')!;
-      hope.hope = { max: 6, value: 3 };
+      const good = demo.state.entity('kara')!;
+      good.good = { max: 6, value: 3 };
 
       expect(useAbility(demo, 'kara', 'fixture-reap', []).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
@@ -3653,7 +3653,7 @@ describe('a card that moves before it swings', () => {
       // all the card asks of them.
       available: { kind: 'withinRange', range: 'close', of: { kind: 'allies' } },
       effects: [
-        { kind: 'log', text: 'A push off a shoulder, and the air.', tone: 'hope' },
+        { kind: 'log', text: 'A push off a shoulder, and the air.', tone: 'good' },
         { kind: 'move', how: 'toward', of: { kind: 'target' }, range: 'melee', budget: 'far' },
         { kind: 'attack', target: { kind: 'target' }, advantage: 1, damageDice: '1d10' },
       ],
@@ -3670,7 +3670,7 @@ describe('a card that moves before it swings', () => {
       inCombatOnly: true,
       target: { kind: 'adversary', range: 'far' },
       effects: [
-        { kind: 'log', text: 'A sprint nobody had to roll for.', tone: 'hope' },
+        { kind: 'log', text: 'A sprint nobody had to roll for.', tone: 'good' },
         { kind: 'move', how: 'toward', of: { kind: 'target' }, range: 'melee', budget: 'far' },
         { kind: 'applyCondition', condition: 'fixture-poised', target: { kind: 'actor' } },
       ],
@@ -3914,11 +3914,11 @@ describe('a run in a straight line', () => {
       name: 'Straight Line',
       source: { kind: 'domainCard', card: RUN_CARD },
       text: 'Spend three Light to run a straight line through everything in the way.',
-      cost: { hope: 3 },
+      cost: { good: 3 },
       inCombatOnly: true,
       target: { kind: 'point', range: 'far' },
       effects: [
-        { kind: 'log', text: 'Head down, straight through the middle, and no stopping.', tone: 'hope' },
+        { kind: 'log', text: 'Head down, straight through the middle, and no stopping.', tone: 'good' },
         { kind: 'move', to: 'point', budget: 'far' },
         {
           kind: 'check',
@@ -3954,7 +3954,7 @@ describe('a run in a straight line', () => {
     target: { kind: 'none', range: 'close' },
     inCombatOnly: true,
     effects: [
-      { kind: 'log', text: 'It puts its head down and goes.', tone: 'fear' },
+      { kind: 'log', text: 'It puts its head down and goes.', tone: 'bad' },
       { kind: 'damage', dice: '2d6+3', type: 'physical', direct: true, target: { kind: 'inPath', side: 'allies' } },
       { kind: 'move', to: 'point', budget: 'close' },
     ],
@@ -3975,7 +3975,7 @@ describe('a run in a straight line', () => {
       demo.askDefender = false;
       hold(demo, [RUN_CARD]);
       const kara = demo.state.entity('kara')!;
-      kara.hope = { max: 6, value: 6 };
+      kara.good = { max: 6, value: 6 };
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       husk.hitPoints = { max: 40, marked: 0 };
 
@@ -4008,7 +4008,7 @@ describe('a run in a straight line', () => {
   it('refuses Deathrun with nowhere to aim it', () => {
     const demo = standoff('run-nowhere');
     hold(demo, [RUN_CARD]);
-    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    demo.state.entity('kara')!.good = { max: 6, value: 6 };
     expect(useAbility(demo, 'kara', 'fixture-run', []).status).toBe('refused');
     expect(demo.log.some((l) => l.text.includes('needs somewhere to aim'))).toBe(true);
   });
@@ -4084,7 +4084,7 @@ describe('what a charge runs over', () => {
     target: { kind: 'none', range: 'close' },
     inCombatOnly: true,
     effects: [
-      { kind: 'log', text: 'It puts its head down and goes.', tone: 'fear' },
+      { kind: 'log', text: 'It puts its head down and goes.', tone: 'bad' },
       { kind: 'damage', dice: '2d6+3', type: 'physical', direct: true, target: { kind: 'inPath', side: 'allies' } },
       { kind: 'move', to: 'point', budget: 'close' },
     ],
@@ -4102,7 +4102,7 @@ describe('what a charge runs over', () => {
       kind: 'reaction',
       trigger: 'tookDamage',
       action: false,
-      effects: [{ kind: 'log', text: 'Kara steadies herself.', tone: 'hope' }],
+      effects: [{ kind: 'log', text: 'Kara steadies herself.', tone: 'good' }],
     },
     {
       // Only a shape: something aimed at a tile, so the path can be read.
@@ -4110,7 +4110,7 @@ describe('what a charge runs over', () => {
       name: 'Straight Line',
       source: { kind: 'domainCard', card: RUN_CARD },
       text: 'Spend three Light to run a straight line through everything in the way.',
-      cost: { hope: 3 },
+      cost: { good: 3 },
       inCombatOnly: true,
       target: { kind: 'point', range: 'far' },
       effects: [
@@ -4185,7 +4185,7 @@ describe('what a charge runs over', () => {
       advance: 'attackRoll',
       onDeath: 'end',
       effects: [
-        { kind: 'log', text: 'It breaks into a run and does not turn.', tone: 'fear' },
+        { kind: 'log', text: 'It breaks into a run and does not turn.', tone: 'bad' },
         { kind: 'damage', dice: '4d12+20', type: 'physical', direct: true, target: { kind: 'inPath', side: 'allies' } },
       ],
     });
@@ -4291,7 +4291,7 @@ describe('the same blow again', () => {
             // `always` with `hit` is the idiom for "on a success": a roll that
             // beat nobody leaves nobody bound, so the damage lands on no one.
             always: [{ kind: 'damage', dice: 'same', target: { kind: 'hit' } }],
-            onSuccessWithFear: [{ kind: 'vaultCard' }],
+            onSuccessWithBad: [{ kind: 'vaultCard' }],
           },
         },
       ],
@@ -4341,7 +4341,7 @@ describe('the same blow again', () => {
           trigger: 'nearbyTookDamage',
           action: false,
           available: { kind: 'side', of: { kind: 'hit' }, is: 'adversary' },
-          effects: [{ kind: 'log', text: 'Mira marks the one that is bleeding.', tone: 'hope' }],
+          effects: [{ kind: 'log', text: 'Mira marks the one that is bleeding.', tone: 'good' }],
         }),
       );
       gives(demo, 'mira', [NOTICE_CARD]);
@@ -4384,7 +4384,7 @@ describe('the same blow again', () => {
 
   it('puts Encore in the vault when the roll succeeds with Shadow', () => {
     for (let seed = 1; seed < 60; seed++) {
-      const demo = stage(`encore-fear-${seed}`, [AGAIN_CARD]);
+      const demo = stage(`encore-bad-${seed}`, [AGAIN_CARD]);
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       attackWithSelected(demo, husk.id);
       const at = offerOf(demo, 'Second Blow');
@@ -4448,12 +4448,12 @@ describe('a smite held back for the next blow', () => {
       name: 'Charge the Blade',
       source: { kind: 'domainCard', card: SMITE_CARD },
       text: 'Spend three Light to put a charge in your weapon, once between rests.',
-      cost: { hope: 3 },
+      cost: { good: 3 },
       uses: { count: 1, per: 'rest' },
       action: false,
       available: { kind: 'not', of: { kind: 'hasCondition', condition: 'fixture-charge', of: { kind: 'actor' } } },
       effects: [
-        { kind: 'log', text: 'The blade takes on a light the room did not give it.', tone: 'hope' },
+        { kind: 'log', text: 'The blade takes on a light the room did not give it.', tone: 'good' },
         // As long as the use it cost: a charge cleared when the fight ended
         // would leave the card spent until a rest and nothing to show for it.
         { kind: 'applyCondition', condition: 'fixture-charge', duration: 'rest', target: { kind: 'actor' } },
@@ -4470,7 +4470,7 @@ describe('a smite held back for the next blow', () => {
       inCombatOnly: true,
       available: { kind: 'hasCondition', condition: 'fixture-charge', of: { kind: 'actor' } },
       effects: [
-        { kind: 'log', text: 'What was waiting in the blade goes into the blow.', tone: 'hope' },
+        { kind: 'log', text: 'What was waiting in the blade goes into the blow.', tone: 'good' },
         // One effect for both halves: twice the damage, and no longer the
         // sword's kind of damage.
         { kind: 'boostDamage', double: true, type: 'magic' },
@@ -4492,7 +4492,7 @@ describe('a smite held back for the next blow', () => {
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
-    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    demo.state.entity('kara')!.good = { max: 6, value: 6 };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 60, marked: 0 };
     if (spend) expect(useAbility(demo, 'kara', 'fixture-smite', []).status).not.toBe('refused');
@@ -4508,7 +4508,7 @@ describe('a smite held back for the next blow', () => {
       // The same seed, the same swing, with the charge spent on it. Nothing in
       // the card rolls anything, so the dice fall the same way in both.
       const lit = charged(`smite-${seed}`, true);
-      expect(lit.demo.state.entity('kara')!.hope!.value).toBe(3);
+      expect(lit.demo.state.entity('kara')!.good!.value).toBe(3);
       expect(lit.demo.state.entity('kara')!.conditions.has('fixture-charge')).toBe(true);
       attackWithSelected(lit.demo, lit.husk.id);
 
@@ -4546,7 +4546,7 @@ describe('a smite held back for the next blow', () => {
     expect(demo.log.some((l) => l.text.includes('already'))).toBe(false);
     // And with the charge spent, the use is spent with it.
     demo.world.clearCondition('kara', 'fixture-charge');
-    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    demo.state.entity('kara')!.good = { max: 6, value: 6 };
     const said = demo.log.length;
     expect(useAbility(demo, 'kara', 'fixture-smite', []).status).toBe('refused');
     expect(demo.log.slice(said).some((l) => l.text.includes('used until the next rest'))).toBe(true);
@@ -4612,7 +4612,7 @@ describe('a shell of light over somebody', () => {
         // One at a time: a second casting takes it off whoever was carrying it.
         { kind: 'clearCondition', condition: 'fixture-shell', target: { kind: 'party' } },
         { kind: 'applyCondition', condition: 'fixture-shell', duration: 'scene', target: { kind: 'target' } },
-        { kind: 'log', text: 'A shell of light closes over them.', tone: 'hope' },
+        { kind: 'log', text: 'A shell of light closes over them.', tone: 'good' },
       ],
     },
   ];
@@ -4651,7 +4651,7 @@ describe('a shell of light over somebody', () => {
     demo.sheets.set('kara', hers);
     demo.characters.set('kara', deriveCharacter(hers, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     demo.state.entity('kara')!.hitPoints = { max: 20, marked: 0 };
     if (cast) {
       expect(useAbility(demo, 'mira', 'fixture-shell-cast', ['kara']).status).not.toBe('refused');
@@ -4801,8 +4801,8 @@ describe('a word in the wrong ear', () => {
       tags: ['social'],
       prompt,
       onCriticalSuccess: TURNED,
-      onSuccessWithHope: TURNED,
-      onSuccessWithFear: TURNED,
+      onSuccessWithGood: TURNED,
+      onSuccessWithBad: TURNED,
     },
   });
   const DISCORD = [
@@ -4818,7 +4818,7 @@ describe('a word in the wrong ear', () => {
           kind: 'branch',
           when: { kind: 'hasCondition', condition: 'fixture-wise', of: { kind: 'target' } },
           then: [
-            { kind: 'log', text: 'They have heard this voice before, and are ready for it.', tone: 'fear' },
+            { kind: 'log', text: 'They have heard this voice before, and are ready for it.', tone: 'bad' },
             whisperCheck(18, 'A word in the wrong ear, to somebody who is wise to it.'),
           ],
           otherwise: [whisperCheck(13, 'A word in the wrong ear: turn them on the one beside them.')],
@@ -5006,7 +5006,7 @@ describe('a shout the next one hears', () => {
       cost: { stress: 1 },
       inCombatOnly: true,
       effects: [
-        { kind: 'log', text: 'They shout something, and the room hears it.', tone: 'hope' },
+        { kind: 'log', text: 'They shout something, and the room hears it.', tone: 'good' },
         { kind: 'applyCondition', condition: 'fixture-led', duration: 'scene', target: { kind: 'target' } },
       ],
     },
@@ -5030,7 +5030,7 @@ describe('a shout the next one hears', () => {
           body: 'Take heart from it.',
           options: [
             { label: 'Clear a Stress', effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }] },
-            { label: 'Gain a Light', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
+            { label: 'Gain a Light', effects: [{ kind: 'gainGood', amount: 1, target: { kind: 'actor' } }] },
           ],
         },
       ],
@@ -5181,7 +5181,7 @@ describe('a shout the next one hears', () => {
           trigger: 'dealtDamage',
           action: false,
           auto: false,
-          effects: [{ kind: 'log', text: 'Finn follows through.', tone: 'hope' }],
+          effects: [{ kind: 'log', text: 'Finn follows through.', tone: 'good' }],
         }),
       );
       const his = { ...demo.sheets.get('finn')!, domainCards: [FOLLOW_CARD], loadout: [FOLLOW_CARD] };
@@ -5256,7 +5256,7 @@ describe('one swing through all of them', () => {
       name: 'One Swing',
       source: { kind: 'domainCard', card: SPLINTER_CARD },
       text: 'Spend a Light to swing once at everything your weapon can reach, once between long rests.',
-      cost: { hope: 1 },
+      cost: { good: 1 },
       uses: { count: 1, per: 'longRest' },
       inCombatOnly: true,
       target: { kind: 'none' },
@@ -5291,7 +5291,7 @@ describe('one swing through all of them', () => {
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
-    demo.state.entity('kara')!.hope = { max: 6, value: 6 };
+    demo.state.entity('kara')!.good = { max: 6, value: 6 };
     return { demo, husk, other };
   };
 
@@ -5378,14 +5378,14 @@ describe('a step across the room without crossing it', () => {
               kind: 'nearby',
               of: { kind: 'allies', range: 'veryClose' },
               op: '<=',
-              value: { pool: 'hope', measure: 'available' },
+              value: { pool: 'good', measure: 'available' },
             },
           ],
         },
         // They arrive first, so who is standing with her is read from where
         // they were all standing rather than from where she has already gone.
         effects: [
-          { kind: 'spendHope', amount: { count: { kind: 'allies', range: 'veryClose' } } },
+          { kind: 'spendGood', amount: { count: { kind: 'allies', range: 'veryClose' } } },
           { kind: 'move', who: { kind: 'allies', range: 'veryClose' }, to: 'point', teleport: true, budget: 'far' },
         ],
       },
@@ -5401,7 +5401,7 @@ describe('a step across the room without crossing it', () => {
       name: 'Step Across',
       source: { kind: 'domainCard', card: BLINK_CARD },
       text: 'Spend a Light to be standing somewhere else, and bring whoever is with you for a Light a head.',
-      cost: { hope: 1 },
+      cost: { good: 1 },
       target: { kind: 'point', range: 'far' },
       effects: [
         {
@@ -5411,8 +5411,8 @@ describe('a step across the room without crossing it', () => {
             difficulty: 12,
             prompt: 'Step across the room without crossing it.',
             onCriticalSuccess: ARRIVE,
-            onSuccessWithHope: ARRIVE,
-            onSuccessWithFear: ARRIVE,
+            onSuccessWithGood: ARRIVE,
+            onSuccessWithBad: ARRIVE,
           },
         },
       ],
@@ -5431,7 +5431,7 @@ describe('a step across the room without crossing it', () => {
     demo.sheets.set('mira', sheet);
     demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
-    demo.state.entity('mira')!.hope = { max: 6, value: 6 };
+    demo.state.entity('mira')!.good = { max: 6, value: 6 };
     demo.party.select('mira');
     return { demo, husk };
   };
@@ -5531,7 +5531,7 @@ describe('a step across the room without crossing it', () => {
       // A Light for the spell and nothing over. A success with Light hands one
       // back before the choice is put, so even then there is one for one of
       // them and not for both.
-      mira.hope = { max: 6, value: 1 };
+      mira.good = { max: 6, value: 1 };
       expect(useAbility(demo, 'mira', 'fixture-blink', [], { point: at }).status).not.toBe('refused');
       let offered: string[] = [];
       for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
@@ -5551,7 +5551,7 @@ describe('a step across the room without crossing it', () => {
       const { demo: rich } = blinking(`blink-price-${seed}`);
       rich.state.moveEntity('finn', stand);
       const richMira = rich.state.entity('mira')!;
-      richMira.hope = { max: 6, value: 4 };
+      richMira.good = { max: 6, value: 4 };
       expect(useAbility(rich, 'mira', 'fixture-blink', [], { point: at }).status).not.toBe('refused');
       let took: string[] = [];
       for (let guard = 0; guard < 8 && rich.pending !== null; guard++) {
@@ -5644,8 +5644,8 @@ describe('a line of light down the room', () => {
             difficulty: 16,
             prompt: 'A line of light down the room?',
             onCriticalSuccess: CARRIED,
-            onSuccessWithHope: CARRIED,
-            onSuccessWithFear: CARRIED,
+            onSuccessWithGood: CARRIED,
+            onSuccessWithBad: CARRIED,
           },
         },
       ],
@@ -5949,7 +5949,7 @@ describe('ground worth standing on', () => {
       value: 1,
       grows: { by: 1, until: 6 },
     },
-    { kind: 'log', text: 'The air over that ground goes hard and bright.', tone: 'hope' },
+    { kind: 'log', text: 'The air over that ground goes hard and bright.', tone: 'good' },
   ];
 
   const LIGHT = [
@@ -5969,8 +5969,8 @@ describe('ground worth standing on', () => {
             difficulty: 16,
             prompt: 'Ground worth standing on?',
             onCriticalSuccess: LAID,
-            onSuccessWithHope: LAID,
-            onSuccessWithFear: LAID,
+            onSuccessWithGood: LAID,
+            onSuccessWithBad: LAID,
           },
         },
       ],
@@ -6114,13 +6114,13 @@ describe('a room put out', () => {
         kind: 'all',
         of: [
           { kind: 'rolled', is: 'success' },
-          { kind: 'rolled', is: 'withHope' },
+          { kind: 'rolled', is: 'withGood' },
         ],
       },
       // Taken rather than offered, which is why nobody is asked about it.
       auto: true,
       effects: [
-        { kind: 'log', text: 'The dark closes on them.', tone: 'hope' },
+        { kind: 'log', text: 'The dark closes on them.', tone: 'good' },
         { kind: 'markStress', amount: 1, target: { kind: 'target' } },
       ],
     },
@@ -6146,7 +6146,7 @@ describe('a room put out', () => {
       side: 'adversaries',
       onDeath: 'end',
     },
-    { kind: 'log', text: 'The room goes dark, and only your own see through it.', tone: 'fear' },
+    { kind: 'log', text: 'The room goes dark, and only your own see through it.', tone: 'bad' },
   ];
 
   const DARK = [
@@ -6166,8 +6166,8 @@ describe('a room put out', () => {
             difficulty: 16,
             prompt: 'Put the room out?',
             onCriticalSuccess: FELL,
-            onSuccessWithHope: FELL,
-            onSuccessWithFear: FELL,
+            onSuccessWithGood: FELL,
+            onSuccessWithBad: FELL,
           },
         },
       ],
@@ -6183,7 +6183,7 @@ describe('a room put out', () => {
       effects: [
         { kind: 'endZone', zone: 'fixture-dark-allies' },
         { kind: 'endZone', zone: 'fixture-dark-adversaries' },
-        { kind: 'log', text: 'The dark breaks, and the room comes back.', tone: 'fear' },
+        { kind: 'log', text: 'The dark breaks, and the room comes back.', tone: 'bad' },
       ],
     },
   ];
@@ -6240,9 +6240,9 @@ describe('a room put out', () => {
   });
 
   it('takes a Stress from whoever is beaten with Light in it, and only then', () => {
-    let withHope = false;
+    let withGood = false;
     let otherwise = false;
-    for (let seed = 1; seed < 80 && !(withHope && otherwise); seed++) {
+    for (let seed = 1; seed < 80 && !(withGood && otherwise); seed++) {
       const demo = dark(`eclipse-stress-${seed}`);
       if (!cast(demo)) continue;
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -6259,11 +6259,11 @@ describe('a room put out', () => {
       const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
       if (rolled === undefined) continue;
 
-      if (rolled === 'successWithHope' || rolled === 'criticalSuccess') {
+      if (rolled === 'successWithGood' || rolled === 'criticalSuccess') {
         // "The target must mark a Stress": nobody is asked about it.
         expect(husk.stress.marked).toBe(1);
         expect(after.some((t) => t.includes('The dark closes on them'))).toBe(true);
-        withHope = true;
+        withGood = true;
       } else {
         // Any other roll leaves them alone, and the dark still over them.
         expect(husk.stress.marked).toBe(0);
@@ -6271,7 +6271,7 @@ describe('a room put out', () => {
         otherwise = true;
       }
     }
-    expect(withHope).toBe(true);
+    expect(withGood).toBe(true);
     expect(otherwise).toBe(true);
   });
 
@@ -6401,13 +6401,13 @@ describe('a sigil that answers a fall', () => {
       name: 'Hang a Ward',
       source: { kind: 'domainCard', card: SIGIL_CARD },
       text: 'Spend three Light to hang a ward over somebody close by, until a rest.',
-      cost: { hope: 3 },
+      cost: { good: 3 },
       target: { kind: 'ally', range: 'close' },
       effects: [
         // One at a time: hanging a second takes the first off whoever had it.
         { kind: 'clearCondition', condition: 'fixture-warded', target: { kind: 'party' } },
         { kind: 'applyCondition', condition: 'fixture-warded', duration: 'rest', target: { kind: 'target' } },
-        { kind: 'log', text: 'Something closes over them, and holds.', tone: 'hope' },
+        { kind: 'log', text: 'Something closes over them, and holds.', tone: 'good' },
       ],
     },
   ];
@@ -6425,7 +6425,7 @@ describe('a sigil that answers a fall', () => {
     demo.sheets.set('mira', sheet);
     demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
     refreshWorld(demo);
-    demo.state.entity('mira')!.hope = { max: 6, value: 6 };
+    demo.state.entity('mira')!.good = { max: 6, value: 6 };
     if (on !== null) {
       demo.party.select('mira');
       expect(useAbility(demo, 'mira', 'fixture-sigil', [on]).status).not.toBe('refused');
@@ -6516,7 +6516,7 @@ describe('a throw worth making again', () => {
       action: false,
       auto: false,
       effects: [
-        { kind: 'log', text: 'Not good enough. Again.', tone: 'hope' },
+        { kind: 'log', text: 'Not good enough. Again.', tone: 'good' },
         { kind: 'rerollDamage', below: 3 },
       ],
     },
@@ -6637,7 +6637,7 @@ describe('the next one', () => {
         ],
       },
       effects: [
-        { kind: 'log', text: 'Not this one. The next.', tone: 'hope' },
+        { kind: 'log', text: 'Not this one. The next.', tone: 'good' },
         { kind: 'applyCondition', condition: 'fixture-carried', duration: 'scene', target: { kind: 'actor' } },
       ],
     },
@@ -6664,7 +6664,7 @@ describe('the next one', () => {
         ],
       },
       effects: [
-        { kind: 'log', text: 'A word in their ear, and they both stand straighter.', tone: 'hope' },
+        { kind: 'log', text: 'A word in their ear, and they both stand straighter.', tone: 'good' },
         { kind: 'clearStress', amount: 2, target: { kind: 'actor' } },
         { kind: 'clearStress', amount: 2, target: { kind: 'target' } },
       ],
@@ -6714,7 +6714,7 @@ describe('the next one', () => {
       const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
       if (rolled === undefined) continue;
 
-      const failed = rolled === 'failureWithHope' || rolled === 'failureWithFear';
+      const failed = rolled === 'failureWithGood' || rolled === 'failureWithBad';
       if (!failed) {
         // Nothing to carry: a roll that landed leaves her as she was.
         expect(kara.conditions.has('fixture-carried')).toBe(false);
@@ -6764,7 +6764,7 @@ describe('the next one', () => {
       demo.party.select('finn');
       attackWithSelected(demo, husk.id);
       const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
-      const failed = rolled === 'failureWithHope' || rolled === 'failureWithFear';
+      const failed = rolled === 'failureWithGood' || rolled === 'failureWithBad';
       const pending = demo.pending;
       const at =
         pending !== null && pending.kind === 'reaction' && pending.prompt.kind === 'choice'
@@ -6798,7 +6798,7 @@ describe('the next one', () => {
       // Kara's own failure: "an ally who failed an action roll" is not her.
       attackWithSelected(demo, husk.id);
       const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
-      if (rolled !== 'failureWithHope' && rolled !== 'failureWithFear') continue;
+      if (rolled !== 'failureWithGood' && rolled !== 'failureWithBad') continue;
       expect(JSON.stringify(demo.pending ?? {})).not.toContain('A Word in Your Ear');
       expect(demo.state.entity('kara')!.stress.marked).toBe(4);
       return;
@@ -6813,7 +6813,7 @@ describe('the next one', () => {
       demo.party.select('finn');
       swing(demo, husk.id);
       const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
-      if (rolled !== 'failureWithHope' && rolled !== 'failureWithFear') continue;
+      if (rolled !== 'failureWithGood' && rolled !== 'failureWithBad') continue;
       // Finn's failure is Finn's: "when *you* fail an action roll".
       expect(kara.conditions.has('fixture-carried')).toBe(false);
       expect(demo.state.entity('finn')!.conditions.has('fixture-carried')).toBe(false);
@@ -6869,7 +6869,7 @@ describe('a card that charges the one who swings', () => {
   };
 
   const GOADED = [
-    { kind: 'log', text: 'They round on whoever said that.', tone: 'hope' },
+    { kind: 'log', text: 'They round on whoever said that.', tone: 'good' },
     { kind: 'markStress', target: { kind: 'hit' } },
     { kind: 'applyCondition', condition: 'fixture-goaded', duration: 'scene', target: { kind: 'hit' } },
   ];
@@ -6877,13 +6877,13 @@ describe('a card that charges the one who swings', () => {
   const RAISED = [
     {
       kind: 'branch',
-      when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 2 },
+      when: { kind: 'pool', pool: 'good', measure: 'available', op: '>=', value: 2 },
       then: [
-        { kind: 'spendHope', amount: 2 },
-        { kind: 'log', text: 'The room fills with them, and standing near it costs something.', tone: 'hope' },
+        { kind: 'spendGood', amount: 2 },
+        { kind: 'log', text: 'The room fills with them, and standing near it costs something.', tone: 'good' },
         { kind: 'applyCondition', condition: 'fixture-aura-on', duration: 'rest', target: { kind: 'actor' } },
       ],
-      otherwise: [{ kind: 'log', text: 'It gathers and will not hold: there is no Light to pour into it.', tone: 'fear' }],
+      otherwise: [{ kind: 'log', text: 'It gathers and will not hold: there is no Light to pour into it.', tone: 'bad' }],
     },
   ];
 
@@ -6904,8 +6904,8 @@ describe('a card that charges the one who swings', () => {
             tags: ['social'],
             prompt: 'Make them want you?',
             onCriticalSuccess: GOADED,
-            onSuccessWithHope: GOADED,
-            onSuccessWithFear: GOADED,
+            onSuccessWithGood: GOADED,
+            onSuccessWithBad: GOADED,
           },
         },
       ],
@@ -6924,8 +6924,8 @@ describe('a card that charges the one who swings', () => {
             difficulty: 15,
             prompt: 'Make the air around you hard to stand in?',
             onCriticalSuccess: RAISED,
-            onSuccessWithHope: RAISED,
-            onSuccessWithFear: RAISED,
+            onSuccessWithGood: RAISED,
+            onSuccessWithBad: RAISED,
           },
         },
       ],
@@ -7026,14 +7026,14 @@ describe('a card that charges the one who swings', () => {
       demo.askDefender = false;
       hold(demo, 'mira', [AURA_CARD]);
       const mira = demo.state.entity('mira')!;
-      mira.hope = { max: 6, value: 6 };
+      mira.good = { max: 6, value: 6 };
 
       expect(useAbility(demo, 'mira', 'fixture-aura', []).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (!mira.conditions.has('fixture-aura-on')) continue;
 
       // Two Light out of six, and the aura standing.
-      expect(mira.hope!.value).toBeLessThanOrEqual(4);
+      expect(mira.good!.value).toBeLessThanOrEqual(4);
       return;
     }
     throw new Error('the aura never went up in sixty tries');
@@ -7045,7 +7045,7 @@ describe('a card that charges the one who swings', () => {
       demo.askDefender = false;
       hold(demo, 'mira', [AURA_CARD]);
       const mira = demo.state.entity('mira')!;
-      mira.hope = { max: 6, value: 1 };
+      mira.good = { max: 6, value: 1 };
 
       const used = useAbility(demo, 'mira', 'fixture-aura', []);
       if (used.status === 'refused') continue;
@@ -7086,7 +7086,7 @@ describe('a card that moves the room', () => {
       inCombatOnly: true,
       target: { kind: 'point', range: 'close' },
       effects: [
-        { kind: 'log', text: 'A whistle, a gesture, and the room rearranges itself.', tone: 'hope' },
+        { kind: 'log', text: 'A whistle, a gesture, and the room rearranges itself.', tone: 'good' },
         {
           kind: 'check',
           check: {
@@ -7097,13 +7097,13 @@ describe('a card that moves the room', () => {
             always: [
               {
                 kind: 'branch',
-                when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+                when: { kind: 'pool', pool: 'good', measure: 'available', op: '>=', value: 1 },
                 then: [
-                  { kind: 'spendHope', amount: 1 },
+                  { kind: 'spendGood', amount: 1 },
                   { kind: 'move', who: { kind: 'hit' }, to: 'point', teleport: true },
                   { kind: 'move', who: { kind: 'allies', range: 'close' }, to: 'point', teleport: true },
                 ],
-                otherwise: [{ kind: 'log', text: 'Nobody moves: there is no Light to spend on it.', tone: 'fear' }],
+                otherwise: [{ kind: 'log', text: 'Nobody moves: there is no Light to spend on it.', tone: 'bad' }],
               },
             ],
           },
@@ -7139,7 +7139,7 @@ describe('a card that moves the room', () => {
       demo.askDefender = false;
       hold(demo, 'kara', [WRANGLE_CARD]);
       const kara = demo.state.entity('kara')!;
-      kara.hope = { max: 6, value: 4 };
+      kara.good = { max: 6, value: 4 };
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       const was = husk.tile;
       const spot = spotNear(demo, kara.tile);
@@ -7150,12 +7150,12 @@ describe('a card that moves the room', () => {
 
       // Only a roll that beat it moves it, and only then is the Light gone.
       if (husk.tile === was) {
-        expect(kara.hope!.value).toBeLessThanOrEqual(4);
+        expect(kara.good!.value).toBeLessThanOrEqual(4);
         continue;
       }
       // Onto the spot, or the nearest free tile to it when somebody is there.
       expect(demo.grid.chebyshevDistance(husk.tile, spot)).toBeLessThanOrEqual(1);
-      expect(kara.hope!.value).toBeLessThan(4);
+      expect(kara.good!.value).toBeLessThan(4);
       return;
     }
     throw new Error('the haul never beat the husk in sixty tries');
@@ -7167,7 +7167,7 @@ describe('a card that moves the room', () => {
       demo.askDefender = false;
       hold(demo, 'kara', [WRANGLE_CARD]);
       const kara = demo.state.entity('kara')!;
-      kara.hope = { max: 6, value: 4 };
+      kara.good = { max: 6, value: 4 };
       // Finn beside her, so he is one of the "willing allies within Close".
       const finn = demo.state.entity('finn')!;
       const beside = spotNear(demo, kara.tile);
@@ -7192,14 +7192,14 @@ describe('a card that moves the room', () => {
   });
 
   it('moves nobody with no Light to spend, and a roll with Light pays for itself', () => {
-    let withFear = false;
-    let withHope = false;
-    for (let seed = 1; seed < 60 && !(withFear && withHope); seed++) {
+    let withBad = false;
+    let withGood = false;
+    for (let seed = 1; seed < 60 && !(withBad && withGood); seed++) {
       const demo = standoff('haul-poor-' + seed);
       demo.askDefender = false;
       hold(demo, 'kara', [WRANGLE_CARD]);
       const kara = demo.state.entity('kara')!;
-      kara.hope = { max: 6, value: 0 };
+      kara.good = { max: 6, value: 0 };
       const finn = demo.state.entity('finn')!;
       const beside = spotNear(demo, kara.tile);
       if (beside === NO_TILE) continue;
@@ -7214,16 +7214,16 @@ describe('a card that moves the room', () => {
       // A roll with Light hands one over *before* the arms run, so the card
       // pays for itself out of the roll that cast it; a roll with Shadow leaves
       // the pool as empty as it found it, and nobody moves.
-      const hoped = demo.rolls[demo.rolls.length - 1]!.roll.hopeGained > 0;
+      const hoped = demo.rolls[demo.rolls.length - 1]!.roll.goodGained > 0;
       if (hoped) {
         expect(demo.grid.chebyshevDistance(finn.tile, spot)).toBeLessThanOrEqual(1);
-        withHope = true;
+        withGood = true;
       } else {
         expect(finn.tile).toBe(stood);
-        withFear = true;
+        withBad = true;
       }
     }
-    expect({ withFear, withHope }).toEqual({ withFear: true, withHope: true });
+    expect({ withBad, withGood }).toEqual({ withBad: true, withGood: true });
   });
 });
 
@@ -7249,7 +7249,7 @@ describe('a card that throws the dice again', () => {
     seed: string,
     abilities: readonly Record<string, unknown>[],
     card: string | null,
-    hope = 6,
+    good = 6,
   ): { demo: DemoScene; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = true;
@@ -7260,7 +7260,7 @@ describe('a card that throws the dice again', () => {
     hold(demo, 'kara', [SILENT_CARD]);
     hold(demo, 'finn', card === null ? [] : [card]);
     const finn = demo.state.entity('finn')!;
-    finn.hope = { max: 6, value: hope };
+    finn.good = { max: 6, value: good };
     // Close enough to say something: Support Tank asks for an ally within Close.
     const kara = demo.state.entity('kara')!;
     const blocked = demo.state.blockedFor('finn');
@@ -7358,11 +7358,11 @@ describe('a card that throws the dice again', () => {
         expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-support-tank']);
         expect(first.hit).toBe(false);
         // Two Light, and only the Shadow Die goes back in the cup.
-        const before = demo.state.entity('finn')!.hope!.value;
+        const before = demo.state.entity('finn')!.good!.value;
         answerPending(demo, { kind: 'choose', index: 1 });
         while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-        expect(demo.state.entity('finn')!.hope!.value).toBe(before - 2);
-        expect(demo.rolls[demo.rolls.length - 1]!.roll.hope).toBe(first.hit ? 0 : demo.rolls[demo.rolls.length - 1]!.roll.hope);
+        expect(demo.state.entity('finn')!.good!.value).toBe(before - 2);
+        expect(demo.rolls[demo.rolls.length - 1]!.roll.good).toBe(first.hit ? 0 : demo.rolls[demo.rolls.length - 1]!.roll.good);
         onFailure = true;
       } else {
         onSuccess = true;
@@ -7425,7 +7425,7 @@ describe('a bonus on every action roll', () => {
       target: { kind: 'self' },
       action: false,
       effects: [
-        { kind: 'log', text: 'Something older than them comes up through the ground and wears them.', tone: 'hope' },
+        { kind: 'log', text: 'Something older than them comes up through the ground and wears them.', tone: 'good' },
         // Emptied first, so a second turn of it starts at one rather than
         // wherever the last one stopped.
         { kind: 'spendToken', ability: 'fixture-surge', all: true },
@@ -7457,7 +7457,7 @@ describe('a bonus on every action roll', () => {
           // roll took its six, and the next turn of it has nowhere to go.
           when: { kind: 'tokens', ability: 'fixture-surge', op: '>=', value: 7 },
           then: [
-            { kind: 'log', text: 'The shape will not hold any longer, and drops off them all at once.', tone: 'fear' },
+            { kind: 'log', text: 'The shape will not hold any longer, and drops off them all at once.', tone: 'bad' },
             { kind: 'spendToken', ability: 'fixture-surge', all: true },
             { kind: 'clearCondition', condition: 'fixture-surging', target: { kind: 'actor' } },
             { kind: 'markStress', amount: 1, target: { kind: 'actor' } },
@@ -7586,7 +7586,7 @@ describe('a circle burnt into the floor', () => {
     color: '#b46cff',
     onEnter: {
       effects: [
-        { kind: 'log', text: 'The floor answers them as they cross it.', tone: 'fear' },
+        { kind: 'log', text: 'The floor answers them as they cross it.', tone: 'bad' },
         { kind: 'damage', dice: '2d12+4', type: 'magic', target: { kind: 'target' } },
         { kind: 'push', to: 'veryClose', target: { kind: 'target' } },
       ],
@@ -7613,7 +7613,7 @@ describe('a circle burnt into the floor', () => {
       target: { kind: 'self' },
       inCombatOnly: true,
       effects: [
-        { kind: 'log', text: 'A circle burns itself into the floor around their feet.', tone: 'hope' },
+        { kind: 'log', text: 'A circle burns itself into the floor around their feet.', tone: 'good' },
         {
           kind: 'zone',
           zone: 'fixture-circle-ground',
@@ -7640,8 +7640,8 @@ describe('a circle burnt into the floor', () => {
             difficulty: 'target',
             prompt: 'Lift them off the floor?',
             onCriticalSuccess: LIFTED,
-            onSuccessWithHope: LIFTED,
-            onSuccessWithFear: LIFTED,
+            onSuccessWithGood: LIFTED,
+            onSuccessWithBad: LIFTED,
           },
         },
       ],
@@ -7816,12 +7816,12 @@ describe('a stance that holds the ground around it', () => {
       name: 'Set Feet',
       source: { kind: 'domainCard', card: STANCE_CARD },
       text: 'Spend a Light to set your feet, and the ground around you stops being neutral.',
-      cost: { hope: 1 },
+      cost: { good: 1 },
       target: { kind: 'self' },
       inCombatOnly: true,
       action: false,
       effects: [
-        { kind: 'log', text: 'They set their feet, and the ground stops being anybody\'s.', tone: 'hope' },
+        { kind: 'log', text: 'They set their feet, and the ground stops being anybody\'s.', tone: 'good' },
         { kind: 'applyCondition', condition: 'fixture-braced', duration: 'scene', target: { kind: 'actor' } },
         {
           kind: 'zone',
@@ -7849,11 +7849,11 @@ describe('a stance that holds the ground around it', () => {
           { kind: 'self' },
           { kind: 'hasCondition', condition: 'fixture-braced' },
           { kind: 'rolled', is: 'failure' },
-          { kind: 'rolled', is: 'withFear' },
+          { kind: 'rolled', is: 'withBad' },
         ],
       },
       effects: [
-        { kind: 'log', text: 'The stance goes, and the ground means nothing again.', tone: 'fear' },
+        { kind: 'log', text: 'The stance goes, and the ground means nothing again.', tone: 'bad' },
         { kind: 'endZone', zone: 'fixture-line' },
         { kind: 'clearCondition', condition: 'fixture-braced', target: { kind: 'actor' } },
       ],
@@ -7883,7 +7883,7 @@ describe('a stance that holds the ground around it', () => {
     carry(demo);
     hold(demo, 'kara', [STANCE_CARD]);
     const kara = demo.state.entity('kara')!;
-    kara.hope = { max: 6, value: 6 };
+    kara.good = { max: 6, value: 6 };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 60, marked: 0 };
     return { demo, husk, kara };
@@ -7894,7 +7894,7 @@ describe('a stance that holds the ground around it', () => {
     expect(useAbility(demo, 'kara', 'fixture-stance', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
 
-    expect(kara.hope!.value).toBe(5);
+    expect(kara.good!.value).toBe(5);
     expect(kara.conditions.has('fixture-braced')).toBe(true);
     expect(demo.world.zones().map((z) => z.id)).toContain('fixture-line');
   });
@@ -7966,7 +7966,7 @@ describe('a stance that holds the ground around it', () => {
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       const roll = demo.rolls[demo.rolls.length - 1]?.roll;
       if (roll === undefined) continue;
-      if (roll.outcome !== 'failureWithFear') {
+      if (roll.outcome !== 'failureWithBad') {
         // Any other roll leaves the stance standing, which is half the claim.
         expect(kara.conditions.has('fixture-braced')).toBe(true);
         expect(demo.world.zones().map((z) => z.id)).toContain('fixture-line');
@@ -8022,12 +8022,12 @@ describe('a swing that reaches one more', () => {
       name: 'Echoing Strike',
       source: { kind: 'domainCard', card: ECHO_CARD },
       text: 'Spend two Light to set an echo beside somebody close by, until their next swing.',
-      cost: { hope: 2 },
+      cost: { good: 2 },
       target: { kind: 'ally', range: 'close' },
       effects: [
         // One creature at a time: off everybody before it goes on anybody.
         { kind: 'clearCondition', condition: 'fixture-echo', target: { kind: 'allies' } },
-        { kind: 'log', text: 'The air beside them doubles, and waits.', tone: 'hope' },
+        { kind: 'log', text: 'The air beside them doubles, and waits.', tone: 'good' },
         { kind: 'applyCondition', condition: 'fixture-echo', duration: 'scene', target: { kind: 'target' } },
       ],
     },
@@ -8128,8 +8128,8 @@ describe('a swing that reaches one more', () => {
       // what "their attack roll would succeed against" asks for.
       const swing = shown[0]!.roll;
       const echo = shown[shown.length - 1]!.roll;
-      expect(echo.hope).toBe(swing.hope);
-      expect(echo.fear).toBe(swing.fear);
+      expect(echo.good).toBe(swing.good);
+      expect(echo.bad).toBe(swing.bad);
       expect(echo.total).toBe(swing.total);
       return;
     }
@@ -8141,7 +8141,7 @@ describe('a swing that reaches one more', () => {
     demo.askDefender = false;
     hold(demo, 'mira', [ECHO_CARD]);
     const mira = demo.state.entity('mira')!;
-    mira.hope = { max: 6, value: 6 };
+    mira.good = { max: 6, value: 6 };
     const kara = demo.state.entity('kara')!;
     const finn = demo.state.entity('finn')!;
     // Both standing close enough to be cast on.
@@ -8202,8 +8202,8 @@ describe('the last of the Codex', () => {
             difficulty: 'target',
             prompt: 'Take something out of them for good.',
             onCriticalSuccess: ENERVATED_ARMS,
-            onSuccessWithHope: ENERVATED_ARMS,
-            onSuccessWithFear: ENERVATED_ARMS,
+            onSuccessWithGood: ENERVATED_ARMS,
+            onSuccessWithBad: ENERVATED_ARMS,
           },
         },
       ],
@@ -8217,11 +8217,11 @@ describe('the last of the Codex', () => {
       name: 'Magic Immunity',
       source: { kind: 'domainCard', card: CODEX_CARD },
       text: 'Whatever magic is for, it stops being for them.',
-      cost: { hope: 5 },
+      cost: { good: 5 },
       target: { kind: 'self' },
       action: false,
       effects: [
-        { kind: 'log', text: 'Whatever magic is for, it stops being for them.', tone: 'hope' },
+        { kind: 'log', text: 'Whatever magic is for, it stops being for them.', tone: 'good' },
         { kind: 'applyCondition', condition: 'magic-immune', duration: 'rest', target: { kind: 'actor' } },
       ],
     },
@@ -8247,8 +8247,8 @@ describe('the last of the Codex', () => {
             difficulty: 18,
             prompt: 'Stop the room.',
             onCriticalSuccess: STOPPED_ARMS,
-            onSuccessWithHope: STOPPED_ARMS,
-            onSuccessWithFear: STOPPED_ARMS,
+            onSuccessWithGood: STOPPED_ARMS,
+            onSuccessWithBad: STOPPED_ARMS,
           },
         },
       ],
@@ -8285,7 +8285,7 @@ describe('the last of the Codex', () => {
     color: '#ff7a3a',
     onEnter: {
       effects: [
-        { kind: 'log', text: 'They cross the fire, and the fire answers.', tone: 'fear' },
+        { kind: 'log', text: 'They cross the fire, and the fire answers.', tone: 'bad' },
         { kind: 'damage', dice: '4d10+3', type: 'magic', target: { kind: 'target' } },
       ],
     },
@@ -8307,8 +8307,8 @@ describe('the last of the Codex', () => {
             difficulty: 15,
             prompt: 'Stand it up there.',
             onCriticalSuccess: FLAME_ARMS,
-            onSuccessWithHope: FLAME_ARMS,
-            onSuccessWithFear: FLAME_ARMS,
+            onSuccessWithGood: FLAME_ARMS,
+            onSuccessWithBad: FLAME_ARMS,
           },
         },
       ],
@@ -8332,8 +8332,8 @@ describe('the last of the Codex', () => {
             difficulty: 13,
             prompt: 'Open a way to that spot.',
             onCriticalSuccess: DOORWAY_ARMS,
-            onSuccessWithHope: DOORWAY_ARMS,
-            onSuccessWithFear: DOORWAY_ARMS,
+            onSuccessWithGood: DOORWAY_ARMS,
+            onSuccessWithBad: DOORWAY_ARMS,
           },
         },
       ],
@@ -8357,7 +8357,7 @@ describe('the last of the Codex', () => {
             targets: { kind: 'adversaries', range: 'close' },
             prompt: 'Show what is hiding.',
             always: [
-              { kind: 'log', text: 'The air goes thin, and what was not there is.', tone: 'hope' },
+              { kind: 'log', text: 'The air goes thin, and what was not there is.', tone: 'good' },
               { kind: 'clearCondition', condition: 'hidden', target: { kind: 'hit' } },
             ],
           },
@@ -8379,7 +8379,7 @@ describe('the last of the Codex', () => {
       kind: 'reaction',
       trigger: 'incomingDamage',
       uses: { count: 1, per: 'longRest' },
-      cost: { hope: 1 },
+      cost: { good: 1 },
       action: false,
       auto: false,
       reaction: { kind: 'reduceSeverity', steps: 4 },
@@ -8405,7 +8405,7 @@ describe('the last of the Codex', () => {
     for (const ability of family) demo.project.abilities.push(abilitySchema.parse(ability));
     hold(demo, 'mira', [CODEX_CARD]);
     const mira = demo.state.entity('mira')!;
-    mira.hope = { max: 6, value: 6 };
+    mira.good = { max: 6, value: 6 };
     const kara = demo.state.entity('kara')!;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 60, marked: 0 };
@@ -8441,7 +8441,7 @@ describe('the last of the Codex', () => {
     const { demo, mira } = casting('yarrow-immune', IMMUNITY);
     expect(useAbility(demo, 'mira', 'fixture-immunity', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-    expect(mira.hope!.value).toBe(1);
+    expect(mira.good!.value).toBe(1);
     expect(mira.conditions.has('magic-immune')).toBe(true);
 
     const before = mira.hitPoints.marked;
@@ -8472,7 +8472,7 @@ describe('the last of the Codex', () => {
       // with anything in the pool the stillness would be bought off before she
       // swung - and the assertion below would pass without the card doing a
       // thing.
-      demo.state.fear = { ...demo.state.fear, value: 0 };
+      demo.state.bad = { ...demo.state.bad, value: 0 };
       demo.party.select('mira');
       if (!demo.encounter!.canAct('mira')) endTurn(demo);
       attackWithSelected(demo, husk.id);
@@ -8548,7 +8548,7 @@ describe('the last of the Codex', () => {
       if (mira.tile === stood) continue;
 
       expect(demo.grid.chebyshevDistance(mira.tile, spot)).toBeLessThanOrEqual(1);
-      expect(mira.hope!.value).toBeLessThan(6);
+      expect(mira.good!.value).toBeLessThan(6);
 
       // And with the husk back in her face, the door will not open at all.
       const blocked = demo.state.blockedFor(husk.id);
@@ -8584,7 +8584,7 @@ describe('the last of the Codex', () => {
     for (const ability of DEFLECTION) demo.project.abilities.push(abilitySchema.parse(ability));
     hold(demo, 'kara', [CODEX_CARD]);
     const kara = demo.state.entity('kara')!;
-    kara.hope = { max: 6, value: 6 };
+    kara.good = { max: 6, value: 6 };
     kara.hitPoints = { max: 12, marked: 0 };
     // Four steps of severity takes any blow to nothing, which is what the card
     // asks for without a vocabulary of its own.
@@ -8593,7 +8593,7 @@ describe('the last of the Codex', () => {
     const card = offered.find((a) => a.id === 'fixture-deflection')!;
     expect(card.reaction).toMatchObject({ kind: 'reduceSeverity', steps: 4 });
     expect(card.uses).toMatchObject({ count: 1, per: 'longRest' });
-    expect(card.cost.hope).toBe(1);
+    expect(card.cost.good).toBe(1);
     expect(card.auto).toBe(false);
   });
 });
@@ -8680,7 +8680,7 @@ describe('the weather, and the thing that wears it', () => {
       target: { kind: 'self' },
       action: false,
       effects: [
-        { kind: 'log', text: 'Something enormous stands up wearing them.', tone: 'hope' },
+        { kind: 'log', text: 'Something enormous stands up wearing them.', tone: 'good' },
         { kind: 'applyCondition', condition: 'fixture-shape', duration: 'scene', target: { kind: 'actor' } },
       ],
     },
@@ -8699,10 +8699,10 @@ describe('the weather, and the thing that wears it', () => {
       effects: [
         {
           kind: 'branch',
-          when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
-          then: [{ kind: 'spendHope', amount: 1 }],
+          when: { kind: 'pool', pool: 'good', measure: 'available', op: '>=', value: 1 },
+          then: [{ kind: 'spendGood', amount: 1 }],
           otherwise: [
-            { kind: 'log', text: 'There is nothing left to feed it, and the shape goes out of them.', tone: 'fear' },
+            { kind: 'log', text: 'There is nothing left to feed it, and the shape goes out of them.', tone: 'bad' },
             { kind: 'clearCondition', condition: 'fixture-shape', target: { kind: 'actor' } },
           ],
         },
@@ -8737,7 +8737,7 @@ describe('the weather, and the thing that wears it', () => {
     );
     hold(demo, 'mira', [card]);
     const mira = demo.state.entity('mira')!;
-    mira.hope = { max: 6, value: 6 };
+    mira.good = { max: 6, value: 6 };
     const kara = demo.state.entity('kara')!;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 90, marked: 0 };
@@ -8816,10 +8816,10 @@ describe('the weather, and the thing that wears it', () => {
     expect(demo.world.rollBonus('mira', 'damageRoll')).toBe(10);
 
     // Every action roll she makes costs a Light out of the six.
-    const hope = mira.hope!.value;
+    const good = mira.good!.value;
     attackWithSelected(demo, husk.id);
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-    expect(mira.hope!.value).toBeLessThan(hope + 1);
+    expect(mira.good!.value).toBeLessThan(good + 1);
     expect(mira.conditions.has('fixture-shape')).toBe(true);
   });
 
@@ -8828,13 +8828,13 @@ describe('the weather, and the thing that wears it', () => {
     mira.stress = { max: 6, marked: 0 };
     expect(useAbility(demo, 'mira', 'fixture-shape-on', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-    mira.hope = { max: 6, value: 0 };
+    mira.good = { max: 6, value: 0 };
 
     attackWithSelected(demo, husk.id);
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
     // A roll with Light hands one over before the upkeep reads the pool, so the
     // shape only goes when the dice gave her nothing to pay with either.
-    const gained = demo.rolls[demo.rolls.length - 1]!.roll.hopeGained;
+    const gained = demo.rolls[demo.rolls.length - 1]!.roll.goodGained;
     expect(mira.conditions.has('fixture-shape')).toBe(gained > 0);
     if (gained === 0) expect(demo.log.some((l) => /goes out of them/.test(l.text))).toBe(true);
   });
@@ -8884,7 +8884,7 @@ describe('a card that saves a roll already made', () => {
     carry(demo);
     hold(demo, 'mira', [LIFT_CARD, SPELL_CARD]);
     const mira = demo.state.entity('mira')!;
-    mira.hope = { max: 6, value: 6 };
+    mira.good = { max: 6, value: 6 };
     const kara = demo.state.entity('kara')!;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 90, marked: 0 };
@@ -9002,7 +9002,7 @@ describe('a Light Die that is not a d12', () => {
     id: 'fixture-declared',
     name: 'Set for It',
     text: 'The thing you are known for: your next action roll throws a d20 as its Light Die.',
-    hopeDie: { sides: 20 },
+    goodDie: { sides: 20 },
   };
 
   const MOVE = [
@@ -9015,7 +9015,7 @@ describe('a Light Die that is not a d12', () => {
       target: { kind: 'self' },
       action: false,
       effects: [
-        { kind: 'log', text: 'They set themselves for the thing they are known for.', tone: 'hope' },
+        { kind: 'log', text: 'They set themselves for the thing they are known for.', tone: 'good' },
         { kind: 'applyCondition', condition: 'fixture-declared', duration: 'scene', target: { kind: 'actor' } },
       ],
     },
@@ -9038,7 +9038,7 @@ describe('a Light Die that is not a d12', () => {
           kind: 'branch',
           when: { kind: 'rolled', is: 'success' },
           then: [
-            { kind: 'log', text: 'It goes exactly the way they practised it.', tone: 'hope' },
+            { kind: 'log', text: 'It goes exactly the way they practised it.', tone: 'good' },
             // One. The critical's second is the roll's own, cleared by the
             // runner rather than by this.
             { kind: 'clearStress', amount: 1, target: { kind: 'actor' } },
@@ -9071,11 +9071,11 @@ describe('a Light Die that is not a d12', () => {
 
   it('is twelve until the move is declared, and twenty after', () => {
     const { demo, kara } = armed('declared-sides');
-    expect(demo.world.hopeDieSides('kara')).toBe(12);
+    expect(demo.world.goodDieSides('kara')).toBe(12);
     expect(useAbility(demo, 'kara', 'fixture-declare', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
     expect(kara.conditions.has('fixture-declared')).toBe(true);
-    expect(demo.world.hopeDieSides('kara')).toBe(20);
+    expect(demo.world.goodDieSides('kara')).toBe(20);
   });
 
   it('throws a d20 for Light on the swing it was declared for, and only that one', () => {
@@ -9091,9 +9091,9 @@ describe('a Light Die that is not a d12', () => {
       attackWithSelected(demo, husk.id);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       const roll = demo.rolls[demo.rolls.length - 1]!.roll;
-      expect(roll.fear).toBeLessThanOrEqual(12);
-      if (roll.hope > 12) {
-        expect(roll.hopeSides).toBe(20);
+      expect(roll.bad).toBeLessThanOrEqual(12);
+      if (roll.good > 12) {
+        expect(roll.goodSides).toBe(20);
         sawBig = true;
       }
     }
@@ -9116,7 +9116,7 @@ describe('a Light Die that is not a d12', () => {
 
       // Spent either way: the move was made.
       expect(kara.conditions.has('fixture-declared')).toBe(false);
-      expect(demo.world.hopeDieSides('kara')).toBe(12);
+      expect(demo.world.goodDieSides('kara')).toBe(12);
       if (roll.success) {
         // One for the card, and a critical clears one of its own on top.
         expect(kara.stress.marked).toBe(stress - (roll.critical ? 2 : 1));
@@ -9225,8 +9225,8 @@ describe('coming at them well, and knowing them', () => {
             difficulty: 'target',
             prompt: 'Watch them, and see what shows.',
             onCriticalSuccess: WATCHED,
-            onSuccessWithHope: WATCHED,
-            onSuccessWithFear: WATCHED,
+            onSuccessWithGood: WATCHED,
+            onSuccessWithBad: WATCHED,
           },
         },
       ],
@@ -9346,9 +9346,9 @@ describe('coming at them well, and knowing them', () => {
       carry(demo, WATCH_AND_PAY);
       hold(demo, 'kara', [WATCH_CARD]);
       const kara = demo.state.entity('kara')!;
-      kara.hope = { max: 6, value: 6 };
+      kara.good = { max: 6, value: 6 };
       kara.stress = { max: 6, marked: 0 };
-      demo.state.fear = { max: 12, value: 5 };
+      demo.state.bad = { max: 12, value: 5 };
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
 
       expect(useAbility(demo, 'kara', 'fixture-watch-pay', [husk.id]).status).toBe('waiting');
@@ -9356,15 +9356,15 @@ describe('coming at them well, and knowing them', () => {
       // A failed roll asks nothing; try again.
       if (demo.pending?.prompt.kind !== 'choice') continue;
 
-      expect(kara.hope!.value).toBe(5);
+      expect(kara.good!.value).toBe(5);
       // Read after the dice, not before them: a roll with Shadow hands the GM one
       // on its way past, and what the card takes is measured off that.
-      const pool = demo.state.fear.value;
+      const pool = demo.state.bad.value;
       answerPending(demo, { kind: 'choose', index: 0 });
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       // A Stress marked, and one off the GM's pool.
       expect(kara.stress.marked).toBeGreaterThanOrEqual(1);
-      expect(demo.state.fear.value).toBe(pool - 1);
+      expect(demo.state.bad.value).toBe(pool - 1);
       return;
     }
     throw new Error('the watch never paid off in eighty tries');
@@ -9410,7 +9410,7 @@ describe('out of sight, and under the skin', () => {
   const UNSEEN = [
     { kind: 'markStress', amount: 1, target: { kind: 'actor' } },
     { kind: 'clearCondition', condition: 'fixture-hidden', target: { kind: 'allies', includeSelf: true } },
-    { kind: 'log', text: 'They stop being somewhere anyone is looking.', tone: 'hope' },
+    { kind: 'log', text: 'They stop being somewhere anyone is looking.', tone: 'good' },
     { kind: 'applyCondition', condition: 'fixture-hidden', duration: 'scene', target: { kind: 'target' } },
     // On the one who is hidden, not on the caster: the creature spending them
     // is the creature they are about.
@@ -9419,7 +9419,7 @@ describe('out of sight, and under the skin', () => {
 
   /** Rolled rather than written, which is the whole of the taunt's test. */
   const PROVOKED = [
-    { kind: 'log', text: 'Whatever they said, it lands somewhere soft.', tone: 'hope' },
+    { kind: 'log', text: 'Whatever they said, it lands somewhere soft.', tone: 'good' },
     {
       kind: 'markStress',
       amount: { dice: '1d4', using: 'proficiency', pick: 'highest' },
@@ -9444,8 +9444,8 @@ describe('out of sight, and under the skin', () => {
             difficulty: 10,
             prompt: 'Take them out of sight?',
             onCriticalSuccess: UNSEEN,
-            onSuccessWithHope: UNSEEN,
-            onSuccessWithFear: UNSEEN,
+            onSuccessWithGood: UNSEEN,
+            onSuccessWithBad: UNSEEN,
           },
         },
       ],
@@ -9494,8 +9494,8 @@ describe('out of sight, and under the skin', () => {
             tags: ['social'],
             prompt: 'Say the thing that gets under it?',
             onCriticalSuccess: PROVOKED,
-            onSuccessWithHope: PROVOKED,
-            onSuccessWithFear: PROVOKED,
+            onSuccessWithGood: PROVOKED,
+            onSuccessWithBad: PROVOKED,
           },
         },
       ],
@@ -9518,7 +9518,7 @@ describe('out of sight, and under the skin', () => {
     for (const ability of [...UNSEEN_FAMILY, ...TAUNT]) demo.project.abilities.push(abilitySchema.parse(ability));
     hold(demo, 'mira', [card]);
     const mira = demo.state.entity('mira')!;
-    mira.hope = { max: 6, value: 6 };
+    mira.good = { max: 6, value: 6 };
     mira.stress = { max: 6, marked: 0 };
     const kara = demo.state.entity('kara')!;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -9630,7 +9630,7 @@ describe('asking for somebody back', () => {
     {
       kind: 'log',
       text: 'Whatever was holding them lets go, and they come back whole.',
-      tone: 'hope',
+      tone: 'good',
     },
     { kind: 'revive', target: { kind: 'target' } },
     { kind: 'vaultCard' },
@@ -9652,8 +9652,8 @@ describe('asking for somebody back', () => {
             difficulty: 20,
             prompt: 'Ask for them back?',
             onCriticalSuccess: BACK,
-            onSuccessWithHope: BACK,
-            onSuccessWithFear: BACK,
+            onSuccessWithGood: BACK,
+            onSuccessWithBad: BACK,
           },
         },
       ],
@@ -9665,9 +9665,9 @@ describe('asking for somebody back', () => {
       name: 'A Hand Up',
       source: { kind: 'domainCard', card: ORDINARY_CARD },
       text: 'Something for somebody who is still on their feet.',
-      cost: { hope: 1 },
+      cost: { good: 1 },
       target: { kind: 'ally', range: 'melee' },
-      effects: [{ kind: 'log', text: 'A hand on the shoulder, and they steady.', tone: 'hope' }],
+      effects: [{ kind: 'log', text: 'A hand on the shoulder, and they steady.', tone: 'good' }],
     },
   ];
 
@@ -9767,9 +9767,9 @@ describe('a check the room can answer', () => {
     hold(demo, 'kara', [WATCHING_CARD]);
     hold(demo, 'finn', card === null ? [] : [card]);
     const finn = demo.state.entity('finn')!;
-    finn.hope = { max: 6, value: 6 };
+    finn.good = { max: 6, value: 6 };
     const kara = demo.state.entity('kara')!;
-    kara.hope = { max: 6, value: 6 };
+    kara.good = { max: 6, value: 6 };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     const blocked = demo.state.blockedFor('finn');
     demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
@@ -9781,7 +9781,7 @@ describe('a check the room can answer', () => {
   it('stops for nobody when nobody is holding anything', () => {
     // The gate that keeps every chest, door and conversation exactly as it was.
     const { demo, husk } = rolling('check-quiet', [], SILENT_CARD);
-    expect(demo.world.answersRoll('kara', { total: 10, outcome: 'failureWithFear' })).toBe(false);
+    expect(demo.world.answersRoll('kara', { total: 10, outcome: 'failureWithBad' })).toBe(false);
     expect(useAbility(demo, 'kara', 'fixture-watching', [husk.id]).status).toBe('waiting');
     // One answer settles it: the roll goes straight to its arms as it always did.
     answerPending(demo, { kind: 'roll' });
@@ -9791,7 +9791,7 @@ describe('a check the room can answer', () => {
   it('puts the roll to an ally holding Reassurance, and throws again when they take it', () => {
     for (let seed = 1; seed < 80; seed++) {
       const { demo, husk } = rolling('check-reassure-' + seed, REASSURANCE, REASSURANCE_CARD);
-      expect(demo.world.answersRoll('kara', { total: 10, outcome: 'failureWithFear' })).toBe(true);
+      expect(demo.world.answersRoll('kara', { total: 10, outcome: 'failureWithBad' })).toBe(true);
       expect(useAbility(demo, 'kara', 'fixture-watching', [husk.id]).status).toBe('waiting');
 
       // The dice are read, and the question that follows is Finn's, not Kara's.
@@ -9808,7 +9808,7 @@ describe('a check the room can answer', () => {
 
       // A second reading of the same check, on new dice.
       const after = demo.rolls[demo.rolls.length - 1]!.roll;
-      expect(after.hope === first.hope && after.fear === first.fear).toBe(false);
+      expect(after.good === first.good && after.bad === first.bad).toBe(false);
       return;
     }
     throw new Error('Reassurance was never put to Finn in eighty tries');
@@ -9825,7 +9825,7 @@ describe('a check the room can answer', () => {
       answerPending(demo, { kind: 'choose', index: 0 });
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       const after = demo.rolls[demo.rolls.length - 1]!.roll;
-      expect({ hope: after.hope, fear: after.fear }).toEqual({ hope: thrown.hope, fear: thrown.fear });
+      expect({ good: after.good, bad: after.bad }).toEqual({ good: thrown.good, bad: thrown.bad });
       return;
     }
     throw new Error('Reassurance was never put to Finn in eighty tries');
@@ -9843,10 +9843,10 @@ describe('a check the room can answer', () => {
         expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-support-tank']);
         // Only a failure: the card says so and the gate is read before asking.
         expect(demo.pending.offers[0]!.swing!.success).toBe(false);
-        const before = demo.state.entity('finn')!.hope!.value;
+        const before = demo.state.entity('finn')!.good!.value;
         answerPending(demo, { kind: 'choose', index: 1 });
         while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-        expect(demo.state.entity('finn')!.hope!.value).toBe(before - 2);
+        expect(demo.state.entity('finn')!.good!.value).toBe(before - 2);
         asked = true;
       } else {
         quiet = true;
@@ -9922,8 +9922,8 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
             difficulty: 'target',
             prompt: 'Take hold of them?',
             onCriticalSuccess: THROWN,
-            onSuccessWithHope: THROWN,
-            onSuccessWithFear: THROWN,
+            onSuccessWithGood: THROWN,
+            onSuccessWithBad: THROWN,
           },
         },
       ],
@@ -9936,7 +9936,7 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
       target: { kind: 'self' },
       action: false,
       effects: [
-        { kind: 'log', text: 'Something about them settles, and stays settled.', tone: 'hope' },
+        { kind: 'log', text: 'Something about them settles, and stays settled.', tone: 'good' },
         {
           kind: 'choice',
           title: 'What You Learned',
@@ -9979,7 +9979,7 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
     demo.askDefender = false;
     hold(demo, 'mira', [card]);
     const mira = demo.state.entity('mira')!;
-    mira.hope = { max: 6, value: 6 };
+    mira.good = { max: 6, value: 6 };
     const kara = demo.state.entity('kara')!;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 90, marked: 0 };
@@ -10076,12 +10076,12 @@ describe('reaching past the dice', () => {
       text: 'Reach past the dice and put the number where it should have been.',
       kind: 'reaction',
       trigger: 'partyRolling',
-      cost: { hope: 5 },
+      cost: { good: 5 },
       action: false,
       auto: false,
       available: { kind: 'rolled', is: 'failure' },
       effects: [
-        { kind: 'log', text: 'They reach past the dice and set the number where it belonged.', tone: 'hope' },
+        { kind: 'log', text: 'They reach past the dice and set the number where it belonged.', tone: 'good' },
         { kind: 'nameRoll' },
       ],
     },
@@ -10105,7 +10105,7 @@ describe('reaching past the dice', () => {
     hold(demo, 'mira', [NAME_CARD]);
     const kara = demo.state.entity('kara')!;
     const mira = demo.state.entity('mira')!;
-    mira.hope = { max: 6, value: 6 };
+    mira.good = { max: 6, value: 6 };
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     const blocked = demo.state.blockedFor('mira');
     demo.grid.forEachNeighbor(kara.tile, false, (tile) => {
@@ -10134,10 +10134,10 @@ describe('reaching past the dice', () => {
       expect(settled.success).toBe(true);
       expect(settled.total).toBe(thrown.difficulty);
       // The dice did not: "the numerical result" is the total, not the throw.
-      expect({ hope: settled.hope, fear: settled.fear }).toEqual({ hope: thrown.hope, fear: thrown.fear });
-      expect(settled.withHope).toBe(thrown.withHope);
+      expect({ good: settled.good, bad: settled.bad }).toEqual({ good: thrown.good, bad: thrown.bad });
+      expect(settled.withGood).toBe(thrown.withGood);
       // Five Light, out of the six she had.
-      expect(mira.hope!.value).toBeLessThanOrEqual(1);
+      expect(mira.good!.value).toBeLessThanOrEqual(1);
       return;
     }
     throw new Error('Adjust Reality was never offered in eighty tries');
@@ -10156,7 +10156,7 @@ describe('reaching past the dice', () => {
       const settled = demo.rolls[demo.rolls.length - 1]!.roll;
       expect(settled.total).toBe(thrown.total);
       expect(settled.success).toBe(false);
-      expect(mira.hope!.value).toBe(6);
+      expect(mira.good!.value).toBe(6);
       return;
     }
     throw new Error('Adjust Reality was never offered in eighty tries');
@@ -10171,7 +10171,7 @@ describe('reaching past the dice', () => {
 
       // The same seed, so the same roll; what changes is the purse.
       const poor = rolling('adjust-purse-' + seed);
-      poor.mira.hope = { max: 6, value: 4 };
+      poor.mira.good = { max: 6, value: 4 };
       useAbility(poor.demo, 'kara', 'fixture-watching', [poor.husk.id]);
       answerPending(poor.demo, { kind: 'roll' });
       expect(poor.demo.pending?.kind).not.toBe('reaction');
@@ -10209,7 +10209,7 @@ describe('a roll with a purpose', () => {
     const mira = demo.state.entity('mira')!;
     // Room above the six: a roll with Light hands one over after the card has
     // been paid for, and a full pool would swallow the difference.
-    mira.hope = { max: 12, value: 6 };
+    mira.good = { max: 12, value: 6 };
     const kara = demo.state.entity('kara')!;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 90, marked: 0 };
@@ -10237,9 +10237,9 @@ describe('a roll with a purpose', () => {
       const settled = demo.rolls[demo.rolls.length - 1]!.roll;
       // The Shadow Die alone went back in the cup: "the Light or Shadow Die", and
       // the Shadow one is the pick anybody would make.
-      expect(settled.hope).toBe(thrown.hope);
+      expect(settled.good).toBe(thrown.good);
       // One Light for the card, and whatever the settled roll handed back.
-      expect(mira.hope!.value).toBe(6 - 1 + settled.hopeGained);
+      expect(mira.good!.value).toBe(6 - 1 + settled.goodGained);
       return;
     }
     throw new Error('Endless Charisma was never offered on a taunt in eighty tries');
@@ -10300,7 +10300,7 @@ describe('unmaking what you can reach', () => {
       targets: { kind: 'adversaries', range: 'far' },
       always: [
         { kind: 'markStress', amount: 'targetsHit', target: { kind: 'actor' } },
-        { kind: 'log', text: 'The air goes white, and what it touches is not there afterwards.', tone: 'fear' },
+        { kind: 'log', text: 'The air goes white, and what it touches is not there afterwards.', tone: 'bad' },
         { kind: 'slay', target: { kind: 'hit' } },
       ],
     },
@@ -10323,8 +10323,8 @@ describe('unmaking what you can reach', () => {
             difficulty: 18,
             prompt: 'Unmake what you can reach?',
             onCriticalSuccess: [{ kind: 'check', check: WAVE[0] }],
-            onSuccessWithHope: [{ kind: 'check', check: WAVE[0] }],
-            onSuccessWithFear: [{ kind: 'check', check: WAVE[0] }],
+            onSuccessWithGood: [{ kind: 'check', check: WAVE[0] }],
+            onSuccessWithBad: [{ kind: 'check', check: WAVE[0] }],
           },
         },
       ],

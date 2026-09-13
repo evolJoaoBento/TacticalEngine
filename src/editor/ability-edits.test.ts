@@ -16,7 +16,7 @@ const RALLY = {
   name: 'Rally',
   source: { kind: 'granted', characters: ['kara'] },
   text: 'Shout, and they stand a little straighter.',
-  cost: { hope: 1 },
+  cost: { good: 1 },
   effects: [{ kind: 'log', text: 'Kara shouts.' }],
 };
 
@@ -36,7 +36,7 @@ const rally = (s: EditorSession) => s.project.abilities[0]!;
 describe('a cost only the GM can pay', () => {
   it('warns when a card asks its holder for a Shadow, and not when a stat block does', () => {
     const s = session();
-    s.run(updateAbility('rally', { cost: { fear: 1 } }));
+    s.run(updateAbility('rally', { cost: { bad: 1 } }));
     expect(validateProject(s.project).map((p) => p.message).join(' ')).toContain('only the GM spends');
 
     // The same cost on a stat block's feature is exactly where it belongs.

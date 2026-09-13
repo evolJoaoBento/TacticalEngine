@@ -88,10 +88,10 @@ const TRAITS: Readonly<Record<string, Trait>> = {
 };
 
 const OUTCOME_KEYS = {
-  hopeSuccess: 'successWithHope',
-  fearSuccess: 'successWithFear',
-  hopeFail: 'failureWithHope',
-  fearFail: 'failureWithFear',
+  hopeSuccess: 'successWithGood',
+  fearSuccess: 'successWithBad',
+  hopeFail: 'failureWithGood',
+  fearFail: 'failureWithBad',
 } as const;
 
 /** Interactable kinds the legacy editor could place. Anything else is `scripted`. */
@@ -386,10 +386,10 @@ function importInteractables(
 /** Outcome name -> the field on a check that holds that outcome's effects. */
 const CHECK_KEYS = {
   criticalSuccess: 'onCriticalSuccess',
-  successWithHope: 'onSuccessWithHope',
-  successWithFear: 'onSuccessWithFear',
-  failureWithHope: 'onFailureWithHope',
-  failureWithFear: 'onFailureWithFear',
+  successWithGood: 'onSuccessWithGood',
+  successWithBad: 'onSuccessWithBad',
+  failureWithGood: 'onFailureWithGood',
+  failureWithBad: 'onFailureWithBad',
 } as const;
 
 function importCheck(raw: Record<string, unknown>): Interactable['check'] | null {

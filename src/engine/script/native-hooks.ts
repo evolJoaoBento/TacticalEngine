@@ -28,17 +28,17 @@ export const SRD_HOOKS: HookMap = defineHooks({
     const actor = ctx.actor;
     const target = ctx.targets[0];
     if (actor === null || target === undefined) return;
-    const hope = ctx.pool(actor, 'hope') ?? 0;
-    if (hope < 1) {
+    const good = ctx.pool(actor, 'good') ?? 0;
+    if (good < 1) {
       ctx.log('No Light to spend: the projectiles never form.', 'system');
       return;
     }
     const options: ChoiceOption[] = [];
-    for (let spent = 1; spent <= hope; spent++) {
+    for (let spent = 1; spent <= good; spent++) {
       options.push({
         label: `${spent} Light: ${spent}d6 magic`,
         effects: [
-          { kind: 'spendHope', amount: spent },
+          { kind: 'spendGood', amount: spent },
           { kind: 'damage', dice: `${spent}d6`, type: 'magic', target: { kind: 'target' } },
         ],
       });
@@ -53,7 +53,7 @@ export const SRD_HOOKS: HookMap = defineHooks({
    * two happens is decided per target, which is why it is code: an effect list
    * branches for the whole list at once.
    *
-   * `args.fear` adds the Shadow that Spit Acid alone hands the GM.
+   * `args.bad` adds the Shadow that Spit Acid alone hands the GM.
    */
   'mark-armor-or-hit-point': (ctx) => {
     for (const id of ctx.hit) {
@@ -63,7 +63,7 @@ export const SRD_HOOKS: HookMap = defineHooks({
       } else {
         ctx.queue([
           { kind: 'damage', amount: 1, direct: true, target: { kind: 'entity', id } },
-          ...(ctx.args.fear === true ? [{ kind: 'gainFear' as const }] : []),
+          ...(ctx.args.bad === true ? [{ kind: 'gainBad' as const }] : []),
         ]);
       }
     }
@@ -94,7 +94,7 @@ export const SRD_HOOKS: HookMap = defineHooks({
               trait: 'spellcast',
               difficulty: 'target',
               targets: { kind: 'adversaries', range: 'far' },
-              onSuccessWithHope: [{ kind: 'damage', dice: `${spent}d20+${spent * 2}`, type: 'magic' }],
+              onSuccessWithGood: [{ kind: 'damage', dice: `${spent}d20+${spent * 2}`, type: 'magic' }],
             },
           },
         ],
@@ -121,7 +121,7 @@ export const SRD_HOOKS: HookMap = defineHooks({
           trait: 'spellcast',
           difficulty: 'target',
           targets: { kind: 'entities', ids: reached },
-          onSuccessWithHope: [
+          onSuccessWithGood: [
             { kind: 'damage', dice: '2d6', type: 'magic' },
             { kind: 'markStress', target: { kind: 'hit' } },
           ],

@@ -40,8 +40,8 @@ describe('using the demo vault', () => {
     expect(chest.check?.trait).toBe('finesse');
     expect(chest.check?.difficulty).toBe(12);
     // Both halves of the roll were written by the original author.
-    expect(chest.check?.onSuccessWithHope?.length).toBeGreaterThan(0);
-    expect(chest.check?.onFailureWithFear?.length).toBeGreaterThan(0);
+    expect(chest.check?.onSuccessWithGood?.length).toBeGreaterThan(0);
+    expect(chest.check?.onFailureWithBad?.length).toBeGreaterThan(0);
   });
 
   it('refuses a thing across the room', () => {

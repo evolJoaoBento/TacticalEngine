@@ -43,7 +43,7 @@ export const DEMO_ITEMS: readonly ItemDef[] = [
     description: 'Tastes of iron and mint.',
     use: [
       { kind: 'heal', amount: 2, target: { kind: 'actor' } },
-      { kind: 'log', text: 'Iron and mint. The cuts close.', tone: 'hope' },
+      { kind: 'log', text: 'Iron and mint. The cuts close.', tone: 'good' },
     ],
   },
   {

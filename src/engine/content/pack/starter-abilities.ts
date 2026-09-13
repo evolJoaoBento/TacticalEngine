@@ -109,7 +109,7 @@ const RAW = [
     // which is what the card says. It also means using it answers at once
     // rather than waiting on dice.
     effects: [
-      { kind: 'log', text: 'Low fire takes in a ring around their feet.', tone: 'hope' },
+      { kind: 'log', text: 'Low fire takes in a ring around their feet.', tone: 'good' },
       {
         kind: 'zone',
         zone: 'warding-flame',
@@ -143,7 +143,7 @@ const RAW = [
     target: { kind: 'point', range: 'far' },
     inCombatOnly: true,
     effects: [
-      { kind: 'log', text: 'They choose a spot across the room, and it blooms.', tone: 'hope' },
+      { kind: 'log', text: 'They choose a spot across the room, and it blooms.', tone: 'good' },
       {
         kind: 'check',
         check: {
@@ -174,7 +174,7 @@ const RAW = [
     target: { kind: 'ally', range: 'melee' },
     inCombatOnly: true,
     effects: [
-      { kind: 'log', text: 'A shield comes across, and there is somewhere to stand.', tone: 'hope' },
+      { kind: 'log', text: 'A shield comes across, and there is somewhere to stand.', tone: 'good' },
       { kind: 'applyCondition', condition: 'behind-the-shield', duration: 'scene', target: { kind: 'target' } },
     ],
   },
@@ -231,7 +231,7 @@ const RAW = [
     inCombatOnly: true,
     action: false,
     effects: [
-      { kind: 'log', text: 'They set their feet, and the ground around them stops being neutral.', tone: 'hope' },
+      { kind: 'log', text: 'They set their feet, and the ground around them stops being neutral.', tone: 'good' },
       { kind: 'applyCondition', condition: 'holding-the-line', duration: 'scene', target: { kind: 'actor' } },
       {
         kind: 'zone',

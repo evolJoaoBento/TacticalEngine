@@ -32,10 +32,10 @@ import type { CheckRequest, Effect, LogTone, ScriptValue } from './schema';
 /** Outcomes in the order the duality roll produces them. */
 export type CheckOutcome =
   | 'criticalSuccess'
-  | 'successWithHope'
-  | 'successWithFear'
-  | 'failureWithHope'
-  | 'failureWithFear';
+  | 'successWithGood'
+  | 'successWithBad'
+  | 'failureWithGood'
+  | 'failureWithBad';
 
 /**
  * The effects a check outcome runs, with fallbacks.
@@ -47,22 +47,22 @@ export type CheckOutcome =
 export function outcomeEffects(check: CheckRequest, outcome: CheckOutcome): readonly Effect[] {
   const {
     onCriticalSuccess,
-    onSuccessWithHope,
-    onSuccessWithFear,
-    onFailureWithHope,
-    onFailureWithFear,
+    onSuccessWithGood,
+    onSuccessWithBad,
+    onFailureWithGood,
+    onFailureWithBad,
   } = check;
   switch (outcome) {
     case 'criticalSuccess':
-      return onCriticalSuccess ?? onSuccessWithHope ?? onSuccessWithFear ?? [];
-    case 'successWithHope':
-      return onSuccessWithHope ?? onSuccessWithFear ?? [];
-    case 'successWithFear':
-      return onSuccessWithFear ?? onSuccessWithHope ?? [];
-    case 'failureWithHope':
-      return onFailureWithHope ?? onFailureWithFear ?? [];
-    case 'failureWithFear':
-      return onFailureWithFear ?? onFailureWithHope ?? [];
+      return onCriticalSuccess ?? onSuccessWithGood ?? onSuccessWithBad ?? [];
+    case 'successWithGood':
+      return onSuccessWithGood ?? onSuccessWithBad ?? [];
+    case 'successWithBad':
+      return onSuccessWithBad ?? onSuccessWithGood ?? [];
+    case 'failureWithGood':
+      return onFailureWithGood ?? onFailureWithBad ?? [];
+    case 'failureWithBad':
+      return onFailureWithBad ?? onFailureWithGood ?? [];
   }
 }
 

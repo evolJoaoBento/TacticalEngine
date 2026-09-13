@@ -95,7 +95,7 @@ export interface AttackOptions extends TargetingOptions {
   /** Help an Ally dice. PC attacks only — the GM cannot be helped. */
   helpDice?: number;
   /** The attacker's Light Die, when a card has made it something other than a d12. */
-  hopeDieSides?: number;
+  goodDieSides?: number;
   /** Flat modifier on top of the profile's: an Experience, a feature, terrain. */
   bonus?: number;
   /**
@@ -160,8 +160,8 @@ export interface AttackOutcome {
   /** Hit Points the target marks. */
   hitPointsMarked: number;
   /** Light the attacker gains and Shadow the GM gains, from a PC's duality roll. */
-  hopeGained: number;
-  fearGained: number;
+  goodGained: number;
+  badGained: number;
   stressCleared: number;
   /** Whether the spotlight should pass to the GM after this. */
   spotlightToGm: boolean;
@@ -216,8 +216,8 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
     hit: false,
     critical: false,
     hitPointsMarked: 0,
-    hopeGained: 0,
-    fearGained: 0,
+    goodGained: 0,
+    badGained: 0,
     stressCleared: 0,
     spotlightToGm: false,
   };
@@ -238,8 +238,8 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
   let critical: boolean;
   let dualityRoll: DualityRoll | undefined;
   let gmRoll: GmRoll | undefined;
-  let hopeGained = 0;
-  let fearGained = 0;
+  let goodGained = 0;
+  let badGained = 0;
   let stressCleared = 0;
   let spotlightToGm = false;
 
@@ -255,12 +255,12 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
         advantage,
         disadvantage,
         helpDice: options.helpDice ?? 0,
-        ...(options.hopeDieSides === undefined ? {} : { hopeDieSides: options.hopeDieSides }),
+        ...(options.goodDieSides === undefined ? {} : { goodDieSides: options.goodDieSides }),
       });
     hit = dualityRoll.success;
     critical = dualityRoll.critical;
-    hopeGained = dualityRoll.hopeGained;
-    fearGained = dualityRoll.fearGained;
+    goodGained = dualityRoll.goodGained;
+    badGained = dualityRoll.badGained;
     stressCleared = dualityRoll.stressCleared;
     spotlightToGm = dualityRoll.spotlightToGm;
   } else {
@@ -277,8 +277,8 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
     disadvantage,
     hit,
     critical,
-    hopeGained,
-    fearGained,
+    goodGained,
+    badGained,
     stressCleared,
     spotlightToGm,
   };
@@ -327,9 +327,9 @@ export interface AppliedAttack {
   /** The target marked its last Hit Point and must make a death move. */
   fell: boolean;
   /** Light the attacker actually gained, after the cap. */
-  hopeGained: number;
+  goodGained: number;
   /** Shadow the GM actually gained, after the cap. */
-  fearGained: number;
+  badGained: number;
   /** Stress the attacker actually cleared. */
   stressCleared: number;
 }
@@ -347,20 +347,20 @@ export function applyAttack(state: SceneState, outcome: AttackOutcome): AppliedA
     hitPointsMarked: 0,
     armorSlotsSpent: 0,
     fell: false,
-    hopeGained: 0,
-    fearGained: 0,
+    goodGained: 0,
+    badGained: 0,
     stressCleared: 0,
   };
 
   const attacker = state.entity(outcome.attackerId);
   if (attacker !== undefined) {
-    if (outcome.hopeGained > 0 && attacker.hope !== undefined) {
-      const before = attacker.hope.value;
-      attacker.hope = {
-        max: attacker.hope.max,
-        value: Math.min(attacker.hope.max, before + outcome.hopeGained),
+    if (outcome.goodGained > 0 && attacker.good !== undefined) {
+      const before = attacker.good.value;
+      attacker.good = {
+        max: attacker.good.max,
+        value: Math.min(attacker.good.max, before + outcome.goodGained),
       };
-      applied.hopeGained = attacker.hope.value - before;
+      applied.goodGained = attacker.good.value - before;
     }
     if (outcome.stressCleared > 0) {
       const cleared = Math.min(outcome.stressCleared, attacker.stress.marked);
@@ -369,13 +369,13 @@ export function applyAttack(state: SceneState, outcome: AttackOutcome): AppliedA
     }
   }
 
-  if (outcome.fearGained > 0) {
-    const before = state.fear.value;
-    state.fear = {
-      max: state.fear.max,
-      value: Math.min(state.fear.max, before + outcome.fearGained),
+  if (outcome.badGained > 0) {
+    const before = state.bad.value;
+    state.bad = {
+      max: state.bad.max,
+      value: Math.min(state.bad.max, before + outcome.badGained),
     };
-    applied.fearGained = state.fear.value - before;
+    applied.badGained = state.bad.value - before;
   }
 
   const target = state.entity(outcome.targetId);

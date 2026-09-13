@@ -56,7 +56,7 @@ describe('using an interactable', () => {
       kind: 'door',
       requiresKey: 'brass',
       lockedText: 'The brass lock will not turn.',
-      check: { trait: 'finesse', difficulty: 10, onSuccessWithHope: [{ kind: 'open' }] },
+      check: { trait: 'finesse', difficulty: 10, onSuccessWithGood: [{ kind: 'open' }] },
     });
     const result = useInteractable(door, world([door]), rng());
     expect(result).toEqual({
@@ -87,8 +87,8 @@ describe('using an interactable', () => {
       check: {
         trait: 'finesse',
         difficulty: 12,
-        onSuccessWithHope: [{ kind: 'log', text: 'The lid lifts.' }, { kind: 'open' }],
-        onFailureWithFear: [{ kind: 'damage', amount: 2 }],
+        onSuccessWithGood: [{ kind: 'log', text: 'The lid lifts.' }, { kind: 'open' }],
+        onFailureWithBad: [{ kind: 'damage', amount: 2 }],
       },
     });
     const result = useInteractable(chest, world([chest]), rng());
@@ -102,8 +102,8 @@ describe('using an interactable', () => {
       check: {
         trait: 'finesse',
         difficulty: 1, // trivially passed, so the assertion is about wiring not luck
-        onSuccessWithHope: [{ kind: 'log', text: 'The lid lifts.' }, { kind: 'open' }],
-        onSuccessWithFear: [{ kind: 'log', text: 'The lid lifts.' }, { kind: 'open' }],
+        onSuccessWithGood: [{ kind: 'log', text: 'The lid lifts.' }, { kind: 'open' }],
+        onSuccessWithBad: [{ kind: 'log', text: 'The lid lifts.' }, { kind: 'open' }],
       },
     });
     const w = world([chest]);
@@ -166,10 +166,10 @@ describe('using an interactable', () => {
       check: {
         trait: 'finesse',
         difficulty: 14,
-        onSuccessWithHope: [{ kind: 'log', text: 'open' }],
-        onFailureWithFear: [{ kind: 'log', text: 'stuck' }],
-        onFailureWithHope: [{ kind: 'log', text: 'stuck' }],
-        onSuccessWithFear: [{ kind: 'log', text: 'open' }],
+        onSuccessWithGood: [{ kind: 'log', text: 'open' }],
+        onFailureWithBad: [{ kind: 'log', text: 'stuck' }],
+        onFailureWithGood: [{ kind: 'log', text: 'stuck' }],
+        onSuccessWithBad: [{ kind: 'log', text: 'open' }],
       },
     });
     const play = (): string => {

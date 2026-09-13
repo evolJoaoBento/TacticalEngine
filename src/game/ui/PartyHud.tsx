@@ -17,7 +17,7 @@ export interface HudMember {
   hitPoints: { marked: number; max: number };
   stress: { marked: number; max: number };
   armorSlots: { marked: number; max: number };
-  hope?: { value: number; max: number };
+  good?: { value: number; max: number };
   conditions: readonly string[];
   /** A level-up is waiting for this character. */
   canLevel: boolean;
@@ -28,7 +28,7 @@ export interface HudMember {
 export interface PartyHudProps {
   members: readonly HudMember[];
   /** The GM's Shadow, shown so a player knows what the table is up against. */
-  fear: { value: number; max: number };
+  bad: { value: number; max: number };
   round: number | null;
   onSelect: (id: string) => void;
   onLevelUp: (id: string) => void;
@@ -140,8 +140,8 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
           <Pips label="HP" marked={member.hitPoints.marked} max={member.hitPoints.max} colour="#ff7a7a" testId="hp" />
           <Pips label="Stress" marked={member.stress.marked} max={member.stress.max} colour="#c8a2ff" testId="stress" />
           <Pips label="Armor" marked={member.armorSlots.marked} max={member.armorSlots.max} colour="#9ab5c8" testId="armor" />
-          {member.hope !== undefined ? (
-            <Pips label="Light" marked={member.hope.value} max={member.hope.max} colour="#7fd1ff" testId="hope" />
+          {member.good !== undefined ? (
+            <Pips label="Light" marked={member.good.value} max={member.good.max} colour="#7fd1ff" testId="good" />
           ) : null}
           <div style={{ color: '#8ea3b0', fontSize: '10px', marginTop: '4px' }} data-testid="gear">
             {member.gear}
@@ -153,7 +153,7 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
       ))}
       <div style={{ ...card(false, true), minWidth: '90px', cursor: 'default' }} data-testid="gm">
         <div style={{ color: '#8ea3b0', fontSize: '10px' }}>{props.round === null ? 'Exploring' : `Round ${props.round}`}</div>
-        <Pips label="Shadow" marked={props.fear.value} max={props.fear.max} colour="#ff9d7a" testId="fear" />
+        <Pips label="Shadow" marked={props.bad.value} max={props.bad.max} colour="#ff9d7a" testId="bad" />
       </div>
     </div>
   );

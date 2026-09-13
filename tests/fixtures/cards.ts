@@ -46,7 +46,7 @@ const RIFT_ARMS = [
           {
             label: 'Step through the rift',
             effects: [
-              { kind: 'log', text: 'The air splits, and they walk back through it to the mark.', tone: 'hope' },
+              { kind: 'log', text: 'The air splits, and they walk back through it to the mark.', tone: 'good' },
               { kind: 'move', to: 'mark', mark: FIXTURE_RIFT_MARK, teleport: true },
               { kind: 'forgetSpot', mark: FIXTURE_RIFT_MARK },
             ],
@@ -61,7 +61,7 @@ const RIFT_ARMS = [
 
 /** A layer up, and as many more as the caster will pay Stress for. */
 const AURA_LAYERS = [
-  { kind: 'log', text: 'The air over them goes doubtful.', tone: 'hope' },
+  { kind: 'log', text: 'The air over them goes doubtful.', tone: 'good' },
   { kind: 'addToken', ability: 'fixture-aura', amount: 1 },
   {
     kind: 'howMany',
@@ -208,9 +208,9 @@ export const WATCHING_CHECK = [
           trait: 'instinct',
           difficulty: 'target',
           prompt: 'Watch them, and see what shows.',
-          onCriticalSuccess: [{ kind: 'log', text: 'Something about it gives.', tone: 'hope' }],
-          onSuccessWithHope: [{ kind: 'log', text: 'Something about it gives.', tone: 'hope' }],
-          onSuccessWithFear: [{ kind: 'log', text: 'Something about it gives.', tone: 'hope' }],
+          onCriticalSuccess: [{ kind: 'log', text: 'Something about it gives.', tone: 'good' }],
+          onSuccessWithGood: [{ kind: 'log', text: 'Something about it gives.', tone: 'good' }],
+          onSuccessWithBad: [{ kind: 'log', text: 'Something about it gives.', tone: 'good' }],
         },
       },
     ],
@@ -237,7 +237,7 @@ export const REASSURANCE = [
     auto: false,
     available: { kind: 'not', of: { kind: 'self' } },
     effects: [
-      { kind: 'log', text: 'A steady word, at exactly the right moment.', tone: 'hope' },
+      { kind: 'log', text: 'A steady word, at exactly the right moment.', tone: 'good' },
       { kind: 'rerollDuality', which: 'both' },
     ],
   },
@@ -255,7 +255,7 @@ export const SUPPORT_TANK = [
     text: 'A shoulder in the way of a roll that went wrong, at a price.',
     kind: 'reaction',
     trigger: 'partyRolling',
-    cost: { hope: 2 },
+    cost: { good: 2 },
     action: false,
     available: {
       kind: 'all',
@@ -266,8 +266,8 @@ export const SUPPORT_TANK = [
       ],
     },
     effects: [
-      { kind: 'log', text: 'A shoulder in the way, and room to try it again.', tone: 'hope' },
-      { kind: 'rerollDuality', which: 'fear' },
+      { kind: 'log', text: 'A shoulder in the way, and room to try it again.', tone: 'good' },
+      { kind: 'rerollDuality', which: 'bad' },
     ],
   },
 ];
@@ -296,8 +296,8 @@ export const TAGGED_CHECK = [
           tags: ['social'],
           prompt: 'Say the thing that gets under it.',
           onCriticalSuccess: [{ kind: 'markStress', target: { kind: 'hit' } }],
-          onSuccessWithHope: [{ kind: 'markStress', target: { kind: 'hit' } }],
-          onSuccessWithFear: [{ kind: 'markStress', target: { kind: 'hit' } }],
+          onSuccessWithGood: [{ kind: 'markStress', target: { kind: 'hit' } }],
+          onSuccessWithBad: [{ kind: 'markStress', target: { kind: 'hit' } }],
         },
       },
     ],
@@ -319,7 +319,7 @@ export const OWN_TAGGED_REROLL = [
     text: 'They talk straight past the thing they just said.',
     kind: 'reaction',
     trigger: 'partyRolling',
-    cost: { hope: 1 },
+    cost: { good: 1 },
     action: false,
     auto: false,
     available: {
@@ -330,8 +330,8 @@ export const OWN_TAGGED_REROLL = [
       ],
     },
     effects: [
-      { kind: 'log', text: 'They talk straight past the thing they just said.', tone: 'hope' },
-      { kind: 'rerollDuality', which: 'fear' },
+      { kind: 'log', text: 'They talk straight past the thing they just said.', tone: 'good' },
+      { kind: 'rerollDuality', which: 'bad' },
     ],
   },
 ];
@@ -358,7 +358,7 @@ export const SPELLCAST_CHECK = [
           trait: 'spellcast',
           difficulty: 'target',
           prompt: 'Bind them where they stand?',
-          onSuccessWithHope: [
+          onSuccessWithGood: [
             { kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } },
             { kind: 'markStress', amount: 1, target: { kind: 'hit' } },
           ],
@@ -397,7 +397,7 @@ export const A_TALLY_THAT_COUNTS_A_MARK = [
     effects: [
       // One at a time: setting it again moves it rather than adding a second.
       { kind: 'clearCondition', condition: MARKED, target: { kind: 'adversaries', range: 'veryFar' } },
-      { kind: 'log', text: 'The mark is set, and it will be answered for.', tone: 'hope' },
+      { kind: 'log', text: 'The mark is set, and it will be answered for.', tone: 'good' },
       { kind: 'applyCondition', condition: MARKED, duration: 'scene', target: { kind: 'target' } },
     ],
   },
@@ -474,7 +474,7 @@ export const AN_ANSWER_TO_A_BLOW_ON_AN_ALLY = [
     inCombatOnly: true,
     available: { kind: 'withinRange', range: 'close', of: { kind: 'target' } },
     effects: [
-      { kind: 'log', text: 'They are not finished with you.', tone: 'hope' },
+      { kind: 'log', text: 'They are not finished with you.', tone: 'good' },
       {
         kind: 'reactionRoll',
         difficulty: 15,
@@ -513,7 +513,7 @@ export const A_SHARE_OF_WHAT_THEY_CARRY = [
         each: [
           { kind: 'clearStress', amount: 'spent', target: { kind: 'target' } },
           { kind: 'markStress', amount: 'spent', target: { kind: 'actor' } },
-          { kind: 'gainHope', amount: 'spent', target: { kind: 'actor' } },
+          { kind: 'gainGood', amount: 'spent', target: { kind: 'actor' } },
         ],
       },
     ],
@@ -553,7 +553,7 @@ export const A_SPEND_OF_WHATEVER_IS_ON_THE_CARD = [
             check: {
               trait: 'spellcast',
               difficulty: 'target',
-              onSuccessWithHope: [{ kind: 'damage', dice: '{n}d10', type: 'magic' }],
+              onSuccessWithGood: [{ kind: 'damage', dice: '{n}d10', type: 'magic' }],
             },
           },
         ],
@@ -584,7 +584,7 @@ export const A_TETHER_THAT_BINDS = [
           trait: 'spellcast',
           difficulty: 'target',
           prompt: 'Bind them where they stand?',
-          onSuccessWithHope: [
+          onSuccessWithGood: [
             { kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'hit' } },
             { kind: 'markStress', amount: 1, target: { kind: 'hit' } },
           ],
@@ -615,7 +615,7 @@ export const A_HOLD_ON_ONE_OF_THEM = [
           trait: 'spellcast',
           difficulty: 'target',
           prompt: 'Hold their attention?',
-          onSuccessWithHope: [
+          onSuccessWithGood: [
             { kind: 'applyCondition', condition: HELD, duration: 'temporary', target: { kind: 'hit' } },
           ],
         },
@@ -631,7 +631,7 @@ export const A_HOLD_ON_ONE_OF_THEM = [
     uses: { count: 1, per: 'rest' },
     target: { kind: 'adversary', range: 'close', when: { kind: 'hasCondition', condition: HELD } },
     effects: [
-      { kind: 'log', text: 'The hold tightens, and it costs them.', tone: 'hope' },
+      { kind: 'log', text: 'The hold tightens, and it costs them.', tone: 'good' },
       { kind: 'markStress', amount: 1, target: { kind: 'target' } },
     ],
   },
@@ -658,7 +658,7 @@ export const A_HOLD_ON_THE_WHOLE_ROOM = [
           difficulty: 'target',
           targets: { kind: 'adversaries', range: 'far' },
           prompt: 'Hold the whole room?',
-          onSuccessWithHope: [
+          onSuccessWithGood: [
             { kind: 'applyCondition', condition: HELD, duration: 'temporary', target: { kind: 'hit' } },
           ],
         },
@@ -673,7 +673,7 @@ export const A_HOLD_ON_THE_WHOLE_ROOM = [
     cost: { stress: 1 },
     target: { kind: 'none', range: 'far' },
     effects: [
-      { kind: 'log', text: 'The hold breaks, and every one of them feels it.', tone: 'hope' },
+      { kind: 'log', text: 'The hold breaks, and every one of them feels it.', tone: 'good' },
       { kind: 'markStress', amount: 1, target: { kind: 'adversaries', range: 'far' } },
       { kind: 'clearCondition', condition: HELD, target: { kind: 'adversaries', range: 'far' } },
     ],
@@ -701,7 +701,7 @@ export const A_BLAST_AROUND_WHAT_IT_HIT = [
           trait: 'spellcast',
           difficulty: 'target',
           prompt: 'Throw it?',
-          onSuccessWithHope: [
+          onSuccessWithGood: [
             { kind: 'log', text: 'It comes apart where it lands.', tone: 'combat' },
             {
               kind: 'reactionRoll',
@@ -727,7 +727,7 @@ export const A_GLYPH_THAT_OPENS_THEM_UP = [
     name: 'Glyph',
     source: { kind: 'domainCard', card: GLYPH_CARD },
     text: 'Write something on them that says where they are weakest.',
-    cost: { hope: 1 },
+    cost: { good: 1 },
     target: { kind: 'adversary', range: 'veryClose' },
     effects: [
       {
@@ -736,7 +736,7 @@ export const A_GLYPH_THAT_OPENS_THEM_UP = [
           trait: 'spellcast',
           difficulty: 'target',
           prompt: 'Mark their weak points?',
-          onSuccessWithHope: [
+          onSuccessWithGood: [
             { kind: 'applyCondition', condition: GLYPHED, duration: 'temporary', target: { kind: 'hit' } },
           ],
         },
@@ -764,7 +764,7 @@ export const A_CHARGE_THAT_BANKS_A_WOUND = [
     action: false,
     target: { kind: 'none' },
     effects: [
-      { kind: 'log', text: 'The wound goes into the card.', tone: 'hope' },
+      { kind: 'log', text: 'The wound goes into the card.', tone: 'good' },
       { kind: 'addToken', ability: CHARGE_TOKENS, amount: 'hitPointsTaken' },
     ],
   },
@@ -816,7 +816,7 @@ export const A_BLOW_FORCED_FROM_ITS_OWN_WOUNDS = [
     available: { kind: 'pool', pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked', op: '>=', value: 1 },
     target: { kind: 'none' },
     effects: [
-      { kind: 'log', text: 'Everything it has done comes back the other way.', tone: 'hope' },
+      { kind: 'log', text: 'Everything it has done comes back the other way.', tone: 'good' },
       { kind: 'forceHitPoints', amount: { pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked' } },
     ],
   },
@@ -842,7 +842,7 @@ export const A_CRACK_PAID_FOR_IN_ADVANCE = [
     cost: { stress: 1 },
     target: { kind: 'none' },
     effects: [
-      { kind: 'log', text: 'Something in their guard gives way.', tone: 'hope' },
+      { kind: 'log', text: 'Something in their guard gives way.', tone: 'good' },
       { kind: 'applyCondition', condition: BROKEN, duration: 'scene', target: { kind: 'target' } },
     ],
   },
@@ -876,7 +876,7 @@ export const A_BONUS_OFF_THE_SHEET = [
     cost: { stress: 1 },
     target: { kind: 'none' },
     effects: [
-      { kind: 'log', text: 'Something gives, and it is not them.', tone: 'hope' },
+      { kind: 'log', text: 'Something gives, and it is not them.', tone: 'good' },
       { kind: 'boostDamage', amount: { trait: 'strength', times: 2 } },
     ],
   },
@@ -921,7 +921,7 @@ export const A_CRITICAL_WORTH_SOMETHING = [
         title: 'Gore and Glory',
         body: 'The blow tells.',
         options: [
-          { label: 'Gain a Light', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
+          { label: 'Gain a Light', effects: [{ kind: 'gainGood', amount: 1, target: { kind: 'actor' } }] },
           { label: 'Clear a Stress', effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }] },
         ],
       },
@@ -950,14 +950,14 @@ export const AN_EDGE_ASKED_THREE_TIMES = [
       kind: 'all',
       of: [
         { kind: 'rolled', is: 'critical' },
-        { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+        { kind: 'pool', pool: 'good', measure: 'available', op: '>=', value: 1 },
       ],
     },
     target: { kind: 'none' },
     effects: [
       {
         kind: 'branch',
-        when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+        when: { kind: 'pool', pool: 'good', measure: 'available', op: '>=', value: 1 },
         then: [
           {
             kind: 'choice',
@@ -967,7 +967,7 @@ export const AN_EDGE_ASKED_THREE_TIMES = [
               {
                 label: 'Clear a Hit Point (1 Light)',
                 effects: [
-                  { kind: 'spendHope', amount: 1 },
+                  { kind: 'spendGood', amount: 1 },
                   { kind: 'heal', amount: 1, target: { kind: 'actor' } },
                 ],
               },
@@ -978,7 +978,7 @@ export const AN_EDGE_ASKED_THREE_TIMES = [
       },
       {
         kind: 'branch',
-        when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+        when: { kind: 'pool', pool: 'good', measure: 'available', op: '>=', value: 1 },
         then: [
           {
             kind: 'choice',
@@ -988,7 +988,7 @@ export const AN_EDGE_ASKED_THREE_TIMES = [
               {
                 label: 'Clear an Armor Slot (1 Light)',
                 effects: [
-                  { kind: 'spendHope', amount: 1 },
+                  { kind: 'spendGood', amount: 1 },
                   { kind: 'clearArmor', amount: 1, target: { kind: 'actor' } },
                 ],
               },
@@ -999,7 +999,7 @@ export const AN_EDGE_ASKED_THREE_TIMES = [
       },
       {
         kind: 'branch',
-        when: { kind: 'pool', pool: 'hope', measure: 'available', op: '>=', value: 1 },
+        when: { kind: 'pool', pool: 'good', measure: 'available', op: '>=', value: 1 },
         then: [
           {
             kind: 'choice',
@@ -1009,7 +1009,7 @@ export const AN_EDGE_ASKED_THREE_TIMES = [
               {
                 label: 'They mark a Hit Point (1 Light)',
                 effects: [
-                  { kind: 'spendHope', amount: 1 },
+                  { kind: 'spendGood', amount: 1 },
                   { kind: 'damage', amount: 1, direct: true, target: { kind: 'target' } },
                 ],
               },
@@ -1047,7 +1047,7 @@ export const A_LIFT_FOR_EVERYONE_NEARBY = [
           },
           {
             label: 'Everyone nearby gains a Light',
-            effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'allies', range: 'veryClose' } }],
+            effects: [{ kind: 'gainGood', amount: 1, target: { kind: 'allies', range: 'veryClose' } }],
           },
         ],
       },
@@ -1106,7 +1106,7 @@ export const A_TOLL_CALLED_IN = [
     effects: [
       { kind: 'clearCondition', condition: TOLLED, target: { kind: 'adversaries', range: 'veryFar' } },
       { kind: 'spendToken', ability: TOLL_ABILITY, all: true },
-      { kind: 'log', text: 'The toll is set, and it will be paid.', tone: 'hope' },
+      { kind: 'log', text: 'The toll is set, and it will be paid.', tone: 'good' },
       { kind: 'applyCondition', condition: TOLLED, duration: 'scene', target: { kind: 'target' } },
       { kind: 'addToken', ability: TOLL_ABILITY, amount: 1 },
     ],
@@ -1163,7 +1163,7 @@ export const A_BOOK_OF_TWO_SPELLS = [
         check: {
           trait: 'spellcast',
           difficulty: 'target',
-          onSuccessWithHope: [
+          onSuccessWithGood: [
             { kind: 'damage', dice: 'd10+2', type: 'magic', using: 'proficiency' },
             { kind: 'push', to: 'far', target: { kind: 'hit' } },
           ],
@@ -1182,7 +1182,7 @@ export const A_BOOK_OF_TWO_SPELLS = [
         check: {
           trait: 'spellcast',
           difficulty: 'target',
-          onSuccessWithHope: [{ kind: 'damage', dice: 'd6', type: 'physical', using: 'proficiency' }],
+          onSuccessWithGood: [{ kind: 'damage', dice: 'd6', type: 'physical', using: 'proficiency' }],
         },
       },
     ],
@@ -1204,7 +1204,7 @@ export const A_SPELL_FOR_A_WHOLE_BAND = [
     name: 'Bladefall',
     source: { kind: 'domainCard', card: FIXTURE_AREA_CARD },
     text: 'Fill the air around you with edges, and let everything near answer for it.',
-    cost: { hope: 1 },
+    cost: { good: 1 },
     target: { kind: 'none', range: 'veryClose' },
     effects: [
       {
@@ -1214,7 +1214,7 @@ export const A_SPELL_FOR_A_WHOLE_BAND = [
           difficulty: 'target',
           targets: { kind: 'adversaries', range: 'veryClose' },
           prompt: 'Fill the air with edges?',
-          onSuccessWithHope: [{ kind: 'damage', dice: 'd8+2', type: 'magic', using: 'proficiency' }],
+          onSuccessWithGood: [{ kind: 'damage', dice: 'd8+2', type: 'magic', using: 'proficiency' }],
         },
       },
     ],
@@ -1239,7 +1239,7 @@ export const A_BARRAGE_THAT_ASKS = [
     text: 'Throw as much of what you are holding as you care to spend.',
     uses: { count: 1, per: 'rest' },
     target: { kind: 'adversary', range: 'close' },
-    available: { kind: 'pool', pool: 'hope', op: '>=', value: 1 },
+    available: { kind: 'pool', pool: 'good', op: '>=', value: 1 },
     effects: [{ kind: 'run', hook: 'fixture-barrage' }],
   },
 ];
@@ -1257,17 +1257,17 @@ export const A_BARRAGE_HOOK = {
   source: `var actor = ctx.actor;
 var target = ctx.targets[0];
 if (actor === null || target === undefined) return;
-var hope = ctx.pool(actor, 'hope') || 0;
-if (hope < 1) {
+var good = ctx.pool(actor, 'good') || 0;
+if (good < 1) {
   ctx.log('Nothing to throw: the barrage never forms.', 'system');
   return;
 }
 var options = [];
-for (var spent = 1; spent <= hope; spent++) {
+for (var spent = 1; spent <= good; spent++) {
   options.push({
     label: spent + ' Light: ' + spent + 'd6 magic',
     effects: [
-      { kind: 'spendHope', amount: spent },
+      { kind: 'spendGood', amount: spent },
       { kind: 'damage', dice: spent + 'd6', type: 'magic', target: { kind: 'target' } },
     ],
   });
@@ -1298,8 +1298,8 @@ export const AN_AURA_OF_LAYERS = [
           difficulty: 14,
           prompt: 'Put a layer of doubt over where you stand?',
           onCriticalSuccess: AURA_LAYERS,
-          onSuccessWithHope: AURA_LAYERS,
-          onSuccessWithFear: AURA_LAYERS,
+          onSuccessWithGood: AURA_LAYERS,
+          onSuccessWithBad: AURA_LAYERS,
         },
       },
     ],
@@ -1320,12 +1320,12 @@ export const AN_AURA_OF_LAYERS = [
         // A die per layer, all at once.
         when: { kind: 'chance', dice: '1d6', atLeast: 5, times: { tokens: 'fixture-aura' } },
         then: [
-          { kind: 'log', text: 'The blow goes through a layer that was never there.', tone: 'hope' },
+          { kind: 'log', text: 'The blow goes through a layer that was never there.', tone: 'good' },
           { kind: 'spendToken', ability: 'fixture-aura', amount: 1 },
           { kind: 'avoidBlow' },
         ],
         otherwise: [
-          { kind: 'log', text: 'Every layer holds still, and the blow finds the real one. The air clears.', tone: 'fear' },
+          { kind: 'log', text: 'Every layer holds still, and the blow finds the real one. The air clears.', tone: 'bad' },
           { kind: 'spendToken', ability: 'fixture-aura', all: true },
         ],
       },
@@ -1349,7 +1349,7 @@ export const A_STEP_BACK_TO_A_MARK = [
     name: 'Phantom Step',
     source: { kind: 'domainCard', card: FIXTURE_SPOT_CARD },
     text: 'Leave a mark where you are standing, and come back to it when it suits you.',
-    cost: { hope: 1 },
+    cost: { good: 1 },
     target: { kind: 'self' },
     action: false,
     effects: [
@@ -1357,7 +1357,7 @@ export const A_STEP_BACK_TO_A_MARK = [
         kind: 'branch',
         when: { kind: 'hasMark', mark: FIXTURE_SPOT_MARK },
         then: [
-          { kind: 'log', text: 'They are not there any more; they are where they were.', tone: 'hope' },
+          { kind: 'log', text: 'They are not there any more; they are where they were.', tone: 'good' },
           { kind: 'move', to: 'mark', mark: FIXTURE_SPOT_MARK, teleport: true },
           { kind: 'forgetSpot', mark: FIXTURE_SPOT_MARK },
         ],
@@ -1390,8 +1390,8 @@ export const A_RIFT_THAT_OPENS = [
           difficulty: 15,
           prompt: 'A marking on the ground, or the way back to one?',
           onCriticalSuccess: RIFT_ARMS,
-          onSuccessWithHope: RIFT_ARMS,
-          onSuccessWithFear: RIFT_ARMS,
+          onSuccessWithGood: RIFT_ARMS,
+          onSuccessWithBad: RIFT_ARMS,
         },
       },
     ],
@@ -1417,7 +1417,7 @@ export const A_BOLDNESS_ON_A_FAILED_ROLL = [
     text: 'When a word of yours falls short, put your weight behind it instead.',
     kind: 'reaction',
     trigger: 'partyRolling',
-    cost: { hope: 1 },
+    cost: { good: 1 },
     action: false,
     auto: false,
     available: {
@@ -1425,7 +1425,7 @@ export const A_BOLDNESS_ON_A_FAILED_ROLL = [
       of: [{ kind: 'self' }, { kind: 'rolledWith', trait: 'presence' }, { kind: 'rolled', is: 'failure' }],
     },
     effects: [
-      { kind: 'log', text: 'They put their shoulders into it.', tone: 'hope' },
+      { kind: 'log', text: 'They put their shoulders into it.', tone: 'good' },
       { kind: 'raiseRoll', amount: { trait: 'strength' } },
     ],
   },
@@ -1455,8 +1455,8 @@ export const A_PROVOCATION = [
           tags: ['social'],
           prompt: 'Say the thing that gets under it?',
           onCriticalSuccess: [{ kind: 'markStress', amount: 1, target: { kind: 'hit' } }],
-          onSuccessWithHope: [{ kind: 'markStress', amount: 1, target: { kind: 'hit' } }],
-          onSuccessWithFear: [{ kind: 'markStress', amount: 1, target: { kind: 'hit' } }],
+          onSuccessWithGood: [{ kind: 'markStress', amount: 1, target: { kind: 'hit' } }],
+          onSuccessWithBad: [{ kind: 'markStress', amount: 1, target: { kind: 'hit' } }],
         },
       },
     ],
@@ -1486,9 +1486,9 @@ export const A_WATCHFUL_READ = [
           trait: 'instinct',
           difficulty: 'target',
           prompt: 'Watch them, and see what shows?',
-          onCriticalSuccess: [{ kind: 'log', text: 'Something about it gives.', tone: 'hope' }],
-          onSuccessWithHope: [{ kind: 'log', text: 'Something about it gives.', tone: 'hope' }],
-          onSuccessWithFear: [{ kind: 'log', text: 'Something about it gives.', tone: 'hope' }],
+          onCriticalSuccess: [{ kind: 'log', text: 'Something about it gives.', tone: 'good' }],
+          onSuccessWithGood: [{ kind: 'log', text: 'Something about it gives.', tone: 'good' }],
+          onSuccessWithBad: [{ kind: 'log', text: 'Something about it gives.', tone: 'good' }],
         },
       },
     ],
@@ -1523,7 +1523,7 @@ export const CODEX_BOUND = [
       ],
     },
     effects: [
-      { kind: 'log', text: 'They reach for what the books taught them, and it costs them.', tone: 'hope' },
+      { kind: 'log', text: 'They reach for what the books taught them, and it costs them.', tone: 'good' },
       { kind: 'raiseRoll', amount: { trait: 'proficiency' } },
     ],
   },
@@ -1566,7 +1566,7 @@ export const WILD_BOUND = [
       ],
     },
     effects: [
-      { kind: 'log', text: 'The wild in them answers, and the roll is twice what it was.', tone: 'hope' },
+      { kind: 'log', text: 'The wild in them answers, and the roll is twice what it was.', tone: 'good' },
       {
         kind: 'branch',
         when: { kind: 'rolledWith', trait: 'agility' },
@@ -1600,12 +1600,12 @@ export const BONE_BOUND = [
     trigger: 'incomingDamage',
     action: false,
     auto: false,
-    cost: { hope: 3 },
+    cost: { good: 3 },
     uses: { count: 1, per: 'rest' },
     available: { kind: 'loadout', domain: 'fixture', op: '>=', value: 4 },
     target: { kind: 'none' },
     effects: [
-      { kind: 'log', text: 'They are simply not where the blow was going.', tone: 'hope' },
+      { kind: 'log', text: 'They are simply not where the blow was going.', tone: 'good' },
       { kind: 'avoidBlow' },
     ],
   },
@@ -1634,6 +1634,6 @@ export const A_GUARD_THAT_ANSWERS = [
     action: false,
     auto: false,
     target: { kind: 'none' },
-    effects: [{ kind: 'log', text: 'The guard comes up in time.', tone: 'hope' }],
+    effects: [{ kind: 'log', text: 'The guard comes up in time.', tone: 'good' }],
   },
 ];

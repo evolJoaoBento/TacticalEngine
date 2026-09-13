@@ -40,7 +40,7 @@ const context = (source: string, overrides: Partial<ConditionContext> = {}): { c
   const ctx: HookContext = {
     ...hookReads(reads(overrides), { targets: ['husk-1'], hit: [] }, { amount: 2 }),
     rng: { die: () => 4 } as unknown as HookContext['rng'],
-    lastRoll: { total: 15, critical: false, outcome: 'successWithHope' },
+    lastRoll: { total: 15, critical: false, outcome: 'successWithGood' },
     queue: (effects) => {
       queued.push(...effects);
     },
@@ -59,7 +59,7 @@ describe('project code', () => {
         id: 'test-hook',
         name: 'Test',
         source: `ctx.queue([{ kind: 'damage', amount: ctx.args.amount, target: { kind: 'entity', id: ctx.targets[0] } }]);
-return ctx.pool(ctx.actor, 'hope') > 2;`,
+return ctx.pool(ctx.actor, 'good') > 2;`,
       },
     ]);
     expect(issues).toEqual([]);
@@ -126,7 +126,7 @@ describe('the lookup', () => {
 describe('a hook as a condition', () => {
   it('is true only when the code returns true, and false when nothing defines it', () => {
     const { hooks } = compileHooks([
-      { id: 'rich', name: '', source: "return ctx.pool(ctx.actor, 'hope') >= 3;" },
+      { id: 'rich', name: '', source: "return ctx.pool(ctx.actor, 'good') >= 3;" },
       { id: 'vague', name: '', source: 'return 1;' },
     ]);
     const world = reads({ hook: (id) => hooks.get(id) ?? null });

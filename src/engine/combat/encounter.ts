@@ -65,7 +65,7 @@ export type EncounterEvent =
   | { kind: 'started'; encounter: string }
   | { kind: 'spotlight'; side: Side; round: number }
   | { kind: 'acted'; id: string; tokensLeft?: number }
-  | { kind: 'adversaryActed'; id: string; fearSpent: number }
+  | { kind: 'adversaryActed'; id: string; badSpent: number }
   | { kind: 'tokensRefilled'; round: number }
   | { kind: 'ended'; encounter: string; outcome: EncounterOutcome };
 
@@ -180,7 +180,7 @@ export class EncounterRunner {
     if (this.actedThisGmTurn.has(id)) return false;
     const entity = this.state.entity(id);
     if (entity === undefined || !entity.alive || entity.faction !== 'adversary') return false;
-    return this.state.fear.value >= this.nextSpotlightCost;
+    return this.state.bad.value >= this.nextSpotlightCost;
   }
 
   /**
@@ -191,10 +191,10 @@ export class EncounterRunner {
     if (!this.canSpotlight(id)) return this.view();
     const cost = this.nextSpotlightCost;
     if (cost > 0) {
-      this.state.fear = { max: this.state.fear.max, value: this.state.fear.value - cost };
+      this.state.bad = { max: this.state.bad.max, value: this.state.bad.value - cost };
     }
     this.actedThisGmTurn.add(id);
-    this.events.push({ kind: 'adversaryActed', id, fearSpent: cost });
+    this.events.push({ kind: 'adversaryActed', id, badSpent: cost });
     this.checkEnd();
     return this.view();
   }
@@ -213,7 +213,7 @@ export class EncounterRunner {
     const entity = this.state.entity(id);
     if (entity === undefined || !entity.alive || entity.faction !== 'adversary') return this.view();
     this.actedThisGmTurn.add(id);
-    this.events.push({ kind: 'adversaryActed', id, fearSpent: 0 });
+    this.events.push({ kind: 'adversaryActed', id, badSpent: 0 });
     this.checkEnd();
     return this.view();
   }
@@ -229,13 +229,13 @@ export class EncounterRunner {
     if (!this.actedThisGmTurn.has(id)) return false;
     const entity = this.state.entity(id);
     if (entity === undefined || !entity.alive || entity.faction !== 'adversary') return false;
-    return this.state.fear.value >= 1;
+    return this.state.bad.value >= 1;
   }
 
   spotlightAgain(id: string): EncounterView {
     if (!this.canSpotlightAgain(id)) return this.view();
-    this.state.fear = { max: this.state.fear.max, value: this.state.fear.value - 1 };
-    this.events.push({ kind: 'adversaryActed', id, fearSpent: 1 });
+    this.state.bad = { max: this.state.bad.max, value: this.state.bad.value - 1 };
+    this.events.push({ kind: 'adversaryActed', id, badSpent: 1 });
     this.checkEnd();
     return this.view();
   }

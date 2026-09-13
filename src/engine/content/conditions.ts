@@ -49,7 +49,7 @@ export const conditionDefSchema = z.object({
    * this changes what is thrown. Only the Light Die: the Shadow Die belongs to the
    * GM and nothing on a card reaches it.
    */
-  hopeDie: z.object({ sides: z.number().int().min(2) }).optional(),
+  goodDie: z.object({ sides: z.number().int().min(2) }).optional(),
   /**
    * What the bearer cannot do while it lasts. An adversary that cannot `act`
    * spends its spotlight shaking the condition off (or the GM spends a Shadow
@@ -241,7 +241,7 @@ const RAW: ConditionInput[] = [
           body: 'Take heart from it.',
           options: [
             { label: 'Clear a Stress', effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }] },
-            { label: 'Gain a Light', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
+            { label: 'Gain a Light', effects: [{ kind: 'gainGood', amount: 1, target: { kind: 'actor' } }] },
           ],
         },
       ],
@@ -302,7 +302,7 @@ const RAW: ConditionInput[] = [
     id: 'signature-move',
     name: 'Signature Move',
     text: 'The move you are known for: your next action roll throws a d20 as its Light Die.',
-    hopeDie: { sides: 20 },
+    goodDie: { sides: 20 },
   },
   // Tempest's third storm, on everything caught in it. "Attacks made from
   // beyond Melee range have disadvantage" is about where the attacker is
@@ -334,7 +334,7 @@ const RAW: ConditionInput[] = [
     color: '#ff7a3a',
     onEnter: {
       effects: [
-        { kind: 'log', text: 'They come through the flame, and the flame notices.', tone: 'fear' },
+        { kind: 'log', text: 'They come through the flame, and the flame notices.', tone: 'bad' },
         { kind: 'damage', dice: '4d10+3', type: 'magic', target: { kind: 'target' } },
       ],
     },
@@ -408,7 +408,7 @@ const RAW: ConditionInput[] = [
     color: '#b46cff',
     onEnter: {
       effects: [
-        { kind: 'log', text: 'The circle takes them as they cross it.', tone: 'fear' },
+        { kind: 'log', text: 'The circle takes them as they cross it.', tone: 'bad' },
         { kind: 'damage', dice: '2d12+4', type: 'magic', target: { kind: 'target' } },
         { kind: 'push', to: 'veryClose', target: { kind: 'target' } },
       ],
@@ -496,12 +496,12 @@ const RAW: ConditionInput[] = [
         kind: 'all',
         of: [
           { kind: 'rolled', is: 'success' },
-          { kind: 'rolled', is: 'withHope' },
+          { kind: 'rolled', is: 'withGood' },
         ],
       },
       auto: true,
       effects: [
-        { kind: 'log', text: 'The dark closes on them.', tone: 'hope' },
+        { kind: 'log', text: 'The dark closes on them.', tone: 'good' },
         { kind: 'markStress', amount: 1, target: { kind: 'target' } },
       ],
     },

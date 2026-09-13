@@ -15,16 +15,16 @@
 
 import type { Rng } from '../core/rng';
 
-export const HOPE_DIE_SIDES = 12;
-export const FEAR_DIE_SIDES = 12;
+export const GOOD_DIE_SIDES = 12;
+export const BAD_DIE_SIDES = 12;
 export const ADVANTAGE_DIE_SIDES = 6;
 
 export type RollOutcome =
   | 'criticalSuccess'
-  | 'successWithHope'
-  | 'successWithFear'
-  | 'failureWithHope'
-  | 'failureWithFear';
+  | 'successWithGood'
+  | 'successWithBad'
+  | 'failureWithGood'
+  | 'failureWithBad';
 
 export interface DualityRollOptions {
   /** Difficulty to beat. `total >= difficulty` succeeds. */
@@ -42,7 +42,7 @@ export interface DualityRollOptions {
    * card here touches it, and a critical is still the two showing the same
    * face - which a bigger Light Die makes rarer rather than impossible.
    */
-  hopeDieSides?: number;
+  goodDieSides?: number;
   /** Number of sources granting advantage (e.g. a Vulnerable target). */
   advantage?: number;
   /** Number of sources imposing disadvantage. */
@@ -62,14 +62,14 @@ export interface DualityRollOptions {
 
 export interface DualityRoll {
   /** Face shown by the Light die. */
-  hope: number;
+  good: number;
   /** Face shown by the Shadow die. */
-  fear: number;
+  bad: number;
   /**
    * The Light Die's faces, present only when they were not the usual twelve —
    * so a roll thrown again knows which die to put back in the cup.
    */
-  hopeSides?: number;
+  goodSides?: number;
   /** Signed advantage/disadvantage contribution: +d6, -d6, or 0 when they cancel. */
   advantageDie: number;
   /** Every Help an Ally d6 rolled, in roll order (empty on a reaction roll). */
@@ -78,7 +78,7 @@ export interface DualityRoll {
   helpBonus: number;
   /** The flat modifier that was applied. */
   modifier: number;
-  /** hope + fear + advantageDie + helpBonus + modifier. */
+  /** good + bad + advantageDie + helpBonus + modifier. */
   total: number;
   difficulty: number;
   outcome: RollOutcome;
@@ -86,13 +86,13 @@ export interface DualityRoll {
   /** Duality dice matched. */
   critical: boolean;
   /** SRD: "A Critical Success counts as a roll 'with Light.'" */
-  withHope: boolean;
-  withFear: boolean;
+  withGood: boolean;
+  withBad: boolean;
   reaction: boolean;
   /** Light the acting character gains (0 or 1). Always 0 on a reaction roll. */
-  hopeGained: number;
+  goodGained: number;
   /** Shadow the GM gains (0 or 1). Always 0 on a reaction roll. */
-  fearGained: number;
+  badGained: number;
   /** Stress the acting character clears (1 on a non-reaction critical success). */
   stressCleared: number;
   /**
@@ -127,25 +127,25 @@ export function groupActionModifier(helperReactions: readonly { success: boolean
 
 /** Classify a resolved duality roll. Exported so replays can re-derive an outcome. */
 export function classifyRoll(
-  hope: number,
-  fear: number,
+  good: number,
+  bad: number,
   total: number,
   difficulty: number,
-): { outcome: RollOutcome; success: boolean; critical: boolean; withHope: boolean } {
-  const critical = hope === fear;
+): { outcome: RollOutcome; success: boolean; critical: boolean; withGood: boolean } {
+  const critical = good === bad;
   const success = critical || total >= difficulty;
   // A crit counts as a roll with Light even though the dice are equal.
-  const withHope = critical || hope > fear;
+  const withGood = critical || good > bad;
   const outcome: RollOutcome = critical
     ? 'criticalSuccess'
     : success
-      ? withHope
-        ? 'successWithHope'
-        : 'successWithFear'
-      : withHope
-        ? 'failureWithHope'
-        : 'failureWithFear';
-  return { outcome, success, critical, withHope };
+      ? withGood
+        ? 'successWithGood'
+        : 'successWithBad'
+      : withGood
+        ? 'failureWithGood'
+        : 'failureWithBad';
+  return { outcome, success, critical, withGood };
 }
 
 /**
@@ -161,26 +161,26 @@ export function classifyRoll(
  *
  * Pure: the faces are drawn by whoever is holding the dice.
  */
-export function withFaces(roll: DualityRoll, faces: { hope?: number; fear?: number }): DualityRoll {
-  const hope = faces.hope ?? roll.hope;
-  const fear = faces.fear ?? roll.fear;
-  const total = hope + fear + roll.advantageDie + roll.helpBonus + roll.modifier;
-  const { outcome, success, critical, withHope } = classifyRoll(hope, fear, total, roll.difficulty);
+export function withFaces(roll: DualityRoll, faces: { good?: number; bad?: number }): DualityRoll {
+  const good = faces.good ?? roll.good;
+  const bad = faces.bad ?? roll.bad;
+  const total = good + bad + roll.advantageDie + roll.helpBonus + roll.modifier;
+  const { outcome, success, critical, withGood } = classifyRoll(good, bad, total, roll.difficulty);
   const { reaction } = roll;
   return {
     ...roll,
-    hope,
-    fear,
+    good,
+    bad,
     total,
     outcome,
     success,
     critical,
-    withHope,
-    withFear: !withHope,
-    hopeGained: !reaction && withHope ? 1 : 0,
-    fearGained: !reaction && !withHope ? 1 : 0,
+    withGood,
+    withBad: !withGood,
+    goodGained: !reaction && withGood ? 1 : 0,
+    badGained: !reaction && !withGood ? 1 : 0,
     stressCleared: !reaction && critical ? 1 : 0,
-    spotlightToGm: !reaction && !(success && withHope),
+    spotlightToGm: !reaction && !(success && withGood),
   };
 }
 
@@ -194,9 +194,9 @@ export function withFaces(roll: DualityRoll, faces: { hope?: number; fear?: numb
 export function rollDuality(rng: Rng, options: DualityRollOptions): DualityRoll {
   const { difficulty, modifier = 0, reaction = false } = options;
 
-  const hopeSides = options.hopeDieSides ?? HOPE_DIE_SIDES;
-  const hope = rng.die(hopeSides);
-  const fear = rng.die(FEAR_DIE_SIDES);
+  const goodSides = options.goodDieSides ?? GOOD_DIE_SIDES;
+  const good = rng.die(goodSides);
+  const bad = rng.die(BAD_DIE_SIDES);
 
   const direction = netAdvantage(options.advantage, options.disadvantage);
   const advantageDie = direction === 0 ? 0 : direction * rng.die(ADVANTAGE_DIE_SIDES);
@@ -205,13 +205,13 @@ export function rollDuality(rng: Rng, options: DualityRollOptions): DualityRoll 
   const helpDice = rng.dice(helpCount, ADVANTAGE_DIE_SIDES);
   const helpBonus = helpDice.length > 0 ? Math.max(...helpDice) : 0;
 
-  const total = hope + fear + advantageDie + helpBonus + modifier;
-  const { outcome, success, critical, withHope } = classifyRoll(hope, fear, total, difficulty);
+  const total = good + bad + advantageDie + helpBonus + modifier;
+  const { outcome, success, critical, withGood } = classifyRoll(good, bad, total, difficulty);
 
   return {
-    hope,
-    fear,
-    ...(hopeSides === HOPE_DIE_SIDES ? {} : { hopeSides }),
+    good,
+    bad,
+    ...(goodSides === GOOD_DIE_SIDES ? {} : { goodSides }),
     advantageDie,
     helpDice,
     helpBonus,
@@ -221,12 +221,12 @@ export function rollDuality(rng: Rng, options: DualityRollOptions): DualityRoll 
     outcome,
     success,
     critical,
-    withHope,
-    withFear: !withHope,
+    withGood,
+    withBad: !withGood,
     reaction,
-    hopeGained: !reaction && withHope ? 1 : 0,
-    fearGained: !reaction && !withHope ? 1 : 0,
+    goodGained: !reaction && withGood ? 1 : 0,
+    badGained: !reaction && !withGood ? 1 : 0,
     stressCleared: !reaction && critical ? 1 : 0,
-    spotlightToGm: !reaction && !(success && withHope),
+    spotlightToGm: !reaction && !(success && withGood),
   };
 }

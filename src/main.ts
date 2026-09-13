@@ -172,7 +172,7 @@ declare global {
       /** How long the Duality Dice take to settle. Zero for a test in a hurry. */
       setDiceSpeed: (millis: number) => void;
       /** The Duality rolls still waiting to be watched. */
-      dice: () => { hope: number; fear: number; total: number }[];
+      dice: () => { good: number; bad: number; total: number }[];
       /** Forget the rolls still waiting to be shown. */
       clearDice: () => void;
       pendingKind: () => string | null;
@@ -227,7 +227,7 @@ declare global {
       /** Who a card aimed at this tile would catch, without aiming it. */
       shape: (ability: string, tile: number) => string[];
       /** Fill somebody's Light, for a test about a card that costs some. */
-      setHope: (id: string, value: number) => void;
+      setGood: (id: string, value: number) => void;
       passToGm: () => number;
       loadout: (id: string) => { loadout: string[]; vault: string[] };
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
@@ -1299,7 +1299,7 @@ function hudMembers(): HudMember[] {
       hitPoints: { ...entity.hitPoints },
       stress: { ...entity.stress },
       armorSlots: { ...entity.armorSlots },
-      ...(entity.hope === undefined ? {} : { hope: { ...entity.hope } }),
+      ...(entity.good === undefined ? {} : { good: { ...entity.good } }),
       // What they are called rather than their ids: a HUD is read by a player.
       conditions: [...entity.conditions].map((c) => demo.world.conditionName(c)),
       canLevel: waiting.has(entity.id) && !inCombat(demo) && demo.pending === null,
@@ -1416,7 +1416,7 @@ function renderPlayPanel(): void {
       },
     }), h(PartyHud, {
       members: hudMembers(),
-      fear: { ...demo.state.fear },
+      bad: { ...demo.state.bad },
       round: demo.encounter?.round ?? null,
       onSelect: (id: string) => {
         demo.party.select(id);
@@ -1556,7 +1556,7 @@ function renderPlayPanel(): void {
         refreshPlay();
       },
       nameOf: (id: string) => nameOf(demo, id),
-      actorHope: demo.scenario.actorId === null ? 0 : (demo.state.entity(demo.scenario.actorId)?.hope?.value ?? 0),
+      actorGood: demo.scenario.actorId === null ? 0 : (demo.state.entity(demo.scenario.actorId)?.good?.value ?? 0),
     })),
     app,
   );
@@ -1622,7 +1622,7 @@ function inspectTile(tile: number): Inspection | null {
         text: `${gear.weapon} · ${gear.armor}`,
         facts: [
           ...pools,
-          ...(entity.hope === undefined ? [] : [`Light ${entity.hope.value}/${entity.hope.max}`]),
+          ...(entity.good === undefined ? [] : [`Light ${entity.good.value}/${entity.good.max}`]),
           `Evasion ${character?.evasion ?? '?'}`,
           // Named, not keyed: an inspect card is read by a player.
           ...[...entity.conditions].map((c) => demo.world.conditionName(c)),
@@ -2039,8 +2039,8 @@ const state = {
     demo.diceMillis = Math.max(0, millis);
     refreshPlay();
   },
-  dice: (): { hope: number; fear: number; total: number }[] =>
-    demo.rolls.map((shown) => ({ hope: shown.roll.hope, fear: shown.roll.fear, total: shown.roll.total })),
+  dice: (): { good: number; bad: number; total: number }[] =>
+    demo.rolls.map((shown) => ({ good: shown.roll.good, bad: shown.roll.bad, total: shown.roll.total })),
   clearDice: (): void => {
     demo.rolls.length = 0;
     refreshPlay();
@@ -2087,10 +2087,10 @@ const state = {
     return targeting?.tiles ?? [];
   },
   lit: (): number[] => (targeting === null ? [] : aimingHighlights(targeting)),
-  setHope: (id: string, value: number): void => {
+  setGood: (id: string, value: number): void => {
     const entity = demo.state.entity(id);
-    if (entity?.hope === undefined) return;
-    entity.hope = { max: entity.hope.max, value: Math.max(0, Math.min(entity.hope.max, value)) };
+    if (entity?.good === undefined) return;
+    entity.good = { max: entity.good.max, value: Math.max(0, Math.min(entity.good.max, value)) };
     refreshPlay();
   },
   shape: (ability: string, tile: number): string[] => {

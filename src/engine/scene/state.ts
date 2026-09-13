@@ -19,8 +19,8 @@ import type { ContentIssue } from '../content/types';
 import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
 import { BODY_RADIUS } from '../grid/walk';
 import {
-  createFear,
-  createHope,
+  createBad,
+  createGood,
   createMarkPool,
   type Currency,
   type MarkPool,
@@ -55,7 +55,7 @@ export interface EntityState {
   stress: MarkPool;
   armorSlots: MarkPool;
   /** Party members carry Light; adversaries do not. */
-  hope?: Currency;
+  good?: Currency;
   /** Condition ids currently applied. A condition cannot be applied twice. */
   conditions: Set<string>;
   /**
@@ -120,7 +120,7 @@ export const sceneSnapshotSchema = z.object({
       hitPoints: markPoolSchema,
       stress: markPoolSchema,
       armorSlots: markPoolSchema,
-      hope: currencySchema.optional(),
+      good: currencySchema.optional(),
       conditions: z.array(z.string()),
       conditionDurations: z
         .record(z.string(), z.enum(['temporary', 'scene', 'rest', 'permanent']))
@@ -142,7 +142,7 @@ export const sceneSnapshotSchema = z.object({
     z.string(),
     z.object({ started: z.boolean(), ended: z.boolean(), triggered: z.boolean() }),
   ),
-  fear: currencySchema,
+  bad: currencySchema,
 });
 
 export interface SceneStateSnapshot {
@@ -158,7 +158,7 @@ export interface SceneStateSnapshot {
   >;
   interactables: Record<string, InteractableState>;
   encounters: Record<string, EncounterState>;
-  fear: Currency;
+  bad: Currency;
 }
 
 /**
@@ -189,12 +189,12 @@ export class SceneState {
   private readonly occupants = new Map<number, Set<string>>();
 
   /** The GM's Shadow pool. It carries between scenes; the caller passes it along. */
-  fear: Currency;
+  bad: Currency;
 
-  constructor(scene: Pick<SceneDoc, 'id'>, grid: TileGrid, fear: Currency = createFear()) {
+  constructor(scene: Pick<SceneDoc, 'id'>, grid: TileGrid, bad: Currency = createBad()) {
     this.sceneId = scene.id;
     this.grid = grid;
-    this.fear = fear;
+    this.bad = bad;
   }
 
   // ---- entities -----------------------------------------------------------
@@ -446,7 +446,7 @@ export class SceneState {
       entities,
       interactables,
       encounters,
-      fear: { ...this.fear },
+      bad: { ...this.bad },
     };
   }
 
@@ -478,7 +478,7 @@ export class SceneState {
     for (const [id, state] of Object.entries(snapshot.encounters)) {
       this.encounters.set(id, { ...state });
     }
-    this.fear = { ...snapshot.fear };
+    this.bad = { ...snapshot.bad };
   }
 
   private occupy(tile: number, id: string): void {
@@ -521,7 +521,7 @@ export function createPartyEntity(
     hitPoints: createMarkPool(options.hitPoints),
     stress: createMarkPool(options.stress),
     armorSlots: createMarkPool(options.armorSlots ?? 0),
-    hope: createHope(),
+    good: createGood(),
     conditions: new Set(),
     conditionDurations: new Map(),
     alive: true,
@@ -569,7 +569,7 @@ export interface SceneStateOptions {
   /** Party members to place on the scene's spawn points, in order. */
   party?: EntityState[];
   /** The GM's Shadow, carried in from the previous scene. */
-  fear?: Currency;
+  bad?: Currency;
 }
 
 /**
@@ -586,7 +586,7 @@ export function sceneStateFromScene(
   options: SceneStateOptions = {},
 ): { state: SceneState; issues: ContentIssue[] } {
   const issues: ContentIssue[] = [];
-  const state = new SceneState(scene, grid, options.fear ?? createFear());
+  const state = new SceneState(scene, grid, options.bad ?? createBad());
   const stats = options.adversaries ?? new Map<string, AdversaryStats>();
 
   for (const interactable of scene.interactables) {

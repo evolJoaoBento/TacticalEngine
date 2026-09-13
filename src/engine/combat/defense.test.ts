@@ -47,7 +47,7 @@ const runeWard: AbilityDef = abilitySchema.parse({
   source: { kind: 'domainCard', card: 'rune-ward' },
   kind: 'reaction',
   trigger: 'incomingDamage',
-  cost: { hope: 1 },
+  cost: { good: 1 },
   reaction: { kind: 'reduceDamage', dice: '1d8' },
 });
 const ironWill: AbilityDef = abilitySchema.parse({
@@ -64,7 +64,7 @@ function guardian(overrides: Partial<Defender> = {}): Defender {
     thresholds: { major: 8, severe: 16 },
     armorSlots: { max: 4, marked: 0 },
     stress: { max: 6, marked: 0 },
-    hope: { max: 6, value: 2 },
+    good: { max: 6, value: 2 },
     reactions: [],
     ...overrides,
   };
@@ -192,16 +192,16 @@ describe('reactions', () => {
   it('a Rune Ward rolls its die off the damage first, for a Light, when the roll helps', () => {
     // 17 is Severe; a 3 makes it 14, Major; the slot then makes it Minor.
     const helped = resolveDefense(scripted([3]), phys(17), guardian({ reactions: [runeWard] }));
-    expect(helped.reactions).toEqual([expect.objectContaining({ hopeSpent: 1, rolled: 3 })]);
-    expect(helped.hopeSpent).toBe(1);
+    expect(helped.reactions).toEqual([expect.objectContaining({ goodSpent: 1, rolled: 3 })]);
+    expect(helped.goodSpent).toBe(1);
     expect(helped.resolved).toMatchObject({ incoming: 14, finalSeverity: 'minor', hpMarked: 1 });
     // A 1 off 17 is still Severe: the ward is not spent.
     const wasted = resolveDefense(scripted([1]), phys(17), guardian({ reactions: [runeWard] }));
     expect(wasted.reactions).toEqual([]);
-    expect(wasted.hopeSpent).toBe(0);
+    expect(wasted.goodSpent).toBe(0);
     expect(wasted.resolved.incoming).toBe(17);
     // No Light: no ward, and no die rolled.
-    expect(() => resolveDefense(scripted([]), phys(17), guardian({ reactions: [runeWard], hope: { max: 6, value: 0 } }))).not.toThrow();
+    expect(() => resolveDefense(scripted([]), phys(17), guardian({ reactions: [runeWard], good: { max: 6, value: 0 } }))).not.toThrow();
   });
 
   it('Iron Will marks a second slot against physical damage only', () => {
@@ -220,7 +220,7 @@ describe('reactions', () => {
     const all = resolveDefense(scripted([8]), phys(25), guardian({ reactions: [runeWard, ironWill, getBackUp] }));
     expect(all.reactions.map((r) => r.ability.id)).toEqual(['iron-will', 'get-back-up']);
     expect(all.resolved).toMatchObject({ finalSeverity: 'none', hpMarked: 0, armorSlotsSpent: 2 });
-    expect(all.hopeSpent).toBe(0);
+    expect(all.goodSpent).toBe(0);
     expect(all.stressMarked).toBe(1);
   });
 

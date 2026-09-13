@@ -107,14 +107,14 @@ export interface PlayPanelProps {
   /** A creature's name for the log, by id. */
   nameOf: (id: string) => string;
   /** The acting character's Light, for the Experience picker. */
-  actorHope: number;
+  actorGood: number;
 }
 
 export const TONE: Readonly<Record<LogLine['tone'], string>> = {
   narration: '#d8d4c8',
   system: '#8ea3b0',
-  hope: '#7fd1ff',
-  fear: '#ff9d7a',
+  good: '#7fd1ff',
+  bad: '#ff9d7a',
   combat: '#ffc861',
   success: '#9ae08a',
 };
@@ -406,8 +406,8 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               <select
                 style={{ padding: '2px 6px', border: '1px solid #39404d', borderRadius: '4px', background: 'rgba(0,0,0,0.3)', color: 'inherit', font: 'inherit' }}
                 value={experience}
-                disabled={props.actorHope < 1}
-                title={props.actorHope < 1 ? 'No Light to spend' : undefined}
+                disabled={props.actorGood < 1}
+                title={props.actorGood < 1 ? 'No Light to spend' : undefined}
                 data-testid="experience-pick"
                 onChange={(e) => setExperience((e.target as HTMLSelectElement).value)}
               >
@@ -426,7 +426,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
             onClick={() => {
               const chosen = experience;
               setExperience('');
-              props.onAnswer(chosen === '' || props.actorHope < 1 ? { kind: 'roll' } : { kind: 'roll', experience: chosen });
+              props.onAnswer(chosen === '' || props.actorGood < 1 ? { kind: 'roll' } : { kind: 'roll', experience: chosen });
             }}
           >
             Roll {check.trait} {signed(check.modifier + (experience === '' ? 0 : (check.experiences.find((e) => e.name === experience)?.modifier ?? 0)))}

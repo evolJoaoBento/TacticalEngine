@@ -137,10 +137,10 @@ describe('who has what', () => {
   it('shows the card\'s words and says why it is greyed out', () => {
     const demo = scene();
     const list = abilityList(demo, 'kara');
-    const hope = list.find((v) => v.ability.id === 'sentinel-hold-fast')!;
-    expect(hope.text).toContain('Spend 3 Light to clear 2 Armor Slots');
-    expect(hope.usable).toBe(false);
-    expect(hope.reason).toBe('needs 3 Light');
+    const good = list.find((v) => v.ability.id === 'sentinel-hold-fast')!;
+    expect(good.text).toContain('Spend 3 Light to clear 2 Armor Slots');
+    expect(good.usable).toBe(false);
+    expect(good.reason).toBe('needs 3 Light');
     // And a passive, which is never usable for a different reason.
     const passive = list.find((v) => v.ability.id === 'sentinel-drilled')!;
     expect(passive.reason).toBe('always on');
@@ -152,17 +152,17 @@ describe('a Light feature', () => {
   it('costs three Light, wants something to fix, and is not the turn', () => {
     const demo = scene();
     const kara = demo.state.entity('kara')!;
-    kara.hope = { max: 6, value: 3 };
+    kara.good = { max: 6, value: 3 };
     // Nothing marked: the feature has nothing to clear.
     expect(useAbility(demo, 'kara', 'sentinel-hold-fast').status).toBe('refused');
     expect(demo.log.at(-1)!.text).toContain('not now');
-    expect(kara.hope.value).toBe(3);
+    expect(kara.good.value).toBe(3);
 
     kara.armorSlots = { max: kara.armorSlots.max, marked: 3 };
     startEncounter(demo, demo.scene.encounters[0]!.id);
     const result = useAbility(demo, 'kara', 'sentinel-hold-fast');
     expect(result.status).toBe('done');
-    expect(kara.hope.value).toBe(0);
+    expect(kara.good.value).toBe(0);
     expect(kara.armorSlots.marked).toBe(1);
     expect(demo.log.map((l) => l.text)).toContain('Kara clears 2 Armor Slots.');
     // Not an action: no `acted` event for Kara.
@@ -178,8 +178,8 @@ describe('a spell in a fight', () => {
     closeIn(demo, 'finn', foe.id);
     startEncounter(demo, demo.scene.encounters[0]!.id);
     const finn = demo.state.entity('finn')!;
-    finn.hope = { max: 6, value: 2 };
-    const fearBefore = demo.state.fear.value;
+    finn.good = { max: 6, value: 2 };
+    const badBefore = demo.state.bad.value;
 
     const result = useAbility(demo, 'finn', 'fixture-bladefall');
     expect(result.status).toBe('waiting');
@@ -191,7 +191,7 @@ describe('a spell in a fight', () => {
     expect(demo.pending.prompt.targets).toContain(foe.id);
     expect(demo.pending.prompt.experiences.length).toBeGreaterThan(0);
     // The Light is spent before the roll.
-    expect(finn.hope.value).toBe(1);
+    expect(finn.good.value).toBe(1);
     // The turn is not spent until the roll is made.
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'finn')).toBe(false);
 
@@ -201,12 +201,12 @@ describe('a spell in a fight', () => {
     const checkLine = demo.log.find((l) => l.text.startsWith('Light '))!;
     expect(checkLine).toBeDefined();
     // The dice decide the rest, but the bookkeeping is the same either way.
-    const withHope = /with Light|Critical/.test(checkLine.text);
-    expect(finn.hope.value).toBe(withHope ? 2 : 1);
-    expect(demo.state.fear.value).toBe(withHope ? fearBefore : fearBefore + 1);
+    const withGood = /with Light|Critical/.test(checkLine.text);
+    expect(finn.good.value).toBe(withGood ? 2 : 1);
+    expect(demo.state.bad.value).toBe(withGood ? badBefore : badBefore + 1);
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'finn')).toBe(true);
     if (demo.encounter!.outcome === 'ongoing') {
-      expect(demo.encounter!.view().side).toBe(withHope && /succeeds|Critical/.test(checkLine.text) ? 'party' : 'gm');
+      expect(demo.encounter!.view().side).toBe(withGood && /succeeds|Critical/.test(checkLine.text) ? 'party' : 'gm');
     }
   });
 
@@ -316,7 +316,7 @@ describe('a rest', () => {
     kara.stress = { ...kara.stress, marked: 5 };
     kara.armorSlots = { ...kara.armorSlots, marked: 3 };
     mira.hitPoints = { ...mira.hitPoints, marked: 4 };
-    mira.hope = { max: 6, value: 0 };
+    mira.good = { max: 6, value: 0 };
     demo.scenario.abilityUses.set(useKey('mira', 'fixture-aura'), 1);
     demo.scenario.abilityUses.set(useKey('kara', 'some-scene-thing'), 1);
 
@@ -327,27 +327,27 @@ describe('a rest', () => {
         finn: [{ kind: 'prepare' }, { kind: 'clearStress' }],
       },
     });
-    expect(short).toEqual({ ok: true, fearGained: expect.any(Number) });
+    expect(short).toEqual({ ok: true, badGained: expect.any(Number) });
     if (!short.ok) return;
-    expect(short.fearGained).toBeGreaterThanOrEqual(1);
-    expect(short.fearGained).toBeLessThanOrEqual(4);
+    expect(short.badGained).toBeGreaterThanOrEqual(1);
+    expect(short.badGained).toBeLessThanOrEqual(4);
     // Two tendings of 2–5 each on 6 marked: between 0 and 2 left.
     expect(kara.hitPoints.marked).toBeLessThanOrEqual(2);
     expect(kara.armorSlots.marked).toBeLessThanOrEqual(1);
     // Two characters prepared together: 2 Light each.
-    expect(mira.hope!.value).toBe(2);
+    expect(mira.good!.value).toBe(2);
     // A once-per-long-rest card is still used; a per-rest one would refresh.
     expect(demo.scenario.abilityUses.get(useKey('mira', 'fixture-aura'))).toBe(1);
 
     kara.hitPoints = { ...kara.hitPoints, marked: 5 };
-    const fearBefore = demo.state.fear.value;
+    const badBefore = demo.state.bad.value;
     const long = rest(demo, 'long', { moves: { kara: [{ kind: 'tendWounds' }, { kind: 'clearStress' }] } });
     expect(long.ok).toBe(true);
     expect(kara.hitPoints.marked).toBe(0);
     expect(kara.stress.marked).toBe(0);
     expect(demo.scenario.abilityUses.has(useKey('mira', 'fixture-aura'))).toBe(false);
     // 1d4 + three party members, capped by the pool.
-    expect(demo.state.fear.value - fearBefore).toBeGreaterThanOrEqual(Math.min(4, demo.state.fear.max - fearBefore));
+    expect(demo.state.bad.value - badBefore).toBeGreaterThanOrEqual(Math.min(4, demo.state.bad.max - badBefore));
   });
 
   it('is refused mid-fight', () => {
@@ -405,7 +405,7 @@ describe("the GM's turn", () => {
     }
     const husk = demo.state.entity(foe.id)!;
     husk.hitPoints = { ...husk.hitPoints, marked: husk.hitPoints.max - 1 };
-    kara.hope = { max: 6, value: 6 };
+    kara.good = { max: 6, value: 6 };
     for (let i = 0; i < 40 && demo.encounter!.outcome === 'ongoing'; i++) {
       if (demo.pending !== null) answerPending(demo, demo.pending.prompt.kind === 'choice' ? { kind: 'choose', index: 1 } : { kind: 'roll' });
       else if (demo.encounter!.view().side === 'gm') endTurn(demo);
@@ -426,7 +426,7 @@ describe('what holds an adversary', () => {
     const husk = demo.state.entity(foe.id)!;
     husk.conditions.add('asleep');
     husk.conditionDurations.set('asleep', 'scene');
-    demo.state.fear = { ...demo.state.fear, value: 0 };
+    demo.state.bad = { ...demo.state.bad, value: 0 };
     const hpBefore = demo.state.entity('kara')!.hitPoints.marked;
     endTurn(demo);
     // Still asleep, and it did not attack.
@@ -434,10 +434,10 @@ describe('what holds an adversary', () => {
     expect(demo.log.some((l) => l.text.includes(`${foeName(demo, foe.id)}'s`) && l.text.includes('Kara'))).toBe(false);
     expect(demo.state.entity('kara')!.hitPoints.marked).toBe(hpBefore);
 
-    demo.state.fear = { ...demo.state.fear, value: 1 };
+    demo.state.bad = { ...demo.state.bad, value: 1 };
     endTurn(demo);
     expect(husk.conditions.has('asleep')).toBe(false);
-    expect(demo.state.fear.value).toBe(0);
+    expect(demo.state.bad.value).toBe(0);
     expect(demo.log.map((l) => l.text)).toContain(`The GM spends a Shadow: the ${foeName(demo, foe.id)} shakes off asleep.`);
   });
 
@@ -471,13 +471,13 @@ describe('stepping back from a roll', () => {
     closeIn(demo, 'finn', foe.id);
     startEncounter(demo, demo.scene.encounters[0]!.id);
     const finn = demo.state.entity('finn')!;
-    finn.hope = { max: 6, value: 2 };
+    finn.good = { max: 6, value: 2 };
     expect(useAbility(demo, 'finn', 'fixture-bladefall').status).toBe('waiting');
-    expect(finn.hope.value).toBe(1);
+    expect(finn.good.value).toBe(1);
     const stepped = answerPending(demo, { kind: 'cancel' });
     expect(stepped.status).toBe('done');
     expect(demo.pending).toBeNull();
-    expect(finn.hope.value).toBe(2);
+    expect(finn.good.value).toBe(2);
     expect(demo.log.map((l) => l.text)).toContain('Finn steps back from Bladefall; its cost is returned.');
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'finn')).toBe(false);
     expect(demo.encounter!.canAct('finn')).toBe(true);
@@ -494,13 +494,13 @@ describe('stepping back from a roll', () => {
     const foe = nearestFoe(demo, 'mira');
     closeIn(demo, 'mira', foe.id);
     startEncounter(demo, demo.scene.encounters[0]!.id);
-    demo.state.entity('mira')!.hope = { max: 6, value: 2 };
+    demo.state.entity('mira')!.good = { max: 6, value: 2 };
     expect(useAbility(demo, 'mira', 'fixture-barrage').status).toBe('waiting');
     expect(demo.pending?.prompt.kind).toBe('choice');
     expect(demo.scenario.abilityUses.get(useKey('mira', 'fixture-barrage'))).toBe(1);
     expect(answerPending(demo, { kind: 'cancel' }).status).toBe('done');
     expect(demo.scenario.abilityUses.has(useKey('mira', 'fixture-barrage'))).toBe(false);
-    expect(demo.state.entity('mira')!.hope!.value).toBe(2);
+    expect(demo.state.entity('mira')!.good!.value).toBe(2);
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'mira')).toBe(false);
   });
 });
@@ -533,7 +533,7 @@ describe('a card written in the project\'s own code', () => {
     // Everyone stands together, so the selector reaches them.
     demo.state.moveEntity('finn', demo.grid.indexOf(demo.grid.xOf(kara.tile) + 1, demo.grid.yOf(kara.tile)));
     demo.state.moveEntity('mira', demo.grid.indexOf(demo.grid.xOf(kara.tile), demo.grid.yOf(kara.tile) + 1));
-    kara.hope = { max: 6, value: 2 };
+    kara.good = { max: 6, value: 2 };
     // Finn is badly hurt; Mira is merely rattled.
     finn.hitPoints = { ...finn.hitPoints, marked: finn.hitPoints.max - 1 };
     finn.stress = { ...finn.stress, marked: 1 };
@@ -542,7 +542,7 @@ describe('a card written in the project\'s own code', () => {
 
     const result = useAbility(demo, 'kara', 'rally-the-line');
     expect(result.status).toBe('done');
-    expect(kara.hope.value).toBe(1);
+    expect(kara.good.value).toBe(1);
     expect(finn.hitPoints.marked).toBe(finn.hitPoints.max - 2);
     expect(finn.stress.marked).toBe(1);
     expect(mira.stress.marked).toBe(1);

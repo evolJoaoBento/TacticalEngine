@@ -23,10 +23,10 @@ import { armorScore, pcThresholds, type DamageThresholds } from '../rules/damage
 import type { ParsedDamage } from '../rules/dice';
 import type { RangeBand } from '../rules/range';
 import {
-  MAX_HOPE,
+  MAX_GOOD,
   MAX_SLOTS,
-  STARTING_HOPE,
-  createHope,
+  STARTING_GOOD,
+  createGood,
   createMarkPool,
   STARTING_STRESS_SLOTS,
   type Currency,
@@ -94,7 +94,7 @@ export interface CharacterSheet {
 
 /** A feature the character has, wherever it came from, as the SRD words it. */
 export interface CharacterFeature {
-  source: 'class' | 'hope' | 'subclass' | 'card';
+  source: 'class' | 'good' | 'subclass' | 'card';
   /** For a subclass feature, which card it is on. */
   stage?: 'foundation' | 'specialization' | 'mastery';
   /** The domain card's id, for a card. */
@@ -134,7 +134,7 @@ export interface DerivedCharacter {
   armorScore: number;
   hitPoints: number;
   stress: number;
-  hope: Currency;
+  good: Currency;
   primaryWeapon?: WeaponDef;
   secondaryWeapon?: WeaponDef;
 }
@@ -272,7 +272,7 @@ export function deriveCharacter(
     stress: Math.min(MAX_SLOTS, STARTING_STRESS_SLOTS + (bonuses.stress ?? 0) + grown.stress + folded('stress')),
     // A scar is permanent, so it is the sheet that carries it and every scene
     // the character walks into starts a Light short.
-    hope: createHope(STARTING_HOPE, Math.max(0, MAX_HOPE - (sheet.scars ?? 0))),
+    good: createGood(STARTING_GOOD, Math.max(0, MAX_GOOD - (sheet.scars ?? 0))),
     ...(primaryWeapon === undefined ? {} : { primaryWeapon }),
     ...(secondaryWeapon === undefined ? {} : { secondaryWeapon }),
   };
@@ -286,14 +286,14 @@ export function deriveCharacter(
  */
 function collectFeatures(
   sheet: CharacterSheet,
-  klass: { hopeFeature?: { name: string; text: string }; features: readonly { name: string; text: string }[] } | undefined,
+  klass: { goodFeature?: { name: string; text: string }; features: readonly { name: string; text: string }[] } | undefined,
   subclass: SubclassDef | undefined,
   cards: readonly DomainCardDef[],
 ): CharacterFeature[] {
   const features: CharacterFeature[] = [];
   for (const feature of klass?.features ?? []) features.push({ source: 'class', name: feature.name, text: feature.text });
-  if (klass?.hopeFeature !== undefined) {
-    features.push({ source: 'hope', name: klass.hopeFeature.name, text: klass.hopeFeature.text });
+  if (klass?.goodFeature !== undefined) {
+    features.push({ source: 'good', name: klass.goodFeature.name, text: klass.goodFeature.text });
   }
   if (subclass !== undefined) {
     const stage = subclassStage(sheet);
@@ -399,13 +399,13 @@ export function startingPools(character: DerivedCharacter): {
   hitPoints: MarkPool;
   stress: MarkPool;
   armorSlots: MarkPool;
-  hope: Currency;
+  good: Currency;
 } {
   return {
     hitPoints: createMarkPool(character.hitPoints),
     stress: createMarkPool(character.stress),
     armorSlots: createMarkPool(character.armorScore),
-    hope: { ...character.hope },
+    good: { ...character.good },
   };
 }
 

@@ -249,7 +249,7 @@ describe("a room with a stat block the engine did not write", () => {
     const demo = buildProjectScene(s.project, 'hellfire');
     demo.askDefender = false;
     startEncounter(demo, 'demon');
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
 
     let rained = false;
     for (let i = 0; i < 6 && !rained && demo.encounter?.outcome === 'ongoing'; i++) {
@@ -312,7 +312,7 @@ describe('a Lieutenant with more where that came from', () => {
     const demo = buildProjectScene(s.project, 'knives');
     demo.askDefender = false;
     startEncounter(demo, 'thieves');
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     const before = demo.state.entitiesOf('adversary').length;
 
     let called = false;
@@ -340,7 +340,7 @@ describe('a Lieutenant with more where that came from', () => {
 
 describe('a Leader buying its own side a turn', () => {
   /** A leader and two of its own down the hall from Kara. */
-  const gang = (seed: string, fear: number) => {
+  const gang = (seed: string, bad: number) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
@@ -352,7 +352,7 @@ describe('a Leader buying its own side a turn', () => {
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'thieves');
-    demo.state.fear = { ...demo.state.fear, value: fear };
+    demo.state.bad = { ...demo.state.bad, value: bad };
     demo.party.select('kara');
     return demo;
   };
@@ -373,7 +373,7 @@ describe('a Leader buying its own side a turn', () => {
     expect(acted.filter((e) => e.id === 'knife-1')).toHaveLength(1);
     expect(acted.filter((e) => e.id === 'knife-2')).toHaveLength(1);
     // And the GM was billed for none of it beyond the first, free spotlight.
-    expect(acted.every((e) => (e as unknown as { fearSpent: number }).fearSpent === 0)).toBe(true);
+    expect(acted.every((e) => (e as unknown as { badSpent: number }).badSpent === 0)).toBe(true);
   });
 
   it('says nothing and spends nothing when there is nobody to rally', () => {
@@ -419,14 +419,14 @@ describe('a creature that does not stay the same creature', () => {
     kind: 'reaction',
     trigger: 'tookHitPoints',
     action: false,
-    cost: { fear: 1 },
+    cost: { bad: 1 },
     available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 3 },
     target: { kind: 'none' },
     inCombatOnly: true,
     effects: [{ kind: 'replace', adversary: 'fixture-runt', count: '2', spotlight: true }],
   };
 
-  const arena = (seed: string, fear: number, features: readonly unknown[]) => {
+  const arena = (seed: string, bad: number, features: readonly unknown[]) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
@@ -436,7 +436,7 @@ describe('a creature that does not stay the same creature', () => {
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'arena');
-    demo.state.fear = { ...demo.state.fear, value: fear };
+    demo.state.bad = { ...demo.state.bad, value: bad };
     demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
     demo.party.select('kara');
     return demo;
@@ -472,7 +472,7 @@ describe('a creature that does not stay the same creature', () => {
     // Three or more Hit Points marked, and it is one short: the blow that
     // lands is the one that splits it.
     foe.hitPoints = { max: 8, marked: 2 };
-    const fear = demo.state.fear.value;
+    const bad = demo.state.bad.value;
     attackWithSelected(demo, 'foe');
 
     // The log names what is gone, which nothing can look up once it is: the
@@ -488,7 +488,7 @@ describe('a creature that does not stay the same creature', () => {
     // They stand up with nothing marked against them.
     expect(halves.every((e) => e.hitPoints.marked === 0 && e.stress.marked === 0)).toBe(true);
     expect(demo.state.entity('foe')).toBeUndefined();
-    expect(fear - demo.state.fear.value).toBe(1);
+    expect(bad - demo.state.bad.value).toBe(1);
   });
 
   it('leaves it whole while the wound is shallow, and while the pool is empty', () => {
@@ -637,7 +637,7 @@ describe('a wound that answers back', () => {
     available: { kind: 'withinRange', range: 'melee' },
     target: { kind: 'none' },
     effects: [
-      { kind: 'log', text: 'Barbs drive back into the blow.', tone: 'fear' },
+      { kind: 'log', text: 'Barbs drive back into the blow.', tone: 'bad' },
       { kind: 'damage', dice: '1d10+5', type: 'physical', target: { kind: 'target' } },
     ],
   };
@@ -662,7 +662,7 @@ describe('a wound that answers back', () => {
         start: '1d6',
         loop: 'reset',
         effects: [
-          { kind: 'log', text: 'The hum breaks over everyone.', tone: 'fear' },
+          { kind: 'log', text: 'The hum breaks over everyone.', tone: 'bad' },
           {
             kind: 'reactionRoll',
             difficulty: 14,
@@ -670,7 +670,7 @@ describe('a wound that answers back', () => {
             targets: { kind: 'allies', range: 'far' },
             onFail: [
               { kind: 'markStress', target: { kind: 'hit' } },
-              { kind: 'loseHope', target: { kind: 'hit' } },
+              { kind: 'loseGood', target: { kind: 'hit' } },
             ],
           },
         ],
@@ -756,7 +756,7 @@ describe('a wound big enough to be counted', () => {
     available: { kind: 'withinRange', range: 'close' },
     target: { kind: 'none' },
     effects: [
-      { kind: 'log', text: 'The blow folds back on itself.', tone: 'fear' },
+      { kind: 'log', text: 'The blow folds back on itself.', tone: 'bad' },
       { kind: 'damage', dice: 'same', half: true, target: { kind: 'target' } },
     ],
   };
@@ -779,7 +779,7 @@ describe('a wound big enough to be counted', () => {
     },
     target: { kind: 'none' },
     effects: [
-      { kind: 'log', text: 'It brings the hammer round in answer.', tone: 'fear' },
+      { kind: 'log', text: 'It brings the hammer round in answer.', tone: 'bad' },
       { kind: 'attack', damage: '2d6+15', target: { kind: 'target' } },
     ],
   };
@@ -809,7 +809,7 @@ describe('a wound big enough to be counted', () => {
         start: '2d6',
         loop: 'reset',
         effects: [
-          { kind: 'log', text: 'It takes the wound back out of somebody.', tone: 'fear' },
+          { kind: 'log', text: 'It takes the wound back out of somebody.', tone: 'bad' },
           { kind: 'damage', dice: '2d10+6', type: 'magic', direct: true, target: { kind: 'allies', range: 'close', nearest: 1 } },
           { kind: 'heal', amount: 'hitPointsDealt', target: { kind: 'actor' } },
         ],
@@ -908,7 +908,7 @@ describe('a wound too small to be worth taking', () => {
     },
     target: { kind: 'none' },
     effects: [
-      { kind: 'log', text: 'Turned aside, and laughed at.', tone: 'fear' },
+      { kind: 'log', text: 'Turned aside, and laughed at.', tone: 'bad' },
       { kind: 'markStress', target: { kind: 'target' } },
     ],
   };
@@ -1024,7 +1024,7 @@ describe('a creature that walks before it swings', () => {
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'hall');
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
     demo.state.entity('foe')!.hitPoints = { max: 40, marked: 0 };
     demo.party.select('kara');
@@ -1073,7 +1073,7 @@ describe('a creature that walks before it swings', () => {
     const demo = buildProjectScene(s.project, 'reinforce');
     demo.askDefender = false;
     startEncounter(demo, 'line');
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     demo.state.entity('kara')!.hitPoints = { max: 60, marked: 0 };
     demo.state.entity('mate')!.stress = { max: 4, marked: 2 };
 
@@ -1138,13 +1138,13 @@ describe('what the room makes of a roll', () => {
       kind: 'all',
       of: [
         { kind: 'withinRange', range: 'far' },
-        { kind: 'rolled', is: 'withFear' },
+        { kind: 'rolled', is: 'withBad' },
       ],
     },
     target: { kind: 'none' },
     effects: [
-      { kind: 'log', text: 'The cold takes something out of them.', tone: 'fear' },
-      { kind: 'loseHope', target: { kind: 'target' } },
+      { kind: 'log', text: 'The cold takes something out of them.', tone: 'bad' },
+      { kind: 'loseGood', target: { kind: 'target' } },
     ],
   };
 
@@ -1166,11 +1166,11 @@ describe('what the room makes of a roll', () => {
       of: [
         { kind: 'withinRange', range: 'close' },
         { kind: 'rolled', is: 'failure' },
-        { kind: 'rolled', is: 'withFear' },
+        { kind: 'rolled', is: 'withBad' },
       ],
     },
     target: { kind: 'none' },
-    effects: [{ kind: 'loseHope', target: { kind: 'target' } }],
+    effects: [{ kind: 'loseGood', target: { kind: 'target' } }],
   };
 
   /** Kara and something watching her roll, at the distance the test asks for. */
@@ -1191,12 +1191,12 @@ describe('what the room makes of a roll', () => {
   };
 
   /** Swing until the dice come up with Shadow, and say what they cost. */
-  const rollUntilFear = (demo: ReturnType<typeof watched>): { hope: number; fell: boolean } => {
+  const rollUntilBad = (demo: ReturnType<typeof watched>): { good: number; fell: boolean } => {
     for (let i = 0; i < 12; i++) {
       const kara = demo.state.entity('kara')!;
       // Patched up between swings: what is under test is what the dice cost
       // her, and a Tier 3 dragon would otherwise put her down first.
-      kara.hope = { max: 6, value: 6 };
+      kara.good = { max: 6, value: 6 };
       kara.hitPoints = { max: 60, marked: 0 };
       kara.stress = { max: kara.stress.max, marked: 0 };
       kara.alive = true;
@@ -1206,10 +1206,10 @@ describe('what the room makes of a roll', () => {
       attackWithSelected(demo, 'foe');
       const rolled = demo.rolls.at(-1);
       if (rolled === undefined) continue;
-      const withFear = rolled.roll.outcome === 'successWithFear' || rolled.roll.outcome === 'failureWithFear';
-      if (!withFear) continue;
+      const withBad = rolled.roll.outcome === 'successWithBad' || rolled.roll.outcome === 'failureWithBad';
+      if (!withBad) continue;
       return {
-        hope: demo.state.entity('kara')!.hope!.value,
+        good: demo.state.entity('kara')!.good!.value,
         fell: demo.log.slice(before).some((l) => l.text.includes('The cold takes something out of them.')),
       };
     }
@@ -1218,10 +1218,10 @@ describe('what the room makes of a roll', () => {
 
   it('takes a Light off a roll with Shadow made in front of it', () => {
     const demo = watched('no-hope', [COLD_WATCH]);
-    const { hope, fell } = rollUntilFear(demo);
+    const { good, fell } = rollUntilBad(demo);
     expect(fell).toBe(true);
     // Six going in, and the roll with Shadow costs one of them.
-    expect(hope).toBe(5);
+    expect(good).toBe(5);
   });
 
   it('leaves a roll made across the room alone', () => {
@@ -1234,7 +1234,7 @@ describe('what the room makes of a roll', () => {
     s.run(addAdversary('hall', 'watch', { id: 'foe', adversary: 'fixture-foe', position: { x: 11, y: 7 } }));
     s.run(addAdversary('hall', 'watch', { id: 'husk', adversary: 'fixture-lurker', position: { x: 3, y: 4 } }));
     s.run(addAbility(abilitySchema.parse(COLD_WATCH)));
-    const demo = buildProjectScene(s.project, 'no-hope-far');
+    const demo = buildProjectScene(s.project, 'no-good-far');
     demo.askDefender = false;
     startEncounter(demo, 'watch');
     demo.party.select('kara');
@@ -1242,7 +1242,7 @@ describe('what the room makes of a roll', () => {
 
     for (let i = 0; i < 12; i++) {
       const kara = demo.state.entity('kara')!;
-      kara.hope = { max: 6, value: 6 };
+      kara.good = { max: 6, value: 6 };
       kara.hitPoints = { max: 60, marked: 0 };
       kara.stress = { max: kara.stress.max, marked: 0 };
       kara.alive = true;
@@ -1253,10 +1253,10 @@ describe('what the room makes of a roll', () => {
       attackWithSelected(demo, 'husk');
       const rolled = demo.rolls.at(-1);
       if (rolled === undefined) continue;
-      const withFear = rolled.roll.outcome === 'successWithFear' || rolled.roll.outcome === 'failureWithFear';
-      if (!withFear) continue;
+      const withBad = rolled.roll.outcome === 'successWithBad' || rolled.roll.outcome === 'failureWithBad';
+      if (!withBad) continue;
       expect(demo.log.some((l) => l.text.includes('The cold takes something out of them.'))).toBe(false);
-      expect(demo.state.entity('kara')!.hope!.value).toBe(6);
+      expect(demo.state.entity('kara')!.good!.value).toBe(6);
       return;
     }
     throw new Error('the dice never came up with Shadow');
@@ -1268,7 +1268,7 @@ describe('what the room makes of a roll', () => {
     const demo = watched('all-must-fall', [ONLY_ON_A_FAILURE]);
     for (let i = 0; i < 12; i++) {
       const kara = demo.state.entity('kara')!;
-      kara.hope = { max: 6, value: 6 };
+      kara.good = { max: 6, value: 6 };
       kara.hitPoints = { max: 60, marked: 0 };
       kara.stress = { max: kara.stress.max, marked: 0 };
       kara.alive = true;
@@ -1277,10 +1277,10 @@ describe('what the room makes of a roll', () => {
       attackWithSelected(demo, 'foe');
       const rolled = demo.rolls.at(-1);
       if (rolled === undefined) continue;
-      const hope = demo.state.entity('kara')!.hope!.value;
-      if (rolled.roll.outcome === 'failureWithFear') expect(hope).toBe(5);
-      if (rolled.roll.outcome === 'successWithFear') expect(hope).toBe(6);
-      if (rolled.roll.outcome === 'failureWithHope') expect(hope).toBe(6);
+      const good = demo.state.entity('kara')!.good!.value;
+      if (rolled.roll.outcome === 'failureWithBad') expect(good).toBe(5);
+      if (rolled.roll.outcome === 'successWithBad') expect(good).toBe(6);
+      if (rolled.roll.outcome === 'failureWithGood') expect(good).toBe(6);
     }
   });
 });
@@ -1615,7 +1615,7 @@ describe("what the party puts behind its own blow", () => {
     const demo = swinging([EDGE_CARD], `crit-${critical()}`);
     demo.askDefender = true;
     const vela = demo.state.entity('vela')!;
-    vela.hope = { max: 6, value: 3 };
+    vela.good = { max: 6, value: 3 };
     vela.hitPoints = { max: 6, marked: 2 };
     vela.armorSlots = { max: 3, marked: 2 };
     const foe = demo.state.entity('foe')!;
@@ -1635,7 +1635,7 @@ describe("what the party puts behind its own blow", () => {
     expect(vela.armorSlots.marked).toBe(2);
     expect(foe.hitPoints.marked).toBe(marked + 1);
     // Three Light, one more for the critical, two spent on the two yeses.
-    expect(vela.hope!.value).toBe(2);
+    expect(vela.good!.value).toBe(2);
   });
 
   it('hands the room a Light or a Stress off one critical, once per rest', () => {
@@ -1717,7 +1717,7 @@ describe('a creature that acts again, and one that acts out of turn', () => {
     // so a turn count above one is the feature and nothing else.
     for (let seed = 1; seed < 30; seed++) {
       const demo = room(`overload-${seed}`, [{ id: 'foe', adversary: 'fixture-brute', x: 5 }]);
-      demo.state.fear = { ...demo.state.fear, value: 0 };
+      demo.state.bad = { ...demo.state.bad, value: 0 };
       const acted = endTurn(demo);
       if (!demo.log.some((l) => l.text.includes('It overloads'))) continue;
       expect(acted).toBeGreaterThanOrEqual(2);
@@ -1725,7 +1725,7 @@ describe('a creature that acts again, and one that acts out of turn', () => {
       // The same fight with nothing left to mark: it overloads nothing, and
       // takes the one turn the pool can pay for.
       const spent = room(`overload-${seed}`, [{ id: 'foe', adversary: 'fixture-brute', x: 5 }]);
-      spent.state.fear = { ...spent.state.fear, value: 0 };
+      spent.state.bad = { ...spent.state.bad, value: 0 };
       const foe = spent.state.entity('foe')!;
       foe.stress = { ...foe.stress, marked: foe.stress.max };
       expect(endTurn(spent)).toBe(1);
@@ -1981,7 +1981,7 @@ describe('asking the player how many', () => {
     const vela = demo.state.entity('vela')!;
     kara.stress = { max: 6, marked: 3 };
     vela.stress = { max: 6, marked: 0 };
-    vela.hope = { max: 6, value: 0 };
+    vela.good = { max: 6, value: 0 };
 
     const used = useAbility(demo, 'vela', SHARE_ABILITY, ['kara']);
     expect(used.status).toBe('waiting');
@@ -1993,7 +1993,7 @@ describe('asking the player how many', () => {
     answerPending(demo, { kind: 'choose', index: 1 });
     expect(kara.stress.marked).toBe(1);
     expect(vela.stress.marked).toBe(2);
-    expect(vela.hope.value).toBe(2);
+    expect(vela.good.value).toBe(2);
   });
 
   it('will not ask when there is nothing to take', () => {
@@ -2242,7 +2242,7 @@ describe('a number read off a pool', () => {
     // costs is one either way.
     const demo = facing('fixture-lurker', 'my-turn', [A_WOUND_HANDED_BACK('fixture-lurker')]);
     demo.state.entity('foe')!.hitPoints = { max: 90, marked: 0 };
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     const before = demo.state.entity('kara')!.hitPoints.marked;
     demo.world.noteDamage('foe', { attacker: 'kara', hitPoints: 2, damage: 20, types: ['physical'] });
     settleFight(demo);
@@ -2323,7 +2323,7 @@ describe('the blow that has landed and not yet been counted', () => {
       at: { x: 6, y: 4 },
     });
     demo.state.entity('turret')!.hitPoints = { max: 90, marked: 0 };
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     for (let i = 0; i < 6 && !demo.log.some((l) => l.text.includes('swings around and fires')); i++) {
       demo.state.entity('kara')!.hitPoints = { max: 90, marked: 0 };
       demo.state.entity('kara')!.stress = { max: 6, marked: 0 };
@@ -2344,7 +2344,7 @@ describe('the blow that has landed and not yet been counted', () => {
       at: { x: 38, y: 22 },
     }, { width: 40, height: 24 });
     distant.state.entity('turret')!.hitPoints = { max: 90, marked: 0 };
-    distant.state.fear = { ...distant.state.fear, value: distant.state.fear.max };
+    distant.state.bad = { ...distant.state.bad, value: distant.state.bad.max };
     for (let i = 0; i < 6; i++) {
       distant.state.entity('kara')!.hitPoints = { max: 90, marked: 0 };
       distant.state.entity('kara')!.stress = { max: 6, marked: 0 };
@@ -2394,8 +2394,8 @@ describe('one of its own, standing beside the target', () => {
   };
 
   /** The rider on the same condition, which is a reaction rather than a swing. */
-  const PACK_TACTICS_FEAR = {
-    id: 'fixture-pack-tactics-fear',
+  const PACK_TACTICS_BAD = {
+    id: 'fixture-pack-tactics-bad',
     name: 'Pack Tactics',
     source: { kind: 'adversary', adversaries: ['fixture-swarm'] },
     text: 'Biting alongside its own kind is worth something to the one running them.',
@@ -2410,8 +2410,8 @@ describe('one of its own, standing beside the target', () => {
     },
     target: { kind: 'none' },
     effects: [
-      { kind: 'log', text: 'The pack closes, and the GM takes something for it.', tone: 'fear' },
-      { kind: 'gainFear', amount: 1 },
+      { kind: 'log', text: 'The pack closes, and the GM takes something for it.', tone: 'bad' },
+      { kind: 'gainBad', amount: 1 },
     ],
   };
 
@@ -2434,7 +2434,7 @@ describe('one of its own, standing beside the target', () => {
     target: { kind: 'none' },
     inCombatOnly: true,
     effects: [
-      { kind: 'log', text: 'It takes what it needs from one of its own.', tone: 'fear' },
+      { kind: 'log', text: 'It takes what it needs from one of its own.', tone: 'bad' },
       { kind: 'damage', amount: 1, target: { kind: 'adversaries', range: 'melee', except: 'actor', nearest: 1 } },
       { kind: 'heal', amount: 1, target: { kind: 'actor' } },
     ],
@@ -2515,7 +2515,7 @@ describe('one of its own, standing beside the target', () => {
       const demo = pack(`vampire-${marked}`, [FEED_ON_ITS_OWN]);
       // One Shadow: enough to spotlight the second of them, and nothing here is
       // worth more than that, so the feature is what the turn reaches for.
-      demo.state.fear = { ...demo.state.fear, value: 1 };
+      demo.state.bad = { ...demo.state.bad, value: 1 };
       demo.state.entity('foe')!.hitPoints = { max: 12, marked };
       demo.state.entity('pack-mate')!.hitPoints = { max: 12, marked: 0 };
       demo.world.drawIn('pack-mate', 'foe', 'melee', 'far');
@@ -2552,8 +2552,8 @@ describe('one of its own, standing beside the target', () => {
       expect(demo.log.some((l) => l.text.includes('Press of Bodies'))).toBe(true);
       return demo.log.some((l) => l.text.includes('The pack closes'));
     };
-    expect(closed(pack('wolf-fear', [PACK_TACTICS, PACK_TACTICS_FEAR]))).toBe(true);
-    expect(closed(pack('wolf-alone', [PACK_TACTICS, PACK_TACTICS_FEAR], false))).toBe(false);
+    expect(closed(pack('wolf-fear', [PACK_TACTICS, PACK_TACTICS_BAD]))).toBe(true);
+    expect(closed(pack('wolf-alone', [PACK_TACTICS, PACK_TACTICS_BAD], false))).toBe(false);
   });
 });
 
@@ -2625,7 +2625,7 @@ describe('a token on the stat block', () => {
     const demo = winding('fixture-foe', 'two-zombies', true);
     demo.state.entity('other')!.hitPoints = { max: 60, marked: 0 };
     demo.world.addTokens('other', 'slow', 1);
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     endTurn(demo);
     expect(demo.world.tokensOn('foe', 'slow')).toBe(1);
     expect(demo.world.tokensOn('other', 'slow')).toBe(0);
@@ -2716,13 +2716,13 @@ describe("what a block's own teeth do to this target", () => {
     id: 'fixture-nothing-left',
     name: 'Nothing Left',
     source: { kind: 'adversary', adversaries: ['fixture-foe'] },
-    text: 'Against someone with nothing left to hope for, its blows land twice as hard.',
+    text: 'Against someone with nothing left to good for, its blows land twice as hard.',
     kind: 'passive',
     action: false,
     target: { kind: 'none' },
     standardAttack: {
       double: true,
-      when: { kind: 'pool', pool: 'hope', of: { kind: 'target' }, measure: 'available', op: '<=', value: 0 },
+      when: { kind: 'pool', pool: 'good', of: { kind: 'target' }, measure: 'available', op: '<=', value: 0 },
     },
   };
 
@@ -2732,11 +2732,11 @@ describe("what a block's own teeth do to this target", () => {
     name: 'Names Them',
     source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'It names one of them, and the name sticks to them for the rest of the fight.',
-    cost: { fear: 1 },
+    cost: { bad: 1 },
     target: { kind: 'creature', range: 'veryFar' },
     inCombatOnly: true,
     effects: [
-      { kind: 'log', text: 'It names them, and the name sticks.', tone: 'fear' },
+      { kind: 'log', text: 'It names them, and the name sticks.', tone: 'bad' },
       { kind: 'applyCondition', condition: 'guilty', duration: 'scene', target: { kind: 'target' } },
     ],
   };
@@ -2786,20 +2786,20 @@ describe("what a block's own teeth do to this target", () => {
     expect(hidden.damage).toMatchObject({ count: 1, sides: 10, modifier: 4 });
   });
 
-  it('doubles what the dice said against a target with nothing left to hope for', () => {
+  it('doubles what the dice said against a target with nothing left to good for', () => {
     const demo = facing('despair', [NOTHING_LEFT]);
     const kara = demo.state.entity('kara')!;
-    kara.hope = { max: 6, value: 3 };
+    kara.good = { max: 6, value: 3 };
     expect(demo.world.standardAttackOf('fixture-foe', { attacker: 'foe', target: 'kara' }).double).toBeUndefined();
 
-    kara.hope = { max: 6, value: 0 };
+    kara.good = { max: 6, value: 0 };
     expect(demo.world.standardAttackOf('fixture-foe', { attacker: 'foe', target: 'kara' }).double).toBe(true);
 
     // And what lands is twice what the dice said: the same fixture and the
     // same seed twice over, the only difference being the Light left in her.
-    const swing = (hope: number): number => {
+    const swing = (good: number): number => {
       const twin = facing('despair-twin', [NOTHING_LEFT]);
-      twin.state.entity('kara')!.hope = { max: 6, value: hope };
+      twin.state.entity('kara')!.good = { max: 6, value: good };
       twin.scenario.actorId = 'foe';
       const summary = twin.world.attack({ attacker: 'foe', target: 'kara', weapon: 'primary' }, twin.rng);
       expect(summary.refused).toBeNull();
@@ -2812,7 +2812,7 @@ describe("what a block's own teeth do to this target", () => {
 
   it('marks a target for one creature, and another block reads the mark', () => {
     const demo = facing('judgment', [NAMES_THEM, PUNISH_THE_NAMED]);
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     for (let i = 0; i < 4 && !demo.state.entity('kara')!.conditions.has('guilty'); i++) {
       demo.state.entity('kara')!.hitPoints = { max: 60, marked: 0 };
       demo.state.entity('kara')!.alive = true;
@@ -2827,7 +2827,7 @@ describe("what a block's own teeth do to this target", () => {
 
 describe('a Demon rallying Relentless allies', () => {
   /** Something that rallies, and two that can each be spotlighted twice. */
-  const pit = (fear: number, seed: string) => {
+  const pit = (bad: number, seed: string) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
@@ -2841,7 +2841,7 @@ describe('a Demon rallying Relentless allies', () => {
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'pit');
-    demo.state.fear = { ...demo.state.fear, value: fear };
+    demo.state.bad = { ...demo.state.bad, value: bad };
     demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
     demo.party.select('kara');
     return demo;
@@ -2875,17 +2875,17 @@ describe('what a feature calls in and spotlights', () => {
     startEncounter(demo, 'crypt');
     // Exactly what the feature costs, and not a Shadow more: what it calls in was
     // paid for when it was called, so the turn must not bill the GM again.
-    demo.state.fear = { ...demo.state.fear, value: 2 };
+    demo.state.bad = { ...demo.state.bad, value: 2 };
     demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
     endTurn(demo);
 
     expect(demo.log.some((l) => l.text.includes('uses The Hunt'))).toBe(true);
     const arrivals = demo.state.entitiesOf('adversary').filter((e) => e.definition === 'fixture-runt');
     expect(arrivals.length).toBeGreaterThan(0);
-    const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string; fearSpent: number }[];
+    const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string; badSpent: number }[];
     for (const arrival of arrivals) {
       expect(acted.filter((e) => e.id === arrival.id)).toHaveLength(1);
-      expect(acted.find((e) => e.id === arrival.id)!.fearSpent).toBe(0);
+      expect(acted.find((e) => e.id === arrival.id)!.badSpent).toBe(0);
     }
   });
 });
@@ -2964,7 +2964,7 @@ describe('a Necromancer who buys their troops a turn', () => {
     const demo = buildProjectScene(s.project, 'dance');
     demo.askDefender = false;
     startEncounter(demo, 'gates');
-    demo.state.fear = { ...demo.state.fear, value: 3 };
+    demo.state.bad = { ...demo.state.bad, value: 3 };
     demo.state.entity('kara')!.hitPoints = { max: 60, marked: 0 };
     endTurn(demo);
 
@@ -2981,10 +2981,10 @@ describe('a Necromancer who buys their troops a turn', () => {
     // half, and nothing should -- that line prints on a blow that marks a Hit
     // Point, and the only one that landed was turned aside before anything was
     // counted.
-    const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string; fearSpent: number }[];
+    const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed') as { id: string; badSpent: number }[];
     expect(acted.filter((e) => e.id === 'imp-1')).toHaveLength(2);
     expect(acted.filter((e) => e.id === 'imp-2')).toHaveLength(2);
-    expect(acted.filter((e) => e.fearSpent > 0)).toHaveLength(2);
+    expect(acted.filter((e) => e.badSpent > 0)).toHaveLength(2);
   });
 });
 
@@ -3012,7 +3012,7 @@ describe('a clock the fight carries', () => {
         start: '2d6',
         loop: 'reset',
         effects: [
-          { kind: 'log', text: 'It closes in on all of them.', tone: 'fear' },
+          { kind: 'log', text: 'It closes in on all of them.', tone: 'bad' },
           { kind: 'applyCondition', condition: 'vulnerable', duration: 'scene', target: { kind: 'allies', range: 'far' } },
           { kind: 'markStress', target: { kind: 'allies', range: 'far' } },
         ],
@@ -3030,7 +3030,7 @@ describe('a clock the fight carries', () => {
     name: 'Last Thrash',
     source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'A reckoning it sets going, which arrives whether or not it lives to see it.',
-    cost: { fear: 1 },
+    cost: { bad: 1 },
     uses: { count: 1, per: 'scene' },
     target: { kind: 'none', range: 'far' },
     inCombatOnly: true,
@@ -3040,10 +3040,10 @@ describe('a clock the fight carries', () => {
         countdown: 'fixture-last-thrash',
         name: 'Last Thrash',
         start: '1d12',
-        advance: 'withFear',
+        advance: 'withBad',
         onDeath: 'trigger',
         effects: [
-          { kind: 'log', text: 'The room comes down around them.', tone: 'fear' },
+          { kind: 'log', text: 'The room comes down around them.', tone: 'bad' },
           {
             kind: 'reactionRoll',
             difficulty: 18,
@@ -3072,7 +3072,7 @@ describe('a clock the fight carries', () => {
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'ruin');
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     demo.party.select('kara');
     // This test is about the clock rather than about Kara: give her the Hit
     // Points to stand there while it runs down.
@@ -3128,7 +3128,7 @@ describe('a clock the fight carries', () => {
     const demo = ruin('tyrant', [LAST_THRASH], { x: 9, y: 4 });
     endTurn(demo);
     const id = 'fixture-last-thrash';
-    expect(demo.scenario.countdowns.get(id)).toMatchObject({ advance: 'withFear', onDeath: 'trigger' });
+    expect(demo.scenario.countdowns.get(id)).toMatchObject({ advance: 'withBad', onDeath: 'trigger' });
 
     // The pools are re-read from the sheet as the turn runs, so the room to
     // stand in has to be given after it rather than before: a level 1
@@ -3201,7 +3201,7 @@ describe('a swarm that piles onto one target', () => {
     name: 'Pack Rush',
     source: { kind: 'adversary', adversaries: ['fixture-swarm'] },
     text: 'At a price, everything of its kind nearby piles onto one target at once.',
-    cost: { fear: 1 },
+    cost: { bad: 1 },
     target: { kind: 'creature', range: 'close' },
     inCombatOnly: true,
     effects: [
@@ -3214,7 +3214,7 @@ describe('a swarm that piles onto one target', () => {
   };
 
   /** A pack loose in the hall, and Kara alone in the middle of it. */
-  const hall = (pack: readonly { x: number; y: number }[], fear: number) => {
+  const hall = (pack: readonly { x: number; y: number }[], bad: number) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 4, y: 4 }]));
@@ -3226,7 +3226,7 @@ describe('a swarm that piles onto one target', () => {
     const demo = buildProjectScene(s.project, 'rats');
     demo.askDefender = false;
     startEncounter(demo, 'vermin');
-    demo.state.fear = { ...demo.state.fear, value: fear };
+    demo.state.bad = { ...demo.state.bad, value: bad };
     return demo;
   };
 
@@ -3251,21 +3251,21 @@ describe('a swarm that piles onto one target', () => {
     // Three of them, all close enough to join: the whole pack acts on the one
     // feature, so nothing else in the turn is left to spend Shadow on.
     const demo = hall([{ x: 7, y: 4 }, { x: 7, y: 3 }, { x: 7, y: 5 }], 6);
-    const before = demo.state.fear.value;
+    const before = demo.state.bad.value;
     endTurn(demo);
     expect(demo.log.some((l) => l.text.includes('3 of them at once'))).toBe(true);
     // The Shadow buys the whole pack's one shared bite: the ones that joined
     // have had their spotlight, and the GM pays for it once.
-    expect(before - demo.state.fear.value).toBe(1);
+    expect(before - demo.state.bad.value).toBe(1);
   });
 
   it('does not spend a Shadow on a swarm of one', () => {
     const demo = hall([{ x: 7, y: 4 }], 6);
-    const before = demo.state.fear.value;
+    const before = demo.state.bad.value;
     endTurn(demo);
     const said = demo.log.map((l) => l.text);
     expect(said.some((t) => t.includes('uses Pack Rush'))).toBe(false);
-    expect(demo.state.fear.value).toBe(before);
+    expect(demo.state.bad.value).toBe(before);
   });
 });
 
@@ -3334,7 +3334,7 @@ describe('a Treant that puts its roots down', () => {
     const demo = buildProjectScene(s.project, 'grove');
     demo.askDefender = false;
     startEncounter(demo, 'grove');
-    demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
+    demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     for (let i = 0; i < 4 && demo.encounter?.outcome === 'ongoing'; i++) endTurn(demo);
 
     const said = demo.log.map((l) => l.text);

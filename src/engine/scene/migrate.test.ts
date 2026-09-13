@@ -6,11 +6,15 @@ import { migrateDocument, CURRENT_FORMAT_VERSION } from './migrate';
 /**
  * Reading a version-1 document with version-2 code.
  *
- * The fixtures are **real**: `tools/capture-v1-fixtures.ts` ran the demo and wrote what the code
- * wrote at the time, before the rename existed. That matters more than it looks. A hand-written
- * "old document" is written by the same person as the migration, to match it, and proves only that
- * the two agree; one captured from a build that never heard of version 2 can disagree, which is the
- * only way this test can fail for a real reason.
+ * The fixtures are **real**: a capture tool ran the demo at commit 977840b and wrote what the code
+ * wrote at the time, before the rename existed — `tests/fixtures/v1/README.md` records how. That
+ * matters more than it looks. A hand-written "old document" is written by the same person as the
+ * migration, to match it, and proves only that the two agree; one captured from a build that never
+ * heard of version 2 can disagree, which is the only way this test can fail for a real reason.
+ *
+ * The tool itself is gone. It read the pools by their old names, so the rename it existed to prove
+ * is what ended it — afterwards it could only have written version-2 documents into a directory
+ * named `v1`.
  *
  * The save fixture was taken after spending a Light and marking Shadow on purpose, so both pools carry
  * values rather than defaults — a migration that quietly did nothing would pass against a pristine

@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
-  MAX_FEAR,
-  MAX_HOPE,
-  STARTING_HOPE,
+  MAX_BAD,
+  MAX_GOOD,
+  STARTING_GOOD,
   STARTING_STRESS_SLOTS,
   canAfford,
   canMarkStress,
   clear,
   clearAll,
-  createFear,
-  createHope,
+  createBad,
+  createGood,
   createMarkPool,
   gain,
   isFull,
@@ -128,42 +128,42 @@ describe('markHitPoints', () => {
 
 describe('Light and Shadow', () => {
   it('starts a PC at 2 Light with a maximum of 6', () => {
-    expect(createHope()).toEqual({ value: STARTING_HOPE, max: MAX_HOPE });
-    expect(createHope(99).value).toBe(MAX_HOPE);
-    expect(createFear()).toEqual({ value: 0, max: MAX_FEAR });
+    expect(createGood()).toEqual({ value: STARTING_GOOD, max: MAX_GOOD });
+    expect(createGood(99).value).toBe(MAX_GOOD);
+    expect(createBad()).toEqual({ value: 0, max: MAX_BAD });
   });
 
   it('reports Light lost to the cap rather than exceeding it', () => {
-    const r = gain(createHope(5), 3);
+    const r = gain(createGood(5), 3);
     expect(r.currency.value).toBe(6);
     expect(r.applied).toBe(1);
     expect(r.wasted).toBe(2);
   });
 
   it('caps the GM at 12 Shadow', () => {
-    expect(gain(createFear(11), 5).currency.value).toBe(MAX_FEAR);
+    expect(gain(createBad(11), 5).currency.value).toBe(MAX_BAD);
   });
 
   it('spends all-or-nothing', () => {
-    const rich = spend(createHope(4), 3);
+    const rich = spend(createGood(4), 3);
     expect(rich).toMatchObject({ ok: true, spent: 3 });
     expect(rich.currency.value).toBe(1);
 
-    const poor = spend(createHope(2), 3);
+    const poor = spend(createGood(2), 3);
     expect(poor).toMatchObject({ ok: false, spent: 0 });
     expect(poor.currency.value).toBe(2);
   });
 
   it('answers affordability without spending', () => {
-    expect(canAfford(createHope(3), 3)).toBe(true);
-    expect(canAfford(createHope(2), 3)).toBe(false);
+    expect(canAfford(createGood(3), 3)).toBe(true);
+    expect(canAfford(createGood(2), 3)).toBe(false);
   });
 });
 
 describe('scar', () => {
   it('permanently removes a Light slot and trims the current value', () => {
     const r = scar({ value: 6, max: 6 });
-    expect(r.hope).toEqual({ value: 5, max: 5 });
+    expect(r.good).toEqual({ value: 5, max: 5 });
     expect(r.journeyEnds).toBe(false);
   });
 

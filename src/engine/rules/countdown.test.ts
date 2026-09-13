@@ -4,10 +4,10 @@ import { advanceCountdown, dynamicSteps, stepsFor, type CountdownClock } from '.
 
 const OUTCOMES: RollOutcome[] = [
   'criticalSuccess',
-  'successWithHope',
-  'successWithFear',
-  'failureWithHope',
-  'failureWithFear',
+  'successWithGood',
+  'successWithBad',
+  'failureWithGood',
+  'failureWithBad',
 ];
 
 describe('dynamicSteps', () => {
@@ -31,20 +31,20 @@ describe('stepsFor', () => {
   });
 
   it('waits for an attack roll when the feature says so', () => {
-    expect(stepsFor('attackRoll', roll('successWithHope', true))).toBe(1);
-    expect(stepsFor('attackRoll', roll('successWithHope'))).toBe(0);
+    expect(stepsFor('attackRoll', roll('successWithGood', true))).toBe(1);
+    expect(stepsFor('attackRoll', roll('successWithGood'))).toBe(0);
   });
 
   it('answers a roll with Shadow, and counts a critical as one with Light', () => {
-    expect(stepsFor('withFear', roll('failureWithFear'))).toBe(1);
-    expect(stepsFor('withFear', roll('successWithFear'))).toBe(1);
-    expect(stepsFor('withFear', roll('criticalSuccess'))).toBe(0);
-    expect(stepsFor('withFear', roll('successWithHope'))).toBe(0);
+    expect(stepsFor('withBad', roll('failureWithBad'))).toBe(1);
+    expect(stepsFor('withBad', roll('successWithBad'))).toBe(1);
+    expect(stepsFor('withBad', roll('criticalSuccess'))).toBe(0);
+    expect(stepsFor('withBad', roll('successWithGood'))).toBe(0);
   });
 
   it('advances by the Hit Points marked, and by nothing on a roll', () => {
     expect(stepsFor('hpMarked', { kind: 'hpMarked', id: 'ritualist', marked: 3 })).toBe(3);
-    expect(stepsFor('hpMarked', roll('failureWithFear'))).toBe(0);
+    expect(stepsFor('hpMarked', roll('failureWithBad'))).toBe(0);
     // A roll-driven countdown is deaf to Hit Points.
     expect(stepsFor('standard', { kind: 'hpMarked', id: 'ritualist', marked: 3 })).toBe(0);
   });

@@ -85,8 +85,8 @@ describe('the abilities behind the cards', () => {
   it('spend no resource whose name is about to change', () => {
     for (const ability of STARTER_ABILITIES) {
       const parsed = abilitySchema.parse(ability);
-      expect(parsed.cost.hope, ability.id).toBeUndefined();
-      expect(parsed.cost.fear, ability.id).toBeUndefined();
+      expect(parsed.cost.good, ability.id).toBeUndefined();
+      expect(parsed.cost.bad, ability.id).toBeUndefined();
     }
   });
 });

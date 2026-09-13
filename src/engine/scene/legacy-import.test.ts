@@ -155,8 +155,8 @@ describe('importLegacyScene', () => {
       expect(chest.check).toEqual({
         trait: 'finesse',
         difficulty: 12,
-        onSuccessWithHope: [{ kind: 'log', text: 'It opens.', tone: 'narration' }, { kind: 'loot' }],
-        onFailureWithFear: [
+        onSuccessWithGood: [{ kind: 'log', text: 'It opens.', tone: 'narration' }, { kind: 'loot' }],
+        onFailureWithBad: [
           { kind: 'log', text: 'A needle.', tone: 'narration' },
           { kind: 'damage', amount: 2 },
         ],

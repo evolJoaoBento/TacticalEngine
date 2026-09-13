@@ -230,13 +230,13 @@ export function evaluate(
       if (outcome === undefined) return false;
       switch (condition.is) {
         case 'failure':
-          return outcome === 'failureWithHope' || outcome === 'failureWithFear';
+          return outcome === 'failureWithGood' || outcome === 'failureWithBad';
         case 'success':
-          return outcome !== 'failureWithHope' && outcome !== 'failureWithFear';
-        case 'withFear':
-          return outcome === 'successWithFear' || outcome === 'failureWithFear';
-        case 'withHope':
-          return outcome === 'successWithHope' || outcome === 'failureWithHope' || outcome === 'criticalSuccess';
+          return outcome !== 'failureWithGood' && outcome !== 'failureWithBad';
+        case 'withBad':
+          return outcome === 'successWithBad' || outcome === 'failureWithBad';
+        case 'withGood':
+          return outcome === 'successWithGood' || outcome === 'failureWithGood' || outcome === 'criticalSuccess';
         case 'critical':
           return outcome === 'criticalSuccess';
       }

@@ -34,7 +34,7 @@ export const rangeBandSchema = z.enum(RANGE_BANDS);
 export const conditionDurationSchema = z.enum(['temporary', 'scene', 'rest', 'permanent']);
 
 /** Which pool a condition or an effect reads. */
-export const poolNameSchema = z.enum(['hitPoints', 'stress', 'armorSlots', 'hope']);
+export const poolNameSchema = z.enum(['hitPoints', 'stress', 'armorSlots', 'good']);
 
 /**
  * What an effect or a condition hands a hook. Deliberately flat: a hook's
@@ -151,8 +151,8 @@ export const compareOpSchema = z.enum(['==', '!=', '<', '<=', '>', '>=']);
 export const logToneSchema = z.enum([
   'narration',
   'system',
-  'hope',
-  'fear',
+  'good',
+  'bad',
   'combat',
   'success',
 ]);
@@ -353,7 +353,7 @@ export const conditionSchema = z.discriminatedUnion('kind', [
    */
   z.object({
     kind: z.literal('rolled'),
-    is: z.enum(['failure', 'success', 'withFear', 'withHope', 'critical']),
+    is: z.enum(['failure', 'success', 'withBad', 'withGood', 'critical']),
   }),
   /**
    * What the roll was *for*, rather than how it went: "after you make an action
@@ -528,16 +528,16 @@ export const checkRequestSchema = z.object({
   get onCriticalSuccess() {
     return z.array(effectSchema).optional();
   },
-  get onSuccessWithHope() {
+  get onSuccessWithGood() {
     return z.array(effectSchema).optional();
   },
-  get onSuccessWithFear() {
+  get onSuccessWithBad() {
     return z.array(effectSchema).optional();
   },
-  get onFailureWithHope() {
+  get onFailureWithGood() {
     return z.array(effectSchema).optional();
   },
-  get onFailureWithFear() {
+  get onFailureWithBad() {
     return z.array(effectSchema).optional();
   },
   get always() {
@@ -690,23 +690,23 @@ export const effectSchema = z.discriminatedUnion('kind', [
    */
   z.object({ kind: z.literal('markArmor'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
   /** The GM gains Shadow. */
-  z.object({ kind: z.literal('gainFear'), amount: amountSchema.optional() }),
+  z.object({ kind: z.literal('gainBad'), amount: amountSchema.optional() }),
   /**
    * "Steal a number of Shadow from the GM equal to the number of targets that
    * are Horrified (up to the number of Shadow in the GM's pool)": the pool comes
    * down, and an empty one is simply nothing taken.
    */
-  z.object({ kind: z.literal('loseFear'), amount: amountSchema.optional() }),
-  z.object({ kind: z.literal('gainHope'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
+  z.object({ kind: z.literal('loseBad'), amount: amountSchema.optional() }),
+  z.object({ kind: z.literal('gainGood'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
   /** The actor spends Light. Refused, and journalled as such, when they cannot. */
-  z.object({ kind: z.literal('spendHope'), amount: amountSchema.optional() }),
+  z.object({ kind: z.literal('spendGood'), amount: amountSchema.optional() }),
   /**
    * "They lose a Light" — what a stat block takes rather than what a card
    * spends: nothing is refused, a creature with none simply loses none. The
    * SRD's "if they can't lose a Light they mark 2 Stress instead" is a branch
    * on how much was taken, which is the GM's to read.
    */
-  z.object({ kind: z.literal('loseHope'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
+  z.object({ kind: z.literal('loseGood'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
   z.object({
     kind: z.literal('applyCondition'),
     condition: z.string().min(1),
@@ -1024,7 +1024,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('rerollDuality'),
     /** Which of the two goes back in the cup. Both when left out. */
-    which: z.enum(['hope', 'fear', 'both']).default('both'),
+    which: z.enum(['good', 'bad', 'both']).default('both'),
   }),
   /**
    * "Spend any number of tokens to roll that number of d6s and reduce the
@@ -1429,19 +1429,19 @@ export function walkConditionsInCheck(
   visit: (condition: Condition) => void,
 ): void {
   walkConditionsIn(check.onCriticalSuccess, visit);
-  walkConditionsIn(check.onSuccessWithHope, visit);
-  walkConditionsIn(check.onSuccessWithFear, visit);
-  walkConditionsIn(check.onFailureWithHope, visit);
-  walkConditionsIn(check.onFailureWithFear, visit);
+  walkConditionsIn(check.onSuccessWithGood, visit);
+  walkConditionsIn(check.onSuccessWithBad, visit);
+  walkConditionsIn(check.onFailureWithGood, visit);
+  walkConditionsIn(check.onFailureWithBad, visit);
   walkConditionsIn(check.always, visit);
 }
 
 /** Every effect a check can run, whichever way the roll goes. */
 export function walkCheck(check: CheckRequest, visit: (effect: Effect) => void): void {
   walkEffects(check.onCriticalSuccess, visit);
-  walkEffects(check.onSuccessWithHope, visit);
-  walkEffects(check.onSuccessWithFear, visit);
-  walkEffects(check.onFailureWithHope, visit);
-  walkEffects(check.onFailureWithFear, visit);
+  walkEffects(check.onSuccessWithGood, visit);
+  walkEffects(check.onSuccessWithBad, visit);
+  walkEffects(check.onFailureWithGood, visit);
+  walkEffects(check.onFailureWithBad, visit);
   walkEffects(check.always, visit);
 }

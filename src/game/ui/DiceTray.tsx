@@ -24,8 +24,8 @@ export interface DiceTrayProps {
 }
 
 /** Gold for Light, violet for Shadow: the colours the prototype rolled in. */
-const HOPE = { face: '#e8bd63', edge: '#a97c22', ink: '#3a2a06', glow: '#ffdb8a' };
-const FEAR = { face: '#9d80c4', edge: '#5c4185', ink: '#1d1030', glow: '#c9aef0' };
+const GOOD = { face: '#e8bd63', edge: '#a97c22', ink: '#3a2a06', glow: '#ffdb8a' };
+const BAD = { face: '#9d80c4', edge: '#5c4185', ink: '#1d1030', glow: '#c9aef0' };
 
 /** How long the settled result stays up before the next roll is shown. */
 const HOLD = 700;
@@ -36,7 +36,7 @@ const HOLD = 700;
  * The facets are the same pentagon scaled out and split, each shaded a little
  * darker going round, which is enough for a flat shape to read as a solid.
  */
-function Die(props: { value: number; spin: number; lift: number; colour: typeof HOPE; settled: boolean }): preact.JSX.Element {
+function Die(props: { value: number; spin: number; lift: number; colour: typeof GOOD; settled: boolean }): preact.JSX.Element {
   const { colour, spin, lift, settled } = props;
   const points = (radius: number, turn: number): string =>
     Array.from({ length: 5 }, (_, i) => {
@@ -141,12 +141,12 @@ export function DiceTray(props: DiceTrayProps): preact.JSX.Element | null {
   // Ease out, so the dice slow into their faces rather than stopping dead.
   const t = millis <= 0 ? 1 : Math.min(1, frame / millis);
   const eased = 1 - (1 - t) * (1 - t) * (1 - t);
-  const seed = roll.roll.hope * 31 + roll.roll.fear * 17 + roll.id;
+  const seed = roll.roll.good * 31 + roll.roll.bad * 17 + roll.id;
   const step = Math.floor(t * 14);
   const spin = (1 - eased) * 540;
   const lift = Math.max(0, Math.sin(t * Math.PI * 2.5) * (1 - eased));
 
-  const line = `Light ${roll.roll.hope} + Shadow ${roll.roll.fear}${
+  const line = `Light ${roll.roll.good} + Shadow ${roll.roll.bad}${
     roll.roll.advantageDie === 0 ? '' : roll.roll.advantageDie > 0 ? ` + d6 ${roll.roll.advantageDie}` : ` − d6 ${-roll.roll.advantageDie}`
   }${roll.roll.helpBonus > 0 ? ` + help ${roll.roll.helpBonus}` : ''}${
     roll.roll.modifier === 0 ? '' : roll.roll.modifier > 0 ? ` + ${roll.roll.modifier}` : ` − ${-roll.roll.modifier}`
@@ -155,19 +155,19 @@ export function DiceTray(props: DiceTrayProps): preact.JSX.Element | null {
   const verdict =
     roll.roll.outcome === 'criticalSuccess'
       ? 'critical success'
-      : roll.roll.outcome === 'successWithHope'
+      : roll.roll.outcome === 'successWithGood'
         ? 'success with Light'
-        : roll.roll.outcome === 'successWithFear'
+        : roll.roll.outcome === 'successWithBad'
           ? 'success with Shadow'
-          : roll.roll.outcome === 'failureWithHope'
+          : roll.roll.outcome === 'failureWithGood'
             ? 'failure with Light'
             : 'failure with Shadow';
 
   return (
     <div
       data-testid="dice-tray"
-      data-hope={roll.roll.hope}
-      data-fear={roll.roll.fear}
+      data-good={roll.roll.good}
+      data-bad={roll.roll.bad}
       data-total={roll.roll.total}
       data-settled={settled ? 'true' : 'false'}
       style={{
@@ -194,8 +194,8 @@ export function DiceTray(props: DiceTrayProps): preact.JSX.Element | null {
         {roll.who} rolls {roll.what}
       </div>
       <div style={{ display: 'flex', gap: '18px', justifyContent: 'center', alignItems: 'flex-end' }}>
-        <Die value={settled ? roll.roll.hope : faces(seed, step)} spin={spin} lift={lift} colour={HOPE} settled={settled} />
-        <Die value={settled ? roll.roll.fear : faces(seed + 7, step + 3)} spin={-spin} lift={lift * 0.8} colour={FEAR} settled={settled} />
+        <Die value={settled ? roll.roll.good : faces(seed, step)} spin={spin} lift={lift} colour={GOOD} settled={settled} />
+        <Die value={settled ? roll.roll.bad : faces(seed + 7, step + 3)} spin={-spin} lift={lift * 0.8} colour={BAD} settled={settled} />
       </div>
       {/* The result is the settle: nothing to read until the dice stop. */}
       <div style={{ minHeight: '38px', marginTop: '8px', opacity: settled ? 1 : 0, transition: 'opacity 140ms' }}>

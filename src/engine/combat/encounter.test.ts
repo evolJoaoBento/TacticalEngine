@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { TileGrid } from '../grid/grid';
-import { createFear } from '../rules/resources';
+import { createBad } from '../rules/resources';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
 import {
   DEFAULT_TOKENS_PER_CHARACTER,
@@ -8,14 +8,14 @@ import {
   type EncounterOptions,
 } from './encounter';
 
-function setup(options: EncounterOptions = {}, fear = 0): {
+function setup(options: EncounterOptions = {}, bad = 0): {
   state: SceneState;
   encounter: EncounterRunner;
 } {
   const state = new SceneState(
     { id: 'room' },
     new TileGrid({ width: 6, height: 3 }),
-    createFear(fear),
+    createBad(bad),
   );
   state.addEntity(createPartyEntity('kara', 'sentinel', 0));
   state.addEntity(createPartyEntity('finn', 'nightwalker', 1));
@@ -90,11 +90,11 @@ describe('the GM turn', () => {
 
     expect(encounter.nextSpotlightCost).toBe(0);
     encounter.spotlight('husk-a');
-    expect(state.fear.value).toBe(2);
+    expect(state.bad.value).toBe(2);
 
     expect(encounter.nextSpotlightCost).toBe(1);
     encounter.spotlight('husk-b');
-    expect(state.fear.value).toBe(1);
+    expect(state.bad.value).toBe(1);
   });
 
   it('refuses a second adversary when the GM cannot pay', () => {
@@ -106,7 +106,7 @@ describe('the GM turn', () => {
     expect(encounter.canSpotlight('husk-b')).toBe(false);
     encounter.spotlight('husk-b');
     expect(encounter.log.filter((e) => e.kind === 'adversaryActed')).toHaveLength(1);
-    expect(state.fear.value).toBe(0);
+    expect(state.bad.value).toBe(0);
   });
 
   it('hands out a spotlight a feature already paid for, without billing again', () => {
@@ -118,7 +118,7 @@ describe('the GM turn', () => {
     // A feature's own cost buys the spotlights it hands out: the GM is down to
     // one Shadow, which a second ordinary spotlight would take.
     encounter.grantSpotlight('husk-b');
-    expect(state.fear.value).toBe(1);
+    expect(state.bad.value).toBe(1);
     expect(encounter.view().waiting).toEqual([]);
     expect(encounter.log.filter((e) => e.kind === 'adversaryActed')).toHaveLength(2);
   });
@@ -310,6 +310,6 @@ describe('the event log', () => {
       'spotlight',
     ]);
     const spent = encounter.log.filter((e) => e.kind === 'adversaryActed');
-    expect(spent.map((e) => (e.kind === 'adversaryActed' ? e.fearSpent : -1))).toEqual([0, 1]);
+    expect(spent.map((e) => (e.kind === 'adversaryActed' ? e.badSpent : -1))).toEqual([0, 1]);
   });
 });

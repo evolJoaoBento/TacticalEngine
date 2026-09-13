@@ -261,7 +261,7 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
       case 'rolled':
         return select(
           condition.is,
-          (['failure', 'success', 'withFear', 'withHope', 'critical'] as const).map((id) => ({ id })),
+          (['failure', 'success', 'withBad', 'withGood', 'critical'] as const).map((id) => ({ id })),
           (is) => onChange({ ...condition, is }),
         );
       case 'rollTagged':
@@ -296,7 +296,7 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
       case 'pool':
         return (
           <>
-            {select(condition.pool, (['hitPoints', 'stress', 'armorSlots', 'hope'] as const).map((id) => ({ id })), (pool) => onChange({ ...condition, pool }))}
+            {select(condition.pool, (['hitPoints', 'stress', 'armorSlots', 'good'] as const).map((id) => ({ id })), (pool) => onChange({ ...condition, pool }))}
             {select(condition.measure ?? 'available', (['available', 'marked', 'max'] as const).map((id) => ({ id })), (measure) => onChange({ ...condition, measure }))}
             {select(condition.op, ops.map((id) => ({ id })), (op) => onChange({ ...condition, op }))}
             {number(condition.value, (value) => onChange({ ...condition, value }))}
@@ -350,14 +350,14 @@ export function ConditionEditor(props: ConditionEditorProps): preact.JSX.Element
             {/* A written number, or as many as somebody holds of a pool. */}
             {select(
               typeof condition.value === 'number' ? 'number' : condition.value.pool,
-              [{ id: 'number' }, { id: 'hope' }, { id: 'stress' }, { id: 'hitPoints' }, { id: 'armorSlots' }],
+              [{ id: 'number' }, { id: 'good' }, { id: 'stress' }, { id: 'hitPoints' }, { id: 'armorSlots' }],
               (pick) =>
                 onChange({
                   ...condition,
                   value:
                     pick === 'number'
                       ? 1
-                      : { pool: pick as 'hope' | 'stress' | 'hitPoints' | 'armorSlots', measure: 'available' },
+                      : { pool: pick as 'good' | 'stress' | 'hitPoints' | 'armorSlots', measure: 'available' },
                 }),
               'cond-nearby-value',
             )}

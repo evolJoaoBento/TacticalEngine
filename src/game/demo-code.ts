@@ -39,7 +39,7 @@ for (var i = 0; i < allies.length; i++) {
     ? { kind: 'heal', amount: 1, target: who }
     : { kind: 'clearStress', amount: 1, target: who });
 }
-ctx.log('The line steadies.', 'hope');
+ctx.log('The line steadies.', 'good');
 ctx.queue(effects);
 return true;`,
   },
@@ -54,9 +54,9 @@ export const DEMO_PROJECT_ABILITIES: readonly z.input<typeof abilitySchema>[] = 
     // when Light and Shadow are renamed.
     id: 'sentinel-hold-fast',
     name: 'Hold Fast',
-    source: { kind: 'classHope', classId: 'sentinel' },
+    source: { kind: 'classGood', classId: 'sentinel' },
     text: 'Spend 3 Light to clear 2 Armor Slots.',
-    cost: { hope: 3 },
+    cost: { good: 3 },
     // Not the turn: spending it is something done on a turn rather than the turn
     // itself, so it logs no `acted`.
     action: false,
@@ -69,7 +69,7 @@ export const DEMO_PROJECT_ABILITIES: readonly z.input<typeof abilitySchema>[] = 
     name: 'Rally the Line',
     source: { kind: 'granted', characters: ['kara'] },
     text: 'Spend a Light: every ally within Close range shakes something off — a Hit Point if they are badly hurt, a Stress if they are not.',
-    cost: { hope: 1 },
+    cost: { good: 1 },
     target: { kind: 'self', range: 'close' },
     effects: [{ kind: 'run', hook: 'rally-the-line' }],
   },

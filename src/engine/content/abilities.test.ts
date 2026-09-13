@@ -65,10 +65,10 @@ describe('abilitiesFor', () => {
   const custom: AbilityDef[] = [
     abilitySchema.parse({ id: 'own', name: 'Own', source: { kind: 'granted', characters: ['kara'] } }),
     abilitySchema.parse({ id: 'theirs', name: 'Theirs', source: { kind: 'granted', characters: ['mira'] } }),
-    // The pack ships no classHope and no specialization ability, though every
+    // The pack ships no classGood and no specialization ability, though every
     // starter subclass prints all three stages. This array exists to supply the
     // sources the content does not, which is why these two are written here.
-    abilitySchema.parse({ id: 'sentinel-second-wind', name: 'Second Wind', source: { kind: 'classHope', classId: 'sentinel' } }),
+    abilitySchema.parse({ id: 'sentinel-second-wind', name: 'Second Wind', source: { kind: 'classGood', classId: 'sentinel' } }),
     abilitySchema.parse({ id: 'shieldbearer-iron', name: 'Iron Will', source: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'foundation' } }),
     abilitySchema.parse({ id: 'shieldbearer-partners', name: 'Partners', source: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'specialization' } }),
   ];

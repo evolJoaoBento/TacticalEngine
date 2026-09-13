@@ -77,7 +77,7 @@ export function abilityText(demo: DemoScene, ability: AbilityDef): string {
     const spell = card.name === ability.name ? undefined : card.features.find((f) => f.name === ability.name);
     return spell?.text ?? card.text;
   }
-  if (source.kind === 'classHope') return content.classes.get(source.classId)?.signatureFeature?.text ?? '';
+  if (source.kind === 'classGood') return content.classes.get(source.classId)?.signatureFeature?.text ?? '';
   if (source.kind === 'classFeature') {
     return content.classes.get(source.classId)?.features.find((f) => f.name === ability.name)?.text ?? '';
   }
@@ -216,8 +216,8 @@ export function canUseAbility(
   if (fighting && demo.encounter!.view().side !== 'party') return { ok: false, reason: "the GM's turn" };
   if (fighting && ability.action && !demo.encounter!.canAct(characterId)) return { ok: false, reason: 'already acted' };
   const cost = ability.cost;
-  if ((cost.fear ?? 0) > 0) return { ok: false, reason: 'only the GM spends Shadow' };
-  if ((cost.hope ?? 0) > 0 && (entity.hope?.value ?? 0) < cost.hope!) return { ok: false, reason: `needs ${cost.hope} Light` };
+  if ((cost.bad ?? 0) > 0) return { ok: false, reason: 'only the GM spends Shadow' };
+  if ((cost.good ?? 0) > 0 && (entity.good?.value ?? 0) < cost.good!) return { ok: false, reason: `needs ${cost.good} Light` };
   if ((cost.stress ?? 0) > 0 && !canMarkStress(entity.stress, cost.stress)) return { ok: false, reason: 'no Stress slot to mark' };
   const left = usesLeft(demo, characterId, ability);
   if (left !== null && left <= 0) return { ok: false, reason: `used until the next ${ability.uses!.per === 'longRest' ? 'long rest' : ability.uses!.per === 'scene' ? 'fight' : 'rest'}` };
@@ -303,13 +303,13 @@ export function useAbility(
     'system',
   );
   // Pay.
-  if ((ability.cost.hope ?? 0) > 0 && entity.hope !== undefined) {
-    entity.hope = spend(entity.hope, ability.cost.hope!).currency;
-    lines.push(...note(demo, `Spends ${ability.cost.hope} Light.`, 'hope'));
+  if ((ability.cost.good ?? 0) > 0 && entity.good !== undefined) {
+    entity.good = spend(entity.good, ability.cost.good!).currency;
+    lines.push(...note(demo, `Spends ${ability.cost.good} Light.`, 'good'));
   }
   if ((ability.cost.stress ?? 0) > 0) {
     demo.world.markStress(characterId, ability.cost.stress!);
-    lines.push(...note(demo, `Marks ${ability.cost.stress} Stress.`, 'fear'));
+    lines.push(...note(demo, `Marks ${ability.cost.stress} Stress.`, 'bad'));
   }
   if (ability.uses !== undefined) {
     const key = useKey(characterId, ability.id);
@@ -359,7 +359,7 @@ export function refillTokens(demo: DemoScene, events: readonly ('session' | 'lon
       demo.scenario.abilityTokens.delete(key);
       const placed = demo.world.addTokens(entity.id, ability.id);
       if (placed > 0) {
-        note(demo, `${nameOf(demo, entity.id)} places ${placed} token${placed === 1 ? '' : 's'} on ${ability.name}.`, 'hope');
+        note(demo, `${nameOf(demo, entity.id)} places ${placed} token${placed === 1 ? '' : 's'} on ${ability.name}.`, 'good');
       }
     }
   }
@@ -369,8 +369,8 @@ export function refillTokens(demo: DemoScene, events: readonly ('session' | 'lon
 function putBack(demo: DemoScene, characterId: string, ability: AbilityDef): void {
   const entity = demo.state.entity(characterId);
   if (entity === undefined) return;
-  if ((ability.cost.hope ?? 0) > 0 && entity.hope !== undefined) {
-    entity.hope = { ...entity.hope, value: Math.min(entity.hope.max, entity.hope.value + ability.cost.hope!) };
+  if ((ability.cost.good ?? 0) > 0 && entity.good !== undefined) {
+    entity.good = { ...entity.good, value: Math.min(entity.good.max, entity.good.value + ability.cost.good!) };
   }
   if ((ability.cost.stress ?? 0) > 0) demo.world.clearStress(characterId, ability.cost.stress!);
   if (ability.uses !== undefined) {
@@ -463,7 +463,7 @@ export function swapCard(
   note(
     demo,
     `${sheet.name} recalls ${card?.name ?? cardIn}${cardOut === undefined ? '' : ` and vaults ${content.domainCards.get(cardOut)?.name ?? cardOut}`}${cost > 0 ? `, marking ${cost} Stress` : ''}.`,
-    cost > 0 ? 'fear' : 'system',
+    cost > 0 ? 'bad' : 'system',
   );
   return { ok: true, stress: cost };
 }
@@ -485,7 +485,7 @@ export interface RestPlan {
   loadouts?: Record<string, readonly string[]>;
 }
 
-export type RestResult = { ok: true; fearGained: number } | { ok: false; reason: string };
+export type RestResult = { ok: true; badGained: number } | { ok: false; reason: string };
 
 /**
  * Take a short or a long rest.
@@ -516,7 +516,7 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
 
   // "If you choose to Prepare with one or more members of your party, you each gain 2 Light."
   const preparing = Object.entries(plan.moves).filter(([, moves]) => moves.some((m) => m.kind === 'prepare')).length;
-  const hopeEach = preparing >= 2 ? 2 : 1;
+  const goodEach = preparing >= 2 ? 2 : 1;
 
   for (const [characterId, moves] of Object.entries(plan.moves)) {
     const entity = demo.state.entity(characterId);
@@ -531,25 +531,25 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
           const cleared = Math.min(target.hitPoints.marked, amount());
           target.hitPoints = { ...target.hitPoints, marked: target.hitPoints.marked - cleared };
           if (cleared > 0 && target.hitPoints.marked < target.hitPoints.max) target.alive = true;
-          note(demo, `${who} tends ${target.id === characterId ? 'their' : `${nameOf(demo, target.id)}'s`} wounds: ${cleared} Hit Point${cleared === 1 ? '' : 's'} cleared.`, 'hope');
+          note(demo, `${who} tends ${target.id === characterId ? 'their' : `${nameOf(demo, target.id)}'s`} wounds: ${cleared} Hit Point${cleared === 1 ? '' : 's'} cleared.`, 'good');
           break;
         }
         case 'clearStress': {
           const cleared = Math.min(entity.stress.marked, amount());
           entity.stress = { ...entity.stress, marked: entity.stress.marked - cleared };
-          note(demo, `${who} clears ${cleared} Stress.`, 'hope');
+          note(demo, `${who} clears ${cleared} Stress.`, 'good');
           break;
         }
         case 'repairArmor': {
           const target = demo.state.entity(move.target ?? characterId) ?? entity;
           const cleared = Math.min(target.armorSlots.marked, amount());
           target.armorSlots = { ...target.armorSlots, marked: target.armorSlots.marked - cleared };
-          note(demo, `${who} repairs ${target.id === characterId ? 'their' : `${nameOf(demo, target.id)}'s`} armor: ${cleared} Armor Slot${cleared === 1 ? '' : 's'} cleared.`, 'hope');
+          note(demo, `${who} repairs ${target.id === characterId ? 'their' : `${nameOf(demo, target.id)}'s`} armor: ${cleared} Armor Slot${cleared === 1 ? '' : 's'} cleared.`, 'good');
           break;
         }
         case 'prepare': {
-          if (entity.hope !== undefined) entity.hope = gain(entity.hope, hopeEach).currency;
-          note(demo, `${who} prepares: ${hopeEach} Light.`, 'hope');
+          if (entity.good !== undefined) entity.good = gain(entity.good, goodEach).currency;
+          note(demo, `${who} prepares: ${goodEach} Light.`, 'good');
           break;
         }
       }
@@ -570,9 +570,9 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
   syncPools(demo);
 
   // "On a short rest, they gain 1d4 Shadow. On a long rest, 1d4 + the number of PCs."
-  const fear = demo.rng.die(4) + (kind === 'long' ? party.length : 0);
-  const gained = gain(demo.state.fear, fear);
-  demo.state.fear = gained.currency;
-  note(demo, `The GM gains ${gained.applied} Shadow.`, 'fear');
-  return { ok: true, fearGained: gained.applied };
+  const bad = demo.rng.die(4) + (kind === 'long' ? party.length : 0);
+  const gained = gain(demo.state.bad, bad);
+  demo.state.bad = gained.currency;
+  note(demo, `The GM gains ${gained.applied} Shadow.`, 'bad');
+  return { ok: true, badGained: gained.applied };
 }

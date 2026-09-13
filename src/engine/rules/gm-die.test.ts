@@ -68,8 +68,8 @@ describe('rollGmDie', () => {
 
   it('generates no Light or Shadow — the GM has neither on their own die', () => {
     const r = rollGmDie(scriptedRng([12]), { difficulty: 10 });
-    expect(Object.keys(r)).not.toContain('hopeGained');
-    expect(Object.keys(r)).not.toContain('fearGained');
+    expect(Object.keys(r)).not.toContain('goodGained');
+    expect(Object.keys(r)).not.toContain('badGained');
   });
 
   it('stays within the die and is reproducible from a seed', () => {

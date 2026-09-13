@@ -141,13 +141,13 @@ describe('starting pools', () => {
     expect(pools.hitPoints).toEqual({ max: character.hitPoints, marked: 0 });
     expect(pools.stress).toEqual({ max: 6, marked: 0 });
     expect(pools.armorSlots).toEqual({ max: 3, marked: 0 });
-    expect(pools.hope.value).toBe(2);
+    expect(pools.good.value).toBe(2);
   });
 
   it('does not alias the derived character', () => {
     const { character } = deriveCharacter(sentinel(), content);
     const pools = startingPools(character);
-    pools.hope.value = 6;
-    expect(character.hope.value).toBe(2);
+    pools.good.value = 6;
+    expect(character.good.value).toBe(2);
   });
 });

@@ -325,7 +325,7 @@ export function importClasses(raw: readonly unknown[]): ImportResult<ClassDef> {
       fail('startingEvasion/startingHitPoints', 'expected numbers');
       return null;
     }
-    const hope = entry['hopeFeature'];
+    const good = entry['goodFeature'];
     const def: ClassDef = {
       id,
       // Class names are shouted in the source; title-case reads better in a UI.
@@ -337,8 +337,8 @@ export function importClasses(raw: readonly unknown[]): ImportResult<ClassDef> {
       startingHitPoints: hitPoints,
       features: readFeatures(entry['classFeatures']),
     };
-    if (typeof hope === 'object' && hope !== null) {
-      const feature = hope as Record<string, unknown>;
+    if (typeof good === 'object' && good !== null) {
+      const feature = good as Record<string, unknown>;
       def.signatureFeature = {
         name: localized(feature['name']) ?? '',
         text: describe(feature['description']),

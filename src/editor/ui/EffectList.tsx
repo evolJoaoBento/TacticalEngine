@@ -79,11 +79,11 @@ const ADDABLE = [
   'clearStress',
   'markArmor',
   'clearArmor',
-  'gainHope',
-  'spendHope',
-  'loseHope',
-  'gainFear',
-  'loseFear',
+  'gainGood',
+  'spendGood',
+  'loseGood',
+  'gainBad',
+  'loseBad',
   'applyCondition',
   'clearCondition',
   'addToken',
@@ -147,11 +147,11 @@ const LABELS: Readonly<Record<Addable, string>> = {
   clearStress: 'Clear Stress',
   markArmor: 'Mark Armor Slots',
   clearArmor: 'Clear Armor Slots',
-  gainHope: 'Gain Light',
-  spendHope: 'Spend Light',
-  loseHope: 'Take their Light',
-  gainFear: 'GM gains Shadow',
-  loseFear: 'GM loses Shadow',
+  gainGood: 'Gain Light',
+  spendGood: 'Spend Light',
+  loseGood: 'Take their Light',
+  gainBad: 'GM gains Shadow',
+  loseBad: 'GM loses Shadow',
   applyCondition: 'Apply a condition',
   clearCondition: 'Clear a condition',
   addToken: 'Put tokens on a card',
@@ -183,7 +183,7 @@ const LABELS: Readonly<Record<Addable, string>> = {
 const BANDS = RANGE_BANDS.filter((band) => band !== 'outOfRange');
 
 /** The pools an amount can be read off. */
-const POOL_NAMES: readonly string[] = ['hitPoints', 'stress', 'armorSlots', 'hope'];
+const POOL_NAMES: readonly string[] = ['hitPoints', 'stress', 'armorSlots', 'good'];
 
 const row: Record<string, string | number> = {
   display: 'flex',
@@ -278,11 +278,11 @@ function blank(kind: Addable, props: EffectListProps): Effect {
     case 'clearStress':
     case 'markArmor':
     case 'clearArmor':
-    case 'gainHope':
-    case 'spendHope':
-    case 'loseHope':
-    case 'gainFear':
-    case 'loseFear':
+    case 'gainGood':
+    case 'spendGood':
+    case 'loseGood':
+    case 'gainBad':
+    case 'loseBad':
       return { kind, amount: 1 };
     case 'applyCondition':
       return { kind, condition: 'vulnerable', duration: 'temporary' };
@@ -323,7 +323,7 @@ function blank(kind: Addable, props: EffectListProps): Effect {
     case 'avoidBlow':
       return { kind };
     case 'howMany':
-      return { kind, most: { pool: 'hope', measure: 'available' }, each: [] };
+      return { kind, most: { pool: 'good', measure: 'available' }, each: [] };
     case 'countdown':
       return { kind, countdown: 'countdown', name: 'Countdown', start: '4', effects: [] };
     case 'reactionRoll':
@@ -356,7 +356,7 @@ function parseArgs(raw: string): Record<string, string | number | boolean> | und
 const ADVANCES: readonly (readonly [string, string])[] = [
   ['standard', 'on any PC roll'],
   ['attackRoll', 'on a PC attack roll'],
-  ['withFear', 'on a PC roll with Shadow'],
+  ['withBad', 'on a PC roll with Shadow'],
   ['hpMarked', 'by the HP they mark'],
   ['progress', 'progress (dynamic)'],
   ['consequence', 'consequence (dynamic)'],
@@ -669,14 +669,14 @@ function renderBody(
     }
     case 'markStress':
     case 'clearStress':
-    case 'loseHope':
+    case 'loseGood':
       return (
         <>
           {amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }))}
           {who(effect.target, 'everyone it hit', (target) => ({ ...effect, target }))}
         </>
       );
-    case 'gainHope':
+    case 'gainGood':
       return (
         <>
           {amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }))}
@@ -693,10 +693,10 @@ function renderBody(
           {who(effect.target, 'everyone it hit', (target) => ({ ...effect, target }))}
         </>
       );
-    case 'gainFear':
-    case 'loseFear':
+    case 'gainBad':
+    case 'loseBad':
       return amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }));
-    case 'spendHope':
+    case 'spendGood':
       return amount(effect.amount ?? 1, (value) => ({ ...effect, amount: value }));
     case 'applyCondition':
       return (

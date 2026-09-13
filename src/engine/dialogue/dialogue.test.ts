@@ -78,8 +78,8 @@ const hag: Dialogue = {
           check: {
             trait: 'presence',
             difficulty: 14,
-            onSuccessWithHope: [log('She steps back, amused.', 'success')],
-            onFailureWithFear: [log('She laughs at you.', 'fear')],
+            onSuccessWithGood: [log('She steps back, amused.', 'success')],
+            onFailureWithBad: [log('She laughs at you.', 'bad')],
             gotoOnSuccess: 'cowed',
             gotoOnFailure: 'price',
           },
@@ -251,7 +251,7 @@ describe('a reply that costs a roll', () => {
     const check = after.journal.find((e) => e.kind === 'check');
     if (check?.kind !== 'check') throw new Error('expected a check entry');
     expect(check.roll.total).toBe(16);
-    expect(check.outcome).toBe('successWithHope');
+    expect(check.outcome).toBe('successWithGood');
   });
 });
 

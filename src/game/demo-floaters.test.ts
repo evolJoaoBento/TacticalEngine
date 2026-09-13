@@ -56,13 +56,13 @@ describe('what floats', () => {
       { kind: 'stress', id: 'kara', marked: 1, cleared: 0, hitPoints: 0 },
       { kind: 'stress', id: 'finn', marked: 0, cleared: 2, hitPoints: 0 },
       { kind: 'armor', id: 'kara', cleared: 1 },
-      { kind: 'hope', gained: 1, id: 'mira' },
+      { kind: 'good', gained: 1, id: 'mira' },
     ]);
     expect(demo.floaters).toEqual([
-      { id: 'kara', text: '+1 Stress', tone: 'fear' },
-      { id: 'finn', text: '-2 Stress', tone: 'hope' },
-      { id: 'kara', text: '+1 Armor', tone: 'hope' },
-      { id: 'mira', text: '+1 Light', tone: 'hope' },
+      { id: 'kara', text: '+1 Stress', tone: 'bad' },
+      { id: 'finn', text: '-2 Stress', tone: 'good' },
+      { id: 'kara', text: '+1 Armor', tone: 'good' },
+      { id: 'mira', text: '+1 Light', tone: 'good' },
     ]);
   });
 
@@ -82,7 +82,7 @@ describe('what floats', () => {
     const healed = journal.find((e) => e.kind === 'heal');
     expect(healed).toMatchObject({ kind: 'heal', amount: 2, ids: ['kara'] });
     record(demo, journal);
-    expect(demo.floaters).toEqual([{ id: 'kara', text: '+2', tone: 'hope' }]);
+    expect(demo.floaters).toEqual([{ id: 'kara', text: '+2', tone: 'good' }]);
   });
 
   it('keeps a shared healing in the log, since the journal has only the total', () => {

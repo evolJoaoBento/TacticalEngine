@@ -215,7 +215,7 @@ function checkAbilitiesAndCode(
     // Shadow is the GM's pool. A card that asks its holder for one is a card
     // nobody can ever use — play refuses it — so say so while it is being
     // written rather than when someone reaches for it.
-    if ((ability.cost.fear ?? 0) > 0 && ability.source.kind !== 'adversary') {
+    if ((ability.cost.bad ?? 0) > 0 && ability.source.kind !== 'adversary') {
       add('warning', `"${ability.id}" costs Shadow, which only the GM spends: nobody holding it can use it.`, ability.id);
     }
     // A summons names a stat block; one nothing ships is a feature that does

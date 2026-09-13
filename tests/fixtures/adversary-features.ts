@@ -35,7 +35,7 @@ export const A_WOUND_THAT_ANSWERS = (definition: string): Record<string, unknown
   action: false,
   target: { kind: 'none', range: 'close' },
   effects: [
-    { kind: 'log', text: 'The wound opens, and the room pays for it.', tone: 'fear' },
+    { kind: 'log', text: 'The wound opens, and the room pays for it.', tone: 'bad' },
     { kind: 'damage', dice: '1d10', type: 'physical', target: { kind: 'allies', range: 'close' } },
   ],
 });
@@ -46,7 +46,7 @@ export const A_WOUND_THAT_ANSWERS = (definition: string): Record<string, unknown
  *
  * Which of the two happens is decided per target, which is why the mechanic is
  * a `run` hook rather than an effect list: a list branches once for everybody
- * at once. The hook's `fear` argument is the GM's cut for the ones who had
+ * at once. The hook's `bad` argument is the GM's cut for the ones who had
  * nothing left to give up.
  */
 export const A_SPRAY_THAT_EATS_ARMOUR = (definition: string): Record<string, unknown> => ({
@@ -66,7 +66,7 @@ export const A_SPRAY_THAT_EATS_ARMOUR = (definition: string): Record<string, unk
       range: 'close',
       target: { kind: 'allies', range: 'close' },
       damage: '2d6',
-      onHit: [{ kind: 'run', hook: 'mark-armor-or-hit-point', args: { fear: true } }],
+      onHit: [{ kind: 'run', hook: 'mark-armor-or-hit-point', args: { bad: true } }],
     },
   ],
 });
@@ -148,11 +148,11 @@ export const A_WIND_UP_THAT_COSTS_A_TURN = (definition: string): Record<string, 
       when: { kind: 'tokens', ability: 'slow', of: { kind: 'actor' }, op: '>=', value: 1 },
       then: [
         { kind: 'spendToken', ability: 'slow', all: true },
-        { kind: 'log', text: 'What it was gathering itself for, it does now.', tone: 'fear' },
+        { kind: 'log', text: 'What it was gathering itself for, it does now.', tone: 'bad' },
       ],
       otherwise: [
         { kind: 'addToken', ability: 'slow', amount: 1 },
-        { kind: 'log', text: 'It gathers itself, and does nothing else.', tone: 'fear' },
+        { kind: 'log', text: 'It gathers itself, and does nothing else.', tone: 'bad' },
         { kind: 'endSpotlight' },
       ],
     },
@@ -182,11 +182,11 @@ export const A_WIND_UP_WITH_ITS_OWN_STORE = (definition: string): Record<string,
       when: { kind: 'tokens', ability: 'slow-firing', of: { kind: 'actor' }, op: '>=', value: 1 },
       then: [
         { kind: 'spendToken', ability: 'slow-firing', all: true },
-        { kind: 'log', text: 'It comes to rest, and lets fly.', tone: 'fear' },
+        { kind: 'log', text: 'It comes to rest, and lets fly.', tone: 'bad' },
       ],
       otherwise: [
         { kind: 'addToken', ability: 'slow-firing', amount: 1 },
-        { kind: 'log', text: 'It grinds around, winding up.', tone: 'fear' },
+        { kind: 'log', text: 'It grinds around, winding up.', tone: 'bad' },
         { kind: 'endSpotlight' },
       ],
     },
@@ -216,7 +216,7 @@ export const A_STORE_THAT_HOLDS_WHOEVER_IT_HIT = (definition: string): Record<st
   target: { kind: 'none' },
   effects: [
     { kind: 'addToken', ability: `${definition}-encumber`, amount: 1, target: { kind: 'target' } },
-    { kind: 'log', text: 'It winds tighter around them.', tone: 'fear' },
+    { kind: 'log', text: 'It winds tighter around them.', tone: 'bad' },
     { kind: 'applyCondition', condition: 'restrained', duration: 'scene', target: { kind: 'target' } },
     {
       kind: 'branch',
@@ -276,7 +276,7 @@ export const A_SPEND_GATED_ON_WHAT_THEY_CARRY = (definition: string): Record<str
   },
   inCombatOnly: true,
   effects: [
-    { kind: 'log', text: 'It closes, and squeezes.', tone: 'fear' },
+    { kind: 'log', text: 'It closes, and squeezes.', tone: 'bad' },
     { kind: 'damage', dice: '2d6+8', type: 'physical', direct: true, target: { kind: 'target' } },
   ],
 });
@@ -303,7 +303,7 @@ export const AN_OVERLOAD_THAT_BUYS_ANOTHER_TURN = (definition: string): Record<s
   cost: { stress: 1 },
   target: { kind: 'none' },
   effects: [
-    { kind: 'log', text: 'It overloads, and the blow comes down heavier.', tone: 'fear' },
+    { kind: 'log', text: 'It overloads, and the blow comes down heavier.', tone: 'bad' },
     { kind: 'boostDamage', amount: 10 },
     { kind: 'spotlightAgain' },
   ],
@@ -330,7 +330,7 @@ export const A_WATCHER_THAT_ADDS_TO_A_HIT = (definition: string): Record<string,
   available: { kind: 'withinRange', range: 'far' },
   target: { kind: 'none' },
   effects: [
-    { kind: 'log', text: 'It swings around and fires into the same spot.', tone: 'fear' },
+    { kind: 'log', text: 'It swings around and fires into the same spot.', tone: 'bad' },
     { kind: 'boostDamage', dice: 'weapon' },
   ],
 });
@@ -364,7 +364,7 @@ export const A_HUNGER_DRAWN_TO_A_WOUND = (definition: string): Record<string, un
   },
   target: { kind: 'none' },
   effects: [
-    { kind: 'log', text: 'Blood in the air, and something turns toward it.', tone: 'fear' },
+    { kind: 'log', text: 'Blood in the air, and something turns toward it.', tone: 'bad' },
     { kind: 'move', how: 'toward', of: { kind: 'hit' }, range: 'melee', budget: 'close' },
     { kind: 'attack', target: { kind: 'hit' } },
   ],
@@ -387,7 +387,7 @@ export const A_RAIN_THAT_EVERYONE_ANSWERS = (definition: string): Record<string,
   name: 'Rain of Cinders',
   source: { kind: 'adversary', adversaries: [definition] },
   text: 'It brings something down over everything in reach, and each of them answers for themselves.',
-  cost: { fear: 1 },
+  cost: { bad: 1 },
   target: { kind: 'none', range: 'far' },
   inCombatOnly: true,
   effects: [
@@ -416,7 +416,7 @@ export const A_CALL_FOR_MORE_OF_THEM = (definition: string, summons: string): Re
   name: 'Plenty More',
   source: { kind: 'adversary', adversaries: [definition] },
   text: 'There were always more of them than anyone counted.',
-  cost: { fear: 1 },
+  cost: { bad: 1 },
   target: { kind: 'none' },
   inCombatOnly: true,
   effects: [{ kind: 'summon', adversary: summons, count: '3', range: 'far' }],
@@ -507,7 +507,7 @@ export const A_BREATH_GATED_ON_A_DIE = (definition: string): Record<string, unkn
       dice: '1d10',
       atLeast: 8,
       then: [
-        { kind: 'log', text: 'Something molten comes up its throat.', tone: 'fear' },
+        { kind: 'log', text: 'Something molten comes up its throat.', tone: 'bad' },
         {
           kind: 'reactionRoll',
           difficulty: 20,
@@ -549,7 +549,7 @@ export const A_BONUS_READ_OFF_ITS_OWN_WOUNDS = (definition: string): Record<stri
   available: { kind: 'pool', pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked', op: '>=', value: 1 },
   target: { kind: 'none' },
   effects: [
-    { kind: 'log', text: 'Everything it has lost, it puts behind the next swing.', tone: 'fear' },
+    { kind: 'log', text: 'Everything it has lost, it puts behind the next swing.', tone: 'bad' },
     { kind: 'boostDamage', amount: { pool: 'hitPoints', of: { kind: 'actor' }, measure: 'marked' } },
   ],
 });
@@ -572,10 +572,10 @@ export const A_WOUND_HANDED_BACK = (definition: string): Record<string, unknown>
   kind: 'reaction',
   trigger: 'tookHitPoints',
   action: false,
-  cost: { fear: 1 },
+  cost: { bad: 1 },
   target: { kind: 'none' },
   effects: [
-    { kind: 'log', text: 'It will not be the only one bleeding.', tone: 'fear' },
+    { kind: 'log', text: 'It will not be the only one bleeding.', tone: 'bad' },
     { kind: 'damage', amount: 'hitPointsTaken', target: { kind: 'target' } },
   ],
 });
@@ -596,7 +596,7 @@ export const A_RALLY_OF_TWO_AT_RANGE = (definition: string): Record<string, unkn
   name: 'Push Them Forward',
   source: { kind: 'adversary', adversaries: [definition] },
   text: 'It spends the room\'s dread putting two others in front of itself.',
-  cost: { fear: 1 },
+  cost: { bad: 1 },
   target: { kind: 'none', range: 'far' },
   inCombatOnly: true,
   effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '2' }],
@@ -607,7 +607,7 @@ export const A_RALLY_OF_TWO_AT_RANGE = (definition: string): Record<string, unkn
  *
  * `spotlight: true` on the summon is the whole point: what it calls in acts on the
  * turn it arrived, and the Shadow the feature paid covers that -- so the turn must
- * not bill the GM again for it. A test reads `fearSpent` on each arrival and
+ * not bill the GM again for it. A test reads `badSpent` on each arrival and
  * expects nothing.
  *
  * Two parameters, because what arrives is not what called it.
@@ -617,7 +617,7 @@ export const A_CALL_THAT_ARRIVES_SWINGING = (definition: string, summons: string
   name: 'The Hunt',
   source: { kind: 'adversary', adversaries: [definition] },
   text: 'It calls, and what answers is already moving.',
-  cost: { fear: 2 },
+  cost: { bad: 2 },
   target: { kind: 'none' },
   inCombatOnly: true,
   effects: [{ kind: 'summon', adversary: summons, count: '1d4', range: 'far', spotlight: true }],

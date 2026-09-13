@@ -26,7 +26,7 @@ function openTheChest(demo: DemoScene): string {
 function seedWhere(pattern: RegExp): DemoScene {
   for (let seed = 0; seed < 60; seed++) {
     const demo = scene(`pool-${seed}`);
-    const before = { hope: demo.state.entity(demo.party.selected!)!.hope!.value, fear: demo.state.fear.value };
+    const before = { good: demo.state.entity(demo.party.selected!)!.good!.value, bad: demo.state.bad.value };
     const line = openTheChest(demo);
     if (pattern.test(line)) {
       (demo as DemoScene & { before: typeof before }).before = before;
@@ -39,19 +39,19 @@ function seedWhere(pattern: RegExp): DemoScene {
 describe('a scripted check', () => {
   it('hands the roller a Light on a roll with Light', () => {
     const demo = seedWhere(/with Light/);
-    const before = (demo as DemoScene & { before: { hope: number } }).before;
-    expect(demo.state.entity(demo.party.selected!)!.hope!.value).toBe(before.hope + 1);
+    const before = (demo as DemoScene & { before: { good: number } }).before;
+    expect(demo.state.entity(demo.party.selected!)!.good!.value).toBe(before.good + 1);
   });
 
   it('hands the GM a Shadow on a roll with Shadow', () => {
     const demo = seedWhere(/with Shadow/);
-    const before = (demo as DemoScene & { before: { fear: number } }).before;
-    expect(demo.state.fear.value).toBe(before.fear + 1);
+    const before = (demo as DemoScene & { before: { bad: number } }).before;
+    expect(demo.state.bad.value).toBe(before.bad + 1);
   });
 
   it('moves only one of the two', () => {
     const demo = seedWhere(/with Shadow/);
-    const before = (demo as DemoScene & { before: { hope: number } }).before;
-    expect(demo.state.entity(demo.party.selected!)!.hope!.value).toBe(before.hope);
+    const before = (demo as DemoScene & { before: { good: number } }).before;
+    expect(demo.state.entity(demo.party.selected!)!.good!.value).toBe(before.good);
   });
 });

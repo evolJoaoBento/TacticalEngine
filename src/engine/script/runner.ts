@@ -24,7 +24,7 @@
 
 import type { Rng } from '../core/rng';
 import { NO_TILE, type Spot } from '../grid/grid';
-import { FEAR_DIE_SIDES, HOPE_DIE_SIDES, rollDuality, withFaces, type DualityRoll, type RollOutcome } from '../rules/duality';
+import { BAD_DIE_SIDES, GOOD_DIE_SIDES, rollDuality, withFaces, type DualityRoll, type RollOutcome } from '../rules/duality';
 import { formatDice, parseDice, rollDice, withProficiency, type DamageType, type DiceExpression, type ParsedDamage } from '../rules/dice';
 import type { RunningCountdown } from './countdowns';
 import type { RunningZone } from './zones';
@@ -64,7 +64,7 @@ export interface DealtDamage {
   armorSlotsSpent: number;
   fell: boolean;
   /** Reactions the defender used against it, and what they cost. */
-  reactions: readonly { name: string; hopeSpent: number; stressMarked: number; rolled?: number }[];
+  reactions: readonly { name: string; goodSpent: number; stressMarked: number; rolled?: number }[];
 }
 
 /** An attack made from inside a script, reported the way the log needs it. */
@@ -85,8 +85,8 @@ export interface AttackSummary {
   damageDice?: string;
   /** What the damage counted as, so a reuse of it counts as the same. */
   damageTypes?: readonly DamageType[];
-  hopeGained: number;
-  fearGained: number;
+  goodGained: number;
+  badGained: number;
   stressCleared: number;
   spotlightToGm: boolean;
 }
@@ -140,7 +140,7 @@ export interface ScriptWorld extends ConditionContext {
    */
   liftRoll(id: string, trait: CheckTrait, total: number, difficulty: number, critical: boolean): number;
   /** The faces on this creature's Light Die: twelve unless a card says otherwise. */
-  hopeDieSides(id: string): number;
+  goodDieSides(id: string): number;
   /**
    * Whether anybody is holding a card that answers the roll this creature has
    * just made. False stops the check pausing at all, which is what keeps every
@@ -164,9 +164,9 @@ export interface ScriptWorld extends ConditionContext {
   /** Raise the party's level to `level` (or by one). Returns the level reached, or null if nothing changed. */
   grantLevel(level?: number): number | null;
   /** The acting character gains a Light. Returns whether anyone was there to gain it. */
-  gainHope(): boolean;
+  gainGood(): boolean;
   /** The GM gains a Shadow. Returns whether the pool had room. */
-  gainFear(): boolean;
+  gainBad(): boolean;
   /**
    * Quest progress. Each returns whether anything changed, so the runner can
    * journal a real event and stay quiet about a `startQuest` that was already
@@ -188,11 +188,11 @@ export interface ScriptWorld extends ConditionContext {
   /** Mark Armor Slots with no benefit. Returns how many were actually marked. */
   markArmor(id: string, amount: number): number;
   /** Returns Light actually gained (an adversary gains none). */
-  gainHopeFor(id: string, amount: number): number;
+  gainGoodFor(id: string, amount: number): number;
   /** Returns whether the Light was there to spend. */
-  spendHope(id: string, amount: number): boolean;
+  spendGood(id: string, amount: number): boolean;
   /** Take Light away, as far as it goes. Returns how much was actually lost. */
-  loseHope(id: string, amount: number): number;
+  loseGood(id: string, amount: number): number;
   applyCondition(id: string, condition: string, duration: ConditionDuration): boolean;
   clearCondition(id: string, condition: string): boolean;
   /** Back on their feet at full strength, past the veil if that is where they went. */
@@ -209,7 +209,7 @@ export interface ScriptWorld extends ConditionContext {
   /** The value of the creature's Spellcast trait, or null when it has none. */
   spellcastValue(id: string): number | null;
   /** Take one Shadow off the GM's pool; false when there is none to take. */
-  loseFear(): boolean;
+  loseBad(): boolean;
   /** A trait off a sheet, for an amount that reads one. Null for a stat block. */
   traitValue(id: string, trait: Trait | 'spellcast' | 'proficiency'): number | null;
   /** The creature's primary weapon dice (an adversary's attack), or null when it has none. */
@@ -309,12 +309,12 @@ export type JournalEntry =
   | { kind: 'quest'; quest: string; change: 'started' | 'completed' | 'failed' }
   | { kind: 'levelUp'; level: number }
   /** `id` is set when the Light went to someone other than the actor. */
-  | { kind: 'hope'; gained: number; id?: string }
-  | { kind: 'hopeLost'; lost: number; id: string }
-  | { kind: 'hopeSpent'; amount: number }
-  | { kind: 'fear'; gained: number }
+  | { kind: 'good'; gained: number; id?: string }
+  | { kind: 'goodLost'; lost: number; id: string }
+  | { kind: 'goodSpent'; amount: number }
+  | { kind: 'bad'; gained: number }
   /** Shadow taken off the GM's pool, which a card can do and a stat block cannot. */
-  | { kind: 'fearLost'; lost: number }
+  | { kind: 'badLost'; lost: number }
   | { kind: 'objective'; quest: string; objective: string }
   | { kind: 'revealed'; quest: string; objective: string }
   | { kind: 'chose'; label: string; index: number }
@@ -359,7 +359,7 @@ export type JournalEntry =
   | { kind: 'damageRerolled'; below: number }
   /** A card put something behind a roll after it was read: what, and what it came to. */
   | { kind: 'lifted'; by: number; total: number }
-  | { kind: 'dualityRerolled'; which: 'hope' | 'fear' | 'both' }
+  | { kind: 'dualityRerolled'; which: 'good' | 'bad' | 'both' }
   /**
    * A card named the roll's total rather than throwing it again. Written twice:
    * once by the card, with no number, as the asking; and once where the roll is
@@ -401,7 +401,7 @@ export type JournalEntry =
   /** `roll` is set when a party member rolled it: an adversary's is a d20. */
   | { kind: 'reaction'; id: string; success: boolean; total: number; difficulty: number; roll?: DualityRoll }
   /** A defender's reaction to damage fired: Get Back Up, a Rune Ward. */
-  | { kind: 'defended'; id: string; ability: string; hopeSpent: number; stressMarked: number; rolled?: number };
+  | { kind: 'defended'; id: string; ability: string; goodSpent: number; stressMarked: number; rolled?: number };
 
 /** What the runner is waiting for. */
 export type Prompt =
@@ -455,7 +455,7 @@ export type Response =
    * What the room did about a roll it was shown: nothing, or a die put back in
    * the cup. The check carries on from where it stopped either way.
    */
-  | { kind: 'answered'; reroll?: 'hope' | 'fear' | 'both'; name?: boolean; raise?: number }
+  | { kind: 'answered'; reroll?: 'good' | 'bad' | 'both'; name?: boolean; raise?: number }
   /** Decline the roll — the legacy dialog let a player back out, costing nothing. */
   | { kind: 'cancel' };
 
@@ -769,7 +769,7 @@ export class ScriptRunner {
           ? targets
           : [];
     const outcome: CheckOutcome =
-      hit.length > 0 || targets.length === 0 ? roll.outcome : roll.hope > roll.fear ? 'failureWithHope' : 'failureWithFear';
+      hit.length > 0 || targets.length === 0 ? roll.outcome : roll.good > roll.bad ? 'failureWithGood' : 'failureWithBad';
     this.hit = hit;
     this.journal.push({ kind: 'check', outcome, roll, targets, hit, reused: true });
     if (check.always !== undefined) this.stack.push({ effects: check.always, index: 0, hit });
@@ -795,9 +795,9 @@ export class ScriptRunner {
     const actor = this.world.actorId();
     if (response.experience !== undefined) {
       const found = this.world.experiences().find((e) => e.name === response.experience);
-      if (found !== undefined && actor !== null && this.world.spendHope(actor, 1)) {
+      if (found !== undefined && actor !== null && this.world.spendGood(actor, 1)) {
         modifier += found.modifier;
-        this.journal.push({ kind: 'hopeSpent', amount: 1 });
+        this.journal.push({ kind: 'goodSpent', amount: 1 });
         this.journal.push({ kind: 'experience', name: found.name, modifier: found.modifier });
       }
     }
@@ -831,7 +831,7 @@ export class ScriptRunner {
       ...(net > 0 ? { advantage: net } : {}),
       ...(net < 0 ? { disadvantage: -net } : {}),
       ...(response.helpDice === undefined ? {} : { helpDice: response.helpDice }),
-      ...(actor === null ? {} : { hopeDieSides: this.world.hopeDieSides(actor) }),
+      ...(actor === null ? {} : { goodDieSides: this.world.goodDieSides(actor) }),
     });
     // What the roller's own cards put behind a roll that has been read and has
     // not yet decided anything - the one moment the runner owns that the game
@@ -869,9 +869,9 @@ export class ScriptRunner {
     const { targets, difficulties } = stopped;
     let roll = stopped.roll;
     if (response !== null && response.kind === 'answered' && response.reroll !== undefined) {
-      const faces: { hope?: number; fear?: number } = {};
-      if (response.reroll !== 'fear') faces.hope = this.rng.die(roll.hopeSides ?? HOPE_DIE_SIDES);
-      if (response.reroll !== 'hope') faces.fear = this.rng.die(FEAR_DIE_SIDES);
+      const faces: { good?: number; bad?: number } = {};
+      if (response.reroll !== 'bad') faces.good = this.rng.die(roll.goodSides ?? GOOD_DIE_SIDES);
+      if (response.reroll !== 'good') faces.bad = this.rng.die(BAD_DIE_SIDES);
       roll = withFaces(roll, faces);
       this.journal.push({ kind: 'dualityRerolled', which: response.reroll });
     }
@@ -902,11 +902,11 @@ export class ScriptRunner {
     // The core loop: a roll with Light hands the roller a Light, a roll with
     // Shadow hands the GM a Shadow, and a critical clears a Stress. Attacks
     // already did this; a chest and a conversation are rolls too.
-    if (roll.hopeGained > 0 && this.world.gainHope()) {
-      this.journal.push({ kind: 'hope', gained: roll.hopeGained });
+    if (roll.goodGained > 0 && this.world.gainGood()) {
+      this.journal.push({ kind: 'good', gained: roll.goodGained });
     }
-    if (roll.fearGained > 0 && this.world.gainFear()) {
-      this.journal.push({ kind: 'fear', gained: roll.fearGained });
+    if (roll.badGained > 0 && this.world.gainBad()) {
+      this.journal.push({ kind: 'bad', gained: roll.badGained });
     }
     // Read again rather than carried across the pause: whoever is acting when
     // the dice are settled is who the critical clears a Stress from.
@@ -1183,29 +1183,29 @@ export class ScriptRunner {
         }
         return null;
       }
-      case 'gainHope': {
+      case 'gainGood': {
         const amount = this.amountOf(effect.amount);
         const actor = world.actorId();
         for (const id of this.resolve(effect.target ?? { kind: 'actor' })) {
-          const gained = world.gainHopeFor(id, amount);
-          if (gained > 0) this.journal.push(id === actor ? { kind: 'hope', gained } : { kind: 'hope', gained, id });
+          const gained = world.gainGoodFor(id, amount);
+          if (gained > 0) this.journal.push(id === actor ? { kind: 'good', gained } : { kind: 'good', gained, id });
         }
         return null;
       }
-      case 'loseHope': {
+      case 'loseGood': {
         const amount = this.amountOf(effect.amount);
         if (amount <= 0) return null;
         for (const id of this.resolve(effect.target ?? { kind: 'hit' })) {
-          const lost = this.world.loseHope(id, amount);
-          if (lost > 0) this.journal.push({ kind: 'hopeLost', lost, id });
+          const lost = this.world.loseGood(id, amount);
+          if (lost > 0) this.journal.push({ kind: 'goodLost', lost, id });
         }
         return null;
       }
-      case 'spendHope': {
+      case 'spendGood': {
         const amount = this.amountOf(effect.amount);
         const actor = world.actorId();
-        if (actor === null || !world.spendHope(actor, amount)) return this.refuse(`not enough Light to spend ${amount}`);
-        this.journal.push({ kind: 'hopeSpent', amount });
+        if (actor === null || !world.spendGood(actor, amount)) return this.refuse(`not enough Light to spend ${amount}`);
+        this.journal.push({ kind: 'goodSpent', amount });
         return null;
       }
       case 'applyCondition':
@@ -1614,21 +1614,21 @@ export class ScriptRunner {
         }
         return null;
       }
-      case 'gainFear': {
+      case 'gainBad': {
         // "You gain a Shadow for each target that failed": none failed, none gained.
         for (let i = 0; i < this.amountOf(effect.amount); i++) {
-          if (world.gainFear()) this.journal.push({ kind: 'fear', gained: 1 });
+          if (world.gainBad()) this.journal.push({ kind: 'bad', gained: 1 });
         }
         return null;
       }
-      case 'loseFear': {
+      case 'loseBad': {
         // "Up to the number of Shadow in the GM's pool": an empty pool is
         // nothing taken rather than a refusal.
         let taken = 0;
         for (let i = 0; i < this.amountOf(effect.amount); i++) {
-          if (world.loseFear()) taken += 1;
+          if (world.loseBad()) taken += 1;
         }
-        if (taken > 0) this.journal.push({ kind: 'fearLost', lost: taken });
+        if (taken > 0) this.journal.push({ kind: 'badLost', lost: taken });
         return null;
       }
       case 'addToken': {
@@ -1788,7 +1788,7 @@ export class ScriptRunner {
       this.counts.hitPointsDealt += dealt.hpMarked;
       reduced += dealt.reduced;
       for (const r of dealt.reactions) {
-        defended.push({ kind: 'defended', id, ability: r.name, hopeSpent: r.hopeSpent, stressMarked: r.stressMarked, ...(r.rolled === undefined ? {} : { rolled: r.rolled }) });
+        defended.push({ kind: 'defended', id, ability: r.name, goodSpent: r.goodSpent, stressMarked: r.stressMarked, ...(r.rolled === undefined ? {} : { rolled: r.rolled }) });
       }
     }
     this.journal.push({
@@ -1885,8 +1885,8 @@ export class ScriptRunner {
         ...(summary.joined === undefined || summary.joined.length === 0 ? {} : { joined: [...summary.joined] }),
         ...(summary.roll === undefined ? {} : { roll: summary.roll }),
       });
-      if (summary.hopeGained > 0) this.journal.push({ kind: 'hope', gained: summary.hopeGained });
-      if (summary.fearGained > 0) this.journal.push({ kind: 'fear', gained: summary.fearGained });
+      if (summary.goodGained > 0) this.journal.push({ kind: 'good', gained: summary.goodGained });
+      if (summary.badGained > 0) this.journal.push({ kind: 'bad', gained: summary.badGained });
       if (summary.stressCleared > 0) {
         this.journal.push({ kind: 'stress', id: attacker, marked: 0, cleared: summary.stressCleared, hitPoints: 0 });
       }

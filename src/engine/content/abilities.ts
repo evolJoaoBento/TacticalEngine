@@ -24,11 +24,11 @@ import { conditionSchema, effectSchema, rangeBandSchema, walkEffects, type Effec
 export const LOADOUT_LIMIT = 5;
 
 /** "Each class has a unique Light Feature … You can spend 3 Light to activate." */
-export const HOPE_FEATURE_COST = 3;
+export const GOOD_FEATURE_COST = 3;
 
 export const abilitySourceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('domainCard'), card: contentIdSchema }),
-  z.object({ kind: z.literal('classHope'), classId: contentIdSchema }),
+  z.object({ kind: z.literal('classGood'), classId: contentIdSchema }),
   z.object({ kind: z.literal('classFeature'), classId: contentIdSchema }),
   z.object({
     kind: z.literal('subclass'),
@@ -374,16 +374,16 @@ export const abilitySchema = z.object({
     ])
     .optional(),
   /**
-   * What using it costs its holder. `fear` is the GM's pool, so it belongs to
+   * What using it costs its holder. `bad` is the GM's pool, so it belongs to
    * a stat block's features — "Spend a Shadow to…" is written on adversaries,
    * never on a card; a character ability that states one is refused, because
    * nobody at the player's end of the table has a Shadow to spend.
    */
   cost: z
     .object({
-      hope: z.number().int().min(0).optional(),
+      good: z.number().int().min(0).optional(),
       stress: z.number().int().min(0).optional(),
-      fear: z.number().int().min(0).optional(),
+      bad: z.number().int().min(0).optional(),
     })
     .default({}),
   uses: abilityUsesSchema.optional(),
@@ -555,7 +555,7 @@ export function abilitiesFor(character: Pick<DerivedCharacter, 'sheet' | 'cards'
     switch (source.kind) {
       case 'domainCard':
         return loadout.includes(source.card);
-      case 'classHope':
+      case 'classGood':
       case 'classFeature':
         return source.classId === sheet.classId;
       case 'subclass':
@@ -570,7 +570,7 @@ export function abilitiesFor(character: Pick<DerivedCharacter, 'sheet' | 'cards'
   const order = (ability: AbilityDef): number => {
     const source = ability.source;
     if (source.kind === 'classFeature') return 0;
-    if (source.kind === 'classHope') return 1;
+    if (source.kind === 'classGood') return 1;
     if (source.kind === 'subclass') return 2 + stages[source.stage];
     if (source.kind === 'domainCard') return 10 + loadout.indexOf(source.card);
     return 100;

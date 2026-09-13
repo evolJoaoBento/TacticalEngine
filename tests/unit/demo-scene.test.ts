@@ -509,7 +509,7 @@ describe('the party is built from content, not written down', () => {
       // held card both add to -- not from the armour's bare number.
       expect(entity.armorSlots.max).toBe(character.armorScore);
       expect(entity.stress.max).toBe(6);
-      expect(entity.hope!.value).toBe(2);
+      expect(entity.good!.value).toBe(2);
       // Level 1, so thresholds are the armor's plus one — plus one more for
       // Kara, whose subclass feature raises them.
       const raised = character.sheet.subclassId === 'shieldbearer' ? 1 : 0;

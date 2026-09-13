@@ -139,7 +139,7 @@ describe('sceneSchema', () => {
             check: {
               trait: 'finesse',
               difficulty: 12,
-              onSuccessWithHope: [
+              onSuccessWithGood: [
                 { kind: 'log', text: 'It opens.' },
                 { kind: 'open' },
               ],
@@ -149,12 +149,12 @@ describe('sceneSchema', () => {
       }),
     );
     const check = parsed.interactables[0]!.check!;
-    expect(check.onSuccessWithHope).toEqual([
+    expect(check.onSuccessWithGood).toEqual([
       { kind: 'log', text: 'It opens.' },
       { kind: 'open' },
     ]);
     // Outcomes nobody wrote stay absent, and fall back at runtime.
-    expect(check.onFailureWithFear).toBeUndefined();
+    expect(check.onFailureWithBad).toBeUndefined();
   });
 
   it('accepts an effect the old narrow vocabulary could not express', () => {
@@ -168,7 +168,7 @@ describe('sceneSchema', () => {
             check: {
               trait: 'presence',
               difficulty: 14,
-              onSuccessWithHope: [
+              onSuccessWithGood: [
                 {
                   kind: 'branch',
                   when: { kind: 'flag', flag: 'knows-the-name' },
@@ -181,7 +181,7 @@ describe('sceneSchema', () => {
         ],
       }),
     );
-    const effects = parsed.interactables[0]!.check!.onSuccessWithHope!;
+    const effects = parsed.interactables[0]!.check!.onSuccessWithGood!;
     expect(effects[0]!.kind).toBe('branch');
   });
 });

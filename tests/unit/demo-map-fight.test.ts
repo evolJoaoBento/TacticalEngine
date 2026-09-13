@@ -229,7 +229,7 @@ describe('a full melee exchange on the demo map', () => {
     // Both sides took the fight seriously: Kara was hit at least once, and the
     // Light/Shadow economy moved.
     expect(kara2.hitPoints.marked).toBeGreaterThan(0);
-    expect(kara2.hope!.value + state.fear.value).toBeGreaterThan(2);
+    expect(kara2.good!.value + state.bad.value).toBeGreaterThan(2);
   });
 
   it('replays identically from the same seed, and differently from another', () => {
@@ -251,7 +251,7 @@ describe('a full melee exchange on the demo map', () => {
           options: { bandTiles },
         });
         applyAttack(state, swing);
-        trace.push(`${swing.dualityRoll!.hope}/${swing.dualityRoll!.fear}:${swing.hitPointsMarked}`);
+        trace.push(`${swing.dualityRoll!.good}/${swing.dualityRoll!.bad}:${swing.hitPointsMarked}`);
       }
       return trace.join(' ');
     };
@@ -334,13 +334,13 @@ describe('the fight obeys the rules it is built on', () => {
         defender: diggerDefence(),
         options: { bandTiles },
       });
-      expect(swing.hopeGained + swing.fearGained).toBe(1);
+      expect(swing.goodGained + swing.badGained).toBe(1);
       applyAttack(state, swing);
       rolls++;
     }
     expect(rolls).toBe(30);
     // Light caps at 6 and Shadow at 12; nothing overflows.
-    expect(kara2.hope!.value).toBeLessThanOrEqual(6);
-    expect(state.fear.value).toBeLessThanOrEqual(12);
+    expect(kara2.good!.value).toBeLessThanOrEqual(6);
+    expect(state.bad.value).toBeLessThanOrEqual(12);
   });
 });

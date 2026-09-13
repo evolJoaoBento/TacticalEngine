@@ -26,7 +26,7 @@ import type { RollOutcome } from './duality';
  * number of HP marked". The last two are the dynamic countdowns, which
  * advance by up to 3 on the outcome of the roll rather than by 1.
  */
-export const COUNTDOWN_ADVANCES = ['standard', 'attackRoll', 'withFear', 'hpMarked', 'progress', 'consequence'] as const;
+export const COUNTDOWN_ADVANCES = ['standard', 'attackRoll', 'withBad', 'hpMarked', 'progress', 'consequence'] as const;
 
 export type CountdownAdvance = (typeof COUNTDOWN_ADVANCES)[number];
 
@@ -79,20 +79,20 @@ export function dynamicSteps(kind: 'progress' | 'consequence', outcome: RollOutc
     switch (outcome) {
       case 'criticalSuccess':
         return 3;
-      case 'successWithHope':
+      case 'successWithGood':
         return 2;
-      case 'successWithFear':
+      case 'successWithBad':
         return 1;
       default:
         return 0;
     }
   }
   switch (outcome) {
-    case 'failureWithFear':
+    case 'failureWithBad':
       return 3;
-    case 'failureWithHope':
+    case 'failureWithGood':
       return 2;
-    case 'successWithFear':
+    case 'successWithBad':
       return 1;
     default:
       return 0;
@@ -100,8 +100,8 @@ export function dynamicSteps(kind: 'progress' | 'consequence', outcome: RollOutc
 }
 
 /** Whether an outcome was rolled with Shadow. A critical "counts as a roll with Light". */
-function withFear(outcome: RollOutcome): boolean {
-  return outcome === 'successWithFear' || outcome === 'failureWithFear';
+function withBad(outcome: RollOutcome): boolean {
+  return outcome === 'successWithBad' || outcome === 'failureWithBad';
 }
 
 /**
@@ -120,8 +120,8 @@ export function stepsFor(advance: CountdownAdvance, cue: CountdownCue): number {
       return 1;
     case 'attackRoll':
       return cue.attack ? 1 : 0;
-    case 'withFear':
-      return withFear(cue.outcome) ? 1 : 0;
+    case 'withBad':
+      return withBad(cue.outcome) ? 1 : 0;
     case 'progress':
     case 'consequence':
       return dynamicSteps(advance, cue.outcome);

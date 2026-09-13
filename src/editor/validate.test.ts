@@ -276,7 +276,7 @@ describe('interactables', () => {
       check: {
         trait: 'finesse',
         difficulty: 12,
-        onFailureWithFear: [{ kind: 'startEncounter', encounter: 'ghosts' }],
+        onFailureWithBad: [{ kind: 'startEncounter', encounter: 'ghosts' }],
       },
     });
     expect(messages(project)).toContain(
@@ -298,7 +298,7 @@ describe('interactables', () => {
       check: {
         trait: 'finesse',
         difficulty: 12,
-        onFailureWithFear: [{ kind: 'startEncounter', encounter: 'ghosts' }],
+        onFailureWithBad: [{ kind: 'startEncounter', encounter: 'ghosts' }],
       },
     });
     expect(messages(project).some((m) => m.includes('which does not exist'))).toBe(false);
@@ -479,7 +479,7 @@ describe('conversations', () => {
               check: {
                 trait: 'presence',
                 difficulty: 12,
-                onSuccessWithHope: [
+                onSuccessWithGood: [
                   {
                     kind: 'branch',
                     when: { kind: 'flag', flag: 'x' },
@@ -670,7 +670,7 @@ describe('quests', () => {
       check: {
         trait: 'finesse',
         difficulty: 10,
-        onSuccessWithHope: [
+        onSuccessWithGood: [
           {
             kind: 'branch',
             when: { kind: 'always' },
@@ -727,7 +727,7 @@ describe('what only a stat block has', () => {
           name: 'Greedy',
           source: { kind: 'granted', characters: ['kara'] },
           target: { kind: 'self' },
-          cost: { fear: 1 },
+          cost: { bad: 1 },
           effects: [],
         },
         {
@@ -926,7 +926,7 @@ describe('what only a stat block has', () => {
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'allyTookDamage',
-          effects: [{ kind: 'gainFear', amount: 1 }],
+          effects: [{ kind: 'gainBad', amount: 1 }],
         },
         {
           id: 'block-vaults-itself',
@@ -1036,12 +1036,12 @@ describe('what only a stat block has', () => {
       ...build(),
       abilities: [
         {
-          id: 'whose-hope',
+          id: 'whose-good',
           name: 'Whose Light',
           source: { kind: 'adversary', adversaries: ['husk'] },
           target: { kind: 'none' },
           effects: [
-            { kind: 'gainFear', amount: { pool: 'hope', of: { kind: 'party' }, measure: 'available' } },
+            { kind: 'gainBad', amount: { pool: 'good', of: { kind: 'party' }, measure: 'available' } },
           ],
         },
         {
@@ -1051,8 +1051,8 @@ describe('what only a stat block has', () => {
           target: { kind: 'none' },
           effects: [
             {
-              kind: 'gainFear',
-              amount: { pool: 'hope', of: { kind: 'allies', range: 'close', nearest: 1 }, measure: 'available' },
+              kind: 'gainBad',
+              amount: { pool: 'good', of: { kind: 'allies', range: 'close', nearest: 1 }, measure: 'available' },
             },
           ],
         },
@@ -1061,12 +1061,12 @@ describe('what only a stat block has', () => {
           name: 'Its Own',
           source: { kind: 'adversary', adversaries: ['husk'] },
           target: { kind: 'none' },
-          effects: [{ kind: 'gainFear', amount: { pool: 'hitPoints', measure: 'marked' } }],
+          effects: [{ kind: 'gainBad', amount: { pool: 'hitPoints', measure: 'marked' } }],
         },
       ],
     });
     const said = messages(project);
-    expect(said).toContain('"whose-hope" reads a pool off party, which is more than one creature.');
+    expect(said).toContain('"whose-good" reads a pool off party, which is more than one creature.');
     // One of them by name, or the actor's own, is a number with an answer.
     expect(said.some((m) => m.includes('the-nearest-one'))).toBe(false);
     expect(said.some((m) => m.includes('its-own'))).toBe(false);

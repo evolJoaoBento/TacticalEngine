@@ -244,7 +244,7 @@ const STARTER: ContentPackDoc = {
       'Hold the line, send others first, and bargain when losing.'),
     adversary('hollow-knight', 'Hollow Knight', 2, 'solo', 15, 13, 26, 12, 5, 'Rusted Greatsword', 4, 'melee', 2, 10, 2,
       'Armour standing upright with nothing inside it but intent.',
-      'Fight to the end without fear or hurry. It has waited longer than this.'),
+      'Fight to the end without bad or hurry. It has waited longer than this.'),
   ],
 };
 

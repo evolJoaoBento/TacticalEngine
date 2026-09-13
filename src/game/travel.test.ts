@@ -85,9 +85,9 @@ describe('travelling between scenes', () => {
 
   it('carries the GM’s Shadow, which is the session’s and not the room’s', () => {
     const demo = scene();
-    demo.state.fear = { ...demo.state.fear, value: 4 };
+    demo.state.bad = { ...demo.state.bad, value: 4 };
     travelTo(demo, PIT_SCENE_ID);
-    expect(demo.state.fear.value).toBe(4);
+    expect(demo.state.bad.value).toBe(4);
   });
 
   it('carries flags and keys, so a key found here opens a door there', () => {

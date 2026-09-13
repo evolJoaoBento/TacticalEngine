@@ -45,12 +45,12 @@ describe('the dice a player watches land', () => {
     expect(shown.who).toBe('Kara');
     expect(shown.what).toBe('the Longsword');
     // The faces are the roll's own: two d12s, and the total they add up to.
-    expect(shown.roll.hope).toBeGreaterThanOrEqual(1);
-    expect(shown.roll.hope).toBeLessThanOrEqual(12);
-    expect(shown.roll.fear).toBeGreaterThanOrEqual(1);
-    expect(shown.roll.fear).toBeLessThanOrEqual(12);
+    expect(shown.roll.good).toBeGreaterThanOrEqual(1);
+    expect(shown.roll.good).toBeLessThanOrEqual(12);
+    expect(shown.roll.bad).toBeGreaterThanOrEqual(1);
+    expect(shown.roll.bad).toBeLessThanOrEqual(12);
     expect(shown.roll.total).toBe(
-      shown.roll.hope + shown.roll.fear + shown.roll.advantageDie + shown.roll.helpBonus + shown.roll.modifier,
+      shown.roll.good + shown.roll.bad + shown.roll.advantageDie + shown.roll.helpBonus + shown.roll.modifier,
     );
   });
 

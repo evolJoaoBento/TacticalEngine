@@ -85,7 +85,7 @@ const small: Record<string, string | number> = { fontSize: '10px', color: '#8ea3
 function badges(view: AbilityView): string {
   const parts: string[] = [];
   const cost = view.ability.cost;
-  if ((cost.hope ?? 0) > 0) parts.push(`${cost.hope} Light`);
+  if ((cost.good ?? 0) > 0) parts.push(`${cost.good} Light`);
   if ((cost.stress ?? 0) > 0) parts.push(`${cost.stress} Stress`);
   if (view.usesLeft !== null) parts.push(`${view.usesLeft} left`);
   if (view.ability.kind === 'passive') parts.push('passive');

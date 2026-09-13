@@ -30,8 +30,8 @@ function stubWorld(overrides: Partial<ScriptWorld> = {}): ScriptWorld {
     questStatus: () => 'inactive',
     objectiveDone: () => false,
     grantLevel: () => null,
-    gainHope: () => false,
-    gainFear: () => false,
+    gainGood: () => false,
+    gainBad: () => false,
     startQuest: () => false,
     completeObjective: () => false,
     revealObjective: () => false,
@@ -56,7 +56,7 @@ healShared: () => 0,
     advantageRolling: () => ({ advantage: 0, disadvantage: 0 }),
     advantageAgainst: () => ({ advantage: 0, disadvantage: 0 }),
     liftRoll: () => 0,
-    hopeDieSides: () => 12,
+    goodDieSides: () => 12,
     revive: () => [],
     slay: () => [],
     answersRoll: () => false,
@@ -74,9 +74,9 @@ healShared: () => 0,
     markStress: () => ({ stressMarked: 0, hpMarked: 0, fell: false }),
     clearStress: () => 0,
     clearArmor: () => 0,
-    gainHopeFor: () => 0,
-    spendHope: () => false,
-    loseHope: () => 0,
+    gainGoodFor: () => 0,
+    spendGood: () => false,
+    loseGood: () => 0,
     applyCondition: () => false,
     clearCondition: () => false,
     proficiencyOf: () => 1,
@@ -85,7 +85,7 @@ healShared: () => 0,
     addTokens: () => 0,
     spendTokens: () => 0,
     spellcastValue: () => null,
-    loseFear: () => false,
+    loseBad: () => false,
     traitValue: () => null,
     weaponDamage: () => null,
     attack: () => ({
@@ -94,8 +94,8 @@ healShared: () => 0,
       hit: false,
       critical: false,
       hitPointsMarked: 0,
-      hopeGained: 0,
-      fearGained: 0,
+      goodGained: 0,
+      badGained: 0,
       stressCleared: 0,
       spotlightToGm: false,
     }),
@@ -418,8 +418,8 @@ describe('check', () => {
         trait: 'finesse',
         difficulty: 13,
         prompt: 'Search the piano strings.',
-        onSuccessWithHope: [log('A crank!', 'success'), addVar('cranks', 1)],
-        onFailureWithFear: [log('Something stirs.', 'fear')],
+        onSuccessWithGood: [log('A crank!', 'success'), addVar('cranks', 1)],
+        onFailureWithBad: [log('Something stirs.', 'bad')],
         always: [log('You step back.')],
       },
     },
@@ -444,10 +444,10 @@ describe('check', () => {
     expect(after.status).toBe('done');
     // A roll also hands out a Light or a Shadow, journalled right after the check.
     const kinds = after.journal
-      .filter((e) => e.kind !== 'hope' && e.kind !== 'fear')
+      .filter((e) => e.kind !== 'good' && e.kind !== 'bad')
       .map((e) => (e.kind === 'log' ? e.text : e.kind));
     expect(kinds).toEqual(['check', 'A crank!', 'var', 'You step back.']);
-    expect(after.journal[1]!.kind === 'hope' || after.journal[1]!.kind === 'fear').toBe(true);
+    expect(after.journal[1]!.kind === 'good' || after.journal[1]!.kind === 'bad').toBe(true);
     expect(w.getVar('cranks')).toBe(1);
   });
 
@@ -463,7 +463,7 @@ describe('check', () => {
 
   it('falls back between outcomes so content need not write all five', () => {
     const { world: w } = world();
-    // 7/7 is a critical success; only onSuccessWithHope is written.
+    // 7/7 is a critical success; only onSuccessWithGood is written.
     const runner = new ScriptRunner(w, scriptedRng([7, 7]));
     runner.run(search);
     const after = runner.resume({ kind: 'roll' });
@@ -584,12 +584,12 @@ describe('numbers a script can read', () => {
   });
 
   it('counts the creatures the last roll beat', () => {
-    let fear = 0;
+    let bad = 0;
     const stub = stubWorld({
       resolveTargets: () => ['kara', 'finn', 'husk'],
       rollReaction: (id) => ({ success: id === 'kara', total: 12 }),
-      gainFear: () => {
-        fear += 1;
+      gainBad: () => {
+        bad += 1;
         return true;
       },
     });
@@ -600,11 +600,11 @@ describe('numbers a script can read', () => {
         difficulty: 14,
         trait: 'instinct',
         targets: { kind: 'allies' },
-        onFail: [{ kind: 'gainFear', amount: 'targetsHit' }],
+        onFail: [{ kind: 'gainBad', amount: 'targetsHit' }],
       },
     ]);
     // Two failed, so two Shadow - not one for each of the three who rolled.
-    expect(fear).toBe(2);
+    expect(bad).toBe(2);
   });
 
   it('carries a blow it was handed rather than one it rolled', () => {
@@ -640,7 +640,7 @@ describe('the runner as a whole', () => {
       const { world: w } = world();
       const runner = new ScriptRunner(w, createRng('script'));
       runner.run([
-        { kind: 'check', check: { trait: 'presence', difficulty: 12, onSuccessWithHope: [log('yes')], onFailureWithFear: [log('no')] } },
+        { kind: 'check', check: { trait: 'presence', difficulty: 12, onSuccessWithGood: [log('yes')], onFailureWithBad: [log('no')] } },
       ]);
       const done = runner.resume({ kind: 'roll' });
       return JSON.stringify(done.journal);
@@ -707,8 +707,8 @@ describe('the runner as a whole', () => {
         damage: 9,
         damageDice: '1d8+1',
         damageTypes: ['physical'],
-        hopeGained: 0,
-        fearGained: 0,
+        goodGained: 0,
+        badGained: 0,
         stressCleared: 0,
         spotlightToGm: false,
       }),
@@ -737,7 +737,7 @@ describe('the runner as a whole', () => {
         kind: 'howMany',
         most: { tokens: 'unleash-chaos' },
         title: 'How much?',
-        each: [{ kind: 'log', text: 'chaos for {n}' }, { kind: 'gainFear', amount: 'spent' }],
+        each: [{ kind: 'log', text: 'chaos for {n}' }, { kind: 'gainBad', amount: 'spent' }],
       },
     ]);
     expect(waiting.status).toBe('waiting');
@@ -746,13 +746,13 @@ describe('the runner as a whole', () => {
     expect(options.map((o) => o.label)).toEqual(['1', '2', '3']);
 
     // Taking the third writes three into both halves of it.
-    let fear = 0;
+    let bad = 0;
     const counting = stubWorld({
       actorId: () => 'mira',
       resolveTargets: () => ['mira'],
       tokensOn: () => 3,
-      gainFear: () => {
-        fear += 1;
+      gainBad: () => {
+        bad += 1;
         return true;
       },
     });
@@ -761,19 +761,19 @@ describe('the runner as a whole', () => {
       {
         kind: 'howMany',
         most: { tokens: 'unleash-chaos' },
-        each: [{ kind: 'log', text: 'chaos for {n}' }, { kind: 'gainFear', amount: 'spent' }],
+        each: [{ kind: 'log', text: 'chaos for {n}' }, { kind: 'gainBad', amount: 'spent' }],
       },
     ]);
     const done = again.resume({ kind: 'choose', index: 2 });
     expect(done.status).toBe('done');
     expect(done.journal.some((e) => e.kind === 'log' && e.text === 'chaos for 3')).toBe(true);
-    expect(fear).toBe(3);
+    expect(bad).toBe(3);
   });
 
   it('refuses to ask when there is none of it', () => {
     const stub = stubWorld({ actorId: () => 'mira', resolveTargets: () => ['mira'], tokensOn: () => 0 });
     const journal = runScript(
-      [{ kind: 'howMany', most: { tokens: 'unleash-chaos' }, each: [{ kind: 'gainFear', amount: 'spent' }] }],
+      [{ kind: 'howMany', most: { tokens: 'unleash-chaos' }, each: [{ kind: 'gainBad', amount: 'spent' }] }],
       stub,
       createRng(1),
     );

@@ -586,8 +586,8 @@ describe('a check against targets', () => {
     check: {
       trait: 'spellcast',
       difficulty: 'target',
-      onSuccessWithHope: [{ kind: 'damage', dice: '1d8+4', type: 'magic' }],
-      onFailureWithFear: [{ kind: 'log', text: 'fizzle' }],
+      onSuccessWithGood: [{ kind: 'damage', dice: '1d8+4', type: 'magic' }],
+      onFailureWithBad: [{ kind: 'log', text: 'fizzle' }],
     },
   };
 
@@ -606,7 +606,7 @@ describe('a check against targets', () => {
     const done = runner.resume({ kind: 'roll' });
     expect(done.status).toBe('done');
     const check = done.journal.find((e) => e.kind === 'check');
-    expect(check).toMatchObject({ targets: ['husk-1', 'husk-2'], hit: ['husk-1'], outcome: 'successWithHope' });
+    expect(check).toMatchObject({ targets: ['husk-1', 'husk-2'], hit: ['husk-1'], outcome: 'successWithGood' });
     // One d8 (5) + 4 = 9: Major against 7/12, two Hit Points on the soft husk only.
     expect(done.journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 9, marked: 2, targets: ['husk-1'], dice: '1d8+4' });
     expect(state.entity('husk-1')!.hitPoints.marked).toBe(2);
@@ -614,7 +614,7 @@ describe('a check against targets', () => {
     // Two duality dice and one damage die; nothing else was drawn.
     expect(rng.drawn()).toBe(3);
     // Light for a roll with Light, to the caster.
-    expect(state.entity('mira')!.hope!.value).toBe(3);
+    expect(state.entity('mira')!.good!.value).toBe(3);
     expect(runner.spotlightToGm).toBe(false);
   });
 
@@ -625,7 +625,7 @@ describe('a check against targets', () => {
     const runner = new ScriptRunner(world, rng, { targets: ['husk-1'], rollAs: 'actor' });
     runner.run([bolt]);
     const done = runner.resume({ kind: 'roll' });
-    expect(kinds(done.journal)).toEqual(['check', 'fear', 'log']);
+    expect(kinds(done.journal)).toEqual(['check', 'bad', 'log']);
     expect(rng.drawn()).toBe(2);
     expect(state.entity('husk-1')!.hitPoints.marked).toBe(0);
     expect(runner.spotlightToGm).toBe(true);
@@ -678,11 +678,11 @@ describe('a check against targets', () => {
       return check.roll.total;
     };
     // 5 + 3 + 2 (Knowledge) + 2 (the Experience) = 12, for a Light.
-    expect(state.entity('mira')!.hope!.value).toBe(2);
+    expect(state.entity('mira')!.good!.value).toBe(2);
     expect(roll()).toBe(12);
     // The Light spent, then one gained for rolling with Light.
-    expect(state.entity('mira')!.hope!.value).toBe(2);
-    state.entity('mira')!.hope = { max: 6, value: 0 };
+    expect(state.entity('mira')!.good!.value).toBe(2);
+    state.entity('mira')!.good = { max: 6, value: 0 };
     expect(roll()).toBe(10);
   });
 
@@ -816,20 +816,20 @@ describe('pools and conditions', () => {
 
   it('spends Light when there is Light, and refuses when there is not', () => {
     const { world, state } = scene();
-    expect(kinds(runScript([{ kind: 'spendHope', amount: 2 }], world, scripted([])))).toEqual(['hopeSpent']);
-    expect(state.entity('mira')!.hope!.value).toBe(0);
-    expect(refusals(runScript([{ kind: 'spendHope' }], world, scripted([])))).toEqual(['not enough Light to spend 1']);
+    expect(kinds(runScript([{ kind: 'spendGood', amount: 2 }], world, scripted([])))).toEqual(['goodSpent']);
+    expect(state.entity('mira')!.good!.value).toBe(0);
+    expect(refusals(runScript([{ kind: 'spendGood' }], world, scripted([])))).toEqual(['not enough Light to spend 1']);
     // Light to an ally is journalled with who got it; an adversary gains none.
     const journal = runScript(
       [
-        { kind: 'gainHope', amount: 9, target: { kind: 'allies' } },
-        { kind: 'gainHope', target: { kind: 'entity', id: 'husk-1' } },
+        { kind: 'gainGood', amount: 9, target: { kind: 'allies' } },
+        { kind: 'gainGood', target: { kind: 'entity', id: 'husk-1' } },
       ],
       world,
       scripted([]),
     );
-    expect(journal).toEqual([{ kind: 'hope', gained: 4, id: 'kara' }]);
-    expect(state.entity('kara')!.hope!.value).toBe(6);
+    expect(journal).toEqual([{ kind: 'good', gained: 4, id: 'kara' }]);
+    expect(state.entity('kara')!.good!.value).toBe(6);
   });
 
   it('clears Armor Slots', () => {
@@ -874,8 +874,8 @@ describe('pools and conditions', () => {
     expect(says(branch({ kind: 'hasCondition', condition: 'vulnerable' }))).toBe('yes');
     expect(says(branch({ kind: 'hasCondition', condition: 'vulnerable' }), ['husk-2'])).toBe('no');
     // Mira has 2 Light and 6 free Stress slots.
-    expect(says(branch({ kind: 'pool', pool: 'hope', op: '>=', value: 2 }))).toBe('yes');
-    expect(says(branch({ kind: 'pool', pool: 'hope', op: '>=', value: 3 }))).toBe('no');
+    expect(says(branch({ kind: 'pool', pool: 'good', op: '>=', value: 2 }))).toBe('yes');
+    expect(says(branch({ kind: 'pool', pool: 'good', op: '>=', value: 3 }))).toBe('no');
     expect(says(branch({ kind: 'pool', pool: 'stress', op: '>=', value: 1 }))).toBe('yes');
     expect(says(branch({ kind: 'pool', pool: 'stress', measure: 'marked', op: '==', value: 0 }))).toBe('yes');
     // husk-1 is Close to Mira, husk-2 Far.
@@ -901,11 +901,11 @@ describe('an attack from a script', () => {
     const rng = scripted([10, 2, 6]);
     const journal = runScript([swing], world, rng, { targets: ['husk-1'], rollAs: 'actor' });
     expect(journal.find((e) => e.kind === 'attack')).toMatchObject({ attacker: 'kara', target: 'husk-1', hit: true, hitPointsMarked: 2, weapon: 'Longsword' });
-    expect(kinds(journal)).toEqual(['attack', 'hope', 'moved', 'log']);
+    expect(kinds(journal)).toEqual(['attack', 'good', 'moved', 'log']);
     expect(journal.find((e) => e.kind === 'log')).toMatchObject({ text: 'hit' });
     // Pushed east from x=3 to the first tile that reads as Close of Kara at x=2: x=5 is taken, so x=4 … no: x=5 blocks, it stops at x=4.
     expect(grid.xOf(state.entity('husk-1')!.tile)).toBe(4);
-    expect(state.entity('kara')!.hope!.value).toBe(3);
+    expect(state.entity('kara')!.good!.value).toBe(3);
     expect(rng.drawn()).toBe(3);
   });
 
@@ -916,11 +916,11 @@ describe('an attack from a script', () => {
     const rng = scripted([1, 5]);
     const runner = new ScriptRunner(world, rng, { targets: ['husk-1'], rollAs: 'actor' });
     const done = runner.run([swing]);
-    expect(kinds(done.journal)).toEqual(['attack', 'fear', 'log']);
+    expect(kinds(done.journal)).toEqual(['attack', 'bad', 'log']);
     expect(done.journal[2]).toMatchObject({ text: 'miss' });
     expect(rng.drawn()).toBe(2);
     expect(runner.spotlightToGm).toBe(true);
-    expect(state.fear.value).toBe(1);
+    expect(state.bad.value).toBe(1);
   });
 
   /**
@@ -1005,7 +1005,7 @@ describe('a reaction roll', () => {
       check: {
         trait: 'spellcast',
         difficulty: 'target',
-        onSuccessWithHope: [{ kind: 'reactionRoll', difficulty: 'roll', onFail: [{ kind: 'log', text: 'zapped' }] }],
+        onSuccessWithGood: [{ kind: 'reactionRoll', difficulty: 'roll', onFail: [{ kind: 'log', text: 'zapped' }] }],
       },
     };
     // 9 + 5 + 2 = 16 with Light; the husk then needs 16 on a d20 and rolls 15.
@@ -1070,7 +1070,7 @@ describe('a reaction roll', () => {
     // 6 + 4 + Strength 2 = 12: a success, and no Light for a reaction.
     expect(journal[0]).toMatchObject({ kind: 'reaction', id: 'kara', success: true, total: 12 });
     expect(journal[1]).toMatchObject({ kind: 'log', text: 'held' });
-    expect(state.entity('kara')!.hope!.value).toBe(2);
+    expect(state.entity('kara')!.good!.value).toBe(2);
   });
 });
 
@@ -1196,15 +1196,15 @@ describe('Light taken rather than spent', () => {
     // Kara has 2 Light; the husk has none at all.
     const journal = runScript(
       [
-        { kind: 'loseHope', amount: 3, target: { kind: 'entity', id: 'kara' } },
-        { kind: 'loseHope', target: { kind: 'entity', id: 'husk-1' } },
+        { kind: 'loseGood', amount: 3, target: { kind: 'entity', id: 'kara' } },
+        { kind: 'loseGood', target: { kind: 'entity', id: 'husk-1' } },
       ],
       world,
       scripted([]),
     );
-    expect(state.entity('kara')!.hope!.value).toBe(0);
+    expect(state.entity('kara')!.good!.value).toBe(0);
     // Only the loss that happened is journalled: no line for the husk.
-    expect(journal).toEqual([{ kind: 'hopeLost', lost: 2, id: 'kara' }]);
+    expect(journal).toEqual([{ kind: 'goodLost', lost: 2, id: 'kara' }]);
   });
 });
 

@@ -35,7 +35,7 @@ import {
   type DamageSeverity,
   type IncomingDamage,
 } from '../rules/damage';
-import { HOPE_DIE_SIDES, rollDuality, type DualityRoll, type RollOutcome } from '../rules/duality';
+import { GOOD_DIE_SIDES, rollDuality, type DualityRoll, type RollOutcome } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
 import {
   bandForSpan,
@@ -1174,12 +1174,12 @@ export class SceneScriptWorld implements ScriptWorld {
    * are carrying says otherwise. The biggest wins, two cards saying it being a
    * thing that could happen rather than a thing that adds up.
    */
-  hopeDieSides(id: string): number {
+  goodDieSides(id: string): number {
     const entity = this.state.entity(id);
-    if (entity === undefined) return HOPE_DIE_SIDES;
-    let sides = HOPE_DIE_SIDES;
+    if (entity === undefined) return GOOD_DIE_SIDES;
+    let sides = GOOD_DIE_SIDES;
     for (const name of entity.conditions) {
-      const die = this.conditionDefs.get(name)?.hopeDie;
+      const die = this.conditionDefs.get(name)?.goodDie;
       if (die !== undefined) sides = Math.max(sides, die.sides);
     }
     return sides;
@@ -1381,9 +1381,9 @@ export class SceneScriptWorld implements ScriptWorld {
   poolValue(id: string, pool: PoolName, measure: 'available' | 'marked' | 'max'): number | null {
     const entity = this.state.entity(id);
     if (entity === undefined) return null;
-    if (pool === 'hope') {
-      if (entity.hope === undefined) return null;
-      return measure === 'max' ? entity.hope.max : measure === 'marked' ? entity.hope.max - entity.hope.value : entity.hope.value;
+    if (pool === 'good') {
+      if (entity.good === undefined) return null;
+      return measure === 'max' ? entity.good.max : measure === 'marked' ? entity.good.max - entity.good.value : entity.good.value;
     }
     const track = entity[pool];
     return measure === 'max' ? track.max : measure === 'marked' ? track.marked : unmarked(track);
@@ -1622,24 +1622,24 @@ export class SceneScriptWorld implements ScriptWorld {
   // ticking the last objective does not complete a quest, because "you have
   // everything, now bring it back" is a beat a designer places on purpose.
 
-  gainHope(): boolean {
+  gainGood(): boolean {
     const id = this.scenario.actorId;
-    return id !== null && this.gainHopeFor(id, 1) > 0;
+    return id !== null && this.gainGoodFor(id, 1) > 0;
   }
 
   /**
    * "Steal a number of Shadow from the GM": the pool goes down rather than up,
    * and an empty pool is nothing stolen rather than a refusal.
    */
-  loseFear(): boolean {
-    if (this.state.fear.value <= 0) return false;
-    this.state.fear = { ...this.state.fear, value: this.state.fear.value - 1 };
+  loseBad(): boolean {
+    if (this.state.bad.value <= 0) return false;
+    this.state.bad = { ...this.state.bad, value: this.state.bad.value - 1 };
     return true;
   }
 
-  gainFear(): boolean {
-    const result = gain(this.state.fear);
-    this.state.fear = result.currency;
+  gainBad(): boolean {
+    const result = gain(this.state.bad);
+    this.state.bad = result.currency;
     return result.applied > 0;
   }
 
@@ -1896,7 +1896,7 @@ export class SceneScriptWorld implements ScriptWorld {
   defend(id: string, damage: IncomingDamage, rng: Rng): Defense {
     const entity = this.state.entity(id);
     if (entity === undefined) {
-      return { resolved: resolveDamage(damage, FALLBACK_DEFENDER.thresholds), armorSlotsMarked: 0, reactions: [], hopeSpent: 0, stressMarked: 0 };
+      return { resolved: resolveDamage(damage, FALLBACK_DEFENDER.thresholds), armorSlotsMarked: 0, reactions: [], goodSpent: 0, stressMarked: 0 };
     }
     const against = this.defenderOf(entity);
     const defense = resolveDefense(
@@ -1907,12 +1907,12 @@ export class SceneScriptWorld implements ScriptWorld {
         ...(against.defenses === undefined ? {} : { defenses: against.defenses }),
         armorSlots: this.armorFor(id),
         stress: entity.stress,
-        ...(entity.hope === undefined ? {} : { hope: entity.hope }),
+        ...(entity.good === undefined ? {} : { good: entity.good }),
         reactions: this.reactionsOf(id),
       },
       this.defense,
     );
-    if (defense.hopeSpent > 0) this.spendHope(id, defense.hopeSpent);
+    if (defense.goodSpent > 0) this.spendGood(id, defense.goodSpent);
     if (defense.stressMarked > 0) this.markStress(id, defense.stressMarked);
     return defense;
   }
@@ -1948,7 +1948,7 @@ export class SceneScriptWorld implements ScriptWorld {
       fell: marked.fell,
       reactions: defense.reactions.map((r) => ({
         name: r.ability.name,
-        hopeSpent: r.hopeSpent,
+        goodSpent: r.goodSpent,
         stressMarked: r.stressMarked,
         ...(r.rolled === undefined ? {} : { rolled: r.rolled }),
       })),
@@ -1981,21 +1981,21 @@ export class SceneScriptWorld implements ScriptWorld {
     return result.applied;
   }
 
-  gainHopeFor(id: string, amount: number): number {
+  gainGoodFor(id: string, amount: number): number {
     const entity = this.state.entity(id);
-    if (entity?.hope === undefined) return 0;
+    if (entity?.good === undefined) return 0;
     // `gain` is pure; the new currency replaces the old on the entity.
-    const result = gain(entity.hope, amount);
-    entity.hope = result.currency;
+    const result = gain(entity.good, amount);
+    entity.good = result.currency;
     return result.applied;
   }
 
-  spendHope(id: string, amount: number): boolean {
+  spendGood(id: string, amount: number): boolean {
     const entity = this.state.entity(id);
-    if (entity?.hope === undefined) return false;
-    const result = spend(entity.hope, amount);
+    if (entity?.good === undefined) return false;
+    const result = spend(entity.good, amount);
     if (!result.ok) return false;
-    entity.hope = result.currency;
+    entity.good = result.currency;
     return true;
   }
 
@@ -2004,12 +2004,12 @@ export class SceneScriptWorld implements ScriptWorld {
    * one with none loses nothing. Never refused — "all targets lose a Light"
    * happens to whoever has one.
    */
-  loseHope(id: string, amount: number): number {
+  loseGood(id: string, amount: number): number {
     const entity = this.state.entity(id);
-    if (entity?.hope === undefined) return 0;
-    const lost = Math.min(entity.hope.value, amount);
+    if (entity?.good === undefined) return 0;
+    const lost = Math.min(entity.good.value, amount);
     if (lost <= 0) return 0;
-    entity.hope = { max: entity.hope.max, value: entity.hope.value - lost };
+    entity.good = { max: entity.good.max, value: entity.good.value - lost };
     return lost;
   }
 
@@ -2101,8 +2101,8 @@ export class SceneScriptWorld implements ScriptWorld {
       hit: false,
       critical: false,
       hitPointsMarked: 0,
-      hopeGained: 0,
-      fearGained: 0,
+      goodGained: 0,
+      badGained: 0,
       stressCleared: 0,
       spotlightToGm: false,
     };
@@ -2158,7 +2158,7 @@ export class SceneScriptWorld implements ScriptWorld {
         // A party member attacked from a script defends the same way as from
         // an adversary; an adversary has no Armor Slots to mark.
         armorSlotsMarked: this.defense.armor === 'auto' ? Math.min(1, unmarked(target.armorSlots)) : 0,
-        hopeDieSides: this.hopeDieSides(request.attacker),
+        goodDieSides: this.goodDieSides(request.attacker),
         ...this.advantageWith(request.attacker, request.target, request.advantage ?? 0),
       },
     });
@@ -2192,8 +2192,8 @@ export class SceneScriptWorld implements ScriptWorld {
             damageTypes: profile.damage.types ?? [],
           }),
       ...(outcome.dualityRoll === undefined ? {} : { roll: outcome.dualityRoll }),
-      hopeGained: applied.hopeGained,
-      fearGained: applied.fearGained,
+      goodGained: applied.goodGained,
+      badGained: applied.badGained,
       stressCleared: applied.stressCleared,
       spotlightToGm: outcome.spotlightToGm,
     };

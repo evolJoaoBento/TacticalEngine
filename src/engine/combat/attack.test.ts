@@ -141,7 +141,7 @@ describe('resolveAttack — a PC attacking', () => {
   it('rolls the Duality Dice against the target Difficulty', () => {
     // Light 8, Shadow 3 -> 11 + 2 = 13, meets Difficulty 13. Damage 2d8+2: 5, 6.
     const outcome = attack([8, 3, 5, 6]);
-    expect(outcome.dualityRoll).toMatchObject({ hope: 8, fear: 3, total: 13, success: true });
+    expect(outcome.dualityRoll).toMatchObject({ good: 8, bad: 3, total: 13, success: true });
     expect(outcome.gmRoll).toBeUndefined();
     expect(outcome.hit).toBe(true);
     expect(outcome.damageRoll!.expression).toEqual({ count: 2, sides: 8, modifier: 2 });
@@ -163,8 +163,8 @@ describe('resolveAttack — a PC attacking', () => {
   });
 
   it('grants Light on a roll with Light and Shadow on a roll with Shadow', () => {
-    expect(attack([8, 3, 5, 6])).toMatchObject({ hopeGained: 1, fearGained: 0 });
-    expect(attack([3, 8, 5, 6])).toMatchObject({ hopeGained: 0, fearGained: 1 });
+    expect(attack([8, 3, 5, 6])).toMatchObject({ goodGained: 1, badGained: 0 });
+    expect(attack([3, 8, 5, 6])).toMatchObject({ goodGained: 0, badGained: 1 });
   });
 
   it('passes the spotlight on a success with Shadow but not a success with Light', () => {
@@ -337,8 +337,8 @@ describe('resolveAttack — an adversary attacking', () => {
   it('generates no Light or Shadow and never passes the spotlight', () => {
     const outcome = attack([12, 9]);
     expect(outcome).toMatchObject({
-      hopeGained: 0,
-      fearGained: 0,
+      goodGained: 0,
+      badGained: 0,
       stressCleared: 0,
       spotlightToGm: false,
     });
@@ -397,9 +397,9 @@ describe('applyAttack', () => {
     const state = setup();
     const applied = applyAttack(state, hit());
     expect(applied.hitPointsMarked).toBe(2);
-    expect(applied.hopeGained).toBe(1);
+    expect(applied.goodGained).toBe(1);
     expect(state.entity('husk')!.hitPoints.marked).toBe(2);
-    expect(state.entity('kara')!.hope!.value).toBe(3);
+    expect(state.entity('kara')!.good!.value).toBe(3);
   });
 
   it('gives the GM Shadow on a roll with Shadow', () => {
@@ -413,15 +413,15 @@ describe('applyAttack', () => {
       options: { bandTiles },
     });
     const applied = applyAttack(state, outcome);
-    expect(applied.fearGained).toBe(1);
-    expect(state.fear.value).toBe(1);
+    expect(applied.badGained).toBe(1);
+    expect(state.bad.value).toBe(1);
   });
 
   it('reports the Light actually gained when the attacker is at the cap', () => {
     const state = setup();
-    state.entity('kara')!.hope = { max: 6, value: 6 };
-    expect(applyAttack(state, hit()).hopeGained).toBe(0);
-    expect(state.entity('kara')!.hope!.value).toBe(6);
+    state.entity('kara')!.good = { max: 6, value: 6 };
+    expect(applyAttack(state, hit()).goodGained).toBe(0);
+    expect(state.entity('kara')!.good!.value).toBe(6);
   });
 
   it('clears a Stress on a crit, and only what is marked', () => {

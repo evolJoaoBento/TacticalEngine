@@ -76,7 +76,7 @@ describe('classes', () => {
       signatureFeature: { name: 'Hold the Line', text: 'Stand your ground.' },
     });
     expect(parsed.signatureFeature?.name).toBe('Hold the Line');
-    expect('hopeFeature' in parsed).toBe(false);
+    expect('goodFeature' in parsed).toBe(false);
   });
 });
 

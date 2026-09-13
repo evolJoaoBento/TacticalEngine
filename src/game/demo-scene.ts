@@ -32,7 +32,7 @@ import { DEMO_DIALOGUES, PILLAR_DIALOGUE_ID } from './demo-dialogue';
 import { useInteractable } from '../engine/scene/interact';
 import type { Trait } from '../engine/scene/primitives';
 import type { CheckOutcome, LogTone } from '../engine/script/effects';
-import { FEAR_DIE_SIDES, HOPE_DIE_SIDES, rollDuality, withFaces, type DualityRoll, type RollOutcome } from '../engine/rules/duality';
+import { BAD_DIE_SIDES, GOOD_DIE_SIDES, rollDuality, withFaces, type DualityRoll, type RollOutcome } from '../engine/rules/duality';
 import type { CountdownCue } from '../engine/rules/countdown';
 import type { CountdownMoved, RunningCountdown } from '../engine/script/countdowns';
 import { ScriptRunner, type JournalEntry, type Prompt, type Response } from '../engine/script/runner';
@@ -623,7 +623,7 @@ interface RuntimeOptions {
   /** Pools the party arrives with, by character id. Fresh sheets when absent. */
   pools?: ReadonlyMap<string, PartyPools>;
   /** Shadow is the GM's across the session, not the room's. */
-  fear?: Currency;
+  bad?: Currency;
   /** The project's loot tables, so a chest in any room pays out. */
   lootTables?: ReadonlyMap<string, LootTable>;
   /** The project's abilities, conditions and stat blocks, for the world's modifiers. */
@@ -638,7 +638,7 @@ export interface PartyPools {
   stress: MarkPool;
   armorSlots: MarkPool;
   /** Optional only because `EntityState` makes it so; party members always have it. */
-  hope?: Currency;
+  good?: Currency;
 }
 
 /**
@@ -690,10 +690,10 @@ function buildRuntime(
         hitPoints: { ...pools.hitPoints },
         stress: { ...pools.stress },
         armorSlots: { ...pools.armorSlots },
-        ...(pools.hope === undefined ? {} : { hope: { ...pools.hope } }),
+        ...(pools.good === undefined ? {} : { good: { ...pools.good } }),
       };
     }),
-    ...(options.fear === undefined ? {} : { fear: { ...options.fear } }),
+    ...(options.bad === undefined ? {} : { bad: { ...options.bad } }),
   });
 
   const pathfinder = new Pathfinder(grid);
@@ -832,7 +832,7 @@ export function syncRoster(demo: DemoScene): { joined: string[]; left: string[] 
       hitPoints: { ...pools.hitPoints },
       stress: { ...pools.stress },
       armorSlots: { ...pools.armorSlots },
-      ...(pools.hope === undefined ? {} : { hope: { ...pools.hope } }),
+      ...(pools.good === undefined ? {} : { good: { ...pools.good } }),
     });
     if (demo.party.selected === null) demo.party.select(sheet.id);
     joined.push(sheet.id);
@@ -1012,7 +1012,7 @@ function poolsOf(demo: DemoScene): Map<string, PartyPools> {
       hitPoints: { ...entity.hitPoints },
       stress: { ...entity.stress },
       armorSlots: { ...entity.armorSlots },
-      ...(entity.hope === undefined ? {} : { hope: { ...entity.hope } }),
+      ...(entity.good === undefined ? {} : { good: { ...entity.good } }),
     });
   }
   return pools;
@@ -1036,7 +1036,7 @@ export function travelTo(demo: DemoScene, sceneId: string): boolean {
   const selected = demo.party.selected;
   const runtime = buildRuntime(target, demo.characters, demo.scenario, {
     pools: poolsOf(demo),
-    fear: demo.state.fear,
+    bad: demo.state.bad,
     lootTables: new Map(demo.project.lootTables.map((table) => [table.id, table])),
     project: demo.project,
   });
@@ -1652,7 +1652,7 @@ export function attackWithSelected(
       bandTiles: DEMO_BAND_TILES,
       bonus: demo.world.rollBonus(id!, 'attackRoll', { melee }),
       damageBonus: demo.world.rollBonus(id!, 'damageRoll', { melee }),
-      hopeDieSides: demo.world.hopeDieSides(id!),
+      goodDieSides: demo.world.goodDieSides(id!),
       // What the two of them say about each other: the Assassin's advantage
       // while Hidden, the Gaoler's shield in the way.
       ...demo.world.advantageFor(id!, targetId),
@@ -2071,7 +2071,7 @@ function clearPartyTemporary(demo: DemoScene): void {
       entity.conditionDurations.delete(condition);
       cleared.push(condition);
     }
-    if (cleared.length > 0) note(demo, `${nameOf(demo, entity.id)} shakes off ${cleared.join(' and ')}.`, 'hope');
+    if (cleared.length > 0) note(demo, `${nameOf(demo, entity.id)} shakes off ${cleared.join(' and ')}.`, 'good');
   }
   syncPools(demo);
 }
@@ -2147,7 +2147,7 @@ function playDeathMoves(demo: DemoScene): void {
     const character = demo.characters.get(entity.id);
     if (character === undefined) continue;
     fallen.add(entity);
-    note(demo, `${character.sheet.name} marks their last Hit Point.`, 'fear');
+    note(demo, `${character.sheet.name} marks their last Hit Point.`, 'bad');
     // "When this ally would make a death move, they clear a Hit Point
     // instead": read before the question is put, because a character the sigil
     // catches never makes the move at all.
@@ -2156,7 +2156,7 @@ function playDeathMoves(demo: DemoScene): void {
       demo.world.clearCondition(entity.id, sigil.condition);
       demo.world.heal({ kind: 'entity', id: entity.id }, sigil.clears);
       fallen.delete(entity);
-      note(demo, `${character.sheet.name}: ${sigil.says}`, 'hope');
+      note(demo, `${character.sheet.name}: ${sigil.says}`, 'good');
       continue;
     }
     // With nobody at the table to ask - every test that predates the prompt,
@@ -2243,12 +2243,12 @@ function avoidDeath(demo: DemoScene, id: string): void {
   const character = demo.characters.get(id);
   if (character === undefined) return;
   note(demo, `${character.sheet.name} drops unconscious.`, 'system');
-  const hope = demo.rng.die(HOPE_DIE_SIDES);
-  if (hope > character.sheet.level) {
-    note(demo, `The Light Die reads ${hope}: no scar this time.`, 'system');
+  const good = demo.rng.die(GOOD_DIE_SIDES);
+  if (good > character.sheet.level) {
+    note(demo, `The Light Die reads ${good}: no scar this time.`, 'system');
     return;
   }
-  scar(demo, id, hope);
+  scar(demo, id, good);
 }
 
 /**
@@ -2267,18 +2267,18 @@ function scar(demo: DemoScene, id: string, rolled: number): void {
   // the Light pool's maximum, so nothing here has to write that by hand.
   const sheet = demo.sheets.get(id) ?? character.sheet;
   setSheet(demo, { ...sheet, scars: (sheet.scars ?? 0) + 1 });
-  const held = entity.hope ?? character.hope;
+  const held = entity.good ?? character.good;
   const max = Math.max(0, held.max - 1);
-  entity.hope = { max, value: Math.min(held.value, max) };
+  entity.good = { max, value: Math.min(held.value, max) };
   note(
     demo,
     `The Light Die reads ${rolled}. ${character.sheet.name} takes a scar: a Light slot crossed out for good.`,
-    'fear',
+    'bad',
   );
   // "If you ever cross out your last Light slot, your character's journey ends."
   if (max > 0) return;
   entity.dead = true;
-  note(demo, `That was the last slot. ${character.sheet.name}'s journey ends here.`, 'fear');
+  note(demo, `That was the last slot. ${character.sheet.name}'s journey ends here.`, 'bad');
 }
 
 /**
@@ -2303,22 +2303,22 @@ function riskItAll(demo: DemoScene, id: string): void {
   if (character === undefined || entity === undefined) return;
   const who = character.sheet.name;
   const roll = rollDuality(demo.rng, { difficulty: 0, reaction: true });
-  note(demo, `${who} risks it all: Light ${roll.hope}, Shadow ${roll.fear}.`, roll.fear > roll.hope ? 'fear' : 'hope');
-  if (roll.fear > roll.hope) return veil(demo, id);
+  note(demo, `${who} risks it all: Light ${roll.good}, Shadow ${roll.bad}.`, roll.bad > roll.good ? 'bad' : 'good');
+  if (roll.bad > roll.good) return veil(demo, id);
 
   const target: TargetSelector = { kind: 'entity', id };
-  if (roll.hope === roll.fear) {
+  if (roll.good === roll.bad) {
     demo.world.heal(target, entity.hitPoints.max);
     demo.world.clearStress(id, entity.stress.max);
-    note(demo, `The dice match. ${who} stands up with nothing marked at all.`, 'hope');
+    note(demo, `The dice match. ${who} stands up with nothing marked at all.`, 'good');
     return;
   }
-  const hitPoints = demo.world.heal(target, roll.hope);
-  const stress = demo.world.clearStress(id, roll.hope - hitPoints);
+  const hitPoints = demo.world.heal(target, roll.good);
+  const stress = demo.world.clearStress(id, roll.good - hitPoints);
   note(
     demo,
     `${who} stays on their feet: ${hitPointWord(hitPoints)} cleared${stress > 0 ? ` and ${stress} Stress` : ''}.`,
-    'hope',
+    'good',
   );
 }
 
@@ -2339,7 +2339,7 @@ function blazeOfGlory(demo: DemoScene, id: string): void {
   const character = demo.characters.get(id);
   const attacker = demo.state.entity(id);
   if (character === undefined || attacker === undefined) return;
-  note(demo, `${character.sheet.name} goes out in a blaze of glory.`, 'hope');
+  note(demo, `${character.sheet.name} goes out in a blaze of glory.`, 'good');
 
   const profile = attackProfile(character);
   const melee = profile.range === 'melee';
@@ -2403,7 +2403,7 @@ function veil(demo: DemoScene, id: string): void {
   if (entity === undefined) return;
   entity.alive = false;
   entity.dead = true;
-  note(demo, `${nameOf(demo, id)} crosses through the veil of death.`, 'fear');
+  note(demo, `${nameOf(demo, id)} crosses through the veil of death.`, 'bad');
 }
 
 /**
@@ -2458,7 +2458,7 @@ export function settleFight(demo: DemoScene): void {
   note(
     demo,
     encounter.outcome === 'victory' ? 'The last of them falls. The fight is over.' : 'The party falls.',
-    encounter.outcome === 'victory' ? 'success' : 'fear',
+    encounter.outcome === 'victory' ? 'success' : 'bad',
   );
 }
 
@@ -2498,7 +2498,7 @@ function takeSpotlight(demo: DemoScene, adversaryId: string, adversary: EntitySt
   // (Asleep) costs the GM a Shadow, if they have one, else the turn is lost.
   if (demo.world.blocks(adversaryId, 'act')) {
     clearTemporaryConditions(demo, adversaryId);
-    if (demo.world.blocks(adversaryId, 'act')) clearWithFear(demo, adversaryId);
+    if (demo.world.blocks(adversaryId, 'act')) clearWithBad(demo, adversaryId);
     return;
   }
   // Held in place: the spotlight goes on tearing free instead of attacking.
@@ -2580,7 +2580,7 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
     for (const ability of demo.world.abilitiesForAdversary(def.id)) {
       if (ability.kind !== 'action' || ability.effects.length === 0) continue;
       if ((ability.cost.stress ?? 0) > unmarked(entity.stress)) continue;
-      if (featureFear(ability) > demo.state.fear.value) continue;
+      if (featureBad(ability) > demo.state.bad.value) continue;
       if (featureUsesLeft(demo, adversaryId, ability) <= 0) continue;
       // "If the Hydra has any marked HP": what the block says about when the
       // feature is worth using at all, read with the creature as the actor.
@@ -2617,7 +2617,7 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
       // Shadow than the spotlights it buys - a plain spotlight costs one.
       if (spotlightsAllies(ability)) {
         const called = spotlightCandidates(demo, adversaryId, ability);
-        if (called.length === 0 || featureFear(ability) > called.length) continue;
+        if (called.length === 0 || featureBad(ability) > called.length) continue;
         if (itself === null) itself = { ability, targets: [] };
         continue;
       }
@@ -2761,11 +2761,11 @@ function featureUsesLeft(demo: DemoScene, adversaryId: string, ability: AbilityD
  * Burrower takes Severe damage, all creatures within Close range are bathed in
  * acidic blood" happens, and an empty pool does not stop it.
  */
-function featureFear(ability: AbilityDef, as: 'action' | 'reaction' = 'action'): number {
-  const stated = ability.cost.fear ?? 0;
+function featureBad(ability: AbilityDef, as: 'action' | 'reaction' = 'action'): number {
+  const stated = ability.cost.bad ?? 0;
   if (stated > 0) return stated;
   if (as === 'reaction') return 0;
-  return (ability.cost.stress ?? 0) === 0 && (ability.cost.hope ?? 0) === 0 ? 1 : 0;
+  return (ability.cost.stress ?? 0) === 0 && (ability.cost.good ?? 0) === 0 ? 1 : 0;
 }
 
 function useAdversaryFeature(demo: DemoScene, adversaryId: string, ability: AbilityDef, targets: readonly string[]): void {
@@ -2782,10 +2782,10 @@ function spendFeatureCost(
   ability: AbilityDef,
   as: 'action' | 'reaction' = 'action',
 ): void {
-  const fear = featureFear(ability, as);
-  if (fear > 0) {
-    demo.state.fear = { ...demo.state.fear, value: Math.max(0, demo.state.fear.value - fear) };
-    note(demo, `The GM spends ${fear} Shadow.`, 'fear');
+  const bad = featureBad(ability, as);
+  if (bad > 0) {
+    demo.state.bad = { ...demo.state.bad, value: Math.max(0, demo.state.bad.value - bad) };
+    note(demo, `The GM spends ${bad} Shadow.`, 'bad');
   }
   if (ability.uses !== undefined) {
     const key = useKey(adversaryId, ability.id);
@@ -2836,10 +2836,10 @@ function tickCountdowns(demo: DemoScene, cue: CountdownCue): void {
 /** Say what a countdown did, and run its effects if it went off. */
 function playCountdown(demo: DemoScene, moved: CountdownMoved): void {
   if (!moved.fired) {
-    note(demo, `${moved.countdown.name}: ${moved.value} to go.`, 'fear');
+    note(demo, `${moved.countdown.name}: ${moved.value} to go.`, 'bad');
     return;
   }
-  note(demo, `${moved.countdown.name} triggers.`, 'fear');
+  note(demo, `${moved.countdown.name} triggers.`, 'bad');
   runCountdown(demo, moved.countdown);
 }
 
@@ -2965,7 +2965,7 @@ function playZoneEntries(demo: DemoScene): void {
 
 /** What the cards said about a roll, as the response that settles it. */
 function answerFrom(said: readonly JournalEntry[]): Response {
-  let reroll: 'hope' | 'fear' | 'both' | undefined;
+  let reroll: 'good' | 'bad' | 'both' | undefined;
   let name = false;
   let raise = 0;
   for (const entry of said) {
@@ -3374,7 +3374,7 @@ function offersFor(
       };
       // Free and automatic is not a question: it happens, the way a stat
       // block's own reactions do.
-      if (ability.auto && (ability.cost.hope ?? 0) === 0 && (ability.cost.stress ?? 0) === 0) {
+      if (ability.auto && (ability.cost.good ?? 0) === 0 && (ability.cost.stress ?? 0) === 0) {
         const ran: JournalEntry[] = [];
         // The landing goes with it: a card that finishes at once is folded
         // into the box below, and one that stops to ask something lands the
@@ -3485,7 +3485,7 @@ function playReaction(
     if (resume) afterReaction(demo, queued, landing, resuming);
     return;
   }
-  note(demo, `${nameOf(demo, offer.by)}: ${offer.ability.name}.`, 'hope');
+  note(demo, `${nameOf(demo, offer.by)}: ${offer.ability.name}.`, 'good');
   const was = demo.scenario.actorId;
   demo.scenario.actorId = offer.by;
   const runner = new ScriptRunner(demo.world, demo.rng, {
@@ -3626,7 +3626,7 @@ function asRerolled(demo: DemoScene, held: HeldSwing | undefined, journal: reado
   if (held === undefined) return held;
   const roll = held.outcome.dualityRoll;
   if (roll === undefined) return held;
-  let which: 'hope' | 'fear' | 'both' | null = null;
+  let which: 'good' | 'bad' | 'both' | null = null;
   let named = false;
   let raised = 0;
   for (const entry of journal) {
@@ -3642,9 +3642,9 @@ function asRerolled(demo: DemoScene, held: HeldSwing | undefined, journal: reado
   if (attacker === undefined || target === undefined || character === undefined) return held;
 
   // Drawn in the printed order, so a seed replays a reroll exactly.
-  const faces: { hope?: number; fear?: number } = {};
-  if (which !== null && which !== 'fear') faces.hope = demo.rng.die(roll.hopeSides ?? HOPE_DIE_SIDES);
-  if (which !== null && which !== 'hope') faces.fear = demo.rng.die(FEAR_DIE_SIDES);
+  const faces: { good?: number; bad?: number } = {};
+  if (which !== null && which !== 'bad') faces.good = demo.rng.die(roll.goodSides ?? GOOD_DIE_SIDES);
+  if (which !== null && which !== 'good') faces.bad = demo.rng.die(BAD_DIE_SIDES);
   let thrown = withFaces(roll, faces);
   // A number put behind it goes on first; a named total makes up the rest.
   if (raised > 0) thrown = withFaces({ ...thrown, modifier: thrown.modifier + raised }, {});
@@ -3655,7 +3655,7 @@ function asRerolled(demo: DemoScene, held: HeldSwing | undefined, journal: reado
   note(
     demo,
     `${nameOf(demo, held.attacker)} throws again: ${describeRoll(thrown)}`,
-    thrown.success ? 'hope' : 'fear',
+    thrown.success ? 'good' : 'bad',
   );
 
   const profile = attackProfile(character);
@@ -3844,7 +3844,7 @@ function affordableReaction(demo: DemoScene, adversaryId: string, ability: Abili
   const entity = demo.state.entity(adversaryId);
   if (entity === undefined) return false;
   if ((ability.cost.stress ?? 0) > unmarked(entity.stress)) return false;
-  if (featureFear(ability, 'reaction') > demo.state.fear.value) return false;
+  if (featureBad(ability, 'reaction') > demo.state.bad.value) return false;
   return featureUsesLeft(demo, adversaryId, ability) > 0;
 }
 
@@ -3906,17 +3906,17 @@ function clearTemporaryConditions(demo: DemoScene, adversaryId: string): void {
  * "…or the GM spends a Shadow on their turn to clear this condition": the Shadow
  * is spent when there is one, on whatever holds the adversary from acting.
  */
-function clearWithFear(demo: DemoScene, adversaryId: string): void {
+function clearWithBad(demo: DemoScene, adversaryId: string): void {
   const adversary = demo.state.entity(adversaryId);
-  if (adversary === undefined || demo.state.fear.value < 1) return;
+  if (adversary === undefined || demo.state.bad.value < 1) return;
   const held = demo.world.blocking(adversaryId, 'act');
   if (held.length === 0) return;
-  demo.state.fear = { ...demo.state.fear, value: demo.state.fear.value - 1 };
+  demo.state.bad = { ...demo.state.bad, value: demo.state.bad.value - 1 };
   for (const condition of held) {
     adversary.conditions.delete(condition);
     adversary.conditionDurations.delete(condition);
   }
-  note(demo, `The GM spends a Shadow: the ${nameOf(demo, adversaryId)} shakes off ${held.join(' and ')}.`, 'fear');
+  note(demo, `The GM spends a Shadow: the ${nameOf(demo, adversaryId)} shakes off ${held.join(' and ')}.`, 'bad');
 }
 
 /**
@@ -4070,11 +4070,11 @@ function boostDamage(
   // A named band wins: a blow that is not being rolled for cannot be added to,
   // so whatever was put behind it goes quiet rather than being counted twice.
   if (band !== undefined) {
-    note(demo, `The blow lands as ${band} damage.`, 'fear');
+    note(demo, `The blow lands as ${band} damage.`, 'bad');
     return { outcome, severity: band };
   }
   if (added <= 0) return { outcome };
-  note(demo, `The blow lands harder by ${added}.`, 'fear');
+  note(demo, `The blow lands harder by ${added}.`, 'bad');
   return { outcome: { ...outcome, damageRoll: { ...outcome.damageRoll, total: outcome.damageRoll.total + added } } };
 }
 
@@ -4154,25 +4154,25 @@ function incomingOf(demo: DemoScene, attack: IncomingAttack): IncomingDamage {
  */
 function landedFeatures(demo: DemoScene, attack: IncomingAttack, hitPointsMarked: number): void {
   const traits = adversaryTraits(attack.def);
-  let fear = 0;
-  if (traits.momentum) fear += 1;
+  let bad = 0;
+  if (traits.momentum) bad += 1;
   if (traits.terrifying) {
-    fear += 1;
+    bad += 1;
     const shaken: string[] = [];
     for (const entity of demo.state.entitiesOf('party')) {
-      if (!entity.alive || entity.hope === undefined) continue;
+      if (!entity.alive || entity.good === undefined) continue;
       const band = demo.world.bandTo(attack.attacker, entity.id);
       if (band === null || !reaches(band, 'close')) continue;
-      if (entity.hope.value <= 0) continue;
-      entity.hope = { max: entity.hope.max, value: entity.hope.value - 1 };
+      if (entity.good.value <= 0) continue;
+      entity.good = { max: entity.good.max, value: entity.good.value - 1 };
       shaken.push(nameOf(demo, entity.id));
     }
-    if (shaken.length > 0) note(demo, `Terrifying: ${shaken.join(', ')} lose a Light.`, 'fear');
+    if (shaken.length > 0) note(demo, `Terrifying: ${shaken.join(', ')} lose a Light.`, 'bad');
   }
-  if (fear > 0) {
-    const gained = gain(demo.state.fear, fear);
-    demo.state.fear = gained.currency;
-    if (gained.applied > 0) note(demo, `The GM gains ${gained.applied} Shadow.`, 'fear');
+  if (bad > 0) {
+    const gained = gain(demo.state.bad, bad);
+    demo.state.bad = gained.currency;
+    if (gained.applied > 0) note(demo, `The GM gains ${gained.applied} Shadow.`, 'bad');
   }
   playAttackRiders(demo, attack.attacker, attack.defender, hitPointsMarked);
 }
@@ -4263,13 +4263,13 @@ function defenderFor(demo: DemoScene, id: string): Defender | null {
     ...(against.defenses === undefined ? {} : { defenses: against.defenses }),
     armorSlots: demo.world.armorFor(id),
     stress: entity.stress,
-    ...(entity.hope === undefined ? {} : { hope: entity.hope }),
+    ...(entity.good === undefined ? {} : { good: entity.good }),
     reactions: demo.world.reactionsOf(id),
   };
 }
 
 const costOf = (ability: AbilityDef): string =>
-  [ability.cost.hope === undefined ? '' : `${ability.cost.hope} Light`, ability.cost.stress === undefined ? '' : `${ability.cost.stress} Stress`]
+  [ability.cost.good === undefined ? '' : `${ability.cost.good} Light`, ability.cost.stress === undefined ? '' : `${ability.cost.stress} Stress`]
     .filter((part) => part !== '')
     .join(' and ');
 
@@ -4471,7 +4471,7 @@ function answeredWith(demo: DemoScene, attack: IncomingAttack, journal: readonly
   // past arguing with, and a bonus that was not enough changes nothing.
   const gm = attack.outcome.gmRoll;
   if (raised > 0 && gm !== undefined) {
-    note(demo, `${who} sees it coming: ${raised} more to beat.`, 'hope');
+    note(demo, `${who} sees it coming: ${raised} more to beat.`, 'good');
     if (!gm.critical && gm.total < gm.difficulty + raised) {
       demo.world.endsOnAttack(attack.attacker);
       note(demo, `The ${attack.def.name}'s ${attack.def.attackName} misses ${who}.`, 'combat');
@@ -4492,7 +4492,7 @@ function answeredWith(demo: DemoScene, attack: IncomingAttack, journal: readonly
     softened <= 0 || roll === undefined
       ? attack
       : { ...attack, outcome: { ...attack.outcome, damageRoll: { ...roll, total: Math.max(0, roll.total - softened) } } };
-  if (softened > 0) note(demo, `${who} turns aside ${softened} of it.`, 'hope');
+  if (softened > 0) note(demo, `${who} turns aside ${softened} of it.`, 'good');
   offerOrLand(demo, stepped <= 0 ? softer : { ...softer, stepped: (softer.stepped ?? 0) + stepped });
 }
 
@@ -4514,12 +4514,12 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
       : resolveDefensePlan(demo.rng, damage, defender, plan);
   if (plan !== null) {
     // `world.defend` pays for what it decided; a chosen plan is paid here.
-    if (defense.hopeSpent > 0) demo.world.spendHope(attack.defender, defense.hopeSpent);
+    if (defense.goodSpent > 0) demo.world.spendGood(attack.defender, defense.goodSpent);
     if (defense.stressMarked > 0) demo.world.markStress(attack.defender, defense.stressMarked);
   }
   for (const used of defense.reactions) {
     const cost = costOf(used.ability);
-    note(demo, `${who}: ${used.ability.name}${used.rolled === undefined ? '' : ` (${used.rolled})`}${cost === '' ? '' : `, ${cost}`}.`, 'hope');
+    note(demo, `${who}: ${used.ability.name}${used.rolled === undefined ? '' : ` (${used.rolled})`}${cost === '' ? '' : `, ${cost}`}.`, 'good');
   }
 
   // "When the target marks an Armor Slot, they reduce the severity of the
@@ -4533,7 +4533,7 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
       ? defense.resolved
       : (() => {
           const band = reduceSeverity(defense.resolved.finalSeverity, aid.steps);
-          note(demo, `The aura around ${who} takes it down to ${band === 'none' ? 'nothing' : band}.`, 'hope');
+          note(demo, `The aura around ${who} takes it down to ${band === 'none' ? 'nothing' : band}.`, 'good');
           return { ...defense.resolved, finalSeverity: band, hpMarked: hpForSeverity(band) };
         })();
   // "If this spell causes a creature who would be damaged to instead mark no
@@ -4541,7 +4541,7 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
   // spends it; a blow it merely softened is not.
   if (aid.endsWhenItSaves.length > 0 && defense.resolved.hpMarked > 0 && aided.hpMarked === 0) {
     for (const name of aid.endsWhenItSaves) demo.world.clearCondition(attack.defender, name);
-    note(demo, `The aura around ${who} goes out.`, 'hope');
+    note(demo, `The aura around ${who} goes out.`, 'good');
   }
 
   // A card that steps the band does it after the armor, because what it is
@@ -4551,7 +4551,7 @@ function landAttack(demo: DemoScene, attack: IncomingAttack, plan: DefensePlan |
       ? aided
       : (() => {
           const band = reduceSeverity(aided.finalSeverity, attack.stepped);
-          note(demo, `${who} rides it down to ${band === 'none' ? 'nothing' : band}.`, 'hope');
+          note(demo, `${who} rides it down to ${band === 'none' ? 'nothing' : band}.`, 'good');
           return { ...aided, finalSeverity: band, hpMarked: hpForSeverity(band) };
         })();
   const final: AttackOutcome = {
@@ -4667,7 +4667,7 @@ export function applyDefenseChoice(demo: DemoScene, attack: IncomingAttack, choi
   const helper = nameOf(demo, choice.by);
   if (choice.kind === 'redirect') {
     if (!payFor(demo, choice.by, choice.ability)) return landAttack(demo, attack, null);
-    note(demo, `${helper} steps in front of ${nameOf(demo, attack.defender)}: ${choice.ability.name}.`, 'hope');
+    note(demo, `${helper} steps in front of ${nameOf(demo, attack.defender)}: ${choice.ability.name}.`, 'good');
     offerOrLand(demo, { ...attack, defender: choice.by, used: [...attack.used, choice.ability.id] });
     return;
   }
@@ -4681,7 +4681,7 @@ export function applyDefenseChoice(demo: DemoScene, attack: IncomingAttack, choi
   if (choice.what === 'damage') {
     // The same swing, a new damage roll: the attack still landed.
     const rolled = rollDamage(demo.rng, attack.def.attackDamage, {});
-    note(demo, `${helper}: ${choice.ability.name}. The blow rolls again — ${rolled.total}.`, 'hope');
+    note(demo, `${helper}: ${choice.ability.name}. The blow rolls again — ${rolled.total}.`, 'good');
     offerOrLand(demo, { ...attack, outcome: { ...attack.outcome, damageRoll: rolled }, used });
     return;
   }
@@ -4700,7 +4700,7 @@ export function applyDefenseChoice(demo: DemoScene, attack: IncomingAttack, choi
     defender: demo.world.defenderOf(target),
     options: { bandTiles: DEMO_BAND_TILES, armorSlotsMarked: 0 },
   });
-  note(demo, `${helper}: ${choice.ability.name}. The ${attack.def.name} swings again.`, 'hope');
+  note(demo, `${helper}: ${choice.ability.name}. The ${attack.def.name} swings again.`, 'good');
   if (again.refused !== null || !again.hit || again.damageRoll === undefined) {
     applyAttack(demo.state, again);
     demo.world.endsOnAttack(attack.attacker);
@@ -4715,9 +4715,9 @@ export function applyDefenseChoice(demo: DemoScene, attack: IncomingAttack, choi
 function payFor(demo: DemoScene, id: string, ability: AbilityDef): boolean {
   const entity = demo.state.entity(id);
   if (entity === undefined) return false;
-  const hope = ability.cost.hope ?? 0;
+  const good = ability.cost.good ?? 0;
   const stress = ability.cost.stress ?? 0;
-  if (hope > 0 && !demo.world.spendHope(id, hope)) return false;
+  if (good > 0 && !demo.world.spendGood(id, good)) return false;
   if (stress > 0) demo.world.markStress(id, stress);
   // "Once per rest" is part of the price. Every path that plays a card of the
   // party's - a reaction they were offered, a defence they chose, a card in
@@ -4746,7 +4746,7 @@ function spendUse(demo: DemoScene, id: string, ability: AbilityDef): void {
 function canPlay(
   demo: DemoScene,
   id: string,
-  defender: Pick<Defender, 'hope' | 'stress'>,
+  defender: Pick<Defender, 'good' | 'stress'>,
   ability: AbilityDef,
 ): boolean {
   return canPayFor(defender, ability) && featureUsesLeft(demo, id, ability) > 0;
@@ -5075,20 +5075,20 @@ function floatEntry(demo: DemoScene, entry: JournalEntry): void {
       // the journal has only the total; "+6" over each of five heads would be
       // a lie, so it stays in the log.
       if (entry.spread === true) return;
-      for (const id of entry.ids ?? []) float(demo, id, `+${entry.amount}`, 'hope');
+      for (const id of entry.ids ?? []) float(demo, id, `+${entry.amount}`, 'good');
       return;
     case 'stress':
-      if (entry.cleared > 0) float(demo, entry.id, `-${entry.cleared} Stress`, 'hope');
-      else float(demo, entry.id, `+${entry.marked} Stress`, 'fear');
+      if (entry.cleared > 0) float(demo, entry.id, `-${entry.cleared} Stress`, 'good');
+      else float(demo, entry.id, `+${entry.marked} Stress`, 'bad');
       return;
     case 'armor':
-      float(demo, entry.id, `+${entry.cleared} Armor`, 'hope');
+      float(demo, entry.id, `+${entry.cleared} Armor`, 'good');
       return;
     case 'condition':
       if (entry.applied) float(demo, entry.id, demo.world.conditionName(entry.condition), 'combat');
       return;
-    case 'hope':
-      if (entry.id !== undefined) float(demo, entry.id, `+${entry.gained} Light`, 'hope');
+    case 'good':
+      if (entry.id !== undefined) float(demo, entry.id, `+${entry.gained} Light`, 'good');
       return;
     default:
       return;
@@ -5285,13 +5285,13 @@ function describeEntry(
           }
         : { text: `${who(entry.attacker)} swings the ${entry.weapon} at ${who(entry.target)} and misses.`, tone: 'combat' };
     case 'stress':
-      if (entry.cleared > 0) return { text: `${who(entry.id)} clears ${plural(entry.cleared, 'Stress')}.`, tone: 'hope' };
+      if (entry.cleared > 0) return { text: `${who(entry.id)} clears ${plural(entry.cleared, 'Stress')}.`, tone: 'good' };
       return {
         text: `${who(entry.id)} marks ${plural(entry.marked, 'Stress')}${entry.hitPoints > 0 ? ' and, with no slot left, a Hit Point' : ''}.`,
-        tone: 'fear',
+        tone: 'bad',
       };
     case 'armor':
-      return { text: `${who(entry.id)} clears ${plural(entry.cleared, 'Armor Slot')}.`, tone: 'hope' };
+      return { text: `${who(entry.id)} clears ${plural(entry.cleared, 'Armor Slot')}.`, tone: 'good' };
     case 'condition': {
       // The condition's name, not the id it is keyed by: "Kara is Holding the
       // Line" rather than "Kara is holding-the-line".
@@ -5305,24 +5305,24 @@ function describeEntry(
         ? { text: `${who(entry.id)} crosses the ground.`, tone: 'combat' }
         : { text: `${who(entry.id)} is thrown back.`, tone: 'combat' };
     case 'marked':
-      return { text: `${who(entry.id)} marks the ground where they stand.`, tone: 'hope' };
+      return { text: `${who(entry.id)} marks the ground where they stand.`, tone: 'good' };
     case 'rollRaised':
-      return { text: `Another ${entry.by} goes behind the roll.`, tone: 'hope' };
+      return { text: `Another ${entry.by} goes behind the roll.`, tone: 'good' };
     case 'countdown':
-      return { text: `${entry.name} begins: ${entry.value}.`, tone: 'fear' };
+      return { text: `${entry.name} begins: ${entry.value}.`, tone: 'bad' };
     case 'replaced': {
       const first = entry.ids[0];
       if (first === undefined) return null;
       return {
         text: `${entry.was} is gone: ${entry.ids.length === 1 ? who(first) : `${entry.ids.length} ${who(first)}s`} in their place.`,
-        tone: 'fear',
+        tone: 'bad',
       };
     }
     case 'spotlighted': {
       const called = entry.ids.map(who).join(', ');
       return {
         text: `${called} ${entry.ids.length === 1 ? 'is' : 'are'} called into the fight${entry.halfDamage ? ', striking for half' : ''}.`,
-        tone: 'fear',
+        tone: 'bad',
       };
     }
     case 'summoned': {
@@ -5331,7 +5331,7 @@ function describeEntry(
       const name = who(first);
       return {
         text: `${entry.ids.length} ${name}${entry.ids.length === 1 ? '' : 's'} arrive${entry.ids.length === 1 ? 's' : ''}.`,
-        tone: 'fear',
+        tone: 'bad',
       };
     }
     case 'reaction':
@@ -5342,29 +5342,29 @@ function describeEntry(
     case 'refused':
       return { text: `That cannot happen: ${entry.reason}.`, tone: 'system' };
     case 'defended': {
-      const cost = [entry.hopeSpent > 0 ? `${entry.hopeSpent} Light` : '', entry.stressMarked > 0 ? `${entry.stressMarked} Stress` : ''].filter((c) => c !== '').join(' and ');
-      return { text: `${who(entry.id)}: ${entry.ability}${entry.rolled === undefined ? '' : ` (${entry.rolled})`}${cost === '' ? '' : `, ${cost}`}.`, tone: 'hope' };
+      const cost = [entry.goodSpent > 0 ? `${entry.goodSpent} Light` : '', entry.stressMarked > 0 ? `${entry.stressMarked} Stress` : ''].filter((c) => c !== '').join(' and ');
+      return { text: `${who(entry.id)}: ${entry.ability}${entry.rolled === undefined ? '' : ` (${entry.rolled})`}${cost === '' ? '' : `, ${cost}`}.`, tone: 'good' };
     }
-    case 'hopeSpent':
-      return { text: `Spends ${plural(entry.amount, 'Light')}.`, tone: 'hope' };
+    case 'goodSpent':
+      return { text: `Spends ${plural(entry.amount, 'Light')}.`, tone: 'good' };
     case 'experience':
-      return { text: `Draws on "${entry.name}" (+${entry.modifier}).`, tone: 'hope' };
-    case 'hope':
-      return entry.id === undefined ? null : { text: `${who(entry.id)} gains ${plural(entry.gained, 'Light')}.`, tone: 'hope' };
-    case 'hopeLost':
-      return { text: `${who(entry.id)} loses ${plural(entry.lost, 'Light')}.`, tone: 'fear' };
-    case 'fearLost':
-      return { text: `The GM loses ${plural(entry.lost, 'Shadow')}.`, tone: 'hope' };
+      return { text: `Draws on "${entry.name}" (+${entry.modifier}).`, tone: 'good' };
+    case 'good':
+      return entry.id === undefined ? null : { text: `${who(entry.id)} gains ${plural(entry.gained, 'Light')}.`, tone: 'good' };
+    case 'goodLost':
+      return { text: `${who(entry.id)} loses ${plural(entry.lost, 'Light')}.`, tone: 'bad' };
+    case 'badLost':
+      return { text: `The GM loses ${plural(entry.lost, 'Shadow')}.`, tone: 'good' };
     // Quest events are news, unlike the flags underneath them: the journal
     // changed, and the player should hear it without opening the journal.
     case 'quest': {
       const name = quests.get(entry.quest)?.name ?? entry.quest;
       if (entry.change === 'started') return { text: `New quest: ${name}.`, tone: 'system' };
       if (entry.change === 'completed') return { text: `Quest complete: ${name}.`, tone: 'success' };
-      return { text: `Quest failed: ${name}.`, tone: 'fear' };
+      return { text: `Quest failed: ${name}.`, tone: 'bad' };
     }
     case 'levelUp':
-      return { text: `The party reaches level ${entry.level}.`, tone: 'hope' };
+      return { text: `The party reaches level ${entry.level}.`, tone: 'good' };
     case 'objective': {
       const quest = quests.get(entry.quest);
       const step = quest?.objectives.find((o) => o.id === entry.objective)?.text ?? entry.objective;
@@ -5398,9 +5398,9 @@ function describeEntry(
           tone: 'combat',
         };
       }
-      return { text: `You take ${entry.amount} damage.`, tone: 'fear' };
+      return { text: `You take ${entry.amount} damage.`, tone: 'bad' };
     case 'heal':
-      return { text: `You recover ${entry.amount}.`, tone: 'hope' };
+      return { text: `You recover ${entry.amount}.`, tone: 'good' };
     case 'check':
       if (entry.reused === true) {
         return {
@@ -5432,7 +5432,7 @@ function describeEntry(
  * outcome. Only the parts that applied are named.
  */
 export function describeRoll(roll: DualityRoll): string {
-  const parts = [`Light ${roll.hope} + Shadow ${roll.fear}`];
+  const parts = [`Light ${roll.good} + Shadow ${roll.bad}`];
   if (roll.advantageDie > 0) parts.push(`+ d6 ${roll.advantageDie}`);
   if (roll.advantageDie < 0) parts.push(`− d6 ${-roll.advantageDie}`);
   if (roll.helpBonus > 0) parts.push(`+ help ${roll.helpBonus}`);
@@ -5444,20 +5444,20 @@ function describeOutcome(outcome: CheckOutcome): string {
   switch (outcome) {
     case 'criticalSuccess':
       return 'A critical success.';
-    case 'successWithHope':
+    case 'successWithGood':
       return 'Success, with Light.';
-    case 'successWithFear':
+    case 'successWithBad':
       return 'Success, with Shadow.';
-    case 'failureWithHope':
+    case 'failureWithGood':
       return 'Failure, with Light.';
-    case 'failureWithFear':
+    case 'failureWithBad':
       return 'Failure, with Shadow.';
   }
 }
 
 function toneFor(outcome: CheckOutcome): LogTone {
   if (outcome === 'criticalSuccess') return 'success';
-  return outcome.startsWith('success') ? 'hope' : 'fear';
+  return outcome.startsWith('success') ? 'good' : 'bad';
 }
 
 /** Trait modifiers for whoever is acting, so a check uses the real sheet. */
@@ -5521,7 +5521,7 @@ export function applyLevelUp(demo: DemoScene, characterId: string, plan: LevelUp
   // The script world caches the party's best traits; a raised Strength has to
   // reach the next check.
   refreshWorld(demo);
-  note(demo, `${result.sheet.name} reaches level ${result.sheet.level}.`, 'hope');
+  note(demo, `${result.sheet.name} reaches level ${result.sheet.level}.`, 'good');
   return { ok: true, level: result.sheet.level };
 }
 

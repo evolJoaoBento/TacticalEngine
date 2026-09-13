@@ -30,7 +30,7 @@ function clock(over: Partial<RunningCountdown> = {}): RunningCountdown {
 const board = (...countdowns: RunningCountdown[]): CountdownBoard =>
   new Map(countdowns.map((countdown) => [countdown.id, countdown]));
 
-const ROLL = { kind: 'actionRoll', attack: false, outcome: 'successWithHope' } as const;
+const ROLL = { kind: 'actionRoll', attack: false, outcome: 'successWithGood' } as const;
 
 describe('advanceBoard', () => {
   it('moves what the cue speaks to and leaves the rest alone', () => {

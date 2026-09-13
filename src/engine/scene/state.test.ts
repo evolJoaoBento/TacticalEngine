@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { TileGrid } from '../grid/grid';
 import { Pathfinder } from '../grid/pathfinding';
-import { createFear } from '../rules/resources';
+import { createBad } from '../rules/resources';
 import { blankScene } from './grid-from-scene';
 import { sceneSchema } from './schema';
 import {
@@ -44,8 +44,8 @@ describe('SceneState entities', () => {
     const state = makeState();
     state.addEntity(createPartyEntity('kara', 'sentinel', 0));
     state.addEntity(createAdversaryEntity('husk-1', 'hollow-husk', 4, { hitPoints: 5, stress: 3 }));
-    expect(state.entity('kara')!.hope!.value).toBe(2);
-    expect(state.entity('husk-1')!.hope).toBeUndefined();
+    expect(state.entity('kara')!.good!.value).toBe(2);
+    expect(state.entity('husk-1')!.good).toBeUndefined();
   });
 });
 
@@ -255,7 +255,7 @@ describe('snapshot and restore', () => {
     state.interactable('chest').open = true;
     state.interactable('pillar').data['lit'] = true;
     state.encounter('group-1').started = true;
-    state.fear = createFear(4);
+    state.bad = createBad(4);
     return state;
   };
 
@@ -263,7 +263,7 @@ describe('snapshot and restore', () => {
     const snapshot = populate(makeState()).snapshot();
     expect(() => JSON.stringify(snapshot)).not.toThrow();
     expect(snapshot.entities['kara']!.conditions).toEqual(['vulnerable']);
-    expect(snapshot.fear.value).toBe(4);
+    expect(snapshot.bad.value).toBe(4);
   });
 
   it('round-trips through JSON, rebuilding the occupancy index', () => {
@@ -290,7 +290,7 @@ describe('snapshot and restore', () => {
       entities: {},
       interactables: {},
       encounters: {},
-      fear: createFear(0),
+      bad: createBad(0),
     });
     expect(state.allEntities()).toEqual([]);
     expect(state.occupantsOf(5)).toEqual([]);
@@ -502,8 +502,8 @@ describe('sceneStateFromScene', () => {
   });
 
   it('carries the GM Shadow in from the previous scene', () => {
-    expect(build({ fear: createFear(7) }).state.fear.value).toBe(7);
-    expect(build().state.fear.value).toBe(0);
+    expect(build({ bad: createBad(7) }).state.bad.value).toBe(7);
+    expect(build().state.bad.value).toBe(0);
   });
 
   it('produces a state the pathfinder can route around', () => {
