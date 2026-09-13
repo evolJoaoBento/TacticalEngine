@@ -11,6 +11,7 @@ import {
   addCard,
   addCardWithAbility,
   removeAbility,
+  removeCard,
   removeCardWithAbility,
   updateAbility,
   updateCard,
@@ -127,6 +128,29 @@ describe('cards in the project', () => {
       expect(loaded.cards.find((c) => c.id === 'oath')!.grant).toEqual(change.grant);
       expect(isDomainCard(mergePack(STARTER_CHARACTERS, loaded).cards.get('oath')!)).toBe(change.grant!.kind === 'chosen');
     }
+  });
+
+  it("takes the copy back out, and the pack's card is the one played again, with the abilities on it", () => {
+    const s = session();
+    const packed = STARTER_CHARACTERS.cards.get('power-slash')!;
+    const played = () => mergePack(STARTER_CHARACTERS, s.project).cards.get('power-slash')!;
+    s.run(addCard(cardDefSchema.parse(packed)));
+    s.run(updateCard('power-slash', { recallCost: 3 }));
+    s.run(addAbility(abilitySchema.parse({ id: 'follow-through', name: 'Follow Through', source: { card: 'power-slash' } })));
+    expect(played().recallCost).toBe(3);
+
+    expect(s.run(removeCard('power-slash'))).toBe(true);
+    expect(s.project.cards).toEqual([]);
+    expect(played()).toBe(packed);
+    // The ability stays, on the pack's card under the same id.
+    expect(s.project.abilities.find((a) => a.id === 'follow-through')?.source).toEqual({ card: 'power-slash' });
+    // Nothing left to take out is not an undo step.
+    expect(s.run(removeCard('power-slash'))).toBe(false);
+
+    s.undo();
+    expect(played().recallCost).toBe(3);
+    s.redo();
+    expect(played()).toBe(packed);
   });
 
   it("edits a copy of the pack's card, which the project plays over the pack's until it is undone", () => {

@@ -164,7 +164,7 @@ so the record of what was first thought survives: the header's "can ride slice 4
     into a loadout writes the grant and the four numbers in one edit, the card's own where it has
     them; switching out keeps them, since a granted card may carry them. A pack's card is never
     written: **Edit a copy** adds it to the project, where `mergePack` lays it over the pack's by id,
-    whole. A card with no ability on it was out of reach while the panel listed only abilities;
+    whole, and **Remove copy** takes it back out. A card with no ability on it was out of reach while the panel listed only abilities;
     it is listed under Text only now.
 12. **The GM's side is face up where somebody looks.** Inspecting a creature shows the cards its
     block prints -- every card granted by `adversary` to it, scripted or not -- read from the project

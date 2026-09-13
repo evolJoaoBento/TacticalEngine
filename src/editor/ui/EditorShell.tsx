@@ -69,6 +69,8 @@ export interface EditorShellProps {
   libraryAbilities: readonly AbilityDef[];
   /** The vendored SRD content the Party panel picks from, and validates against. */
   characterContent: ContentPack;
+  /** The same pack before the project is laid over it: which of the project's cards copy one of its own. */
+  characterPack: ContentPack;
   /** The scene the party is standing in, which need not be the one being edited. */
   playingScene: string;
   onPlay: () => void;
@@ -330,6 +332,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           hookIds={hookIds}
           adversaryIds={props.adversaries.map((a) => a.id)}
           content={props.characterContent}
+          pack={props.characterPack}
           {...ids}
           onChange={bump}
           onClose={closeWorkspace}

@@ -683,6 +683,7 @@ function renderPanel(): void {
       nativeHooks: [...SRD_HOOKS.keys()],
       libraryAbilities: STARTER_ABILITIES,
       characterContent: characterContentFor(demo.project),
+      characterPack: characterContentFor(),
       playingScene: demo.scene.id,
       onPlay: () => setMode('play'),
       onPlayHere: () => playAt(editor.sceneId, null),

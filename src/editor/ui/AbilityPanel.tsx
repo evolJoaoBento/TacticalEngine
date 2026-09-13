@@ -21,7 +21,7 @@
 
 import { useState } from 'preact/hooks';
 import type { EditorSession } from '../session';
-import { addAbility, addCard, addCardWithAbility, removeCardWithAbility, updateAbility, updateCard } from '../session';
+import { addAbility, addCard, addCardWithAbility, removeCard, removeCardWithAbility, updateAbility, updateCard } from '../session';
 import { scriptIdFor, unscriptedCards } from '../card-list';
 import { abilitySchema, cardOf, type AbilityDef } from '../../engine/content/abilities';
 import { cardDefSchema } from '../../engine/content/pack/schema';
@@ -47,6 +47,8 @@ export interface AbilityPanelProps {
   adversaryIds: readonly string[];
   /** What a card's grant can name: the classes, subclasses, ancestries and communities there are. */
   content: ContentPack;
+  /** The pack the app ships, before the project is laid over it: which of the project's cards are copies. */
+  pack: ContentPack;
   sceneIds: readonly string[];
   dialogueIds: readonly string[];
   encounterIds: readonly string[];
@@ -160,12 +162,14 @@ const idList = (text: string): string[] =>
 /**
  * How the card an ability sits on gets into play, and -- for a chosen card -- the four numbers a
  * loadout reads. The project's own card is edited where it stands. A pack's card is shown as the pack
- * has it, beside a button that lays a copy into the project, which is then the card played.
+ * has it, beside a button that lays a copy into the project, which is then the card played; a copy
+ * carries a button that takes it back out, and the pack's is played again.
  */
 function GrantFields(props: {
   session: EditorSession;
   cardId: string;
   content: ContentPack;
+  pack: ContentPack;
   onChange: () => void;
 }): preact.JSX.Element {
   const card = props.session.project.cards.find((c) => c.id === props.cardId);
@@ -343,6 +347,19 @@ function GrantFields(props: {
       {grant.kind === 'community'
         ? pick(grant.communityId, choices(props.content.communities), (communityId) => set({ kind: 'community', communityId }), 'card-grant-community')
         : null}
+      {props.pack.cards.has(card.id) ? (
+        <button
+          style={button(false)}
+          data-testid="card-remove-copy"
+          title="Take the project's copy out, and play the pack's card again"
+          onClick={() => {
+            props.session.run(removeCard(card.id));
+            props.onChange();
+          }}
+        >
+          Remove copy
+        </button>
+      ) : null}
     </>
   );
 }
@@ -356,6 +373,7 @@ function CardDetail(props: {
   session: EditorSession;
   card: CardDef;
   content: ContentPack;
+  pack: ContentPack;
   onChange: () => void;
   onScript: (abilityId: string) => void;
 }): preact.JSX.Element {
@@ -392,7 +410,7 @@ function CardDetail(props: {
         </div>
       )}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <GrantFields session={props.session} cardId={props.card.id} content={props.content} onChange={props.onChange} />
+        <GrantFields session={props.session} cardId={props.card.id} content={props.content} pack={props.pack} onChange={props.onChange} />
       </div>
       <div style={{ color: 'var(--ph-muted)' }}>
         No ability sits on this card, so there is nothing for the engine to run: its holder reads it and the
@@ -561,7 +579,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, overflow: 'auto' }}>
         {openCard !== null ? (
-          <CardDetail session={session} card={openCard} content={props.content} onChange={props.onChange} onScript={pickAbility} />
+          <CardDetail session={session} card={openCard} content={props.content} pack={props.pack} onChange={props.onChange} onScript={pickAbility} />
         ) : open === null ? (
           <div style={{ color: 'var(--ph-muted)' }}>
             Nothing selected. A card is its text plus a script; a card with no script is still a card — its
@@ -589,7 +607,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
             />
 
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <GrantFields session={session} cardId={cardOf(open)} content={props.content} onChange={props.onChange} />
+              <GrantFields session={session} cardId={cardOf(open)} content={props.content} pack={props.pack} onChange={props.onChange} />
               {label(
                 'is a',
                 <select

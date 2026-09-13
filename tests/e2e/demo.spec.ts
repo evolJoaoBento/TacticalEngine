@@ -2271,6 +2271,46 @@ test("edits a copy of the pack's card, and the loadout plays the copy", async ({
   expect(consoleErrors).toEqual([]);
 });
 
+test("takes the copy back out, and the table plays the pack's card again", async ({ page }) => {
+  const consoleErrors = await boot(page);
+  page.on('dialog', (dialog) => void dialog.accept('Standard Bearer'));
+
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-abilities"]').click();
+  const panel = page.locator('[data-testid="ability-panel"]');
+
+  // Only a copy has one: the pack's card is offered a copy, not a removal.
+  await panel.locator('[data-ability="power-slash"]').click();
+  await expect(panel.locator('[data-testid="card-remove-copy"]')).toHaveCount(0);
+  await panel.locator('[data-testid="card-copy-pack"]').click();
+  await panel.locator('[data-testid="card-recall"]').fill('3');
+  await panel.locator('[data-testid="card-remove-copy"]').click();
+  await expect(panel.locator('[data-testid="card-grant-kind"]')).toHaveText("the pack's card");
+  await expect(panel.locator('[data-testid="card-copy-pack"]')).toBeVisible();
+  expect(
+    await page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { cards: { id: string }[] }).cards.some((c) => c.id === 'power-slash')),
+  ).toBe(false);
+
+  // A card of the project's own copies nothing, so it has no copy to remove.
+  await panel.locator('[data-testid="add-ability"]').click();
+  await expect(panel.locator('[data-testid="card-grant-kind"]')).toHaveValue('given');
+  await expect(panel.locator('[data-testid="card-remove-copy"]')).toHaveCount(0);
+
+  // And the table plays the pack's card: Kara's Power Slash recalls for one again.
+  await panel.locator('[data-testid="close-abilities"]').click();
+  await page.evaluate(() => {
+    const api = window.__engine!;
+    api.setMode('play');
+    api.select('kara');
+    api.setCards('kara', ['power-slash']);
+  });
+  await page.getByTestId('open-loadout').click();
+  await expect(page.getByTestId('loadout').locator('[data-card="power-slash"] .face-recall')).toContainText('1');
+
+  expect(consoleErrors).toEqual([]);
+});
+
 test('lends a card by a condition, and Kara holds it while the condition is on her and not after', async ({ page }) => {
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Oathmark'));

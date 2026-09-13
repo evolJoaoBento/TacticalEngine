@@ -4,6 +4,21 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Remove copy — done
+
+A copy of a pack's card could only be taken back by Undo: ✕ on its ability leaves the copy, still
+played. A copy now carries **Remove copy** (`removeCard`, `editor/session.ts`): the project's card
+goes, `mergePack` has nothing to lay over the pack's, and the pack's is the card played again, the
+abilities on it where they were. Only a copy offers it -- a project card the shipped pack also prints
+-- so the panel is handed that pack before the project is laid over it (`characterPack`). Nothing
+new for **Check** to say: a removed copy leaves the pack's card, which it already reads. The e2e
+copies Power Slash, sets its recall to 3, removes the copy, finds a project's own card offering
+none, and finds 1 on Kara's loadout.
+
+`npx tsc --noEmit` clean; vitest **1861 passed (1861)**; Playwright **112 passed (4.0m)**, `EXIT 0`.
+Three breaks -- the edit removing nothing, Undo leaving the copy out, every project card offering
+the button -- each fail the test written for them.
+
 ## A condition lends a card — done
 
 A condition used to lend one ability (`grants: { ability }`). Now a card says it is lent by a
@@ -124,9 +139,9 @@ opens, held or not -- the party's own warning covers a held card outside its hol
 about one past level 10. The e2e copies Power Slash, grants it to a class and back, sets its recall
 to 3, and finds 3 on Kara's loadout.
 
-**Still open:** the only way back to the pack's card is Undo: ✕ on the ability leaves the copy,
-still played. A card with no ability on it, and a card's own name and text, were open here too;
-*Text-only cards in the Cards panel*, above, reaches them.
+**Since closed:** the way back to the pack's card was only Undo, since ✕ on the ability leaves the
+copy; *Remove copy*, above, is the way back now. A card with no ability on it, and a card's own name
+and text, were open here too; *Text-only cards in the Cards panel*, above, reaches them.
 
 `npx tsc --noEmit` clean; vitest **1843 passed (1843)**; Playwright **106 passed (3.7m)**, `EXIT 0`. Four breaks -- a loadout
 written without its numbers, the project's cards laid over nothing, no warning for an unopened
@@ -719,7 +734,7 @@ block. What landed is the entry at the top of this file. What is left, in order:
 - **Zones on screen** are done for a character: the loadout's **Always in play**, and every card's
   art on the action bar.
 - **Editing any card** is done: the grant editor, a chosen card's domain, type, level and recall
-  cost, and a pack's card through **Edit a copy**.
+  cost, and a pack's card through **Edit a copy**, with **Remove copy** the way back.
 - **Cheaper, not different:** the world's `cards` option is a closure that merges the pack on every
   read. The live read that two tests pin is `inPlay` recomputing a character's granted cards; a map
   built when the world is, if every content change rebuilds the world, would do. Measure first.

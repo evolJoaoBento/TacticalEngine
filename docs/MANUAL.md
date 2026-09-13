@@ -572,7 +572,8 @@ opens), **type**, **level** and **recall** cost -- and the panel writes all four
 switched into one; switched out again, the card keeps them. A card the pack prints says so, and
 **Edit a copy** lays a copy of it into the project: a project's card replaces the pack's under the
 same id, whole, so the copy is what the table plays from then on and the pack is never written.
-✕ on its ability leaves the copy, still played; the way back is Undo. **Check** warns when a grant
+✕ on its ability leaves the copy, still played; **Remove copy**, on the copy, takes it out, and
+the pack's card is played again with the abilities on it where they were. **Check** warns when a grant
 names something nothing defines, about a card given to nobody or printed on no block, and about a
 chosen card in a domain no class opens or past level 10. A card is its
 name, the text as printed, who holds it, whether it is an action, a

@@ -1832,6 +1832,32 @@ export function addCard(card: ProjectCard): Edit {
   };
 }
 
+/**
+ * Take a card of the project's own out of it. What "Remove copy" runs on a copy of a pack's card:
+ * with the project's card gone, `mergePack` has nothing to lay over the pack's, so the pack's is the
+ * card played again. The abilities on it stay where they are, on the pack's card under the same id.
+ * A card the project does not have makes the edit a no-op.
+ */
+export function removeCard(cardId: string): Edit {
+  let removed: { index: number; card: ProjectCard } | null = null;
+  return {
+    label: `Remove card ${cardId}`,
+    apply(project) {
+      removed = null;
+      const index = project.cards.findIndex((c) => c.id === cardId);
+      if (index < 0) return;
+      removed = { index, card: project.cards[index]! };
+      project.cards.splice(index, 1);
+    },
+    undo(project) {
+      if (removed !== null) project.cards.splice(removed.index, 0, removed.card);
+    },
+    isNoop() {
+      return removed === null;
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Logic in code
 // ---------------------------------------------------------------------------
