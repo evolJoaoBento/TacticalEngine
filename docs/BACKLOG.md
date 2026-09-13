@@ -45,6 +45,11 @@ Cards workspace already lists imported abilities to edit, but classes and subcla
 feature text rather than card ids. And an import cannot be written back out as a pack on its own —
 Save JSON writes the whole project.
 
+**Known, and not new:** undoing an import while in *play* rewrites the document but not the running
+world. `undoEdit` rebuilds nothing in play, so an undone card stays offered until the next rebuild —
+a trip through the editor does it. Every content undo made in play has this shape; the fix belongs in
+`undoEdit` and `redoEdit` for all edit kinds, not in the import.
+
 ---
 
 ## Slice 3 — done
@@ -91,10 +96,10 @@ explain what `cover.ts`, `los.ts` and `area.ts` implement.
 
 ---
 
-**Pinned to commit `01b4c83`.** At that commit: `npx tsc --noEmit` clean, **1834 of 1835 unit tests
+**Pinned to commit `c65508a`.** At that commit: `npx tsc --noEmit` clean, **1821 of 1822 unit tests
 passing across 92 files**. The single failure is the documented deliberate one in
 `demo-defense.test.ts` — a Stress assertion left red after four attempts rather than guessed at, with
-what was ruled out recorded in its commit. **Playwright is green: 103 passed, 3.6 minutes, `EXIT 0`** — a full run, not a tally of targeted
+what was ruled out recorded in its commit. **Playwright is green: 105 passed, 3.8 minutes, `EXIT 0`** — a full run, not a tally of targeted
 ones. All 21 failures are fixed. What follows is the diagnosis of the red run that found them, kept
 because the cause and the tiering are the reusable parts.
 

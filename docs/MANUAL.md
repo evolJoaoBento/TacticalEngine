@@ -622,7 +622,7 @@ in turn, and a message says what each brought.
   comes in. A file with nothing readable in it, or one written by a newer build, is refused and
   changes nothing.
 - A file written before the Light and Shadow rename is rewritten on the way in, as a project is.
-- The whole import is **one** undo step.
+- Each file is **one** undo step, however much it brings.
 
 What was imported is the project's own from then on: the Party panel offers its classes and cards,
 the Combat strip its creatures, and the **Cards** workspace lists its abilities to edit. Save the
