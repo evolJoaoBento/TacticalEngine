@@ -1083,7 +1083,7 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   it comes. Damage from a script (a card, a trap) is still resolved automatically, and so is
   everything in a headless run, where there is nobody to ask.
 - **A card or a stat block's feature with no script is text**: shown and read, and the table
-  decides. Of the starter pack's 39 cards, 22 are text -- three a character chooses, and nineteen
+  decides. Of the starter pack's 39 cards, 20 are text -- one a character chooses, and nineteen
   features a class, subclass, ancestry or community prints; an
   imported pack's cards are as scripted as the pack made them, and an adversary plays the features it can run and otherwise falls back on its
   standard attack. A card is text when it asks for something the engine has no number for, such as

@@ -38,6 +38,7 @@ import {
   useAbility,
 } from './demo-abilities';
 import {
+  DEMO_BAND_TILES,
   adversaryDefOf,
   characterContentFor,
   answerPending,
@@ -716,5 +717,45 @@ describe('a card a condition lends', () => {
     const printed = demo.world.heldBy(husk.id).map((a) => a.id);
     demo.world.applyCondition(husk.id, 'steadied', 'scene');
     expect(demo.world.heldBy(husk.id).map((a) => a.id)).toEqual([...printed, 'steady-footing', 'steady-strike']);
+  });
+});
+
+describe('the call and the step', () => {
+  /** A free, passable tile at a distance from somebody, within the bounds given. */
+  const standing = (demo: DemoScene, from: number, near: number, far: number): number => {
+    const taken = new Set([...demo.state.entitiesOf('party'), ...demo.state.entitiesOf('adversary')].map((e) => e.tile));
+    const tile = [...Array(demo.grid.size).keys()].find((t) => {
+      const d = demo.grid.euclideanDistance(from, t);
+      return demo.grid.isPassable(t) && !taken.has(t) && d > near && d <= far;
+    });
+    expect(tile).toBeDefined();
+    return tile!;
+  };
+
+  it('Rallying Cry clears a Stress from each ally who can hear it, and the one calling out pays one', () => {
+    const demo = scene('rally');
+    holds(demo, 'kara', ['rallying-cry']);
+    for (const id of ['kara', 'finn', 'mira']) demo.state.entity(id)!.stress = { max: 6, marked: 2 };
+    // Out past Far, nobody hears it. A span is rounded before it is banded, so past Far is more than
+    // Far and a half away.
+    demo.state.moveEntity('mira', standing(demo, demo.state.entity('kara')!.tile, DEMO_BAND_TILES.far + 0.5, Infinity));
+    expect(demo.grid.euclideanDistance(demo.state.entity('kara')!.tile, demo.state.entity('finn')!.tile)).toBeLessThanOrEqual(DEMO_BAND_TILES.far);
+
+    expect(useAbility(demo, 'kara', 'rallying-cry').status).toBe('done');
+    expect(demo.state.entity('finn')!.stress.marked).toBe(1);
+    expect(demo.state.entity('mira')!.stress.marked).toBe(2);
+    expect(demo.state.entity('kara')!.stress.marked).toBe(3);
+  });
+
+  it('Smoke Step puts its holder down on a spot within Close, and no farther', () => {
+    const demo = scene('step');
+    holds(demo, 'finn', ['smoke-step']);
+    const finn = demo.state.entity('finn')!;
+    const from = finn.tile;
+    const spot = standing(demo, from, 1.5, DEMO_BAND_TILES.close);
+
+    expect(useAbility(demo, 'finn', 'smoke-step', [], { point: spot }).status).toBe('done');
+    expect(finn.tile).toBe(spot);
+    expect(demo.log.some((line) => line.text.includes('somewhere else'))).toBe(true);
   });
 });

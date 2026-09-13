@@ -4,6 +4,24 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Two starter cards stop being text — done
+
+Rallying Cry and Smoke Step shipped as text only, though nothing they say was out of the
+vocabulary's reach. **Rallying Cry** clears a Stress from each ally within Far -- "who can hear
+you" -- and costs the one calling out a Stress, as every card in the pack pays in Stress rather than
+Light. **Smoke Step** puts its holder down on a spot within Close, a blink rather than a walk, since
+nothing between two shadows has to let them pass. `cut-purse-strings` is the one text card left
+among the chosen, and its blocker is real. Twenty of the pack's thirty-nine cards are text now:
+one chosen, nineteen printed features.
+
+Three places had leaned on Rallying Cry being text. The card-list test and the e2e that rewords a
+pack's text card, and the one that finds no delete on it, now use Cut Purse Strings; and a defence
+test's own reaction had borrowed the id `rallying-cry`, which would have sat beside the shipped one,
+and has one of its own.
+
+`npx tsc --noEmit` clean; vitest **1870 passed (1870)**; Playwright **115 passed (4.2m)**, `EXIT 0`. Two breaks --
+the call reaching nobody, and the step going nowhere -- each fail the test written for them.
+
 ## The run on the hover path — done
 
 Hovering the ground in a fight drew the part of the walk past one move in red, whether a run would
@@ -692,9 +710,9 @@ of one domain each, generic ancestries, 15 chosen cards at levels 1 and 2 only (
 about ten adversaries. Depth beyond that is a content slice, judged on what it adds to a fight.
 `DEVELOPING.md` §7(c) is still the recipe for scripting a feature. Known gaps in what it has:
 
-- `cut-purse-strings`, `rallying-cry` and `smoke-step` ship as text only. Only the first has a real
-  blocker: `addItem` names a bare item id with no source, so taking what somebody else carries
-  cannot be said.
+- `cut-purse-strings` ships as text only, and has a real blocker: `addItem` names a bare item id
+  with no source, so taking what somebody else carries cannot be said. (`rallying-cry` and
+  `smoke-step` are scripted: *Two starter cards stop being text*, above.)
 - `holding-the-line` and `caught-in-the-line` sit in `content/conditions.ts` rather than beside the
   feature that arms them.
 - No card is above level 2, which is why `progression.test.ts` climbs on a fixture

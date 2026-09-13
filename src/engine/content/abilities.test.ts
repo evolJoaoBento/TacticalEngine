@@ -111,8 +111,8 @@ describe('abilitiesFor', () => {
   });
 
   it('leaves out vaulted cards and unreached subclass stages', () => {
-    // The sixth card carries an ability on purpose. Three of the pack's chosen cards ship as
-    // text only, and one of those in this slot would be absent from the list whether
+    // The sixth card carries an ability on purpose. A card the pack ships as text only
+    // (`cut-purse-strings`, now) in this slot would be absent from the list whether
     // the vault worked or not — passing for two reasons, and still passing if the
     // vault stopped excluding anything.
     const six = deriveWith(kara({ domainCards: ['power-slash', 'iron-stance', 'shield-wall', 'rallying-cry', 'unbroken', 'backstab'] }));
@@ -122,8 +122,7 @@ describe('abilitiesFor', () => {
     expect(ids).not.toContain('theirs');
     // Both of these carry an ability, which is what makes them comparable here: a
     // card the pack ships as text only is held and silent, so it never appears in
-    // this list at all. `rallying-cry` is one of those, and asking where it sits
-    // reads -1 rather than an order.
+    // this list at all, and asking where it sits reads -1 rather than an order.
     expect(ids.indexOf('unbroken')).toBeGreaterThan(ids.indexOf('shield-wall'));
   });
 

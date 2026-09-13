@@ -164,6 +164,36 @@ const RAW = [
    * someone else" and file it as unsayable. A condition with a duration is
    * exactly that, so the note was out of date rather than the vocabulary short.
    */
+  // Rallying Cry: "each ally who can hear you" is everyone within Far of the one calling out. It
+  // is paid in Stress, as every card here is, rather than in Light.
+  {
+    id: 'rallying-cry',
+    name: 'Rallying Cry',
+    source: { card: 'rallying-cry' },
+    text: 'Call out: each ally who can hear you clears a Stress.',
+    kind: 'action',
+    cost: { stress: 1 },
+    target: { kind: 'self' },
+    effects: [
+      { kind: 'log', text: 'The call carries, and shoulders come up.', tone: 'good' },
+      { kind: 'clearStress', amount: 1, target: { kind: 'allies', range: 'far' } },
+    ],
+  },
+  // Smoke Step: from one shadow to another within Close. Nothing between the two has to let them
+  // pass, so it is a blink to the spot rather than a walk there.
+  {
+    id: 'smoke-step',
+    name: 'Smoke Step',
+    source: { card: 'smoke-step' },
+    text: 'Step from one shadow within Close range to another.',
+    kind: 'action',
+    cost: { stress: 1 },
+    target: { kind: 'point', range: 'close' },
+    effects: [
+      { kind: 'log', text: 'They are there, and then they are somewhere else.', tone: 'good' },
+      { kind: 'move', to: 'point', teleport: true, budget: 'close' },
+    ],
+  },
   {
     id: 'shield-wall',
     name: 'Shield Wall',
@@ -254,11 +284,12 @@ const RAW = [
 ];
 
 /**
- * The cards the engine can run. `rallying-cry`, `smoke-step` and
- * `cut-purse-strings` ship as text only, and a card with no script is still a
- * card — the holder reads it and the table settles it.
+ * The cards the engine can run. `cut-purse-strings` ships as text only, and a
+ * card with no script is still a card — the holder reads it and the table
+ * settles it.
  *
- * Two of the five that used to be listed here are now scripted. A timed bonus to
+ * Four of the five that used to be listed here are now scripted: Rallying Cry
+ * and Smoke Step since, with nothing new asked of the vocabulary. A timed bonus to
  * someone else is a condition with a duration, and a burst around a chosen point
  * is `around: 'point'`; both were already sayable, so the note was out of date
  * rather than the vocabulary short. `cut-purse-strings` is the one with a real

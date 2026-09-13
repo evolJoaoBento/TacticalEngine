@@ -5215,8 +5215,9 @@ describe('a shout the next one hears', () => {
       const { demo, husk } = rallying(`rally-self-${seed}`);
       demo.project.abilities.push(
         abilitySchema.parse({
-          id: 'rallying-cry',
-          name: 'Rallying Cry',
+          // Its own id: the pack's Rallying Cry is a card of its own, and scripted.
+          id: 'fixture-heartening',
+          name: 'Heartening Blow',
           source: { kind: 'domainCard', card: SHOUT_CARD },
           text: 'When you deal damage, the room takes heart at once.',
           kind: 'reaction',

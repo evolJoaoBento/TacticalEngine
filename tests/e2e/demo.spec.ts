@@ -2209,30 +2209,30 @@ test('lists a card no ability sits on, rewords a copy of it, and writes a script
   await page.locator('[data-testid="open-abilities"]').click();
   const panel = page.locator('[data-testid="ability-panel"]');
 
-  // Rallying Cry ships as text: no ability sits on it, so it is listed on its own.
+  // Cut Purse Strings ships as text: no ability sits on it, so it is listed on its own.
   await expect(panel.locator('[data-testid="text-only-cards"]')).toBeVisible();
-  await panel.locator('[data-card="rallying-cry"]').click();
-  await expect(panel.locator('[data-testid="card-name"]')).toHaveValue('Rallying Cry');
+  await panel.locator('[data-card="cut-purse-strings"]').click();
+  await expect(panel.locator('[data-testid="card-name"]')).toHaveValue('Cut Purse Strings');
   await expect(panel.locator('[data-testid="card-grant-kind"]')).toHaveText("the pack's card");
 
   // The pack's words are the pack's; a copy is the project's to reword.
   await panel.locator('[data-testid="card-copy-pack"]').click();
-  await panel.locator('[data-testid="card-text"]').fill('Call out: every ally who hears you clears a Stress.');
+  await panel.locator('[data-testid="card-text"]').fill('Lift one carried thing from somebody within Melee range, unseen.');
 
   // Removing the copy puts the pack's own words back, read-only again, beside Edit a copy.
   await panel.locator('[data-testid="card-remove-copy"]').click();
   await expect(panel.locator('[data-testid="card-grant-kind"]')).toHaveText("the pack's card");
-  await expect(panel.locator('[data-testid="card-text"]')).not.toHaveValue('Call out: every ally who hears you clears a Stress.');
+  await expect(panel.locator('[data-testid="card-text"]')).not.toHaveValue('Lift one carried thing from somebody within Melee range, unseen.');
   await expect(panel.locator('[data-testid="card-text"]')).toHaveAttribute('readonly', '');
-  await expect(panel.locator('[data-testid="card-name"]')).toHaveValue('Rallying Cry');
+  await expect(panel.locator('[data-testid="card-name"]')).toHaveValue('Cut Purse Strings');
   await panel.locator('[data-testid="card-copy-pack"]').click();
-  await panel.locator('[data-testid="card-text"]').fill('Call out: every ally who hears you clears a Stress.');
+  await panel.locator('[data-testid="card-text"]').fill('Lift one carried thing from somebody within Melee range, unseen.');
 
   // A script on it moves it into the list above, opened, and named for its card.
   await panel.locator('[data-testid="card-add-script"]').click();
-  await expect(panel.locator('[data-card="rallying-cry"]')).toHaveCount(0);
-  await expect(panel.locator('[data-ability="rallying-cry"]')).toBeVisible();
-  await expect(panel.locator('[data-testid="ability-name"]')).toHaveValue('Rallying Cry');
+  await expect(panel.locator('[data-card="cut-purse-strings"]')).toHaveCount(0);
+  await expect(panel.locator('[data-ability="cut-purse-strings"]')).toBeVisible();
+  await expect(panel.locator('[data-testid="ability-name"]')).toHaveValue('Cut Purse Strings');
 
   const written = await page.evaluate(() => {
     const project = JSON.parse(window.__engine!.exportProject()) as {
@@ -2240,11 +2240,11 @@ test('lists a card no ability sits on, rewords a copy of it, and writes a script
       abilities: { id: string; source: unknown }[];
     };
     return {
-      text: project.cards.find((c) => c.id === 'rallying-cry')?.text,
-      source: project.abilities.find((a) => a.id === 'rallying-cry')?.source,
+      text: project.cards.find((c) => c.id === 'cut-purse-strings')?.text,
+      source: project.abilities.find((a) => a.id === 'cut-purse-strings')?.source,
     };
   });
-  expect(written).toEqual({ text: 'Call out: every ally who hears you clears a Stress.', source: { card: 'rallying-cry' } });
+  expect(written).toEqual({ text: 'Lift one carried thing from somebody within Melee range, unseen.', source: { card: 'cut-purse-strings' } });
 
   expect(consoleErrors).toEqual([]);
 });
@@ -2320,7 +2320,7 @@ test("deletes a card of the project's own that no ability sits on, and no other 
 
   // The pack's text card is not the project's to delete, and a copy of it is removed, not deleted.
   await expect(panel.locator('[data-testid="text-only-cards"]')).toBeVisible();
-  await textOnly.locator('[data-card="rallying-cry"]').click();
+  await textOnly.locator('[data-card="cut-purse-strings"]').click();
   await expect(panel.locator('[data-testid="card-delete"]')).toHaveCount(0);
   await panel.locator('[data-testid="card-copy-pack"]').click();
   await expect(panel.locator('[data-testid="card-delete"]')).toHaveCount(0);
