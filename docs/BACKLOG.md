@@ -7,7 +7,12 @@ handful of working rules that are learned the expensive way rather than read.
 **Pinned to commit `01b4c83`.** At that commit: `npx tsc --noEmit` clean, **1834 of 1835 unit tests
 passing across 92 files**. The single failure is the documented deliberate one in
 `demo-defense.test.ts` — a Stress assertion left red after four attempts rather than guessed at, with
-what was ruled out recorded in its commit. **Playwright is RED on the starter pack: 21 failed, 82 passed**, measured
+what was ruled out recorded in its commit. **Playwright: all 21 of those failures are fixed, each verified in a targeted run. A full run
+has not confirmed it yet** — the last complete run was the red one, so do not quote a green suite
+until one finishes. What follows is the diagnosis of that red run, kept because the cause and the
+tiering are the reusable parts.
+
+The run was **RED: 21 failed, 82 passed**, measured
 twice after the demo was repointed (15.1m and 15.3m, identical counts). An earlier version of this
 line called that green by reading the pass count and not the exit code.
 
@@ -25,7 +30,9 @@ way were checked and did not:
   `library-search.fill('wolf')` matches nothing, `[data-item]` never appears, and the click waits
   out its 90 seconds.
 
-**Tier A — re-pin onto shipped content, no new content needed (14 tests).**
+**Tier A — done: all fourteen re-pinned onto shipped content and verified in a browser.**
+Kept as a table because it says which spec was pointed at what, which is what anybody repeating
+this against another pack will want.
 
 | Spec | Stale | Shipped |
 |---|---|---|
@@ -44,8 +51,33 @@ and `[data-item="broadsword"]` can never appear; it needs a different weapon to 
 `card-browser` asserts counts per domain, and the starter domains hold 5 each where the vendored ones
 held 3.
 
-**Tier B — needs starter abilities that do something (7 tests).** The pack ships 14 abilities: eleven
-passives and three `action`s with no effects. These specs exercise the *interactive* paths — arming, a
+**Tier B — done: four cards stopped being text only, and the seven specs read them.** It needed
+content, not engine work, exactly as this entry predicted. `warding-flame` got the zone its text
+describes, `cinder-burst` became the first shipped card aimed at the ground (`target.kind: 'point'`
+with `around: 'point'` on the roll), `shield-wall` got a named ally and a condition carrying the
+bonus, and the sentinel's printed signature `Hold the Line` became mechanical — both conditions it
+needs already existed. Two of the five the file called unsayable were sayable all along: a timed
+bonus to someone else is a condition with a duration.
+
+Three rewrites dropped an assertion each, and each drop was a correction rather than a concession:
+`shield-wall` carries no check so a `check-prompt` could never appear; `cinder-burst` moves nobody
+so the caster-runs-the-line assertion left with Deathrun; and `demo:1819`'s Hope-cost assertion
+contradicted the pack's rule of spending no Hope. One silent guard became an assertion and fired
+immediately — `if (targets.length > 1)` had been skipping a whole arm-and-disarm path whenever one
+husk stood adjacent, which is the fifth vacuous pass found this way.
+
+**What this uncovered and did not fix.** `contentPackSchema` has no `conditions` field: a project
+*document* carries `conditionDefs` and `worldOptions` merges them, but a content *pack* cannot. So a
+card that applies a zone condition cannot be imported with the condition it depends on — and a zone
+whose condition is missing is silent *and* writes the condition's id into the log, because
+`conditionName` falls back to it. Closing that is the next slice for mechanics travelling on cards.
+Smaller: `cut-purse-strings`, `rallying-cry` and `smoke-step` are still text only, and only the
+first has a real blocker (`addItem` names a bare item id with no source, so taking what somebody
+else carries cannot be said); and `holding-the-line`/`caught-in-the-line` still sit in
+`content/conditions.ts`, which slice 3 prunes, when they belong beside the feature that arms them.
+
+The old diagnosis, kept because the reasoning is the reusable part: the pack shipped 14 abilities —
+eleven passives and three `action`s with no effects. These specs exercise the *interactive* paths — arming, a
 ground aim, Escape-disarm, an Experience prompt, a zone, a condition — and none can be renamed onto
 content that does nothing. It is content work, not engine work: the effect vocabulary already has
 `push`, `zone`, `applyCondition`, `check` with `difficulty: 'target'`, `damage`, `move` and
