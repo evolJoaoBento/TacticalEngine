@@ -157,6 +157,9 @@ so the record of what was first thought survives: the header's "can ride slice 4
 9. **The grant editor offers every grant but `chosen`.** A chosen card needs a domain, a type, a
    level and a recall cost, and one switched to it without them no longer loads; writing those is
    the card editor's. A pack's card is shown, not re-granted.
+10. **A granted card's zone is the loadout's Always in play**: face up, counted by no limit, never
+    vaulted, in the order a sheet lists abilities. It has no domain, so it wears a colour of its
+    own rather than borrowing one.
 
 **Out of the first slice**, each to be judged on its own: card zones on screen, a grant editor, the
 GM's side as cards the table can see, and a condition lending a card rather than an ability.

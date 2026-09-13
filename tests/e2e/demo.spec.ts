@@ -102,7 +102,7 @@ declare global {
       shape: (ability: string, tile: number) => string[];
       setGood: (id: string, value: number) => void;
       passToGm: () => number;
-      loadout: (id: string) => { loadout: string[]; vault: string[] };
+      loadout: (id: string) => { loadout: string[]; vault: string[]; granted: string[] };
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
       rest: (kind: 'short' | 'long', plan: unknown) => boolean;
       conditionsOf: (id: string) => string[];

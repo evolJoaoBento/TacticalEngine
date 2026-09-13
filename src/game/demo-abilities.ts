@@ -19,11 +19,12 @@ import {
   LOADOUT_LIMIT,
   type AbilityDef,
   cardOf,
+  grantRank,
 } from '../engine/content/abilities';
 import { canMarkStress, gain, spend } from '../engine/rules/resources';
 import { reaches, type RangeBand } from '../engine/rules/range';
 import { tierOf } from '../engine/character/progression';
-import { isDomainCard } from '../engine/content/pack/import';
+import { isDomainCard, type CardGrant, type ContentPack } from '../engine/content/pack/import';
 import { deriveCharacter, grantedCards } from '../engine/character/sheet';
 import { evaluateOptional } from '../engine/script/conditions';
 import { ScriptRunner } from '../engine/script/runner';
@@ -414,9 +415,20 @@ export function cardDomain(cardId: string): string {
   return DEMO_CHARACTERS.cards.get(cardId)?.domain ?? 'Unknown';
 }
 
+/** A card in play because of what its holder is, as the loadout shows it: no level, no recall. */
+export interface GrantedCard {
+  id: string;
+  name: string;
+  text: string;
+  /** What granted it, in words. */
+  from: string;
+}
+
 export interface LoadoutView {
   loadout: LoadoutCard[];
   vault: LoadoutCard[];
+  /** What they have without choosing it: face up, counted by no limit, never vaulted. */
+  granted: GrantedCard[];
   limit: number;
 }
 
@@ -429,8 +441,43 @@ export function loadoutView(demo: DemoScene, characterId: string): LoadoutView {
       domain: card?.domain ?? 'Unknown', level: card?.level ?? 1,
       type: card?.type ?? 'ability', text: card?.features.map(f => f.name ? `${f.name}\n${f.text}` : f.text).join('\n\n') ?? '' };
   };
-  if (character === undefined) return { loadout: [], vault: [], limit: LOADOUT_LIMIT };
-  return { loadout: loadoutOf(character).map(describe), vault: vaultOf(character).map(describe), limit: LOADOUT_LIMIT };
+  if (character === undefined) return { loadout: [], vault: [], granted: [], limit: LOADOUT_LIMIT };
+  // Read as the cards stand now, the way the world reads them, so a card handed over is shown at
+  // once; in the order a sheet lists what they have, and the pack's order within that.
+  const granted = grantedCards(character.sheet, content.cards.values())
+    .sort((a, b) => grantRank(a.grant) - grantRank(b.grant))
+    .map((card) => ({
+      id: card.id,
+      name: card.name,
+      text: card.text !== '' ? card.text : card.features.map((f) => (f.name ? `${f.name}\n${f.text}` : f.text)).join('\n\n'),
+      from: grantedBy(card.grant, content),
+    }));
+  return {
+    loadout: loadoutOf(character).map(describe),
+    vault: vaultOf(character).map(describe),
+    granted,
+    limit: LOADOUT_LIMIT,
+  };
+}
+
+/** What granted a card, in the words the table uses: "Sentinel", "Shieldbearer · foundation", "Given". */
+function grantedBy(grant: CardGrant, content: ContentPack): string {
+  switch (grant.kind) {
+    case 'class':
+      return content.classes.get(grant.classId)?.name ?? grant.classId;
+    case 'subclass':
+      return `${content.subclasses.get(grant.subclassId)?.name ?? grant.subclassId} · ${grant.stage}`;
+    case 'ancestry':
+      return content.ancestries.get(grant.ancestryId)?.name ?? grant.ancestryId;
+    case 'community':
+      return content.communities.get(grant.communityId)?.name ?? grant.communityId;
+    case 'given':
+      return 'Given';
+    // Neither is ever granted to a character: one is chosen, the other printed on a stat block.
+    case 'chosen':
+    case 'adversary':
+      return '';
+  }
 }
 
 export type SwapResult = { ok: true; stress: number } | { ok: false; reason: string };

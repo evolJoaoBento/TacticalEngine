@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import type { LoadoutCard } from '../demo-abilities';
+import type { GrantedCard, LoadoutCard } from '../demo-abilities';
 import { artFor } from './card-art';
 import { SIGIL_HEIGHT, SIGIL_WIDTH, sigilOf, type Sigil } from './card-sigil';
 
@@ -68,5 +68,20 @@ export function CardFace({ card, expanded = false }: { card: LoadoutCard; expand
     <div className="face-title"><h3>{card.name}</h3><span>{card.type}</span></div>
     <div className="face-rules">{card.text.split('\n').filter(Boolean).map((text, i) => <p key={i}>{text}</p>)}</div>
     <div className="face-footer"><span>{card.domain}</span><span>{card.type}</span></div>
+  </div>;
+}
+
+/**
+ * A card in play because of what its holder is. No level and no Recall Cost -- it was never chosen
+ * and is never vaulted -- and where a domain card names its domain, this names what granted it.
+ */
+export function GrantedFace({ card, expanded = false }: { card: GrantedCard; expanded?: boolean }): preact.JSX.Element {
+  // A granted card has no domain; it wears one colour of its own rather than borrowing a domain's.
+  const drawn = { id: card.id, domain: 'granted' };
+  return <div className={`face face-granted ${expanded ? 'face-expanded' : ''}`} style={{ '--domain-color': sigilOf(drawn).color }}>
+    <div className="face-art"><CardArtwork card={drawn} /><span className="face-domain">{card.from}</span></div>
+    <div className="face-title"><h3>{card.name}</h3><span>always in play</span></div>
+    <div className="face-rules">{card.text.split('\n').filter(Boolean).map((text, i) => <p key={i}>{text}</p>)}</div>
+    <div className="face-footer"><span>{card.from}</span><span>granted</span></div>
   </div>;
 }

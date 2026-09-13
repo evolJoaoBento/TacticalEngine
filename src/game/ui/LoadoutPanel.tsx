@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { LoadoutCard, LoadoutView } from '../demo-abilities';
-import { CardFace } from './CardFace';
+import type { GrantedCard, LoadoutCard, LoadoutView } from '../demo-abilities';
+import { CardFace, GrantedFace } from './CardFace';
 import { artFor, cardArtImports } from './card-art';
 import { ACCEPTED, pictureFromFile } from './card-art-import';
 import './cards.css';
@@ -20,7 +20,7 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
   const [out, setOut] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [domain, setDomain] = useState('all');
-  const [inspect, setInspect] = useState<LoadoutCard | null>(null);
+  const [inspect, setInspect] = useState<LoadoutCard | GrantedCard | null>(null);
   // Bumped when imported art changes, so every face of that card redraws.
   const [artVersion, setArtVersion] = useState(0);
   const [artIssue, setArtIssue] = useState<string | null>(null);
@@ -57,6 +57,15 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
       )}
     </article>
   );
+  // What they have without choosing it has no domain, so a domain filter hides it; a search reaches it.
+  const matchesGranted = (c: GrantedCard) => domain === 'all'
+    && `${c.name} ${c.text} ${c.from}`.toLowerCase().includes(query.toLowerCase());
+  const renderGranted = (card: GrantedCard) => (
+    <article key={card.id} className="granted-slot" data-card={card.id}>
+      <button className="card-inspect" aria-label={`Inspect ${card.name}`} onClick={e => { inspectTrigger.current = e.currentTarget; setInspect(card); }}><GrantedFace card={card} /></button>
+      <span className="deck-ready">{card.from}</span>
+    </article>
+  );
   return <div className="deck-backdrop" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
     <div ref={root} tabIndex={-1} className="deck-browser" role="dialog" aria-modal="true" aria-label={`${props.name} loadout`} data-testid="loadout"
       onKeyDown={e => {
@@ -78,6 +87,9 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
         <section><div className="deck-section-title"><h2>Active hand</h2><span>{view.loadout.length} / {view.limit}</span><p>{full ? 'Choose a card to make room for a recall.' : 'These cards are ready for your adventure.'}</p></div>
           <div className="deck-grid">{view.loadout.filter(matches).map(c => renderCard(c, true))}</div>
           {!view.loadout.some(matches) && <p className="deck-empty">{view.loadout.length ? 'No active cards match your filters.' : 'Nothing active.'}</p>}</section>
+        {view.granted.length > 0 && domain === 'all' && <section data-testid="granted-zone"><div className="deck-section-title"><h2>Always in play</h2><span>{view.granted.length} {view.granted.length === 1 ? 'card' : 'cards'}</span><p>Granted by what {props.name} is: no limit, and never vaulted.</p></div>
+          <div className="deck-grid">{view.granted.filter(matchesGranted).map(renderGranted)}</div>
+          {!view.granted.some(matchesGranted) && <p className="deck-empty">Nothing always in play matches your search.</p>}</section>}
         <section><div className="deck-section-title"><h2>The vault</h2><span>{view.vault.length} {view.vault.length === 1 ? 'card' : 'cards'}</span><p>Your reserve. Recall a card to change your hand.</p></div>
           <div className="deck-grid">{view.vault.filter(matches).map(c => renderCard(c, false))}</div>
           {!view.vault.some(matches) && <p className="deck-empty">{view.vault.length ? 'No vaulted cards match your filters.' : 'The vault is empty. New cards beyond your active hand wait here.'}</p>}</section>
@@ -85,7 +97,9 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
       <footer className="deck-footer">{props.issue ? <span role="alert" data-testid="loadout-issue">{props.issue}</span> : <span>{view.loadout.length + view.vault.length} cards collected · Click any card to inspect</span>}<span>TACTICAL <small>ENGINE</small></span></footer>
       {inspect && <div className="card-lightbox" role="dialog" aria-label={inspect.name} onClick={() => setInspect(null)}>
         <div className="card-detail" onClick={e => e.stopPropagation()}>
-          <CardFace key={`${inspect.id}:${artVersion}`} card={inspect} expanded />
+          {'recallCost' in inspect
+            ? <CardFace key={`${inspect.id}:${artVersion}`} card={inspect} expanded />
+            : <GrantedFace key={`${inspect.id}:${artVersion}`} card={inspect} expanded />}
           <button autoFocus className="deck-close" onClick={() => setInspect(null)}>Back to collection</button>
           <div className="card-art-import">
             <div>

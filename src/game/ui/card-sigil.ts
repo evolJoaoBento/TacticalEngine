@@ -39,6 +39,8 @@ export const DOMAIN_COLORS: Readonly<Record<string, string>> = {
   sage: '#507b4b',
   splendor: '#be993c',
   valor: '#b76b38',
+  // Not a domain: the colour a card in play because of what its holder is wears.
+  granted: '#7b8494',
 };
 
 /** The colour for a domain, however it was cased or spelled. */

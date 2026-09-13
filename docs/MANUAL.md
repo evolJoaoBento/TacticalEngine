@@ -188,6 +188,12 @@ a card from the vault outside a rest marks Stress equal to its Recall Cost (the 
 much); when the loadout is full, pick a card to make room first. The loadout rides on the sheet,
 so a save carries it.
 
+**Always in play**, between the hand and the vault, is what a character has without choosing it:
+the cards their class, their subclass (up to the stage reached), their ancestry and their
+community grant, and any a project hands them, in the order a sheet lists them. They are face up,
+no limit counts them, they are never vaulted, and each says what granted it. A search reaches
+them; a domain filter puts them away, since none of them has a domain.
+
 ### Using things
 
 Stand next to the object (one tile, diagonals count) and either click it or press **Use what

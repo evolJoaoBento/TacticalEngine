@@ -571,7 +571,7 @@ const STAGE_RANK = { foundation: 0, specialization: 1, mastery: 2 } as const;
  * -- after the loadout, which is 10 onwards -- the ancestry's, the community's, and whatever a
  * project handed over.
  */
-function grantRank(grant: CardGrant): number {
+export function grantRank(grant: CardGrant): number {
   switch (grant.kind) {
     case 'class':
       return 0;

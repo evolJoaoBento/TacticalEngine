@@ -58,7 +58,12 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   // Every card shows something without waiting on a fetch: a file from
   // `public/cards/` where the index names one, its own drawn emblem otherwise.
   // Which of the two depends on whether this machine has an art directory.
-  await expect(panel.locator('.face-art > :is(svg, img)')).toHaveCount(6);
+  await expect(panel.locator('.deck-slot .face-art > :is(svg, img)')).toHaveCount(6);
+  // Beside the hand, face up and counted by no limit: what Kara has without choosing it.
+  const granted = panel.getByTestId('granted-zone');
+  await expect(granted.locator('.granted-slot')).toHaveCount(9);
+  await expect(granted.locator('[data-card="rally-the-line"]')).toContainText('Given');
+  await expect(panel).toContainText('5 / 5');
   await page.screenshot({ path: 'test-results/card-collection.png' });
   await page.getByRole('button', { name: 'Inspect Unbroken', exact: true }).click();
   await expect(panel.locator('.face-expanded')).toContainText('Unbroken');
@@ -75,6 +80,8 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   await page.getByRole('combobox', { name: 'Domain' }).selectOption({ label: 'bulwark' });
   // Five of the six are bulwark; the sixth is the shadow card in the vault.
   await expect(panel.locator('.deck-slot')).toHaveCount(5);
+  // What is always in play has no domain, so a domain filter puts it away.
+  await expect(panel.getByTestId('granted-zone')).toHaveCount(0);
   await page.getByRole('combobox', { name: 'Domain' }).selectOption('all');
   const recall = panel.locator('[data-card="smoke-step"]').getByTestId('recall');
   await expect(recall).toBeDisabled();

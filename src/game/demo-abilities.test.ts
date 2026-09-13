@@ -23,6 +23,7 @@ import {
 } from '../../tests/fixtures/cards';
 import { useKey } from '../engine/script/world';
 import { NO_TILE } from '../engine/grid/grid';
+import { handedTo } from '../../tests/fixtures/cards';
 import {
   abilityList,
   abilityTargets,
@@ -276,6 +277,37 @@ describe('the loadout and the vault', () => {
     expect(view.loadout.map((c) => c.id)).toEqual(FIXTURE_HAND.slice(0, 5));
     expect(view.vault.map((c) => c.id)).toEqual([FIXTURE_HAND[5]]);
     expect(names(demo, 'kara')).not.toContain(FIXTURE_HAND[5]);
+  });
+
+  it('lays out what she has without choosing it: face up, in sheet order, read as the cards stand', () => {
+    const demo = scene();
+    const view = loadoutView(demo, 'kara');
+    // Her class's four (the pack's three and the demo's own), her subclass's foundation, her
+    // ancestry's, her community's, and the one the demo hands her.
+    expect(view.granted.map((c) => c.id)).toEqual([
+      'sentinel-shield-trained',
+      'sentinel-drilled',
+      'sentinel-hold-the-line',
+      'sentinel-hold-fast',
+      'shieldbearer-bulwark-stance',
+      'shieldbearer-set-feet',
+      'stoneborn-deep-footing',
+      'wayfarer-road-sense',
+      'rally-the-line',
+    ]);
+    // Said the way the table says it, never by id.
+    expect([...new Set(view.granted.map((c) => c.from))]).toEqual([
+      'Sentinel',
+      'Shieldbearer · foundation',
+      'Stoneborn',
+      'Wayfarer',
+      'Given',
+    ]);
+    // None of it is in the hand the loadout limit counts.
+    expect(view.loadout.map((c) => c.id)).toEqual(['power-slash', 'iron-stance']);
+    // A card handed over now is in play now.
+    demo.project.cards.push(handedTo({ id: 'lantern-oath', name: 'Lantern Oath' }, 'kara'));
+    expect(loadoutView(demo, 'kara').granted.at(-1)?.id).toBe('lantern-oath');
   });
 
   it('recalls a card for Stress equal to its Recall Cost, and free at a rest', () => {

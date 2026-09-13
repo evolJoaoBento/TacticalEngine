@@ -4,6 +4,19 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Card zones — done
+
+The loadout shows **Always in play** between the hand and the vault: what a character has
+without choosing it -- class, subclass up to the stage reached, ancestry, community, and anything
+a project hands them -- face up, in the order a sheet lists abilities (`grantRank`, now shared),
+each saying what granted it. It reads the cards as they stand, so a card handed over is shown at
+once. A granted card has no domain, level or recall, so it has a face of its own (`GrantedFace`)
+in a colour of its own; a search reaches the zone and a domain filter puts it away.
+
+`npx tsc --noEmit` clean; vitest **1838 passed / 1 failed (1839)**, the one failure being the documented deliberate one;
+Playwright **105 passed (3.8m)**, `EXIT 0`. Three breaks -- the zone reading the cards as the sheet was
+derived, keeping the pack's order, naming a grant by id -- each fail the test written for them.
+
 ## The grant editor — done
 
 The Cards panel's **granted by** re-grants a project's own card: named characters, a class, a
@@ -67,8 +80,8 @@ deliberate one; Playwright **105 passed (3.7m)**, `EXIT 0`. Five breaks -- the w
 feature reaching every block, a stat block's card granted to a character, the validator asking no
 cards, the migration skipping a stat block -- each fail the tests written for them.
 
-**Next, in order:** card zones on screen, then a card editor that reaches any card rather than only
-the project's own (the grant editor has landed, above).
+**Next, in order:** a card editor that reaches any card rather than only the project's own (the
+grant editor and the card zones have landed, above).
 
 ---
 
@@ -524,8 +537,8 @@ what grants it and nothing lists its cards; only a chosen card has the loadout's
 version-3 migration is positional and builds cards from abilities; a stat block's traits stay on the
 block. What landed is the entry at the top of this file. What is left, in order:
 
-- **Zones on screen.** Chosen cards are bound by `LOADOUT_LIMIT` and granted ones are not; the card
-  says so now. What is missing is the picture: granted cards face up beside the loadout.
+- **Zones on screen** are done for a character: the loadout's **Always in play**. The action bar
+  still wears art only on a chosen card's ability.
 - **Editing any card.** The grant editor is done; left is a card editor that reaches a pack's card,
   and a chosen card's domain, type, level and recall cost.
 - **Cheaper, not different:** the world's `cards` option is a closure that merges the pack on every

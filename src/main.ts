@@ -233,7 +233,7 @@ declare global {
       /** Fill somebody's Light, for a test about a card that costs some. */
       setGood: (id: string, value: number) => void;
       passToGm: () => number;
-      loadout: (id: string) => { loadout: string[]; vault: string[] };
+      loadout: (id: string) => { loadout: string[]; vault: string[]; granted: string[] };
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
       rest: (kind: 'short' | 'long', plan: unknown) => boolean;
       conditionsOf: (id: string) => string[];
@@ -2178,7 +2178,7 @@ const state = {
   },
   loadout: (id: string) => {
     const view = loadoutView(demo, id);
-    return { loadout: view.loadout.map((c) => c.id), vault: view.vault.map((c) => c.id) };
+    return { loadout: view.loadout.map((c) => c.id), vault: view.vault.map((c) => c.id), granted: view.granted.map((c) => c.id) };
   },
   swapCard: (id: string, cardIn: string, cardOut?: string): string | null => {
     const result = swapCard(demo, id, cardIn, cardOut);
