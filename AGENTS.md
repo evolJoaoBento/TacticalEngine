@@ -1,6 +1,6 @@
 # Tactical Engine — instructions for agents
 
-A browser CRPG engine and editor running the **Daggerheart SRD 2.0** rules. TypeScript (strict),
+A browser CRPG engine and editor for party-based tactical RPGs. TypeScript (strict),
 Vite, three.js, Preact + signals, zod, Vitest, Playwright.
 
 Claude Code reads `CLAUDE.md`, Codex reads this file. Both carry the same rules; the licensing
@@ -51,9 +51,9 @@ a third-party mirror, by a downloader that has since been removed. **Those files
 to make the suite green — it is the guard, not the problem.
 
 Both attributions must survive: the SRD 2.0 DPCGL notice and the SRD 1.0 notice the community data
-sets carry. The exact wording is in `docs/CONTEXT.md` and the three
-`tools/srd-sources/*/README.md` files. Daggerheart is a trademark of Critical Role, LLC; this
-project is unaffiliated. The source PDF is deliberately not committed — only the extracted text.
+sets carry. `docs/CONTEXT.md` holds the exact wording and is now the only place that does — the
+per-source READMEs went with `tools/srd-sources/`. No rules text is vendored any more.
+Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
 
 ---
 
@@ -67,8 +67,8 @@ project is unaffiliated. The source PDF is deliberately not committed — only t
 | 4 | `docs/CRPG-GAPS.md` | The honest audit. Read the relevant section before claiming a system exists. |
 | 5 | `.claude/skills/run-the-demo/SKILL.md` | Driving the app in a real browser through `window.__engine`. |
 
-`docs/ADVERSARIES.md` and `docs/CARDS.md` are **generated** — hand-edits are thrown away by the next
-`python tools/*-doc.py`. `docs/MANUAL.md` is user-facing.
+`docs/MANUAL.md` is user-facing. The generated `docs/ADVERSARIES.md` and `docs/CARDS.md` are gone,
+along with the catalogue they described and the two scripts that wrote them.
 
 ## The other rules that are not negotiable
 

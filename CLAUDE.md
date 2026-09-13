@@ -1,11 +1,10 @@
 # Tactical Engine
 
-A browser CRPG engine and editor running the **Daggerheart SRD 2.0** rules. TypeScript (strict),
+A browser CRPG engine and editor for party-based tactical RPGs. TypeScript (strict),
 Vite, three.js, Preact + signals, zod, Vitest, Playwright.
 
-**The repository path contains a space** — `D:\New folder\daggerheart game`, Git Bash form
-`"D:/New folder/daggerheart game"`. Quote it everywhere. Prefer repo-relative paths; the repo has
-moved between machines, so never hardcode a home directory.
+**The repository path contains a space.** Quote it everywhere, and prefer repo-relative paths —
+the repo has moved between machines, so never hardcode a path or a home directory.
 
 ## Read these, in this order, before writing anything
 
@@ -23,8 +22,9 @@ moved between machines, so never hardcode a home directory.
   instruction. All content text is English.
 - **`legacy/` is never modified.** It is the original prototype, kept runnable. Read
   `docs/research/legacy-*.md` instead of its sources.
-- **Only vendored SRD *text* enters the repository** (`tools/srd-sources/`, under the DPCGL). The
-  source PDF stays out. Both the 2.0 and 1.0 attributions must survive.
+- **No rules text is vendored any more.** `tools/srd-sources/` is gone and the engine ships its
+  own starter pack. Both the 2.0 and 1.0 attributions must survive; `docs/CONTEXT.md` holds the
+  wording, and is now the only place that does.
 - **The engine core is DOM-free**, there is one effect schema, RNG is seeded, and every module is
   tested. `npx tsc --noEmit` is the only static check — there is no lint and no formatter, so match
   the surrounding style by reading it.

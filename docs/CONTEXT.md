@@ -1,13 +1,13 @@
 # Tactical Engine — Working Context (read this first)
 
-**Absolute project path (has a space — always quote it):** `D:\New folder\daggerheart game`
-(Git Bash form: `"D:/New folder/daggerheart game"`). The repo has moved between machines before — prefer
-repo-relative paths in code, scripts and docs; never hardcode a home directory.
+**The project path contains a space — always quote it.** The repo has moved between machines
+before, so prefer repo-relative paths in code, scripts and docs, and never hardcode a path or a
+home directory.
 
 ## Goal
 
-Turn the Tactical Engine prototype into a **full CRPG engine + editor** for making party-based tactical RPGs in the style of
-Baldur's Gate 3, but running on the **Daggerheart** rules system (duality dice, Light/Shadow, Stress, damage thresholds,
+Turn the original prototype into a **full CRPG engine + editor** for making party-based tactical RPGs in the style of
+Baldur's Gate 3, running a dual-dice tabletop ruleset (paired resolution dice, Light/Shadow, Stress, damage thresholds,
 Armor Slots, domains/cards, classes/subclasses, ancestries/communities, adversaries with Shadow features, rests, leveling).
 
 Engine, not just a game: data-driven content, an in-browser editor (terrain, props, imported assets, encounters,
@@ -100,7 +100,7 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
   - Band-to-tile distances (`DEFAULT_BAND_TILES` in `src/engine/rules/range.ts`), derived from the SRD's
     own distances at 5 ft per tile.
   - Distance is as the crow flies, to the nearest tile (`bandForSpan` in `src/engine/rules/range.ts`),
-    everywhere: an attack, an area, a script's walk, the picture. Daggerheart is not played on a grid, so
+    everywhere: an attack, an area, a script's walk, the picture. These rules are not played on a grid, so
     a diagonal neighbour is Melee and a fight's move is a Close-range disc (`MovementContext.maxSpan`),
     not a count of steps. The tiles are a navmesh underneath, never a rule.
   - Which target's scales a check reads when it names several
@@ -111,7 +111,7 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
   - **When a check's own Light is spendable by the check's own arms.** A check hands over the Light it rolled
     *before* it runs `onSuccess…`/`always`, so a card whose arm branches on the pool sees it — a roll with Light
     can pay for its own effect. Not a card quirk: every `branch` on a pool inside a check inherits it. Named on
-    `wrangle` in `src/engine/content/srd/abilities.ts`, where it first mattered.
+    `wrangle`, where it first mattered — that card left with the catalogue, and the rule did not.
   - **What a card offers versus what it simply does**, where the SRD says "spend a Light to…" inside an effect
     rather than as a cost. Wrangle spends it whenever there is one, because a wrangle nobody wanted is a card
     nobody would have played; Support Tank always throws the Shadow Die rather than asking which, it being the one
