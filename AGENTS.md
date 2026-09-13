@@ -65,7 +65,7 @@ project is unaffiliated. The source PDF is deliberately not committed — only t
 | 2 | `docs/BACKLOG.md` | What to build next, ranked, and the working rules learned the expensive way. |
 | 3 | `docs/DEVELOPING.md` | Extending the engine. **§11 Gotchas** repays reading twice. |
 | 4 | `docs/CRPG-GAPS.md` | The honest audit. Read the relevant section before claiming a system exists. |
-| 5 | `.claude/skills/run-the-demo/SKILL.md` | Driving the app in a real browser through `window.__polyheart`. |
+| 5 | `.claude/skills/run-the-demo/SKILL.md` | Driving the app in a real browser through `window.__engine`. |
 
 `docs/ADVERSARIES.md` and `docs/CARDS.md` are **generated** — hand-edits are thrown away by the next
 `python tools/*-doc.py`. `docs/MANUAL.md` is user-facing.

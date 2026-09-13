@@ -18,9 +18,9 @@ for (const source of ['directory', 'import'] as const) {
     const indexLoaded = page.waitForResponse('**/cards/index.json');
     await page.goto('/');
     await indexLoaded;
-    await page.waitForFunction(() => window.__polyheart && window.__polyheart.frames > 2);
+    await page.waitForFunction(() => window.__engine && window.__engine.frames > 2);
     await page.evaluate(() => {
-      const a = window.__polyheart!;
+      const a = window.__engine!;
       a.select('kara');
       a.setCards('kara', ['power-slash']);
     });
@@ -45,9 +45,9 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart && window.__polyheart.frames > 2);
+  await page.waitForFunction(() => window.__engine && window.__engine.frames > 2);
   await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.setDiceSpeed(0);
     a.select('kara');
     a.setCards('kara', ['power-slash', 'shield-wall', 'iron-stance', 'rallying-cry', 'unbroken', 'smoke-step']);
@@ -70,7 +70,7 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   await page.getByRole('textbox', { name: 'Search cards' }).fill('iron');
   await expect(panel.locator('.deck-slot')).toHaveCount(1);
   await page.keyboard.press('Tab');
-  expect(await page.evaluate(() => window.__polyheart!.selected())).toBe('kara');
+  expect(await page.evaluate(() => window.__engine!.selected())).toBe('kara');
   await page.getByRole('textbox', { name: 'Search cards' }).fill('');
   await page.getByRole('combobox', { name: 'Domain' }).selectOption({ label: 'bulwark' });
   // Five of the six are bulwark; the sixth is the shadow card in the vault.
@@ -95,9 +95,9 @@ test('imports custom art for one card, and gives it back', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart && window.__polyheart.frames > 2);
+  await page.waitForFunction(() => window.__engine && window.__engine.frames > 2);
   await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.setDiceSpeed(0);
     a.select('kara');
     a.setCards('kara', ['power-slash', 'shield-wall', 'iron-stance', 'rallying-cry', 'unbroken']);
@@ -128,9 +128,9 @@ test('imports custom art for one card, and gives it back', async ({ page }) => {
 
   // Imported art survives a reload: it lives in this browser, not in the page.
   await page.reload();
-  await page.waitForFunction(() => window.__polyheart && window.__polyheart.frames > 2);
+  await page.waitForFunction(() => window.__engine && window.__engine.frames > 2);
   await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.select('kara');
     a.setCards('kara', ['power-slash', 'shield-wall', 'iron-stance', 'rallying-cry', 'unbroken']);
   });

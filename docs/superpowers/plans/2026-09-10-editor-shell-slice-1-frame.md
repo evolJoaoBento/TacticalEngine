@@ -21,7 +21,7 @@
 - `npx tsc --noEmit` is the only static check. There is no lint and no formatter, so match the surrounding style: 2-space indent, single quotes, semicolons, a doc comment on every exported thing that says *why*.
 - The repo is LF. If you edit with a script, open files with `newline=''` (see `docs/BACKLOG.md` §4).
 - **Never `git checkout` a file with uncommitted work in it.** To prove a test fails without its fix, copy the file aside and copy it back.
-- `window.__polyheart` is declared in `src/main.ts` **and** mirrored by hand in `tests/e2e/demo.spec.ts`. Change both in the same commit.
+- `window.__engine` is declared in `src/main.ts` **and** mirrored by hand in `tests/e2e/demo.spec.ts`. Change both in the same commit.
 - **Theme tokens,** exact values:
   - `--ph-bar #120f19`, `--ph-panel rgba(23, 19, 33, 0.96)`, `--ph-surface #151020`, `--ph-raised #181322`
   - `--ph-field #130f1b`, `--ph-backdrop rgba(11, 9, 16, 0.97)`
@@ -2562,17 +2562,17 @@ async function editing(page: Page): Promise<string[]> {
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
   await page.evaluate(() => {
-    window.__polyheart!.setDiceSpeed(0);
-    window.__polyheart!.setMode('edit');
+    window.__engine!.setDiceSpeed(0);
+    window.__engine!.setMode('edit');
   });
   return errors;
 }
 
-const mode = (page: Page): Promise<string> => page.evaluate(() => window.__polyheart!.editorMode());
+const mode = (page: Page): Promise<string> => page.evaluate(() => window.__engine!.editorMode());
 
 test('the top bar holds the four modes in the order the user set, and 1-4 switch them', async ({ page }) => {
   const errors = await editing(page);
@@ -2616,7 +2616,7 @@ test('Terrain: its own tools, and a pick from the strip takes up the tool that p
   await expect(page.locator('[data-testid="tool-rail"] [data-tool="prop"]')).toHaveAttribute('aria-pressed', 'true');
 
   const placed = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const before = api.propCount();
     api.editAt(2 * 22 + 2);
     return api.propCount() - before;
@@ -2635,7 +2635,7 @@ test('Combat: its own tools, and a creature found by searching is the one placed
   await strip.locator('[data-item="tangle-bramble"]').click();
 
   const placed = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const kinds = (): string[] =>
       (JSON.parse(api.exportProject()) as { scenes: { encounters: { adversaries: { adversary: string }[] }[] }[] }).scenes[0]!
         .encounters.flatMap((e) => e.adversaries.map((a) => a.adversary));
@@ -2683,10 +2683,10 @@ test('the scene picker switches the room being edited, and the top bar undoes', 
   const errors = await editing(page);
   await page.locator('[data-testid="open-scenes"]').click();
   await page.locator('[data-testid="scene-menu"] [data-scene="the-pit"]').click();
-  expect(await page.evaluate(() => window.__polyheart!.editScene())).toBe('the-pit');
+  expect(await page.evaluate(() => window.__engine!.editScene())).toBe('the-pit');
 
   const painted = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setTool('paintTerrain');
     api.setTerrain('wall');
     const before = api.terrainAt(0);
@@ -2695,7 +2695,7 @@ test('the scene picker switches the room being edited, and the top bar undoes', 
   });
   expect(painted.after).toBe('wall');
   await page.locator('[data-testid="undo"]').click();
-  expect(await page.evaluate(() => window.__polyheart!.terrainAt(0))).toBe(painted.before);
+  expect(await page.evaluate(() => window.__engine!.terrainAt(0))).toBe(painted.before);
   expect(errors).toEqual([]);
 });
 ```

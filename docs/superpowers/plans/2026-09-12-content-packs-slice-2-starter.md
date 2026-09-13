@@ -15,7 +15,7 @@
 - `npx tsc --noEmit` is the only static check. One statement per line; match surrounding style.
 - LF endings; Python patch scripts open with `newline=''`. The repo path contains a space.
 - Never `git checkout` a file holding uncommitted work — copy it aside and back.
-- `src/main.ts` declares `window.__polyheart`; `tests/e2e/demo.spec.ts` mirrors that type. Change both together.
+- `src/main.ts` declares `window.__engine`; `tests/e2e/demo.spec.ts` mirrors that type. Change both together.
 - Every new module is tested, and each new test is shown red before the code that satisfies it.
 - Before claiming done: `npx tsc --noEmit`, `npx vitest run`, `npx playwright test`.
 - **This slice still deletes nothing.** `tools/srd-sources/` stays, and the SRD catalogues stay importable. Slice 3 removes them.

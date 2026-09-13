@@ -12,17 +12,17 @@ async function editing(page: Page): Promise<string[]> {
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
   await page.evaluate(() => {
-    window.__polyheart!.setDiceSpeed(0);
-    window.__polyheart!.setMode('edit');
+    window.__engine!.setDiceSpeed(0);
+    window.__engine!.setMode('edit');
   });
   return errors;
 }
 
-const mode = (page: Page): Promise<string> => page.evaluate(() => window.__polyheart!.editorMode());
+const mode = (page: Page): Promise<string> => page.evaluate(() => window.__engine!.editorMode());
 
 test('the top bar holds the four modes in the order the user set, and 1-4 switch them', async ({ page }) => {
   const errors = await editing(page);
@@ -79,18 +79,18 @@ test('Terrain: its own tools, and a pick from the strip takes up the tool that p
   await expect(page.locator('[data-testid="tool-rail"] [data-tool="prop"]')).toHaveCount(0);
   // The rail not showing it is only half the claim: the pick has to have put
   // the prop tool in hand, which the rail's absent button cannot say.
-  expect(await page.evaluate(() => window.__polyheart!.editorTool())).toBe('prop');
-  expect(await page.evaluate(() => window.__polyheart!.editorTerrainTab())).toBe('props');
+  expect(await page.evaluate(() => window.__engine!.editorTool())).toBe('prop');
+  expect(await page.evaluate(() => window.__engine!.editorTerrainTab())).toBe('props');
   // Erase belongs to the Props tab too, so picking it keeps the strip where it
   // is and the rail keeps showing the tool in hand.
   await page.locator('[data-testid="tool-rail"] [data-tool="erase"]').click();
-  expect(await page.evaluate(() => window.__polyheart!.editorTool())).toBe('erase');
-  expect(await page.evaluate(() => window.__polyheart!.editorTerrainTab())).toBe('props');
+  expect(await page.evaluate(() => window.__engine!.editorTool())).toBe('erase');
+  expect(await page.evaluate(() => window.__engine!.editorTerrainTab())).toBe('props');
   await expect(page.locator('[data-testid="tool-rail"] [data-tool="erase"]')).toHaveCount(1);
   await strip.locator('[data-item="barrel"]').click();
 
   const placed = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const models = (): string[] =>
       (JSON.parse(api.exportProject()) as { scenes: { decos: { model: string }[] }[] }).scenes[0]!.decos.map((d) => d.model);
     const barrels = (): number => models().filter((model) => model === 'barrel').length;
@@ -131,7 +131,7 @@ test('Combat: its own tools, and a creature found by searching is the one placed
   await found.click();
 
   const placed = await page.evaluate((id) => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const kinds = (): string[] =>
       (JSON.parse(api.exportProject()) as { scenes: { encounters: { adversaries: { adversary: string }[] }[] }[] }).scenes[0]!
         .encounters.flatMap((e) => e.adversaries.map((a) => a.adversary));
@@ -199,10 +199,10 @@ test('the scene picker switches the room being edited, and the top bar undoes', 
   const errors = await editing(page);
   await page.locator('[data-testid="open-scenes"]').click();
   await page.locator('[data-testid="scene-menu"] [data-scene="the-pit"]').click();
-  expect(await page.evaluate(() => window.__polyheart!.editScene())).toBe('the-pit');
+  expect(await page.evaluate(() => window.__engine!.editScene())).toBe('the-pit');
 
   const painted = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setTool('paintTerrain');
     api.setTerrain('wall');
     // Find the first pit tile that is not 'wall'
@@ -217,6 +217,6 @@ test('the scene picker switches the room being edited, and the top bar undoes', 
   });
   expect(painted.after).toBe('wall');
   await page.locator('[data-testid="undo"]').click();
-  expect(await page.evaluate((tile) => window.__polyheart!.terrainAt(tile), painted.tile)).toBe(painted.before);
+  expect(await page.evaluate((tile) => window.__engine!.terrainAt(tile), painted.tile)).toBe(painted.before);
   expect(errors).toEqual([]);
 });

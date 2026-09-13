@@ -22,19 +22,19 @@ async function editing(page: Page): Promise<string[]> {
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
   await page.evaluate(() => {
-    window.__polyheart!.setDiceSpeed(0);
-    window.__polyheart!.setMode('edit');
+    window.__engine!.setDiceSpeed(0);
+    window.__engine!.setMode('edit');
   });
   return errors;
 }
 
 test('every authoring panel opens and reads as English', async ({ page }) => {
   const errors = await editing(page);
-  expect(await page.evaluate(() => window.__polyheart!.mode())).toBe('edit');
+  expect(await page.evaluate(() => window.__engine!.mode())).toBe('edit');
 
   for (const { open, panel, close } of PANELS) {
     await page.locator('[data-testid="open-content"]').click();
@@ -70,18 +70,18 @@ test('a model file picked in the panel rides inside the project, and its own cli
   // Carried inside the document rather than referenced beside it, and reported
   // by weight because the bytes themselves would fill the panel.
   await expect(row).toContainText('embedded');
-  const declared = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject()));
+  const declared = JSON.parse(await page.evaluate(() => window.__engine!.exportProject()));
   expect(declared.assets.find((a: { id: string }) => a.id === 'fox').url.startsWith('data:')).toBe(true);
 
   // Once the file is here, the options are the clip names it actually carries.
-  await page.waitForFunction(() => window.__polyheart!.assetStatus('fox') === 'ready', undefined, {
+  await page.waitForFunction(() => window.__engine!.assetStatus('fox') === 'ready', undefined, {
     timeout: 15_000,
   });
   const idle = page.locator('[data-testid="asset-clip-idle-fox"]');
   await expect(idle.locator('option[value="Survey"]')).toHaveCount(1);
   await idle.selectOption('Survey');
 
-  const chosen = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject()));
+  const chosen = JSON.parse(await page.evaluate(() => window.__engine!.exportProject()));
   expect(chosen.assets.find((a: { id: string }) => a.id === 'fox').clips).toEqual({ idle: 'Survey' });
 
   // Choosing a clip must not cost the file. Rebuilding the library on a settings
@@ -133,7 +133,7 @@ test('a designer can add one of each thing, and the panel shows it', async ({ pa
 
   // And what it wrote is a project the game takes back.
   const reloaded = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return a.loadProjectText(a.exportProject());
   });
   console.log('RELOADED:', JSON.stringify(reloaded));
@@ -146,7 +146,7 @@ test('a scene added in the editor is in the project and can be switched to', asy
   const errors = await editing(page);
 
   const made = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const before = a.scenes().length;
     const id = a.addScene('A cellar');
     a.switchScene(id);
@@ -160,7 +160,7 @@ test('a scene added in the editor is in the project and can be switched to', asy
 
   // Paint a tile in it, and the paint sticks.
   const painted = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.setMode('edit');
     a.setTool('paintTerrain');
     a.setTerrain('water');
@@ -183,7 +183,7 @@ test('play from here: the room being edited, gathered round a tile or on its spa
 
   // A new room, and the party put down in it round tile 5, without walking there.
   const there = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const id = a.addScene('A cellar');
     a.switchScene(id);
     const ok = a.playAt(5);
@@ -200,14 +200,14 @@ test('play from here: the room being edited, gathered round a tile or on its spa
   // And the button: back in the editor looking at the first room, Play here
   // takes the party there on its spawns.
   const back = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.setMode('edit');
     a.switchScene(a.scenes()[0]!);
     return a.scenes()[0]!;
   });
   await page.locator('[data-testid="play-here"]').click();
   const landed = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return { mode: a.mode(), playing: a.sceneId(), tiles: a.party().map((p) => a.tileOf(p)) };
   });
   console.log('LANDED:', JSON.stringify(landed));
@@ -221,7 +221,7 @@ test('a character added in the Party panel is standing with the party when Play 
   const errors = await editing(page);
   page.on('dialog', (d) => void d.accept('Tamsin'));
 
-  const before = await page.evaluate(() => window.__polyheart!.party());
+  const before = await page.evaluate(() => window.__engine!.party());
 
   await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-party"]').click();
@@ -231,10 +231,10 @@ test('a character added in the Party panel is standing with the party when Play 
   await page.locator('[data-testid="close-party"]').click();
 
   // Nothing on the board yet: the panel wrote a sheet, and that is all it does.
-  expect(await page.evaluate(() => window.__polyheart!.party())).toEqual(before);
+  expect(await page.evaluate(() => window.__engine!.party())).toEqual(before);
 
   const played = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.setMode('play');
     const party = a.party();
     const anchor = a.selected() ?? party[0]!;

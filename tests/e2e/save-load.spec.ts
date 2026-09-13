@@ -15,17 +15,17 @@ async function ready(page: Page): Promise<string[]> {
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
-  await page.evaluate(() => window.__polyheart!.setDiceSpeed(0));
+  await page.evaluate(() => window.__engine!.setDiceSpeed(0));
   return errors;
 }
 
 /** Talk the Warden round, go down to the pit and open the strongbox. */
 async function throughTheCampaign(page: Page): Promise<void> {
   await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     for (const id of a.objects()) {
       a.standBeside(id);
       a.use(id);
@@ -57,7 +57,7 @@ test('a campaign put down comes back the way it was left', async ({ page }) => {
   await throughTheCampaign(page);
 
   const left = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return {
       scene: a.sceneId(),
       carried: a.carried().map((i) => i.name).sort(),
@@ -71,20 +71,20 @@ test('a campaign put down comes back the way it was left', async ({ page }) => {
 
   // Save from the button a player would use.
   await page.locator('[data-testid="save"]').click();
-  const slots = await page.evaluate(() => window.__polyheart!.saves());
+  const slots = await page.evaluate(() => window.__engine!.saves());
   console.log('SLOTS:', JSON.stringify(slots));
   expect(slots.length, 'the save is in a slot').toBeGreaterThan(0);
 
   // Wreck the game: go back up, spend the loot, hurt somebody.
   await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const other = a.scenes().find((s) => s !== a.sceneId());
     if (other !== undefined) a.travelTo(other);
     while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
     a.wound('kara', 3);
   });
   const wrecked = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return { scene: a.sceneId(), hp: a.hitPoints('kara').marked };
   });
   console.log('WRECKED:', JSON.stringify(wrecked));
@@ -98,7 +98,7 @@ test('a campaign put down comes back the way it was left', async ({ page }) => {
   console.log('SAVES PANEL:', JSON.stringify(await list.innerText()));
   await list.locator('[data-save="quick"] [data-testid="load-slot"]').click();
   const back = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return {
       scene: a.sceneId(),
       carried: a.carried().map((i) => i.name).sort(),
@@ -127,7 +127,7 @@ test('the save carries the tail of the log, not the whole campaign', async ({ pa
   await page.locator('[data-testid="save"]').click();
 
   const sizes = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const before = (a.saveText() ?? '').length;
     const lines = a.log().length;
     return { before, lines };
@@ -136,7 +136,7 @@ test('the save carries the tail of the log, not the whole campaign', async ({ pa
   expect(sizes.before, 'a save was written').toBeGreaterThan(0);
 
   const capped = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const text = a.saveText() ?? '{}';
     const save = JSON.parse(text) as { log: unknown[] };
     return { logInSave: save.log.length, logInGame: a.log().length };
@@ -154,11 +154,11 @@ test('a named save sits beside the autosave and loads on its own', async ({ page
   const errors = await ready(page);
   await throughTheCampaign(page);
 
-  const named = await page.evaluate(() => window.__polyheart!.saveAs('After the strongbox'));
+  const named = await page.evaluate(() => window.__engine!.saveAs('After the strongbox'));
   console.log('NAMED:', JSON.stringify(named));
   expect(named, 'the named save was written').not.toBeNull();
 
-  const slots = await page.evaluate(() => window.__polyheart!.saves());
+  const slots = await page.evaluate(() => window.__engine!.saves());
   console.log('SLOTS:', JSON.stringify(slots));
   expect(slots.some((s) => s.name === 'After the strongbox')).toBe(true);
 
@@ -172,9 +172,9 @@ test('a named save sits beside the autosave and loads on its own', async ({ page
   }
 
   // Wreck it, then load that slot by name.
-  await page.evaluate(() => window.__polyheart!.wound('kara', 3));
+  await page.evaluate(() => window.__engine!.wound('kara', 3));
   const loaded = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const slot = a.saves().find((s) => s.name === 'After the strongbox');
     const ok = slot === undefined ? false : a.loadSlot(slot.id);
     return { ok, hp: a.hitPoints('kara').marked, scene: a.sceneId() };

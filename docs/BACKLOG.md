@@ -453,7 +453,7 @@ half of this item landed on 2026-09-12.
 Construction has chunk instancing, frustum/distance culling, three LODs and a tested residency
 budget (`render/building-view.ts`). Extend those to the legacy height field and props. Large
 populated worlds still need hardware FPS/memory profiling; geometry counters are available through
-`window.__polyheart.buildingStats()` — a handle whose name changes with the identity rename.
+`window.__engine.buildingStats()` — a handle whose name changes with the identity rename.
 
 ### 10. Zip project export
 
@@ -573,7 +573,7 @@ dirty file throws away work that is not recoverable.
 
 ### The e2e suite hand-mirrors the driver type
 
-`src/main.ts` declares `window.__polyheart` in a `declare global` block, and
+`src/main.ts` declares `window.__engine` in a `declare global` block, and
 `tests/e2e/demo.spec.ts` **declares its own copy of that type near the top.** Adding a handle to
 `main.ts` without adding it to the spec is a `tsc` failure in the test, not in the app, which reads
 as unrelated. Update both in the same patch.

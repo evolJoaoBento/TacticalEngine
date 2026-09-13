@@ -6,7 +6,7 @@ description: Launch and drive the PolyHeart demo in a real browser - open the ap
 # Running the demo
 
 A Vite + three.js page. There is nothing to click blind: `src/main.ts`
-publishes about a hundred handles on `window.__polyheart`, and the
+publishes about a hundred handles on `window.__engine`, and the
 e2e suite drives the game entirely through them. Use that. Writing a
 mouse-and-pixel driver for this app is wasted work.
 
@@ -20,7 +20,7 @@ it first and expect Playwright to use it.
 
 ## The driver
 
-`window.__polyheart` — see the `declare global` block at the top of
+`window.__engine` — see the `declare global` block at the top of
 `src/main.ts` for the full list. The ones that matter:
 
 | Doing | Handle |

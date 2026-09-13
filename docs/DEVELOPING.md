@@ -55,7 +55,7 @@ In this order, and no further until you need it:
 ### The layer map
 
 ```
-  the page        src/main.ts   ·  engine/render/  ·  editor/ui/  ·  window.__polyheart
+  the page        src/main.ts   ·  engine/render/  ·  editor/ui/  ·  window.__engine
   (DOM, WebGL)         |                 |                |
                        v                 v                v
   the glue        src/game/  (demo-scene.ts and friends)   src/editor/ (session.ts, validate.ts)
@@ -214,7 +214,7 @@ a test rather than a comment.
 5. `PerspectiveCamera` + `OrbitCamera` + `frameCamera`.
 6. Pointer and keyboard listeners.
 7. `refreshPlay()` renders the Preact HUD into `#app`.
-8. `window.__polyheart = state` (built inline, `src/main.ts:1198`–`1565`; assigned at `:1565`).
+8. `window.__engine = state` (built inline, `src/main.ts:1198`–`1565`; assigned at `:1565`).
 9. `frame()`: `steerCamera`, `view.tick`, `orbit.update`, `renderer.render`, `requestAnimationFrame`.
 
 The render loop lives in `main.ts`, not in the render module.
@@ -662,13 +662,13 @@ Other per-file helpers by the same convention: `scene(seed)` wrapping `buildDemo
 `standoff(seed)` in `src/game/demo-defense.test.ts`, which builds a fight already holding a pending
 defence prompt.
 
-**The e2e handle.** `window.__polyheart` is built inline in `src/main.ts` and assigned at `:1565`.
+**The e2e handle.** `window.__engine` is built inline in `src/main.ts` and assigned at `:1565`.
 It exposes the state a test cannot get at through the DOM: `frames`, `webgl2`, `errors`, `tiles`,
 `entities`, `decos`, `missingModels()`, `party()`, `selected()`, `select(id)`, `selectNext()`,
 `tileOf(id)`, `inCombat()`, `round()`, `adversaries()`, `hitPoints(id)`, `moveTo(tile)`,
 `attack(id)`, `endGmTurn()`, `highlighted()`, `reachable()`, `sample(x, y)` (which re-renders inside
 the same task, because the drawing buffer is not preserved between frames), `setMode`,
-`exportProject`. A spec waits on `(window.__polyheart?.frames ?? 0) > 5` before touching anything.
+`exportProject`. A spec waits on `(window.__engine?.frames ?? 0) > 5` before touching anything.
 
 **Selectors.** `data-testid` is kebab-case prefixed by the owning panel: `ability-name`,
 `item-kind`, `code-source`, `check-difficulty`. Actions are `add-<thing>`, `open-<panel>`,

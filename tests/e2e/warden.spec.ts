@@ -26,10 +26,10 @@ async function ready(page: Page): Promise<string[]> {
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
-  await page.evaluate(() => window.__polyheart!.setDiceSpeed(0));
+  await page.evaluate(() => window.__engine!.setDiceSpeed(0));
   return errors;
 }
 
@@ -38,7 +38,7 @@ test('the Warden talks, the quest starts, and the journal fills', async ({ page 
 
   // The pillar is the thing with a conversation in it.
   const opened = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     for (const id of a.objects()) {
       a.standBeside(id);
       const status = a.use(id);
@@ -55,13 +55,13 @@ test('the Warden talks, the quest starts, and the journal fills', async ({ page 
   await page.screenshot({ path: 'test-results/warden-open.png' });
 
   // The quest starts on the first node, before a word is chosen.
-  const started = await page.evaluate(() => window.__polyheart!.journal());
+  const started = await page.evaluate(() => window.__engine!.journal());
   console.log('JOURNAL:', JSON.stringify(started));
   expect(started.length, 'the conversation started the demo quest').toBeGreaterThan(0);
 
   // Talk it through: take the first reply each time until it runs out.
   const said = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const lines: string[][] = [];
     for (let i = 0; i < 12 && a.hasDialogue(); i++) {
       const options = a.dialogueOptions();
@@ -103,7 +103,7 @@ test('the Warden talks, the quest starts, and the journal fills', async ({ page 
   const ids = [
     ...said.journal.map((q) => q.id),
     ...said.journal.flatMap((q) => q.done),
-    ...(await page.evaluate(() => [...window.__polyheart!.party(), ...window.__polyheart!.objects()])),
+    ...(await page.evaluate(() => [...window.__engine!.party(), ...window.__engine!.objects()])),
   ];
   const leaks: string[] = [];
   for (const [where, text] of Object.entries(shown)) {
@@ -118,7 +118,7 @@ test('the word opens the strongbox in the pit, and the quest closes', async ({ p
 
   // Talk the Warden round first: the strongbox asks for what he gives up.
   const word = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     for (const id of a.objects()) {
       a.standBeside(id);
       a.use(id);
@@ -143,7 +143,7 @@ test('the word opens the strongbox in the pit, and the quest closes', async ({ p
 
   // Down to the pit: a second room, and the travel between them.
   const arrived = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const pit = a.scenes().find((s) => s !== a.sceneId());
     const went = pit === undefined ? false : a.travelTo(pit);
     while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
@@ -160,7 +160,7 @@ test('the word opens the strongbox in the pit, and the quest closes', async ({ p
 
   // And open it.
   const opened = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.standBeside('strongbox');
     const status = a.use('strongbox');
     while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });

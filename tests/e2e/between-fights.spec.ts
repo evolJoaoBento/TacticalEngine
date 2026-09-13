@@ -15,17 +15,17 @@ async function ready(page: Page): Promise<string[]> {
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
-  await page.evaluate(() => window.__polyheart!.setDiceSpeed(0));
+  await page.evaluate(() => window.__engine!.setDiceSpeed(0));
   return errors;
 }
 
 /** Talk the Warden round, go down to the pit and open the strongbox. */
 async function throughTheCampaign(page: Page): Promise<void> {
   await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     for (const id of a.objects()) {
       a.standBeside(id);
       a.use(id);
@@ -57,7 +57,7 @@ test('the level they earned is taken by clicking it', async ({ page }) => {
   await throughTheCampaign(page);
 
   const before = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return { level: a.characterLevel('kara'), waiting: a.awaitingLevel(), hp: a.hitPoints('kara') };
   });
   console.log('EARNED:', JSON.stringify(before));
@@ -90,7 +90,7 @@ test('the level they earned is taken by clicking it', async ({ page }) => {
   console.log('AFTER ISSUES:', (await post.count()) > 0 ? await post.innerText() : 'none');
 
   const after = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return { level: a.characterLevel('kara'), waiting: a.awaitingLevel(), hp: a.hitPoints('kara'), log: a.log().slice(-3).map((l) => l.text) };
   });
   console.log('TAKEN:', JSON.stringify(after));
@@ -107,12 +107,12 @@ test('a rest is taken from the panel, and puts something back', async ({ page })
 
   // Something to heal: a rest that restores nothing proves nothing.
   await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.wound('kara', 2);
     a.markStress('kara', 2);
   });
   const hurt = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return { hp: a.hitPoints('kara'), stress: a.stressOf('kara') };
   });
   expect(hurt.hp.marked).toBeGreaterThan(0);
@@ -127,7 +127,7 @@ test('a rest is taken from the panel, and puts something back', async ({ page })
   await page.locator('[data-testid="take-rest"]').click();
 
   const rested = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return { hp: a.hitPoints('kara'), stress: a.stressOf('kara'), log: a.log().slice(-4).map((l) => l.text) };
   });
   console.log('RESTED:', JSON.stringify(rested, null, 1));
@@ -143,7 +143,7 @@ test('what the strongbox paid out can be put on', async ({ page }) => {
   await throughTheCampaign(page);
 
   const before = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return { gear: a.gear('kara'), carried: a.carried().map((i) => i.name) };
   });
   console.log('CARRYING:', JSON.stringify(before));
@@ -160,7 +160,7 @@ test('what the strongbox paid out can be put on', async ({ page }) => {
   await equip.first().click();
 
   const after = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return {
       gear: a.gear('kara'),
       hud: a.party().map((id) => a.gear(id).armor),

@@ -16,7 +16,7 @@
 - The repo is LF (`.gitattributes` sets `* text=auto eol=lf`). Python patch scripts open with `newline=''`.
 - The repository path contains a space. Quote it.
 - Never `git checkout` a file with uncommitted work; copy it aside and back.
-- `src/main.ts` declares `window.__polyheart`; `tests/e2e/demo.spec.ts` hand-mirrors that type. Change both together.
+- `src/main.ts` declares `window.__engine`; `tests/e2e/demo.spec.ts` hand-mirrors that type. Change both together.
 - Every new module is tested. Show each new test red before writing the code that satisfies it.
 - Before claiming done: `npx tsc --noEmit`, `npx vitest run`, `npx playwright test`.
 - **This slice deletes nothing.** No file under `tools/srd-sources/` is removed, no import is cut, no term is renamed. Those are slices 2–4.

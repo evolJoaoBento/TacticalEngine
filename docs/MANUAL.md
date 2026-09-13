@@ -30,7 +30,7 @@ npm run check        # typecheck + unit + e2e
 The original prototype still runs from `legacy/start.bat` (it also serves on port 8420, so do
 not run both at once). Do not edit anything under `legacy/`.
 
-A debug handle, `window.__polyheart`, is attached to the page for the end-to-end tests. It
+A debug handle, `window.__engine`, is attached to the page for the end-to-end tests. It
 exposes selection, movement, attacks, the log, save/load, editor tools, undo, and project export;
 modders and test authors can drive the game through it, but nothing in the engine reads it.
 
@@ -604,7 +604,7 @@ quest nothing starts; an objective nothing completes.
 "unsaved" mark. **Load** opens a file picker; the file is parsed through the project schema, and
 if it is playable, replaces the document the *editor* holds, redraws the view, and restarts the
 game on it — the same round trip described under **Playing what you authored** above. A file
-that fails the schema is recorded in `__polyheart.errors`, and nothing is shown under Project ▾.
+that fails the schema is recorded in `__engine.errors`, and nothing is shown under Project ▾.
 
 ### Undo
 

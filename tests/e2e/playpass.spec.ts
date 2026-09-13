@@ -21,12 +21,12 @@ async function intoTheVault(page: Page): Promise<{ inCombat: boolean; foe: strin
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
 
   const got = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.setDiceSpeed(0);
     const door = a.objects().find((o) => o.includes('door')) ?? a.objects()[0]!;
     a.standBeside(door);
@@ -49,7 +49,7 @@ async function intoTheVault(page: Page): Promise<{ inCombat: boolean; foe: strin
   // Close on the nearest adversary over as many turns as it takes. One move a
   // turn is what a character gets, and the vault is bigger than one move.
   await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const foe = a.adversaries()[0];
     if (foe === undefined) return;
     const away = (t: number, to: number): number =>
@@ -79,7 +79,7 @@ test('the vault fight runs, and a swing reads out on screen', async ({ page }) =
   expect(arrived.inCombat).toBe(true);
 
   const swung = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const foe = a.adversaries()[0]!;
     const before = a.hitPoints(foe).marked;
     a.standBeside(foe);
@@ -109,7 +109,7 @@ test('a click on an enemy across the room walks up and swings', async ({ page })
   expect(arrived.inCombat).toBe(true);
 
   const charged = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const me = a.selected()!;
     const foe = a.adversaries()[0]!;
     // Back off within this move, let the room have a turn, then click the foe from there.
@@ -136,7 +136,7 @@ test('the warding ring burns whatever is standing in it', async ({ page }) => {
   expect(arrived.inCombat).toBe(true);
 
   const cast = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.setCards('mira', ['warding-flame']);
     a.select('mira');
     const foe = a.adversaries()[0]!;
@@ -208,7 +208,7 @@ test('Hold the Line drags in whatever comes close', async ({ page }) => {
   expect(arrived.inCombat).toBe(true);
 
   const held = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     // No cards: Hold the Line is the sentinel's own class feature, granted
     // rather than held, so there is nothing to put in her hand.
     a.select('kara');
@@ -237,14 +237,14 @@ test('a name in the log points at whoever it named', async ({ page }) => {
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
-  await page.evaluate(() => window.__polyheart!.setDiceSpeed(0));
+  await page.evaluate(() => window.__engine!.setDiceSpeed(0));
 
   // A swing, so the log has a line naming two creatures.
   const swung = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const door = a.objects().find((o) => o.includes('door')) ?? a.objects()[0]!;
     a.standBeside(door);
     for (let i = 0; i < 20 && !a.objectState(door).open; i++) {
@@ -291,7 +291,7 @@ test('a name in the log points at whoever it named', async ({ page }) => {
   const foeLink = page.locator(`[data-testid="log"] [data-entity="${swung.foe}"]`).last();
   await expect(foeLink).toBeVisible();
   await foeLink.hover();
-  const marked = await page.evaluate(() => window.__polyheart!.cursorTile());
+  const marked = await page.evaluate(() => window.__engine!.cursorTile());
   console.log('MARKED:', marked, 'FOE AT:', swung.foeTile);
   expect(marked, 'the board marks whoever the log named').toBe(swung.foeTile);
 
@@ -299,7 +299,7 @@ test('a name in the log points at whoever it named', async ({ page }) => {
 
   // And letting go puts the marker away.
   await page.locator('[data-testid="hud"]').hover();
-  const after = await page.evaluate(() => window.__polyheart!.cursorTile());
+  const after = await page.evaluate(() => window.__engine!.cursorTile());
   console.log('AFTER:', after);
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
@@ -310,12 +310,12 @@ test('a walk ends where it was aimed, not at the centre of a square, and the tok
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
 
   const walked = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const me = a.selected()!;
     const from = a.tileOf(me);
     // Towards the middle of the room, where nothing on the HUD covers the board.
@@ -331,21 +331,21 @@ test('a walk ends where it was aimed, not at the centre of a square, and the tok
   expect(walked.at).toEqual(walked.aimed);
 
   // The token arrives at the spot, not the square's centre, and stands there.
-  await page.waitForFunction(() => window.__polyheart!.gliding() === 0, null, { timeout: 10_000 });
-  const stood = await page.evaluate((me: string) => window.__polyheart!.standingAt(me), walked.me);
+  await page.waitForFunction(() => window.__engine!.gliding() === 0, null, { timeout: 10_000 });
+  const stood = await page.evaluate((me: string) => window.__engine!.standingAt(me), walked.me);
   expect(stood).toEqual(walked.aimed);
   await page.screenshot({ path: 'test-results/walk-aimed.png' });
 
   // A click on the token where it actually stands selects it, off-centre and all.
   const target = await page.evaluate((me: string) => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.selectNext();
     const at = a.standingAt(me)!;
     return { other: a.selected(), px: a.screenAt(at.x, at.y) };
   }, walked.me);
   expect(target.other).not.toBe(walked.me);
   await page.mouse.click(target.px.x, target.px.y);
-  const selected = await page.evaluate(() => window.__polyheart!.selected());
+  const selected = await page.evaluate(() => window.__engine!.selected());
   expect(selected).toBe(walked.me);
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
@@ -356,13 +356,13 @@ test('hovering the ground draws the line a click would walk', async ({ page }) =
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
 
   // Somewhere a few tiles off, towards the middle of the room.
   const target = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const me = a.selected()!;
     const from = a.tileOf(me);
     const span = (t: number): number => Math.hypot((t % 22) - 9, Math.floor(t / 22) - 8);
@@ -375,15 +375,15 @@ test('hovering the ground draws the line a click would walk', async ({ page }) =
   expect(target.preview!.beyond).toEqual([]);
 
   await page.mouse.move(target.px.x, target.px.y);
-  await page.waitForFunction(() => window.__polyheart!.pathPoints() >= 2, null, { timeout: 5_000 });
-  const drawn = await page.evaluate(() => window.__polyheart!.pathPoints());
+  await page.waitForFunction(() => window.__engine!.pathPoints() >= 2, null, { timeout: 5_000 });
+  const drawn = await page.evaluate(() => window.__engine!.pathPoints());
   console.log('PATH POINTS:', drawn);
   await page.screenshot({ path: 'test-results/hover-path.png' });
   expect(drawn).toBeGreaterThanOrEqual(2);
 
   // Off the board, the line goes.
   await page.mouse.move(2, 2);
-  await page.waitForFunction(() => window.__polyheart!.pathPoints() === 0, null, { timeout: 5_000 });
+  await page.waitForFunction(() => window.__engine!.pathPoints() === 0, null, { timeout: 5_000 });
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
@@ -393,12 +393,12 @@ test('the party rounds the vault door together, along the line the hover drew', 
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
 
   const opened = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.setDiceSpeed(0);
     const door = a.objects().find((o) => o.includes('door')) ?? a.objects()[0]!;
     a.standBeside(door);
@@ -411,11 +411,11 @@ test('the party rounds the vault door together, along the line the hover drew', 
     return a.objectState(door).open;
   });
   expect(opened).toBe(true);
-  await page.waitForFunction(() => window.__polyheart!.gliding() === 0, null, { timeout: 15_000 });
+  await page.waitForFunction(() => window.__engine!.gliding() === 0, null, { timeout: 15_000 });
 
   // A spot inside the vault, north-east of the door: the line bends at the doorway.
   const hovered = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const spot = { x: 15.3, y: 4.2 };
     return { preview: a.previewAt(spot.x, spot.y), px: a.screenAt(spot.x, spot.y) };
   });
@@ -423,20 +423,20 @@ test('the party rounds the vault door together, along the line the hover drew', 
   expect(hovered.preview).not.toBeNull();
   expect(hovered.preview!.route.length).toBeGreaterThanOrEqual(3);
   await page.mouse.move(hovered.px.x, hovered.px.y);
-  await page.waitForFunction(() => window.__polyheart!.pathPoints() >= 2, null, { timeout: 5_000 });
+  await page.waitForFunction(() => window.__engine!.pathPoints() >= 2, null, { timeout: 5_000 });
   await page.screenshot({ path: 'test-results/corner-hover.png' });
 
   // Click it: everyone walks, in a line, and the trigger past the door stops
   // the walk where the fight begins.
   await page.mouse.click(hovered.px.x, hovered.px.y);
   await page.waitForTimeout(700);
-  const mid = await page.evaluate(() => ({ gliding: window.__polyheart!.gliding(), fighting: window.__polyheart!.inCombat() }));
+  const mid = await page.evaluate(() => ({ gliding: window.__engine!.gliding(), fighting: window.__engine!.inCombat() }));
   await page.screenshot({ path: 'test-results/corner-mid.png' });
   expect(mid.gliding, 'the party is on its way').toBeGreaterThan(1);
   expect(mid.fighting, 'no fight before they get there').toBe(false);
-  await page.waitForFunction(() => window.__polyheart!.gliding() === 0, null, { timeout: 15_000 });
+  await page.waitForFunction(() => window.__engine!.gliding() === 0, null, { timeout: 15_000 });
   const done = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return { inCombat: a.inCombat(), party: a.party().map((p) => ({ p, at: a.standingAt(p), tile: a.tileOf(p) })) };
   });
   console.log('DONE:', JSON.stringify(done));
@@ -452,13 +452,13 @@ test('a walked token walks, and is standing on the tile when it has', async ({ p
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
 
   // The board is right the moment the move is made; the token takes a moment.
   const walked = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.setDiceSpeed(0);
     const me = a.selected()!;
     const from = a.tileOf(me);
@@ -476,12 +476,12 @@ test('a walked token walks, and is standing on the tile when it has', async ({ p
   expect(walked.gliding, 'the token is on its way').toBeGreaterThan(0);
 
   await page.screenshot({ path: 'test-results/walk-mid.png' });
-  await page.waitForFunction(() => window.__polyheart!.gliding() === 0, null, { timeout: 5_000 });
+  await page.waitForFunction(() => window.__engine!.gliding() === 0, null, { timeout: 5_000 });
 
   // The camera kept them in frame: its target ends within a third of its
   // distance of where they now stand, and the angle is untouched.
   const after = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     return { camera: a.camera(), at: a.screenOf(a.tileOf(a.selected()!)), size: { w: window.innerWidth, h: window.innerHeight } };
   });
   console.log('CAMERA:', JSON.stringify({ before: walked.before, after: after.camera, at: after.at }));

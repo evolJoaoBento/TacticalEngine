@@ -12,11 +12,11 @@ import { test, expect, type Page } from '@playwright/test';
 
 async function vault(page: Page): Promise<void> {
   await page.goto('/');
-  await page.waitForFunction(() => window.__polyheart !== undefined && window.__polyheart.frames > 2, null, {
+  await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, {
     timeout: 30_000,
   });
   await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.setDiceSpeed(0);
     const door = a.objects().find((o) => o.includes('door')) ?? a.objects()[0]!;
     a.standBeside(door);
@@ -80,7 +80,7 @@ test('nothing a player reads is a content id', async ({ page }) => {
   // Play a few of this session's cards - each writes a condition, a zone or a
   // token somewhere visible - and collect the ids the engine ended up holding.
   const ids = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const away = (t: number, to: number): number =>
       Math.abs((t % 22) - (to % 22)) + Math.abs(Math.floor(t / 22) - Math.floor(to / 22));
     const close = (): void => {
@@ -127,7 +127,7 @@ test('nothing a player reads is a content id', async ({ page }) => {
 
   // The card a right-click puts up about a creature.
   await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     const foe = a.adversaries()[0];
     if (foe !== undefined) a.inspect(a.tileOf(foe));
   });
@@ -145,7 +145,7 @@ test('the loadout, the journal and a rest read as English too', async ({ page })
 
   // Cards in hand and a quest running, then the panels that show them.
   const ids = await page.evaluate(() => {
-    const a = window.__polyheart!;
+    const a = window.__engine!;
     a.setCards('kara', ['power-slash', 'shield-wall', 'iron-stance']);
     a.select('kara');
     // Something in the pack, so the panel has a row to render rather than the

@@ -11,7 +11,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 declare global {
   interface Window {
-    __polyheart?: {
+    __engine?: {
       webgl2: boolean;
       frames: number;
       errors: string[];
@@ -159,7 +159,7 @@ async function boot(page: Page): Promise<string[]> {
   });
   page.on('pageerror', (e) => consoleErrors.push(e.message));
   await page.goto('/');
-  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
   return consoleErrors;
 }
 
@@ -167,7 +167,7 @@ test('renders the imported demo vault under headless WebGL, with no errors', asy
   const consoleErrors = await boot(page);
 
   const info = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const canvas = document.getElementById('gl') as HTMLCanvasElement;
     return {
       webgl2: api.webgl2,
@@ -204,7 +204,7 @@ test('selects between party members and moves the one in control', async ({ page
   const consoleErrors = await boot(page);
 
   const result = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const party = api.party();
     const first = api.selected();
 
@@ -246,7 +246,7 @@ test('walks into the vault, fights, and hands the spotlight back and forth', asy
   const consoleErrors = await boot(page);
 
   const fight = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
 
     // The vault door is shut and blocks the way; pick it. The roll is seeded,
     // so retry until it opens — a door can be tried again.
@@ -317,7 +317,7 @@ test('walks up to a tile that is out of reach, and no further', async ({ page })
   await boot(page);
 
   const result = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const reachable = new Set(api.reachable());
     let unreachable = -1;
     for (let tile = 0; tile < api.tiles; tile++) {
@@ -344,7 +344,7 @@ test('edits the map, and undoes exactly what it did', async ({ page }) => {
   const consoleErrors = await boot(page);
 
   const result = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('edit');
 
     // Paint a wall over open ground.
@@ -405,12 +405,12 @@ test('edits the map, and undoes exactly what it did', async ({ page }) => {
 test('shows the editor panel and keeps the scene renderable while editing', async ({ page }) => {
   const consoleErrors = await boot(page);
 
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await expect(page.locator('#app')).toContainText('Editor');
   await expect(page.locator('#app')).toContainText('Terrain');
 
   const drawn = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const canvas = document.getElementById('gl') as HTMLCanvasElement;
     const middle = (): number[] => api.sample(canvas.width >> 1, canvas.height >> 1);
 
@@ -444,7 +444,7 @@ test('returns to play with the edited map underfoot', async ({ page }) => {
   const consoleErrors = await boot(page);
 
   const result = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const selected = api.selected()!;
     const start = api.tileOf(selected);
 
@@ -479,7 +479,7 @@ test('uses the vault furniture the original map authored', async ({ page }) => {
   // each way the roll can go. Every one of those fields imported cleanly and ran
   // nowhere until the use verb existed, so this is the test that it reaches play.
   const result = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const chest = api.objects().find((id) => id.startsWith('chest'))!;
 
     const acrossTheRoom = api.use(chest);
@@ -526,7 +526,7 @@ test('shows the narrative log and the roll prompt on the page', async ({ page })
   const consoleErrors = await boot(page);
 
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const chest = api.objects().find((id) => id.startsWith('chest'))!;
     api.standBeside(chest);
     api.use(chest);
@@ -548,9 +548,9 @@ test('shows the Duality Dice landing on the faces the roll rolled', async ({ pag
 
   // Slow enough that the dice are still tumbling when the assertion runs: the
   // tray is the one place the player watches, so it has to be there to watch.
-  await page.evaluate(() => window.__polyheart!.setDiceSpeed(4000));
+  await page.evaluate(() => window.__engine!.setDiceSpeed(4000));
   const rolled = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.select(api.party()[0]!);
     // The vault door is shut and blocks the way; pick it, then walk east until
     // the trigger starts the fight. The same route the fight test walks.
@@ -596,9 +596,9 @@ test('shows the Duality Dice landing on the faces the roll rolled', async ({ pag
   await expect(tray.locator('svg')).toHaveCount(3); // two dice and the sheen defs
 
   // Turn the settle time off and the dice finish and clear themselves.
-  await page.evaluate(() => window.__polyheart!.setDiceSpeed(0));
+  await page.evaluate(() => window.__engine!.setDiceSpeed(0));
   await expect(tray).toHaveCount(0);
-  expect(await page.evaluate(() => window.__polyheart!.dice().length)).toBe(0);
+  expect(await page.evaluate(() => window.__engine!.dice().length)).toBe(0);
 
   expect(consoleErrors).toEqual([]);
 });
@@ -607,7 +607,7 @@ test('talks to the pillar, and the conversation is part of the saved project', a
   const consoleErrors = await boot(page);
 
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
     api.standBeside(pillar);
     api.use(pillar);
@@ -632,7 +632,7 @@ test('talks to the pillar, and the conversation is part of the saved project', a
   await expect(page.locator('[data-testid="log"]')).toContainText(/Light|Shadow|critical/i);
 
   // And the words themselves are document data: they survive Save JSON.
-  const saved = await page.evaluate(() => window.__polyheart!.exportProject());
+  const saved = await page.evaluate(() => window.__engine!.exportProject());
   expect(saved).toContain('the-listening-pillar');
   expect(saved).toContain('Three hundred years');
 
@@ -643,7 +643,7 @@ test('hides a reply until the party knows what it is talking about', async ({ pa
   const consoleErrors = await boot(page);
 
   const gated = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
     api.standBeside(pillar);
     api.use(pillar);
@@ -666,7 +666,7 @@ test('walks down the stair into another room, and back to find it as it was', as
   const consoleErrors = await boot(page);
 
   const trip = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const vault = api.sceneId();
     const vaultTiles = api.sceneTiles();
 
@@ -724,7 +724,7 @@ test('edits one room while the party stands in another', async ({ page }) => {
   const consoleErrors = await boot(page);
 
   const result = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const vault = api.sceneId();
     const vaultReach = api.reachable().length;
     const vaultTiles = api.sceneTiles();
@@ -783,7 +783,7 @@ test('adds and deletes scenes from the editor', async ({ page }) => {
   const consoleErrors = await boot(page);
 
   const result = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('edit');
 
     const before = api.scenes().length;
@@ -818,7 +818,7 @@ test('adds and deletes scenes from the editor', async ({ page }) => {
 test('lists the scenes in the panel, marking where the party is', async ({ page }) => {
   const consoleErrors = await boot(page);
 
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.locator('[data-testid="open-scenes"]').click();
   const menu = page.locator('[data-testid="scene-menu"]');
   await expect(menu).toBeVisible();
@@ -827,8 +827,8 @@ test('lists the scenes in the panel, marking where the party is', async ({ page 
   // Switching by clicking the scene's own button, not the debug handle.
   await page.getByRole('button', { name: /The Sounding Pit/ }).click();
   const editing = await page.evaluate(() => ({
-    editScene: window.__polyheart!.editScene(),
-    playing: window.__polyheart!.sceneId(),
+    editScene: window.__engine!.editScene(),
+    playing: window.__engine!.sceneId(),
   }));
 
   expect(editing.editScene).toBe('the-pit');
@@ -844,7 +844,7 @@ test('authors an object in the inspector, and plays what it wrote', async ({ pag
   // Author a brand new lever in the editor: a Strength roll that opens onto a
   // line of prose. None of this touches a TypeScript file.
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('edit');
     api.setTool('interactable');
     // Somewhere the party can reach, in the open part of the vault.
@@ -852,7 +852,7 @@ test('authors an object in the inspector, and plays what it wrote', async ({ pag
   });
 
   const authored = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const scene = api.exportProject();
     const id = (JSON.parse(scene) as { scenes: { interactables: { id: string }[] }[] }).scenes[0]!
       .interactables.map((i) => i.id)
@@ -879,7 +879,7 @@ test('authors an object in the inspector, and plays what it wrote', async ({ pag
 
   // Now play it: walk up to the thing that did not exist a moment ago and use it.
   const played = await page.evaluate((id: string) => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('play');
     api.standBeside(id);
     const used = api.use(id);
@@ -900,7 +900,7 @@ test('shows the inspector for a clicked object', async ({ page }) => {
   const consoleErrors = await boot(page);
 
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('edit');
     api.selectObject(api.objects().find((id) => id.startsWith('chest'))!);
   });
@@ -914,7 +914,7 @@ test('shows the inspector for a clicked object', async ({ page }) => {
   // Editing the name in the panel reaches the document.
   const name = panel.locator('input').first();
   await name.fill('A very old chest');
-  const stored = await page.evaluate(() => window.__polyheart!.objectField('name'));
+  const stored = await page.evaluate(() => window.__engine!.objectField('name'));
   expect(stored).toBe('A very old chest');
 
   expect(consoleErrors).toEqual([]);
@@ -923,7 +923,7 @@ test('shows the inspector for a clicked object', async ({ page }) => {
 test('draws the pillar conversation as a graph', async ({ page }) => {
   const consoleErrors = await boot(page);
 
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.locator('[data-testid="mode-interaction"]').click();
   await page.getByRole('button', { name: /the-listening-pillar/ }).click();
 
@@ -945,12 +945,12 @@ test('draws the pillar conversation as a graph', async ({ page }) => {
 test('drags a node, and one undo puts it back', async ({ page }) => {
   const consoleErrors = await boot(page);
 
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.locator('[data-testid="mode-interaction"]').click();
   await page.getByRole('button', { name: /the-listening-pillar/ }).click();
 
   const before = await page.evaluate(() =>
-    window.__polyheart!.nodePosition('the-listening-pillar', 'vault'),
+    window.__engine!.nodePosition('the-listening-pillar', 'vault'),
   );
   // A hand-written conversation stores no positions until something is moved.
   expect(before).toBeNull();
@@ -963,14 +963,14 @@ test('drags a node, and one undo puts it back', async ({ page }) => {
   await page.mouse.up();
 
   const after = await page.evaluate(() =>
-    window.__polyheart!.nodePosition('the-listening-pillar', 'vault'),
+    window.__engine!.nodePosition('the-listening-pillar', 'vault'),
   );
   expect(after).not.toBeNull();
 
   // Eight pointer moves, one undo.
-  await page.evaluate(() => window.__polyheart!.undo());
+  await page.evaluate(() => window.__engine!.undo());
   const undone = await page.evaluate(() =>
-    window.__polyheart!.nodePosition('the-listening-pillar', 'vault'),
+    window.__engine!.nodePosition('the-listening-pillar', 'vault'),
   );
   expect(undone).toBeNull();
 
@@ -980,7 +980,7 @@ test('drags a node, and one undo puts it back', async ({ page }) => {
 test('writes a new reply in the graph and hears it in play', async ({ page }) => {
   const consoleErrors = await boot(page);
 
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.locator('[data-testid="mode-interaction"]').click();
   await page.getByRole('button', { name: /the-listening-pillar/ }).click();
 
@@ -989,7 +989,7 @@ test('writes a new reply in the graph and hears it in play', async ({ page }) =>
   // Add a node, then a reply on the opening node that leads to it.
   await graph.getByRole('button', { name: '+ Node' }).click();
   const nodes = await page.evaluate(() =>
-    window.__polyheart!.dialogueNodes('the-listening-pillar'),
+    window.__engine!.dialogueNodes('the-listening-pillar'),
   );
   const added = nodes[nodes.length - 1]!;
 
@@ -1006,13 +1006,13 @@ test('writes a new reply in the graph and hears it in play', async ({ page }) =>
   await start.locator('select[data-goto]').last().selectOption(added);
 
   // It is in the document...
-  const exported = await page.evaluate(() => window.__polyheart!.exportProject());
+  const exported = await page.evaluate(() => window.__engine!.exportProject());
   expect(exported).toContain('Say nothing, and wait.');
   expect(exported).toContain('The stone says nothing more.');
 
   // ...and in the player's mouth.
   const options = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('play');
     const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
     api.standBeside(pillar);
@@ -1029,7 +1029,7 @@ test('fills the pack from a chest, and shows what the party carries', async ({ p
   const consoleErrors = await boot(page);
 
   const looted = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const empty = api.carried();
     const chest = api.objects().find((id) => id.startsWith('chest'))!;
     api.standBeside(chest);
@@ -1058,7 +1058,7 @@ test('talks the Warden round, and the word opens the strongbox downstairs', asyn
   // This is the whole campaign in one test: a conversation in one room decides
   // whether a chest opens in another.
   const run = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
     api.standBeside(pillar);
     api.use(pillar);
@@ -1112,7 +1112,7 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
   await expect(page.locator('[data-testid="load"]')).toBeDisabled();
 
   const before = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const vault = api.sceneId();
     const chest = api.objects().find((id) => id.startsWith('chest'))!;
     api.standBeside(chest);
@@ -1142,10 +1142,10 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
 
   // A real reload: a new page, a new engine, and nothing but storage between.
   await page.reload();
-  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
   const fresh = await page.evaluate(() => ({
-    scene: window.__polyheart!.sceneId(),
-    carried: window.__polyheart!.carried(),
+    scene: window.__engine!.sceneId(),
+    carried: window.__engine!.carried(),
   }));
   expect(fresh.scene).not.toBe('the-pit');
   expect(fresh.carried).toEqual([]);
@@ -1153,7 +1153,7 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
   await page.locator('[data-testid="load"]').click();
   await page.locator('[data-testid="saves"] [data-save="quick"] [data-testid="load-slot"]').click();
   const after = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     return {
       carried: api.carried(),
       scene: api.sceneId(),
@@ -1171,7 +1171,7 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
   // is refused rather than offering the lock roll again. That is the room the
   // save was *not* being played in, restored.
   const upstairs = await page.evaluate((vault: string) => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const travelled = api.travelTo(vault);
     const chest = api.objects().find((id) => id.startsWith('chest'))!;
     api.standBeside(chest);
@@ -1191,14 +1191,14 @@ test('will not save in the middle of a conversation', async ({ page }) => {
   await expect(save).toBeEnabled();
 
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
     api.standBeside(pillar);
     api.use(pillar);
   });
-  expect(await page.evaluate(() => window.__polyheart!.hasDialogue())).toBe(true);
+  expect(await page.evaluate(() => window.__engine!.hasDialogue())).toBe(true);
   await expect(save).toBeDisabled();
-  expect(await page.evaluate(() => window.__polyheart!.saveBlocked())).toMatch(/conversation/);
+  expect(await page.evaluate(() => window.__engine!.saveBlocked())).toMatch(/conversation/);
 
   expect(consoleErrors).toEqual([]);
 });
@@ -1210,7 +1210,7 @@ test('opens a quest in the journal when the pillar wakes', async ({ page }) => {
   await expect(page.locator('[data-testid="journal"]')).toHaveCount(0);
 
   const journal = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const before = api.journal();
     const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
     api.standBeside(pillar);
@@ -1234,7 +1234,7 @@ test('opens a quest in the journal when the pillar wakes', async ({ page }) => {
 
 test('edits a quest in the editor, and the journal reads the new words', async ({ page }) => {
   const consoleErrors = await boot(page);
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
 
   await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-quests"]').click();
@@ -1249,7 +1249,7 @@ test('edits a quest in the editor, and the journal reads the new words', async (
 
   // Back in play, the journal shows what was written.
   const journal = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('play');
     const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
     api.standBeside(pillar);
@@ -1267,7 +1267,7 @@ test('edits a quest in the editor, and the journal reads the new words', async (
 
 test('authors a quest effect from dropdowns, and the objective follows the quest', async ({ page }) => {
   const consoleErrors = await boot(page);
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
 
   // A second quest, so switching between them means something.
   page.once('dialog', (dialog) => void dialog.accept('Another errand'));
@@ -1278,14 +1278,14 @@ test('authors a quest effect from dropdowns, and the objective follows the quest
   await page.locator('[data-testid="close-quests"]').click();
 
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.selectObject(api.objects().find((id) => id.startsWith('chest'))!);
   });
   const list = page.locator('[data-testid="object-effects"]');
   await list.locator('[data-role="add-effect"]').selectOption('completeObjective');
 
   const fresh = await page.evaluate(() => {
-    const effects = window.__polyheart!.objectField('effects') as { kind: string }[];
+    const effects = window.__engine!.objectField('effects') as { kind: string }[];
     return effects[effects.length - 1];
   });
   expect(fresh).toEqual({ kind: 'completeObjective', quest: 'the-wardens-word', objective: 'win-the-word' });
@@ -1294,7 +1294,7 @@ test('authors a quest effect from dropdowns, and the objective follows the quest
   const row = list.locator('[data-effect]').last();
   await row.locator('select').first().selectOption('another-errand');
   const switched = await page.evaluate(() => {
-    const effects = window.__polyheart!.objectField('effects') as { kind: string }[];
+    const effects = window.__engine!.objectField('effects') as { kind: string }[];
     return effects[effects.length - 1];
   });
   expect(switched).toEqual({ kind: 'completeObjective', quest: 'another-errand', objective: 'first-step' });
@@ -1309,14 +1309,14 @@ test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a sti
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
 
-  const start = await page.evaluate(() => window.__polyheart!.camera());
+  const start = await page.evaluate(() => window.__engine!.camera());
 
   // Left drag: turns, does not move the target.
   await page.mouse.move(cx, cy);
   await page.mouse.down();
   await page.mouse.move(cx + 120, cy + 30, { steps: 6 });
   await page.mouse.up();
-  const turned = await page.evaluate(() => window.__polyheart!.camera());
+  const turned = await page.evaluate(() => window.__engine!.camera());
   expect(turned.yaw).not.toBeCloseTo(start.yaw);
   expect(turned.target).toEqual(start.target);
 
@@ -1325,20 +1325,20 @@ test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a sti
   await page.mouse.down({ button: 'right' });
   await page.mouse.move(cx + 80, cy + 40, { steps: 6 });
   await page.mouse.up({ button: 'right' });
-  const panned = await page.evaluate(() => window.__polyheart!.camera());
+  const panned = await page.evaluate(() => window.__engine!.camera());
   expect(panned.yaw).toBeCloseTo(turned.yaw);
   expect(Math.hypot(panned.target.x - turned.target.x, panned.target.z - turned.target.z)).toBeGreaterThan(0.5);
 
   // Wheel: changes the distance only.
   await page.mouse.wheel(0, -600);
-  const zoomed = await page.evaluate(() => window.__polyheart!.camera());
+  const zoomed = await page.evaluate(() => window.__engine!.camera());
   expect(zoomed.distance).toBeLessThan(panned.distance);
   expect(zoomed.yaw).toBeCloseTo(panned.yaw);
 
   // A press that stays put is still a click: it selects or walks, and the log
   // shows something happened rather than the camera absorbing it.
   const before = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('play');
     return { tile: api.tileOf(api.selected()!), log: api.log().length };
   });
@@ -1349,9 +1349,9 @@ test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a sti
   await expect
     .poll(
       async () => {
-        const first = await page.evaluate(() => window.__polyheart!.camera());
+        const first = await page.evaluate(() => window.__engine!.camera());
         await page.waitForTimeout(100);
-        const second = await page.evaluate(() => window.__polyheart!.camera());
+        const second = await page.evaluate(() => window.__engine!.camera());
         return JSON.stringify(first) === JSON.stringify(second);
       },
       { timeout: 5000 },
@@ -1362,7 +1362,7 @@ test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a sti
   // floats over the top of the board, so aim at a member it is not covering.
   const barBox = await page.locator('[data-testid="action-bar"]').boundingBox();
   const others = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const me = api.selected();
     return api
       .party()
@@ -1384,20 +1384,20 @@ test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a sti
   await expect
     .poll(
       async () => {
-        const first = await page.evaluate((tile) => JSON.stringify(window.__polyheart!.screenOf(tile)), clear!.tile);
+        const first = await page.evaluate((tile) => JSON.stringify(window.__engine!.screenOf(tile)), clear!.tile);
         await page.waitForTimeout(120);
-        const second = await page.evaluate((tile) => JSON.stringify(window.__polyheart!.screenOf(tile)), clear!.tile);
+        const second = await page.evaluate((tile) => JSON.stringify(window.__engine!.screenOf(tile)), clear!.tile);
         return first === second;
       },
       { timeout: 5000 },
     )
     .toBe(true);
-  const at = await page.evaluate((tile) => window.__polyheart!.screenOf(tile), clear!.tile);
+  const at = await page.evaluate((tile) => window.__engine!.screenOf(tile), clear!.tile);
   await page.mouse.move(at.x, at.y);
-  expect(await page.evaluate(() => window.__polyheart!.cursorTile())).toBe(clear!.tile);
+  expect(await page.evaluate(() => window.__engine!.cursorTile())).toBe(clear!.tile);
   await page.mouse.down();
   await page.mouse.up();
-  expect(await page.evaluate(() => window.__polyheart!.selected())).toBe(clear!.id);
+  expect(await page.evaluate(() => window.__engine!.selected())).toBe(clear!.id);
   expect(before.tile).toBeDefined();
 
   expect(consoleErrors).toEqual([]);
@@ -1407,16 +1407,16 @@ test('shows the party in a HUD with pips, and clicking a card selects', async ({
   const consoleErrors = await boot(page);
   const hud = page.locator('[data-testid="hud"]');
   await expect(hud).toBeVisible();
-  const party = await page.evaluate(() => window.__polyheart!.party());
+  const party = await page.evaluate(() => window.__engine!.party());
   await expect(hud.locator('[data-member]')).toHaveCount(party.length);
   await expect(hud.locator('[data-member][data-selected="true"]')).toHaveCount(1);
 
   await hud.locator(`[data-member="${party[2]}"]`).click();
-  expect(await page.evaluate(() => window.__polyheart!.selected())).toBe(party[2]);
+  expect(await page.evaluate(() => window.__engine!.selected())).toBe(party[2]);
   await expect(hud.locator(`[data-member="${party[2]}"]`)).toHaveAttribute('data-selected', 'true');
 
   // The pips agree with the engine.
-  const hp = await page.evaluate((id) => window.__polyheart!.hitPoints(id), party[2]!);
+  const hp = await page.evaluate((id) => window.__engine!.hitPoints(id), party[2]!);
   const pips = hud.locator(`[data-member="${party[2]}"] [data-testid="hp"]`);
   await expect(pips).toHaveAttribute('data-max', String(hp.max));
   await expect(pips).toHaveAttribute('data-marked', String(hp.marked));
@@ -1427,7 +1427,7 @@ test('shows the party in a HUD with pips, and clicking a card selects', async ({
 test('reads the dice out in the log', async ({ page }) => {
   const consoleErrors = await boot(page);
   const line = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const chest = api.objects().find((id) => id.startsWith('chest'))!;
     api.standBeside(chest);
     api.use(chest);
@@ -1444,11 +1444,11 @@ test('levels a character up through the sheet, and the pips grow', async ({ page
   await expect(hud.locator('[data-testid="level-up-button"]')).toHaveCount(0);
 
   // The GM grants a level: every card offers it.
-  const granted = await page.evaluate(() => window.__polyheart!.grantLevel());
+  const granted = await page.evaluate(() => window.__engine!.grantLevel());
   expect(granted).toBe(2);
   await expect(hud.locator('[data-testid="level-up-button"]')).toHaveCount(3);
 
-  const hpBefore = await page.evaluate(() => window.__polyheart!.hitPoints('kara'));
+  const hpBefore = await page.evaluate(() => window.__engine!.hitPoints('kara'));
   await hud.locator('[data-member="kara"] [data-testid="level-up-button"]').click();
   const sheet = page.locator('[data-testid="level-up"]');
   await expect(sheet).toBeVisible();
@@ -1465,9 +1465,9 @@ test('levels a character up through the sheet, and the pips grow', async ({ page
   await sheet.locator('[data-testid="take-level"]').click();
   await expect(sheet).toHaveCount(0);
 
-  expect(await page.evaluate(() => window.__polyheart!.characterLevel('kara'))).toBe(2);
-  expect(await page.evaluate(() => window.__polyheart!.awaitingLevel())).toEqual(['finn', 'mira']);
-  const hpAfter = await page.evaluate(() => window.__polyheart!.hitPoints('kara'));
+  expect(await page.evaluate(() => window.__engine!.characterLevel('kara'))).toBe(2);
+  expect(await page.evaluate(() => window.__engine!.awaitingLevel())).toEqual(['finn', 'mira']);
+  const hpAfter = await page.evaluate(() => window.__engine!.hitPoints('kara'));
   expect(hpAfter.max).toBe(hpBefore.max + 1);
   await expect(hud.locator('[data-member="kara"] [data-testid="hp"]')).toHaveAttribute('data-max', String(hpAfter.max));
   await expect(hud.locator('[data-member="kara"] [data-testid="level-up-button"]')).toHaveCount(0);
@@ -1479,7 +1479,7 @@ test('levels a character up through the sheet, and the pips grow', async ({ page
 test('equips a found weapon from the pack, and the card says so', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.select('kara');
     // A weapon she does not already wield and an armour she is not already wearing:
     // `equipItem` refuses an item that is already in the slot, so finding her own
@@ -1502,7 +1502,7 @@ test('equips a found weapon from the pack, and the card says so', async ({ page 
   const armor = page.locator('[data-member="kara"] [data-testid="armor"]');
   // The coat is lighter than the ringmail it replaces; what matters is that the max
   // follows the sheet rather than arriving at any particular number.
-  const gear = await page.evaluate(() => window.__polyheart!.gear('kara'));
+  const gear = await page.evaluate(() => window.__engine!.gear('kara'));
   expect(gear.armor).toBe('Padded Coat');
   await expect(armor).toHaveAttribute('data-max', /\d+/);
   // The log is built from the item's name, which is spelled "Padded coat"; the gear
@@ -1518,25 +1518,25 @@ test('imports a glTF model and draws it where a prop names it', async ({ page })
   // The Khronos sample duck, served straight from the test fixtures. A project
   // declares it once; content then names "duck" like any procedural model.
   const declared = await page.evaluate(() =>
-    window.__polyheart!.addAsset({ id: 'duck', url: '/tests/fixtures/models/Duck.glb', scale: 0.01 }),
+    window.__engine!.addAsset({ id: 'duck', url: '/tests/fixtures/models/Duck.glb', scale: 0.01 }),
   );
   expect(declared).toBe(true);
-  expect(await page.evaluate(() => window.__polyheart!.modelSource('duck'))).toBe('placeholder');
+  expect(await page.evaluate(() => window.__engine!.modelSource('duck'))).toBe('placeholder');
 
   // Placing a prop that names it starts the load; the placeholder stands in.
-  const before = await page.evaluate(() => window.__polyheart!.decos);
+  const before = await page.evaluate(() => window.__engine!.decos);
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('edit');
     api.placeProp(api.tileOf(api.party()[0]!) + 2, 'duck');
   });
-  await page.waitForFunction(() => window.__polyheart!.assetStatus('duck') === 'ready', undefined, { timeout: 15000 });
-  expect(await page.evaluate(() => window.__polyheart!.modelSource('duck'))).toBe('asset');
-  expect(await page.evaluate(() => window.__polyheart!.missingModels())).not.toContain('duck');
+  await page.waitForFunction(() => window.__engine!.assetStatus('duck') === 'ready', undefined, { timeout: 15000 });
+  expect(await page.evaluate(() => window.__engine!.modelSource('duck'))).toBe('asset');
+  expect(await page.evaluate(() => window.__engine!.missingModels())).not.toContain('duck');
   expect(before).toBeGreaterThanOrEqual(0);
 
   // It survives the project round trip.
-  const exported = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject()));
+  const exported = JSON.parse(await page.evaluate(() => window.__engine!.exportProject()));
   expect(exported.assets).toEqual([
     { id: 'duck', kind: 'gltf', url: '/tests/fixtures/models/Duck.glb', scale: 0.01, groundOffset: 0, rotationY: 0 },
   ]);
@@ -1550,7 +1550,7 @@ test('imports a glTF model and draws it where a prop names it', async ({ page })
 test('authors a branch with a condition from dropdowns, and gates a reply', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('edit');
     api.selectObject(api.objects().find((id) => id.startsWith('chest'))!);
   });
@@ -1566,7 +1566,7 @@ test('authors a branch with a condition from dropdowns, and gates a reply', asyn
   await branch.locator('[data-role="add-effect"]').first().selectOption('log');
 
   const authored = await page.evaluate(() => {
-    const effects = window.__polyheart!.objectField('effects') as unknown[];
+    const effects = window.__engine!.objectField('effects') as unknown[];
     return effects[effects.length - 1];
   });
   expect(authored).toMatchObject({
@@ -1585,7 +1585,7 @@ test('authors a branch with a condition from dropdowns, and gates a reply', asyn
   await node.locator('[data-gate="available"]').first().click();
   const gate = node.locator('[data-gate-editor="available"]').first();
   await gate.locator('[data-testid="cond-kind"]').selectOption('objectiveDone');
-  const exported = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject()));
+  const exported = JSON.parse(await page.evaluate(() => window.__engine!.exportProject()));
   const vault = exported.dialogues[0].nodes.find((n: { id: string }) => n.id === 'vault');
   expect(vault.choices[0].available).toEqual({
     kind: 'objectiveDone',
@@ -1599,7 +1599,7 @@ test('authors a branch with a condition from dropdowns, and gates a reply', asyn
 test('keeps a hidden objective out of the journal until it is revealed', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const pillar = api.objects().find((id) => id.startsWith('pillar'))!;
     api.standBeside(pillar);
     api.use(pillar);
@@ -1613,7 +1613,7 @@ test('keeps a hidden objective out of the journal until it is revealed', async (
 test('drinks a draught from the pack, and the wound closes on the card', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.select('kara');
     api.wound('kara', 3);
     api.giveItem('healing-draught', 2);
@@ -1637,7 +1637,7 @@ test('drinks a draught from the pack, and the wound closes on the card', async (
 test('authors a roll and a choice inside an effect list, and outcomes on a reply', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('edit');
     api.selectObject(api.objects().find((id) => id.startsWith('pillar'))!);
   });
@@ -1657,7 +1657,7 @@ test('authors a roll and a choice inside an effect list, and outcomes on a reply
   const choice = list.locator('[data-testid="choice"]').first();
   await choice.locator('[data-role="add-option"]').click();
 
-  const authored = await page.evaluate(() => window.__polyheart!.objectField('effects') as unknown[]);
+  const authored = await page.evaluate(() => window.__engine!.objectField('effects') as unknown[]);
   expect(authored.at(-2)).toMatchObject({
     kind: 'check',
     check: { trait: 'strength', difficulty: 12, onSuccessWithGood: [{ kind: 'log' }] },
@@ -1672,7 +1672,7 @@ test('authors a roll and a choice inside an effect list, and outcomes on a reply
   const reply = node.locator('[data-reply-check]').first();
   await reply.locator('[data-testid="gotoOnSuccess"]').selectOption('granted');
   await reply.locator('[data-outcome="always"] [data-role="add-effect"]').selectOption('setFlag');
-  const exported = JSON.parse(await page.evaluate(() => window.__polyheart!.exportProject()));
+  const exported = JSON.parse(await page.evaluate(() => window.__engine!.exportProject()));
   const vault = exported.dialogues[0].nodes.find((n: { id: string }) => n.id === 'vault');
   const withCheck = vault.choices.find((c: { check?: unknown }) => c.check !== undefined);
   expect(withCheck.check.gotoOnSuccess).toBe('granted');
@@ -1686,7 +1686,7 @@ test('keeps named saves and an autosave from the last doorway', async ({ page })
   await page.evaluate(() => window.localStorage.clear());
 
   const ids = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const chest = api.objects().find((id) => id.startsWith('chest'))!;
     api.standBeside(chest);
     api.use(chest);
@@ -1703,44 +1703,44 @@ test('keeps named saves and an autosave from the last doorway', async ({ page })
 
   // Reload the page: the list survives, and loading the older slot puts the party back upstairs.
   await page.reload();
-  await page.waitForFunction(() => (window.__polyheart?.frames ?? 0) > 5);
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
   await page.locator('[data-testid="load"]').click();
   const list = page.locator('[data-testid="saves"]');
   await expect(list).toContainText('Before the stairs');
   // A fresh boot starts in the vault, so loading "Downstairs" changes rooms.
   // A load is not a doorway: the autosave from the stairs must still be the
   // one from the stairs, not a copy of what was just loaded.
-  const autosaveBefore = await page.evaluate(() => window.__polyheart!.saves().find((s) => s.name === 'Autosave'));
+  const autosaveBefore = await page.evaluate(() => window.__engine!.saves().find((s) => s.name === 'Autosave'));
   await list.locator(`[data-save="${ids.downstairs}"] [data-testid="load-slot"]`).click();
-  expect(await page.evaluate(() => window.__polyheart!.sceneId())).toBe('the-pit');
-  const autosaveAfter = await page.evaluate(() => window.__polyheart!.saves().find((s) => s.name === 'Autosave'));
+  expect(await page.evaluate(() => window.__engine!.sceneId())).toBe('the-pit');
+  const autosaveAfter = await page.evaluate(() => window.__engine!.saves().find((s) => s.name === 'Autosave'));
   expect(autosaveAfter).toEqual(autosaveBefore);
   expect(autosaveAfter!.where).toContain('Sounding Pit');
 
   // And loading the older slot puts the party back upstairs, pack intact.
   await page.locator('[data-testid="load"]').click();
   await list.locator(`[data-save="${ids.beforeTravel}"] [data-testid="load-slot"]`).click();
-  expect(await page.evaluate(() => window.__polyheart!.sceneId())).not.toBe('the-pit');
-  expect(await page.evaluate(() => window.__polyheart!.carried().length)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.__engine!.sceneId())).not.toBe('the-pit');
+  expect(await page.evaluate(() => window.__engine!.carried().length)).toBeGreaterThan(0);
 
   // Delete one; it is gone from the list and from storage.
   await page.locator('[data-testid="load"]').click();
   await list.locator(`[data-save="${ids.downstairs}"] button[title="Delete this save"]`).click();
-  expect(await page.evaluate(() => window.__polyheart!.saves().map((s) => s.name).sort())).toEqual(['Autosave', 'Before the stairs']);
+  expect(await page.evaluate(() => window.__engine!.saves().map((s) => s.name).sort())).toEqual(['Autosave', 'Before the stairs']);
 
   expect(consoleErrors).toEqual([]);
 });
 
 test('right-clicks to inspect, and Escape closes the card', async ({ page }) => {
   const consoleErrors = await boot(page);
-  const foe = await page.evaluate(() => window.__polyheart!.adversaries()[0]!);
-  const tile = await page.evaluate((id) => window.__polyheart!.tileOf(id), foe);
+  const foe = await page.evaluate(() => window.__engine!.adversaries()[0]!);
+  const tile = await page.evaluate((id) => window.__engine!.tileOf(id), foe);
   await page.keyboard.press('Home');
   await page.waitForTimeout(400);
-  const at = await page.evaluate((t) => window.__polyheart!.screenOf(t), tile);
+  const at = await page.evaluate((t) => window.__engine!.screenOf(t), tile);
 
   // A still right-click: the card appears, and the camera did not pan.
-  const before = await page.evaluate(() => window.__polyheart!.camera());
+  const before = await page.evaluate(() => window.__engine!.camera());
   await page.mouse.move(at.x, at.y);
   await page.mouse.down({ button: 'right' });
   await page.mouse.up({ button: 'right' });
@@ -1749,18 +1749,18 @@ test('right-clicks to inspect, and Escape closes the card', async ({ page }) => 
   await expect(card).toHaveAttribute('data-inspect', foe);
   await expect(card).toContainText('HP');
   await expect(card).toContainText('Difficulty');
-  const after = await page.evaluate(() => window.__polyheart!.camera());
+  const after = await page.evaluate(() => window.__engine!.camera());
   expect(after.target).toEqual(before.target);
 
   await page.keyboard.press('Escape');
   await expect(card).toHaveCount(0);
 
   // A party member and an object through the handle, for their facts.
-  const kara = await page.evaluate(() => window.__polyheart!.inspect(window.__polyheart!.tileOf('kara')));
+  const kara = await page.evaluate(() => window.__engine!.inspect(window.__engine!.tileOf('kara')));
   expect(kara).toMatchObject({ kind: 'character', name: 'Kara' });
   expect(kara!.facts.join(' ')).toMatch(/Evasion \d+/);
   const chest = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const id = api.objects().find((o) => o.startsWith('chest'))!;
     const shut = api.inspect(api.objectTile(id));
     api.standBeside(id);
@@ -1781,15 +1781,15 @@ test('right-clicks to inspect, and Escape closes the card', async ({ page }) => 
 test('plays a skinned model\'s first clip once it arrives', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.addAsset({ id: 'fox', url: '/tests/fixtures/models/Fox.glb', scale: 0.012 });
     api.setMode('edit');
     api.placeProp(api.tileOf(api.party()[0]!) + 2, 'fox');
     api.setMode('play');
   });
-  await page.waitForFunction(() => window.__polyheart!.assetStatus('fox') === 'ready', undefined, { timeout: 15000 });
-  await page.waitForFunction(() => window.__polyheart!.animating() > 0, undefined, { timeout: 5000 });
-  expect(await page.evaluate(() => window.__polyheart!.animating())).toBeGreaterThan(0);
+  await page.waitForFunction(() => window.__engine!.assetStatus('fox') === 'ready', undefined, { timeout: 15000 });
+  await page.waitForFunction(() => window.__engine!.animating() > 0, undefined, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__engine!.animating())).toBeGreaterThan(0);
   expect(consoleErrors).toEqual([]);
 });
 
@@ -1797,7 +1797,7 @@ test('a glTF that names its clips walks with the walk and idles after', async ({
   const consoleErrors = await boot(page);
   // The fox as Finn's body: the asset id is the model id the rogue's token asks for.
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.addAsset({ id: 'rogue', url: '/tests/fixtures/models/Fox.glb', scale: 0.012, clips: { idle: 'Survey', walk: 'Run' } });
     // A prop naming it starts the load; the token is redrawn when the file lands.
     api.setMode('edit');
@@ -1805,10 +1805,10 @@ test('a glTF that names its clips walks with the walk and idles after', async ({
     api.setMode('play');
     api.select('finn');
   });
-  await page.waitForFunction(() => window.__polyheart!.clipOf('finn') === 'Survey', undefined, { timeout: 15000 });
+  await page.waitForFunction(() => window.__engine!.clipOf('finn') === 'Survey', undefined, { timeout: 15000 });
 
   const walked = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const from = api.tileOf('finn');
     const tiles = api.reachable().filter((t) => t !== from);
     const far = tiles.reduce((x, y) => (Math.abs(y - from) > Math.abs(x - from) ? y : x));
@@ -1816,15 +1816,15 @@ test('a glTF that names its clips walks with the walk and idles after', async ({
   });
   expect(walked.moved).toBe(true);
   expect(walked.clip).toBe('Run');
-  await page.waitForFunction(() => window.__polyheart!.gliding() === 0, undefined, { timeout: 5000 });
-  expect(await page.evaluate(() => window.__polyheart!.clipOf('finn'))).toBe('Survey');
+  await page.waitForFunction(() => window.__engine!.gliding() === 0, undefined, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__engine!.clipOf('finn'))).toBe('Survey');
   expect(consoleErrors).toEqual([]);
 });
 
 test('casts Cinder Burst at a spot on the board, picks an Experience, and the turn passes', async ({ page }) => {
   const consoleErrors = await boot(page);
   const setup = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.select('mira');
     // Cinder Burst is an Ember card and Mira is the Emberwright; her own hand is
     // Arcane Ward and Healing Word, so the card has to be put in it.
@@ -1843,7 +1843,7 @@ test('casts Cinder Burst at a spot on the board, picks an Experience, and the tu
   // Aimed at the ground rather than clicked onto a creature: the spot the husk is
   // standing on, so the bloom covers it and the roll has something to be against.
   const aimed = await page.evaluate((foe) => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const tiles = api.aim('cinder-burst');
     const spot = tiles.find((tile) => api.shape('cinder-burst', tile).includes(foe));
     if (spot !== undefined) api.useAbility('mira', 'cinder-burst', [], spot);
@@ -1866,7 +1866,7 @@ test('casts Cinder Burst at a spot on the board, picks an Experience, and the tu
   await expect(log).toContainText('Draws on');
   await expect(log).toContainText(/Light \d+ \+ Shadow \d+/);
   // The card was the turn: Finn acted, and the side follows the roll.
-  const acted = await page.evaluate(() => window.__polyheart!.turnSide());
+  const acted = await page.evaluate(() => window.__engine!.turnSide());
   expect(['party', 'gm', null]).toContain(acted);
   expect(consoleErrors).toEqual([]);
 });
@@ -1874,7 +1874,7 @@ test('casts Cinder Burst at a spot on the board, picks an Experience, and the tu
 test('arms Shield Wall, picks the ally it is held for, and Escape disarms', async ({ page }) => {
   const consoleErrors = await boot(page);
   const armed = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.select('kara');
     api.setCards('kara', ['shield-wall']);
     const foe = api.adversaries()[0]!;
@@ -1911,7 +1911,7 @@ test('arms Shield Wall, picks the ally it is held for, and Escape disarms', asyn
   // Armed again and picked for real. No check on this one: it answers at once,
   // and what it leaves is the condition on whoever the shield came across for.
   const held = await page.evaluate((who) => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const status = api.useAbility('kara', 'shield-wall', [who]);
     return { status, on: api.conditionsOf(who) };
   }, ally);
@@ -1924,7 +1924,7 @@ test('arms Shield Wall, picks the ally it is held for, and Escape disarms', asyn
 test('recalls a card from the vault for Stress, and passes the spotlight with a button', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.select('kara');
     api.setCards('kara', ['power-slash', 'shield-wall', 'iron-stance', 'rallying-cry', 'unbroken', 'smoke-step']);
   });
@@ -1942,11 +1942,11 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
   await expect(panel.locator('[data-card="unbroken"] [data-testid="recall"]')).toHaveCount(1);
   await page.locator('[data-testid="close-loadout"]').click();
   await expect(panel).toHaveCount(0);
-  expect(await page.evaluate(() => window.__polyheart!.loadout('kara').vault)).toEqual(['unbroken']);
+  expect(await page.evaluate(() => window.__engine!.loadout('kara').vault)).toEqual(['unbroken']);
 
   // A fight, and the button that hands the turn over.
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.standNear(api.adversaries()[0]!);
     api.startFight();
   });
@@ -1958,7 +1958,7 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
   const asked = page.locator('[data-testid="choice-prompt"]');
   if ((await asked.count()) > 0) await asked.locator('[data-option="0"]').click();
   await expect(page.locator('[data-testid="log"]')).toContainText(/Hollow Knight's/);
-  expect(await page.evaluate(() => window.__polyheart!.turnSide())).not.toBe('gm');
+  expect(await page.evaluate(() => window.__engine!.turnSide())).not.toBe('gm');
   await page.screenshot({ path: 'test-results/action-bar.png' });
   expect(consoleErrors).toEqual([]);
 });
@@ -1966,7 +1966,7 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
 test('takes a short rest through the panel and the wounds close', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.select('kara');
     api.wound('kara', 5);
   });
@@ -1996,7 +1996,7 @@ test('writes logic in the Code panel and plays the card that runs it', async ({ 
   const consoleErrors = await boot(page);
 
   // The demo ships one card written in project code. Open the panel and read it.
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-code"]').click();
   const panel = page.locator('[data-testid="code-panel"]');
@@ -2018,7 +2018,7 @@ test('writes logic in the Code panel and plays the card that runs it', async ({ 
 
   // Play it: Kara's card runs the project's code, and every change it makes is logged.
   const before = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('play');
     api.select('kara');
     // Kara is badly hurt, so the code clears a Hit Point for her; the others
@@ -2038,7 +2038,7 @@ test('writes logic in the Code panel and plays the card that runs it', async ({ 
 
   await expect(page.locator('[data-testid="log"]')).toContainText('The banner goes up.');
   const after = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     return {
       kara: api.hitPoints('kara').marked,
       stress: Object.fromEntries(api.party().map((id) => [id, api.stressOf(id).marked])),
@@ -2059,7 +2059,7 @@ test('asks the defender how a hit lands, and the fight waits for the answer', as
 
   // Kara stands in the husk's reach and hands the spotlight over.
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.select('kara');
     api.standNear(api.adversaries()[0]!);
     api.startFight();
@@ -2068,16 +2068,16 @@ test('asks the defender how a hit lands, and the fight waits for the answer', as
   const prompt = page.locator('[data-testid="choice-prompt"]');
   // A blow has to land before there is anything to ask, so pass until one does.
   for (let i = 0; i < 20 && (await prompt.count()) === 0; i++) {
-    await page.evaluate(() => window.__polyheart!.passToGm());
-    if (await page.evaluate(() => window.__polyheart!.inCombat() === false)) break;
+    await page.evaluate(() => window.__engine!.passToGm());
+    if (await page.evaluate(() => window.__engine!.inCombat() === false)) break;
   }
   await expect(prompt).toBeVisible();
   await expect(prompt).toContainText('How does it land?');
   await expect(prompt.locator('[data-option="0"]')).toContainText('Take it');
 
   const before = await page.evaluate(() => ({
-    hp: window.__polyheart!.hitPoints('kara').marked,
-    pending: window.__polyheart!.pendingKind(),
+    hp: window.__engine!.hitPoints('kara').marked,
+    pending: window.__engine!.pendingKind(),
   }));
   expect(before.pending).toBe('choice');
 
@@ -2087,8 +2087,8 @@ test('asks the defender how a hit lands, and the fight waits for the answer', as
   await prompt.locator(`[data-option="${armor === -1 ? 0 : armor}"]`).click();
   await expect(prompt).toHaveCount(0);
   const after = await page.evaluate(() => ({
-    hp: window.__polyheart!.hitPoints('kara').marked,
-    pending: window.__polyheart!.pendingKind(),
+    hp: window.__engine!.hitPoints('kara').marked,
+    pending: window.__engine!.pendingKind(),
   }));
   expect(after.pending).toBeNull();
   expect(after.hp).toBeGreaterThanOrEqual(before.hp);
@@ -2101,7 +2101,7 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
   // `+ Card` asks for a name; nothing else in this test opens a dialog.
   page.on('dialog', (dialog) => void dialog.accept('Banner Cry'));
 
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-abilities"]').click();
   const panel = page.locator('[data-testid="ability-panel"]');
@@ -2130,7 +2130,7 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
   await panel.locator('[data-testid="close-abilities"]').click();
 
   const before = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('play');
     api.select('kara');
     for (const id of api.party()) api.markStress(id, 2);
@@ -2143,7 +2143,7 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
 
   await expect(page.locator('[data-testid="log"]')).toContainText('The banner goes up over the field.');
   const after = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     return Object.fromEntries(api.party().map((id) => [id, api.stressOf(id).marked]));
   });
   for (const id of Object.keys(before)) expect(after[id]).toBe(before[id]! - 1);
@@ -2155,7 +2155,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Eruption'));
 
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-abilities"]').click();
   const panel = page.locator('[data-testid="ability-panel"]');
@@ -2214,7 +2214,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   await countdown.locator('[data-outcome="countdownEffects"] [data-role="add-effect"]').first().selectOption('gainBad');
 
   const written = await page.evaluate(() => {
-    const project = JSON.parse(window.__polyheart!.exportProject()) as {
+    const project = JSON.parse(window.__engine!.exportProject()) as {
       abilities: {
         id: string;
         cost: unknown;
@@ -2270,7 +2270,7 @@ test('writes a card that reuses one roll against every other adversary in reach'
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Sweep'));
 
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-abilities"]').click();
   const panel = page.locator('[data-testid="ability-panel"]');
@@ -2296,7 +2296,7 @@ test('writes a card that reuses one roll against every other adversary in reach'
 
   // What the panel wrote is a script the engine's own schema accepts.
   const written = await page.evaluate(() => {
-    const project = JSON.parse(window.__polyheart!.exportProject()) as {
+    const project = JSON.parse(window.__engine!.exportProject()) as {
       abilities: { id: string; effects: unknown[] }[];
     };
     return project.abilities.find((a) => a.id === 'sweep')!.effects;
@@ -2328,9 +2328,9 @@ test('writes a character in the Party panel and the table plays the new sheet', 
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Ilse'));
 
-  const before = await page.evaluate(() => window.__polyheart!.gear('kara'));
+  const before = await page.evaluate(() => window.__engine!.gear('kara'));
 
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-party"]').click();
   const panel = page.locator('[data-testid="party-panel"]');
@@ -2363,7 +2363,7 @@ test('writes a character in the Party panel and the table plays the new sheet', 
 
   // Back at the table, Kara wears what the document says and knows the card.
   const after = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('play');
     return { gear: api.gear('kara'), loadout: api.loadout('kara').loadout };
   });
@@ -2378,7 +2378,7 @@ test('writes an item and the table that hands it out, and the party can carry it
   const names: string[] = ['A rope', 'pockets'];
   page.on('dialog', (dialog) => void dialog.accept(names.shift() ?? 'ok'));
 
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-items"]').click();
   const panel = page.locator('[data-testid="item-panel"]');
@@ -2407,7 +2407,7 @@ test('writes an item and the table that hands it out, and the party can carry it
 
   // Back at the table, the party can be handed it and use it.
   const log = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('play');
     api.giveItem('a-rope');
     return api.useItem('a-rope');
@@ -2424,7 +2424,7 @@ test('loads a project and restarts the game on it, but not in the middle of a fi
   // Write a character in the panel, export the project, and load it back:
   // that is the round trip a designer makes between authoring and playing.
   page.on('dialog', (dialog) => void dialog.accept('Ilse'));
-  await page.evaluate(() => window.__polyheart!.setMode('edit'));
+  await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-party"]').click();
   const panel = page.locator('[data-testid="party-panel"]');
@@ -2433,7 +2433,7 @@ test('loads a project and restarts the game on it, but not in the middle of a fi
   await panel.locator('[data-testid="close-party"]').click();
 
   const result = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.setMode('play');
     const text = api.exportProject();
     return { before: api.party(), reason: api.loadProjectText(text), after: api.party() };
@@ -2447,7 +2447,7 @@ test('loads a project and restarts the game on it, but not in the middle of a fi
 
   // A project that parses but cannot be played says so and leaves the game alone.
   const unplayable = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const doc = JSON.parse(api.exportProject()) as { startScene: string };
     doc.startScene = 'no-such-room';
     return { reason: api.loadProjectText(JSON.stringify(doc)), party: api.party() };
@@ -2457,7 +2457,7 @@ test('loads a project and restarts the game on it, but not in the middle of a fi
 
   // And mid-fight it refuses outright: there is a turn order waiting on it.
   const midFight = await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.startFight();
     return { reason: api.loadProjectText(api.exportProject()), fighting: api.turnSide() };
   });
@@ -2470,7 +2470,7 @@ test('loads a project and restarts the game on it, but not in the middle of a fi
 test('aims a card at the ground, and the board shows what it would catch before it is thrown', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     api.select('mira');
     api.setCards('mira', ['cinder-burst']);
     api.standNear(api.adversaries()[0]!);
@@ -2478,22 +2478,22 @@ test('aims a card at the ground, and the board shows what it would catch before 
   });
 
   // The bar arms for ground rather than for a creature, and says so.
-  const armed = await page.evaluate(() => window.__polyheart!.aim('cinder-burst'));
+  const armed = await page.evaluate(() => window.__engine!.aim('cinder-burst'));
   expect(armed.length).toBeGreaterThan(0);
   const bar = page.locator('[data-testid="action-bar"]');
   await expect(bar).toContainText('click a spot on the board');
-  expect(await page.evaluate(() => window.__polyheart!.targeting())).toBe('cinder-burst');
+  expect(await page.evaluate(() => window.__engine!.targeting())).toBe('cinder-burst');
 
   // Every tile it may be aimed at is lit, and nothing is committed to yet.
-  expect((await page.evaluate(() => window.__polyheart!.lit())).length).toBe(armed.length);
+  expect((await page.evaluate(() => window.__engine!.lit())).length).toBe(armed.length);
 
   // Escape puts the bar down without spending anything.
   await page.keyboard.press('Escape');
-  expect(await page.evaluate(() => window.__polyheart!.targeting())).toBe(null);
+  expect(await page.evaluate(() => window.__engine!.targeting())).toBe(null);
 
   // Armed again, and aimed for real: a spot whose bloom covers the husk.
   const done = await page.evaluate((tiles) => {
-    const api = window.__polyheart!;
+    const api = window.__engine!;
     const foe = api.adversaries()[0]!;
     api.aim('cinder-burst');
     const through = tiles.filter((tile) => api.shape('cinder-burst', tile).includes(foe));

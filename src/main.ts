@@ -129,7 +129,7 @@ import { STARTER_ABILITIES } from './engine/content/pack/starter';
 declare global {
   interface Window {
     /** Test and debug handle. Nothing in the engine reads it. */
-    __polyheart?: {
+    __engine?: {
       webgl2: boolean;
       frames: number;
       errors: string[];
@@ -2388,7 +2388,7 @@ const state = {
   exportProject: (): string => JSON.stringify(session.project),
   loadProjectText: (text: string): string => loadProjectText(text),
 };
-window.__polyheart = state;
+window.__engine = state;
 
 let lastFrame = performance.now();
 function frame(now = performance.now()): void {

@@ -335,7 +335,7 @@ footer {
       <g class="node"><rect x="488" y="48" width="212" height="64" rx="8" />
         <text x="594" y="74" class="t">editor/ui/</text><text x="594" y="94" class="s">Preact panels</text></g>
       <g class="node"><rect x="720" y="48" width="192" height="64" rx="8" />
-        <text x="816" y="74" class="t">window.__polyheart</text><text x="816" y="94" class="s">the e2e handle</text></g>
+        <text x="816" y="74" class="t">window.__engine</text><text x="816" y="94" class="s">the e2e handle</text></g>
 
       <g class="lane">
         <rect x="10" y="146" width="920" height="118" rx="10" class="lane-box" />
@@ -561,7 +561,7 @@ footer {
     <li><code>PerspectiveCamera</code>, <code>OrbitCamera</code>, <code>frameCamera</code>.</li>
     <li>Pointer and keyboard listeners.</li>
     <li><code>refreshPlay()</code> renders the Preact HUD into <code>#app</code>.</li>
-    <li><code>window.__polyheart = state</code> — built inline at <code>src/main.ts:1198</code>–<code>1565</code>,
+    <li><code>window.__engine = state</code> — built inline at <code>src/main.ts:1198</code>–<code>1565</code>,
       assigned at <code>:1565</code>.</li>
     <li><code>frame()</code>: <code>steerCamera</code>, <code>view.tick</code>,
       <code>orbit.update</code>, <code>renderer.render</code>, <code>requestAnimationFrame</code>.</li>
@@ -1515,7 +1515,7 @@ npm run check                  # all three</code></pre>
 
   <h3>The e2e handle and the selectors</h3>
 
-  <p><code>window.__polyheart</code> is built inline in <code>src/main.ts</code> and assigned at
+  <p><code>window.__engine</code> is built inline in <code>src/main.ts</code> and assigned at
   <code>:1565</code>. It exposes what a test cannot get at through the DOM: <code>frames</code>,
   <code>webgl2</code>, <code>errors</code>, <code>tiles</code>, <code>entities</code>,
   <code>decos</code>, <code>missingModels()</code>, <code>party()</code>, <code>selected()</code>,
@@ -1525,7 +1525,7 @@ npm run check                  # all three</code></pre>
   <code>highlighted()</code>, <code>reachable()</code>, <code>sample(x, y)</code>,
   <code>setMode(mode)</code> and <code>exportProject()</code>. <code>sample</code> re-renders inside
   the same task before reading pixels, because the drawing buffer is not preserved between frames. A
-  spec waits on <code>(window.__polyheart?.frames ?? 0) &gt; 5</code> before touching anything.</p>
+  spec waits on <code>(window.__engine?.frames ?? 0) &gt; 5</code> before touching anything.</p>
 
   <p><code>data-testid</code> is kebab-case prefixed by the owning panel — <code>ability-name</code>,
   <code>item-kind</code>, <code>code-source</code>, <code>check-difficulty</code>. Actions are

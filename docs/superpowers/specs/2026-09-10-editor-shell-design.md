@@ -285,7 +285,7 @@ handles below.
 
 ## 9. The driver, and the e2e mirror
 
-New handles on `window.__polyheart`, added to the `declare global` block in `src/main.ts` **and** the
+New handles on `window.__engine`, added to the `declare global` block in `src/main.ts` **and** the
 hand-kept copy in `tests/e2e/demo.spec.ts` in the same patch:
 
 `editorMode()`, `setEditorMode(mode)`, `selection()` (a plain object or `null`), `selectAt(tile)`,

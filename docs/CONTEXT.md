@@ -123,7 +123,7 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
 ## Where to go next
 
 `docs/BACKLOG.md` is the ranked list of what to build next and carries the working rules that are not
-written anywhere else - the patch-script protocol, the `window.__polyheart` type mirror in the e2e
+written anywhere else - the patch-script protocol, the `window.__engine` type mirror in the e2e
 suite, and what to run before claiming a slice is done. Read it after this file. `docs/DEVELOPING.md`
 is the reference for extending the engine; `docs/CRPG-GAPS.md` is the honest audit of what exists.
 

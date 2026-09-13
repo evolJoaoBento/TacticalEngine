@@ -359,7 +359,7 @@ on all three axes without allocating intervening cells. The renderer indexes 16Â
 uses instanced beveled/simple/silhouette LOD, frustum and distance culling, a 96-chunk residency
 limit and two chunk builds per frame. Unchanged chunk buffers survive edits; unloaded buffers
 are disposed. Tests check actual triangle counts and residency, not an FPS promise.
-`window.__polyheart.buildingStats()` exposes current tile/chunk/instance/triangle/LOD counts.
+`window.__engine.buildingStats()` exposes current tile/chunk/instance/triangle/LOD counts.
 The legacy ground mesh and props do not gain LOD from this change. Construction is scenery:
 multilevel walking, collision and LOS remain open, as do selection/moving of whole assemblies.
 
@@ -452,7 +452,7 @@ the fight if there is one.
 - **Editor camera**: right-drag pan, wheel zoom, WASD/arrows, Q/E and Home work in edit mode;
   **F (frame the selected character) is still play-only**, there being no selection to frame.
 - No creature *ships* with a model of its own: 128 of the 129 SRD stat blocks draw as a husk body
-  until one is assigned, and `window.__polyheart.missingModels()` lists them. Since 2026-09-11 that
+  until one is assigned, and `window.__engine.missingModels()` lists them. Since 2026-09-11 that
   is a default rather than a ceiling: taking Select in Combat and clicking a creature opens a panel
   that points a whole adversary type (`project.adversaryModels`) or that one placement
   (`model` on the placement) at any built-in or imported model.
