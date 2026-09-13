@@ -239,8 +239,8 @@ const RAW = [
   },
   /**
    * The sentinel's signature, which the class has printed as prose since the
-   * pack was written. Both conditions it needs already exist in
-   * `content/conditions.ts`: `holding-the-line` is the marker that says the
+   * pack was written. Both conditions it needs ship beside it, in
+   * `starter-conditions.ts`: `holding-the-line` is the marker that says the
    * stance is up, and `caught-in-the-line` carries the pull, the hold and the
    * line the log writes about it. Only the ability that puts the ground down
    * was missing.

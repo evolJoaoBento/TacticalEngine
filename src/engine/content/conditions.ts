@@ -358,30 +358,6 @@ const RAW: ConditionInput[] = [
     // The one being helped does not hold the Book: a pack that prints the
     // spell lends them its second half on a card this condition lends.
   },
-  // Hold the Line, on the one holding it. It does nothing by itself: it is the
-  // marker that says the stance is still up, so the card that drops it on a
-  // failure with Shadow knows there is something to drop.
-  {
-    id: 'holding-the-line',
-    name: 'Holding the Line',
-    text: 'A stance taken and kept: anything that comes within Very Close is dragged into reach and held there.',
-  },
-  // And on whoever walked into the ground they are holding. Like the Korvax
-  // circle, everything it does happens on the crossing - the pull and the hold
-  // - so the condition itself carries nothing.
-  {
-    id: 'caught-in-the-line',
-    name: 'Caught',
-    text: 'Dragged into reach of the one holding this ground.',
-    color: '#e0b04a',
-    onEnter: {
-      effects: [
-        { kind: 'log', text: 'They come one step too close and are hauled the rest of the way in.', tone: 'combat' },
-        { kind: 'move', who: { kind: 'target' }, how: 'toward', of: { kind: 'actor' }, range: 'melee', budget: 'veryClose' },
-        { kind: 'applyCondition', condition: 'restrained', duration: 'temporary', target: { kind: 'target' } },
-      ],
-    },
-  },
   // The Book of Korvax's magic circle, on whoever is standing in it. The
   // condition carries nothing while it is borne: the whole of the spell happens
   // on the crossing, which is what the card says - "all adversaries within

@@ -729,16 +729,25 @@ function buildRuntime(
  */
 /**
  * The same for conditions: a project may write its own, and inherits the
- * SRD's for everything it does not name.
+ * starter pack's and the engine's for everything it does not name - in that
+ * order, the project's winning over both.
  *
  * Without this an authored project knows no conditions at all — the schema
  * defaults the list to empty — so Restrained would hold nobody in place and a
  * Chilled arm would swing as well as a warm one. Only the demo, which seeds
- * the list by hand, ever worked.
+ * the list by hand, ever worked. The pack's own come in between so that a
+ * starter card played where nobody wrote its conditions down still has them:
+ * the ring Warding Flame draws, and Hold the Line's two.
  */
-function withSrdConditions(defs: readonly ConditionDef[]): readonly ConditionDef[] {
-  const own = new Set(defs.map((def) => def.id));
-  return [...defs, ...SRD_CONDITIONS.filter((def) => !own.has(def.id))];
+function withShippedConditions(defs: readonly ConditionDef[]): readonly ConditionDef[] {
+  const seen = new Set(defs.map((def) => def.id));
+  const merged = [...defs];
+  for (const def of [...STARTER_CONDITIONS, ...SRD_CONDITIONS]) {
+    if (seen.has(def.id)) continue;
+    seen.add(def.id);
+    merged.push(def);
+  }
+  return merged;
 }
 
 export function worldOptions(
@@ -762,7 +771,7 @@ export function worldOptions(
     // Read as the project stands, each time: a card handed to somebody after this world was built
     // is in their hands at once, exactly as an ability written into the project always was.
     cards: () => characterContentFor(project).cards,
-    conditionDefs: withSrdConditions(project?.conditionDefs ?? []),
+    conditionDefs: withShippedConditions(project?.conditionDefs ?? []),
     // The engine's native hooks, then the project's own code, which may
     // override one of them by using the same id. Asked for each time: the
     // editor rewrites a hook in place, and the table plays what it now says.

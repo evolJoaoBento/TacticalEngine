@@ -4,6 +4,19 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Hold the Line's conditions ship with the pack — done
+
+`holding-the-line` and `caught-in-the-line` sat in the engine's own list, `content/conditions.ts`,
+though only the starter sentinel's Hold the Line reads them. They ship in `starter-conditions.ts`
+now, beside Warding Flame's ring and Shield Wall's. A world inherits the pack's conditions as well
+as the engine's, under a project's own (`withShippedConditions`, `game/demo-scene.ts`), so a starter
+card played in a project that never wrote its conditions down still has them -- which was true of
+these two only because they were in the wrong list, and not true of the ring or the shield at all.
+
+`npx tsc --noEmit` clean; vitest **1871 passed (1871)**; Playwright **115 passed (4.2m)**, `EXIT 0`. Two breaks --
+the pack's conditions left out, and a project's own no longer winning -- each fail the test written
+for them.
+
 ## Two starter cards stop being text — done
 
 Rallying Cry and Smoke Step shipped as text only, though nothing they say was out of the
@@ -713,8 +726,6 @@ about ten adversaries. Depth beyond that is a content slice, judged on what it a
 - `cut-purse-strings` ships as text only, and has a real blocker: `addItem` names a bare item id
   with no source, so taking what somebody else carries cannot be said. (`rallying-cry` and
   `smoke-step` are scripted: *Two starter cards stop being text*, above.)
-- `holding-the-line` and `caught-in-the-line` sit in `content/conditions.ts` rather than beside the
-  feature that arms them.
 - No card is above level 2, which is why `progression.test.ts` climbs on a fixture
   (`tests/fixtures/characters.ts`) rather than on the pack.
 
