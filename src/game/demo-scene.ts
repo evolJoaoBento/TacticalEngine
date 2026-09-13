@@ -41,7 +41,7 @@ import { createScenarioState, SceneScriptWorld, useKey, type Payout, type SceneS
 import { NO_BINDINGS, evaluate, evaluateOptional } from '../engine/script/conditions';
 import { maxTilesForBand, reaches, type RangeBand } from '../engine/rules/range';
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
-import { applyAttack, resolveAttack, type AttackOutcome, type AttackProfile } from '../engine/combat/attack';
+import { applyAttack, applyRoll, resolveAttack, type AttackOutcome, type AttackProfile } from '../engine/combat/attack';
 import { evaluateTarget } from '../engine/combat/targeting';
 import { adversaryTraits, attackDamageOf } from '../engine/combat/adversary-features';
 import {
@@ -524,6 +524,11 @@ export interface HeldSwing {
    * carries no stage at all.
    */
   stage?: 'rolled';
+  /**
+   * The roll has paid out already -- the Light, the Shadow, a critical's Stress -- so landing counts
+   * only the blow. Set in `afterRolled`, where nothing can change the Duality Dice any more.
+   */
+  settled?: true;
 }
 
 /** One hit, as it stands while the defender decides. */
@@ -1709,6 +1714,14 @@ function afterRolled(
   demo: DemoScene,
   held: HeldSwing,
 ): { hit: boolean; refused: string | null; hitPointsMarked: number; waiting?: boolean } {
+  // The roll pays out here, before anybody answers the damage roll, which is
+  // the SRD's order: a Light it gave can pay for a card played on the blow, and
+  // the Stress a critical clears is cleared before the card marks one. Landing
+  // counts only the blow after this.
+  if (held.settled !== true) {
+    applyRoll(demo.state, held.outcome);
+    held = { ...held, settled: true };
+  }
   const { outcome, target: targetId } = held;
   // The blow has landed and has not been counted: the party's half of the
   // moment the GM's swing already stops at. A card that adds to its own damage
@@ -1889,7 +1902,9 @@ function landPartyAttack(
   // the very swing that marked them.
   const owed = demo.world.payoutsOn(targetId, 'attacked');
 
-  const applied = applyAttack(demo.state, outcome);
+  // A swing held for its damage roll has paid the roll out already (`afterRolled`);
+  // one that never stopped - a blaze of glory - pays it here, with the blow.
+  const applied = applyAttack(demo.state, outcome, held.settled === true ? { roll: false } : {});
   demo.world.endsOnAttack(id!);
   if (outcome.hit) {
     // How much it dealt as well as how much it marked: a card that answers
@@ -3687,7 +3702,18 @@ function asRerolled(demo: DemoScene, held: HeldSwing | undefined, journal: reado
   // What the room had already put behind the old blow is dropped with it: a
   // boost was added to dice that are gone. Nothing ships a card that boosts
   // before the reroll is asked, and this says which way that falls if one does.
-  return { attacker: held.attacker, target: held.target, outcome, weapon: held.weapon, melee: held.melee, damage: held.damage, ...(held.direct === undefined ? {} : { direct: held.direct }) };
+  // A roll that had already paid out does not pay again for its new dice. Nothing ships a card that
+  // rerolls after `afterRolled`; this says which way that falls if one does.
+  return {
+    attacker: held.attacker,
+    target: held.target,
+    outcome,
+    weapon: held.weapon,
+    melee: held.melee,
+    damage: held.damage,
+    ...(held.direct === undefined ? {} : { direct: held.direct }),
+    ...(held.settled === undefined ? {} : { settled: held.settled }),
+  };
 }
 
 /**

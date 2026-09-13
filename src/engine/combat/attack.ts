@@ -334,23 +334,18 @@ export interface AppliedAttack {
   stressCleared: number;
 }
 
+/** What the roll pays out on its own, as `applyRoll` reports it. */
+export type AppliedRoll = Pick<AppliedAttack, 'goodGained' | 'badGained' | 'stressCleared'>;
+
 /**
- * Apply a resolved attack to the scene: mark the target's Hit Points and Armor
- * Slots, move the attacker's Light, the GM's Shadow and the attacker's Stress.
- *
- * Reports what actually happened rather than what was asked for — Light at its cap
- * does not accrue, and a target with one slot left marks one Hit Point however
- * severe the hit was.
+ * What the roll pays out, apart from the blow: the attacker's Light, the GM's Shadow, and the Stress a
+ * critical clears. The SRD settles these when the roll is made, before damage is rolled, so a caller
+ * that stops between the two -- a party swing held for a card that answers its damage roll -- applies
+ * this first, and the blow afterwards with `applyAttack(state, outcome, { roll: false })`. A card paid
+ * for in that pause then pays from what the roll already gave and took.
  */
-export function applyAttack(state: SceneState, outcome: AttackOutcome): AppliedAttack {
-  const applied: AppliedAttack = {
-    hitPointsMarked: 0,
-    armorSlotsSpent: 0,
-    fell: false,
-    goodGained: 0,
-    badGained: 0,
-    stressCleared: 0,
-  };
+export function applyRoll(state: SceneState, outcome: AttackOutcome): AppliedRoll {
+  const applied: AppliedRoll = { goodGained: 0, badGained: 0, stressCleared: 0 };
 
   const attacker = state.entity(outcome.attackerId);
   if (attacker !== undefined) {
@@ -377,6 +372,30 @@ export function applyAttack(state: SceneState, outcome: AttackOutcome): AppliedA
     };
     applied.badGained = state.bad.value - before;
   }
+  return applied;
+}
+
+/**
+ * Apply a resolved attack to the scene: mark the target's Hit Points and Armor
+ * Slots, and -- unless `applyRoll` already has -- move the attacker's Light, the
+ * GM's Shadow and the attacker's Stress.
+ *
+ * Reports what actually happened rather than what was asked for — Light at its cap
+ * does not accrue, and a target with one slot left marks one Hit Point however
+ * severe the hit was.
+ */
+export function applyAttack(
+  state: SceneState,
+  outcome: AttackOutcome,
+  /** `roll: false` when `applyRoll` has already settled what the roll pays out. */
+  options: { readonly roll?: boolean } = {},
+): AppliedAttack {
+  const applied: AppliedAttack = {
+    hitPointsMarked: 0,
+    armorSlotsSpent: 0,
+    fell: false,
+    ...(options.roll === false ? { goodGained: 0, badGained: 0, stressCleared: 0 } : applyRoll(state, outcome)),
+  };
 
   const target = state.entity(outcome.targetId);
   if (target === undefined || outcome.damage === undefined) return applied;

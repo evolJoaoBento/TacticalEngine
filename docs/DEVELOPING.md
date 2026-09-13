@@ -93,7 +93,7 @@ adapter: the rest of the core does not know it exists.
 | `rules/cover.ts` | SRD 2.0 cover: a partial obstruction costs the attacker a disadvantage die. |
 | `rules/range.ts` | `RANGE_BANDS`, `DEFAULT_BAND_TILES` (a house rule — see CONTEXT.md). |
 | `rules/resources.ts` | `MarkPool` and `Currency`: Hit Points, Stress, Armor Slots, Light, Shadow; `mark`, `unmarked`, `canAfford`, `markHitPoints`. |
-| `combat/attack.ts` | `resolveAttack` (pure) and `applyAttack` (the only mutator here); `AttackProfile`, `DefenderProfile`, `AttackOutcome`. |
+| `combat/attack.ts` | `resolveAttack` (pure) and `applyAttack` and `applyRoll` (the only mutators here; `applyRoll` is the roll's payout alone); `AttackProfile`, `DefenderProfile`, `AttackOutcome`. |
 | `combat/defense.ts` | The defender's side: `Defender`, `resolveDefense`, `resolveDefensePlan`, `previewPlan`, `canPayFor`. |
 | `combat/targeting.ts` | `evaluateTarget` — range band, line of sight, cover, refusals. |
 | `combat/area.ts` | SRD 2.0 Area of Effect and Movement Under Pressure. |
@@ -257,10 +257,12 @@ attackWithSelected (game/demo-scene.ts:884)
        ├─ rollDamage (rules/damage.ts)                — Proficiency, crit bonus, flat bonus
        ├─ rollReduction (rules/damage.ts)             — the dice half of the defender's reduction
        └─ resolveDamage (rules/damage.ts)             — resistance, reduction, band, Armor Slots
-  └─ applyAttack (combat/attack.ts)                   — the only mutation
+  └─ afterRolled → applyRoll (combat/attack.ts)       — the roll pays out: Light, Shadow, a crit's Stress
+       └─ cards on the damage roll                    — paid from what the roll just gave
+  └─ landPartyAttack → applyAttack({ roll: false })   — the blow lands
 ```
 
-There is **no defence step on this side.** A PC's swing is resolved and applied at once, so the
+There is **no defence step on this side.** A PC's swing is resolved without asking the creature it hits, so the
 defender's reduction has to live inside `DamageDefenses` and be applied by `resolveDamage` itself —
 that is the whole reason `defenses` is a field on damage rather than a step in a pipeline.
 
@@ -490,7 +492,8 @@ official versions. Neither becomes the default without a citation.
 
 **`applyAttack` reports what actually happened, not what was asked for.** Light at its cap does not
 accrue; a target with one Hit Point left marks one however severe the hit was. Anything that reads
-the result reads the truth.
+the result reads the truth. `applyRoll` is its first half on its own: a caller that stops between the
+roll and the blow settles the roll there and lands the blow with `roll: false`, so nothing is paid twice.
 
 ---
 

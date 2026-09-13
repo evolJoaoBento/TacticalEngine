@@ -433,7 +433,7 @@ footer {
       <tr><td><code>rules/cover.ts</code></td><td>SRD 2.0 cover: a partial obstruction costs the attacker a disadvantage die.</td></tr>
       <tr><td><code>rules/range.ts</code></td><td><code>RANGE_BANDS</code>, <code>DEFAULT_BAND_TILES</code> (a house rule — see CONTEXT.md).</td></tr>
       <tr><td><code>rules/resources.ts</code></td><td><code>MarkPool</code> and <code>Currency</code>: Hit Points, Stress, Armor Slots, Light, Shadow; <code>mark</code>, <code>unmarked</code>, <code>canAfford</code>, <code>markHitPoints</code>.</td></tr>
-      <tr><td><code>combat/attack.ts</code></td><td><code>resolveAttack</code> (pure) and <code>applyAttack</code> (the only mutator here); <code>AttackProfile</code>, <code>DefenderProfile</code>, <code>AttackOutcome</code>.</td></tr>
+      <tr><td><code>combat/attack.ts</code></td><td><code>resolveAttack</code> (pure) and <code>applyAttack</code> and <code>applyRoll</code> (the only mutators here; <code>applyRoll</code> is the roll's payout alone); <code>AttackProfile</code>, <code>DefenderProfile</code>, <code>AttackOutcome</code>.</td></tr>
       <tr><td><code>combat/defense.ts</code></td><td>The defender's side: <code>Defender</code>, <code>resolveDefense</code>, <code>resolveDefensePlan</code>, <code>previewPlan</code>, <code>canPayFor</code>.</td></tr>
       <tr><td><code>combat/targeting.ts</code></td><td><code>evaluateTarget</code> — range band, line of sight, cover, refusals.</td></tr>
       <tr><td><code>combat/area.ts</code></td><td>SRD 2.0 Area of Effect and Movement Under Pressure, both new in 2.0.</td></tr>
@@ -683,10 +683,12 @@ footer {
        ├─ rollDamage (rules/damage.ts)                — Proficiency, crit bonus, flat bonus
        ├─ rollReduction (rules/damage.ts)             — the dice half of the defender's reduction
        └─ resolveDamage (rules/damage.ts)             — resistance, reduction, band, Armor Slots
-  └─ applyAttack (combat/attack.ts)                   — the only mutation</code></pre>
+  └─ afterRolled → applyRoll (combat/attack.ts)       — the roll pays out: Light, Shadow, a crit's Stress
+       └─ cards on the damage roll                    — paid from what the roll just gave
+  └─ landPartyAttack → applyAttack({ roll: false })   — the blow lands</code></pre>
 
-  <p>There is <strong>no defence step on this side</strong>. A PC's swing is resolved and applied at
-  once, so the defender's reduction has to live inside <code>DamageDefenses</code> and be applied by
+  <p>There is <strong>no defence step on this side</strong>. A PC's swing is resolved without asking
+  the creature it hits, so the defender's reduction has to live inside <code>DamageDefenses</code> and be applied by
   <code>resolveDamage</code> itself. That is the whole reason <code>defenses</code> is a field on the
   damage rather than a step in a pipeline, and it is the fact to reach for whenever a new
   "when this creature takes damage" feature needs a home.</p>
@@ -1276,7 +1278,9 @@ footer {
     <h3>applyAttack reports what actually happened</h3>
     <p>Not what was asked for. Light at its cap does not accrue; a target with one Hit Point left marks
     one however severe the hit was. Anything that reads the result reads the truth, which is what
-    lets a log, a save and a test all read the same value.</p>
+    lets a log, a save and a test all read the same value. <code>applyRoll</code> is its first half on
+    its own: a caller that stops between the roll and the blow settles the roll there and lands the
+    blow with <code>roll: false</code>, so nothing is paid twice.</p>
   </div>
 </section>
 

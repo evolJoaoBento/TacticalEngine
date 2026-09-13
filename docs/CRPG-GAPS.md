@@ -197,9 +197,8 @@ swing a block prints is a `standardAttack` line, and a rider that follows it is 
 does not have — a damage swap on a condition, a rider on *being* attacked — and the features
 aimed at an ally, which the GM's turn has no way to point at one. Damage
 from a feature or a card resolves without asking the defender: the prompt covers an adversary's
-standard attack. A party swing's own Light and a critical's cleared Stress arrive when the blow
-lands, after the cards that answer its damage roll rather than before them, so from 0 Stress a
-Stress-cost card played on a critical is free; `docs/BACKLOG.md` (*The lift's red test*) has the fix.
+standard attack. A party swing's own Light and a critical's cleared Stress arrive when the roll is
+made, before the cards that answer its damage roll, which is the SRD's order.
 
 ### ~~6. Inventory, loot and equipping~~ — done
 

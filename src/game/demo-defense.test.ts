@@ -3534,9 +3534,8 @@ describe('a swing lifted, and a swing that names its own number', () => {
       demo.askDefender = true;
       hold(demo, [LIFT_DIE_CARD]);
       // A Stress already marked, so a critical's own clear has one to take in
-      // both runs alike. From none at all the two runs part ways: the card's
-      // Stress is paid before the clear lands and the clear takes it, which is
-      // an open question about order (BACKLOG), not about the lift.
+      // both runs alike and the lift is all this measures. From none at all is
+      // the order of the two, which the next test is about.
       const kara = demo.state.entity('kara')!;
       kara.stress = { ...kara.stress, marked: 1 };
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -3576,6 +3575,70 @@ describe('a swing lifted, and a swing that names its own number', () => {
       return;
     }
     throw new Error('no lifted die crossed a threshold in sixty tries');
+  });
+
+  it("clears a critical's Stress when the roll is made, so a card played on the blow still costs one", () => {
+    // "Critical Success: ... clear a Stress" belongs to the roll; "mark a Stress to ..." is played on
+    // the damage roll after it. From none marked, the critical has nothing to clear and the card
+    // marks one -- where clearing it at the landing would take the card's own Stress back.
+    for (let seed = 1; seed < 300; seed++) {
+      const demo = standoff(`crit-lift-${seed}`);
+      demo.askDefender = true;
+      hold(demo, [LIFT_DIE_CARD]);
+      const kara = demo.state.entity('kara')!;
+      kara.stress = { ...kara.stress, marked: 0 };
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      husk.hitPoints = { max: 30, marked: 0 };
+      const result = attackWithSelected(demo, husk.id);
+      if (result === null || result.refused !== null || !result.hit) continue;
+      if (demo.pending?.kind !== 'reaction') continue;
+      const asked = demo.pending as { offers: readonly { ability: { id: string } }[]; landing?: HeldSwing };
+      if (asked.landing?.outcome.critical !== true) continue;
+      expect(asked.offers.map((o) => o.ability.id)).toEqual(['fixture-lift-die']);
+
+      answerPending(demo, { kind: 'choose', index: 1 });
+      for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+        answerPending(demo, { kind: 'choose', index: 0 });
+      }
+      expect(demo.log.some((l) => l.text === 'The blow lands exactly where it was meant to.')).toBe(true);
+      expect(demo.state.entity('kara')!.stress.marked).toBe(1);
+      return;
+    }
+    throw new Error('no critical in three hundred swings');
+  });
+
+  it('pays for a card played on the blow with the Light the roll just gave', () => {
+    // A roll with Light gives its Light when it is made, so a card that costs a Light and answers the
+    // damage roll can spend it -- from none held before the swing.
+    for (let seed = 1; seed < 300; seed++) {
+      const demo = standoff(`light-lift-${seed}`);
+      demo.askDefender = true;
+      hold(demo, [LIFT_DIE_CARD]);
+      Object.assign(demo.project.abilities.find((a) => a.id === 'fixture-lift-die')!, { cost: { good: 1 } });
+      const kara = demo.state.entity('kara')!;
+      kara.good = { max: kara.good!.max, value: 0 };
+      const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+      husk.hitPoints = { max: 30, marked: 0 };
+      const result = attackWithSelected(demo, husk.id);
+      if (result === null || result.refused !== null || !result.hit) continue;
+      if (demo.pending?.kind !== 'reaction') {
+        // Landed without asking, which with no Light to spend is right only for a roll that gave none.
+        expect(demo.state.entity('kara')!.good!.value).toBe(0);
+        continue;
+      }
+      const asked = demo.pending as { landing?: HeldSwing };
+      expect(asked.landing?.outcome.goodGained).toBe(1);
+      expect(demo.state.entity('kara')!.good!.value).toBe(1);
+
+      answerPending(demo, { kind: 'choose', index: 1 });
+      for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
+        answerPending(demo, { kind: 'choose', index: 0 });
+      }
+      expect(demo.log.some((l) => l.text === 'The blow lands exactly where it was meant to.')).toBe(true);
+      expect(demo.state.entity('kara')!.good!.value).toBe(0);
+      return;
+    }
+    throw new Error('no roll with Light in three hundred swings');
   });
 
   it('reaps for five Hit Points, past thresholds and past armor', () => {

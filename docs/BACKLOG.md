@@ -4,6 +4,25 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A roll pays out when it is made — done
+
+A party swing's Light, the GM's Shadow and a critical's cleared Stress now arrive with the roll,
+before anything answers the damage roll, rather than when the blow lands. `applyRoll`
+(`combat/attack.ts`) is that half of `applyAttack` on its own. `afterRolled` settles it, where
+nothing can change the Duality Dice any more -- every card that rerolls, names or raises them answers
+`partyRolling`, earlier -- and marks the swing `settled`, so `landPartyAttack` lands only the blow
+(`applyAttack(state, outcome, { roll: false })`). A blaze of glory never stops between the two and
+still pays both at once; the runner's own `attack` and `check` already settled the roll before their
+effects ran.
+
+So from 0 Stress, a card that marks one on a critical's damage roll costs its Stress, and a card that
+costs a Light can spend the Light the same roll gave. A test says each, from nothing held; the lift
+test keeps its one Stress marked and measures only the lift.
+
+`npx tsc --noEmit` clean; vitest **1846 passed (1846)**; Playwright **106 passed (3.8m)**, `EXIT 0`. Three breaks -- the swing
+paying out only when it lands, the landing paying out again, `roll: false` ignored -- each fail the
+tests written for them.
+
 ## The card editor — done
 
 The Cards panel reaches the cards it could only name before. **a loadout** is a grant like the
@@ -38,7 +57,8 @@ has one to take in both runs, and the card costs exactly one more than letting t
 critical drops out of the arithmetic. Three breaks -- the lift worth nothing, the card costing
 nothing, no Stress marked before the swing -- each turn it red again.
 
-**Open, and now written down: when a critical clears its Stress.** The engine clears it when the
+**Open when this was written, and fixed since (*A roll pays out when it is made*, above): when a
+critical clears its Stress.** The engine cleared it when the
 blow lands (`applyAttack`, `combat/attack.ts`), after anything that answered the damage roll. The
 SRD's order is the roll first -- the critical clears a Stress -- then the damage roll, then "mark
 a Stress" on it. From 0 Stress the two disagree: the SRD ends at 1, the engine pays the card's

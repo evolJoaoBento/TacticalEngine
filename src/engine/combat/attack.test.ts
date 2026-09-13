@@ -9,7 +9,7 @@ import {
   createPartyEntity,
   type EntityState,
 } from '../scene/state';
-import { applyAttack, conditionModifiers, resolveAttack, type AttackProfile } from './attack';
+import { applyAttack, applyRoll, conditionModifiers, resolveAttack, type AttackProfile } from './attack';
 
 /** An Rng returning scripted die faces, so a rule branch can be pinned exactly. */
 function scriptedRng(faces: number[]): Rng {
@@ -448,6 +448,33 @@ describe('applyAttack', () => {
       options: { bandTiles },
     });
     expect(applyAttack(unstressed, outcome2).stressCleared).toBe(0);
+  });
+
+  it('settles the roll apart from the blow, so a swing held between the two pays out once', () => {
+    const state = setup();
+    const kara = state.entity('kara')!;
+    kara.stress = createMarkPool(6, 1);
+    const outcome = resolveAttack(scriptedRng([7, 7, 3, 4]), {
+      grid,
+      attacker: party('kara', grid.indexOf(0, 0)),
+      target: adversary('husk', grid.indexOf(1, 0)),
+      profile: greatblade,
+      defender,
+      options: { bandTiles },
+    });
+    // The roll first: the critical's Stress is cleared, and nothing of the blow has landed.
+    expect(applyRoll(state, outcome).stressCleared).toBe(1);
+    expect(kara.stress.marked).toBe(0);
+    expect(state.entity('husk')!.hitPoints.marked).toBe(0);
+    const light = kara.good!.value;
+
+    // A Stress marked in the pause -- a card played on the damage roll -- is not the one it cleared.
+    kara.stress = createMarkPool(6, 1);
+    const landed = applyAttack(state, outcome, { roll: false });
+    expect(landed).toMatchObject({ goodGained: 0, badGained: 0, stressCleared: 0 });
+    expect(landed.hitPointsMarked).toBeGreaterThan(0);
+    expect(kara.stress.marked).toBe(1);
+    expect(kara.good!.value).toBe(light);
   });
 
   it('marks the Armor Slots the defence actually spent', () => {

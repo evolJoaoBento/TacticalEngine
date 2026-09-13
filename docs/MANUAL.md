@@ -220,7 +220,10 @@ Difficulty. The log reads it out, naming only the parts that applied:
 Extra parts appear as `+ d6 N` / `− d6 N` (advantage or disadvantage) and `+ help N`. The five
 outcomes are critical success (both dice match), success with Light, success with Shadow, failure
 with Light, failure with Shadow. A roll with Light gives the roller a Light; a roll with Shadow gives
-the GM a Shadow; a critical also clears a Stress. **Step back** declines the roll at no cost: the
+the GM a Shadow; a critical also clears a Stress. All three happen when the roll is made -- on an
+attack, before its damage is rolled, so a card played on the damage roll can spend a Light the roll
+just gave, and a critical's clear never takes back a Stress such a card marks. **Step back** declines
+the roll at no cost: the
 outcome lists and `always` are skipped, any effects written after the check still run, and the
 object can be tried again.
 
