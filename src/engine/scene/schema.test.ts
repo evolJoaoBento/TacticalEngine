@@ -233,7 +233,6 @@ describe('projectSchema', () => {
             domains: ['bulwark'],
             startingEvasion: 9,
             startingHitPoints: 7,
-            signatureFeature: { name: 'Hold the Line', text: 'Stand your ground.' },
           },
         ],
         cards: [
@@ -246,11 +245,12 @@ describe('projectSchema', () => {
             recallCost: 1,
             text: 'Strike hard.',
           },
+          { id: 'hold-the-line', name: 'Hold the Line', text: 'Stand your ground.', grant: { kind: 'class', classId: 'sentinel' } },
         ],
       }),
     );
     expect(parsed.classes[0]!.name).toBe('Sentinel');
-    expect(parsed.classes[0]!.signatureFeature?.name).toBe('Hold the Line');
+    expect(parsed.cards[1]!.grant).toEqual({ kind: 'class', classId: 'sentinel' });
     expect(parsed.cards[0]!.id).toBe('power-slash');
   });
 

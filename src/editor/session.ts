@@ -1716,6 +1716,63 @@ export function updateAbility(abilityId: string, changes: Partial<AbilityDef>): 
   return edit;
 }
 
+/** One of the project's own cards, as the document stores it. */
+type ProjectCard = ProjectDoc['cards'][number];
+
+/**
+ * Add a card and the ability on it, as one step.
+ *
+ * "+ Card" in the Cards panel is one thing to an author, so it is one thing to take back: the
+ * card says who holds it, and the ability says what it does.
+ */
+export function addCardWithAbility(card: ProjectCard, ability: AbilityDef): Edit {
+  return {
+    label: `Add card ${card.id}`,
+    apply(project) {
+      project.cards.push(card);
+      project.abilities.push(ability);
+    },
+    undo(project) {
+      const at = project.abilities.lastIndexOf(ability);
+      if (at >= 0) project.abilities.splice(at, 1);
+      const on = project.cards.lastIndexOf(card);
+      if (on >= 0) project.cards.splice(on, 1);
+    },
+  };
+}
+
+/**
+ * Edit one of the project's own cards. Typing into one field coalesces into one undo step, as the
+ * other text editors do; changing a different field starts a new one.
+ */
+export function updateCard(cardId: string, changes: Partial<ProjectCard>): Edit {
+  let before: ProjectCard | null = null;
+  const current: Partial<ProjectCard> = { ...changes };
+  const edit: Edit = {
+    label: 'Edit card',
+    mergeKey: `card:${cardId}:${Object.keys(changes).sort().join(',')}`,
+    apply(project) {
+      const index = project.cards.findIndex((c) => c.id === cardId);
+      if (index < 0) return;
+      before = project.cards[index]!;
+      project.cards[index] = { ...before, ...current };
+    },
+    undo(project) {
+      if (before === null) return;
+      const index = project.cards.findIndex((c) => c.id === cardId);
+      if (index >= 0) project.cards[index] = before;
+    },
+    absorb(other) {
+      const next = (other as Edit & { __card?: Partial<ProjectCard> }).__card;
+      if (next === undefined) return false;
+      Object.assign(current, next);
+      return true;
+    },
+  };
+  (edit as Edit & { __card: Partial<ProjectCard> }).__card = current;
+  return edit;
+}
+
 // ---------------------------------------------------------------------------
 // Logic in code
 // ---------------------------------------------------------------------------

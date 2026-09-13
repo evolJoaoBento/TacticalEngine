@@ -14,6 +14,7 @@ import { STARTER_CHARACTERS } from './starter';
 const FIXTURE_CARD = {
   id: 'test-only-card',
   name: 'Test Only Card',
+  grant: { kind: 'chosen' as const },
   domain: 'bulwark',
   type: 'ability' as const,
   level: 1,

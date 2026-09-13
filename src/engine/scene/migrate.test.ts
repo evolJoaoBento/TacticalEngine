@@ -244,8 +244,71 @@ describe('version 2 to 3: a card list is `cards`, and only at the root', () => {
 
     const after = migrateDocument(before) as { cards?: unknown; domainCards?: unknown; party: { domainCards?: string[] }[] };
     expect(after.domainCards).toBeUndefined();
-    expect(after.cards).toEqual(before.domainCards);
+    // The root list's own entries come first and unchanged; the cards built from abilities follow.
+    expect((after.cards as unknown[]).slice(0, before.domainCards.length)).toEqual(before.domainCards);
     expect(after.party.map((sheet) => sheet.domainCards)).toEqual(before.party.map((sheet) => sheet.domainCards));
+  });
+
+  it('puts a class feature and its ability on one card, granted by the class', () => {
+    const doc = migrateDocument({
+      formatVersion: 2,
+      classes: [
+        {
+          id: 'warden',
+          name: 'Warden',
+          features: [{ name: 'Drilled', text: 'Printed words.' }],
+          signatureFeature: { name: 'Stand Fast', text: 'Signature words.' },
+        },
+      ],
+      abilities: [
+        { id: 'warden-drilled', name: 'Drilled', source: { kind: 'classFeature', classId: 'warden' }, text: '' },
+        { id: 'warden-stand', name: 'Stand', source: { kind: 'classGood', classId: 'warden' }, text: 'Its own words.' },
+        { id: 'swing', name: 'Swing', source: { kind: 'domainCard', card: 'swing' } },
+        { id: 'claws', name: 'Claws', source: { kind: 'adversary', adversaries: ['husk'] } },
+      ],
+    }) as { classes: Record<string, unknown>[]; abilities: { source: unknown }[]; cards: unknown[] };
+
+    expect(doc.classes[0]).toEqual({ id: 'warden', name: 'Warden' });
+    expect(doc.abilities.map((a) => a.source)).toEqual([
+      { card: 'warden-drilled' },
+      { card: 'warden-stand' },
+      { card: 'swing' },
+      // A stat block's feature waits for the GM's side to become cards.
+      { kind: 'adversary', adversaries: ['husk'] },
+    ]);
+    // The printed Drilled filled the empty text of its ability's card; the signature joined the
+    // class's own-resource card, which kept its own words. Two cards, not four.
+    expect(doc.cards).toEqual([
+      { id: 'warden-drilled', name: 'Drilled', text: 'Printed words.', grant: { kind: 'class', classId: 'warden' } },
+      { id: 'warden-stand', name: 'Stand', text: 'Its own words.', grant: { kind: 'class', classId: 'warden' } },
+    ]);
+  });
+
+  it('grants what a subclass, an ancestry and a project gave, the way each gave it', () => {
+    const doc = migrateDocument({
+      formatVersion: 2,
+      subclasses: [{ id: 'scribe', name: 'Scribe', classId: 'adept', mastery: [{ name: 'Whole Library', text: 'Everything.' }] }],
+      ancestries: [{ id: 'kin', name: 'Kin', features: [{ name: 'Steady', text: 'Hard to move.' }] }],
+      abilities: [{ id: 'rally', name: 'Rally', source: { kind: 'granted', characters: ['kara'] } }],
+    }) as { cards: unknown[]; subclasses: Record<string, unknown>[]; ancestries: Record<string, unknown>[] };
+
+    expect(doc.subclasses[0]).toEqual({ id: 'scribe', name: 'Scribe', classId: 'adept' });
+    expect(doc.ancestries[0]).toEqual({ id: 'kin', name: 'Kin' });
+    expect(doc.cards).toEqual([
+      { id: 'rally', name: 'Rally', text: '', grant: { kind: 'given', characters: ['kara'] } },
+      { id: 'scribe-whole-library', name: 'Whole Library', text: 'Everything.', grant: { kind: 'subclass', subclassId: 'scribe', stage: 'mastery' } },
+      { id: 'kin-steady', name: 'Steady', text: 'Hard to move.', grant: { kind: 'ancestry', ancestryId: 'kin' } },
+    ]);
+  });
+
+  it('never gives a built card an id a card already has', () => {
+    const doc = migrateDocument({
+      formatVersion: 2,
+      domainCards: [{ id: 'rally', name: 'Rally' }],
+      abilities: [{ id: 'rally', name: 'Rally', source: { kind: 'granted', characters: [] } }],
+    }) as { cards: { id: string }[]; abilities: { source: unknown }[] };
+    expect(doc.cards.map((card) => card.id)).toEqual(['rally', 'rally-2']);
+    expect(doc.abilities[0]!.source).toEqual({ card: 'rally-2' });
   });
 
   it('passes the captured save through with every sheet’s held cards where they were', () => {

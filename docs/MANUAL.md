@@ -549,8 +549,11 @@ under it, so a new character joins when the project is next loaded.
 ### Cards
 
 **Write a card…** opens the Cards panel: the project's own cards, one at a time, beside a count
-of the ones the engine ships (those live in `srd/abilities.ts` and are edited in code). A card
-is its name, the text as printed, the character ids that hold it, whether it is an action, a
+of the ones the engine ships (those live in `content/pack/starter-abilities.ts` and are edited in
+code). **+ Card** writes two things as one undo step: a card of the project's own, handed to nobody
+yet, and the ability on it. **held by** names the characters that card is handed to -- it edits the
+card, so it is greyed for an ability on a card a class grants or a character chooses. A card is its
+name, the text as printed, who holds it, whether it is an action, a
 reaction (and what it answers) or passive, what it costs in Light, Stress and Shadow, who it can be
 aimed at and how far, whether using it is the character's action, whether it is only for a fight,
 whether it holds tokens and when they refill, what it resists, what it takes off the damage,
@@ -836,9 +839,16 @@ ctx.queue(effects);
 
 ### Abilities and conditions
 
-An **ability** (`project.abilities[]`): `id`, `name`, `source` (`domainCard` `card` \| `classGood`
-`classId` \| `classFeature` `classId` \| `subclass` `subclassId` + `stage` \| `granted`
-`characters[]` \| `adversary` `adversaries[]`), `text` (the card's SRD text when empty), `kind`
+A **card** (`project.cards[]`, or a pack's `cards`): `id`, `name`, `grant` -- how it came to be in
+play: `chosen` (picked into a loadout) \| `class` `classId` \| `subclass` `subclassId` + `stage` \|
+`ancestry` `ancestryId` \| `community` `communityId` \| `given` `characters[]` -- then `text`,
+`features[]` (a grimoire's spells), and for a chosen card only `domain`, `type`, `level` and
+`recallCost`. What a class, subclass, ancestry or community prints is a card granted by it; nothing
+on the class lists them.
+
+An **ability** (`project.abilities[]`): `id`, `name`, `source` (`card` -- the card it sits on, in
+play when the card is \| `adversary` `adversaries[]`, a stat block's feature), `text` (the card's
+text when empty), `kind`
 (action \| reaction \| passive),
 `trigger?` (incomingDamage \| attackHit \| attackMissed \| tookSevere — things that happen to the
 holder — plus `dealtHit` and `dealtDamage`, which answer the holder's *own* standard attack:

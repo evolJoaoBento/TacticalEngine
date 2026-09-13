@@ -49,6 +49,7 @@ describe('a project plays the content it carries', () => {
   const FIXTURE_CARD = {
     id: 'project-only-card',
     name: 'Project Only Card',
+    grant: { kind: 'chosen' as const },
     domain: 'bulwark',
     type: 'ability' as const,
     level: 1,

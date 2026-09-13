@@ -7,9 +7,9 @@
  * express — the holder reads it and the table settles it.
  *
  * The same is true of a class or subclass feature, and the last section here is
- * the handful that are mechanical rather than read aloud. A feature's ability is
- * matched to its printed entry by name, so each one's `name` is exactly the name
- * the class or subclass prints.
+ * the handful that are mechanical rather than read aloud. Each sits on the card
+ * the class or subclass prints, by id: the card says what grants it, so nothing
+ * here is matched to anything by name.
  *
  * Nothing here costs Light or Shadow. Those are document field names on `cost`,
  * and both are being renamed; a starter pack that never spends them needs no
@@ -23,7 +23,7 @@ const RAW = [
   {
     id: 'power-slash',
     name: 'Power Slash',
-    source: { kind: 'domainCard', card: 'power-slash' },
+    source: { card: 'power-slash' },
     text: 'Put your weight behind the swing: deal 2 additional damage.',
     kind: 'passive',
     modifiers: [{ stat: 'damageRoll', bonus: 2 }],
@@ -31,7 +31,7 @@ const RAW = [
   {
     id: 'iron-stance',
     name: 'Iron Stance',
-    source: { kind: 'domainCard', card: 'iron-stance' },
+    source: { card: 'iron-stance' },
     text: 'While you hold your ground, your Armor Score is higher.',
     kind: 'passive',
     modifiers: [{ stat: 'armorScore', bonus: 1 }],
@@ -39,7 +39,7 @@ const RAW = [
   {
     id: 'unbroken',
     name: 'Unbroken',
-    source: { kind: 'domainCard', card: 'unbroken' },
+    source: { card: 'unbroken' },
     text: 'The first Severe blow you take each fight lands as Major instead.',
     kind: 'passive',
     modifiers: [{ stat: 'severeThreshold', bonus: 3 }],
@@ -49,7 +49,7 @@ const RAW = [
   {
     id: 'quick-hands',
     name: 'Quick Hands',
-    source: { kind: 'domainCard', card: 'quick-hands' },
+    source: { card: 'quick-hands' },
     text: 'Your hands are faster than the eye: gain a bonus to action rolls made to palm or plant something.',
     kind: 'passive',
     modifiers: [{ stat: 'actionRoll', bonus: 1 }],
@@ -57,7 +57,7 @@ const RAW = [
   {
     id: 'backstab',
     name: 'Backstab',
-    source: { kind: 'domainCard', card: 'backstab' },
+    source: { card: 'backstab' },
     text: 'Against a target unaware of you, your damage roll is higher.',
     kind: 'passive',
     modifiers: [{ stat: 'damageRoll', bonus: 3 }],
@@ -65,7 +65,7 @@ const RAW = [
   {
     id: 'vanish',
     name: 'Vanish',
-    source: { kind: 'domainCard', card: 'vanish' },
+    source: { card: 'vanish' },
     text: 'Break line of sight and you are gone until you act again.',
     kind: 'action',
     cost: { stress: 1 },
@@ -75,7 +75,7 @@ const RAW = [
   {
     id: 'arcane-ward',
     name: 'Arcane Ward',
-    source: { kind: 'domainCard', card: 'arcane-ward' },
+    source: { card: 'arcane-ward' },
     text: 'A shell of warm air holds: raise your Armor Score until your next rest.',
     kind: 'passive',
     modifiers: [{ stat: 'armorScore', bonus: 2 }],
@@ -83,7 +83,7 @@ const RAW = [
   {
     id: 'emberbolt',
     name: 'Emberbolt',
-    source: { kind: 'domainCard', card: 'emberbolt' },
+    source: { card: 'emberbolt' },
     text: 'A thrown coal of fire. Your spells deal more damage.',
     kind: 'passive',
     modifiers: [{ stat: 'spellcastRoll', bonus: 1 }],
@@ -91,7 +91,7 @@ const RAW = [
   {
     id: 'healing-word',
     name: 'Healing Word',
-    source: { kind: 'domainCard', card: 'healing-word' },
+    source: { card: 'healing-word' },
     text: 'Speak an ally steady: they clear a Stress.',
     kind: 'action',
     cost: { stress: 1 },
@@ -99,7 +99,7 @@ const RAW = [
   {
     id: 'warding-flame',
     name: 'Warding Flame',
-    source: { kind: 'domainCard', card: 'warding-flame' },
+    source: { card: 'warding-flame' },
     text: 'A ring of low fire. Foes crossing it are struck as they come.',
     kind: 'action',
     cost: { stress: 1 },
@@ -136,7 +136,7 @@ const RAW = [
   {
     id: 'cinder-burst',
     name: 'Cinder Burst',
-    source: { kind: 'domainCard', card: 'cinder-burst' },
+    source: { card: 'cinder-burst' },
     text: 'Fire blooms: every foe within Very Close of a point takes damage.',
     kind: 'action',
     cost: { stress: 1 },
@@ -167,7 +167,7 @@ const RAW = [
   {
     id: 'shield-wall',
     name: 'Shield Wall',
-    source: { kind: 'domainCard', card: 'shield-wall' },
+    source: { card: 'shield-wall' },
     text: 'Until your next turn, allies within Melee range gain a bonus to Evasion.',
     kind: 'action',
     cost: { stress: 1 },
@@ -180,15 +180,13 @@ const RAW = [
   },
 
   // ---- class and subclass features -------------------------------------------
-  // A character's numbers come from more than the cards they hold, and until
-  // these existed no shipped content exercised it: every ability in the pack was
-  // a domain card, so the `classFeature` and `subclass` paths were reachable only
-  // by a project writing its own. One mechanical feature each, at the stage a
-  // level-1 character has, which is `foundation`.
+  // A character's numbers come from more than the cards they choose. One
+  // mechanical feature each, on the card the class or subclass prints, at the
+  // stage a level-1 character has, which is `foundation`.
   {
     id: 'sentinel-drilled',
     name: 'Drilled',
-    source: { kind: 'classFeature', classId: 'sentinel' },
+    source: { card: 'sentinel-drilled' },
     text: 'Long practice in armour: your Armor Score is 1 higher.',
     kind: 'passive',
     modifiers: [{ stat: 'armorScore', bonus: 1 }],
@@ -196,7 +194,7 @@ const RAW = [
   {
     id: 'shieldbearer-set-feet',
     name: 'Set Feet',
-    source: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'foundation' },
+    source: { card: 'shieldbearer-set-feet' },
     text: 'You take a blow square rather than glancing: your damage thresholds are 1 higher.',
     kind: 'passive',
     modifiers: [{ stat: 'thresholds', bonus: 1 }],
@@ -204,7 +202,7 @@ const RAW = [
   {
     id: 'lampsnuffer-softstep',
     name: 'Softstep',
-    source: { kind: 'subclass', subclassId: 'lampsnuffer', stage: 'foundation' },
+    source: { card: 'lampsnuffer-softstep' },
     text: 'You are never quite where the eye expects: your Evasion is 1 higher.',
     kind: 'passive',
     modifiers: [{ stat: 'evasion', bonus: 1 }],
@@ -224,7 +222,7 @@ const RAW = [
   {
     id: 'sentinel-hold-the-line',
     name: 'Hold the Line',
-    source: { kind: 'classFeature', classId: 'sentinel' },
+    source: { card: 'sentinel-hold-the-line' },
     text: 'When an ally within Melee range is attacked, you may take the blow in their place.',
     cost: { stress: 1 },
     target: { kind: 'self' },
@@ -248,7 +246,7 @@ const RAW = [
   {
     id: 'flamecaller-emberflow',
     name: 'Emberflow',
-    source: { kind: 'subclass', subclassId: 'flamecaller', stage: 'foundation' },
+    source: { card: 'flamecaller-emberflow' },
     text: 'The heat answers quickly: your spellcast rolls are 1 higher.',
     kind: 'passive',
     modifiers: [{ stat: 'spellcastRoll', bonus: 1 }],

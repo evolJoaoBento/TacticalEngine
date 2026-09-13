@@ -3,6 +3,8 @@ import { STARTER_ABILITIES, STARTER_CHARACTERS } from './pack/starter';
 import { abilitiesFor, abilitySchema, isScripted, loadoutOf, vaultOf, LOADOUT_LIMIT, type AbilityDef } from './abilities';
 import { blankSheet, deriveCharacter, type CharacterSheet } from '../character/sheet';
 import { levelUp } from '../character/progression';
+import { mergePack } from './pack/import';
+import { cardDefSchema } from './pack/schema';
 
 /**
  * Abilities as content: the schema's defaults, which of a character's cards
@@ -63,18 +65,29 @@ describe('the loadout', () => {
 
 describe('abilitiesFor', () => {
   const custom: AbilityDef[] = [
-    abilitySchema.parse({ id: 'own', name: 'Own', source: { kind: 'granted', characters: ['kara'] } }),
-    abilitySchema.parse({ id: 'theirs', name: 'Theirs', source: { kind: 'granted', characters: ['mira'] } }),
-    // The pack ships no classGood and no specialization ability, though every
-    // starter subclass prints all three stages. This array exists to supply the
-    // sources the content does not, which is why these two are written here.
-    abilitySchema.parse({ id: 'sentinel-second-wind', name: 'Second Wind', source: { kind: 'classGood', classId: 'sentinel' } }),
-    abilitySchema.parse({ id: 'shieldbearer-iron', name: 'Iron Will', source: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'foundation' } }),
-    abilitySchema.parse({ id: 'shieldbearer-partners', name: 'Partners', source: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'specialization' } }),
+    abilitySchema.parse({ id: 'own', name: 'Own', source: { card: 'own' } }),
+    abilitySchema.parse({ id: 'theirs', name: 'Theirs', source: { card: 'theirs' } }),
+    // The pack ships no second class card and no specialization ability, though
+    // every starter subclass prints all three stages. `CUSTOM_CARDS` says how each
+    // of these came to be in play; this is what is on them.
+    abilitySchema.parse({ id: 'sentinel-second-wind', name: 'Second Wind', source: { card: 'sentinel-second-wind' } }),
+    abilitySchema.parse({ id: 'shieldbearer-iron', name: 'Iron Will', source: { card: 'shieldbearer-iron' } }),
+    abilitySchema.parse({ id: 'shieldbearer-partners', name: 'Partners', source: { card: 'shieldbearer-partners' } }),
   ];
 
+  /** How each ability above came to be in play: two handed over, a class card, two subclass cards. */
+  const CUSTOM_CARDS = [
+    cardDefSchema.parse({ id: 'own', name: 'Own', grant: { kind: 'given', characters: ['kara'] } }),
+    cardDefSchema.parse({ id: 'theirs', name: 'Theirs', grant: { kind: 'given', characters: ['mira'] } }),
+    cardDefSchema.parse({ id: 'sentinel-second-wind', name: 'Second Wind', grant: { kind: 'class', classId: 'sentinel' } }),
+    cardDefSchema.parse({ id: 'shieldbearer-iron', name: 'Iron Will', grant: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'foundation' } }),
+    cardDefSchema.parse({ id: 'shieldbearer-partners', name: 'Partners', grant: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'specialization' } }),
+  ];
+  const withCards = mergePack(content, { cards: CUSTOM_CARDS });
+  const deriveWith = (sheet: CharacterSheet) => deriveCharacter(sheet, withCards).character;
+
   it('orders class, Light, subclass by stage reached, then the loadout', () => {
-    const ids = abilitiesFor(derive(kara()), [...STARTER_ABILITIES, ...custom]).map((a) => a.id);
+    const ids = abilitiesFor(deriveWith(kara()), [...STARTER_ABILITIES, ...custom]).map((a) => a.id);
     expect(ids).toEqual([
       'sentinel-drilled',
       'sentinel-hold-the-line',
@@ -92,7 +105,7 @@ describe('abilitiesFor', () => {
     // text only, and one of those in this slot would be absent from the list whether
     // the vault worked or not — passing for two reasons, and still passing if the
     // vault stopped excluding anything.
-    const six = derive(kara({ domainCards: ['power-slash', 'iron-stance', 'shield-wall', 'rallying-cry', 'unbroken', 'backstab'] }));
+    const six = deriveWith(kara({ domainCards: ['power-slash', 'iron-stance', 'shield-wall', 'rallying-cry', 'unbroken', 'backstab'] }));
     const ids = abilitiesFor(six, [...STARTER_ABILITIES, ...custom]).map((a) => a.id);
     expect(ids).not.toContain('backstab');
     expect(ids).not.toContain('shieldbearer-partners');

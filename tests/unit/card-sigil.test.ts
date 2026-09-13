@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isDomainCard } from '../../src/engine/content/pack/import';
 import { DEMO_CHARACTERS } from '../../src/game/demo-scene';
 import {
   DOMAIN_COLORS,
@@ -19,7 +20,8 @@ import {
  * vendored SRD data alone, with nothing to fetch.
  */
 
-const cards = [...DEMO_CHARACTERS.cards.values()];
+// A chosen card is drawn in its domain's colours; a granted one has no domain to draw in.
+const cards = [...DEMO_CHARACTERS.cards.values()].filter(isDomainCard);
 
 describe('generated domain card art', () => {
   it('draws every card the pack ships, with no files to load', () => {

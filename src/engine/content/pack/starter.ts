@@ -25,14 +25,6 @@ const STARTER: ContentPackDoc = {
       domains: ['bulwark'],
       startingEvasion: 9,
       startingHitPoints: 7,
-      signatureFeature: {
-        name: 'Hold the Line',
-        text: 'When an ally within Melee range is attacked, you may take the blow in their place.',
-      },
-      features: [
-        { name: 'Shield Trained', text: 'You may use a shield without it counting against your burden.' },
-        { name: 'Drilled', text: 'Long practice in armour: your Armor Score is 1 higher.' },
-      ],
     },
     {
       id: 'cutpurse',
@@ -40,13 +32,6 @@ const STARTER: ContentPackDoc = {
       domains: ['shadow'],
       startingEvasion: 12,
       startingHitPoints: 5,
-      signatureFeature: {
-        name: 'Slip the Knot',
-        text: 'Once per rest, free yourself from a grapple, binding or snare without rolling.',
-      },
-      features: [
-        { name: 'Light Fingers', text: 'You have advantage on rolls to take something unnoticed.' },
-      ],
     },
     {
       id: 'emberwright',
@@ -54,13 +39,6 @@ const STARTER: ContentPackDoc = {
       domains: ['ember'],
       startingEvasion: 10,
       startingHitPoints: 5,
-      signatureFeature: {
-        name: 'Kindle',
-        text: 'Your next spell this turn deals 2 additional damage.',
-      },
-      features: [
-        { name: 'Ashmark', text: 'You can tell by touch whether a thing has been burned.' },
-      ],
     },
   ],
 
@@ -70,16 +48,6 @@ const STARTER: ContentPackDoc = {
       name: 'Shieldbearer',
       classId: 'sentinel',
       domains: ['bulwark'],
-      foundation: [
-        { name: 'Bulwark Stance', text: 'Allies directly behind you count as having cover.' },
-        { name: 'Set Feet', text: 'You take a blow square rather than glancing: your damage thresholds are 1 higher.' },
-      ],
-      specialization: [
-        { name: 'Unmoved', text: 'You cannot be pushed or pulled against your will.' },
-      ],
-      mastery: [
-        { name: 'Wall of One', text: 'Once per fight, reduce a Severe result to Major.' },
-      ],
     },
     {
       id: 'lampsnuffer',
@@ -87,16 +55,6 @@ const STARTER: ContentPackDoc = {
       classId: 'cutpurse',
       domains: ['shadow'],
       spellcastTrait: 'finesse',
-      foundation: [
-        { name: 'Douse', text: 'Put out an unattended light within Close range as a free action.' },
-        { name: 'Softstep', text: 'You are never quite where the eye expects: your Evasion is 1 higher.' },
-      ],
-      specialization: [
-        { name: 'Low Profile', text: 'In dim light or darkness, you are harder to pick out at range.' },
-      ],
-      mastery: [
-        { name: 'Nobody Saw', text: 'Once per rest, undo the fact that you were noticed.' },
-      ],
     },
     {
       id: 'flamecaller',
@@ -104,28 +62,18 @@ const STARTER: ContentPackDoc = {
       classId: 'emberwright',
       domains: ['ember'],
       spellcastTrait: 'knowledge',
-      foundation: [
-        { name: 'Emberhand', text: 'Your Ember spells ignore one point of resistance.' },
-        { name: 'Emberflow', text: 'The heat answers quickly: your spellcast rolls are 1 higher.' },
-      ],
-      specialization: [
-        { name: 'Banked Heat', text: 'A spell you did not cast this turn burns hotter on the next.' },
-      ],
-      mastery: [
-        { name: 'Conflagration', text: 'Once per fight, a spell strikes every foe within Very Close.' },
-      ],
     },
   ],
 
   ancestries: [
-    { id: 'human', name: 'Human', features: [{ name: 'Adaptable', text: 'Once per rest, reroll a failed action roll.' }] },
-    { id: 'stoneborn', name: 'Stoneborn', features: [{ name: 'Deep Footing', text: 'You are never knocked prone by a blow alone.' }] },
-    { id: 'sylvan', name: 'Sylvan', features: [{ name: 'Green Step', text: 'Undergrowth costs you nothing to move through.' }] },
+    { id: 'human', name: 'Human' },
+    { id: 'stoneborn', name: 'Stoneborn' },
+    { id: 'sylvan', name: 'Sylvan' },
   ],
 
   communities: [
-    { id: 'wayfarer', name: 'Wayfarer', features: [{ name: 'Road Sense', text: 'You know roughly where the nearest road runs.' }] },
-    { id: 'guildsworn', name: 'Guildsworn', features: [{ name: 'Someone Owes You', text: 'In a settlement, you can usually find a contact.' }] },
+    { id: 'wayfarer', name: 'Wayfarer' },
+    { id: 'guildsworn', name: 'Guildsworn' },
   ],
 
   weapons: [
@@ -212,6 +160,37 @@ const STARTER: ContentPackDoc = {
     card('emberbolt', 'Emberbolt', 'ember', 1, 0, 'A thrown coal of fire. Your spells deal more damage.'),
     card('cinder-burst', 'Cinder Burst', 'ember', 2, 1, 'Fire blooms: every foe within Very Close of a point takes damage.'),
     card('warding-flame', 'Warding Flame', 'ember', 2, 2, 'A ring of low fire. Foes crossing it are struck as they come.'),
+
+    // What each class prints: in play for everybody of the class. The class lists none of them;
+    // each card names the class, so a pack of extra cards for a class imports without editing it.
+    printed('sentinel-shield-trained', 'Shield Trained', { kind: 'class', classId: 'sentinel' }, 'You may use a shield without it counting against your burden.'),
+    printed('sentinel-drilled', 'Drilled', { kind: 'class', classId: 'sentinel' }, 'Long practice in armour: your Armor Score is 1 higher.'),
+    printed('sentinel-hold-the-line', 'Hold the Line', { kind: 'class', classId: 'sentinel' }, 'When an ally within Melee range is attacked, you may take the blow in their place.'),
+    printed('cutpurse-light-fingers', 'Light Fingers', { kind: 'class', classId: 'cutpurse' }, 'You have advantage on rolls to take something unnoticed.'),
+    printed('cutpurse-slip-the-knot', 'Slip the Knot', { kind: 'class', classId: 'cutpurse' }, 'Once per rest, free yourself from a grapple, binding or snare without rolling.'),
+    printed('emberwright-ashmark', 'Ashmark', { kind: 'class', classId: 'emberwright' }, 'You can tell by touch whether a thing has been burned.'),
+    printed('emberwright-kindle', 'Kindle', { kind: 'class', classId: 'emberwright' }, 'Your next spell this turn deals 2 additional damage.'),
+
+    // What each subclass prints, at the stage it prints it.
+    printed('shieldbearer-bulwark-stance', 'Bulwark Stance', { kind: 'subclass', subclassId: 'shieldbearer', stage: 'foundation' }, 'Allies directly behind you count as having cover.'),
+    printed('shieldbearer-set-feet', 'Set Feet', { kind: 'subclass', subclassId: 'shieldbearer', stage: 'foundation' }, 'You take a blow square rather than glancing: your damage thresholds are 1 higher.'),
+    printed('shieldbearer-unmoved', 'Unmoved', { kind: 'subclass', subclassId: 'shieldbearer', stage: 'specialization' }, 'You cannot be pushed or pulled against your will.'),
+    printed('shieldbearer-wall-of-one', 'Wall of One', { kind: 'subclass', subclassId: 'shieldbearer', stage: 'mastery' }, 'Once per fight, reduce a Severe result to Major.'),
+    printed('lampsnuffer-douse', 'Douse', { kind: 'subclass', subclassId: 'lampsnuffer', stage: 'foundation' }, 'Put out an unattended light within Close range as a free action.'),
+    printed('lampsnuffer-softstep', 'Softstep', { kind: 'subclass', subclassId: 'lampsnuffer', stage: 'foundation' }, 'You are never quite where the eye expects: your Evasion is 1 higher.'),
+    printed('lampsnuffer-low-profile', 'Low Profile', { kind: 'subclass', subclassId: 'lampsnuffer', stage: 'specialization' }, 'In dim light or darkness, you are harder to pick out at range.'),
+    printed('lampsnuffer-nobody-saw', 'Nobody Saw', { kind: 'subclass', subclassId: 'lampsnuffer', stage: 'mastery' }, 'Once per rest, undo the fact that you were noticed.'),
+    printed('flamecaller-emberhand', 'Emberhand', { kind: 'subclass', subclassId: 'flamecaller', stage: 'foundation' }, 'Your Ember spells ignore one point of resistance.'),
+    printed('flamecaller-emberflow', 'Emberflow', { kind: 'subclass', subclassId: 'flamecaller', stage: 'foundation' }, 'The heat answers quickly: your spellcast rolls are 1 higher.'),
+    printed('flamecaller-banked-heat', 'Banked Heat', { kind: 'subclass', subclassId: 'flamecaller', stage: 'specialization' }, 'A spell you did not cast this turn burns hotter on the next.'),
+    printed('flamecaller-conflagration', 'Conflagration', { kind: 'subclass', subclassId: 'flamecaller', stage: 'mastery' }, 'Once per fight, a spell strikes every foe within Very Close.'),
+
+    // What an ancestry or a community gives whoever has it.
+    printed('human-adaptable', 'Adaptable', { kind: 'ancestry', ancestryId: 'human' }, 'Once per rest, reroll a failed action roll.'),
+    printed('stoneborn-deep-footing', 'Deep Footing', { kind: 'ancestry', ancestryId: 'stoneborn' }, 'You are never knocked prone by a blow alone.'),
+    printed('sylvan-green-step', 'Green Step', { kind: 'ancestry', ancestryId: 'sylvan' }, 'Undergrowth costs you nothing to move through.'),
+    printed('wayfarer-road-sense', 'Road Sense', { kind: 'community', communityId: 'wayfarer' }, 'You know roughly where the nearest road runs.'),
+    printed('guildsworn-someone-owes-you', 'Someone Owes You', { kind: 'community', communityId: 'guildsworn' }, 'In a settlement, you can usually find a contact.'),
   ],
 
   adversaries: [
@@ -248,7 +227,7 @@ const STARTER: ContentPackDoc = {
   ],
 };
 
-/** A domain card. Every one is an ability rather than a spell or a grimoire here. */
+/** A domain card: one a character chooses. Every one is an ability rather than a spell or a grimoire here. */
 function card(
   id: string,
   name: string,
@@ -257,7 +236,17 @@ function card(
   recallCost: number,
   text: string,
 ): ContentPackDoc['cards'][number] {
-  return { id, name, domain, type: 'ability', level, recallCost, text, features: [] };
+  return { id, name, grant: { kind: 'chosen' }, domain, type: 'ability', level, recallCost, text, features: [] };
+}
+
+/** A card a class, subclass, ancestry or community prints: in play for whoever that describes. */
+function printed(
+  id: string,
+  name: string,
+  grant: ContentPackDoc['cards'][number]['grant'],
+  text: string,
+): ContentPackDoc['cards'][number] {
+  return { id, name, grant, text, features: [] };
 }
 
 /** A stat block, written out flat because the shape is wide and the values matter. */

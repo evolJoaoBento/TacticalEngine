@@ -28,7 +28,7 @@ import {
   armorDefSchema,
   classDefSchema,
   communityDefSchema,
-  domainCardDefSchema,
+  cardDefSchema,
   subclassDefSchema,
   weaponDefSchema,
 } from '../content/pack/schema';
@@ -290,7 +290,7 @@ export const projectSchema = z
     ancestries: z.array(ancestryDefSchema).default([]),
     communities: z.array(communityDefSchema).default([]),
     subclasses: z.array(subclassDefSchema).default([]),
-    cards: z.array(domainCardDefSchema).default([]),
+    cards: z.array(cardDefSchema).default([]),
     weapons: z.array(weaponDefSchema).default([]),
     armors: z.array(armorDefSchema).default([]),
     /** The stat blocks its encounters place, by the ids those placements name. */

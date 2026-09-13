@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import { cardOf } from '../abilities';
 import { describePack, packDocumentSchema, readPack } from './document';
 
 /**
@@ -36,10 +37,15 @@ describe('reading a pack', () => {
     expect(reading.issues).toEqual([]);
     expect(reading.pack.abilities).toHaveLength(19);
     expect(reading.pack.conditionDefs).toHaveLength(56);
-    // One ability is a class's own-resource feature. Its kind is the version-2 one only once read:
-    // the file still carries the old kind, and reading it did not touch the file's object.
-    expect(raw.abilities.some((a) => a.source.kind === 'classGood')).toBe(false);
-    expect(reading.pack.abilities.filter((a) => a.source.kind === 'classGood')).toHaveLength(1);
+    // Seven of its abilities sat on something other than a card: two class features, the class's
+    // own-resource feature, three subclass features and one a project handed to a character. Read,
+    // each sits on a card the version-3 step built from it, granted the way its source said -- and
+    // the file's own object was not touched by the reading.
+    expect(raw.abilities.filter((a) => !('card' in a.source))).toHaveLength(7);
+    expect(reading.pack.abilities.every((a) => cardOf(a) !== null)).toBe(true);
+    expect(reading.pack.cards.map((card) => card.grant.kind).sort()).toEqual([
+      'class', 'class', 'class', 'given', 'subclass', 'subclass', 'subclass',
+    ]);
     // A project's scenes and party are not content, and stay behind.
     expect(Object.keys(reading.pack)).not.toContain('scenes');
     expect(() => packDocumentSchema.parse(reading.pack)).not.toThrow();
@@ -91,9 +97,14 @@ describe('reading a pack', () => {
 
       expect([...content.issues, ...mechanics.issues]).toEqual([]);
       expect(describePack(content.pack)).toBe(
-        '192 weapons, 34 armors, 9 classes, 18 ancestries, 9 communities, 18 subclasses, 189 cards, 129 adversaries',
+        // 189 chosen cards, and the 145 features its classes, subclasses, ancestries and communities
+        // printed, each a card granted by what printed it since format version 3.
+        '192 weapons, 34 armors, 9 classes, 18 ancestries, 9 communities, 18 subclasses, 334 cards, 129 adversaries',
       );
-      expect(describePack(mechanics.pack)).toBe('185 abilities, 54 conditions');
+      // The eight cards are built from abilities that sat on no card: three of a class's own
+      // resource and five a subclass printed. Imported beside the content file, each duplicates a
+      // printed card it built by name -- the two files were exported apart, and are read apart.
+      expect(describePack(mechanics.pack)).toBe('8 cards, 185 abilities, 54 conditions');
     },
   );
 });

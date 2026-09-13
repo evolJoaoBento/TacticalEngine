@@ -15,7 +15,7 @@ import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
 import { DEMO_QUESTS } from './demo-quests';
 import { SRD_HOOKS } from '../engine/script/native-hooks';
 import { compileHooks, mergeHooks, type HookMap } from '../engine/script/hooks';
-import { DEMO_CODE, DEMO_PROJECT_ABILITIES } from './demo-code';
+import { DEMO_CODE, DEMO_PROJECT_ABILITIES, DEMO_PROJECT_CARDS } from './demo-code';
 import { SRD_CONDITIONS, type ConditionDef } from '../engine/content/conditions';
 import { MAX_SLOTS } from '../engine/rules/resources';
 import { walkCheck, walkEffects, type Condition, type CountName, type Effect, type TargetSelector } from '../engine/script/schema';
@@ -51,7 +51,7 @@ import {
   type Defender,
   type DefensePlan,
 } from '../engine/combat/defense';
-import { abilitySchema, loadoutOf, readsATarget, type AbilityDef } from '../engine/content/abilities';
+import { abilitySchema, cardOf, loadoutOf, readsATarget, type AbilityDef } from '../engine/content/abilities';
 import { gain, unmarked } from '../engine/rules/resources';
 import {
   hpForSeverity,
@@ -77,7 +77,7 @@ import {
   type DerivedCharacter,
 } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
-import { importContentPack, mergePack, type ContentPack, type WeaponDef } from '../engine/content/pack/import';
+import { mergePack, type ContentPack, type WeaponDef } from '../engine/content/pack/import';
 import { STARTER_ABILITIES, STARTER_ADVERSARIES, STARTER_CHARACTERS, STARTER_CONDITIONS } from '../engine/content/pack/starter';
 import type { AdversaryDef } from '../engine/content/types';
 import { createRng, type Rng } from '../engine/core/rng';
@@ -627,7 +627,7 @@ interface RuntimeOptions {
   /** The project's loot tables, so a chest in any room pays out. */
   lootTables?: ReadonlyMap<string, LootTable>;
   /** The project's abilities, conditions and stat blocks, for the world's modifiers. */
-  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code' | 'adversaries'>;
+  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code' | 'adversaries'> & ProjectContent;
   /** Ask the defender how they take a hit, rather than deciding for them. */
   askDefender?: boolean;
 }
@@ -733,7 +733,7 @@ export function worldOptions(
   characters: ReadonlyMap<string, DerivedCharacter>,
   lootTables?: ReadonlyMap<string, LootTable>,
   scene?: SceneDoc,
-  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code' | 'adversaries'>,
+  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code' | 'adversaries'> & ProjectContent,
 ): SceneScriptWorldOptions {
   return {
     traits: traitsFor(characters),
@@ -747,6 +747,9 @@ export function worldOptions(
     // places is what a project carries. Every shipped adversary has `features: []`, so nothing
     // the app does changes — and an imported pack brings its own.
     abilities: project?.abilities ?? STARTER_ABILITIES,
+    // Read as the project stands, each time: a card handed to somebody after this world was built
+    // is in their hands at once, exactly as an ability written into the project always was.
+    cards: () => characterContentFor(project).cards,
     conditionDefs: withSrdConditions(project?.conditionDefs ?? []),
     // The engine's native hooks, then the project's own code, which may
     // override one of them by using the same id. Asked for each time: the
@@ -1257,6 +1260,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     // are what those cards do. Nothing else is listed: stat-block features used to be
     // inherited from a shipped catalogue, and now travel with whatever pack carries the
     // block.
+    cards: [...DEMO_PROJECT_CARDS],
     abilities: [...STARTER_ABILITIES, ...DEMO_PROJECT_ABILITIES],
     code: [...DEMO_CODE],
     // The pack's own conditions first, so a card that ships one wins over a
@@ -2952,7 +2956,9 @@ function playZoneEntries(demo: DemoScene): void {
     const ability = abilitySchema.parse({
       id: `zone-${crossing.condition}`,
       name: def.name,
-      source: { kind: 'granted', characters: [by] },
+      // On no card anybody holds: nothing puts it in a hand or a vault, and it is played here and
+      // nowhere else.
+      source: { card: `zone-${crossing.condition}` },
       text: 'The ground they just stepped onto.',
       kind: 'reaction',
       action: false,
@@ -3055,9 +3061,9 @@ function playPayouts(
     const ability = abilitySchema.parse({
       id: `payout-${debt.condition}`,
       name,
-      // Not a card of theirs: a debt handed to whoever swung, which is what
-      // `granted` says and what keeps it out of the vault.
-      source: { kind: 'granted', characters: [attacker] },
+      // Not a card of theirs: a debt handed to whoever swung. It sits on no card anybody holds,
+      // which is what keeps it out of every hand and out of the vault.
+      source: { card: `payout-${debt.condition}` },
       text: 'What somebody else left you.',
       kind: 'reaction',
       action: false,
@@ -3538,11 +3544,13 @@ function playReaction(
  * longer in the loadout is no longer offering its reactions or its modifiers.
  */
 export function vaultAfter(demo: DemoScene, id: string, ability: AbilityDef, runner: ScriptRunner): void {
-  if (!runner.vaulted || ability.source.kind !== 'domainCard') return;
+  // Only a chosen card has a vault to go to. The loadout below is what says it was chosen: a
+  // granted card is never in one.
+  const cardId = cardOf(ability);
+  if (!runner.vaulted || cardId === null) return;
   const sheet = demo.sheets.get(id);
   const character = demo.characters.get(id);
   if (sheet === undefined || character === undefined) return;
-  const cardId = ability.source.card;
   const loadout = loadoutOf(character);
   if (!loadout.includes(cardId)) return;
   setSheet(demo, { ...sheet, loadout: loadout.filter((held) => held !== cardId) });

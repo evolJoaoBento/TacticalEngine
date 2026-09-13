@@ -25,7 +25,7 @@ import { blankSheet, deriveCharacter, type DerivedCharacter } from '../../engine
 import { characterSheetSchema } from '../../engine/character/sheet-schema';
 import { domainsOf, heldCards } from '../../engine/character/progression';
 import { LOADOUT_LIMIT } from '../../engine/content/abilities';
-import type { ContentPack } from '../../engine/content/pack/import';
+import { isDomainCard, type ContentPack } from '../../engine/content/pack/import';
 import type { Trait } from '../../engine/scene/schema';
 
 export interface PartyPanelProps {
@@ -120,7 +120,7 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
       ? []
       : options(content.cards).filter((c) => {
           const def = content.cards.get(c.id)!;
-          return domains.includes(def.domain) && def.level <= open.level;
+          return isDomainCard(def) && domains.includes(def.domain) && def.level <= open.level;
         });
   const held = open === null ? [] : heldCards(open);
   const active = open?.loadout ?? held.slice(0, LOADOUT_LIMIT);

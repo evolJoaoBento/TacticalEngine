@@ -4,6 +4,49 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Cards as the unit: the character side — done
+
+Everything a character has is a card. Format version 3 carries it, and nothing is pushed until the
+GM's side lands as well: a pushed version is a promise to every file written under it.
+
+* **A card says how it got into play** (`cardGrantSchema`): `chosen` into a loadout, or granted by a
+  class, a subclass stage, an ancestry, a community, or a project handing it to named characters.
+  Only a chosen card has a domain, a type, a level and a recall cost, and the schema asks for them
+  there and nowhere else.
+* **An ability sits on a card**, `source: { card }`. Five of the six source kinds are that one now;
+  the sixth, a stat block's `adversary`, is §3's next step. `abilitiesFor` reads the card's grant and
+  orders by it -- class, subclass stage, loadout, ancestry, community, given -- then by list order.
+  Both tests that pinned the old order pass unchanged, which is the evidence that nothing moved.
+* **Printed features are cards.** A class, subclass, ancestry or community carries none; the
+  starter pack's 24 are granted cards, and the name-matching that paired a printed feature with its
+  ability is gone. So are the readers for a retired data set's shapes in `pack/import.ts`, which
+  nothing had called since slice 3 and which wrote exactly those features.
+* **Granted is read live.** `deriveCharacter` folds a granted card's passives into the numbers; the
+  world and the action bar recompute a character's granted cards from the cards as they stand, each
+  time they read (`grantedCards`), so a card handed over mid-scene is in hand at once -- as an
+  ability written into a project always was. Two tests fail without that read.
+* **The editor.** "+ Card" writes a `given` card and the ability on it as one undo step, and "held
+  by" edits the card's characters. **Check** warns about an ability on a card nothing defines: under
+  this model that ability is silently never in play.
+* **The migration** (version 3, positional) builds a card for every ability that sat on something
+  other than a card, granted the way its source said, and turns printed features into granted cards
+  -- joining one to its ability's card when both are in the same document, and never matching
+  against the shipped pack, which is code a document cannot see. The frozen version-1 project comes
+  through with its seven such abilities on seven built cards.
+* **The export, re-read.** `srd.json` now reads as 334 cards (189 chosen, 145 printed) and
+  `srd-abilities.json` as 8 cards beside its 185 abilities. **Known:** imported together, those 8
+  duplicate printed cards by name under other ids, because the two files were exported apart and are
+  read apart. Merging them is the owner's call, not a migration's guess.
+
+`npx tsc --noEmit` clean; vitest **1831 passed / 1 failed (1832)**, the one failure being the documented
+deliberate one; Playwright **105 passed (3.8m)**, `EXIT 0`.
+
+**Next, in order:** the GM's side as cards (a stat block's feature on a card granted by
+`adversary`, the last source kind), then card zones on screen, a grant editor, and a card editor
+that reaches any card rather than only the ones "+ Card" writes.
+
+---
+
 ## Import pack — done
 
 The exported catalogue is reachable again. **Project ▾ → Import pack…** reads one or more pack files
@@ -40,10 +83,10 @@ generic rules conditions too.
 `npx tsc --noEmit` clean; vitest **1821 passed / 1 failed (1822)**, the one being the documented
 deliberate `demo-defense` failure; Playwright **105 passed**, `EXIT 0`.
 
-**Still open on the same thread.** Customising imported content *as cards* waits on §3 below: the
-Cards workspace already lists imported abilities to edit, but classes and subclasses still carry
-feature text rather than card ids. And an import cannot be written back out as a pack on its own —
-Save JSON writes the whole project.
+**Still open on the same thread.** Classes and subclasses carry no feature text any more -- what
+they print is cards (above). What is left is editing *any* card: the Cards workspace edits abilities
+and the `given` cards it writes, not a card an imported class grants. And an import cannot be
+written back out as a pack on its own -- Save JSON writes the whole project.
 
 **Known, and not new:** undoing an import while in *play* rewrites the document but not the running
 world. `undoEdit` rebuilds nothing in play, so an undone card stays offered until the next rebuild —
@@ -449,28 +492,24 @@ adding that rule is a step of this slice, not a precondition somebody already di
   file is not exempt, so a doc recording the guard's own falsification trips the guard — describe
   the injections instead of spelling them.
 
-### 3. Cards as the unit
+### 3. Cards as the unit — the character side is done; the GM's side is next
 
-The spec is written and decided; nothing is built. It rides slice 4's migration rather than paying
-for a second one.
+The decisions taken when building are the spec's §7: an ability points at its card; the card names
+what grants it and nothing lists its cards; only a chosen card has the loadout's numbers; the
+version-3 migration is positional and builds cards from abilities. What landed is the entry at the
+top of this file. What is left, in order:
 
-- The six `abilitySourceSchema` kinds collapse toward **one**: the card the ability sits on. What
-  differs is *how the card got into play*, which becomes a `grant` field on the card rather than a
-  variant of the source.
-- `featureSchema` stops being a content type; a class's features become a list of card ids. This
-  kills the **name-matching** that currently pairs a printed feature with its ability — rename the
-  ability today and the text silently stops being found.
-- `kind: 'action' | 'reaction' | 'passive'` already exists and is exactly the passive/active split
-  the decision names. Nothing new is needed there.
-- The pack format's `domainCards` becomes `cards`.
-- **Zones** are the part that needs designing: *chosen* cards are bound by `LOADOUT_LIMIT`, *granted*
-  cards are not. The behaviour already exists — `loadoutOf` reads `sheet.loadout`, `abilitiesFor`
-  folds class and subclass abilities in regardless — so what is missing is saying so **on the card**
-  instead of inferring it from a source kind.
-- Four open questions are recorded in the spec's §6 with recommendations, none settled. The one that
-  shapes the schema: **a card points at its abilities by id, not inline** — one card routinely
-  carries four (a sigil that marks, two halves that bank a token, one that spends them), and
-  inlining would break every reaction that has to be found by trigger.
+- **The GM's side.** A stat block's feature still names its adversaries (`source: { kind:
+  'adversary' }`), the last source kind. It becomes a card granted by `adversary`, which is data
+  only -- a GM-side card on the table is its own slice. Every test and fixture that writes a stat
+  block's feature (about a hundred) needs its card; the validator's stat-block checks already go
+  through one helper, `isStatBlockFeature`, so they change in one place.
+- **Zones on screen.** Chosen cards are bound by `LOADOUT_LIMIT` and granted ones are not; the card
+  says so now. What is missing is the picture: granted cards face up beside the loadout.
+- **Editing any card.** A grant editor, and a card editor that reaches a card a pack or class
+  grants, not only the `given` ones "+ Card" writes.
+- **Open, not decided:** a condition that lends a *card* rather than an ability
+  (`conditionDefSchema.grants`), and whether a card handed over mid-fight should be announced.
 
 **Not a licence to rebuild the catalogue with a card model instead of a list.** The IP constraints
 are untouched by this.
@@ -596,6 +635,11 @@ def plan(steps):
 Python's default text mode on Windows rewrites every `\n` to `\r\n` on the way out — one careless
 write turns a whole file into a CRLF diff. When an anchor is ambiguous the assertion tells you the
 count; extend it with the preceding line rather than reaching for a blind replace-all.
+
+**Read the file into a variable before opening it for writing.** `open(p, 'w').write(read(p)...)`
+opens -- and truncates -- before its argument is evaluated, so it reads back an empty file and
+writes that. It emptied two files here once, recovered only because every change since HEAD was
+still in a script. Build each file's whole text in memory, then open it.
 
 ### Every assert runs before every write
 

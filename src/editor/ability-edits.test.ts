@@ -14,7 +14,7 @@ import { validateProject } from './validate';
 const RALLY = {
   id: 'rally',
   name: 'Rally',
-  source: { kind: 'granted', characters: ['kara'] },
+  source: { card: 'rally' },
   text: 'Shout, and they stand a little straighter.',
   cost: { good: 1 },
   effects: [{ kind: 'log', text: 'Kara shouts.' }],

@@ -13,7 +13,7 @@ import { EditorSession, importPack, packChanges } from './session';
 const RALLY = {
   id: 'rally',
   name: 'Rally',
-  source: { kind: 'granted', characters: ['kara'] },
+  source: { card: 'rally' },
   effects: [{ kind: 'log', text: 'Kara shouts.' }],
 };
 

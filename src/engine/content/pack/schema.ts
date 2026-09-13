@@ -68,30 +68,31 @@ export const armorDefSchema = z.object({
   features: z.array(featureSchema).default([]),
 });
 
+/**
+ * A class: its numbers, and the domains it opens.
+ *
+ * What a class *prints* is cards. A card whose `grant` names the class is in play for everybody of
+ * that class, and nothing here lists them: the card says where it comes from, so a pack of extra
+ * cards for a class somebody else wrote imports without editing the class.
+ */
 export const classDefSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
   domains: z.array(z.string().min(1)).default([]),
   startingEvasion: z.number().int().min(0),
   startingHitPoints: z.number().int().min(1),
-  /**
-   * The feature a class grants for its own resource. Named for what it is
-   * rather than for the resource, so renaming the resource never touches a
-   * saved pack.
-   */
-  signatureFeature: featureSchema.optional(),
-  features: z.array(featureSchema).default([]),
 });
 
+/** An ancestry. What it grants is cards, found the same way a class's are. */
 export const ancestryDefSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
-  features: z.array(featureSchema).default([]),
 });
 
-/** A community is shaped exactly as an ancestry: a name and what it grants. */
+/** A community is shaped exactly as an ancestry: a name, and cards that name it. */
 export const communityDefSchema = ancestryDefSchema;
 
+/** A subclass. Its foundation, specialization and mastery are cards granted at that stage. */
 export const subclassDefSchema = z.object({
   id: contentIdSchema,
   name: z.string().min(1),
@@ -99,23 +100,63 @@ export const subclassDefSchema = z.object({
   classId: contentIdSchema,
   domains: z.array(z.string().min(1)).default([]),
   spellcastTrait: traitSchema.optional(),
-  foundation: z.array(featureSchema).default([]),
-  specialization: z.array(featureSchema).default([]),
-  mastery: z.array(featureSchema).default([]),
 });
 
-export const domainCardDefSchema = z.object({
-  id: contentIdSchema,
-  name: z.string().min(1),
-  domain: z.string().min(1),
-  type: z.enum(['ability', 'spell', 'grimoire']),
-  /** Minimum character level to take it. */
-  level: z.number().int().min(1),
-  recallCost: z.number().int().min(0),
-  text: z.string().default(''),
-  /** The card's named features: a grimoire's spells. Most cards have one, unnamed. */
-  features: z.array(featureSchema).default([]),
-});
+/** How far into a subclass a character has come. */
+export const subclassStageSchema = z.enum(['foundation', 'specialization', 'mastery']);
+
+/**
+ * How a card came to be in play.
+ *
+ * The one real difference between a card somebody picked and one they have because of what they
+ * are: a chosen card counts against the loadout and can wait in the vault, and a granted one is
+ * simply there. Said on the card, rather than inferred from what an ability is attached to.
+ */
+export const cardGrantSchema = z.discriminatedUnion('kind', [
+  /** Picked into a loadout from the domains a class opens. The only kind with a loadout and a vault. */
+  z.object({ kind: z.literal('chosen') }),
+  /** In play for everybody of the class. */
+  z.object({ kind: z.literal('class'), classId: contentIdSchema }),
+  /** In play once the character has reached this stage of the subclass. */
+  z.object({ kind: z.literal('subclass'), subclassId: contentIdSchema, stage: subclassStageSchema }),
+  /** In play for everybody of the ancestry. */
+  z.object({ kind: z.literal('ancestry'), ancestryId: contentIdSchema }),
+  /** In play for everybody of the community. */
+  z.object({ kind: z.literal('community'), communityId: contentIdSchema }),
+  /** Handed to named characters: a project giving somebody a card without inventing a class for it. */
+  z.object({ kind: z.literal('given'), characters: z.array(contentIdSchema) }),
+]);
+
+/**
+ * A card: anything a character has, chosen or granted.
+ *
+ * Only a chosen card has a domain, a type, a level and a recall cost. Those are loadout mechanics,
+ * and a granted card has no loadout, so they are optional here and required of a chosen one. A
+ * card left without a grant is a chosen one, which is what every card written before grants
+ * existed was.
+ */
+export const cardDefSchema = z
+  .object({
+    id: contentIdSchema,
+    name: z.string().min(1),
+    grant: cardGrantSchema.default({ kind: 'chosen' }),
+    domain: z.string().min(1).optional(),
+    type: z.enum(['ability', 'spell', 'grimoire']).optional(),
+    /** Minimum character level to take it. */
+    level: z.number().int().min(1).optional(),
+    recallCost: z.number().int().min(0).optional(),
+    text: z.string().default(''),
+    /** The card's named features: a grimoire's spells. Most cards have one, unnamed. */
+    features: z.array(featureSchema).default([]),
+  })
+  .superRefine((card, ctx) => {
+    if (card.grant.kind !== 'chosen') return;
+    for (const field of ['domain', 'type', 'level', 'recallCost'] as const) {
+      if (card[field] === undefined) {
+        ctx.addIssue({ code: 'custom', path: [field], message: `a chosen card needs a ${field}` });
+      }
+    }
+  });
 
 /** An Experience and its modifier: "Tremor Sense +2". */
 export const experienceSchema = z.object({
@@ -192,7 +233,7 @@ export const contentPackSchema = z.object({
   ancestries: z.array(ancestryDefSchema).default([]),
   communities: z.array(communityDefSchema).default([]),
   subclasses: z.array(subclassDefSchema).default([]),
-  cards: z.array(domainCardDefSchema).default([]),
+  cards: z.array(cardDefSchema).default([]),
   adversaries: z.array(adversaryDefSchema).default([]),
 });
 

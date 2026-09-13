@@ -725,7 +725,7 @@ describe('what only a stat block has', () => {
         {
           id: 'greedy',
           name: 'Greedy',
-          source: { kind: 'granted', characters: ['kara'] },
+          source: { card: 'greedy' },
           target: { kind: 'self' },
           cost: { bad: 1 },
           effects: [],
@@ -733,7 +733,7 @@ describe('what only a stat block has', () => {
         {
           id: 'sharp',
           name: 'Sharp',
-          source: { kind: 'granted', characters: ['kara'] },
+          source: { card: 'sharp' },
           target: { kind: 'none' },
           kind: 'passive',
           standardAttack: { direct: true },
@@ -742,7 +742,7 @@ describe('what only a stat block has', () => {
         {
           id: 'rider',
           name: 'Rider',
-          source: { kind: 'granted', characters: ['kara'] },
+          source: { card: 'rider' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'dealtDamage',
@@ -1079,7 +1079,7 @@ describe('what only a stat block has', () => {
         {
           id: 'card-mid-swing',
           name: 'Card Mid Swing',
-          source: { kind: 'granted', characters: ['kara'] },
+          source: { card: 'card-mid-swing' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'allyRollingDamage',
@@ -1088,7 +1088,7 @@ describe('what only a stat block has', () => {
         {
           id: 'card-in-the-light',
           name: 'Card In The Light',
-          source: { kind: 'granted', characters: ['kara'] },
+          source: { card: 'card-in-the-light' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'spotlighted',
@@ -1135,7 +1135,7 @@ describe('what only a stat block has', () => {
         {
           id: 'card-stops-a-turn',
           name: 'Card Stops A Turn',
-          source: { kind: 'granted', characters: ['kara'] },
+          source: { card: 'card-stops-a-turn' },
           target: { kind: 'none' },
           effects: [{ kind: 'endSpotlight' }],
         },
@@ -1207,7 +1207,7 @@ describe('a spotlight in the wrong hands', () => {
         {
           id: 'rally',
           name: 'Rally',
-          source: { kind: 'granted', characters: ['kara'] },
+          source: { card: 'rally' },
           target: { kind: 'none' },
           effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' } }],
         },
@@ -1263,7 +1263,7 @@ describe('a countdown nobody can read', () => {
         {
           id: 'in-a-hand',
           name: 'In A Hand',
-          source: { kind: 'granted', characters: ['kara'] },
+          source: { card: 'in-a-hand' },
           target: { kind: 'none' },
           effects: [
             {
@@ -1343,7 +1343,7 @@ describe('logic in code', () => {
         {
           id: 'a-card',
           name: 'A Card',
-          source: { kind: 'granted', characters: ['kara'] },
+          source: { card: 'a-card' },
           target: { kind: 'self' },
           available: { kind: 'hook', hook: 'good' },
           effects: [{ kind: 'run', hook: 'nowhere' }],
@@ -1351,7 +1351,7 @@ describe('logic in code', () => {
         {
           id: 'native-card',
           name: 'Native',
-          source: { kind: 'granted', characters: ['kara'] },
+          source: { card: 'native-card' },
           target: { kind: 'self' },
           effects: [{ kind: 'run', hook: 'arcane-barrage' }],
         },

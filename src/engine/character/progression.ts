@@ -21,7 +21,7 @@
  * out of reach) and the other multiclass box.
  */
 
-import type { ContentPack } from '../content/pack/import';
+import { isDomainCard, type ContentPack } from '../content/pack/import';
 import type { Trait } from '../scene/schema';
 import type { CharacterSheet } from './sheet';
 
@@ -223,6 +223,8 @@ export function cardAllowed(
 ): { ok: true } | { ok: false; reason: string } {
   const card = content.cards.get(cardId);
   if (card === undefined) return { ok: false, reason: `unknown domain card "${cardId}"` };
+  // A granted card is in play because of what the character is; there is nothing to choose.
+  if (!isDomainCard(card)) return { ok: false, reason: `"${card.name}" is not a card anybody chooses` };
   if (!domainsOf(sheet, content).includes(card.domain)) {
     return { ok: false, reason: `"${card.name}" is a ${card.domain} card, outside this character's domains` };
   }

@@ -31,6 +31,16 @@ import {
   FIXTURE_CARDS,
   FIXTURE_GRIMOIRE,
 } from './adversaries';
+import { cardDefSchema } from '../../src/engine/content/pack/schema';
+
+/**
+ * The card an ability sits on when a test simply hands it to somebody: `given`, by character id,
+ * with the ability's own id and name. No loadout to arrange, no class to invent -- the seam a test
+ * or a project uses to give one character one card.
+ */
+export function handedTo(ability: { id: string; name: string }, ...characters: string[]): ReturnType<typeof cardDefSchema.parse> {
+  return cardDefSchema.parse({ id: ability.id, name: ability.name, grant: { kind: 'given', characters } });
+}
 
 /** What a successful cast does: ask, if there is a mark; otherwise simply mark. */
 const RIFT_ARMS = [
@@ -1620,14 +1630,14 @@ export const BONE_BOUND = [
  * and both are what other suites use to prove a gate refuses. This one is held by a named
  * character and asks nothing, so what it proves is that the offer arrives at all.
  *
- * `granted` rather than a card: no card to hold, no loadout to arrange, nothing to get wrong in
- * the setup of a test that is about something else.
+ * Handed to Kara on a card of its own (`A_GUARD_CARDS`) rather than chosen: no loadout to arrange,
+ * nothing to get wrong in the setup of a test that is about something else.
  */
 export const A_GUARD_THAT_ANSWERS = [
   {
     id: 'fixture-guard-that-answers',
     name: 'Guard',
-    source: { kind: 'granted', characters: ['kara'] },
+    source: { card: 'fixture-guard-that-answers' },
     text: 'A blade already on the way to where the blow was going.',
     kind: 'reaction',
     trigger: 'incomingDamage',
@@ -1637,3 +1647,6 @@ export const A_GUARD_THAT_ANSWERS = [
     effects: [{ kind: 'log', text: 'The guard comes up in time.', tone: 'good' }],
   },
 ];
+
+/** The card the guard sits on, handed to Kara. */
+export const A_GUARD_CARDS = [handedTo({ id: 'fixture-guard-that-answers', name: 'Guard' }, 'kara')];

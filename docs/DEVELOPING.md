@@ -112,11 +112,11 @@ adapter: the rest of the core does not know it exists.
 | `script/countdowns.ts` | The board a scenario carries: `RunningCountdown` (a clock plus what it is counting towards), `advanceBoard`, `reapBoard`, `endCreatureCountdowns`, and the snapshot schema a save uses. |
 | `script/hooks.ts` | Running project code: `HookContext`, `runHook`, `SAFE_MATH`. |
 | `content/types.ts` | `AdversaryDef`, `AdversaryFeature`, `ContentIssue`, `ImportResult`, `toContentId`. |
-| `content/abilities.ts` | `AbilityDef` and its sub-schemas; `abilitiesFor`, `loadoutOf`, `isScripted`, `isAutomatic`, `readsATarget`. A modifier's `advantage` stat is a signed count of dice, `against: true` puts it on rolls made at the holder, `plusProficiency` adds their Proficiency, and `perToken` multiplies the whole bonus by the tokens on a card — never folded into a derived character, because tokens are scene state. A passive's `standardAttack` changes the block's own swing (`direct`, `damage`, `double`), with `when` read from the attacker's chair and the target bound. `target.when` says what makes a creature worth aiming at, read once per candidate by both the player's list and the GM's. |
+| `content/abilities.ts` | `AbilityDef` and its sub-schemas; `abilitiesFor`, `loadoutOf`, `cardOf`, `isStatBlockFeature`, `isScripted`, `isAutomatic`, `readsATarget`. An ability sits on a card (`source: { card }`) and is in play when its card is -- chosen and in the loadout, or granted; a stat block's feature still names its adversaries (`source: { kind: 'adversary' }`) until the GM's side becomes cards. A modifier's `advantage` stat is a signed count of dice, `against: true` puts it on rolls made at the holder, `plusProficiency` adds their Proficiency, and `perToken` multiplies the whole bonus by the tokens on a card — never folded into a derived character, because tokens are scene state. A passive's `standardAttack` changes the block's own swing (`direct`, `damage`, `double`), with `when` read from the attacker's chair and the target bound. `target.when` says what makes a creature worth aiming at, read once per candidate by both the player's list and the GM's. |
 | `content/conditions.ts` | `ConditionDef` — what a *status* on a creature does. `SRD_CONDITIONS`. |
 | `content/items.ts`, `content/quests.ts` | Item and quest content shapes. |
-| `content/pack/schema.ts` | What a content pack *is*, as zod: `featureSchema`, `weaponDefSchema`, `armorDefSchema`, `classDefSchema`, `ancestryDefSchema`, `communityDefSchema`, `subclassDefSchema`, `domainCardDefSchema`, and `contentPackSchema` over all seven. The contract a pack is validated against, wherever it comes from. |
-| `content/pack/import.ts` | The readers that turn a source's raw shapes into those types (470 lines). Each takes `raw: readonly unknown[]` and returns an `ImportResult`, so it is bound to no particular data set. `importContentPack` does all seven at once and indexes them by id. |
+| `content/pack/schema.ts` | What a content pack *is*, as zod: `featureSchema`, `weaponDefSchema`, `armorDefSchema`, `classDefSchema`, `ancestryDefSchema`, `communityDefSchema`, `subclassDefSchema`, `cardDefSchema` with its `cardGrantSchema`, and `contentPackSchema`. A class, subclass, ancestry or community carries no printed features: those are cards that name what grants them. The contract a pack is validated against, wherever it comes from. |
+| `content/pack/import.ts` | The pack in memory: `ContentPack` (maps by id), the def types, `CardGrant`, `isDomainCard` (a chosen card, with the loadout's numbers), and `mergePack`, which lays a project's lists over a pack's. The readers for a retired data set's shapes are gone; a pack *file* comes in through `document.ts`. |
 | `content/pack/document.ts` | A pack as a **file**: `packDocumentSchema` (`contentPackSchema` plus `abilities` and `conditionDefs`), `readPack` (migrates, then validates each entry on its own and reports what it skipped) and `describePack`. What Project ▾ → Import pack… reads; `importPack` in `editor/session.ts` lays it into the project. |
 | `content/srd/seansbox-adversaries.ts` | Normalises the 129 stringly-typed adversaries (300 lines). |
 | `content/srd/abilities.ts` | `SRD_ABILITIES`, `SRD_ABILITY_MAP` — hand-written domain cards (1131 lines). |
@@ -403,7 +403,8 @@ and successes each read the right list however the next roll goes.
 | `ConditionDef` | `engine/content/conditions.ts` | A **status on a creature** — `vulnerable`, `hidden`, `restrained`, `rooted`, `stunned`, `asleep`, `on-fire`, `tavas-armor`, `dodging`. Carries `modifiers`, `defenses`, `blocks` and `endsWhen`. Not the same thing as `Condition`; the two share only a word. |
 | `CheckRequest` | `engine/script/schema.ts` | A roll and what each of the five outcomes does. Fallbacks in `effects.ts:outcomeEffects`. |
 | `TargetSelector` | `engine/script/schema.ts` | `actor`, `party`, `entity`, `entities`, `target`, `hit`, `allies`, `adversaries`. |
-| `AbilityDef` | `engine/content/abilities.ts` | A card, a class feature or a stat-block feature: `id`, `name`, `source`, `text`, `kind`, `trigger`, `cost`, `uses`, `target`, `available`, `inCombatOnly`, `action`, `effects`, `modifiers`, `defenses`, `standardAttack`, `reaction`, `tokens`, `auto`. |
+| `CardDef` | `engine/content/pack/import.ts` | Anything a character has: `id`, `name`, `grant`, `text`, `features`, and for a chosen card `domain`, `type`, `level`, `recallCost` -- `DomainCardDef`, narrowed by `isDomainCard`. |
+| `AbilityDef` | `engine/content/abilities.ts` | What a card does, or a stat-block feature: `id`, `name`, `source` (the card it sits on), `text`, `kind`, `trigger`, `cost`, `uses`, `target`, `available`, `inCombatOnly`, `action`, `effects`, `modifiers`, `defenses`, `standardAttack`, `reaction`, `tokens`, `auto`. |
 | `DamageDefenses` | `engine/rules/damage.ts` | `resistances`, `immunities`, `reduce[]`. Its content-side mirror is `damageDefensesSchema` in `content/abilities.ts`, used by both an ability and a `ConditionDef`. |
 | `IncomingDamage` | `engine/rules/damage.ts` | `amount`, `types`, `direct`. What arrives. |
 | `ResolvedDamage` | `engine/rules/damage.ts` | `incoming`, `reduced`, `severity`, `finalSeverity`, `armorSlotsSpent`, `hpMarked`. What it came to. |
@@ -721,11 +722,19 @@ the last four commits are that pattern. Do not amend the reviewed commit; the pa
 
 ### Content packs
 
-A **pack** is the seven lists a character is built from — classes, ancestries, communities,
-subclasses, domain cards, weapons and armors. `content/pack/schema.ts` says what one is;
-`content/pack/import.ts` turns a source's raw JSON into it. Nothing about the engine knows which
-catalogue it is reading: `character/sheet.ts` takes a `ContentPack` as a parameter, and the importers
-take `readonly unknown[]`.
+A **pack** is the lists a character is built from — classes, ancestries, communities, subclasses,
+cards, weapons and armors — and the stat blocks they are set against. `content/pack/schema.ts` says
+what one is and `content/pack/document.ts` reads one from a file. Nothing about the engine knows
+which catalogue it is reading: `character/sheet.ts` takes a `ContentPack` as a parameter.
+
+**Everything a character has is a card.** A card's `grant` says how it came to be in play -- `chosen`
+into a loadout, or granted by a class, a subclass stage, an ancestry, a community, or a project
+handing it to named characters -- and an ability sits on a card by id (`source: { card }`), in play
+when its card is. Nothing lists a class's cards: each card names what grants it, so a pack of extra
+cards for somebody else's class imports without editing the class. `deriveCharacter` works out
+`DerivedCharacter.granted` for the numbers; the world and the action bar recompute it from the cards
+as they stand each time they read (`grantedCards`), so a card handed over mid-scene is in hand at
+once.
 
 A project may carry its own pack in the seven `ProjectDoc` fields above, exactly as it already
 carries its abilities, items and conditions. An empty list means "whatever pack the app was given".

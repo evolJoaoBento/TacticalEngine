@@ -18,7 +18,7 @@
  */
 
 import type { AttackProfile, DefenderProfile } from '../combat/attack';
-import type { DomainCardDef, ContentPack, SubclassDef, WeaponDef } from '../content/pack/import';
+import { isDomainCard, type CardDef, type CardGrant, type DomainCardDef, type ContentPack, type SubclassDef, type WeaponDef } from '../content/pack/import';
 import { armorScore, pcThresholds, type DamageThresholds } from '../rules/damage';
 import type { ParsedDamage } from '../rules/dice';
 import type { RangeBand } from '../rules/range';
@@ -92,17 +92,6 @@ export interface CharacterSheet {
   };
 }
 
-/** A feature the character has, wherever it came from, as the SRD words it. */
-export interface CharacterFeature {
-  source: 'class' | 'good' | 'subclass' | 'card';
-  /** For a subclass feature, which card it is on. */
-  stage?: 'foundation' | 'specialization' | 'mastery';
-  /** The domain card's id, for a card. */
-  card?: string;
-  name: string;
-  text: string;
-}
-
 /** Everything derived from a sheet, computed once per change rather than per read. */
 export interface DerivedCharacter {
   sheet: CharacterSheet;
@@ -110,10 +99,14 @@ export interface DerivedCharacter {
   subclass?: SubclassDef;
   /** The trait a Spellcast Roll uses, from the subclass. Absent for a class that does not cast. */
   spellcastTrait?: Trait;
-  /** Every domain card held: the two from level 1 and one per level since. */
+  /** Every card chosen and held: the two from level 1 and one per level since. */
   cards: readonly DomainCardDef[];
-  /** Class, Light, subclass (up to the stage reached) and card features, in that order. */
-  features: readonly CharacterFeature[];
+  /**
+   * The cards in play without being chosen: the class's, the subclass's up to the stage reached,
+   * the ancestry's, the community's, and any a project handed to this character by id. In the
+   * content's order.
+   */
+  granted: readonly CardDef[];
   /**
    * The modifiers the character's abilities grant, those whose `requires` the
    * sheet meets. The ones with no `when` are already folded into the numbers
@@ -200,9 +193,13 @@ export function deriveCharacter(
   for (const id of heldCards(sheet)) {
     const card = content.cards.get(id);
     if (card === undefined) miss('domainCard', id);
-    else cards.push(card);
+    else if (!isDomainCard(card)) {
+      // A granted card is in play because of what the character is; holding it as well would
+      // put it in the loadout a second time.
+      issues.push({ sheet: sheet.id, field: 'domainCard', message: `"${id}" is not a card a character chooses` });
+    } else cards.push(card);
   }
-  const features = collectFeatures(sheet, klass, subclass, cards);
+  const granted = grantedCards(sheet, content.cards.values());
   // What the recorded levels add. Experiences fold in below; traits fold into
   // the sheet's own map so a check reads the grown number.
   const grown = progressionBonuses(sheet);
@@ -216,7 +213,7 @@ export function deriveCharacter(
 
   // What the held abilities add. `requires` is the sheet's to answer here;
   // `when` is the scene's, so those wait for the roll.
-  const held = abilitiesFor({ sheet, cards }, abilities);
+  const held = abilitiesFor({ sheet, cards, granted }, abilities);
   const modifiers = held
     .flatMap((ability) => ability.modifiers)
     .filter((m) => m.requires === undefined || m.requires === 'meleeWeapon' || (m.requires === 'armored') === (armor !== undefined));
@@ -256,7 +253,7 @@ export function deriveCharacter(
     ...(subclass === undefined ? {} : { subclass }),
     ...(subclass?.spellcastTrait === undefined ? {} : { spellcastTrait: subclass.spellcastTrait }),
     cards,
-    features,
+    granted,
     modifiers,
     proficiency,
     traits,
@@ -279,32 +276,39 @@ export function deriveCharacter(
   return { character, issues };
 }
 
+const STAGE_ORDER = ['foundation', 'specialization', 'mastery'] as const;
+
 /**
- * Everything the character can do that has a name, in the order a sheet lists
- * it. A subclass gives its foundation card at level 1 and the others as they
- * are taken; a domain card's text is one feature.
+ * The cards in play for a sheet without being chosen: whatever grants a card to its class, to its
+ * subclass up to the stage reached, to its ancestry, to its community, or to it by name. In the
+ * order the cards come.
+ *
+ * `deriveCharacter` asks once, to fold passive bonuses into the numbers. The world and the action
+ * bar ask again every time they read, against the content as it stands: a card handed to somebody
+ * after their sheet was derived is in their hands at once, as an ability written into a project
+ * always was.
  */
-function collectFeatures(
-  sheet: CharacterSheet,
-  klass: { goodFeature?: { name: string; text: string }; features: readonly { name: string; text: string }[] } | undefined,
-  subclass: SubclassDef | undefined,
-  cards: readonly DomainCardDef[],
-): CharacterFeature[] {
-  const features: CharacterFeature[] = [];
-  for (const feature of klass?.features ?? []) features.push({ source: 'class', name: feature.name, text: feature.text });
-  if (klass?.goodFeature !== undefined) {
-    features.push({ source: 'good', name: klass.goodFeature.name, text: klass.goodFeature.text });
+export function grantedCards(sheet: CharacterSheet, cards: Iterable<CardDef>): CardDef[] {
+  const reached = STAGE_ORDER.indexOf(subclassStage(sheet));
+  return [...cards].filter((card) => grantedTo(card.grant, sheet, reached));
+}
+
+/** Whether a card's grant puts it in play for this sheet. A chosen card is the loadout's to say. */
+function grantedTo(grant: CardGrant, sheet: CharacterSheet, reached: number): boolean {
+  switch (grant.kind) {
+    case 'chosen':
+      return false;
+    case 'class':
+      return grant.classId === sheet.classId;
+    case 'subclass':
+      return grant.subclassId === sheet.subclassId && STAGE_ORDER.indexOf(grant.stage) <= reached;
+    case 'ancestry':
+      return grant.ancestryId === sheet.ancestryId;
+    case 'community':
+      return grant.communityId === sheet.communityId;
+    case 'given':
+      return grant.characters.includes(sheet.id);
   }
-  if (subclass !== undefined) {
-    const stage = subclassStage(sheet);
-    const stages: ('foundation' | 'specialization' | 'mastery')[] =
-      stage === 'mastery' ? ['foundation', 'specialization', 'mastery'] : stage === 'specialization' ? ['foundation', 'specialization'] : ['foundation'];
-    for (const at of stages) {
-      for (const feature of subclass[at]) features.push({ source: 'subclass', stage: at, name: feature.name, text: feature.text });
-    }
-  }
-  for (const card of cards) features.push({ source: 'card', card: card.id, name: card.name, text: card.text });
-  return features;
 }
 
 function lookupWeapon(

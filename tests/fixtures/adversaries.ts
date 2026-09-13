@@ -15,7 +15,7 @@
  * never become content the engine ships.
  */
 
-import { adversaryDefSchema, domainCardDefSchema } from '../../src/engine/content/pack/schema';
+import { adversaryDefSchema, cardDefSchema } from '../../src/engine/content/pack/schema';
 
 /**
  * One stat block. Flat and positional, like the pack's own: the shape is wide,
@@ -126,8 +126,8 @@ const card = (
   // for anything else: free to recall, and carrying no named features.
   recallCost = 0,
   features: readonly { name: string; text: string }[] = [],
-): ReturnType<typeof domainCardDefSchema.parse> =>
-  domainCardDefSchema.parse({ id, name, domain, type: 'ability', level: 1, recallCost, text: '', features: [...features] });
+): ReturnType<typeof cardDefSchema.parse> =>
+  cardDefSchema.parse({ id, name, domain, type: 'ability', level: 1, recallCost, text: '', features: [...features] });
 
 /**
  * Two domains, because some cards count each other.

@@ -121,6 +121,11 @@ pack file's classes, cards, adversaries, abilities and conditions into the proje
 The rest of this section describes the catalogue as it was while it was vendored. It is now an export
 that whoever holds the rights imports, and the counts below are that export's.
 
+**Everything a character has is a card** (format version 3). What a class, subclass, ancestry or
+community prints is a card granted by it, and an ability sits on its card by id, so the
+name-matching that paired a printed feature with its ability is gone. The GM's side still names its
+adversaries directly; it is the next slice.
+
 `content/pack/import.ts` imports the 9 classes, 18 ancestries, 9 communities, 34 armors and
 192 weapons; `character/sheet.ts` turns a sheet naming those by id into the numbers the rules
 already consume — Evasion and Hit Points from the class, damage thresholds and Armor Slots from

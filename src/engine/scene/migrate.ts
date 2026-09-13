@@ -29,6 +29,7 @@
  */
 export { CURRENT_FORMAT_VERSION } from './schema';
 import { CURRENT_FORMAT_VERSION } from './schema';
+import { toContentId } from '../content/types';
 
 /** A raw document, before any schema has looked at it. */
 type Raw = Record<string, unknown>;
@@ -123,18 +124,125 @@ function toVersion2(raw: Raw): void {
   }
 }
 
+/** The objects in a list, or none when it is not one. */
+function objects(value: unknown): Raw[] {
+  return Array.isArray(value) ? value.filter(isObject) : [];
+}
+
 /**
- * Version 2 to 3: a pack's list of cards is `cards`.
+ * Version 2 to 3: everything a character has is a card.
  *
- * Only at the root of the document, on purpose. `domainCards` is also the field on a character sheet
- * that lists the cards that character took -- in a project's `party[]` and in a save's `sheets[]` --
- * and that one keeps its name: it is a list of ids somebody chose, not a pack's definitions. A step
- * that walked every depth, as version 2's did, would rename both.
+ * Three moves, all at the root of the document and nowhere below it:
  *
- * A save has no card list of its own, so a save passes through untouched.
+ * - A pack's list of card definitions is `cards`. `domainCards` is also the field on a character
+ *   sheet that lists the cards that character took -- in a project's `party[]` and in a save's
+ *   `sheets[]` -- and that one keeps its name: it is a list of ids somebody chose, not a pack's
+ *   definitions. A step that walked every depth, as version 2's did, would rename both.
+ * - An ability sits on a card. One that sat on a domain card keeps that card; one that came from a
+ *   class, a subclass or a project's gift gets a card of its own, built from the ability and granted
+ *   the way its source said. A stat block's feature is left as it is: its card comes with the GM's
+ *   side.
+ * - What a class, a subclass, an ancestry or a community printed becomes a card granted by it. A
+ *   printed feature whose ability is in the same document joins that ability's card rather than
+ *   becoming a second one. Nothing is matched against the pack the app ships, which is code a
+ *   document cannot see.
+ *
+ * A save has none of these lists, so a save passes through untouched.
  */
 function toVersion3(doc: Raw): void {
   if (Array.isArray(doc['domainCards'])) renameKey(doc, 'domainCards', 'cards');
+  const had = Array.isArray(doc['cards']);
+  const cards: unknown[] = had ? (doc['cards'] as unknown[]) : [];
+  const taken = new Set(objects(cards).map((card) => String(card['id'])));
+  const place = (id: string, name: string, text: string, grant: Raw): Raw => {
+    let at = id;
+    for (let n = 2; taken.has(at); n++) at = `${id}-${n}`;
+    taken.add(at);
+    const card: Raw = { id: at, name, text, grant };
+    cards.push(card);
+    return card;
+  };
+
+  // Each card built from an ability, by what granted it and the name it printed under, so that a
+  // printed feature further down finds the card its ability already has.
+  const built = new Map<string, Raw>();
+  for (const ability of objects(doc['abilities'])) {
+    const source = ability['source'];
+    if (!isObject(source)) continue;
+    const id = String(ability['id']);
+    const name = typeof ability['name'] === 'string' ? ability['name'] : id;
+    const text = typeof ability['text'] === 'string' ? ability['text'] : '';
+    let grant: Raw;
+    const keys: string[] = [];
+    switch (source['kind']) {
+      case 'domainCard':
+        ability['source'] = { card: source['card'] };
+        continue;
+      case 'classGood':
+        grant = { kind: 'class', classId: source['classId'] };
+        keys.push(`class:${String(source['classId'])}:signature`);
+        break;
+      case 'classFeature':
+        grant = { kind: 'class', classId: source['classId'] };
+        keys.push(`class:${String(source['classId'])}:${name}`);
+        break;
+      case 'subclass':
+        grant = { kind: 'subclass', subclassId: source['subclassId'], stage: source['stage'] };
+        keys.push(`subclass:${String(source['subclassId'])}:${String(source['stage'])}:${name}`);
+        break;
+      case 'granted':
+        grant = { kind: 'given', characters: source['characters'] };
+        break;
+      default:
+        continue;
+    }
+    const card = place(id, name, text, grant);
+    for (const key of keys) built.set(key, card);
+    ability['source'] = { card: card['id'] };
+  }
+
+  const print = (feature: Raw, owner: string, grant: Raw, ...keys: string[]): void => {
+    const name = typeof feature['name'] === 'string' ? feature['name'] : '';
+    const text = typeof feature['text'] === 'string' ? feature['text'] : '';
+    const joined = keys.map((key) => built.get(key)).find((card) => card !== undefined);
+    if (joined !== undefined) {
+      if (joined['text'] === '') joined['text'] = text;
+      return;
+    }
+    place(`${owner}-${toContentId(name) || 'feature'}`, name || owner, text, grant);
+  };
+  for (const klass of objects(doc['classes'])) {
+    const classId = String(klass['id']);
+    for (const feature of objects(klass['features'])) {
+      print(feature, classId, { kind: 'class', classId }, `class:${classId}:${String(feature['name'])}`);
+    }
+    const signature = klass['signatureFeature'];
+    if (isObject(signature)) {
+      print(signature, classId, { kind: 'class', classId }, `class:${classId}:signature`, `class:${classId}:${String(signature['name'])}`);
+    }
+    delete klass['features'];
+    delete klass['signatureFeature'];
+  }
+  for (const subclass of objects(doc['subclasses'])) {
+    const subclassId = String(subclass['id']);
+    for (const stage of ['foundation', 'specialization', 'mastery']) {
+      for (const feature of objects(subclass[stage])) {
+        print(feature, subclassId, { kind: 'subclass', subclassId, stage }, `subclass:${subclassId}:${stage}:${String(feature['name'])}`);
+      }
+      delete subclass[stage];
+    }
+  }
+  for (const owner of objects(doc['ancestries'])) {
+    const ancestryId = String(owner['id']);
+    for (const feature of objects(owner['features'])) print(feature, ancestryId, { kind: 'ancestry', ancestryId });
+    delete owner['features'];
+  }
+  for (const owner of objects(doc['communities'])) {
+    const communityId = String(owner['id']);
+    for (const feature of objects(owner['features'])) print(feature, communityId, { kind: 'community', communityId });
+    delete owner['features'];
+  }
+  if (had || cards.length > 0) doc['cards'] = cards;
 }
 
 /**

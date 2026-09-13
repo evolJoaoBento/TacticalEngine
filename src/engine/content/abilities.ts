@@ -16,6 +16,7 @@
 
 import { z } from 'zod';
 import type { DerivedCharacter } from '../character/sheet';
+import type { CardGrant } from './pack/import';
 import { subclassStage } from '../character/progression';
 import { contentIdSchema, traitSchema } from '../scene/primitives';
 import { conditionSchema, effectSchema, rangeBandSchema, walkEffects, type Effect, type TargetSelector } from '../script/schema';
@@ -26,18 +27,20 @@ export const LOADOUT_LIMIT = 5;
 /** "Each class has a unique Light Feature … You can spend 3 Light to activate." */
 export const GOOD_FEATURE_COST = 3;
 
-export const abilitySourceSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('domainCard'), card: contentIdSchema }),
-  z.object({ kind: z.literal('classGood'), classId: contentIdSchema }),
-  z.object({ kind: z.literal('classFeature'), classId: contentIdSchema }),
-  z.object({
-    kind: z.literal('subclass'),
-    subclassId: contentIdSchema,
-    stage: z.enum(['foundation', 'specialization', 'mastery']),
-  }),
-  /** A project's own, given to a character by id. */
-  z.object({ kind: z.literal('granted'), characters: z.array(contentIdSchema) }),
-  /** A stat block's feature, by the adversary ids that have it. */
+/**
+ * Where an ability sits.
+ *
+ * On a card, by id. Whether the ability is in play is the card's to say, through its `grant`:
+ * chosen into a loadout, or granted by a class, a subclass stage, an ancestry, a community or a
+ * project handing it over. One ability to a card is common and several is normal -- a sigil that
+ * marks, the halves that bank a token, the one that spends them -- and each is still found by its
+ * own trigger, because the abilities stay one flat list.
+ *
+ * A stat block's feature still names its adversaries directly. It becomes a card too when the GM's
+ * side does; until then it is the one other place an ability can sit.
+ */
+export const abilitySourceSchema = z.union([
+  z.object({ card: contentIdSchema }),
   z.object({ kind: z.literal('adversary'), adversaries: z.array(contentIdSchema) }),
 ]);
 
@@ -539,45 +542,62 @@ export function vaultOf(character: Pick<DerivedCharacter, 'sheet' | 'cards'>): s
   return character.cards.map((card) => card.id).filter((id) => !active.has(id));
 }
 
-/**
- * Every ability a character has right now, in the order a sheet would list
- * them: the class's, the subclass's up to the stage reached, then the active
- * domain cards in loadout order.
- */
-export function abilitiesFor(character: Pick<DerivedCharacter, 'sheet' | 'cards'>, abilities: readonly AbilityDef[]): AbilityDef[] {
-  const sheet = character.sheet;
-  const loadout = loadoutOf(character);
-  const stages: Record<'foundation' | 'specialization' | 'mastery', number> = { foundation: 0, specialization: 1, mastery: 2 };
-  const reached = stages[subclassStage(sheet)];
+/** The card an ability sits on, or `null` for a stat block's feature. */
+export function cardOf(ability: Pick<AbilityDef, 'source'>): string | null {
+  return 'card' in ability.source ? ability.source.card : null;
+}
 
-  const has = (ability: AbilityDef): boolean => {
-    const source = ability.source;
-    switch (source.kind) {
-      case 'domainCard':
-        return loadout.includes(source.card);
-      case 'classGood':
-      case 'classFeature':
-        return source.classId === sheet.classId;
-      case 'subclass':
-        return source.subclassId === sheet.subclassId && stages[source.stage] <= reached;
-      case 'granted':
-        return source.characters.includes(sheet.id);
-      // An adversary's feature is never a character's.
-      case 'adversary':
-        return false;
-    }
-  };
-  const order = (ability: AbilityDef): number => {
-    const source = ability.source;
-    if (source.kind === 'classFeature') return 0;
-    if (source.kind === 'classGood') return 1;
-    if (source.kind === 'subclass') return 2 + stages[source.stage];
-    if (source.kind === 'domainCard') return 10 + loadout.indexOf(source.card);
-    return 100;
-  };
+/** Whether an ability is a stat block's feature rather than something on a card. */
+export function isStatBlockFeature(ability: Pick<AbilityDef, 'source'>): boolean {
+  return 'adversaries' in ability.source;
+}
+
+const STAGE_RANK = { foundation: 0, specialization: 1, mastery: 2 } as const;
+
+/**
+ * Where a granted card sits in a sheet's list: the class's first, then the subclass by stage, then
+ * -- after the loadout, which is 10 onwards -- the ancestry's, the community's, and whatever a
+ * project handed over.
+ */
+function grantRank(grant: CardGrant): number {
+  switch (grant.kind) {
+    case 'class':
+      return 0;
+    case 'subclass':
+      return 2 + STAGE_RANK[grant.stage];
+    case 'chosen':
+      return 10;
+    case 'ancestry':
+      return 50;
+    case 'community':
+      return 60;
+    case 'given':
+      return 100;
+  }
+}
+
+/**
+ * Every ability a character has right now, in the order a sheet would list them: what the class
+ * grants, the subclass's up to the stage reached, the active loadout in order, then what the
+ * ancestry, the community and anybody else handed over. Abilities on one card keep their own order.
+ *
+ * An ability is in play when its card is -- chosen and in the loadout, or among the cards granted
+ * to this character, which `deriveCharacter` works out from the content. A stat block's feature is
+ * never a character's.
+ */
+export function abilitiesFor(
+  character: Pick<DerivedCharacter, 'sheet' | 'cards' | 'granted'>,
+  abilities: readonly AbilityDef[],
+): AbilityDef[] {
+  const rank = new Map<string, number>();
+  for (const card of character.granted) rank.set(card.id, grantRank(card.grant));
+  loadoutOf(character).forEach((id, index) => rank.set(id, 10 + index));
   return abilities
-    .filter(has)
-    .map((ability, index) => ({ ability, index }))
-    .sort((a, b) => order(a.ability) - order(b.ability) || a.index - b.index)
+    .map((ability, index) => {
+      const card = cardOf(ability);
+      return { ability, index, at: card === null ? undefined : rank.get(card) };
+    })
+    .filter((entry): entry is { ability: AbilityDef; index: number; at: number } => entry.at !== undefined)
+    .sort((a, b) => a.at - b.at || a.index - b.index)
     .map(({ ability }) => ability);
 }

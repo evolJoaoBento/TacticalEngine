@@ -49,11 +49,12 @@ import {
 } from '../rules/range';
 import { applyAttack, conditionModifiers, resolveAttack, type AttackProfile } from '../combat/attack';
 import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
-import { attackProfile, traitPart, UNARMED, type DerivedCharacter } from '../character/sheet';
+import { attackProfile, grantedCards, traitPart, UNARMED, type DerivedCharacter } from '../character/sheet';
 import { abilitiesFor, loadoutOf, type AbilityDef, type AbilityModifier } from '../content/abilities';
 import type { ConditionBlock, ConditionDef } from '../content/conditions';
 import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
 import type { AdversaryDef } from '../content/types';
+import type { CardDef } from '../content/pack/import';
 import { NO_TILE, type Spot } from '../grid/grid';
 import { DEFAULT_WALK, smoothPath, type WalkRules } from '../grid/walk';
 import { traceLine } from '../grid/los';
@@ -305,6 +306,12 @@ export interface SceneScriptWorldOptions {
   reactions?: boolean;
   /** Every ability the project knows, for a character's modifiers and reactions. */
   abilities?: readonly AbilityDef[];
+  /**
+   * Every card, by id, for what a character has in play without choosing it. Asked each time, like
+   * the hooks, so a card handed over after the world was built is in hand at once. Left out, a
+   * character holds what their sheet was derived with.
+   */
+  cards?: ReadonlyMap<string, CardDef> | (() => ReadonlyMap<string, CardDef>);
   /** What a named condition does to its bearer. */
   conditionDefs?: readonly ConditionDef[];
   /**
@@ -363,6 +370,7 @@ export class SceneScriptWorld implements ScriptWorld {
   private readonly fighting: () => boolean;
   private readonly defense: DefensePolicy;
   private readonly abilities: readonly AbilityDef[];
+  private readonly cards: (() => ReadonlyMap<string, CardDef>) | null;
   private readonly conditionDefs: ReadonlyMap<string, ConditionDef>;
   private readonly hooks: () => HookMap;
   /** Blows that landed since anyone last looked, and what they did. */
@@ -382,6 +390,8 @@ export class SceneScriptWorld implements ScriptWorld {
     this.fighting = options.inCombat ?? (() => state.encounterRunning());
     this.defense = { armor: options.armor ?? 'auto', reactions: options.reactions ?? true };
     this.abilities = options.abilities ?? [];
+    const cards = options.cards;
+    this.cards = cards === undefined ? null : typeof cards === 'function' ? cards : () => cards;
     this.conditionDefs = new Map((options.conditionDefs ?? []).map((c) => [c.id, c]));
     const hooks = options.hooks ?? new Map<string, HookFn>();
     this.hooks = typeof hooks === 'function' ? hooks : () => hooks;
@@ -790,12 +800,17 @@ export class SceneScriptWorld implements ScriptWorld {
    */
   heldBy(id: string): readonly AbilityDef[] {
     const character = this.characters.get(id);
-    const own = character !== undefined ? abilitiesFor(character, this.abilities) : this.abilitiesOfEntity(id);
+    const own = character !== undefined ? abilitiesFor(this.inPlay(character), this.abilities) : this.abilitiesOfEntity(id);
     // And whatever a condition has lent them. A spell cast *on* somebody puts
     // the card's own reaction in their hands for as long as it lasts, which is
     // the only way an ally who does not hold the card can answer with it.
     const lent = this.lentTo(id);
     return lent.length === 0 ? own : [...own, ...lent];
+  }
+
+  /** A character with the cards granted to them as the content stands now, not as it stood. */
+  private inPlay(character: DerivedCharacter): DerivedCharacter {
+    return this.cards === null ? character : { ...character, granted: grantedCards(character.sheet, this.cards().values()) };
   }
 
   private abilitiesOfEntity(id: string): readonly AbilityDef[] {
@@ -1114,7 +1129,7 @@ export class SceneScriptWorld implements ScriptWorld {
    * definition id, not the entity's, so every husk in a room shares them.
    */
   abilitiesForAdversary(definition: string): AbilityDef[] {
-    return this.abilities.filter((a) => a.source.kind === 'adversary' && a.source.adversaries.includes(definition));
+    return this.abilities.filter((a) => 'adversaries' in a.source && a.source.adversaries.includes(definition));
   }
 
   /**

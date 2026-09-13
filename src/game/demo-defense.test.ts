@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { deriveCharacter } from '../engine/character/sheet';
-import { abilitySchema, loadoutOf, type AbilityDef } from '../engine/content/abilities';
+import { abilitySchema, isStatBlockFeature, loadoutOf, type AbilityDef } from '../engine/content/abilities';
 import { conditionDefSchema } from '../engine/content/conditions';
 import { adversaryDefSchema } from '../engine/content/pack/schema';
 import { runScript } from '../engine/script/runner';
@@ -31,6 +31,7 @@ import {
 import { restoreScenario, scenarioSnapshot, useKey } from '../engine/script/world';
 import { FIXTURE_ADVERSARIES, FIXTURE_CARDS, FIXTURE_DOMAIN_FOUR, FIXTURE_FOE } from '../../tests/fixtures/adversaries';
 import { A_SPRAY_THAT_EATS_ARMOUR, A_WOUND_THAT_ANSWERS } from '../../tests/fixtures/adversary-features';
+import { handedTo } from '../../tests/fixtures/cards';
 import {
   REASSURANCE,
   REASSURANCE_CARD,
@@ -256,7 +257,7 @@ describe('a card that reads its own holder', () => {
   const ON_THE_BRINK = {
     id: 'fixture-on-the-brink',
     name: 'On the Brink',
-    source: { kind: 'granted', characters: ['kara'] },
+    source: { card: 'fixture-on-the-brink' },
     text: 'Nearly out, and the smallest blows stop telling.',
     kind: 'reaction',
     trigger: 'incomingDamage',
@@ -269,7 +270,7 @@ describe('a card that reads its own holder', () => {
   const SWIFT_STEP = {
     id: 'fixture-swift-step',
     name: 'Swift Step',
-    source: { kind: 'granted', characters: ['kara'] },
+    source: { card: 'fixture-swift-step' },
     text: 'A blow that misses leaves them better off than it found them.',
     kind: 'reaction',
     trigger: 'attackMissed',
@@ -304,6 +305,7 @@ describe('a card that reads its own holder', () => {
 
   it('is offered only while its holder is nearly out, whoever is attacking', () => {
     const demo = scene();
+    demo.project.cards.push(handedTo(ON_THE_BRINK, 'kara'));
     demo.project.abilities.push(abilitySchema.parse(ON_THE_BRINK));
     holding(demo, []);
     const kara = demo.state.entity('kara')!;
@@ -330,6 +332,7 @@ describe('a card that reads its own holder', () => {
 
   it("clears its holder's Stress, not the attacker's", () => {
     const demo = scene();
+    demo.project.cards.push(handedTo(SWIFT_STEP, 'kara'));
     demo.project.abilities.push(abilitySchema.parse(SWIFT_STEP));
     holding(demo, []);
     const kara = demo.state.entity('kara')!;
@@ -1096,7 +1099,7 @@ describe("an adversary's own features", () => {
 
   /** Its own features come off, so the one under test is the only one on offer. */
   const onlyFeature = (demo: DemoScene, feature: Record<string, unknown>): void => {
-    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
     demo.project.abilities.push(abilitySchema.parse(feature));
     refreshWorld(demo);
   };
@@ -1179,7 +1182,7 @@ describe("an adversary's own features", () => {
     standBehind(demo, 'finn', husk.tile);
     // The block's own features would be chosen ahead of this one by the rules
     // under test; this is about how a feature is aimed, so they come off.
-    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
     demo.project.abilities.push(
       abilitySchema.parse({
         id: 'gore',
@@ -1217,7 +1220,7 @@ describe("an adversary's own features", () => {
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     standBehind(demo, 'finn', husk.tile);
-    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
     demo.project.abilities.push(
       abilitySchema.parse({
         id: 'adrenaline-burst',
@@ -1247,7 +1250,7 @@ describe("an adversary's own features", () => {
     const demo = standoff('hold');
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
     demo.project.abilities.push(
       abilitySchema.parse({
         id: 'lock-up',
@@ -1285,7 +1288,7 @@ describe("an adversary's own features", () => {
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     standBehind(demo, 'finn', husk.tile);
-    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
     demo.project.abilities.push(
       abilitySchema.parse({
         id: 'regeneration',
@@ -1516,7 +1519,7 @@ describe("the party's own answer to a blow", () => {
   const HEALING_STRIKE = {
     id: 'fixture-healing-strike',
     name: 'Healing Strike',
-    source: { kind: 'granted', characters: ['kara'] },
+    source: { card: 'fixture-healing-strike' },
     text: 'Having hurt something, its holder may spend to mend somebody nearby.',
     kind: 'reaction',
     trigger: 'dealtDamage',
@@ -1567,6 +1570,7 @@ describe("the party's own answer to a blow", () => {
     // Hit Point on an ally within Close range."
     const demo = holding([], 'healing-yes');
     carry(demo, HEALING_STRIKE);
+    demo.project.cards.push(handedTo(HEALING_STRIKE, 'kara'));
     holdingAgain(demo);
     const foe = foeOf(demo);
     const mira = demo.state.entity('mira')!;
@@ -1597,6 +1601,7 @@ describe("the party's own answer to a blow", () => {
   it('lets it pass without spending anything', () => {
     const demo = holding([], 'healing-no');
     carry(demo, HEALING_STRIKE);
+    demo.project.cards.push(handedTo(HEALING_STRIKE, 'kara'));
     holdingAgain(demo);
     const foe = foeOf(demo);
     const mira = demo.state.entity('mira')!;
@@ -1622,6 +1627,7 @@ describe("the party's own answer to a blow", () => {
     // spending somebody's Light for them is worse than letting the moment pass.
     const demo = holding([], 'healing-quiet');
     carry(demo, HEALING_STRIKE);
+    demo.project.cards.push(handedTo(HEALING_STRIKE, 'kara'));
     holdingAgain(demo);
     demo.askDefender = false;
     const foe = foeOf(demo);
@@ -1929,7 +1935,7 @@ describe('a blow that names its band', () => {
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     standBehind(demo, 'finn', husk.tile);
-    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
     demo.project.abilities.push(
       abilitySchema.parse({ ...ability, source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] } }),
     );
@@ -3155,11 +3161,12 @@ describe('a death move', () => {
 
   it('puts the three moves again when the card played instead of them left her down', () => {
     const demo = lastStand('not-enough');
+    demo.project.cards.push(handedTo({ id: 'last-words', name: 'Last Words' }, 'kara'));
     demo.project.abilities.push(
       abilitySchema.parse({
         id: 'last-words',
         name: 'Last Words',
-        source: { kind: 'granted', characters: ['kara'] },
+        source: { card: 'last-words' },
         text: 'When you mark your last Hit Point, say something.',
         kind: 'reaction',
         trigger: 'defeated',
@@ -3802,11 +3809,15 @@ describe('a card aimed at the ground', () => {
   const room = (seed: string): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = false;
+    demo.project.cards.push(
+      handedTo({ id: 'charge', name: 'Charge' }, 'kara'),
+      handedTo({ id: 'drop-a-ward', name: 'Drop A Ward' }, 'kara'),
+    );
     demo.project.abilities.push(
       abilitySchema.parse({
         id: 'charge',
         name: 'Charge',
-        source: { kind: 'granted', characters: ['kara'] },
+        source: { card: 'charge' },
         text: 'Run a straight path to a point within Far range and strike everything along it.',
         cost: { stress: 1 },
         target: { kind: 'point', range: 'far' },
@@ -3818,7 +3829,7 @@ describe('a card aimed at the ground', () => {
       abilitySchema.parse({
         id: 'drop-a-ward',
         name: 'Drop A Ward',
-        source: { kind: 'granted', characters: ['kara'] },
+        source: { card: 'drop-a-ward' },
         text: 'Choose a point within Far range and shelter everyone near it.',
         target: { kind: 'point', range: 'far' },
         effects: [{ kind: 'applyCondition', condition: 'focused', target: { kind: 'allies', range: 'close', around: 'point', includeSelf: true } }],
@@ -4146,7 +4157,7 @@ describe('what a charge runs over', () => {
     // The creature's own features come off, so the charge is the only thing it
     // can answer a wound with, and what Kara is asked about is the whole of the
     // assertion.
-    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
     holds(demo, [FLINCH_CARD]);
     demo.project.abilities.push(abilitySchema.parse(charge(demo, husk.id)));
     refreshWorld(demo);
@@ -4629,7 +4640,7 @@ describe('a shell of light over somebody', () => {
     for (const ability of SHELL) demo.project.abilities.push(abilitySchema.parse(ability));
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     standBehind(demo, 'mira', husk.tile);
-    demo.project.abilities = demo.project.abilities.filter((a) => a.source.kind !== 'adversary');
+    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
     demo.project.abilities.push(
       abilitySchema.parse({
         id: 'fixture-heavy-swing',

@@ -18,11 +18,13 @@ import {
   vaultOf,
   LOADOUT_LIMIT,
   type AbilityDef,
+  cardOf,
 } from '../engine/content/abilities';
 import { canMarkStress, gain, spend } from '../engine/rules/resources';
 import { reaches, type RangeBand } from '../engine/rules/range';
 import { tierOf } from '../engine/character/progression';
-import { deriveCharacter } from '../engine/character/sheet';
+import { isDomainCard } from '../engine/content/pack/import';
+import { deriveCharacter, grantedCards } from '../engine/character/sheet';
 import { evaluateOptional } from '../engine/script/conditions';
 import { ScriptRunner } from '../engine/script/runner';
 import { useKey } from '../engine/script/world';
@@ -62,35 +64,42 @@ export interface AbilityView {
   usesLeft: number | null;
   /** Valid targets right now, when it wants one. */
   targets: string[];
+  /** The chosen card it sits on, with the domain its art is drawn in; null for any other card. */
+  card: { id: string; domain: string } | null;
 }
 
-/** The SRD's words for an ability, when the ability does not carry its own. */
+/**
+ * The words for an ability: its own, or else its card's.
+ *
+ * Found through the card the ability sits on, by id. What a class or a subclass printed used to be
+ * found by matching the ability's name against the printed feature's, and renaming either quietly
+ * lost the text; a card is where the words live now, so there is nothing to match.
+ */
 export function abilityText(demo: DemoScene, ability: AbilityDef): string {
   if (ability.text !== '') return ability.text;
-  const source = ability.source;
+  const id = cardOf(ability);
   // The project's content, which is the pack's unless the project carries its own.
-  const content = characterContentFor(demo.project);
-  if (source.kind === 'domainCard') {
-    const card = content.cards.get(source.card);
-    if (card === undefined) return '';
-    // A grimoire's spell is one of the card's named features.
-    const spell = card.name === ability.name ? undefined : card.features.find((f) => f.name === ability.name);
-    return spell?.text ?? card.text;
-  }
-  if (source.kind === 'classGood') return content.classes.get(source.classId)?.signatureFeature?.text ?? '';
-  if (source.kind === 'classFeature') {
-    return content.classes.get(source.classId)?.features.find((f) => f.name === ability.name)?.text ?? '';
-  }
-  if (source.kind === 'subclass') {
-    return content.subclasses.get(source.subclassId)?.[source.stage].find((f) => f.name === ability.name)?.text ?? '';
-  }
-  return demo.project.abilities.find((a) => a.id === ability.id)?.text ?? '';
+  const card = id === null ? undefined : characterContentFor(demo.project).cards.get(id);
+  if (card === undefined) return '';
+  // A grimoire's spell is one of the card's named features.
+  const spell = card.name === ability.name ? undefined : card.features.find((f) => f.name === ability.name);
+  return spell?.text ?? card.text;
+}
+
+/** The chosen card an ability sits on, with its domain for the art; null for any other card. */
+function chosenCardOf(demo: DemoScene, ability: AbilityDef): { id: string; domain: string } | null {
+  const id = cardOf(ability);
+  const card = id === null ? undefined : characterContentFor(demo.project).cards.get(id);
+  return card !== undefined && isDomainCard(card) ? { id: card.id, domain: card.domain } : null;
 }
 
 /** Every ability a character has, in sheet order. */
 export function abilitiesOf(demo: DemoScene, characterId: string): AbilityDef[] {
   const character = demo.characters.get(characterId);
-  return character === undefined ? [] : abilitiesFor(character, demo.project.abilities);
+  if (character === undefined) return [];
+  // The cards in play as the project stands now, which is how the world reads them too.
+  const granted = grantedCards(character.sheet, characterContentFor(demo.project).cards.values());
+  return abilitiesFor({ ...character, granted }, demo.project.abilities);
 }
 
 /** Uses left of a limited ability, or null when it is not limited. */
@@ -247,6 +256,7 @@ export function abilityList(demo: DemoScene, characterId: string): AbilityView[]
       reason: can.ok ? null : can.reason,
       usesLeft: usesLeft(demo, characterId, ability),
       targets: abilityTargets(demo, characterId, ability),
+      card: chosenCardOf(demo, ability),
     };
   });
 }

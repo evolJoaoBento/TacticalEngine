@@ -53,7 +53,7 @@ const runeWard: AbilityDef = abilitySchema.parse({
 const ironWill: AbilityDef = abilitySchema.parse({
   id: 'iron-will',
   name: 'Iron Will',
-  source: { kind: 'subclass', subclassId: 'stalwart', stage: 'foundation' },
+  source: { card: 'iron-will' },
   kind: 'reaction',
   trigger: 'incomingDamage',
   reaction: { kind: 'extraArmor', only: 'physical' },

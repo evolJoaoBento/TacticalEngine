@@ -12,7 +12,7 @@ import { SRD_HOOKS } from './native-hooks';
 import { SRD_CONDITIONS } from '../content/conditions';
 import { abilitySchema } from '../content/abilities';
 import { compileHooks, mergeHooks } from './hooks';
-import { A_GUARD_THAT_ANSWERS } from '../../../tests/fixtures/cards';
+import { A_GUARD_CARDS, A_GUARD_THAT_ANSWERS } from '../../../tests/fixtures/cards';
 
 /**
  * The combat half of the script vocabulary: what lets a domain card be a
@@ -137,7 +137,11 @@ function scene(
     // The pack's abilities, plus the one fixture reaction this file needs: nothing the
     // pack ships is a reaction, and `reactionsOf` exists to be asked for one.
     ...(options.content === true
-      ? { abilities: [...STARTER_ABILITIES, ...A_GUARD_THAT_ANSWERS.map((a) => abilitySchema.parse(a))], conditionDefs: SRD_CONDITIONS }
+      ? {
+          abilities: [...STARTER_ABILITIES, ...A_GUARD_THAT_ANSWERS.map((a) => abilitySchema.parse(a))],
+          cards: new Map([...STARTER_CHARACTERS.cards, ...A_GUARD_CARDS.map((card) => [card.id, card] as const)]),
+          conditionDefs: SRD_CONDITIONS,
+        }
       : {}),
     ...(options.abilities === undefined ? {} : { abilities: options.abilities.map((a) => abilitySchema.parse(a)) }),
     ...(options.abilities === undefined ? {} : { conditionDefs: SRD_CONDITIONS }),

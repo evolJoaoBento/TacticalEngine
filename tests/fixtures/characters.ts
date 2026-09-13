@@ -23,7 +23,7 @@ import {
   classDefSchema,
   communityDefSchema,
   ancestryDefSchema,
-  domainCardDefSchema,
+  cardDefSchema,
   subclassDefSchema,
   weaponDefSchema,
 } from '../../src/engine/content/pack/schema';
@@ -33,9 +33,7 @@ const index = <T extends { id: string }>(defs: readonly T[]): ReadonlyMap<string
 
 /** A card at a level, in a domain. Everything else about it is beside the point. */
 const card = (id: string, name: string, domain: string, level: number, recallCost = 1) =>
-  domainCardDefSchema.parse({ id, name, domain, type: 'ability', level, recallCost, text: 'A fixture card.' });
-
-const feature = (name: string) => ({ name, text: 'A fixture feature.' });
+  cardDefSchema.parse({ id, name, domain, type: 'ability', level, recallCost, text: 'A fixture card.' });
 
 /**
  * Two domains on one class, which is what makes "the domain a multiclass opens" a question with
@@ -48,8 +46,6 @@ const CLASSES = [
     domains: ['guard', 'edge'],
     startingEvasion: 9,
     startingHitPoints: 7,
-    signatureFeature: feature('Stand Fast'),
-    features: [feature('Drilled')],
   }),
   classDefSchema.parse({
     id: 'fixture-adept',
@@ -57,20 +53,16 @@ const CLASSES = [
     domains: ['codex'],
     startingEvasion: 10,
     startingHitPoints: 5,
-    features: [feature('Read the Signs')],
   }),
 ];
 
-/** One subclass with all three stages filled, so `subclassStage` has somewhere to climb to. */
+/** One subclass per class that has one. `subclassStage` reads the levels a sheet took, not anything printed here. */
 const SUBCLASSES = [
   subclassDefSchema.parse({
     id: 'fixture-bulwark',
     name: 'Bulwark',
     classId: 'fixture-warden',
     domains: ['guard', 'edge'],
-    foundation: [feature('Set Feet')],
-    specialization: [feature('Unmoved')],
-    mastery: [feature('Wall of One')],
   }),
   subclassDefSchema.parse({
     id: 'fixture-scribe',
@@ -78,9 +70,6 @@ const SUBCLASSES = [
     classId: 'fixture-adept',
     domains: ['codex'],
     spellcastTrait: 'knowledge',
-    foundation: [feature('Margin Notes')],
-    specialization: [feature('Second Reading')],
-    mastery: [feature('Whole Library')],
   }),
 ];
 
@@ -108,8 +97,8 @@ const CARDS = [
   card('fixture-codex-5', 'Codex Five', 'codex', 5, 2),
 ];
 
-const ANCESTRIES = [ancestryDefSchema.parse({ id: 'fixture-kin', name: 'Kin', features: [feature('Steady')] })];
-const COMMUNITIES = [communityDefSchema.parse({ id: 'fixture-folk', name: 'Folk', features: [feature('Known Here')] })];
+const ANCESTRIES = [ancestryDefSchema.parse({ id: 'fixture-kin', name: 'Kin' })];
+const COMMUNITIES = [communityDefSchema.parse({ id: 'fixture-folk', name: 'Folk' })];
 
 /** Numbers that make a derived sheet legible: 5/11 thresholds at score 3, and a d8 in hand. */
 const ARMORS = [

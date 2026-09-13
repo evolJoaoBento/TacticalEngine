@@ -5,7 +5,7 @@ import {
   armorDefSchema,
   classDefSchema,
   contentPackSchema,
-  domainCardDefSchema,
+  cardDefSchema,
   weaponDefSchema,
 } from './schema';
 
@@ -66,7 +66,9 @@ describe('armors', () => {
 });
 
 describe('classes', () => {
-  it('names the signature feature neutrally, not after a resource', () => {
+  it('carries its numbers and domains, and prints nothing of its own', () => {
+    // What a class prints is cards that name it. A feature written the old way is dropped rather
+    // than kept beside the cards, which would be two places to read the same words from.
     const parsed = classDefSchema.parse({
       id: 'sentinel',
       name: 'Sentinel',
@@ -75,14 +77,13 @@ describe('classes', () => {
       startingHitPoints: 7,
       signatureFeature: { name: 'Hold the Line', text: 'Stand your ground.' },
     });
-    expect(parsed.signatureFeature?.name).toBe('Hold the Line');
-    expect('goodFeature' in parsed).toBe(false);
+    expect(parsed).toEqual({ id: 'sentinel', name: 'Sentinel', domains: ['bulwark'], startingEvasion: 9, startingHitPoints: 7 });
   });
 });
 
-describe('domain cards', () => {
-  it('takes a card and defaults its features', () => {
-    const parsed = domainCardDefSchema.parse({
+describe('cards', () => {
+  it('takes a chosen card and defaults its grant and features', () => {
+    const parsed = cardDefSchema.parse({
       id: 'power-slash',
       name: 'Power Slash',
       domain: 'blade',
@@ -91,7 +92,25 @@ describe('domain cards', () => {
       recallCost: 1,
       text: 'Strike hard.',
     });
+    expect(parsed.grant).toEqual({ kind: 'chosen' });
     expect(parsed.features).toEqual([]);
+  });
+
+  it('asks a chosen card for what a loadout reads, and a granted one for none of it', () => {
+    const chosen = cardDefSchema.safeParse({ id: 'loose', name: 'Loose' });
+    expect(chosen.success).toBe(false);
+    expect(chosen.error?.issues.map((issue) => issue.path.join('.'))).toEqual(['domain', 'type', 'level', 'recallCost']);
+
+    const granted = cardDefSchema.parse({ id: 'drilled', name: 'Drilled', grant: { kind: 'class', classId: 'sentinel' } });
+    expect(granted.grant).toEqual({ kind: 'class', classId: 'sentinel' });
+    expect(granted.domain).toBeUndefined();
+  });
+
+  it('refuses a grant that does not say what grants it', () => {
+    expect(cardDefSchema.safeParse({ id: 'x', name: 'X', grant: { kind: 'class' } }).success).toBe(false);
+    expect(
+      cardDefSchema.safeParse({ id: 'x', name: 'X', grant: { kind: 'subclass', subclassId: 'y', stage: 'apprentice' } }).success,
+    ).toBe(false);
   });
 });
 

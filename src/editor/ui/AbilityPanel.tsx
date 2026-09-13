@@ -8,18 +8,27 @@
  * card looks like without a JSON file open; they are not editable here,
  * because the SRD library is code the engine ships.
  *
- * A card written here is `granted`: it names the characters who hold it,
- * rather than a domain the deck deals from.
+ * "+ Card" writes a card of the project's own and the ability on it. The card is
+ * `given`: it names the characters who hold it, rather than a domain the deck
+ * deals from, and "held by" edits that list on the card.
  */
 
 import { useState } from 'preact/hooks';
 import type { EditorSession } from '../session';
-import { addAbility, removeAbility, updateAbility } from '../session';
-import { abilitySchema, type AbilityDef } from '../../engine/content/abilities';
+import { addCardWithAbility, removeAbility, updateAbility, updateCard } from '../session';
+import { abilitySchema, cardOf, type AbilityDef } from '../../engine/content/abilities';
+import { cardDefSchema } from '../../engine/content/pack/schema';
 import type { QuestDef } from '../../engine/content/quests';
 import { RANGE_BANDS, type RangeBand } from '../../engine/rules/range';
 import { EffectList } from './EffectList';
 import { ConditionEditor } from './ConditionEditor';
+
+/** The project's own card an ability sits on, when that card is handed to named characters. */
+function givenCard(session: EditorSession, ability: AbilityDef): { id: string; characters: string[] } | null {
+  const id = cardOf(ability);
+  const card = id === null ? undefined : session.project.cards.find((c) => c.id === id);
+  return card !== undefined && card.grant.kind === 'given' ? { id: card.id, characters: card.grant.characters } : null;
+}
 
 /** What a card's token count can be: a number, a trait, or the Spellcast trait. */
 type TokenAmount = NonNullable<AbilityDef['tokens']>['amount'];
@@ -163,10 +172,11 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
             const typed = prompt('Card name', 'My Card');
             if (typed === null || typed === '') return;
             const id = typed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-            if (id === '' || session.project.abilities.some((a) => a.id === id)) return;
+            if (id === '' || session.project.abilities.some((a) => a.id === id) || session.project.cards.some((c) => c.id === id)) return;
             session.run(
-              addAbility(
-                abilitySchema.parse({ id, name: typed, source: { kind: 'granted', characters: [] } }),
+              addCardWithAbility(
+                cardDefSchema.parse({ id, name: typed, grant: { kind: 'given', characters: [] } }),
+                abilitySchema.parse({ id, name: typed, source: { card: id } }),
               ),
             );
             setOpenId(id);
@@ -220,19 +230,24 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                   style={{ ...field, width: '150px' }}
                   data-testid="ability-characters"
                   placeholder="character ids, comma separated"
-                  value={open.source.kind === 'granted' ? open.source.characters.join(', ') : ''}
-                  disabled={open.source.kind !== 'granted'}
-                  onInput={(e) =>
-                    edit({
-                      source: {
-                        kind: 'granted',
-                        characters: (e.target as HTMLInputElement).value
-                          .split(',')
-                          .map((id) => id.trim())
-                          .filter((id) => id !== ''),
-                      },
-                    })
-                  }
+                  value={givenCard(session, open)?.characters.join(', ') ?? ''}
+                  disabled={givenCard(session, open) === null}
+                  onInput={(e) => {
+                    const card = givenCard(session, open);
+                    if (card === null) return;
+                    session.run(
+                      updateCard(card.id, {
+                        grant: {
+                          kind: 'given',
+                          characters: (e.target as HTMLInputElement).value
+                            .split(',')
+                            .map((id) => id.trim())
+                            .filter((id) => id !== ''),
+                        },
+                      }),
+                    );
+                    props.onChange();
+                  }}
                 />,
               )}
               {label(

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blankSheet, deriveCharacter } from '../../character/sheet';
-import { abilitiesFor, abilitySchema } from '../abilities';
+import { abilitiesFor, abilitySchema, cardOf } from '../abilities';
 import { contentPackSchema } from './schema';
 import { STARTER_ABILITIES, STARTER_CHARACTERS, STARTER_PACK } from './starter';
 
@@ -50,7 +50,28 @@ describe('the pack refers only to itself', () => {
   it('draws every card from a domain some class offers', () => {
     const domains = new Set(STARTER_PACK.classes.flatMap((klass) => klass.domains));
     for (const card of STARTER_PACK.cards) {
-      expect(domains.has(card.domain), card.id).toBe(true);
+      if (card.grant.kind !== 'chosen') continue;
+      expect(domains.has(card.domain!), card.id).toBe(true);
+    }
+  });
+
+  it('grants every printed card from something the pack has, and prints something for each', () => {
+    const has = {
+      class: new Set(ids(STARTER_PACK.classes)),
+      subclass: new Set(ids(STARTER_PACK.subclasses)),
+      ancestry: new Set(ids(STARTER_PACK.ancestries)),
+      community: new Set(ids(STARTER_PACK.communities)),
+    };
+    const granting: string[] = [];
+    for (const card of STARTER_PACK.cards) {
+      const grant = card.grant;
+      if (grant.kind === 'class') expect(has.class.has(grant.classId), card.id).toBe(true), granting.push(grant.classId);
+      if (grant.kind === 'subclass') expect(has.subclass.has(grant.subclassId), card.id).toBe(true), granting.push(grant.subclassId);
+      if (grant.kind === 'ancestry') expect(has.ancestry.has(grant.ancestryId), card.id).toBe(true), granting.push(grant.ancestryId);
+      if (grant.kind === 'community') expect(has.community.has(grant.communityId), card.id).toBe(true), granting.push(grant.communityId);
+    }
+    for (const owner of [...has.class, ...has.subclass, ...has.ancestry, ...has.community]) {
+      expect(granting, owner).toContain(owner);
     }
   });
 
@@ -68,11 +89,12 @@ describe('the abilities behind the cards', () => {
     }
   });
 
-  it('name a card the pack actually has', () => {
+  it('each sit on a card the pack actually has', () => {
     const cardIds = new Set(ids(STARTER_PACK.cards));
     for (const ability of STARTER_ABILITIES) {
-      if (ability.source.kind !== 'domainCard') continue;
-      expect(cardIds.has(ability.source.card), ability.id).toBe(true);
+      const card = cardOf(ability);
+      expect(card, ability.id).not.toBeNull();
+      expect(cardIds.has(card!), ability.id).toBe(true);
     }
   });
 

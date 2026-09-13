@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'preact/hooks';
-import type { ContentPack } from '../../engine/content/pack/import';
+import { isDomainCard, type ContentPack } from '../../engine/content/pack/import';
 import type { CharacterSheet } from '../../engine/character/sheet';
 import {
   ACHIEVEMENT_LEVELS,
@@ -114,6 +114,7 @@ function blank(kind: AdvancementKind, sheet: CharacterSheet, content: ContentPac
 
 function allowedCards(sheet: CharacterSheet, content: ContentPack, level: number) {
   return [...content.cards.values()]
+    .filter(isDomainCard)
     .filter((card) => cardAllowed(sheet, content, card.id, level).ok)
     .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
 }
