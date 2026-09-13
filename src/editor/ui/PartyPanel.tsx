@@ -118,8 +118,8 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
   const cards =
     open === null
       ? []
-      : options(content.domainCards).filter((c) => {
-          const def = content.domainCards.get(c.id)!;
+      : options(content.cards).filter((c) => {
+          const def = content.cards.get(c.id)!;
           return domains.includes(def.domain) && def.level <= open.level;
         });
   const held = open === null ? [] : heldCards(open);

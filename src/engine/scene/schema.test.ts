@@ -218,7 +218,7 @@ describe('projectSchema', () => {
     expect(parsed.ancestries).toEqual([]);
     expect(parsed.communities).toEqual([]);
     expect(parsed.subclasses).toEqual([]);
-    expect(parsed.domainCards).toEqual([]);
+    expect(parsed.cards).toEqual([]);
     expect(parsed.weapons).toEqual([]);
     expect(parsed.armors).toEqual([]);
   });
@@ -236,7 +236,7 @@ describe('projectSchema', () => {
             signatureFeature: { name: 'Hold the Line', text: 'Stand your ground.' },
           },
         ],
-        domainCards: [
+        cards: [
           {
             id: 'power-slash',
             name: 'Power Slash',
@@ -251,7 +251,7 @@ describe('projectSchema', () => {
     );
     expect(parsed.classes[0]!.name).toBe('Sentinel');
     expect(parsed.classes[0]!.signatureFeature?.name).toBe('Hold the Line');
-    expect(parsed.domainCards[0]!.id).toBe('power-slash');
+    expect(parsed.cards[0]!.id).toBe('power-slash');
   });
 
   it('refuses content that does not describe itself properly', () => {

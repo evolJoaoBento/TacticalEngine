@@ -151,7 +151,7 @@ function checkParty(
     // show it, so the validator has to.
     const domains = domainsOf(sheet, content);
     for (const card of held) {
-      const def = content.domainCards.get(card);
+      const def = content.cards.get(card);
       if (def !== undefined && !domains.includes(def.domain)) {
         add('warning', `${who} holds "${def.name}", a ${def.domain} card outside their domains.`, sheet.id);
       }

@@ -124,6 +124,20 @@ function toVersion2(raw: Raw): void {
 }
 
 /**
+ * Version 2 to 3: a pack's list of cards is `cards`.
+ *
+ * Only at the root of the document, on purpose. `domainCards` is also the field on a character sheet
+ * that lists the cards that character took -- in a project's `party[]` and in a save's `sheets[]` --
+ * and that one keeps its name: it is a list of ids somebody chose, not a pack's definitions. A step
+ * that walked every depth, as version 2's did, would rename both.
+ *
+ * A save has no card list of its own, so a save passes through untouched.
+ */
+function toVersion3(doc: Raw): void {
+  if (Array.isArray(doc['domainCards'])) renameKey(doc, 'domainCards', 'cards');
+}
+
+/**
  * Walk a raw document and everything inside it, applying one rewrite at every level.
  *
  * Depth-first and total: version 2's names appear at every depth — an ability's cost, an effect's
@@ -150,6 +164,7 @@ function walk(value: unknown, apply: (raw: Raw) => void): void {
  */
 const STEPS: readonly { to: number; migrate: (doc: Raw) => void }[] = [
   { to: 2, migrate: (doc) => walk(doc, toVersion2) },
+  { to: 3, migrate: toVersion3 },
 ];
 
 /**

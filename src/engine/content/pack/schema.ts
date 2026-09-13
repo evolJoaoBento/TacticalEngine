@@ -192,7 +192,7 @@ export const contentPackSchema = z.object({
   ancestries: z.array(ancestryDefSchema).default([]),
   communities: z.array(communityDefSchema).default([]),
   subclasses: z.array(subclassDefSchema).default([]),
-  domainCards: z.array(domainCardDefSchema).default([]),
+  cards: z.array(domainCardDefSchema).default([]),
   adversaries: z.array(adversaryDefSchema).default([]),
 });
 

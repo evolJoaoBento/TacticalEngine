@@ -120,7 +120,7 @@ export interface ContentPack {
   ancestries: ReadonlyMap<string, AncestryDef>;
   communities: ReadonlyMap<string, CommunityDef>;
   subclasses: ReadonlyMap<string, SubclassDef>;
-  domainCards: ReadonlyMap<string, DomainCardDef>;
+  cards: ReadonlyMap<string, DomainCardDef>;
 }
 
 // ---------------------------------------------------------------------------
@@ -463,7 +463,7 @@ export function mergePack(
     ancestries: lay(base.ancestries, own.ancestries),
     communities: lay(base.communities, own.communities),
     subclasses: lay(base.subclasses, own.subclasses),
-    domainCards: lay(base.domainCards, own.domainCards),
+    cards: lay(base.cards, own.cards),
   };
 }
 
@@ -501,7 +501,7 @@ export function importContentPack(
       ancestries: index(ancestries.defs),
       communities: index(communities.defs),
       subclasses: index(subclasses.defs),
-      domainCards: index(domainCards.defs),
+      cards: index(domainCards.defs),
     },
     issues: [
       ...weapons.issues,

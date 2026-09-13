@@ -32,7 +32,7 @@ describe('the pack as a document', () => {
     expect(STARTER_PACK.ancestries.length).toBeGreaterThan(0);
     expect(STARTER_PACK.communities.length).toBeGreaterThan(0);
     expect(STARTER_PACK.subclasses.length).toBeGreaterThan(0);
-    expect(STARTER_PACK.domainCards.length).toBeGreaterThan(0);
+    expect(STARTER_PACK.cards.length).toBeGreaterThan(0);
     expect(STARTER_PACK.weapons.length).toBeGreaterThan(0);
     expect(STARTER_PACK.armors.length).toBeGreaterThan(0);
     expect(STARTER_PACK.adversaries.length).toBeGreaterThan(0);
@@ -49,14 +49,14 @@ describe('the pack refers only to itself', () => {
 
   it('draws every card from a domain some class offers', () => {
     const domains = new Set(STARTER_PACK.classes.flatMap((klass) => klass.domains));
-    for (const card of STARTER_PACK.domainCards) {
+    for (const card of STARTER_PACK.cards) {
       expect(domains.has(card.domain), card.id).toBe(true);
     }
   });
 
   it('indexes the same content it lists', () => {
     expect(STARTER_CHARACTERS.classes.size).toBe(STARTER_PACK.classes.length);
-    expect(STARTER_CHARACTERS.domainCards.size).toBe(STARTER_PACK.domainCards.length);
+    expect(STARTER_CHARACTERS.cards.size).toBe(STARTER_PACK.cards.length);
     expect(STARTER_CHARACTERS.weapons.size).toBe(STARTER_PACK.weapons.length);
   });
 });
@@ -69,7 +69,7 @@ describe('the abilities behind the cards', () => {
   });
 
   it('name a card the pack actually has', () => {
-    const cardIds = new Set(ids(STARTER_PACK.domainCards));
+    const cardIds = new Set(ids(STARTER_PACK.cards));
     for (const ability of STARTER_ABILITIES) {
       if (ability.source.kind !== 'domainCard') continue;
       expect(cardIds.has(ability.source.card), ability.id).toBe(true);

@@ -64,8 +64,8 @@ const scene = (seed: string): DemoScene => buildDemoScene(demoMap(), seed);
  * ability ids, where a card offered twice fires twice.
  */
 function carry(demo: DemoScene): void {
-  if (demo.project.domainCards.some((c) => c.id === FIXTURE_SPOT_CARD)) return;
-  demo.project.domainCards.push(...FIXTURE_CARDS);
+  if (demo.project.cards.some((c) => c.id === FIXTURE_SPOT_CARD)) return;
+  demo.project.cards.push(...FIXTURE_CARDS);
   for (const ability of [
     ...A_STEP_BACK_TO_A_MARK,
     ...A_RIFT_THAT_OPENS,

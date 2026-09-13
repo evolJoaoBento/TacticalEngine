@@ -946,7 +946,7 @@ export function adversaryDefsFor(
 /** The seven lists of character content a project may carry of its own. */
 export type ProjectContent = Pick<
   ProjectDoc,
-  'classes' | 'ancestries' | 'communities' | 'subclasses' | 'domainCards' | 'weapons' | 'armors'
+  'classes' | 'ancestries' | 'communities' | 'subclasses' | 'cards' | 'weapons' | 'armors'
 >;
 
 /**
@@ -967,7 +967,7 @@ export function characterContentFor(project?: ProjectContent): ContentPack {
     project.ancestries.length > 0 ||
     project.communities.length > 0 ||
     project.subclasses.length > 0 ||
-    project.domainCards.length > 0 ||
+    project.cards.length > 0 ||
     project.weapons.length > 0 ||
     project.armors.length > 0;
   return carries ? mergePack(DEMO_CHARACTERS, project) : DEMO_CHARACTERS;

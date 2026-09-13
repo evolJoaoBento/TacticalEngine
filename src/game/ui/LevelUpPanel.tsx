@@ -113,7 +113,7 @@ function blank(kind: AdvancementKind, sheet: CharacterSheet, content: ContentPac
 }
 
 function allowedCards(sheet: CharacterSheet, content: ContentPack, level: number) {
-  return [...content.domainCards.values()]
+  return [...content.cards.values()]
     .filter((card) => cardAllowed(sheet, content, card.id, level).ok)
     .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
 }
@@ -277,9 +277,9 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
           </option>
         ))}
       </select>
-      {content.domainCards.get(card) !== undefined ? (
+      {content.cards.get(card) !== undefined ? (
         <div style={{ color: '#c8b88a', fontSize: '12px', margin: '4px 0', whiteSpace: 'pre-line' }}>
-          {content.domainCards.get(card)!.text}
+          {content.cards.get(card)!.text}
         </div>
       ) : null}
 

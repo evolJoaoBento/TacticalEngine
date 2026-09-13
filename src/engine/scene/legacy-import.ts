@@ -213,7 +213,7 @@ export function importLegacyCampaign(
       ancestries: [],
       communities: [],
       subclasses: [],
-      domainCards: [],
+      cards: [],
       weapons: [],
       armors: [],
       adversaries: [],

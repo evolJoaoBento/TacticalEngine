@@ -30,7 +30,9 @@ const PACK = 'packs/srd.json';
 let known = new Set();
 try {
   const pack = JSON.parse(await fs.readFile(PACK, 'utf8'));
-  known = new Set((pack.domainCards ?? []).map((card) => idOf(card.name)));
+  // `cards` since format version 3; an export written before then, as the one on disk was, says
+  // `domainCards`. This reads the file as it lies rather than migrating it, so it takes either.
+  known = new Set((pack.cards ?? pack.domainCards ?? []).map((card) => idOf(card.name)));
 } catch {
   console.log(`No ${PACK}; indexing the directory without matching against any card list.`);
 }

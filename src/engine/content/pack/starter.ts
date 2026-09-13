@@ -194,7 +194,7 @@ const STARTER: ContentPackDoc = {
     },
   ],
 
-  domainCards: [
+  cards: [
     card('power-slash', 'Power Slash', 'bulwark', 1, 1, 'Put your weight behind the swing: deal 2 additional damage.'),
     card('shield-wall', 'Shield Wall', 'bulwark', 1, 1, 'Until your next turn, allies within Melee range gain a bonus to Evasion.'),
     card('iron-stance', 'Iron Stance', 'bulwark', 1, 0, 'While you hold your ground, your Armor Score is higher.'),
@@ -256,7 +256,7 @@ function card(
   level: number,
   recallCost: number,
   text: string,
-): ContentPackDoc['domainCards'][number] {
+): ContentPackDoc['cards'][number] {
   return { id, name, domain, type: 'ability', level, recallCost, text, features: [] };
 }
 
@@ -314,7 +314,7 @@ export const STARTER_CHARACTERS: ContentPack = {
   ancestries: index(STARTER_PACK.ancestries),
   communities: index(STARTER_PACK.communities),
   subclasses: index(STARTER_PACK.subclasses),
-  domainCards: index(STARTER_PACK.domainCards),
+  cards: index(STARTER_PACK.cards),
 };
 
 /** The adversaries, by id, as the GM's side reads them. */

@@ -251,7 +251,7 @@ describe('an illegal plan', () => {
     expect(cardAllowed(kara(), content, 'fixture-guard-2', 1).ok).toBe(false);
     expect(cardAllowed(kara(), content, 'fixture-guard-2', 2).ok).toBe(true);
     // A Codex card is a Wizard's, not a Guardian's.
-    const codex = [...content.domainCards.values()].find((c) => c.domain === 'codex' && c.level === 1)!;
+    const codex = [...content.cards.values()].find((c) => c.domain === 'codex' && c.level === 1)!;
     expect(cardAllowed(kara(), content, codex.id, 2)).toEqual({ ok: false, reason: expect.stringContaining('outside') });
     expect(cardAllowed(kara(), content, 'no-such-card', 2).ok).toBe(false);
   });
@@ -279,7 +279,7 @@ describe('multiclassing', () => {
     const five = climb(four, [toFive(wizard)]);
     expect(five.level).toBe(5);
     expect(domainsOf(five, content)).toEqual(['guard', 'edge', 'codex']);
-    const codex = [...content.domainCards.values()].find((c) => c.domain === 'codex' && c.level === 1)!;
+    const codex = [...content.cards.values()].find((c) => c.domain === 'codex' && c.level === 1)!;
     expect(cardAllowed(five, content, codex.id, 5).ok).toBe(true);
   });
 

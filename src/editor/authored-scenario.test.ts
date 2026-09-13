@@ -1296,7 +1296,7 @@ describe("what the party puts behind its own blow", () => {
     features: readonly Record<string, unknown>[] = [],
   ) => {
     const s = blank();
-    s.project.domainCards.push(...FIXTURE_CARDS);
+    s.project.cards.push(...FIXTURE_CARDS);
     for (const ability of [
       ...A_TALLY_THAT_COUNTS_A_MARK,
       ...A_CHARGE_THAT_BANKS_A_WOUND,
@@ -1858,7 +1858,7 @@ describe('what a card makes of somebody else being hit', () => {
     // The cards the hands are drawn from, and the specimens that come with them.
     // A card nobody holds is offered to nobody, so both families are carried
     // whichever one this run puts in a loadout.
-    s.project.domainCards.push(...FIXTURE_CARDS);
+    s.project.cards.push(...FIXTURE_CARDS);
     for (const ability of [...A_TALLY_THAT_COUNTS_A_MARK, ...AN_ANSWER_TO_A_BLOW_ON_AN_ALLY]) {
       s.project.abilities.push(abilitySchema.parse(ability));
     }
@@ -1962,7 +1962,7 @@ describe('asking the player how many', () => {
     s.run(setSpawns('hall', [{ x: 2, y: 4 }, { x: 3, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 5, y: 4 } }));
-    s.project.domainCards.push(...FIXTURE_CARDS);
+    s.project.cards.push(...FIXTURE_CARDS);
     for (const ability of [...A_SHARE_OF_WHAT_THEY_CARRY, ...A_SPEND_OF_WHATEVER_IS_ON_THE_CARD]) {
       s.project.abilities.push(abilitySchema.parse(ability));
     }
@@ -2042,7 +2042,7 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
     );
     const s = blank();
     // A blank project ships no cards, so the block carries the ones it holds.
-    s.project.domainCards.push(...FIXTURE_CARDS);
+    s.project.cards.push(...FIXTURE_CARDS);
     for (const ability of [
       ...A_TETHER_THAT_BINDS,
       ...A_HOLD_ON_ONE_OF_THEM,
@@ -2135,7 +2135,7 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
     // is what `around: 'target'` means inside what the check succeeded at.
     for (let seed = 1; seed < 40; seed++) {
       const s = blank();
-      s.project.domainCards.push(...FIXTURE_CARDS);
+      s.project.cards.push(...FIXTURE_CARDS);
       for (const ability of A_BLAST_AROUND_WHAT_IT_HIT) s.project.abilities.push(abilitySchema.parse(ability));
       s.run(
         addSheet(

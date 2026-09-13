@@ -71,7 +71,7 @@ export function abilityText(demo: DemoScene, ability: AbilityDef): string {
   // The project's content, which is the pack's unless the project carries its own.
   const content = characterContentFor(demo.project);
   if (source.kind === 'domainCard') {
-    const card = content.domainCards.get(source.card);
+    const card = content.cards.get(source.card);
     if (card === undefined) return '';
     // A grimoire's spell is one of the card's named features.
     const spell = card.name === ability.name ? undefined : card.features.find((f) => f.name === ability.name);
@@ -403,7 +403,7 @@ export interface LoadoutCard {
  * and wear its colour; the SRD library is the only place that knows.
  */
 export function cardDomain(cardId: string): string {
-  return DEMO_CHARACTERS.domainCards.get(cardId)?.domain ?? 'Unknown';
+  return DEMO_CHARACTERS.cards.get(cardId)?.domain ?? 'Unknown';
 }
 
 export interface LoadoutView {
@@ -416,7 +416,7 @@ export function loadoutView(demo: DemoScene, characterId: string): LoadoutView {
   const character = demo.characters.get(characterId);
   const content = characterContentFor(demo.project);
   const describe = (id: string) => {
-    const card = content.domainCards.get(id);
+    const card = content.cards.get(id);
     return { id, name: card?.name ?? id, recallCost: card?.recallCost ?? 0,
       domain: card?.domain ?? 'Unknown', level: card?.level ?? 1,
       type: card?.type ?? 'ability', text: card?.features.map(f => f.name ? `${f.name}\n${f.text}` : f.text).join('\n\n') ?? '' };
@@ -451,7 +451,7 @@ export function swapCard(
   if (cardOut === undefined && loadout.length >= LOADOUT_LIMIT) return { ok: false, reason: `the loadout holds ${LOADOUT_LIMIT}; choose one to vault` };
 
   const content = characterContentFor(demo.project);
-  const card = content.domainCards.get(cardIn);
+  const card = content.cards.get(cardIn);
   const cost = options.resting === true ? 0 : (card?.recallCost ?? 0);
   if (cost > 0 && !canMarkStress(entity.stress, cost)) return { ok: false, reason: `recalling it costs ${cost} Stress, and there is no room to mark it` };
   if (cost > 0) demo.world.markStress(characterId, cost);
@@ -462,7 +462,7 @@ export function swapCard(
   syncPools(demo);
   note(
     demo,
-    `${sheet.name} recalls ${card?.name ?? cardIn}${cardOut === undefined ? '' : ` and vaults ${content.domainCards.get(cardOut)?.name ?? cardOut}`}${cost > 0 ? `, marking ${cost} Stress` : ''}.`,
+    `${sheet.name} recalls ${card?.name ?? cardIn}${cardOut === undefined ? '' : ` and vaults ${content.cards.get(cardOut)?.name ?? cardOut}`}${cost > 0 ? `, marking ${cost} Stress` : ''}.`,
     cost > 0 ? 'bad' : 'system',
   );
   return { ok: true, stress: cost };

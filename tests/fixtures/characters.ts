@@ -138,7 +138,7 @@ const WEAPONS = [
 export const FIXTURE_CONTENT: ContentPack = {
   classes: index(CLASSES),
   subclasses: index(SUBCLASSES),
-  domainCards: index(CARDS),
+  cards: index(CARDS),
   ancestries: index(ANCESTRIES),
   communities: index(COMMUNITIES),
   armors: index(ARMORS),

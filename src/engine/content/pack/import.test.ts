@@ -26,36 +26,36 @@ describe('mergePack', () => {
   it('leaves the pack alone when a project carries nothing', () => {
     const merged = mergePack(STARTER_CHARACTERS, {});
     // The same maps, not copies of them: nothing to merge is nothing to do.
-    expect(merged.domainCards).toBe(STARTER_CHARACTERS.domainCards);
+    expect(merged.cards).toBe(STARTER_CHARACTERS.cards);
     expect(merged.classes).toBe(STARTER_CHARACTERS.classes);
   });
 
   it("adds the project's own content to what the pack already has", () => {
-    const before = STARTER_CHARACTERS.domainCards.size;
-    const merged = mergePack(STARTER_CHARACTERS, { domainCards: [FIXTURE_CARD] });
+    const before = STARTER_CHARACTERS.cards.size;
+    const merged = mergePack(STARTER_CHARACTERS, { cards: [FIXTURE_CARD] });
 
-    expect(merged.domainCards.get('test-only-card')?.name).toBe('Test Only Card');
-    expect(merged.domainCards.size).toBe(before + 1);
+    expect(merged.cards.get('test-only-card')?.name).toBe('Test Only Card');
+    expect(merged.cards.size).toBe(before + 1);
     // The pack the app shipped is not edited by a project reading it.
-    expect(STARTER_CHARACTERS.domainCards.has('test-only-card')).toBe(false);
-    expect(STARTER_CHARACTERS.domainCards.size).toBe(before);
+    expect(STARTER_CHARACTERS.cards.has('test-only-card')).toBe(false);
+    expect(STARTER_CHARACTERS.cards.size).toBe(before);
   });
 
   it('lets the project win where both name the same id', () => {
-    const shipped = [...STARTER_CHARACTERS.domainCards.values()][0]!;
-    const before = STARTER_CHARACTERS.domainCards.size;
+    const shipped = [...STARTER_CHARACTERS.cards.values()][0]!;
+    const before = STARTER_CHARACTERS.cards.size;
     const merged = mergePack(STARTER_CHARACTERS, {
-      domainCards: [{ ...shipped, name: 'Overridden' }],
+      cards: [{ ...shipped, name: 'Overridden' }],
     });
 
-    expect(merged.domainCards.get(shipped.id)?.name).toBe('Overridden');
+    expect(merged.cards.get(shipped.id)?.name).toBe('Overridden');
     // Replaced, not added alongside.
-    expect(merged.domainCards.size).toBe(before);
-    expect(STARTER_CHARACTERS.domainCards.get(shipped.id)?.name).toBe(shipped.name);
+    expect(merged.cards.size).toBe(before);
+    expect(STARTER_CHARACTERS.cards.get(shipped.id)?.name).toBe(shipped.name);
   });
 
   it('merges each kind of content independently', () => {
-    const merged = mergePack(STARTER_CHARACTERS, { domainCards: [FIXTURE_CARD] });
+    const merged = mergePack(STARTER_CHARACTERS, { cards: [FIXTURE_CARD] });
     // Carrying a card says nothing about the rest, which stays as it was.
     expect(merged.weapons).toBe(STARTER_CHARACTERS.weapons);
     expect(merged.armors).toBe(STARTER_CHARACTERS.armors);

@@ -41,7 +41,7 @@ const ENTRY = {
   ancestries: ancestryDefSchema,
   communities: communityDefSchema,
   subclasses: subclassDefSchema,
-  domainCards: domainCardDefSchema,
+  cards: domainCardDefSchema,
   adversaries: adversaryDefSchema,
   abilities: abilitySchema,
   conditionDefs: conditionDefSchema,
@@ -60,7 +60,7 @@ export const PACK_LISTS = Object.keys(ENTRY) as PackList[];
  * `migrateDocument` reads its absence as version 1.
  */
 export const packDocumentSchema = contentPackSchema.extend({
-  formatVersion: z.union([z.literal(1), z.literal(2)]).optional(),
+  formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   abilities: z.array(abilitySchema).default([]),
   conditionDefs: z.array(conditionDefSchema).default([]),
 });
@@ -146,7 +146,7 @@ const NAMES: Readonly<Record<PackList, readonly [one: string, many: string]>> = 
   ancestries: ['ancestry', 'ancestries'],
   communities: ['community', 'communities'],
   subclasses: ['subclass', 'subclasses'],
-  domainCards: ['card', 'cards'],
+  cards: ['card', 'cards'],
   adversaries: ['adversary', 'adversaries'],
   abilities: ['ability', 'abilities'],
   conditionDefs: ['condition', 'conditions'],

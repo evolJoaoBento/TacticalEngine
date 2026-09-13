@@ -198,7 +198,7 @@ export function deriveCharacter(
   }
   const cards: DomainCardDef[] = [];
   for (const id of heldCards(sheet)) {
-    const card = content.domainCards.get(id);
+    const card = content.cards.get(id);
     if (card === undefined) miss('domainCard', id);
     else cards.push(card);
   }

@@ -167,7 +167,7 @@ describe('passives on the sheet', () => {
   ];
 
   const carry = (demo: DemoScene): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of PASSIVES) demo.project.abilities.push(abilitySchema.parse(ability));
   };
 
@@ -353,7 +353,7 @@ describe('a card that reads its own holder', () => {
     const demo = scene();
     // The cards are the project's: what is under test is a bonus counted off
     // the loadout, so the loadout has to have something in it to count.
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.abilities.push(abilitySchema.parse(WELL_ARMED));
 
     holding(demo, ['fixture-card-5']);
@@ -428,7 +428,7 @@ describe('conditions with modifiers', () => {
   ];
 
   const carry = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const condition of [DODGING_CONDITION, WORN_CONDITION]) {
       demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
     }
@@ -532,7 +532,7 @@ describe('reactions when a hit lands', () => {
   ];
 
   const carry = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of DEFENCES) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards };
     demo.sheets.set(who, sheet);
@@ -790,7 +790,7 @@ describe('an ally interrupting', () => {
 
   /** The cards in the project, and one of them in somebody's hands. */
   const carry = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of INTERRUPTS) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards };
     demo.sheets.set(who, sheet);
@@ -890,7 +890,7 @@ describe('answering a miss', () => {
 
   it('offers the card, which leaves its holder out of sight until they act', () => {
     const demo = standoff('vanish');
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of VANISH) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: [VANISH_CARD], loadout: [VANISH_CARD] };
     demo.sheets.set('kara', sheet);
@@ -1397,7 +1397,7 @@ describe('a creature that answers its own wounds', () => {
 
   /** What swings is a card in a hand, not something handed to her. */
   const holding = (demo: DemoScene, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards };
     demo.sheets.set('kara', sheet);
     demo.characters.set('kara', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
@@ -1546,7 +1546,7 @@ describe("the party's own answer to a blow", () => {
 
   /** Both fixtures, and the card the second one sits on. */
   const carry = (demo: DemoScene, ability: Record<string, unknown>): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.abilities.push(abilitySchema.parse(ability));
   };
 
@@ -1802,7 +1802,7 @@ describe('a bonus the card counts out for itself', () => {
   ): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of abilities) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = demo.sheets.get('kara')!;
     const grown = { ...sheet, domainCards: [card], loadout: [card] };
@@ -2086,7 +2086,7 @@ describe('answering a miss', () => {
 
   it('hits back at whatever swung and missed from within reach', () => {
     const demo = standoff('riposte');
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of RIPOSTE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: [RIPOSTE_CARD, GRUDGE_CARD], loadout: [RIPOSTE_CARD, GRUDGE_CARD] };
     demo.sheets.set('kara', sheet);
@@ -2337,7 +2337,7 @@ describe('a card that answers the blow in its own words', () => {
   ];
 
   const holding = (demo: DemoScene, family: readonly Record<string, unknown>[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of family) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: [ANSWER_CARD], loadout: [ANSWER_CARD] };
     demo.sheets.set('kara', sheet);
@@ -2665,7 +2665,7 @@ describe('what a card leaves on its holder', () => {
     family: readonly Record<string, unknown>[],
     condition: Record<string, unknown>,
   ): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
     for (const ability of family) demo.project.abilities.push(abilitySchema.parse(ability));
   };
@@ -3090,7 +3090,7 @@ describe('a death move', () => {
 
   /** Put a card in Kara's hands and in her loadout. */
   const carrying = (demo: DemoScene, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of LAST_WORDS) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
@@ -3255,7 +3255,7 @@ describe('a card with a limit on it, answering something', () => {
   ];
 
   const hold = (demo: DemoScene, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of SCRAMBLE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
@@ -3350,7 +3350,7 @@ describe('a swing that missed', () => {
   ];
 
   const hold = (demo: DemoScene, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of GLANCE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
@@ -3508,7 +3508,7 @@ describe('a swing lifted, and a swing that names its own number', () => {
   ];
 
   const hold = (demo: DemoScene, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of LIFTERS) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
@@ -3678,7 +3678,7 @@ describe('a card that moves before it swings', () => {
   ];
 
   const hold = (demo: DemoScene, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(POISED_CONDITION));
     for (const ability of MOVERS) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
@@ -3961,7 +3961,7 @@ describe('a run in a straight line', () => {
   });
 
   const hold = (demo: DemoScene, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of RUN) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
@@ -4130,7 +4130,7 @@ describe('what a charge runs over', () => {
   ];
 
   const holds = (demo: DemoScene, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of CARDS) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('kara')!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set('kara', sheet);
@@ -4309,7 +4309,7 @@ describe('the same blow again', () => {
   const stage = (seed: string, cards: string[]): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of AGAIN) demo.project.abilities.push(abilitySchema.parse(ability));
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 60, marked: 0 };
@@ -4483,7 +4483,7 @@ describe('a smite held back for the next blow', () => {
   const charged = (seed: string, spend: boolean) => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(CHARGE_CONDITION));
     for (const ability of SMITE) demo.project.abilities.push(abilitySchema.parse(ability));
     // The same sheet in both runs, charged or not: a loadout that differs is a
@@ -4624,7 +4624,7 @@ describe('a shell of light over somebody', () => {
   const staged = (seed: string, cast: boolean, swing: Record<string, unknown> = { damage: '2d20+30' }): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(SHELL_CONDITION));
     for (const ability of SHELL) demo.project.abilities.push(abilitySchema.parse(ability));
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -4835,7 +4835,7 @@ describe('a word in the wrong ear', () => {
   };
 
   const carry = (demo: DemoScene): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(WISE));
     for (const ability of DISCORD) demo.project.abilities.push(abilitySchema.parse(ability));
   };
@@ -5038,7 +5038,7 @@ describe('a shout the next one hears', () => {
   };
 
   const carry = (demo: DemoScene, abilities: readonly Record<string, unknown>[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(LED));
     for (const ability of abilities) demo.project.abilities.push(abilitySchema.parse(ability));
   };
@@ -5274,7 +5274,7 @@ describe('one swing through all of them', () => {
   const surrounded = (seed: string, cards: string[]) => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of SPLINTER) demo.project.abilities.push(abilitySchema.parse(ability));
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 60, marked: 0 };
@@ -5425,7 +5425,7 @@ describe('a step across the room without crossing it', () => {
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     standBehind(demo, 'mira', husk.tile);
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of STEP) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('mira')!, domainCards: [BLINK_CARD], loadout: [BLINK_CARD] };
     demo.sheets.set('mira', sheet);
@@ -5659,7 +5659,7 @@ describe('a line of light down the room', () => {
   const beaming = (seed: string): { demo: DemoScene; at: number } => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of BEAM) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('mira')!, domainCards: [BEAM_CARD], loadout: [BEAM_CARD] };
     demo.sheets.set('mira', sheet);
@@ -5981,7 +5981,7 @@ describe('ground worth standing on', () => {
   const warding = (seed: string) => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(IN_LIGHT_CONDITION));
     for (const ability of LIGHT) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('mira')!, domainCards: [LIGHT_CARD], loadout: [LIGHT_CARD] };
@@ -6192,7 +6192,7 @@ describe('a room put out', () => {
   const dark = (seed: string) => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const condition of [DIMMED_CONDITION, UNLIT_CONDITION]) {
       demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
     }
@@ -6334,7 +6334,7 @@ describe('half of what somebody is', () => {
   /** Kara with an Agility of `agility`, holding these cards. */
   const nimble = (agility: number, cards: string[]): DemoScene => {
     const demo = standoff(`nimble-${agility}-${cards.length}`);
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of NIMBLE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = {
       ...demo.sheets.get('kara')!,
@@ -6416,7 +6416,7 @@ describe('a sigil that answers a fall', () => {
   const warded = (seed: string, on: string | null) => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(WARDED_CONDITION));
     for (const ability of SIGIL) demo.project.abilities.push(abilitySchema.parse(ability));
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -6526,7 +6526,7 @@ describe('a throw worth making again', () => {
   const swinging = (seed: string, cards: string[]) => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of AGAIN_THROW) demo.project.abilities.push(abilitySchema.parse(ability));
     // A creature whose thresholds a reroll can cross. What the demo places reads
     // 13/26, and a rerolled weapon face never gets there -- so every landed blow
@@ -6675,7 +6675,7 @@ describe('the next one', () => {
   const trying = (seed: string, cards: string[]) => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(CARRIED_CONDITION));
     for (const ability of [...CARRY, ...WORD]) demo.project.abilities.push(abilitySchema.parse(ability));
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -6933,7 +6933,7 @@ describe('a card that charges the one who swings', () => {
   ];
 
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const condition of [GOADED_CONDITION, AURA_CONDITION]) {
       demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
     }
@@ -7113,7 +7113,7 @@ describe('a card that moves the room', () => {
   ];
 
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of WRANGLE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
@@ -7253,7 +7253,7 @@ describe('a card that throws the dice again', () => {
   ): { demo: DemoScene; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of abilities) demo.project.abilities.push(abilitySchema.parse(ability));
     // Nothing of Kara's own answers a swing, so an offer is always Finn's: the
     // card in her hand carries nothing at all.
@@ -7468,7 +7468,7 @@ describe('a bonus on every action roll', () => {
   ];
 
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(SURGING_CONDITION));
     for (const ability of SURGE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
@@ -7649,7 +7649,7 @@ describe('a circle burnt into the floor', () => {
   ];
 
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(CIRCLE_CONDITION));
     for (const ability of CIRCLE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
@@ -7862,7 +7862,7 @@ describe('a stance that holds the ground around it', () => {
 
   /** The card, the ground it paints, and what the ground leaves on people. */
   const carry = (demo: DemoScene): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const condition of [BRACED_CONDITION, CAUGHT_CONDITION]) {
       demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
     }
@@ -8061,7 +8061,7 @@ describe('a swing that reaches one more', () => {
   ];
 
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(ECHO_CONDITION));
     for (const ability of ECHO) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
@@ -8400,7 +8400,7 @@ describe('the last of the Codex', () => {
   ): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(FLAME_CONDITION));
     for (const ability of family) demo.project.abilities.push(abilitySchema.parse(ability));
     hold(demo, 'mira', [CODEX_CARD]);
@@ -8580,7 +8580,7 @@ describe('the last of the Codex', () => {
   it('Arcane Deflection takes a blow to nothing, once', () => {
     const demo = standoff('grynn-deflect');
     demo.askDefender = false;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of DEFLECTION) demo.project.abilities.push(abilitySchema.parse(ability));
     hold(demo, 'kara', [CODEX_CARD]);
     const kara = demo.state.entity('kara')!;
@@ -8715,7 +8715,7 @@ describe('the weather, and the thing that wears it', () => {
     family: readonly Record<string, unknown>[],
     conditions: readonly Record<string, unknown>[],
   ): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const condition of conditions) demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
     for (const ability of family) demo.project.abilities.push(abilitySchema.parse(ability));
   };
@@ -8867,7 +8867,7 @@ describe('a card that saves a roll already made', () => {
   ];
 
   const carry = (demo: DemoScene): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of [...LIFT, ...SPELLCAST_CHECK]) demo.project.abilities.push(abilitySchema.parse(ability));
   };
 
@@ -9049,7 +9049,7 @@ describe('a Light Die that is not a d12', () => {
   ];
 
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(DECLARED_CONDITION));
     for (const ability of MOVE) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
@@ -9234,7 +9234,7 @@ describe('coming at them well, and knowing them', () => {
   ];
 
   const carry = (demo: DemoScene, abilities: readonly Record<string, unknown>[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of abilities) demo.project.abilities.push(abilitySchema.parse(ability));
   };
 
@@ -9513,7 +9513,7 @@ describe('out of sight, and under the skin', () => {
   const casting = (seed: string, card: string): { demo: DemoScene; mira: EntityState; kara: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     demo.project.conditionDefs.push(conditionDefSchema.parse(HIDDEN_CONDITION));
     for (const ability of [...UNSEEN_FAMILY, ...TAUNT]) demo.project.abilities.push(abilitySchema.parse(ability));
     hold(demo, 'mira', [card]);
@@ -9672,7 +9672,7 @@ describe('asking for somebody back', () => {
   ];
 
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of ASKING) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);
@@ -9762,7 +9762,7 @@ describe('a check the room can answer', () => {
   ): { demo: DemoScene; kara: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of [...WATCHING_CHECK, ...abilities]) demo.project.abilities.push(abilitySchema.parse(ability));
     hold(demo, 'kara', [WATCHING_CARD]);
     hold(demo, 'finn', card === null ? [] : [card]);
@@ -9963,7 +9963,7 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
   ];
 
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const condition of KEPT_CONDITIONS) {
       demo.project.conditionDefs.push(conditionDefSchema.parse(condition));
     }
@@ -10097,7 +10097,7 @@ describe('reaching past the dice', () => {
   const rolling = (seed: string): { demo: DemoScene; kara: EntityState; mira: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of [...WATCHING_CHECK, ...NAME_THE_ROLL]) {
       demo.project.abilities.push(abilitySchema.parse(ability));
     }
@@ -10201,7 +10201,7 @@ describe('a roll with a purpose', () => {
   const talking = (seed: string, cards: string[]): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = true;
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of [...OWN_TAGGED_REROLL, ...TAGGED_CHECK, ...WATCHING_CHECK]) {
       demo.project.abilities.push(abilitySchema.parse(ability));
     }
@@ -10332,7 +10332,7 @@ describe('unmaking what you can reach', () => {
   ];
 
   const hold = (demo: DemoScene, who: string, cards: string[]): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of UNMAKING) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get(who)!, domainCards: cards, loadout: cards.slice(0, 5) };
     demo.sheets.set(who, sheet);

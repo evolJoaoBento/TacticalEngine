@@ -207,6 +207,58 @@ describe('migrating a stored document', () => {
 });
 
 /**
+ * Version 2 to 3, which is positional where version 2 was total.
+ *
+ * `domainCards` is two things: a pack's (or a project's) list of card definitions, which becomes
+ * `cards`, and a sheet's list of the card ids that character took, which keeps its name. The value
+ * `'domainCard'` is also a level-up pick. A step that walked every depth would rewrite all three, so
+ * each test here pins one of the things a walk would have broken.
+ */
+describe('version 2 to 3: a card list is `cards`, and only at the root', () => {
+  it("renames the root list and leaves a sheet's held cards and its level-up picks alone", () => {
+    const doc = migrateDocument({
+      formatVersion: 2,
+      domainCards: [{ id: 'spark', name: 'Spark' }],
+      party: [{ id: 'kara', domainCards: ['spark'], levels: [{ advancements: [{ kind: 'domainCard', card: 'spark' }] }] }],
+    }) as {
+      cards?: unknown;
+      domainCards?: unknown;
+      party: { domainCards?: unknown; levels: { advancements: { kind: string }[] }[] }[];
+    };
+    expect(doc.cards).toEqual([{ id: 'spark', name: 'Spark' }]);
+    expect(doc.domainCards).toBeUndefined();
+    expect(doc.party[0]!.domainCards).toEqual(['spark']);
+    expect(doc.party[0]!.levels[0]!.advancements[0]!.kind).toBe('domainCard');
+  });
+
+  it('does not walk: the same name one level down is somebody else’s and stays', () => {
+    const doc = migrateDocument({ formatVersion: 2, nested: { domainCards: ['x'] } }) as Record<string, unknown>;
+    expect(doc['nested']).toEqual({ domainCards: ['x'] });
+    expect(doc['formatVersion']).toBe(CURRENT_FORMAT_VERSION);
+  });
+
+  it('moves the captured project’s list, and every sheet in it keeps its own', () => {
+    const before = fixture('project') as { domainCards: unknown[]; party: { domainCards?: string[] }[] };
+    // Without held cards on a sheet this would pass against a migration that renamed everything.
+    expect(before.party.some((sheet) => (sheet.domainCards ?? []).length > 0)).toBe(true);
+
+    const after = migrateDocument(before) as { cards?: unknown; domainCards?: unknown; party: { domainCards?: string[] }[] };
+    expect(after.domainCards).toBeUndefined();
+    expect(after.cards).toEqual(before.domainCards);
+    expect(after.party.map((sheet) => sheet.domainCards)).toEqual(before.party.map((sheet) => sheet.domainCards));
+  });
+
+  it('passes the captured save through with every sheet’s held cards where they were', () => {
+    const before = fixture('save') as { sheets: { domainCards?: string[] }[] };
+    expect(before.sheets.some((sheet) => (sheet.domainCards ?? []).length > 0)).toBe(true);
+
+    const after = migrateDocument(before) as { cards?: unknown; sheets: { domainCards?: string[] }[] };
+    expect(after.cards).toBeUndefined();
+    expect(after.sheets.map((sheet) => sheet.domainCards)).toEqual(before.sheets.map((sheet) => sheet.domainCards));
+  });
+});
+
+/**
  * The property the rest of this file does not check: that what comes out the other side is a
  * document the engine will actually *load*.
  *

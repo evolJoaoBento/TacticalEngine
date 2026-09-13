@@ -62,8 +62,8 @@ const scene = (seed = 'cards'): DemoScene => buildDemoScene(demoMap(), seed);
  * fires twice.
  */
 function carry(demo: DemoScene): void {
-  if (demo.project.domainCards.some((c) => c.id === FIXTURE_AREA_CARD)) return;
-  demo.project.domainCards.push(...FIXTURE_CARDS);
+  if (demo.project.cards.some((c) => c.id === FIXTURE_AREA_CARD)) return;
+  demo.project.cards.push(...FIXTURE_CARDS);
   for (const ability of [
     ...A_SPELL_FOR_A_WHOLE_BAND,
     ...A_BARRAGE_THAT_ASKS,
@@ -260,7 +260,7 @@ describe('a spell in a fight', () => {
 
 describe('the loadout and the vault', () => {
   const grow = (demo: DemoScene): void => {
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     const sheet = demo.sheets.get('kara')!;
     const cards = [...FIXTURE_HAND];
     const grown = { ...sheet, domainCards: cards };
@@ -285,8 +285,8 @@ describe('the loadout and the vault', () => {
     // The card recalled and the one vaulted both cost 1 to recall, which is what
     // makes the refusal at full Stress further down mean anything.
     const content = characterContentFor(demo.project);
-    expect(content.domainCards.get(FIXTURE_HAND[5]!)!.recallCost).toBe(1);
-    expect(content.domainCards.get(FIXTURE_HAND[4]!)!.recallCost).toBe(1);
+    expect(content.cards.get(FIXTURE_HAND[5]!)!.recallCost).toBe(1);
+    expect(content.cards.get(FIXTURE_HAND[4]!)!.recallCost).toBe(1);
     expect(swapCard(demo, 'kara', FIXTURE_HAND[5]!)).toEqual({ ok: false, reason: expect.stringContaining('holds 5') });
     const swapped = swapCard(demo, 'kara', FIXTURE_HAND[5]!, FIXTURE_HAND[4]!);
     expect(swapped).toEqual({ ok: true, stress: 1 });
@@ -509,7 +509,7 @@ describe("a grimoire spell's words", () => {
   it('are the spell\'s own feature text, not the whole book', () => {
     const demo = scene();
     // The book has to be in her hand: this reads the abilities she actually holds.
-    demo.project.domainCards.push(...FIXTURE_CARDS);
+    demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of A_BOOK_OF_TWO_SPELLS) demo.project.abilities.push(abilitySchema.parse(ability));
     const sheet = { ...demo.sheets.get('mira')!, domainCards: [FIXTURE_GRIMOIRE], loadout: [FIXTURE_GRIMOIRE] };
     demo.sheets.set('mira', sheet);

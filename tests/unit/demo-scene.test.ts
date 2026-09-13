@@ -59,7 +59,7 @@ describe('a project plays the content it carries', () => {
 
   it('resolves a card no shipped pack has', () => {
     const demo = build();
-    demo.project.domainCards.push(FIXTURE_CARD);
+    demo.project.cards.push(FIXTURE_CARD);
     setSheet(demo, { ...demo.sheets.get('kara')!, domainCards: [FIXTURE_CARD.id] });
 
     expect(demo.characters.get('kara')!.cards.map((card) => card.id)).toEqual(['project-only-card']);

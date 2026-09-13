@@ -221,7 +221,7 @@ export function cardAllowed(
   cardId: string,
   atLevel: number,
 ): { ok: true } | { ok: false; reason: string } {
-  const card = content.domainCards.get(cardId);
+  const card = content.cards.get(cardId);
   if (card === undefined) return { ok: false, reason: `unknown domain card "${cardId}"` };
   if (!domainsOf(sheet, content).includes(card.domain)) {
     return { ok: false, reason: `"${card.name}" is a ${card.domain} card, outside this character's domains` };

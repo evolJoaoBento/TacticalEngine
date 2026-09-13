@@ -19,7 +19,7 @@ import {
  * vendored SRD data alone, with nothing to fetch.
  */
 
-const cards = [...DEMO_CHARACTERS.domainCards.values()];
+const cards = [...DEMO_CHARACTERS.cards.values()];
 
 describe('generated domain card art', () => {
   it('draws every card the pack ships, with no files to load', () => {
