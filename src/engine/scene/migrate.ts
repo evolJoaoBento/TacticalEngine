@@ -123,15 +123,12 @@ function toVersion2(raw: Raw): void {
   }
 }
 
-/** Every step, in the order a document walks them, keyed by the version each one produces. */
-const STEPS: readonly { to: number; apply: (raw: Raw) => void }[] = [{ to: 2, apply: toVersion2 }];
-
 /**
- * Walk a raw document and everything inside it, applying one step at every level.
+ * Walk a raw document and everything inside it, applying one rewrite at every level.
  *
- * Depth-first and total: these names appear at every depth — an ability's cost, an effect's tone, a
- * snapshot entity's pool — and a migration that only looked at the top level would rewrite the
- * version field and nothing else.
+ * Depth-first and total: version 2's names appear at every depth — an ability's cost, an effect's
+ * tone, a snapshot entity's pool — and a migration that only looked at the top level would rewrite
+ * the version field and nothing else.
  */
 function walk(value: unknown, apply: (raw: Raw) => void): void {
   if (Array.isArray(value)) {
@@ -142,6 +139,18 @@ function walk(value: unknown, apply: (raw: Raw) => void): void {
   apply(value);
   for (const entry of Object.values(value)) walk(entry, apply);
 }
+
+/**
+ * Every step, in the order a document takes them, keyed by the version each one produces.
+ *
+ * A step is handed the whole document and decides for itself where to look. Version 2's renames were
+ * words that meant one thing wherever they appeared, so it walks every depth. A later step need not
+ * and often must not: one name can mean two things in two places — a pack's list and a sheet's
+ * field — and a step that rewrote every depth would rewrite both.
+ */
+const STEPS: readonly { to: number; migrate: (doc: Raw) => void }[] = [
+  { to: 2, migrate: (doc) => walk(doc, toVersion2) },
+];
 
 /**
  * Bring a raw stored document up to the version this build writes.
@@ -158,7 +167,7 @@ export function migrateDocument(raw: unknown): unknown {
 
   for (const step of STEPS) {
     if (from >= step.to) continue;
-    walk(copy, step.apply);
+    step.migrate(copy);
   }
   copy['formatVersion'] = CURRENT_FORMAT_VERSION;
   return copy;

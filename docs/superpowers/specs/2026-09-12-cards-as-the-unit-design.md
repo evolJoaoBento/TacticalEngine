@@ -1,7 +1,8 @@
 # Cards as the unit
 
-**Status:** decided by the user, 2026-09-12. Not yet built. This records the decision and
-what it costs, so the work that follows honours it instead of drifting.
+**Status:** decided by the user, 2026-09-12. Being built from 2026-09-13; §7 records the
+decisions made when it was, and corrects two lines below that were overtaken first. This records
+the decision and what it costs, so the work that follows honours it instead of drifting.
 
 **Related:** `2026-09-12-generic-engine-content-packs-design.md` — §5 The pack format and
 §6 The renames both change under this, and the migration this needs can ride slice 4's
@@ -113,3 +114,41 @@ Answers recommended, none of them settled.
    changes a number while sitting face-up in a zone is the clearest reading of that.
 4. **What happens to `recallCost` and the vault?** They are loadout mechanics, and only
    `chosen` cards have a loadout. A granted card presumably has neither.
+
+## 7. Decided when building (2026-09-13)
+
+Slice 4 shipped format version 2 before any of this was built, so the migration is its own:
+**version 3**. Two lines above are overtaken by that and are corrected here rather than rewritten,
+so the record of what was first thought survives: the header's "can ride slice 4's `formatVersion`
+1→2" and §5's "the migration is already budgeted". And the source kind §2 calls `classHope` is
+`classGood` since the rename.
+
+1. **An ability points at its card, by id: `source: { card }`.** (§6.1.) Reactions are found by
+   trigger across one flat list, and a card that held its abilities would break that. It is also the
+   direction that already works: a project's ability can name a card in a pack without editing the
+   pack.
+2. **The card names what grants it, and nothing lists its cards.** §2 has a class's features become
+   a list of card ids and §3 puts `grant` on the card; both at once is two sources of truth, and they
+   drift. The card side wins: a pack of extra cards for an existing class imports without touching
+   the class, and `mergePack` by id works unchanged. So a class's `features` and
+   `signatureFeature`, a subclass's `foundation`/`specialization`/`mastery`, and an ancestry's or a
+   community's `features` leave the schema. A weapon's and an armor's `features` stay — the decision
+   never named gear.
+3. **The class's own-resource feature is a class card**, not a kind of its own. The separate kind
+   was a sort slot and a pointer for text; `grant: { kind: 'class', classId }` says all it said.
+4. **Only a chosen card has a domain, a type, a level and a recall cost.** They are optional on the
+   schema and required by a refinement when `grant.kind` is `chosen`. (§6.4: a granted card has
+   neither a loadout nor a vault.)
+5. **The grants:** `chosen` · `class` · `subclass` with its stage · `ancestry` · `community` ·
+   `given` (character ids) · `adversary` (adversary ids).
+6. **The version-3 migration is positional.** `domainCards` is both a pack's list and a sheet's held
+   cards; `'domainCard'` is both a source kind and a level-up pick; `'adversary'` is both a source
+   kind and a target kind. A step that rewrote every depth, as version 2's did, would rewrite all of
+   them. Version 3's step touches the document's own lists and nothing under a sheet.
+7. **The migration builds cards from abilities, and never by matching names against the shipped
+   pack**, which is code a document cannot see. One card per ability that needs one, with the
+   ability's id; a printed feature in the same document whose name is its ability's becomes that
+   card's text rather than a second card.
+
+**Out of the first slice**, each to be judged on its own: card zones on screen, a grant editor, the
+GM's side as cards the table can see, and a condition lending a card rather than an ability.
