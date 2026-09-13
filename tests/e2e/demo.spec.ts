@@ -1821,11 +1821,14 @@ test('a glTF that names its clips walks with the walk and idles after', async ({
   expect(consoleErrors).toEqual([]);
 });
 
-test('casts Rain of Blades from the action bar, picks an Experience, and the turn passes', async ({ page }) => {
+test('casts Cinder Burst at a spot on the board, picks an Experience, and the turn passes', async ({ page }) => {
   const consoleErrors = await boot(page);
   const setup = await page.evaluate(() => {
     const api = window.__polyheart!;
-    api.select('finn');
+    api.select('mira');
+    // Cinder Burst is an Ember card and Mira is the Emberwright; her own hand is
+    // Arcane Ward and Healing Word, so the card has to be put in it.
+    api.setCards('mira', ['cinder-burst']);
     const foe = api.adversaries()[0]!;
     api.standNear(foe);
     api.startFight();
@@ -1834,17 +1837,27 @@ test('casts Rain of Blades from the action bar, picks an Experience, and the tur
   expect(setup.fighting).toBe(true);
   const bar = page.locator('[data-testid="action-bar"]');
   await expect(bar).toBeVisible();
-  const blades = bar.locator('[data-ability="rain-of-blades"]');
-  await expect(blades).toHaveAttribute('data-usable', 'true');
-  const hopeBefore = Number(await page.locator('[data-member="finn"] [data-testid="hope"]').getAttribute('data-marked'));
+  const burst = bar.locator('[data-ability="cinder-burst"]');
+  await expect(burst).toHaveAttribute('data-usable', 'true');
 
-  await blades.click();
+  // Aimed at the ground rather than clicked onto a creature: the spot the husk is
+  // standing on, so the bloom covers it and the roll has something to be against.
+  const aimed = await page.evaluate((foe) => {
+    const api = window.__polyheart!;
+    const tiles = api.aim('cinder-burst');
+    const spot = tiles.find((tile) => api.shape('cinder-burst', tile).includes(foe));
+    if (spot !== undefined) api.useAbility('mira', 'cinder-burst', [], spot);
+    return { offered: tiles.length, spot };
+  }, setup.foe);
+  expect(aimed.offered).toBeGreaterThan(0);
+  expect(aimed.spot, 'a spot whose bloom covers the husk').not.toBeUndefined();
+
   const prompt = page.locator('[data-testid="check-prompt"]');
   await expect(prompt).toBeVisible();
-  await expect(prompt).toContainText('Conjure blades');
-  await expect(prompt).toContainText('Acid Burrower');
-  // The Hope was spent when the card was played; an Experience costs another.
-  await expect(page.locator('[data-member="finn"] [data-testid="hope"]')).toHaveAttribute('data-marked', String(hopeBefore - 1));
+  await expect(prompt).toContainText('Cinder Burst');
+  await expect(prompt).toContainText('Hollow Knight');
+  // The card asked Stress; nothing the pack ships spends Hope. The Experience is
+  // what spends one, which is why the picker is here at all.
   await prompt.locator('[data-testid="experience-pick"]').selectOption({ index: 1 });
   await prompt.locator('[data-testid="roll"]').click();
   await expect(prompt).toHaveCount(0);
@@ -1858,37 +1871,53 @@ test('casts Rain of Blades from the action bar, picks an Experience, and the tur
   expect(consoleErrors).toEqual([]);
 });
 
-test('arms Power Push, picks the husk on the board, and Escape disarms', async ({ page }) => {
+test('arms Shield Wall, picks the ally it is held for, and Escape disarms', async ({ page }) => {
   const consoleErrors = await boot(page);
-  const foe = await page.evaluate(() => {
+  const armed = await page.evaluate(() => {
     const api = window.__polyheart!;
-    api.select('mira');
+    api.select('kara');
+    api.setCards('kara', ['shield-wall']);
     const foe = api.adversaries()[0]!;
     api.standNear(foe);
-    return foe;
+    // And somebody for the shield to be held in front of. `standNear` moves
+    // whoever is selected to a free tile beside what it names, and it names any
+    // entity -- so this puts Mira one tile from Kara, which is Melee. Without it
+    // Kara walks to the husk alone and is the only ally in her own reach.
+    api.select('mira');
+    api.standNear('kara');
+    api.select('kara');
+    api.startFight();
+    return {
+      targets: api.abilities('kara').find((a) => a.id === 'shield-wall')!.targets,
+      party: api.party().map((id) => ({ id, tile: api.tileOf(id) })),
+    };
   });
-  // Two husks in reach would need a pick; with one the card fires at once, so
-  // test the arming path through the handle's view of it either way.
-  const targets = await page.evaluate((f) => window.__polyheart!.abilities('mira').find((a) => a.id === 'book-of-ava-power-push')!.targets, foe);
-  expect(targets).toContain(foe);
+  // Asserted rather than guarded. `beginAbility` fires at once when only one
+  // target is valid -- "one thing to pick is no pick at all" -- so the older
+  // version of this test wrapped the whole arm-and-disarm path in
+  // `if (targets.length > 1)` and skipped it in silence whenever one husk was
+  // adjacent. Kara counts as her own ally, and Mira is standing beside her by
+  // the setup above, so this is two; the party's tiles come back with it so a
+  // failure says where everybody was rather than only that the count was wrong.
+  expect(armed.targets.length, 'more than one ally in reach, so arming waits for a pick').toBeGreaterThan(1);
+  const ally = armed.targets.find((id) => id !== 'kara')!;
 
   const bar = page.locator('[data-testid="action-bar"]');
-  await bar.locator('[data-ability="book-of-ava-power-push"]').click();
-  if (targets.length > 1) {
-    await expect(bar).toHaveAttribute('data-targeting', 'book-of-ava-power-push');
-    await page.keyboard.press('Escape');
-    await expect(bar).not.toHaveAttribute('data-targeting', /.+/);
-    await bar.locator('[data-ability="book-of-ava-power-push"]').click();
-    const tile = await page.evaluate((f) => window.__polyheart!.tileOf(f), foe);
-    await page.keyboard.press('Home');
-    await page.waitForTimeout(400);
-    const at = await page.evaluate((t) => window.__polyheart!.screenOf(t), tile);
-    await page.mouse.click(at.x, at.y);
-  }
-  await expect(page.locator('[data-testid="check-prompt"]')).toBeVisible();
-  await expect(page.locator('[data-testid="log"]')).toContainText('Mira uses Power Push on Acid Burrower');
-  await page.locator('[data-testid="roll"]').click();
-  await expect(page.locator('[data-testid="check-prompt"]')).toHaveCount(0);
+  await bar.locator('[data-ability="shield-wall"]').click();
+  await expect(bar).toHaveAttribute('data-targeting', 'shield-wall');
+  await page.keyboard.press('Escape');
+  await expect(bar).not.toHaveAttribute('data-targeting', /.+/);
+
+  // Armed again and picked for real. No check on this one: it answers at once,
+  // and what it leaves is the condition on whoever the shield came across for.
+  const held = await page.evaluate((who) => {
+    const api = window.__polyheart!;
+    const status = api.useAbility('kara', 'shield-wall', [who]);
+    return { status, on: api.conditionsOf(who) };
+  }, ally);
+  expect(held.status).toBe('done');
+  expect(held.on).toContain('behind-the-shield');
+  await expect(page.locator('[data-testid="log"]')).toContainText(/Kara uses Shield Wall on /);
   expect(consoleErrors).toEqual([]);
 });
 
@@ -2438,23 +2467,22 @@ test('loads a project and restarts the game on it, but not in the middle of a fi
   expect(consoleErrors).toEqual([]);
 });
 
-test('aims a card at the ground, and the board shows the run before it is made', async ({ page }) => {
+test('aims a card at the ground, and the board shows what it would catch before it is thrown', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => {
     const api = window.__polyheart!;
-    api.select('kara');
-    api.setCards('kara', ['deathrun']);
-    api.setHope('kara', 6);
+    api.select('mira');
+    api.setCards('mira', ['cinder-burst']);
     api.standNear(api.adversaries()[0]!);
     api.startFight();
   });
 
   // The bar arms for ground rather than for a creature, and says so.
-  const armed = await page.evaluate(() => window.__polyheart!.aim('deathrun'));
+  const armed = await page.evaluate(() => window.__polyheart!.aim('cinder-burst'));
   expect(armed.length).toBeGreaterThan(0);
   const bar = page.locator('[data-testid="action-bar"]');
   await expect(bar).toContainText('click a spot on the board');
-  expect(await page.evaluate(() => window.__polyheart!.targeting())).toBe('deathrun');
+  expect(await page.evaluate(() => window.__polyheart!.targeting())).toBe('cinder-burst');
 
   // Every tile it may be aimed at is lit, and nothing is committed to yet.
   expect((await page.evaluate(() => window.__polyheart!.lit())).length).toBe(armed.length);
@@ -2463,29 +2491,22 @@ test('aims a card at the ground, and the board shows the run before it is made',
   await page.keyboard.press('Escape');
   expect(await page.evaluate(() => window.__polyheart!.targeting())).toBe(null);
 
-  // Armed again, and aimed for real: the run goes through the husk.
+  // Armed again, and aimed for real: a spot whose bloom covers the husk.
   const done = await page.evaluate((tiles) => {
     const api = window.__polyheart!;
     const foe = api.adversaries()[0]!;
-    api.aim('deathrun');
-    // The furthest spot whose line still goes through the husk, so the run has
-    // ground to cover and something to cut on the way.
-    const through = tiles.filter((tile) => api.shape('deathrun', tile).includes(foe));
-    // Somewhere the line goes through the husk *and* the ground allows: a spot
-    // behind a wall is a legal thing to aim at and not a run anyone can make.
-    const walkable = api.reachable();
-    const open = through.filter((tile) => walkable.includes(tile));
-    const aimed = (open.length > 0 ? open : through)[Math.max(0, (open.length > 0 ? open : through).length - 1)]!;
-    const from = api.tileOf('kara');
+    api.aim('cinder-burst');
+    const through = tiles.filter((tile) => api.shape('cinder-burst', tile).includes(foe));
+    const aimed = through[through.length - 1]!;
     const marked = api.hitPoints(foe).marked;
-    api.useAbility('kara', 'deathrun', [], aimed);
+    api.useAbility('mira', 'cinder-burst', [], aimed);
     let guard = 0;
     while (api.pendingKind() !== null && guard++ < 6) api.answer({ kind: 'roll' });
-    return { through: through.length, from, to: api.tileOf('kara'), marked, after: api.hitPoints(foe).marked };
+    return { through: through.length, marked, after: api.hitPoints(foe).marked };
   }, armed);
   expect(done.through).toBeGreaterThan(0);
-  // The path was run, whatever the dice said about the swing at the end of it.
-  expect(done.to).not.toBe(done.from);
+  // The bloom landed, whatever the dice said about what it caught. Nobody moved:
+  // the caster running down the line belonged to the card this replaced.
   expect(done.after).toBeGreaterThanOrEqual(done.marked);
   expect(consoleErrors).toEqual([]);
 });

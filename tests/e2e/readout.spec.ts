@@ -109,9 +109,12 @@ test('nothing a player reads is a content id', async ({ page }) => {
       a.endGmTurn();
       while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
     };
-    play('kara', ['hold-the-line'], 'hold-the-line');
-    play('mira', ['book-of-korvax'], 'book-of-korvax-magic-circle');
-    play('kara', ['signature-move'], 'signature-move');
+    // Both of these are aimed at the caster and leave a condition behind, which
+    // is what this test needs: `play` passes no targets, and `useAbility` picks
+    // for the caller only when exactly one target is valid, so a card that wants
+    // an ally would be refused here with the party standing together.
+    play('kara', [], 'sentinel-hold-the-line');
+    play('mira', ['warding-flame'], 'warding-flame');
 
     const everyone = [...a.party(), ...a.adversaries()];
     return {
@@ -143,7 +146,7 @@ test('the loadout, the journal and a rest read as English too', async ({ page })
   // Cards in hand and a quest running, then the panels that show them.
   const ids = await page.evaluate(() => {
     const a = window.__polyheart!;
-    a.setCards('kara', ['hold-the-line', 'signature-move', 'strategic-approach']);
+    a.setCards('kara', ['power-slash', 'shield-wall', 'iron-stance']);
     a.select('kara');
     // Something in the pack, so the panel has a row to render rather than the
     // assertion passing on an empty list.

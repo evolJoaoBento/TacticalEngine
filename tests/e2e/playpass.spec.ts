@@ -131,13 +131,13 @@ test('a click on an enemy across the room walks up and swings', async ({ page })
   await page.screenshot({ path: 'test-results/charge.png' });
 });
 
-test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
+test('the warding ring burns whatever is standing in it', async ({ page }) => {
   const arrived = await intoTheVault(page);
   expect(arrived.inCombat).toBe(true);
 
   const cast = await page.evaluate(() => {
     const a = window.__polyheart!;
-    a.setCards('mira', ['book-of-korvax']);
+    a.setCards('mira', ['warding-flame']);
     a.select('mira');
     const foe = a.adversaries()[0]!;
     // The closing loop walked whoever was selected then; the caster is Mira,
@@ -159,7 +159,7 @@ test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
     }
     const before = a.hitPoints(foe).marked;
     const foeWas = a.tileOf(foe);
-    const status = a.useAbility('mira', 'book-of-korvax-magic-circle');
+    const status = a.useAbility('mira', 'warding-flame');
     while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
     return {
       beside,
@@ -181,12 +181,14 @@ test("Korvax's circle burns whatever is standing in it", async ({ page }) => {
   await page.screenshot({ path: 'test-results/playpass-circle.png' });
   expect(cast.status).toBe('done');
   expect(cast.after).toBeGreaterThan(cast.before);
-  expect(cast.log.join(' ')).toMatch(/circle takes them/i);
+  expect(cast.log.join(' ')).toMatch(/flame takes them/i);
 
-  // The circle is on the floor: a zone the board knows the tiles of, holding
-  // Mira's own tile and the one the Burrower was standing on when it burned.
-  expect(cast.zones.map((z) => z.name)).toContain('Magic Circle');
-  const circle = cast.zones.find((z) => z.name === 'Magic Circle')!;
+  // The ring is on the floor: a zone the board knows the tiles of, holding
+  // Mira's own tile and the one the husk was standing on when it burned. The
+  // bite is written on the condition rather than the card -- the ground is
+  // geography, and the condition is what it means to stand there.
+  expect(cast.zones.map((z) => z.name)).toContain('Warding Flame');
+  const circle = cast.zones.find((z) => z.name === 'Warding Flame')!;
   expect(circle.tiles).toContain(cast.mira);
   expect(circle.tiles).toContain(cast.foeWas);
   // In a fight the Close-range walk round whoever is selected is lit.
@@ -207,11 +209,12 @@ test('Hold the Line drags in whatever comes close', async ({ page }) => {
 
   const held = await page.evaluate(() => {
     const a = window.__polyheart!;
-    a.setCards('kara', ['hold-the-line']);
+    // No cards: Hold the Line is the sentinel's own class feature, granted
+    // rather than held, so there is nothing to put in her hand.
     a.select('kara');
     const foe = a.adversaries()[0]!;
     const beside = a.standBeside(foe);
-    const status = a.useAbility('kara', 'hold-the-line');
+    const status = a.useAbility('kara', 'sentinel-hold-the-line');
     while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
     return {
       beside,
