@@ -15,7 +15,7 @@ describe('the library', () => {
   });
   it('names ids the way a person would', () => {
     expect(titleCase('deadTree')).toBe('Dead Tree');
-    expect(titleCase('tangle-bramble')).toBe('Tangle Bramble');
+    expect(titleCase('rot-hound')).toBe('Rot Hound');
     expect(titleCase('wall')).toBe('Wall');
   });
 

@@ -32,7 +32,7 @@ export interface LibraryTab {
   readonly items: readonly LibraryItem[];
 }
 
-/** "deadTree" and "tangle-bramble" as a person would write them. */
+/** "deadTree" and "rot-hound" as a person would write them. */
 export function titleCase(id: string): string {
   return id
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')

@@ -118,15 +118,16 @@ test('Combat: its own tools, and a creature found by searching is the one placed
     'select',
   ]);
 
-  // Search for a creature that is not the default `tangle-bramble`, and read
-  // its id from the card rather than guessing it, so the test still means
-  // something if the SRD list ever renumbers.
+  // Search for a creature that is not the tool's default, and read its id from
+  // the card rather than guessing it, so the test still means something if the
+  // pack ever grows or reorders. 'hound' matches Rot Hound alone; 'bandit'
+  // would match three.
   const strip = page.locator('[data-testid="combat-library"]');
-  await strip.locator('[data-testid="library-search"]').fill('wolf');
+  await strip.locator('[data-testid="library-search"]').fill('hound');
   const found = strip.locator('[data-item]');
   await expect(found).toHaveCount(1);
   const creatureId = await found.getAttribute('data-item');
-  expect(creatureId).not.toBe('tangle-bramble');
+  expect(creatureId).not.toBe('bandit-cutter');
   await found.click();
 
   const placed = await page.evaluate((id) => {

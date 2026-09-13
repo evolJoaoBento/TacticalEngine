@@ -103,7 +103,7 @@ export const DEFAULT_TOOL_STATE: EditorToolState = {
   terrainId: 'floor',
   propModel: 'crate',
   interactableKind: 'chest',
-  adversaryId: 'tangle-bramble',
+  adversaryId: 'bandit-cutter',
   encounterId: null,
   brushSize: 1,
   rotationStep: Math.PI / 2,

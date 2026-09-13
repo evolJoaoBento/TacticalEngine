@@ -1892,23 +1892,23 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
   await page.evaluate(() => {
     const api = window.__polyheart!;
     api.select('kara');
-    api.setCards('kara', ['bare-bones', 'get-back-up', 'forceful-push', 'i-am-your-shield', 'not-good-enough', 'reckless']);
+    api.setCards('kara', ['power-slash', 'shield-wall', 'iron-stance', 'rallying-cry', 'unbroken', 'smoke-step']);
   });
   await page.locator('[data-testid="open-loadout"]').click();
   const panel = page.locator('[data-testid="loadout"]');
   await expect(panel).toBeVisible();
   await expect(panel).toContainText('5 / 5');
-  // Full: a recall needs a card to make room, then costs Reckless's 1 Stress.
-  const recall = panel.locator('[data-card="reckless"] [data-testid="recall"]');
+  // Full: a recall needs a card to make room, then costs Smoke Step's 1 Stress.
+  const recall = panel.locator('[data-card="smoke-step"] [data-testid="recall"]');
   await expect(recall).toBeDisabled();
-  await panel.locator('[data-card="not-good-enough"] [data-testid="pick-out"]').check();
+  await panel.locator('[data-card="unbroken"] [data-testid="pick-out"]').check();
   await expect(recall).toBeEnabled();
   await recall.click();
   await expect(page.locator('[data-member="kara"] [data-testid="stress"]')).toHaveAttribute('data-marked', '1');
-  await expect(panel.locator('[data-card="not-good-enough"] [data-testid="recall"]')).toHaveCount(1);
+  await expect(panel.locator('[data-card="unbroken"] [data-testid="recall"]')).toHaveCount(1);
   await page.locator('[data-testid="close-loadout"]').click();
   await expect(panel).toHaveCount(0);
-  expect(await page.evaluate(() => window.__polyheart!.loadout('kara').vault)).toEqual(['not-good-enough']);
+  expect(await page.evaluate(() => window.__polyheart!.loadout('kara').vault)).toEqual(['unbroken']);
 
   // A fight, and the button that hands the turn over.
   await page.evaluate(() => {
@@ -1923,7 +1923,7 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
   // The husk's blow may be waiting on Kara's answer; take it as it comes.
   const asked = page.locator('[data-testid="choice-prompt"]');
   if ((await asked.count()) > 0) await asked.locator('[data-option="0"]').click();
-  await expect(page.locator('[data-testid="log"]')).toContainText(/Acid Burrower's/);
+  await expect(page.locator('[data-testid="log"]')).toContainText(/Hollow Knight's/);
   expect(await page.evaluate(() => window.__polyheart!.turnSide())).not.toBe('gm');
   await page.screenshot({ path: 'test-results/action-bar.png' });
   expect(consoleErrors).toEqual([]);
@@ -2214,7 +2214,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
         onFail: [{ kind: 'loseHope', amount: 1 }],
       },
       { kind: 'attack', range: 'close', direct: true },
-      { kind: 'summon', adversary: 'acid-burrower', count: '1d4', range: 'far', spotlight: true },
+      { kind: 'summon', adversary: 'bandit-archer', count: '1d4', range: 'far', spotlight: true },
       { kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: '1d4+1', halfDamage: true },
       {
         kind: 'countdown',
@@ -2313,12 +2313,12 @@ test('writes a character in the Party panel and the table plays the new sheet', 
   const armored = await derived.textContent();
 
   // Taking the mail off changes what the sheet comes to, there and then.
-  await panel.locator('[data-testid="character-armor"]').selectOption('gambeson-armor');
+  await panel.locator('[data-testid="character-armor"]').selectOption('padded-coat');
   await expect(derived).not.toHaveText(armored ?? '');
 
-  // A card list narrowed to her domains and level: Whirlwind is a Blade card.
-  await panel.locator('[data-card="whirlwind"]').click();
-  await panel.locator('[data-loadout="whirlwind"]').check();
+  // A card list narrowed to her domains and level: Shield Wall is a Bulwark card.
+  await panel.locator('[data-card="shield-wall"]').click();
+  await panel.locator('[data-loadout="shield-wall"]').check();
 
   // A new character can be written from nothing.
   await panel.locator('[data-testid="add-character"]').click();
@@ -2334,7 +2334,7 @@ test('writes a character in the Party panel and the table plays the new sheet', 
     return { gear: api.gear('kara'), loadout: api.loadout('kara').loadout };
   });
   expect(after.gear.armor).not.toBe(before.armor);
-  expect(after.loadout).toContain('whirlwind');
+  expect(after.loadout).toContain('shield-wall');
 
   expect(consoleErrors).toEqual([]);
 });

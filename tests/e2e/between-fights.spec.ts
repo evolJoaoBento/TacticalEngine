@@ -147,8 +147,12 @@ test('what the strongbox paid out can be put on', async ({ page }) => {
     return { gear: a.gear('kara'), carried: a.carried().map((i) => i.name) };
   });
   console.log('CARRYING:', JSON.stringify(before));
-  // The pit's strongbox pays out a suit of plate, among other things.
-  expect(before.carried.join(' ')).toMatch(/plate/i);
+  // The pit's strongbox pays out a round shield, among other things. The table
+  // rolls three of five weighted entries, so nothing in it is guaranteed on its
+  // own -- this is deterministic because the scene seeds its RNG with a constant
+  // and the campaign walk above is fixed, which also means a change to any
+  // earlier roll can move it.
+  expect(before.carried.join(' ')).toMatch(/shield/i);
 
   // The Equip button beside it in the pack.
   const equip = page.locator('[data-testid="pack"] [data-testid="equip"]');
@@ -157,13 +161,26 @@ test('what the strongbox paid out can be put on', async ({ page }) => {
 
   const after = await page.evaluate(() => {
     const a = window.__polyheart!;
-    return { gear: a.gear('kara'), hud: a.party().map((id) => a.gear(id).armor), log: a.log().slice(-2).map((l) => l.text) };
+    return {
+      gear: a.gear('kara'),
+      hud: a.party().map((id) => a.gear(id).armor),
+      carried: a.carried().map((i) => i.name),
+      log: a.log().slice(-2).map((l) => l.text),
+    };
   });
   console.log('WEARING:', JSON.stringify(after));
   await page.screenshot({ path: 'test-results/equipped.png' });
 
-  // Something changed hands, and the gear line says so rather than an id.
-  expect(after.gear.armor).not.toBe(before.gear.armor);
+  // Something changed hands, and the log says so rather than showing an id.
+  //
+  // Not the gear line: `gearOf` reports the primary weapon and the armour, and this table
+  // pays out neither kind. It pays a longsword Kara already carries and a round shield,
+  // which is a secondary the readout does not show, so equipping either moves nothing the
+  // gear line can see. What the equip demonstrably does is log it and empty the row.
+  expect(after.log.join(' ')).toMatch(/takes up|puts on/);
+  expect(after.carried.length).toBeLessThan(before.carried.length);
+  // And whatever it reads as, it reads as English.
   expect(after.gear.armor).not.toMatch(/-/);
+  expect(after.gear.weapon).not.toMatch(/-/);
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });

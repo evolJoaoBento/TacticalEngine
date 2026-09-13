@@ -137,7 +137,7 @@ describe('selecting a creature', () => {
   it('picks the placement under the pointer, and forgets it when the room changes', () => {
     const { editor } = setup();
     editor.setMode('combat');
-    editor.set('adversaryId', 'tangle-bramble');
+    editor.set('adversaryId', 'bandit-cutter');
     editor.setTool('adversary');
     editor.begin({ x: 2, y: 2 });
     editor.end();
@@ -147,7 +147,7 @@ describe('selecting a creature', () => {
     editor.begin({ x: 2, y: 2 });
     editor.end();
     expect(editor.selectedAdversary).not.toBeNull();
-    expect(editor.selectedPlacement()?.adversary).toBe('tangle-bramble');
+    expect(editor.selectedPlacement()?.adversary).toBe('bandit-cutter');
 
     editor.switchScene('room');
     expect(editor.selectedAdversary).toBeNull();
@@ -157,7 +157,7 @@ describe('selecting a creature', () => {
   it('clears the selection when the click lands on empty ground', () => {
     const { editor } = setup();
     editor.setMode('combat');
-    editor.set('adversaryId', 'tangle-bramble');
+    editor.set('adversaryId', 'bandit-cutter');
     editor.setTool('adversary');
     editor.begin({ x: 2, y: 2 });
     editor.end();
@@ -280,7 +280,7 @@ describe('encounters', () => {
   it('creates one on the first adversary placed, rather than demanding a panel trip', () => {
     const { editor, session } = setup();
     editor.setTool('adversary');
-    editor.set('adversaryId', 'tangle-bramble');
+    editor.set('adversaryId', 'bandit-cutter');
 
     editor.begin({ x: 4, y: 2 });
     editor.end();
@@ -288,7 +288,7 @@ describe('encounters', () => {
     const scene = session.requireScene('room');
     expect(scene.encounters).toHaveLength(1);
     expect(scene.encounters[0]!.adversaries).toHaveLength(1);
-    expect(scene.encounters[0]!.adversaries[0]!.adversary).toBe('tangle-bramble');
+    expect(scene.encounters[0]!.adversaries[0]!.adversary).toBe('bandit-cutter');
     expect(editor.state.encounterId).toBe(scene.encounters[0]!.id);
   });
 

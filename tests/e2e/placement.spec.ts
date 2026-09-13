@@ -62,7 +62,7 @@ test('a selected creature is re-skinned by its type and on its own, and it survi
   await page.getByTestId('mode-combat').click();
 
   const strip = page.getByTestId('combat-library');
-  await strip.getByTestId('library-search').fill('wolf');
+  await strip.getByTestId('library-search').fill('hound');
   await strip.locator('[data-item]').first().click();
 
   // Editor chrome floats over the board, so take a tile whose surface is
@@ -177,7 +177,7 @@ test('creatures immediately appear in authored scenes, undo correctly, and enter
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
   await page.getByTestId('mode-combat').click();
   const strip = page.getByTestId('combat-library');
-  await strip.getByTestId('library-search').fill('wolf');
+  await strip.getByTestId('library-search').fill('hound');
   await strip.locator('[data-item]').click();
   const before = await page.evaluate(() => window.__polyheart!.authoredCreatureCount());
   const at = await page.evaluate(() => window.__polyheart!.buildScreenAt(8, 6));
@@ -186,7 +186,7 @@ test('creatures immediately appear in authored scenes, undo correctly, and enter
   const id = await page.evaluate(() => {
     const doc = JSON.parse(window.__polyheart!.exportProject());
     return doc.scenes[0].encounters.flatMap((e: { adversaries: { id: string; adversary: string }[] }) => e.adversaries)
-      .find((a: { adversary: string }) => a.adversary === 'dire-wolf').id as string;
+      .find((a: { adversary: string }) => a.adversary === 'rot-hound').id as string;
   });
   await page.evaluate(() => window.__polyheart!.undo());
   expect(await page.evaluate(() => window.__polyheart!.authoredCreatureCount())).toBe(before);
@@ -213,7 +213,7 @@ test('a creature clicked onto raised ground lands on the tile under the cursor',
   await page.evaluate(() => window.__polyheart!.setMode('edit'));
   await page.getByTestId('mode-combat').click();
   const strip = page.getByTestId('combat-library');
-  await strip.getByTestId('library-search').fill('wolf');
+  await strip.getByTestId('library-search').fill('hound');
   await strip.locator('[data-item]').click();
   // The plateau in the north-east corner. A flat plane through the board's
   // base projects to a different tile from this camera angle than the raised
