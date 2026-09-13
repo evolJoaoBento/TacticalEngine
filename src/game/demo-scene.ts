@@ -88,7 +88,7 @@ import {
 } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { importContentPack, mergePack, type ContentPack, type WeaponDef } from '../engine/content/pack/import';
-import { STARTER_ABILITIES, STARTER_ADVERSARIES, STARTER_CHARACTERS } from '../engine/content/pack/starter';
+import { STARTER_ABILITIES, STARTER_ADVERSARIES, STARTER_CHARACTERS, STARTER_CONDITIONS } from '../engine/content/pack/starter';
 import {
   importSeansboxAdversaries,
   type RawAdversary,
@@ -1281,7 +1281,10 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     // only said twice what the world already does once.
     abilities: [...STARTER_ABILITIES, ...DEMO_PROJECT_ABILITIES],
     code: [...DEMO_CODE],
-    conditionDefs: [...SRD_CONDITIONS],
+    // The pack's own conditions first, so a card that ships one wins over a
+    // rules condition of the same name. Nothing clashes today; the order is the
+    // statement of which owns the id when something does.
+    conditionDefs: [...STARTER_CONDITIONS, ...SRD_CONDITIONS.filter((c) => !STARTER_CONDITIONS.some((s) => s.id === c.id))],
     party: [...PARTY_SHEETS],
     startScene: vault.id,
   });

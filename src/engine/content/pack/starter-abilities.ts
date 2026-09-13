@@ -103,6 +103,80 @@ const RAW = [
     text: 'A ring of low fire. Foes crossing it are struck as they come.',
     kind: 'action',
     cost: { stress: 1 },
+    target: { kind: 'self' },
+    inCombatOnly: true,
+    // No check: the ring goes down and the crossing is the whole of the spell,
+    // which is what the card says. It also means using it answers at once
+    // rather than waiting on dice.
+    effects: [
+      { kind: 'log', text: 'Low fire takes in a ring around their feet.', tone: 'hope' },
+      {
+        kind: 'zone',
+        zone: 'warding-flame',
+        name: 'Warding Flame',
+        condition: 'warding-flame-ring',
+        at: 'actor',
+        band: 'melee',
+        side: 'adversaries',
+        onDeath: 'end',
+      },
+    ],
+  },
+
+  /**
+   * The first shipped card aimed at the ground rather than at anybody.
+   *
+   * `target.kind: 'point'` binds `bindings.point`, which is what the board reads
+   * to light the tiles it may be thrown at and to show what a spot would catch
+   * before it is committed to. `around: 'point'` on the roll's own selector is
+   * what makes the bloom measured from the spot instead of from the caster --
+   * the engine has covered that path in unit tests since it was written, and
+   * this is the first content to walk down it.
+   */
+  {
+    id: 'cinder-burst',
+    name: 'Cinder Burst',
+    source: { kind: 'domainCard', card: 'cinder-burst' },
+    text: 'Fire blooms: every foe within Very Close of a point takes damage.',
+    kind: 'action',
+    cost: { stress: 1 },
+    target: { kind: 'point', range: 'far' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'They choose a spot across the room, and it blooms.', tone: 'hope' },
+      {
+        kind: 'check',
+        check: {
+          trait: 'spellcast',
+          difficulty: 'target',
+          targets: { kind: 'adversaries', range: 'veryClose', around: 'point' },
+          prompt: 'Cinder Burst: one roll, against everything the bloom covers.',
+          always: [{ kind: 'damage', dice: '1d10', type: 'magic', using: 'proficiency', target: { kind: 'hit' } }],
+        },
+      },
+    ],
+  },
+
+  /**
+   * A named ally, and a condition that carries the bonus until the scene ends.
+   *
+   * The note at the foot of this file used to call this one "a timed bonus to
+   * someone else" and file it as unsayable. A condition with a duration is
+   * exactly that, so the note was out of date rather than the vocabulary short.
+   */
+  {
+    id: 'shield-wall',
+    name: 'Shield Wall',
+    source: { kind: 'domainCard', card: 'shield-wall' },
+    text: 'Until your next turn, allies within Melee range gain a bonus to Evasion.',
+    kind: 'action',
+    cost: { stress: 1 },
+    target: { kind: 'ally', range: 'melee' },
+    inCombatOnly: true,
+    effects: [
+      { kind: 'log', text: 'A shield comes across, and there is somewhere to stand.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'behind-the-shield', duration: 'scene', target: { kind: 'target' } },
+    ],
   },
 
   // ---- class and subclass features -------------------------------------------
@@ -135,6 +209,42 @@ const RAW = [
     kind: 'passive',
     modifiers: [{ stat: 'evasion', bonus: 1 }],
   },
+  /**
+   * The sentinel's signature, which the class has printed as prose since the
+   * pack was written. Both conditions it needs already exist in
+   * `content/conditions.ts`: `holding-the-line` is the marker that says the
+   * stance is up, and `caught-in-the-line` carries the pull, the hold and the
+   * line the log writes about it. Only the ability that puts the ground down
+   * was missing.
+   *
+   * No `modifiers`, deliberately: a probe sentinel is granted this, and
+   * `starter.test.ts` pins that character's Armor Score at exactly what Drilled
+   * and Iron Stance are worth.
+   */
+  {
+    id: 'sentinel-hold-the-line',
+    name: 'Hold the Line',
+    source: { kind: 'classFeature', classId: 'sentinel' },
+    text: 'When an ally within Melee range is attacked, you may take the blow in their place.',
+    cost: { stress: 1 },
+    target: { kind: 'self' },
+    inCombatOnly: true,
+    action: false,
+    effects: [
+      { kind: 'log', text: 'They set their feet, and the ground around them stops being neutral.', tone: 'hope' },
+      { kind: 'applyCondition', condition: 'holding-the-line', duration: 'scene', target: { kind: 'actor' } },
+      {
+        kind: 'zone',
+        zone: 'hold-the-line',
+        name: 'Hold the Line',
+        condition: 'caught-in-the-line',
+        at: 'actor',
+        band: 'veryClose',
+        side: 'adversaries',
+        onDeath: 'end',
+      },
+    ],
+  },
   {
     id: 'flamecaller-emberflow',
     name: 'Emberflow',
@@ -146,11 +256,17 @@ const RAW = [
 ];
 
 /**
- * The cards the engine can run. `shield-wall`, `rallying-cry`, `smoke-step`,
- * `cut-purse-strings` and `cinder-burst` ship as text only: each needs
- * something the effect vocabulary does not yet say — a timed bonus to someone
- * else, a teleport between shadows, taking a named item, a burst around a
- * chosen point — and a card with no script is still a card.
+ * The cards the engine can run. `rallying-cry`, `smoke-step` and
+ * `cut-purse-strings` ship as text only, and a card with no script is still a
+ * card — the holder reads it and the table settles it.
+ *
+ * Two of the five that used to be listed here are now scripted. A timed bonus to
+ * someone else is a condition with a duration, and a burst around a chosen point
+ * is `around: 'point'`; both were already sayable, so the note was out of date
+ * rather than the vocabulary short. `cut-purse-strings` is the one with a real
+ * blocker: `addItem` names a bare item id with no source, so taking what somebody
+ * else is carrying cannot be said, and a pack card naming one project's `gold`
+ * would couple the pack to that project and render as a raw id anywhere else.
  */
 export const STARTER_ABILITIES: readonly AbilityDef[] = RAW.map((raw) => abilitySchema.parse(raw));
 

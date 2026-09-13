@@ -321,3 +321,4 @@ export const STARTER_CHARACTERS: ContentPack = {
 export const STARTER_ADVERSARIES = index(STARTER_PACK.adversaries);
 
 export { STARTER_ABILITIES } from './starter-abilities';
+export { STARTER_CONDITIONS } from './starter-conditions';

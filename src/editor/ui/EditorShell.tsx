@@ -17,6 +17,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import './editor.css';
 import { SRD_CONDITIONS } from '../../engine/content/conditions';
+import { STARTER_CONDITIONS } from '../../engine/content/pack/starter';
 import type { AbilityDef } from '../../engine/content/abilities';
 import type { AdversaryDef } from '../../engine/content/types';
 import type { ContentPack } from '../../engine/content/pack/import';
@@ -197,7 +198,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
         knownModels: props.knownModels,
         knownAdversaries: props.knownAdversaries,
         knownHooks: new Set(props.nativeHooks),
-        knownConditions: new Set(SRD_CONDITIONS.map((c) => c.id)),
+        knownConditions: new Set([...STARTER_CONDITIONS, ...SRD_CONDITIONS].map((c) => c.id)),
         characterContent: props.characterContent,
       }),
     );

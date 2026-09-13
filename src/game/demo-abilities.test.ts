@@ -119,9 +119,11 @@ describe('who has what', () => {
   it('lists class, Hope, subclass and loadout abilities per character', () => {
     const demo = scene();
     // The class's, then the subclass's, then the cards in loadout order, which
-    // is the order a sheet lists them.
+    // is the order a sheet lists them. The sentinel has two class features: the
+    // passive it is drilled in, and the signature stance the class prints.
     expect(names(demo, 'kara')).toEqual([
       'sentinel-drilled',
+      'sentinel-hold-the-line',
       'sentinel-hold-fast',
       'shieldbearer-set-feet',
       'power-slash',
