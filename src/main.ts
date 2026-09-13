@@ -226,7 +226,7 @@ declare global {
       lit: () => number[];
       /** Who a card aimed at this tile would catch, without aiming it. */
       shape: (ability: string, tile: number) => string[];
-      /** Fill somebody's Hope, for a test about a card that costs some. */
+      /** Fill somebody's Light, for a test about a card that costs some. */
       setHope: (id: string, value: number) => void;
       passToGm: () => number;
       loadout: (id: string) => { loadout: string[]; vault: string[] };
@@ -1622,7 +1622,7 @@ function inspectTile(tile: number): Inspection | null {
         text: `${gear.weapon} · ${gear.armor}`,
         facts: [
           ...pools,
-          ...(entity.hope === undefined ? [] : [`Hope ${entity.hope.value}/${entity.hope.max}`]),
+          ...(entity.hope === undefined ? [] : [`Light ${entity.hope.value}/${entity.hope.max}`]),
           `Evasion ${character?.evasion ?? '?'}`,
           // Named, not keyed: an inspect card is read by a player.
           ...[...entity.conditions].map((c) => demo.world.conditionName(c)),

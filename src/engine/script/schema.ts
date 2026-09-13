@@ -53,7 +53,7 @@ export const scriptValueSchema = z.union([z.string(), z.number(), z.boolean(), z
  * ("cause the attacker to mark the same number of HP"), and what its own swing
  * has marked so far ("clear a number of Stress equal to the HP marked by the
  * target from this attack"). `targetsHit` is how many creatures the last roll
- * beat - "you gain a Fear for each target that marks HP".
+ * beat - "you gain a Shadow for each target that marks HP".
  *
  * They are counts, never damage: a count marks Hit Points or Stress outright.
  * Damage carried over from a blow is `dice: 'same'`, which keeps its dice and
@@ -76,9 +76,9 @@ const countNameSchema = z.enum([...COUNT_NAMES, 'spent']);
  *
  * The same three words the `pool` condition asks with, so an amount and a gate
  * on the same number read the same. `of` is the actor when left out, and
- * `measure` is what is marked - which is what every one of these means. Hope
- * is the exception worth knowing: marked Hope is Hope *spent*, so a feature
- * about the Hope somebody still holds says `measure: 'available'`.
+ * `measure` is what is marked - which is what every one of these means. Light
+ * is the exception worth knowing: marked Light is Light *spent*, so a feature
+ * about the Light somebody still holds says `measure: 'available'`.
  *
  * `of` names one creature: the first the selector resolves to is the one read,
  * and a selector that names a crowd has no order worth relying on. The
@@ -93,7 +93,7 @@ export const amountReadSchema = z.union([
     measure: z.enum(['available', 'marked', 'max']).optional(),
   }),
   /**
-   * Or how many creatures a selector names: "an additional Hope for each
+   * Or how many creatures a selector names: "an additional Light for each
    * creature", "a bonus equal to the number of allies within Close range".
    *
    * The same question the `nearby` condition asks as a gate, asked here as a
@@ -332,7 +332,7 @@ export const conditionSchema = z.discriminatedUnion('kind', [
   }),
   /**
    * A pool on someone — the actor unless `of` says otherwise. `available` is
-   * what can still be marked (or, for Hope, spent), which is the question a
+   * what can still be marked (or, for Light, spent), which is the question a
    * card asks: "mark a Stress to…" needs a slot to mark.
    */
   z.object({
@@ -344,9 +344,9 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     value: z.number().int(),
   }),
   /**
-   * What the roll that raised this was: "when a PC rolls a failure with Fear",
-   * "when a PC rolls with Fear". The five readings a stat block asks for, and
-   * they compose - a failure *with Fear* is an `all` of two of them.
+   * What the roll that raised this was: "when a PC rolls a failure with Shadow",
+   * "when a PC rolls with Shadow". The five readings a stat block asks for, and
+   * they compose - a failure *with Shadow* is an `all` of two of them.
    *
    * A script nobody handed a roll reads false for every one of them, which is
    * what a feature run out of nowhere should see.
@@ -416,7 +416,7 @@ export const conditionSchema = z.discriminatedUnion('kind', [
     of: targetSelectorSchema,
     op: compareOpSchema,
     /**
-     * A written number, or a pool read off somebody - "as many Hope as there
+     * A written number, or a pool read off somebody - "as many Light as there
      * are creatures standing with you", which is a price asked as a gate. Only
      * a pool: it is the one read a condition can make on its own.
      */
@@ -516,7 +516,7 @@ export const checkRequestSchema = z.object({
   /**
    * `last`: reuse the last action roll made in this script instead of rolling
    * again — Whirlwind's "the same attack roll against all other targets". No
-   * dice, no prompt, no Hope or Fear, no spotlight; the roll's total stands
+   * dice, no prompt, no Light or Shadow, no spotlight; the roll's total stands
    * against each target's Difficulty as it is now.
    */
   roll: z.literal('last').optional(),
@@ -650,7 +650,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('revealObjective'), quest: contentIdSchema, objective: contentIdSchema }),
   z.object({ kind: z.literal('failQuest'), quest: contentIdSchema }),
   /**
-   * The party levels up. Daggerheart has no experience points — the GM says
+   * The party levels up. There are no experience points — the GM says
    * when — so this is a milestone a designer places. `level` names the level
    * reached; left out, it is one more than the party's current level.
    */
@@ -689,21 +689,21 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * cares whether there was room asks with a `pool` condition first.
    */
   z.object({ kind: z.literal('markArmor'), amount: z.number().int().positive().optional(), target: targetSelectorSchema.optional() }),
-  /** The GM gains Fear. */
+  /** The GM gains Shadow. */
   z.object({ kind: z.literal('gainFear'), amount: amountSchema.optional() }),
   /**
-   * "Steal a number of Fear from the GM equal to the number of targets that
-   * are Horrified (up to the number of Fear in the GM's pool)": the pool comes
+   * "Steal a number of Shadow from the GM equal to the number of targets that
+   * are Horrified (up to the number of Shadow in the GM's pool)": the pool comes
    * down, and an empty one is simply nothing taken.
    */
   z.object({ kind: z.literal('loseFear'), amount: amountSchema.optional() }),
   z.object({ kind: z.literal('gainHope'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
-  /** The actor spends Hope. Refused, and journalled as such, when they cannot. */
+  /** The actor spends Light. Refused, and journalled as such, when they cannot. */
   z.object({ kind: z.literal('spendHope'), amount: amountSchema.optional() }),
   /**
-   * "They lose a Hope" — what a stat block takes rather than what a card
+   * "They lose a Light" — what a stat block takes rather than what a card
    * spends: nothing is refused, a creature with none simply loses none. The
-   * SRD's "if they can't lose a Hope they mark 2 Stress instead" is a branch
+   * SRD's "if they can't lose a Light they mark 2 Stress instead" is a branch
    * on how much was taken, which is the GM's to read.
    */
   z.object({ kind: z.literal('loseHope'), amount: amountSchema.optional(), target: targetSelectorSchema.optional() }),
@@ -735,7 +735,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('slay'), target: targetSelectorSchema.optional() }),
   /**
    * A weapon attack as an effect — "make an attack with your primary weapon".
-   * A full action roll: Hope or Fear, the spotlight, a critical's extra dice.
+   * A full action roll: Light or Shadow, the spotlight, a critical's extra dice.
    */
   z.object({
     kind: z.literal('attack'),
@@ -899,7 +899,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
     budget: rangeBandSchema.optional(),
   }),
   /**
-   * "Spend 2 Fear to spotlight the Head Guard and up to 2d4 allies within Far
+   * "Spend 2 Shadow to spotlight the Head Guard and up to 2d4 allies within Far
    * range": the GM's turn handed to its own side.
    *
    * The spotlights are already paid for - the feature's cost bought them - so
@@ -975,8 +975,8 @@ export const effectSchema = z.discriminatedUnion('kind', [
     below: z.number().int().positive(),
   }),
   /**
-   * "Your ally can reroll their dice", "allow them to reroll either their Hope
-   * or Fear Die": the Duality Dice of a roll that has been made and read, put
+   * "Your ally can reroll their dice", "allow them to reroll either their Light
+   * or Shadow Die": the Duality Dice of a roll that has been made and read, put
    * back in the cup before anything comes of it.
    *
    * Journalled like the damage rerolls above, and for the same reason: the
@@ -998,17 +998,17 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * and answered where the roll is held.
    *
    * The *total* moves and the faces do not, which is what "numerical result"
-   * says: whether it was a roll with Hope or with Fear, and whether the dice
+   * says: whether it was a roll with Light or with Shadow, and whether the dice
    * matched, are properties of the throw and are left alone. And the number
    * chosen is the one that saves the roll - the least that carries it over the
-   * Difficulty - because that is what anybody spending five Hope is spending
+   * Difficulty - because that is what anybody spending five Light is spending
    * them on, and there is nobody here to ask for a different one.
    */
   z.object({ kind: z.literal('nameRoll') }),
   /**
    * Put a number behind a roll that has been thrown and not yet read: "spend
-   * a Hope to add your Strength to the roll", "mark a Stress to add your
-   * Proficiency to a Spellcast Roll". The faces stand, so a roll with Fear
+   * a Light to add your Strength to the roll", "mark a Stress to add your
+   * Proficiency to a Spellcast Roll". The faces stand, so a roll with Shadow
    * stays one; only whether it succeeds can change. Journalled here and
    * applied where the roll is held, the same bargain `nameRoll` makes.
    */
@@ -1085,7 +1085,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
    * handful of dice, and what happens if one of them comes up.
    *
    * Three cards ask this and no two of them ask it the same way - one rolls
-   * per Hope spent, one per point of Proficiency, one per token - so `times`
+   * per Light spent, one per point of Proficiency, one per token - so `times`
    * is an amount like any other. No dice at all is no roll: `otherwise` runs
    * and nothing is journalled, because a card whose holder spent nothing has
    * not rolled and failed, it has not rolled.
@@ -1123,7 +1123,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
     amount: amountSchema,
   }),
   /**
-   * "Spend a Fear to deal Severe damage instead of their standard damage": the
+   * "Spend a Shadow to deal Severe damage instead of their standard damage": the
    * blow lands in the band it names, whatever the dice said.
    *
    * The sibling of `forceHitPoints`, and the softer of the two: a band is not
@@ -1146,7 +1146,7 @@ export const effectSchema = z.discriminatedUnion('kind', [
     least: z.boolean().optional(),
   }),
   /**
-   * "Spend any number of Hope to roll that many d6s", "mark any number of
+   * "Spend any number of Light to roll that many d6s", "mark any number of
    * Stress to make that many additional layers": the player is asked for a
    * number, and what they answer decides what runs.
    *

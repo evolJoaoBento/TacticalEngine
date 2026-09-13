@@ -437,7 +437,7 @@ describe('a fight, end to end', () => {
     expect(marked).toBeGreaterThan(0);
   });
 
-  it('hands the spotlight to the GM on a roll with Fear, and back again', () => {
+  it('hands the spotlight to the GM on a roll with Shadow, and back again', () => {
     const demo = fighting();
     const target = demo.state.entitiesOf('adversary')[0]!;
     demo.state.moveEntity('kara', demo.grid.indexOf(demo.grid.xOf(target.tile) - 1, demo.grid.yOf(target.tile)));

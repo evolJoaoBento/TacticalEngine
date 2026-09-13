@@ -83,7 +83,7 @@ describe('the spotlight policy', () => {
 });
 
 describe('the GM turn', () => {
-  it('spotlights the first adversary free and charges a Fear for the next', () => {
+  it('spotlights the first adversary free and charges a Shadow for the next', () => {
     const { state, encounter } = setup({}, 2);
     encounter.start();
     encounter.act('kara', { spotlightToGm: true });
@@ -116,7 +116,7 @@ describe('the GM turn', () => {
     encounter.spotlight('husk-a');
 
     // A feature's own cost buys the spotlights it hands out: the GM is down to
-    // one Fear, which a second ordinary spotlight would take.
+    // one Shadow, which a second ordinary spotlight would take.
     encounter.grantSpotlight('husk-b');
     expect(state.fear.value).toBe(1);
     expect(encounter.view().waiting).toEqual([]);
@@ -234,7 +234,7 @@ describe('the tracker policy', () => {
     expect(encounter.tokensFor('finn')).toBe(2);
   });
 
-  it('still passes the spotlight on a Fear roll before the tokens run out', () => {
+  it('still passes the spotlight on a Shadow roll before the tokens run out', () => {
     const { encounter } = trackerSetup(3);
     encounter.start();
     expect(encounter.act('kara', { spotlightToGm: true }).side).toBe('gm');

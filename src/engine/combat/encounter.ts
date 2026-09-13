@@ -1,16 +1,16 @@
 /**
  * Running an encounter: whose turn it is, and when the fight is over.
  *
- * Daggerheart has no initiative, which makes this less like a turn queue and more
+ * There is no initiative, which makes this less like a turn queue and more
  * like a rule about attention. SRD 2.0, "TURN ORDER & ACTION ECONOMY":
  *
- * > Daggerheart's turns don't follow a traditional, rigid format: there is no
+ * > Turns do not follow a traditional, rigid format: there is no
  * > explicit initiative mechanic and characters don't have a set number of
  * > actions they can take.
  *
- * The party acts until a roll hands the spotlight over — "Rolls with Fear on an
+ * The party acts until a roll hands the spotlight over — "Rolls with Shadow on an
  * action roll" or "Fails an action roll" — then the GM takes a turn, spotlighting
- * one adversary for free and spending a Fear for each additional one, and
+ * one adversary for free and spending a Shadow for each additional one, and
  * "after the GM turn is done, the spotlight goes back to the PCs."
  *
  * The SRD's optional Spotlight Tracker is the second policy here rather than a
@@ -52,11 +52,11 @@ export interface EncounterView {
   waiting: readonly string[];
   /**
    * How many times the party has been handed the spotlight back. Not a
-   * Daggerheart concept — a convenience for pacing, logs and effect durations.
+   * rules concept — a convenience for pacing, logs and effect durations.
    */
   round: number;
   outcome: EncounterOutcome;
-  /** Fear the GM must spend to spotlight one more adversary this turn. */
+  /** Shadow the GM must spend to spotlight one more adversary this turn. */
   nextSpotlightCost: number;
 }
 
@@ -167,7 +167,7 @@ export class EncounterRunner {
 
   /**
    * What it costs the GM to spotlight another adversary this turn: the first is
-   * free, and "the GM can spend additional Fear to spotlight additional
+   * free, and "the GM can spend additional Shadow to spotlight additional
    * adversaries."
    */
   get nextSpotlightCost(): number {
@@ -184,7 +184,7 @@ export class EncounterRunner {
   }
 
   /**
-   * Spotlight an adversary, spending Fear when it is not the first this turn.
+   * Spotlight an adversary, spending Shadow when it is not the first this turn.
    * The caller then resolves whatever that adversary does.
    */
   spotlight(id: string): EncounterView {
@@ -202,8 +202,8 @@ export class EncounterRunner {
   /**
    * Spotlight an adversary the GM has already paid for.
    *
-   * "Spend a Fear to choose a target and spotlight all Giant Rats within Close
-   * range of them", "spend 2 Fear to spotlight the Head Guard and up to 2d4
+   * "Spend a Shadow to choose a target and spotlight all Giant Rats within Close
+   * range of them", "spend 2 Shadow to spotlight the Head Guard and up to 2d4
    * allies": the feature's cost buys the spotlights it hands out, so charging
    * again here would bill the GM twice for the same move - and, once the pool
    * ran dry, quietly refuse the rest of what the feature said it did.
@@ -219,9 +219,9 @@ export class EncounterRunner {
   }
 
   /**
-   * Relentless: "can be spotlighted up to X times per GM turn. Spend Fear as
+   * Relentless: "can be spotlighted up to X times per GM turn. Spend Shadow as
    * usual to spotlight them." The cap is the adversary's own business — the
-   * caller counts — but the Fear is spent here, like any other spotlight past
+   * caller counts — but the Shadow is spent here, like any other spotlight past
    * the first.
    */
   canSpotlightAgain(id: string): boolean {

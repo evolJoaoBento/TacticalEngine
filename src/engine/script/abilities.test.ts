@@ -490,7 +490,7 @@ describe('what a block calls onto the map', () => {
 
 describe('a swarm that piles in', () => {
   /**
-   * "Spend a Fear to choose a target and spotlight all Giant Rats within Close
+   * "Spend a Shadow to choose a target and spotlight all Giant Rats within Close
    * range of them. Those Minions move into Melee range of the target and make
    * one shared attack roll. On a success, they deal N damage each. Combine
    * this damage."
@@ -593,7 +593,7 @@ describe('a check against targets', () => {
 
   it('rolls once, beats each target on its own Difficulty, and damages the ones it beat', () => {
     const { world, state } = scene();
-    // Hope 9 + Fear 3 + Knowledge 2 = 14: past the soft husk's 10, short of the tough one's 16.
+    // Light 9 + Shadow 3 + Knowledge 2 = 14: past the soft husk's 10, short of the tough one's 16.
     const rng = scripted([9, 3, 5]);
     const runner = new ScriptRunner(world, rng, { targets: ['husk-1', 'husk-2'], rollAs: 'actor' });
     const waiting = runner.run([bolt]);
@@ -613,14 +613,14 @@ describe('a check against targets', () => {
     expect(state.entity('husk-2')!.hitPoints.marked).toBe(0);
     // Two duality dice and one damage die; nothing else was drawn.
     expect(rng.drawn()).toBe(3);
-    // Hope for a roll with Hope, to the caster.
+    // Light for a roll with Light, to the caster.
     expect(state.entity('mira')!.hope!.value).toBe(3);
     expect(runner.spotlightToGm).toBe(false);
   });
 
   it('hits nobody on a failure, and the spotlight passes', () => {
     const { world, state } = scene();
-    // Hope 2 + Fear 4 + 2 = 8: short of 10, with Fear.
+    // Light 2 + Shadow 4 + 2 = 8: short of 10, with Shadow.
     const rng = scripted([2, 4]);
     const runner = new ScriptRunner(world, rng, { targets: ['husk-1'], rollAs: 'actor' });
     runner.run([bolt]);
@@ -667,7 +667,7 @@ describe('a check against targets', () => {
     expect(asActor.prompt.modifier).toBe(-1);
   });
 
-  it('utilizes an Experience for a Hope, and not without one', () => {
+  it('utilizes an Experience for a Light, and not without one', () => {
     const { world, state } = scene();
     const roll = (): number => {
       const runner = new ScriptRunner(world, scripted([5, 3]), { targets: ['husk-1'], rollAs: 'actor' });
@@ -677,10 +677,10 @@ describe('a check against targets', () => {
       if (check?.kind !== 'check') throw new Error('no check');
       return check.roll.total;
     };
-    // 5 + 3 + 2 (Knowledge) + 2 (the Experience) = 12, for a Hope.
+    // 5 + 3 + 2 (Knowledge) + 2 (the Experience) = 12, for a Light.
     expect(state.entity('mira')!.hope!.value).toBe(2);
     expect(roll()).toBe(12);
-    // The Hope spent, then one gained for rolling with Hope.
+    // The Light spent, then one gained for rolling with Light.
     expect(state.entity('mira')!.hope!.value).toBe(2);
     state.entity('mira')!.hope = { max: 6, value: 0 };
     expect(roll()).toBe(10);
@@ -712,7 +712,7 @@ describe('a check against targets', () => {
 
     it('takes advantage against a Vulnerable target, and rolls no d6 without one', () => {
       const { world, state } = scene();
-      // Hope 5 + Fear 4 + Knowledge 2 = 11, short of 13: no die drawn for it.
+      // Light 5 + Shadow 4 + Knowledge 2 = 11, short of 13: no die drawn for it.
       expect(cast(world, [5, 4], ['husk-1'])).toMatchObject({ total: 11, advantageDie: 0, drawn: 2 });
       state.entity('husk-1')!.conditions.add('vulnerable');
       // The same dice, plus a d6 of 3: 14, and the bolt lands.
@@ -814,12 +814,12 @@ describe('pools and conditions', () => {
     expect(state.entity('mira')!.stress.marked).toBe(4);
   });
 
-  it('spends Hope when there is Hope, and refuses when there is not', () => {
+  it('spends Light when there is Light, and refuses when there is not', () => {
     const { world, state } = scene();
     expect(kinds(runScript([{ kind: 'spendHope', amount: 2 }], world, scripted([])))).toEqual(['hopeSpent']);
     expect(state.entity('mira')!.hope!.value).toBe(0);
-    expect(refusals(runScript([{ kind: 'spendHope' }], world, scripted([])))).toEqual(['not enough Hope to spend 1']);
-    // Hope to an ally is journalled with who got it; an adversary gains none.
+    expect(refusals(runScript([{ kind: 'spendHope' }], world, scripted([])))).toEqual(['not enough Light to spend 1']);
+    // Light to an ally is journalled with who got it; an adversary gains none.
     const journal = runScript(
       [
         { kind: 'gainHope', amount: 9, target: { kind: 'allies' } },
@@ -873,7 +873,7 @@ describe('pools and conditions', () => {
     expect(says(branch({ kind: 'inCombat' }))).toBe('yes');
     expect(says(branch({ kind: 'hasCondition', condition: 'vulnerable' }))).toBe('yes');
     expect(says(branch({ kind: 'hasCondition', condition: 'vulnerable' }), ['husk-2'])).toBe('no');
-    // Mira has 2 Hope and 6 free Stress slots.
+    // Mira has 2 Light and 6 free Stress slots.
     expect(says(branch({ kind: 'pool', pool: 'hope', op: '>=', value: 2 }))).toBe('yes');
     expect(says(branch({ kind: 'pool', pool: 'hope', op: '>=', value: 3 }))).toBe('no');
     expect(says(branch({ kind: 'pool', pool: 'stress', op: '>=', value: 1 }))).toBe('yes');
@@ -896,7 +896,7 @@ describe('an attack from a script', () => {
     const { world, state, scenario, grid } = scene();
     scenario.actorId = 'kara';
     state.moveEntity('kara', grid.indexOf(2, 1)); // adjacent to husk-1 at x=3
-    // Hope 10 + Fear 2 + Strength 2 = 14 beats 10; the longsword is d8+1, so a 6 on the
+    // Light 10 + Shadow 2 + Strength 2 = 14 beats 10; the longsword is d8+1, so a 6 on the
     // die is 7 damage -- exactly the husk's major threshold -- and marks two.
     const rng = scripted([10, 2, 6]);
     const journal = runScript([swing], world, rng, { targets: ['husk-1'], rollAs: 'actor' });
@@ -909,7 +909,7 @@ describe('an attack from a script', () => {
     expect(rng.drawn()).toBe(3);
   });
 
-  it('runs the miss branch, hands out Fear, and draws no damage dice', () => {
+  it('runs the miss branch, hands out Shadow, and draws no damage dice', () => {
     const { world, state, scenario, grid } = scene();
     scenario.actorId = 'kara';
     state.moveEntity('kara', grid.indexOf(2, 1));
@@ -1008,7 +1008,7 @@ describe('a reaction roll', () => {
         onSuccessWithHope: [{ kind: 'reactionRoll', difficulty: 'roll', onFail: [{ kind: 'log', text: 'zapped' }] }],
       },
     };
-    // 9 + 5 + 2 = 16 with Hope; the husk then needs 16 on a d20 and rolls 15.
+    // 9 + 5 + 2 = 16 with Light; the husk then needs 16 on a d20 and rolls 15.
     const runner = new ScriptRunner(world, scripted([9, 5, 15]), { targets: ['husk-1'], rollAs: 'actor' });
     runner.run([chain]);
     const done = runner.resume({ kind: 'roll' });
@@ -1067,7 +1067,7 @@ describe('a reaction roll', () => {
       world,
       scripted([6, 4]),
     );
-    // 6 + 4 + Strength 2 = 12: a success, and no Hope for a reaction.
+    // 6 + 4 + Strength 2 = 12: a success, and no Light for a reaction.
     expect(journal[0]).toMatchObject({ kind: 'reaction', id: 'kara', success: true, total: 12 });
     expect(journal[1]).toMatchObject({ kind: 'log', text: 'held' });
     expect(state.entity('kara')!.hope!.value).toBe(2);
@@ -1190,10 +1190,10 @@ describe("a passive printed on a stat block", () => {
   });
 });
 
-describe('Hope taken rather than spent', () => {
+describe('Light taken rather than spent', () => {
   it('takes what is there and no more, and a creature with none is untouched', () => {
     const { world, state } = scene();
-    // Kara has 2 Hope; the husk has none at all.
+    // Kara has 2 Light; the husk has none at all.
     const journal = runScript(
       [
         { kind: 'loseHope', amount: 3, target: { kind: 'entity', id: 'kara' } },
@@ -1303,7 +1303,7 @@ describe('conditions that hold a creature', () => {
     kara.conditions.add('hidden');
     scenario.actorId = 'kara';
     state.moveEntity('kara', grid.indexOf(2, 1));
-    // A miss is still an attack: Hope 1 + Fear 2 falls short of 10.
+    // A miss is still an attack: Light 1 + Shadow 2 falls short of 10.
     world.attack({ attacker: 'kara', target: 'husk-1', weapon: 'primary' }, scripted([1, 2]));
     expect(kara.conditions.has('hidden')).toBe(false);
   });

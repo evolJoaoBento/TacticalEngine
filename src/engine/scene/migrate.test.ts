@@ -12,7 +12,7 @@ import { migrateDocument, CURRENT_FORMAT_VERSION } from './migrate';
  * the two agree; one captured from a build that never heard of version 2 can disagree, which is the
  * only way this test can fail for a real reason.
  *
- * The save fixture was taken after spending a Hope and marking Fear on purpose, so both pools carry
+ * The save fixture was taken after spending a Light and marking Shadow on purpose, so both pools carry
  * values rather than defaults — a migration that quietly did nothing would pass against a pristine
  * room.
  */
@@ -46,7 +46,7 @@ describe('migrating a stored document', () => {
   it('treats a document with no version as the oldest one', () => {
     const ancient = migrateDocument({ id: 'x', cost: { hope: 1 } }) as Record<string, unknown>;
     expect(ancient['formatVersion']).toBe(CURRENT_FORMAT_VERSION);
-    expect(ancient['cost']).toEqual({ light: 1 });
+    expect(ancient['cost']).toEqual({ good: 1 });
   });
 
   it('does not touch the object it was given', () => {
@@ -59,10 +59,10 @@ describe('migrating a stored document', () => {
     const deep = migrateDocument({
       formatVersion: 1,
       scenes: [{ entities: { kara: { hope: { value: 4, max: 6 } } }, fear: { value: 3, max: 12 } }],
-    }) as { scenes: { entities: { kara: Record<string, unknown> }; shadow: unknown }[] };
-    expect(deep.scenes[0]!.entities.kara['light']).toEqual({ value: 4, max: 6 });
+    }) as { scenes: { entities: { kara: Record<string, unknown> }; bad: unknown }[] };
+    expect(deep.scenes[0]!.entities.kara['good']).toEqual({ value: 4, max: 6 });
     expect(deep.scenes[0]!.entities.kara['hope']).toBeUndefined();
-    expect(deep.scenes[0]!.shadow).toEqual({ value: 3, max: 12 });
+    expect(deep.scenes[0]!.bad).toEqual({ value: 3, max: 12 });
   });
 
   /**
@@ -71,20 +71,20 @@ describe('migrating a stored document', () => {
    * and missed three of these.
    */
   const RENAMED: readonly [string, string][] = [
-    ['hope', 'light'],
-    ['fear', 'shadow'],
-    ['successWithHope', 'successWithLight'],
-    ['successWithFear', 'successWithShadow'],
-    ['failureWithHope', 'failureWithLight'],
-    ['failureWithFear', 'failureWithShadow'],
-    ['gainHope', 'gainLight'],
-    ['loseHope', 'loseLight'],
-    ['spendHope', 'spendLight'],
-    ['gainFear', 'gainShadow'],
-    ['loseFear', 'loseShadow'],
-    ['withHope', 'withLight'],
-    ['withFear', 'withShadow'],
-    ['classHope', 'classLight'],
+    ['hope', 'good'],
+    ['fear', 'bad'],
+    ['successWithHope', 'successWithGood'],
+    ['successWithFear', 'successWithBad'],
+    ['failureWithHope', 'failureWithGood'],
+    ['failureWithFear', 'failureWithBad'],
+    ['gainHope', 'gainGood'],
+    ['loseHope', 'loseGood'],
+    ['spendHope', 'spendGood'],
+    ['gainFear', 'gainBad'],
+    ['loseFear', 'loseBad'],
+    ['withHope', 'withGood'],
+    ['withFear', 'withBad'],
+    ['classHope', 'classGood'],
   ];
 
   it("renames the one paired-resource KEY a document carries, and leaves the in-memory ones", () => {
@@ -99,7 +99,7 @@ describe('migrating a stored document', () => {
       hopeSpent: 1,
       hopeDieSides: 20,
     }) as Record<string, unknown>;
-    expect(doc['lightDie']).toEqual({ sides: 20 });
+    expect(doc['goodDie']).toEqual({ sides: 20 });
     expect(doc['hopeDie']).toBeUndefined();
     expect(doc['hopeGained']).toBe(2);
     expect(doc['fearGained']).toBe(1);
@@ -128,7 +128,7 @@ describe('migrating a stored document', () => {
       formatVersion: 1,
       scenario: { countdowns: [{ id: 'c', advance: 'withFear', value: 3 }] },
     }) as { scenario: { countdowns: Record<string, unknown>[] } };
-    expect(doc.scenario.countdowns[0]!['advance']).toBe('withShadow');
+    expect(doc.scenario.countdowns[0]!['advance']).toBe('withBad');
   });
 
   it('renames the words a document carries as values, not only as keys', () => {
@@ -141,19 +141,19 @@ describe('migrating a stored document', () => {
       reroll: { which: 'hope' },
       outcome: 'successWithFear',
     }) as { effects: Record<string, unknown>[]; reroll: Record<string, unknown>; outcome: string };
-    expect(doc.effects[0]!['kind']).toBe('gainLight');
-    expect(doc.effects[1]!['tone']).toBe('shadow');
-    expect(doc.reroll['which']).toBe('light');
-    expect(doc.outcome).toBe('successWithShadow');
+    expect(doc.effects[0]!['kind']).toBe('gainGood');
+    expect(doc.effects[1]!['tone']).toBe('bad');
+    expect(doc.reroll['which']).toBe('good');
+    expect(doc.outcome).toBe('successWithBad');
   });
 
   it('leaves prose alone: only whole values are renamed', () => {
     const doc = migrateDocument({
       formatVersion: 1,
-      effects: [{ kind: 'log', text: 'She spends a Hope, and the Fear rises.' }],
+      effects: [{ kind: 'log', text: 'She spends a Light, and the Shadow rises.' }],
     }) as { effects: { text: string }[] };
     // The log line is words a player reads, not a field name or an enum value.
-    expect(doc.effects[0]!.text).toBe('She spends a Hope, and the Fear rises.');
+    expect(doc.effects[0]!.text).toBe('She spends a Light, and the Shadow rises.');
   });
 
   describe('on the captured version-1 project', () => {
@@ -171,7 +171,7 @@ describe('migrating a stored document', () => {
       for (const gone of ['hope', 'fear', 'onSuccessWithHope', 'onSuccessWithFear', 'onFailureWithHope', 'onFailureWithFear', 'gainHope', 'loseHope', 'spendHope', 'gainFear']) {
         expect(seen, `"${gone}" survived the migration`).not.toContain(gone);
       }
-      expect(seen).toContain('light');
+      expect(seen).toContain('good');
     });
   });
 
@@ -186,15 +186,15 @@ describe('migrating a stored document', () => {
     it('rewrites the scene pool and every entity pool', () => {
       const after = migrateDocument(fixture('save')) as {
         formatVersion: number;
-        scenes: Record<string, { shadow: unknown; fear?: unknown; entities: Record<string, Record<string, unknown>> }>;
+        scenes: Record<string, { bad: unknown; fear?: unknown; entities: Record<string, Record<string, unknown>> }>;
       };
       expect(after.formatVersion).toBe(CURRENT_FORMAT_VERSION);
 
       const room = Object.values(after.scenes)[0]!;
-      expect(room.shadow).toEqual({ value: 3, max: 12 });
+      expect(room.bad).toEqual({ value: 3, max: 12 });
       expect(room.fear).toBeUndefined();
 
-      const withPool = Object.values(room.entities).filter((entity) => entity['light'] !== undefined);
+      const withPool = Object.values(room.entities).filter((entity) => entity['good'] !== undefined);
       expect(withPool.length).toBeGreaterThan(0);
       for (const entity of Object.values(room.entities)) expect(entity['hope']).toBeUndefined();
     });

@@ -3,7 +3,7 @@
  *
  * The effect vocabulary covers what the SRD's cards do, and deliberately stops
  * there: it is serialisable, editable in a tool, and safe to replay. Some
- * things a designer wants are still code — "roll a d6 for every Hope you care
+ * things a designer wants are still code — "roll a d6 for every Light you care
  * to spend", "offer one option per adversary in reach", a house rule nobody
  * anticipated. A hook is that code, reached from the one vocabulary by
  * `{ kind: 'run', hook: 'id' }` and `{ kind: 'hook', hook: 'id' }`.

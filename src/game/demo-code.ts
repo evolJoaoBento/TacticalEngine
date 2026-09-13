@@ -48,14 +48,14 @@ return true;`,
 /** Abilities the demo project adds on top of the SRD's, as `z.input` to parse. */
 export const DEMO_PROJECT_ABILITIES: readonly z.input<typeof abilitySchema>[] = [
   {
-    // A class's Hope feature. It lives here rather than in the pack because the
+    // A class's Light feature. It lives here rather than in the pack because the
     // pack is written to spend nothing whose name is changing, and this spends
-    // Hope: the pack prices everything in Stress so that it needs no migration
-    // when Hope and Fear are renamed.
+    // Light: the pack prices everything in Stress so that it needs no migration
+    // when Light and Shadow are renamed.
     id: 'sentinel-hold-fast',
     name: 'Hold Fast',
     source: { kind: 'classHope', classId: 'sentinel' },
-    text: 'Spend 3 Hope to clear 2 Armor Slots.',
+    text: 'Spend 3 Light to clear 2 Armor Slots.',
     cost: { hope: 3 },
     // Not the turn: spending it is something done on a turn rather than the turn
     // itself, so it logs no `acted`.
@@ -68,7 +68,7 @@ export const DEMO_PROJECT_ABILITIES: readonly z.input<typeof abilitySchema>[] = 
     id: 'rally-the-line',
     name: 'Rally the Line',
     source: { kind: 'granted', characters: ['kara'] },
-    text: 'Spend a Hope: every ally within Close range shakes something off — a Hit Point if they are badly hurt, a Stress if they are not.',
+    text: 'Spend a Light: every ally within Close range shakes something off — a Hit Point if they are badly hurt, a Stress if they are not.',
     cost: { hope: 1 },
     target: { kind: 'self', range: 'close' },
     effects: [{ kind: 'run', hook: 'rally-the-line' }],

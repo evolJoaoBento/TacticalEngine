@@ -241,7 +241,7 @@ describe("a room with a stat block the engine did not write", () => {
     s.run(addSheet(characterSheetSchema.parse({ ...KARA, id: 'lio', name: 'Lio' })));
     s.run(setSpawns('hall', [{ x: 1, y: 3 }, { x: 1, y: 5 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'demon', name: 'A demon' })));
-    // The mechanism: a Fear, an Agility Reaction Roll from everyone within Far
+    // The mechanism: a Shadow, an Agility Reaction Roll from everyone within Far
     // range, and magic damage on those who fail -- halved for those who do not.
     s.run(addAdversary('hall', 'demon', { id: 'demon-1', adversary: 'fixture-brute', position: { x: 5, y: 4 } }));
     s.project.abilities.push(abilitySchema.parse(A_RAIN_THAT_EVERYONE_ANSWERS('fixture-brute')));
@@ -357,8 +357,8 @@ describe('a Leader buying its own side a turn', () => {
     return demo;
   };
 
-  it('hands the spotlight to two allies on its own turn, with no Fear in the pool', () => {
-    // Not a single Fear: an ordinary second spotlight would be refused and the
+  it('hands the spotlight to two allies on its own turn, with no Shadow in the pool', () => {
+    // Not a single Shadow: an ordinary second spotlight would be refused and the
     // turn would stop. This one pays in Stress, and what a Stress buys has to be
     // honoured on its own terms.
     const demo = gang('tactician', 0);
@@ -466,7 +466,7 @@ describe('a creature that does not stay the same creature', () => {
     expect(demo.encounter!.outcome).toBe('ongoing');
   });
 
-  it('splits a creature in two, on the Fear that says so', () => {
+  it('splits a creature in two, on the Shadow that says so', () => {
     const demo = arena('ooze', 3, [SPLITS_IN_TWO]);
     const foe = demo.state.entity('foe')!;
     // Three or more Hit Points marked, and it is one short: the blow that
@@ -499,7 +499,7 @@ describe('a creature that does not stay the same creature', () => {
 
     const broke = arena('ooze-broke', 0, [SPLITS_IN_TWO]);
     broke.state.entity('foe')!.hitPoints = { max: 8, marked: 2 };
-    // Damage rather than a swing, so no roll hands the GM the Fear back.
+    // Damage rather than a swing, so no roll hands the GM the Shadow back.
     broke.world.dealDamage('foe', { amount: 4, types: ['physical'] }, broke.rng);
     settleFight(broke);
     // Nothing to spend, and a cost is not a suggestion.
@@ -1149,9 +1149,9 @@ describe('what the room makes of a roll', () => {
   };
 
   /**
-   * The same shape read more narrowly: a *failure* with Fear, which is two
-   * gates rather than one. A roll that succeeded with Fear is still a roll
-   * with Fear, and this one costs nothing for it.
+   * The same shape read more narrowly: a *failure* with Shadow, which is two
+   * gates rather than one. A roll that succeeded with Shadow is still a roll
+   * with Shadow, and this one costs nothing for it.
    */
   const ONLY_ON_A_FAILURE = {
     id: 'fixture-only-on-a-failure',
@@ -1190,7 +1190,7 @@ describe('what the room makes of a roll', () => {
     return demo;
   };
 
-  /** Swing until the dice come up with Fear, and say what they cost. */
+  /** Swing until the dice come up with Shadow, and say what they cost. */
   const rollUntilFear = (demo: ReturnType<typeof watched>): { hope: number; fell: boolean } => {
     for (let i = 0; i < 12; i++) {
       const kara = demo.state.entity('kara')!;
@@ -1213,14 +1213,14 @@ describe('what the room makes of a roll', () => {
         fell: demo.log.slice(before).some((l) => l.text.includes('The cold takes something out of them.')),
       };
     }
-    throw new Error('the dice never came up with Fear');
+    throw new Error('the dice never came up with Shadow');
   };
 
-  it('takes a Hope off a roll with Fear made in front of it', () => {
+  it('takes a Light off a roll with Shadow made in front of it', () => {
     const demo = watched('no-hope', [COLD_WATCH]);
     const { hope, fell } = rollUntilFear(demo);
     expect(fell).toBe(true);
-    // Six going in, and the roll with Fear costs one of them.
+    // Six going in, and the roll with Shadow costs one of them.
     expect(hope).toBe(5);
   });
 
@@ -1259,12 +1259,12 @@ describe('what the room makes of a roll', () => {
       expect(demo.state.entity('kara')!.hope!.value).toBe(6);
       return;
     }
-    throw new Error('the dice never came up with Fear');
+    throw new Error('the dice never came up with Shadow');
   });
 
   it('reads what the roll was, not merely that there was one', () => {
-    // This one answers a *failure* with Fear. A roll that succeeded with Fear
-    // is still a roll with Fear, and it costs nothing.
+    // This one answers a *failure* with Shadow. A roll that succeeded with Shadow
+    // is still a roll with Shadow, and it costs nothing.
     const demo = watched('all-must-fall', [ONLY_ON_A_FAILURE]);
     for (let i = 0; i < 12; i++) {
       const kara = demo.state.entity('kara')!;
@@ -1609,8 +1609,8 @@ describe("what the party puts behind its own blow", () => {
     throw new Error('no seed rolled an ordinary hit in four hundred tries');
   });
 
-  it('asks for each Hope in turn, and spends only what was said yes to', () => {
-    // Three questions, asked in the order they are written, each for a Hope and
+  it('asks for each Light in turn, and spends only what was said yes to', () => {
+    // Three questions, asked in the order they are written, each for a Light and
     // each offering a plain no -- so none can be taken twice.
     const demo = swinging([EDGE_CARD], `crit-${critical()}`);
     demo.askDefender = true;
@@ -1634,11 +1634,11 @@ describe("what the party puts behind its own blow", () => {
     expect(vela.hitPoints.marked).toBe(1);
     expect(vela.armorSlots.marked).toBe(2);
     expect(foe.hitPoints.marked).toBe(marked + 1);
-    // Three Hope, one more for the critical, two spent on the two yeses.
+    // Three Light, one more for the critical, two spent on the two yeses.
     expect(vela.hope!.value).toBe(2);
   });
 
-  it('hands the room a Hope or a Stress off one critical, once per rest', () => {
+  it('hands the room a Light or a Stress off one critical, once per rest', () => {
     const seed = critical();
     const demo = swinging([ROOM_LIFT_CARD], `crit-${seed}`);
     demo.askDefender = true;
@@ -1713,7 +1713,7 @@ describe('a creature that acts again, and one that acts out of turn', () => {
 
   it('overloads, and takes the turn again on the Stress that paid for it', () => {
     // The second half of the mechanism: it takes the spotlight again. With no
-    // Fear in the pool a second spotlight is something only the feature can buy,
+    // Shadow in the pool a second spotlight is something only the feature can buy,
     // so a turn count above one is the feature and nothing else.
     for (let seed = 1; seed < 30; seed++) {
       const demo = room(`overload-${seed}`, [{ id: 'foe', adversary: 'fixture-brute', x: 5 }]);
@@ -1975,7 +1975,7 @@ describe('asking the player how many', () => {
 
   it('offers one button per amount, and takes exactly what was pressed', () => {
     // The mechanism: as much of their marked Stress as the player says, onto the
-    // one offering, and a Hope for each point carried.
+    // one offering, and a Light for each point carried.
     const demo = twoOfThem([SHARING_CARD], 'burden');
     const kara = demo.state.entity('kara')!;
     const vela = demo.state.entity('vela')!;
@@ -1989,7 +1989,7 @@ describe('asking the player how many', () => {
     expect(prompt.kind).toBe('choice');
     expect(prompt.kind === 'choice' ? prompt.options.map((o) => o.label) : []).toEqual(['1', '2', '3']);
 
-    // The second button: two off her, two onto Vela, two Hope for the carrying.
+    // The second button: two off her, two onto Vela, two Light for the carrying.
     answerPending(demo, { kind: 'choose', index: 1 });
     expect(kara.stress.marked).toBe(1);
     expect(vela.stress.marked).toBe(2);
@@ -2238,7 +2238,7 @@ describe('a number read off a pool', () => {
 
   it('hands back exactly the wound it took', () => {
     // What comes back is a count the blow carries rather than a number read off
-    // a pool, which is what separates this from the bonus above. The Fear it
+    // a pool, which is what separates this from the bonus above. The Shadow it
     // costs is one either way.
     const demo = facing('fixture-lurker', 'my-turn', [A_WOUND_HANDED_BACK('fixture-lurker')]);
     demo.state.entity('foe')!.hitPoints = { max: 90, marked: 0 };
@@ -2513,7 +2513,7 @@ describe('one of its own, standing beside the target', () => {
     // a count of creatures; a reason to bite is a pool on itself.
     const fed = (marked: number): ReturnType<typeof pack> => {
       const demo = pack(`vampire-${marked}`, [FEED_ON_ITS_OWN]);
-      // One Fear: enough to spotlight the second of them, and nothing here is
+      // One Shadow: enough to spotlight the second of them, and nothing here is
       // worth more than that, so the feature is what the turn reaches for.
       demo.state.fear = { ...demo.state.fear, value: 1 };
       demo.state.entity('foe')!.hitPoints = { max: 12, marked };
@@ -2535,8 +2535,8 @@ describe('one of its own, standing beside the target', () => {
     expect(whole.state.entity('pack-mate')!.hitPoints.marked).toBe(0);
   });
 
-  it('takes the Fear on the hit, and only with the pack there', () => {
-    // The rider is its own reaction rather than part of the swing. The Fear is
+  it('takes the Shadow on the hit, and only with the pack there', () => {
+    // The rider is its own reaction rather than part of the swing. The Shadow is
     // hard to read off a finished turn — the GM spends it again to spotlight
     // the second of them — so what is asserted is the rider running at all.
     const closed = (demo: ReturnType<typeof pack>): boolean => {
@@ -2796,7 +2796,7 @@ describe("what a block's own teeth do to this target", () => {
     expect(demo.world.standardAttackOf('fixture-foe', { attacker: 'foe', target: 'kara' }).double).toBe(true);
 
     // And what lands is twice what the dice said: the same fixture and the
-    // same seed twice over, the only difference being the Hope left in her.
+    // same seed twice over, the only difference being the Light left in her.
     const swing = (hope: number): number => {
       const twin = facing('despair-twin', [NOTHING_LEFT]);
       twin.state.entity('kara')!.hope = { max: 6, value: hope };
@@ -2834,7 +2834,7 @@ describe('a Demon rallying Relentless allies', () => {
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'pit', name: 'The pit' })));
     s.run(addAdversary('hall', 'pit', { id: 'hubris', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
     // The imps stand in Far range of Kara and past a Close-range walk of her:
-    // rallied, they close in and stop short, and the fight makes no Fear of its own.
+    // rallied, they close in and stop short, and the fight makes no Shadow of its own.
     s.run(addAdversary('hall', 'pit', { id: 'imp-1', adversary: 'fixture-relentless-runt', position: { x: 10, y: 3 } }));
     s.run(addAdversary('hall', 'pit', { id: 'imp-2', adversary: 'fixture-relentless-runt', position: { x: 10, y: 5 } }));
     s.project.abilities.push(abilitySchema.parse(A_RALLY_OF_TWO_AT_RANGE('fixture-captain')));
@@ -2848,7 +2848,7 @@ describe('a Demon rallying Relentless allies', () => {
   };
 
   it('lets the second one act, though the first could have been spotlighted again', () => {
-    // Exactly the Fear the feature costs. A Relentless ally keeps its place at
+    // Exactly the Shadow the feature costs. A Relentless ally keeps its place at
     // the head of the queue after its granted spotlight, and the GM cannot afford
     // the second one - which must not end the turn while somebody behind it is
     // standing on a spotlight the feature already paid for.
@@ -2863,7 +2863,7 @@ describe('a Demon rallying Relentless allies', () => {
 });
 
 describe('what a feature calls in and spotlights', () => {
-  it('acts on the turn it arrived, on the Fear the feature already spent', () => {
+  it('acts on the turn it arrived, on the Shadow the feature already spent', () => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
@@ -2873,7 +2873,7 @@ describe('what a feature calls in and spotlights', () => {
     const demo = buildProjectScene(s.project, 'the-hunt');
     demo.askDefender = false;
     startEncounter(demo, 'crypt');
-    // Exactly what the feature costs, and not a Fear more: what it calls in was
+    // Exactly what the feature costs, and not a Shadow more: what it calls in was
     // paid for when it was called, so the turn must not bill the GM again.
     demo.state.fear = { ...demo.state.fear, value: 2 };
     demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
@@ -2950,7 +2950,7 @@ describe('a Necromancer who buys their troops a turn', () => {
 
   it('carries the half through the turn it bought and no further', () => {
     // It rallies two that are Relentless (2): each takes the spotlight it was
-    // handed and then a second the GM pays a Fear for. The whole turn, on one
+    // handed and then a second the GM pays a Shadow for. The whole turn, on one
     // seed, because the claim is about which of the four swings is at half
     // strength and which is not.
     const s = blank();
@@ -2977,7 +2977,7 @@ describe('a Necromancer who buys their troops a turn', () => {
       "The Runt's Jab misses Kara.",
     ]);
     // Four swings for two of them: the two the rally bought, and one more each
-    // that the GM paid a Fear for. Nothing in the log says any of them struck for
+    // that the GM paid a Shadow for. Nothing in the log says any of them struck for
     // half, and nothing should -- that line prints on a blow that marks a Hit
     // Point, and the only one that landed was turned aside before anything was
     // counted.
@@ -3021,7 +3021,7 @@ describe('a clock the fight carries', () => {
   };
 
   /**
-   * The other kind: bought with a Fear, counted down by the party's own dice,
+   * The other kind: bought with a Shadow, counted down by the party's own dice,
    * and — the part that matters — `onDeath` means it goes off even if the
    * creature counting it is already down.
    */
@@ -3081,7 +3081,7 @@ describe('a clock the fight carries', () => {
   };
 
   /**
-   * Kara swings, taking the spotlight back first if a roll with Fear lost it -
+   * Kara swings, taking the spotlight back first if a roll with Shadow lost it -
    * and closing the ground again first, because a creature that answers a
    * wound by backing off is one somebody has to walk back to.
    */
@@ -3247,19 +3247,19 @@ describe('a swarm that piles onto one target', () => {
     expect(bites).toBeLessThanOrEqual(4);
   });
 
-  it('spends the one Fear the feature costs, not one for every creature that piles in', () => {
+  it('spends the one Shadow the feature costs, not one for every creature that piles in', () => {
     // Three of them, all close enough to join: the whole pack acts on the one
-    // feature, so nothing else in the turn is left to spend Fear on.
+    // feature, so nothing else in the turn is left to spend Shadow on.
     const demo = hall([{ x: 7, y: 4 }, { x: 7, y: 3 }, { x: 7, y: 5 }], 6);
     const before = demo.state.fear.value;
     endTurn(demo);
     expect(demo.log.some((l) => l.text.includes('3 of them at once'))).toBe(true);
-    // The Fear buys the whole pack's one shared bite: the ones that joined
+    // The Shadow buys the whole pack's one shared bite: the ones that joined
     // have had their spotlight, and the GM pays for it once.
     expect(before - demo.state.fear.value).toBe(1);
   });
 
-  it('does not spend a Fear on a swarm of one', () => {
+  it('does not spend a Shadow on a swarm of one', () => {
     const demo = hall([{ x: 7, y: 4 }], 6);
     const before = demo.state.fear.value;
     endTurn(demo);

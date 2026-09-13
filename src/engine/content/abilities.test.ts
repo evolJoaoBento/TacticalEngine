@@ -73,7 +73,7 @@ describe('abilitiesFor', () => {
     abilitySchema.parse({ id: 'shieldbearer-partners', name: 'Partners', source: { kind: 'subclass', subclassId: 'shieldbearer', stage: 'specialization' } }),
   ];
 
-  it('orders class, Hope, subclass by stage reached, then the loadout', () => {
+  it('orders class, Light, subclass by stage reached, then the loadout', () => {
     const ids = abilitiesFor(derive(kara()), [...STARTER_ABILITIES, ...custom]).map((a) => a.id);
     expect(ids).toEqual([
       'sentinel-drilled',

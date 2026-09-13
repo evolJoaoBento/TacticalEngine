@@ -106,7 +106,7 @@ export interface PlayPanelProps {
   onUseItem: (id: string) => void;
   /** A creature's name for the log, by id. */
   nameOf: (id: string) => string;
-  /** The acting character's Hope, for the Experience picker. */
+  /** The acting character's Light, for the Experience picker. */
   actorHope: number;
 }
 
@@ -402,12 +402,12 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
           </div>
           {check.experiences.length > 0 ? (
             <div style={{ marginBottom: '8px', fontSize: '12px' }}>
-              <label style={{ color: '#8ea3b0' }}>Utilize an Experience (1 Hope): </label>
+              <label style={{ color: '#8ea3b0' }}>Utilize an Experience (1 Light): </label>
               <select
                 style={{ padding: '2px 6px', border: '1px solid #39404d', borderRadius: '4px', background: 'rgba(0,0,0,0.3)', color: 'inherit', font: 'inherit' }}
                 value={experience}
                 disabled={props.actorHope < 1}
-                title={props.actorHope < 1 ? 'No Hope to spend' : undefined}
+                title={props.actorHope < 1 ? 'No Light to spend' : undefined}
                 data-testid="experience-pick"
                 onChange={(e) => setExperience((e.target as HTMLSelectElement).value)}
               >

@@ -227,7 +227,7 @@ describe('a full melee exchange on the demo map', () => {
     expect(state.isOccupied(target.tile)).toBe(false);
 
     // Both sides took the fight seriously: Kara was hit at least once, and the
-    // Hope/Fear economy moved.
+    // Light/Shadow economy moved.
     expect(kara2.hitPoints.marked).toBeGreaterThan(0);
     expect(kara2.hope!.value + state.fear.value).toBeGreaterThan(2);
   });
@@ -316,7 +316,7 @@ describe('the fight obeys the rules it is built on', () => {
     }
   });
 
-  it('gives the party exactly one of Hope or Fear per attack roll', () => {
+  it('gives the party exactly one of Light or Shadow per attack roll', () => {
     const { rng, state, diggerId } = buildFight('economy');
     const grid = state.grid;
     const kara2 = state.entity('kara')!;
@@ -339,7 +339,7 @@ describe('the fight obeys the rules it is built on', () => {
       rolls++;
     }
     expect(rolls).toBe(30);
-    // Hope caps at 6 and Fear at 12; nothing overflows.
+    // Light caps at 6 and Shadow at 12; nothing overflows.
     expect(kara2.hope!.value).toBeLessThanOrEqual(6);
     expect(state.fear.value).toBeLessThanOrEqual(12);
   });

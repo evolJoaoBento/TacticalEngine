@@ -73,7 +73,7 @@ describe('using the demo vault', () => {
     expect(demo.pending).toBeNull();
     expect(demo.log.length).toBeGreaterThan(before);
     // One of those lines is the outcome of the duality roll.
-    expect(demo.log.some((l) => /with (Hope|Fear)|critical/i.test(l.text))).toBe(true);
+    expect(demo.log.some((l) => /with (Light|Shadow)|critical/i.test(l.text))).toBe(true);
   });
 
   it('does not repeat the lines it already showed once the roll comes in', () => {

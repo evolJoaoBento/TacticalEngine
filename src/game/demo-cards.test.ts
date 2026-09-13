@@ -94,7 +94,7 @@ const gated = (card: string, companion?: string, inDomain = 3): string[] => [
   ...(companion === undefined ? [] : [companion]),
 ];
 
-/** Mira holding these cards, with Hope to spend, out of combat. */
+/** Mira holding these cards, with Light to spend, out of combat. */
 function holding(seed: string, cards: string[]): DemoScene {
   const demo = scene(seed);
   demo.askDefender = false;
@@ -125,7 +125,7 @@ function elsewhere(demo: DemoScene, from: number): number {
 }
 
 describe('Phantom Step', () => {
-  it('marks the ground for a Hope, and comes back to it for another', () => {
+  it('marks the ground for a Light, and comes back to it for another', () => {
     const demo = holding('phantom', [FIXTURE_SPOT_CARD]);
     const mira = demo.state.entity('mira')!;
     const stood = mira.tile;
@@ -272,7 +272,7 @@ function offered(demo: DemoScene, id: string): boolean {
 }
 
 describe('Bold Front', () => {
-  it('is offered on a failed Presence Roll, and a Hope puts Strength behind it', () => {
+  it('is offered on a failed Presence Roll, and a Light puts Strength behind it', () => {
     for (let seed = 1; seed < 120; seed++) {
       const { demo, kara, husk } = karaHolding('bold-' + seed, [FIXTURE_BOLD_CARD, FIXTURE_PROVOKE_CARD]);
       const strength = demo.characters.get('kara')!.sheet.traits.strength;
@@ -291,7 +291,7 @@ describe('Bold Front', () => {
       expect(settled.total).toBe(thrown.total + strength);
       // The dice did not move; only the number behind them did.
       expect({ hope: settled.hope, fear: settled.fear }).toEqual({ hope: thrown.hope, fear: thrown.fear });
-      // A Hope for the card, and whatever the roll itself handed over (a failure with Hope is still a roll with Hope).
+      // A Light for the card, and whatever the roll itself handed over (a failure with Light is still a roll with Light).
       expect(kara.hope!.value).toBe(6 - 1 + settled.hopeGained);
       expect(demo.log.some((l) => /shoulders into it/.test(l.text))).toBe(true);
       return;

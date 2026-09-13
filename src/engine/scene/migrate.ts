@@ -59,21 +59,28 @@ function renameKey(target: Raw, from: string, to: string): void {
 /**
  * Version 1 to 2: the two paired resources are renamed.
  *
- * `hope` becomes `light` and `fear` becomes `shadow`, everywhere a document carries them as a
- * *field name* rather than as words a player reads. In a project that is an ability's `cost`, the
- * four `check` outcome keys, a pool named in a selector or a condition, and a log line's tone. In a
- * save it is the scene's own pool and each entity's.
+ * `hope` becomes `good` and `fear` becomes `bad`, everywhere a document carries them as a
+ * *field name* rather than as words a player reads.
+ *
+ * Back-facing names on purpose. What a player reads is **Light** and **Shadow**; what a file
+ * stores is `good` and `bad`, which collide with nothing — `light` and `shadow` are already this
+ * codebase's words, taken by `spotlight` (the engine's own turn concept) and by the renderer's
+ * shadow mapping.
+ *
+ * In a project the names appear as an ability's `cost`, the four `check` outcome keys, a pool
+ * named in a selector or a condition, and a log line's tone. In a save they are the scene's own
+ * pool and each entity's.
  */
 function toVersion2(raw: Raw): void {
-  renameKey(raw, 'hope', 'light');
-  renameKey(raw, 'fear', 'shadow');
+  renameKey(raw, 'hope', 'good');
+  renameKey(raw, 'fear', 'bad');
 
   // The four persisted outcome keys on a `check`. They are keys rather than values, so they are
   // renamed the same way and not by walking a list of strings.
-  renameKey(raw, 'onSuccessWithHope', 'onSuccessWithLight');
-  renameKey(raw, 'onSuccessWithFear', 'onSuccessWithShadow');
-  renameKey(raw, 'onFailureWithHope', 'onFailureWithLight');
-  renameKey(raw, 'onFailureWithFear', 'onFailureWithShadow');
+  renameKey(raw, 'onSuccessWithHope', 'onSuccessWithGood');
+  renameKey(raw, 'onSuccessWithFear', 'onSuccessWithBad');
+  renameKey(raw, 'onFailureWithHope', 'onFailureWithGood');
+  renameKey(raw, 'onFailureWithFear', 'onFailureWithBad');
 
   // And the same words where a document carries them as a *value*: a pool selector, a roll
   // outcome, a log tone, a reroll's `which`.
@@ -85,23 +92,23 @@ function toVersion2(raw: Raw): void {
   // `costsGmResource` and which a test asserts is absent; and `gainHopeFor`, a method on the world
   // interface rather than anything a document says.
   const VALUES: Readonly<Record<string, string>> = {
-    hope: 'light',
-    fear: 'shadow',
-    successWithHope: 'successWithLight',
-    successWithFear: 'successWithShadow',
-    failureWithHope: 'failureWithLight',
-    failureWithFear: 'failureWithShadow',
-    gainHope: 'gainLight',
-    loseHope: 'loseLight',
-    spendHope: 'spendLight',
-    gainFear: 'gainShadow',
-    loseFear: 'loseShadow',
+    hope: 'good',
+    fear: 'bad',
+    successWithHope: 'successWithGood',
+    successWithFear: 'successWithBad',
+    failureWithHope: 'failureWithGood',
+    failureWithFear: 'failureWithBad',
+    gainHope: 'gainGood',
+    loseHope: 'loseGood',
+    spendHope: 'spendGood',
+    gainFear: 'gainBad',
+    loseFear: 'loseBad',
     // A `rolled` condition's `is`, and a countdown's `advance` — the latter required on every
     // saved countdown, so a save with one carries this word.
-    withHope: 'withLight',
-    withFear: 'withShadow',
+    withHope: 'withGood',
+    withFear: 'withBad',
     // An ability's source kind, persisted in `project.abilities[].source.kind`.
-    classHope: 'classLight',
+    classHope: 'classGood',
   };
 
   // `hopeDie` is a KEY rather than a value, and the only one of the paired-resource keys that a
@@ -110,7 +117,7 @@ function toVersion2(raw: Raw): void {
   // TypeScript interface field on a roll summary or a defence result, declared in attack.ts,
   // duality.ts, runner.ts and defense.ts. None is a schema, a save's log is `{text, tone}` alone,
   // and so none of them reaches a document. They rename with the code.
-  renameKey(raw, 'hopeDie', 'lightDie');
+  renameKey(raw, 'hopeDie', 'goodDie');
   for (const [key, value] of Object.entries(raw)) {
     if (typeof value === 'string' && value in VALUES) raw[key] = VALUES[value];
   }

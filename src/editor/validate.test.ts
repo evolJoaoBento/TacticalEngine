@@ -718,7 +718,7 @@ describe('quests', () => {
 });
 
 describe('what only a stat block has', () => {
-  it('warns when a card asks for Fear or changes a standard attack', () => {
+  it('warns when a card asks for Shadow or changes a standard attack', () => {
     const project = projectSchema.parse({
       ...build(),
       abilities: [
@@ -780,7 +780,7 @@ describe('what only a stat block has', () => {
     });
     const said = messages(project);
     expect(said).toContain(
-      '"greedy" costs Fear, which only the GM spends: nobody holding it can use it.',
+      '"greedy" costs Shadow, which only the GM spends: nobody holding it can use it.',
     );
     expect(said).toContain('"sharp" changes a standard attack, which only a stat block has.');
     // A card that rides its holder's own swing is no longer a mistake: the
@@ -1037,7 +1037,7 @@ describe('what only a stat block has', () => {
       abilities: [
         {
           id: 'whose-hope',
-          name: 'Whose Hope',
+          name: 'Whose Light',
           source: { kind: 'adversary', adversaries: ['husk'] },
           target: { kind: 'none' },
           effects: [

@@ -1,7 +1,7 @@
 /**
  * The ground, as ground.
  *
- * Daggerheart is not played on a grid, so the board must not look like one.
+ * The game is not played on a grid, so the board must not look like one.
  * Every tile still has a place in the `TileGrid` underneath - that is the
  * navmesh - but what is drawn is one continuous surface per terrain type:
  * a top face per tile, a wall where the ground drops, and colours blended

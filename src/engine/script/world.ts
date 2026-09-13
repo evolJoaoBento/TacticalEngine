@@ -10,7 +10,7 @@
  * scene: the one-shot's `mood` is chosen in the pit and read in the theater
  * (docs/research/legacy-campaign.md §1.1). They serialise with the rest.
  *
- * The combat half — damage through thresholds, Stress, Hope, conditions, a
+ * The combat half — damage through thresholds, Stress, Light, conditions, a
  * weapon attack, a knockback — is what lets an ability be a script. It reads
  * sheets and stat blocks that are injected, so a scene with neither still runs
  * a chest's check exactly as it did.
@@ -1170,7 +1170,7 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /**
-   * The faces on a creature's Hope Die right now: twelve, unless something they
+   * The faces on a creature's Light Die right now: twelve, unless something they
    * are carrying says otherwise. The biggest wins, two cards saying it being a
    * thing that could happen rather than a thing that adds up.
    */
@@ -1628,7 +1628,7 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /**
-   * "Steal a number of Fear from the GM": the pool goes down rather than up,
+   * "Steal a number of Shadow from the GM": the pool goes down rather than up,
    * and an empty pool is nothing stolen rather than a refusal.
    */
   loseFear(): boolean {
@@ -1889,7 +1889,7 @@ export class SceneScriptWorld implements ScriptWorld {
 
   /**
    * Decide and pay the defence against one damage event: Armor Slots and the
-   * reactions the creature holds, under the world's policy. Pays the Hope and
+   * reactions the creature holds, under the world's policy. Pays the Light and
    * Stress the reactions cost; the caller marks the Armor Slots and Hit Points
    * the result says.
    */
@@ -2000,8 +2000,8 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   /**
-   * Hope taken rather than spent: a creature with two loses two of three, and
-   * one with none loses nothing. Never refused — "all targets lose a Hope"
+   * Light taken rather than spent: a creature with two loses two of three, and
+   * one with none loses nothing. Never refused — "all targets lose a Light"
    * happens to whoever has one.
    */
   loseHope(id: string, amount: number): number {
@@ -2228,7 +2228,7 @@ export class SceneScriptWorld implements ScriptWorld {
     const def = this.adversaries.get(definition);
     if (def === undefined) return null;
     // "The Ogre's attacks deal direct damage", "1d10+4 instead of their
-    // standard damage", "double damage to PCs with 0 Hope": passives on the
+    // standard damage", "double damage to PCs with 0 Light": passives on the
     // block, read against whoever it is swinging at.
     const swing = this.standardAttackOf(definition, between);
     return {

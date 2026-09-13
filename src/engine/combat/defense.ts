@@ -4,7 +4,7 @@
  *
  * The SRD makes this the defender's choice, made after the damage is known:
  * mark an Armor Slot to step the severity down, mark a Stress to Get Back Up,
- * spend a Hope on a Rune Ward. A CRPG can ask each time or decide; this
+ * spend a Light on a Rune Ward. A CRPG can ask each time or decide; this
  * decides, under a policy — mark the one Armor Slot, use a reaction — and
  * only ever when doing so lowers the Hit Points marked, so nothing is spent
  * for nothing. Every decision is reported, so the log can say what was paid.

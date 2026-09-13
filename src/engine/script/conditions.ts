@@ -45,7 +45,7 @@ export interface TargetBindings {
   counts?: Partial<Record<CountName, number>>;
   /**
    * The roll that raised this, for a feature that answers one: "when a PC
-   * rolls a failure with Fear while within Close range of the Demon".
+   * rolls a failure with Shadow while within Close range of the Demon".
    */
   /**
    * The roll a script is answering: how it went, and - for a check that said so

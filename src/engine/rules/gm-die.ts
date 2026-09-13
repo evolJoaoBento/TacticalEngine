@@ -5,7 +5,7 @@
  * (unchanged from 1.0):
  * "The GM has no Duality Dice; instead, they roll a single d20 called the GM's
  * Die." Adversary attacks therefore resolve differently from PC attacks — no
- * Hope, no Fear, no matched-dice critical — which the legacy prototype missed by
+ * Light, no Shadow, no matched-dice critical — which the legacy prototype missed by
  * rolling a d12 for adversaries.
  *
  * Pure, like the duality roll: it reports what happened and never applies it.

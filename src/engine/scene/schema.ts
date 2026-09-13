@@ -296,7 +296,7 @@ export const projectSchema = z
     /** The stat blocks its encounters place, by the ids those placements name. */
     adversaries: z.array(adversaryDefSchema).default([]),
     /**
-     * What characters can do: domain cards, Hope features, subclass features,
+     * What characters can do: domain cards, Light features, subclass features,
      * with their scripts. Defaulted, so an older project is still a project.
      */
     abilities: z.array(abilitySchema).default([]),

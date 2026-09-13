@@ -45,7 +45,7 @@ export interface EntityState {
   /** Tile the entity stands on, or `NO_TILE` when it is off the map. */
   tile: number;
   /**
-   * Where exactly it stands, in tile units - Daggerheart is not played on a
+   * Where exactly it stands, in tile units - the game is not played on a
    * grid, and a creature stops where it was walked to, not at the centre of
    * a square. `tile` is always the tile this rounds to; `SceneState` keeps
    * the two in step, and every rule reads `tile`.
@@ -54,7 +54,7 @@ export interface EntityState {
   hitPoints: MarkPool;
   stress: MarkPool;
   armorSlots: MarkPool;
-  /** Party members carry Hope; adversaries do not. */
+  /** Party members carry Light; adversaries do not. */
   hope?: Currency;
   /** Condition ids currently applied. A condition cannot be applied twice. */
   conditions: Set<string>;
@@ -67,7 +67,7 @@ export interface EntityState {
   alive: boolean;
   /**
    * Past the veil: a character who crossed through it on a death move, or one
-   * whose last Hope slot was crossed out. `alive` is false either way, and the
+   * whose last Light slot was crossed out. `alive` is false either way, and the
    * difference is that clearing a Hit Point brings the unconscious back and
    * does nothing for these. Absent on everything else, which is what a save
    * written before death moves existed says.
@@ -188,7 +188,7 @@ export class SceneState {
   /** Tile index -> entity ids standing on it. Kept incremental, never rebuilt. */
   private readonly occupants = new Map<number, Set<string>>();
 
-  /** The GM's Fear pool. It carries between scenes; the caller passes it along. */
+  /** The GM's Shadow pool. It carries between scenes; the caller passes it along. */
   fear: Currency;
 
   constructor(scene: Pick<SceneDoc, 'id'>, grid: TileGrid, fear: Currency = createFear()) {
@@ -568,7 +568,7 @@ export interface SceneStateOptions {
   adversaries?: ReadonlyMap<string, AdversaryStats>;
   /** Party members to place on the scene's spawn points, in order. */
   party?: EntityState[];
-  /** The GM's Fear, carried in from the previous scene. */
+  /** The GM's Shadow, carried in from the previous scene. */
   fear?: Currency;
 }
 

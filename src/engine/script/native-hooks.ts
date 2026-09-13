@@ -3,7 +3,7 @@
  * of effects.
  *
  * These are engine code, not content. They live here rather than under `content/` because they
- * outlast any particular catalogue: a pack that ships a card saying "spend any number of Hope"
+ * outlast any particular catalogue: a pack that ships a card saying "spend any number of Light"
  * needs this to run, and a card naming a hook the engine does not have is inert.
  *
  * These are the native door into `script/hooks.ts` — TypeScript, registered at
@@ -20,9 +20,9 @@ import type { ChoiceOption, Effect } from './schema';
 
 export const SRD_HOOKS: HookMap = defineHooks({
   /**
-   * Arcane Barrage: "spend any number of Hope and shoot magical projectiles…
-   * Roll a number of d6s equal to the Hope spent." Any number is the part
-   * data cannot write, so the options are built from the Hope actually held.
+   * Arcane Barrage: "spend any number of Light and shoot magical projectiles…
+   * Roll a number of d6s equal to the Light spent." Any number is the part
+   * data cannot write, so the options are built from the Light actually held.
    */
   'arcane-barrage': (ctx) => {
     const actor = ctx.actor;
@@ -30,20 +30,20 @@ export const SRD_HOOKS: HookMap = defineHooks({
     if (actor === null || target === undefined) return;
     const hope = ctx.pool(actor, 'hope') ?? 0;
     if (hope < 1) {
-      ctx.log('No Hope to spend: the projectiles never form.', 'system');
+      ctx.log('No Light to spend: the projectiles never form.', 'system');
       return;
     }
     const options: ChoiceOption[] = [];
     for (let spent = 1; spent <= hope; spent++) {
       options.push({
-        label: `${spent} Hope: ${spent}d6 magic`,
+        label: `${spent} Light: ${spent}d6 magic`,
         effects: [
           { kind: 'spendHope', amount: spent },
           { kind: 'damage', dice: `${spent}d6`, type: 'magic', target: { kind: 'target' } },
         ],
       });
     }
-    ctx.queue([{ kind: 'choice', title: 'Arcane Barrage', body: 'How much Hope goes into it?', options }]);
+    ctx.queue([{ kind: 'choice', title: 'Arcane Barrage', body: 'How much Light goes into it?', options }]);
   },
 
   /**
@@ -53,7 +53,7 @@ export const SRD_HOOKS: HookMap = defineHooks({
    * two happens is decided per target, which is why it is code: an effect list
    * branches for the whole list at once.
    *
-   * `args.fear` adds the Fear that Spit Acid alone hands the GM.
+   * `args.fear` adds the Shadow that Spit Acid alone hands the GM.
    */
   'mark-armor-or-hit-point': (ctx) => {
     for (const id of ctx.hit) {

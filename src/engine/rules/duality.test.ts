@@ -55,7 +55,7 @@ describe('classifyRoll', () => {
     expect(classifyRoll(hope, fear, total, dc).outcome).toBe(expected);
   });
 
-  it('treats a critical success as a roll with Hope', () => {
+  it('treats a critical success as a roll with Light', () => {
     const r = classifyRoll(5, 5, 10, 20);
     expect(r).toMatchObject({ critical: true, success: true, withHope: true });
   });
@@ -103,7 +103,7 @@ describe('rollDuality', () => {
     expect(r.total).toBe(4 + 5 + 5);
   });
 
-  it('grants Hope on a roll with Hope and Fear on a roll with Fear, never both', () => {
+  it('grants Light on a roll with Light and Shadow on a roll with Shadow, never both', () => {
     const rng = createRng('duality-resources');
     for (let i = 0; i < 500; i++) {
       const r = rollDuality(rng, { difficulty: 12, modifier: 1 });
@@ -113,7 +113,7 @@ describe('rollDuality', () => {
     }
   });
 
-  it('clears a Stress and gains a Hope on a critical success', () => {
+  it('clears a Stress and gains a Light on a critical success', () => {
     const r = rollDuality(scriptedRng([6, 6]), { difficulty: 30 });
     expect(r).toMatchObject({
       critical: true,
@@ -126,7 +126,7 @@ describe('rollDuality', () => {
   });
 
   describe('reaction rolls', () => {
-    it('generate no Hope or Fear and never hand the spotlight over', () => {
+    it('generate no Light or Shadow and never hand the spotlight over', () => {
       const rng = createRng('reactions');
       for (let i = 0; i < 200; i++) {
         const r = rollDuality(rng, { difficulty: 13, modifier: 2, reaction: true });
@@ -150,7 +150,7 @@ describe('rollDuality', () => {
     });
   });
 
-  it('passes the spotlight on any failure and on a success with Fear', () => {
+  it('passes the spotlight on any failure and on a success with Shadow', () => {
     expect(rollDuality(scriptedRng([9, 2]), { difficulty: 5 }).spotlightToGm).toBe(false);
     expect(rollDuality(scriptedRng([2, 9]), { difficulty: 5 }).spotlightToGm).toBe(true);
     expect(rollDuality(scriptedRng([3, 2]), { difficulty: 20 }).spotlightToGm).toBe(true);
@@ -191,11 +191,11 @@ describe('withFaces', () => {
   });
 
   it('reads the whole roll again from the new pair', () => {
-    // 5 + 3 + 2 = 10 against 12: a failure, with Hope, and the spotlight goes.
+    // 5 + 3 + 2 = 10 against 12: a failure, with Light, and the spotlight goes.
     const first = base();
     expect(first).toMatchObject({ total: 10, outcome: 'failureWithHope', success: false, spotlightToGm: true });
 
-    // The Fear Die alone comes up 9: 5 + 9 + 2 = 16, a success with Fear.
+    // The Shadow Die alone comes up 9: 5 + 9 + 2 = 16, a success with Shadow.
     const again = withFaces(first, { fear: 9 });
     expect(again).toMatchObject({
       hope: 5,
@@ -231,7 +231,7 @@ describe('withFaces', () => {
     expect(withFaces(first, {})).toEqual(first);
     expect(withFaces(first, { hope: 11 })).toMatchObject({ hope: 11, fear: 3 });
     // "A critical success on an adversary's reaction roll confers no
-    // additional benefit": no Hope, no Fear, no Stress cleared.
+    // additional benefit": no Light, no Shadow, no Stress cleared.
     const reaction = { ...base(), reaction: true };
     expect(withFaces(reaction, { fear: 5 })).toMatchObject({
       critical: true,

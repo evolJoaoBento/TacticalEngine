@@ -1,7 +1,7 @@
 /**
  * Dice expressions: parsing, rolling and inspection.
  *
- * Daggerheart writes damage as `xdy+z` ("1d8+2"). Adversary content in
+ * Damage is written as `xdy+z` ("1d8+2"). Adversary content in
  * the community adversary data (no longer vendored) is stringly typed ("1d12+2 phy", "2d6"), so the
  * parser accepts a trailing damage-type word and reports it separately rather
  * than rejecting the string.

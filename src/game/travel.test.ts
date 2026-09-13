@@ -83,7 +83,7 @@ describe('travelling between scenes', () => {
     expect(demo.state.entity(hurt)!.stress.marked).toBe(1);
   });
 
-  it('carries the GM’s Fear, which is the session’s and not the room’s', () => {
+  it('carries the GM’s Shadow, which is the session’s and not the room’s', () => {
     const demo = scene();
     demo.state.fear = { ...demo.state.fear, value: 4 };
     travelTo(demo, PIT_SCENE_ID);

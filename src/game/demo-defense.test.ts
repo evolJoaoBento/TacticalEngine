@@ -96,12 +96,12 @@ const DOORWAY_ARMS: Record<string, unknown>[] = [
       { kind: 'log', text: 'A door that was not there, and then neither are they.', tone: 'hope' },
       { kind: 'move', to: 'point', teleport: true, budget: 'far' },
     ],
-    otherwise: [{ kind: 'log', text: 'The way opens onto nothing: there is no Hope to hold it.', tone: 'fear' }],
+    otherwise: [{ kind: 'log', text: 'The way opens onto nothing: there is no Light to hold it.', tone: 'fear' }],
   },
 ];
 
 /**
- * What a watch pays out: a Hope for having seen it, and then the offer of a
+ * What a watch pays out: a Light for having seen it, and then the offer of a
  * Stress to take something off the GM. Three faces of one check share it.
  */
 const WATCHED: Record<string, unknown>[] = [
@@ -375,7 +375,7 @@ describe('conditions with modifiers', () => {
    *
    * The first keeps its `available` gate, because one test spends the cost
    * twice and expects the second to be refused for the condition already being
-   * there rather than for the Hope.
+   * there rather than for the Light.
    *
    * The second moves rather than stacks: it clears itself from the whole party
    * before applying, which is what lets a test put it on one person, then
@@ -404,11 +404,11 @@ describe('conditions with modifiers', () => {
       id: 'fixture-dodge',
       name: 'Give Them Nothing',
       source: { kind: 'domainCard', card: DODGE_CARD },
-      text: 'Spend three Hope to be harder to hit until somebody manages it.',
+      text: 'Spend three Light to be harder to hit until somebody manages it.',
       cost: { hope: 3 },
       action: false,
       // Not twice over: the second use is refused for this rather than for the
-      // Hope, which one test spends again to prove.
+      // Light, which one test spends again to prove.
       available: { kind: 'not', of: { kind: 'hasCondition', condition: 'fixture-dodging', of: { kind: 'actor' } } },
       effects: [{ kind: 'applyCondition', condition: 'fixture-dodging', duration: 'rest', target: { kind: 'actor' } }],
     },
@@ -416,7 +416,7 @@ describe('conditions with modifiers', () => {
       id: 'fixture-worn-armor',
       name: 'Borrowed Plate',
       source: { kind: 'domainCard', card: WORN_CARD },
-      text: 'Spend a Hope to put something of yours around somebody beside you.',
+      text: 'Spend a Light to put something of yours around somebody beside you.',
       cost: { hope: 1 },
       target: { kind: 'ally', range: 'melee' },
       effects: [
@@ -522,7 +522,7 @@ describe('reactions when a hit lands', () => {
       id: 'fixture-warding-die',
       name: 'Warding Die',
       source: { kind: 'domainCard', card: WARD_CARD },
-      text: 'Spend a Hope to put a die between you and the blow.',
+      text: 'Spend a Light to put a die between you and the blow.',
       kind: 'reaction',
       trigger: 'incomingDamage',
       cost: { hope: 1 },
@@ -554,7 +554,7 @@ describe('reactions when a hit lands', () => {
     expect(kara.stress.marked).toBe(1);
   });
 
-  it('a carried ward spends a Hope on Mira when its die helps', () => {
+  it('a carried ward spends a Light on Mira when its die helps', () => {
     const demo = scene();
     const mira = demo.state.entity('mira')!;
     mira.hope = { max: 6, value: 2 };
@@ -776,7 +776,7 @@ describe('an ally interrupting', () => {
       id: 'fixture-think-again',
       name: 'Think Again',
       source: { kind: 'domainCard', card: AGAIN_CARD },
-      text: 'Spend three Hope to make something throw its blow again.',
+      text: 'Spend three Light to make something throw its blow again.',
       kind: 'reaction',
       trigger: 'attackHit',
       cost: { hope: 3 },
@@ -841,7 +841,7 @@ describe('an ally interrupting', () => {
     expect(pending, 'the reroll was offered').not.toBeNull();
     const reroll = pending!.choices.findIndex((c) => c.kind === 'reroll');
     answerPending(demo, { kind: 'choose', index: reroll });
-    // Three Hope gone, and the log says the blow came again.
+    // Three Light gone, and the log says the blow came again.
     expect(demo.state.entity('mira')!.hope!.value).toBe(3);
     expect(demo.log.map((l) => l.text).some((t) => t.includes('Think Again'))).toBe(true);
 
@@ -863,7 +863,7 @@ describe('answering a miss', () => {
    * conditions and already ends when its bearer attacks, which is what the last
    * two lines of the test read.
    *
-   * Offered rather than taken -- it costs a Hope, and a free card would spend
+   * Offered rather than taken -- it costs a Light, and a free card would spend
    * itself on the first swing that missed.
    */
   const VANISH_CARD = 'fixture-card-50';
@@ -873,7 +873,7 @@ describe('answering a miss', () => {
       id: 'fixture-vanish',
       name: 'Step Into the Dark',
       source: { kind: 'domainCard', card: VANISH_CARD },
-      text: 'Spend a Hope when a blow goes wide to be somewhere else than it looked.',
+      text: 'Spend a Light when a blow goes wide to be somewhere else than it looked.',
       kind: 'reaction',
       trigger: 'attackMissed',
       cost: { hope: 1 },
@@ -997,7 +997,7 @@ describe('what a block hangs on its own attack', () => {
 
   it('hangs nothing on the blow that puts its target down', () => {
     // One Hit Point left and no armour: whatever lands fells her. A rider that
-    // fired here would push a body around or take Hope off someone who is
+    // fired here would push a body around or take Light off someone who is
     // already out of the fight.
     const demo = withRiders('felled');
     const kara = demo.state.entity('kara')!;
@@ -1132,8 +1132,8 @@ describe("an adversary's own features", () => {
   });
 
   /**
-   * "Spend a Fear to…" is written on most of the SRD's stat blocks, and what
-   * it says is what the GM pays: not the one Fear a feature that names no cost
+   * "Spend a Shadow to…" is written on most of the SRD's stat blocks, and what
+   * it says is what the GM pays: not the one Shadow a feature that names no cost
    * is charged so that its teeth still come into the fight.
    */
   it('pays what a feature says it costs, and leaves it alone when the GM is short', () => {
@@ -1143,14 +1143,14 @@ describe("an adversary's own features", () => {
     // Two of the party in reach: the bar a feature has to clear to be worth it.
     standBehind(demo, 'finn', husk.tile);
     // Nothing left to mark, so the feature that costs Stress is out of the way
-    // and Spit Acid — repriced here at two Fear — is the only one on offer.
+    // and Spit Acid — repriced here at two Shadow — is the only one on offer.
     husk.stress = { ...husk.stress, marked: husk.stress.max };
     onlyFeature(demo, sprayFeature(demo, husk.id));
     const spit = demo.project.abilities.find((a) => a.id === 'fixture-spray')!;
     spit.cost = { fear: 2 };
     refreshWorld(demo);
 
-    // One Fear buys nothing, though one would have paid for it unpriced.
+    // One Shadow buys nothing, though one would have paid for it unpriced.
     demo.state.fear = { ...demo.state.fear, value: 1 };
     for (let i = 0; i < 4 && demo.encounter?.outcome === 'ongoing'; i++) endTurn(demo);
     expect(demo.log.some((l) => l.text.includes('Spit Acid'))).toBe(false);
@@ -1163,7 +1163,7 @@ describe("an adversary's own features", () => {
       sprayed = demo.log.some((l) => l.text.includes('Spit Acid'));
     }
     expect(sprayed).toBe(true);
-    expect(demo.log.map((l) => l.text)).toContain('The GM spends 2 Fear.');
+    expect(demo.log.map((l) => l.text)).toContain('The GM spends 2 Shadow.');
   });
 
   /**
@@ -1223,7 +1223,7 @@ describe("an adversary's own features", () => {
         id: 'adrenaline-burst',
         name: 'Adrenaline Burst',
         source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
-        text: 'Once per scene, spend a Fear to clear 2 Stress.',
+        text: 'Once per scene, spend a Shadow to clear 2 Stress.',
         cost: { fear: 1 },
         uses: { count: 1, per: 'scene' },
         target: { kind: 'none', range: 'close' },
@@ -1291,7 +1291,7 @@ describe("an adversary's own features", () => {
         id: 'regeneration',
         name: 'Regeneration',
         source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
-        text: 'If the Burrower has any marked HP, spend a Fear to clear a HP.',
+        text: 'If the Burrower has any marked HP, spend a Shadow to clear a HP.',
         cost: { fear: 1 },
         available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 1 },
         target: { kind: 'self', range: 'melee' },
@@ -1302,7 +1302,7 @@ describe("an adversary's own features", () => {
     refreshWorld(demo);
     demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
 
-    // Unhurt: it has nothing to heal, so it does not spend a Fear on one.
+    // Unhurt: it has nothing to heal, so it does not spend a Shadow on one.
     for (let i = 0; i < 3 && demo.encounter?.outcome === 'ongoing'; i++) endTurn(demo);
     expect(demo.log.some((l) => l.text.includes('Regeneration'))).toBe(false);
 
@@ -1361,7 +1361,7 @@ describe("an adversary's own features", () => {
     const acted = demo.encounter!.log.filter((e) => e.kind === 'adversaryActed').length - before;
     expect(acted).toBeGreaterThan(1);
     expect(acted).toBeLessThanOrEqual(3);
-    // Every spotlight past the first costs the GM a Fear.
+    // Every spotlight past the first costs the GM a Shadow.
     expect(demo.state.fear.value).toBe(fearBefore - (acted - 1));
   });
 });
@@ -1408,7 +1408,7 @@ describe('a creature that answers its own wounds', () => {
     const demo = standoff('spray');
     demo.askDefender = false;
     const foe = answering(demo, [A_SPRAY_THAT_EATS_ARMOUR(FIXTURE_FOE)]);
-    // Two of the party in reach gives it a reason, and the GM's Fear pays for
+    // Two of the party in reach gives it a reason, and the GM's Shadow pays for
     // the spotlight it spends getting there.
     standBehind(demo, 'finn', foe.tile);
     demo.state.fear = { ...demo.state.fear, value: demo.state.fear.max };
@@ -1562,8 +1562,8 @@ describe("the party's own answer to a blow", () => {
     syncPools(demo);
   };
 
-  it('asks before it spends the Hope, and spends it only when the answer is yes', () => {
-    // "When you deal damage to an adversary, you can spend 2 Hope to clear a
+  it('asks before it spends the Light, and spends it only when the answer is yes', () => {
+    // "When you deal damage to an adversary, you can spend 2 Light to clear a
     // Hit Point on an ally within Close range."
     const demo = holding([], 'healing-yes');
     carry(demo, HEALING_STRIKE);
@@ -1619,7 +1619,7 @@ describe("the party's own answer to a blow", () => {
 
   it('never offers a card the table is not being asked about', () => {
     // The demo deciding for the party: an optional card is not played, because
-    // spending somebody's Hope for them is worse than letting the moment pass.
+    // spending somebody's Light for them is worse than letting the moment pass.
     const demo = holding([], 'healing-quiet');
     carry(demo, HEALING_STRIKE);
     holdingAgain(demo);
@@ -1863,9 +1863,9 @@ describe('a bonus the card counts out for itself', () => {
     expect(demo.world.rollBonus('kara', 'damageRoll', { melee: true })).toBe(0);
   });
 
-  it('places a token for each Hit Point the swing marked, once the Hope is spent', () => {
+  it('places a token for each Hit Point the swing marked, once the Light is spent', () => {
     // "When you cause an adversary to mark 1 or more Hit Points, you can spend
-    // 2 Hope to increase your Evasion by the number of Hit Points they marked."
+    // 2 Light to increase your Evasion by the number of Hit Points they marked."
     const demo = holding(FEROCITY, 'fixture-card-5', 'ferocity-placed');
     const foe = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     demo.state.entity('kara')!.hope = { max: 6, value: 6 };
@@ -1923,7 +1923,7 @@ describe('a blow that names its band', () => {
     entity.armorSlots = { ...entity.armorSlots, marked: entity.armorSlots.max };
   };
 
-  /** The husk beside Kara with one feature of its own, and Fear to spend. */
+  /** The husk beside Kara with one feature of its own, and Shadow to spend. */
   const husking = (seed: string, ability: Record<string, unknown>): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -1967,7 +1967,7 @@ describe('a blow that names its band', () => {
   const subtleBlade = {
     id: 'fixture-subtle',
     name: 'Named Mid-Swing',
-    text: 'Spend a Fear to name the band its blow lands in, instead of rolling for it.',
+    text: 'Spend a Shadow to name the band its blow lands in, instead of rolling for it.',
     kind: 'reaction',
     trigger: 'rollingDamage',
     action: false,
@@ -2194,7 +2194,7 @@ describe('a card that answers the blow in its own words', () => {
     },
   ];
 
-  /** Hope into a handful of dice, and a six sends the blow home instead. */
+  /** Light into a handful of dice, and a six sends the blow home instead. */
   const MIRROR = [
     {
       id: 'fixture-mirror',
@@ -2377,7 +2377,7 @@ describe('a card that answers the blow in its own words', () => {
   });
 
   it('sends the blow back at whoever cast it when the dice come up', () => {
-    // "Spend any number of Hope to roll that many d6s. If any roll a 6, the
+    // "Spend any number of Light to roll that many d6s. If any roll a 6, the
     // attack is reflected back, dealing the damage to them instead."
     for (let seed = 1; seed < 20; seed++) {
       const demo = standoff(`mirror-${seed}`);
@@ -2391,7 +2391,7 @@ describe('a card that answers the blow in its own words', () => {
       const before = husk.hitPoints.marked;
       const said = demo.log.length;
       answerPending(demo, { kind: 'choose', index });
-      // Every Hope she has goes into it; the prompt lists one option per Hope.
+      // Every Light she has goes into it; the prompt lists one option per Light.
       const prompt = demo.pending?.prompt;
       const most = prompt?.kind === 'choice' ? prompt.options.length - 1 : 0;
       answerPending(demo, { kind: 'choose', index: most });
@@ -2545,7 +2545,7 @@ describe('what a card leaves on its holder', () => {
    * bearer swings, one that hands an ally a die, and one that is Vulnerable
    * under another name.
    *
-   * The call is the one worth reading twice. Its Stress and its Hope reach
+   * The call is the one worth reading twice. Its Stress and its Light reach
    * everybody within earshot *including* the one who called it; the condition
    * reaches everybody except them. That asymmetry is the card.
    */
@@ -2760,7 +2760,7 @@ describe('what a card leaves on its holder', () => {
     expect(demo.state.entity('kara')!.conditions.has('fixture-inspired')).toBe(false);
   });
 
-  it("horrifies what it can, and takes the GM's Fear for each of them", () => {
+  it("horrifies what it can, and takes the GM's Shadow for each of them", () => {
     for (let seed = 1; seed < 30; seed++) {
       const demo = standoff(`terror-${seed}`);
       carry(demo, TERROR, TERROR_CONDITION);
@@ -2876,11 +2876,11 @@ describe('a death move', () => {
       expect(said(demo, 'The party falls.')).toBe(false);
       return;
     }
-    throw new Error('the Hope Die never came up in forty seeds');
+    throw new Error('the Light Die never came up in forty seeds');
   });
 
-  it('drops her unconscious on Avoid Death, and the Hope Die decides the scar', () => {
-    // Level 1: a scar needs the Hope Die to read exactly 1.
+  it('drops her unconscious on Avoid Death, and the Light Die decides the scar', () => {
+    // Level 1: a scar needs the Light Die to read exactly 1.
     for (let seed = 1; seed < 60; seed++) {
       const demo = lastStand(`scar-${seed}`);
       const kara = demo.state.entity('kara')!;
@@ -2899,8 +2899,8 @@ describe('a death move', () => {
         expect(demo.characters.get('kara')!.sheet.scars).toBeUndefined();
         continue;
       }
-      // "Permanently cross out a Hope slot": on the sheet, so the next scene
-      // she walks into starts a Hope short.
+      // "Permanently cross out a Light slot": on the sheet, so the next scene
+      // she walks into starts a Light short.
       expect(kara.hope!.max).toBe(slots - 1);
       expect(demo.characters.get('kara')!.sheet.scars).toBe(1);
       // On the sheets a save writes, and on the project's own copy of the
@@ -2908,7 +2908,7 @@ describe('a death move', () => {
       expect(demo.sheets.get('kara')!.scars).toBe(1);
       expect(demo.project.party.find((member) => member.id === 'kara')!.scars).toBe(1);
       // And the character was re-derived over it, so a fresh scene is short a
-      // Hope without anybody writing the pool by hand.
+      // Light without anybody writing the pool by hand.
       expect(demo.characters.get('kara')!.hope.max).toBe(slots - 1);
       expect(deriveCharacter({ ...sheet, scars: 1 }, characterContentFor(demo.project), demo.project.abilities).character.hope.max).toBe(slots - 1);
 
@@ -2918,10 +2918,10 @@ describe('a death move', () => {
       expect(kara.alive).toBe(true);
       return;
     }
-    throw new Error('the Hope Die never read 1 in sixty seeds');
+    throw new Error('the Light Die never read 1 in sixty seeds');
   });
 
-  it('crosses her through the veil when Risk It All comes up Fear, past any healing', () => {
+  it('crosses her through the veil when Risk It All comes up Shadow, past any healing', () => {
     for (let seed = 1; seed < 60; seed++) {
       const demo = lastStand(`risk-down-${seed}`);
       const kara = demo.state.entity('kara')!;
@@ -2937,7 +2937,7 @@ describe('a death move', () => {
       expect(kara.alive).toBe(false);
       return;
     }
-    throw new Error('the Fear Die never won in sixty seeds');
+    throw new Error('the Shadow Die never won in sixty seeds');
   });
 
   it('stands her up with nothing marked at all when the dice match', () => {
@@ -3014,7 +3014,7 @@ describe('a death move', () => {
     expect(kara.dead).toBe(true);
   });
 
-  it('ends the journey when the scar crosses out the last Hope slot', () => {
+  it('ends the journey when the scar crosses out the last Light slot', () => {
     for (let seed = 1; seed < 60; seed++) {
       const demo = lastStand(`journey-${seed}`);
       const kara = demo.state.entity('kara')!;
@@ -3035,7 +3035,7 @@ describe('a death move', () => {
       expect(kara.alive).toBe(false);
       return;
     }
-    throw new Error('the Hope Die never read 1 in sixty seeds');
+    throw new Error('the Light Die never read 1 in sixty seeds');
   });
 
   /**
@@ -3044,7 +3044,7 @@ describe('a death move', () => {
    *
    * Both are offered rather than taken: which of them to spend, against the
    * three moves a fallen character chooses between, is the whole decision. One
-   * pays for itself by going to the vault; the other costs a Hope and is worth
+   * pays for itself by going to the vault; the other costs a Light and is worth
    * one use between long rests, which is what one test reads when she goes down
    * a second time and is offered nothing.
    */
@@ -3073,7 +3073,7 @@ describe('a death move', () => {
       id: 'fixture-breath-left',
       name: 'Breath Left',
       source: { kind: 'domainCard', card: BREATH_CARD },
-      text: 'Spend a Hope to answer a fall with one more Hit Point, once between long rests.',
+      text: 'Spend a Light to answer a fall with one more Hit Point, once between long rests.',
       kind: 'reaction',
       trigger: 'defeated',
       action: false,
@@ -3125,7 +3125,7 @@ describe('a death move', () => {
     expect((demo.pending as PendingDeath).offers).toEqual([]);
   });
 
-  it('spends a Hope on the other, and has none of it left this long rest', () => {
+  it('spends a Light on the other, and has none of it left this long rest', () => {
     const demo = lastStand('breath-left');
     carrying(demo, [BREATH_CARD]);
     const kara = demo.state.entity('kara')!;
@@ -3135,7 +3135,7 @@ describe('a death move', () => {
     expect((demo.pending as PendingDeath).offers.map((o) => o.ability.id)).toEqual(['fixture-breath-left']);
     choose(demo, 'Breath Left');
 
-    // "Spend a Hope to clear a Hit Point instead."
+    // "Spend a Light to clear a Hit Point instead."
     expect(kara.alive).toBe(true);
     expect(kara.hitPoints.marked).toBe(kara.hitPoints.max - 1);
     expect(kara.hope!.value).toBe(2);
@@ -3145,7 +3145,7 @@ describe('a death move', () => {
     expect((demo.pending as PendingDeath).offers).toEqual([]);
   });
 
-  it('is not offered a card whose Hope the fallen character cannot pay', () => {
+  it('is not offered a card whose Light the fallen character cannot pay', () => {
     const demo = lastStand('no-hope');
     carrying(demo, [BREATH_CARD]);
     demo.state.entity('kara')!.hope = { max: 6, value: 0 };
@@ -3486,7 +3486,7 @@ describe('a swing lifted, and a swing that names its own number', () => {
       id: 'fixture-reap',
       name: 'Name the Number',
       source: { kind: 'domainCard', card: REAP_CARD },
-      text: 'Spend a Hope, once between long rests, to force five Hit Points on what your roll beat.',
+      text: 'Spend a Light, once between long rests, to force five Hit Points on what your roll beat.',
       cost: { hope: 1 },
       uses: { count: 1, per: 'longRest' },
       inCombatOnly: true,
@@ -3586,9 +3586,9 @@ describe('a swing lifted, and a swing that names its own number', () => {
       // nothing about the husk - its thresholds, its armor - touches it.
       expect(husk.hitPoints.marked).toBe(5);
       expect(husk.armorSlots.marked).toBe(0);
-      // Paid for. What the roll itself gives back - a Hope on a success with
-      // Hope - is the action roll's business and not the card's.
-      expect(demo.log.some((l) => l.text.includes('Spends 1 Hope.'))).toBe(true);
+      // Paid for. What the roll itself gives back - a Light on a success with
+      // Light - is the action roll's business and not the card's.
+      expect(demo.log.some((l) => l.text.includes('Spends 1 Light.'))).toBe(true);
       // Once per long rest, counted the way an action card's uses are.
       expect(demo.scenario.abilityUses.get(useKey('kara', 'fixture-reap'))).toBe(1);
       return;
@@ -3913,7 +3913,7 @@ describe('a run in a straight line', () => {
       id: 'fixture-run',
       name: 'Straight Line',
       source: { kind: 'domainCard', card: RUN_CARD },
-      text: 'Spend three Hope to run a straight line through everything in the way.',
+      text: 'Spend three Light to run a straight line through everything in the way.',
       cost: { hope: 3 },
       inCombatOnly: true,
       target: { kind: 'point', range: 'far' },
@@ -3992,9 +3992,9 @@ describe('a run in a straight line', () => {
       expect(useAbility(demo, 'kara', 'fixture-run', [], { point: past }).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
 
-      // "Spend 3 Hope", and the run happened. What the roll gives back is the
+      // "Spend 3 Light", and the run happened. What the roll gives back is the
       // action roll's business, not the card's.
-      expect(demo.log.some((l) => l.text.includes('Spends 3 Hope.'))).toBe(true);
+      expect(demo.log.some((l) => l.text.includes('Spends 3 Light.'))).toBe(true);
       expect(kara.tile).not.toBe(from);
       // On a success the husk is hurt; on a failure it is not, and either way
       // the path was run.
@@ -4109,7 +4109,7 @@ describe('what a charge runs over', () => {
       id: 'fixture-line',
       name: 'Straight Line',
       source: { kind: 'domainCard', card: RUN_CARD },
-      text: 'Spend three Hope to run a straight line through everything in the way.',
+      text: 'Spend three Light to run a straight line through everything in the way.',
       cost: { hope: 3 },
       inCombatOnly: true,
       target: { kind: 'point', range: 'far' },
@@ -4251,7 +4251,7 @@ describe('the same blow again', () => {
    * so the card asks that the target be an ally and the hit an adversary. The
    * last test here is a blow the other way round, where both gates say no.
    *
-   * Offered rather than taken: a roll that succeeds with Fear costs the card,
+   * Offered rather than taken: a roll that succeeds with Shadow costs the card,
    * so whether to answer is the player's to say. The offer is found by this
    * ability's name, and the log line carries the name too.
    */
@@ -4269,7 +4269,7 @@ describe('the same blow again', () => {
       kind: 'reaction',
       trigger: 'nearbyTookDamage',
       action: false,
-      // Asked, not taken: a roll that succeeds with Fear costs the card.
+      // Asked, not taken: a roll that succeeds with Shadow costs the card.
       auto: false,
       inCombatOnly: true,
       available: {
@@ -4382,7 +4382,7 @@ describe('the same blow again', () => {
     throw new Error('Encore never landed in sixty tries');
   });
 
-  it('puts Encore in the vault when the roll succeeds with Fear', () => {
+  it('puts Encore in the vault when the roll succeeds with Shadow', () => {
     for (let seed = 1; seed < 60; seed++) {
       const demo = stage(`encore-fear-${seed}`, [AGAIN_CARD]);
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
@@ -4394,13 +4394,13 @@ describe('the same blow again', () => {
       let guard = 0;
       while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
       const after = demo.log.slice(said).map((l) => l.text);
-      if (!after.some((t) => t.includes('Success, with Fear'))) continue;
+      if (!after.some((t) => t.includes('Success, with Shadow'))) continue;
       // "Then place this card in your vault": out of the loadout, and no
       // longer offering the reaction it was just played for.
       expect(loadoutOf(demo.characters.get('mira')!)).not.toContain(AGAIN_CARD);
       return;
     }
-    throw new Error('no seed put Encore through a success with Fear');
+    throw new Error('no seed put Encore through a success with Shadow');
   });
 
   it('holds Encore back when the one bleeding is one of the party', () => {
@@ -4447,7 +4447,7 @@ describe('a smite held back for the next blow', () => {
       id: 'fixture-smite',
       name: 'Charge the Blade',
       source: { kind: 'domainCard', card: SMITE_CARD },
-      text: 'Spend three Hope to put a charge in your weapon, once between rests.',
+      text: 'Spend three Light to put a charge in your weapon, once between rests.',
       cost: { hope: 3 },
       uses: { count: 1, per: 'rest' },
       action: false,
@@ -4479,7 +4479,7 @@ describe('a smite held back for the next blow', () => {
     },
   ];
 
-  /** Kara beside the husk with the card in hand and Hope to spend it. */
+  /** Kara beside the husk with the card in hand and Light to spend it. */
   const charged = (seed: string, spend: boolean) => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -5020,7 +5020,7 @@ describe('a shout the next one hears', () => {
   const LED = {
     id: 'fixture-led',
     name: 'Led by Example',
-    text: 'The next one to attack them can clear a Stress or gain a Hope.',
+    text: 'The next one to attack them can clear a Stress or gain a Light.',
     payout: {
       on: 'attacked',
       effects: [
@@ -5030,7 +5030,7 @@ describe('a shout the next one hears', () => {
           body: 'Take heart from it.',
           options: [
             { label: 'Clear a Stress', effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }] },
-            { label: 'Gain a Hope', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
+            { label: 'Gain a Light', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
           ],
         },
       ],
@@ -5102,7 +5102,7 @@ describe('a shout the next one hears', () => {
       const at = asked?.prompt.kind === 'choice' ? asked.prompt.options.findIndex((o) => o.label.includes('Led by Example')) : -1;
       expect(at).toBeGreaterThan(0);
       answerPending(demo, { kind: 'choose', index: at });
-      // Then the card's own question: clear a Stress, or gain a Hope.
+      // Then the card's own question: clear a Stress, or gain a Light.
       expect(demo.pending?.prompt.kind === 'choice' ? demo.pending.prompt.title : '').toContain('led by example');
       answerPending(demo, { kind: 'choose', index: 0 });
       expect(finn.stress.marked).toBe(2);
@@ -5239,7 +5239,7 @@ describe('a shout the next one hears', () => {
 
 describe('one swing through all of them', () => {
   /**
-   * One swing that reaches everything the weapon reaches, for a Hope, once
+   * One swing that reaches everything the weapon reaches, for a Light, once
    * between long rests.
    *
    * The damage die sits on an `attack` effect deliberately: the second test
@@ -5255,7 +5255,7 @@ describe('one swing through all of them', () => {
       id: 'fixture-splinter',
       name: 'One Swing',
       source: { kind: 'domainCard', card: SPLINTER_CARD },
-      text: 'Spend a Hope to swing once at everything your weapon can reach, once between long rests.',
+      text: 'Spend a Light to swing once at everything your weapon can reach, once between long rests.',
       cost: { hope: 1 },
       uses: { count: 1, per: 'longRest' },
       inCombatOnly: true,
@@ -5295,7 +5295,7 @@ describe('one swing through all of them', () => {
     return { demo, husk, other };
   };
 
-  it('swings at everything within the weapon and spends a Hope for it', () => {
+  it('swings at everything within the weapon and spends a Light for it', () => {
     for (let seed = 1; seed < 40; seed++) {
       const { demo, husk, other } = surrounded(`splinter-${seed}`, [SPLINTER_CARD]);
       const said = demo.log.length;
@@ -5307,9 +5307,9 @@ describe('one swing through all of them', () => {
       // Both of them were swung at, whatever came of it.
       const named = adversaryDefOf(demo, husk.id)!.name;
       expect(after.filter((t) => t.includes(named)).length).toBeGreaterThanOrEqual(2);
-      // Read off the log rather than the pool: a success with Hope hands one
+      // Read off the log rather than the pool: a success with Light hands one
       // straight back, so the number on the sheet says nothing about the cost.
-      expect(after.some((t) => t.includes('Spends 1 Hope.'))).toBe(true);
+      expect(after.some((t) => t.includes('Spends 1 Light.'))).toBe(true);
       // "Once per long rest": the use is spent, and a short rest is not it.
       expect(demo.scenario.abilityUses.get(useKey('kara', 'fixture-splinter'))).toBe(1);
       return;
@@ -5351,7 +5351,7 @@ describe('one swing through all of them', () => {
 describe('a step across the room without crossing it', () => {
   /**
    * A card that puts its holder somewhere else without walking her there, and
-   * can bring whoever is standing with her for a Hope a head.
+   * can bring whoever is standing with her for a Light a head.
    *
    * Three success faces, all the same one: the engine reads them separately, so
    * a specimen that filled only the best of them would leave two thirds of the
@@ -5367,9 +5367,9 @@ describe('a step across the room without crossing it', () => {
     options: [
       { label: 'Step alone', effects: [] },
       {
-        label: 'Bring them along (a Hope each)',
+        label: 'Bring them along (a Light each)',
         // Offered only when she can pay for all of them: a count measured
-        // against the Hope she is actually holding.
+        // against the Light she is actually holding.
         available: {
           kind: 'all',
           of: [
@@ -5400,7 +5400,7 @@ describe('a step across the room without crossing it', () => {
       id: 'fixture-blink',
       name: 'Step Across',
       source: { kind: 'domainCard', card: BLINK_CARD },
-      text: 'Spend a Hope to be standing somewhere else, and bring whoever is with you for a Hope a head.',
+      text: 'Spend a Light to be standing somewhere else, and bring whoever is with you for a Light a head.',
       cost: { hope: 1 },
       target: { kind: 'point', range: 'far' },
       effects: [
@@ -5438,7 +5438,7 @@ describe('a step across the room without crossing it', () => {
 
   /**
    * Answer whatever is being asked: a roll is rolled, and a choice takes the
-   * option at `pick` - clamped, because "how many Hope" lists one per Hope.
+   * option at `pick` - clamped, because "how many Light" lists one per Light.
    */
   const answerAll = (demo: DemoScene, pick: number): void => {
     for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
@@ -5489,7 +5489,7 @@ describe('a step across the room without crossing it', () => {
     throw new Error('the blink never took in forty tries');
   });
 
-  it('takes whoever is standing with her when the Hope goes in', () => {
+  it('takes whoever is standing with her when the Light goes in', () => {
     for (let seed = 1; seed < 60; seed++) {
       const { demo } = blinking(`blink-with-${seed}`);
       const at = somewhereElse(demo, ['mira', 'kara']);
@@ -5513,7 +5513,7 @@ describe('a step across the room without crossing it', () => {
     throw new Error('nobody was ever brought along');
   });
 
-  it('asks a Hope a head, and does not offer what she cannot pay for', () => {
+  it('asks a Light a head, and does not offer what she cannot pay for', () => {
     for (let seed = 1; seed < 40; seed++) {
       const { demo } = blinking(`blink-price-${seed}`);
       const mira = demo.state.entity('mira')!;
@@ -5528,7 +5528,7 @@ describe('a step across the room without crossing it', () => {
       const at = somewhereElse(demo, ['mira', 'kara', 'finn']);
       if (at === NO_TILE) continue;
 
-      // A Hope for the spell and nothing over. A success with Hope hands one
+      // A Light for the spell and nothing over. A success with Light hands one
       // back before the choice is put, so even then there is one for one of
       // them and not for both.
       mira.hope = { max: 6, value: 1 };
@@ -5547,7 +5547,7 @@ describe('a step across the room without crossing it', () => {
       expect(offered).toEqual(['Step alone']);
       expect(demo.state.entity('kara')!.tile).not.toBe(at);
 
-      // With a Hope for each of them it is offered, and each of them is paid for.
+      // With a Light for each of them it is offered, and each of them is paid for.
       const { demo: rich } = blinking(`blink-price-${seed}`);
       rich.state.moveEntity('finn', stand);
       const richMira = rich.state.entity('mira')!;
@@ -5565,13 +5565,13 @@ describe('a step across the room without crossing it', () => {
       }
       if (!rich.log.some((l) => /Success|Critical/.test(l.text))) continue;
       expect(took.length).toBe(2);
-      expect(rich.log.some((l) => l.text.includes('Spends 2 Hope'))).toBe(true);
+      expect(rich.log.some((l) => l.text.includes('Spends 2 Light'))).toBe(true);
       return;
     }
     throw new Error('no seed put two of the party beside her');
   });
 
-  it('leaves them where they stand when no Hope goes in', () => {
+  it('leaves them where they stand when no Light goes in', () => {
     for (let seed = 1; seed < 60; seed++) {
       const { demo } = blinking(`blink-alone-${seed}`);
       const at = somewhereElse(demo, ['mira', 'kara']);
@@ -6106,7 +6106,7 @@ describe('a room put out', () => {
   const UNLIT_CONDITION = {
     id: 'fixture-unlit',
     name: 'Caught Out',
-    text: 'When somebody succeeds with Hope against you here, you must mark a Stress.',
+    text: 'When somebody succeeds with Light against you here, you must mark a Stress.',
     color: '#3d3358',
     payout: {
       on: 'attacked',
@@ -6219,7 +6219,7 @@ describe('a room put out', () => {
     return demo.world.zones().length > 0;
   };
 
-  it('turns attacks against the party and marks whoever is beaten with Hope', () => {
+  it('turns attacks against the party and marks whoever is beaten with Light', () => {
     for (let seed = 1; seed < 60; seed++) {
       const demo = dark(`eclipse-${seed}`);
       if (!cast(demo)) continue;
@@ -6239,7 +6239,7 @@ describe('a room put out', () => {
     throw new Error('the dark never fell in sixty tries');
   });
 
-  it('takes a Stress from whoever is beaten with Hope in it, and only then', () => {
+  it('takes a Stress from whoever is beaten with Light in it, and only then', () => {
     let withHope = false;
     let otherwise = false;
     for (let seed = 1; seed < 80 && !(withHope && otherwise); seed++) {
@@ -6400,7 +6400,7 @@ describe('a sigil that answers a fall', () => {
       id: 'fixture-sigil',
       name: 'Hang a Ward',
       source: { kind: 'domainCard', card: SIGIL_CARD },
-      text: 'Spend three Hope to hang a ward over somebody close by, until a rest.',
+      text: 'Spend three Light to hang a ward over somebody close by, until a rest.',
       cost: { hope: 3 },
       target: { kind: 'ally', range: 'close' },
       effects: [
@@ -6883,7 +6883,7 @@ describe('a card that charges the one who swings', () => {
         { kind: 'log', text: 'The room fills with them, and standing near it costs something.', tone: 'hope' },
         { kind: 'applyCondition', condition: 'fixture-aura-on', duration: 'rest', target: { kind: 'actor' } },
       ],
-      otherwise: [{ kind: 'log', text: 'It gathers and will not hold: there is no Hope to pour into it.', tone: 'fear' }],
+      otherwise: [{ kind: 'log', text: 'It gathers and will not hold: there is no Light to pour into it.', tone: 'fear' }],
     },
   ];
 
@@ -6914,7 +6914,7 @@ describe('a card that charges the one who swings', () => {
       id: 'fixture-aura',
       name: 'Hard Air',
       source: { kind: 'domainCard', card: AURA_CARD },
-      text: 'Make the air around you hard to stand in, for two Hope, until a rest.',
+      text: 'Make the air around you hard to stand in, for two Light, until a rest.',
       target: { kind: 'self' },
       effects: [
         {
@@ -7020,7 +7020,7 @@ describe('a card that charges the one who swings', () => {
     expect(kara.conditions.has('fixture-aura-on')).toBe(true);
   });
 
-  it('the aura goes up on a Spellcast Roll, and not without the Hope to hold it', () => {
+  it('the aura goes up on a Spellcast Roll, and not without the Light to hold it', () => {
     for (let seed = 1; seed < 60; seed++) {
       const demo = standoff('aura-cast-' + seed);
       demo.askDefender = false;
@@ -7032,14 +7032,14 @@ describe('a card that charges the one who swings', () => {
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (!mira.conditions.has('fixture-aura-on')) continue;
 
-      // Two Hope out of six, and the aura standing.
+      // Two Light out of six, and the aura standing.
       expect(mira.hope!.value).toBeLessThanOrEqual(4);
       return;
     }
     throw new Error('the aura never went up in sixty tries');
   });
 
-  it('and a caster with one Hope holds nothing', () => {
+  it('and a caster with one Light holds nothing', () => {
     for (let seed = 1; seed < 60; seed++) {
       const demo = standoff('aura-poor-' + seed);
       demo.askDefender = false;
@@ -7050,7 +7050,7 @@ describe('a card that charges the one who swings', () => {
       const used = useAbility(demo, 'mira', 'fixture-aura', []);
       if (used.status === 'refused') continue;
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
-      // However the dice went, two Hope was never there to spend.
+      // However the dice went, two Light was never there to spend.
       expect(mira.conditions.has('fixture-aura-on')).toBe(false);
       return;
     }
@@ -7068,7 +7068,7 @@ describe('a card that moves the room', () => {
    * A card that puts other people on the tile its holder picked: the creatures
    * its roll beat, and the party standing close.
    *
-   * One Hope buys both halves, which is why an ally moves however the roll went
+   * One Light buys both halves, which is why an ally moves however the roll went
    * against the creature -- an ally is never rolled against. `allies` leaves the
    * actor out, so the one who cast it stays where they were.
    *
@@ -7082,7 +7082,7 @@ describe('a card that moves the room', () => {
       id: 'fixture-wrangle',
       name: 'Rearrange the Room',
       source: { kind: 'domainCard', card: WRANGLE_CARD },
-      text: 'One roll against everything standing close, and a Hope to haul what it beat.',
+      text: 'One roll against everything standing close, and a Light to haul what it beat.',
       inCombatOnly: true,
       target: { kind: 'point', range: 'close' },
       effects: [
@@ -7103,7 +7103,7 @@ describe('a card that moves the room', () => {
                   { kind: 'move', who: { kind: 'hit' }, to: 'point', teleport: true },
                   { kind: 'move', who: { kind: 'allies', range: 'close' }, to: 'point', teleport: true },
                 ],
-                otherwise: [{ kind: 'log', text: 'Nobody moves: there is no Hope to spend on it.', tone: 'fear' }],
+                otherwise: [{ kind: 'log', text: 'Nobody moves: there is no Light to spend on it.', tone: 'fear' }],
               },
             ],
           },
@@ -7133,7 +7133,7 @@ describe('a card that moves the room', () => {
     return NO_TILE;
   };
 
-  it('hauls the ones it beat onto the spot, and spends the Hope for it', () => {
+  it('hauls the ones it beat onto the spot, and spends the Light for it', () => {
     for (let seed = 1; seed < 60; seed++) {
       const demo = standoff('haul-' + seed);
       demo.askDefender = false;
@@ -7148,7 +7148,7 @@ describe('a card that moves the room', () => {
       expect(useAbility(demo, 'kara', 'fixture-wrangle', [], { point: spot }).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
 
-      // Only a roll that beat it moves it, and only then is the Hope gone.
+      // Only a roll that beat it moves it, and only then is the Light gone.
       if (husk.tile === was) {
         expect(kara.hope!.value).toBeLessThanOrEqual(4);
         continue;
@@ -7180,7 +7180,7 @@ describe('a card that moves the room', () => {
       expect(useAbility(demo, 'kara', 'fixture-wrangle', [], { point: spot }).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
 
-      // However the roll went against the husk, the ally moved: the Hope buys
+      // However the roll went against the husk, the ally moved: the Light buys
       // both halves of the card, and an ally is not rolled against.
       expect(demo.grid.chebyshevDistance(finn.tile, spot)).toBeLessThanOrEqual(1);
       // And the one who whistled stayed where they were: `allies` leaves the
@@ -7191,7 +7191,7 @@ describe('a card that moves the room', () => {
     throw new Error('never found room to stand Finn in, in sixty tries');
   });
 
-  it('moves nobody with no Hope to spend, and a roll with Hope pays for itself', () => {
+  it('moves nobody with no Light to spend, and a roll with Light pays for itself', () => {
     let withFear = false;
     let withHope = false;
     for (let seed = 1; seed < 60 && !(withFear && withHope); seed++) {
@@ -7211,8 +7211,8 @@ describe('a card that moves the room', () => {
       expect(useAbility(demo, 'kara', 'fixture-wrangle', [], { point: spot }).status).not.toBe('refused');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
 
-      // A roll with Hope hands one over *before* the arms run, so the card
-      // pays for itself out of the roll that cast it; a roll with Fear leaves
+      // A roll with Light hands one over *before* the arms run, so the card
+      // pays for itself out of the roll that cast it; a roll with Shadow leaves
       // the pool as empty as it found it, and nobody moves.
       const hoped = demo.rolls[demo.rolls.length - 1]!.roll.hopeGained > 0;
       if (hoped) {
@@ -7357,7 +7357,7 @@ describe('a card that throws the dice again', () => {
         if (demo.pending?.kind !== 'reaction') throw new Error('expected a reaction prompt');
         expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-support-tank']);
         expect(first.hit).toBe(false);
-        // Two Hope, and only the Fear Die goes back in the cup.
+        // Two Light, and only the Shadow Die goes back in the cup.
         const before = demo.state.entity('finn')!.hope!.value;
         answerPending(demo, { kind: 'choose', index: 1 });
         while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
@@ -7371,7 +7371,7 @@ describe('a card that throws the dice again', () => {
     expect({ onFailure, onSuccess }).toEqual({ onFailure: true, onSuccess: true });
   });
 
-  it('and is not even offered when the two Hope are not there', () => {
+  it('and is not even offered when the two Light are not there', () => {
     for (let seed = 1; seed < 120; seed++) {
       const rich = swinging('tank-hope-' + seed, SUPPORT_TANK, SUPPORT_CARD, 6);
       if (attackWithSelected(rich.demo, rich.husk.id)?.waiting !== true) continue;
@@ -7779,7 +7779,7 @@ describe('a stance that holds the ground around it', () => {
    *
    * Two abilities on one card, and the second is not decoration. The stance
    * paints the ground; a reaction on the holder's own dice takes it away again
-   * when she fails with Fear. The last test here pins that reaction, so a
+   * when she fails with Shadow. The last test here pins that reaction, so a
    * specimen carrying only the stance would fail it for the wrong reason.
    *
    * What the ground does lives in the condition it paints, not in the card --
@@ -7815,7 +7815,7 @@ describe('a stance that holds the ground around it', () => {
       id: 'fixture-stance',
       name: 'Set Feet',
       source: { kind: 'domainCard', card: STANCE_CARD },
-      text: 'Spend a Hope to set your feet, and the ground around you stops being neutral.',
+      text: 'Spend a Light to set your feet, and the ground around you stops being neutral.',
       cost: { hope: 1 },
       target: { kind: 'self' },
       inCombatOnly: true,
@@ -7889,7 +7889,7 @@ describe('a stance that holds the ground around it', () => {
     return { demo, husk, kara };
   };
 
-  it('costs a Hope, marks the one holding it, and puts a zone on the board', () => {
+  it('costs a Light, marks the one holding it, and puts a zone on the board', () => {
     const { demo, kara } = braced('line-up');
     expect(useAbility(demo, 'kara', 'fixture-stance', []).status).not.toBe('refused');
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
@@ -7955,7 +7955,7 @@ describe('a stance that holds the ground around it', () => {
     expect(demo.grid.chebyshevDistance(kara.tile, husk.tile)).toBeLessThanOrEqual(1);
   });
 
-  it('drops on a failure with Fear, and the ground stops meaning anything', () => {
+  it('drops on a failure with Shadow, and the ground stops meaning anything', () => {
     for (let seed = 1; seed < 80; seed++) {
       const { demo, husk, kara } = braced('line-drop-' + seed);
       expect(useAbility(demo, 'kara', 'fixture-stance', []).status).not.toBe('refused');
@@ -7978,7 +7978,7 @@ describe('a stance that holds the ground around it', () => {
       expect(husk.conditions.has('fixture-caught')).toBe(false);
       return;
     }
-    throw new Error('Kara never failed with Fear in eighty tries');
+    throw new Error('Kara never failed with Shadow in eighty tries');
   });
 });
 
@@ -8021,7 +8021,7 @@ describe('a swing that reaches one more', () => {
       id: 'fixture-echo-cast',
       name: 'Echoing Strike',
       source: { kind: 'domainCard', card: ECHO_CARD },
-      text: 'Spend two Hope to set an echo beside somebody close by, until their next swing.',
+      text: 'Spend two Light to set an echo beside somebody close by, until their next swing.',
       cost: { hope: 2 },
       target: { kind: 'ally', range: 'close' },
       effects: [
@@ -8468,7 +8468,7 @@ describe('the last of the Codex', () => {
       // somebody who cannot act, which reads exactly like a swing that missed.
       //
       // And the GM's purse is emptied first. A creature that cannot act spends
-      // its spotlight shaking the condition off and pays a Fear to do it, so
+      // its spotlight shaking the condition off and pays a Shadow to do it, so
       // with anything in the pool the stillness would be bought off before she
       // swung - and the assertion below would pass without the card doing a
       // thing.
@@ -8601,14 +8601,14 @@ describe('the last of the Codex', () => {
 
 /**
  * Sage's two capstones: three storms behind one roll, and a shape that costs
- * its wearer a Hope every time they use it.
+ * its wearer a Light every time they use it.
  */
 describe('the weather, and the thing that wears it', () => {
   /**
    * Two cards. One drops a storm: the same roll against everything the weather
    * reaches, and for two of the three something stays on whatever it beat. The
    * other is a shape its wearer feeds -- a Stress to put on, ten more damage
-   * while it holds, and a Hope for every roll made in it.
+   * while it holds, and a Light for every roll made in it.
    *
    * The storm names below are looked up by exact string and asserted as a list,
    * so they are part of the behaviour rather than decoration.
@@ -8643,7 +8643,7 @@ describe('the weather, and the thing that wears it', () => {
   const SHAPE_CONDITION = {
     id: 'fixture-shape',
     name: 'Force of Nature',
-    text: 'Something enormous wearing them: ten more damage, and a Hope for every roll.',
+    text: 'Something enormous wearing them: ten more damage, and a Light for every roll.',
     modifiers: [{ stat: 'damageRoll', bonus: 10 }],
   };
 
@@ -8688,7 +8688,7 @@ describe('the weather, and the thing that wears it', () => {
       id: 'fixture-shape-upkeep',
       name: 'Force of Nature',
       source: { kind: 'domainCard', card: SHAPE_CARD },
-      text: 'Every roll made in the shape costs a Hope, and nothing left to pay takes it off.',
+      text: 'Every roll made in the shape costs a Light, and nothing left to pay takes it off.',
       kind: 'reaction',
       trigger: 'partyRolled',
       action: false,
@@ -8806,7 +8806,7 @@ describe('the weather, and the thing that wears it', () => {
     expect({ sanded, blown }).toEqual({ sanded: true, blown: true });
   });
 
-  it('Force of Nature adds ten to a blow and takes a Hope for every roll', () => {
+  it('Force of Nature adds ten to a blow and takes a Light for every roll', () => {
     const { demo, mira, husk } = casting('force-of-nature', SHAPE_CARD);
     mira.stress = { max: 6, marked: 0 };
     expect(useAbility(demo, 'mira', 'fixture-shape-on', []).status).not.toBe('refused');
@@ -8815,7 +8815,7 @@ describe('the weather, and the thing that wears it', () => {
     expect(mira.stress.marked).toBe(1);
     expect(demo.world.rollBonus('mira', 'damageRoll')).toBe(10);
 
-    // Every action roll she makes costs a Hope out of the six.
+    // Every action roll she makes costs a Light out of the six.
     const hope = mira.hope!.value;
     attackWithSelected(demo, husk.id);
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
@@ -8832,7 +8832,7 @@ describe('the weather, and the thing that wears it', () => {
 
     attackWithSelected(demo, husk.id);
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
-    // A roll with Hope hands one over before the upkeep reads the pool, so the
+    // A roll with Light hands one over before the upkeep reads the pool, so the
     // shape only goes when the dice gave her nothing to pay with either.
     const gained = demo.rolls[demo.rolls.length - 1]!.roll.hopeGained;
     expect(mira.conditions.has('fixture-shape')).toBe(gained > 0);
@@ -8980,7 +8980,7 @@ describe('a card that saves a roll already made', () => {
 /**
  * The one card that changes what is thrown rather than what is added to it.
  */
-describe('a Hope Die that is not a d12', () => {
+describe('a Light Die that is not a d12', () => {
   /**
    * The one card here that changes what is thrown rather than what is added to
    * it. The condition carries the die itself, and the roll only reports a size
@@ -9001,7 +9001,7 @@ describe('a Hope Die that is not a d12', () => {
   const DECLARED_CONDITION = {
     id: 'fixture-declared',
     name: 'Set for It',
-    text: 'The thing you are known for: your next action roll throws a d20 as its Hope Die.',
+    text: 'The thing you are known for: your next action roll throws a d20 as its Light Die.',
     hopeDie: { sides: 20 },
   };
 
@@ -9078,7 +9078,7 @@ describe('a Hope Die that is not a d12', () => {
     expect(demo.world.hopeDieSides('kara')).toBe(20);
   });
 
-  it('throws a d20 for Hope on the swing it was declared for, and only that one', () => {
+  it('throws a d20 for Light on the swing it was declared for, and only that one', () => {
     // Over enough seeds a d12 can never show 13 or more; a d20 can. Finding one
     // face above twelve is the whole proof that a different die was thrown.
     let sawBig = false;
@@ -9337,7 +9337,7 @@ describe('coming at them well, and knowing them', () => {
     throw new Error('Kara never landed a blow in forty tries');
   });
 
-  it('Know Thy Enemy takes a Hope, and offers a Stress for one of the GM\'s Fear', () => {
+  it('Know Thy Enemy takes a Light, and offers a Stress for one of the GM\'s Shadow', () => {
     for (let seed = 1; seed < 80; seed++) {
       const demo = standoff('know-' + seed);
       demo.askDefender = false;
@@ -9357,7 +9357,7 @@ describe('coming at them well, and knowing them', () => {
       if (demo.pending?.prompt.kind !== 'choice') continue;
 
       expect(kara.hope!.value).toBe(5);
-      // Read after the dice, not before them: a roll with Fear hands the GM one
+      // Read after the dice, not before them: a roll with Shadow hands the GM one
       // on its way past, and what the card takes is measured off that.
       const pool = demo.state.fear.value;
       answerPending(demo, { kind: 'choose', index: 0 });
@@ -10058,7 +10058,7 @@ describe('lifting somebody at somebody else, and keeping what you learned', () =
 
 
 /**
- * The last card that was blocked rather than deliberately text: five Hope to
+ * The last card that was blocked rather than deliberately text: five Light to
  * name a roll's total instead of throwing the dice again.
  */
 describe('reaching past the dice', () => {
@@ -10114,7 +10114,7 @@ describe('reaching past the dice', () => {
     return { demo, kara, mira, husk };
   };
 
-  it('is offered only on a failure, and turns one into a success for five Hope', () => {
+  it('is offered only on a failure, and turns one into a success for five Light', () => {
     for (let seed = 1; seed < 80; seed++) {
       const { demo, mira, husk } = rolling('adjust-' + seed);
       expect(useAbility(demo, 'kara', 'fixture-watching', [husk.id]).status).toBe('waiting');
@@ -10136,7 +10136,7 @@ describe('reaching past the dice', () => {
       // The dice did not: "the numerical result" is the total, not the throw.
       expect({ hope: settled.hope, fear: settled.fear }).toEqual({ hope: thrown.hope, fear: thrown.fear });
       expect(settled.withHope).toBe(thrown.withHope);
-      // Five Hope, out of the six she had.
+      // Five Light, out of the six she had.
       expect(mira.hope!.value).toBeLessThanOrEqual(1);
       return;
     }
@@ -10207,7 +10207,7 @@ describe('a roll with a purpose', () => {
     }
     hold(demo, 'mira', [OWN_REROLL_CARD, ...cards]);
     const mira = demo.state.entity('mira')!;
-    // Room above the six: a roll with Hope hands one over after the card has
+    // Room above the six: a roll with Light hands one over after the card has
     // been paid for, and a full pool would swallow the difference.
     mira.hope = { max: 12, value: 6 };
     const kara = demo.state.entity('kara')!;
@@ -10221,7 +10221,7 @@ describe('a roll with a purpose', () => {
     return { demo, mira, husk };
   };
 
-  it('is offered on a taunt and throws the Fear Die again', () => {
+  it('is offered on a taunt and throws the Shadow Die again', () => {
     for (let seed = 1; seed < 80; seed++) {
       const { demo, mira, husk } = talking('charisma-' + seed, [TAGGED_CARD]);
       expect(useAbility(demo, 'mira', 'fixture-tagged-check', [husk.id]).status).toBe('waiting');
@@ -10235,10 +10235,10 @@ describe('a roll with a purpose', () => {
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
 
       const settled = demo.rolls[demo.rolls.length - 1]!.roll;
-      // The Fear Die alone went back in the cup: "the Hope or Fear Die", and
-      // the Fear one is the pick anybody would make.
+      // The Shadow Die alone went back in the cup: "the Light or Shadow Die", and
+      // the Shadow one is the pick anybody would make.
       expect(settled.hope).toBe(thrown.hope);
-      // One Hope for the card, and whatever the settled roll handed back.
+      // One Light for the card, and whatever the settled roll handed back.
       expect(mira.hope!.value).toBe(6 - 1 + settled.hopeGained);
       return;
     }

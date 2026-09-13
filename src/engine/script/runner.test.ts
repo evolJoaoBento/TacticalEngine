@@ -436,13 +436,13 @@ describe('check', () => {
 
   it('rolls, dispatches on the outcome, then runs `always`', () => {
     const { world: w } = world();
-    // Hope 9, Fear 4 -> 13 + 2 = 15, a success with Hope.
+    // Light 9, Shadow 4 -> 13 + 2 = 15, a success with Light.
     const runner = new ScriptRunner(w, scriptedRng([9, 4]));
     runner.run(search);
     const after = runner.resume({ kind: 'roll' });
 
     expect(after.status).toBe('done');
-    // A roll also hands out a Hope or a Fear, journalled right after the check.
+    // A roll also hands out a Light or a Shadow, journalled right after the check.
     const kinds = after.journal
       .filter((e) => e.kind !== 'hope' && e.kind !== 'fear')
       .map((e) => (e.kind === 'log' ? e.text : e.kind));
@@ -603,7 +603,7 @@ describe('numbers a script can read', () => {
         onFail: [{ kind: 'gainFear', amount: 'targetsHit' }],
       },
     ]);
-    // Two failed, so two Fear - not one for each of the three who rolled.
+    // Two failed, so two Shadow - not one for each of the three who rolled.
     expect(fear).toBe(2);
   });
 

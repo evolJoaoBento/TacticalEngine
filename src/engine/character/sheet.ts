@@ -63,7 +63,7 @@ export interface CharacterSheet {
   primaryWeaponId?: string;
   secondaryWeaponId?: string;
   armorId?: string;
-  /** Experiences, each spendable for a Hope: "Tremor Sense +2". */
+  /** Experiences, each spendable for a Light: "Tremor Sense +2". */
   experiences?: readonly { name: string; modifier: number }[];
   /** The subclass chosen at level 1. Its stage is read off `levels`. */
   subclassId?: string;
@@ -77,8 +77,8 @@ export interface CharacterSheet {
   /** Every level taken since 1, in order. `progression.ts` reads and writes this. */
   levels?: readonly LevelRecord[];
   /**
-   * Hope slots crossed out for good, one per scar taken on Avoid Death.
-   * "If you ever cross out your last Hope slot, your character's journey ends."
+   * Light slots crossed out for good, one per scar taken on Avoid Death.
+   * "If you ever cross out your last Light slot, your character's journey ends."
    */
   scars?: number;
   /** Flat adjustments from advancements, features or items. */
@@ -112,7 +112,7 @@ export interface DerivedCharacter {
   spellcastTrait?: Trait;
   /** Every domain card held: the two from level 1 and one per level since. */
   cards: readonly DomainCardDef[];
-  /** Class, Hope, subclass (up to the stage reached) and card features, in that order. */
+  /** Class, Light, subclass (up to the stage reached) and card features, in that order. */
   features: readonly CharacterFeature[];
   /**
    * The modifiers the character's abilities grant, those whose `requires` the
@@ -271,7 +271,7 @@ export function deriveCharacter(
     ),
     stress: Math.min(MAX_SLOTS, STARTING_STRESS_SLOTS + (bonuses.stress ?? 0) + grown.stress + folded('stress')),
     // A scar is permanent, so it is the sheet that carries it and every scene
-    // the character walks into starts a Hope short.
+    // the character walks into starts a Light short.
     hope: createHope(STARTING_HOPE, Math.max(0, MAX_HOPE - (sheet.scars ?? 0))),
     ...(primaryWeapon === undefined ? {} : { primaryWeapon }),
     ...(secondaryWeapon === undefined ? {} : { secondaryWeapon }),

@@ -1,7 +1,7 @@
 /**
  * Abilities: what a character can *do*, as data.
  *
- * A domain card, a class's Hope feature, a subclass card's feature — each is a
+ * A domain card, a class's Light feature, a subclass card's feature — each is a
  * name, some SRD text, and, when the engine can run it, a script in the one
  * effect vocabulary plus what it costs and who it can be aimed at. The text is
  * always shown; the script is what makes a button of it. A card with no script
@@ -23,7 +23,7 @@ import { conditionSchema, effectSchema, rangeBandSchema, walkEffects, type Effec
 /** How many domain cards can be active at once. The rest wait in the vault. */
 export const LOADOUT_LIMIT = 5;
 
-/** "Each class has a unique Hope Feature … You can spend 3 Hope to activate." */
+/** "Each class has a unique Light Feature … You can spend 3 Light to activate." */
 export const HOPE_FEATURE_COST = 3;
 
 export const abilitySourceSchema = z.discriminatedUnion('kind', [
@@ -321,7 +321,7 @@ export const abilitySchema = z.object({
       'attacked',
       /**
        * A party member made an action roll: "when a PC rolls a failure with
-       * Fear while within Close range of the Demon". The one who rolled is
+       * Shadow while within Close range of the Demon". The one who rolled is
        * bound as the target, and what the roll was is a `rolled` condition.
        */
       'partyRolled',
@@ -375,9 +375,9 @@ export const abilitySchema = z.object({
     .optional(),
   /**
    * What using it costs its holder. `fear` is the GM's pool, so it belongs to
-   * a stat block's features — "Spend a Fear to…" is written on adversaries,
+   * a stat block's features — "Spend a Shadow to…" is written on adversaries,
    * never on a card; a character ability that states one is refused, because
-   * nobody at the player's end of the table has a Fear to spend.
+   * nobody at the player's end of the table has a Shadow to spend.
    */
   cost: z
     .object({
@@ -393,7 +393,7 @@ export const abilitySchema = z.object({
   /** Only in a fight. Off for anything that reads as a rest or a chat. */
   inCombatOnly: z.boolean().default(false),
   /**
-   * Whether using it is the character's action in a fight. A Hope feature
+   * Whether using it is the character's action in a fight. A Light feature
    * like "clear 2 Armor Slots" is not; a spell that rolls is.
    */
   action: z.boolean().default(true),
@@ -408,7 +408,7 @@ export const abilitySchema = z.object({
    * attack — the swing its stat block prints, not a feature's. "The Ogre's
    * attacks deal direct damage", "if the Sniper is Hidden… they deal 1d10+4
    * physical damage instead of their standard damage", "the Demon deals
-   * double damage to PCs with 0 Hope".
+   * double damage to PCs with 0 Light".
    *
    * `when` is read from the attacker's chair with the target bound, so a
    * condition on either of them is a plain `hasCondition`. Without one it

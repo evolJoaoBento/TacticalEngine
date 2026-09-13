@@ -1,7 +1,7 @@
 /**
  * The Duality Dice, landing.
  *
- * Daggerheart's roll is two d12s that mean different things — Hope and Fear —
+ * The roll is two d12s that mean different things — Light and Shadow —
  * so the pair is worth watching in a way a damage roll is not. This draws them
  * flat and shades them like solids: five facets around a face, a highlight, a
  * shadow beneath. There is no physics and nothing is decided here. The rules
@@ -23,7 +23,7 @@ export interface DiceTrayProps {
   onDone: (id: number) => void;
 }
 
-/** Gold for Hope, violet for Fear: the colours the prototype rolled in. */
+/** Gold for Light, violet for Shadow: the colours the prototype rolled in. */
 const HOPE = { face: '#e8bd63', edge: '#a97c22', ink: '#3a2a06', glow: '#ffdb8a' };
 const FEAR = { face: '#9d80c4', edge: '#5c4185', ink: '#1d1030', glow: '#c9aef0' };
 
@@ -146,7 +146,7 @@ export function DiceTray(props: DiceTrayProps): preact.JSX.Element | null {
   const spin = (1 - eased) * 540;
   const lift = Math.max(0, Math.sin(t * Math.PI * 2.5) * (1 - eased));
 
-  const line = `Hope ${roll.roll.hope} + Fear ${roll.roll.fear}${
+  const line = `Light ${roll.roll.hope} + Shadow ${roll.roll.fear}${
     roll.roll.advantageDie === 0 ? '' : roll.roll.advantageDie > 0 ? ` + d6 ${roll.roll.advantageDie}` : ` − d6 ${-roll.roll.advantageDie}`
   }${roll.roll.helpBonus > 0 ? ` + help ${roll.roll.helpBonus}` : ''}${
     roll.roll.modifier === 0 ? '' : roll.roll.modifier > 0 ? ` + ${roll.roll.modifier}` : ` − ${-roll.roll.modifier}`
@@ -156,12 +156,12 @@ export function DiceTray(props: DiceTrayProps): preact.JSX.Element | null {
     roll.roll.outcome === 'criticalSuccess'
       ? 'critical success'
       : roll.roll.outcome === 'successWithHope'
-        ? 'success with Hope'
+        ? 'success with Light'
         : roll.roll.outcome === 'successWithFear'
-          ? 'success with Fear'
+          ? 'success with Shadow'
           : roll.roll.outcome === 'failureWithHope'
-            ? 'failure with Hope'
-            : 'failure with Fear';
+            ? 'failure with Light'
+            : 'failure with Shadow';
 
   return (
     <div

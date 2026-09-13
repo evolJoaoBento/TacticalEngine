@@ -218,7 +218,7 @@ describe('walking a conversation', () => {
 describe('a reply that costs a roll', () => {
   it('pauses for the roll, then routes on success', () => {
     const { world: w } = world();
-    // Hope 8, Fear 6 -> 14 + 2 = 16 against 14: a success with Hope.
+    // Light 8, Shadow 6 -> 14 + 2 = 16 against 14: a success with Light.
     const runner = new DialogueRunner(hag, w, scriptedRng([8, 6]));
     runner.start();
 

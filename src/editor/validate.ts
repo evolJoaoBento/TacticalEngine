@@ -212,11 +212,11 @@ function checkAbilitiesAndCode(
     if (condition !== undefined) walkCondition(condition, asked(owner));
   };
   for (const ability of project.abilities) {
-    // Fear is the GM's pool. A card that asks its holder for one is a card
+    // Shadow is the GM's pool. A card that asks its holder for one is a card
     // nobody can ever use — play refuses it — so say so while it is being
     // written rather than when someone reaches for it.
     if ((ability.cost.fear ?? 0) > 0 && ability.source.kind !== 'adversary') {
-      add('warning', `"${ability.id}" costs Fear, which only the GM spends: nobody holding it can use it.`, ability.id);
+      add('warning', `"${ability.id}" costs Shadow, which only the GM spends: nobody holding it can use it.`, ability.id);
     }
     // A summons names a stat block; one nothing ships is a feature that does
     // nothing when the GM reaches for it.

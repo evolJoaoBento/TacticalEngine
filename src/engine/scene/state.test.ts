@@ -40,7 +40,7 @@ describe('SceneState entities', () => {
     expect(state.entitiesOf('adversary').map((e) => e.id)).toEqual(['husk-1']);
   });
 
-  it('gives a party member Hope and an adversary none', () => {
+  it('gives a party member Light and an adversary none', () => {
     const state = makeState();
     state.addEntity(createPartyEntity('kara', 'sentinel', 0));
     state.addEntity(createAdversaryEntity('husk-1', 'hollow-husk', 4, { hitPoints: 5, stress: 3 }));
@@ -501,7 +501,7 @@ describe('sceneStateFromScene', () => {
     expect([...state.occupantsOf(state.grid.indexOf(0, 0))].sort()).toEqual(['kara', 'mira']);
   });
 
-  it('carries the GM Fear in from the previous scene', () => {
+  it('carries the GM Shadow in from the previous scene', () => {
     expect(build({ fear: createFear(7) }).state.fear.value).toBe(7);
     expect(build().state.fear.value).toBe(0);
   });

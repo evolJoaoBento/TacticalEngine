@@ -11,7 +11,7 @@
  * matched to its printed entry by name, so each one's `name` is exactly the name
  * the class or subclass prints.
  *
- * Nothing here costs Hope or Fear. Those are document field names on `cost`,
+ * Nothing here costs Light or Shadow. Those are document field names on `cost`,
  * and both are being renamed; a starter pack that never spends them needs no
  * migration when that happens. A card that wants a price asks for Stress.
  */

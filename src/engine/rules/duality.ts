@@ -1,9 +1,9 @@
 /**
- * The Daggerheart duality roll (SRD "Action Rolls", "Reaction Rolls",
+ * The duality roll (the rules' "Action Rolls", "Reaction Rolls",
  * "Advantage & Disadvantage", "Help an Ally", "Group Action Rolls").
  *
  * Pure and DOM-free: takes an `Rng` and a description of the roll, returns a
- * result record. It never mutates a character and never applies the Hope/Fear it
+ * result record. It never mutates a character and never applies the Light/Shadow it
  * reports — the caller decides when resource deltas land, so a roll can be
  * previewed, logged, replayed or animated before it takes effect.
  *
@@ -31,16 +31,16 @@ export interface DualityRollOptions {
   difficulty: number;
   /**
    * Flat modifier: the acting trait plus anything else that adds a number —
-   * features, items, conditions, a spent-Hope Experience, a Group Action Roll bonus.
+   * features, items, conditions, a spent-Light Experience, a Group Action Roll bonus.
    */
   modifier?: number;
   /**
-   * The Hope Die's faces, for the one card that changes them: "you can roll a
-   * d20 as your Hope Die". Twelve unless something says otherwise.
+   * The Light Die's faces, for the one card that changes them: "you can roll a
+   * d20 as your Light Die". Twelve unless something says otherwise.
    *
-   * Only the Hope Die moves. The Fear Die is the GM's half of the pair and no
+   * Only the Light Die moves. The Shadow Die is the GM's half of the pair and no
    * card here touches it, and a critical is still the two showing the same
-   * face - which a bigger Hope Die makes rarer rather than impossible.
+   * face - which a bigger Light Die makes rarer rather than impossible.
    */
   hopeDieSides?: number;
   /** Number of sources granting advantage (e.g. a Vulnerable target). */
@@ -53,20 +53,20 @@ export interface DualityRollOptions {
    */
   helpDice?: number;
   /**
-   * A reaction roll: "they don't generate Hope or Fear, don't trigger additional
+   * A reaction roll: "they don't generate Light or Shadow, don't trigger additional
    * GM moves, and other characters can't aid you with Help an Ally." A critical
-   * reaction success clears no Stress and gains no Hope.
+   * reaction success clears no Stress and gains no Light.
    */
   reaction?: boolean;
 }
 
 export interface DualityRoll {
-  /** Face shown by the Hope die. */
+  /** Face shown by the Light die. */
   hope: number;
-  /** Face shown by the Fear die. */
+  /** Face shown by the Shadow die. */
   fear: number;
   /**
-   * The Hope Die's faces, present only when they were not the usual twelve —
+   * The Light Die's faces, present only when they were not the usual twelve —
    * so a roll thrown again knows which die to put back in the cup.
    */
   hopeSides?: number;
@@ -85,21 +85,21 @@ export interface DualityRoll {
   success: boolean;
   /** Duality dice matched. */
   critical: boolean;
-  /** SRD: "A Critical Success counts as a roll 'with Hope.'" */
+  /** SRD: "A Critical Success counts as a roll 'with Light.'" */
   withHope: boolean;
   withFear: boolean;
   reaction: boolean;
-  /** Hope the acting character gains (0 or 1). Always 0 on a reaction roll. */
+  /** Light the acting character gains (0 or 1). Always 0 on a reaction roll. */
   hopeGained: number;
-  /** Fear the GM gains (0 or 1). Always 0 on a reaction roll. */
+  /** Shadow the GM gains (0 or 1). Always 0 on a reaction roll. */
   fearGained: number;
   /** Stress the acting character clears (1 on a non-reaction critical success). */
   stressCleared: number;
   /**
    * The GM should consider making a move. SRD "GM MOVES AND ADVERSARY ACTIONS"
-   * lists both triggers this covers: the player "rolls with Fear on an action roll"
-   * or "fails an action roll" — so a success with Fear hands the spotlight over too,
-   * and only a success with Hope (a crit included) keeps it with the party.
+   * lists both triggers this covers: the player "rolls with Shadow on an action roll"
+   * or "fails an action roll" — so a success with Shadow hands the spotlight over too,
+   * and only a success with Light (a crit included) keeps it with the party.
    * The turn policy decides what to do with that; the roll only reports it.
    */
   spotlightToGm: boolean;
@@ -134,7 +134,7 @@ export function classifyRoll(
 ): { outcome: RollOutcome; success: boolean; critical: boolean; withHope: boolean } {
   const critical = hope === fear;
   const success = critical || total >= difficulty;
-  // A crit counts as a roll with Hope even though the dice are equal.
+  // A crit counts as a roll with Light even though the dice are equal.
   const withHope = critical || hope > fear;
   const outcome: RollOutcome = critical
     ? 'criticalSuccess'
@@ -151,13 +151,13 @@ export function classifyRoll(
 /**
  * The same roll with one or both Duality Dice showing something else.
  *
- * "Your ally can reroll their dice", "allow them to reroll either their Hope or
- * Fear Die": the throw has been made and read, and a card puts one of the two
+ * "Your ally can reroll their dice", "allow them to reroll either their Light or
+ * Shadow Die": the throw has been made and read, and a card puts one of the two
  * back in the cup. Everything that was not the dice stands — the advantage die,
  * the Help dice, the modifier and the Difficulty are all properties of the roll
  * rather than of the faces — and the whole reading is done again from the top,
  * because a new pair can be matched, can cross the Difficulty, and can change
- * which way the Hope and Fear fall.
+ * which way the Light and Shadow fall.
  *
  * Pure: the faces are drawn by whoever is holding the dice.
  */
@@ -187,7 +187,7 @@ export function withFaces(roll: DualityRoll, faces: { hope?: number; fear?: numb
 /**
  * Roll the Duality Dice.
  *
- * Dice are drawn in a fixed order — Hope, Fear, advantage/disadvantage, then Help
+ * Dice are drawn in a fixed order — Light, Shadow, advantage/disadvantage, then Help
  * dice — so a seed reproduces the exact roll. Only dice that the rules actually
  * call for are drawn; a roll with no advantage does not consume a d6.
  */

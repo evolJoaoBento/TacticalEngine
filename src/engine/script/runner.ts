@@ -139,7 +139,7 @@ export interface ScriptWorld extends ConditionContext {
    * costs them. Nothing, for a roll that does not need saving or cannot be.
    */
   liftRoll(id: string, trait: CheckTrait, total: number, difficulty: number, critical: boolean): number;
-  /** The faces on this creature's Hope Die: twelve unless a card says otherwise. */
+  /** The faces on this creature's Light Die: twelve unless a card says otherwise. */
   hopeDieSides(id: string): number;
   /**
    * Whether anybody is holding a card that answers the roll this creature has
@@ -157,15 +157,15 @@ export interface ScriptWorld extends ConditionContext {
   recallSpot(actor: string, mark: string): number;
   /** Forget it. False when there was nothing to forget. */
   forgetSpot(actor: string, mark: string): boolean;
-  /** The acting character's Experiences, spendable for a Hope each. */
+  /** The acting character's Experiences, spendable for a Light each. */
   experiences(): readonly { name: string; modifier: number }[];
   /** What a roll against this creature must meet: Evasion, or an adversary's Difficulty. */
   difficultyOf(id: string): number | null;
   /** Raise the party's level to `level` (or by one). Returns the level reached, or null if nothing changed. */
   grantLevel(level?: number): number | null;
-  /** The acting character gains a Hope. Returns whether anyone was there to gain it. */
+  /** The acting character gains a Light. Returns whether anyone was there to gain it. */
   gainHope(): boolean;
-  /** The GM gains a Fear. Returns whether the pool had room. */
+  /** The GM gains a Shadow. Returns whether the pool had room. */
   gainFear(): boolean;
   /**
    * Quest progress. Each returns whether anything changed, so the runner can
@@ -187,11 +187,11 @@ export interface ScriptWorld extends ConditionContext {
   clearArmor(id: string, amount: number): number;
   /** Mark Armor Slots with no benefit. Returns how many were actually marked. */
   markArmor(id: string, amount: number): number;
-  /** Returns Hope actually gained (an adversary gains none). */
+  /** Returns Light actually gained (an adversary gains none). */
   gainHopeFor(id: string, amount: number): number;
-  /** Returns whether the Hope was there to spend. */
+  /** Returns whether the Light was there to spend. */
   spendHope(id: string, amount: number): boolean;
-  /** Take Hope away, as far as it goes. Returns how much was actually lost. */
+  /** Take Light away, as far as it goes. Returns how much was actually lost. */
   loseHope(id: string, amount: number): number;
   applyCondition(id: string, condition: string, duration: ConditionDuration): boolean;
   clearCondition(id: string, condition: string): boolean;
@@ -208,7 +208,7 @@ export interface ScriptWorld extends ConditionContext {
   spendTokens(id: string, ability: string, amount: number): number;
   /** The value of the creature's Spellcast trait, or null when it has none. */
   spellcastValue(id: string): number | null;
-  /** Take one Fear off the GM's pool; false when there is none to take. */
+  /** Take one Shadow off the GM's pool; false when there is none to take. */
   loseFear(): boolean;
   /** A trait off a sheet, for an amount that reads one. Null for a stat block. */
   traitValue(id: string, trait: Trait | 'spellcast' | 'proficiency'): number | null;
@@ -308,12 +308,12 @@ export type JournalEntry =
   | { kind: 'dialogue'; dialogue: string }
   | { kind: 'quest'; quest: string; change: 'started' | 'completed' | 'failed' }
   | { kind: 'levelUp'; level: number }
-  /** `id` is set when the Hope went to someone other than the actor. */
+  /** `id` is set when the Light went to someone other than the actor. */
   | { kind: 'hope'; gained: number; id?: string }
   | { kind: 'hopeLost'; lost: number; id: string }
   | { kind: 'hopeSpent'; amount: number }
   | { kind: 'fear'; gained: number }
-  /** Fear taken off the GM's pool, which a card can do and a stat block cannot. */
+  /** Shadow taken off the GM's pool, which a card can do and a stat block cannot. */
   | { kind: 'fearLost'; lost: number }
   | { kind: 'objective'; quest: string; objective: string }
   | { kind: 'revealed'; quest: string; objective: string }
@@ -321,7 +321,7 @@ export type JournalEntry =
   /** `targets` are who the roll was against, `hit` the ones it beat. */
   | { kind: 'check'; outcome: CheckOutcome; roll: DualityRoll; targets: readonly string[]; hit: readonly string[]; reused?: boolean }
   | { kind: 'experience'; name: string; modifier: number }
-  /** An effect that could not happen: no Hope to spend, no Spellcast trait, no target. */
+  /** An effect that could not happen: no Light to spend, no Spellcast trait, no target. */
   | { kind: 'refused'; reason: string }
   | { kind: 'stress'; id: string; marked: number; cleared: number; hitPoints: number }
   | { kind: 'armor'; id: string; cleared: number }
@@ -421,7 +421,7 @@ export type Prompt =
       prompt?: string;
       /** Who the roll is against, so a UI can name them. */
       targets: readonly string[];
-      /** The actor's Experiences, each spendable for a Hope with `roll.experience`. */
+      /** The actor's Experiences, each spendable for a Light with `roll.experience`. */
       experiences: readonly { name: string; modifier: number }[];
     }
   /**
@@ -447,7 +447,7 @@ export type Response =
   | { kind: 'continue' }
   /**
    * Make the roll. `advantage`/`disadvantage`/`helpDice` come from the table;
-   * `experience` names one of the actor's to Utilize — a Hope is spent and its
+   * `experience` names one of the actor's to Utilize — a Light is spent and its
    * modifier added, as the SRD has it.
    */
   | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number; experience?: string }
@@ -500,7 +500,7 @@ export interface ScriptRunnerOptions {
   lastDamage?: { total: number; types?: readonly DamageType[] };
   /**
    * The roll that called for this script, for a feature that answers one: "when
-   * a PC rolls a failure with Fear". Read by a `rolled` condition, wherever one
+   * a PC rolls a failure with Shadow". Read by a `rolled` condition, wherever one
    * is asked inside it.
    */
   roll?: { total: number; outcome: RollOutcome; tags?: readonly string[]; trait?: CheckTrait };
@@ -754,7 +754,7 @@ export class ScriptRunner {
 
   /**
    * The last roll stands against these targets too: the same total, the same
-   * Hope or Fear, no dice. A target it does not reach is simply not hit; with
+   * Light or Shadow, no dice. A target it does not reach is simply not hit; with
    * nobody reached the failure branch runs, flavoured as the roll was.
    */
   private reuseRoll(check: CheckRequest): null {
@@ -791,7 +791,7 @@ export class ScriptRunner {
     }
     let modifier = base;
 
-    // Utilize an Experience: a Hope for its modifier, before the dice.
+    // Utilize an Experience: a Light for its modifier, before the dice.
     const actor = this.world.actorId();
     if (response.experience !== undefined) {
       const found = this.world.experiences().find((e) => e.name === response.experience);
@@ -875,14 +875,14 @@ export class ScriptRunner {
       roll = withFaces(roll, faces);
       this.journal.push({ kind: 'dualityRerolled', which: response.reroll });
     }
-    // A number put behind it - a trait for a Hope - goes on before a named
+    // A number put behind it - a trait for a Light - goes on before a named
     // total, which then only has to make up whatever is still short.
     if (response !== null && response.kind === 'answered' && response.raise !== undefined && response.raise > 0) {
       roll = withFaces({ ...roll, modifier: roll.modifier + response.raise }, {});
       this.journal.push({ kind: 'lifted', by: response.raise, total: roll.total });
     }
     // And the other thing that can be done to it: the total named rather than
-    // the dice thrown again. The faces stand, so a roll with Fear stays one.
+    // the dice thrown again. The faces stand, so a roll with Shadow stays one.
     if (response !== null && response.kind === 'answered' && response.name === true && !roll.success) {
       roll = withFaces({ ...roll, modifier: roll.modifier + (roll.difficulty - roll.total) }, {});
       this.journal.push({ kind: 'rollNamed', total: roll.total });
@@ -899,8 +899,8 @@ export class ScriptRunner {
     this.spotlightToGm = this.spotlightToGm || roll.spotlightToGm;
     this.journal.push({ kind: 'check', outcome: roll.outcome, roll, targets, hit });
 
-    // The core loop: a roll with Hope hands the roller a Hope, a roll with
-    // Fear hands the GM a Fear, and a critical clears a Stress. Attacks
+    // The core loop: a roll with Light hands the roller a Light, a roll with
+    // Shadow hands the GM a Shadow, and a critical clears a Stress. Attacks
     // already did this; a chest and a conversation are rolls too.
     if (roll.hopeGained > 0 && this.world.gainHope()) {
       this.journal.push({ kind: 'hope', gained: roll.hopeGained });
@@ -1204,7 +1204,7 @@ export class ScriptRunner {
       case 'spendHope': {
         const amount = this.amountOf(effect.amount);
         const actor = world.actorId();
-        if (actor === null || !world.spendHope(actor, amount)) return this.refuse(`not enough Hope to spend ${amount}`);
+        if (actor === null || !world.spendHope(actor, amount)) return this.refuse(`not enough Light to spend ${amount}`);
         this.journal.push({ kind: 'hopeSpent', amount });
         return null;
       }
@@ -1390,7 +1390,7 @@ export class ScriptRunner {
         return null;
       }
       case 'howMany': {
-        // "Spend any number of Hope to roll that many d6s": one option per
+        // "Spend any number of Light to roll that many d6s": one option per
         // number they could give, each carrying its own copy of the effects.
         // Pushed as an ordinary choice rather than answered here, so the
         // prompt, the log line and the resume are the ones already written.
@@ -1615,14 +1615,14 @@ export class ScriptRunner {
         return null;
       }
       case 'gainFear': {
-        // "You gain a Fear for each target that failed": none failed, none gained.
+        // "You gain a Shadow for each target that failed": none failed, none gained.
         for (let i = 0; i < this.amountOf(effect.amount); i++) {
           if (world.gainFear()) this.journal.push({ kind: 'fear', gained: 1 });
         }
         return null;
       }
       case 'loseFear': {
-        // "Up to the number of Fear in the GM's pool": an empty pool is
+        // "Up to the number of Shadow in the GM's pool": an empty pool is
         // nothing taken rather than a refusal.
         let taken = 0;
         for (let i = 0; i < this.amountOf(effect.amount); i++) {

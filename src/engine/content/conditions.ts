@@ -41,18 +41,18 @@ export const conditionDefSchema = z.object({
   /** What carrying it does to damage coming in — a shroud's resistance. */
   defenses: damageDefensesSchema.optional(),
   /**
-   * What the bearer's Hope Die is while this lasts: "you can roll a d20 as your
-   * Hope Die".
+   * What the bearer's Light Die is while this lasts: "you can roll a d20 as your
+   * Light Die".
    *
    * A property of bearing it rather than a bonus, which is why it sits beside
    * `defenses` and not in `modifiers` - a modifier adds a number to a roll, and
-   * this changes what is thrown. Only the Hope Die: the Fear Die belongs to the
+   * this changes what is thrown. Only the Light Die: the Shadow Die belongs to the
    * GM and nothing on a card reaches it.
    */
   hopeDie: z.object({ sides: z.number().int().min(2) }).optional(),
   /**
    * What the bearer cannot do while it lasts. An adversary that cannot `act`
-   * spends its spotlight shaking the condition off (or the GM spends a Fear
+   * spends its spotlight shaking the condition off (or the GM spends a Shadow
    * to clear one that only ends on damage); one that cannot `move` tears
    * free instead of closing in; `reactions` silences its damage reactions;
    * `armor` leaves them nothing to mark, which is what a rage costs.
@@ -88,7 +88,7 @@ export const conditionDefSchema = z.object({
       /**
        * And only when this holds - read with whoever swung acting, the bearer
        * bound as the target and the roll they made bound too, so "when you
-       * succeed with Hope against an adversary in this shadow" is a pair of
+       * succeed with Light against an adversary in this shadow" is a pair of
        * `rolled` gates and nothing else.
        */
       when: conditionSchema.optional(),
@@ -231,7 +231,7 @@ const RAW: ConditionInput[] = [
   {
     id: 'led-by-example',
     name: 'Led by Example',
-    text: 'The next PC to attack them can clear a Stress or gain a Hope.',
+    text: 'The next PC to attack them can clear a Stress or gain a Light.',
     payout: {
       on: 'attacked',
       effects: [
@@ -241,7 +241,7 @@ const RAW: ConditionInput[] = [
           body: 'Take heart from it.',
           options: [
             { label: 'Clear a Stress', effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }] },
-            { label: 'Gain a Hope', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
+            { label: 'Gain a Light', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
           ],
         },
       ],
@@ -301,7 +301,7 @@ const RAW: ConditionInput[] = [
   {
     id: 'signature-move',
     name: 'Signature Move',
-    text: 'The move you are known for: your next action roll throws a d20 as its Hope Die.',
+    text: 'The move you are known for: your next action roll throws a d20 as its Light Die.',
     hopeDie: { sides: 20 },
   },
   // Tempest's third storm, on everything caught in it. "Attacks made from
@@ -321,7 +321,7 @@ const RAW: ConditionInput[] = [
   {
     id: 'force-of-nature',
     name: 'Force of Nature',
-    text: 'A hulking nature spirit: +10 to damage rolls, and a Hope for every action roll made.',
+    text: 'A hulking nature spirit: +10 to damage rolls, and a Light for every action roll made.',
     modifiers: [{ stat: 'damageRoll', bonus: 10 }],
   },
   // The Book of Grynn's wall, on whoever is standing in it. Like the Korvax
@@ -374,7 +374,7 @@ const RAW: ConditionInput[] = [
   },
   // Hold the Line, on the one holding it. It does nothing by itself: it is the
   // marker that says the stance is still up, so the card that drops it on a
-  // failure with Fear knows there is something to drop.
+  // failure with Shadow knows there is something to drop.
   {
     id: 'holding-the-line',
     name: 'Holding the Line',
@@ -488,7 +488,7 @@ const RAW: ConditionInput[] = [
   {
     id: 'shadowed',
     name: 'Shadowed',
-    text: 'When somebody succeeds with Hope against you here, you must mark a Stress.',
+    text: 'When somebody succeeds with Light against you here, you must mark a Stress.',
     color: '#3d3358',
     payout: {
       on: 'attacked',
@@ -532,11 +532,11 @@ const RAW: ConditionInput[] = [
     blocks: ['act', 'reactions'],
   },
   // Slumber's condition: not one of the SRD's named conditions, but what the
-  // card says — nothing until damage or a Fear clears it.
+  // card says — nothing until damage or a Shadow clears it.
   {
     id: 'asleep',
     name: 'Asleep',
-    text: 'Asleep until you take damage or the GM spends a Fear to clear it.',
+    text: 'Asleep until you take damage or the GM spends a Shadow to clear it.',
     blocks: ['act', 'move'],
     endsWhen: 'damaged',
   },
@@ -660,13 +660,13 @@ const RAW: ConditionInput[] = [
     text: "You are held by the Siren's song until you mark 2 Stress.",
   },
   // The High Seraph's judgment, which the Hallowed Archer can read as well.
-  // "Until the Seraph is defeated" is the scene; "the target doesn't gain Hope
-  // on a result with Hope" is a rule about the dice that nothing here reads,
+  // "Until the Seraph is defeated" is the scene; "the target doesn't gain Light
+  // on a result with Light" is a rule about the dice that nothing here reads,
   // and stays at the table.
   {
     id: 'guilty',
     name: 'Guilty',
-    text: "You are Guilty in the eyes of the Seraph's god: you gain no Hope on a result with Hope.",
+    text: "You are Guilty in the eyes of the Seraph's god: you gain no Light on a result with Light.",
   },
   // The Young Ice Dragon's. The SRD prints it on that one block: it lasts
   // until a rest or until the creature clears a Stress, neither of which the

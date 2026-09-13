@@ -514,7 +514,7 @@ test('uses the vault furniture the original map authored', async ({ page }) => {
   // Rolling resolves it, and the authored outcome prose is what gets shown.
   expect(result.answered).toBe('done');
   expect(result.pendingAfter).toBeNull();
-  expect(result.log.join(' ')).toMatch(/with (Hope|Fear)|critical/i);
+  expect(result.log.join(' ')).toMatch(/with (Light|Shadow)|critical/i);
 
   // And it stays used.
   expect(result.usedAgain).toBe('refused');
@@ -538,7 +538,7 @@ test('shows the narrative log and the roll prompt on the page', async ({ page })
   await expect(roll).toBeVisible();
 
   await roll.click();
-  await expect(page.locator('[data-testid="log"]')).toContainText(/Hope|Fear|critical/i);
+  await expect(page.locator('[data-testid="log"]')).toContainText(/Light|Shadow|critical/i);
 
   expect(consoleErrors).toEqual([]);
 });
@@ -629,7 +629,7 @@ test('talks to the pillar, and the conversation is part of the saved project', a
   await roll.click();
 
   // Whichever way the roll went, the conversation moved on and said something.
-  await expect(page.locator('[data-testid="log"]')).toContainText(/Hope|Fear|critical/i);
+  await expect(page.locator('[data-testid="log"]')).toContainText(/Light|Shadow|critical/i);
 
   // And the words themselves are document data: they survive Save JSON.
   const saved = await page.evaluate(() => window.__polyheart!.exportProject());
@@ -908,7 +908,7 @@ test('shows the inspector for a clicked object', async ({ page }) => {
   const panel = page.locator('#app');
   // The chest's authored roll is on screen, editable.
   await expect(panel).toContainText('The roll');
-  await expect(panel).toContainText('Success with Hope');
+  await expect(panel).toContainText('Success with Light');
   await expect(panel).toContainText('Flavour');
 
   // Editing the name in the panel reaches the document.
@@ -1432,9 +1432,9 @@ test('reads the dice out in the log', async ({ page }) => {
     api.standBeside(chest);
     api.use(chest);
     api.answer({ kind: 'roll' });
-    return api.log().map((l) => l.text).find((t) => t.startsWith('Hope '));
+    return api.log().map((l) => l.text).find((t) => t.startsWith('Light '));
   });
-  expect(line).toMatch(/^Hope \d+ \+ Fear \d+ .*= \d+ vs \d+\. (A critical success|Success|Failure)/);
+  expect(line).toMatch(/^Light \d+ \+ Shadow \d+ .*= \d+ vs \d+\. (A critical success|Success|Failure)/);
   expect(consoleErrors).toEqual([]);
 });
 
@@ -1856,7 +1856,7 @@ test('casts Cinder Burst at a spot on the board, picks an Experience, and the tu
   await expect(prompt).toBeVisible();
   await expect(prompt).toContainText('Cinder Burst');
   await expect(prompt).toContainText('Hollow Knight');
-  // The card asked Stress; nothing the pack ships spends Hope. The Experience is
+  // The card asked Stress; nothing the pack ships spends Light. The Experience is
   // what spends one, which is why the picker is here at all.
   await prompt.locator('[data-testid="experience-pick"]').selectOption({ index: 1 });
   await prompt.locator('[data-testid="roll"]').click();
@@ -1864,7 +1864,7 @@ test('casts Cinder Burst at a spot on the board, picks an Experience, and the tu
 
   const log = page.locator('[data-testid="log"]');
   await expect(log).toContainText('Draws on');
-  await expect(log).toContainText(/Hope \d+ \+ Fear \d+/);
+  await expect(log).toContainText(/Light \d+ \+ Shadow \d+/);
   // The card was the turn: Finn acted, and the side follows the roll.
   const acted = await page.evaluate(() => window.__polyheart!.turnSide());
   expect(['party', 'gm', null]).toContain(acted);
@@ -1987,7 +1987,7 @@ test('takes a short rest through the panel and the wounds close', async ({ page 
   await expect(hp).toHaveAttribute('data-marked', '0');
   const log = page.locator('[data-testid="log"]');
   await expect(log).toContainText('catch its breath');
-  await expect(log).toContainText(/The GM gains \d Fear/);
+  await expect(log).toContainText(/The GM gains \d Shadow/);
   await page.screenshot({ path: 'test-results/rest-panel-after.png' });
   expect(consoleErrors).toEqual([]);
 });
@@ -2160,7 +2160,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
   await page.locator('[data-testid="open-abilities"]').click();
   const panel = page.locator('[data-testid="ability-panel"]');
   await panel.locator('[data-testid="add-ability"]').click();
-  // Fear is the GM's pool, which is what a stat block's feature spends.
+  // Shadow is the GM's pool, which is what a stat block's feature spends.
   await panel.locator('[data-testid="ability-fear"]').fill('2');
   // And what the block does with damage coming back at it: half of one type,
   // and a flat number off the rest.
@@ -2234,7 +2234,7 @@ test("writes a stat block's shape: an area everyone rolls to avoid, and a swing 
     };
   });
   expect(written).toEqual({
-    // Only what the author touched: the Hope and Stress fields were left alone.
+    // Only what the author touched: the Light and Stress fields were left alone.
     cost: { fear: 2 },
     trigger: 'dealtDamage',
     defenses: { resistances: ['physical'], reduce: [{ dice: '1d10', only: 'magic' }] },

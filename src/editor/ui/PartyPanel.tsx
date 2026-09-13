@@ -4,7 +4,7 @@
  * A character sheet is the last thing in this engine that was a TypeScript
  * literal. It is a project document now, and this is where it is written: a
  * class, an ancestry and a community, six traits, what they carry, the cards
- * they know, and the Experiences they can spend a Hope on. Nothing mechanical
+ * they know, and the Experiences they can spend a Light on. Nothing mechanical
  * is typed here — Evasion, Hit Points, thresholds and Armor Slots all come off
  * what the sheet *names*, and the panel shows them as it derives them, so an
  * author sees the consequence of a choice as they make it.

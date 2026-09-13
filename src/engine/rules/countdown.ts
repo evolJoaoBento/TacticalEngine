@@ -22,7 +22,7 @@ import type { RollOutcome } from './duality';
  * `standard` is the SRD's default — "Standard countdowns advance every time a
  * player makes an action roll". The next three are the triggers printed on
  * stat blocks: "it ticks down when a PC makes an attack roll", "when a PC
- * rolls with Fear", "when they mark HP, tick down this countdown by the
+ * rolls with Shadow", "when they mark HP, tick down this countdown by the
  * number of HP marked". The last two are the dynamic countdowns, which
  * advance by up to 3 on the outcome of the roll rather than by 1.
  */
@@ -99,7 +99,7 @@ export function dynamicSteps(kind: 'progress' | 'consequence', outcome: RollOutc
   }
 }
 
-/** Whether an outcome was rolled with Fear. A critical "counts as a roll with Hope". */
+/** Whether an outcome was rolled with Shadow. A critical "counts as a roll with Light". */
 function withFear(outcome: RollOutcome): boolean {
   return outcome === 'successWithFear' || outcome === 'failureWithFear';
 }

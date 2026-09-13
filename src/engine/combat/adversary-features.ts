@@ -18,9 +18,9 @@ import { parseDice, type ParsedDamage } from '../rules/dice';
 export interface AdversaryTraits {
   /** How many times it can be spotlighted in one GM turn. One unless Relentless. */
   spotlights: number;
-  /** Momentum: "when they make a successful attack against a PC, you gain a Fear." */
+  /** Momentum: "when they make a successful attack against a PC, you gain a Shadow." */
   momentum: boolean;
-  /** Terrifying: a successful attack costs every PC in Close range a Hope, and gains a Fear. */
+  /** Terrifying: a successful attack costs every PC in Close range a Light, and gains a Shadow. */
   terrifying: boolean;
   /** Horde (X): the damage its standard attack deals once half its Hit Points are marked. */
   horde?: ParsedDamage;

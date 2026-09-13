@@ -189,7 +189,7 @@ describe('reactions', () => {
     expect(full.stressMarked).toBe(0);
   });
 
-  it('a Rune Ward rolls its die off the damage first, for a Hope, when the roll helps', () => {
+  it('a Rune Ward rolls its die off the damage first, for a Light, when the roll helps', () => {
     // 17 is Severe; a 3 makes it 14, Major; the slot then makes it Minor.
     const helped = resolveDefense(scripted([3]), phys(17), guardian({ reactions: [runeWard] }));
     expect(helped.reactions).toEqual([expect.objectContaining({ hopeSpent: 1, rolled: 3 })]);
@@ -200,7 +200,7 @@ describe('reactions', () => {
     expect(wasted.reactions).toEqual([]);
     expect(wasted.hopeSpent).toBe(0);
     expect(wasted.resolved.incoming).toBe(17);
-    // No Hope: no ward, and no die rolled.
+    // No Light: no ward, and no die rolled.
     expect(() => resolveDefense(scripted([]), phys(17), guardian({ reactions: [runeWard], hope: { max: 6, value: 0 } }))).not.toThrow();
   });
 

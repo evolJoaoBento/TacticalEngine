@@ -50,7 +50,7 @@ describe('what floats', () => {
     expect(demo.floaters).toEqual([{ id: husk, text: 'miss', tone: 'system' }]);
   });
 
-  it('is the pool that moved: Stress marked or cleared, Armor cleared, Hope gained', () => {
+  it('is the pool that moved: Stress marked or cleared, Armor cleared, Light gained', () => {
     const demo = scene();
     record(demo, [
       { kind: 'stress', id: 'kara', marked: 1, cleared: 0, hitPoints: 0 },
@@ -62,7 +62,7 @@ describe('what floats', () => {
       { id: 'kara', text: '+1 Stress', tone: 'fear' },
       { id: 'finn', text: '-2 Stress', tone: 'hope' },
       { id: 'kara', text: '+1 Armor', tone: 'hope' },
-      { id: 'mira', text: '+1 Hope', tone: 'hope' },
+      { id: 'mira', text: '+1 Light', tone: 'hope' },
     ]);
   });
 

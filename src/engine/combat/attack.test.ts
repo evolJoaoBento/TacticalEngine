@@ -139,7 +139,7 @@ describe('resolveAttack — a PC attacking', () => {
     });
 
   it('rolls the Duality Dice against the target Difficulty', () => {
-    // Hope 8, Fear 3 -> 11 + 2 = 13, meets Difficulty 13. Damage 2d8+2: 5, 6.
+    // Light 8, Shadow 3 -> 11 + 2 = 13, meets Difficulty 13. Damage 2d8+2: 5, 6.
     const outcome = attack([8, 3, 5, 6]);
     expect(outcome.dualityRoll).toMatchObject({ hope: 8, fear: 3, total: 13, success: true });
     expect(outcome.gmRoll).toBeUndefined();
@@ -162,12 +162,12 @@ describe('resolveAttack — a PC attacking', () => {
     expect(outcome.hitPointsMarked).toBe(0);
   });
 
-  it('grants Hope on a roll with Hope and Fear on a roll with Fear', () => {
+  it('grants Light on a roll with Light and Shadow on a roll with Shadow', () => {
     expect(attack([8, 3, 5, 6])).toMatchObject({ hopeGained: 1, fearGained: 0 });
     expect(attack([3, 8, 5, 6])).toMatchObject({ hopeGained: 0, fearGained: 1 });
   });
 
-  it('passes the spotlight on a success with Fear but not a success with Hope', () => {
+  it('passes the spotlight on a success with Shadow but not a success with Light', () => {
     expect(attack([8, 3, 5, 6]).spotlightToGm).toBe(false);
     expect(attack([3, 8, 5, 6]).spotlightToGm).toBe(true);
   });
@@ -334,7 +334,7 @@ describe('resolveAttack — an adversary attacking', () => {
     expect(outcome.dualityRoll).toBeUndefined();
   });
 
-  it('generates no Hope or Fear and never passes the spotlight', () => {
+  it('generates no Light or Shadow and never passes the spotlight', () => {
     const outcome = attack([12, 9]);
     expect(outcome).toMatchObject({
       hopeGained: 0,
@@ -393,7 +393,7 @@ describe('applyAttack', () => {
       options: { bandTiles },
     });
 
-  it('marks the target Hit Points and moves the attacker Hope', () => {
+  it('marks the target Hit Points and moves the attacker Light', () => {
     const state = setup();
     const applied = applyAttack(state, hit());
     expect(applied.hitPointsMarked).toBe(2);
@@ -402,7 +402,7 @@ describe('applyAttack', () => {
     expect(state.entity('kara')!.hope!.value).toBe(3);
   });
 
-  it('gives the GM Fear on a roll with Fear', () => {
+  it('gives the GM Shadow on a roll with Shadow', () => {
     const state = setup();
     const outcome = resolveAttack(scriptedRng([3, 8, 5, 6]), {
       grid,
@@ -417,7 +417,7 @@ describe('applyAttack', () => {
     expect(state.fear.value).toBe(1);
   });
 
-  it('reports the Hope actually gained when the attacker is at the cap', () => {
+  it('reports the Light actually gained when the attacker is at the cap', () => {
     const state = setup();
     state.entity('kara')!.hope = { max: 6, value: 6 };
     expect(applyAttack(state, hit()).hopeGained).toBe(0);
@@ -513,7 +513,7 @@ describe('adjacency and range', () => {
   const diagonalNeighbour = diagonalGrid.indexOf(3, 3);
 
   it('reaches a diagonal neighbour: distance is as the crow flies, and 1.41 tiles is Melee', () => {
-    // Daggerheart is not played on a grid. A creature standing corner-to-corner
+    // The board is not a grid. A creature standing corner-to-corner
     // is as close as one standing straight ahead.
     const outcome = resolveAttack(scriptedRng([8, 3, 5, 6]), {
       grid: diagonalGrid,

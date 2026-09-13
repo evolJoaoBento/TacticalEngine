@@ -491,7 +491,7 @@ export const AN_ANSWER_TO_A_BLOW_ON_AN_ALLY = [
  * `howMany` reads its ceiling off a pool on the TARGET -- how much marked Stress is
  * there to take -- so the buttons offered are one per point and no more. What each
  * one costs is written in `each` rather than in the asking: it comes off them, goes
- * onto whoever is carrying it, and the Hope follows the same number.
+ * onto whoever is carrying it, and the Light follows the same number.
  *
  * Once per rest, because a card that could be asked twice in a fight would make
  * the ceiling meaningless.
@@ -720,7 +720,7 @@ export const A_BLAST_AROUND_WHAT_IT_HIT = [
   },
 ];
 
-/** A glyph that says where somebody is weakest, bought with Hope. */
+/** A glyph that says where somebody is weakest, bought with Light. */
 export const A_GLYPH_THAT_OPENS_THEM_UP = [
   {
     id: GLYPH_ABILITY,
@@ -903,7 +903,7 @@ export const A_FLOOR_UNDER_EVERY_BLOW = [
   },
 ];
 
-/** A critical worth a Hope or a Stress, asked once. */
+/** A critical worth a Light or a Stress, asked once. */
 export const A_CRITICAL_WORTH_SOMETHING = [
   {
     id: GLORY_ABILITY,
@@ -921,7 +921,7 @@ export const A_CRITICAL_WORTH_SOMETHING = [
         title: 'Gore and Glory',
         body: 'The blow tells.',
         options: [
-          { label: 'Gain a Hope', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
+          { label: 'Gain a Light', effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'actor' } }] },
           { label: 'Clear a Stress', effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'actor' } }] },
         ],
       },
@@ -930,11 +930,11 @@ export const A_CRITICAL_WORTH_SOMETHING = [
 ];
 
 /**
- * An edge asked three times, each for a Hope.
+ * An edge asked three times, each for a Light.
  *
  * Three separate questions in the order they are written, each gated on there still
- * being a Hope to spend, and each offering a plain "No". That is what lets a test
- * answer yes, no, yes and find exactly two Hope gone.
+ * being a Light to spend, and each offering a plain "No". That is what lets a test
+ * answer yes, no, yes and find exactly two Light gone.
  */
 export const AN_EDGE_ASKED_THREE_TIMES = [
   {
@@ -962,10 +962,10 @@ export const AN_EDGE_ASKED_THREE_TIMES = [
           {
             kind: 'choice',
             title: 'Edge',
-            body: 'Spend a Hope to clear a Hit Point?',
+            body: 'Spend a Light to clear a Hit Point?',
             options: [
               {
-                label: 'Clear a Hit Point (1 Hope)',
+                label: 'Clear a Hit Point (1 Light)',
                 effects: [
                   { kind: 'spendHope', amount: 1 },
                   { kind: 'heal', amount: 1, target: { kind: 'actor' } },
@@ -983,10 +983,10 @@ export const AN_EDGE_ASKED_THREE_TIMES = [
           {
             kind: 'choice',
             title: 'Edge',
-            body: 'Spend a Hope to clear an Armor Slot?',
+            body: 'Spend a Light to clear an Armor Slot?',
             options: [
               {
-                label: 'Clear an Armor Slot (1 Hope)',
+                label: 'Clear an Armor Slot (1 Light)',
                 effects: [
                   { kind: 'spendHope', amount: 1 },
                   { kind: 'clearArmor', amount: 1, target: { kind: 'actor' } },
@@ -1004,10 +1004,10 @@ export const AN_EDGE_ASKED_THREE_TIMES = [
           {
             kind: 'choice',
             title: 'Edge',
-            body: 'Spend a Hope to make them mark another Hit Point?',
+            body: 'Spend a Light to make them mark another Hit Point?',
             options: [
               {
-                label: 'They mark a Hit Point (1 Hope)',
+                label: 'They mark a Hit Point (1 Light)',
                 effects: [
                   { kind: 'spendHope', amount: 1 },
                   { kind: 'damage', amount: 1, direct: true, target: { kind: 'target' } },
@@ -1046,7 +1046,7 @@ export const A_LIFT_FOR_EVERYONE_NEARBY = [
             effects: [{ kind: 'clearStress', amount: 1, target: { kind: 'allies', range: 'veryClose' } }],
           },
           {
-            label: 'Everyone nearby gains a Hope',
+            label: 'Everyone nearby gains a Light',
             effects: [{ kind: 'gainHope', amount: 1, target: { kind: 'allies', range: 'veryClose' } }],
           },
         ],
@@ -1190,10 +1190,10 @@ export const A_BOOK_OF_TWO_SPELLS = [
 ];
 
 /**
- * One roll, a whole band, and a Hope paid up front.
+ * One roll, a whole band, and a Light paid up front.
  *
  * What the tests reading this pin is the ENGINE's bookkeeping rather than the card's:
- * the prompt carries the caster's Spellcast trait and modifier, the Hope leaves
+ * the prompt carries the caster's Spellcast trait and modifier, the Light leaves
  * before the dice are thrown, the turn is not spent until they are, and putting the
  * card back down returns what it cost. The only thing of mine they read is the name,
  * because the step-back line is built out of it.
@@ -1224,7 +1224,7 @@ export const A_SPELL_FOR_A_WHOLE_BAND = [
 /**
  * A barrage whose size the player chooses, which only code can build.
  *
- * "Any number of Hope" is not a count an effect can express: the options depend on
+ * "Any number of Light" is not a count an effect can express: the options depend on
  * what the caster holds at the moment of asking. So the card runs a hook, and the
  * hook is the project's own.
  *
@@ -1253,7 +1253,7 @@ export const A_BARRAGE_THAT_ASKS = [
 export const A_BARRAGE_HOOK = {
   id: 'fixture-barrage',
   name: 'Barrage',
-  notes: 'One option per Hope the caster holds, each throwing that many dice.',
+  notes: 'One option per Light the caster holds, each throwing that many dice.',
   source: `var actor = ctx.actor;
 var target = ctx.targets[0];
 if (actor === null || target === undefined) return;
@@ -1265,7 +1265,7 @@ if (hope < 1) {
 var options = [];
 for (var spent = 1; spent <= hope; spent++) {
   options.push({
-    label: spent + ' Hope: ' + spent + 'd6 magic',
+    label: spent + ' Light: ' + spent + 'd6 magic',
     effects: [
       { kind: 'spendHope', amount: spent },
       { kind: 'damage', dice: spent + 'd6', type: 'magic', target: { kind: 'target' } },
@@ -1407,7 +1407,7 @@ export const A_RIFT_THAT_OPENS = [
  * A test proves the middle one by rolling a different trait and finding nothing offered.
  *
  * `raiseRoll` moves the number behind the dice without touching the dice: a test asserts
- * the Hope and Fear faces are unchanged and only the total moved.
+ * the Light and Shadow faces are unchanged and only the total moved.
  */
 export const A_BOLDNESS_ON_A_FAILED_ROLL = [
   {
@@ -1616,7 +1616,7 @@ export const BONE_BOUND = [
  *
  * `reactionsOf` asks for the reactions a creature holds against `incomingDamage`, and a test
  * about THAT should not also be a test of a gate. The two fixture reactions already on this
- * trigger are deliberately gated -- one on tokens held, one on a four-card loadout and 3 Hope --
+ * trigger are deliberately gated -- one on tokens held, one on a four-card loadout and 3 Light --
  * and both are what other suites use to prove a gate refuses. This one is held by a named
  * character and asks nothing, so what it proves is that the offer arrives at all.
  *

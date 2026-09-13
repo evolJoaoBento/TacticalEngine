@@ -126,21 +126,21 @@ describe('markHitPoints', () => {
   });
 });
 
-describe('Hope and Fear', () => {
-  it('starts a PC at 2 Hope with a maximum of 6', () => {
+describe('Light and Shadow', () => {
+  it('starts a PC at 2 Light with a maximum of 6', () => {
     expect(createHope()).toEqual({ value: STARTING_HOPE, max: MAX_HOPE });
     expect(createHope(99).value).toBe(MAX_HOPE);
     expect(createFear()).toEqual({ value: 0, max: MAX_FEAR });
   });
 
-  it('reports Hope lost to the cap rather than exceeding it', () => {
+  it('reports Light lost to the cap rather than exceeding it', () => {
     const r = gain(createHope(5), 3);
     expect(r.currency.value).toBe(6);
     expect(r.applied).toBe(1);
     expect(r.wasted).toBe(2);
   });
 
-  it('caps the GM at 12 Fear', () => {
+  it('caps the GM at 12 Shadow', () => {
     expect(gain(createFear(11), 5).currency.value).toBe(MAX_FEAR);
   });
 
@@ -161,13 +161,13 @@ describe('Hope and Fear', () => {
 });
 
 describe('scar', () => {
-  it('permanently removes a Hope slot and trims the current value', () => {
+  it('permanently removes a Light slot and trims the current value', () => {
     const r = scar({ value: 6, max: 6 });
     expect(r.hope).toEqual({ value: 5, max: 5 });
     expect(r.journeyEnds).toBe(false);
   });
 
-  it('ends the journey when the last Hope slot is crossed out', () => {
+  it('ends the journey when the last Light slot is crossed out', () => {
     expect(scar({ value: 0, max: 1 }).journeyEnds).toBe(true);
   });
 });

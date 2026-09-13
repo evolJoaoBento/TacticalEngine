@@ -3,7 +3,7 @@
  *
  * This is the piece that lets a designer write what an object or a card *does*
  * without opening a TypeScript file: a line of prose, a flag, loot, travel, a
- * conversation, and the combat vocabulary — an attack, damage, Stress, Hope,
+ * conversation, and the combat vocabulary — an attack, damage, Stress, Light,
  * conditions, tokens on a card, and a `run` that hands off to project code.
  * The recursive ones nest a list inside a list, so a whole card's script can be
  * written here; the rare ones it cannot build are shown rather than hidden,
@@ -147,11 +147,11 @@ const LABELS: Readonly<Record<Addable, string>> = {
   clearStress: 'Clear Stress',
   markArmor: 'Mark Armor Slots',
   clearArmor: 'Clear Armor Slots',
-  gainHope: 'Gain Hope',
-  spendHope: 'Spend Hope',
-  loseHope: 'Take their Hope',
-  gainFear: 'GM gains Fear',
-  loseFear: 'GM loses Fear',
+  gainHope: 'Gain Light',
+  spendHope: 'Spend Light',
+  loseHope: 'Take their Light',
+  gainFear: 'GM gains Shadow',
+  loseFear: 'GM loses Shadow',
   applyCondition: 'Apply a condition',
   clearCondition: 'Clear a condition',
   addToken: 'Put tokens on a card',
@@ -356,7 +356,7 @@ function parseArgs(raw: string): Record<string, string | number | boolean> | und
 const ADVANCES: readonly (readonly [string, string])[] = [
   ['standard', 'on any PC roll'],
   ['attackRoll', 'on a PC attack roll'],
-  ['withFear', 'on a PC roll with Fear'],
+  ['withFear', 'on a PC roll with Shadow'],
   ['hpMarked', 'by the HP they mark'],
   ['progress', 'progress (dynamic)'],
   ['consequence', 'consequence (dynamic)'],

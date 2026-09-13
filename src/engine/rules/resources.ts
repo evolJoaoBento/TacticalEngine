@@ -1,32 +1,32 @@
 /**
- * The five Daggerheart resource pools and the rules that connect them.
+ * The five resource pools and the rules that connect them.
  *
  * Two shapes of pool exist in the rules and they behave differently:
  *
  * - **Filling pools** are *marked*: Hit Points, Stress and Armor Slots start empty
  *   and fill up as you take damage or strain. "Marking your last Stress" is bad.
- * - **Draining pools** are *spent*: Hope and Fear start at a value and are spent.
+ * - **Draining pools** are *spent*: Light and Shadow start at a value and are spent.
  *
  * Every operation here is pure — it returns a new pool plus a report of what
  * actually happened, so callers can log the real numbers instead of the requested
  * ones (asking to clear 4 Stress with 2 marked clears 2).
  *
- * SRD 2.0 reference: the SRD 2.0 text (no longer vendored — see `docs/CONTEXT.md`), sections
- * "HOPE & FEAR", "HIT POINTS & DAMAGE THRESHOLDS", "STRESS", "ARMOR" and
- * "DOWNTIME" — all unchanged from SRD 1.0.
+ * The rules these implement are the paired pools, hit points against damage thresholds, stress,
+ * armour and downtime. The text they were read from is no longer vendored — see
+ * `docs/CONTEXT.md` for what was settled and why.
  */
 
-/** A PC starts with 2 Hope. */
+/** A PC starts with 2 Light. */
 export const STARTING_HOPE = 2;
-/** "A PC can have a maximum of 6 Hope at one time." */
+/** "A PC can have a maximum of 6 Light at one time." */
 export const MAX_HOPE = 6;
-/** "The GM can have up to 12 Fear at one time." */
+/** "The GM can have up to 12 Shadow at one time." */
 export const MAX_FEAR = 12;
 /** "All classes start with 6 Stress slots." */
 export const STARTING_STRESS_SLOTS = 6;
 /** HP and Stress slots both cap at 12 through leveling. */
 export const MAX_SLOTS = 12;
-/** Spending 3 Hope initiates a Tag Team Roll and powers Class Hope Features. */
+/** Spending 3 Light initiates a Tag Team Roll and powers Class Light Features. */
 export const TAG_TEAM_HOPE_COST = 3;
 export const CLASS_HOPE_FEATURE_COST = 3;
 
@@ -151,7 +151,7 @@ export function markHitPoints(hitPoints: MarkPool, amount: number): HitPointResu
   return { hitPoints: r.pool, hpMarked: r.applied, fell: r.filled && !wasFull };
 }
 
-/** A metacurrency that is gained and spent against a cap: Hope or Fear. */
+/** A metacurrency that is gained and spent against a cap: Light or Shadow. */
 export interface Currency {
   value: number;
   max: number;
@@ -169,7 +169,7 @@ export interface GainResult {
   currency: Currency;
   /** Amount actually gained. */
   applied: number;
-  /** Amount lost to the cap — Hope and Fear at their maximum simply do not accrue. */
+  /** Amount lost to the cap — Light and Shadow at their maximum simply do not accrue. */
   wasted: number;
 }
 
@@ -190,7 +190,7 @@ export interface SpendResult {
   spent: number;
 }
 
-/** Spend all-or-nothing: a partially paid cost buys nothing in Daggerheart. */
+/** Spend all-or-nothing: a partially paid cost buys nothing. */
 export function spend(currency: Currency, amount = 1): SpendResult {
   const cost = Math.max(0, Math.trunc(amount));
   if (currency.value < cost) return { currency, ok: false, spent: 0 };
@@ -202,12 +202,12 @@ export function canAfford(currency: Currency, amount = 1): boolean {
 }
 
 /**
- * Cross out a Hope slot permanently — a Scar from the Avoid Death move.
- * "If you ever cross out your last Hope slot, your character's journey ends."
+ * Cross out a Light slot permanently — a Scar from the Avoid Death move.
+ * "If you ever cross out your last Light slot, your character's journey ends."
  */
 export interface ScarResult {
   hope: Currency;
-  /** The character has no Hope slots left and their journey ends. */
+  /** The character has no Light slots left and their journey ends. */
   journeyEnds: boolean;
 }
 

@@ -18,7 +18,7 @@ const MOVES: readonly { kind: RestMove['kind']; label: string; targeted: boolean
   { kind: 'tendWounds', label: 'Tend to wounds', targeted: true },
   { kind: 'clearStress', label: 'Clear Stress', targeted: false },
   { kind: 'repairArmor', label: 'Repair armor', targeted: true },
-  { kind: 'prepare', label: 'Prepare (gain Hope)', targeted: false },
+  { kind: 'prepare', label: 'Prepare (gain Light)', targeted: false },
 ];
 
 const box: Record<string, string | number> = {
@@ -121,7 +121,7 @@ export function RestPanel(props: RestPanelProps): preact.JSX.Element {
         </span>
       </div>
       <div style={{ color: '#8ea3b0', fontSize: '11px', margin: '4px 0 8px' }}>
-        Two downtime moves each. Preparing together gives 2 Hope each. The GM gains {kind === 'short' ? '1d4' : `1d4 + ${props.party.length}`} Fear.
+        Two downtime moves each. Preparing together gives 2 Light each. The GM gains {kind === 'short' ? '1d4' : `1d4 + ${props.party.length}`} Shadow.
       </div>
       {props.party.map((member) => (
         <div key={member.id} style={{ marginBottom: '6px' }} data-rest-member={member.id}>

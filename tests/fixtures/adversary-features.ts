@@ -426,7 +426,7 @@ export const A_CALL_FOR_MORE_OF_THEM = (definition: string, summons: string): Re
  * A rally: its own turn, and a Stress to hand two others a turn as well.
  *
  * The Stress is what makes this interesting. An ordinary second spotlight is
- * bought with the GM's Fear and would be refused with an empty pool, so what this
+ * bought with the GM's Shadow and would be refused with an empty pool, so what this
  * buys has to be honoured on its own terms -- which is the half a test pins by
  * counting who acted and checking that nothing was billed beyond the first, free
  * spotlight.
@@ -562,7 +562,7 @@ export const A_BONUS_READ_OFF_ITS_OWN_WOUNDS = (definition: string): Record<stri
  * amount is therefore exact rather than approximate, and needs no gate to stay
  * honest.
  *
- * Simplified: the Fear is one, rather than one for each Hit Point handed back.
+ * Simplified: the Shadow is one, rather than one for each Hit Point handed back.
  */
 export const A_WOUND_HANDED_BACK = (definition: string): Record<string, unknown> => ({
   id: `${definition}-my-turn`,
@@ -583,7 +583,7 @@ export const A_WOUND_HANDED_BACK = (definition: string): Record<string, unknown>
 /**
  * A rally that hands two others at range a turn, out of the GM's pool.
  *
- * Priced in Fear rather than Stress, which is the interesting half: the turn must
+ * Priced in Shadow rather than Stress, which is the interesting half: the turn must
  * honour what the feature bought even when the pool cannot afford a second
  * spotlight of its own. A test pins exactly that -- both of the rallied act, though
  * the first of them could have gone again and the GM could not pay for it.
@@ -606,7 +606,7 @@ export const A_RALLY_OF_TWO_AT_RANGE = (definition: string): Record<string, unkn
  * A call that arrives already swinging.
  *
  * `spotlight: true` on the summon is the whole point: what it calls in acts on the
- * turn it arrived, and the Fear the feature paid covers that -- so the turn must
+ * turn it arrived, and the Shadow the feature paid covers that -- so the turn must
  * not bill the GM again for it. A test reads `fearSpent` on each arrival and
  * expects nothing.
  *
@@ -631,7 +631,7 @@ export const A_CALL_THAT_ARRIVES_SWINGING = (definition: string, summons: string
  * GM paid for swings at full strength. That distinction is the whole of one test,
  * which counts which of four swings was softened.
  *
- * Simplified: the Fear that would buy full damage is a choice made after the
+ * Simplified: the Shadow that would buy full damage is a choice made after the
  * allies are named, which nothing here asks for; it takes the half.
  */
 export const A_RALLY_THAT_STRIKES_FOR_HALF = (definition: string): Record<string, unknown> => ({

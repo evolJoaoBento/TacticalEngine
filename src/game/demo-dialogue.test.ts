@@ -110,7 +110,7 @@ describe('the pillar conversation', () => {
 
     answerPending(demo, { kind: 'roll' });
     // Whichever way it went, the conversation moved somewhere and said something.
-    expect(demo.log.some((l) => /with (Hope|Fear)|critical/i.test(l.text))).toBe(true);
+    expect(demo.log.some((l) => /with (Light|Shadow)|critical/i.test(l.text))).toBe(true);
   });
 
   it('ends the conversation, and the pillar can be talked to again', () => {

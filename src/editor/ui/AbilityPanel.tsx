@@ -297,7 +297,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                   }
                 />,
               )}
-              <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>Hope</span>
+              <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>Light</span>
               <input
                 type="number"
                 min={0}
@@ -320,7 +320,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 }
               />
               {/* The GM's pool: a stat block spends it, a card never can. */}
-              <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>Fear</span>
+              <span style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>Shadow</span>
               {label(
                 'aimed at',
                 <select

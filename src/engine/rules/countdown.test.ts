@@ -35,7 +35,7 @@ describe('stepsFor', () => {
     expect(stepsFor('attackRoll', roll('successWithHope'))).toBe(0);
   });
 
-  it('answers a roll with Fear, and counts a critical as one with Hope', () => {
+  it('answers a roll with Shadow, and counts a critical as one with Light', () => {
     expect(stepsFor('withFear', roll('failureWithFear'))).toBe(1);
     expect(stepsFor('withFear', roll('successWithFear'))).toBe(1);
     expect(stepsFor('withFear', roll('criticalSuccess'))).toBe(0);

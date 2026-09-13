@@ -41,7 +41,7 @@ export type CheckOutcome =
  * The effects a check outcome runs, with fallbacks.
  *
  * Content rarely writes all five. A critical success falls back to a success with
- * Hope, and either half of a success or failure falls back to the other, so
+ * Light, and either half of a success or failure falls back to the other, so
  * writing two lists gets sensible behaviour for all five outcomes.
  */
 export function outcomeEffects(check: CheckRequest, outcome: CheckOutcome): readonly Effect[] {

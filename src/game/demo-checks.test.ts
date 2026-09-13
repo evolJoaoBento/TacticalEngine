@@ -6,8 +6,8 @@ import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './
 /**
  * What a scripted roll does to the pools.
  *
- * The SRD's loop: a roll with Hope hands the roller a Hope, a roll with Fear
- * hands the GM a Fear. Attacks always did this; a chest is a roll too, and the
+ * The SRD's loop: a roll with Light hands the roller a Light, a roll with Shadow
+ * hands the GM a Shadow. Attacks always did this; a chest is a roll too, and the
  * HUD puts both pools where a player will watch them.
  */
 
@@ -19,7 +19,7 @@ function openTheChest(demo: DemoScene): string {
   demo.state.moveEntity(demo.party.selected!, tileOf(demo.grid, { x: chest.position.x - 1, y: chest.position.y }));
   useSelectedOn(demo, CHEST);
   answerPending(demo, { kind: 'roll' });
-  return demo.log.map((l) => l.text).find((t) => t.startsWith('Hope ')) ?? '';
+  return demo.log.map((l) => l.text).find((t) => t.startsWith('Light ')) ?? '';
 }
 
 /** A seed whose chest roll reads the way the test wants. */
@@ -37,20 +37,20 @@ function seedWhere(pattern: RegExp): DemoScene {
 }
 
 describe('a scripted check', () => {
-  it('hands the roller a Hope on a roll with Hope', () => {
-    const demo = seedWhere(/with Hope/);
+  it('hands the roller a Light on a roll with Light', () => {
+    const demo = seedWhere(/with Light/);
     const before = (demo as DemoScene & { before: { hope: number } }).before;
     expect(demo.state.entity(demo.party.selected!)!.hope!.value).toBe(before.hope + 1);
   });
 
-  it('hands the GM a Fear on a roll with Fear', () => {
-    const demo = seedWhere(/with Fear/);
+  it('hands the GM a Shadow on a roll with Shadow', () => {
+    const demo = seedWhere(/with Shadow/);
     const before = (demo as DemoScene & { before: { fear: number } }).before;
     expect(demo.state.fear.value).toBe(before.fear + 1);
   });
 
   it('moves only one of the two', () => {
-    const demo = seedWhere(/with Fear/);
+    const demo = seedWhere(/with Shadow/);
     const before = (demo as DemoScene & { before: { hope: number } }).before;
     expect(demo.state.entity(demo.party.selected!)!.hope!.value).toBe(before.hope);
   });

@@ -283,7 +283,7 @@ export interface GmTurn {
   features: Record<string, boolean>;
   /**
    * Adversaries whose next spotlight a feature has already paid for: "spend 2
-   * Fear to spotlight up to five allies". They act without the GM being billed
+   * Shadow to spotlight up to five allies". They act without the GM being billed
    * again, which also means the turn does not stop when the pool is empty.
    */
   granted: Set<string>;
@@ -404,7 +404,7 @@ const DEATH_MOVES: readonly DeathMove[] = ['avoid', 'blaze', 'risk'];
  * A card of the party's that answers something which has already happened: a
  * wound they took, a wound they dealt.
  *
- * The interrupt shape, not the automatic one. "You can spend 2 Hope to clear a
+ * The interrupt shape, not the automatic one. "You can spend 2 Light to clear a
  * Hit Point on an ally" is a decision, and the SRD gives it to the player, so
  * the fight stops and asks. A free reaction with nothing to weigh - Rise Up's
  * "clear a Stress" - never reaches here: it simply happens.
@@ -472,7 +472,7 @@ export function scriptPending(demo: DemoScene): PendingScript | null {
  * A hit that is waiting on the defender.
  *
  * The SRD makes taking damage a decision — mark an Armor Slot, mark a Stress
- * to Get Back Up, spend a Hope on a Rune Ward, or let an ally stand in the
+ * to Get Back Up, spend a Light on a Rune Ward, or let an ally stand in the
  * way. The engine can make it for you (`askDefender: false`, and every test
  * that predates the prompt does); with a player at the table it is asked.
  */
@@ -538,7 +538,7 @@ export interface IncomingAttack {
   used: string[];
   /**
    * The band a feature named for it mid-swing, in place of the dice: "spend a
-   * Fear to deal Severe damage instead of their standard damage". A band the
+   * Shadow to deal Severe damage instead of their standard damage". A band the
    * block's own passive names is read off the stat block instead, so it is not
    * carried here.
    */
@@ -622,7 +622,7 @@ interface SceneRuntime {
 interface RuntimeOptions {
   /** Pools the party arrives with, by character id. Fresh sheets when absent. */
   pools?: ReadonlyMap<string, PartyPools>;
-  /** Fear is the GM's across the session, not the room's. */
+  /** Shadow is the GM's across the session, not the room's. */
   fear?: Currency;
   /** The project's loot tables, so a chest in any room pays out. */
   lootTables?: ReadonlyMap<string, LootTable>;
@@ -1021,7 +1021,7 @@ function poolsOf(demo: DemoScene): Map<string, PartyPools> {
 /**
  * Move the party to another scene.
  *
- * Wounds, Stress, Hope and Fear travel; where everyone stood does not — the
+ * Wounds, Stress, Light and Shadow travel; where everyone stood does not — the
  * party arrives on the new scene's spawn points. A room already visited is
  * restored to how it was left, minus its party entities, which are replaced with
  * the ones that actually walked in.
@@ -1108,7 +1108,7 @@ function playablePlacements(scene: SceneDoc, grid: TileGrid): Set<string> {
  * Make the room being played agree with the room the document describes.
  *
  * Called on every entry into a scene and on the way back from the editor, and
- * deliberately not a rebuild: wounds, Fear, opened chests and a fight in
+ * deliberately not a rebuild: wounds, Shadow, opened chests and a fight in
  * progress all survive it. What it reconciles is the *cast*, against
  * `demo.syncedPlacements` rather than against the state, because "the document
  * places it and the state does not hold it" has two very different causes. A
@@ -1925,7 +1925,7 @@ function landPartyAttack(
   if (outcome.hit) {
     playDamageReactions(demo);
     playDefeatReactions(demo);
-    // "When you deal damage to an adversary, you can spend 2 Hope to…": the
+    // "When you deal damage to an adversary, you can spend 2 Light to…": the
     // player's own rider on their own swing, offered after the blow is in the
     // log and before the turn is spent. A question left standing here holds
     // nothing up - the GM's turn is started by the player pressing pass, never
@@ -1938,9 +1938,9 @@ function landPartyAttack(
     playMissRiders(demo, id!, targetId, outcome.dualityRoll);
   }
   // "The next PC to make an attack against that adversary can clear a Stress
-  // or gain a Hope": hit or miss, and paid to whoever swung.
+  // or gain a Light": hit or miss, and paid to whoever swung.
   playPayouts(demo, id!, targetId, owed, outcome.dualityRoll);
-  // What the room makes of the roll itself: "when a PC rolls with Fear while
+  // What the room makes of the roll itself: "when a PC rolls with Shadow while
   // within Far range of the Dragon". Before `act`, so anything it costs them
   // is settled by the same `settleFight` as the swing.
   if (outcome.dualityRoll !== undefined) playPartyRolled(demo, id!, outcome.dualityRoll);
@@ -1966,7 +1966,7 @@ function landPartyAttack(
 }
 
 /**
- * Play the GM's turn: spotlight adversaries while the Fear lasts, each attacking
+ * Play the GM's turn: spotlight adversaries while the Shadow lasts, each attacking
  * the nearest party member it can reach.
  */
 export function playGmTurn(demo: DemoScene): number {
@@ -1974,7 +1974,7 @@ export function playGmTurn(demo: DemoScene): number {
   if (encounter === null || encounter.outcome !== 'ongoing' || encounter.view().side !== 'gm') return 0;
   if (demo.gmTurn !== null || demo.pending !== null) return 0;
   // "Temporary … until they next act": the party has had their turn, whether
-  // they ended it or a roll with Fear took the spotlight off them, so what a
+  // they ended it or a roll with Shadow took the spotlight off them, so what a
   // creature put on them for a moment comes off — the same way an adversary
   // shakes one off on its spotlight. Without this a hold the SRD ends with a
   // Strength Roll, which nothing here can ask for, would last the whole fight.
@@ -2006,7 +2006,7 @@ export function runGmTurn(demo: DemoScene): number {
     const id = turn.remaining[0]!;
     const again = (turn.spotlights[id] ?? 0) > 0;
     // A spotlight an ally was handed is already paid for, and has to be taken
-    // before the Fear is read: a Leader that spent its last Fear rallying the
+    // before the Shadow is read: a Leader that spent its last Shadow rallying the
     // room would otherwise end the turn before anyone it rallied could move.
     const granted = turn.granted.delete(id);
     if (!granted && again && !encounter.canSpotlightAgain(id)) {
@@ -2026,9 +2026,9 @@ export function runGmTurn(demo: DemoScene): number {
     else encounter.spotlight(id);
     turn.spotlights[id] = (turn.spotlights[id] ?? 0) + 1;
     turn.acted++;
-    // Relentless: "can be spotlighted up to X times per GM turn. Spend Fear as
+    // Relentless: "can be spotlighted up to X times per GM turn. Spend Shadow as
     // usual." It keeps its place at the head of the queue until it runs out of
-    // spotlights or the GM runs out of Fear.
+    // spotlights or the GM runs out of Shadow.
     const allowed = adversaryTraits(statBlock(demo, id)).spotlights;
     if (turn.spotlights[id]! >= allowed) turn.remaining.shift();
     adversaryTurn(demo, id);
@@ -2049,7 +2049,7 @@ export function runGmTurn(demo: DemoScene): number {
 /**
  * Hand the spotlight to the GM and play the GM's turn.
  *
- * Under the spotlight policy the spotlight only passes on a roll with Fear or
+ * Under the spotlight policy the spotlight only passes on a roll with Shadow or
  * a failure; this is the party choosing to stop — "we hold and see what they
  * do" — and it is the button a player presses when everyone has acted.
  */
@@ -2197,7 +2197,7 @@ function askDeathMove(demo: DemoScene, id: string, offers: readonly ReactionOffe
         {
           index: 0,
           label: 'Avoid Death',
-          detail: 'Drop unconscious until an ally clears a Hit Point. Roll the Hope Die: on your level or under, a scar.',
+          detail: 'Drop unconscious until an ally clears a Hit Point. Roll the Light Die: on your level or under, a scar.',
         },
         {
           index: 1,
@@ -2207,7 +2207,7 @@ function askDeathMove(demo: DemoScene, id: string, offers: readonly ReactionOffe
         {
           index: 2,
           label: 'Risk It All',
-          detail: 'Roll the Duality Dice. Hope higher and you stay up; Fear higher and you die; matching and you stand with everything cleared.',
+          detail: 'Roll the Duality Dice. Light higher and you stay up; Shadow higher and you die; matching and you stand with everything cleared.',
         },
         // "Instead of making a death move": after the three, because stepping
         // back from a question takes its first option and that has to be the
@@ -2231,7 +2231,7 @@ function applyDeathMove(demo: DemoScene, id: string, move: DeathMove): void {
 
 /**
  * "They temporarily drop unconscious... After your character falls
- * unconscious, roll your Hope Die. If its value is equal to or less than your
+ * unconscious, roll your Light Die. If its value is equal to or less than your
  * character's level, they gain a scar."
  *
  * Being unconscious is what a fallen entity already is: it cannot act and
@@ -2245,17 +2245,17 @@ function avoidDeath(demo: DemoScene, id: string): void {
   note(demo, `${character.sheet.name} drops unconscious.`, 'system');
   const hope = demo.rng.die(HOPE_DIE_SIDES);
   if (hope > character.sheet.level) {
-    note(demo, `The Hope Die reads ${hope}: no scar this time.`, 'system');
+    note(demo, `The Light Die reads ${hope}: no scar this time.`, 'system');
     return;
   }
   scar(demo, id, hope);
 }
 
 /**
- * "Permanently cross out a Hope slot."
+ * "Permanently cross out a Light slot."
  *
  * On the sheet, because it outlives the scene: the next fight this character
- * walks into is derived from the sheet and starts a Hope short. The pool they
+ * walks into is derived from the sheet and starts a Light short. The pool they
  * are carrying right now loses the slot too, and whatever was sitting in it.
  */
 function scar(demo: DemoScene, id: string, rolled: number): void {
@@ -2264,7 +2264,7 @@ function scar(demo: DemoScene, id: string, rolled: number): void {
   if (character === undefined || entity === undefined) return;
   // Through `setSheet`, so the project's copy of the party carries it too and
   // the character is re-derived over it: `deriveCharacter` folds scars into
-  // the Hope pool's maximum, so nothing here has to write that by hand.
+  // the Light pool's maximum, so nothing here has to write that by hand.
   const sheet = demo.sheets.get(id) ?? character.sheet;
   setSheet(demo, { ...sheet, scars: (sheet.scars ?? 0) + 1 });
   const held = entity.hope ?? character.hope;
@@ -2272,27 +2272,27 @@ function scar(demo: DemoScene, id: string, rolled: number): void {
   entity.hope = { max, value: Math.min(held.value, max) };
   note(
     demo,
-    `The Hope Die reads ${rolled}. ${character.sheet.name} takes a scar: a Hope slot crossed out for good.`,
+    `The Light Die reads ${rolled}. ${character.sheet.name} takes a scar: a Light slot crossed out for good.`,
     'fear',
   );
-  // "If you ever cross out your last Hope slot, your character's journey ends."
+  // "If you ever cross out your last Light slot, your character's journey ends."
   if (max > 0) return;
   entity.dead = true;
   note(demo, `That was the last slot. ${character.sheet.name}'s journey ends here.`, 'fear');
 }
 
 /**
- * "Roll your Duality Dice. If the Hope Die is higher, your character stays on
+ * "Roll your Duality Dice. If the Light Die is higher, your character stays on
  * their feet and clears a number of Hit Points or Stress equal to the value of
- * the Hope Die... If the Fear Die is higher, your character crosses through
+ * the Light Die... If the Shadow Die is higher, your character crosses through
  * the veil of death. If the Duality Dice show matching results, your character
  * stays up and clears all Hit Points and Stress."
  *
  * Nothing is being beaten and a death move is not an action roll, so the dice
- * are rolled the way a reaction rolls them: no Hope gained, no Fear for the
+ * are rolled the way a reaction rolls them: no Light gained, no Shadow for the
  * GM, no move handed over off the back of it.
  *
- * Simplified: "you can divide the Hope Die value between Hit Points and Stress
+ * Simplified: "you can divide the Light Die value between Hit Points and Stress
  * however you'd prefer" is one more question than the moment can carry, and a
  * character at zero Hit Points wants Hit Points. They are cleared first, and
  * whatever the die has left over goes on Stress.
@@ -2303,7 +2303,7 @@ function riskItAll(demo: DemoScene, id: string): void {
   if (character === undefined || entity === undefined) return;
   const who = character.sheet.name;
   const roll = rollDuality(demo.rng, { difficulty: 0, reaction: true });
-  note(demo, `${who} risks it all: Hope ${roll.hope}, Fear ${roll.fear}.`, roll.fear > roll.hope ? 'fear' : 'hope');
+  note(demo, `${who} risks it all: Light ${roll.hope}, Shadow ${roll.fear}.`, roll.fear > roll.hope ? 'fear' : 'hope');
   if (roll.fear > roll.hope) return veil(demo, id);
 
   const target: TargetSelector = { kind: 'entity', id };
@@ -2494,8 +2494,8 @@ function adversaryTurn(demo: DemoScene, adversaryId: string): void {
 /** What the creature does with the spotlight, once it is sure it has one. */
 function takeSpotlight(demo: DemoScene, adversaryId: string, adversary: EntityState): void {
   // Unable to act — Stunned, Asleep: the spotlight goes on shaking it off. A
-  // temporary condition clears; one that only ends on damage or a Fear
-  // (Asleep) costs the GM a Fear, if they have one, else the turn is lost.
+  // temporary condition clears; one that only ends on damage or a Shadow
+  // (Asleep) costs the GM a Shadow, if they have one, else the turn is lost.
   if (demo.world.blocks(adversaryId, 'act')) {
     clearTemporaryConditions(demo, adversaryId);
     if (demo.world.blocks(adversaryId, 'act')) clearWithFear(demo, adversaryId);
@@ -2591,7 +2591,7 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
       const caught = demo.world
         .resolveTargets({ kind: 'allies', range: ability.target.range }, NO_BINDINGS)
         .filter((id) => worthAiming(demo, adversaryId, ability, id));
-      // "Spotlight all Giant Rats within Close range of them": worth a Fear
+      // "Spotlight all Giant Rats within Close range of them": worth a Shadow
       // when there is a swarm to call, and the same swing for nothing when
       // there is not, so the GM only reaches for it when someone answers.
       const swarm = swarmSelector(ability);
@@ -2612,9 +2612,9 @@ function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: Abil
       // by definition, and neither does a summons: what it puts on the map is
       // not on it yet. Whether either is worth a turn is what its cost, its
       // uses and `available` say.
-      // "Spend a Fear to spotlight two other Demons within Far range": worth
+      // "Spend a Shadow to spotlight two other Demons within Far range": worth
       // it only when there is somebody to hand a turn to, and never worth more
-      // Fear than the spotlights it buys - a plain spotlight costs one.
+      // Shadow than the spotlights it buys - a plain spotlight costs one.
       if (spotlightsAllies(ability)) {
         const called = spotlightCandidates(demo, adversaryId, ability);
         if (called.length === 0 || featureFear(ability) > called.length) continue;
@@ -2754,8 +2754,8 @@ function featureUsesLeft(demo: DemoScene, adversaryId: string, ability: AbilityD
 /**
  * What the GM pays to use a feature.
  *
- * A block that says "Spend a Fear to…" is taken at its word. An *action* that
- * names no cost at all still costs a Fear, because otherwise the best feature
+ * A block that says "Spend a Shadow to…" is taken at its word. An *action* that
+ * names no cost at all still costs a Shadow, because otherwise the best feature
  * is simply what the adversary does every turn and its teeth never come into
  * it. A reaction is not chosen, so nothing is invented for it: "when the
  * Burrower takes Severe damage, all creatures within Close range are bathed in
@@ -2775,7 +2775,7 @@ function useAdversaryFeature(demo: DemoScene, adversaryId: string, ability: Abil
   settleFight(demo);
 }
 
-/** What using a stat block's feature costs the GM: Fear out of the pool, a use off the card. */
+/** What using a stat block's feature costs the GM: Shadow out of the pool, a use off the card. */
 function spendFeatureCost(
   demo: DemoScene,
   adversaryId: string,
@@ -2785,7 +2785,7 @@ function spendFeatureCost(
   const fear = featureFear(ability, as);
   if (fear > 0) {
     demo.state.fear = { ...demo.state.fear, value: Math.max(0, demo.state.fear.value - fear) };
-    note(demo, `The GM spends ${fear} Fear.`, 'fear');
+    note(demo, `The GM spends ${fear} Shadow.`, 'fear');
   }
   if (ability.uses !== undefined) {
     const key = useKey(adversaryId, ability.id);
@@ -2936,7 +2936,7 @@ function aimedAt(demo: DemoScene, adversaryId: string): number {
  * The same trick `playPayouts` uses: the condition carries the script, and an
  * ability is built around it so it runs down the one path every script runs
  * down. The zone's owner acts, it being their spell - so a roll it makes hands
- * *them* the Hope, and a `push` knocks the intruder away from *them*. Ground
+ * *them* the Light, and a `push` knocks the intruder away from *them*. Ground
  * nobody owns runs with the one who walked in on both sides of it.
  *
  * Never a question: walking into a fire is not a decision anybody makes after
@@ -3037,7 +3037,7 @@ function playPayouts(
   const asked: ReactionOffer[][] = [];
   for (const debt of owed) {
     if (!demo.state.entity(target)?.conditions.has(debt.condition)) continue;
-    // "When you succeed with Hope against an adversary in this shadow": read
+    // "When you succeed with Light against an adversary in this shadow": read
     // with the one who swung acting, the bearer bound and the roll they made
     // bound too, so the gate is the same `rolled` every card asks with.
     if (debt.when !== undefined) {
@@ -3098,7 +3098,7 @@ function afterAdversaryScript(demo: DemoScene, journal: readonly JournalEntry[])
  *
  * Back to the head of the queue, and granted: whatever said so has paid for
  * the turn, so the GM is not billed and the turn does not stop for want of
- * Fear it never owed. It is filtered out first because a creature with a
+ * Shadow it never owed. It is filtered out first because a creature with a
  * Relentless spotlight still to come is already standing there.
  */
 function spotlightSelf(demo: DemoScene, journal: readonly JournalEntry[]): void {
@@ -3134,9 +3134,9 @@ function spotlightReplacements(demo: DemoScene, journal: readonly JournalEntry[]
 }
 
 /**
- * "Spend 2 Fear to spotlight up to five allies within Far range."
+ * "Spend 2 Shadow to spotlight up to five allies within Far range."
  *
- * They go to the head of the queue and act on this turn, and the Fear the
+ * They go to the head of the queue and act on this turn, and the Shadow the
  * feature cost is all the GM pays: `granted` tells `runGmTurn` not to charge
  * for them. One that was already waiting further down is moved rather than
  * added, or it would take two turns out of one spotlight.
@@ -3177,7 +3177,7 @@ function spotlightArrivals(demo: DemoScene, journal: readonly JournalEntry[]): v
     turn.remaining.unshift(...arriving);
     // The feature's own cost brought them and gave them the spotlight, so the
     // GM is not billed again for the turn they walk into - and the turn does
-    // not stop for want of Fear it never owed.
+    // not stop for want of Shadow it never owed.
     for (const id of arriving) turn.granted.add(id);
   }
 }
@@ -3197,7 +3197,7 @@ function spendSwarmSpotlights(demo: DemoScene, journal: readonly JournalEntry[])
     for (const id of entry.joined) {
       turn.remaining = turn.remaining.filter((waiting) => waiting !== id);
       turn.spotlights[id] = (turn.spotlights[id] ?? 0) + 1;
-      // The Fear the feature cost bought this swing: `grantSpotlight` marks
+      // The Shadow the feature cost bought this swing: `grantSpotlight` marks
       // them as having acted without billing the GM a second time.
       demo.encounter?.grantSpotlight(id);
     }
@@ -3393,7 +3393,7 @@ function offersFor(
  * Put the first group of offers to the player and keep the rest for after.
  *
  * With nobody at the table to ask - a test, or the demo deciding for the party
- * - an optional card is simply not played: spending someone's Hope for them is
+ * - an optional card is simply not played: spending someone's Light for them is
  * worse than letting the moment pass.
  */
 function offerReactions(demo: DemoScene, groups: readonly (readonly ReactionOffer[])[]): void {
@@ -3759,8 +3759,8 @@ function afterReaction(
 /**
  * What the room makes of a roll the party made.
  *
- * "When a PC rolls a failure with Fear while within Close range of the Demon,
- * they lose a Hope." The one who rolled is bound as the target - which is how
+ * "When a PC rolls a failure with Shadow while within Close range of the Demon,
+ * they lose a Light." The one who rolled is bound as the target - which is how
  * a feature measures the distance to them - and what the roll was is read by a
  * `rolled` condition on the feature's own gate.
  *
@@ -3903,7 +3903,7 @@ function clearTemporaryConditions(demo: DemoScene, adversaryId: string): void {
 }
 
 /**
- * "…or the GM spends a Fear on their turn to clear this condition": the Fear
+ * "…or the GM spends a Shadow on their turn to clear this condition": the Shadow
  * is spent when there is one, on whatever holds the adversary from acting.
  */
 function clearWithFear(demo: DemoScene, adversaryId: string): void {
@@ -3916,7 +3916,7 @@ function clearWithFear(demo: DemoScene, adversaryId: string): void {
     adversary.conditions.delete(condition);
     adversary.conditionDurations.delete(condition);
   }
-  note(demo, `The GM spends a Fear: the ${nameOf(demo, adversaryId)} shakes off ${held.join(' and ')}.`, 'fear');
+  note(demo, `The GM spends a Shadow: the ${nameOf(demo, adversaryId)} shakes off ${held.join(' and ')}.`, 'fear');
 }
 
 /**
@@ -3931,7 +3931,7 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
   const character = demo.characters.get(target.id);
   const def = statBlock(demo, adversaryId);
   // What its passives make of this swing, at this target: "1d10+4 instead of
-  // their standard damage", "double damage to PCs with 0 Hope".
+  // their standard damage", "double damage to PCs with 0 Light".
   const swing = demo.world.standardAttackOf(def.id, { attacker: adversaryId, target: targetId });
   const rolled = resolveAttack(demo.rng, {
     grid: demo.grid,
@@ -4149,7 +4149,7 @@ function incomingOf(demo: DemoScene, attack: IncomingAttack): IncomingDamage {
 
 /**
  * What a successful attack does beyond its damage: Momentum hands the GM a
- * Fear, Terrifying costs every PC in Close range a Hope and hands over a Fear
+ * Shadow, Terrifying costs every PC in Close range a Light and hands over a Shadow
  * as well.
  */
 function landedFeatures(demo: DemoScene, attack: IncomingAttack, hitPointsMarked: number): void {
@@ -4167,12 +4167,12 @@ function landedFeatures(demo: DemoScene, attack: IncomingAttack, hitPointsMarked
       entity.hope = { max: entity.hope.max, value: entity.hope.value - 1 };
       shaken.push(nameOf(demo, entity.id));
     }
-    if (shaken.length > 0) note(demo, `Terrifying: ${shaken.join(', ')} lose a Hope.`, 'fear');
+    if (shaken.length > 0) note(demo, `Terrifying: ${shaken.join(', ')} lose a Light.`, 'fear');
   }
   if (fear > 0) {
     const gained = gain(demo.state.fear, fear);
     demo.state.fear = gained.currency;
-    if (gained.applied > 0) note(demo, `The GM gains ${gained.applied} Fear.`, 'fear');
+    if (gained.applied > 0) note(demo, `The GM gains ${gained.applied} Shadow.`, 'fear');
   }
   playAttackRiders(demo, attack.attacker, attack.defender, hitPointsMarked);
 }
@@ -4186,11 +4186,11 @@ function landedFeatures(demo: DemoScene, attack: IncomingAttack, hitPointsMarked
  * difference between "on a successful attack" and "targets who mark HP". Both
  * run with the one it hit bound as the target and as the hit, so a rider can
  * be written either way. A stat block's rider runs on its own; a card's is
- * offered to the player, because "you can spend 2 Hope to…" is theirs to
+ * offered to the player, because "you can spend 2 Light to…" is theirs to
  * decide - and a free one that asks nothing simply happens.
  *
  * Nothing rides a blow that put its target down: pushing a body or taking a
- * Hope off someone lying unconscious reads as noise in the log, and the rules
+ * Light off someone lying unconscious reads as noise in the log, and the rules
  * hang these on what the target does about the damage, which a fallen creature
  * no longer does.
  */
@@ -4269,7 +4269,7 @@ function defenderFor(demo: DemoScene, id: string): Defender | null {
 }
 
 const costOf = (ability: AbilityDef): string =>
-  [ability.cost.hope === undefined ? '' : `${ability.cost.hope} Hope`, ability.cost.stress === undefined ? '' : `${ability.cost.stress} Stress`]
+  [ability.cost.hope === undefined ? '' : `${ability.cost.hope} Light`, ability.cost.stress === undefined ? '' : `${ability.cost.stress} Stress`]
     .filter((part) => part !== '')
     .join(' and ');
 
@@ -4382,7 +4382,7 @@ export function defenseChoices(demo: DemoScene, attack: IncomingAttack): Defense
 /**
  * A blow that went wide, and someone who can do something about it.
  *
- * "When an attack made against you fails, you can spend a Hope to …" — the
+ * "When an attack made against you fails, you can spend a Light to …" — the
  * card's own effects are the answer, so any card written that way is offered
  * here without the engine knowing what it does.
  */
@@ -5088,7 +5088,7 @@ function floatEntry(demo: DemoScene, entry: JournalEntry): void {
       if (entry.applied) float(demo, entry.id, demo.world.conditionName(entry.condition), 'combat');
       return;
     case 'hope':
-      if (entry.id !== undefined) float(demo, entry.id, `+${entry.gained} Hope`, 'hope');
+      if (entry.id !== undefined) float(demo, entry.id, `+${entry.gained} Light`, 'hope');
       return;
     default:
       return;
@@ -5342,19 +5342,19 @@ function describeEntry(
     case 'refused':
       return { text: `That cannot happen: ${entry.reason}.`, tone: 'system' };
     case 'defended': {
-      const cost = [entry.hopeSpent > 0 ? `${entry.hopeSpent} Hope` : '', entry.stressMarked > 0 ? `${entry.stressMarked} Stress` : ''].filter((c) => c !== '').join(' and ');
+      const cost = [entry.hopeSpent > 0 ? `${entry.hopeSpent} Light` : '', entry.stressMarked > 0 ? `${entry.stressMarked} Stress` : ''].filter((c) => c !== '').join(' and ');
       return { text: `${who(entry.id)}: ${entry.ability}${entry.rolled === undefined ? '' : ` (${entry.rolled})`}${cost === '' ? '' : `, ${cost}`}.`, tone: 'hope' };
     }
     case 'hopeSpent':
-      return { text: `Spends ${plural(entry.amount, 'Hope')}.`, tone: 'hope' };
+      return { text: `Spends ${plural(entry.amount, 'Light')}.`, tone: 'hope' };
     case 'experience':
       return { text: `Draws on "${entry.name}" (+${entry.modifier}).`, tone: 'hope' };
     case 'hope':
-      return entry.id === undefined ? null : { text: `${who(entry.id)} gains ${plural(entry.gained, 'Hope')}.`, tone: 'hope' };
+      return entry.id === undefined ? null : { text: `${who(entry.id)} gains ${plural(entry.gained, 'Light')}.`, tone: 'hope' };
     case 'hopeLost':
-      return { text: `${who(entry.id)} loses ${plural(entry.lost, 'Hope')}.`, tone: 'fear' };
+      return { text: `${who(entry.id)} loses ${plural(entry.lost, 'Light')}.`, tone: 'fear' };
     case 'fearLost':
-      return { text: `The GM loses ${plural(entry.lost, 'Fear')}.`, tone: 'hope' };
+      return { text: `The GM loses ${plural(entry.lost, 'Shadow')}.`, tone: 'hope' };
     // Quest events are news, unlike the flags underneath them: the journal
     // changed, and the player should hear it without opening the journal.
     case 'quest': {
@@ -5425,14 +5425,14 @@ function describeEntry(
 }
 
 /**
- * The dice, in words: "Hope 9 + Fear 4 +2 = 15 vs 13."
+ * The dice, in words: "Light 9 + Shadow 4 +2 = 15 vs 13."
  *
  * The prototype rolled physical dice on screen; this reads them out instead,
  * which is the part of dice presentation a player actually needs to trust the
  * outcome. Only the parts that applied are named.
  */
 export function describeRoll(roll: DualityRoll): string {
-  const parts = [`Hope ${roll.hope} + Fear ${roll.fear}`];
+  const parts = [`Light ${roll.hope} + Shadow ${roll.fear}`];
   if (roll.advantageDie > 0) parts.push(`+ d6 ${roll.advantageDie}`);
   if (roll.advantageDie < 0) parts.push(`− d6 ${-roll.advantageDie}`);
   if (roll.helpBonus > 0) parts.push(`+ help ${roll.helpBonus}`);
@@ -5445,13 +5445,13 @@ function describeOutcome(outcome: CheckOutcome): string {
     case 'criticalSuccess':
       return 'A critical success.';
     case 'successWithHope':
-      return 'Success, with Hope.';
+      return 'Success, with Light.';
     case 'successWithFear':
-      return 'Success, with Fear.';
+      return 'Success, with Shadow.';
     case 'failureWithHope':
-      return 'Failure, with Hope.';
+      return 'Failure, with Light.';
     case 'failureWithFear':
-      return 'Failure, with Fear.';
+      return 'Failure, with Shadow.';
   }
 }
 

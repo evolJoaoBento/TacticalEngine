@@ -63,7 +63,7 @@ export interface AttackProfile {
   trait?: Trait;
   /**
    * Twice what the dice said — "the Demon deals double damage to PCs with 0
-   * Hope". Doubled once the dice are in, so the thresholds read the number
+   * Light". Doubled once the dice are in, so the thresholds read the number
    * that actually landed.
    */
   double?: boolean;
@@ -94,7 +94,7 @@ export interface AttackOptions extends TargetingOptions {
   disadvantage?: number;
   /** Help an Ally dice. PC attacks only — the GM cannot be helped. */
   helpDice?: number;
-  /** The attacker's Hope Die, when a card has made it something other than a d12. */
+  /** The attacker's Light Die, when a card has made it something other than a d12. */
   hopeDieSides?: number;
   /** Flat modifier on top of the profile's: an Experience, a feature, terrain. */
   bonus?: number;
@@ -115,7 +115,7 @@ export interface AttackOptions extends TargetingOptions {
    * action. It automatically critically succeeds (with GM approval)". The
    * targeting is still read - a final action still has to reach somebody - and
    * the damage is counted as a critical's, but there is no duality roll, so
-   * there is no Hope, no Fear and no move handed to the GM off the back of it.
+   * there is no Light, no Shadow and no move handed to the GM off the back of it.
    */
   automatic?: 'criticalSuccess';
   /**
@@ -159,7 +159,7 @@ export interface AttackOutcome {
   damage?: ResolvedDamage;
   /** Hit Points the target marks. */
   hitPointsMarked: number;
-  /** Hope the attacker gains and Fear the GM gains, from a PC's duality roll. */
+  /** Light the attacker gains and Shadow the GM gains, from a PC's duality roll. */
   hopeGained: number;
   fearGained: number;
   stressCleared: number;
@@ -326,9 +326,9 @@ export interface AppliedAttack {
   armorSlotsSpent: number;
   /** The target marked its last Hit Point and must make a death move. */
   fell: boolean;
-  /** Hope the attacker actually gained, after the cap. */
+  /** Light the attacker actually gained, after the cap. */
   hopeGained: number;
-  /** Fear the GM actually gained, after the cap. */
+  /** Shadow the GM actually gained, after the cap. */
   fearGained: number;
   /** Stress the attacker actually cleared. */
   stressCleared: number;
@@ -336,9 +336,9 @@ export interface AppliedAttack {
 
 /**
  * Apply a resolved attack to the scene: mark the target's Hit Points and Armor
- * Slots, move the attacker's Hope, the GM's Fear and the attacker's Stress.
+ * Slots, move the attacker's Light, the GM's Shadow and the attacker's Stress.
  *
- * Reports what actually happened rather than what was asked for — Hope at its cap
+ * Reports what actually happened rather than what was asked for — Light at its cap
  * does not accrue, and a target with one slot left marks one Hit Point however
  * severe the hit was.
  */

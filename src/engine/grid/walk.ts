@@ -3,7 +3,7 @@
  * takes across the ground.
  *
  * The pathfinder answers "can it get there, and by which tiles" on the grid
- * underneath. A creature is not a square, though, and Daggerheart is not
+ * underneath. A creature is not a square, though, and this is not
  * played on one: it walks straight where nothing is in the way, rounds a
  * corner only as tightly as its body allows, and stops where it was walked
  * to rather than at the centre of whichever square that fell in. This module

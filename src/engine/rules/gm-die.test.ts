@@ -66,7 +66,7 @@ describe('rollGmDie', () => {
     expect(r).toMatchObject({ success: true, critical: false, reaction: true });
   });
 
-  it('generates no Hope or Fear — the GM has neither on their own die', () => {
+  it('generates no Light or Shadow — the GM has neither on their own die', () => {
     const r = rollGmDie(scriptedRng([12]), { difficulty: 10 });
     expect(Object.keys(r)).not.toContain('hopeGained');
     expect(Object.keys(r)).not.toContain('fearGained');

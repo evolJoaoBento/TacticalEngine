@@ -1,5 +1,5 @@
 /**
- * Using what a character can do: domain cards, Hope features, subclass cards.
+ * Using what a character can do: domain cards, Light features, subclass cards.
  *
  * An ability is a script with a price and a target. This module is the verb:
  * it checks the price can be paid and the target is fair, pays, runs the
@@ -216,8 +216,8 @@ export function canUseAbility(
   if (fighting && demo.encounter!.view().side !== 'party') return { ok: false, reason: "the GM's turn" };
   if (fighting && ability.action && !demo.encounter!.canAct(characterId)) return { ok: false, reason: 'already acted' };
   const cost = ability.cost;
-  if ((cost.fear ?? 0) > 0) return { ok: false, reason: 'only the GM spends Fear' };
-  if ((cost.hope ?? 0) > 0 && (entity.hope?.value ?? 0) < cost.hope!) return { ok: false, reason: `needs ${cost.hope} Hope` };
+  if ((cost.fear ?? 0) > 0) return { ok: false, reason: 'only the GM spends Shadow' };
+  if ((cost.hope ?? 0) > 0 && (entity.hope?.value ?? 0) < cost.hope!) return { ok: false, reason: `needs ${cost.hope} Light` };
   if ((cost.stress ?? 0) > 0 && !canMarkStress(entity.stress, cost.stress)) return { ok: false, reason: 'no Stress slot to mark' };
   const left = usesLeft(demo, characterId, ability);
   if (left !== null && left <= 0) return { ok: false, reason: `used until the next ${ability.uses!.per === 'longRest' ? 'long rest' : ability.uses!.per === 'scene' ? 'fight' : 'rest'}` };
@@ -305,7 +305,7 @@ export function useAbility(
   // Pay.
   if ((ability.cost.hope ?? 0) > 0 && entity.hope !== undefined) {
     entity.hope = spend(entity.hope, ability.cost.hope!).currency;
-    lines.push(...note(demo, `Spends ${ability.cost.hope} Hope.`, 'hope'));
+    lines.push(...note(demo, `Spends ${ability.cost.hope} Light.`, 'hope'));
   }
   if ((ability.cost.stress ?? 0) > 0) {
     demo.world.markStress(characterId, ability.cost.stress!);
@@ -490,8 +490,8 @@ export type RestResult = { ok: true; fearGained: number } | { ok: false; reason:
 /**
  * Take a short or a long rest.
  *
- * Short: each move clears 1d4 + tier of something, or gains a Hope; the GM
- * gains 1d4 Fear. Long: each move clears all of something; the GM gains 1d4 +
+ * Short: each move clears 1d4 + tier of something, or gains a Light; the GM
+ * gains 1d4 Shadow. Long: each move clears all of something; the GM gains 1d4 +
  * the party's size. Either refreshes the abilities it refreshes, ends the
  * conditions a rest ends, and swaps loadouts for free first.
  */
@@ -514,7 +514,7 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
   refreshWorld(demo);
   syncPools(demo);
 
-  // "If you choose to Prepare with one or more members of your party, you each gain 2 Hope."
+  // "If you choose to Prepare with one or more members of your party, you each gain 2 Light."
   const preparing = Object.entries(plan.moves).filter(([, moves]) => moves.some((m) => m.kind === 'prepare')).length;
   const hopeEach = preparing >= 2 ? 2 : 1;
 
@@ -549,7 +549,7 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
         }
         case 'prepare': {
           if (entity.hope !== undefined) entity.hope = gain(entity.hope, hopeEach).currency;
-          note(demo, `${who} prepares: ${hopeEach} Hope.`, 'hope');
+          note(demo, `${who} prepares: ${hopeEach} Light.`, 'hope');
           break;
         }
       }
@@ -569,10 +569,10 @@ export function rest(demo: DemoScene, kind: 'short' | 'long', plan: RestPlan): R
   for (const { id, condition } of ended) note(demo, `${nameOf(demo, id)} is no longer ${condition}.`, 'system');
   syncPools(demo);
 
-  // "On a short rest, they gain 1d4 Fear. On a long rest, 1d4 + the number of PCs."
+  // "On a short rest, they gain 1d4 Shadow. On a long rest, 1d4 + the number of PCs."
   const fear = demo.rng.die(4) + (kind === 'long' ? party.length : 0);
   const gained = gain(demo.state.fear, fear);
   demo.state.fear = gained.currency;
-  note(demo, `The GM gains ${gained.applied} Fear.`, 'fear');
+  note(demo, `The GM gains ${gained.applied} Shadow.`, 'fear');
   return { ok: true, fearGained: gained.applied };
 }

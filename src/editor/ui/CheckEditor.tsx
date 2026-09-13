@@ -44,10 +44,10 @@ export const TRAITS = ['agility', 'strength', 'finesse', 'instinct', 'presence',
  */
 export const OUTCOMES = [
   ['onCriticalSuccess', 'Critical success'],
-  ['onSuccessWithHope', 'Success with Hope'],
-  ['onSuccessWithFear', 'Success with Fear'],
-  ['onFailureWithHope', 'Failure with Hope'],
-  ['onFailureWithFear', 'Failure with Fear'],
+  ['onSuccessWithHope', 'Success with Light'],
+  ['onSuccessWithFear', 'Success with Shadow'],
+  ['onFailureWithHope', 'Failure with Light'],
+  ['onFailureWithFear', 'Failure with Shadow'],
   ['always', 'Always, whichever way it went'],
 ] as const satisfies readonly (readonly [keyof CheckRequest, string])[];
 

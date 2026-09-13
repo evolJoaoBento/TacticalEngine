@@ -116,7 +116,7 @@ function closeIn(demo: DemoScene, characterId: string, foeId: string): void {
 const names = (demo: DemoScene, id: string): string[] => abilitiesOf(demo, id).map((a) => a.id);
 
 describe('who has what', () => {
-  it('lists class, Hope, subclass and loadout abilities per character', () => {
+  it('lists class, Light, subclass and loadout abilities per character', () => {
     const demo = scene();
     // The class's, then the subclass's, then the cards in loadout order, which
     // is the order a sheet lists them. The sentinel has two class features: the
@@ -138,9 +138,9 @@ describe('who has what', () => {
     const demo = scene();
     const list = abilityList(demo, 'kara');
     const hope = list.find((v) => v.ability.id === 'sentinel-hold-fast')!;
-    expect(hope.text).toContain('Spend 3 Hope to clear 2 Armor Slots');
+    expect(hope.text).toContain('Spend 3 Light to clear 2 Armor Slots');
     expect(hope.usable).toBe(false);
-    expect(hope.reason).toBe('needs 3 Hope');
+    expect(hope.reason).toBe('needs 3 Light');
     // And a passive, which is never usable for a different reason.
     const passive = list.find((v) => v.ability.id === 'sentinel-drilled')!;
     expect(passive.reason).toBe('always on');
@@ -148,8 +148,8 @@ describe('who has what', () => {
   });
 });
 
-describe('a Hope feature', () => {
-  it('costs three Hope, wants something to fix, and is not the turn', () => {
+describe('a Light feature', () => {
+  it('costs three Light, wants something to fix, and is not the turn', () => {
     const demo = scene();
     const kara = demo.state.entity('kara')!;
     kara.hope = { max: 6, value: 3 };
@@ -171,7 +171,7 @@ describe('a Hope feature', () => {
 });
 
 describe('a spell in a fight', () => {
-  it('pays its Hope, rolls against everyone Very Close, and spends the turn', () => {
+  it('pays its Light, rolls against everyone Very Close, and spends the turn', () => {
     const demo = scene();
     holds(demo, 'finn', [FIXTURE_AREA_CARD]);
     const foe = nearestFoe(demo, 'finn');
@@ -190,7 +190,7 @@ describe('a spell in a fight', () => {
     expect(demo.pending.prompt.trait).toBe('spellcast');
     expect(demo.pending.prompt.targets).toContain(foe.id);
     expect(demo.pending.prompt.experiences.length).toBeGreaterThan(0);
-    // The Hope is spent before the roll.
+    // The Light is spent before the roll.
     expect(finn.hope.value).toBe(1);
     // The turn is not spent until the roll is made.
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'finn')).toBe(false);
@@ -198,10 +198,10 @@ describe('a spell in a fight', () => {
     const answered = answerPending(demo, { kind: 'roll' });
     expect(answered.status).toBe('done');
     expect(demo.pending).toBeNull();
-    const checkLine = demo.log.find((l) => l.text.startsWith('Hope '))!;
+    const checkLine = demo.log.find((l) => l.text.startsWith('Light '))!;
     expect(checkLine).toBeDefined();
     // The dice decide the rest, but the bookkeeping is the same either way.
-    const withHope = /with Hope|Critical/.test(checkLine.text);
+    const withHope = /with Light|Critical/.test(checkLine.text);
     expect(finn.hope.value).toBe(withHope ? 2 : 1);
     expect(demo.state.fear.value).toBe(withHope ? fearBefore : fearBefore + 1);
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'finn')).toBe(true);
@@ -305,7 +305,7 @@ describe('the loadout and the vault', () => {
 });
 
 describe('a rest', () => {
-  it('clears 1d4 + tier on a short rest, everything on a long one, and hands the GM Fear', () => {
+  it('clears 1d4 + tier on a short rest, everything on a long one, and hands the GM Shadow', () => {
     const demo = scene();
     // The use key below has to name an ability the project knows: `rest` looks it up
     // to read how often it refreshes, and an id it cannot find is never cleared.
@@ -334,7 +334,7 @@ describe('a rest', () => {
     // Two tendings of 2–5 each on 6 marked: between 0 and 2 left.
     expect(kara.hitPoints.marked).toBeLessThanOrEqual(2);
     expect(kara.armorSlots.marked).toBeLessThanOrEqual(1);
-    // Two characters prepared together: 2 Hope each.
+    // Two characters prepared together: 2 Light each.
     expect(mira.hope!.value).toBe(2);
     // A once-per-long-rest card is still used; a per-rest one would refresh.
     expect(demo.scenario.abilityUses.get(useKey('mira', 'fixture-aura'))).toBe(1);
@@ -418,7 +418,7 @@ describe("the GM's turn", () => {
 });
 
 describe('what holds an adversary', () => {
-  it('an Asleep husk loses its spotlight, and the GM spends a Fear to wake it when there is one', () => {
+  it('an Asleep husk loses its spotlight, and the GM spends a Shadow to wake it when there is one', () => {
     const demo = scene();
     const foe = nearestFoe(demo, 'kara');
     closeIn(demo, 'kara', foe.id);
@@ -438,7 +438,7 @@ describe('what holds an adversary', () => {
     endTurn(demo);
     expect(husk.conditions.has('asleep')).toBe(false);
     expect(demo.state.fear.value).toBe(0);
-    expect(demo.log.map((l) => l.text)).toContain(`The GM spends a Fear: the ${foeName(demo, foe.id)} shakes off asleep.`);
+    expect(demo.log.map((l) => l.text)).toContain(`The GM spends a Shadow: the ${foeName(demo, foe.id)} shakes off asleep.`);
   });
 
   it('a hit that marks a Hit Point wakes a sleeper', () => {

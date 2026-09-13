@@ -34,7 +34,7 @@ const session = (): EditorSession => new EditorSession(project());
 const rally = (s: EditorSession) => s.project.abilities[0]!;
 
 describe('a cost only the GM can pay', () => {
-  it('warns when a card asks its holder for a Fear, and not when a stat block does', () => {
+  it('warns when a card asks its holder for a Shadow, and not when a stat block does', () => {
     const s = session();
     s.run(updateAbility('rally', { cost: { fear: 1 } }));
     expect(validateProject(s.project).map((p) => p.message).join(' ')).toContain('only the GM spends');

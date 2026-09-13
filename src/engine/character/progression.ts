@@ -1,5 +1,5 @@
 /**
- * Levelling up, the Daggerheart way.
+ * Levelling up.
  *
  * There is no experience bar. The GM says the party levels, and each character
  * then makes choices from a tier table: two advancements (some cost both
