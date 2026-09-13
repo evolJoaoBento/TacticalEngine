@@ -108,10 +108,17 @@ there in a straight line where nothing is in the way, stops where you clicked (o
 their body fits, clear of walls and of everyone else), and the others fall in a pace behind along
 the line, round the same corners. Hovering the ground draws the line a click would walk - in a
 fight, the part past one move in red. A click beyond reach is not refused: out of a fight it
-walks up to the nearest reachable spot (the shut door, the edge of the chasm); in a fight it
-walks as far as the move allows and the log says so. A click on an enemy across the room walks
+walks up to the nearest reachable spot (the shut door, the edge of the chasm). In a fight, a spot a
+run could reach - past Close, as far as Very Far, with a way there - asks for an **Agility Roll**
+first (Difficulty 12, the demo's number): a success walks the whole way, a failure only as far as
+the move allows, and either way the roll was the action; calling the roll off costs nothing.
+Farther than a run, the walk goes as far as the move allows and the log says so. A walk within
+Close asks for no roll: here the walk is the action, and the rules let a move within Close ride on
+one. A click on an enemy across the room walks
 up to where the weapon reaches from and swings, the move being part of the action; with nowhere
-in reach this move, it closes as far as it can and the walk is the action. A walk that wakes
+in reach this move, it closes as far as it can and the walk is the action. A creature on the GM's
+turn moves by the same rule, without rolling: it swings after a walk within Close, and when no
+walk within Close brings its weapon to bear, it spends the turn walking as far as Very Far. A walk that wakes
 an ambush starts the fight when the party gets there, not when the board is crossed: nothing is
 lit and nobody acts until the last of them stops. Range is read from
 the tile a character is standing in, the way a gridless table reads it to the nearest 5 ft. The

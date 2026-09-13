@@ -2324,12 +2324,13 @@ describe('the blow that has landed and not yet been counted', () => {
     // the watcher's chair to whoever is being hit, not from the attacker's -
     // where everyone is always in range, a hit having just landed.
     // A hall wide enough that it is still out past Far after six turns of
-    // walking towards the noise.
+    // walking towards the noise - as far as Very Far each, since a creature
+    // with no shot from within Close spends its turn on the walk.
     const distant = swinging('fixture-foe', 'concentrate-far', {
       id: 'turret',
       adversary: 'fixture-archer',
-      at: { x: 38, y: 22 },
-    }, { width: 40, height: 24 });
+      at: { x: 94, y: 22 },
+    }, { width: 96, height: 24 });
     distant.state.entity('turret')!.hitPoints = { max: 90, marked: 0 };
     distant.state.bad = { ...distant.state.bad, value: distant.state.bad.max };
     for (let i = 0; i < 6; i++) {

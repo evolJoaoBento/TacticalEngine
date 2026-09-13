@@ -616,11 +616,14 @@ every walk on the board - the party's, a follower's own, a scripted `drawIn`/`br
 adversary's approach - crosses a straightened line carried on the motion or the journal's
 `moved.route`; a fight's move is Close range spent along the way (path cost, diagonals at root
 two) rather than a disc; a click beyond reach walks to the nearest reachable spot out of a fight
-and as far as the move allows in one (`nearestReachable`); the hover path (`previewWalk`,
+and as far as the move allows in one (`nearestReachable`) - unless a run would get there, which
+asks for an Agility Roll first (Movement Under Pressure: `underPressure`, `runForIt`); the hover path (`previewWalk`,
 `SceneView.showPath`) draws the line a click would walk, the part past one move in red; tokens
 face where they go at a fixed pace per tile and keep their feet down; and a click on an enemy
 out of reach walks to where the weapon reaches from and swings (`closeToStrike`,
-`previewStrike`), the move being part of the action. Driver: `previewAt(x, y)`, `pathPoints()`.
+`previewStrike`), the move being part of the action. An adversary that cannot swing from within
+Close spends its turn walking as far as Very Far instead (`approach`). Driver: `previewAt(x, y)`,
+`pathPoints()`, `underPressure()`.
 
 **Still open:** nothing that "gridless" asks for. Measuring range from the spots rather than
 the tiles is a choice, not a gap: it would make a corner-to-corner neighbour standing at the

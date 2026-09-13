@@ -84,7 +84,7 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
     point inside the effect's range (`src/engine/combat/area.ts`).
   - **Movement Under Pressure** is 2.0's: a PC may reposition within Close range as part of an
     action roll, otherwise an Agility Roll; an adversary moves within Close free, or Very Far as an
-    action (same file).
+    action (same file, called by the fight walk and the GM's approach in `game/demo-scene.ts`).
   - 2.0 states explicitly what 1.0 only implied: "a player never rolls more than one advantage or
     disadvantage die on the same roll". The engine already worked this way.
 

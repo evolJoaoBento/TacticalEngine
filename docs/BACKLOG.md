@@ -4,6 +4,32 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Movement Under Pressure — done
+
+The rule was written and tested, and nothing called it: a click past one move in a fight walked as
+far as the move allowed and stopped. Now a spot a run could reach -- past Close, as far as Very Far,
+with a way there -- asks for an **Agility Roll** first (Difficulty 12, `DEMO_MOVE_DIFFICULTY`),
+through the check prompt every roll uses. A success walks the whole way; a failure walks as far as
+the move allows, which is all the click did before; either way the roll was the action, and its
+Light, Shadow and spotlight stand. Calling the roll off costs nothing. A walk within Close asks for
+no roll: in the demo the walk *is* the action, and the rule lets a move within Close ride on one
+(`withAction`). Farther than a run, the old walk-as-far-as-it-goes stays.
+
+The GM's side reads the same rule. A creature swings after a walk within Close, as before; when no
+walk within Close brings its weapon to bear, it walks as far as Very Far instead, and that is its
+turn (`approach`). One test's geometry assumed the old Close-only walk -- a watcher parked past Far
+in a 40-wide hall reached Far in three turns -- and its hall is 96 wide now.
+
+The runner gained `lastActionRoll`, read the way `cancelled` and `spotlightToGm` already are, so
+whoever ran a script can tell what came of its roll. The difficulty is a constant, not an editor
+field: nothing else about fight movement is authored per project yet. **Left:** the hover path
+still draws the part past one move in red without saying a roll would get there.
+
+`npx tsc --noEmit` clean; vitest **1865 passed (1865)**; Playwright **114 passed (4.1m)**, `EXIT 0`. Five
+breaks -- the walk never asking, a success walking one move, a failure walking the whole way, the
+GM's walk kept within Close, the runner saying nothing of its roll -- each fail the tests written
+for them.
+
 ## Undo in play rebuilds the game — done
 
 Undoing an import while in play rewrote the document and left the running game as it was. The card
@@ -615,18 +641,7 @@ it in the matching `CRPG-GAPS.md` section as done, and re-pin the commit and sui
 header. A backlog nobody prunes is wrong within a week, and then it costs the next agent the startup
 time it was written to save.
 
-### 1. Movement Under Pressure — the rule is written and nothing calls it
-
-`moveUnderPressure` in `engine/combat/area.ts` implements the repositioning rule and `area.test.ts`
-pins it. **It has zero callers in `src/game/`.** The demo instead clamps a fighting walk to
-`combatReach` and logs "*<name> can go no further this turn.*"
-
-*Done means:* `moveSelectedTo` offers the Agility Roll when a click lands past Close in a fight
-rather than silently walking as far as it can — the refusal becomes a prompt with a roll behind it,
-answered through the same `pending` channel as a script's check. The adversary side reads the same
-function so the GM's turn stops inventing its own budget.
-
-### 2. A project's own card can only be deleted by Undo
+### 1. A project's own card can only be deleted by Undo
 
 ✕ on an ability takes its card with it only when the card is `given` and nothing else sits on it
 (`removeCardWithAbility`, `editor/session.ts`). A card the project wrote that no ability sits on --
@@ -634,7 +649,7 @@ one an imported pack brought as text, or one whose ability was deleted after it 
 other way -- has no delete. `removeCard` already exists behind **Remove copy**; what is missing is a
 button beside it for a card the pack does not print. Check has nothing to add.
 
-### 3. Cards — what is left
+### 2. Cards — what is left
 
 The model, the zones, the card editor, text-only cards, pack import and export, and a condition
 lending a card are done: each has its entry at the top of this file, and the spec's §7 has the
@@ -651,7 +666,7 @@ decisions.
 **Not a licence to rebuild the catalogue with a card model instead of a list.** The IP constraints
 are untouched by this.
 
-### 4. Starter-pack depth
+### 3. Starter-pack depth
 
 The starter pack is sized to keep the game-layer tests meaningful, not to be a game: three classes
 of one domain each, generic ancestries, 15 chosen cards at levels 1 and 2 only (nine and six), and
@@ -666,7 +681,7 @@ about ten adversaries. Depth beyond that is a content slice, judged on what it a
 - No card is above level 2, which is why `progression.test.ts` climbs on a fixture
   (`tests/fixtures/characters.ts`) rather than on the pack.
 
-### 5. The editor rebuild
+### 4. The editor rebuild
 
 The user's direction of 2026-09-10, in five parts, each with its own spec, plan and slices:
 Shell + Inspector; 3D multi-level world; TaleSpire-style terrain; combat with factions; interaction
@@ -684,20 +699,20 @@ scale, seating, facing and four animation clips.
 first; part 1 slice 2's remaining edit-view items (objects, spawns, trigger cells) and a rotated
 prop-facing ghost during Alt.
 
-### 6. Materials for imported models
+### 5. Materials for imported models
 
 `CRPG-GAPS.md` §9. Textures arrive with a glTF file, but nothing authors materials: there is no way
 to tint one, swap a texture, or override what the file ships with. The file picker that was the other
 half of this item landed on 2026-09-12.
 
-### 7. Extend measured rendering budgets beyond construction
+### 6. Extend measured rendering budgets beyond construction
 
 Construction has chunk instancing, frustum/distance culling, three LODs and a tested residency
 budget (`render/building-view.ts`). Extend those to the legacy height field and props. Large
 populated worlds still need hardware FPS/memory profiling; geometry counters are available through
 `window.__engine.buildingStats()`.
 
-### 8. Zip project export
+### 7. Zip project export
 
 `fflate` is a dependency and is imported nowhere under `src/`. `CONTEXT.md`'s "zip import and export
 of projects with assets" is not implemented — export is `JSON.stringify` into a `Blob`, so a project

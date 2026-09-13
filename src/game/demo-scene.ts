@@ -40,6 +40,7 @@ import type { CheckTrait } from '../engine/script/schema';
 import { createScenarioState, SceneScriptWorld, useKey, type Payout, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
 import { NO_BINDINGS, evaluate, evaluateOptional } from '../engine/script/conditions';
 import { maxTilesForBand, reaches, type RangeBand } from '../engine/rules/range';
+import { moveUnderPressure } from '../engine/combat/area';
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
 import { applyAttack, applyRoll, resolveAttack, type AttackOutcome, type AttackProfile } from '../engine/combat/attack';
 import { evaluateTarget } from '../engine/combat/targeting';
@@ -110,6 +111,12 @@ export const DEMO_STAIR_ID = 'stair-down';
 
 /** Tight bands, so a 22x16 map spans more than one of them. */
 export const DEMO_BAND_TILES = { melee: 1, veryClose: 2, close: 4, far: 8, veryFar: 12 };
+
+/**
+ * The Agility Roll a fighter makes to get farther than one move in a fight: Movement Under
+ * Pressure. The rules leave the number to the GM; this is the demo's.
+ */
+export const DEMO_MOVE_DIFFICULTY = 12;
 
 /**
  * Nobody walks in an L on a battlemap: every creature in the demo steps
@@ -1378,6 +1385,8 @@ export interface MoveResult {
   path: number[];
   /** The encounter this move woke, if any. */
   triggered?: string;
+  /** An Agility Roll stands between the click and the walk: it is asked, and the walk waits on it. */
+  pending?: true;
 }
 
 /**
@@ -1406,14 +1415,38 @@ export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spo
     // shut door walks up to it. In a fight it goes as far along the way as one
     // move allows, and says so.
     const nearest = nearestReachable(demo, field, aimed ?? demo.grid.spotOf(destination), fighting ? destination : NO_TILE);
-    if (nearest === NO_TILE || nearest === demo.state.entity(id)!.tile) return { moved: false, path: [] };
+    const stays = nearest === NO_TILE || nearest === demo.state.entity(id)!.tile;
+    const clamped = aimed === undefined || stays ? undefined : clampInto(demo.grid, aimed, nearest);
+    // Unless a run would get there: Movement Under Pressure. That asks for an
+    // Agility Roll, and one move's worth is what a failure still walks.
+    if (fighting && underPressure(demo, id, destination)) {
+      return runForIt(demo, id, destination, aimed, { goal: stays ? NO_TILE : nearest, aim: clamped });
+    }
+    if (stays) return { moved: false, path: [] };
     goal = nearest;
-    aim = aimed === undefined ? undefined : clampInto(demo.grid, aimed, nearest);
+    aim = clamped;
     short = fighting;
   }
+  return walkTheMove(demo, id, goal, aim, { fighting, short });
+}
+
+/**
+ * The walk a move makes once where it goes is settled: the line crossed, a trigger stopping it where
+ * it fires, the followers out of a fight, and the action spent in one - unless `act` is false,
+ * because a roll that asked for the walk was the action and spends it itself.
+ */
+function walkTheMove(
+  demo: DemoScene,
+  id: string,
+  goal: number,
+  aim: Spot | undefined,
+  how: { fighting: boolean; short: boolean; budget?: number; act?: boolean },
+): MoveResult {
+  const fighting = how.fighting;
   const stood = { ...demo.state.entity(id)!.at };
-  const walk = demo.party.walkTo(id, goal, aim === undefined ? { inCombat: fighting } : { inCombat: fighting, at: aim });
-  if (short && walk !== null) note(demo, `${nameOf(demo, id)} can go no further this turn.`, 'combat');
+  const options = { inCombat: fighting, ...(how.budget === undefined ? {} : { budget: how.budget }), ...(aim === undefined ? {} : { at: aim }) };
+  const walk = demo.party.walkTo(id, goal, options);
+  if (how.short && walk !== null) note(demo, `${nameOf(demo, id)} can go no further this turn.`, 'combat');
   if (walk === null) return { moved: false, path: [] };
   const full = walk.path;
 
@@ -1431,7 +1464,7 @@ export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spo
       demo.motions.push({ id: follower, path: walk.path, route: walk.route });
     }
   }
-  if (fighting) demo.encounter!.act(id);
+  if (fighting && how.act !== false) demo.encounter!.act(id);
 
   if (hit !== null) {
     demo.ambush = hit.encounter;
@@ -1439,6 +1472,81 @@ export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spo
     return { moved: true, path, triggered: hit.encounter };
   }
   return { moved: true, path };
+}
+
+/** How far a run under pressure may go: Very Far, spent along the way as a fighter's move is. */
+const RUN_TILES = maxTilesForBand('veryFar', DEMO_BAND_TILES);
+
+/**
+ * Whether a click past one move is one an Agility Roll could get a fighter to: past Close, as far as
+ * Very Far, and with a way there that a run covers. A walk here is the action, so a walk within Close
+ * is made as part of it and needs no roll - the rule's own `withAction`.
+ */
+function underPressure(demo: DemoScene, id: string, destination: number): boolean {
+  const from = demo.state.entity(id)!.tile;
+  if (moveUnderPressure(demo.grid, 'pc', from, destination, { bandTiles: DEMO_BAND_TILES, withAction: true }) !== 'agilityRoll') {
+    return false;
+  }
+  return demo.party.reachable(id, { inCombat: true, budget: RUN_TILES }).canReach(destination);
+}
+
+/**
+ * Where a click would ask the selected fighter for an Agility Roll: past one move, and a run away.
+ * Empty out of a fight, or with nobody who can act selected.
+ */
+export function underPressureTiles(demo: DemoScene): number[] {
+  const id = demo.party.selected;
+  if (id === null || !inCombat(demo) || !demo.encounter!.canAct(id)) return [];
+  const inReach = new Set(demo.party.reachable(id, { inCombat: true }).tiles());
+  const run = demo.party.reachable(id, { inCombat: true, budget: RUN_TILES }).tiles();
+  return run.filter((tile) => !inReach.has(tile) && underPressure(demo, id, tile));
+}
+
+/**
+ * Movement Under Pressure: the Agility Roll between a fighter and a spot past one move.
+ *
+ * The roll is the action, so the turn is spent once it is answered, and not at all when it is called
+ * off before the dice are thrown. A success walks the whole way; a failure walks as far as one move
+ * allows, which is all the click would have done without the roll. What the roll gave - Light or
+ * Shadow, and the spotlight - stands either way.
+ */
+function runForIt(
+  demo: DemoScene,
+  id: string,
+  destination: number,
+  aimed: Spot | undefined,
+  shortOf: { goal: number; aim: Spot | undefined },
+): MoveResult {
+  const effects: Effect[] = [
+    {
+      kind: 'check',
+      check: {
+        trait: 'agility',
+        difficulty: DEMO_MOVE_DIFFICULTY,
+        prompt: `Run for it: an Agility Roll gets ${nameOf(demo, id)} there, and a failure only as far as one move.`,
+      },
+    },
+  ];
+  const finish = (runner: ScriptRunner): void => {
+    if (runner.cancelled && !runner.rolled) return;
+    if (runner.lastActionRoll?.success === true) {
+      walkTheMove(demo, id, destination, aimed, { fighting: true, short: false, budget: RUN_TILES, act: false });
+    } else if (shortOf.goal !== NO_TILE) {
+      walkTheMove(demo, id, shortOf.goal, shortOf.aim, { fighting: true, short: true, act: false });
+    }
+    if (inCombat(demo) && demo.encounter!.canAct(id)) demo.encounter!.act(id, { spotlightToGm: runner.spotlightToGm });
+    settleFight(demo);
+  };
+  demo.scenario.actorId = id;
+  const runner = new ScriptRunner(demo.world, demo.rng, { rollAs: 'actor' });
+  const result = runner.run(effects);
+  record(demo, result.journal);
+  if (result.status === 'waiting') {
+    demo.pending = { kind: 'script', runner, prompt: result.prompt, interactable: null, recorded: result.journal.length, dialogue: null, onDone: finish };
+    return { moved: false, path: [], pending: true };
+  }
+  finish(runner);
+  return { moved: true, path: [] };
 }
 
 /**
@@ -2543,7 +2651,8 @@ function takeSpotlight(demo: DemoScene, adversaryId: string, adversary: EntitySt
   )[0]!;
 
   const def = statBlock(demo, adversary.id);
-  approach(demo, adversary.id, target.tile, def.attackRange);
+  // A walk past Close is the whole of the action: there is no swing after it.
+  if (!approach(demo, adversary.id, target.tile, def.attackRange)) return;
   attackPartyMember(demo, adversaryId, target.id);
 }
 
@@ -3883,18 +3992,46 @@ function affordableReaction(demo: DemoScene, adversaryId: string, ability: Abili
 }
 
 /**
- * Move within Close range towards a tile, stopping as soon as the target is in
- * the attack's reach. Adversaries do not roll to move, per the SRD.
+ * Move towards a tile as Movement Under Pressure has an adversary move, stopping as soon as the
+ * target is in the attack's reach: within Close for free, as part of the attack; and when no walk
+ * within Close ends in reach, as far as Very Far instead, which is the whole of the action and leaves
+ * no swing after it. Adversaries do not roll to move, per the SRD. Returns whether the swing follows.
  */
-function approach(demo: DemoScene, adversaryId: string, targetTile: number, reach: RangeBand): void {
+function approach(demo: DemoScene, adversaryId: string, targetTile: number, reach: RangeBand): boolean {
   const adversary = demo.state.entity(adversaryId);
-  if (adversary === undefined || adversary.tile === NO_TILE) return;
+  if (adversary === undefined || adversary.tile === NO_TILE) return false;
   // The same measure the swing will use: a corner-to-corner neighbour is
   // already in Melee and does not walk to a side first.
-  const already = demo.world.bandBetween(adversary.tile, targetTile);
-  if (already !== null && reaches(already, reach)) return;
+  const inReachFrom = (tile: number): boolean => {
+    const band = demo.world.bandBetween(tile, targetTile);
+    return band !== null && reaches(band, reach);
+  };
+  if (inReachFrom(adversary.tile)) return true;
 
-  const field = demo.pathfinder.reachable(adversary.tile, maxTilesForBand('close', DEMO_BAND_TILES), {
+  const close = stepToward(demo, adversaryId, targetTile, 'close');
+  if (close !== null && inReachFrom(close.tile)) {
+    walkAdversary(demo, adversaryId, close);
+    return true;
+  }
+  // Nowhere within Close is in reach, so the walk is the action. `moveUnderPressure` is the rule's
+  // word on how far that may go; the pathfinder picks the tile, spending the way round a wall as a
+  // fighter's walk does.
+  const far = stepToward(demo, adversaryId, targetTile, 'veryFar');
+  if (far !== null && moveUnderPressure(demo.grid, 'adversary', adversary.tile, far.tile, { bandTiles: DEMO_BAND_TILES }) !== 'outOfReach') {
+    walkAdversary(demo, adversaryId, far);
+  }
+  return false;
+}
+
+/** The tile a band's walk reaches that is nearest a target, and the way there: null when that is where it stands. */
+function stepToward(
+  demo: DemoScene,
+  adversaryId: string,
+  targetTile: number,
+  band: 'close' | 'veryFar',
+): { tile: number; path: number[] | null } | null {
+  const adversary = demo.state.entity(adversaryId)!;
+  const field = demo.pathfinder.reachable(adversary.tile, maxTilesForBand(band, DEMO_BAND_TILES), {
     rules: DEMO_MOVEMENT,
     isBlocked: demo.state.blockedFor(adversaryId),
   });
@@ -3909,15 +4046,22 @@ function approach(demo: DemoScene, adversaryId: string, targetTile: number, reac
       bestDistance = distance;
     }
   }
-  if (best === adversary.tile) return;
+  // Traced now: the field is a view over buffers the next search reuses.
+  return best === adversary.tile ? null : { tile: best, path: tracePath(field, best) };
+}
+
+/** Walk an adversary to a tile, and tell the board the line it took. */
+function walkAdversary(demo: DemoScene, adversaryId: string, step: { tile: number; path: number[] | null }): void {
+  const adversary = demo.state.entity(adversaryId)!;
   const stood = { ...adversary.at };
-  const path = tracePath(field, best);
   const route =
-    path === null
+    step.path === null
       ? undefined
-      : smoothPath(demo.grid, path, demo.state.blockedFor(adversaryId), DEMO_WALK, { start: stood, end: demo.grid.spotOf(best) });
-  demo.state.moveEntity(adversaryId, best);
-  demo.motions.push(path === null ? { id: adversaryId } : route === undefined ? { id: adversaryId, path } : { id: adversaryId, path, route });
+      : smoothPath(demo.grid, step.path, demo.state.blockedFor(adversaryId), DEMO_WALK, { start: stood, end: demo.grid.spotOf(step.tile) });
+  demo.state.moveEntity(adversaryId, step.tile);
+  demo.motions.push(
+    step.path === null ? { id: adversaryId } : route === undefined ? { id: adversaryId, path: step.path } : { id: adversaryId, path: step.path, route },
+  );
 }
 
 /** An adversary spends its spotlight clearing what a scene put on it. */

@@ -102,6 +102,7 @@ import {
   gearOf,
   useItem,
   moveSelectedTo,
+  underPressureTiles,
   arrive,
   previewStrike,
   previewWalk,
@@ -238,6 +239,8 @@ declare global {
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
       rest: (kind: 'short' | 'long', plan: unknown) => boolean;
       conditionsOf: (id: string) => string[];
+      /** Where a click would ask the selected fighter for an Agility Roll: past one move, and a run away. */
+      underPressure: () => number[];
       /** Put a condition on somebody, or take it off, for a test about what it does while it lasts. */
       setCondition: (id: string, condition: string, on: boolean) => boolean;
       targeting: () => string | null;
@@ -2089,14 +2092,15 @@ const state = {
   },
   moveTo: (tile: number): boolean => {
     const result = moveSelectedTo(demo, tile);
-    if (result.moved) refreshPlay();
+    if (result.moved || result.pending === true) refreshPlay();
     return result.moved;
   },
   walkTo: (x: number, y: number): boolean => {
     const result = moveSelectedTo(demo, activeGrid.tileAtSpot(x, y), { x, y });
-    if (result.moved) refreshPlay();
+    if (result.moved || result.pending === true) refreshPlay();
     return result.moved;
   },
+  underPressure: (): number[] => underPressureTiles(demo),
   standingAt: (id: string): { x: number; y: number } | null => {
     const entity = demo.state.entity(id);
     return entity === undefined || entity.tile === NO_TILE ? null : { x: entity.at.x, y: entity.at.y };

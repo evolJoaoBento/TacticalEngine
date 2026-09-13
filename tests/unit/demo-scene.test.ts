@@ -15,9 +15,11 @@ import { SceneView } from '../../src/engine/render/scene-view';
 import { tilesDrawn } from '../../src/engine/render/terrain-mesh';
 import { tileOf } from '../../src/engine/scene/grid-from-scene';
 import { attackProfile } from '../../src/engine/character/sheet';
+import type { Rng } from '../../src/engine/core/rng';
 import {
   DEMO_ADVERSARY_ID,
   DEMO_BAND_TILES,
+  DEMO_MOVEMENT,
   PARTY_SHEETS,
   DEMO_ADVERSARIES,
   DEMO_CHARACTERS,
@@ -26,6 +28,8 @@ import {
   endTurn,
   inCombat,
   moveSelectedTo,
+  answerPending,
+  underPressureTiles,
   playGmTurn,
   previewWalk,
   reachableTiles,
@@ -271,8 +275,10 @@ describe('party control', () => {
     const id = demo.party.selected!;
     const start = demo.state.entity(id)!.tile;
     const inReach = new Set(reachableTiles(demo).tiles());
+    // Past what a run could reach, too: a spot one would get to asks for an Agility Roll instead.
+    const run = new Set(underPressureTiles(demo));
     const whole = demo.party.reachable(id, { inCombat: true, budget: Infinity }).tiles();
-    const far = whole.find((t) => !inReach.has(t))!;
+    const far = whole.find((t) => !inReach.has(t) && !run.has(t))!;
     expect(far).toBeDefined();
     const logBefore = demo.log.length;
     expect(moveSelectedTo(demo, far).moved).toBe(true);
@@ -483,6 +489,111 @@ describe('a fight, end to end', () => {
       return marks.join(',');
     };
     expect(run()).toBe(run());
+  });
+});
+
+describe('movement under pressure', () => {
+  /** In the fight, with the selected fighter's one move measured and a spot past it that a run reaches. */
+  const pressed = (seed = 'demo') => {
+    const demo = build(seed);
+    openTheDoor(demo);
+    walkTowards(demo, demo.state.entitiesOf('adversary')[0]!.tile);
+    expect(inCombat(demo)).toBe(true);
+    const id = demo.party.selected!;
+    const start = demo.state.entity(id)!.tile;
+    const inReach = new Set(reachableTiles(demo).tiles());
+    const far = underPressureTiles(demo)[0]!;
+    expect(far).toBeDefined();
+    return { demo, id, start, inReach, far };
+  };
+
+  /** How many times the encounter has recorded this fighter acting: what spending the action leaves. */
+  const acted = (demo: DemoScene, id: string): number =>
+    demo.encounter!.log.filter((event) => event.kind === 'acted' && event.id === id).length;
+
+  /** Dice that come up as told, and ones after. */
+  const dice = (...faces: number[]): Rng => {
+    const rng: Rng = {
+      next: () => 0,
+      nextInt: () => 0,
+      die: () => faces.shift() ?? 1,
+      dice: (count: number) => Array.from({ length: count }, () => faces.shift() ?? 1),
+      pick: <T,>(items: readonly T[]) => items[0]!,
+      shuffle: <T,>(items: T[]) => items,
+      fork: () => rng,
+      save: () => 0,
+      restore: () => {},
+    };
+    return rng;
+  };
+
+  it('asks for an Agility Roll past one move, and a run called off costs nothing', () => {
+    const { demo, id, start, far } = pressed();
+    const before = acted(demo, id);
+    expect(moveSelectedTo(demo, far)).toMatchObject({ moved: false, pending: true });
+    expect(demo.pending?.kind === 'script' ? demo.pending.prompt.kind : null).toBe('check');
+    expect(demo.state.entity(id)!.tile).toBe(start);
+
+    answerPending(demo, { kind: 'cancel' });
+    expect(demo.pending).toBeNull();
+    expect(demo.state.entity(id)!.tile).toBe(start);
+    expect(acted(demo, id)).toBe(before);
+  });
+
+  it('gets there on a success, and the roll was the action', () => {
+    const { demo, id, far } = pressed();
+    const before = acted(demo, id);
+    demo.rng = dice(12, 11);
+    moveSelectedTo(demo, far);
+    answerPending(demo, { kind: 'roll' });
+    expect(demo.pending).toBeNull();
+    expect(demo.state.entity(id)!.tile).toBe(far);
+    expect(acted(demo, id)).toBe(before + 1);
+  });
+
+  it('goes only as far as one move on a failure, and says so', () => {
+    const { demo, id, start, inReach, far } = pressed();
+    const before = acted(demo, id);
+    demo.rng = dice(1, 2);
+    const logBefore = demo.log.length;
+    moveSelectedTo(demo, far);
+    answerPending(demo, { kind: 'roll' });
+    const stood = demo.state.entity(id)!.tile;
+    expect(stood).not.toBe(start);
+    expect(inReach.has(stood)).toBe(true);
+    expect(demo.log.slice(logBefore).some((l) => l.text.includes('can go no further'))).toBe(true);
+    expect(acted(demo, id)).toBe(before + 1);
+  });
+
+  it('walks a creature with no swing in reach from within Close as far as Very Far, and that is its turn', () => {
+    const demo = build('pressure-gm');
+    demo.askDefender = false;
+    const encounter = demo.scene.encounters.find((e) => e.adversaries.length > 0)!;
+    startEncounter(demo, encounter.id);
+    const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
+    const party = demo.state.entitiesOf('party').filter((e) => e.alive);
+    const standing = new Set([...party, ...demo.state.entitiesOf('adversary')].map((e) => e.tile));
+    const nearest = (tile: number): number => Math.min(...party.map((p) => demo.grid.euclideanDistance(tile, p.tile)));
+    // Somewhere a Close walk cannot bring it to a swing, and a Very Far one can bring it near.
+    const from = [...Array(demo.grid.size).keys()].find((tile) => {
+      if (!demo.grid.isPassable(tile) || standing.has(tile)) return false;
+      const d = nearest(tile);
+      if (d <= DEMO_BAND_TILES.close + 2 || d >= DEMO_BAND_TILES.veryFar - 2) return false;
+      const run = demo.pathfinder.reachable(tile, DEMO_BAND_TILES.veryFar, { rules: DEMO_MOVEMENT, isBlocked: demo.state.blockedFor(husk.id) });
+      return run.tiles().some((t) => nearest(t) <= 2);
+    })!;
+    expect(from).toBeDefined();
+    demo.state.moveEntity(husk.id, from);
+    const hitPoints = party.map((p) => p.hitPoints.marked);
+
+    endTurn(demo);
+    const walked = demo.grid.euclideanDistance(from, husk.tile);
+    expect(walked).toBeGreaterThan(DEMO_BAND_TILES.close);
+    expect(nearest(husk.tile)).toBeLessThan(nearest(from));
+    // The walk was the action: nobody it reached was struck by it.
+    if (demo.state.entitiesOf('adversary').filter((e) => e.alive).length === 1) {
+      expect(party.map((p) => p.hitPoints.marked)).toEqual(hitPoints);
+    }
   });
 });
 

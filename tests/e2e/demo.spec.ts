@@ -107,6 +107,7 @@ declare global {
       swapCard: (id: string, cardIn: string, cardOut?: string) => string | null;
       rest: (kind: 'short' | 'long', plan: unknown) => boolean;
       conditionsOf: (id: string) => string[];
+      underPressure: () => number[];
       setCondition: (id: string, condition: string, on: boolean) => boolean;
       targeting: () => string | null;
       standNear: (id: string) => boolean;
@@ -2152,6 +2153,32 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
     return Object.fromEntries(api.party().map((id) => [id, api.stressOf(id).marked]));
   });
   for (const id of Object.keys(before)) expect(after[id]).toBe(before[id]! - 1);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('a fighter clicks past one move, and an Agility Roll stands between them and the spot', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  const tile = await page.evaluate(() => {
+    const api = window.__engine!;
+    api.startFight();
+    api.select('kara');
+    return api.underPressure()[0] ?? -1;
+  });
+  expect(tile).toBeGreaterThanOrEqual(0);
+  const before = await page.evaluate(() => window.__engine!.standingAt('kara'));
+
+  // The click asks rather than walks.
+  expect(await page.evaluate((t) => window.__engine!.moveTo(t), tile)).toBe(false);
+  const prompt = page.locator('[data-testid="check-prompt"]');
+  await expect(prompt).toBeVisible();
+  await expect(prompt).toContainText('Agility');
+  expect(await page.evaluate(() => window.__engine!.standingAt('kara'))).toEqual(before);
+
+  // Answered, she goes: the whole way on a success, as far as one move on a failure.
+  await prompt.locator('[data-testid="roll"]').click();
+  await expect(prompt).toHaveCount(0);
+  expect(await page.evaluate(() => window.__engine!.standingAt('kara'))).not.toEqual(before);
 
   expect(consoleErrors).toEqual([]);
 });

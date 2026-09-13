@@ -589,6 +589,14 @@ export class ScriptRunner {
   /** "Then place this card in your vault": whether this script said so. */
   vaulted = false;
 
+  /**
+   * The last action roll this script made, for whoever ran it to read what came of it, the way
+   * `spotlightToGm` and `cancelled` are read: null before one is made.
+   */
+  get lastActionRoll(): DualityRoll | null {
+    return this.lastRoll;
+  }
+
   constructor(world: ScriptWorld, rng: Rng, options: ScriptRunnerOptions = {}) {
     this.world = world;
     this.rng = rng;
