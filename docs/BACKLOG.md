@@ -23,10 +23,11 @@ captured before the change (`tests/fixtures/v3/README.md`). On a machine with th
 export, its two spells' second halves come out as two cards of their own. The engine's own
 conditions lend nothing now: the two that did named abilities nothing ships.
 
-`npx tsc --noEmit` clean; vitest **1860 passed (1860)**; Playwright **111 passed (4.0m)**, `EXIT 0`. Seven
-breaks -- the world folding in no lent card, the migration doing nothing, moving where it should
-copy, the zone reading the sheet only, Check trusting an unknown condition, a lent passive counting
-for nothing, the bar dropping lent cards -- each fail the tests written for them.
+`npx tsc --noEmit` clean; vitest **1860 passed (1860)**; Playwright **111 passed (4.0m)**, `EXIT 0`. Eight
+breaks -- the world folding in no lent card for a character, or for a creature, the migration doing
+nothing, moving where it should copy, the zone reading the sheet only, Check trusting an unknown
+condition, a lent passive counting for nothing, the bar dropping lent cards -- each fail the tests
+written for them.
 
 ## The GM's cards, face up — done
 

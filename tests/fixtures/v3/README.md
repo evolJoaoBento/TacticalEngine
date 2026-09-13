@@ -14,8 +14,8 @@ every field of the file is what version-3 code wrote.
 
 Version 4 moves what a condition lends onto a card granted by the condition, and drops `grants`
 from the condition. Its migration has to be proved against a document from before it, and version
-3 was pushed: files written under it exist. The version-1 fixtures cannot stand in -- the one lend
-they carry names an ability they do not have, so the migration's live path would never run on them.
+3 was pushed: files written under it exist. The version-1 fixtures cannot stand in -- the two lends
+they carry name abilities they do not have, so the migration's live path would never run on them.
 
 ## Rules for this file
 
