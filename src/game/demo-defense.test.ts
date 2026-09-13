@@ -3534,8 +3534,8 @@ describe('a swing lifted, and a swing that names its own number', () => {
       demo.askDefender = true;
       hold(demo, [LIFT_DIE_CARD]);
       // A Stress already marked, so a critical's own clear has one to take in
-      // both runs alike and the lift is all this measures. From none at all is
-      // the order of the two, which the next test is about.
+      // both runs alike and the lift is all this measures. From none marked,
+      // what the runs would measure is the order of the two: the next test.
       const kara = demo.state.entity('kara')!;
       kara.stress = { ...kara.stress, marked: 1 };
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;

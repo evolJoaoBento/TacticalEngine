@@ -59,7 +59,7 @@ nothing, no Stress marked before the swing -- each turn it red again.
 
 **Open when this was written, and fixed since (*A roll pays out when it is made*, above): when a
 critical clears its Stress.** The engine cleared it when the
-blow lands (`applyAttack`, `combat/attack.ts`), after anything that answered the damage roll. The
+blow landed (`applyAttack`, `combat/attack.ts`), after anything that answered the damage roll. The
 SRD's order is the roll first -- the critical clears a Stress -- then the damage roll, then "mark
 a Stress" on it. From 0 Stress the two disagree: the SRD ends at 1, the engine pays the card's
 Stress and the landing clear takes it back, so the card is free. The same deferral holds the roll's
