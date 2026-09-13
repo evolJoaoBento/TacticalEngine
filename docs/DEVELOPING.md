@@ -30,7 +30,7 @@ A working tree part-way through a slice moves them; the symbol name is the stabl
 
 ## 1. Orientation
 
-Tactical Engine is a browser CRPG engine and editor running the Daggerheart SRD 2.0 rules. A *project* is
+Tactical Engine is a browser CRPG engine and editor for party-based tactical RPGs. A *project* is
 a JSON document (`projectSchema`, `src/engine/scene/schema.ts:210`) holding scenes, dialogues,
 items, loot tables, quests, assets, abilities, code, condition definitions and the party. The engine
 executes that document directly; the editor writes it in the browser. There is one page, one canvas
@@ -690,7 +690,7 @@ defender.
 
 **A slice** is one behaviour, complete: the rule, the content that uses it, the editor field that
 writes it, the validation that refuses it when it is wrong, the tests that pin it, and the docs that
-describe it. Not a layer at a time. Look at `6ec74ef` — eighteen files, one sentence of Daggerheart.
+describe it. Not a layer at a time. Look at `6ec74ef` — eighteen files, one sentence of rules.
 A slice that adds an engine capability with no way to author it, or a panel field nothing reads, is
 half a slice and will be finished by someone with less context.
 
@@ -739,7 +739,7 @@ Everything is vendored under `tools/srd-sources/`; nothing is fetched at runtime
 
 | Source | What it is | Use it for |
 |---|---|---|
-| `official-2.0/srd-2.0.txt` | The **official SRD 2.0** (ver 2026-08-25), extracted from the daggerheart.com PDF by `extract-pdf-text.mjs`. `===== PAGE n =====` markers preserved; sentences grep-able in one piece. | **Rules text. The only thing to quote.** Cite the section in the code comment. |
+| the official rules text | Vendored while the catalogue was built, and **deleted with it**. Nothing in the tree quotes a rule from a vendored source any more. | Nothing — it is gone. See `docs/CONTEXT.md` for what was settled and why. |
 | `daggersearch/core/*.json` | Community SRD **1.0**, well typed, with JSON Schemas in `_schemas/`: ancestries, armors, classes, communities, consumables, domain-cards, items, rules, subclasses, transformations, weapons. Names and descriptions are localized objects (`{"en-US": …}`). No adversaries, no environments. | Structured content only. |
 | `seansbox/*.json` | Community SRD **1.0**, stringly typed (`"atk": "+3"`, `"thresholds": "8/15"`): 129 adversaries, environments, 24 beastforms, abilities, plus its own character data. | The adversaries and environments the other set lacks. |
 
@@ -760,8 +760,8 @@ print `"Horde (/HP)"` with the number missing.
 
 **Both attributions must survive.** The SRD 2.0 DPCGL attribution and the SRD 1.0 one that the
 community sets carry are separate obligations and both are kept — the exact 2.0 wording is in
-`docs/CONTEXT.md`, and the per-source terms are in the three READMEs
-(`tools/srd-sources/{official-2.0,daggersearch,seansbox}/README.md`; there is no top-level one).
+`docs/CONTEXT.md`, which is now the only place that wording lives — the per-source READMEs went
+with the sources they described.
 Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
 
 **Sources.** The source PDF is deliberately not committed; its extracted SRD text is.
@@ -792,9 +792,9 @@ a case there before trusting a new field.
 
 ## 11. Gotchas
 
-- **The repository path contains a space:** `D:\New folder\daggerheart game`, Git Bash form
-  `"D:/New folder/daggerheart game"`. Quote it everywhere. The repo has moved between machines
-  before: prefer repo-relative paths in code, scripts and docs, and never hardcode a home directory.
+- **The repository path contains a space.** Quote it everywhere. The repo has moved between
+  machines before: prefer repo-relative paths in code, scripts and docs, and never hardcode a path
+  or a home directory.
 - **`legacy/` is never modified.** It is the original prototype, kept runnable via
   `legacy/start.bat`. It also serves on port 8420, so do not run it and `npm run dev` at once. Read
   `docs/research/legacy-*.md` instead of the sources.

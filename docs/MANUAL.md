@@ -6,7 +6,7 @@ detail could not be confirmed from source it is marked **not verified**.
 ## 1. What Tactical Engine is
 
 Tactical Engine is a browser-based engine and editor for party-based tactical RPGs in the style of
-Baldur's Gate 3, running on the Daggerheart tabletop rules (SRD 2.0): duality dice, Light and
+Baldur's Gate 3, running a dual-dice tabletop ruleset: paired resolution dice, Light and
 Shadow, Stress, damage thresholds, Armor Slots, classes, subclasses, ancestries, communities,
 domain cards, adversaries, and milestone levelling. A project is a JSON document — scenes,
 objects, conversations, quests, items, loot tables — that the engine executes directly, so a
@@ -98,7 +98,7 @@ floor goes - nobody counts steps; the others follow in a trail. Walking onto a t
 starts that cell's encounter and the mover stops on the trigger rather than running past the
 ambush.
 
-Daggerheart is not played on a grid, and neither is this. Distance is as the crow flies: a
+These rules are not played on a grid, and neither is this. Distance is as the crow flies: a
 creature standing corner-to-corner is in Melee like one standing straight ahead, and the range
 bands (Melee, Very Close, Close, Far, Very Far) are circles round whoever is measuring. In a
 fight a character moves within Close range as part of an action - the lit disc with a border
@@ -275,7 +275,7 @@ on the tiles they stood on, not the spawns.
 
 ### Levelling up
 
-Daggerheart has no experience points; a `levelUp` effect placed by the designer grants the
+There are no experience points; a `levelUp` effect placed by the designer grants the
 party a level (the demo grants one when the strongbox opens). "The party reaches level 2."
 appears in the log and a **Level up** button appears on every card whose sheet is below the
 party level — but not during a fight or an open prompt.
@@ -1038,17 +1038,16 @@ Keep this attribution with any distribution:
 > License. More information can be found at https://www.daggerheart.com. There are no previous
 > modifications by others.
 
-The vendored community data sets (`tools/srd-sources/daggersearch/`, `tools/srd-sources/seansbox/`)
-are SRD 1.0 and carry their own attribution, which must be kept alongside:
+The community data sets the engine's content was built from were SRD 1.0 and carry their own
+attribution, which must be kept alongside:
 
 > This product includes materials from the Daggerheart System Reference Document 1.0,
 > © Critical Role, LLC. under the terms of the Darrington Press Community Gaming (DPCGL)
 > License. More information can be found at https://www.daggerheart.com. There are no previous
 > modifications by others.
 
-Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated. The `seansbox`
-README additionally notes its material is Public Game Content under the DPCGL
-(www.darringtonpress.com/license).
+Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
+One of those sets noted its material as Public Game Content under the DPCGL (www.darringtonpress.com/license).
 
 ## 8. Cheat sheet
 

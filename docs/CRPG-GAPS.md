@@ -1,7 +1,7 @@
 # Is this an engine for making Baldur's Gate-style games?
 
 An honest audit against the goal in `CONTEXT.md`: *a full CRPG engine + editor for making
-party-based tactical RPGs in the style of Baldur's Gate 3, running on Daggerheart*.
+party-based tactical RPGs in the style of Baldur's Gate 3, running a dual-dice tabletop ruleset*.
 
 Written 2026-09-05. Updated 2026-09-06 after the editor and the use-verb slices. Re-check it
 when the answer changes.
@@ -16,7 +16,7 @@ roll and read what the author wrote about it.
 Nothing on the list is a wall any more. What remains is depth — inventory, quests, progression,
 presentation — and tools for the authoring that currently happens in TypeScript literals.
 
-The risk this document exists to name: a Daggerheart rules library with a renderer looks like
+The risk this document exists to name: a tabletop-rules library with a renderer looks like
 progress and is not the goal. BG3 is roughly a third combat. Everything below is the other
 two thirds.
 
@@ -132,7 +132,7 @@ unmarked; one new domain card per level from the character's domains at or below
 levels 2, 5 and 8 a new Experience and +1 Proficiency; trait marks cleared at 5 and 8; multiclass
 opens one domain of the second class. A plan is legal or nothing happens.
 
-Daggerheart has no experience points — the GM says when — so levelling is a `levelUp` **effect** a
+There are no experience points — the GM says when — so levelling is a `levelUp` **effect** a
 designer places as a milestone; the demo grants one when the strongbox opens. The HUD offers a
 "Level up" on each card with a level waiting; the sheet shows every option with its boxes left
 and its cost, the card's text, and the engine's reasons when it refuses. Pools grow without
@@ -574,7 +574,7 @@ gets it for nothing.
 
 ### ~~13. Gridless~~ — the rules and the picture; where a creature stands is open
 
-"Daggerheart wasn't meant to be played on a grid." Two slices closed most of it:
+"It wasn't meant to be played on a grid." Two slices closed most of it:
 
 **The rules** (`bandForSpan` in `rules/range.ts`): every distance between two tiles is as the
 crow flies, measured to the nearest tile, through one function - the attack, an area, a script's

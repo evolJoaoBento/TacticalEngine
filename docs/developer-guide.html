@@ -251,13 +251,13 @@ footer {
   <h1>Extending the Tactical Engine</h1>
   <p>Where things are, which way they point, what may not be broken, and the order to touch files in
   for the changes that keep recurring. Written for whoever picks up work in this repository next.</p>
-  <div class="meta">D:\New folder\daggerheart game · SRD 2.0 · TypeScript 7 · Vite 8 · three.js 0.185 · Preact 10 · zod 4</div>
+  <div class="meta">TypeScript 7 · Vite 8 · three.js 0.185 · Preact 10 · zod 4</div>
 </header>
 
 <section id="orientation">
   <h2><span class="num">1</span>Orientation</h2>
 
-  <p>Tactical Engine is a browser CRPG engine and editor running the Daggerheart SRD 2.0 rules. A
+  <p>Tactical Engine is a browser CRPG engine and editor for party-based tactical RPGs. A
   <em>project</em> is a JSON document — <code>projectSchema</code>,
   <code>src/engine/scene/schema.ts:210</code> — holding scenes, dialogues, items, loot tables,
   quests, assets, abilities, code, condition definitions and the party. The engine executes that
@@ -1361,7 +1361,7 @@ footer {
   <h3 id="recipe-b">b · Add a field to <code>AbilityDef</code></h3>
 
   <p>Worked example: <code>defenses.reduce</code>, commit <code>6ec74ef</code> — "a number off the
-  damage before the bands". Eighteen files, one sentence of Daggerheart.</p>
+  damage before the bands". Eighteen files, one sentence of rules.</p>
 
   <ol>
     <li><strong>Decide where it is read first; that decides the design.</strong> A PC's swing at an
@@ -1553,7 +1553,7 @@ npm run check                  # all three</code></pre>
   <p>One behaviour, complete: the rule, the content that uses it, the editor field that writes it,
   the validation that refuses it when it is wrong, the tests that pin it, and the docs that describe
   it. Not a layer at a time. Look at <code>6ec74ef</code> — eighteen files, one sentence of
-  Daggerheart. A slice that adds an engine capability with no way to author it, or a panel field
+  rules. A slice that adds an engine capability with no way to author it, or a panel field
   nothing reads, is half a slice, and will be finished by someone with less context than you have
   now.</p>
 
@@ -1647,7 +1647,7 @@ Claude-Session: https://claude.ai/code/session_01YW7ZQM2cmKNB9XJAbtx69u</code></
     <tbody>
       <tr>
         <td><code>official-2.0/srd-2.0.txt</code></td>
-        <td>The <strong>official SRD 2.0</strong> (ver 2026-08-25), extracted from the daggerheart.com PDF by <code>extract-pdf-text.mjs</code>. <code>===== PAGE n =====</code> markers preserved; sentences grep-able in one piece.</td>
+        <td>Vendored while the catalogue was built, and <strong>deleted with it</strong>. Nothing in the tree quotes a rule from a vendored source any more.</td>
         <td><strong>Rules text. The only thing to quote.</strong> Cite the section in the code comment.</td>
       </tr>
       <tr>
@@ -1687,9 +1687,9 @@ Claude-Session: https://claude.ai/code/session_01YW7ZQM2cmKNB9XJAbtx69u</code></
 
   <p>The SRD 2.0 DPCGL attribution and the SRD 1.0 one the community sets carry are separate
   obligations, and both are kept. The exact 2.0 wording is in <code>docs/CONTEXT.md</code>; the
-  per-source terms are in the three READMEs under
-  <code>tools/srd-sources/{official-2.0,daggersearch,seansbox}/README.md</code> — there is no
-  top-level one. Daggerheart is a trademark of Critical Role, LLC, and this project is unaffiliated.
+  per-source terms were in READMEs that went with the sources they described, so
+  <code>docs/CONTEXT.md</code> is now the only place that wording lives.
+  Daggerheart is a trademark of Critical Role, LLC, and this project is unaffiliated.
   More information: <a href="https://www.daggerheart.com">daggerheart.com</a>.</p>
 
   <div class="callout">
@@ -1707,10 +1707,9 @@ Claude-Session: https://claude.ai/code/session_01YW7ZQM2cmKNB9XJAbtx69u</code></
   <h2><span class="num">13</span>Gotchas</h2>
 
   <ul>
-    <li><strong>The repository path contains a space:</strong> <code>D:\New folder\daggerheart game</code>,
-      Git Bash form <code>"D:/New folder/daggerheart game"</code>. Quote it everywhere. The repo has
+    <li><strong>The repository path contains a space.</strong> Quote it everywhere. The repo has
       moved between machines before, so prefer repo-relative paths in code, scripts and docs, and
-      never hardcode a home directory.</li>
+      never hardcode a path or a home directory.</li>
     <li><strong><code>legacy/</code> is never modified.</strong> It is the original prototype, kept
       runnable via <code>legacy/start.bat</code>. It also serves on port 8420, so do not run it and
       <code>npm run dev</code> at once. Read <code>docs/research/legacy-*.md</code> rather than the
