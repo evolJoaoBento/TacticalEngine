@@ -155,7 +155,7 @@ the stable handles here; line numbers move.
 
 Everything ranked below serves one of two goals, and they are not independent.
 
-**1. Remove the Daggerheart DNA.** The project carries no Daggerheart IP going forward. Usable
+**1. Remove the borrowed DNA.** The project carries no third-party tabletop IP going forward. Usable
 (uncopyrightable) mechanics stay: dual-dice resolution, damage thresholds, armour slots, a stress
 pool, the initiative-free loop, card-slot loadouts, advantage, experiences. What goes is everything
 expressive — names, the nine-domain catalogue and its card set, verbatim rules text, adversary
@@ -354,8 +354,16 @@ adding that rule is a step of this slice, not a precondition somebody already di
   behaviour.
 - **Identity.** `package.json` name → `tactical-engine`, product name **Tactical Engine**, Tactical Engine
   retired, applied across the editor title, docs, `CLAUDE.md` and `AGENTS.md`.
-- **`legacy/` prose.** The never-modify rule is amended by the owner's ruling: all eight marks there
-  are cosmetic comments and one editor hint, none functional. A prose rewrite cannot break the demo.
+- **`legacy/` prose.** ~~Done~~, but the amendment's premise was wrong and the correction is worth
+  keeping. The owner's ruling lifted the never-modify rule on the stated grounds that "all eight
+  marks there are cosmetic comments and one editor hint, none functional". Measured: there are
+  **20** marks, and three are functional — `polyheart-campaign` is written at
+  `legacy/js/editor.js:170` and read at `main.js:23`, and `polyheart-map` is read at `main.js:29`.
+  Those are persisted `localStorage` keys, so renaming them orphans any campaign or map somebody
+  saved in the prototype. The prose was rewritten and the keys were left, which is the spirit of the
+  amendment rather than its letter. `legacy/`'s 59 Light/Shadow sites were left too: 19 are live
+  identifiers in `legacy/js/game.js`, and `legacy/README.md:50-65` documents the prototype's
+  mechanics against its own code.
 - **The guard.** Extend `tests/unit/licensing-boundary.test.ts` to fail on the marks in any tracked
   file, any path under `tools/srd-sources/`, the retired product name, and the paired terms as
   identifiers. The boundary becomes enforced rather than remembered — the same reason the card-art
