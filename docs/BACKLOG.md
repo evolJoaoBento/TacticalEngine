@@ -530,14 +530,15 @@ explain what `cover.ts`, `los.ts` and `area.ts` implement.
   `packDocumentSchema`, which is `contentPackSchema` plus `abilities` and `conditionDefs`. The
   export's sidecar is simply a second pack.
 * ~~**Nothing reads a pack from disk.**~~ — **closed**: Project ▾ → Import pack…, above.
-* `cut-purse-strings`, `rallying-cry` and `smoke-step` still ship as text only.
-* `holding-the-line` and `caught-in-the-line` still sit in `content/conditions.ts` rather than
-  beside the feature that arms them.
+* ~~`cut-purse-strings`, `rallying-cry` and `smoke-step` still ship as text only.~~ — **closed** for
+  two of them: *Two starter cards stop being text*, above. `cut-purse-strings` is still text.
+* ~~`holding-the-line` and `caught-in-the-line` still sit in `content/conditions.ts` rather than
+  beside the feature that arms them.~~ — **closed**: *Hold the Line's conditions ship with the pack*, above.
 
 ---
 
-**Pinned to commit `542c9f5`.** At that commit: `npx tsc --noEmit` clean, vitest **1861 passed (1861)**
-across 94 files, Playwright **113 passed (4.1m)**, `EXIT 0`.
+**Pinned to commit `4659460`.** At that commit: `npx tsc --noEmit` clean, vitest **1871 passed (1871)**
+across 94 files, Playwright **115 passed (4.2m)**, `EXIT 0`.
 
 ### History: the red e2e run after the demo was repointed
 
