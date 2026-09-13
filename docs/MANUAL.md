@@ -974,7 +974,9 @@ in), `blocks[]` (act \| move \| reactions — an adversary that cannot act spend
 spotlight shaking the condition off, or the GM spends a Shadow to clear one that only ends on
 damage; one that cannot move tears free instead of closing in; `reactions` silences its damage
 reactions), `endsWhen?` (hit \| attacks \| damaged). `vulnerable` and `hidden` are read by the attack rules
-directly; Tava's Armor and Rogue's Dodge are modifiers on a condition. A condition lends nothing
+directly, and they and `restrained` are the only conditions the engine ships: every other one a card
+or a stat block applies comes with the pack that carries it, and a bonus that lasts while it does is a
+modifier on it. A condition lends nothing
 by itself: a card granted by it (`grant: { kind: 'condition', conditions }`) is in the hands of
 whoever bears one of those, character or creature, while it lasts. A file older than format version
 4 whose condition lent an ability through `grants` is migrated to such a card.

@@ -452,7 +452,7 @@ footer {
       <tr><td><code>script/hooks.ts</code></td><td>Running project code: <code>HookContext</code>, <code>runHook</code>, <code>SAFE_MATH</code>.</td></tr>
       <tr><td><code>content/types.ts</code></td><td><code>AdversaryDef</code>, <code>AdversaryFeature</code>, <code>ContentIssue</code>, <code>ImportResult</code>, <code>toContentId</code>.</td></tr>
       <tr><td><code>content/abilities.ts</code></td><td><code>AbilityDef</code> and its sub-schemas; <code>abilitiesFor</code>, <code>loadoutOf</code>, <code>cardOf</code>, <code>grantRank</code>, <code>statBlocksOf</code>, <code>isStatBlockFeature</code>, <code>isScripted</code>, <code>isAutomatic</code>, <code>readsATarget</code>. An ability sits on a card (<code>source: { card }</code>) and is in play when its card is — chosen and in the loadout, or granted; a stat block's feature is an ability on a card granted by <code>adversary</code>. A modifier's <code>advantage</code> stat is a signed count of dice and <code>against: true</code> puts it on rolls made at the holder.</td></tr>
-      <tr><td><code>content/conditions.ts</code></td><td><code>ConditionDef</code> — what a <em>status</em> on a creature does. <code>SRD_CONDITIONS</code>.</td></tr>
+      <tr><td><code>content/conditions.ts</code></td><td><code>ConditionDef</code> — what a <em>status</em> on a creature does. <code>SRD_CONDITIONS</code>: the three the rules read; every other condition travels with a pack.</td></tr>
       <tr><td><code>content/items.ts</code>, <code>content/quests.ts</code></td><td>Item and quest content shapes.</td></tr>
       <tr><td><code>content/pack/schema.ts</code></td><td>What a content pack <em>is</em>, as zod: the def schemas, <code>cardDefSchema</code> with its <code>cardGrantSchema</code>, and <code>contentPackSchema</code>. A class, subclass, ancestry or community carries no printed features: those are cards that name what grants them. A card a condition lends names the condition the same way.</td></tr>
       <tr><td><code>content/pack/import.ts</code></td><td>The pack in memory: <code>ContentPack</code> (maps by id), <code>CardGrant</code>, <code>isDomainCard</code>, and <code>mergePack</code>, which lays a project's lists over a pack's.</td></tr>
@@ -1121,7 +1121,7 @@ footer {
     <tbody>
       <tr><td><code>Effect</code></td><td><code>engine/script/schema.ts</code></td><td>The discriminated union of everything content can make happen. Inferred from <code>effectSchema</code>.</td></tr>
       <tr><td><code>Condition</code></td><td><code>engine/script/schema.ts</code></td><td>A <strong>predicate</strong> — <code>flag</code>, <code>pool</code>, <code>hasItem</code>, <code>hasCondition</code>, <code>all</code>/<code>any</code>/<code>not</code>, <code>hook</code>. Read by a <code>branch</code>, a choice option's <code>available</code>, an ability's <code>available</code>.</td></tr>
-      <tr><td><code>ConditionDef</code></td><td><code>engine/content/conditions.ts</code></td><td>A <strong>status on a creature</strong> — <code>vulnerable</code>, <code>hidden</code>, <code>restrained</code>, <code>rooted</code>, <code>stunned</code>, <code>asleep</code>, <code>on-fire</code>, <code>tavas-armor</code>, <code>dodging</code>. Carries <code>modifiers</code>, <code>defenses</code>, <code>blocks</code> and <code>endsWhen</code>.</td></tr>
+      <tr><td><code>ConditionDef</code></td><td><code>engine/content/conditions.ts</code></td><td>A <strong>status on a creature</strong> — the engine's <code>vulnerable</code>, <code>hidden</code> and <code>restrained</code>, a pack's <code>warding-flame-ring</code>, anything a project writes. Carries <code>modifiers</code>, <code>defenses</code>, <code>blocks</code> and <code>endsWhen</code>.</td></tr>
       <tr><td><code>CheckRequest</code></td><td><code>engine/script/schema.ts</code></td><td>A roll and what each of the five outcomes does. The fallbacks are in <code>effects.ts:outcomeEffects</code>.</td></tr>
       <tr><td><code>TargetSelector</code></td><td><code>engine/script/schema.ts</code></td><td><code>actor</code>, <code>party</code>, <code>entity</code>, <code>entities</code>, <code>target</code>, <code>hit</code>, <code>allies</code>, <code>adversaries</code>.</td></tr>
       <tr><td><code>AbilityDef</code></td><td><code>engine/content/abilities.ts</code></td><td>A card, a class feature or a stat-block feature: <code>id</code>, <code>name</code>, <code>source</code>, <code>text</code>, <code>kind</code>, <code>trigger</code>, <code>cost</code>, <code>uses</code>, <code>target</code>, <code>available</code>, <code>inCombatOnly</code>, <code>action</code>, <code>effects</code>, <code>modifiers</code>, <code>defenses</code>, <code>standardAttack</code>, <code>reaction</code>, <code>tokens</code>, <code>auto</code>.</td></tr>
@@ -1426,17 +1426,19 @@ footer {
 
   <h3 id="recipe-d">d · Add a condition (a status on a creature)</h3>
 
-  <p>There is no editor panel for <code>conditionDefs</code> — a project can carry them in its JSON,
-  and the shipped ones are code. So this is an engine change plus validation.</p>
+  <p>There is no editor panel for <code>conditionDefs</code> — a project carries them in its JSON,
+  and a pack carries the ones its cards and stat blocks apply. The engine ships only the three its
+  own rules read.</p>
 
   <ol>
-    <li><strong><code>src/engine/content/conditions.ts</code></strong> — add an entry to
-      <code>RAW</code>: <code>id</code> in kebab case, <code>name</code>, <code>text</code> as
-      printed, and then whichever of <code>modifiers</code>, <code>defenses</code>,
+    <li><strong>Beside whatever applies it</strong> — a project's <code>conditionDefs</code>, the
+      starter pack's <code>src/engine/content/pack/starter-conditions.ts</code>, or an imported pack's
+      <code>conditionDefs</code>: <code>id</code> in kebab case, <code>name</code>, <code>text</code>,
+      and then whichever of <code>modifiers</code>, <code>defenses</code>,
       <code>blocks</code> (<code>act</code> / <code>move</code> / <code>reactions</code>) and
       <code>endsWhen</code> (<code>hit</code> / <code>attacks</code> / <code>damaged</code>) it needs.
-      <code>SRD_CONDITIONS</code> parses <code>RAW</code> through <code>conditionDefSchema</code>, so
-      a malformed entry fails at import.</li>
+      <code>RAW</code> in <code>src/engine/content/conditions.ts</code> is only for a condition the
+      engine's own rules name.</li>
     <li><strong>Only if the attack roll itself must change:</strong>
       <code>src/engine/combat/attack.ts:conditionModifiers</code>. It hard-codes exactly two —
       <code>vulnerable</code> gives advantage against the bearer, <code>hidden</code> gives

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { blankScene, tileOf } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema } from '../engine/scene/schema';
+import { SRD_CONDITIONS } from '../engine/content/conditions';
 import {
   answerPending,
   moveSelectedTo,
@@ -170,6 +171,8 @@ describe('the conditions a project inherits', () => {
     expect(named.get('caught-in-the-line')).toBe('Caught');
     expect(named.get('warding-flame-ring')).toBe('Warding Flame');
     expect(named.has('vulnerable')).toBe(true);
+    // The engine's own are the three its rules read; a card's or a stat block's travels with its pack.
+    expect(SRD_CONDITIONS.map((def) => def.id)).toEqual(['vulnerable', 'hidden', 'restrained']);
     // The project's own wins, and nothing is listed twice.
     expect(named.get('restrained')).toBe('Pinned');
     expect(new Set(defs.map((def) => def.id)).size).toBe(defs.length);

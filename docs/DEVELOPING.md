@@ -112,7 +112,7 @@ adapter: the rest of the core does not know it exists.
 | `script/hooks.ts` | Running project code: `HookContext`, `runHook`, `SAFE_MATH`. |
 | `content/types.ts` | `AdversaryDef`, `AdversaryFeature`, `ContentIssue`, `ImportResult`, `toContentId`. |
 | `content/abilities.ts` | `AbilityDef` and its sub-schemas; `abilitiesFor`, `loadoutOf`, `cardOf`, `grantRank`, `statBlocksOf`, `isStatBlockFeature`, `isScripted`, `isAutomatic`, `readsATarget`. An ability sits on a card (`source: { card }`) and is in play when its card is -- chosen and in the loadout, or granted; a stat block's feature is an ability on a card granted by `adversary`, and `statBlocksOf` says which blocks print it. A modifier's `advantage` stat is a signed count of dice, `against: true` puts it on rolls made at the holder, `plusProficiency` adds their Proficiency, and `perToken` multiplies the whole bonus by the tokens on a card — never folded into a derived character, because tokens are scene state. A passive's `standardAttack` changes the block's own swing (`direct`, `damage`, `double`), with `when` read from the attacker's chair and the target bound. `target.when` says what makes a creature worth aiming at, read once per candidate by both the player's list and the GM's. |
-| `content/conditions.ts` | `ConditionDef` — what a *status* on a creature does. `SRD_CONDITIONS`. |
+| `content/conditions.ts` | `ConditionDef` — what a *status* on a creature does. `SRD_CONDITIONS`: the three the rules read (Vulnerable, Hidden, Restrained); every other condition travels with a pack. |
 | `content/items.ts`, `content/quests.ts` | Item and quest content shapes. |
 | `content/pack/schema.ts` | What a content pack *is*, as zod: `featureSchema`, `weaponDefSchema`, `armorDefSchema`, `classDefSchema`, `ancestryDefSchema`, `communityDefSchema`, `subclassDefSchema`, `cardDefSchema` with its `cardGrantSchema`, and `contentPackSchema`. A class, subclass, ancestry or community carries no printed features: those are cards that name what grants them. The contract a pack is validated against, wherever it comes from. |
 | `content/pack/import.ts` | The pack in memory: `ContentPack` (maps by id), the def types, `CardGrant`, `isDomainCard` (a chosen card, with the loadout's numbers), and `mergePack`, which lays a project's lists over a pack's. The readers for a retired data set's shapes are gone; a pack *file* comes in through `document.ts`. |
@@ -402,7 +402,7 @@ and successes each read the right list however the next roll goes.
 |---|---|---|
 | `Effect` | `engine/script/schema.ts` | The discriminated union of everything content can make happen. Inferred from `effectSchema`. |
 | `Condition` | `engine/script/schema.ts` | A **predicate** — `flag`, `pool`, `hasItem`, `hasCondition`, `all`/`any`/`not`, `hook`. Read by a `branch`, a choice option's `available`, an ability's `available`. |
-| `ConditionDef` | `engine/content/conditions.ts` | A **status on a creature** — `vulnerable`, `hidden`, `restrained`, `rooted`, `stunned`, `asleep`, `on-fire`, `tavas-armor`, `dodging`. Carries `modifiers`, `defenses`, `blocks` and `endsWhen`. Not the same thing as `Condition`; the two share only a word. |
+| `ConditionDef` | `engine/content/conditions.ts` | A **status on a creature** — the engine's `vulnerable`, `hidden` and `restrained`, a pack's `warding-flame-ring`, anything a project writes. Carries `modifiers`, `defenses`, `blocks` and `endsWhen`. Not the same thing as `Condition`; the two share only a word. |
 | `CheckRequest` | `engine/script/schema.ts` | A roll and what each of the five outcomes does. Fallbacks in `effects.ts:outcomeEffects`. |
 | `TargetSelector` | `engine/script/schema.ts` | `actor`, `party`, `entity`, `entities`, `target`, `hit`, `allies`, `adversaries`. |
 | `CardDef` | `engine/content/pack/import.ts` | Anything a character has: `id`, `name`, `grant`, `text`, `features`, and for a chosen card `domain`, `type`, `level`, `recallCost` -- `DomainCardDef`, narrowed by `isDomainCard`. |
@@ -609,13 +609,15 @@ creatures carry printed traits only -- and a pack or a project brings its own.
 
 ### (d) Add a condition (a status on a creature)
 
-There is no editor panel for `conditionDefs` — a project can carry them in its JSON, and the shipped
-ones are code. So this is an engine change plus validation.
+There is no editor panel for `conditionDefs` — a project carries them in its JSON, and a pack carries
+the ones its cards and stat blocks apply. The engine ships only the three its own rules read.
 
-1. **`src/engine/content/conditions.ts`** — add an entry to `RAW`: `id` (kebab), `name`, `text`
-   as printed, and then whichever of `modifiers`, `defenses`, `blocks` (`act` / `move` /
-   `reactions`) and `endsWhen` (`hit` / `attacks` / `damaged`) it needs. `SRD_CONDITIONS` parses
-   `RAW` through `conditionDefSchema`, so a malformed entry fails at import.
+1. **Beside whatever applies it** — a project's `conditionDefs`, the starter pack's
+   `src/engine/content/pack/starter-conditions.ts`, or an imported pack's `conditionDefs`: `id`
+   (kebab), `name`, `text`, and then whichever of `modifiers`, `defenses`, `blocks` (`act` / `move` /
+   `reactions`) and `endsWhen` (`hit` / `attacks` / `damaged`) it needs, read through
+   `conditionDefSchema`. `RAW` in `src/engine/content/conditions.ts` is only for a condition the
+   engine's own rules name.
 2. **Only if the attack roll itself must change:** `src/engine/combat/attack.ts:conditionModifiers`.
    It hard-codes exactly two — `vulnerable` gives advantage against the bearer, `hidden` gives
    disadvantage — because those are the two the SRD puts on the roll. Everything else a condition
@@ -629,7 +631,8 @@ ones are code. So this is an engine change plus validation.
 5. **`src/editor/validate.ts`** — condition ids named by an effect are checked against
    `project.conditionDefs` (`validate.ts:169`, `:240`); a new shipped condition needs nothing, a new
    *field* on `ConditionDef` may.
-6. **Tests:** `src/engine/script/conditions.test.ts` and `src/engine/script/abilities.test.ts`.
+6. **Tests:** `src/engine/script/conditions.test.ts` and `src/engine/script/abilities.test.ts`; a
+   condition a catalogue carries and a test plays goes in `tests/fixtures/conditions.ts`.
 
 ---
 

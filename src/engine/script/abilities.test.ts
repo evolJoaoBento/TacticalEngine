@@ -14,6 +14,7 @@ import { abilitySchema } from '../content/abilities';
 import { compileHooks, mergeHooks } from './hooks';
 import { A_GUARD_CARDS, A_GUARD_THAT_ANSWERS } from '../../../tests/fixtures/cards';
 import { printed } from '../../../tests/fixtures/adversary-features';
+import { FIXTURE_CONDITIONS } from '../../../tests/fixtures/conditions';
 
 /**
  * The combat half of the script vocabulary: what lets a domain card be a
@@ -23,9 +24,9 @@ import { printed } from '../../../tests/fixtures/adversary-features';
  * adversary — and every refusal draws no dice, so a replay stays in step.
  */
 
-// The pack the app ships. Every condition this file plays is a rules condition the
-// engine owns -- hidden, in-shadow, stunned, asleep, horrified -- so those still come
-// from SRD_CONDITIONS, which slice 3 prunes of card markers rather than emptying.
+// The pack the app ships. The conditions this file plays are the three the engine's rules
+// own, from SRD_CONDITIONS, and the catalogue's the engine no longer ships -- in-shadow,
+// stunned, asleep, horrified -- from the fixture that carries them, as an import would.
 const content = STARTER_CHARACTERS;
 
 /** A die stream that hands out exactly the numbers a test writes down. */
@@ -142,7 +143,7 @@ function scene(
       ? {
           abilities: [...STARTER_ABILITIES, ...A_GUARD_THAT_ANSWERS.map((a) => abilitySchema.parse(a))],
           cards: new Map([...STARTER_CHARACTERS.cards, ...A_GUARD_CARDS.map((card) => [card.id, card] as const)]),
-          conditionDefs: SRD_CONDITIONS,
+          conditionDefs: [...SRD_CONDITIONS, ...FIXTURE_CONDITIONS],
         }
       : {}),
     ...(options.features === undefined
@@ -150,7 +151,7 @@ function scene(
       : {
           abilities: features.map((f) => f.ability),
           cards: new Map(features.map((f) => [f.card.id, f.card] as const)),
-          conditionDefs: SRD_CONDITIONS,
+          conditionDefs: [...SRD_CONDITIONS, ...FIXTURE_CONDITIONS],
         }),
     hooks: mergeHooks(SRD_HOOKS, compileHooks((options.code ?? []).map((c) => ({ ...c, name: c.id }))).hooks),
   });

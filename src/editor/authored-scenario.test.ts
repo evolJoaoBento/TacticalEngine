@@ -23,6 +23,7 @@ import {
 } from './session';
 import { validateProject } from './validate';
 import { FIXTURE_ADVERSARIES, FIXTURE_CARDS } from '../../tests/fixtures/adversaries';
+import { FIXTURE_CONDITIONS } from '../../tests/fixtures/conditions';
 import {
   ANSWERING_CARD,
   AN_ANSWER_TO_A_BLOW_ON_AN_ALLY,
@@ -174,6 +175,9 @@ function blank(width = 12, height = 8): EditorSession {
   // fixture fights are carried by the fixture — not borrowed from whatever pack
   // the app happens to ship.
   session.project.adversaries.push(...FIXTURE_ADVERSARIES);
+  // And the catalogue conditions its fights apply, for the same reason: the engine ships only the
+  // three its own rules read.
+  session.project.conditionDefs.push(...FIXTURE_CONDITIONS);
   return session;
 }
 

@@ -38,6 +38,7 @@ import {
   type Printed,
 } from '../../tests/fixtures/adversary-features';
 import { handedTo } from '../../tests/fixtures/cards';
+import { FIXTURE_CONDITIONS } from '../../tests/fixtures/conditions';
 import {
   REASSURANCE,
   REASSURANCE_CARD,
@@ -60,7 +61,13 @@ import {
  * what a condition changes while it lasts, and what fires when a hit lands.
  */
 
-const scene = (seed = 'defense'): DemoScene => buildDemoScene(demoMap(), seed);
+/** The demo, knowing the catalogue conditions these tests play: the engine ships only the rules' three. */
+const scene = (seed = 'defense'): DemoScene => {
+  const demo = buildDemoScene(demoMap(), seed);
+  demo.project.conditionDefs.push(...FIXTURE_CONDITIONS);
+  refreshWorld(demo);
+  return demo;
+};
 
 /** What the Codex block's checks resolve into, shared by their success faces. */
 const ENERVATED_ARMS: Record<string, unknown>[] = [

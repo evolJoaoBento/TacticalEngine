@@ -26,6 +26,7 @@ import {
 import { useKey } from '../engine/script/world';
 import { NO_TILE } from '../engine/grid/grid';
 import { handedTo } from '../../tests/fixtures/cards';
+import { FIXTURE_CONDITIONS } from '../../tests/fixtures/conditions';
 import {
   abilityList,
   abilityTargets,
@@ -57,7 +58,13 @@ import {
  * the vault change all of that.
  */
 
-const scene = (seed = 'cards'): DemoScene => buildDemoScene(demoMap(), seed);
+/** The demo, knowing the catalogue conditions these tests play: the engine ships only the rules' three. */
+const scene = (seed = 'cards'): DemoScene => {
+  const demo = buildDemoScene(demoMap(), seed);
+  demo.project.conditionDefs.push(...FIXTURE_CONDITIONS);
+  refreshWorld(demo);
+  return demo;
+};
 
 /**
  * Every card these tests play, and the project code one of them runs.

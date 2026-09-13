@@ -4,6 +4,32 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The engine keeps only the rules' conditions — done
+
+The engine's own condition list held fifty, and forty-seven were a catalogue's: card markers
+(`smiting`, `dodging`, `tavas-armor`, the vitality three...) and stat-block conditions (`asleep`,
+`stunned`, `horrified`, `chilled`, `guilty`, `on-fire`...). Nothing shipped applied any of them.
+They are gone from `content/conditions.ts`, which keeps the three the rules read -- Vulnerable and
+Hidden in `attack.ts`, Restrained through the starter pack's Caught -- and a test in
+`demo-scene.test.ts` pins exactly those. The exported catalogue carries all fifty itself, beside the
+cards that apply them, and an import replaces by id, so nothing it plays is lost. A project saved
+before this that applies one without carrying it now names a condition nobody defines, which Check
+reports.
+
+The tests that play those rules -- a block, an ending, a die on any roll, an immunity -- carry the
+ten they need in `tests/fixtures/conditions.ts`, under the ids they always used, and add them to
+their world the way an import would.
+
+Still in the engine and named for cards: `SRD_HOOKS`, four native hooks (Arcane Barrage, Falling
+Sky, Wild Flame, and the armor-or-Hit-Point rule several stat blocks share). A pack cannot carry
+code, and the exported cards call them by id, so they stay until one can -- which means a pack
+bringing code the game runs, the user's call. The five adversary keywords `adversary-features.ts`
+runs are rules, not cards.
+
+`npx tsc --noEmit` clean; vitest **1875 passed (1875)**; Playwright **116 passed (4.1m)**, `EXIT 0`. Three breaks --
+a catalogue condition back in the engine, the demo tests without the fixture, and Asleep out of it --
+each fail the tests written for them.
+
 ## Two spells leave the engine for a pack of their own — done
 
 `sitil-echo` and `korvax-circle` sat in the engine's condition list though no shipped card applied
@@ -434,7 +460,8 @@ abilities, 54 conditions — and an imported card was put in a loadout, offered,
 its imported condition. `document.test.ts` keeps the read as a `skipIf`: it runs where the
 git-ignored export exists and reports skipped everywhere else. Importing the abilities file replaces
 the 54 condition ids the demo project already carries, because the export holds the engine's
-generic rules conditions too.
+generic rules conditions too. *(Three of them since the engine kept only Vulnerable, Hidden and
+Restrained.)*
 
 `npx tsc --noEmit` clean; vitest **1821 passed / 1 failed (1822)**, the one being the documented
 deliberate `demo-defense` failure; Playwright **105 passed**, `EXIT 0`.

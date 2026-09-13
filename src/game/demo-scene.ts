@@ -733,8 +733,8 @@ function buildRuntime(
  * order, the project's winning over both.
  *
  * Without this an authored project knows no conditions at all — the schema
- * defaults the list to empty — so Restrained would hold nobody in place and a
- * Chilled arm would swing as well as a warm one. Only the demo, which seeds
+ * defaults the list to empty — so Restrained would hold nobody in place and
+ * Hidden would hide nobody. Only the demo, which seeds
  * the list by hand, ever worked. The pack's own come in between so that a
  * starter card played where nobody wrote its conditions down still has them:
  * the ring Warding Flame draws, and Hold the Line's two.
