@@ -691,6 +691,27 @@ printed by the id it is keyed by rather than its name, which every unit test agr
 assert on ids too. Send anything the user should see with **SendUserFile**: they follow this work
 from a phone and will not scroll a terminal.
 
+### What the guard sees, and what must keep the old names
+
+Carried over from the slice-4 handoff when it was deleted, because nothing else records them.
+
+* **The licensing guard reads `git ls-files`, so an untracked file is invisible to it.** A green run
+  says nothing about a file that is not staged: the handoff itself passed 6/6 while untracked and
+  showed six violations the moment it was added. `git add` a new file before trusting the guard.
+* **When a guard rule fails, fix the source, not the exemption list.** Exempting the file that
+  tripped rule 3 would have blinded it in the one file about persisted documents.
+* **Some files keep the version-1 names on purpose.** `scene/migrate.ts` and `migrate.test.ts` read
+  and table the old field names; `scene/legacy-import.ts` maps the prototype's own document keys. A
+  rename pass over them stops the migration migrating **while every one of its tests still passes**
+  — the failure only surfaces when somebody loads an old save. The guard's `DELIBERATE` list names
+  them.
+* **The version-1 fixtures are evidence, not test data.** `tests/fixtures/v1/` is never edited and
+  never regenerated; its README says why. Read it, as `document.test.ts` does, and leave it alone.
+* **A storage-key fallback is get / set / remove, and remove is the one that goes wrong.** Read the
+  current key then the old one; write the current key only; remove **both**. Clearing only the
+  current key lets a deleted save come back on the next read, which presents as the delete button
+  not working. `save-slots.ts` and `ui/card-art.ts` each have a test asserting the old key is gone.
+
 ### Before claiming done
 
 `npx tsc --noEmit`, `npx vitest run`, **and** `npx playwright test`. All three, every time — the e2e
