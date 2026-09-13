@@ -7,9 +7,21 @@ handful of working rules that are learned the expensive way rather than read.
 **Pinned to commit `01b4c83`.** At that commit: `npx tsc --noEmit` clean, **1834 of 1835 unit tests
 passing across 92 files**. The single failure is the documented deliberate one in
 `demo-defense.test.ts` — a Stress assertion left red after four attempts rather than guessed at, with
-what was ruled out recorded in its commit. **Playwright is green on the starter pack**: 82 passed, 15.3 minutes,
-measured after the demo was repointed. `--list` enumerates 103, so 21 are filtered or skipped —
-quote 82 as what runs. If the passing
+what was ruled out recorded in its commit. **Playwright is RED on the starter pack: 21 failed, 82 passed**, measured
+twice after the demo was repointed (15.1m and 15.3m, identical counts). An earlier version of this
+line called that green by reading the pass count and not the exit code. The 21 fall into clusters
+that look like separate causes, and the biggest is the repoint's missing half: `7769fa1` and the five
+commits after it changed what the demo plays, and no commit since has touched `tests/e2e/`, so the
+specs still drive the game by names the shipped pack does not define — `Rain of Blades`, `Power
+Push`, `Acid Burrower`, `husk`. Triage before trusting any e2e result:
+
+| Cluster | Tests | Suspected cause |
+|---|---|---|
+| `demo.spec.ts` | 8 | the repoint: specs name cards and creatures the starter pack lacks |
+| `card-browser.spec.ts` | 4 | the card-art tier work (`fd6e660`, `3601f7b`, `c81c16b`) |
+| `placement.spec.ts` + `editor-shell.spec.ts` | 4 | the construction / creature-draw layer |
+| `readout.spec.ts` | 2 | readout asserts no player-visible string is a content id |
+| `between-fights.spec.ts`, `playpass.spec.ts` | 3 | unclassified | If the passing
 count comes back lower than 1834, something was lost — check before building on it. Symbol names are
 the stable handles here; line numbers move.
 
@@ -424,9 +436,14 @@ from a phone and will not scroll a terminal.
 ### Before claiming done
 
 `npx tsc --noEmit`, `npx vitest run`, **and** `npx playwright test`. All three, every time — the e2e
-suite is the only thing that catches a broken boot. **It takes about 15 minutes** (82 tests; `--list`
-enumerates 103, so 21 are filtered or skipped), so start it in the background and do something else
-while it runs rather than deciding to skip it. Every commit
+suite is the only thing that catches a broken boot. **It takes about 15 minutes** (103 tests), so start
+it in the background and do something else while it runs rather than deciding to skip it.
+
+**Read the exit code, not the pass count.** Playwright prints `82 passed (15.1m)` as its last
+line and the failure count *above* it, so a red run's final line looks like a green one. `EXIT 1`,
+or `test-results/.last-run.json` reading `"status": "failed"`, is the verdict. An earlier version of
+this file claimed the suite was green on the strength of that pass line; it was red both times it
+ran. The same mistake put a false slice-3 precondition here. Read to the end of the output. Every commit
 body carries a verification line saying what was run and what came back, then a sentence on how the
 new tests were shown to fail without their fix. If something could not be verified, say that instead
 of implying it works.
