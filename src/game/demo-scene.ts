@@ -10,11 +10,9 @@
  * and a turn loop that hands the spotlight back and forth.
  */
 
-import adversaryJson from '../../tools/srd-sources/seansbox/adversaries.json';
 import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
 import { DEMO_QUESTS } from './demo-quests';
-import { SRD_ABILITIES } from '../engine/content/srd/abilities';
 import { SRD_ADVERSARY_ABILITIES } from '../engine/content/srd/adversary-abilities';
 import { SRD_HOOKS } from '../engine/content/srd/hooks';
 import { compileHooks, mergeHooks, type HookMap } from '../engine/script/hooks';
@@ -44,13 +42,6 @@ import { createScenarioState, SceneScriptWorld, useKey, type Payout, type SceneS
 import { NO_BINDINGS, evaluate, evaluateOptional } from '../engine/script/conditions';
 import { maxTilesForBand, reaches, type RangeBand } from '../engine/rules/range';
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
-import ancestryJson from '../../tools/srd-sources/daggersearch/core/ancestries.json';
-import armorJson from '../../tools/srd-sources/daggersearch/core/armors.json';
-import classJson from '../../tools/srd-sources/daggersearch/core/classes.json';
-import communityJson from '../../tools/srd-sources/daggersearch/core/communities.json';
-import weaponJson from '../../tools/srd-sources/daggersearch/core/weapons.json';
-import subclassJson from '../../tools/srd-sources/daggersearch/core/subclasses.json';
-import domainCardJson from '../../tools/srd-sources/daggersearch/core/domain-cards.json';
 import { applyAttack, resolveAttack, type AttackOutcome, type AttackProfile } from '../engine/combat/attack';
 import { evaluateTarget } from '../engine/combat/targeting';
 import { adversaryTraits, attackDamageOf } from '../engine/combat/adversary-features';
@@ -90,8 +81,6 @@ import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { importContentPack, mergePack, type ContentPack, type WeaponDef } from '../engine/content/pack/import';
 import { STARTER_ABILITIES, STARTER_ADVERSARIES, STARTER_CHARACTERS, STARTER_CONDITIONS } from '../engine/content/pack/starter';
 import {
-  importSeansboxAdversaries,
-  type RawAdversary,
 } from '../engine/content/srd/seansbox-adversaries';
 import type { AdversaryDef } from '../engine/content/types';
 import { createRng, type Rng } from '../engine/core/rng';

@@ -15,3 +15,9 @@ Thumbs.db
 # history forever and only a history rewrite removes it.
 # See AGENTS.md, and tests/unit/licensing-boundary.test.ts which guards this.
 public/cards/
+
+# Content packs exported by tools/export-pack.ts. The vendored catalogue goes out as one
+# importable pack so that deleting the sources loses nothing -- but an export is for whoever
+# holds the rights to it, not for the repository to ship. Same reasoning as the card art above:
+# what is committed here is the engine, not a catalogue packaged for import.
+packs/
