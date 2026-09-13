@@ -3,7 +3,15 @@ import { abilitySchema } from '../engine/content/abilities';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
 import { cardDefSchema } from '../engine/content/pack/schema';
-import { EditorSession, addAbility, addCardWithAbility, removeAbility, removeCardWithAbility, updateAbility } from './session';
+import {
+  EditorSession,
+  addAbility,
+  addCardWithAbility,
+  removeAbility,
+  removeCardWithAbility,
+  updateAbility,
+  updateCard,
+} from './session';
 import { validateProject } from './validate';
 
 /**
@@ -40,8 +48,10 @@ describe('a cost only the GM can pay', () => {
     s.run(updateAbility('rally', { cost: { bad: 1 } }));
     expect(validateProject(s.project).map((p) => p.message).join(' ')).toContain('only the GM spends');
 
-    // The same cost on a stat block's feature is exactly where it belongs.
-    s.run(updateAbility('rally', { source: { kind: 'adversary', adversaries: ['acid-burrower'] } }));
+    // The same cost on a stat block's feature is exactly where it belongs: the card it sits on,
+    // printed on a block rather than handed to Kara.
+    s.project.cards.push(cardDefSchema.parse({ id: 'rally', name: 'Rally', grant: { kind: 'given', characters: ['kara'] } }));
+    s.run(updateCard('rally', { grant: { kind: 'adversary', adversaries: ['acid-burrower'] } }));
     expect(validateProject(s.project)).toEqual([]);
   });
 });

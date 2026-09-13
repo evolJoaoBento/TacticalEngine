@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { STARTER_ABILITIES, STARTER_CHARACTERS } from './pack/starter';
-import { abilitiesFor, abilitySchema, isScripted, loadoutOf, vaultOf, LOADOUT_LIMIT, type AbilityDef } from './abilities';
+import {
+  abilitiesFor,
+  abilitySchema,
+  isScripted,
+  isStatBlockFeature,
+  loadoutOf,
+  statBlocksOf,
+  vaultOf,
+  LOADOUT_LIMIT,
+  type AbilityDef,
+} from './abilities';
 import { blankSheet, deriveCharacter, type CharacterSheet } from '../character/sheet';
 import { levelUp } from '../character/progression';
 import { mergePack } from './pack/import';
@@ -29,7 +39,7 @@ const derive = (sheet: CharacterSheet) => deriveCharacter(sheet, content).charac
 
 describe('the schema', () => {
   it('fills in the defaults a plain card needs', () => {
-    const parsed = abilitySchema.parse({ id: 'x', name: 'X', source: { kind: 'domainCard', card: 'power-slash' } });
+    const parsed = abilitySchema.parse({ id: 'x', name: 'X', source: { card: 'power-slash' } });
     expect(parsed).toMatchObject({ kind: 'action', cost: {}, target: { kind: 'none', range: 'melee' }, effects: [], modifiers: [], action: true, inCombatOnly: false });
     expect(isScripted(parsed)).toBe(false);
   });
@@ -115,5 +125,30 @@ describe('abilitiesFor', () => {
     // this list at all. `rallying-cry` is one of those, and asking where it sits
     // reads -1 rather than an order.
     expect(ids.indexOf('unbroken')).toBeGreaterThan(ids.indexOf('shield-wall'));
+  });
+
+  it('leaves out a card printed on a stat block, even one named for the character', () => {
+    // A block that happens to share Kara's id: `adversary` names blocks, never characters, so the
+    // card is nobody's hand however the ids fall.
+    const printed = cardDefSchema.parse({ id: 'claws', name: 'Claws', grant: { kind: 'adversary', adversaries: ['kara'] } });
+    const claws = abilitySchema.parse({ id: 'claws', name: 'Claws', source: { card: 'claws' } });
+    const character = deriveCharacter(kara(), mergePack(content, { cards: [printed] })).character;
+    expect(character.granted.map((card) => card.id)).not.toContain('claws');
+    expect(abilitiesFor(character, [claws])).toEqual([]);
+  });
+});
+
+describe('a stat block\'s feature', () => {
+  it('is an ability on a card printed on a block, and reads its blocks off that card', () => {
+    const cards = new Map([
+      ['claws', cardDefSchema.parse({ id: 'claws', name: 'Claws', grant: { kind: 'adversary', adversaries: ['husk', 'ghoul'] } })],
+      ['own', cardDefSchema.parse({ id: 'own', name: 'Own', grant: { kind: 'given', characters: ['kara'] } })],
+    ]);
+    const on = (card: string) => abilitySchema.parse({ id: card, name: card, source: { card } });
+    expect(statBlocksOf(on('claws'), cards)).toEqual(['husk', 'ghoul']);
+    expect(isStatBlockFeature(on('claws'), cards)).toBe(true);
+    // A card somebody holds is no block's; nor is a card nothing defines.
+    expect(statBlocksOf(on('own'), cards)).toBeNull();
+    expect(isStatBlockFeature(on('missing'), cards)).toBe(false);
   });
 });

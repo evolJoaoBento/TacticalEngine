@@ -106,7 +106,14 @@ describe('cards', () => {
     expect(granted.domain).toBeUndefined();
   });
 
+  it("prints a stat block's feature on a card granted by the blocks it names, with no loadout numbers", () => {
+    const claws = cardDefSchema.parse({ id: 'claws', name: 'Claws', grant: { kind: 'adversary', adversaries: ['husk'] } });
+    expect(claws.grant).toEqual({ kind: 'adversary', adversaries: ['husk'] });
+    expect(claws.domain).toBeUndefined();
+  });
+
   it('refuses a grant that does not say what grants it', () => {
+    expect(cardDefSchema.safeParse({ id: 'x', name: 'X', grant: { kind: 'adversary' } }).success).toBe(false);
     expect(cardDefSchema.safeParse({ id: 'x', name: 'X', grant: { kind: 'class' } }).success).toBe(false);
     expect(
       cardDefSchema.safeParse({ id: 'x', name: 'X', grant: { kind: 'subclass', subclassId: 'y', stage: 'apprentice' } }).success,

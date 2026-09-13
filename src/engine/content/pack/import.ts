@@ -85,7 +85,8 @@ export type CardGrant =
   | { kind: 'subclass'; subclassId: string; stage: SubclassStage }
   | { kind: 'ancestry'; ancestryId: string }
   | { kind: 'community'; communityId: string }
-  | { kind: 'given'; characters: string[] };
+  | { kind: 'given'; characters: string[] }
+  | { kind: 'adversary'; adversaries: string[] };
 
 /** A card, chosen or granted. Only a chosen one carries the loadout's numbers. */
 export interface CardDef {

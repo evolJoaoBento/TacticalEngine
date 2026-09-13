@@ -273,14 +273,15 @@ describe('version 2 to 3: a card list is `cards`, and only at the root', () => {
       { card: 'warden-drilled' },
       { card: 'warden-stand' },
       { card: 'swing' },
-      // A stat block's feature waits for the GM's side to become cards.
-      { kind: 'adversary', adversaries: ['husk'] },
+      { card: 'claws' },
     ]);
     // The printed Drilled filled the empty text of its ability's card; the signature joined the
-    // class's own-resource card, which kept its own words. Two cards, not four.
+    // class's own-resource card, which kept its own words; the claws are printed on the husk's
+    // block. Three cards, not five.
     expect(doc.cards).toEqual([
       { id: 'warden-drilled', name: 'Drilled', text: 'Printed words.', grant: { kind: 'class', classId: 'warden' } },
       { id: 'warden-stand', name: 'Stand', text: 'Its own words.', grant: { kind: 'class', classId: 'warden' } },
+      { id: 'claws', name: 'Claws', text: '', grant: { kind: 'adversary', adversaries: ['husk'] } },
     ]);
   });
 

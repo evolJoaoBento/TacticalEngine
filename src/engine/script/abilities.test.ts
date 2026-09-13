@@ -13,6 +13,7 @@ import { SRD_CONDITIONS } from '../content/conditions';
 import { abilitySchema } from '../content/abilities';
 import { compileHooks, mergeHooks } from './hooks';
 import { A_GUARD_CARDS, A_GUARD_THAT_ANSWERS } from '../../../tests/fixtures/cards';
+import { printed } from '../../../tests/fixtures/adversary-features';
 
 /**
  * The combat half of the script vocabulary: what lets a domain card be a
@@ -84,8 +85,8 @@ function scene(
     armor?: 'auto' | 'never';
     content?: boolean;
     code?: { id: string; source: string }[];
-    /** Extra abilities the world knows about — a stat block's passive, say. */
-    abilities?: unknown[];
+    /** Features printed on the soft husk's stat block. */
+    features?: Record<string, unknown>[];
   } = {},
 ) {
   const grid = new TileGrid({ width: 14, height: 3 });
@@ -125,6 +126,7 @@ function scene(
   state.addEntity(createAdversaryEntity('husk-1', 'soft-husk', grid.indexOf(3, 1), { hitPoints: 5, stress: 3 }));
   state.addEntity(createAdversaryEntity('husk-2', 'tough-husk', grid.indexOf(5, 1), { hitPoints: 5, stress: 3 }));
 
+  const features = (options.features ?? []).map((feature) => printed('soft-husk', feature));
   const scenario = createScenarioState({}, 'mira');
   const world = new SceneScriptWorld(state, scenario, {
     traits: { strength: 2, knowledge: 2, finesse: 1 },
@@ -143,8 +145,13 @@ function scene(
           conditionDefs: SRD_CONDITIONS,
         }
       : {}),
-    ...(options.abilities === undefined ? {} : { abilities: options.abilities.map((a) => abilitySchema.parse(a)) }),
-    ...(options.abilities === undefined ? {} : { conditionDefs: SRD_CONDITIONS }),
+    ...(options.features === undefined
+      ? {}
+      : {
+          abilities: features.map((f) => f.ability),
+          cards: new Map(features.map((f) => [f.card.id, f.card] as const)),
+          conditionDefs: SRD_CONDITIONS,
+        }),
     hooks: mergeHooks(SRD_HOOKS, compileHooks((options.code ?? []).map((c) => ({ ...c, name: c.id }))).hooks),
   });
   return { grid, state, scenario, world, characters };
@@ -1083,7 +1090,6 @@ describe('a creature that shrugs damage off', () => {
   const bones = {
     id: 'only-bones',
     name: 'Only Bones',
-    source: { kind: 'adversary' as const, adversaries: ['soft-husk'] },
     text: 'The husk is resistant to physical damage.',
     kind: 'passive' as const,
     action: false,
@@ -1097,17 +1103,17 @@ describe('a creature that shrugs damage off', () => {
     runScript([{ kind: 'damage', dice: '12 phy', target: { kind: 'entity', id: 'husk-1' } }], plain.world, scripted([]));
     expect(plain.state.entity('husk-1')!.hitPoints.marked).toBe(3);
 
-    const heavy = scene({ abilities: [bones] });
+    const heavy = scene({ features: [bones] });
     runScript([{ kind: 'damage', dice: '12 phy', target: { kind: 'entity', id: 'husk-1' } }], heavy.world, scripted([]));
     expect(heavy.state.entity('husk-1')!.hitPoints.marked).toBe(1);
     // The same magic damage is not resisted at all.
-    const magic = scene({ abilities: [bones] });
+    const magic = scene({ features: [bones] });
     runScript([{ kind: 'damage', dice: '12 mag', target: { kind: 'entity', id: 'husk-1' } }], magic.world, scripted([]));
     expect(magic.state.entity('husk-1')!.hitPoints.marked).toBe(3);
   });
 
   it('halves a weapon swing too, on the attack path', () => {
-    const resisting = scene({ abilities: [bones] });
+    const resisting = scene({ features: [bones] });
     resisting.scenario.actorId = 'kara';
     resisting.state.moveEntity('kara', resisting.grid.indexOf(2, 1));
     // A stated 12 physical: Severe without the passive, Minor with it.
@@ -1121,7 +1127,7 @@ describe('a creature that shrugs damage off', () => {
   });
 
   it('reads a condition as well as a passive, and never halves twice', () => {
-    const { world, state } = scene({ abilities: [bones] });
+    const { world, state } = scene({ features: [bones] });
     state.entity('husk-1')!.conditions.add('rooted');
     expect(world.defensesOf('husk-1')).toEqual({ resistances: ['physical'] });
     runScript([{ kind: 'damage', dice: '12 phy', target: { kind: 'entity', id: 'husk-1' } }], world, scripted([]));
@@ -1134,7 +1140,6 @@ describe('a creature that takes a number off the damage', () => {
   const plate = {
     id: 'thick-hide',
     name: 'Thick Hide',
-    source: { kind: 'adversary' as const, adversaries: ['soft-husk'] },
     text: 'When the husk takes physical damage, reduce it by 3.',
     kind: 'passive' as const,
     action: false,
@@ -1146,7 +1151,7 @@ describe('a creature that takes a number off the damage', () => {
   it("takes it off a script's damage, and says so in the log", () => {
     // 12 physical is Severe on 7/12 and marks 3; 3 off leaves 9, which is
     // Major, and marks 2.
-    const { world, state } = scene({ abilities: [plate] });
+    const { world, state } = scene({ features: [plate] });
     const journal = runScript(
       [{ kind: 'damage', dice: '12 phy', target: { kind: 'entity', id: 'husk-1' } }],
       world,
@@ -1155,13 +1160,13 @@ describe('a creature that takes a number off the damage', () => {
     expect(state.entity('husk-1')!.hitPoints.marked).toBe(2);
     expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ marked: 2, reduced: 3 });
     // Magic is not what this hide answers.
-    const magic = scene({ abilities: [plate] });
+    const magic = scene({ features: [plate] });
     runScript([{ kind: 'damage', dice: '12 mag', target: { kind: 'entity', id: 'husk-1' } }], magic.world, scripted([]));
     expect(magic.state.entity('husk-1')!.hitPoints.marked).toBe(3);
   });
 
   it('rolls the dice kind once for a swing, on the attack path', () => {
-    const swung = scene({ abilities: [rolled] });
+    const swung = scene({ features: [rolled] });
     swung.scenario.actorId = 'kara';
     swung.state.moveEntity('kara', swung.grid.indexOf(2, 1));
     // Two dice for the attack roll, then one d10 for the hide. A second roll
@@ -1182,7 +1187,6 @@ describe("a passive printed on a stat block", () => {
     const wary = {
       id: 'wary',
       name: 'Wary',
-      source: { kind: 'adversary' as const, adversaries: ['soft-husk'] },
       text: 'The husk is hard to catch.',
       kind: 'passive' as const,
       action: false,
@@ -1190,7 +1194,9 @@ describe("a passive printed on a stat block", () => {
     };
     // The soft husk's Difficulty is 10; the passive makes it 15.
     expect(scene().world.difficultyOf('husk-1')).toBe(10);
-    expect(scene({ abilities: [wary] }).world.difficultyOf('husk-1')).toBe(15);
+    expect(scene({ features: [wary] }).world.difficultyOf('husk-1')).toBe(15);
+    // And only on the block that prints it: the tough husk is another block, and keeps its 16.
+    expect(scene({ features: [wary] }).world.difficultyOf('husk-2')).toBe(16);
   });
 });
 

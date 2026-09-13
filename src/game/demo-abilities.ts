@@ -77,9 +77,8 @@ export interface AbilityView {
  */
 export function abilityText(demo: DemoScene, ability: AbilityDef): string {
   if (ability.text !== '') return ability.text;
-  const id = cardOf(ability);
   // The project's content, which is the pack's unless the project carries its own.
-  const card = id === null ? undefined : characterContentFor(demo.project).cards.get(id);
+  const card = characterContentFor(demo.project).cards.get(cardOf(ability));
   if (card === undefined) return '';
   // A grimoire's spell is one of the card's named features.
   const spell = card.name === ability.name ? undefined : card.features.find((f) => f.name === ability.name);
@@ -88,8 +87,7 @@ export function abilityText(demo: DemoScene, ability: AbilityDef): string {
 
 /** The chosen card an ability sits on, with its domain for the art; null for any other card. */
 function chosenCardOf(demo: DemoScene, ability: AbilityDef): { id: string; domain: string } | null {
-  const id = cardOf(ability);
-  const card = id === null ? undefined : characterContentFor(demo.project).cards.get(id);
+  const card = characterContentFor(demo.project).cards.get(cardOf(ability));
   return card !== undefined && isDomainCard(card) ? { id: card.id, domain: card.domain } : null;
 }
 

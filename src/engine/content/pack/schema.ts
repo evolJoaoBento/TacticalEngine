@@ -125,6 +125,8 @@ export const cardGrantSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('community'), communityId: contentIdSchema }),
   /** Handed to named characters: a project giving somebody a card without inventing a class for it. */
   z.object({ kind: z.literal('given'), characters: z.array(contentIdSchema) }),
+  /** Printed on stat blocks: a feature of every creature of these blocks, and never a character's. */
+  z.object({ kind: z.literal('adversary'), adversaries: z.array(contentIdSchema) }),
 ]);
 
 /**

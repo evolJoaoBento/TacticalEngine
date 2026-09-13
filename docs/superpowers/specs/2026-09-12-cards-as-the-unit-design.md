@@ -140,7 +140,7 @@ so the record of what was first thought survives: the header's "can ride slice 4
    schema and required by a refinement when `grant.kind` is `chosen`. (§6.4: a granted card has
    neither a loadout nor a vault.)
 5. **The grants:** `chosen` · `class` · `subclass` with its stage · `ancestry` · `community` ·
-   `given` (character ids) · `adversary` (adversary ids), which arrives with the GM's side.
+   `given` (character ids) · `adversary` (adversary ids).
 6. **The version-3 migration is positional.** `domainCards` is both a pack's list and a sheet's held
    cards; `'domainCard'` is both a source kind and a level-up pick; `'adversary'` is both a source
    kind and a target kind. A step that rewrote every depth, as version 2's did, would rewrite all of
@@ -149,6 +149,11 @@ so the record of what was first thought survives: the header's "can ride slice 4
    pack**, which is code a document cannot see. One card per ability that needs one, with the
    ability's id; a printed feature in the same document whose name is its ability's becomes that
    card's text rather than a second card.
+8. **The GM's side moves its source kind, not its traits.** A stat block's feature -- an ability --
+   sits on a card granted by `adversary`. What a block prints as traits (`features`: Relentless,
+   Horde, Minion, Momentum, Terrifying) stays on the block, read structurally by `adversaryTraits`:
+   rules, not abilities, the same boundary as a weapon's features. Whether an ability is a stat
+   block's feature is its card's to say now, so `isStatBlockFeature` takes the cards.
 
 **Out of the first slice**, each to be judged on its own: card zones on screen, a grant editor, the
 GM's side as cards the table can see, and a condition lending a card rather than an ability.

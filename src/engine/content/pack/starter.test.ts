@@ -92,9 +92,7 @@ describe('the abilities behind the cards', () => {
   it('each sit on a card the pack actually has', () => {
     const cardIds = new Set(ids(STARTER_PACK.cards));
     for (const ability of STARTER_ABILITIES) {
-      const card = cardOf(ability);
-      expect(card, ability.id).not.toBeNull();
-      expect(cardIds.has(card!), ability.id).toBe(true);
+      expect(cardIds.has(cardOf(ability)), ability.id).toBe(true);
     }
   });
 

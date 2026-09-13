@@ -16,7 +16,7 @@
 
 import { z } from 'zod';
 import type { DerivedCharacter } from '../character/sheet';
-import type { CardGrant } from './pack/import';
+import type { CardDef, CardGrant } from './pack/import';
 import { subclassStage } from '../character/progression';
 import { contentIdSchema, traitSchema } from '../scene/primitives';
 import { conditionSchema, effectSchema, rangeBandSchema, walkEffects, type Effect, type TargetSelector } from '../script/schema';
@@ -36,13 +36,10 @@ export const GOOD_FEATURE_COST = 3;
  * marks, the halves that bank a token, the one that spends them -- and each is still found by its
  * own trigger, because the abilities stay one flat list.
  *
- * A stat block's feature still names its adversaries directly. It becomes a card too when the GM's
- * side does; until then it is the one other place an ability can sit.
+ * A stat block's feature is no different: its card is granted by `adversary`, to the blocks that
+ * print it.
  */
-export const abilitySourceSchema = z.union([
-  z.object({ card: contentIdSchema }),
-  z.object({ kind: z.literal('adversary'), adversaries: z.array(contentIdSchema) }),
-]);
+export const abilitySourceSchema = z.object({ card: contentIdSchema });
 
 export const abilityTargetSchema = z.object({
   /**
@@ -542,14 +539,29 @@ export function vaultOf(character: Pick<DerivedCharacter, 'sheet' | 'cards'>): s
   return character.cards.map((card) => card.id).filter((id) => !active.has(id));
 }
 
-/** The card an ability sits on, or `null` for a stat block's feature. */
-export function cardOf(ability: Pick<AbilityDef, 'source'>): string | null {
-  return 'card' in ability.source ? ability.source.card : null;
+/** The card an ability sits on. */
+export function cardOf(ability: Pick<AbilityDef, 'source'>): string {
+  return ability.source.card;
 }
 
-/** Whether an ability is a stat block's feature rather than something on a card. */
-export function isStatBlockFeature(ability: Pick<AbilityDef, 'source'>): boolean {
-  return 'adversaries' in ability.source;
+/**
+ * The stat blocks an ability is a feature of -- the adversaries its card is granted to -- or `null`
+ * for any other card, and for a card `cards` does not have.
+ */
+export function statBlocksOf(
+  ability: Pick<AbilityDef, 'source'>,
+  cards: ReadonlyMap<string, Pick<CardDef, 'grant'>>,
+): readonly string[] | null {
+  const grant = cards.get(ability.source.card)?.grant;
+  return grant?.kind === 'adversary' ? grant.adversaries : null;
+}
+
+/** Whether an ability is a stat block's feature: whether the card it sits on is printed on one. */
+export function isStatBlockFeature(
+  ability: Pick<AbilityDef, 'source'>,
+  cards: ReadonlyMap<string, Pick<CardDef, 'grant'>>,
+): boolean {
+  return statBlocksOf(ability, cards) !== null;
 }
 
 const STAGE_RANK = { foundation: 0, specialization: 1, mastery: 2 } as const;
@@ -573,6 +585,9 @@ function grantRank(grant: CardGrant): number {
       return 60;
     case 'given':
       return 100;
+    case 'adversary':
+      // Never a character's: `grantedCards` hands a stat block's card to nobody, so nothing ranks it.
+      return 1000;
   }
 }
 
@@ -593,10 +608,7 @@ export function abilitiesFor(
   for (const card of character.granted) rank.set(card.id, grantRank(card.grant));
   loadoutOf(character).forEach((id, index) => rank.set(id, 10 + index));
   return abilities
-    .map((ability, index) => {
-      const card = cardOf(ability);
-      return { ability, index, at: card === null ? undefined : rank.get(card) };
-    })
+    .map((ability, index) => ({ ability, index, at: rank.get(cardOf(ability)) }))
     .filter((entry): entry is { ability: AbilityDef; index: number; at: number } => entry.at !== undefined)
     .sort((a, b) => a.at - b.at || a.index - b.index)
     .map(({ ability }) => ability);

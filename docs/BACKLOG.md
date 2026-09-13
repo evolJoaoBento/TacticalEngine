@@ -4,17 +4,19 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
-## Cards as the unit: the character side — done
+## Cards as the unit — done
 
-Everything a character has is a card. Format version 3 carries it, and nothing is pushed until the
-GM's side lands as well: a pushed version is a promise to every file written under it.
+Everything a character has is a card, and so is every feature a stat block prints. Format version 3
+carries it. Nothing was pushed until both sides had landed: a pushed version is a promise to every
+file written under it.
 
 * **A card says how it got into play** (`cardGrantSchema`): `chosen` into a loadout, or granted by a
-  class, a subclass stage, an ancestry, a community, or a project handing it to named characters.
+  class, a subclass stage, an ancestry, a community, a project handing it to named characters, or a
+  stat block printing it (`adversary`).
   Only a chosen card has a domain, a type, a level and a recall cost, and the schema asks for them
   there and nowhere else.
-* **An ability sits on a card**, `source: { card }`. Five of the six source kinds are that one now;
-  the sixth, a stat block's `adversary`, is §3's next step. `abilitiesFor` reads the card's grant and
+* **An ability sits on a card**, `source: { card }`, and there is no other source. `abilitiesFor`
+  reads the card's grant and
   orders by it -- class, subclass stage, loadout, ancestry, community, given -- then by list order.
   Both tests that pinned the old order pass unchanged, which is the evidence that nothing moved.
 * **Printed features are cards.** A class, subclass, ancestry or community carries none; the
@@ -25,25 +27,34 @@ GM's side lands as well: a pushed version is a promise to every file written und
   world and the action bar recompute a character's granted cards from the cards as they stand, each
   time they read (`grantedCards`), so a card handed over mid-scene is in hand at once -- as an
   ability written into a project always was. Two tests fail without that read.
-* **The editor.** "+ Card" writes a `given` card and the ability on it as one undo step, and "held
-  by" edits the card's characters. **Check** warns about an ability on a card nothing defines: under
+* **The GM's side.** A stat block's feature is an ability on a card granted by `adversary`. The
+  world finds a block's features through the cards (`statBlocksOf`), the validator's eleven
+  stat-block checks ask the same cards, and no character is ever granted one -- a test names a block
+  after a character to show it. What a block prints as traits (`features`: Relentless, Horde,
+  Minion, Momentum, Terrifying) stays on the block: those are rules `adversaryTraits` reads, the same
+  boundary as a weapon's features. Tests write a feature once and print it on its blocks with
+  `printed(blocks, feature)`.
+* **The editor.** "+ Card" writes a `given` card and the ability on it as one undo step, ✕ takes
+  both back, and "held by" edits the card's characters. **Check** warns about an ability on a card nothing defines: under
   this model that ability is silently never in play.
 * **The migration** (version 3, positional) builds a card for every ability that sat on something
-  other than a card, granted the way its source said, and turns printed features into granted cards
+  other than a card -- a stat block's feature among them -- granted the way its source said, and turns printed features into granted cards
   -- joining one to its ability's card when both are in the same document, and never matching
   against the shipped pack, which is code a document cannot see. The frozen version-1 project comes
   through with its seven such abilities on seven built cards.
 * **The export, re-read.** `srd.json` now reads as 334 cards (189 chosen, 145 printed) and
   `srd-abilities.json` as 8 cards beside its 185 abilities. **Known:** imported together, those 8
   duplicate printed cards by name under other ids, because the two files were exported apart and are
-  read apart. Merging them is the owner's call, not a migration's guess.
+  read apart. Merging them is the owner's call, not a migration's guess. Neither file carries a stat
+  block's feature, so the GM's side changed neither count.
 
-`npx tsc --noEmit` clean; vitest **1831 passed / 1 failed (1832)**, the one failure being the documented
-deliberate one; Playwright **105 passed (3.8m)**, `EXIT 0`.
+`npx tsc --noEmit` clean; vitest **1835 passed / 1 failed (1836)**, the one failure being the documented
+deliberate one; Playwright **105 passed (3.7m)**, `EXIT 0`. Five breaks -- the world reading no cards, a
+feature reaching every block, a stat block's card granted to a character, the validator asking no
+cards, the migration skipping a stat block -- each fail the tests written for them.
 
-**Next, in order:** the GM's side as cards (a stat block's feature on a card granted by
-`adversary`, the last source kind), then card zones on screen, a grant editor, and a card editor
-that reaches any card rather than only the ones "+ Card" writes.
+**Next, in order:** card zones on screen, a grant editor, and a card editor that reaches any card
+rather than only the ones "+ Card" writes.
 
 ---
 
@@ -492,18 +503,13 @@ adding that rule is a step of this slice, not a precondition somebody already di
   file is not exempt, so a doc recording the guard's own falsification trips the guard — describe
   the injections instead of spelling them.
 
-### 3. Cards as the unit — the character side is done; the GM's side is next
+### 3. Cards as the unit — the model is done; what is left is on screen
 
 The decisions taken when building are the spec's §7: an ability points at its card; the card names
 what grants it and nothing lists its cards; only a chosen card has the loadout's numbers; the
-version-3 migration is positional and builds cards from abilities. What landed is the entry at the
-top of this file. What is left, in order:
+version-3 migration is positional and builds cards from abilities; a stat block's traits stay on the
+block. What landed is the entry at the top of this file. What is left, in order:
 
-- **The GM's side.** A stat block's feature still names its adversaries (`source: { kind:
-  'adversary' }`), the last source kind. It becomes a card granted by `adversary`, which is data
-  only -- a GM-side card on the table is its own slice. Every test and fixture that writes a stat
-  block's feature (about a hundred) needs its card; the validator's stat-block checks already go
-  through one helper, `isStatBlockFeature`, so they change in one place.
 - **Zones on screen.** Chosen cards are bound by `LOADOUT_LIMIT` and granted ones are not; the card
   says so now. What is missing is the picture: granted cards face up beside the loadout.
 - **Editing any card.** A grant editor, and a card editor that reaches a card a pack or class
@@ -511,6 +517,7 @@ top of this file. What is left, in order:
 - **Cheaper, not different:** the world's `cards` option is a closure that merges the pack on every
   read. The live read that two tests pin is `inPlay` recomputing a character's granted cards; a map
   built when the world is, if every content change rebuilds the world, would do. Measure first.
+- **A stat block's cards on the table.** They are data only: nothing shows the GM's side as cards.
 - **Open, not decided:** a condition that lends a *card* rather than an ability
   (`conditionDefSchema.grants`), and whether a card handed over mid-fight should be announced.
 

@@ -842,13 +842,15 @@ ctx.queue(effects);
 
 A **card** (`project.cards[]`, or a pack's `cards`): `id`, `name`, `grant` -- how it came to be in
 play: `chosen` (picked into a loadout) \| `class` `classId` \| `subclass` `subclassId` + `stage` \|
-`ancestry` `ancestryId` \| `community` `communityId` \| `given` `characters[]` -- then `text`,
+`ancestry` `ancestryId` \| `community` `communityId` \| `given` `characters[]` \| `adversary`
+`adversaries[]` (printed on stat blocks: a feature of those creatures, never a character's) -- then
+`text`,
 `features[]` (a grimoire's spells), and for a chosen card only `domain`, `type`, `level` and
 `recallCost`. What a class, subclass, ancestry or community prints is a card granted by it; nothing
 on the class lists them.
 
 An **ability** (`project.abilities[]`): `id`, `name`, `source` (`card` -- the card it sits on, in
-play when the card is \| `adversary` `adversaries[]`, a stat block's feature), `text` (the card's
+play when the card is; a stat block's feature sits on a card granted by `adversary`), `text` (the card's
 text when empty), `kind`
 (action \| reaction \| passive),
 `trigger?` (incomingDamage \| attackHit \| attackMissed \| tookSevere — things that happen to the
@@ -894,7 +896,7 @@ times a GM turn, each past the first costing a Shadow; **Horde (X)** switches it
 damage once half its Hit Points are marked; **Minion (X)** falls to any damage and takes one more
 of its kind down per X damage; **Momentum** hands the GM a Shadow on a successful attack;
 **Terrifying** does that and costs every PC in Close range a Light. Action and reaction features
-are abilities sourced to the adversary. The GM plays one a turn and pays what the block says it costs — a Shadow for one that names no
+are abilities on a card granted by `adversary` to the block. The GM plays one a turn and pays what the block says it costs — a Shadow for one that names no
 cost at all, so that a free feature is not simply what the adversary does every turn. Which one:
 a feature that goes off around the adversary is used when it would catch two or more of the
 party; one that names a creature ("make an attack against a target within Close range") only

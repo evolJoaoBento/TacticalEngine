@@ -9,6 +9,7 @@ import { characterSheetSchema } from '../engine/character/sheet-schema';
 import {
   EditorSession,
   addAbility,
+  addCardWithAbility,
   addAdversary,
   addEncounter,
   addInteractable,
@@ -106,6 +107,9 @@ import {
   PLATE_THAT_ROLLS_WHAT_IT_TURNS,
   PLATE_THAT_TURNS_A_FLAT_AMOUNT,
   ROOTS_PUT_DOWN_ONCE,
+  print,
+  printed,
+  type Printed,
 } from '../../tests/fixtures/adversary-features';
 import { STARTER_ABILITIES } from '../engine/content/pack/starter';
 import { runScript } from '../engine/script/runner';
@@ -244,7 +248,7 @@ describe("a room with a stat block the engine did not write", () => {
     // The mechanism: a Shadow, an Agility Reaction Roll from everyone within Far
     // range, and magic damage on those who fail -- halved for those who do not.
     s.run(addAdversary('hall', 'demon', { id: 'demon-1', adversary: 'fixture-brute', position: { x: 5, y: 4 } }));
-    s.project.abilities.push(abilitySchema.parse(A_RAIN_THAT_EVERYONE_ANSWERS('fixture-brute')));
+    print(s.project, A_RAIN_THAT_EVERYONE_ANSWERS('fixture-brute'));
 
     const demo = buildProjectScene(s.project, 'hellfire');
     demo.askDefender = false;
@@ -278,7 +282,7 @@ describe('a block that shrugs the party off', () => {
         // The control run is the absence of the feature rather than a silenced
         // one: nothing the app ships is sourced to a fixture block, so there is
         // nothing to suppress. Carrying it is the whole difference.
-        s.project.abilities.push(abilitySchema.parse(A_HIDE_THAT_SHRUGS_OFF_STEEL('fixture-foe')));
+        print(s.project, A_HIDE_THAT_SHRUGS_OFF_STEEL('fixture-foe'));
       }
       const demo = buildProjectScene(s.project, seed);
       startEncounter(demo, 'bones');
@@ -307,7 +311,7 @@ describe('a Lieutenant with more where that came from', () => {
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'thieves', name: 'Thieves' })));
     s.run(addAdversary('hall', 'thieves', { id: 'boss', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
-    s.project.abilities.push(abilitySchema.parse(A_CALL_FOR_MORE_OF_THEM('fixture-captain', 'fixture-runt')));
+    print(s.project, A_CALL_FOR_MORE_OF_THEM('fixture-captain', 'fixture-runt'));
 
     const demo = buildProjectScene(s.project, 'knives');
     demo.askDefender = false;
@@ -348,7 +352,7 @@ describe('a Leader buying its own side a turn', () => {
     s.run(addAdversary('hall', 'thieves', { id: 'boss', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
     s.run(addAdversary('hall', 'thieves', { id: 'knife-1', adversary: 'fixture-runt', position: { x: 7, y: 3 } }));
     s.run(addAdversary('hall', 'thieves', { id: 'knife-2', adversary: 'fixture-runt', position: { x: 7, y: 5 } }));
-    s.project.abilities.push(abilitySchema.parse(A_RALLY_THAT_BUYS_TWO_TURNS('fixture-captain')));
+    print(s.project, A_RALLY_THAT_BUYS_TWO_TURNS('fixture-captain'));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'thieves');
@@ -395,26 +399,24 @@ describe('a creature that does not stay the same creature', () => {
    * trigger, and the replacement is spotlighted rather than left waiting — so
    * the fight is not over at the very moment it looked won.
    */
-  const SECOND_WIND = {
+  const SECOND_WIND = printed('fixture-foe', {
     id: 'fixture-second-wind',
     name: 'Second Wind',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Put down, it gets back up as something worse.',
     kind: 'reaction',
     trigger: 'defeated',
     action: false,
     target: { kind: 'none' },
     effects: [{ kind: 'replace', adversary: 'fixture-champion', spotlight: true }],
-  };
+  });
 
   /**
    * The same move on a different trigger, and paid for: a wound deep enough
    * splits it into two smaller ones, which stand up unmarked.
    */
-  const SPLITS_IN_TWO = {
+  const SPLITS_IN_TWO = printed('fixture-foe', {
     id: 'fixture-splits-in-two',
     name: 'Splits in Two',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Wounded deeply enough, and at a price, it comes apart into two of itself.',
     kind: 'reaction',
     trigger: 'tookHitPoints',
@@ -424,15 +426,15 @@ describe('a creature that does not stay the same creature', () => {
     target: { kind: 'none' },
     inCombatOnly: true,
     effects: [{ kind: 'replace', adversary: 'fixture-runt', count: '2', spotlight: true }],
-  };
+  });
 
-  const arena = (seed: string, bad: number, features: readonly unknown[]) => {
+  const arena = (seed: string, bad: number, features: readonly Printed[]) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'arena', name: 'The arena' })));
     s.run(addAdversary('hall', 'arena', { id: 'foe', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
-    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
+    for (const { card, ability } of features) s.run(addCardWithAbility(card, ability));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'arena');
@@ -513,46 +515,42 @@ describe('what the two of them make of each other', () => {
    * modifier on the holder into one on whoever swings at them, and the range
    * on `when` is how far the arm holding it reaches.
    */
-  const BLOCKING_SHIELD = {
+  const BLOCKING_SHIELD = printed('fixture-foe', {
     id: 'fixture-blocking-shield',
     name: 'Blocking Shield',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Anyone close enough to be blocked swings at it the harder.',
     kind: 'passive',
     action: false,
     target: { kind: 'none' },
     modifiers: [{ stat: 'advantage', bonus: -1, against: true, when: { kind: 'withinRange', range: 'melee' } }],
-  };
+  });
 
   /** The same stat the other way round: its own advantage, while a condition holds. */
-  const OUT_OF_NOWHERE = {
+  const OUT_OF_NOWHERE = printed('fixture-foe', {
     id: 'fixture-out-of-nowhere',
     name: 'Out of Nowhere',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Unseen, it strikes the better for it.',
     kind: 'passive',
     action: false,
     target: { kind: 'none' },
     modifiers: [{ stat: 'advantage', bonus: 1, when: { kind: 'hasCondition', condition: 'hidden', of: { kind: 'actor' } } }],
-  };
+  });
 
   /** A flat bonus to how hard it is to hit, which the block never wrote down. */
-  const ON_THE_WING = {
+  const ON_THE_WING = printed('fixture-foe', {
     id: 'fixture-on-the-wing',
     name: 'On the Wing',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'It does not stand still to be hit.',
     kind: 'passive',
     action: false,
     target: { kind: 'none' },
     modifiers: [{ stat: 'evasion', bonus: 3 }],
-  };
+  });
 
   /** Something a wound puts on whoever dealt it, which then follows them. */
-  const FROZEN_SCALES = {
+  const FROZEN_SCALES = printed('fixture-foe', {
     id: 'fixture-frozen-scales',
     name: 'Frozen Scales',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Cut it from close in and the cold comes back up the blade.',
     kind: 'reaction',
     trigger: 'tookDamage',
@@ -563,16 +561,16 @@ describe('what the two of them make of each other', () => {
       { kind: 'markStress', target: { kind: 'target' } },
       { kind: 'applyCondition', condition: 'chilled', duration: 'scene', target: { kind: 'target' } },
     ],
-  };
+  });
 
   /** Kara and one creature, at the distance the test asks for. */
-  const facing = (seed: string, features: readonly unknown[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
+  const facing = (seed: string, features: readonly Printed[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'yard', name: 'The yard' })));
     s.run(addAdversary('hall', 'yard', { id: 'foe', adversary: 'fixture-foe', position: at }));
-    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
+    for (const { card, ability } of features) s.run(addCardWithAbility(card, ability));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'yard');
@@ -625,10 +623,9 @@ describe('a wound that answers back', () => {
    * A hide that bites the hand: a reaction on the creature's own wound, priced
    * in Stress and measured back to whoever swung.
    */
-  const BARBED_HIDE = {
+  const BARBED_HIDE = printed('fixture-foe', {
     id: 'fixture-barbed-hide',
     name: 'Barbed Hide',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Wounded from close in, it may spend itself to drive its hide back into the blow.',
     kind: 'reaction',
     trigger: 'tookDamage',
@@ -640,13 +637,12 @@ describe('a wound that answers back', () => {
       { kind: 'log', text: 'Barbs drive back into the blow.', tone: 'bad' },
       { kind: 'damage', dice: '1d10+5', type: 'physical', target: { kind: 'target' } },
     ],
-  };
+  });
 
   /** The other half: a clock the first wound starts, and no later wound restarts. */
-  const RISING_HUM = {
+  const RISING_HUM = printed('fixture-foe', {
     id: 'fixture-rising-hum',
     name: 'Rising Hum',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'The first wound it takes sets something humming, and it builds from there.',
     kind: 'reaction',
     trigger: 'tookDamage',
@@ -676,10 +672,10 @@ describe('a wound that answers back', () => {
         ],
       },
     ],
-  };
+  });
 
   /** Kara toe to toe with something carrying the feature under test. */
-  const duel = (seed: string, features: readonly unknown[]) => {
+  const duel = (seed: string, features: readonly Printed[]) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
@@ -687,7 +683,7 @@ describe('a wound that answers back', () => {
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
     // The stat block is a fixture with no features of its own, so the only
     // thing that can answer a wound here is the one the test wrote.
-    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
+    for (const { card, ability } of features) s.run(addCardWithAbility(card, ability));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -745,10 +741,9 @@ describe('a wound big enough to be counted', () => {
    * just arrived and `half` is what of it returns, so it goes through the
    * attacker's thresholds the way it went through this creature's.
    */
-  const MIRRORED_SKIN = {
+  const MIRRORED_SKIN = printed('fixture-foe', {
     id: 'fixture-mirrored-skin',
     name: 'Mirrored Skin',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Struck from close in, it sends half of what landed straight back.',
     kind: 'reaction',
     trigger: 'tookDamage',
@@ -759,13 +754,12 @@ describe('a wound big enough to be counted', () => {
       { kind: 'log', text: 'The blow folds back on itself.', tone: 'bad' },
       { kind: 'damage', dice: 'same', half: true, target: { kind: 'target' } },
     ],
-  };
+  });
 
   /** A gate on the size of the wound: two Hit Points or more, or nothing. */
-  const HEAVY_ANSWER = {
+  const HEAVY_ANSWER = printed('fixture-foe', {
     id: 'fixture-heavy-answer',
     name: 'Heavy Answer',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'A wound worth noticing buys the one who dealt it a swing in return.',
     kind: 'reaction',
     trigger: 'tookHitPoints',
@@ -782,17 +776,16 @@ describe('a wound big enough to be counted', () => {
       { kind: 'log', text: 'It brings the hammer round in answer.', tone: 'bad' },
       { kind: 'attack', damage: '2d6+15', target: { kind: 'target' } },
     ],
-  };
+  });
 
   /**
    * A clock armed by its own wounds, which takes back exactly what it dealt:
    * `hitPointsDealt` is what the blast marked, healed onto the creature that
    * threw it.
    */
-  const TAKES_IT_BACK = {
+  const TAKES_IT_BACK = printed('fixture-foe', {
     id: 'fixture-takes-it-back',
     name: 'Takes It Back',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Worn down far enough, it starts counting, and what it spends next it takes out of somebody.',
     kind: 'reaction',
     trigger: 'tookHitPoints',
@@ -815,16 +808,16 @@ describe('a wound big enough to be counted', () => {
         ],
       },
     ],
-  };
+  });
 
   /** Kara toe to toe with something carrying the feature under test. */
-  const duel = (seed: string, features: readonly unknown[]) => {
+  const duel = (seed: string, features: readonly Printed[]) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
-    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
+    for (const { card, ability } of features) s.run(addCardWithAbility(card, ability));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -891,10 +884,9 @@ describe('a wound too small to be worth taking', () => {
    * *fewer*, which includes a hit that marked none at all. That is why the
    * trigger is the damage rather than the Hit Points.
    */
-  const SHRUGS_IT_OFF = {
+  const SHRUGS_IT_OFF = printed('fixture-foe', {
     id: 'fixture-shrugs-it-off',
     name: 'Shrugs It Off',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'A blow that barely tells costs whoever threw it something instead.',
     kind: 'reaction',
     trigger: 'tookDamage',
@@ -911,15 +903,15 @@ describe('a wound too small to be worth taking', () => {
       { kind: 'log', text: 'Turned aside, and laughed at.', tone: 'bad' },
       { kind: 'markStress', target: { kind: 'target' } },
     ],
-  };
+  });
 
-  const duel = (seed: string, features: readonly unknown[]) => {
+  const duel = (seed: string, features: readonly Printed[]) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
-    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
+    for (const { card, ability } of features) s.run(addCardWithAbility(card, ability));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -951,10 +943,9 @@ describe('a creature that walks before it swings', () => {
    * Ground closed on the way in: a move toward whoever was picked, spending up
    * to Far to arrive at Melee, and then the swing.
    */
-  const RUN_UP = {
+  const RUN_UP = printed('fixture-foe', {
     id: 'fixture-run-up',
     name: 'Run-Up',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'It covers the ground first and swings on arrival.',
     target: { kind: 'creature', range: 'far' },
     inCombatOnly: true,
@@ -968,34 +959,32 @@ describe('a creature that walks before it swings', () => {
         onHit: [{ kind: 'markStress', target: { kind: 'hit' } }],
       },
     ],
-  };
+  });
 
   /**
    * The other direction: a wound moves it away. Free, so the fight plays it
    * every time — and a blow with nobody behind it has nothing to back away
    * from, which is the half of this the second test is about.
    */
-  const GIVES_GROUND = {
+  const GIVES_GROUND = printed('fixture-foe', {
     id: 'fixture-gives-ground',
     name: 'Gives Ground',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Wounded, it is somewhere else.',
     kind: 'reaction',
     trigger: 'tookDamage',
     action: false,
     target: { kind: 'none' },
     effects: [{ kind: 'move', how: 'away', of: { kind: 'target' }, budget: 'far' }],
-  };
+  });
 
   /**
    * A walk aimed at its own side. `except: 'actor'` is the whole point: a
    * creature is within Melee of itself, so a selector that counted the one
    * acting would have it close up beside nobody at all.
    */
-  const CLOSE_RANKS = {
+  const CLOSE_RANKS = printed('fixture-foe', {
     id: 'fixture-close-ranks',
     name: 'Close Ranks',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'It spends itself to reach one of its own and swing from there.',
     cost: { stress: 1 },
     target: { kind: 'creature', range: 'veryClose' },
@@ -1011,16 +1000,16 @@ describe('a creature that walks before it swings', () => {
         onHit: [{ kind: 'clearStress', target: { kind: 'adversaries', range: 'melee', nearest: 1, except: 'actor' } }],
       },
     ],
-  };
+  });
 
   /** Kara at one end of the hall and something at the other. */
-  const hall = (seed: string, features: readonly unknown[], at: { x: number; y: number } = { x: 9, y: 4 }) => {
+  const hall = (seed: string, features: readonly Printed[], at: { x: number; y: number } = { x: 9, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'hall', name: 'The hall' })));
     s.run(addAdversary('hall', 'hall', { id: 'foe', adversary: 'fixture-foe', position: at }));
-    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
+    for (const { card, ability } of features) s.run(addCardWithAbility(card, ability));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'hall');
@@ -1069,7 +1058,7 @@ describe('a creature that walks before it swings', () => {
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'line', name: 'The line' })));
     s.run(addAdversary('hall', 'line', { id: 'soldier', adversary: 'fixture-foe', position: { x: 8, y: 4 } }));
     s.run(addAdversary('hall', 'line', { id: 'mate', adversary: 'fixture-foe', position: { x: 4, y: 4 } }));
-    s.run(addAbility(abilitySchema.parse(CLOSE_RANKS)));
+    s.run(addCardWithAbility(CLOSE_RANKS.card, CLOSE_RANKS.ability));
     const demo = buildProjectScene(s.project, 'reinforce');
     demo.askDefender = false;
     startEncounter(demo, 'line');
@@ -1126,10 +1115,9 @@ describe('what the room makes of a roll', () => {
    * target, so the distance is a plain `withinRange`, and what the dice said
    * is a `rolled` gate — the two composing under `all`.
    */
-  const COLD_WATCH = {
+  const COLD_WATCH = printed('fixture-foe', {
     id: 'fixture-cold-watch',
     name: 'Cold Watch',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Roll badly in front of it and something goes out of you.',
     kind: 'reaction',
     trigger: 'partyRolled',
@@ -1146,17 +1134,16 @@ describe('what the room makes of a roll', () => {
       { kind: 'log', text: 'The cold takes something out of them.', tone: 'bad' },
       { kind: 'loseGood', target: { kind: 'target' } },
     ],
-  };
+  });
 
   /**
    * The same shape read more narrowly: a *failure* with Shadow, which is two
    * gates rather than one. A roll that succeeded with Shadow is still a roll
    * with Shadow, and this one costs nothing for it.
    */
-  const ONLY_ON_A_FAILURE = {
+  const ONLY_ON_A_FAILURE = printed('fixture-foe', {
     id: 'fixture-only-on-a-failure',
     name: 'Only on a Failure',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'It answers the rolls that went wrong, and nothing else.',
     kind: 'reaction',
     trigger: 'partyRolled',
@@ -1171,16 +1158,16 @@ describe('what the room makes of a roll', () => {
     },
     target: { kind: 'none' },
     effects: [{ kind: 'loseGood', target: { kind: 'target' } }],
-  };
+  });
 
   /** Kara and something watching her roll, at the distance the test asks for. */
-  const watched = (seed: string, features: readonly unknown[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
+  const watched = (seed: string, features: readonly Printed[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'watch', name: 'The watch' })));
     s.run(addAdversary('hall', 'watch', { id: 'foe', adversary: 'fixture-foe', position: at }));
-    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
+    for (const { card, ability } of features) s.run(addCardWithAbility(card, ability));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'watch');
@@ -1233,7 +1220,7 @@ describe('what the room makes of a roll', () => {
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'watch', name: 'The watch' })));
     s.run(addAdversary('hall', 'watch', { id: 'foe', adversary: 'fixture-foe', position: { x: 11, y: 7 } }));
     s.run(addAdversary('hall', 'watch', { id: 'husk', adversary: 'fixture-lurker', position: { x: 3, y: 4 } }));
-    s.run(addAbility(abilitySchema.parse(COLD_WATCH)));
+    s.run(addCardWithAbility(COLD_WATCH.card, COLD_WATCH.ability));
     const demo = buildProjectScene(s.project, 'no-good-far');
     demo.askDefender = false;
     startEncounter(demo, 'watch');
@@ -1293,7 +1280,7 @@ describe("what the party puts behind its own blow", () => {
     // What the thing being hit carries. Only one test wants a creature feature
     // here, and it answers Severe damage by hurting everyone close -- carried for
     // all thirteen it would wound the caster in fights that count her pools.
-    features: readonly Record<string, unknown>[] = [],
+    features: readonly Printed[] = [],
   ) => {
     const s = blank();
     s.project.cards.push(...FIXTURE_CARDS);
@@ -1309,10 +1296,10 @@ describe("what the party puts behind its own blow", () => {
       ...A_LIFT_FOR_EVERYONE_NEARBY,
       ...A_ROUSING_BLOW,
       ...A_TOLL_CALLED_IN,
-      ...features,
     ]) {
       s.project.abilities.push(abilitySchema.parse(ability));
     }
+    print(s.project, ...features);
     s.run(
       addSheet(
         characterSheetSchema.parse(
@@ -1701,7 +1688,7 @@ describe('a creature that acts again, and one that acts out of turn', () => {
           : block.adversary === 'fixture-lurker'
             ? A_HUNGER_DRAWN_TO_A_WOUND(block.adversary)
             : undefined;
-      if (feature !== undefined) s.project.abilities.push(abilitySchema.parse(feature));
+      if (feature !== undefined) print(s.project, feature);
     }
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
@@ -1791,7 +1778,7 @@ describe('a breath that only comes when the dice say so', () => {
         position: { x: 4, y: 4 },
       }),
     );
-    s.project.abilities.push(abilitySchema.parse(A_BREATH_GATED_ON_A_DIE('fixture-champion')));
+    print(s.project, A_BREATH_GATED_ON_A_DIE('fixture-champion'));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2202,13 +2189,13 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
 
 describe('a number read off a pool', () => {
   /** Kara toe to toe with something, the fight already on. */
-  const facing = (adversary: string, seed: string, features: readonly Record<string, unknown>[] = []) => {
+  const facing = (adversary: string, seed: string, features: readonly Printed[] = []) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary, position: { x: 3, y: 4 } }));
-    for (const feature of features) s.project.abilities.push(abilitySchema.parse(feature));
+    print(s.project, ...features);
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2270,7 +2257,7 @@ describe('the blow that has landed and not yet been counted', () => {
     // Deduped by id: this helper can put an archer in as both the creature under
     // test and the bystander watching, and the same specimen twice over would be
     // offered twice.
-    const carried = new Map<string, Record<string, unknown>>();
+    const carried = new Map<string, Printed>();
     for (const definition of [adversary, bystander?.adversary]) {
       const feature =
         definition === 'fixture-brute'
@@ -2278,9 +2265,9 @@ describe('the blow that has landed and not yet been counted', () => {
           : definition === 'fixture-archer'
             ? A_WATCHER_THAT_ADDS_TO_A_HIT(definition)
             : undefined;
-      if (feature !== undefined) carried.set(String(feature.id), feature);
+      if (feature !== undefined) carried.set(feature.ability.id, feature);
     }
-    for (const feature of carried.values()) s.project.abilities.push(abilitySchema.parse(feature));
+    print(s.project, ...carried.values());
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2374,10 +2361,9 @@ describe('one of its own, standing beside the target', () => {
    * asking — a creature is within Melee of itself, so without `except` it
    * would always be its own pack.
    */
-  const PACK_TACTICS = {
+  const PACK_TACTICS = printed('fixture-swarm', {
     id: 'fixture-pack-tactics',
     name: 'Pack Tactics',
-    source: { kind: 'adversary', adversaries: ['fixture-swarm'] },
     text: 'With another of its kind on the same target, it bites to better effect.',
     kind: 'passive',
     action: false,
@@ -2391,13 +2377,12 @@ describe('one of its own, standing beside the target', () => {
         value: 1,
       },
     },
-  };
+  });
 
   /** The rider on the same condition, which is a reaction rather than a swing. */
-  const PACK_TACTICS_BAD = {
+  const PACK_TACTICS_BAD = printed('fixture-swarm', {
     id: 'fixture-pack-tactics-bad',
     name: 'Pack Tactics',
-    source: { kind: 'adversary', adversaries: ['fixture-swarm'] },
     text: 'Biting alongside its own kind is worth something to the one running them.',
     kind: 'reaction',
     trigger: 'dealtHit',
@@ -2413,16 +2398,15 @@ describe('one of its own, standing beside the target', () => {
       { kind: 'log', text: 'The pack closes, and the GM takes something for it.', tone: 'bad' },
       { kind: 'gainBad', amount: 1 },
     ],
-  };
+  });
 
   /**
    * Somebody to eat, and a wound worth eating for: a creature at full strength
    * has no reason to open one of its own.
    */
-  const FEED_ON_ITS_OWN = {
+  const FEED_ON_ITS_OWN = printed('fixture-swarm', {
     id: 'fixture-feed-on-its-own',
     name: 'Feed on Its Own',
-    source: { kind: 'adversary', adversaries: ['fixture-swarm'] },
     text: 'Hurt, and beside one of its own, it takes what it needs from them.',
     available: {
       kind: 'all',
@@ -2438,10 +2422,10 @@ describe('one of its own, standing beside the target', () => {
       { kind: 'damage', amount: 1, target: { kind: 'adversaries', range: 'melee', except: 'actor', nearest: 1 } },
       { kind: 'heal', amount: 1, target: { kind: 'actor' } },
     ],
-  };
+  });
 
   /** Kara with two of a kind on her, or one of them standing off. */
-  const pack = (seed: string, features: readonly unknown[], together = true) => {
+  const pack = (seed: string, features: readonly Printed[], together = true) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
@@ -2456,7 +2440,7 @@ describe('one of its own, standing beside the target', () => {
         position: together ? { x: 2, y: 5 } : { x: 11, y: 7 },
       }),
     );
-    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
+    for (const { card, ability } of features) s.run(addCardWithAbility(card, ability));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2499,7 +2483,7 @@ describe('one of its own, standing beside the target', () => {
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-swarm', position: { x: 3, y: 4 } }));
     s.run(addAdversary('hall', 'duel', { id: 'stranger', adversary: 'fixture-lurker', position: { x: 2, y: 5 } }));
-    s.run(addAbility(abilitySchema.parse(PACK_TACTICS)));
+    s.run(addCardWithAbility(PACK_TACTICS.card, PACK_TACTICS.ability));
     const demo = buildProjectScene(s.project, 'mixed');
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2579,7 +2563,7 @@ describe('a token on the stat block', () => {
               A_SPEND_GATED_ON_WHAT_THEY_CARRY(adversary),
             ]
           : [A_WIND_UP_THAT_COSTS_A_TURN(adversary)];
-    for (const feature of carried) s.project.abilities.push(abilitySchema.parse(feature));
+    print(s.project, ...carried);
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2697,10 +2681,9 @@ describe('a token on the stat block', () => {
 
 describe("what a block's own teeth do to this target", () => {
   /** Dice in place of the block's own, while a condition on the attacker holds. */
-  const UNSEEN_STRIKE = {
+  const UNSEEN_STRIKE = printed('fixture-foe', {
     id: 'fixture-unseen-strike',
     name: 'Unseen Strike',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Striking unseen, it strikes for more than it usually would.',
     kind: 'passive',
     action: false,
@@ -2709,13 +2692,12 @@ describe("what a block's own teeth do to this target", () => {
       damage: '1d10+4 phy',
       when: { kind: 'hasCondition', condition: 'hidden', of: { kind: 'actor' } },
     },
-  };
+  });
 
   /** Twice whatever was rolled, read off a pool on the *target*. */
-  const NOTHING_LEFT = {
+  const NOTHING_LEFT = printed('fixture-foe', {
     id: 'fixture-nothing-left',
     name: 'Nothing Left',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'Against someone with nothing left to good for, its blows land twice as hard.',
     kind: 'passive',
     action: false,
@@ -2724,13 +2706,12 @@ describe("what a block's own teeth do to this target", () => {
       double: true,
       when: { kind: 'pool', pool: 'good', of: { kind: 'target' }, measure: 'available', op: '<=', value: 0 },
     },
-  };
+  });
 
   /** A mark one creature puts on, for another creature's benefit. */
-  const NAMES_THEM = {
+  const NAMES_THEM = printed('fixture-foe', {
     id: 'fixture-names-them',
     name: 'Names Them',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'It names one of them, and the name sticks to them for the rest of the fight.',
     cost: { bad: 1 },
     target: { kind: 'creature', range: 'veryFar' },
@@ -2739,16 +2720,15 @@ describe("what a block's own teeth do to this target", () => {
       { kind: 'log', text: 'It names them, and the name sticks.', tone: 'bad' },
       { kind: 'applyCondition', condition: 'guilty', duration: 'scene', target: { kind: 'target' } },
     ],
-  };
+  });
 
   /**
    * The other half, and on a different block: the mark is worth putting on
    * because something *else* reads it.
    */
-  const PUNISH_THE_NAMED = {
+  const PUNISH_THE_NAMED = printed('fixture-archer', {
     id: 'fixture-punish-the-named',
     name: 'Punish the Named',
-    source: { kind: 'adversary', adversaries: ['fixture-archer'] },
     text: 'Against someone already named, its shots land twice as hard.',
     kind: 'passive',
     action: false,
@@ -2757,16 +2737,16 @@ describe("what a block's own teeth do to this target", () => {
       double: true,
       when: { kind: 'hasCondition', condition: 'guilty', of: { kind: 'target' } },
     },
-  };
+  });
 
   /** Kara in reach of something, the fight already on. */
-  const facing = (seed: string, features: readonly unknown[]) => {
+  const facing = (seed: string, features: readonly Printed[]) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'duel', name: 'The duel' })));
     s.run(addAdversary('hall', 'duel', { id: 'foe', adversary: 'fixture-foe', position: { x: 3, y: 4 } }));
-    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
+    for (const { card, ability } of features) s.run(addCardWithAbility(card, ability));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'duel');
@@ -2837,7 +2817,7 @@ describe('a Demon rallying Relentless allies', () => {
     // rallied, they close in and stop short, and the fight makes no Shadow of its own.
     s.run(addAdversary('hall', 'pit', { id: 'imp-1', adversary: 'fixture-relentless-runt', position: { x: 10, y: 3 } }));
     s.run(addAdversary('hall', 'pit', { id: 'imp-2', adversary: 'fixture-relentless-runt', position: { x: 10, y: 5 } }));
-    s.project.abilities.push(abilitySchema.parse(A_RALLY_OF_TWO_AT_RANGE('fixture-captain')));
+    print(s.project, A_RALLY_OF_TWO_AT_RANGE('fixture-captain'));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'pit');
@@ -2869,7 +2849,7 @@ describe('what a feature calls in and spotlights', () => {
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'crypt', name: 'The crypt' })));
     s.run(addAdversary('hall', 'crypt', { id: 'lord', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
-    s.project.abilities.push(abilitySchema.parse(A_CALL_THAT_ARRIVES_SWINGING('fixture-captain', 'fixture-runt')));
+    print(s.project, A_CALL_THAT_ARRIVES_SWINGING('fixture-captain', 'fixture-runt'));
     const demo = buildProjectScene(s.project, 'the-hunt');
     demo.askDefender = false;
     startEncounter(demo, 'crypt');
@@ -2912,14 +2892,14 @@ describe('a Necromancer who buys their troops a turn', () => {
     s.run(addAdversary('hall', 'lists', { id: 'troop-1', adversary: 'fixture-brute', position: { x: 6, y: 3 } }));
     s.run(addAdversary('hall', 'lists', { id: 'troop-2', adversary: 'fixture-brute', position: { x: 6, y: 5 } }));
     if (half) {
-      s.project.abilities.push(abilitySchema.parse(A_RALLY_THAT_STRIKES_FOR_HALF('fixture-captain')));
+      print(s.project, A_RALLY_THAT_STRIKES_FOR_HALF('fixture-captain'));
     } else {
       // The same rally without the rider, under its own id.
-      s.project.abilities.push(
-        abilitySchema.parse({
+      print(
+        s.project,
+        printed('fixture-captain', {
           id: 'fixture-captain-rally-at-full',
           name: 'Rally',
-          source: { kind: 'adversary', adversaries: ['fixture-captain'] },
           cost: { stress: 1 },
           target: { kind: 'none', range: 'far' },
           inCombatOnly: true,
@@ -2960,7 +2940,7 @@ describe('a Necromancer who buys their troops a turn', () => {
     s.run(addAdversary('hall', 'gates', { id: 'necromancer', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
     s.run(addAdversary('hall', 'gates', { id: 'imp-1', adversary: 'fixture-relentless-runt', position: { x: 6, y: 3 } }));
     s.run(addAdversary('hall', 'gates', { id: 'imp-2', adversary: 'fixture-relentless-runt', position: { x: 6, y: 5 } }));
-    s.project.abilities.push(abilitySchema.parse(A_RALLY_THAT_STRIKES_FOR_HALF('fixture-captain')));
+    print(s.project, A_RALLY_THAT_STRIKES_FOR_HALF('fixture-captain'));
     const demo = buildProjectScene(s.project, 'dance');
     demo.askDefender = false;
     startEncounter(demo, 'gates');
@@ -2994,10 +2974,9 @@ describe('a clock the fight carries', () => {
    * `spotlighted` is the trigger, `uses` keeps it to once a scene, and `loop`
    * brings it straight back at a length nobody at the table knows.
    */
-  const CLOSING_IN = {
+  const CLOSING_IN = printed('fixture-foe', {
     id: 'fixture-closing-in',
     name: 'Closing In',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'The first time the fight turns to it, something starts closing on everyone.',
     kind: 'reaction',
     trigger: 'spotlighted',
@@ -3018,17 +2997,16 @@ describe('a clock the fight carries', () => {
         ],
       },
     ],
-  };
+  });
 
   /**
    * The other kind: bought with a Shadow, counted down by the party's own dice,
    * and — the part that matters — `onDeath` means it goes off even if the
    * creature counting it is already down.
    */
-  const LAST_THRASH = {
+  const LAST_THRASH = printed('fixture-foe', {
     id: 'fixture-last-thrash',
     name: 'Last Thrash',
-    source: { kind: 'adversary', adversaries: ['fixture-foe'] },
     text: 'A reckoning it sets going, which arrives whether or not it lives to see it.',
     cost: { bad: 1 },
     uses: { count: 1, per: 'scene' },
@@ -3059,16 +3037,16 @@ describe('a clock the fight carries', () => {
         ],
       },
     ],
-  };
+  });
 
   /** One creature across the hall from Kara, and the fight already on. */
-  const ruin = (seed: string, features: readonly unknown[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
+  const ruin = (seed: string, features: readonly Printed[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'ruin', name: 'The ruin' })));
     s.run(addAdversary('hall', 'ruin', { id: 'foe', adversary: 'fixture-foe', position: at }));
-    for (const feature of features) s.run(addAbility(abilitySchema.parse(feature)));
+    for (const { card, ability } of features) s.run(addCardWithAbility(card, ability));
     const demo = buildProjectScene(s.project, seed);
     demo.askDefender = false;
     startEncounter(demo, 'ruin');
@@ -3196,10 +3174,9 @@ describe('a swarm that piles onto one target', () => {
    * keeps it to creatures off the same block, and the whole pile is one roll
    * the GM pays for once.
    */
-  const PACK_RUSH = {
+  const PACK_RUSH = printed('fixture-swarm', {
     id: 'fixture-pack-rush',
     name: 'Pack Rush',
-    source: { kind: 'adversary', adversaries: ['fixture-swarm'] },
     text: 'At a price, everything of its kind nearby piles onto one target at once.',
     cost: { bad: 1 },
     target: { kind: 'creature', range: 'close' },
@@ -3211,7 +3188,7 @@ describe('a swarm that piles onto one target', () => {
         joinedBy: { kind: 'adversaries', range: 'close', around: 'target', sameKind: true },
       },
     ],
-  };
+  });
 
   /** A pack loose in the hall, and Kara alone in the middle of it. */
   const hall = (pack: readonly { x: number; y: number }[], bad: number) => {
@@ -3222,7 +3199,7 @@ describe('a swarm that piles onto one target', () => {
     pack.forEach((at, i) => {
       s.run(addAdversary('hall', 'vermin', { id: `rat-${i + 1}`, adversary: 'fixture-swarm', position: at }));
     });
-    s.run(addAbility(abilitySchema.parse(PACK_RUSH)));
+    s.run(addCardWithAbility(PACK_RUSH.card, PACK_RUSH.ability));
     const demo = buildProjectScene(s.project, 'rats');
     demo.askDefender = false;
     startEncounter(demo, 'vermin');
@@ -3278,7 +3255,7 @@ describe('a block wearing enough plate to matter', () => {
    */
   const swing = (
     adversary: string,
-    feature: (definition: string) => Record<string, unknown>,
+    feature: (definition: string) => Printed,
     plated: boolean,
     seed: string,
   ): { marked: number; log: string[] } => {
@@ -3289,7 +3266,7 @@ describe('a block wearing enough plate to matter', () => {
     s.run(addAdversary('hall', 'guard', { id: 'foe-1', adversary, position: { x: 3, y: 4 } }));
     if (plated) {
       // As in the resistance test: the control run simply does not carry it.
-      s.project.abilities.push(abilitySchema.parse(feature(adversary)));
+      print(s.project, feature(adversary));
     }
     const demo = buildProjectScene(s.project, seed);
     startEncounter(demo, 'guard');
@@ -3329,7 +3306,7 @@ describe('a Treant that puts its roots down', () => {
     s.run(setSpawns('hall', [{ x: 3, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'grove', name: 'The grove' })));
     s.run(addAdversary('hall', 'grove', { id: 'treant-1', adversary: 'fixture-brute', position: { x: 4, y: 4 } }));
-    s.project.abilities.push(abilitySchema.parse(ROOTS_PUT_DOWN_ONCE('fixture-brute')));
+    print(s.project, ROOTS_PUT_DOWN_ONCE('fixture-brute'));
 
     const demo = buildProjectScene(s.project, 'grove');
     demo.askDefender = false;

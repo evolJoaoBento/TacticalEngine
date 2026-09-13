@@ -7,14 +7,49 @@
  * back. A feature that only one test ever reads still belongs beside that
  * test; these are the ones two files ask for.
  *
- * Each is a factory over the definition id it is sourced to, because a feature
- * belongs to whatever is standing there — `abilitiesForAdversary` matches on
- * that id, so a specimen sourced to a creature nobody placed is simply never
+ * Each is a factory over the definition id whose block prints it, because a
+ * feature belongs to whatever is standing there — its card is granted to that
+ * id, so a specimen printed on a creature nobody placed is simply never
  * offered. Pass the id of the block the test stood up.
  *
  * They live outside `src/` with the rest of the fixtures: nothing the app
  * bundles may import them, so a fixture can never become shipped content.
  */
+
+import { abilitySchema, type AbilityDef } from '../../src/engine/content/abilities';
+import { cardDefSchema } from '../../src/engine/content/pack/schema';
+
+/** A card as a project stores it. */
+type Card = ReturnType<typeof cardDefSchema.parse>;
+
+/** A stat block's feature as a project carries it: the card its blocks print, and the ability on it. */
+export interface Printed {
+  card: Card;
+  ability: AbilityDef;
+}
+
+/**
+ * A feature printed on the named blocks: a card granted by `adversary`, under the feature's own id
+ * and name, and the ability sitting on it. What the feature does is written once; which blocks
+ * print it is the card's to say.
+ */
+export function printed(adversaries: string | readonly string[], feature: Record<string, unknown>): Printed {
+  const ability = abilitySchema.parse({ ...feature, source: { card: feature['id'] } });
+  const card = cardDefSchema.parse({
+    id: ability.id,
+    name: ability.name,
+    grant: { kind: 'adversary', adversaries: typeof adversaries === 'string' ? [adversaries] : [...adversaries] },
+  });
+  return { card, ability };
+}
+
+/** Lay printed features into a project: each card, and the ability on it. */
+export function print(project: { cards: Card[]; abilities: AbilityDef[] }, ...features: readonly Printed[]): void {
+  for (const { card, ability } of features) {
+    project.cards.push(card);
+    project.abilities.push(ability);
+  }
+}
 
 /**
  * A wound that answers: something that hits back the moment it is hurt badly.
@@ -25,10 +60,9 @@
  * rolled, which is a thing a second file asserts. What reaches the room is
  * deliberately plain damage: the specimen is about *when* it goes off.
  */
-export const A_WOUND_THAT_ANSWERS = (definition: string): Record<string, unknown> => ({
+export const A_WOUND_THAT_ANSWERS = (definition: string): Printed => printed(definition, {
   id: 'fixture-answering-wound',
   name: 'Answering Wound',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'Hurt it badly enough and what is inside it reaches everything standing close.',
   kind: 'reaction',
   trigger: 'tookSevere',
@@ -49,10 +83,9 @@ export const A_WOUND_THAT_ANSWERS = (definition: string): Record<string, unknown
  * at once. The hook's `bad` argument is the GM's cut for the ones who had
  * nothing left to give up.
  */
-export const A_SPRAY_THAT_EATS_ARMOUR = (definition: string): Record<string, unknown> => ({
+export const A_SPRAY_THAT_EATS_ARMOUR = (definition: string): Printed => printed(definition, {
   id: 'fixture-armour-spray',
   name: 'Caustic Spray',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'Sprays a whole band at once, and what it beats finds no use in armour.',
   target: { kind: 'none', range: 'close' },
   inCombatOnly: true,
@@ -78,10 +111,9 @@ export const A_SPRAY_THAT_EATS_ARMOUR = (definition: string): Record<string, unk
  * this is also the specimen that proves a passive reaches a PC's own swing --
  * the one button in the game whose damage nothing else gets a chance to touch.
  */
-export const A_HIDE_THAT_SHRUGS_OFF_STEEL = (definition: string): Record<string, unknown> => ({
+export const A_HIDE_THAT_SHRUGS_OFF_STEEL = (definition: string): Printed => printed(definition, {
   id: 'fixture-stone-hide',
   name: 'Stone Hide',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'Steel finds nothing soft here, and half of every cut goes nowhere.',
   kind: 'passive',
   action: false,
@@ -94,10 +126,9 @@ export const A_HIDE_THAT_SHRUGS_OFF_STEEL = (definition: string): Record<string,
  * `dice: '3'` is an expression that rolls nothing, which is how a fixed
  * reduction is spelled. `only` keeps it honest: plate is no answer to a spell.
  */
-export const PLATE_THAT_TURNS_A_FLAT_AMOUNT = (definition: string): Record<string, unknown> => ({
+export const PLATE_THAT_TURNS_A_FLAT_AMOUNT = (definition: string): Printed => printed(definition, {
   id: 'fixture-flat-plate',
   name: 'Banded Plate',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'Three of every blow stops at the bands and goes no further.',
   kind: 'passive',
   action: false,
@@ -111,10 +142,9 @@ export const PLATE_THAT_TURNS_A_FLAT_AMOUNT = (definition: string): Record<strin
  * this varying -- which is the point: a preview cannot know what it will take
  * off, and `reductionRolls` exists to say so.
  */
-export const PLATE_THAT_ROLLS_WHAT_IT_TURNS = (definition: string): Record<string, unknown> => ({
+export const PLATE_THAT_ROLLS_WHAT_IT_TURNS = (definition: string): Printed => printed(definition, {
   id: 'fixture-rolled-plate',
   name: 'Failing Plate',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'What the plate still has in it is a different amount every time.',
   kind: 'passive',
   action: false,
@@ -133,10 +163,9 @@ export const PLATE_THAT_ROLLS_WHAT_IT_TURNS = (definition: string): Record<strin
  * one store, exactly as the shipped content does, and a test that places two of
  * them reads `tokensOn(entity, 'slow')` per creature.
  */
-export const A_WIND_UP_THAT_COSTS_A_TURN = (definition: string): Record<string, unknown> => ({
+export const A_WIND_UP_THAT_COSTS_A_TURN = (definition: string): Printed => printed(definition, {
   id: 'slow',
   name: 'Slow',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'Spotlight it with nothing gathered and it only gathers; spotlight it gathered and it acts.',
   kind: 'reaction',
   trigger: 'spotlighted',
@@ -167,10 +196,9 @@ export const A_WIND_UP_THAT_COSTS_A_TURN = (definition: string): Record<string, 
  * forbid one attack and leave the rest of a turn standing, so anything else it
  * would have reached for waits too -- which is what one test pins.
  */
-export const A_WIND_UP_WITH_ITS_OWN_STORE = (definition: string): Record<string, unknown> => ({
+export const A_WIND_UP_WITH_ITS_OWN_STORE = (definition: string): Printed => printed(definition, {
   id: 'slow-firing',
   name: 'Slow Firing',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'It spends a turn coming to bear, and fires on the next one.',
   kind: 'reaction',
   trigger: 'spotlighted',
@@ -205,10 +233,9 @@ export const A_WIND_UP_WITH_ITS_OWN_STORE = (definition: string): Record<string,
  * creature does is here -- along with what that roll would have spawned, which
  * therefore never arrives.
  */
-export const A_STORE_THAT_HOLDS_WHOEVER_IT_HIT = (definition: string): Record<string, unknown> => ({
+export const A_STORE_THAT_HOLDS_WHOEVER_IT_HIT = (definition: string): Printed => printed(definition, {
   id: `${definition}-encumber`,
   name: 'Encumber',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'What it hits, it winds tighter; enough of it and they are open as well as held.',
   kind: 'reaction',
   trigger: 'dealtHit',
@@ -237,10 +264,9 @@ export const A_STORE_THAT_HOLDS_WHOEVER_IT_HIT = (definition: string): Record<st
  * so somebody held by something else is freed too. Naming "whoever is carrying
  * tokens" as a target is not something the effect list can ask for.
  */
-export const A_STORE_TORN_OFF_BY_A_REAL_WOUND = (definition: string): Record<string, unknown> => ({
+export const A_STORE_TORN_OFF_BY_A_REAL_WOUND = (definition: string): Printed => printed(definition, {
   id: `${definition}-torn-free`,
   name: 'Torn Free',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'A wound that tells goes through whatever it was holding with.',
   kind: 'reaction',
   trigger: 'tookHitPoints',
@@ -263,10 +289,9 @@ export const A_STORE_TORN_OFF_BY_A_REAL_WOUND = (definition: string): Record<str
  * swing at whoever that turned out to be. Direct damage, because what is being
  * tested is the gate and the spend, not armour.
  */
-export const A_SPEND_GATED_ON_WHAT_THEY_CARRY = (definition: string): Record<string, unknown> => ({
+export const A_SPEND_GATED_ON_WHAT_THEY_CARRY = (definition: string): Printed => printed(definition, {
   id: `${definition}-crush`,
   name: 'Crush',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'Somebody wound tight enough is worth the effort of closing on.',
   cost: { stress: 1 },
   target: {
@@ -292,10 +317,9 @@ export const A_SPEND_GATED_ON_WHAT_THEY_CARRY = (definition: string): Record<str
  *
  * The log names nothing, because two blocks share this one.
  */
-export const AN_OVERLOAD_THAT_BUYS_ANOTHER_TURN = (definition: string): Record<string, unknown> => ({
+export const AN_OVERLOAD_THAT_BUYS_ANOTHER_TURN = (definition: string): Printed => printed(definition, {
   id: `${definition}-overload`,
   name: 'Overload',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'It can drive itself past what it should bear, and keep going afterwards.',
   kind: 'reaction',
   trigger: 'rollingDamage',
@@ -318,10 +342,9 @@ export const AN_OVERLOAD_THAT_BUYS_ANOTHER_TURN = (definition: string): Record<s
  * hit -- not from the attacker's, where everyone is always in range, a hit having
  * just landed.
  */
-export const A_WATCHER_THAT_ADDS_TO_A_HIT = (definition: string): Record<string, unknown> => ({
+export const A_WATCHER_THAT_ADDS_TO_A_HIT = (definition: string): Printed => printed(definition, {
   id: `${definition}-into-the-same-spot`,
   name: 'Into the Same Spot',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'It waits for somebody else to open a target up, and puts its own shot through it.',
   kind: 'reaction',
   trigger: 'allyRollingDamage',
@@ -346,10 +369,9 @@ export const A_WATCHER_THAT_ADDS_TO_A_HIT = (definition: string): Record<string,
  * spotlight of its own -- the same swing without the turn's bookkeeping -- and it
  * goes for the one bleeding.
  */
-export const A_HUNGER_DRAWN_TO_A_WOUND = (definition: string): Record<string, unknown> => ({
+export const A_HUNGER_DRAWN_TO_A_WOUND = (definition: string): Printed => printed(definition, {
   id: `${definition}-drawn-to-the-wound`,
   name: 'Drawn to the Wound',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'A wound close by is an invitation, and it does not wait to be asked twice.',
   kind: 'reaction',
   trigger: 'nearbyTookDamage',
@@ -382,10 +404,9 @@ export const A_HUNGER_DRAWN_TO_A_WOUND = (definition: string): Record<string, un
  * number or 'roll', and cannot read the acting creature's own Difficulty. Any
  * test claiming otherwise is reading a coincidence.
  */
-export const A_RAIN_THAT_EVERYONE_ANSWERS = (definition: string): Record<string, unknown> => ({
+export const A_RAIN_THAT_EVERYONE_ANSWERS = (definition: string): Printed => printed(definition, {
   id: `${definition}-rain-of-cinders`,
   name: 'Rain of Cinders',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'It brings something down over everything in reach, and each of them answers for themselves.',
   cost: { bad: 1 },
   target: { kind: 'none', range: 'far' },
@@ -411,10 +432,9 @@ export const A_RAIN_THAT_EVERYONE_ANSWERS = (definition: string): Record<string,
  * summoned definition has to be a block the fight can actually index, and a
  * specimen that guessed would simply never arrive.
  */
-export const A_CALL_FOR_MORE_OF_THEM = (definition: string, summons: string): Record<string, unknown> => ({
+export const A_CALL_FOR_MORE_OF_THEM = (definition: string, summons: string): Printed => printed(definition, {
   id: `${definition}-plenty-more`,
   name: 'Plenty More',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'There were always more of them than anyone counted.',
   cost: { bad: 1 },
   target: { kind: 'none' },
@@ -431,10 +451,9 @@ export const A_CALL_FOR_MORE_OF_THEM = (definition: string, summons: string): Re
  * counting who acted and checking that nothing was billed beyond the first, free
  * spotlight.
  */
-export const A_RALLY_THAT_BUYS_TWO_TURNS = (definition: string): Record<string, unknown> => ({
+export const A_RALLY_THAT_BUYS_TWO_TURNS = (definition: string): Printed => printed(definition, {
   id: `${definition}-press-the-advantage`,
   name: 'Press the Advantage',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'It spends its own breath putting two others where they will do the most harm.',
   kind: 'reaction',
   trigger: 'spotlighted',
@@ -456,10 +475,9 @@ export const A_RALLY_THAT_BUYS_TWO_TURNS = (definition: string): Record<string, 
  * engine holds still spends its spotlight tearing free, which would undo the
  * feature every other turn.
  */
-export const ROOTS_PUT_DOWN_ONCE = (definition: string): Record<string, unknown> => ({
+export const ROOTS_PUT_DOWN_ONCE = (definition: string): Printed => printed(definition, {
   id: `${definition}-put-down-roots`,
   name: 'Put Down Roots',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'It sets itself into the ground, and what is rooted is harder to move than to hit.',
   cost: { stress: 1 },
   target: { kind: 'self', range: 'melee' },
@@ -491,10 +509,9 @@ export const ROOTS_PUT_DOWN_ONCE = (definition: string): Record<string, unknown>
  * creature, the Stress is a flat two rather than a roll, and Vulnerable lasts the
  * scene rather than until a Stress is cleared.
  */
-export const A_BREATH_GATED_ON_A_DIE = (definition: string): Record<string, unknown> => ({
+export const A_BREATH_GATED_ON_A_DIE = (definition: string): Printed => printed(definition, {
   id: `${definition}-volcanic-breath`,
   name: 'Volcanic Breath',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'Hurt it badly and it may answer with what it has been holding in its throat.',
   kind: 'reaction',
   trigger: 'tookDamage',
@@ -537,10 +554,9 @@ export const A_BREATH_GATED_ON_A_DIE = (definition: string): Record<string, unkn
  * something has been taken out of it. A test pins exactly that: whole, it says
  * nothing and keeps the Stress it would have paid.
  */
-export const A_BONUS_READ_OFF_ITS_OWN_WOUNDS = (definition: string): Record<string, unknown> => ({
+export const A_BONUS_READ_OFF_ITS_OWN_WOUNDS = (definition: string): Printed => printed(definition, {
   id: `${definition}-reaper`,
   name: 'Reaper',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'What has been taken out of it, it puts back into the next blow.',
   kind: 'reaction',
   trigger: 'rollingDamage',
@@ -564,10 +580,9 @@ export const A_BONUS_READ_OFF_ITS_OWN_WOUNDS = (definition: string): Record<stri
  *
  * Simplified: the Shadow is one, rather than one for each Hit Point handed back.
  */
-export const A_WOUND_HANDED_BACK = (definition: string): Record<string, unknown> => ({
+export const A_WOUND_HANDED_BACK = (definition: string): Printed => printed(definition, {
   id: `${definition}-my-turn`,
   name: 'My Turn',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'It does not intend to be the only one hurt in this fight.',
   kind: 'reaction',
   trigger: 'tookHitPoints',
@@ -591,10 +606,9 @@ export const A_WOUND_HANDED_BACK = (definition: string): Record<string, unknown>
  * Simplified: "two others of its own kind" is not something a target selector can
  * ask for, so the two nearest allies answer.
  */
-export const A_RALLY_OF_TWO_AT_RANGE = (definition: string): Record<string, unknown> => ({
+export const A_RALLY_OF_TWO_AT_RANGE = (definition: string): Printed => printed(definition, {
   id: `${definition}-push-them-forward`,
   name: 'Push Them Forward',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'It spends the room\'s dread putting two others in front of itself.',
   cost: { bad: 1 },
   target: { kind: 'none', range: 'far' },
@@ -612,10 +626,9 @@ export const A_RALLY_OF_TWO_AT_RANGE = (definition: string): Record<string, unkn
  *
  * Two parameters, because what arrives is not what called it.
  */
-export const A_CALL_THAT_ARRIVES_SWINGING = (definition: string, summons: string): Record<string, unknown> => ({
+export const A_CALL_THAT_ARRIVES_SWINGING = (definition: string, summons: string): Printed => printed(definition, {
   id: `${definition}-the-hunt`,
   name: 'The Hunt',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'It calls, and what answers is already moving.',
   cost: { bad: 2 },
   target: { kind: 'none' },
@@ -634,10 +647,9 @@ export const A_CALL_THAT_ARRIVES_SWINGING = (definition: string, summons: string
  * Simplified: the Shadow that would buy full damage is a choice made after the
  * allies are named, which nothing here asks for; it takes the half.
  */
-export const A_RALLY_THAT_STRIKES_FOR_HALF = (definition: string): Record<string, unknown> => ({
+export const A_RALLY_THAT_STRIKES_FOR_HALF = (definition: string): Printed => printed(definition, {
   id: `${definition}-borrowed-time`,
   name: 'Borrowed Time',
-  source: { kind: 'adversary', adversaries: [definition] },
   text: 'The turns it hands out are not really theirs, and they land like it.',
   cost: { stress: 1 },
   target: { kind: 'none', range: 'far' },

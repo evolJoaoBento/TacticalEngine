@@ -20,6 +20,9 @@ function build(scene: Partial<SceneDoc> = {}, width = 6, height = 4): ProjectDoc
 const messages = (project: ProjectDoc, options = {}): string[] =>
   validateProject(project, options).map((p) => p.message);
 
+/** The cards a husk's stat block prints, one per feature: what makes an ability a stat block's feature. */
+const onHusk = (...ids: string[]) => ids.map((id) => ({ id, name: id, grant: { kind: 'adversary', adversaries: ['husk'] } }));
+
 describe('a clean project', () => {
   it('reports nothing', () => {
     expect(validateProject(build())).toEqual([]);
@@ -721,6 +724,7 @@ describe('what only a stat block has', () => {
   it('warns when a card asks for Shadow or changes a standard attack', () => {
     const project = projectSchema.parse({
       ...build(),
+      cards: onHusk('on-a-block', 'thick-hide', 'backwards-hide'),
       abilities: [
         {
           id: 'greedy',
@@ -751,7 +755,7 @@ describe('what only a stat block has', () => {
         {
           id: 'on-a-block',
           name: 'On A Block',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'on-a-block' },
           target: { kind: 'none' },
           kind: 'passive',
           standardAttack: { direct: true },
@@ -761,7 +765,7 @@ describe('what only a stat block has', () => {
         {
           id: 'thick-hide',
           name: 'Thick Hide',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'thick-hide' },
           target: { kind: 'none' },
           kind: 'passive',
           defenses: { reduce: [{ dice: 'three' }] },
@@ -770,7 +774,7 @@ describe('what only a stat block has', () => {
         {
           id: 'backwards-hide',
           name: 'Backwards Hide',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'backwards-hide' },
           target: { kind: 'none' },
           kind: 'passive',
           defenses: { reduce: [{ dice: '1d10-2' }] },
@@ -798,18 +802,19 @@ describe('what only a stat block has', () => {
   it('warns when something adds to a blow nobody is throwing', () => {
     const project = projectSchema.parse({
       ...build(),
+      cards: onHusk('out-of-nowhere', 'wrong-moment', 'mid-swing', 'somebody-elses'),
       abilities: [
         {
           id: 'out-of-nowhere',
           name: 'Out Of Nowhere',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'out-of-nowhere' },
           target: { kind: 'none' },
           effects: [{ kind: 'boostDamage', amount: 5 }],
         },
         {
           id: 'wrong-moment',
           name: 'Wrong Moment',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'wrong-moment' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'dealtDamage',
@@ -818,7 +823,7 @@ describe('what only a stat block has', () => {
         {
           id: 'mid-swing',
           name: 'Mid Swing',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'mid-swing' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'rollingDamage',
@@ -827,7 +832,7 @@ describe('what only a stat block has', () => {
         {
           id: 'somebody-elses',
           name: "Somebody Else's",
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'somebody-elses' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'allyRollingDamage',
@@ -846,6 +851,7 @@ describe('what only a stat block has', () => {
   it('warns when a blow is forced somewhere nothing obeys it', () => {
     const project = projectSchema.parse({
       ...build(),
+      cards: onHusk('forced-by-a-block', 'band-out-of-nowhere', 'band-mid-swing', 'block-hears-its-friends', 'block-vaults-itself'),
       abilities: [
         {
           id: 'forced-late',
@@ -868,7 +874,7 @@ describe('what only a stat block has', () => {
         {
           id: 'forced-by-a-block',
           name: 'Forced By A Block',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'forced-by-a-block' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'rollingDamage',
@@ -904,7 +910,7 @@ describe('what only a stat block has', () => {
         {
           id: 'band-out-of-nowhere',
           name: 'Band Out Of Nowhere',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'band-out-of-nowhere' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'dealtHit',
@@ -913,7 +919,7 @@ describe('what only a stat block has', () => {
         {
           id: 'band-mid-swing',
           name: 'Band Mid Swing',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'band-mid-swing' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'rollingDamage',
@@ -922,7 +928,7 @@ describe('what only a stat block has', () => {
         {
           id: 'block-hears-its-friends',
           name: 'Block Hears Its Friends',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'block-hears-its-friends' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'allyTookDamage',
@@ -931,7 +937,7 @@ describe('what only a stat block has', () => {
         {
           id: 'block-vaults-itself',
           name: 'Block Vaults Itself',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'block-vaults-itself' },
           target: { kind: 'none' },
           effects: [{ kind: 'vaultCard' }],
         },
@@ -991,25 +997,26 @@ describe('what only a stat block has', () => {
   it('warns when something reads an answer nobody asked for', () => {
     const project = projectSchema.parse({
       ...build(),
+      cards: onHusk('stray-answer', 'stray-braces', 'a-question'),
       abilities: [
         {
           id: 'stray-answer',
           name: 'Stray Answer',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'stray-answer' },
           target: { kind: 'none' },
           effects: [{ kind: 'damage', amount: 'spent', target: { kind: 'target' } }],
         },
         {
           id: 'stray-braces',
           name: 'Stray Braces',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'stray-braces' },
           target: { kind: 'none' },
           effects: [{ kind: 'damage', dice: '{n}d6', target: { kind: 'target' } }],
         },
         {
           id: 'a-question',
           name: 'A Question',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'a-question' },
           target: { kind: 'none' },
           effects: [
             {
@@ -1034,11 +1041,12 @@ describe('what only a stat block has', () => {
   it('warns when an amount reads a pool off a crowd', () => {
     const project = projectSchema.parse({
       ...build(),
+      cards: onHusk('whose-good', 'the-nearest-one', 'its-own'),
       abilities: [
         {
           id: 'whose-good',
           name: 'Whose Light',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'whose-good' },
           target: { kind: 'none' },
           effects: [
             { kind: 'gainBad', amount: { pool: 'good', of: { kind: 'party' }, measure: 'available' } },
@@ -1047,7 +1055,7 @@ describe('what only a stat block has', () => {
         {
           id: 'the-nearest-one',
           name: 'The Nearest One',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'the-nearest-one' },
           target: { kind: 'none' },
           effects: [
             {
@@ -1059,7 +1067,7 @@ describe('what only a stat block has', () => {
         {
           id: 'its-own',
           name: 'Its Own',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'its-own' },
           target: { kind: 'none' },
           effects: [{ kind: 'gainBad', amount: { pool: 'hitPoints', measure: 'marked' } }],
         },
@@ -1106,18 +1114,19 @@ describe('what only a stat block has', () => {
   it('warns when a gate on the target has no target to narrow', () => {
     const project = projectSchema.parse({
       ...build(),
+      cards: onHusk('aimed-at-nobody', 'aimed-at-someone'),
       abilities: [
         {
           id: 'aimed-at-nobody',
           name: 'Aimed At Nobody',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'aimed-at-nobody' },
           target: { kind: 'none', when: { kind: 'always' } },
           effects: [{ kind: 'log', text: 'Nothing to pick.' }],
         },
         {
           id: 'aimed-at-someone',
           name: 'Aimed At Someone',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'aimed-at-someone' },
           target: { kind: 'creature', range: 'melee', when: { kind: 'always' } },
           effects: [{ kind: 'log', text: 'Somebody to pick.' }],
         },
@@ -1131,6 +1140,7 @@ describe('what only a stat block has', () => {
   it('warns when anything but a spotlight tries to end one', () => {
     const project = projectSchema.parse({
       ...build(),
+      cards: onHusk('wrong-trigger', 'winding-up'),
       abilities: [
         {
           id: 'card-stops-a-turn',
@@ -1142,7 +1152,7 @@ describe('what only a stat block has', () => {
         {
           id: 'wrong-trigger',
           name: 'Wrong Trigger',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'wrong-trigger' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'dealtDamage',
@@ -1151,7 +1161,7 @@ describe('what only a stat block has', () => {
         {
           id: 'winding-up',
           name: 'Winding Up',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'winding-up' },
           target: { kind: 'none' },
           kind: 'reaction',
           trigger: 'spotlighted',
@@ -1172,11 +1182,12 @@ describe('a replacement nothing ships', () => {
   it('catches a stat block that does not exist, and a count that is not dice', () => {
     const project = projectSchema.parse({
       ...build(),
+      cards: onHusk('phase', 'split'),
       abilities: [
         {
           id: 'phase',
           name: 'Phase',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'phase' },
           kind: 'reaction',
           trigger: 'defeated',
           target: { kind: 'none' },
@@ -1185,7 +1196,7 @@ describe('a replacement nothing ships', () => {
         {
           id: 'split',
           name: 'Split',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'split' },
           kind: 'reaction',
           trigger: 'tookHitPoints',
           target: { kind: 'none' },
@@ -1203,6 +1214,7 @@ describe('a spotlight in the wrong hands', () => {
   it('warns when a card hands out the GM turn, and catches a count that is not dice', () => {
     const project = projectSchema.parse({
       ...build(),
+      cards: onHusk('a-few', 'proper'),
       abilities: [
         {
           id: 'rally',
@@ -1214,14 +1226,14 @@ describe('a spotlight in the wrong hands', () => {
         {
           id: 'a-few',
           name: 'A Few',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'a-few' },
           target: { kind: 'none' },
           effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'far' }, count: 'a few' }],
         },
         {
           id: 'proper',
           name: 'Proper',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'proper' },
           target: { kind: 'none' },
           effects: [{ kind: 'spotlight', targets: { kind: 'adversaries', range: 'close' }, count: '1d4+1', halfDamage: true }],
         },
@@ -1238,25 +1250,26 @@ describe('a countdown nobody can read', () => {
   it('catches a length that is not dice, a clock already run out, and one counting towards nothing', () => {
     const project = projectSchema.parse({
       ...build(),
+      cards: onHusk('soon', 'already', 'pointless', 'fine'),
       abilities: [
         {
           id: 'soon',
           name: 'Soon',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'soon' },
           target: { kind: 'none' },
           effects: [{ kind: 'countdown', countdown: 'soon', name: 'Soon', start: 'soon', effects: [{ kind: 'log', text: 'now' }] }],
         },
         {
           id: 'already',
           name: 'Already',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'already' },
           target: { kind: 'none' },
           effects: [{ kind: 'countdown', countdown: 'already', name: 'Already', start: '0', effects: [{ kind: 'log', text: 'now' }] }],
         },
         {
           id: 'pointless',
           name: 'Pointless',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'pointless' },
           target: { kind: 'none' },
           effects: [{ kind: 'countdown', countdown: 'pointless', name: 'Pointless', start: '4', effects: [] }],
         },
@@ -1279,7 +1292,7 @@ describe('a countdown nobody can read', () => {
         {
           id: 'fine',
           name: 'Fine',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'fine' },
           target: { kind: 'none' },
           effects: [
             {
@@ -1306,11 +1319,12 @@ describe('a countdown nobody can read', () => {
   it('reads what a countdown will do, so a summons hidden inside one is still checked', () => {
     const project = projectSchema.parse({
       ...build(),
+      cards: onHusk('ritual'),
       abilities: [
         {
           id: 'ritual',
           name: 'Ritual',
-          source: { kind: 'adversary', adversaries: ['husk'] },
+          source: { card: 'ritual' },
           target: { kind: 'none' },
           effects: [
             {

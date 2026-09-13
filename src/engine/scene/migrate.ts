@@ -139,9 +139,8 @@ function objects(value: unknown): Raw[] {
  *   `sheets[]` -- and that one keeps its name: it is a list of ids somebody chose, not a pack's
  *   definitions. A step that walked every depth, as version 2's did, would rename both.
  * - An ability sits on a card. One that sat on a domain card keeps that card; one that came from a
- *   class, a subclass or a project's gift gets a card of its own, built from the ability and granted
- *   the way its source said. A stat block's feature is left as it is: its card comes with the GM's
- *   side.
+ *   class, a subclass, a project's gift or a stat block gets a card of its own, built from the
+ *   ability and granted the way its source said.
  * - What a class, a subclass, an ancestry or a community printed becomes a card granted by it. A
  *   printed feature whose ability is in the same document joins that ability's card rather than
  *   becoming a second one. Nothing is matched against the pack the app ships, which is code a
@@ -192,6 +191,9 @@ function toVersion3(doc: Raw): void {
         break;
       case 'granted':
         grant = { kind: 'given', characters: source['characters'] };
+        break;
+      case 'adversary':
+        grant = { kind: 'adversary', adversaries: source['adversaries'] };
         break;
       default:
         continue;

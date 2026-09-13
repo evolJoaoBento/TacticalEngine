@@ -42,7 +42,8 @@ describe('reading a pack', () => {
     // each sits on a card the version-3 step built from it, granted the way its source said -- and
     // the file's own object was not touched by the reading.
     expect(raw.abilities.filter((a) => !('card' in a.source))).toHaveLength(7);
-    expect(reading.pack.abilities.every((a) => cardOf(a) !== null)).toBe(true);
+    const built = new Set(reading.pack.cards.map((card) => card.id));
+    expect(reading.pack.abilities.filter((a) => built.has(cardOf(a)))).toHaveLength(7);
     expect(reading.pack.cards.map((card) => card.grant.kind).sort()).toEqual([
       'class', 'class', 'class', 'given', 'subclass', 'subclass', 'subclass',
     ]);

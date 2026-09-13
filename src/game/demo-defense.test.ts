@@ -30,7 +30,13 @@ import {
 } from './demo-scene';
 import { restoreScenario, scenarioSnapshot, useKey } from '../engine/script/world';
 import { FIXTURE_ADVERSARIES, FIXTURE_CARDS, FIXTURE_DOMAIN_FOUR, FIXTURE_FOE } from '../../tests/fixtures/adversaries';
-import { A_SPRAY_THAT_EATS_ARMOUR, A_WOUND_THAT_ANSWERS } from '../../tests/fixtures/adversary-features';
+import {
+  A_SPRAY_THAT_EATS_ARMOUR,
+  A_WOUND_THAT_ANSWERS,
+  print,
+  printed,
+  type Printed,
+} from '../../tests/fixtures/adversary-features';
 import { handedTo } from '../../tests/fixtures/cards';
 import {
   REASSURANCE,
@@ -950,21 +956,20 @@ describe('what a block hangs on its own attack', () => {
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     const on = adversaryDefOf(demo, husk.id)!.id;
-    demo.project.abilities.push(
-      abilitySchema.parse({
+    print(
+      demo.project,
+      printed(on, {
         id: 'on-hit',
         name: 'On Hit',
-        source: { kind: 'adversary', adversaries: [on] },
         text: 'When it lands.',
         kind: 'reaction',
         trigger: 'dealtHit',
         action: false,
         effects: [{ kind: 'log', text: 'the claws land', tone: 'combat' }],
       }),
-      abilitySchema.parse({
+      printed(on, {
         id: 'on-damage',
         name: 'On Damage',
-        source: { kind: 'adversary', adversaries: [on] },
         text: 'When a Hit Point is marked.',
         kind: 'reaction',
         trigger: 'dealtDamage',
@@ -1017,11 +1022,11 @@ describe('what a block hangs on its own attack', () => {
       demo.askDefender = false;
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       if (direct) {
-        demo.project.abilities.push(
-          abilitySchema.parse({
+        print(
+          demo.project,
+          printed(adversaryDefOf(demo, husk.id)!.id, {
             id: 'bone-breaker',
             name: 'Bone Breaker',
-            source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
             text: 'Its attacks deal direct damage.',
             kind: 'passive',
             action: false,
@@ -1052,10 +1057,9 @@ describe("an adversary's own features", () => {
    * chooser prefers an area feature that catches more than one of the party,
    * and that preference is why the first test crowds three people together.
    */
-  const eruptionFeature = (demo: DemoScene, husk: string): Record<string, unknown> => ({
+  const eruptionFeature = (demo: DemoScene, husk: string): Printed => printed(adversaryDefOf(demo, husk)!.id, {
     id: 'fixture-eruption',
     name: 'Earth Eruption',
-    source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk)!.id] },
     text: 'Mark a Stress to burst out of the ground and knock over everything close by.',
     cost: { stress: 1 },
     target: { kind: 'none', range: 'veryClose' },
@@ -1078,10 +1082,9 @@ describe("an adversary's own features", () => {
   });
 
   /** A spray with a price the next test rewrites, to watch what the GM pays. */
-  const sprayFeature = (demo: DemoScene, husk: string): Record<string, unknown> => ({
+  const sprayFeature = (demo: DemoScene, husk: string): Printed => printed(adversaryDefOf(demo, husk)!.id, {
     id: 'fixture-spray',
     name: 'Spit Acid',
-    source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk)!.id] },
     text: 'Spray everything in front of it, and what it hits finds no use in armour.',
     target: { kind: 'none', range: 'close' },
     inCombatOnly: true,
@@ -1098,9 +1101,9 @@ describe("an adversary's own features", () => {
   });
 
   /** Its own features come off, so the one under test is the only one on offer. */
-  const onlyFeature = (demo: DemoScene, feature: Record<string, unknown>): void => {
-    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
-    demo.project.abilities.push(abilitySchema.parse(feature));
+  const onlyFeature = (demo: DemoScene, feature: Printed): void => {
+    withoutFeatures(demo);
+    print(demo.project, feature);
     refreshWorld(demo);
   };
 
@@ -1182,12 +1185,12 @@ describe("an adversary's own features", () => {
     standBehind(demo, 'finn', husk.tile);
     // The block's own features would be chosen ahead of this one by the rules
     // under test; this is about how a feature is aimed, so they come off.
-    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
-    demo.project.abilities.push(
-      abilitySchema.parse({
+    withoutFeatures(demo);
+    print(
+      demo.project,
+      printed(adversaryDefOf(demo, husk.id)!.id, {
         id: 'gore',
         name: 'Gore',
-        source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
         text: 'Make an attack against a target within Very Close range.',
         target: { kind: 'creature', range: 'veryClose' },
         inCombatOnly: true,
@@ -1220,12 +1223,12 @@ describe("an adversary's own features", () => {
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     standBehind(demo, 'finn', husk.tile);
-    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
-    demo.project.abilities.push(
-      abilitySchema.parse({
+    withoutFeatures(demo);
+    print(
+      demo.project,
+      printed(adversaryDefOf(demo, husk.id)!.id, {
         id: 'adrenaline-burst',
         name: 'Adrenaline Burst',
-        source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
         text: 'Once per scene, spend a Shadow to clear 2 Stress.',
         cost: { bad: 1 },
         uses: { count: 1, per: 'scene' },
@@ -1250,12 +1253,12 @@ describe("an adversary's own features", () => {
     const demo = standoff('hold');
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
-    demo.project.abilities.push(
-      abilitySchema.parse({
+    withoutFeatures(demo);
+    print(
+      demo.project,
+      printed(adversaryDefOf(demo, husk.id)!.id, {
         id: 'lock-up',
         name: 'Lock Up',
-        source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
         text: 'Restrain a target until they break free.',
         target: { kind: 'creature', range: 'veryClose' },
         inCombatOnly: true,
@@ -1288,12 +1291,12 @@ describe("an adversary's own features", () => {
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     standBehind(demo, 'finn', husk.tile);
-    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
-    demo.project.abilities.push(
-      abilitySchema.parse({
+    withoutFeatures(demo);
+    print(
+      demo.project,
+      printed(adversaryDefOf(demo, husk.id)!.id, {
         id: 'regeneration',
         name: 'Regeneration',
-        source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
         text: 'If the Burrower has any marked HP, spend a Shadow to clear a HP.',
         cost: { bad: 1 },
         available: { kind: 'pool', pool: 'hitPoints', measure: 'marked', op: '>=', value: 1 },
@@ -1384,7 +1387,7 @@ describe('a creature that answers its own wounds', () => {
   const WOUND_CARD = 'fixture-card-19';
 
   /** Stand up the creature these tests are about, carrying what they read. */
-  const answering = (demo: DemoScene, features: readonly Record<string, unknown>[]): EntityState => {
+  const answering = (demo: DemoScene, features: readonly Printed[]): EntityState => {
     const placed = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     demo.project.adversaries.push(...FIXTURE_ADVERSARIES);
     // What a creature is comes from its placement, so the fixture is stood up
@@ -1393,7 +1396,7 @@ describe('a creature that answers its own wounds', () => {
       createAdversaryEntity('answerer', FIXTURE_FOE, placed.tile, { hitPoints: 40, stress: 3 }),
     );
     demo.state.removeEntity(placed.id);
-    for (const feature of features) demo.project.abilities.push(abilitySchema.parse(feature));
+    print(demo.project, ...features);
     refreshWorld(demo);
     return demo.state.entity('answerer')!;
   };
@@ -1935,10 +1938,8 @@ describe('a blow that names its band', () => {
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     standBehind(demo, 'finn', husk.tile);
-    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
-    demo.project.abilities.push(
-      abilitySchema.parse({ ...ability, source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] } }),
-    );
+    withoutFeatures(demo);
+    print(demo.project, printed(adversaryDefOf(demo, husk.id)!.id, ability));
     refreshWorld(demo);
     outOfReach(demo);
     demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
@@ -3953,10 +3954,9 @@ describe('a run in a straight line', () => {
    * is measured from where it started, so a line read after it arrived would be
    * a line from the wrong end.
    */
-  const charge = (demo: DemoScene, who: string): Record<string, unknown> => ({
+  const charge = (demo: DemoScene, who: string): Printed => printed(adversaryDefOf(demo, who)!.id, {
     id: 'fixture-charge',
     name: 'Charge',
-    source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, who)!.id] },
     text: 'When a wound costs it two Hit Points or more, it puts its head down and runs.',
     kind: 'reaction',
     trigger: 'tookHitPoints',
@@ -4033,7 +4033,7 @@ describe('a run in a straight line', () => {
       const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
       // The charging creature is the one standing there, carrying the feature
       // under test and nothing else.
-      demo.project.abilities.push(abilitySchema.parse(charge(demo, husk.id)));
+      print(demo.project, charge(demo, husk.id));
       refreshWorld(demo);
       const ogre = demo.project.abilities.find((a) => a.id === 'fixture-charge')!;
       expect(ogre.trigger).toBe('tookHitPoints');
@@ -4083,10 +4083,9 @@ describe('what a charge runs over', () => {
   const RUN_CARD = 'fixture-card-58';
 
   /** A creature that charges when a wound costs it enough. */
-  const charge = (demo: DemoScene, who: string): Record<string, unknown> => ({
+  const charge = (demo: DemoScene, who: string): Printed => printed(adversaryDefOf(demo, who)!.id, {
     id: 'fixture-charge-over',
     name: 'Charge',
-    source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, who)!.id] },
     text: 'When a wound costs it two Hit Points or more, it puts its head down and runs.',
     kind: 'reaction',
     trigger: 'tookHitPoints',
@@ -4157,9 +4156,9 @@ describe('what a charge runs over', () => {
     // The creature's own features come off, so the charge is the only thing it
     // can answer a wound with, and what Kara is asked about is the whole of the
     // assertion.
-    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
+    withoutFeatures(demo);
     holds(demo, [FLINCH_CARD]);
-    demo.project.abilities.push(abilitySchema.parse(charge(demo, husk.id)));
+    print(demo.project, charge(demo, husk.id));
     refreshWorld(demo);
     // Nobody is going to fall: a death move would be a question of its own.
     for (const e of demo.state.entitiesOf('party')) e.hitPoints = { max: 20, marked: 0 };
@@ -4640,12 +4639,12 @@ describe('a shell of light over somebody', () => {
     for (const ability of SHELL) demo.project.abilities.push(abilitySchema.parse(ability));
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     standBehind(demo, 'mira', husk.tile);
-    demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a));
-    demo.project.abilities.push(
-      abilitySchema.parse({
+    withoutFeatures(demo);
+    print(
+      demo.project,
+      printed(adversaryDefOf(demo, husk.id)!.id, {
         id: 'fixture-heavy-swing',
         name: 'Heavy Swing',
-        source: { kind: 'adversary', adversaries: [adversaryDefOf(demo, husk.id)!.id] },
         text: 'It swings harder than the block prints.',
         kind: 'passive',
         // Hard enough that an Armor Slot alone cannot answer it: the aura is
@@ -10425,3 +10424,12 @@ describe('unmaking what you can reach', () => {
     throw new Error('the wave never fell short in two hundred tries');
   });
 });
+
+/**
+ * The stat blocks' own features, off the project: a test about how one feature is aimed wants no
+ * other in the running. A feature is an ability on a card printed on a block.
+ */
+function withoutFeatures(demo: DemoScene): void {
+  const cards = characterContentFor(demo.project).cards;
+  demo.project.abilities = demo.project.abilities.filter((a) => !isStatBlockFeature(a, cards));
+}

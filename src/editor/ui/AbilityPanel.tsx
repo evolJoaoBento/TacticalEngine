@@ -25,8 +25,7 @@ import { ConditionEditor } from './ConditionEditor';
 
 /** The project's own card an ability sits on, when that card is handed to named characters. */
 function givenCard(session: EditorSession, ability: AbilityDef): { id: string; characters: string[] } | null {
-  const id = cardOf(ability);
-  const card = id === null ? undefined : session.project.cards.find((c) => c.id === id);
+  const card = session.project.cards.find((c) => c.id === cardOf(ability));
   return card !== undefined && card.grant.kind === 'given' ? { id: card.id, characters: card.grant.characters } : null;
 }
 

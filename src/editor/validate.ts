@@ -27,7 +27,7 @@ import {
 import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-from-scene';
 import { deriveCharacter } from '../engine/character/sheet';
 import { domainsOf, heldCards } from '../engine/character/progression';
-import { isDomainCard, type ContentPack } from '../engine/content/pack/import';
+import { isDomainCard, type CardDef, type ContentPack } from '../engine/content/pack/import';
 import { cardOf, isStatBlockFeature, type AbilityDef } from '../engine/content/abilities';
 import { parseDice } from '../engine/rules/dice';
 import { compileHooks } from '../engine/script/hooks';
@@ -214,22 +214,23 @@ function checkAbilitiesAndCode(
   // How a card came to be in play, from the pack the editor was given (which already has the
   // project's own cards laid over it) or else from the project alone. `undefined` when neither
   // knows the card: a validator handed no pack cannot tell, and says nothing rather than guess.
-  const cardNamed = (id: string) => options.characterContent?.cards.get(id) ?? project.cards.find((card) => card.id === id);
-  const grantOf = (ability: AbilityDef): string | undefined => {
-    const id = cardOf(ability);
-    return id === null ? 'statBlock' : cardNamed(id)?.grant.kind;
-  };
+  const knownCards = new Map<string, Pick<CardDef, 'grant'>>([
+    ...project.cards.map((card) => [card.id, card] as const),
+    ...(options.characterContent?.cards ?? []),
+  ]);
+  const cardNamed = (id: string) => knownCards.get(id);
+  const grantOf = (ability: AbilityDef): string | undefined => cardNamed(cardOf(ability))?.grant.kind;
   for (const ability of project.abilities) {
     // An ability is in play when its card is. One on a card nothing defines is never anybody's,
     // which is a silent way for a card to stop working -- say so while it is being written.
     const on = cardOf(ability);
-    if (on !== null && options.characterContent !== undefined && cardNamed(on) === undefined) {
+    if (options.characterContent !== undefined && cardNamed(on) === undefined) {
       add('warning', `"${ability.id}" sits on card "${on}", which neither the project nor its pack defines: it is never in play.`, ability.id);
     }
     // Shadow is the GM's pool. A card that asks its holder for one is a card
     // nobody can ever use — play refuses it — so say so while it is being
     // written rather than when someone reaches for it.
-    if ((ability.cost.bad ?? 0) > 0 && !isStatBlockFeature(ability)) {
+    if ((ability.cost.bad ?? 0) > 0 && !isStatBlockFeature(ability, knownCards)) {
       add('warning', `"${ability.id}" costs Shadow, which only the GM spends: nobody holding it can use it.`, ability.id);
     }
     // A summons names a stat block; one nothing ships is a feature that does
@@ -255,7 +256,7 @@ function checkAbilitiesAndCode(
       if (effect.count !== undefined && parseDice(effect.count) === null) {
         add('error', `"${ability.id}" replaces them with "${effect.count}" of them, which is not dice.`, ability.id);
       }
-      if (!isStatBlockFeature(ability)) {
+      if (!isStatBlockFeature(ability, knownCards)) {
         add('warning', `"${ability.id}" replaces the creature using it, which only the GM does.`, ability.id);
       }
     });
@@ -263,7 +264,7 @@ function checkAbilitiesAndCode(
     // player's hand has no turn to hand out, and play would refuse it.
     walkEffects(ability.effects, (effect) => {
       if (effect.kind !== 'spotlight') return;
-      if (!isStatBlockFeature(ability)) {
+      if (!isStatBlockFeature(ability, knownCards)) {
         add('warning', `"${ability.id}" spotlights allies, which only the GM does.`, ability.id);
       }
       if (effect.count !== undefined && parseDice(effect.count) === null) {
@@ -286,7 +287,7 @@ function checkAbilitiesAndCode(
       // "When they mark HP, tick down this countdown by the number of HP
       // marked" is read against the creature that armed it, so a card in a
       // player's hand has nobody to read it against.
-      if (effect.advance === 'hpMarked' && !isStatBlockFeature(ability)) {
+      if (effect.advance === 'hpMarked' && !isStatBlockFeature(ability, knownCards)) {
         add('warning', `"${ability.id}" counts the Hit Points its owner marks, which only a stat block has.`, ability.id);
       }
     });
@@ -303,7 +304,7 @@ function checkAbilitiesAndCode(
     }
     // The swing a stat block prints, and the two triggers that answer it, are
     // read on the GM's turn alone. On a card they are quietly dead.
-    if (ability.standardAttack !== undefined && !isStatBlockFeature(ability)) {
+    if (ability.standardAttack !== undefined && !isStatBlockFeature(ability, knownCards)) {
       add(
         'warning',
         `"${ability.id}" changes a standard attack, which only a stat block has.`,
@@ -315,7 +316,7 @@ function checkAbilitiesAndCode(
     // counted. On a card they are quietly dead. `rollingDamage` is not one of
     // them any more: a card answers its holder's own swing at that moment too.
     if (
-      !isStatBlockFeature(ability) &&
+      !isStatBlockFeature(ability, knownCards) &&
       (ability.trigger === 'spotlighted' || ability.trigger === 'allyRollingDamage')
     ) {
       add(
@@ -335,7 +336,7 @@ function checkAbilitiesAndCode(
     }
     // Taking another one is the same rule read the other way: a card has no
     // queue to go back to the head of.
-    if (takesAnotherSpotlight(ability) && !isStatBlockFeature(ability)) {
+    if (takesAnotherSpotlight(ability) && !isStatBlockFeature(ability, knownCards)) {
       add(
         'warning',
         `"${ability.id}" takes the spotlight again, which only a stat block has to take.`,
@@ -354,7 +355,7 @@ function checkAbilitiesAndCode(
     // Ending a spotlight is something only a spotlight can do: it is read by
     // the GM's turn, on the creature whose turn it is, at the moment the turn
     // begins. Anywhere else it is a silent no-op.
-    if (endsASpotlight(ability) && !(isStatBlockFeature(ability) && ability.trigger === 'spotlighted')) {
+    if (endsASpotlight(ability) && !(isStatBlockFeature(ability, knownCards) && ability.trigger === 'spotlighted')) {
       add(
         'warning',
         `"${ability.id}" ends a spotlight, which only a stat block's ‘when spotlighted’ reaction has.`,
@@ -416,14 +417,14 @@ function checkAbilitiesAndCode(
         ability.id,
       );
     }
-    if (namesABand(ability, true) && isStatBlockFeature(ability)) {
+    if (namesABand(ability, true) && isStatBlockFeature(ability, knownCards)) {
       add(
         'warning',
         `"${ability.id}" puts a floor under a blow, which only the party's own swing obeys.`,
         ability.id,
       );
     }
-    if (forcesHitPoints(ability) && isStatBlockFeature(ability)) {
+    if (forcesHitPoints(ability) && isStatBlockFeature(ability, knownCards)) {
       add(
         'warning',
         `"${ability.id}" forces the Hit Points marked, which only the party's own swing obeys.`,
@@ -432,7 +433,7 @@ function checkAbilitiesAndCode(
     }
     // The other half of the same rule: an ally taking a hit is something the
     // party hears about and a stat block does not.
-    if (ability.trigger === 'allyTookDamage' && isStatBlockFeature(ability)) {
+    if (ability.trigger === 'allyTookDamage' && isStatBlockFeature(ability, knownCards)) {
       add(
         'warning',
         `"${ability.id}" answers somebody on its own side being hurt, which only a card is asked about.`,

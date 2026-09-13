@@ -308,6 +308,8 @@ function grantedTo(grant: CardGrant, sheet: CharacterSheet, reached: number): bo
       return grant.communityId === sheet.communityId;
     case 'given':
       return grant.characters.includes(sheet.id);
+    case 'adversary':
+      return false;
   }
 }
 

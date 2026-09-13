@@ -3547,7 +3547,7 @@ export function vaultAfter(demo: DemoScene, id: string, ability: AbilityDef, run
   // Only a chosen card has a vault to go to. The loadout below is what says it was chosen: a
   // granted card is never in one.
   const cardId = cardOf(ability);
-  if (!runner.vaulted || cardId === null) return;
+  if (!runner.vaulted) return;
   const sheet = demo.sheets.get(id);
   const character = demo.characters.get(id);
   if (sheet === undefined || character === undefined) return;

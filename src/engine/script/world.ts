@@ -50,7 +50,7 @@ import {
 import { applyAttack, conditionModifiers, resolveAttack, type AttackProfile } from '../combat/attack';
 import { resolveDefense, type Defense, type DefensePolicy } from '../combat/defense';
 import { attackProfile, grantedCards, traitPart, UNARMED, type DerivedCharacter } from '../character/sheet';
-import { abilitiesFor, loadoutOf, type AbilityDef, type AbilityModifier } from '../content/abilities';
+import { abilitiesFor, loadoutOf, statBlocksOf, type AbilityDef, type AbilityModifier } from '../content/abilities';
 import type { ConditionBlock, ConditionDef } from '../content/conditions';
 import { formatDice, parseDice, type DamageType, type ParsedDamage } from '../rules/dice';
 import type { AdversaryDef } from '../content/types';
@@ -307,9 +307,10 @@ export interface SceneScriptWorldOptions {
   /** Every ability the project knows, for a character's modifiers and reactions. */
   abilities?: readonly AbilityDef[];
   /**
-   * Every card, by id, for what a character has in play without choosing it. Asked each time, like
-   * the hooks, so a card handed over after the world was built is in hand at once. Left out, a
-   * character holds what their sheet was derived with.
+   * Every card, by id: what a character has in play without choosing it, and which abilities are a
+   * stat block's features. Asked each time, like the hooks, so a card handed over after the world
+   * was built is in hand at once. Left out, a character holds what their sheet was derived with and
+   * no creature has a feature.
    */
   cards?: ReadonlyMap<string, CardDef> | (() => ReadonlyMap<string, CardDef>);
   /** What a named condition does to its bearer. */
@@ -1129,7 +1130,9 @@ export class SceneScriptWorld implements ScriptWorld {
    * definition id, not the entity's, so every husk in a room shares them.
    */
   abilitiesForAdversary(definition: string): AbilityDef[] {
-    return this.abilities.filter((a) => 'adversaries' in a.source && a.source.adversaries.includes(definition));
+    // A feature is an ability on a card printed on the block. A world handed no cards has none.
+    const cards = this.cards?.() ?? new Map<string, CardDef>();
+    return this.abilities.filter((a) => statBlocksOf(a, cards)?.includes(definition) === true);
   }
 
   /**
