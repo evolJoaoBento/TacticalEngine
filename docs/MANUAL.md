@@ -107,7 +107,8 @@ pillar costs the way round. A click on the ground is a spot, not a square: the c
 there in a straight line where nothing is in the way, stops where you clicked (or as near as
 their body fits, clear of walls and of everyone else), and the others fall in a pace behind along
 the line, round the same corners. Hovering the ground draws the line a click would walk - in a
-fight, the part past one move in red. A click beyond reach is not refused: out of a fight it
+fight, the part past one move in red, or in amber where a run would get there on an Agility
+Roll. A click beyond reach is not refused: out of a fight it
 walks up to the nearest reachable spot (the shut door, the edge of the chasm). In a fight, a spot a
 run could reach - past Close, as far as Very Far, with a way there - asks for an **Agility Roll**
 first (Difficulty 12, the demo's number): a success walks the whole way, a failure only as far as

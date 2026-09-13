@@ -53,6 +53,8 @@ const PATH_CAPACITY = 1024;
 /** The walk's own blue, and the red of the way a fight's move does not cover. */
 const PATH_WALK = new Color('#69d2ff');
 const PATH_BEYOND = new Color('#ff6a5c');
+/** The part past one move that a run would cover: Movement Under Pressure, an Agility Roll away. */
+const PATH_RUN = new Color('#ffc14d');
 
 interface Glide {
   token: BuiltModel;
@@ -1304,7 +1306,7 @@ export class SceneView {
    * cut at half a tile so the line lies on the ground it crosses. An empty
    * route clears it.
    */
-  showPath(route: readonly Spot[], beyond: readonly Spot[] = []): void {
+  showPath(route: readonly Spot[], beyond: readonly Spot[] = [], run = false): void {
     const positions = this.pathGeometry.getAttribute('position') as BufferAttribute;
     const colors = this.pathGeometry.getAttribute('color') as BufferAttribute;
     let n = 0;
@@ -1328,7 +1330,8 @@ export class SceneView {
     };
     if (route.length >= 2) {
       lay(route, PATH_WALK, true);
-      if (beyond.length >= 2) lay(beyond, PATH_BEYOND, false);
+      // Amber where a run would get there on an Agility Roll; red where nothing one move does would.
+      if (beyond.length >= 2) lay(beyond, run ? PATH_RUN : PATH_BEYOND, false);
     }
     this.pathPoints = n;
     this.pathGeometry.setDrawRange(0, n);

@@ -4,6 +4,18 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The run on the hover path — done
+
+Hovering the ground in a fight drew the part of the walk past one move in red, whether a run would
+get there or nothing would. That part is amber now where an Agility Roll would get the fighter there
+(`WalkPreview.run`, read from the same `underPressure` the click asks), and stays red past any run.
+The driver's `previewAt` carries the flag. Nothing to validate and no field: it is a drawing of a
+rule that already runs.
+
+`npx tsc --noEmit` clean; vitest **1868 passed (1868)**; Playwright **115 passed (4.3m)**, `EXIT 0`. Two breaks --
+the preview never calling a run a run, and the board drawing a run in red -- each fail the test
+written for them.
+
 ## Delete a card of the project's own — done
 
 ✕ on an ability takes its card with it only when the card is `given` and nothing else sits on it, so
@@ -36,8 +48,8 @@ in a 40-wide hall reached Far in three turns -- and its hall is 96 wide now.
 
 The runner gained `lastActionRoll`, read the way `cancelled` and `spotlightToGm` already are, so
 whoever ran a script can tell what came of its roll. The difficulty is a constant, not an editor
-field: nothing else about fight movement is authored per project yet. **Left:** the hover path
-still draws the part past one move in red without saying a roll would get there.
+field: nothing else about fight movement is authored per project yet. **Left** then, and closed
+since: the hover path said nothing of the roll (*The run on the hover path*, above).
 
 `npx tsc --noEmit` clean; vitest **1865 passed (1865)**; Playwright **114 passed (4.1m)**, `EXIT 0`. Seven
 breaks -- the walk never asking, a success walking one move, a failure walking the whole way, a

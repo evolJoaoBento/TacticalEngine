@@ -34,7 +34,7 @@ declare global {
       walkTo: (x: number, y: number) => boolean;
       standingAt: (id: string) => { x: number; y: number } | null;
       screenAt: (x: number, y: number) => { x: number; y: number };
-      previewAt: (x: number, y: number) => { route: { x: number; y: number }[]; beyond: { x: number; y: number }[] } | null;
+      previewAt: (x: number, y: number) => { route: { x: number; y: number }[]; beyond: { x: number; y: number }[]; run: boolean } | null;
       pathPoints: () => number;
       attack: (id: string) => boolean;
       endGmTurn: () => number;

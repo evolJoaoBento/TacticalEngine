@@ -771,6 +771,27 @@ describe('SceneView', () => {
     view.dispose();
   });
 
+  it('draws the part past one move in amber when a run would get there', () => {
+    const { view } = setup();
+    const line = view.root.children.find((c) => c.name === 'path') as Line;
+    view.showPath(
+      [
+        { x: 0, y: 0 },
+        { x: 2, y: 0 },
+      ],
+      [
+        { x: 2, y: 0 },
+        { x: 3, y: 0 },
+      ],
+      true,
+    );
+    const colors = line.geometry.getAttribute('color');
+    expect(colors.getY(0)).toBeCloseTo(new Color('#69d2ff').g, 5);
+    // Green tells amber from red: both are all red.
+    expect(colors.getY(6)).toBeCloseTo(new Color('#ffc14d').g, 5);
+    view.dispose();
+  });
+
   it('draws the hover path on the ground in two colours, and clears it', () => {
     const { view } = setup();
     const line = view.root.children.find((c) => c.name === 'path') as Line;

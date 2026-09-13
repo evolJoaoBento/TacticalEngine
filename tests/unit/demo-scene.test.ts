@@ -527,6 +527,19 @@ describe('movement under pressure', () => {
     return rng;
   };
 
+  it('previews a run in its own colour, and a way past any run in the other', () => {
+    const { demo, id, inReach, far } = pressed();
+    const run = previewWalk(demo, far, demo.grid.spotOf(far))!;
+    expect(run.beyond.length).toBeGreaterThanOrEqual(2);
+    expect(run.run).toBe(true);
+    const runs = new Set(underPressureTiles(demo));
+    const past = demo.party.reachable(id, { inCombat: true, budget: Infinity }).tiles().find((t) => !inReach.has(t) && !runs.has(t))!;
+    expect(past).toBeDefined();
+    const beyond = previewWalk(demo, past, demo.grid.spotOf(past))!;
+    expect(beyond.beyond.length).toBeGreaterThanOrEqual(2);
+    expect(beyond.run).toBe(false);
+  });
+
   it('asks for an Agility Roll past one move, and a run called off costs nothing', () => {
     const { demo, id, start, far } = pressed();
     const before = acted(demo, id);

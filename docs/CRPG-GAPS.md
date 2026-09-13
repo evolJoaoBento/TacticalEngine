@@ -618,7 +618,7 @@ adversary's approach - crosses a straightened line carried on the motion or the 
 two) rather than a disc; a click beyond reach walks to the nearest reachable spot out of a fight
 and as far as the move allows in one (`nearestReachable`) - unless a run would get there, which
 asks for an Agility Roll first (Movement Under Pressure: `underPressure`, `runForIt`); the hover path (`previewWalk`,
-`SceneView.showPath`) draws the line a click would walk, the part past one move in red; tokens
+`SceneView.showPath`) draws the line a click would walk, the part past one move in red, or amber where a run would cover it; tokens
 face where they go at a fixed pace per tile and keep their feet down; and a click on an enemy
 out of reach walks to where the weapon reaches from and swings (`closeToStrike`,
 `previewStrike`), the move being part of the action. An adversary that cannot swing from within

@@ -1651,6 +1651,8 @@ export interface WalkPreview {
   route: Spot[];
   /** In a fight, the rest of the way to where the click aimed, past what one move allows. */
   beyond: Spot[];
+  /** Whether `beyond` is a run an Agility Roll would get there on, rather than a way no move covers. */
+  run: boolean;
 }
 
 /**
@@ -1669,13 +1671,13 @@ export function previewWalk(demo: DemoScene, destination: number, aimed: Spot): 
   const field = demo.party.reachable(id, { inCombat: fighting });
   if (field.canReach(destination)) {
     const walk = demo.party.planWalk(id, destination, { inCombat: fighting, at: aimed });
-    return walk === null ? null : { route: walk.route, beyond: [] };
+    return walk === null ? null : { route: walk.route, beyond: [], run: false };
   }
   const nearest = nearestReachable(demo, field, aimed, fighting ? destination : NO_TILE);
   if (nearest === NO_TILE || nearest === demo.state.entity(id)!.tile) return null;
   const walk = demo.party.planWalk(id, nearest, { inCombat: fighting, at: clampInto(demo.grid, aimed, nearest) });
   if (walk === null) return null;
-  if (!fighting) return { route: walk.route, beyond: [] };
+  if (!fighting) return { route: walk.route, beyond: [], run: false };
   // The rest of the way, from where this move stops to where the click aimed.
   const whole = demo.party.reachable(id, { inCombat: true, budget: Infinity });
   const path = tracePath(whole, destination);
@@ -1684,7 +1686,8 @@ export function previewWalk(demo: DemoScene, destination: number, aimed: Spot): 
     rest === null || rest.length < 2
       ? []
       : smoothPath(demo.grid, rest, demo.state.blockedFor(id), DEMO_WALK, { start: walk.route[walk.route.length - 1]!, end: aimed });
-  return { route: walk.route, beyond };
+  // Asked last: the rule's own search reuses the buffers the way above was traced over.
+  return { route: walk.route, beyond, run: beyond.length >= 2 && underPressure(demo, id, destination) };
 }
 
 /**

@@ -162,7 +162,7 @@ declare global {
       /** Where a spot on the ground lands on screen, in CSS pixels. */
       screenAt: (x: number, y: number) => { x: number; y: number };
       /** The line a click on a spot would walk, and what lies beyond one move of it; null for nowhere to go. */
-      previewAt: (x: number, y: number) => { route: { x: number; y: number }[]; beyond: { x: number; y: number }[] } | null;
+      previewAt: (x: number, y: number) => { route: { x: number; y: number }[]; beyond: { x: number; y: number }[]; run: boolean } | null;
       /** How many points the hover path is drawn through on the board right now. */
       pathPoints: () => number;
       attack: (id: string) => boolean;
@@ -1894,7 +1894,7 @@ function hoverWalk(ground: { tile: number; spot: Spot } | null): void {
   }
   const preview = previewWalk(demo, ground.tile, ground.spot);
   if (preview === null) view.clearPath();
-  else view.showPath(preview.route, preview.beyond);
+  else view.showPath(preview.route, preview.beyond, preview.run);
 }
 
 canvas.addEventListener('pointerup', (event) => {
@@ -2107,10 +2107,10 @@ const state = {
   },
   /** Where a spot on the ground lands on screen, in CSS pixels from the page origin. */
   screenAt: (x: number, y: number): { x: number; y: number } => screenAt({ x, y }, 0),
-  previewAt: (x: number, y: number): { route: { x: number; y: number }[]; beyond: { x: number; y: number }[] } | null => {
+  previewAt: (x: number, y: number): { route: { x: number; y: number }[]; beyond: { x: number; y: number }[]; run: boolean } | null => {
     const preview = previewWalk(demo, activeGrid.tileAtSpot(x, y), { x, y });
     if (preview === null) return null;
-    return { route: preview.route.map((s) => ({ x: s.x, y: s.y })), beyond: preview.beyond.map((s) => ({ x: s.x, y: s.y })) };
+    return { route: preview.route.map((s) => ({ x: s.x, y: s.y })), beyond: preview.beyond.map((s) => ({ x: s.x, y: s.y })), run: preview.run };
   },
   pathPoints: (): number => view.pathPointCount,
   attack: (id: string): boolean => {
