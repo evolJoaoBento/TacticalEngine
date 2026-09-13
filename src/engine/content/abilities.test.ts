@@ -111,7 +111,7 @@ describe('abilitiesFor', () => {
   });
 
   it('leaves out vaulted cards and unreached subclass stages', () => {
-    // The sixth card carries an ability on purpose. Three of the pack's cards ship as
+    // The sixth card carries an ability on purpose. Three of the pack's chosen cards ship as
     // text only, and one of those in this slot would be absent from the list whether
     // the vault worked or not — passing for two reasons, and still passing if the
     // vault stopped excluding anything.

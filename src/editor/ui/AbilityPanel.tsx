@@ -12,14 +12,20 @@
  * and ✕ takes card and ability back together. A card the pack prints is shown
  * as the pack has it, and "Edit a copy" lays a copy into the project: a
  * project's card lays over the pack's by id, whole, so the pack is never written.
+ *
+ * A card no ability sits on -- one of the pack's text-only cards, or one an
+ * imported pack brings without a script -- is listed under "Text only" and
+ * opened on its own: its name and its text, how it gets into play, and "+ Script",
+ * which writes the first ability on it and moves it into the list above.
  */
 
 import { useState } from 'preact/hooks';
 import type { EditorSession } from '../session';
-import { addCard, addCardWithAbility, removeCardWithAbility, updateAbility, updateCard } from '../session';
+import { addAbility, addCard, addCardWithAbility, removeCardWithAbility, updateAbility, updateCard } from '../session';
+import { scriptIdFor, unscriptedCards } from '../card-list';
 import { abilitySchema, cardOf, type AbilityDef } from '../../engine/content/abilities';
 import { cardDefSchema } from '../../engine/content/pack/schema';
-import type { ContentPack } from '../../engine/content/pack/import';
+import type { CardDef, ContentPack } from '../../engine/content/pack/import';
 import { MAX_LEVEL } from '../../engine/character/progression';
 import type { QuestDef } from '../../engine/content/quests';
 import { RANGE_BANDS, type RangeBand } from '../../engine/rules/range';
@@ -155,13 +161,13 @@ const idList = (text: string): string[] =>
  */
 function GrantFields(props: {
   session: EditorSession;
-  ability: AbilityDef;
+  cardId: string;
   content: ContentPack;
   onChange: () => void;
 }): preact.JSX.Element {
-  const card = props.session.project.cards.find((c) => c.id === cardOf(props.ability));
+  const card = props.session.project.cards.find((c) => c.id === props.cardId);
   if (card === undefined) {
-    const packed = props.content.cards.get(cardOf(props.ability));
+    const packed = props.content.cards.get(props.cardId);
     return (
       <>
         {label(
@@ -326,10 +332,87 @@ function GrantFields(props: {
   );
 }
 
+/**
+ * A card no ability sits on: its own name and text, how it gets into play, and a button that writes
+ * the first ability on it. The project's own card is edited where it stands; a pack's is read-only
+ * until "Edit a copy" lays one into the project.
+ */
+function CardDetail(props: {
+  session: EditorSession;
+  card: CardDef;
+  content: ContentPack;
+  onChange: () => void;
+  onScript: (abilityId: string) => void;
+}): preact.JSX.Element {
+  const own = props.session.project.cards.some((c) => c.id === props.card.id);
+  const write = (changes: Partial<ProjectCard>): void => {
+    props.session.run(updateCard(props.card.id, changes));
+    props.onChange();
+  };
+  return (
+    <>
+      <div style={{ display: 'flex', gap: '6px' }}>
+        <input
+          style={{ ...field, flex: 1 }}
+          value={props.card.name}
+          placeholder="name"
+          data-testid="card-name"
+          readOnly={!own}
+          onInput={(e) => write({ name: (e.target as HTMLInputElement).value })}
+        />
+        <span style={{ color: 'var(--ph-muted)', alignSelf: 'center' }}>{props.card.id}</span>
+      </div>
+      <textarea
+        style={{ ...field, width: '100%', minHeight: '46px', resize: 'vertical' }}
+        value={props.card.text}
+        placeholder="The card's text, as printed"
+        data-testid="card-text"
+        readOnly={!own}
+        onInput={(e) => write({ text: (e.target as HTMLTextAreaElement).value })}
+      />
+      {props.card.features.length === 0 ? null : (
+        <div style={{ color: 'var(--ph-muted)', fontSize: '11px' }}>
+          And {props.card.features.length} named feature{props.card.features.length === 1 ? '' : 's'}, shown on the card and
+          not edited here.
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <GrantFields session={props.session} cardId={props.card.id} content={props.content} onChange={props.onChange} />
+      </div>
+      <div style={{ color: 'var(--ph-muted)' }}>
+        No ability sits on this card, so there is nothing for the engine to run: its holder reads it and the
+        table decides. <b>+ Script</b> writes the first ability on it.
+      </div>
+      <div>
+        <button
+          style={button(false)}
+          data-testid="card-add-script"
+          onClick={() => {
+            const id = scriptIdFor(props.card.id, props.session.project.abilities);
+            props.session.run(addAbility(abilitySchema.parse({ id, name: props.card.name, source: { card: props.card.id } })));
+            props.onChange();
+            props.onScript(id);
+          }}
+        >
+          + Script
+        </button>
+      </div>
+    </>
+  );
+}
+
 export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
   const { session } = props;
   const [openId, setOpenId] = useState<string | null>(session.project.abilities[0]?.id ?? null);
   const open = session.project.abilities.find((a) => a.id === openId) ?? null;
+  // A card no ability sits on is listed on its own, and opened on its own.
+  const [openCardId, setOpenCardId] = useState<string | null>(null);
+  const unscripted = unscriptedCards(props.content, session.project);
+  const openCard = unscripted.find((card) => card.id === openCardId) ?? null;
+  const pickAbility = (id: string | null): void => {
+    setOpenId(id);
+    setOpenCardId(null);
+  };
 
   const edit = (changes: Partial<AbilityDef>): void => {
     if (open === null) return;
@@ -392,9 +475,9 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
         {session.project.abilities.map((ability) => (
           <div key={ability.id} style={{ display: 'flex', gap: '4px' }}>
             <button
-              style={{ ...button(ability.id === openId), flex: 1, textAlign: 'left' }}
+              style={{ ...button(openCard === null && ability.id === openId), flex: 1, textAlign: 'left' }}
               data-ability={ability.id}
-              onClick={() => setOpenId(ability.id)}
+              onClick={() => pickAbility(ability.id)}
             >
               {ability.name}
             </button>
@@ -426,12 +509,30 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 abilitySchema.parse({ id, name: typed, source: { card: id } }),
               ),
             );
-            setOpenId(id);
+            pickAbility(id);
             props.onChange();
           }}
         >
           + Card
         </button>
+
+        {unscripted.length === 0 ? null : (
+          <>
+            <div style={{ marginTop: '8px', fontWeight: 600 }} data-testid="text-only-cards">
+              Text only
+            </div>
+            {unscripted.map((card) => (
+              <button
+                key={card.id}
+                style={{ ...button(card.id === openCardId), textAlign: 'left' }}
+                data-card={card.id}
+                onClick={() => setOpenCardId(card.id)}
+              >
+                {card.name}
+              </button>
+            ))}
+          </>
+        )}
 
         <div style={{ marginTop: '8px', color: 'var(--ph-muted)', fontSize: '11px' }}>
           The pack the app ships has {props.libraryAbilities.length} more, written in code rather than here.
@@ -444,7 +545,9 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, overflow: 'auto' }}>
-        {open === null ? (
+        {openCard !== null ? (
+          <CardDetail session={session} card={openCard} content={props.content} onChange={props.onChange} onScript={pickAbility} />
+        ) : open === null ? (
           <div style={{ color: 'var(--ph-muted)' }}>
             Nothing selected. A card is its text plus a script; a card with no script is still a card — its
             holder reads it and the table decides.
@@ -471,7 +574,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
             />
 
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <GrantFields session={session} ability={open} content={props.content} onChange={props.onChange} />
+              <GrantFields session={session} cardId={cardOf(open)} content={props.content} onChange={props.onChange} />
               {label(
                 'is a',
                 <select

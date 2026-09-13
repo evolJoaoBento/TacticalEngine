@@ -581,6 +581,12 @@ through armor, and a reaction roll's damage, which is rolled once before anyone 
 it. A card with no effects is not broken: it is shown as text and the table
 decides, exactly as an unscripted SRD card is.
 
+**Text only**, under the list, is every card no ability sits on: the pack's text cards and any an
+imported pack brings without a script. Opening one shows the card's own **name** and **text** --
+editable once it is the project's, so a pack's card needs **Edit a copy** first -- and how it gets
+into play. **+ Script** writes the first ability on it, named for the card, and the card moves up
+into the list above, where its ability is edited like any other.
+
 ### Items and loot
 
 **Write an item…** opens the Items panel, which holds both halves of the pack because they only
@@ -1048,7 +1054,8 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   it comes. Damage from a script (a card, a trap) is still resolved automatically, and so is
   everything in a headless run, where there is nobody to ask.
 - **A card or a stat block's feature with no script is text**: shown and read, and the table
-  decides. The starter pack scripts most of what it ships and leaves a few cards as text; an
+  decides. Of the starter pack's 39 cards, 22 are text -- three a character chooses, and nineteen
+  features a class, subclass, ancestry or community prints; an
   imported pack's cards are as scripted as the pack made them, and an adversary plays the features it can run and otherwise falls back on its
   standard attack. A card is text when it asks for something the engine has no number for, such as
   flight, teleportation or a GM's discretion.

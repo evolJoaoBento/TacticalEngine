@@ -2152,6 +2152,44 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
   expect(consoleErrors).toEqual([]);
 });
 
+test('lists a card no ability sits on, rewords a copy of it, and writes a script onto it', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.locator('[data-testid="open-content"]').click();
+  await page.locator('[data-testid="open-abilities"]').click();
+  const panel = page.locator('[data-testid="ability-panel"]');
+
+  // Rallying Cry ships as text: no ability sits on it, so it is listed on its own.
+  await expect(panel.locator('[data-testid="text-only-cards"]')).toBeVisible();
+  await panel.locator('[data-card="rallying-cry"]').click();
+  await expect(panel.locator('[data-testid="card-name"]')).toHaveValue('Rallying Cry');
+  await expect(panel.locator('[data-testid="card-grant-kind"]')).toHaveText("the pack's card");
+
+  // The pack's words are the pack's; a copy is the project's to reword.
+  await panel.locator('[data-testid="card-copy-pack"]').click();
+  await panel.locator('[data-testid="card-text"]').fill('Call out: every ally who hears you clears a Stress.');
+
+  // A script on it moves it into the list above, opened, and named for its card.
+  await panel.locator('[data-testid="card-add-script"]').click();
+  await expect(panel.locator('[data-card="rallying-cry"]')).toHaveCount(0);
+  await expect(panel.locator('[data-ability="rallying-cry"]')).toBeVisible();
+  await expect(panel.locator('[data-testid="ability-name"]')).toHaveValue('Rallying Cry');
+
+  const written = await page.evaluate(() => {
+    const project = JSON.parse(window.__engine!.exportProject()) as {
+      cards: { id: string; text: string }[];
+      abilities: { id: string; source: unknown }[];
+    };
+    return {
+      text: project.cards.find((c) => c.id === 'rallying-cry')?.text,
+      source: project.abilities.find((a) => a.id === 'rallying-cry')?.source,
+    };
+  });
+  expect(written).toEqual({ text: 'Call out: every ally who hears you clears a Stress.', source: { card: 'rallying-cry' } });
+
+  expect(consoleErrors).toEqual([]);
+});
+
 test("edits a copy of the pack's card, and the loadout plays the copy", async ({ page }) => {
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Standard Bearer'));

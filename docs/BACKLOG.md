@@ -4,6 +4,22 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Text-only cards in the Cards panel — done
+
+The Cards panel lists every card no ability sits on under **Text only** (`unscriptedCards`,
+`editor/card-list.ts`), read from the pack's cards with the project's own laid over them as they
+stand. In the starter pack that is twenty-two of its thirty-nine cards: three a character chooses
+(`rallying-cry`, `smoke-step`, `cut-purse-strings`) and nineteen features a class, subclass, ancestry
+or community prints as text. The count this file and the manual gave before was three -- the chosen
+ones only; the new test found the rest. One opens on its own: the card's name and text (the
+project's own card edited where it stands, a pack's read-only until **Edit a copy**), how it gets
+into play, and **+ Script**, which writes the first ability on it, named for the card
+(`scriptIdFor`), and moves it up into the list of abilities.
+
+`npx tsc --noEmit` clean; vitest **1848 passed (1848)**; Playwright **107 passed (3.9m)**, `EXIT 0`. Three breaks -- the list
+keeping scripted cards, the list reading the snapshot rather than the project, **+ Script** writing
+nothing -- each fail the test written for them.
+
 ## A roll pays out when it is made — done
 
 A party swing's Light, the GM's Shadow and a critical's cleared Stress now arrive with the roll,
@@ -35,10 +51,9 @@ opens, held or not -- the party's own warning covers a held card outside its hol
 about one past level 10. The e2e copies Power Slash, grants it to a class and back, sets its recall
 to 3, and finds 3 on Kara's loadout.
 
-**Still open:** a card with no ability on it -- three of the pack's ship as text -- is reached by
-nothing, because the panel is listed by ability. The only way back to the pack's card is Undo: ✕ on
-the ability leaves the copy, still played. And the card's own name and text are not edited here; the
-ability's are.
+**Still open:** the only way back to the pack's card is Undo: ✕ on the ability leaves the copy,
+still played. A card with no ability on it, and a card's own name and text, were open here too;
+*Text-only cards in the Cards panel*, above, reaches them.
 
 `npx tsc --noEmit` clean; vitest **1843 passed (1843)**; Playwright **106 passed (3.7m)**, `EXIT 0`. Four breaks -- a loadout
 written without its numbers, the project's cards laid over nothing, no warning for an unopened
@@ -92,7 +107,7 @@ A second look found the guard's own hole: it read only a span's first word, so a
 command (`python tools/adversaries-doc.py`, the deleted generator, named twice) passed. It reads
 every word now, and its own test says so. The same look corrected a recipe that credited two test
 files with what one plays, and a MANUAL line that read as if the starter pack scripted every card
-(three are text).
+(twenty-two of its thirty-nine are text, counted since: three chosen, nineteen printed features).
 
 ## Card zones — done
 
