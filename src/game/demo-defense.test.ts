@@ -8061,7 +8061,7 @@ describe('a stance that holds the ground around it', () => {
 
 
 /**
- * The Book of Sitil's echo: the same attack roll, laid against a second
+ * An echo on the next swing: the same attack roll, laid against a second
  * Difficulty rather than thrown again. The first card to reuse a roll made
  * outside the runner.
  */

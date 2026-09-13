@@ -633,6 +633,8 @@ Smaller: `cut-purse-strings`, `rallying-cry` and `smoke-step` are still text onl
 first has a real blocker (`addItem` names a bare item id with no source, so taking what somebody
 else carries cannot be said); and `holding-the-line`/`caught-in-the-line` still sit in
 `content/conditions.ts`, which slice 3 prunes, when they belong beside the feature that arms them.
+*(Closed since: `rallying-cry` and `smoke-step` are scripted, Hold the Line's two conditions ship
+with the pack, and the magic circle and the echo left for `public/packs/ember-spells.json`.)*
 
 The old diagnosis, kept because the reasoning is the reusable part: the pack shipped 14 abilities —
 eleven passives and three `action`s with no effects. These specs exercise the *interactive* paths — arming, a
