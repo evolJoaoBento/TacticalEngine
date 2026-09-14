@@ -608,8 +608,8 @@ explain what `cover.ts`, `los.ts` and `area.ts` implement.
 
 ---
 
-**Pinned to commit `f1d2db7`.** At that commit: `npx tsc --noEmit` clean, vitest **1875 passed (1875)**
-across 95 files, Playwright **116 passed (4.1m)**, `EXIT 0`.
+**Pinned to commit `316ddb2`.** At that commit: `npx tsc --noEmit` clean, vitest **1876 passed (1876)**
+across 95 files, Playwright **117 passed (4.1m)**, `EXIT 0`.
 
 ### History: the red e2e run after the demo was repointed
 
