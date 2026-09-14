@@ -1456,17 +1456,17 @@ describe('logic in code', () => {
           name: 'Native',
           source: { card: 'native-card' },
           target: { kind: 'self' },
-          effects: [{ kind: 'run', hook: 'arcane-barrage' }],
+          effects: [{ kind: 'run', hook: 'fixture-hook' }],
         },
       ],
     });
-    const problems = validateProject(project, { knownHooks: new Set(['arcane-barrage']) });
+    const problems = validateProject(project, { knownHooks: new Set(['fixture-hook']) });
     const messages = problems.map((p) => p.message);
     expect(messages).toContain('"a-card" runs hook "nowhere", which nothing defines.');
     expect(messages.some((m) => m.startsWith('Code "broken" does not compile'))).toBe(true);
     expect(messages).toContain('Code "lonely" is never run by anything.');
     // A hook the engine registers is fine, and so is a condition naming project code.
-    expect(messages.some((m) => m.includes('arcane-barrage'))).toBe(false);
+    expect(messages.some((m) => m.includes('fixture-hook'))).toBe(false);
     expect(messages.some((m) => m.includes('asks hook "good"'))).toBe(false);
   });
 });

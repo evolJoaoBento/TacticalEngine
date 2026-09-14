@@ -172,9 +172,9 @@ before attacking; a condition that `blocks` acting (Stunned, Asleep) or moving (
 costs them the spotlight, and the GM spends a Shadow to wake a sleeper when there is one. A
 grimoire's spells read their words from the card's named features.
 
-Logic the vocabulary cannot say is **code**: `{ kind: 'run', hook }` and `{ kind: 'hook' }` reach
-either a native TypeScript hook (`engine/script/native-hooks.ts`) or a `project.code[]` entry the
-editor's Code panel writes. A hook reads the world and *queues effects*, so nothing escapes the
+Logic the vocabulary cannot say is **code**: `{ kind: 'run', hook }` and `{ kind: 'hook' }` reach a
+`project.code[]` entry, written in the editor's Code panel or brought in by a pack -- Import pack
+asks first, since code is not sandboxed. The engine ships none. A hook reads the world and *queues effects*, so nothing escapes the
 journal, and rolls only off the seeded stream (`Math.random` throws). The demo ships one card
 written that way.
 

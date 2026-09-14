@@ -63,8 +63,6 @@ export interface EditorShellProps {
   /** Ids the validator should consider resolvable. */
   knownModels: ReadonlySet<string>;
   knownAdversaries: ReadonlySet<string>;
-  /** Hooks the engine registers itself, listed in the Code panel. */
-  nativeHooks: readonly string[];
   /** The cards the engine ships, listed beside the project's own. */
   libraryAbilities: readonly AbilityDef[];
   /** The vendored SRD content the Party panel picks from, and validates against. */
@@ -203,7 +201,6 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       validateProject(session.project, {
         knownModels: props.knownModels,
         knownAdversaries: props.knownAdversaries,
-        knownHooks: new Set(props.nativeHooks),
         knownConditions: new Set([...STARTER_CONDITIONS, ...SRD_CONDITIONS].map((c) => c.id)),
         characterContent: props.characterContent,
       }),
@@ -217,9 +214,9 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
     encounterIds: scene.encounters.map((e) => e.id),
     quests: session.project.quests,
   };
-  // A card's or an item's `run` can name either door: the engine's own hooks or
-  // the project's code, which is exactly what the runner looks in.
-  const hookIds = [...props.nativeHooks, ...session.project.code.map((c) => c.id)];
+  // A card's or an item's `run` names the project's code, which is exactly what the runner looks in:
+  // the engine ships none of its own.
+  const hookIds = session.project.code.map((c) => c.id);
   const closeWorkspace = (): void => setWorkspace(null);
   const useTool = (next: EditorTool): void => {
     controller.setTool(next);
@@ -345,7 +342,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       );
       break;
     case 'code':
-      workspaceBody = <CodePanel session={session} nativeHooks={props.nativeHooks} onChange={bump} onClose={closeWorkspace} />;
+      workspaceBody = <CodePanel session={session} onChange={bump} onClose={closeWorkspace} />;
       break;
     case 'quests':
       workspaceBody = <QuestsWorkspace session={session} onChange={bump} onClose={closeWorkspace} />;

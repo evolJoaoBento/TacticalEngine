@@ -33,6 +33,7 @@ import { FIXTURE_ADVERSARIES, FIXTURE_CARDS, FIXTURE_DOMAIN_FOUR, FIXTURE_FOE } 
 import {
   A_SPRAY_THAT_EATS_ARMOUR,
   A_WOUND_THAT_ANSWERS,
+  ARMOUR_OR_HIT_POINT_CODE,
   print,
   printed,
   type Printed,
@@ -1102,7 +1103,7 @@ describe("an adversary's own features", () => {
         range: 'close',
         target: { kind: 'allies', range: 'close' },
         damage: '2d6',
-        onHit: [{ kind: 'run', hook: 'mark-armor-or-hit-point', args: { bad: true } }],
+        onHit: [{ kind: 'run', hook: 'fixture-armor-or-hit-point', args: { bad: true } }],
       },
     ],
   });
@@ -1111,6 +1112,7 @@ describe("an adversary's own features", () => {
   const onlyFeature = (demo: DemoScene, feature: Printed): void => {
     withoutFeatures(demo);
     print(demo.project, feature);
+    demo.project.code.push(ARMOUR_OR_HIT_POINT_CODE);
     refreshWorld(demo);
   };
 
@@ -1404,6 +1406,7 @@ describe('a creature that answers its own wounds', () => {
     );
     demo.state.removeEntity(placed.id);
     print(demo.project, ...features);
+    demo.project.code.push(ARMOUR_OR_HIT_POINT_CODE);
     refreshWorld(demo);
     return demo.state.entity('answerer')!;
   };
@@ -1430,14 +1433,19 @@ describe('a creature that answers its own wounds', () => {
     finn.armorSlots = { ...finn.armorSlots, marked: finn.armorSlots.max };
 
     let sprayed = false;
-    for (let i = 0; i < 30 && !sprayed; i++) {
+    let paid = false;
+    for (let i = 0; i < 30 && !paid; i++) {
       endTurn(demo);
-      sprayed = demo.log.some((l) => l.text.includes('It sprays the room'));
+      sprayed = sprayed || demo.log.some((l) => l.text.includes('It sprays the room'));
+      paid = demo.log.some((l) => /eats an Armor Slot|takes a Hit Point/.test(l.text));
       if (demo.encounter?.outcome !== 'ongoing') break;
     }
     expect(sprayed).toBe(true);
     // Everyone it beat was rolled for separately, and the log says what happened.
     expect(demo.log.map((l) => l.text).filter((t) => t.includes('Caustic Spray')).length).toBeGreaterThan(0);
+    // And whatever it beat paid through the code the block carries -- a slot, or a Hit Point with
+    // none left. The engine ships no hooks, so without that code this never happens.
+    expect(paid).toBe(true);
   });
 
   it("answers a card's own attack, and not only damage the world was handed", () => {

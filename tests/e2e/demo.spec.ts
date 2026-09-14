@@ -2193,11 +2193,12 @@ test("writes the project's content out as a pack file, and nothing else", async 
   const pack = JSON.parse(readFileSync(await download.path(), 'utf8')) as Record<string, unknown>;
   const project = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())) as Record<string, unknown>;
   expect(pack['formatVersion']).toBe(4);
-  // The content, list for list, and none of what makes it a project.
-  for (const list of ['weapons', 'armors', 'classes', 'ancestries', 'communities', 'subclasses', 'cards', 'adversaries', 'abilities', 'conditionDefs']) {
+  // The content, list for list, and none of what makes it a project. The code its cards run goes
+  // with them, so the pack asks before that code comes in wherever it is imported next.
+  for (const list of ['weapons', 'armors', 'classes', 'ancestries', 'communities', 'subclasses', 'cards', 'adversaries', 'abilities', 'conditionDefs', 'code']) {
     expect(pack[list]).toEqual(project[list]);
   }
-  for (const not of ['scenes', 'party', 'code', 'dialogues']) expect(pack[not]).toBeUndefined();
+  for (const not of ['scenes', 'party', 'dialogues']) expect(pack[not]).toBeUndefined();
 
   expect(consoleErrors).toEqual([]);
 });

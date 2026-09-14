@@ -13,8 +13,7 @@
 import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
 import { DEMO_QUESTS } from './demo-quests';
-import { SRD_HOOKS } from '../engine/script/native-hooks';
-import { compileHooks, mergeHooks, type HookMap } from '../engine/script/hooks';
+import { compileHooks, type HookMap } from '../engine/script/hooks';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES, DEMO_PROJECT_CARDS } from './demo-code';
 import { SRD_CONDITIONS, type ConditionDef } from '../engine/content/conditions';
 import { MAX_SLOTS } from '../engine/rules/resources';
@@ -788,14 +787,17 @@ export function worldOptions(
  */
 let compiled: { signature: string; hooks: HookMap } | null = null;
 
+/** What a project with no code runs: nothing. The engine ships no hooks of its own. */
+const NO_HOOKS: HookMap = new Map();
+
 export function hooksFor(code: readonly CodeDef[] | undefined): HookMap {
-  if (code === undefined || code.length === 0) return SRD_HOOKS;
+  if (code === undefined || code.length === 0) return NO_HOOKS;
   // Keyed on what the code *says*, not on the array holding it: the editor
   // rewrites an entry in place, and a cache keyed on identity would go on
   // running the version the author has just changed.
   const signature = code.map((entry) => `${entry.id}\x00${entry.source}`).join('\x01');
   if (compiled !== null && compiled.signature === signature) return compiled.hooks;
-  const hooks = mergeHooks(SRD_HOOKS, compileHooks(code).hooks);
+  const hooks = compileHooks(code).hooks;
   compiled = { signature, hooks };
   return hooks;
 }

@@ -82,7 +82,7 @@ describe('the reference docs', () => {
     // The check itself, on names it must refuse and names it must pass.
     expect(known('src/engine/content/srd/hooks.ts')).toBe(false);
     expect(known('combat/attack.ts')).toBe(true);
-    expect(known('src/engine/script/native-hooks.ts')).toBe(true);
+    expect(known('src/engine/script/hooks.ts')).toBe(true);
     // A path behind a command is still a path: this one hid from the first version of the guard.
     expect(pathsIn('python tools/adversaries-doc.py')).toEqual(['tools/adversaries-doc.py']);
   });

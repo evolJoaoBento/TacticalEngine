@@ -458,7 +458,6 @@ footer {
       <tr><td><code>content/pack/import.ts</code></td><td>The pack in memory: <code>ContentPack</code> (maps by id), <code>CardGrant</code>, <code>isDomainCard</code>, and <code>mergePack</code>, which lays a project's lists over a pack's.</td></tr>
       <tr><td><code>content/pack/document.ts</code></td><td>A pack as a <strong>file</strong>: <code>packDocumentSchema</code>, <code>readPack</code> (migrates, then validates each entry on its own), <code>describePack</code>, and <code>packOf</code>, which writes a project's lists back out as one (Project ▾ → Export pack). What Project ▾ → Import pack… reads.</td></tr>
       <tr><td><code>content/pack/starter.ts</code></td><td>The pack the engine ships, its own and nobody else's: <code>STARTER_PACK</code>, <code>STARTER_CHARACTERS</code>, <code>STARTER_ADVERSARIES</code>; with <code>starter-abilities.ts</code> and <code>starter-conditions.ts</code>, what its cards do and the conditions they apply.</td></tr>
-      <tr><td><code>script/native-hooks.ts</code></td><td><code>SRD_HOOKS</code> — the four native hooks, for mechanics that are a computation rather than a list of effects.</td></tr>
       <tr><td><code>scene/primitives.ts</code></td><td><code>contentIdSchema</code>, <code>traitSchema</code>, <code>pointSchema</code>. Exists to break an import cycle between the two zod modules.</td></tr>
       <tr><td><code>scene/schema.ts</code></td><td>The authored document: <code>sceneSchema</code>, <code>projectSchema</code>, <code>ProjectDoc</code>, <code>codeSchema</code>.</td></tr>
       <tr><td><code>scene/state.ts</code></td><td>The runtime overlay: <code>EntityState</code>, <code>SceneState</code>, <code>SceneStateSnapshot</code>, <code>sceneStateFromScene</code>.</td></tr>
@@ -1411,8 +1410,8 @@ footer {
       In the editor, write it in the Cards panel and set <strong>granted by</strong> to stat
       blocks. <strong>Comment every departure from the printed text</strong> next to the thing
       that departs.</li>
-    <li>If the vocabulary cannot say it, add an effect (recipe a) or a native hook in
-      <code>src/engine/script/native-hooks.ts</code>. If you do neither, leave the feature as text
+    <li>If the vocabulary cannot say it, add an effect (recipe a) or write it as code the pack
+      carries (<code>code</code>, reached by a <code>run</code> effect). If you do neither, leave the feature as text
       for the GM to narrate — an unscripted feature is honest; a half-scripted one is not.</li>
     <li><strong><code>src/editor/validate.ts</code></strong> already knows what only a stat block
       may do and what only the party's own swing obeys; <code>isStatBlockFeature</code> asks the

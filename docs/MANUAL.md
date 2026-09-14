@@ -651,9 +651,9 @@ that fails the schema is recorded in `__engine.errors`, and nothing is shown und
 ### Exporting a pack
 
 **Export pack** writes the project's content -- classes, ancestries, communities, subclasses,
-cards, weapons, armor and adversaries, the abilities on its cards and the conditions they apply --
-as a pack file named for the project (`<project id>-pack.json`). Nothing else goes in: no scenes,
-no party, no code. **Import pack…** reads it back, into this project or another. It is not a save,
+cards, weapons, armor and adversaries, the abilities on its cards, the conditions they apply and the
+code they run -- as a pack file named for the project (`<project id>-pack.json`). Nothing else goes
+in: no scenes, no party. Because the code goes with it, importing the file anywhere asks first. **Import pack…** reads it back, into this project or another. It is not a save,
 and the project is not marked saved.
 
 ### Importing a pack
@@ -664,8 +664,11 @@ cards do something and the conditions those abilities apply. Pick one file or se
 in turn, and a message says what each brought.
 
 - A pack is a JSON object carrying any of the lists `weapons`, `armors`, `classes`, `ancestries`,
-  `communities`, `subclasses`, `cards`, `adversaries`, `abilities` and `conditionDefs`, each
+  `communities`, `subclasses`, `cards`, `adversaries`, `abilities`, `conditionDefs` and `code`, each
   optional (`domainCards` in a file older than format version 3). A project file is a pack too: importing one takes its content and leaves its scenes.
+- A pack that carries **code** (`code`, the scripts its cards run) asks first, naming each script.
+  Code runs inside the game with everything the game can reach -- it is not sandboxed -- so accept
+  only a pack from someone you trust. Declining brings in none of the pack.
 - An entry whose id the project already has **replaces** it where it stands; anything new is added.
   The message says how many were replaced.
 - One **Undo** takes the whole import back, and **Redo** brings it again. In play the game is
@@ -835,18 +838,10 @@ adversary in reach", a house rule the vocabulary never anticipated. Those are **
 they are reached from the same vocabulary: the effect `{ kind: 'run', hook: 'id', args? }` and
 the condition `{ kind: 'hook', hook: 'id', args? }`.
 
-There are two doors and one lookup:
-
-- **Native hooks** — TypeScript registered with the engine (`defineHooks` in
-  `engine/script/hooks.ts`). The engine's own four are in `engine/script/native-hooks.ts` --
-  `arcane-barrage`, `falling-sky`, `mark-armor-or-hit-point` and `wild-flame`: mechanics that are
-  a computation rather than a list of effects, for whatever card names them.
-- **Project code** — JavaScript the project carries in `code[]` (`id`, `name`, `notes`,
-  `source`) and the editor's **Code** panel writes. Compiled with `new Function` when the
-  project loads and again whenever the text changes.
-
-A project entry with the same id as a native hook wins, so a campaign can rewrite one of the
-engine's without touching the engine.
+A hook is JavaScript the project carries in `code[]` (`id`, `name`, `notes`, `source`): written in
+the editor's **Code** panel, or brought in by a pack. Compiled with `new Function` when the project
+loads and again whenever the text changes. The engine ships no hooks of its own -- a catalogue's card
+code travels in its pack, and Import pack asks before letting it in.
 
 **What a hook may do.** It is handed one argument, `ctx`:
 

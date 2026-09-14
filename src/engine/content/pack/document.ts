@@ -3,9 +3,11 @@
  *
  * `contentPackSchema` is what a character is built from and what they are set against. A pack that
  * is only that is names and numbers: its cards arrive with no scripts, and a card that applies a
- * condition arrives without the condition. So the file a pack travels as carries two lists more --
- * the abilities that make its cards do something, and the conditions those abilities apply -- which
- * are exactly the two lists a project already carries for the same reason. A project file is
+ * condition arrives without the condition. So the file a pack travels as carries three lists more --
+ * the abilities that make its cards do something, the conditions those abilities apply, and the code
+ * an ability runs where the effect vocabulary cannot say it -- which are exactly the lists a project
+ * already carries for the same reason. Code is the one a person is asked about before it comes in:
+ * see `importPackText` in `main.ts`. A project file is
  * therefore a pack too: reading one takes its content and leaves its scenes.
  *
  * Reading one is a door like the project loader's. The raw document is migrated first, so a pack
@@ -20,6 +22,7 @@ import { z } from 'zod';
 import { abilitySchema } from '../abilities';
 import { conditionDefSchema } from '../conditions';
 import { CURRENT_FORMAT_VERSION, migrateDocument } from '../../scene/migrate';
+import { codeSchema } from '../../scene/schema';
 import type { ContentIssue } from '../types';
 import {
   adversaryDefSchema,
@@ -45,6 +48,7 @@ const ENTRY = {
   adversaries: adversaryDefSchema,
   abilities: abilitySchema,
   conditionDefs: conditionDefSchema,
+  code: codeSchema,
 } as const;
 
 export type PackList = keyof typeof ENTRY;
@@ -63,6 +67,7 @@ export const packDocumentSchema = contentPackSchema.extend({
   formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
   abilities: z.array(abilitySchema).default([]),
   conditionDefs: z.array(conditionDefSchema).default([]),
+  code: z.array(codeSchema).default([]),
 });
 
 export type PackDocument = z.infer<typeof packDocumentSchema>;
@@ -150,11 +155,13 @@ const NAMES: Readonly<Record<PackList, readonly [one: string, many: string]>> = 
   adversaries: ['adversary', 'adversaries'],
   abilities: ['ability', 'abilities'],
   conditionDefs: ['condition', 'conditions'],
+  code: ['script', 'scripts'],
 };
 
 /**
  * A project's content as a pack file: every list a pack carries, copied from the project as it
- * stands, and none of its scenes, party or code. The other half of Import pack -- what is written
+ * stands -- its code included, which is why importing the file asks -- and none of its scenes or
+ * party. The other half of Import pack -- what is written
  * here reads back through `readPack` entry for entry, into this project or another.
  */
 export function packOf(project: { readonly [K in PackList]: readonly unknown[] }): PackDocument {

@@ -8,10 +8,9 @@ import { ScriptRunner, runScript, type JournalEntry } from './runner';
 import { SceneScriptWorld, createScenarioState } from './world';
 import type { Effect } from './schema';
 import { STARTER_ABILITIES, STARTER_CHARACTERS } from '../content/pack/starter';
-import { SRD_HOOKS } from './native-hooks';
 import { SRD_CONDITIONS } from '../content/conditions';
 import { abilitySchema } from '../content/abilities';
-import { compileHooks, mergeHooks } from './hooks';
+import { compileHooks } from './hooks';
 import { A_GUARD_CARDS, A_GUARD_THAT_ANSWERS } from '../../../tests/fixtures/cards';
 import { printed } from '../../../tests/fixtures/adversary-features';
 import { FIXTURE_CONDITIONS } from '../../../tests/fixtures/conditions';
@@ -153,7 +152,7 @@ function scene(
           cards: new Map(features.map((f) => [f.card.id, f.card] as const)),
           conditionDefs: [...SRD_CONDITIONS, ...FIXTURE_CONDITIONS],
         }),
-    hooks: mergeHooks(SRD_HOOKS, compileHooks((options.code ?? []).map((c) => ({ ...c, name: c.id }))).hooks),
+    hooks: compileHooks((options.code ?? []).map((c) => ({ ...c, name: c.id }))).hooks,
   });
   return { grid, state, scenario, world, characters };
 }

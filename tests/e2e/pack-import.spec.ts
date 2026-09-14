@@ -145,6 +145,42 @@ test('a file that is not a pack is refused, and the project is left as it was', 
   expect(result.unchanged).toBe(true);
 });
 
+test('a pack that carries code asks first, and brings nothing when the answer is no', async ({ page }) => {
+  await boot(page);
+  const SPARK = { id: 'lantern-spark', name: 'Lantern Spark', source: "ctx.log('The lantern spits a spark.', 'good');" };
+  const SPARK_CARD = { id: 'spark-oath', name: 'Spark Oath', grant: { kind: 'given', characters: ['kara'] }, text: 'Kara strikes the lantern.' };
+  const SPARK_OATH = {
+    id: 'spark-oath',
+    name: 'Spark Oath',
+    source: { card: 'spark-oath' },
+    text: 'Kara strikes the lantern, and the code the pack brought answers.',
+    effects: [{ kind: 'run', hook: 'lantern-spark' }],
+  };
+  const pack = JSON.stringify({ formatVersion: 4, cards: [SPARK_CARD], abilities: [SPARK_OATH], code: [SPARK] });
+
+  const asked: string[] = [];
+  let accept = false;
+  page.on('dialog', (dialog) => {
+    asked.push(dialog.message());
+    void (dialog.type() === 'confirm' && !accept ? dialog.dismiss() : dialog.accept());
+  });
+
+  // No: nothing of it comes in, not even the parts that are not code.
+  const before = await page.evaluate(() => window.__engine!.exportProject());
+  const declined = await page.evaluate((text) => window.__engine!.importPackText(text, 'sparks.json'), pack);
+  expect(asked[0]).toContain('sparks.json carries code: one script -- Lantern Spark (lantern-spark).');
+  expect(asked[0]).toContain('It is not sandboxed.');
+  expect(declined).toEqual({ imported: false, message: 'Could not import sparks.json: it carries code, and it was not accepted' });
+  expect(await page.evaluate(() => window.__engine!.exportProject())).toBe(before);
+
+  // Yes: the card comes in and runs the code it brought.
+  accept = true;
+  const accepted = await page.evaluate((text) => window.__engine!.importPackText(text, 'sparks.json'), pack);
+  expect(accepted).toEqual({ imported: true, message: 'Imported sparks.json: 1 card, 1 ability, 1 script.' });
+  expect(await page.evaluate(() => window.__engine!.useAbility('kara', 'spark-oath'))).toBe('done');
+  await expect(page.locator('[data-testid="log"]')).toContainText('The lantern spits a spark.');
+});
+
 test('the pack the build ships imports from where it is served, and its circle burns in a fight', async ({ page }) => {
   await boot(page);
   // Fetched from the server as a player would open it, so a pack left out of `public/` fails here.

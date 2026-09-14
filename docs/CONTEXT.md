@@ -62,11 +62,11 @@ Dev server: `npm run dev` → http://127.0.0.1:8420. Playwright starts its own s
   from history) wrote it out as `packs/srd.json`, the content as one `contentPackSchema` document,
   and `packs/srd-abilities.json`, the 185 ability scripts and 54 conditions that content runs on,
   in the shape `projectSchema` accepts. Both are **gitignored**: an export is for whoever holds the
-  rights to it, not something this repository ships; both import whole through that menu. Three
-  of the four native hooks in
-  `src/engine/script/native-hooks.ts` exist for cards in that pack — `{ kind: 'run', hook: '…' }`
-  is a computation the effect vocabulary cannot express — which is why that module stayed behind
-  when the content went.
+  rights to it, not something this repository ships; both import whole through that menu. The three
+  hooks three of its cards run (`{ kind: 'run', hook: '…' }`, a computation the effect vocabulary
+  cannot express) stayed in the engine when the content went, and have since moved into the
+  abilities file as its `code` list: the engine ships none, and Import pack asks before code comes
+  in.
 
   **What the 2.0 diff settled, which outlives the text it was read from.** A full section-by-section
   pass against 1.0 was done on 2026-09-05. Almost everything was identical — action rolls and the

@@ -18,6 +18,7 @@
 
 import { abilitySchema, type AbilityDef } from '../../src/engine/content/abilities';
 import { cardDefSchema } from '../../src/engine/content/pack/schema';
+import type { CodeDef } from '../../src/engine/scene/schema';
 
 /** A card as a project stores it. */
 type Card = ReturnType<typeof cardDefSchema.parse>;
@@ -81,7 +82,8 @@ export const A_WOUND_THAT_ANSWERS = (definition: string): Printed => printed(def
  * Which of the two happens is decided per target, which is why the mechanic is
  * a `run` hook rather than an effect list: a list branches once for everybody
  * at once. The hook's `bad` argument is the GM's cut for the ones who had
- * nothing left to give up.
+ * nothing left to give up. The hook is `ARMOUR_OR_HIT_POINT_CODE`, below: the
+ * engine ships none, so a test lays it into the project's code with the block.
  */
 export const A_SPRAY_THAT_EATS_ARMOUR = (definition: string): Printed => printed(definition, {
   id: 'fixture-armour-spray',
@@ -99,10 +101,30 @@ export const A_SPRAY_THAT_EATS_ARMOUR = (definition: string): Printed => printed
       range: 'close',
       target: { kind: 'allies', range: 'close' },
       damage: '2d6',
-      onHit: [{ kind: 'run', hook: 'mark-armor-or-hit-point', args: { bad: true } }],
+      onHit: [{ kind: 'run', hook: 'fixture-armor-or-hit-point', args: { bad: true } }],
     },
   ],
 });
+
+/** The code behind the spray, shaped as a project carries code: per target, a slot or a Hit Point. */
+export const ARMOUR_OR_HIT_POINT_CODE: CodeDef = {
+  id: 'fixture-armor-or-hit-point',
+  name: 'Armour or a Hit Point',
+  notes: 'Each creature hit marks an Armor Slot for nothing, or a Hit Point with none left.',
+  source: `for (var i = 0; i < ctx.hit.length; i++) {
+  var id = ctx.hit[i];
+  var room = ctx.pool(id, 'armorSlots') || 0;
+  if (room > 0) {
+    ctx.log('The spray eats an Armor Slot for nothing.', 'combat');
+    ctx.queue([{ kind: 'markArmor', amount: 1, target: { kind: 'entity', id: id } }]);
+  } else {
+    ctx.log('No armour left to give up: the spray takes a Hit Point.', 'bad');
+    var effects = [{ kind: 'damage', amount: 1, direct: true, target: { kind: 'entity', id: id } }];
+    if (ctx.args.bad === true) effects.push({ kind: 'gainBad' });
+    ctx.queue(effects);
+  }
+}`,
+};
 
 /**
  * A hide that shrugs steel off: resistance, which halves what it answers.

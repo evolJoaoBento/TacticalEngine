@@ -8,12 +8,10 @@
  * anticipated. A hook is that code, reached from the one vocabulary by
  * `{ kind: 'run', hook: 'id' }` and `{ kind: 'hook', hook: 'id' }`.
  *
- * There are two doors and one lookup:
- *
- * - **Native hooks**, TypeScript registered at build time (`defineHooks`).
- *   The engine's own live in `script/native-hooks.ts`.
- * - **Project code**, JavaScript text the project carries (`project.code[]`)
- *   and the editor writes. Compiled here with `new Function`.
+ * Hooks are JavaScript text a project carries (`project.code[]`): written in the
+ * editor's Code panel, or brought in by a pack, which is where a catalogue's
+ * card code lives. Compiled here with `new Function`. The engine ships none of
+ * its own; `defineHooks` stays for an embedder registering TypeScript ones.
  *
  * Two rules keep hooks from being a hole in everything else:
  *
@@ -27,7 +25,8 @@
  * Project code is *trusted*, exactly as the rest of a project file is: the
  * shadowing below stops honest mistakes (a stray `Date.now()` that would
  * desync a replay, a `fetch` in a card), not an attacker who wrote your
- * campaign. Do not load a project you would not run.
+ * campaign. Do not load a project you would not run. A pack is somebody else's
+ * file arriving in yours, so Import pack asks before it lets any code in.
  */
 
 import type { Rng } from '../core/rng';

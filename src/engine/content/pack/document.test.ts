@@ -5,6 +5,7 @@ import { cardOf } from '../abilities';
 import { PACK_LISTS, describePack, packDocumentSchema, packOf, readPack } from './document';
 import { STARTER_ABILITIES, STARTER_CONDITIONS, STARTER_PACK } from './starter';
 import { CURRENT_FORMAT_VERSION } from '../../scene/migrate';
+import { compileHooks } from '../../script/hooks';
 import { blankScene } from '../../scene/grid-from-scene';
 import { projectSchema, sceneSchema } from '../../scene/schema';
 
@@ -112,6 +113,14 @@ describe('reading a pack', () => {
     expect(unreadable.issues).toHaveLength(1);
   });
 
+  it('carries code, and names it in words as the scripts it is', () => {
+    const reading = readPack({ formatVersion: 4, code: [{ id: 'lantern-spark', name: 'Spark', source: "ctx.log('A spark.');" }] });
+
+    expect(reading.refused).toBeNull();
+    expect(reading.pack.code).toEqual([{ id: 'lantern-spark', name: 'Spark', notes: '', source: "ctx.log('A spark.');" }]);
+    expect(describePack(reading.pack)).toBe('1 script');
+  });
+
   it('says what it read in words', () => {
     const reading = readPack({ weapons: [AXE], classes: [WARDEN, { ...WARDEN, id: 'road-warden' }] });
 
@@ -137,8 +146,10 @@ describe('reading a pack', () => {
       // resource and five a subclass printed. Imported beside the content file, each duplicates a
       // printed card it built by name -- the two files were exported apart, and are read apart.
       // The other two are what Invisible and Echoing Strike lend, since format version 4: each
-      // spell's second half, moved off the spell onto a card of its own.
-      expect(describePack(mechanics.pack)).toBe('10 cards, 185 abilities, 54 conditions');
+      // spell's second half, moved off the spell onto a card of its own. The three scripts are the
+      // code three of its cards run, which the engine stopped shipping: they compile as they are.
+      expect(describePack(mechanics.pack)).toBe('10 cards, 185 abilities, 54 conditions, 3 scripts');
+      expect(compileHooks(mechanics.pack.code).issues).toEqual([]);
     },
   );
 });

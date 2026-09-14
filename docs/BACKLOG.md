@@ -4,6 +4,28 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Packs carry code, and ask before it comes in — done
+
+The engine shipped four native hooks named for a catalogue's cards (`SRD_HOOKS`, in
+`script/native-hooks.ts`). They are gone, and the engine ships no hooks at all. A pack file carries a
+`code` list now -- the same `codeSchema` a project's Code panel writes -- so a catalogue's card code
+travels with its cards. The three the exported cards call (`arcane-barrage`, `falling-sky`,
+`wild-flame`) were written into `packs/srd-abilities.json` as JavaScript, locally, with the file
+backed up beside it first (`packs/srd-abilities.before-code.json`); the machine-local read in
+`document.test.ts` checks they compile. The fourth, `mark-armor-or-hit-point`, only a fixture used:
+it is the fixture's own code now (`ARMOUR_OR_HIT_POINT_CODE`).
+
+Code in a pack runs in the page with everything the game can reach -- the shadowing in
+`script/hooks.ts` is a guard rail, not a sandbox -- so Import pack asks first (`codeQuestion` in
+`main.ts`): it names each script, says it is not sandboxed, and a no brings in none of the pack. A
+project file imported as a pack asks too, and Export pack writes a project's code with its
+content, so a pack written here asks wherever it is imported. **Loading** a project still runs its code without asking;
+that is the next thing to close.
+
+`npx tsc --noEmit` clean; vitest **1876 passed (1876)**; Playwright **117 passed (4.1m)**, `EXIT 0`. Three breaks --
+the import not asking, a pack that cannot carry code, and the spray without its code -- each fail
+the tests written for them.
+
 ## The engine keeps only the rules' conditions — done
 
 The engine's own condition list held fifty, and forty-seven were a catalogue's: card markers
@@ -20,10 +42,11 @@ The tests that play those rules -- a block, an ending, a die on any roll, an imm
 ten they need in `tests/fixtures/conditions.ts`, under the ids they always used, and add them to
 their world the way an import would.
 
-Still in the engine and named for cards: `SRD_HOOKS`, four native hooks (Arcane Barrage, Falling
+~~Still in the engine and named for cards: `SRD_HOOKS`, four native hooks (Arcane Barrage, Falling
 Sky, Wild Flame, and the armor-or-Hit-Point rule several stat blocks share). A pack cannot carry
 code, and the exported cards call them by id, so they stay until one can -- which means a pack
-bringing code the game runs, the user's call. The five adversary keywords `adversary-features.ts`
+bringing code the game runs, the user's call.~~ — **closed**: *Packs carry code, and ask before it
+comes in*, above. The five adversary keywords `adversary-features.ts`
 runs are rules, not cards.
 
 `npx tsc --noEmit` clean; vitest **1875 passed (1875)**; Playwright **116 passed (4.1m)**, `EXIT 0`. Three breaks --

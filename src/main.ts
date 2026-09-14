@@ -129,7 +129,6 @@ import {
   setSheet,
   type DemoScene,
 } from './game/demo-scene';
-import { SRD_HOOKS } from './engine/script/native-hooks';
 import { STARTER_ABILITIES } from './engine/content/pack/starter';
 
 declare global {
@@ -700,7 +699,6 @@ function renderPanel(): void {
       adversaries: adversaryLibrary(),
       knownModels: KNOWN_MODELS,
       knownAdversaries: new Set(adversaryDefsFor(session.project).keys()),
-      nativeHooks: [...SRD_HOOKS.keys()],
       libraryAbilities: STARTER_ABILITIES,
       characterContent: characterContentFor(demo.project),
       characterPack: characterContentFor(),
@@ -869,6 +867,16 @@ async function importPacks(files: readonly File[]): Promise<void> {
   if (said.length > 0) alert(said.join('\n\n'));
 }
 
+/** What Import pack asks before a pack's code comes in: which scripts, and what code can do. */
+function codeQuestion(label: string, code: readonly { id: string; name: string }[]): string {
+  const named = code.map((entry) => (entry.name === '' ? entry.id : `${entry.name} (${entry.id})`));
+  return [
+    `${label} carries code: ${code.length === 1 ? 'one script' : `${code.length} scripts`} -- ${named.join(', ')}.`,
+    'Code in a pack runs inside the game with everything the game can reach. It is not sandboxed.',
+    'Import it only if you trust whoever made it. Import it, code and all?',
+  ].join('\n\n');
+}
+
 /**
  * Lay a pack's content into the project being edited.
  *
@@ -899,6 +907,12 @@ function importPackText(text: string, label = 'the pack'): { imported: boolean; 
   // on the way back to play, which is when every other content edit reaches it too.
   const blocked = mode === 'play' ? saveBlockedBy(demo) : null;
   if (blocked !== null) return refuse(blocked);
+  // Code in a pack runs in this page with everything the game can reach -- the shadowing in
+  // `script/hooks.ts` is a guard rail, not a sandbox -- so it comes in only when somebody says so.
+  // All or nothing: a pack whose cards call its code is half a pack without it.
+  if (reading.pack.code.length > 0 && !confirm(codeQuestion(label, reading.pack.code))) {
+    return refuse('it carries code, and it was not accepted');
+  }
 
   const { replaced } = packChanges(session.project, reading.pack);
   session.run(importPack(reading.pack));

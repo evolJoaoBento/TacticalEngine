@@ -24,8 +24,6 @@ export interface CodePanelProps {
   /** Redraw after an edit. */
   onChange: () => void;
   onClose: () => void;
-  /** Hooks the engine ships, which content may name without carrying code. */
-  nativeHooks: readonly string[];
 }
 
 const field: Record<string, string | number> = {
@@ -203,7 +201,7 @@ export function CodePanel(props: CodePanelProps): preact.JSX.Element {
             </p>
             <p style={{ margin: 0 }}>
               A <code>hook</code> condition gets the reads and nothing else; return <code>true</code> for yes. The
-              engine ships: {props.nativeHooks.join(', ') || 'none'}.
+              engine ships no code of its own: every hook is the project's, or came in with a pack.
             </p>
           </div>
         </details>

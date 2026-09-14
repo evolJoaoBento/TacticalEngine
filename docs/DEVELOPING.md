@@ -119,7 +119,6 @@ adapter: the rest of the core does not know it exists.
 | `content/pack/document.ts` | A pack as a **file**: `packDocumentSchema` (`contentPackSchema` plus `abilities` and `conditionDefs`), `readPack` (migrates, then validates each entry on its own and reports what it skipped) and `describePack`. What Project ▾ → Import pack… reads; `importPack` in `editor/session.ts` lays it into the project, and `packOf` writes a project's lists back out as one (Project ▾ → Export pack). |
 | `content/pack/starter.ts` | The pack the engine ships, its own and nobody else's: `STARTER_PACK`, `STARTER_CHARACTERS` (the character side as a `ContentPack`), `STARTER_ADVERSARIES`. Its stat blocks carry printed traits and no scripted features. |
 | `content/pack/starter-abilities.ts`, `starter-conditions.ts` | `STARTER_ABILITIES` and `STARTER_CONDITIONS`: what the starter pack's cards do, and the conditions they apply. |
-| `script/native-hooks.ts` | `SRD_HOOKS` — the four native hooks, for mechanics that are a computation rather than a list of effects. Engine code, which is why it stayed when the catalogue went. |
 | `scene/primitives.ts` | `contentIdSchema`, `traitSchema`, `pointSchema`. Exists to break an import cycle between the two zod modules. |
 | `scene/schema.ts` | The authored document: `sceneSchema`, `projectSchema`, `ProjectDoc`, `codeSchema`. |
 | `scene/state.ts` | Runtime overlay: `EntityState`, `SceneState`, `SceneStateSnapshot`, `sceneStateFromScene`. |
@@ -595,9 +594,9 @@ creatures carry printed traits only -- and a pack or a project brings its own.
    (Shadow is the GM's pool), `target`, `inCombatOnly`, and `effects` in the one vocabulary. In
    the editor: write it in the Cards panel and set **granted by** to stat blocks. **Comment every
    departure from the printed text** next to the thing that departs.
-3. If the vocabulary cannot say it, add an effect (recipe a) or a native hook in
-   `src/engine/script/native-hooks.ts` -- and if you do neither, leave the feature as text for the
-   GM to narrate. An unscripted feature is honest; a half-scripted one is not.
+3. If the vocabulary cannot say it, add an effect (recipe a) or write it as code the pack carries
+   (`code`, reached by `{ kind: 'run', hook }`) -- and if you do neither, leave the feature as text
+   for the GM to narrate. An unscripted feature is honest; a half-scripted one is not.
 4. **`src/editor/validate.ts`** already knows what only a stat block may do -- spend Shadow, hand
    out the spotlight, count the Hit Points its owner marks -- and what only the party's own swing
    obeys. `isStatBlockFeature` asks the cards; a new rule of that kind asks the same question.
@@ -748,9 +747,10 @@ A project may carry its own pack in the seven `ProjectDoc` fields above, exactly
 carries its abilities, items and conditions. An empty list means "whatever pack the app was given".
 
 **Importing one.** Project ▾ → Import pack… reads a pack *file* — `packDocumentSchema`: those lists
-plus `adversaries`, `abilities` and `conditionDefs` — through `readPack`, and `importPack` lays it
-into the same project fields by id, replacing a same-id entry where it stands and appending the
-rest, as one undo step. It is not a load; nothing the game is running is replaced. Undo and redo in
+plus `adversaries`, `abilities`, `conditionDefs` and `code` — through `readPack`, and `importPack`
+lays it into the same project fields by id, replacing a same-id entry where it stands and appending
+the rest, as one undo step. A pack that carries `code` is asked about first: `importPackText` in
+`main.ts` names each script and says code is not sandboxed, and a no imports none of the pack. It is not a load; nothing the game is running is replaced. Undo and redo in
 play rebuild the game over the document the step left (`stepEdit` in `main.ts`), since a passive is
 folded into derived numbers and the world copies stat blocks and conditions when it is built, and
 they are refused where the import is. The lists are
