@@ -820,8 +820,8 @@ function loadProjectText(text: string, label = 'the project'): string {
     return reason;
   }
   // The question Import pack asks, for the same reason: a project file somebody hands you is their
-  // code too. Only what this project does not already run is asked about, so reloading your own
-  // work asks nothing.
+  // code too. Only what this project does not already run is asked about, so reloading the
+  // project you have open asks nothing.
   const strange = unfamiliarCode(parsed.data.code, session.project.code);
   if (strange.length > 0 && !confirm(codeQuestion(label, strange, 'Load'))) {
     const reason = `Could not load ${label}: it carries code, and it was not accepted`;

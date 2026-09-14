@@ -197,7 +197,7 @@ export function compileHooks(code: readonly CodeSource[]): CompiledHooks {
 /**
  * The code in `incoming` that `known` does not already run, word for word: new ids, and old ids
  * whose text has changed. It is what Import pack and Load ask about -- code the project already
- * runs was accepted when it came in, so reloading your own work asks nothing, and a script
+ * runs was accepted when it came in, so reloading the project you have open asks nothing, and a script
  * rewritten under an old id is asked about as the stranger it is.
  */
 export function unfamiliarCode<T extends CodeSource>(incoming: readonly T[], known: readonly CodeSource[]): T[] {

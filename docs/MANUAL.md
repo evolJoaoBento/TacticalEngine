@@ -647,7 +647,8 @@ quest nothing starts; an objective nothing completes.
 if it is playable, replaces the document the *editor* holds, redraws the view, and restarts the
 game on it — the same round trip described under **Playing what you authored** above. A file that
 carries code the current project does not already run asks first, as Import pack does: it names each
-new script, says code is not sandboxed, and a no loads nothing. Reloading your own work asks nothing. A file
+new script, says code is not sandboxed, and a no loads nothing. Reloading the project you have open asks nothing; your saved project, loaded after a fresh boot
+when the demo is what is open, asks once. A file
 that fails the schema is recorded in `__engine.errors`, and nothing is shown under Project ▾.
 
 ### Exporting a pack

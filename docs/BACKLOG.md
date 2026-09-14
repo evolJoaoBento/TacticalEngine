@@ -10,8 +10,8 @@ Load put a project file's code into the running game without a word, which is th
 pack had just learned to guard: a `.json` somebody hands you. `loadProjectText` now asks the same
 question (`codeQuestion` in `main.ts`, with the verb changed), and a no loads nothing. Both doors ask
 only about code the project does not already run, word for word -- `unfamiliarCode` in
-`script/hooks.ts` reads id and text together -- so reloading your own work or your own save asks
-nothing, and a script rewritten under an old id is asked about. A save slot carries no code, so
+`script/hooks.ts` reads id and text together -- so reloading the project you have open asks
+nothing (a saved one loaded after a fresh boot, when the demo is open, asks once), and a script rewritten under an old id is asked about. A save slot carries no code, so
 loading one has nothing to ask.
 
 `npx tsc --noEmit` clean; vitest **1877 passed (1877)**; Playwright **118 passed (4.1m)**, `EXIT 0`. Two breaks --
