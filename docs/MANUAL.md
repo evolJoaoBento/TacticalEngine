@@ -645,7 +645,9 @@ quest nothing starts; an objective nothing completes.
 **Save JSON** downloads `<project-id>.json` (the whole document, pretty-printed) and clears the
 "unsaved" mark. **Load** opens a file picker; the file is parsed through the project schema, and
 if it is playable, replaces the document the *editor* holds, redraws the view, and restarts the
-game on it — the same round trip described under **Playing what you authored** above. A file
+game on it — the same round trip described under **Playing what you authored** above. A file that
+carries code the current project does not already run asks first, as Import pack does: it names each
+new script, says code is not sandboxed, and a no loads nothing. Reloading your own work asks nothing. A file
 that fails the schema is recorded in `__engine.errors`, and nothing is shown under Project ▾.
 
 ### Exporting a pack
@@ -666,7 +668,8 @@ in turn, and a message says what each brought.
 - A pack is a JSON object carrying any of the lists `weapons`, `armors`, `classes`, `ancestries`,
   `communities`, `subclasses`, `cards`, `adversaries`, `abilities`, `conditionDefs` and `code`, each
   optional (`domainCards` in a file older than format version 3). A project file is a pack too: importing one takes its content and leaves its scenes.
-- A pack that carries **code** (`code`, the scripts its cards run) asks first, naming each script.
+- A pack that carries **code** the project does not already run (`code`, the scripts its cards run)
+  asks first, naming each script.
   Code runs inside the game with everything the game can reach -- it is not sandboxed -- so accept
   only a pack from someone you trust. Declining brings in none of the pack.
 - An entry whose id the project already has **replaces** it where it stands; anything new is added.
@@ -841,7 +844,8 @@ the condition `{ kind: 'hook', hook: 'id', args? }`.
 A hook is JavaScript the project carries in `code[]` (`id`, `name`, `notes`, `source`): written in
 the editor's **Code** panel, or brought in by a pack. Compiled with `new Function` when the project
 loads and again whenever the text changes. The engine ships no hooks of its own -- a catalogue's card
-code travels in its pack, and Import pack asks before letting it in.
+code travels in its pack, and Import pack and Load both ask before code the project does not
+already run comes in.
 
 **What a hook may do.** It is handed one argument, `ctx`:
 

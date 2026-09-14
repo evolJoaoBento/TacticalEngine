@@ -25,8 +25,9 @@
  * Project code is *trusted*, exactly as the rest of a project file is: the
  * shadowing below stops honest mistakes (a stray `Date.now()` that would
  * desync a replay, a `fetch` in a card), not an attacker who wrote your
- * campaign. Do not load a project you would not run. A pack is somebody else's
- * file arriving in yours, so Import pack asks before it lets any code in.
+ * campaign. Do not load a project you would not run. A pack or a project file
+ * from somebody else is their code arriving in yours, so Import pack and Load
+ * ask before any code the project does not already run comes in.
  */
 
 import type { Rng } from '../core/rng';
@@ -191,6 +192,17 @@ export function compileHooks(code: readonly CodeSource[]): CompiledHooks {
     }
   }
   return { hooks, issues };
+}
+
+/**
+ * The code in `incoming` that `known` does not already run, word for word: new ids, and old ids
+ * whose text has changed. It is what Import pack and Load ask about -- code the project already
+ * runs was accepted when it came in, so reloading your own work asks nothing, and a script
+ * rewritten under an old id is asked about as the stranger it is.
+ */
+export function unfamiliarCode<T extends CodeSource>(incoming: readonly T[], known: readonly CodeSource[]): T[] {
+  const running = new Set(known.map((entry) => `${entry.id}\x00${entry.source}`));
+  return incoming.filter((entry) => !running.has(`${entry.id}\x00${entry.source}`));
 }
 
 /** What a hook did: a value, or the message of whatever it threw. */

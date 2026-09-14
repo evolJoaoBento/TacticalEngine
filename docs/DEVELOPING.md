@@ -750,7 +750,10 @@ carries its abilities, items and conditions. An empty list means "whatever pack 
 plus `adversaries`, `abilities`, `conditionDefs` and `code` — through `readPack`, and `importPack`
 lays it into the same project fields by id, replacing a same-id entry where it stands and appending
 the rest, as one undo step. A pack that carries `code` is asked about first: `importPackText` in
-`main.ts` names each script and says code is not sandboxed, and a no imports none of the pack. It is not a load; nothing the game is running is replaced. Undo and redo in
+`main.ts` names each script and says code is not sandboxed, and a no imports none of the pack.
+`loadProjectText` asks the same of a project file. Both ask only about code the project does not
+already run, word for word (`unfamiliarCode` in `script/hooks.ts`), so reloading your own work asks
+nothing. It is not a load; nothing the game is running is replaced. Undo and redo in
 play rebuild the game over the document the step left (`stepEdit` in `main.ts`), since a passive is
 folded into derived numbers and the world copies stat blocks and conditions when it is built, and
 they are refused where the import is. The lists are

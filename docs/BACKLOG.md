@@ -4,6 +4,20 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Load asks too, and only about code that is new — done
+
+Load put a project file's code into the running game without a word, which is the same door Import
+pack had just learned to guard: a `.json` somebody hands you. `loadProjectText` now asks the same
+question (`codeQuestion` in `main.ts`, with the verb changed), and a no loads nothing. Both doors ask
+only about code the project does not already run, word for word -- `unfamiliarCode` in
+`script/hooks.ts` reads id and text together -- so reloading your own work or your own save asks
+nothing, and a script rewritten under an old id is asked about. A save slot carries no code, so
+loading one has nothing to ask.
+
+`npx tsc --noEmit` clean; vitest **1877 passed (1877)**; Playwright **118 passed (4.1m)**, `EXIT 0`. Two breaks --
+Load without the question, and every script counted as already running -- each fail the tests
+written for them.
+
 ## Packs carry code, and ask before it comes in — done
 
 The engine shipped four native hooks named for a catalogue's cards (`SRD_HOOKS`, in
@@ -19,8 +33,8 @@ Code in a pack runs in the page with everything the game can reach -- the shadow
 `script/hooks.ts` is a guard rail, not a sandbox -- so Import pack asks first (`codeQuestion` in
 `main.ts`): it names each script, says it is not sandboxed, and a no brings in none of the pack. A
 project file imported as a pack asks too, and Export pack writes a project's code with its
-content, so a pack written here asks wherever it is imported. **Loading** a project still runs its code without asking;
-that is the next thing to close.
+content, so a pack written here asks wherever it is imported. ~~**Loading** a project still runs its code without asking;
+that is the next thing to close.~~ — **closed**: *Load asks too*, above.
 
 `npx tsc --noEmit` clean; vitest **1876 passed (1876)**; Playwright **117 passed (4.1m)**, `EXIT 0`. Three breaks --
 the import not asking, a pack that cannot carry code, and the spray without its code -- each fail

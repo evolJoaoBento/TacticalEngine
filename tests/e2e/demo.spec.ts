@@ -2820,6 +2820,44 @@ test('loads a project and restarts the game on it, but not in the middle of a fi
   expect(consoleErrors).toEqual([]);
 });
 
+test('loading a project asks before code it does not already run, and loads nothing on a no', async ({ page }) => {
+  const consoleErrors = await boot(page);
+  const asked: string[] = [];
+  let accept = false;
+  page.on('dialog', (dialog) => {
+    asked.push(dialog.message());
+    void (dialog.type() === 'confirm' && !accept ? dialog.dismiss() : dialog.accept());
+  });
+  const codeIds = () =>
+    page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { code: { id: string }[] }).code.map((c) => c.id));
+
+  // The game's own document, reloaded: its code is already running, so there is nothing to ask.
+  expect(await page.evaluate(() => window.__engine!.loadProjectText(window.__engine!.exportProject()))).toBe('');
+  expect(asked).toEqual([]);
+
+  // The same document carrying a script this project has never run.
+  const strange = await page.evaluate(() => {
+    const doc = JSON.parse(window.__engine!.exportProject()) as { code: { id: string; name: string; notes: string; source: string }[] };
+    doc.code.push({ id: 'stranger', name: 'Stranger', notes: '', source: "ctx.log('Hello from somebody else.');" });
+    return JSON.stringify(doc);
+  });
+  expect(await page.evaluate((text) => window.__engine!.loadProjectText(text), strange)).toBe(
+    'Could not load the project: it carries code, and it was not accepted',
+  );
+  // It names only what is new -- the demo's own script is not asked about again.
+  expect(asked[0]).toContain('carries code: one script -- Stranger (stranger).');
+  expect(asked[0]).toContain('It is not sandboxed.');
+  expect(asked[0]).toContain('Load it, code and all?');
+  expect(await codeIds()).not.toContain('stranger');
+
+  // Yes: the project loads, its code and all.
+  accept = true;
+  expect(await page.evaluate((text) => window.__engine!.loadProjectText(text), strange)).toBe('');
+  expect(await codeIds()).toContain('stranger');
+
+  expect(consoleErrors).toEqual([]);
+});
+
 test('aims a card at the ground, and the board shows what it would catch before it is thrown', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => {

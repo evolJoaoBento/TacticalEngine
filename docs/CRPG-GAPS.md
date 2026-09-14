@@ -174,7 +174,8 @@ grimoire's spells read their words from the card's named features.
 
 Logic the vocabulary cannot say is **code**: `{ kind: 'run', hook }` and `{ kind: 'hook' }` reach a
 `project.code[]` entry, written in the editor's Code panel or brought in by a pack -- Import pack
-asks first, since code is not sandboxed. The engine ships none. A hook reads the world and *queues effects*, so nothing escapes the
+and Load ask first about any the project does not already run, since code is not sandboxed. The
+engine ships none. A hook reads the world and *queues effects*, so nothing escapes the
 journal, and rolls only off the seeded stream (`Math.random` throws). The demo ships one card
 written that way.
 

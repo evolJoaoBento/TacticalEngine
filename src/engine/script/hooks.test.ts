@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compileHooks, defineHooks, mergeHooks, runHook, SAFE_MATH, type HookContext } from './hooks';
+import { compileHooks, defineHooks, mergeHooks, runHook, SAFE_MATH, unfamiliarCode, type HookContext } from './hooks';
 import { evaluate, hookReads, NO_BINDINGS, type ConditionContext } from './conditions';
 import type { Effect } from './schema';
 
@@ -142,5 +142,25 @@ describe('a hook as a condition', () => {
     const { hooks } = compileHooks([{ id: 'sneaky', name: '', source: 'return typeof ctx.queue === "undefined" && typeof ctx.rng === "undefined";' }]);
     const world = reads({ hook: (id) => hooks.get(id) ?? null });
     expect(evaluate({ kind: 'hook', hook: 'sneaky' }, world, NO_BINDINGS)).toBe(true);
+  });
+});
+
+describe('code a project does not already run', () => {
+  it('is whatever is new or rewritten, read by id and text together', () => {
+    const known = [
+      { id: 'a', name: 'A', source: 'return 1;' },
+      { id: 'b', name: 'B', source: 'return 2;' },
+    ];
+    const incoming = [
+      // The same code under a new name: already running, nothing to ask.
+      { id: 'a', name: 'Renamed', source: 'return 1;' },
+      // Rewritten under an old id: somebody else's code now.
+      { id: 'b', name: 'B', source: 'return 3;' },
+      // Never seen.
+      { id: 'c', name: 'C', source: 'return 4;' },
+    ];
+    expect(unfamiliarCode(incoming, known).map((entry) => entry.id)).toEqual(['b', 'c']);
+    expect(unfamiliarCode(known, known)).toEqual([]);
+    expect(unfamiliarCode(incoming, [])).toHaveLength(3);
   });
 });

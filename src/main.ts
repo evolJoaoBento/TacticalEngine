@@ -78,6 +78,7 @@ import { DEFAULT_TERRAIN_COLORS } from './engine/render/terrain-mesh';
 import { journalSummary } from './engine/content/quests';
 import { blankScene, gridFromScene } from './engine/scene/grid-from-scene';
 import { importLegacyScene } from './engine/scene/legacy-import';
+import { unfamiliarCode } from './engine/script/hooks';
 import {
   projectSchema,
   type Interactable,
@@ -818,6 +819,16 @@ function loadProjectText(text: string, label = 'the project'): string {
     renderPanel();
     return reason;
   }
+  // The question Import pack asks, for the same reason: a project file somebody hands you is their
+  // code too. Only what this project does not already run is asked about, so reloading your own
+  // work asks nothing.
+  const strange = unfamiliarCode(parsed.data.code, session.project.code);
+  if (strange.length > 0 && !confirm(codeQuestion(label, strange, 'Load'))) {
+    const reason = `Could not load ${label}: it carries code, and it was not accepted`;
+    errors.push(reason);
+    renderPanel();
+    return reason;
+  }
   let fresh: DemoScene;
   try {
     fresh = buildProjectScene(parsed.data, parsed.data.id);
@@ -867,13 +878,13 @@ async function importPacks(files: readonly File[]): Promise<void> {
   if (said.length > 0) alert(said.join('\n\n'));
 }
 
-/** What Import pack asks before a pack's code comes in: which scripts, and what code can do. */
-function codeQuestion(label: string, code: readonly { id: string; name: string }[]): string {
+/** What Import pack and Load ask before new code comes in: which scripts, and what code can do. */
+function codeQuestion(label: string, code: readonly { id: string; name: string }[], verb: 'Import' | 'Load'): string {
   const named = code.map((entry) => (entry.name === '' ? entry.id : `${entry.name} (${entry.id})`));
   return [
     `${label} carries code: ${code.length === 1 ? 'one script' : `${code.length} scripts`} -- ${named.join(', ')}.`,
     'Code in a pack runs inside the game with everything the game can reach. It is not sandboxed.',
-    'Import it only if you trust whoever made it. Import it, code and all?',
+    `${verb} it only if you trust whoever made it. ${verb} it, code and all?`,
   ].join('\n\n');
 }
 
@@ -909,8 +920,10 @@ function importPackText(text: string, label = 'the pack'): { imported: boolean; 
   if (blocked !== null) return refuse(blocked);
   // Code in a pack runs in this page with everything the game can reach -- the shadowing in
   // `script/hooks.ts` is a guard rail, not a sandbox -- so it comes in only when somebody says so.
-  // All or nothing: a pack whose cards call its code is half a pack without it.
-  if (reading.pack.code.length > 0 && !confirm(codeQuestion(label, reading.pack.code))) {
+  // All or nothing: a pack whose cards call its code is half a pack without it. Code the project
+  // already runs, word for word, was accepted when it came in and is not asked about again.
+  const strange = unfamiliarCode(reading.pack.code, session.project.code);
+  if (strange.length > 0 && !confirm(codeQuestion(label, strange, 'Import'))) {
     return refuse('it carries code, and it was not accepted');
   }
 
