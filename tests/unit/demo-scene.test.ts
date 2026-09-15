@@ -20,18 +20,20 @@ import {
   attackWithSelected,
   buildDemoScene,
   endTurn,
-  inCombat,
   moveSelectedTo,
   answerPending,
-  underPressureTiles,
   playGmTurn,
+  setSheet,
+  type DemoScene,
+} from '../../src/game/demo-scene';
+import { inCombat } from '../../src/game/moment';
+import {
+  underPressureTiles,
   previewWalk,
   reachableTiles,
   startEncounter,
-  setSheet,
   arrive,
-  type DemoScene,
-} from '../../src/game/demo-scene';
+} from '../../src/game/movement';
 import {
   DEMO_ADVERSARY_ID,
   DEMO_BAND_TILES,

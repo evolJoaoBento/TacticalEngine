@@ -18,9 +18,9 @@ import {
   attackWithSelected,
   buildDemoScene,
   refreshWorld,
-  startEncounter,
   type DemoScene,
 } from './demo-scene';
+import { startEncounter } from './movement';
 import { characterContentFor, worldOptions } from './room';
 
 /**

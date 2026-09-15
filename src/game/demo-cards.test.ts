@@ -9,10 +9,10 @@ import {
   buildDemoScene,
   endTurn,
   refreshWorld,
-  startEncounter,
   type DemoScene,
   type PendingDefense,
 } from './demo-scene';
+import { startEncounter } from './movement';
 import { characterContentFor, travelTo } from './room';
 import { PIT_SCENE_ID } from './demo-scenes';
 import { abilitySchema } from '../engine/content/abilities';

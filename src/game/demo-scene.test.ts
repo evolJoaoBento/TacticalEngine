@@ -10,8 +10,8 @@ import {
   reachableInteractable,
   useSelectedOn,
   type DemoScene,
-  scriptPending,
 } from './demo-scene';
+import { scriptPending } from './moment';
 import { worldOptions } from './room';
 
 /**

@@ -32,7 +32,6 @@ import { useKey } from '../engine/script/world';
 import { NO_TILE } from '../engine/grid/grid';
 import { walkEffects, type TargetSelector } from '../engine/script/schema';
 import {
-  inCombat,
   record,
   refreshWorld,
   settle,
@@ -44,6 +43,7 @@ import {
   type UseOutcome,
   setSheet,
 } from './demo-scene';
+import { inCombat } from './moment';
 import { DEMO_CHARACTERS } from './demo-rules';
 import { characterContentFor, settleTravel } from './room';
 import { nameOf, note, type LogLine } from './log';

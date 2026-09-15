@@ -18,7 +18,8 @@
 
 import { z } from 'zod';
 
-import { inCombat, setSheet, type DemoScene } from './demo-scene';
+import { setSheet, type DemoScene } from './demo-scene';
+import { inCombat } from './moment';
 import { characterContentFor, enterSavedScene } from './room';
 import { deriveCharacter } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';

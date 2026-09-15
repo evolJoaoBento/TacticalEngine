@@ -4,6 +4,22 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Walking leaves `demo-scene.ts` — done
+
+`src/game/movement.ts`: where the selected member can go, the walk once a destination is
+settled, closing to strike before a swing, the previews a view draws before the click -- and
+`arrive` and `startEncounter`, since the fight starts when the walkers reach the trigger.
+`moveSelectedTo` and `runForIt` stay: the click is the game's, and the Movement Under Pressure
+roll is a script, which is the fight. `inCombat` and `scriptPending` are `src/game/moment.ts`,
+eighteen lines every module asks; below all of them so none has to import them from the
+game and start the cycle back up. `demo-scene.ts` is 4,437 lines, from 5,856 when this began: the fight, the builders, the click, and what is left
+of the interact section, and the rest of the split (`BACKLOG.md` §2) is a design decision,
+not a move.
+
+`npx tsc --noEmit` clean; vitest **1884 passed (1884)**; Playwright **118 passed (4.2m)**, `EXIT 0`. A
+move, so no new test; the runtime module graph changed again (`RUN_TILES` now evaluates in
+`movement.ts`), and the e2e boot is the check for that.
+
 ## The room leaves `demo-scene.ts` — done
 
 Standing a room up and moving between rooms is `src/game/room.ts`: `SceneRuntime`, `buildRuntime`,
@@ -911,7 +927,7 @@ Measured off the call graph on 2026-09-15, in the order that never breaks an imp
 
 1. ~~**Leaves first:** levelling, equipping, carried items; then **the room**, with travel and
    the `DEMO_*` constants.~~ Both done, above.
-2. **Movement** (`moveSelectedTo` .. `previewWalk`): three callers, all in the party's attack.
+2. ~~**Movement.**~~ Done, above; `moveSelectedTo` and `runForIt` stayed, on purpose.
 3. ~~**Narrow before splitting the fight.**~~ Done as far as a `Pick` goes (above): 75 of 129
    functions say what they read, and the 51 that cannot are the fight core, one cycle. The
    core does not narrow by type; it narrows by **inversion**: the fight raises what happened

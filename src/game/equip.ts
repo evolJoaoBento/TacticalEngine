@@ -10,7 +10,8 @@
 import type { CharacterSheet } from '../engine/character/sheet';
 import type { ItemDef } from '../engine/content/items';
 import type { WeaponDef } from '../engine/content/pack/import';
-import { inCombat, refreshWorld, setSheet, type DemoScene, type SheetChange } from './demo-scene';
+import { refreshWorld, setSheet, type DemoScene, type SheetChange } from './demo-scene';
+import { inCombat } from './moment';
 import { characterContentFor } from './room';
 import { note } from './log';
 

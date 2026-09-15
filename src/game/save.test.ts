@@ -7,10 +7,10 @@ import { tileOf } from '../engine/scene/grid-from-scene';
 import {
   answerPending,
   buildDemoScene,
-  startEncounter,
   useSelectedOn,
   type DemoScene,
 } from './demo-scene';
+import { startEncounter } from './movement';
 import { characterContentFor, travelTo } from './room';
 import { note } from './log';
 import { deriveCharacter } from '../engine/character/sheet';

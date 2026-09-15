@@ -96,27 +96,21 @@ import {
   answerPending,
   attackWithSelected,
   buildDemoScene,
-  inCombat,
   moveSelectedTo,
-  underPressureTiles,
-  arrive,
-  previewStrike,
-  previewWalk,
   playGmTurn,
   endTurn,
-  startEncounter,
   refreshWorld,
   syncPools,
   syncRoster,
   gatherParty,
-  scriptPending,
   reachableInteractable,
   useSelectedOn,
-  reachableTiles,
   buildProjectScene,
   setSheet,
   type DemoScene,
 } from './game/demo-scene';
+import { inCombat, scriptPending } from './game/moment';
+import { underPressureTiles, arrive, previewStrike, previewWalk, startEncounter, reachableTiles } from './game/movement';
 import { DEMO_ADVERSARY_ID, DEMO_MODELS, DEMO_CHARACTERS } from './game/demo-rules';
 import { travelTo, characterContentFor, adversaryDefsFor } from './game/room';
 import { nameOf, note } from './game/log';

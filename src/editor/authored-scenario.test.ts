@@ -124,9 +124,9 @@ import {
   moveSelectedTo,
   refreshWorld,
   settleFight,
-  startEncounter,
   useSelectedOn,
 } from '../game/demo-scene';
+import { startEncounter } from '../game/movement';
 
 /**
  * The question `docs/CRPG-GAPS.md` exists to answer: could someone build a

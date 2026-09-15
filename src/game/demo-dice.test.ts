@@ -6,9 +6,9 @@ import {
   buildDemoScene,
   endTurn,
   record,
-  startEncounter,
   type DemoScene,
 } from './demo-scene';
+import { startEncounter } from './movement';
 
 /**
  * The Duality Dice a view has to show.

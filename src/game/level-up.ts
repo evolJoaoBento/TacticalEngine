@@ -7,7 +7,8 @@
  */
 
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
-import { inCombat, refreshWorld, setSheet, type DemoScene, type SheetChange } from './demo-scene';
+import { refreshWorld, setSheet, type DemoScene, type SheetChange } from './demo-scene';
+import { inCombat } from './moment';
 import { characterContentFor } from './room';
 import { note } from './log';
 

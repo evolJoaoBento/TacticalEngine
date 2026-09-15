@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { tileOf } from '../engine/scene/grid-from-scene';
-import { answerPending, buildDemoScene, scriptPending, useSelectedOn, type DemoScene } from './demo-scene';
+import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './demo-scene';
+import { scriptPending } from './moment';
 import { KNOWS_THE_NAME, PILLAR_DIALOGUE_ID } from './demo-dialogue';
 
 /**

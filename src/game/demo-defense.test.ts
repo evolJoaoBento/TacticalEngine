@@ -23,10 +23,10 @@ import {
   endTurn,
   refreshWorld,
   settleFight,
-  startEncounter,
   syncPools,
   type DemoScene,
 } from './demo-scene';
+import { startEncounter } from './movement';
 import { characterContentFor } from './room';
 import { restoreScenario, scenarioSnapshot, useKey } from '../engine/script/world';
 import { FIXTURE_ADVERSARIES, FIXTURE_CARDS, FIXTURE_DOMAIN_FOUR, FIXTURE_FOE } from '../../tests/fixtures/adversaries';

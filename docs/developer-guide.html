@@ -305,9 +305,9 @@ footer {
       <code>ScriptWorld</code> interface it runs against.</li>
     <li><code>src/engine/rules/damage.ts</code> (379 lines) — the shape of a rules module: an SRD
       citation at the top, pure functions, an <code>Rng</code> passed in wherever dice are rolled.</li>
-    <li><code>src/game/demo-scene.ts</code> (4722 lines) — where the engine is actually wired into a
+    <li><code>src/game/demo-scene.ts</code> (4437 lines) — where the engine is actually wired into a
       playable thing; <code>src/game/log.ts</code> is what the player reads of it.</li>
-    <li><code>src/main.ts</code> (2568 lines) — the boot path. It owns the board, play and global
+    <li><code>src/main.ts</code> (2562 lines) — the boot path. It owns the board, play and global
       keys (<code>Ctrl+E</code>, <code>Ctrl+Z</code>); the editor shell
       (<code>src/editor/ui/EditorShell.tsx</code>) also listens, for its own keys
       (<code>1</code>-<code>4</code>, <code>Esc</code>) and for a click outside an open menu.</li>
@@ -496,7 +496,9 @@ footer {
   <table>
     <thead><tr><th>Path</th><th>What it is</th></tr></thead>
     <tbody>
-      <tr><td><code>demo-scene.ts</code><br>4722 lines</td><td><code>DemoScene</code> and the roughly sixty functions over it: <code>buildDemoScene</code>, <code>buildProjectScene</code>, <code>attackWithSelected</code>, <code>playGmTurn</code>, <code>endTurn</code>, <code>defenseChoices</code>, <code>applyDefenseChoice</code>, <code>useSelectedOn</code>, <code>answerPending</code>, <code>equipItem</code>, <code>applyLevelUp</code>.</td></tr>
+      <tr><td><code>demo-scene.ts</code><br>4437 lines</td><td><code>DemoScene</code> and the roughly sixty functions over it: <code>buildDemoScene</code>, <code>buildProjectScene</code>, <code>attackWithSelected</code>, <code>playGmTurn</code>, <code>endTurn</code>, <code>defenseChoices</code>, <code>applyDefenseChoice</code>, <code>useSelectedOn</code>, <code>answerPending</code>, <code>equipItem</code>, <code>applyLevelUp</code>.</td></tr>
+      <tr><td><code>movement.ts</code></td><td>Walking: <code>reachableTiles</code>, <code>walkTheMove</code>, <code>underPressureTiles</code>, <code>closeToStrike</code>, <code>previewStrike</code>, <code>previewWalk</code>, <code>arrive</code>, <code>startEncounter</code> (the fight starts when the walkers reach the trigger). <code>moveSelectedTo</code> and <code>runForIt</code> stay in <code>demo-scene.ts</code>: the click, and the Movement Under Pressure roll, which is a script.</td></tr>
+      <tr><td><code>moment.ts</code></td><td>Where the game is: <code>inCombat</code>, <code>scriptPending</code>. One field each, asked by everything, so they sit below everything.</td></tr>
       <tr><td><code>room.ts</code></td><td>Standing a room up and moving between rooms: <code>SceneRuntime</code>, <code>buildRuntime</code>, <code>worldOptions</code> (what the script world needs from the game) and the content it reads (<code>characterContentFor</code>, <code>adversaryDefsFor</code>, <code>hooksFor</code>), <code>install</code>, <code>travelTo</code>, <code>enterSavedScene</code>, <code>syncAuthoredEncounters</code>, <code>settleTravel</code>. Knows <code>DemoScene</code> only as a type: <code>demo-scene.ts</code> imports from here, never the other way.</td></tr>
       <tr><td><code>demo-rules.ts</code></td><td>The demo's house rules and cast: <code>DEMO_BAND_TILES</code>, <code>DEMO_MOVEMENT</code>, <code>DEMO_WALK</code>, <code>DEMO_MODELS</code>, <code>DEMO_ADVERSARIES</code>, <code>DEMO_CHARACTERS</code>, <code>PARTY_SHEETS</code>. Numbers and content; nothing here runs.</td></tr>
       <tr><td><code>level-up.ts</code></td><td><code>awaitingLevel</code>, <code>applyLevelUp</code>: the game's side of <code>levelUp</code>, and what changes on the board once a level is taken.</td></tr>

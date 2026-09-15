@@ -5,10 +5,10 @@ import type { LevelUpPlan } from '../engine/character/progression';
 import {
   answerPending,
   buildDemoScene,
-  startEncounter,
   useSelectedOn,
   type DemoScene,
 } from './demo-scene';
+import { startEncounter } from './movement';
 import { travelTo } from './room';
 import { applyLevelUp, awaitingLevel } from './level-up';
 import { PIT_SCENE_ID } from './demo-scenes';

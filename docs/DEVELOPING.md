@@ -46,9 +46,9 @@ In this order, and no further until you need it:
    interface it runs against.
 4. `src/engine/rules/damage.ts` (379 lines) — the shape of a rules module: SRD citation at the top,
    pure functions, an `Rng` passed in wherever dice are rolled.
-5. `src/game/demo-scene.ts` (4722 lines) — where the engine is actually wired into a playable thing;
+5. `src/game/demo-scene.ts` (4437 lines) — where the engine is actually wired into a playable thing;
    `src/game/log.ts` is what the player reads of it.
-6. `src/main.ts` (2568 lines) — the boot path. It owns the board, play and global keys
+6. `src/main.ts` (2562 lines) — the boot path. It owns the board, play and global keys
    (`Ctrl+E`, `Ctrl+Z`); the editor shell (`src/editor/ui/EditorShell.tsx`) also listens, for its
    own keys (`1`-`4`, `Esc`) and for a click outside an open menu.
 
@@ -152,7 +152,9 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 
 | Path | What it is |
 |---|---|
-| `demo-scene.ts` | `DemoScene` and the functions over it (4722 lines, being taken apart — `BACKLOG.md` §2): `buildDemoScene`, `buildProjectScene`, `attackWithSelected`, `playGmTurn`, `endTurn`, `defenseChoices`, `applyDefenseChoice`, `useSelectedOn`, `answerPending`. |
+| `demo-scene.ts` | `DemoScene` and the fight over it (4437 lines — `BACKLOG.md` §2 has what is left): `buildDemoScene`, `buildProjectScene`, `moveSelectedTo`, `attackWithSelected`, `playGmTurn`, `endTurn`, `defenseChoices`, `applyDefenseChoice`, `useSelectedOn`, `answerPending`. |
+| `movement.ts` | Walking: `reachableTiles`, `walkTheMove`, `underPressureTiles`, `closeToStrike`, `previewStrike`, `previewWalk`, `arrive`, `startEncounter` (the fight starts when the walkers reach the trigger). `moveSelectedTo` and `runForIt` stay in `demo-scene.ts`: the click, and the Movement Under Pressure roll, which is a script. |
+| `moment.ts` | Where the game is: `inCombat`, `scriptPending`. One field each, asked by everything, so they sit below everything. |
 | `room.ts` | Standing a room up and moving between rooms: `SceneRuntime`, `buildRuntime`, `worldOptions` (what the script world needs from the game) and the content it reads (`characterContentFor`, `adversaryDefsFor`, `hooksFor`), `install`, `travelTo`, `enterSavedScene`, `syncAuthoredEncounters`, `settleTravel`. Knows `DemoScene` only as a type: `demo-scene.ts` imports from here, never the other way. |
 | `demo-rules.ts` | The demo's house rules and cast: `DEMO_BAND_TILES`, `DEMO_MOVEMENT`, `DEMO_WALK`, `DEMO_MODELS`, `DEMO_ADVERSARIES`, `DEMO_CHARACTERS`, `PARTY_SHEETS`. Numbers and content; nothing here runs. |
 | `level-up.ts` | `awaitingLevel`, `applyLevelUp`: the game's side of `levelUp`, and what changes on the board once a level is taken. |

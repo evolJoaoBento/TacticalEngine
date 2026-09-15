@@ -45,9 +45,9 @@ import {
   buildDemoScene,
   endTurn,
   refreshWorld,
-  startEncounter,
   type DemoScene,
 } from './demo-scene';
+import { startEncounter } from './movement';
 import { DEMO_BAND_TILES } from './demo-rules';
 import { characterContentFor } from './room';
 

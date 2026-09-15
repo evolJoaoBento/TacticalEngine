@@ -3,7 +3,8 @@ import { demoMap } from '../../legacy/js/data.js';
 import { blankSheet, startingPools } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { NO_TILE } from '../engine/grid/grid';
-import { buildDemoScene, gatherParty, startEncounter, syncRoster, type DemoScene } from './demo-scene';
+import { buildDemoScene, gatherParty, syncRoster, type DemoScene } from './demo-scene';
+import { startEncounter } from './movement';
 import { loadGameText, saveGame } from './save';
 
 /**
