@@ -4,6 +4,26 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The hand — done
+
+The user's direction, with Slay the Spire as the reference: the card interaction has to be a
+hand. The action bar's row of chips along the top is gone. The selected character's actions and
+reactions are card faces (`.face`, the deck browser's) fanned along the bottom, tilted away from
+the middle, a card lifting and growing under the pointer to show its whole text, the Light cost
+a gold coin on its corner and the Stress cost a violet one, an unplayable card greyed with why
+along its foot. Passives are not cards to play, so they are relics: small emblems above the hand
+with their text on hover. The Light orb at the hand's left is the deck-builder's energy; End Turn
+at its right is the hex button. The party HUD moved to a column down the left edge, Baldur's
+Gate's portraits, so the bottom belongs to the hand. `ActionBar` keeps its name, its props (plus
+`light`) and every testid; the slot basis shrinks when the hand is large, so a hand of fourteen
+still fits between the HUD and the panel. `main.ts` paid its one new line with two collapsed
+imports (2,540 -> 2,518). Next in this direction: the editor goes Blender-grey.
+
+`npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed**, `EXIT 0`, every
+existing card test clicking its card in the fan. Screenshots read: exploring, hovering, in a fight,
+hovering in a fight; the four fixes they asked for (slot basis, clipped bottoms, the hex button's
+padding, the hovered card growing to its text) went in before the run.
+
 ## The level-up sheet and the dice tray follow — done
 
 The two play surfaces the HUD restyle left in the old grey. `LevelUpPanel` is the rest's modal,

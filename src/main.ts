@@ -13,18 +13,7 @@
  */
 
 import { Fragment, h, render } from 'preact';
-import {
-  PCFSoftShadowMap,
-  Plane,
-  PerspectiveCamera,
-  Raycaster,
-  Vector2,
-  Vector3,
-  WebGLRenderer,
-  type Intersection,
-  type Mesh,
-  type Object3D,
-} from 'three';
+import { PCFSoftShadowMap, Plane, PerspectiveCamera, Raycaster, Vector2, Vector3, WebGLRenderer, type Intersection, type Mesh, type Object3D } from 'three';
 import { demoMap } from '../legacy/js/data.js';
 import { EditorController } from './editor/controller';
 import { placementRotation } from './editor/placement-rotation';
@@ -40,19 +29,7 @@ import { LoadoutPanel } from './game/ui/LoadoutPanel';
 import { CardPreview } from './game/ui/CardPreview';
 import { RestPanel } from './game/ui/RestPanel';
 import { DiceTray } from './game/ui/DiceTray';
-import {
-  abilityList,
-  abilityTargets,
-  abilitiesOf,
-  loadoutView,
-  pointTiles,
-  rest,
-  shapeAt,
-  swapCard,
-  useAbility,
-  type RestPlan,
-  statBlockCards,
-} from './game/demo-abilities';
+import { abilityList, abilityTargets, abilitiesOf, loadoutView, pointTiles, rest, shapeAt, swapCard, useAbility, type RestPlan, statBlockCards } from './game/demo-abilities';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
 import { BuildingView, type BuildingStats } from './engine/render/building-view';
@@ -1537,6 +1514,7 @@ function renderPlayPanel(): void {
       name: demo.party.selected === null ? '' : nameOf(demo, demo.party.selected),
       weapon: demo.party.selected === null ? '' : gearOf(demo, demo.party.selected).weapon,
       abilities: demo.party.selected === null ? [] : abilityList(demo, demo.party.selected),
+      light: demo.party.selected === null ? null : (demo.state.entity(demo.party.selected)?.good ?? null),
       fighting: inCombat(demo),
       side: inCombat(demo) ? demo.encounter!.view().side : null,
       targeting:

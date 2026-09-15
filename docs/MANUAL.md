@@ -65,14 +65,14 @@ Q/E) are ignored while a text field has focus; the other keys are not (see Limit
 
 ### The screen
 
-- **The Duality Dice** (over the board, below the action bar, when a party member rolls): two d12s —
+- **The Duality Dice** (over the board, when a party member rolls): two d12s —
   gold for Light, violet for Shadow — tumbling and settling on the faces that were rolled, with the
   sum and the outcome on a pill underneath. They are a view of a roll that has already happened, not the roll itself:
   the rules resolve, and the dice are then told what to land on, so nothing waits for them and
   a seeded replay shows the same faces. Only the party's Duality rolls are shown — an adversary
   rolls a single d20, and the log says what it did. Several at once (a feature everyone has to
   dodge) queue and are shown in the order they were rolled.
-- **HUD** (bottom left): one card per party member — name, class, and pips for HP, Stress,
+- **HUD** (down the left edge): one card per party member — name, class, and pips for HP, Stress,
   Armor, and Light (each bar one slot, lit when marked; Light wears the Light die's gold), any
   conditions, and a line naming what they wield and wear. The selected card has a gold border; a
   fallen member is dimmed. Clicking a card selects that character. A gold **Level up** button
@@ -139,18 +139,22 @@ Attacks and hits are read out in the log ("Kara hits with the Broadsword: 2 Hit 
 Acid Burrower.", "The Acid Burrower's Claws hits Kara, and is turned aside."). A click on an
 adversary that cannot be attacked (out of range, the GM's turn) does nothing visible.
 
-### The action bar
+### The hand
 
-Along the top of the screen sits the selected character's action bar: **Attack** with the weapon in
-hand (click an adversary on the board), then one button per ability — the class's Light feature,
-subclass cards, and the domain cards in the loadout. Under each name is what it costs ("1 Light",
-"2 Stress", "1 left") or, greyed, why it cannot be used now ("needs 3 Light", "the GM's turn",
-"nothing in range", "always on" for a passive, "a reaction" for a card that fires on its own,
-"the table adjudicates this one" for a card the engine has no script for). Hover a button for
-the card's text. Below: **Pass to GM** in a fight, **Rest…** out of one, and **Loadout…**.
+Along the bottom of the screen the selected character holds their hand, fanned like a deck-builder's:
+**Attack** with the weapon in hand (click an adversary on the board), then one card per action or
+reaction — the class's Light feature, subclass cards, and the domain cards in the loadout. A card
+lifts and straightens under the pointer so its whole text can be read; its Light cost is the gold
+coin on its corner and its Stress cost the violet one. A card that cannot be played now is greyed,
+with why along its foot ("needs 3 Light", "the GM's turn", "nothing in range", "the table
+adjudicates this one" for a card the engine has no script for). Passives are not cards to play,
+so they sit above the hand as small emblems — hover one for its text. The orb at the hand's left
+is the character's Light; at its right, **End Turn** in a fight, **Rest…** out of one, and
+**Loadout…**.
 
-An ability that wants a target and has more than one in reach arms the bar — the valid targets
-light up on the board; click one, or `Escape` to put the card down. With exactly one target in
+An ability that wants a target and has more than one in reach arms the hand — the card stays
+lifted, the rest dim, and the valid targets light up on the board; click one, or `Escape` to put
+the card down. With exactly one target in
 reach it fires at once. A card's cost is paid the moment it is played, before any roll it asks
 for; a roll it asks for appears in the play panel like an object's. **Step back** from that roll
 before any die is thrown and the card goes back in hand with its cost returned; once a roll is
@@ -172,7 +176,7 @@ is where the loadout changes for free.
 The collection presents domain cards with level, domain and Recall Cost, each wearing a
 picture. Search by name or rules text, or filter by domain. Click a card to open its full
 readable rules; Escape returns to the collection, and Escape again closes it. The browser
-supports keyboard navigation and a two-column layout on phones. The action bar wears the same
+supports keyboard navigation and a two-column layout on phones. The hand wears the same
 picture on each card: a domain card in its domain's colour, and one a character has without
 choosing it in the colour **Always in play** gives it.
 
@@ -1115,7 +1119,7 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   and a party member's ends when their turn does.
 - **Quests have no stages**: steps can be hidden and revealed, but the summary is one string
   and is never rewritten.
-- **Domain-card and subclass features without a script are text**, shown on the action bar and
+- **Domain-card and subclass features without a script are text**, shown in the hand and on
   the level-up sheet but not executed.
 - **No items or loot-table UI**, no sheet editor, no tint tool though `tints` is document
   data.
@@ -1176,7 +1180,8 @@ Play                                   Edit
 
 Play panel:  Save (quick slot) · Save as… (named) · Load (list; load or delete)
              Use / Equip beside a pack item · Level up beside a name when a level is owed
-Action bar:  Attack · one button per ability (cost or reason underneath) · Pass to GM
+The hand:    Attack · one card per action or reaction (hover to read; cost on its corner, or why not
+             along its foot) · passives as emblems above · Light orb · End Turn
              Rest… (out of combat) · Loadout… (recall costs Stress outside a rest)
 Roll prompt: Utilize an Experience (1 Light) · Roll · Step back
 ```

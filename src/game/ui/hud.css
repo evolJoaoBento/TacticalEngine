@@ -17,42 +17,66 @@
 .play button:focus-visible,.play input:focus-visible,.play select:focus-visible{outline:2px solid #f2d48f;outline-offset:2px}
 .play select{background:var(--play-field);color:var(--play-ink);border:1px solid var(--play-line);border-radius:5px;padding:4px 8px;font:inherit}
 
-/* The party, bottom left. */
-.hud{position:absolute;left:0;bottom:0;display:flex;align-items:flex-end;gap:8px;padding:12px;pointer-events:auto}
-.hud-card{min-width:164px;padding:9px 12px 8px;cursor:pointer;transition:border-color .12s,background .12s}
+/* The party, stacked down the left edge. */
+.hud{position:absolute;left:0;top:10px;display:flex;flex-direction:column;align-items:stretch;width:176px;gap:6px;padding:10px;box-sizing:border-box;pointer-events:auto}
+.hud-card{padding:8px 10px 7px;cursor:pointer;transition:border-color .12s,background .12s}
 .hud-card.is-selected{border-color:var(--play-gold-bright);background:#171e2cf0;box-shadow:0 0 0 1px #d7b96b33,0 8px 24px #0008}
 .hud-card.is-down{opacity:.45}
-.hud-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+.hud-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px}
+.hud-head .play-name{font-size:14px}
 .hud-pips{display:flex;align-items:center;gap:2px;margin-top:3px}
-.hud-pips>span:first-child{min-width:36px;margin-right:3px;white-space:nowrap;font:600 8.5px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--play-muted)}
-.pip{width:11px;height:6px;border-radius:2px;background:#2a3240;box-shadow:inset 0 0 0 1px #0006}
+.hud-pips>span:first-child{min-width:36px;margin-right:3px;white-space:nowrap;font:600 8px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--play-muted)}
+.pip{width:10px;height:6px;border-radius:2px;background:#2a3240;box-shadow:inset 0 0 0 1px #0006}
 .pip.is-marked{background:var(--pip);box-shadow:0 0 5px var(--pip)}
-.hud-gear{margin-top:6px;font-size:10px;color:var(--play-muted)}
+.hud-gear{margin-top:5px;font-size:10px;color:var(--play-muted)}
 .hud-conditions{margin-top:2px;font-size:10px;color:var(--play-gold-bright)}
 .hud-level{display:block;width:100%;margin:0 0 6px;padding:3px 6px;font-size:11px}
-.hud-gm{min-width:104px;cursor:default;padding:9px 12px 8px}
+.hud-gm{cursor:default;padding:8px 10px 7px}
 .hud-gm .play-eyebrow{display:block;margin-bottom:6px}
+.hud-gm .pip{width:7px}
 
-/* What the selected character can do, top centre. Only its buttons take the pointer. */
-.bar{position:absolute;left:50%;top:12px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;max-width:60vw}
-.bar-row{display:flex;align-items:stretch;gap:6px;padding:8px 10px;border-color:var(--play-frame);background:#111722f0}
-.bar-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;min-width:0}
-.bar-row.is-armed{border-color:var(--play-gold-bright);background:#2a2618f0;align-items:center;flex-wrap:wrap;justify-content:center}
-.bar-who{display:flex;flex-direction:column;justify-content:center;padding:0 12px 0 4px;margin-right:2px;border-right:1px solid #736349aa}
-.bar-who .play-name{font-size:16px}
-.bar-who .play-eyebrow{margin-top:4px;white-space:nowrap}
-.bar-armed{padding:0 6px;pointer-events:auto}
-.chip{position:relative;overflow:hidden;min-width:92px;max-width:190px;padding:5px 10px;text-align:left;border:1px solid var(--play-line);border-radius:6px;background:var(--play-field);color:var(--play-ink);font:inherit;cursor:pointer;pointer-events:auto;transition:box-shadow .15s,border-color .15s}
-.chip.is-usable{border-color:#7e7054}
-.chip.is-attack{border-color:var(--play-gold)}
-.chip:disabled,.chip.is-off{cursor:default;opacity:.5;color:var(--play-muted)}
-.chip:not(:disabled):not(.is-off):hover{box-shadow:0 0 15px #c6a96760;border-color:var(--play-gold-bright)}
-.chip-sub{font-size:10px;color:var(--play-muted);margin-top:1px}
-.chip .ability-card-art{display:block;width:calc(100% + 20px);height:48px;margin:-5px -10px 6px;opacity:.85;overflow:hidden}
-.chip .ability-card-art>svg,.chip .ability-card-art>img{display:block;width:100%;height:100%;object-fit:cover}
-.chip:disabled .ability-card-art{filter:grayscale(.6)}
-.bar-verbs{display:flex;gap:6px;pointer-events:auto}
-.bar-verbs .play-btn{font-size:12px;padding:5px 12px}
+/* The hand, along the bottom: relics above it, the Light orb at its left, the verbs at its right.
+   Only the cards and buttons take the pointer; the board shows through the rest. */
+.bar{position:absolute;left:176px;right:340px;bottom:0;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.relics{display:flex;gap:6px;pointer-events:none}
+.relic{width:36px;height:36px;padding:0;border-radius:50%;overflow:hidden;border:2px solid #7e7054;background:var(--play-field);box-shadow:0 3px 8px #0008;pointer-events:auto;cursor:help;transition:transform .12s,border-color .12s}
+.relic:hover{transform:scale(1.18);border-color:var(--play-gold-bright)}
+.relic .ability-card-art{display:block;width:100%;height:100%;opacity:.9}
+.relic .ability-card-art>svg,.relic .ability-card-art>img{display:block;width:100%;height:100%;object-fit:cover}
+.hand-armed{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 14px;border-color:var(--play-gold-bright);background:#2a2618f0;pointer-events:auto}
+.hand-row{display:flex;align-items:flex-end;justify-content:center;gap:12px;width:100%}
+.hand-orb{position:relative;width:64px;height:64px;margin-bottom:22px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#ffe9a8,#c7972e 55%,#6b4d0d);border:2px solid #f2d48f;box-shadow:0 0 18px #e8bd6388,0 6px 14px #000b;color:#3a2a06;line-height:1;pointer-events:auto;flex:none}
+.hand-orb b{font:700 22px/1 Georgia,serif}
+.hand-orb small{font:600 9px/1 system-ui,sans-serif;margin-top:1px}
+.hand-orb span{position:absolute;bottom:-16px;font:600 8px/1 system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--play-gold)}
+.hand{display:flex;align-items:flex-end;justify-content:center;height:160px;min-width:0;padding:0 14px}
+.hand-slot{flex:0 1 94px;min-width:26px;height:160px;position:relative;pointer-events:auto;background:none;border:0;padding:0;margin:0;cursor:pointer;font:inherit;color:inherit;text-align:left;display:block}
+.hand-slot:disabled{cursor:default}
+.hand-slot:hover,.hand-slot.is-picked{z-index:20}
+.hand-slot:focus-visible{outline:none}
+.hand-card{position:absolute;left:50%;bottom:-10px;width:106px;margin-left:-53px;display:flex;transform-origin:50% 115%;transform:translateY(var(--drop)) rotate(var(--tilt));transition:transform .16s ease,box-shadow .16s,filter .16s;box-shadow:0 6px 16px #000b;border-width:2px}
+.hand-slot:hover .hand-card,.hand-slot.is-picked .hand-card{aspect-ratio:auto;transform:translateY(-84px) rotate(0) scale(1.55);box-shadow:0 0 0 2px #f2d48f,0 0 28px #e8bd6366,0 26px 40px #000c}
+.hand-slot:focus-visible .hand-card{box-shadow:0 0 0 2px #f2d48f,0 6px 16px #000b}
+.hand-slot.is-off .hand-card{filter:grayscale(.8) brightness(.62)}
+.hand-slot.is-off:hover .hand-card{filter:grayscale(.3) brightness(.95)}
+.bar.is-armed .hand-slot:not(.is-picked) .hand-card{filter:grayscale(.6) brightness(.45)}
+.hand-card .face-art{flex:0 0 64px}
+.hand-card .face-art>svg,.hand-card .face-art>img{width:100%;height:100%;display:block;object-fit:cover}
+.hand-card .face-title{padding:5px 5px 4px}
+.hand-card .face-title h3{font-size:11px}
+.hand-card .face-title>span{font-size:6.5px}
+.hand-card .face-rules{font-size:7.5px;line-height:1.3;padding:5px 7px}
+.hand-slot:hover .face-rules,.hand-slot.is-picked .face-rules{overflow:visible}
+.hand-slot:hover .face-rules:after,.hand-slot.is-picked .face-rules:after{display:none}
+.hand-card .face-rules p{margin:0}
+.hand-card .face-footer{font-size:5.5px;padding:3px 6px}
+.hand-card .face-footer>span:first-child{color:#6b614f;text-transform:none;letter-spacing:.04em}
+.hand-slot.is-off .face-footer>span:first-child{color:#8a2e2e;font-weight:700}
+.hand-cost{position:absolute;top:5px;left:6px;z-index:2;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9a8,#c7972e 70%);color:#3a2a06;font:700 12px/22px system-ui,sans-serif;text-align:center;border:1px solid #6b4d0d;box-shadow:0 1px 3px #0009}
+.hand-cost.is-stress{left:auto;right:6px;background:radial-gradient(circle at 35% 30%,#d8c5f5,#7a5aa8 70%);color:#1d1030;border-color:#3d2a5c}
+.hand-verbs{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-bottom:26px;pointer-events:auto;flex:none}
+.hand-verbs .play-btn{font-size:12px;padding:5px 12px}
+.hand-verbs .play-btn.is-turn{font:16px Georgia,serif;padding:10px 26px;border-width:2px;clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 50%,calc(100% - 8px) 100%,8px 100%,0 50%)}
 
 /* What just happened and what is waiting, bottom right. */
 .panel{position:absolute;right:0;bottom:0;width:340px;max-height:75vh;display:flex;flex-direction:column;gap:8px;padding:12px;box-sizing:border-box;pointer-events:auto;font-size:13px;line-height:1.5}

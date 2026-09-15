@@ -76,10 +76,11 @@ holding-the-line". Every unit test agreed, because they all assert on
 ids too. Screenshots are how you catch the class of bug where the engine
 is right and the presentation is not.
 
-What should be on screen after a card is used: the action bar with the
-card and its cost, the party HUD (HP / Stress / Armor / Light as pips, and
-any conditions under the gear line), the Shadow track, and the narrative log
-bottom-right in tone colours. On the board: a blue ring breathing under
+What should be on screen after a card is used: the hand fanned along the
+bottom (the card with its cost on its corner; passives as emblems above it;
+the Light orb; End Turn), the party HUD down the left edge (HP / Stress /
+Armor / Light as pips, and any conditions under the gear line), the Shadow
+track under it, and the narrative log bottom-right in tone colours. On the board: a blue ring breathing under
 whoever is selected, shadows under walls and tokens, any zone painted as
 one shape with a border (Warding Flame's ring is an orange square of nine
 tiles at Melee - a diagonal is Melee too), in a fight the ground the selected
