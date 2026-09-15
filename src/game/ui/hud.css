@@ -45,22 +45,26 @@
 .relic .ability-card-art{display:block;width:100%;height:100%;opacity:.9}
 .relic .ability-card-art>svg,.relic .ability-card-art>img{display:block;width:100%;height:100%;object-fit:cover}
 .hand-armed{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 14px;border-color:var(--play-gold-bright);background:#2a2618f0;pointer-events:auto}
-.hand-row{display:flex;align-items:flex-end;justify-content:center;gap:22px;width:100%}
+.hand-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;width:100%;padding:0 12px;box-sizing:border-box}
 .hand-orb{position:relative;width:64px;height:64px;margin-bottom:22px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#ffe9a8,#c7972e 55%,#6b4d0d);border:2px solid #f2d48f;box-shadow:0 0 18px #e8bd6388,0 6px 14px #000b;color:#3a2a06;line-height:1;pointer-events:auto;flex:none}
 .hand-orb b{font:700 22px/1 Georgia,serif}
 .hand-orb small{font:600 9px/1 system-ui,sans-serif;margin-top:1px}
 .hand-orb span{position:absolute;bottom:-16px;font:600 8px/1 system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--play-gold)}
-.hand{display:flex;align-items:flex-end;justify-content:center;height:160px;min-width:0;padding:0 24px}
-.hand-slot{flex:0 1 94px;min-width:26px;height:160px;position:relative;pointer-events:auto;background:none;border:0;padding:0;margin:0;cursor:pointer;font:inherit;color:inherit;text-align:left;display:block}
+/* Each slot is the room shared out, at most 96px; the faces overlap into their neighbours' slots,
+   and the padding is what an end card hangs past the last slot, tilted. */
+.hand{flex:1 1 0;display:flex;align-items:flex-end;justify-content:center;height:176px;min-width:0;padding:0 30px;container-type:inline-size}
+.hand-slot{--slot:min(96px,calc(100cqw / var(--n,1)));flex:0 1 var(--slot);min-width:0;height:176px;transition:flex-basis .16s ease;position:relative;pointer-events:auto;background:none;border:0;padding:0;margin:0;cursor:pointer;font:inherit;color:inherit;text-align:left;display:block}
 .hand-slot:disabled{cursor:default}
-.hand-slot:hover,.hand-slot.is-picked{z-index:20}
+/* Wide enough that a four-card hand's neighbours clear the grown card; never so wide that the
+   others get less than 46px each, which is what keeps a big hand's end cards inside the fan. */
+.hand-slot:hover,.hand-slot.is-picked{z-index:20;flex:0 0 min(206px,calc(100cqw - (var(--n,1) - 1) * 46px))}
 .hand-slot:focus-visible{outline:none}
-.hand-card{position:absolute;left:50%;bottom:-10px;width:106px;margin-left:-53px;display:flex;transform-origin:50% 100%;transform:translate(var(--shift,0px),var(--drop)) rotate(var(--tilt));transition:transform .16s ease,box-shadow .16s,filter .16s;box-shadow:0 6px 16px #000b;border-width:2px}
-/* The card grows where it stands, anchored at its foot so it stays under the pointer, and its
-   neighbours slide aside to make room rather than being covered. */
-.hand-slot:hover ~ .hand-slot .hand-card{--shift:34px}
-.hand-slot:has(~ .hand-slot:hover) .hand-card{--shift:-34px}
-.hand-slot:hover .hand-card,.hand-slot.is-picked .hand-card{aspect-ratio:auto;transform:translateY(-18px) rotate(0) scale(1.5);box-shadow:0 0 0 2px #f2d48f,0 0 28px #e8bd6366,0 26px 40px #000c}
+.hand-card{position:absolute;left:50%;bottom:4px;width:110px;margin-left:-55px;display:flex;transform-origin:50% 100%;transform:translateY(var(--drop)) rotate(var(--tilt));transition:transform .16s ease,box-shadow .16s,filter .16s;box-shadow:0 6px 16px #000b;border-width:2px}
+/* The card grows where it stands, anchored at its foot so it stays under the pointer. Its slot
+   widens to hold it and the others make the room: aside while the row has some -- the row stays
+   centred, so the grown card does not move at all -- and squeezed when it has none, so nothing
+   ever leaves the fan. */
+.hand-slot:hover .hand-card,.hand-slot.is-picked .hand-card{aspect-ratio:auto;transform:translateY(-6px) rotate(0) scale(1.45);box-shadow:0 0 0 2px #f2d48f,0 0 28px #e8bd6366,0 26px 40px #000c}
 .hand-slot:focus-visible .hand-card{box-shadow:0 0 0 2px #f2d48f,0 6px 16px #000b}
 .hand-slot.is-off .hand-card{filter:grayscale(.8) brightness(.62)}
 .hand-slot.is-off:hover .hand-card{filter:grayscale(.3) brightness(.95)}

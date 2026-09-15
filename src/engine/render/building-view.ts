@@ -85,7 +85,7 @@ export class BuildingView {
   /** Everything this view owns, for a caller to add to a scene of their own. */
   readonly root = new Group();
   /** The grid drawn at the level being built on, so an empty plane is still aimable. */
-  readonly guide = new GridHelper(32, 32, '#b58cff', '#50455f');
+  readonly guide = new GridHelper(32, 32, '#7a7a7a', '#3c3c3c');
   /** The translucent piece under the pointer. */
   readonly preview = new Group();
   private readonly chunks = new Map<string, Chunk>();
@@ -95,7 +95,7 @@ export class BuildingView {
   private readonly simple = new BoxGeometry(1, 1, 1);
   private readonly material = new MeshStandardMaterial({ roughness: 0.9 });
   private readonly ghostMaterial = new MeshBasicMaterial({
-    color: '#b58cff',
+    color: '#5f8ad0',
     transparent: true,
     opacity: 0.45,
     depthWrite: false,
@@ -303,7 +303,7 @@ export class BuildingView {
     while (this.preview.children.length < 4) {
       this.preview.add(new Mesh(this.simple, this.ghostMaterial));
     }
-    this.ghostMaterial.color.set(erase ? '#ff6a5c' : '#b58cff');
+    this.ghostMaterial.color.set(erase ? '#ff6a5c' : '#5f8ad0');
     const parts = buildingParts(tile.shape);
     this.preview.position.set(
       tile.x - this.offsetX,

@@ -347,9 +347,8 @@ export function TerrainSide(props: {
               </div>
             </>
           ) : null}
-          <label class="ph-heading">
-            Piece height (Z)
-            <input
+          <div class="ph-heading">Piece height (Z)</div>
+          <input
               class="ph-input"
               aria-label="Piece height"
               type="number"
@@ -365,9 +364,8 @@ export function TerrainSide(props: {
                 props.onChange();
               }}
             />
-          </label>
           <button
-            class="ph-item"
+            class="ph-chip ph-rotate"
             data-testid="build-rotate"
             onClick={() => setRotation((controller.state.buildRotation + 1) % 4)}
           >
@@ -376,7 +374,7 @@ export function TerrainSide(props: {
         </>
       ) : null}
       {tool === 'prop' ? (
-        <button class="ph-item" data-testid="prop-rotate" onClick={() => setRotation((controller.state.buildRotation + 1) % 4)}>
+        <button class="ph-chip ph-rotate" data-testid="prop-rotate" onClick={() => setRotation((controller.state.buildRotation + 1) % 4)}>
           Rotate · {controller.state.buildRotation * 90}° (Alt + mouse / R)
         </button>
       ) : null}

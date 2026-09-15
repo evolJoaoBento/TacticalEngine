@@ -14,7 +14,10 @@ edges: the rail down the left, the properties panel down the right, the library 
 bottom between them, the top bar's modes as tabs underlined in blue, section headings as the
 raised strips Blender's panels have, and the Content workspaces filling the editor rather than
 floating in it. `editor-shell.spec.ts`'s colour test now pins the grey. The workspaces' own
-layouts (Quests is still one row in a corner) are the next slice, not this one.
+layouts (Quests is still one row in a corner) are the next slice, not this one. Two leftovers the
+screenshots showed went after: the build grid and the ghost piece were still purple -- three.js
+colours in `building-view.ts`, not CSS -- and are grey and the editor's blue; and Piece height was a
+heading wrapping its own input, which the new heading strip swallowed.
 
 `npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed**, `EXIT 0`, with the
 colour test retargeted. Screenshots read: the four modes, the Content menu, the Cards and Party
@@ -35,7 +38,17 @@ Gate's portraits, so the bottom belongs to the hand. `ActionBar` keeps its name,
 still fits between the HUD and the panel. `main.ts` paid its one new line with two collapsed
 imports (2,540 -> 2,518). Then, on the user's look: the card grows where it stands, anchored at
 its foot so it stays under the pointer, and its neighbours slide aside (`:has()` for the ones to
-its left); the relics moved to the top centre so a lifted card never covers them.
+its left); the relics moved to the top centre so a lifted card never covers them. That cut still
+overlapped: the fan sized itself from its content, which is nothing (the faces are positioned), so
+it shrank to about 280px and piled onto the orb and End Turn, and a 34px push did not clear a card
+grown half again. Now the fan takes the room between them, a slot is that room shared out (`cqw`,
+at most 96px), and a hovered card's slot widens to hold it: while the row has room the others step
+aside and the grown card stays exactly where it was; once it has none (seven cards and up at 1280px)
+they squeeze, the grown card sits over its neighbours as a deck-builder's does, and nothing leaves
+the fan for the orb or End Turn. A cut that slid the neighbours by a fixed amount ran a big hand's
+end cards onto both; so did keeping the spare room as padding outside the slots, which left a
+four-card hand nothing to spread into. The fan's whole tilt is held to about twelve degrees, and the resting cards
+stand high enough to show the reason along their foot.
 
 `npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed**, `EXIT 0`, every
 existing card test clicking its card in the fan. Screenshots read: exploring, hovering, in a fight,

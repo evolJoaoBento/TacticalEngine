@@ -144,7 +144,7 @@ adversary that cannot be attacked (out of range, the GM's turn) does nothing vis
 Along the bottom of the screen the selected character holds their hand, fanned like a deck-builder's:
 **Attack** with the weapon in hand (click an adversary on the board), then one card per action or
 reaction — the class's Light feature, subclass cards, and the domain cards in the loadout. A card
-lifts and straightens under the pointer so its whole text can be read; its Light cost is the gold
+grows where it stands under the pointer, its neighbours sliding aside, so its whole text can be read; its Light cost is the gold
 coin on its corner and its Stress cost the violet one. A card that cannot be played now is greyed,
 with why along its foot ("needs 3 Light", "the GM's turn", "nothing in range", "the table
 adjudicates this one" for a card the engine has no script for). Passives are not cards to play,
@@ -355,7 +355,7 @@ placement-type selector. Clicking the tab or an item returns from erase to place
 ### Building tiles beyond the board
 
 Open **Terrain → Tiles** and choose Block, Floor, Wall or Stairs. Pick stone, wood or grass
-on the right, then click or drag on the purple build grid. The translucent piece previews
+on the right, then click or drag on the build grid. The translucent piece previews
 the placement. Brushes cover 1×1, 3×3 or 5×5 cells; a drag is one undo step.
 Each stamp creates an independent piece, even where other pieces already exist. A drag visits
 each cell only once; a fresh click or stroke can place another identical piece there.

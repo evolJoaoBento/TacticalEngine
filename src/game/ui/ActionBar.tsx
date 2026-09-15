@@ -51,10 +51,15 @@ function badges(view: AbilityView): string {
   return parts.join(' · ');
 }
 
-/** Where a card sits in the fan: tilted away from the middle, and dropped a little the further out it is. */
+/**
+ * Where a card sits in the fan: tilted away from the middle, and dropped a little the further out
+ * it is. The whole spread is held to about twelve degrees, so a big hand's end cards do not swing
+ * out past the fan.
+ */
 function pose(index: number, count: number): Record<string, string> {
   const off = index - (count - 1) / 2;
-  return { '--tilt': `${(off * 4).toFixed(1)}deg`, '--drop': `${(off * off * 2.4).toFixed(1)}px` };
+  const step = count > 1 ? Math.min(4, 12 / (count - 1)) : 0;
+  return { '--tilt': `${(off * step).toFixed(1)}deg`, '--drop': `${(off * off * 2.4).toFixed(1)}px` };
 }
 
 export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
@@ -106,7 +111,7 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
           </div>
         )}
 
-        <div className="hand">
+        <div className="hand" style={{ '--n': String(count) }}>
           <span className={`hand-slot${gmTurn ? ' is-off' : ''}`} style={pose(0, count)} title="Click an adversary on the board to attack" data-testid="attack-chip">
             <span className="face hand-card" style={{ '--domain-color': domainColor('granted') }}>
               <span className="face-art ability-card-art">

@@ -116,12 +116,13 @@
    author is aiming for is also the easiest one to hit. */
 .ph-editor .ph-height-control {
   position: absolute;
-  top: 110px;
-  bottom: 190px;
-  right: 312px;
+  top: 40px;
+  bottom: 160px;
+  right: 300px;
   z-index: 2;
   width: 76px;
-  max-height: 460px;
+  border-top: 0;
+  border-bottom: 0;
   padding: 7px 5px;
   box-sizing: border-box;
   display: flex;
@@ -251,5 +252,6 @@
 .ph-editor .ph-warm { color: var(--ph-warm); }
 .ph-editor .ph-good { color: var(--ph-good); }
 .ph-editor .ph-build-pieces { flex-wrap: wrap; }
+.ph-editor .ph-rotate { display: block; width: 100%; margin-top: 8px; text-align: left; }
 .ph-editor .ph-side .ph-input { min-width: 0; width: 100%; box-sizing: border-box; padding: 4px 8px; border: 1px solid var(--ph-line); border-radius: 3px; background: var(--ph-field); color: var(--ph-text); }
 .ph-editor input:focus-visible, .ph-editor select:focus-visible, .ph-editor textarea:focus-visible { outline: 1px solid var(--ph-accent-line); outline-offset: 0; }
