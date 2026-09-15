@@ -48,6 +48,7 @@ import { LevelUpPanel } from './game/ui/LevelUpPanel';
 import { deriveCharacter } from './engine/character/sheet';
 import { ActionBar } from './game/ui/ActionBar';
 import { LoadoutPanel } from './game/ui/LoadoutPanel';
+import { CardPreview } from './game/ui/CardPreview';
 import { RestPanel } from './game/ui/RestPanel';
 import { DiceTray } from './game/ui/DiceTray';
 import {
@@ -92,23 +93,7 @@ import { describePack, packOf, readPack } from './engine/content/pack/document';
 import type { AdversaryDef } from './engine/content/types';
 import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore } from './game/save-slots';
 import { CardArtImports, loadCardArtIndex, useCardArtImports, useCardArtIndex } from './game/ui/card-art';
-import {
-  answerPending,
-  attackWithSelected,
-  buildDemoScene,
-  moveSelectedTo,
-  playGmTurn,
-  endTurn,
-  refreshWorld,
-  syncPools,
-  syncRoster,
-  gatherParty,
-  reachableInteractable,
-  useSelectedOn,
-  buildProjectScene,
-  setSheet,
-  type DemoScene,
-} from './game/demo-scene';
+import { answerPending, attackWithSelected, buildDemoScene, moveSelectedTo, playGmTurn, endTurn, refreshWorld, syncPools, syncRoster, gatherParty, reachableInteractable, useSelectedOn, buildProjectScene, setSheet, type DemoScene } from './game/demo-scene';
 import { inCombat, scriptPending } from './game/moment';
 import { underPressureTiles, arrive, previewStrike, previewWalk, startEncounter, reachableTiles } from './game/movement';
 import { DEMO_ADVERSARY_ID, DEMO_MODELS, DEMO_CHARACTERS } from './game/demo-rules';
@@ -690,6 +675,7 @@ function renderPanel(): void {
       libraryAbilities: STARTER_ABILITIES,
       characterContent: characterContentFor(demo.project),
       characterPack: characterContentFor(),
+      preview: (card) => h(CardPreview, { card, content: characterContentFor(demo.project) }),
       playingScene: demo.scene.id,
       onPlay: () => setMode('play'),
       onPlayHere: () => playAt(editor.sceneId, null),

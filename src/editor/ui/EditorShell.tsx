@@ -20,7 +20,7 @@ import { SRD_CONDITIONS } from '../../engine/content/conditions';
 import { STARTER_CONDITIONS } from '../../engine/content/pack/starter';
 import type { AbilityDef } from '../../engine/content/abilities';
 import type { AdversaryDef } from '../../engine/content/types';
-import type { ContentPack } from '../../engine/content/pack/import';
+import type { CardDef, ContentPack } from '../../engine/content/pack/import';
 import type { Interactable } from '../../engine/scene/schema';
 import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
@@ -69,6 +69,8 @@ export interface EditorShellProps {
   characterContent: ContentPack;
   /** The same pack before the project is laid over it: which of the project's cards copy one of its own. */
   characterPack: ContentPack;
+  /** The Cards panel's preview: a card as the game draws it. */
+  preview?: (card: CardDef) => preact.JSX.Element | null;
   /** The scene the party is standing in, which need not be the one being edited. */
   playingScene: string;
   onPlay: () => void;
@@ -330,6 +332,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           adversaryIds={props.adversaries.map((a) => a.id)}
           content={props.characterContent}
           pack={props.characterPack}
+          preview={props.preview}
           {...ids}
           onChange={bump}
           onClose={closeWorkspace}

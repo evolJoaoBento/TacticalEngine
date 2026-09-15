@@ -53,6 +53,8 @@ export interface AbilityPanelProps {
   dialogueIds: readonly string[];
   encounterIds: readonly string[];
   quests: readonly QuestDef[];
+  /** The card as the player will see it, drawn by the game: `main.ts` hands it in, since this panel cannot import the game. */
+  preview?: (card: CardDef) => preact.JSX.Element | null;
 }
 
 const field: Record<string, string | number> = {
@@ -459,6 +461,9 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
     setOpenId(id);
     setOpenCardId(null);
   };
+  // The card in hand, as the project has it, else as the pack prints it: what the preview draws.
+  const shown: CardDef | null =
+    openCard ?? (open === null ? null : (session.project.cards.find((c) => c.id === cardOf(open)) ?? props.content.cards.get(cardOf(open)) ?? null));
 
   const edit = (changes: Partial<AbilityDef>): void => {
     if (open === null) return;
@@ -959,6 +964,10 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
           </>
         )}
       </div>
+
+      {props.preview === undefined || shown === null ? null : (
+        <div style={{ width: '230px', flex: 'none', overflow: 'auto' }}>{props.preview(shown)}</div>
+      )}
     </div>
   );
 }

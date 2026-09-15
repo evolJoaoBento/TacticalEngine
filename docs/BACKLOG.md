@@ -4,6 +4,21 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The card beside the form — done
+
+The Cards panel shows the card as the player will see it, beside the form, redrawn as its author
+types: a chosen card with its level, recall and domain, any other with what grants it, and the
+art this browser holds. The import moved with it: `CardArtImport` is the picker the deck browser's
+reader and the panel share, and `CardPreview` is a face over it. The editor cannot import the game,
+so `main.ts` hands the preview to `EditorShell` as a render prop and `AbilityPanel` draws it in a
+third column, for a scripted card and a text-only one alike. `main.ts` is 2,548 lines: the
+demo-scene import collapsed to one line to pay for the two it gained.
+
+`npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **119 passed (5.3m)**, `EXIT 0`. New:
+`tests/e2e/card-editor.spec.ts` reads the face before and after typing, the level badge after a
+regrant, the art imported from the panel, and that the words reached the card; the screenshot it
+writes (`test-results/card-editor-preview.png`) was read.
+
 ## A card's words are one thing — done
 
 A card is two documents, and each carried a name and a text: the action bar read the ability's,

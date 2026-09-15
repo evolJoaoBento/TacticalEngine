@@ -510,7 +510,7 @@ footer {
       <tr><td><code>demo-code.ts</code>, <code>demo-dialogue.ts</code>, <code>demo-items.ts</code>, <code>demo-quests.ts</code>, <code>demo-scenes.ts</code></td><td>The demo project's own content.</td></tr>
       <tr><td><code>save.ts</code></td><td><code>saveSchema</code>, <code>saveGame</code>, <code>loadGame</code>, <code>saveBlockedBy</code>. A save is state layered over a project, not a copy of it.</td></tr>
       <tr><td><code>save-slots.ts</code></td><td><code>localStorage</code> when there is one, an in-memory store otherwise.</td></tr>
-      <tr><td><code>ui/</code></td><td><code>ActionBar</code>, <code>PartyHud</code>, <code>PlayPanel</code>, <code>LoadoutPanel</code>, <code>LevelUpPanel</code>, <code>RestPanel</code>.</td></tr>
+      <tr><td><code>ui/</code></td><td><code>ActionBar</code>, <code>PartyHud</code>, <code>PlayPanel</code>, <code>LoadoutPanel</code>, <code>LevelUpPanel</code>, <code>RestPanel</code>. <code>CardFace</code> draws a card; <code>CardArtImport</code> is the per-browser art picker under it, and <code>CardPreview</code> is the two together, which <code>main.ts</code> hands to the editor's Cards panel as a render prop -- the editor never imports the game.</td></tr>
     </tbody>
   </table>
 
@@ -526,7 +526,7 @@ footer {
       <tr><td><code>library.ts</code></td><td>What the bottom strip offers (ground, props, objects, creatures by tier) and what a search there matches.</td></tr>
       <tr><td><code>validate.ts</code><br>653 lines</td><td>The <strong>Check</strong> button. Reports playability problems a zod parse cannot: party, abilities, code, item uses, quests, then per scene the spawns, interactables, decos, encounters, reachability (pathfinding, run last because it is the expensive one), loot tables and dialogues.</td></tr>
       <tr><td><code>ui/EffectList.tsx</code><br>930 lines</td><td>The largest panel: editing a list of effects, recursively. <code>ADDABLE</code> is the list of kinds it can build.</td></tr>
-      <tr><td><code>ui/AbilityPanel.tsx</code></td><td>An ability's fields, including <code>defenses</code> and <code>tokens</code>.</td></tr>
+      <tr><td><code>ui/AbilityPanel.tsx</code></td><td>An ability's fields, including <code>defenses</code> and <code>tokens</code>, with the card's face beside them when a <code>preview</code> is handed in.</td></tr>
       <tr><td><code>ui/ConditionEditor.tsx</code>, <code>ui/CheckEditor.tsx</code>, <code>ui/TargetEditor.tsx</code></td><td>The three sub-editors <code>EffectList</code> nests.</td></tr>
       <tr><td><code>ui/EditorShell.tsx</code></td><td>The editor's root: which menu, workspace, conversation and problem list is open; keys 1-4 and Esc.</td></tr>
       <tr><td><code>ui/TopBar.tsx</code>, <code>ui/SceneMenu.tsx</code>, <code>ui/ToolRail.tsx</code>, <code>ui/LibraryStrip.tsx</code>, <code>ui/ModeSides.tsx</code>, <code>ui/icons.tsx</code></td><td>The shell's parts: menus and modes, the scene dropdown, a mode's tools, the strip, what sits beside the board in each mode, and the icons drawn for tools and modes.</td></tr>
@@ -543,7 +543,7 @@ footer {
   <code>doc-references.test.ts</code>, <code>file-size-ceiling.test.ts</code>, the three card-art tests, <code>demo-scene.test.ts</code>,
   <code>demo-map-fight.test.ts</code>, <code>legacy-campaign-import.test.ts</code>, and
   <code>spike.test.ts</code>, which asserts three.js resolves as ESM under Vitest.
-  <code>tests/e2e/</code> holds twelve specs: between-fights, building, card-browser, demo,
+  <code>tests/e2e/</code> holds thirteen specs: between-fights, building, card-browser, card-editor, demo,
   editor-panels, editor-shell, pack-import, placement, playpass, readout, save-load and warden.
   <code>tests/fixtures/</code> holds the specimens tests play, the frozen version-1 documents in
   <code>v1/</code>, and <code>models/</code>.</p>

@@ -21,3 +21,4 @@
 .face-expanded{min-height:550px}.face-expanded .face-art{flex:0 0 220px}.face-expanded .face-rules{flex:1}
 @media(max-width:700px){.face-expanded{min-height:460px}.face-expanded .face-art{flex-basis:180px}}
 .granted-slot{min-width:0;max-width:245px}
+.card-preview{display:flex;flex-direction:column;gap:10px}.card-preview .face{font-size:12px}

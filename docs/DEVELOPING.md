@@ -166,7 +166,7 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 | `demo-code.ts`, `demo-dialogue.ts`, `demo-items.ts`, `demo-quests.ts`, `demo-scenes.ts` | The demo project's content. |
 | `save.ts` | `saveSchema`, `saveGame`, `loadGame`, `saveBlockedBy`. A save is state layered over a project, not a copy of it. |
 | `save-slots.ts` | `localStorage` when there is one, an in-memory store otherwise. |
-| `ui/` | `ActionBar`, `PartyHud`, `PlayPanel`, `LoadoutPanel`, `LevelUpPanel`, `RestPanel` (Preact). |
+| `ui/` | `ActionBar`, `PartyHud`, `PlayPanel`, `LoadoutPanel`, `LevelUpPanel`, `RestPanel` (Preact). `CardFace` draws a card; `CardArtImport` is the per-browser art picker under it, and `CardPreview` is the two together, which `main.ts` hands to the editor's Cards panel as a render prop -- the editor never imports the game. |
 
 ### `src/editor/` — a project someone can edit
 
@@ -179,7 +179,7 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 | `library.ts` | What the bottom strip offers (ground, props, objects, creatures by tier) and what a search there matches. |
 | `validate.ts` | The **Check** button (653 lines). Reports playability problems a zod parse cannot: party, abilities, code, item uses, quests, then per scene the spawns, interactables, decos, encounters, reachability (pathfinding, run last because it is the expensive one), loot tables and dialogues. |
 | `ui/EffectList.tsx` | The largest panel (930 lines): editing a list of effects, recursively. `ADDABLE` is the list of kinds it can build. |
-| `ui/AbilityPanel.tsx` | An ability's fields, including `defenses` and `tokens`. |
+| `ui/AbilityPanel.tsx` | An ability's fields, including `defenses` and `tokens`, with the card's face beside them when a `preview` is handed in. |
 | `ui/ConditionEditor.tsx`, `ui/CheckEditor.tsx`, `ui/TargetEditor.tsx` | The three sub-editors `EffectList` nests. |
 | `ui/EditorShell.tsx` | The editor's root: which menu, workspace, conversation and problem list is open; keys 1-4 and Esc. |
 | `ui/TopBar.tsx`, `ui/SceneMenu.tsx`, `ui/ToolRail.tsx`, `ui/LibraryStrip.tsx`, `ui/ModeSides.tsx`, `ui/icons.tsx` | The shell's parts: menus and modes, the scene dropdown, a mode's tools, the strip, what sits beside the board in each mode, and the icons drawn for tools and modes. |
@@ -198,7 +198,7 @@ loads `/src/main.ts`.
 `engine-is-headless.test.ts`, `licensing-boundary.test.ts`, `doc-references.test.ts`,
 `file-size-ceiling.test.ts`, the three card-art tests (`card-art.test.ts`, `card-art-packaging.test.ts`, `card-sigil.test.ts`),
 `demo-scene.test.ts`, `demo-map-fight.test.ts`, `legacy-campaign-import.test.ts` and
-`spike.test.ts`. `tests/e2e/` holds `between-fights`, `building`, `card-browser`, `demo`,
+`spike.test.ts`. `tests/e2e/` holds `between-fights`, `building`, `card-browser`, `card-editor`, `demo`,
 `editor-panels`, `editor-shell`, `pack-import`, `placement`, `playpass`, `readout`, `save-load`
 and `warden`, each a `.spec.ts`. `tests/fixtures/` holds the specimens tests play -- `cards.ts`,
 `adversaries.ts`, `adversary-features.ts`, `characters.ts` -- the frozen version-1 documents in

@@ -595,7 +595,11 @@ it. A card with no effects is not broken: it is shown as text and the table
 decides, exactly as an unscripted SRD card is. The **name** and the **text** are the card's as much as
 the ability's: typing either writes both, so the action bar, the deck browser and a card's face all
 say the same thing, and one undo puts both back. A pack's card keeps its words until **Edit a copy**;
-a card two abilities sit on keeps its own, since one spell's words are not the grimoire's.
+a card two abilities sit on keeps its own, since one spell's words are not the grimoire's. Beside the
+form, the card as the player will see it: a chosen card with its level, recall cost and domain, any
+other with what grants it, redrawn as you type. **Use your own art…** under it puts a picture on the
+card, kept in this browser as the deck browser's own import is (the two are one picture), and
+**Remove** gives it back.
 
 **Text only**, under the list, is every card no ability sits on: the pack's text cards and any an
 imported pack brings without a script. Opening one shows the card's own **name** and **text** --
