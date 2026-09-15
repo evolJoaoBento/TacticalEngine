@@ -71,6 +71,8 @@ export interface EditorShellProps {
   characterPack: ContentPack;
   /** The Cards panel's preview: a card as the game draws it. */
   preview?: (card: CardDef) => preact.JSX.Element | null;
+  /** A picture of a strip item's model -- a prop, a creature as the board draws it -- or null. */
+  thumbnail?: (item: LibraryItem) => { url: string; standIn: boolean } | null;
   /** The scene the party is standing in, which need not be the one being edited. */
   playingScene: string;
   onPlay: () => void;
@@ -292,6 +294,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           ]}
           picked={terrainPicked}
           onPick={pickForTerrain}
+          thumbnail={props.thumbnail}
         />,
         <TerrainSide key="side" controller={controller} onChange={bump} onNavigate={props.onNavigateBuilding} />,
       ];
@@ -310,6 +313,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           }}
           picked={tool === 'adversary' ? controller.state.adversaryId : ''}
           onPick={pickCreature}
+          thumbnail={props.thumbnail}
         />,
         <CombatSide key="side" session={session} controller={controller} onChange={bump} />,
       ];

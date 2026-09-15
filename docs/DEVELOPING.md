@@ -139,6 +139,7 @@ adapter: the rest of the core does not know it exists.
 | `render/scene-view.ts` | `SceneView` — engine state to three.js objects, one way (1426 lines). |
 | `render/camera.ts` | `OrbitCamera`, plain data, deliberately not three's `OrbitControls` so it is testable headless. |
 | `render/assets.ts` | `AssetLibrary` — glTF/GLB loading. |
+| `render/thumbnails.ts` | `ModelThumbnails`, `thumbnailOf` — a model drawn once into a small offscreen canvas of its own and kept as a data URL, for the editor's strip. The canvas is made on the first picture, so play never opens a second WebGL context. |
 | `render/layout.ts` | The only place that knows tile-to-world scale. |
 | `render/terrain-mesh.ts` | Continuous legacy ground mesh per terrain type. |
 | `scene/building.ts`, `render/building-view.ts` | Sparse construction schema and chunked instanced LOD; `editor/building.ts` owns reversible cell edits. |

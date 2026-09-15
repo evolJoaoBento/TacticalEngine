@@ -33,10 +33,10 @@ import { abilityList, abilityTargets, abilitiesOf, loadoutView, pointTiles, rest
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
 import { BuildingView, type BuildingStats } from './engine/render/building-view';
-import { syncAuthoredEncounters } from './game/authored-encounters';
 import { BUILD_LIMIT, isBuildCoordinate } from './engine/scene/building';
 import { Z_STEP, roundToStep } from './editor/height-ladder';
 import { AssetLibrary, modelAssetSchema, type ModelAsset } from './engine/render/assets';
+import { thumbnailOf } from './engine/render/thumbnails';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NO_TILE, type Spot, type TileGrid } from './engine/grid/grid';
 import { mapExtent, spotToWorld, tileAtWorld, tileCenter, worldToSpot } from './engine/render/layout';
@@ -59,7 +59,7 @@ import { answerPending, attackWithSelected, buildDemoScene, moveSelectedTo, play
 import { inCombat, scriptPending } from './game/moment';
 import { underPressureTiles, arrive, previewStrike, previewWalk, startEncounter, reachableTiles } from './game/movement';
 import { DEMO_ADVERSARY_ID, DEMO_MODELS, DEMO_CHARACTERS } from './game/demo-rules';
-import { travelTo, characterContentFor, adversaryDefsFor } from './game/room';
+import { travelTo, characterContentFor, adversaryDefsFor, syncAuthoredEncounters } from './game/room';
 import { nameOf, note } from './game/log';
 import { applyLevelUp, awaitingLevel } from './game/level-up';
 import { equipItem, gearOf } from './game/equip';
@@ -424,9 +424,7 @@ editor.setMode('inspect');
 // not know until the file was here. The view already redraws itself on this;
 // the panel has to be told too, or the dropdowns stay empty until something
 // else happens to re-render them.
-assets.onChange(() => {
-  if (mode === 'edit') renderPanel();
-});
+assets.onChange(() => { if (mode === 'edit') renderPanel(); });
 
 const KNOWN_MODELS = new Set(MODELS.map((m) => m.id));
 const TERRAIN_IDS = demo.grid.palette.types.map((t) => t.id);
@@ -638,6 +636,7 @@ function renderPanel(): void {
       characterContent: characterContentFor(demo.project),
       characterPack: characterContentFor(),
       preview: (card) => h(CardPreview, { card, content: characterContentFor(demo.project) }),
+      thumbnail: (item) => item.tab.startsWith('tier-') ? thumbnailOf(view.registry, assets, adversaryModels[item.id] ?? DEMO_MODELS[item.id] ?? item.id, 'husk') : thumbnailOf(view.registry, assets, item.id),
       playingScene: demo.scene.id,
       onPlay: () => setMode('play'),
       onPlayHere: () => playAt(editor.sceneId, null),

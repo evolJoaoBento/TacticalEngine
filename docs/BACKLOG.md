@@ -4,6 +4,26 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The strip shows what it puts down — done
+
+The Combat strip was six grey tiles with a letter on each, and Props and Objects the same: the
+strip fell back to a label's first letter for anything that was neither a Tile nor a colour. Now
+`src/engine/render/thumbnails.ts` draws a model as Blender's asset browser previews one -- built
+once, framed by its bounds, lit, drawn into a small canvas with a WebGL context of its own (made
+on the first picture, so play never opens it) and kept as a data URL -- and `main.ts` hands it to
+the editor as `thumbnail`. A creature resolves the way the board resolves it, `modelForEntity`'s
+order and then `fallbackFor`'s husk, so its picture is what will stand there when it is placed,
+and a husk drawn for a creature with no model of its own is marked **stand-in** -- six identical
+bodies unlabelled read as placeholders as surely as six letters did;
+an imported glTF prop gets its picture when its file arrives. Objects place no model, so they are
+drawn as icons in the Tiles tab's style, and the Tiles icons lost the lavender they kept from the
+purple theme. A name too long for its card wraps to a second line instead of being cut
+("Wandering He..."). A browser that will not give the second canvas WebGL still gets the letters.
+And an empty tier said "Nothing matches." -- a search's words, when nobody had searched: the pack
+has no creature above tier 2, so Tiers 3 and 4 say "Nothing in Tier 3 yet." now, dimmed on the bar.
+
+VERIFICATION_LINE
+
 ## The editor goes Blender-grey — done
 
 The user's second direction, with Blender's startup screen as the reference. The purple is gone:

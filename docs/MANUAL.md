@@ -350,7 +350,12 @@ selection.
 Opening a Terrain library tab chooses the placement action automatically: Tiles builds,
 Ground paints, Props places props and Objects places objects. Picks are remembered when switching
 tabs. The rail only offers the applicable erase or raise/lower actions; there is no separate
-placement-type selector. Clicking the tab or an item returns from erase to placement.
+placement-type selector. Clicking the tab or an item returns from erase to placement. Every card
+shows what it puts down: a picture of the model for a prop or a creature (one with no model of its
+own shows the husk that stands in for it on the board, marked **stand-in**), a drawn icon for a tile
+or an object, and
+the colour for ground. A name too long for its card wraps to a second line. A tab with nothing in it
+is dimmed and says so ("Nothing in Tier 3 yet."); "Nothing matches." is only ever a search's answer.
 
 ### Building tiles beyond the board
 

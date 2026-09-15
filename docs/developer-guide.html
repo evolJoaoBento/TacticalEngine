@@ -477,6 +477,7 @@ footer {
       <tr><td><code>render/scene-view.ts</code></td><td><code>SceneView</code> — engine state to three.js objects, one way (457 lines).</td></tr>
       <tr><td><code>render/camera.ts</code></td><td><code>OrbitCamera</code>, plain data, deliberately not three's <code>OrbitControls</code> so it is testable headless.</td></tr>
       <tr><td><code>render/assets.ts</code></td><td><code>AssetLibrary</code> — glTF and GLB loading.</td></tr>
+      <tr><td><code>render/thumbnails.ts</code></td><td><code>ModelThumbnails</code>, <code>thumbnailOf</code> — a model drawn once into a small offscreen canvas of its own and kept as a data URL, for the editor's strip. The canvas is made on the first picture, so play never opens a second WebGL context.</td></tr>
       <tr><td><code>render/layout.ts</code></td><td>The only place that knows tile-to-world scale.</td></tr>
       <tr><td><code>render/terrain-mesh.ts</code></td><td>One <code>InstancedMesh</code> per terrain type.</td></tr>
       <tr><td><code>render/procedural/</code></td><td><code>spec.ts</code>, <code>registry.ts</code> (falls back to a placeholder rather than throwing; <code>missing()</code> lists unresolved ids), <code>build.ts</code>, <code>library/{heroes,monsters,props}.ts</code>.</td></tr>
