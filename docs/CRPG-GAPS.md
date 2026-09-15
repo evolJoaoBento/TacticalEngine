@@ -459,7 +459,7 @@ the fight if there is one.
 - No object has a model, so doors, chests, pillars and stairs are invisible in play too.
 - Only objects can be inspected.
 - Combat still holds the original tools; construction needs multilevel navigation.
-- **Editor camera**: right-drag pan, wheel zoom, WASD/arrows, Q/E and Home work in edit mode;
+- **Editor camera**: right-drag pan, middle-drag orbit, wheel zoom, WASD/arrows, Q/E and Home work in edit mode;
   **F (frame the selected character) is still play-only**, there being no selection to frame.
 - No creature *ships* with a model of its own: 128 of the 129 SRD stat blocks draw as a husk body
   until one is assigned, and `window.__engine.missingModels()` lists them. Since 2026-09-11 that
@@ -512,7 +512,8 @@ CONTEXT.md rules out narration, and a conversation UI is exactly where that cree
 
 The **camera** moves (`engine/render/camera.ts`): an orbit camera kept as plain numbers — target,
 yaw, pitch, distance — with clamps, screen-relative pan and easing, tested in node. `main.ts`
-owns only the events: left drag orbits, right drag pans, the wheel zooms, WASD/arrows slide,
+owns only the events: left drag orbits in play and middle drag in either mode, right drag pans,
+the wheel zooms (Ctrl + wheel moves the build level in the editor), WASD/arrows slide,
 Q/E turn, F frames the selected character, Home frames the room. A press that moves under six
 pixels is a click, the line the prototype drew with `OrbitControls`; here it is ours and tested
 end to end. The camera **follows a walk**: while the selected character's token is on its way,

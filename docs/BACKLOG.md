@@ -4,6 +4,19 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Middle drag orbits, Ctrl + wheel climbs — done
+
+A middle drag turns the camera in play and in the editor alike, where the left button belongs
+to the tool in hand; a right drag still pans. In the editor, with a placing tool in hand, Ctrl +
+wheel moves the build level a quarter tile a notch with the pointer anywhere over the board --
+the height ladder's own wheel, without having to reach it -- and ends an Alt rotation first,
+as Page Up/Down does. Both are `main.ts`'s events; the camera and the ladder are unchanged.
+
+`npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed (4.6m)**, `EXIT 0`. New:
+`tests/e2e/camera.spec.ts`, two tests -- a middle drag turns and does not move the target in both
+modes while a right drag still pans, and Ctrl + wheel steps the ladder's `aria-valuenow` by a
+quarter while the plain wheel zooms and leaves it; both were red before the patch landed.
+
 ## The card beside the form — done
 
 The Cards panel shows the card as the player will see it, beside the form, redrawn as its author

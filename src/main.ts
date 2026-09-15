@@ -29,18 +29,7 @@ import { demoMap } from '../legacy/js/data.js';
 import { EditorController } from './editor/controller';
 import { placementRotation } from './editor/placement-rotation';
 import { EDITOR_MODES, type EditorMode } from './editor/modes';
-import {
-  EditorSession,
-  addAsset,
-  removeAsset,
-  addScene,
-  removeScene,
-  renameScene,
-  setStartScene,
-  updateInteractable,
-  importPack,
-  packChanges,
-} from './editor/session';
+import { EditorSession, addAsset, removeAsset, addScene, removeScene, renameScene, setStartScene, updateInteractable, importPack, packChanges } from './editor/session';
 import { EditorShell } from './editor/ui/EditorShell';
 import { PlayPanel, TONE, type Inspection, type JournalQuest } from './game/ui/PlayPanel';
 import { PartyHud, type HudMember } from './game/ui/PartyHud';
@@ -69,6 +58,7 @@ import { OrbitCamera } from './engine/render/camera';
 import { BuildingView, type BuildingStats } from './engine/render/building-view';
 import { syncAuthoredEncounters } from './game/authored-encounters';
 import { BUILD_LIMIT, isBuildCoordinate } from './engine/scene/building';
+import { Z_STEP, roundToStep } from './editor/height-ladder';
 import { AssetLibrary, modelAssetSchema, type ModelAsset } from './engine/render/assets';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NO_TILE, type Spot, type TileGrid } from './engine/grid/grid';
@@ -80,12 +70,7 @@ import { journalSummary } from './engine/content/quests';
 import { blankScene, gridFromScene } from './engine/scene/grid-from-scene';
 import { importLegacyScene } from './engine/scene/legacy-import';
 import { unfamiliarCode } from './engine/script/hooks';
-import {
-  projectSchema,
-  type Interactable,
-  type ProjectDoc,
-  type SceneDoc,
-} from './engine/scene/schema';
+import { projectSchema, type Interactable, type ProjectDoc, type SceneDoc } from './engine/scene/schema';
 import type { Response } from './engine/script/runner';
 import { loadGameText, saveBlockedBy, serialiseSave } from './game/save';
 import { migrateDocument } from './engine/scene/migrate';
@@ -1003,8 +988,8 @@ function applyCamera(): void {
 }
 frameCamera();
 
-// Drag on the board: a left drag orbits, a right (or middle) drag pans, and a
-// press that moves less than a few pixels is a click. The prototype drew the
+// Drag on the board: a left drag orbits in play, a middle drag orbits in either mode, a
+// right drag pans, and a press that moves less than a few pixels is a click. The prototype drew the
 // same line at 6px with OrbitControls; here the threshold is ours to test.
 const DRAG_THRESHOLD = 6;
 let drag: { button: number; startX: number; startY: number; lastX: number; lastY: number; moved: boolean } | null = null;
@@ -1015,6 +1000,13 @@ canvas.addEventListener(
   'wheel',
   (event) => {
     event.preventDefault();
+    // Ctrl + wheel in the editor is the height ladder's wheel, wherever the pointer is.
+    if (mode === 'edit' && (event.ctrlKey || event.metaKey) && placementTool()) {
+      endAltRotation();
+      editor.setBuildLevel(Math.max(-BUILD_LIMIT, Math.min(BUILD_LIMIT, roundToStep(editor.state.buildLevel + (event.deltaY < 0 ? Z_STEP : -Z_STEP)))));
+      renderPanel();
+      return;
+    }
     orbit.zoom(Math.exp(event.deltaY * 0.0012));
   },
   { passive: false },
@@ -1816,7 +1808,7 @@ canvas.addEventListener('pointermove', (event) => {
       drag.moved = true;
     }
     if (drag.moved) {
-      if (drag.button === 0) orbit.orbit(-dx * 0.006, -dy * 0.004);
+      if (drag.button === 0 || drag.button === 1) orbit.orbit(-dx * 0.006, -dy * 0.004);
       else {
         // Pan at a rate that keeps the ground under the pointer, roughly:
         // farther away, a pixel is more world.

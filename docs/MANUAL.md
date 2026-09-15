@@ -45,10 +45,11 @@ switches between play and edit at any time.
 |---|---|---|
 | Left click | Party member: select. Adversary: attack with the selected character. Object: use it. Ground: walk there. | Apply the current tool to the tile |
 | Left drag | Orbit the camera | Paint / drag with the current tool |
-| Right or middle drag | Pan the camera | Pan the camera |
+| Middle drag | Orbit the camera | Orbit the camera |
+| Right drag | Pan the camera | Pan the camera |
 | Right click (still) | Inspect what is under the pointer: a card with a character's pools, Evasion and gear, an adversary's tier, role, Difficulty and the cards its stat block prints, or an object's kind, state and the roll it asks for | — |
 | `Escape` | Close the inspect card | — |
-| Mouse wheel | Zoom | Zoom |
+| Mouse wheel | Zoom | Zoom; with `Ctrl` held and a placing tool in hand, a quarter tile of build level a notch |
 | `W A S D` / arrow keys | Pan (held; smooth) | — |
 | `Q` / `E` | Turn the camera | — |
 | `F` | Frame the selected character | — |
@@ -366,7 +367,8 @@ pull to leave — so a round number is the easiest level to stop on, and they ar
 ladder's landmarks: taller, wider and always numbered. **Click a rung**
 to jump straight to it, or roll the wheel over the ladder for a quarter tile a notch. The +/−
 buttons move a quarter tile, as do the arrow keys once the ladder itself has focus — unfocused,
-the arrows still pan the camera. Page Up/Down moves a whole tile, and the box underneath takes
+the arrows still pan the camera. Page Up/Down moves a whole tile, **Ctrl + wheel** a quarter tile
+with the pointer anywhere over the board, and the box underneath takes
 exact heights out to ±1,000,000 — past anything the ladder draws. The separate
 **Piece height** field scales a piece vertically, from 0.25 to 16; floors start
 at a quarter-tile thickness. **Hold Alt and drag toward a tile edge** to point tiles or props
@@ -405,7 +407,7 @@ taken off the board. A creature placed outside the board is drawn in the editor 
 **Check**, but it does not enter play: outlying and elevated authoring still needs multilevel
 navigation before it can be fought on.
 
-Right-drag or WASD/arrows pan; Q/E orbit; the wheel zooms. **Go to coordinates** jumps to a
+Right-drag or WASD/arrows pan; middle-drag or Q/E orbit; the wheel zooms. **Go to coordinates** jumps to a
 distant build, including negative coordinates. **Home** returns to the original map.
 X, Y and build level each support −1,000,000 through +1,000,000. Empty space allocates nothing;
 memory and saved file size grow with the number of placed pieces, not the distance between them.
@@ -1119,8 +1121,8 @@ Taken from `docs/CRPG-GAPS.md` and checked against the code.
   data.
 - **Construction navigation**: building tiles have visual LOD but do not yet affect walking,
   collision or line of sight. The tactical ground remains a single height field.
-- **Editor camera**: right-drag pan, wheel zoom, WASD/arrows, Q/E and Home work in edit mode;
-  **F** (frame the selected character) is still play-only.
+- **Editor camera**: right-drag pan, middle-drag orbit, wheel zoom, WASD/arrows, Q/E and Home work in
+  edit mode; **F** (frame the selected character) is still play-only.
 - No entity-hover links in the log.
 - An impossible attack click is silent.
 - A scripted check (an object, a conversation) awards Light to whoever used the thing and Shadow
@@ -1158,9 +1160,10 @@ One of those sets noted its material as Public Game Content under the DPCGL (www
 Play                                   Edit
   Left click   select / attack / use / walk   apply tool
   Left drag    orbit                          paint or drag with tool
+  Middle drag  orbit                          orbit
   Right drag   pan                            pan
   Right click  inspect (Escape closes)        —
-  Wheel        zoom                           zoom
+  Wheel        zoom                           zoom (Ctrl: build level)
   WASD/arrows  pan                            —
   Q / E        turn                           —
   F            frame selected                 —
