@@ -14,7 +14,7 @@ so `main.ts` hands the preview to `EditorShell` as a render prop and `AbilityPan
 third column, for a scripted card and a text-only one alike. `main.ts` is 2,548 lines: the
 demo-scene import collapsed to one line to pay for the two it gained.
 
-`npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **119 passed (5.3m)**, `EXIT 0`. New:
+`npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **119 passed (4.3m)**, `EXIT 0`. New:
 `tests/e2e/card-editor.spec.ts` reads the face before and after typing, the level badge after a
 regrant, the art imported from the panel, and that the words reached the card; the screenshot it
 writes (`test-results/card-editor-preview.png`) was read.
