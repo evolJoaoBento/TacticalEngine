@@ -1,8 +1,10 @@
 import { expect, it } from 'vitest';
+import { Raycaster, Vector3 } from 'three';
 import { NO_TILE } from '../grid/grid';
 import { blankScene, gridFromScene } from '../scene/grid-from-scene';
 import { SceneView } from './scene-view';
 import { createPartyEntity, sceneStateFromScene } from '../scene/state';
+import { interactableSchema } from '../scene/schema';
 
 it('renders authored creatures beyond the board at their Z and removes them on undo/rebind', () => {
   const scene = blankScene('room', 4, 4);
@@ -60,6 +62,57 @@ it('draws a creature by its own override, else its type default, else its id', (
   expect(asked).toContain('lone-stray');
   // The override beat the type default, and the type default beat the id.
   expect(asked).not.toContain('dire-wolf');
+  view.setAuthoring(null);
+  view.dispose();
+});
+
+it('draws party starts and objects while authoring, and lifts and drops what the editor carries', () => {
+  const scene = blankScene('room', 4, 4);
+  scene.spawns = [{ x: 0, y: 0 }, { x: 3, y: 3 }];
+  scene.interactables = [interactableSchema.parse({ id: 'chest', kind: 'chest', position: { x: 2, y: 1 } })];
+  const grid = gridFromScene(scene).grid;
+  const view = new SceneView(grid);
+  view.setAuthoring(scene);
+  expect(view.root.getObjectByName('spawn:0')).toBeDefined();
+  expect(view.root.getObjectByName('spawn:1')!.position.x).toBe(1.5);
+  const chest = view.root.getObjectByName('object:chest')!;
+  expect([chest.position.x, chest.position.z]).toEqual([0.5, -0.5]);
+
+  const rest = chest.position.y;
+  view.lift('object', 'chest');
+  for (let i = 0; i < 30; i++) view.tick(1 / 60);
+  expect(chest.position.y).toBeGreaterThan(rest + 0.3);
+  view.drop('object', 'chest');
+  for (let i = 0; i < 60; i++) view.tick(1 / 60);
+  expect(chest.position.y).toBe(rest);
+
+  // Rebuilt for the next edit, the marks are drawn once, not again beside the old ones.
+  view.setAuthoring(scene);
+  expect(view.root.children.filter((c) => c.name.startsWith('spawn:'))).toHaveLength(2);
+  // Play draws neither.
+  view.setAuthoring(null);
+  expect(view.root.getObjectByName('spawn:0')).toBeUndefined();
+  expect(view.root.getObjectByName('object:chest')).toBeUndefined();
+  view.dispose();
+});
+
+it('finds the authored thing drawn under a ray, by the tile it stands on', () => {
+  const scene = blankScene('room', 4, 4);
+  scene.interactables = [interactableSchema.parse({ id: 'chest', kind: 'chest', position: { x: 2, y: 1 } })];
+  // A wall four levels high on the next row, between the object and anyone looking from +Z.
+  scene.heights[2 * 4 + 2] = 4;
+  const grid = gridFromScene(scene).grid;
+  const view = new SceneView(grid);
+  view.setAuthoring(scene);
+  view.scene.updateMatrixWorld(true);
+  const down = new Vector3(0, -1, 0);
+  // Straight down onto the object's mark: that tile, whatever ground is under it.
+  expect(view.authoredUnder(new Raycaster(new Vector3(0.5, 10, -0.5), down))).toEqual({ x: 2, y: 1 });
+  // Bare ground: nothing drawn there to take.
+  expect(view.authoredUnder(new Raycaster(new Vector3(-1.5, 10, 1.5), down))).toBeNull();
+  // Low from +Z, the wall is in front of the mark and hides it: a press there means the wall.
+  const low = new Vector3(0.5, 1, 5);
+  expect(view.authoredUnder(new Raycaster(low, new Vector3(0.5, 0.3, -0.5).sub(low).normalize()))).toBeNull();
   view.setAuthoring(null);
   view.dispose();
 });

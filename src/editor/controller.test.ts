@@ -4,6 +4,7 @@ import { projectSchema, sceneSchema } from '../engine/scene/schema';
 import { EditorController, type EditorTool } from './controller';
 import { EditorSession, addScene, removeInteractable } from './session';
 import { TERRAIN_RAIL } from './modes';
+import type { Point } from '../engine/scene/schema';
 
 function setup(width = 8, height = 6): { session: EditorSession; editor: EditorController; changes: string[] } {
   const project = projectSchema.parse({
@@ -354,10 +355,11 @@ describe('the eraser', () => {
 });
 
 describe('select and inspect', () => {
-  it('changes nothing', () => {
+  it('changes nothing dragged across bare ground', () => {
     const { editor, session, changes } = setup();
     editor.setTool('select');
-    drag(editor, 0, 0, 4);
+    // Row 2: the room's one party start is at 0,0, and a press there would carry it off.
+    drag(editor, 2, 0, 4);
     expect(session.canUndo).toBe(false);
     expect(changes).toEqual([]);
   });
@@ -787,5 +789,99 @@ describe('moving a creature', () => {
     editor.end();
     // It waited on the last free tile rather than landing on the other one.
     expect(placed(session).map((p) => p.position)).toEqual([{ x: 3, y: 2 }, { x: 4, y: 2 }]);
+  });
+});
+
+describe('carrying things in the Inspector', () => {
+  /** A prop at 1,1, an object at 2,2 and a creature at 3,3, beside the room's party start at 0,0; the Inspector's Select in hand. */
+  function furnished(): { editor: EditorController; session: EditorSession; scene: () => ReturnType<EditorSession['requireScene']> } {
+    const { editor, session } = setup();
+    for (const [tool, at] of [['prop', { x: 1, y: 1 }], ['interactable', { x: 2, y: 2 }], ['adversary', { x: 3, y: 3 }]] as const) {
+      editor.setTool(tool);
+      editor.begin(at);
+      editor.end();
+    }
+    editor.setMode('inspect');
+    return { editor, session, scene: () => session.requireScene('room') };
+  }
+
+  const carry = (editor: EditorController, from: Point, to: Point): void => {
+    editor.begin(from);
+    editor.paint(to);
+    editor.end();
+  };
+
+  it('carries a prop, an object, a creature and a party start, each one undo step', () => {
+    const { editor, session, scene } = furnished();
+    expect(editor.state.tool).toBe('select');
+    carry(editor, { x: 1, y: 1 }, { x: 1, y: 4 });
+    carry(editor, { x: 2, y: 2 }, { x: 2, y: 4 });
+    carry(editor, { x: 3, y: 3 }, { x: 3, y: 4 });
+    carry(editor, { x: 0, y: 0 }, { x: 0, y: 4 });
+    expect(scene().decos[0]!.position).toEqual({ x: 1, y: 4 });
+    expect(scene().interactables[0]!.position).toEqual({ x: 2, y: 4 });
+    expect(scene().encounters[0]!.adversaries[0]!.position).toEqual({ x: 3, y: 4 });
+    expect(scene().spawns).toEqual([{ x: 0, y: 4 }]);
+    for (const label of ['Move party start', 'Move creature', 'Move object', 'Move prop']) {
+      expect(session.undoLabel).toBe(label);
+      session.undo();
+    }
+    expect(scene().decos[0]!.position).toEqual({ x: 1, y: 1 });
+    expect(scene().interactables[0]!.position).toEqual({ x: 2, y: 2 });
+    expect(scene().encounters[0]!.adversaries[0]!.position).toEqual({ x: 3, y: 3 });
+    expect(scene().spawns).toEqual([{ x: 0, y: 0 }]);
+  });
+
+  it('says what it carries while the pointer is down, and selects an object it picks up', () => {
+    const { editor, scene } = furnished();
+    editor.begin({ x: 2, y: 2 });
+    expect(editor.carried).toEqual({ kind: 'object', key: scene().interactables[0]!.id });
+    expect(editor.selected).toBe(scene().interactables[0]!.id);
+    editor.end();
+    expect(editor.carried).toBeNull();
+    editor.begin({ x: 1, y: 1 });
+    expect(editor.carried).toEqual({ kind: 'prop', key: '0' });
+    // A prop has no panel of its own: the Inspector says what to click, as for bare ground.
+    expect(editor.selected).toBeNull();
+    editor.end();
+  });
+
+  it('moves nothing until the pointer lets go', () => {
+    const { editor, scene } = furnished();
+    editor.begin({ x: 3, y: 3 });
+    editor.paint({ x: 5, y: 5 });
+    expect(scene().encounters[0]!.adversaries[0]!.position).toEqual({ x: 3, y: 3 });
+    editor.end();
+    expect(scene().encounters[0]!.adversaries[0]!.position).toEqual({ x: 5, y: 5 });
+  });
+
+  it('never puts an object on another, nor a party start on another or outside the room', () => {
+    const { editor, session, scene } = furnished();
+    editor.setTool('interactable');
+    editor.begin({ x: 5, y: 2 });
+    editor.end();
+    editor.setTool('spawn');
+    editor.begin({ x: 0, y: 2 });
+    editor.end();
+    editor.setMode('inspect');
+    const label = session.undoLabel;
+
+    carry(editor, { x: 2, y: 2 }, { x: 5, y: 2 });
+    carry(editor, { x: 0, y: 0 }, { x: 0, y: 2 });
+    carry(editor, { x: 0, y: 0 }, { x: -1, y: 0 });
+    expect(session.undoLabel).toBe(label);
+    expect(scene().interactables.map((i) => i.position)).toEqual([{ x: 2, y: 2 }, { x: 5, y: 2 }]);
+    expect(scene().spawns).toEqual([{ x: 0, y: 0 }, { x: 0, y: 2 }]);
+  });
+
+  it('stacks a prop on another, as placing one does', () => {
+    const { editor, scene } = furnished();
+    editor.setTool('prop');
+    editor.set('propModel', 'barrel');
+    editor.begin({ x: 4, y: 1 });
+    editor.end();
+    editor.setMode('inspect');
+    carry(editor, { x: 1, y: 1 }, { x: 4, y: 1 });
+    expect(scene().decos.map((d) => d.position)).toEqual([{ x: 4, y: 1 }, { x: 4, y: 1 }]);
   });
 });

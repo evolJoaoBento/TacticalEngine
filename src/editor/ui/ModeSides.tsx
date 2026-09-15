@@ -62,7 +62,7 @@ export function InspectorSide(props: {
   return (
     <aside class="ph-side ph-panel" data-testid="inspector-side">
       {object === null ? (
-        <div class="ph-hint">Click an object on the board to change what it is and what it does.</div>
+        <div class="ph-hint">Click an object on the board to change what it is and what it does. Drag anything on the board, a creature, a prop, an object or a party start, to move it.</div>
       ) : (
         <Inspector
           interactable={object}

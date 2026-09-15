@@ -41,7 +41,7 @@ import {
   setSpawns,
   toggleTriggerCell,
 } from './session';
-import { moveAdversary } from './creature-edits';
+import { moveAdversary, moveDeco, moveInteractable, moveSpawn } from './move-edits';
 
 export type EditorTool =
   /** Click things to inspect them; changes nothing. */
@@ -121,6 +121,21 @@ export interface EditorControllerOptions {
 /** What a viewport has to redraw. */
 export type EditorChange = 'terrain' | 'content' | 'building' | 'none';
 
+/** What a press can take hold of and carry off. */
+export type CarryKind = 'creature' | 'prop' | 'object' | 'spawn';
+
+type Position = Deco['position'];
+
+/** A thing in hand, and where it will land if the pointer lets go now. */
+interface Carry {
+  kind: CarryKind;
+  /** A creature's or an object's id; a prop's or a party start's place in its list, since they have none. */
+  key: string;
+  /** The encounter a creature is placed in. */
+  encounterId?: string;
+  to: Position;
+}
+
 export class EditorController {
   readonly session: EditorSession;
   sceneId: string;
@@ -147,11 +162,11 @@ export class EditorController {
    */
   selectedAdversary: string | null = null;
   /**
-   * The placed creature a press picked up, carried tile to tile until the pointer lets go. Select and
-   * the place tool both pick up a creature they are pressed on: the place tool used to stack a second
-   * one on top, which nobody wants.
+   * What a press took hold of, carried until the pointer lets go. Select picks up whatever it is
+   * pressed on, and Combat's place tool a creature rather than stacking a second one on it. The
+   * document waits for the release, which moves the thing once: one undo step.
    */
-  private carrying: { encounterId: string; placementId: string } | null = null;
+  private carrying: Carry | null = null;
 
   constructor(options: EditorControllerOptions) {
     this.session = options.session;
@@ -264,8 +279,10 @@ export class EditorController {
   }
 
   end(): void {
+    const held = this.carrying;
     this.dragging = false;
     this.carrying = null;
+    if (held !== null) this.land(held);
     this.lastBuildingPoint = null;
     this.strokeTiles.clear();
     this.buildingStroke.clear();
@@ -347,17 +364,17 @@ export class EditorController {
         // Selecting is not an edit — nothing enters the undo history — but the
         // panel has to redraw, so it reports a change.
         // Combat selects creatures, the Inspector selects objects: the same tool
-        // picks whichever kind the mode is about.
+        // picks whichever kind the mode is about. Either takes hold of what it is
+        // pressed on, so a drag carries it off.
         if (this.mode === 'combat') {
-          const creature = this.adversaryAt(point);
-          this.pickUp(creature);
-          const picked = creature?.id ?? null;
-          if (picked === this.selectedAdversary) return 'none';
-          this.selectedAdversary = picked;
+          const held = this.pickUp(point, ['creature', 'spawn']);
+          const creature = held?.kind === 'creature' ? held.key : null;
+          if (creature === this.selectedAdversary) return 'none';
+          this.selectedAdversary = creature;
           return 'content';
         }
-        const found = this.interactableAt(point);
-        const next = found?.id ?? null;
+        const held = this.pickUp(point, ['object', 'creature', 'prop', 'spawn']);
+        const next = held?.kind === 'object' ? held.key : null;
         if (next === this.selected) return 'none';
         this.selected = next;
         return 'content';
@@ -415,10 +432,9 @@ export class EditorController {
       case 'adversary': {
         if (!pressed) return 'none';
         // Pressing on a creature picks it up, to be carried; only bare ground gets a new one.
-        const standing = this.adversaryAt(point);
+        const standing = this.pickUp(point, ['creature']);
         if (standing !== null) {
-          this.pickUp(standing);
-          this.selectedAdversary = standing.id;
+          this.selectedAdversary = standing.key;
           return 'content';
         }
         const encounter = this.ensureEncounter();
@@ -487,24 +503,71 @@ export class EditorController {
     return 'none';
   }
 
-  /** Take hold of a placed creature, or of nothing, for the rest of this press. */
-  private pickUp(creature: Encounter['adversaries'][number] | null): void {
-    const encounter = creature === null ? undefined : this.scene.encounters.find((e) => e.adversaries.includes(creature));
-    this.carrying = creature === null || encounter === undefined ? null : { encounterId: encounter.id, placementId: creature.id };
+  /** What the pointer is carrying, for a viewport to lift: its kind, and its id or place in its list. */
+  get carried(): { kind: CarryKind; key: string } | null {
+    return this.carrying === null ? null : { kind: this.carrying.kind, key: this.carrying.key };
+  }
+
+  /** Take hold of the first of these kinds of thing on a tile, for the rest of this press, and say what it was. */
+  private pickUp(point: Point, kinds: readonly CarryKind[]): Carry | null {
+    this.carrying = null;
+    for (const kind of kinds) {
+      const found = this.thingAt(kind, point);
+      if (found !== null) return (this.carrying = found);
+    }
+    return null;
+  }
+
+  /** The thing of one kind on a tile, as something to carry. */
+  private thingAt(kind: CarryKind, point: Point): Carry | null {
+    const scene = this.scene;
+    const hold = (key: string, at: Position, encounterId?: string): Carry =>
+      ({ kind, key, ...(encounterId === undefined ? {} : { encounterId }), to: { ...at } });
+    switch (kind) {
+      case 'creature': {
+        const placed = this.adversaryAt(point);
+        const encounter = placed === null ? undefined : scene.encounters.find((e) => e.adversaries.includes(placed));
+        return placed === null || encounter === undefined ? null : hold(placed.id, placed.position, encounter.id);
+      }
+      case 'object': {
+        const object = this.interactableAt(point);
+        return object === null ? null : hold(object.id, object.position);
+      }
+      case 'prop': {
+        const deco = this.decoAt(point);
+        return deco === null ? null : hold(String(scene.decos.lastIndexOf(deco)), deco.position);
+      }
+      case 'spawn': {
+        const index = scene.spawns.findIndex((s) => s.x === point.x && s.y === point.y);
+        return index < 0 ? null : hold(String(index), scene.spawns[index]!);
+      }
+    }
   }
 
   /**
-   * Carry the creature in hand onto the tile under the pointer, at the plane's Z as a fresh placement
-   * would be. Never onto another creature: it waits on the last free tile until the pointer finds one.
+   * Move where the thing in hand will land to the tile under the pointer, at the plane's Z as a fresh
+   * placement would be; the document waits for the release. It never lands on another of its kind -
+   * props excepted, which stack - so it waits on the last free tile; and a party start stays in the room.
    */
   private carry(point: Point): EditorChange {
-    const { encounterId, placementId } = this.carrying!;
+    const held = this.carrying!;
     if (!isBuildCoordinate(point.x) || !isBuildCoordinate(point.y)) return 'none';
-    const there = this.adversaryAt(point);
-    if (there !== null && there.id !== placementId) return 'none';
-    const moved = this.session.run(moveAdversary(this.sceneId, encounterId, placementId, this.placementAt(point)));
-    if (moved) this.onChange('content');
-    return moved ? 'content' : 'none';
+    if (held.kind === 'spawn' && !inBounds(this.scene, point)) return 'none';
+    const there = held.kind === 'prop' ? null : this.thingAt(held.kind, point);
+    if (there !== null && there.key !== held.key) return 'none';
+    held.to = held.kind === 'spawn' ? { ...point } : this.placementAt(point);
+    return 'none';
+  }
+
+  /** Put the thing in hand down where it was carried to: one edit, and none at all if it never moved. */
+  private land(held: Carry): void {
+    const { sceneId } = this;
+    const edit =
+      held.kind === 'creature' ? moveAdversary(sceneId, held.encounterId!, held.key, held.to)
+      : held.kind === 'object' ? moveInteractable(sceneId, held.key, held.to)
+      : held.kind === 'prop' ? moveDeco(sceneId, Number(held.key), held.to)
+      : moveSpawn(sceneId, Number(held.key), held.to);
+    if (this.session.run(edit)) this.onChange('content');
   }
 
   /** The object the inspector should show, if it is still there. */

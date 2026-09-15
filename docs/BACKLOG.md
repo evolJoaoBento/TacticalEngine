@@ -4,6 +4,37 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Carry anything, with a lift, a swing and a drop — done
+
+The user's ask: a pickup animation, a hover where the bottom lags, a drop animation, and all of it
+in the Inspector for props, objects, players and enemies. Three things stood in the way. Objects
+and party starts were drawn nowhere, so there was nothing to take hold of; the editor draws them now
+(`src/engine/render/authoring-marks.ts`: the legacy blue ring with a pawn for a party start, a gold
+ring and a gem for an object with no model), and play still does not. The document moved on every
+tile a drag crossed, and each move rebuilt every authored group, so an animation on the carried one
+would have been thrown away a tile later; the controller now carries a thing for as long as the
+pointer is held and moves it once, on release (`move-edits.ts`, which replaces `creature-edits.ts`),
+so a carry is still one undo step and a click is none. And a press read the ground under the pointer,
+so a click on a creature's body or a pine's crown took the tile behind it, and a door in a wall took
+the wall; Select and the creature tool now take the thing drawn under the pointer when the ground
+does not hide it (`SceneView.authoredUnder`). The motion is `src/engine/render/carry.ts`: the thing
+lifts with a small overshoot and stretch, hangs from its top under a critically damped follow while
+its bottom swings behind on a looser pendulum, floats while held still, and on release falls onto
+wherever the document now has it and squashes with one bounce. The Inspector's Select takes an
+object first, then a creature, a prop, a party start; Combat's Select a creature, then a party start.
+A prop or a party start leaves the Inspector showing its hint, as bare ground does: neither has a
+panel yet. `inspectTile`'s body moved from `main.ts` to `src/game/inspect.ts` to pay for the wiring,
+and the pin came down to 2467.
+
+`npx tsc --noEmit` clean; vitest **1917 passed (1917)**; Playwright **125 passed (5.0m)**, `EXIT 0`. New:
+`move-edits.test.ts` (each kind moved and undone; no-ops), `carry.test.ts` (the follow never overshoots,
+the lean trails the motion, the drop squashes and settles), two `authored-view` tests (marks drawn,
+lifted and dropped; the ray pick, and a wall hiding it), five controller tests (all four kinds carried
+in the Inspector, one undo each; `carried`; nothing moves before the release; no landing on another;
+props stack) and `inspect.test.ts`. `carry.spec.ts` carries one of each with the mouse and undoes
+them, and fails against the committed code. Close-ups read for the lift, the swing, the landing and
+the rest.
+
 ## Pick a creature up and put it down elsewhere — done
 
 The user's ask: a placed enemy has to be draggable. Nothing could move one -- `updateAdversary`

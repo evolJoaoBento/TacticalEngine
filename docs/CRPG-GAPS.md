@@ -362,6 +362,12 @@ with a Blender-grey top bar of four modes (Inspector, Terrain, Combat, Interacti
 - content editors open as workspaces under the bar;
 - Combat's eraser takes creatures, trigger cells and party starts.
 
+**Carrying (2026-09-15).** Anything placed in a room -- a creature, a prop, an object, a party start --
+is taken by a press on what is drawn rather than the ground behind it, carried hanging from the
+pointer, and dropped on release as one undo step. The editor draws party starts, and objects with no
+model, as marks. Objects are still drawn nowhere in play, and a prop or a party start has no panel
+of its own in the Inspector.
+
 **Sparse construction (2026-09-11).** Terrain now offers stackable block, floor, wall and stair
 pieces, three materials, quarter turns, a level plane with placement preview, square brushes,
 level-specific erasing, grouped undo and JSON round trips. Coordinates extend to ±1,000,000

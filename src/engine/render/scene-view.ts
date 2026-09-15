@@ -33,6 +33,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   Object3D,
+  type Raycaster,
   RingGeometry,
   Scene,
 } from 'three';
@@ -105,6 +106,8 @@ const RING_ONLY: ProceduralModelSpec = {
   parts: [{ prim: { kind: 'cylinder', rTop: 0.42, rBottom: 0.42, h: 0.05, seg: 24 }, mat: 'ring', pos: [0, 0.025, 0] }],
 };
 import { ModelRegistry } from './procedural/registry';
+import { OBJECT_MARK, PARTY_START_MARK } from './authoring-marks';
+import { CarryMotion } from './carry';
 import { ringMaterial } from './procedural/spec';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
 
@@ -204,6 +207,10 @@ export class SceneView {
   private readonly reactions = new Map<string, Reaction>();
   private readonly decos: Group[] = [];
   private readonly authoredCreatures: Group[] = [];
+  /** Party starts and objects, drawn only while authoring (`authoring-marks.ts`). */
+  private readonly marks: Group[] = [];
+  /** What the editor's pointer carries: lifted, swinging, landing. */
+  private readonly carry = new CarryMotion();
   private authoring = false;
   private readonly modelForEntity: (entity: EntityState) => string;
   private readonly fallbackFor: (entity: Pick<EntityState, 'definition' | 'faction'>) => string | null;
@@ -1021,6 +1028,7 @@ export class SceneView {
   tick(dt: number): void {
     this.advanceGlides(dt);
     this.advanceReactions(dt);
+    this.carry.tick(dt);
     if (this.selection.visible) {
       // The ring stands under the selected creature's token wherever it is,
       // walking with it; with only a tile to go on, under whoever is walking
@@ -1158,7 +1166,7 @@ export class SceneView {
 
   /** Editor creatures come from authored placements, including ones outside the play grid. */
   setAuthoring(scene: SceneDoc | null, models: Readonly<Record<string, string>> = {}): void {
-    for (const group of this.authoredCreatures) {
+    for (const group of [...this.authoredCreatures, ...this.marks]) {
       this.root.remove(group);
       // The clip set is keyed by the group, and the group is being thrown away;
       // `setAuthoring` runs on every content edit, so leaving them would grow a
@@ -1166,6 +1174,7 @@ export class SceneView {
       this.clipSets.delete(group);
     }
     this.authoredCreatures.length = 0;
+    this.marks.length = 0;
     this.authoring = scene !== null;
     // The editor's viewport wears Blender's grey, like the panels round it; play keeps its dark ground.
     (this.scene.background as Color).set(this.authoring ? '#393939' : '#0d0f14');
@@ -1193,10 +1202,58 @@ export class SceneView {
       this.root.add(model.group);
       this.authoredCreatures.push(model.group);
     }
+    for (const [i, spawn] of scene.spawns.entries()) this.mark(buildModel(PARTY_START_MARK, this.resources).group, `spawn:${i}`, spawn);
+    // An object's own model where it names one, else the mark.
+    for (const object of scene.interactables) {
+      const drawn = object.model === null ? buildModel(OBJECT_MARK, this.resources) : this.build(object.model);
+      this.mark(drawn.group, `object:${object.id}`, object.position);
+    }
   }
 
   /** How many creatures the editor is drawing from the document rather than from play. */
   get authoredCreatureCount(): number { return this.authoredCreatures.length; }
+
+  /** Put down one of the editor's marks, named so a press can find it to lift. */
+  private mark(group: Group, name: string, at: { x: number; y: number; z?: number }): void {
+    const centre = this.placementCentre(at);
+    group.position.set(centre.x, centre.y, centre.z);
+    group.name = name;
+    this.root.add(group);
+    this.marks.push(group);
+  }
+
+  /** Lift what the editor's pointer took hold of - a placed creature, a prop, an object, a party start. */
+  lift(kind: string, key: string): void {
+    const held = this.drawnFor(kind, key);
+    if (held !== null) this.carry.lift(held);
+  }
+
+  /** Where the pointer meets the ground while carrying: the thing hangs above it, trailing. */
+  carryTo(x: number, y: number, z: number): void {
+    this.carry.moveTo(x, y, z);
+  }
+
+  /** Let go: it falls onto wherever the document now has it, drawn afresh there or not. */
+  drop(kind: string, key: string): void {
+    this.carry.drop(this.drawnFor(kind, key));
+  }
+
+  /** The tile of the nearest authored thing drawn under a ray - a creature, a prop, a mark - unless ground hides it. */
+  authoredUnder(ray: Raycaster): { x: number; y: number } | null {
+    const hit = ray.intersectObjects([...this.authoredCreatures, ...this.decos, ...this.marks], true).find((h) => h.object.visible);
+    const ground = ray.intersectObjects(this.terrain.meshes, false)[0];
+    if (hit === undefined || (ground !== undefined && ground.distance < hit.distance)) return null;
+    let drawn: Object3D = hit.object;
+    while (drawn.parent !== null && drawn.parent !== this.root) drawn = drawn.parent;
+    const size = this.layout.tileSize;
+    return { x: Math.round(drawn.position.x / size + (this.grid.width - 1) / 2), y: Math.round(drawn.position.z / size + (this.grid.height - 1) / 2) };
+  }
+
+  /** The group drawn for an authored thing: a prop by its place in the list, the rest by name. */
+  private drawnFor(kind: string, key: string): Object3D | null {
+    if (kind === 'prop') return this.decos[Number(key)] ?? null;
+    return this.root.getObjectByName(kind === 'creature' ? `authored-creature:${key}` : `${kind}:${key}`) ?? null;
+  }
 
   /** How many scenery models are in the scene. */
   get decoCount(): number {

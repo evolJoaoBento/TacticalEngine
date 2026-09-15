@@ -29,7 +29,7 @@ import { LoadoutPanel } from './game/ui/LoadoutPanel';
 import { CardPreview } from './game/ui/CardPreview';
 import { RestPanel } from './game/ui/RestPanel';
 import { DiceTray } from './game/ui/DiceTray';
-import { abilityList, abilityTargets, abilitiesOf, loadoutView, pointTiles, rest, shapeAt, swapCard, useAbility, type RestPlan, statBlockCards } from './game/demo-abilities';
+import { abilityList, abilityTargets, abilitiesOf, loadoutView, pointTiles, rest, shapeAt, swapCard, useAbility, type RestPlan } from './game/demo-abilities';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
 import { BuildingView, type BuildingStats } from './engine/render/building-view';
@@ -64,6 +64,7 @@ import { nameOf, note } from './game/log';
 import { applyLevelUp, awaitingLevel } from './game/level-up';
 import { equipItem, gearOf } from './game/equip';
 import { useItem } from './game/use-item';
+import { inspection } from './game/inspect';
 import { STARTER_ABILITIES } from './engine/content/pack/starter';
 
 declare global {
@@ -1053,14 +1054,17 @@ function rotatePlacement(event: PointerEvent): boolean {
   return true;
 }
 
+/** The raycaster, pointed from the camera through the pointer. */
+function aim(event: { clientX: number; clientY: number }): Raycaster {
+  const rect = canvas.getBoundingClientRect();
+  pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  return raycaster;
+}
+
 /** The cell the pointer crosses on the flat plane at the level being built on. */
 function pointOnBuildPlane(event: { clientX: number; clientY: number }): { x: number; z: number } | null {
-  const rect = canvas.getBoundingClientRect();
-  pointer.set(
-    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    -((event.clientY - rect.top) / rect.height) * 2 + 1,
-  );
-  raycaster.setFromCamera(pointer, camera);
+  aim(event);
   buildPlane.constant = -(view.layout.baseHeight + editor.state.buildLevel);
   if (!raycaster.ray.intersectPlane(buildPlane, groundPoint)) return null;
   return { x: groundPoint.x, z: groundPoint.z };
@@ -1118,11 +1122,7 @@ function updateBuildingPreview(): void {
 
 /** The ground under the pointer: the tile struck, and the exact spot on it. */
 function groundUnderPointer(event: PointerEvent | MouseEvent): { tile: number; spot: Spot } | null {
-  const rect = canvas.getBoundingClientRect();
-  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(pointer, camera);
-  const hits: Intersection<Object3D>[] = raycaster.intersectObjects(view.terrain.meshes, false);
+  const hits: Intersection<Object3D>[] = aim(event).intersectObjects(view.terrain.meshes, false);
   const hit = hits[0];
   if (hit === undefined) return null;
   groundPoint.copy(hit.point);
@@ -1645,21 +1645,40 @@ function renderPlayPanel(): void {
 }
 refreshPlay();
 
+/** Press on the board in the editor. Whatever the press took hold of lifts off the ground, to be carried. */
+function pressAt(event: PointerEvent, at: Spot): void {
+  canvas.setPointerCapture(event.pointerId);
+  editor.begin(at);
+  const held = editor.carried;
+  if (held !== null) view.lift(held.kind, held.key);
+  canvas.style.cursor = held === null ? '' : 'grabbing';
+  renderPanel();
+}
+
+/** Let go in the editor: the stroke ends, and whatever was carried falls onto where it now stands. */
+function release(): void {
+  const held = editor.carried;
+  editor.end();
+  if (held !== null) view.drop(held.kind, held.key);
+  canvas.style.cursor = '';
+  renderPanel();
+}
+
 canvas.addEventListener('pointerdown', (event) => {
   if (rotatePlacement(event)) return;
   if (mode === 'edit') {
     if (event.button !== 0) {
-      editor.end();
+      release();
       drag = { button: event.button, startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, moved: false };
       canvas.setPointerCapture(event.pointerId);
       return;
     }
+    // Select and the place tool take the thing drawn under the pointer, not the ground behind it.
+    const drawn = event.shiftKey || !['select', 'adversary'].includes(editor.state.tool) ? null : view.authoredUnder(aim(event));
+    if (drawn !== null) return pressAt(event, drawn);
     if (placementTool() && !event.shiftKey) {
       const at = placementUnderPointer(event);
-      if (at === null) return;
-      canvas.setPointerCapture(event.pointerId);
-      editor.begin(at);
-      renderPanel();
+      if (at !== null) pressAt(event, at);
       return;
     }
     const tile = tileUnderPointer(event);
@@ -1669,9 +1688,7 @@ canvas.addEventListener('pointerdown', (event) => {
       playAt(editor.sceneId, tile);
       return;
     }
-    canvas.setPointerCapture(event.pointerId);
-    editor.begin(pointOf(tile));
-    renderPanel();
+    pressAt(event, pointOf(tile));
     return;
   }
 
@@ -1681,69 +1698,8 @@ canvas.addEventListener('pointerdown', (event) => {
   canvas.setPointerCapture(event.pointerId);
 });
 
-/** Facts about whatever stands on a tile — a party member, an adversary, an object. */
-function inspectTile(tile: number): Inspection | null {
-  const occupant = entityOn(tile);
-  if (occupant !== null) {
-    const entity = demo.state.entity(occupant)!;
-    const pools = [
-      `HP ${entity.hitPoints.marked}/${entity.hitPoints.max}`,
-      `Stress ${entity.stress.marked}/${entity.stress.max}`,
-      `Armor ${entity.armorSlots.marked}/${entity.armorSlots.max}`,
-    ];
-    if (entity.faction === 'party') {
-      const character = demo.characters.get(entity.id);
-      const sheet = character?.sheet;
-      const klass = sheet === undefined ? undefined : characterContentFor(demo.project).classes.get(sheet.classId);
-      const gear = gearOf(demo, entity.id);
-      return {
-        kind: 'character',
-        id: entity.id,
-        name: sheet?.name ?? entity.id,
-        line: `${klass?.name ?? sheet?.classId ?? ''} · level ${sheet?.level ?? 1}`,
-        text: `${gear.weapon} · ${gear.armor}`,
-        facts: [
-          ...pools,
-          ...(entity.good === undefined ? [] : [`Light ${entity.good.value}/${entity.good.max}`]),
-          `Evasion ${character?.evasion ?? '?'}`,
-          // Named, not keyed: an inspect card is read by a player.
-          ...[...entity.conditions].map((c) => demo.world.conditionName(c)),
-        ],
-      };
-    }
-    // Whatever this fight is being played with, project content included. A
-    // creature nobody can look up is named by its id below, which is the truth;
-    // standing in a different creature's block would not be.
-    const def = demo.world.adversaryDef(entity.definition);
-    return {
-      kind: 'adversary',
-      id: entity.id,
-      name: def?.name ?? entity.definition,
-      line: def === undefined ? entity.definition : `Tier ${def.tier} ${def.role}`,
-      text: def?.description ?? '',
-      facts: [
-        ...pools,
-        ...(def === undefined ? [] : [`Difficulty ${def.difficulty}`]),
-        ...[...entity.conditions].map((c) => demo.world.conditionName(c)),
-      ],
-      // What its block prints, face up: the GM's side of the table.
-      cards: statBlockCards(demo, entity.definition),
-    };
-  }
-  const objectId = objectOn(tile);
-  if (objectId !== null) {
-    const object = demo.scene.interactables.find((i) => i.id === objectId)!;
-    const state = demo.state.interactable(objectId);
-    const facts: string[] = [];
-    if (state.removed) facts.push('Gone');
-    else if (state.open) facts.push('Open');
-    else if (state.used) facts.push('Used');
-    if (object.requiresKey !== undefined) facts.push('Needs a key');
-    if (object.check !== undefined) facts.push(`${object.check.trait} ${object.check.difficulty}`);
-    return { kind: 'object', id: objectId, name: object.name || objectId, line: object.kind, text: object.flavor, facts };
-  }
-  return null;
-}
+/** Facts about whatever stands on a tile — a party member, an adversary, an object: `game/inspect.ts`. */
+const inspectTile = (tile: number): Inspection | null => inspection(demo, entityOn(tile), objectOn(tile));
 
 /** A click on the board in play mode. */
 function clickAt(event: PointerEvent): void {
@@ -1796,18 +1752,15 @@ canvas.addEventListener('pointermove', (event) => {
     return;
   }
   if (mode === 'edit') {
-    if (placementTool()) {
-      // The ghost only needs where the pointer is; working out the cell costs a
-      // raycast against the terrain meshes, so a hover does not pay for one.
-      lastBuildPointer = { clientX: event.clientX, clientY: event.clientY };
-      if (event.buttons !== 1) return;
-      const at = placementUnderPointer(event);
-      if (at !== null) editor.paint(at);
-      return;
-    }
-    if (event.buttons === 0) return;
-    const tile = tileUnderPointer(event);
-    if (tile !== NO_TILE) editor.paint(pointOf(tile));
+    // The ghost only needs where the pointer is; working out the cell costs a
+    // raycast against the terrain meshes, so a hover does not pay for one.
+    if (placementTool()) lastBuildPointer = { clientX: event.clientX, clientY: event.clientY };
+    if (event.buttons !== 1) return;
+    const tile = placementTool() ? NO_TILE : tileUnderPointer(event);
+    const at = placementTool() ? placementUnderPointer(event) : tile === NO_TILE ? null : pointOf(tile);
+    if (at !== null) editor.paint(at);
+    // Either raycast leaves where it struck in `groundPoint`: what is carried hangs over it.
+    if (editor.carried !== null) view.carryTo(groundPoint.x, groundPoint.y, groundPoint.z);
     return;
   }
   // Hover: mark the spot under the pointer so a click has a visible target,
@@ -1836,10 +1789,9 @@ canvas.addEventListener('pointercancel', () => {
   endAltRotation();
   lastBuildPointer = null;
   drag = null;
-  editor.end();
-  // Pair the end with a re-render, the way pointerup does (which only reaches renderPanel
-  // in edit mode); rendering the editor shell in play would paint it over the play UI.
-  if (mode === 'edit') renderPanel();
+  // Rendering the editor shell in play would paint it over the play UI.
+  if (mode === 'edit') release();
+  else editor.end();
 });
 
 /** The line a click on this ground would walk, on the ground; nothing while aiming a card, or with nowhere to go. */
@@ -1881,9 +1833,7 @@ canvas.addEventListener('pointerup', (event) => {
     }
     return;
   }
-  if (mode !== 'edit') return;
-  editor.end();
-  renderPanel();
+  if (mode === 'edit') release();
 });
 
 /** Typing into a field must not walk the party or undo the map. */

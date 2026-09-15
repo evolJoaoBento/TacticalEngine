@@ -136,10 +136,12 @@ adapter: the rest of the core does not know it exists.
 | `character/sheet.ts`, `sheet-schema.ts` | An authored `CharacterSheet` and the `DerivedCharacter` computed from it. |
 | `character/progression.ts` | Levelling, subclass stages. |
 | `dialogue/schema.ts`, `dialogue.ts`, `layout.ts` | Conversation graphs and their editor layout. |
-| `render/scene-view.ts` | `SceneView` — engine state to three.js objects, one way (1426 lines). |
+| `render/scene-view.ts` | `SceneView` — engine state to three.js objects, one way (1485 lines). |
 | `render/camera.ts` | `OrbitCamera`, plain data, deliberately not three's `OrbitControls` so it is testable headless. |
 | `render/assets.ts` | `AssetLibrary` — glTF/GLB loading. |
 | `render/thumbnails.ts` | `ModelThumbnails`, `thumbnailOf` — a model drawn once into a small offscreen canvas of its own and kept as a data URL, for the editor's strip. The canvas is made on the first picture, so play never opens a second WebGL context. |
+| `render/carry.ts` | `CarryMotion` — the editor's hand: a picked-up thing lifts, hangs from its top under the pointer so its bottom swings behind the way it goes (a critically damped follow, and a looser pendulum for the lean), floats while held still, and drops with a squash. Presentation only; it poses a three object, so it is tested headless. |
+| `render/authoring-marks.ts` | What the editor draws for things with no body of their own: a party start (the legacy blue ring, with a pawn to take hold of) and an object with no model (a gold ring and a gem). `setAuthoring` draws them; play never does. |
 | `render/layout.ts` | The only place that knows tile-to-world scale. |
 | `render/terrain-mesh.ts` | Continuous legacy ground mesh per terrain type. |
 | `scene/building.ts`, `render/building-view.ts` | Sparse construction schema and chunked instanced LOD; `editor/building.ts` owns reversible cell edits. |
@@ -162,6 +164,7 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 | `equip.ts` | `equipItem`, `gearOf`: a piece out of the pack and onto the sheet, the old one back in. |
 | | `applyLevelUp` and `equipItem` take `SheetChange`, the eleven fields of a `DemoScene` that changing a sheet touches. In `demo-scene.ts` itself, 75 of the 129 functions that take `demo` take a `Pick` of what they read, and a body that reads past it does not compile. The 51 that still take the whole `DemoScene` need 24 or more of its 27 fields: reactions, turns, defence, death moves, and everything that runs a script, which is one cycle — a script's roll can wake a reaction card, and a reaction card runs a script. That list is the fight core, and a `Pick` cannot cut it; only inverting it can (`BACKLOG.md` §2). |
 | `use-item.ts` | `useItem`: spend a carried item and run its `use` effects through the runner. |
+| `inspect.ts` | `inspection`: the facts a right-click in play shows about a party member, a creature or an object. |
 | `log.ts` | What the player reads, and nothing that decides: `LogLine`, `Floater`, `Motion`, `RollShow`; `writeDown` (a whole journal: lines, dice, floaters, motions), `note`, `nameOf`, `speak`, `float`, `swungAt`, `struck`, `showRoll`, `describeRoll`. `Narration` is the nine fields of a `DemoScene` a line is written against, and each function takes only the `Pick` of it that it reads; `log.test.ts` drives `writeDown` on a nine-field stub and no scene. `record` in `demo-scene.ts` is `writeDown` followed by `react` — the fight's half: a `goto` remembered, pools re-fitted, countdown cues and party-roll reactions. |
 | `demo-abilities.ts` | Using a card: cost, targeting, the runner. |
 | `demo-code.ts`, `demo-dialogue.ts`, `demo-items.ts`, `demo-quests.ts`, `demo-scenes.ts` | The demo project's content. |
@@ -175,7 +178,7 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 |---|---|
 | `session.ts` | The command/undo model (1712 lines). An `Edit` is `{ label, apply, undo, mergeKey?, absorb?, isNoop? }`; `EditorSession.run` coalesces a brush drag into one undo step rather than snapshotting the grid. Command functions grouped by domain: terrain/deco, interactables, encounters, scenes, dialogues, quests, assets, items/loot, party, code. |
 | `card-edits.ts` | The Cards panel's edits, over the two documents a card is: `addCardWithAbility`, `updateCard`, `updateAbility`, `addCard`/`removeCard` (a copy of a pack's card), and `updateCardWords`, which writes a name or a text onto the ability and onto the project's own card when the ability is alone on it, so the action bar and the deck browser never disagree. |
-| `creature-edits.ts` | `moveAdversary`: a placed creature carried to another tile. A drag runs it once a tile under one `mergeKey`, so the whole carry is one undo step back to where it was picked up. |
+| `move-edits.ts` | `moveAdversary`, `moveInteractable`, `moveDeco`, `moveSpawn`: a thing carried to another tile. The controller carries it for as long as the pointer is held and runs one of these on release, so a carry is one undo step and a press without a drag is none. A prop and a party start have no ids and are named by their place in the list. |
 | `controller.ts` | What a click means given the tool in hand; `CONTINUOUS` tools coalesce. |
 | `modes.ts` | The top bar's four modes and the tools each owns. Choosing a tool chooses its mode, so the two never disagree. |
 | `library.ts` | What the bottom strip offers (ground, props, objects, creatures by tier) and what a search there matches. |
@@ -200,7 +203,7 @@ loads `/src/main.ts`.
 `engine-is-headless.test.ts`, `licensing-boundary.test.ts`, `doc-references.test.ts`,
 `file-size-ceiling.test.ts`, the three card-art tests (`card-art.test.ts`, `card-art-packaging.test.ts`, `card-sigil.test.ts`),
 `demo-scene.test.ts`, `demo-map-fight.test.ts`, `legacy-campaign-import.test.ts` and
-`spike.test.ts`. `tests/e2e/` holds `between-fights`, `building`, `camera`, `card-browser`, `card-editor`, `demo`,
+`spike.test.ts`. `tests/e2e/` holds `between-fights`, `building`, `camera`, `card-browser`, `card-editor`, `carry`, `creature-drag`, `demo`,
 `editor-panels`, `editor-shell`, `library-thumbnails`, `pack-import`, `panel-layout`, `placement`, `playpass`, `readout`, `save-load`
 and `warden`, each a `.spec.ts`. `tests/fixtures/` holds the specimens tests play -- `cards.ts`,
 `adversaries.ts`, `adversary-features.ts`, `characters.ts` -- the frozen version-1 documents in
