@@ -46,7 +46,7 @@ In this order, and no further until you need it:
    interface it runs against.
 4. `src/engine/rules/damage.ts` (379 lines) — the shape of a rules module: SRD citation at the top,
    pure functions, an `Rng` passed in wherever dice are rolled.
-5. `src/game/demo-scene.ts` (5263 lines) — where the engine is actually wired into a playable thing;
+5. `src/game/demo-scene.ts` (5251 lines) — where the engine is actually wired into a playable thing;
    `src/game/log.ts` is what the player reads of it.
 6. `src/main.ts` (2572 lines) — the boot path. It owns the board, play and global keys
    (`Ctrl+E`, `Ctrl+Z`); the editor shell (`src/editor/ui/EditorShell.tsx`) also listens, for its
@@ -152,12 +152,12 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 
 | Path | What it is |
 |---|---|
-| `demo-scene.ts` | `DemoScene` and the functions over it (5263 lines, being taken apart — `BACKLOG.md` §2): `buildDemoScene`, `buildProjectScene`, `worldOptions`, `attackWithSelected`, `playGmTurn`, `endTurn`, `defenseChoices`, `applyDefenseChoice`, `useSelectedOn`, `answerPending`, `travelTo`. |
+| `demo-scene.ts` | `DemoScene` and the functions over it (5251 lines, being taken apart — `BACKLOG.md` §2): `buildDemoScene`, `buildProjectScene`, `worldOptions`, `attackWithSelected`, `playGmTurn`, `endTurn`, `defenseChoices`, `applyDefenseChoice`, `useSelectedOn`, `answerPending`, `travelTo`. |
 | `level-up.ts` | `awaitingLevel`, `applyLevelUp`: the game's side of `levelUp`, and what changes on the board once a level is taken. |
 | `equip.ts` | `equipItem`, `gearOf`: a piece out of the pack and onto the sheet, the old one back in. |
 | | `applyLevelUp` and `equipItem` take `SheetChange`, the eleven fields of a `DemoScene` that changing a sheet touches; `inCombat`, `setSheet` and `refreshWorld` take a `Pick` of what they read. A function's parameter type is the list of what it can reach — a body that reads past it does not compile. |
 | `use-item.ts` | `useItem`: spend a carried item and run its `use` effects through the runner. |
-| `log.ts` | What the player reads, and nothing that decides: `LogLine`, `Floater`, `Motion`, `RollShow`; `note`, `nameOf`, `withMentions`, `float`, `swungAt`, `struck`, `floatEntry`, `showRoll`, `describeEntry`, `describeRoll`. `Narration` is the part of a `DemoScene` a line is written against, and each function takes only the `Pick` of it that it reads. |
+| `log.ts` | What the player reads, and nothing that decides: `LogLine`, `Floater`, `Motion`, `RollShow`; `writeDown` (a whole journal: lines, dice, floaters, motions), `note`, `nameOf`, `speak`, `float`, `swungAt`, `struck`, `showRoll`, `describeRoll`. `Narration` is the nine fields of a `DemoScene` a line is written against, and each function takes only the `Pick` of it that it reads; `log.test.ts` drives `writeDown` on a nine-field stub and no scene. `record` in `demo-scene.ts` is `writeDown` followed by `react` — the fight's half: a `goto` remembered, pools re-fitted, countdown cues and party-roll reactions. |
 | `demo-abilities.ts` | Using a card: cost, targeting, the runner. |
 | `demo-code.ts`, `demo-dialogue.ts`, `demo-items.ts`, `demo-quests.ts`, `demo-scenes.ts` | The demo project's content. |
 | `save.ts` | `saveSchema`, `saveGame`, `loadGame`, `saveBlockedBy`. A save is state layered over a project, not a copy of it. |

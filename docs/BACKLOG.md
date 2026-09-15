@@ -4,6 +4,26 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## `record` is `writeDown` and then `react` — done
+
+The one function every script's journal passed through did two jobs: write the journal down
+for the player and act on it for the fight. `writeDown` is in `log.ts` now, takes `Narration`
+(nine fields: the board, the sheets, the world's and the project's names, who is acting, and
+the four queues a view drains) and reaches nothing else -- `log.test.ts` drives it on a stub of
+exactly those nine fields, with no scene built, which is the proof. `record` in
+`demo-scene.ts` is `writeDown` followed by `react`: a `goto` remembered, pools re-fitted to
+conditions, countdown cues and party-roll reactions.
+
+What this did **not** do, and the earlier entry said it would: narrow the interact section.
+`settle`, `answerPending` and `useSelectedOn` still hold the whole `DemoScene`, because they
+still call `record`, and `react` is real -- a script's roll can wake a reaction card, and a
+reaction card runs a script. That coupling is the game, not an accident of the file. What the
+split buys is that the narration is its own testable module and the coupling has a name.
+
+`npx tsc --noEmit` clean; vitest **1884 passed (1884)**, three of them new; Playwright **118 passed
+(4.3m)**, `EXIT 0`. The new test asserts the exact sentence, roll, floater and motions a swing leaves,
+and could not have compiled against the old `record`, which took a whole `DemoScene`.
+
 ## The helpers say what they read — done
 
 `inCombat`, `setSheet`, `refreshWorld` (and `bindTurn`, `scriptPending`, `speak`) take a `Pick` of
@@ -854,9 +874,10 @@ Measured off the call graph on 2026-09-15, in the order that never breaks an imp
 3. **Narrow before splitting the fight.** Party attack, defence, reactions, the adversary's turn
    and death all call each other in every direction; splitting them into files is cosmetic until
    each function takes a `Pick<DemoScene, ...>` of what it reads, the way `log.ts` and
-   `SheetChange` do. Start at `record`: it writes the journal down *and* reacts to it (countdown
-   cues, party-roll reactions), which is why nothing that runs a script can be narrowed. Split
-   the reacting half out and the interact section narrows at once.
+   `SheetChange` do. `record` is split (`writeDown` / `react`, above) and the interact section
+   did not narrow, because `react` is the fight and a script can wake it. The next honest
+   narrowing is inside the fight itself: give `react`, `playPartyRolled` and `tickCountdowns`
+   a named `Pick` and see what they actually need -- that list is the seam.
 4. `script/world.ts` and `main.ts` have doubled since the docs were written and get the same
    recipe, after.
 

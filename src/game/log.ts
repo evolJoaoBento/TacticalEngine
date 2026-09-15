@@ -15,10 +15,11 @@ import type { QuestDef } from '../engine/content/quests';
 import type { DialogueView } from '../engine/dialogue/dialogue';
 import { NO_TILE, type Spot } from '../engine/grid/grid';
 import type { DualityRoll } from '../engine/rules/duality';
+import type { ProjectDoc } from '../engine/scene/schema';
 import type { SceneState } from '../engine/scene/state';
 import type { CheckOutcome, LogTone } from '../engine/script/effects';
 import type { JournalEntry } from '../engine/script/runner';
-import type { SceneScriptWorld } from '../engine/script/world';
+import type { ScenarioState, SceneScriptWorld } from '../engine/script/world';
 
 /** How somebody got where they are: along a path, or flung - or that a blow landed on them. */
 export interface Motion {
@@ -80,12 +81,16 @@ export interface RollShow {
  * `DemoScene` has all of this and twenty fields more. A function here names
  * only the part it reads, so its signature says what a line depends on: the
  * board and the sheets, for who is called what; the world, for what a stat
- * block or a condition is called; and the four queues a view drains.
+ * block or a condition is called; the project, for what an item or a quest is
+ * called; who is acting, for a check that names no roller; and the four
+ * queues a view drains.
  */
 export interface Narration {
   readonly state: Pick<SceneState, 'entity' | 'entitiesOf'>;
   readonly world: Pick<SceneScriptWorld, 'adversaryDef' | 'conditionName'>;
   readonly sheets: ReadonlyMap<string, Pick<CharacterSheet, 'name'>>;
+  readonly project: Pick<ProjectDoc, 'items' | 'quests'>;
+  readonly scenario: Pick<ScenarioState, 'actorId'>;
   readonly log: LogLine[];
   readonly floaters: Floater[];
   readonly motions: Motion[];
@@ -124,7 +129,7 @@ export function float(demo: Pick<Narration, 'state' | 'floaters'>, id: string, t
  * what happened to the room, the story or the party as a whole stays in the
  * log. A miss floats too, since the swing was watched.
  */
-export function floatEntry(demo: Pick<Narration, 'state' | 'world' | 'floaters' | 'motions'>, entry: JournalEntry): void {
+function floatEntry(demo: Pick<Narration, 'state' | 'world' | 'floaters' | 'motions'>, entry: JournalEntry): void {
   switch (entry.kind) {
     case 'attack':
       swungAt(demo, entry.attacker, entry.target);
@@ -216,7 +221,7 @@ export function showRoll(demo: Pick<Narration, 'rolls'>, who: string, what: stri
 }
 
 /** The faces a journal entry rolled, if a party member rolled them. */
-export function rolledIn(entry: JournalEntry): { roll: DualityRoll; who: string; what: string } | null {
+function rolledIn(entry: JournalEntry): { roll: DualityRoll; who: string; what: string } | null {
   if (entry.kind === 'check') return { roll: entry.roll, who: '', what: 'the check' };
   if (entry.kind === 'attack' && entry.roll !== undefined) {
     return { roll: entry.roll, who: entry.attacker, what: entry.weapon };
@@ -239,7 +244,7 @@ export function rolledIn(entry: JournalEntry): { roll: DualityRoll; who: string;
  * on the map is called that; and a name is only a mention where it stands as a
  * whole word.
  */
-export function withMentions(demo: Named, line: LogLine): LogLine {
+function withMentions(demo: Named, line: LogLine): LogLine {
   const found: { id: string; name: string }[] = [];
   const everybody = [...demo.state.entitiesOf('party'), ...demo.state.entitiesOf('adversary')];
   const named = everybody
@@ -294,8 +299,40 @@ function listItems(
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]!}`;
 }
 
+/**
+ * Turn what a script did into what the player reads.
+ *
+ * Only the entries with something to say become lines; a flag being set is real
+ * but not news. Everything a journal leaves for a view is written here — the
+ * lines, the dice, the numbers over heads, the tokens' motions — and nothing
+ * is acted on. What the *fight* makes of the same journal is `demo-scene.ts`'s
+ * business, in `record`, which calls this first.
+ */
+export function writeDown(demo: Narration, journal: readonly JournalEntry[]): LogLine[] {
+  const lines: LogLine[] = [];
+  const names = new Map(demo.project.items.map((item) => [item.id, item.name]));
+  const quests = new Map(demo.project.quests.map((quest) => [quest.id, quest]));
+  const who = (id: string): string => nameOf(demo, id);
+  for (const entry of journal) {
+    const rolled = rolledIn(entry);
+    if (rolled !== null) {
+      // A check is rolled by whoever the script is acting as; an attack and a
+      // reaction roll each name their own roller.
+      const roller = rolled.who === '' ? demo.scenario.actorId : rolled.who;
+      showRoll(demo, roller === null ? '' : who(roller), rolled.what, rolled.roll);
+    }
+    const line = describeEntry(entry, names, quests, who, (c) => demo.world.conditionName(c));
+    if (line !== null) lines.push(withMentions(demo, line));
+    floatEntry(demo, entry);
+    if (entry.kind === 'moved' && entry.walked !== true) demo.motions.push({ id: entry.id, thrown: true });
+    else if (entry.kind === 'moved' && entry.route !== undefined) demo.motions.push({ id: entry.id, route: entry.route });
+  }
+  demo.log.push(...lines);
+  return lines;
+}
+
 /** The sentence a journal entry reads as, or `null` for the ones that are not news. */
-export function describeEntry(
+function describeEntry(
   entry: JournalEntry,
   names: ReadonlyMap<string, string>,
   quests: ReadonlyMap<string, QuestDef>,

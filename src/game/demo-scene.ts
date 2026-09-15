@@ -30,18 +30,15 @@ import type { Dialogue } from '../engine/dialogue/schema';
 import { DEMO_DIALOGUES, PILLAR_DIALOGUE_ID } from './demo-dialogue';
 import {
   DICE_MILLIS,
-  describeEntry,
   describeRoll,
   float,
-  floatEntry,
   nameOf,
   note,
-  rolledIn,
   showRoll,
   speak,
   struck,
   swungAt,
-  withMentions,
+  writeDown,
   type Floater,
   type LogLine,
   type Motion,
@@ -5178,43 +5175,34 @@ function chebyshev(grid: TileGrid, a: number, b: number): number {
 }
 
 /**
- * Turn what a script did into what the player reads.
+ * Turn what a script did into what the player reads, and act on it.
  *
- * Only the entries with something to say become lines; a flag being set is real
- * but not news.
+ * Two halves, kept apart on purpose. `writeDown` is narration and reaches
+ * nothing but the log; `react` is the fight — countdown cues and reaction
+ * cards — and is why everything that runs a script still holds the whole game.
  */
 export function record(demo: DemoScene, journal: readonly JournalEntry[]): LogLine[] {
-  const lines: LogLine[] = [];
-  const names = new Map(demo.project.items.map((item) => [item.id, item.name]));
-  const quests = new Map(demo.project.quests.map((quest) => [quest.id, quest]));
-  const who = (id: string): string => nameOf(demo, id);
-  for (const entry of journal) {
-    // Travel is remembered rather than taken: the rest of this script belongs to
-    // the room it was asked in. `settleTravel` spends it once nothing waits.
-    if (entry.kind === 'goto') demo.destination = entry.scene;
-    const rolled = rolledIn(entry);
-    if (rolled !== null) {
-      // A check is rolled by whoever the script is acting as; an attack and a
-      // reaction roll each name their own roller.
-      const roller = rolled.who === '' ? demo.scenario.actorId : rolled.who;
-      showRoll(demo, roller === null ? '' : who(roller), rolled.what, rolled.roll);
-    }
-    const line = describeEntry(entry, names, quests, who, (c) => demo.world.conditionName(c));
-    if (line !== null) lines.push(withMentions(demo, line));
-    floatEntry(demo, entry);
-    if (entry.kind === 'moved' && entry.walked !== true) demo.motions.push({ id: entry.id, thrown: true });
-    else if (entry.kind === 'moved' && entry.route !== undefined) demo.motions.push({ id: entry.id, route: entry.route });
-  }
-  demo.log.push(...lines);
-  // A condition a script put on or took off someone may move a pool's maximum.
+  const lines = writeDown(demo, journal);
+  react(demo, journal);
+  return lines;
+}
+
+/**
+ * Act on what a script did, once the whole journal is in.
+ *
+ * Travel is remembered rather than taken: the rest of this script belongs to
+ * the room it was asked in, and `settleTravel` spends it once nothing waits. A
+ * condition a script put on or took off someone may move a pool's maximum.
+ * Clocks move on what the *party* does — "it ticks down when a PC makes an
+ * attack roll" — and a stat block's own roll is the GM's move; a countdown
+ * fired by a countdown must not advance the one that fired it, so the cues
+ * are raised after the whole journal is in, never during it.
+ */
+function react(demo: DemoScene, journal: readonly JournalEntry[]): void {
+  for (const entry of journal) if (entry.kind === 'goto') demo.destination = entry.scene;
   syncPools(demo);
-  // Clocks move on what the *party* does: "it ticks down when a PC makes an
-  // attack roll". A stat block's own roll is the GM's move, and a countdown
-  // fired by a countdown must not advance the one that fired it, so the cues
-  // are raised after the whole journal is in, never during it.
   for (const { roller, roll } of rollsFrom(demo, journal)) playPartyRolled(demo, roller, roll);
   for (const cue of cuesFrom(demo, journal)) tickCountdowns(demo, cue);
-  return lines;
 }
 
 /**
