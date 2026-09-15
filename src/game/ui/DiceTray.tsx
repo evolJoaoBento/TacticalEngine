@@ -13,6 +13,7 @@
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { RollShow } from '../log';
+import './hud.css';
 
 export interface DiceTrayProps {
   /** The roll to show, or null when there is nothing to watch. */
@@ -170,17 +171,7 @@ export function DiceTray(props: DiceTrayProps): preact.JSX.Element | null {
       data-bad={roll.roll.bad}
       data-total={roll.roll.total}
       data-settled={settled ? 'true' : 'false'}
-      style={{
-        position: 'absolute',
-        top: '18%',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        pointerEvents: 'none',
-        textAlign: 'center',
-        fontFamily: 'ui-sans-serif, system-ui, sans-serif',
-        color: '#e7edf3',
-        textShadow: '0 1px 3px rgba(0,0,0,.9)',
-      }}
+      className="play dice"
     >
       <svg width="0" height="0" style={{ position: 'absolute' }}>
         <defs>
@@ -190,23 +181,17 @@ export function DiceTray(props: DiceTrayProps): preact.JSX.Element | null {
           </linearGradient>
         </defs>
       </svg>
-      <div style={{ fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.75, marginBottom: '6px' }}>
+      <div className="dice-who">
         {roll.who} rolls {roll.what}
       </div>
-      <div style={{ display: 'flex', gap: '18px', justifyContent: 'center', alignItems: 'flex-end' }}>
+      <div className="dice-pair">
         <Die value={settled ? roll.roll.good : faces(seed, step)} spin={spin} lift={lift} colour={GOOD} settled={settled} />
         <Die value={settled ? roll.roll.bad : faces(seed + 7, step + 3)} spin={-spin} lift={lift * 0.8} colour={BAD} settled={settled} />
       </div>
       {/* The result is the settle: nothing to read until the dice stop. */}
-      <div style={{ minHeight: '38px', marginTop: '8px', opacity: settled ? 1 : 0, transition: 'opacity 140ms' }}>
-        <div style={{ fontSize: '13px' }}>{line}</div>
-        <div
-          style={{
-            fontSize: '15px',
-            fontWeight: 700,
-            color: roll.roll.outcome.startsWith('success') || roll.roll.outcome === 'criticalSuccess' ? '#9fdca0' : '#e29a9a',
-          }}
-        >
+      <div className="dice-readout" style={{ opacity: settled ? 1 : 0 }}>
+        <div className="dice-line">{line}</div>
+        <div className={`dice-verdict ${roll.roll.outcome.startsWith('success') || roll.roll.outcome === 'criticalSuccess' ? 'is-success' : 'is-failure'}`}>
           {verdict}
         </div>
       </div>

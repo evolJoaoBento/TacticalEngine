@@ -4,6 +4,21 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The level-up sheet and the dice tray follow — done
+
+The two play surfaces the HUD restyle left in the old grey. `LevelUpPanel` is the rest's modal,
+taller and scrolling: the name and level in Georgia, the pick count as the browser's pill,
+eyebrow caps over each section, each pick in its own framed row, the new card's text quoted
+under a gold rule. The dice tray keeps its dice and puts the readout on a gold-framed pill, the
+verdict in Georgia, green or red. Reading the screenshots found a defect older than the restyle:
+the tray sat at 18% from the top, exactly under the action bar, which painted over it -- with a
+character selected the dice have been landing behind the bar. It is at 36% now and above the
+overlays, and `demo.spec.ts` never noticed because it reads the tray's attributes, not the screen.
+
+`npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed**, `EXIT 0`. A restyle
+and a placement: the screenshots were read (sheet with two picks; dice tumbling and settled), and
+the tray's move is what made the second pair possible at all.
+
 ## The play HUD speaks the deck browser's language — done
 
 Screenshots of every screen (`test-results/shots/`, a throwaway spec) showed the split: the editor

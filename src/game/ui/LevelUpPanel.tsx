@@ -24,6 +24,7 @@ import {
   type LevelUpPlan,
 } from '../../engine/character/progression';
 import type { Trait } from '../../engine/scene/primitives';
+import './hud.css';
 
 export interface LevelUpPanelProps {
   sheet: CharacterSheet;
@@ -47,47 +48,6 @@ const LABELS: Readonly<Record<AdvancementKind, string>> = {
   proficiency: '+1 Proficiency',
   multiclass: 'Multiclass',
 };
-
-const box: Record<string, string | number> = {
-  position: 'absolute',
-  left: '50%',
-  top: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '460px',
-  maxHeight: '85vh',
-  overflowY: 'auto',
-  background: 'rgba(16,18,24,0.97)',
-  border: '1px solid #69d2ff',
-  borderRadius: '8px',
-  padding: '14px 16px',
-  color: '#e8e6df',
-  font: '13px/1.5 system-ui, sans-serif',
-  pointerEvents: 'auto',
-  boxSizing: 'border-box',
-};
-
-const field: Record<string, string | number> = {
-  padding: '3px 6px',
-  marginRight: '4px',
-  border: '1px solid #39404d',
-  borderRadius: '4px',
-  background: 'rgba(0,0,0,0.3)',
-  color: 'inherit',
-  font: 'inherit',
-};
-
-function button(primary: boolean): Record<string, string | number> {
-  return {
-    padding: '4px 10px',
-    marginRight: '6px',
-    border: `1px solid ${primary ? '#69d2ff' : '#39404d'}`,
-    borderRadius: '4px',
-    background: primary ? 'rgba(105,210,255,0.18)' : 'transparent',
-    color: 'inherit',
-    font: 'inherit',
-    cursor: 'pointer',
-  };
-}
 
 /** A pick with everything it needs filled in with a sensible first choice. */
 function blank(kind: AdvancementKind, sheet: CharacterSheet, content: ContentPack, level: number): Advancement {
@@ -144,7 +104,7 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
     set: (v: T) => void,
     testId: string,
   ) => (
-    <select style={field} value={value} data-testid={testId} onChange={(e) => set((e.target as HTMLSelectElement).value as T)}>
+    <select value={value} data-testid={testId} onChange={(e) => set((e.target as HTMLSelectElement).value as T)}>
       {choices.map((c) => (
         <option key={c.id} value={c.id}>
           {c.label}
@@ -209,27 +169,25 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
   };
 
   return (
-    <div style={box} data-testid="level-up">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <strong style={{ fontSize: '15px' }}>
+    <div className="play level" data-testid="level-up">
+      <div className="level-head">
+        <h2>
           {sheet.name} — level {next}
-        </strong>
-        <span style={{ color: '#8ea3b0' }}>
+        </h2>
+        <span className="level-count">
           {spent} / {PICKS_PER_LEVEL} picks
         </span>
       </div>
 
-      <div style={{ color: '#8ea3b0', margin: '8px 0 4px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-        Advancements
-      </div>
+      <span className="play-eyebrow">Advancements</span>
       {options.map((option) => {
         const left = option.limit - usedNow(option.kind, option.tier);
         const affordable = spent + option.cost <= PICKS_PER_LEVEL;
         const fromPrevious = option.tier !== tier;
         return (
-          <div key={`${option.tier}-${option.kind}`} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+          <div key={`${option.tier}-${option.kind}`} className="level-option">
             <button
-              style={{ ...button(false), opacity: left > 0 && affordable ? 1 : 0.4, minWidth: '190px', textAlign: 'left' }}
+              className="play-btn"
               disabled={left <= 0 || !affordable}
               data-pick={option.kind}
               data-tier={option.tier}
@@ -243,7 +201,7 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
               {LABELS[option.kind]}
               {fromPrevious ? ` (tier ${option.tier} sheet)` : ''}
             </button>
-            <span style={{ color: '#8ea3b0', fontSize: '11px' }}>
+            <span className="level-note">
               {left} left{option.cost === 2 ? ' · costs both picks' : ''}
               {option.cardCap !== undefined && option.cardCap < next ? ` · up to level ${option.cardCap}` : ''}
             </span>
@@ -252,15 +210,15 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
       })}
 
       {picks.length > 0 ? (
-        <div style={{ margin: '8px 0' }} data-testid="picks">
+        <div style={{ margin: '10px 0 0' }} data-testid="picks">
           {picks.map((pick, index) => (
-            <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px', flexWrap: 'wrap' }}>
-              <span style={{ minWidth: '150px' }}>
+            <div key={index} className="level-pick">
+              <span>
                 {LABELS[pick.kind]}
                 {pick.fromTier !== undefined ? ` (tier ${pick.fromTier})` : ''}
               </span>
               {detail(pick, index)}
-              <button style={button(false)} onClick={() => setPicks(picks.filter((_, i) => i !== index))} title="Remove">
+              <button className="play-btn is-ghost" onClick={() => setPicks(picks.filter((_, i) => i !== index))} title="Remove">
                 ✕
               </button>
             </div>
@@ -268,10 +226,8 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
         </div>
       ) : null}
 
-      <div style={{ color: '#8ea3b0', margin: '8px 0 4px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-        New domain card
-      </div>
-      <select style={{ ...field, width: '100%' }} value={card} data-testid="granted-card" onChange={(e) => setCard((e.target as HTMLSelectElement).value)}>
+      <span className="play-eyebrow">New domain card</span>
+      <select value={card} data-testid="granted-card" onChange={(e) => setCard((e.target as HTMLSelectElement).value)}>
         {cards.map((c) => (
           <option key={c.id} value={c.id}>
             {c.name} — {c.domain} {c.level}, {c.type}
@@ -279,18 +235,13 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
         ))}
       </select>
       {content.cards.get(card) !== undefined ? (
-        <div style={{ color: '#c8b88a', fontSize: '12px', margin: '4px 0', whiteSpace: 'pre-line' }}>
-          {content.cards.get(card)!.text}
-        </div>
+        <div className="level-card">{content.cards.get(card)!.text}</div>
       ) : null}
 
       {achievement ? (
         <>
-          <div style={{ color: '#8ea3b0', margin: '8px 0 4px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            New Experience (+2) — and Proficiency rises by one
-          </div>
+          <span className="play-eyebrow">New Experience (+2) — and Proficiency rises by one</span>
           <input
-            style={{ ...field, width: '100%' }}
             value={experience}
             placeholder="What have they learned? e.g. Survived the vault"
             data-testid="experience"
@@ -300,16 +251,16 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
       ) : null}
 
       {props.issues.length > 0 ? (
-        <div style={{ color: '#ff9d7a', margin: '8px 0' }} data-testid="level-issues">
+        <div className="level-issues" data-testid="level-issues">
           {props.issues.map((issue, i) => (
             <div key={i}>{issue.message}</div>
           ))}
         </div>
       ) : null}
 
-      <div style={{ marginTop: '10px' }}>
+      <div className="level-actions">
         <button
-          style={button(true)}
+          className="play-btn is-primary"
           data-testid="take-level"
           onClick={() =>
             props.onApply({
@@ -321,7 +272,7 @@ export function LevelUpPanel(props: LevelUpPanelProps): preact.JSX.Element {
         >
           Take level {next}
         </button>
-        <button style={button(false)} onClick={props.onClose}>
+        <button className="play-btn" onClick={props.onClose}>
           Later
         </button>
       </div>

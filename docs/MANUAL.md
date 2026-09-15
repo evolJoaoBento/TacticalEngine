@@ -65,9 +65,9 @@ Q/E) are ignored while a text field has focus; the other keys are not (see Limit
 
 ### The screen
 
-- **The Duality Dice** (over the map, when a party member rolls): two d12s — gold for Light,
-  violet for Shadow — tumbling and settling on the faces that were rolled, with the sum and the
-  outcome underneath. They are a view of a roll that has already happened, not the roll itself:
+- **The Duality Dice** (over the board, below the action bar, when a party member rolls): two d12s —
+  gold for Light, violet for Shadow — tumbling and settling on the faces that were rolled, with the
+  sum and the outcome on a pill underneath. They are a view of a roll that has already happened, not the roll itself:
   the rules resolve, and the dice are then told what to land on, so nothing waits for them and
   a seeded replay shows the same faces. Only the party's Duality rolls are shown — an adversary
   rolls a single d20, and the log says what it did. Several at once (a feature everyone has to
