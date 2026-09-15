@@ -4,6 +4,22 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Levelling, equipping and using items leave `demo-scene.ts` — done
+
+The three sections at the end of the file that nothing in it called: `level-up.ts`
+(`awaitingLevel`, `applyLevelUp`), `equip.ts` (`equipItem`, `gearOf`) and `use-item.ts`
+(`useItem`). Each imports what it needs from `demo-scene.ts` and nothing imports back, so the
+dependency runs one way. They still take the whole `DemoScene`, because the helpers they call
+(`inCombat`, `setSheet`, `refreshWorld`, `settle`) do; narrowing them is the in-place pass below.
+
+Travel was on the list and is not a leaf: `settleTravel` is called from three places in the
+interact section, and `travelTo` shares `buildRuntime` with the scene builders, so it leaves
+with the room-building cluster, not alone.
+
+`npx tsc --noEmit` clean; vitest **1881 passed (1881)**; Playwright **118 passed (4.8m)**, `EXIT 0`. A
+move, so no new test: the three sections' own tests (`demo-level`, `demo-equip`, `demo-items`) now
+import from the new files, and the ceiling's pins came down with the file.
+
 ## The log leaves `demo-scene.ts`, and no file outgrows itself — done
 
 `demo-scene.ts` went from 135 lines to 5,856 in eight days, every slice landing in it because the
@@ -812,8 +828,10 @@ time it was written to save.
 
 Measured off the call graph on 2026-09-15, in the order that never breaks an import:
 
-1. **Leaves first:** levelling, equipping, carried items and travel. Nothing in the file calls
-   into them. One file each under `src/game/`, one slice each.
+1. ~~**Leaves first:** levelling, equipping, carried items.~~ Done, above. Travel is not a
+   leaf: it goes with **the room** — `SceneRuntime`, `buildRuntime`, `install`, `travelTo`,
+   `enterSavedScene`, `syncAuthoredEncounters`, `settleTravel` and the `DEMO_*` constants they
+   read — as one module the builders and the interact section both import from.
 2. **Movement** (`moveSelectedTo` .. `previewWalk`): three callers, all in the party's attack.
 3. **Narrow before splitting the fight.** Party attack, defence, reactions, the adversary's turn
    and death all call each other in every direction; splitting them into files is cosmetic until

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { attackProfile } from '../engine/character/sheet';
-import { buildDemoScene, equipItem, gearOf, startEncounter, type DemoScene } from './demo-scene';
+import { buildDemoScene, startEncounter, type DemoScene } from './demo-scene';
+import { equipItem, gearOf } from './equip';
 import { loadGameText, saveGame } from './save';
 
 /**

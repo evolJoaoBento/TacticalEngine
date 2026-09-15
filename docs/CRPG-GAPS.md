@@ -216,7 +216,7 @@ The demo's vault chest and the pit's strongbox draw from different tables, and `
 what the party carries. Validation catches a `loot` naming a table nobody wrote, a table that can
 drop something which is not an item, and an `addItem` for an item that does not exist.
 
-**Equipping is in** (`equipItem` in `game/demo-scene.ts`). A carried weapon or armor item whose
+**Equipping is in** (`equipItem` in `game/equip.ts`). A carried weapon or armor item whose
 `contentId` names SRD gear can be put on whoever is selected, from the pack. The piece comes out
 of the pack and what it replaced goes back in when the project has an item for it (the demo ships
 items for the party's starting gear so a swap is reversible); the sheet is re-derived, the attack

@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import { validateProject } from '../editor/validate';
-import { buildDemoScene, startEncounter, useItem, useSelectedOn, type DemoScene } from './demo-scene';
+import { buildDemoScene, startEncounter, useSelectedOn, type DemoScene } from './demo-scene';
+import { useItem } from './use-item';
 
 /**
  * Using what is carried.

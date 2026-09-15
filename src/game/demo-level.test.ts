@@ -4,14 +4,13 @@ import { tileOf } from '../engine/scene/grid-from-scene';
 import type { LevelUpPlan } from '../engine/character/progression';
 import {
   answerPending,
-  applyLevelUp,
-  awaitingLevel,
   buildDemoScene,
   startEncounter,
   travelTo,
   useSelectedOn,
   type DemoScene,
 } from './demo-scene';
+import { applyLevelUp, awaitingLevel } from './level-up';
 import { PIT_SCENE_ID } from './demo-scenes';
 import { loadGameText, saveGame } from './save';
 import { runScript } from '../engine/script/runner';

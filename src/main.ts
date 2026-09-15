@@ -97,11 +97,6 @@ import {
   attackWithSelected,
   buildDemoScene,
   inCombat,
-  applyLevelUp,
-  awaitingLevel,
-  equipItem,
-  gearOf,
-  useItem,
   moveSelectedTo,
   underPressureTiles,
   arrive,
@@ -129,6 +124,9 @@ import {
   type DemoScene,
 } from './game/demo-scene';
 import { nameOf, note } from './game/log';
+import { applyLevelUp, awaitingLevel } from './game/level-up';
+import { equipItem, gearOf } from './game/equip';
+import { useItem } from './game/use-item';
 import { STARTER_ABILITIES } from './engine/content/pack/starter';
 
 declare global {

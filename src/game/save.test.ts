@@ -18,7 +18,7 @@ import { deriveCharacter } from '../engine/character/sheet';
 import type { LevelUpPlan } from '../engine/character/progression';
 import { PIT_SCENE_ID } from './demo-scenes';
 import { SAVED_LOG_LINES, loadGame, loadGameText, saveBlockedBy, saveGame, saveSchema } from './save';
-import { applyLevelUp } from './demo-scene';
+import { applyLevelUp } from './level-up';
 
 /**
  * Putting a campaign down and picking it up again.

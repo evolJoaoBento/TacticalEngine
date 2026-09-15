@@ -20,7 +20,7 @@ import { MAX_SLOTS } from '../engine/rules/resources';
 import { walkCheck, walkEffects, type Condition, type CountName, type Effect, type TargetSelector } from '../engine/script/schema';
 import { rollDice } from '../engine/rules/dice';
 import type { DamageType } from '../engine/rules/dice';
-import type { ItemDef, LootTable } from '../engine/content/items';
+import type { LootTable } from '../engine/content/items';
 import type { QuestDef } from '../engine/content/quests';
 import type { Currency, MarkPool } from '../engine/rules/resources';
 import { interactableSchema, projectSchema, type CodeDef, type ProjectDoc } from '../engine/scene/schema';
@@ -57,7 +57,6 @@ import { createScenarioState, SceneScriptWorld, useKey, type Payout, type SceneS
 import { NO_BINDINGS, evaluate, evaluateOptional } from '../engine/script/conditions';
 import { maxTilesForBand, reaches, type RangeBand } from '../engine/rules/range';
 import { moveUnderPressure } from '../engine/combat/area';
-import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
 import { applyAttack, applyRoll, resolveAttack, type AttackOutcome, type AttackProfile } from '../engine/combat/attack';
 import { evaluateTarget } from '../engine/combat/targeting';
 import { adversaryTraits, attackDamageOf } from '../engine/combat/adversary-features';
@@ -94,7 +93,7 @@ import {
   type DerivedCharacter,
 } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
-import { mergePack, type ContentPack, type WeaponDef } from '../engine/content/pack/import';
+import { mergePack, type ContentPack } from '../engine/content/pack/import';
 import { STARTER_ABILITIES, STARTER_ADVERSARIES, STARTER_CHARACTERS, STARTER_CONDITIONS } from '../engine/content/pack/starter';
 import type { AdversaryDef } from '../engine/content/types';
 import { createRng, type Rng } from '../engine/core/rng';
@@ -5264,188 +5263,4 @@ function traitsFor(
     }
   }
   return best;
-}
-
-// ---------------------------------------------------------------------------
-// Levelling up
-// ---------------------------------------------------------------------------
-
-/** Party members whose sheet is below the level the party has been granted. */
-export function awaitingLevel(demo: DemoScene): string[] {
-  return [...demo.sheets.values()].filter((s) => s.level < demo.scenario.partyLevel).map((s) => s.id);
-}
-
-export type LevelUpResult = { ok: true; level: number } | { ok: false; issues: LevelUpIssue[] };
-
-/**
- * Take a level for one character.
- *
- * The plan is checked whole by `levelUp`; if it holds, the sheet is replaced,
- * the derived character rebuilt, and the live entity's pools grow to match —
- * the new slots arrive unmarked, and nothing marked is cleared. Refused during
- * a fight or a pending prompt, because the script world caches the party's
- * traits and a fresh one would orphan whatever is waiting.
- */
-export function applyLevelUp(demo: DemoScene, characterId: string, plan: LevelUpPlan): LevelUpResult {
-  const sheet = demo.sheets.get(characterId);
-  if (sheet === undefined) return { ok: false, issues: [{ field: 'character', message: `no character "${characterId}"` }] };
-  if (sheet.level >= demo.scenario.partyLevel) {
-    return { ok: false, issues: [{ field: 'level', message: 'no level-up waiting' }] };
-  }
-  if (inCombat(demo) || demo.pending !== null) {
-    return { ok: false, issues: [{ field: 'level', message: 'not in the middle of a fight or a conversation' }] };
-  }
-
-  const result = levelUp(sheet, characterContentFor(demo.project), plan);
-  if (result.issues.length > 0) return { ok: false, issues: result.issues };
-
-  setSheet(demo, result.sheet);
-  const derived = demo.characters.get(characterId)!;
-
-  const entity = demo.state.entity(characterId);
-  if (entity !== undefined) {
-    entity.hitPoints = { max: derived.hitPoints, marked: Math.min(entity.hitPoints.marked, derived.hitPoints) };
-    entity.stress = { max: derived.stress, marked: Math.min(entity.stress.marked, derived.stress) };
-    entity.armorSlots = { max: derived.armorScore, marked: Math.min(entity.armorSlots.marked, derived.armorScore) };
-  }
-
-  // The script world caches the party's best traits; a raised Strength has to
-  // reach the next check.
-  refreshWorld(demo);
-  note(demo, `${result.sheet.name} reaches level ${result.sheet.level}.`, 'good');
-  return { ok: true, level: result.sheet.level };
-}
-
-// ---------------------------------------------------------------------------
-// Equipping
-// ---------------------------------------------------------------------------
-
-export type EquipResult = { ok: true; slot: 'primary' | 'secondary' | 'armor' } | { ok: false; reason: string };
-
-/** The item in the project whose `contentId` is this piece of SRD gear, if any. */
-function itemForGear(demo: DemoScene, contentId: string | undefined): ItemDef | undefined {
-  if (contentId === undefined) return undefined;
-  return demo.project.items.find((item) => item.contentId === contentId);
-}
-
-/** Which slot a weapon goes in: shields and the like are secondary, the rest primary. */
-function slotOf(weapon: WeaponDef): 'primary' | 'secondary' {
-  return weapon.slot === 'secondary' ? 'secondary' : 'primary';
-}
-
-/**
- * Put a carried weapon or armor on a character.
- *
- * The pack is the party's, so anyone can wear anything it holds; the piece
- * comes out of the pack and whatever it replaces goes back in, as long as the
- * project has an item for it — a sheet's starting gear is SRD content that may
- * have no item, in which case it is simply set aside. The sheet is re-derived
- * and the live pools follow: Armor Slots rise or fall with the armor, nothing
- * marked is cleared. Armor cannot be changed mid-fight; a weapon can.
- */
-export function equipItem(demo: DemoScene, characterId: string, itemId: string): EquipResult {
-  const sheet = demo.sheets.get(characterId);
-  if (sheet === undefined) return { ok: false, reason: `no character "${characterId}"` };
-  const item = demo.project.items.find((candidate) => candidate.id === itemId);
-  if (item === undefined) return { ok: false, reason: `no item "${itemId}"` };
-  if ((demo.scenario.items.get(itemId) ?? 0) < 1) return { ok: false, reason: `the party is not carrying ${item.name}` };
-  if (demo.pending !== null) return { ok: false, reason: 'not in the middle of a conversation' };
-  if (item.contentId === undefined) return { ok: false, reason: `${item.name} is not something that can be worn` };
-
-  let next: CharacterSheet;
-  let slot: 'primary' | 'secondary' | 'armor';
-  let replaced: string | undefined;
-  if (item.kind === 'weapon') {
-    const weapon = characterContentFor(demo.project).weapons.get(item.contentId);
-    if (weapon === undefined) return { ok: false, reason: `${item.name} points at no known weapon` };
-    slot = slotOf(weapon);
-    replaced = slot === 'primary' ? sheet.primaryWeaponId : sheet.secondaryWeaponId;
-    // Already in hand: nothing to swap, and taking it out of the pack would lose it.
-    if (replaced === weapon.id) return { ok: false, reason: `${sheet.name} already wields the ${item.name}` };
-    next = slot === 'primary' ? { ...sheet, primaryWeaponId: weapon.id } : { ...sheet, secondaryWeaponId: weapon.id };
-  } else if (item.kind === 'armor') {
-    if (inCombat(demo)) return { ok: false, reason: 'armor cannot be changed in a fight' };
-    const armor = characterContentFor(demo.project).armors.get(item.contentId);
-    if (armor === undefined) return { ok: false, reason: `${item.name} points at no known armor` };
-    slot = 'armor';
-    replaced = sheet.armorId;
-    if (replaced === armor.id) return { ok: false, reason: `${sheet.name} already wears the ${item.name}` };
-    next = { ...sheet, armorId: armor.id };
-  } else {
-    return { ok: false, reason: `${item.name} is not something that can be worn` };
-  }
-
-  // Out of the pack, and the old piece back in when the project has an item for it.
-  demo.world.removeItem(itemId, 1);
-  const returned = itemForGear(demo, replaced);
-  if (returned !== undefined && returned.id !== itemId) demo.world.addItem(returned.id, 1);
-
-  setSheet(demo, next);
-  const derived = demo.characters.get(characterId)!;
-  const entity = demo.state.entity(characterId);
-  if (entity !== undefined) {
-    entity.armorSlots = { max: derived.armorScore, marked: Math.min(entity.armorSlots.marked, derived.armorScore) };
-  }
-  // A new weapon is a new trait to roll: the world reads the sheet.
-  refreshWorld(demo);
-  note(demo, `${sheet.name} ${slot === 'armor' ? 'puts on' : 'takes up'} the ${item.name}.`, 'system');
-  return { ok: true, slot };
-}
-
-/** What a character is wielding and wearing, by name, for a HUD line. */
-export function gearOf(demo: DemoScene, characterId: string): { weapon: string; armor: string } {
-  const character = demo.characters.get(characterId);
-  return {
-    weapon: character?.primaryWeapon?.name ?? 'Unarmed',
-    armor:
-      character?.sheet.armorId === undefined
-        ? 'Unarmored'
-        : (characterContentFor(demo.project).armors.get(character.sheet.armorId)?.name ?? 'Unarmored'),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Using what is carried
-// ---------------------------------------------------------------------------
-
-/**
- * Use a carried item, with whoever is selected as the actor.
- *
- * The item's `use` effects run through the same runner as an object's, so a
- * draught can heal, a scroll can start a conversation, and a script that stops
- * to ask something is answered through `answerPending` like any other. A
- * consumable is spent first — before its effects run, so a `loot` inside them
- * cannot hand it back. In a fight, using something is the character's action.
- */
-export function useItem(demo: DemoScene, itemId: string): UseOutcome {
-  if (demo.pending !== null) return { status: 'busy', lines: [] };
-  const item = demo.project.items.find((candidate) => candidate.id === itemId);
-  if (item === undefined) return { status: 'missing', lines: [] };
-  const actor = demo.party.selected;
-  if (actor === null) return { status: 'unreachable', lines: [] };
-  if ((demo.scenario.items.get(itemId) ?? 0) < 1) {
-    return { status: 'refused', lines: note(demo, `The party is not carrying ${item.name}.`, 'system') };
-  }
-  if (item.use.length === 0) {
-    return { status: 'refused', lines: note(demo, `There is nothing to do with ${item.name}.`, 'system') };
-  }
-  const fighting = inCombat(demo);
-  if (fighting && !demo.encounter!.canAct(actor)) {
-    return { status: 'refused', lines: note(demo, 'There is no time — you have acted.', 'system') };
-  }
-
-  demo.scenario.actorId = actor;
-  if (item.kind === 'consumable') demo.world.removeItem(itemId, 1);
-  if (fighting) demo.encounter!.act(actor);
-  const who = demo.sheets.get(actor)?.name ?? actor;
-  const lines = note(demo, `${who} uses the ${item.name}.`, 'system');
-
-  const runner = new ScriptRunner(demo.world, demo.rng);
-  const result = runner.run(item.use);
-  lines.push(...record(demo, result.journal));
-  if (result.status === 'waiting') {
-    demo.pending = { kind: 'script', runner, prompt: result.prompt, interactable: null, recorded: result.journal.length, dialogue: null };
-    return settle(demo, lines);
-  }
-  return settleTravel(demo, lines);
 }
