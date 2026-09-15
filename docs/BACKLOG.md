@@ -11,7 +11,8 @@ types: a chosen card with its level, recall and domain, any other with what gran
 art this browser holds. The import moved with it: `CardArtImport` is the picker the deck browser's
 reader and the panel share, and `CardPreview` is a face over it. The editor cannot import the game,
 so `main.ts` hands the preview to `EditorShell` as a render prop and `AbilityPanel` draws it in a
-third column, for a scripted card and a text-only one alike. `main.ts` is 2,548 lines: the
+third column, for a scripted card and a text-only one alike. "+ Script" now words its ability for
+the card as well as naming it, so the form and the face agree from the first click. `main.ts` is 2,548 lines: the
 demo-scene import collapsed to one line to pay for the two it gained.
 
 `npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **119 passed (4.3m)**, `EXIT 0`. New:

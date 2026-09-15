@@ -77,9 +77,17 @@ test('shows the card as the player will see it, and redraws it as its author typ
   expect(written.card).toMatchObject({ name: 'Banner Call', text: 'Raise the banner.' });
   expect(written.ability).toMatchObject({ name: 'Banner Call', text: 'Raise the banner.' });
 
-  // A card no ability sits on has a face too.
+  // A card no ability sits on has a face too, and a script written onto a copy takes the card's
+  // words with it: the form and the face agree from the first click.
   await panel.locator('[data-card="cut-purse-strings"]').click();
   await expect(face.locator('h3')).toHaveText('Cut Purse Strings');
+  const printed = await panel.locator('[data-testid="card-text"]').inputValue();
+  expect(printed).not.toBe('');
+  await expect(face.locator('.face-rules')).toContainText(printed.split('\n')[0]!);
+  await panel.locator('[data-testid="card-copy-pack"]').click();
+  await panel.locator('[data-testid="card-add-script"]').click();
+  await expect(panel.locator('[data-testid="ability-text"]')).toHaveValue(printed);
+  await expect(face.locator('.face-rules')).toContainText(printed.split('\n')[0]!);
 
   expect(errors).toEqual([]);
 });

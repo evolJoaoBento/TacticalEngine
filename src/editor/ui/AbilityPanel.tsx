@@ -424,7 +424,8 @@ function CardDetail(props: {
           data-testid="card-add-script"
           onClick={() => {
             const id = scriptIdFor(props.card.id, props.session.project.abilities);
-            props.session.run(addAbility(abilitySchema.parse({ id, name: props.card.name, source: { card: props.card.id } })));
+            // Named and worded for the card, so the form and the face beside it agree from the first click.
+            props.session.run(addAbility(abilitySchema.parse({ id, name: props.card.name, text: props.card.text, source: { card: props.card.id } })));
             props.onChange();
             props.onScript(id);
           }}

@@ -25,6 +25,7 @@ export function CardPreview(props: CardPreviewProps): preact.JSX.Element {
     {props.card.grant.kind === 'chosen'
       ? <CardFace key={key} card={loadoutCardOf(props.card)} />
       : <GrantedFace key={key} card={props.card.grant.kind === 'adversary' ? { ...granted, from: 'Stat block' } : granted} />}
-    <CardArtImport cardId={props.card.id} onChanged={() => setArtVersion(v => v + 1)} />
+    {/* Keyed by card, so a failed import's alert under one card is not read under the next. */}
+    <CardArtImport key={props.card.id} cardId={props.card.id} onChanged={() => setArtVersion(v => v + 1)} />
   </div>;
 }
