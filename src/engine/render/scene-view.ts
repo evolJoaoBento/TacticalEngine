@@ -1233,9 +1233,9 @@ export class SceneView {
     this.carry.moveTo(x, y, z);
   }
 
-  /** Let go: it falls onto wherever the document now has it, drawn afresh there or not. */
-  drop(kind: string, key: string): void {
-    this.carry.drop(this.drawnFor(kind, key));
+  /** Let go: it falls onto wherever the document now has it, drawn afresh there or not; with no key, where it was. */
+  drop(kind?: string, key?: string): void {
+    this.carry.drop(kind === undefined || key === undefined ? null : this.drawnFor(kind, key));
   }
 
   /** The tile of the nearest authored thing drawn under a ray - a creature, a prop, a mark - unless ground hides it. */

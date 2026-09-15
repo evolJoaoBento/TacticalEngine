@@ -874,6 +874,28 @@ describe('carrying things in the Inspector', () => {
     expect(scene().spawns).toEqual([{ x: 0, y: 0 }, { x: 0, y: 2 }]);
   });
 
+  it('carries a thing at its own height, whatever level the ladder was left on', () => {
+    const { editor, session, scene } = furnished();
+    editor.setTool('adversary');
+    editor.setBuildLevel(2);
+    editor.begin({ x: 5, y: 1 });
+    editor.end();
+    editor.setMode('inspect');
+    const raised = () => scene().encounters[0]!.adversaries[1]!.position;
+    expect(raised()).toEqual({ x: 5, y: 1, z: 2 });
+    const label = session.undoLabel;
+
+    // A jitter on the same tile is no move, and does not drop it to the ground.
+    carry(editor, { x: 5, y: 1 }, { x: 5, y: 1 });
+    expect(session.undoLabel).toBe(label);
+    expect(raised()).toEqual({ x: 5, y: 1, z: 2 });
+    carry(editor, { x: 5, y: 1 }, { x: 5, y: 3 });
+    expect(raised()).toEqual({ x: 5, y: 3, z: 2 });
+    // A prop on the ground stays there with the ladder still at 2.
+    carry(editor, { x: 1, y: 1 }, { x: 1, y: 3 });
+    expect(scene().decos[0]!.position).toEqual({ x: 1, y: 3 });
+  });
+
   it('stacks a prop on another, as placing one does', () => {
     const { editor, scene } = furnished();
     editor.setTool('prop');

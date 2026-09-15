@@ -1659,7 +1659,7 @@ function pressAt(event: PointerEvent, at: Spot): void {
 function release(): void {
   const held = editor.carried;
   editor.end();
-  if (held !== null) view.drop(held.kind, held.key);
+  view.drop(held?.kind, held?.key);
   canvas.style.cursor = '';
   renderPanel();
 }

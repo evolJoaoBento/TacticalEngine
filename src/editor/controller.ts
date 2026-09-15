@@ -133,6 +133,7 @@ interface Carry {
   key: string;
   /** The encounter a creature is placed in. */
   encounterId?: string;
+  from: Position;
   to: Position;
 }
 
@@ -522,7 +523,7 @@ export class EditorController {
   private thingAt(kind: CarryKind, point: Point): Carry | null {
     const scene = this.scene;
     const hold = (key: string, at: Position, encounterId?: string): Carry =>
-      ({ kind, key, ...(encounterId === undefined ? {} : { encounterId }), to: { ...at } });
+      ({ kind, key, ...(encounterId === undefined ? {} : { encounterId }), from: { ...at }, to: { ...at } });
     switch (kind) {
       case 'creature': {
         const placed = this.adversaryAt(point);
@@ -545,9 +546,11 @@ export class EditorController {
   }
 
   /**
-   * Move where the thing in hand will land to the tile under the pointer, at the plane's Z as a fresh
-   * placement would be; the document waits for the release. It never lands on another of its kind -
-   * props excepted, which stack - so it waits on the last free tile; and a party start stays in the room.
+   * Move where the thing in hand will land to the tile under the pointer; the document waits for the
+   * release. The place tool puts it at the plane's Z, as a fresh placement would be, since its ladder
+   * is on screen; Select keeps the thing's own height, since the Inspector shows no ladder and the
+   * level last built on is nothing to do with it. It never lands on another of its kind - props
+   * excepted, which stack - so it waits on the last free tile; and a party start stays in the room.
    */
   private carry(point: Point): EditorChange {
     const held = this.carrying!;
@@ -555,7 +558,9 @@ export class EditorController {
     if (held.kind === 'spawn' && !inBounds(this.scene, point)) return 'none';
     const there = held.kind === 'prop' ? null : this.thingAt(held.kind, point);
     if (there !== null && there.key !== held.key) return 'none';
-    held.to = held.kind === 'spawn' ? { ...point } : this.placementAt(point);
+    held.to = held.kind === 'spawn' ? { ...point }
+      : this.state.tool === 'adversary' ? this.placementAt(point)
+      : { ...point, ...(held.from.z === undefined ? {} : { z: held.from.z }) };
     return 'none';
   }
 

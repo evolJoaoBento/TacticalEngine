@@ -24,7 +24,12 @@ wherever the document now has it and squashes with one bounce. The Inspector's S
 object first, then a creature, a prop, a party start; Combat's Select a creature, then a party start.
 A prop or a party start leaves the Inspector showing its hint, as bare ground does: neither has a
 panel yet. `inspectTile`'s body moved from `main.ts` to `src/game/inspect.ts` to pay for the wiring,
-and the pin came down to 2467.
+and the pin came down to 2467. A follow-up: Select took the build ladder's level for where a thing
+lands, though the Inspector never shows the ladder, so a raised creature pressed and let go dropped to
+the ground and a ground prop dragged after building upstairs floated; Select now keeps a thing's own
+height and only the creature tool, with its ladder on screen, uses the level. And a carry ended early
+by a hotkey or Ctrl+wheel, before the thing moved, left it hovering until the next press; letting go
+with nothing held now drops whatever the view still hangs.
 
 `npx tsc --noEmit` clean; vitest **1917 passed (1917)**; Playwright **125 passed (5.0m)**, `EXIT 0`. New:
 `move-edits.test.ts` (each kind moved and undone; no-ops), `carry.test.ts` (the follow never overshoots,
