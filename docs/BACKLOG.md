@@ -20,7 +20,9 @@ colours in `building-view.ts`, not CSS -- and are grey and the editor's blue; an
 heading wrapping its own input, which the new heading strip swallowed. The 3D viewport behind the
 editor was still play's navy; it is Blender's grey now (`#393939`, set in `setAuthoring`, so play
 keeps its dark ground), with the build grid lightened to read on it. The side panels were 96% opaque,
-so a bright board ghosted through them; they are solid now, as Blender's are.
+so a bright board ghosted through them; they are solid now, as Blender's are. And the tool rail was
+one icon tall at the top-left, leaving dead board under it: it runs down to the library strip now,
+and the strip runs to the left edge under it, as the user asked.
 
 `npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed**, `EXIT 0`, with the
 colour test retargeted. Screenshots read: the four modes, the Content menu, the Cards and Party
