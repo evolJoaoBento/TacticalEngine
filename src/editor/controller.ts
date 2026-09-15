@@ -41,6 +41,7 @@ import {
   setSpawns,
   toggleTriggerCell,
 } from './session';
+import { moveAdversary } from './creature-edits';
 
 export type EditorTool =
   /** Click things to inspect them; changes nothing. */
@@ -145,6 +146,12 @@ export class EditorController {
    * either would leave every reader asking which it currently is.
    */
   selectedAdversary: string | null = null;
+  /**
+   * The placed creature a press picked up, carried tile to tile until the pointer lets go. Select and
+   * the place tool both pick up a creature they are pressed on: the place tool used to stack a second
+   * one on top, which nobody wants.
+   */
+  private carrying: { encounterId: string; placementId: string } | null = null;
 
   constructor(options: EditorControllerOptions) {
     this.session = options.session;
@@ -233,6 +240,7 @@ export class EditorController {
   /** Pointer moved to a new tile while pressed. */
   paint(point: Point): EditorChange {
     if (!this.dragging) return 'none';
+    if (this.carrying !== null) return this.carry(point);
     if (!CONTINUOUS.has(this.state.tool)) return 'none';
     if ((this.state.tool === 'buildTile' || this.state.tool === 'eraseTile') && this.lastBuildingPoint) {
       const previous = this.lastBuildingPoint;
@@ -257,6 +265,7 @@ export class EditorController {
 
   end(): void {
     this.dragging = false;
+    this.carrying = null;
     this.lastBuildingPoint = null;
     this.strokeTiles.clear();
     this.buildingStroke.clear();
@@ -341,6 +350,7 @@ export class EditorController {
         // picks whichever kind the mode is about.
         if (this.mode === 'combat') {
           const creature = this.adversaryAt(point);
+          this.pickUp(creature);
           const picked = creature?.id ?? null;
           if (picked === this.selectedAdversary) return 'none';
           this.selectedAdversary = picked;
@@ -404,6 +414,13 @@ export class EditorController {
 
       case 'adversary': {
         if (!pressed) return 'none';
+        // Pressing on a creature picks it up, to be carried; only bare ground gets a new one.
+        const standing = this.adversaryAt(point);
+        if (standing !== null) {
+          this.pickUp(standing);
+          this.selectedAdversary = standing.id;
+          return 'content';
+        }
         const encounter = this.ensureEncounter();
         session.run(
           addAdversary(sceneId, encounter.id, {
@@ -468,6 +485,26 @@ export class EditorController {
       return 'content';
     }
     return 'none';
+  }
+
+  /** Take hold of a placed creature, or of nothing, for the rest of this press. */
+  private pickUp(creature: Encounter['adversaries'][number] | null): void {
+    const encounter = creature === null ? undefined : this.scene.encounters.find((e) => e.adversaries.includes(creature));
+    this.carrying = creature === null || encounter === undefined ? null : { encounterId: encounter.id, placementId: creature.id };
+  }
+
+  /**
+   * Carry the creature in hand onto the tile under the pointer, at the plane's Z as a fresh placement
+   * would be. Never onto another creature: it waits on the last free tile until the pointer finds one.
+   */
+  private carry(point: Point): EditorChange {
+    const { encounterId, placementId } = this.carrying!;
+    if (!isBuildCoordinate(point.x) || !isBuildCoordinate(point.y)) return 'none';
+    const there = this.adversaryAt(point);
+    if (there !== null && there.id !== placementId) return 'none';
+    const moved = this.session.run(moveAdversary(this.sceneId, encounterId, placementId, this.placementAt(point)));
+    if (moved) this.onChange('content');
+    return moved ? 'content' : 'none';
   }
 
   /** The object the inspector should show, if it is still there. */

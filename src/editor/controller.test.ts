@@ -726,3 +726,66 @@ describe("terrain's open tab", () => {
     expect(Object.keys(session.requireScene('room').buildingTiles ?? {})).toEqual(['0,0,0']);
   });
 });
+
+describe('moving a creature', () => {
+  const placed = (session: EditorSession) => session.requireScene('room').encounters[0]!.adversaries;
+
+  it('picks it up with Select and drops it where the pointer lets go, as one undo step', () => {
+    const { editor, session } = setup();
+    editor.setMode('combat');
+    editor.setTool('adversary');
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+
+    editor.setTool('select');
+    editor.begin({ x: 2, y: 2 });
+    editor.paint({ x: 3, y: 2 });
+    editor.paint({ x: 4, y: 3 });
+    editor.end();
+    expect(placed(session).map((p) => p.position)).toEqual([{ x: 4, y: 3 }]);
+    expect(editor.selectedPlacement()?.position).toEqual({ x: 4, y: 3 });
+
+    session.undo();
+    expect(placed(session).map((p) => p.position)).toEqual([{ x: 2, y: 2 }]);
+  });
+
+  it('picks it up with the place tool too, rather than stacking a second creature on it', () => {
+    const { editor, session } = setup();
+    editor.setMode('combat');
+    editor.setTool('adversary');
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+
+    editor.begin({ x: 2, y: 2 });
+    editor.paint({ x: 5, y: 4 });
+    editor.end();
+    expect(placed(session).map((p) => p.position)).toEqual([{ x: 5, y: 4 }]);
+    // A press on bare ground still places a new one.
+    editor.begin({ x: 1, y: 1 });
+    editor.end();
+    expect(placed(session)).toHaveLength(2);
+  });
+
+  it('never drops it onto another creature, and a press without a drag is no edit', () => {
+    const { editor, session } = setup();
+    editor.setMode('combat');
+    editor.setTool('adversary');
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+    editor.begin({ x: 4, y: 2 });
+    editor.end();
+    const label = session.undoLabel;
+
+    editor.setTool('select');
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+    expect(session.undoLabel).toBe(label);
+
+    editor.begin({ x: 2, y: 2 });
+    editor.paint({ x: 3, y: 2 });
+    editor.paint({ x: 4, y: 2 });
+    editor.end();
+    // It waited on the last free tile rather than landing on the other one.
+    expect(placed(session).map((p) => p.position)).toEqual([{ x: 3, y: 2 }, { x: 4, y: 2 }]);
+  });
+});

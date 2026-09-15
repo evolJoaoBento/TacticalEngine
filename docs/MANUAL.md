@@ -344,7 +344,7 @@ selection.
 |---|---|---|
 | **Inspector** (1) | The selected object's properties, on the right | Click an object to select it |
 | **Terrain** (2) | Tools on the left rail; **Tiles**, **Ground**, **Props** and **Objects** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere; erase tiles at a chosen level; paint ground (brush 1×1, 3×3, 5×5); raise/lower ground; place props and objects |
-| **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one) |
+| **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it (one undo puts it back, and it never lands on another creature); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one) |
 | **Interaction** (4) | The conversations, on the left | Click one to open its graph |
 
 Opening a Terrain library tab chooses the placement action automatically: Tiles builds,

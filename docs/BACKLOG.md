@@ -4,6 +4,22 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Pick a creature up and put it down elsewhere — done
+
+The user's ask: a placed enemy has to be draggable. Nothing could move one -- `updateAdversary`
+changes a creature's model, name and Hit Points, not where it stands -- and pressing the place tool
+on one stacked a second creature on top of it. Now a press on a placed creature, with Select or
+with the place tool, picks it up; the drag carries it tile to tile at the plane's Z, as a fresh
+placement would be; letting go drops it. It waits on the last free tile rather than landing on
+another creature. `moveAdversary` (`src/editor/creature-edits.ts`, since `session.ts` is pinned)
+coalesces per creature, so the whole carry is one undo step back to where it was picked up, and a
+press without a drag is no step at all. Props and objects do not move this way yet.
+
+`npx tsc --noEmit` clean; vitest **1894 passed (1894)**; Playwright **124 passed (4.8m)**, `EXIT 0`. New:
+`creature-edits.test.ts` (a move, one undo for a whole carry, no-ops) and three controller tests
+(Select and the place tool both carry; never onto another creature; a click is no step);
+`creature-drag.spec.ts` drags with the mouse and undoes, and fails against the old controller.
+
 ## The strip shows what it puts down — done
 
 The Combat strip was six grey tiles with a letter on each, and Props and Objects the same: the
