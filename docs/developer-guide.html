@@ -519,7 +519,8 @@ footer {
   <table>
     <thead><tr><th>Path</th><th>What it is</th></tr></thead>
     <tbody>
-      <tr><td><code>session.ts</code><br>1590 lines</td><td>The command and undo model. An <code>Edit</code> is <code>{ label, apply, undo, mergeKey?, absorb?, isNoop? }</code>; <code>EditorSession.run</code> coalesces a brush drag into one undo step rather than snapshotting the grid. Commands grouped by domain: terrain and deco, interactables, encounters, scenes, dialogues, quests, assets, items and loot, party, abilities, code.</td></tr>
+      <tr><td><code>session.ts</code><br>1712 lines</td><td>The command and undo model. An <code>Edit</code> is <code>{ label, apply, undo, mergeKey?, absorb?, isNoop? }</code>; <code>EditorSession.run</code> coalesces a brush drag into one undo step rather than snapshotting the grid. Commands grouped by domain: terrain and deco, interactables, encounters, scenes, dialogues, quests, assets, items and loot, party, code.</td></tr>
+      <tr><td><code>card-edits.ts</code></td><td>The Cards panel's edits, over the two documents a card is: <code>addCardWithAbility</code>, <code>updateCard</code>, <code>updateAbility</code>, <code>addCard</code>/<code>removeCard</code> (a copy of a pack's card), and <code>updateCardWords</code>, which writes a name or a text onto the ability and onto the project's own card when the ability is alone on it, so the action bar and the deck browser never disagree.</td></tr>
       <tr><td><code>controller.ts</code></td><td>What a click means given the tool in hand; <code>CONTINUOUS</code> tools coalesce.</td></tr>
       <tr><td><code>modes.ts</code></td><td>The top bar's four modes and the tools each owns. Choosing a tool chooses its mode, so the two never disagree.</td></tr>
       <tr><td><code>library.ts</code></td><td>What the bottom strip offers (ground, props, objects, creatures by tier) and what a search there matches.</td></tr>

@@ -592,7 +592,10 @@ whether the swing its stat block prints goes through armour — and then the eff
 is the same one every other panel uses, including an attack's own reach and whether it goes
 through armor, and a reaction roll's damage, which is rolled once before anyone rolls to avoid
 it. A card with no effects is not broken: it is shown as text and the table
-decides, exactly as an unscripted SRD card is.
+decides, exactly as an unscripted SRD card is. The **name** and the **text** are the card's as much as
+the ability's: typing either writes both, so the action bar, the deck browser and a card's face all
+say the same thing, and one undo puts both back. A pack's card keeps its words until **Edit a copy**;
+a card two abilities sit on keeps its own, since one spell's words are not the grimoire's.
 
 **Text only**, under the list, is every card no ability sits on: the pack's text cards and any an
 imported pack brings without a script. Opening one shows the card's own **name** and **text** --

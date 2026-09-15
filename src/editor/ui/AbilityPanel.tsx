@@ -21,7 +21,7 @@
 
 import { useState } from 'preact/hooks';
 import type { EditorSession } from '../session';
-import { addAbility, addCard, addCardWithAbility, removeCard, removeCardWithAbility, updateAbility, updateCard } from '../session';
+import { addAbility, addCard, addCardWithAbility, removeCard, removeCardWithAbility, updateAbility, updateCard, updateCardWords } from '../card-edits';
 import { scriptIdFor, unscriptedCards } from '../card-list';
 import { abilitySchema, cardOf, type AbilityDef } from '../../engine/content/abilities';
 import { cardDefSchema } from '../../engine/content/pack/schema';
@@ -465,6 +465,12 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
     session.run(updateAbility(open.id, changes));
     props.onChange();
   };
+  // The name and the text are the card's as much as the ability's: one edit writes both.
+  const reword = (words: { name?: string; text?: string }): void => {
+    if (open === null) return;
+    session.run(updateCardWords(cardOf(open), open.id, words));
+    props.onChange();
+  };
 
   type Defenses = NonNullable<AbilityDef['defenses']>;
   /**
@@ -606,7 +612,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
                 value={open.name}
                 placeholder="name"
                 data-testid="ability-name"
-                onInput={(e) => edit({ name: (e.target as HTMLInputElement).value })}
+                onInput={(e) => reword({ name: (e.target as HTMLInputElement).value })}
               />
               <span style={{ color: 'var(--ph-muted)', alignSelf: 'center' }}>{open.id}</span>
             </div>
@@ -616,7 +622,7 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
               value={open.text}
               placeholder="The card's text, as printed"
               data-testid="ability-text"
-              onInput={(e) => edit({ text: (e.target as HTMLTextAreaElement).value })}
+              onInput={(e) => reword({ text: (e.target as HTMLTextAreaElement).value })}
             />
 
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>

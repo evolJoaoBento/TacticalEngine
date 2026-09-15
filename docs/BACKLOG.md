@@ -4,6 +4,24 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A card's words are one thing — done
+
+A card is two documents, and each carried a name and a text: the action bar read the ability's,
+the deck browser and a card's face read the card's, and nothing kept them in step, so a card
+written with `+ Card` played from the bar with its text and showed a blank face in the browser.
+`src/editor/card-edits.ts` now holds the card and ability edits (out of `session.ts`, which is
+1,712 lines) and `updateCardWords`: one edit that writes a name or a text onto the ability and
+onto the project's own card when the ability is alone on it, one undo for both, coalescing by
+field as before. A pack's card keeps its words until "Edit a copy"; a grimoire keeps its own. And
+the active hand read a card's features and never its text, so a project's chosen card with text
+and no features was blank there regardless: `printedText` is the one reading now, for the hand,
+the vault and what is granted, and `loadoutCardOf`/`grantedCardOf` are the faces' shapes for
+whoever draws a card next.
+
+`npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **118 passed (5.2m)**, `EXIT 0`. New:
+`ability-edits.test.ts` rewords card and ability as one and undoes both; `demo-abilities.test.ts`
+shows a chosen card's own text in the hand (red on the old `describe`, which read features only).
+
 ## Walking leaves `demo-scene.ts` — done
 
 `src/game/movement.ts`: where the selected member can go, the walk once a destination is

@@ -6,8 +6,8 @@ import { cardDefSchema } from '../engine/content/pack/schema';
 import { isDomainCard, mergePack } from '../engine/content/pack/import';
 import { STARTER_CHARACTERS } from '../engine/content/pack/starter';
 import { blankSheet } from '../engine/character/sheet';
+import { EditorSession } from './session';
 import {
-  EditorSession,
   addAbility,
   addCard,
   addCardWithAbility,
@@ -16,7 +16,8 @@ import {
   removeCardWithAbility,
   updateAbility,
   updateCard,
-} from './session';
+  updateCardWords,
+} from './card-edits';
 import { validateProject } from './validate';
 
 /**
@@ -209,6 +210,37 @@ describe('cards in the project', () => {
     expect(rally(s).text).toBe('Shout');
     s.undo();
     expect(rally(s).text).toBe(RALLY.text);
+  });
+
+  it("rewords the card and its ability as one thing, when the card is the project's and the ability is alone on it", () => {
+    const s = session();
+    // No card of the project's under that id: only the ability is written, and the step still coalesces.
+    for (const name of ['R', 'Ra', 'Rally!']) s.run(updateCardWords('rally', 'rally', { name }));
+    expect(rally(s).name).toBe('Rally!');
+    s.undo();
+    expect(rally(s).name).toBe('Rally');
+    expect(s.canUndo).toBe(false);
+
+    s.project.cards.push(cardDefSchema.parse({ id: 'rally', name: 'Rally', grant: { kind: 'given', characters: ['kara'] } }));
+    for (const text of ['S', 'Sh', 'Shout']) s.run(updateCardWords('rally', 'rally', { text }));
+    s.run(updateCardWords('rally', 'rally', { name: 'Rally the Line' }));
+    expect(s.project.cards[0]).toMatchObject({ name: 'Rally the Line', text: 'Shout' });
+    expect(rally(s)).toMatchObject({ name: 'Rally the Line', text: 'Shout' });
+    // One step per field, and each puts both documents back.
+    s.undo();
+    expect(s.project.cards[0]!.name).toBe('Rally');
+    expect(rally(s)).toMatchObject({ name: 'Rally', text: 'Shout' });
+    s.undo();
+    expect(s.project.cards[0]!.text).toBe('');
+    expect(rally(s).text).toBe(RALLY.text);
+
+    // A second ability on the card makes the card's words its own: a grimoire is not one of its spells.
+    s.run(addAbility(abilitySchema.parse({ ...RALLY, id: 'rally-again' })));
+    s.run(updateCardWords('rally', 'rally', { text: 'Only mine.' }));
+    expect(rally(s).text).toBe('Only mine.');
+    expect(s.project.cards[0]!.text).toBe('');
+    // An ability that is not there is nothing to edit, and not an undo step.
+    expect(s.run(updateCardWords('rally', 'nope', { name: 'Nope' }))).toBe(false);
   });
 
   it('replaces the script whole, and the card survives a round trip through the schema', () => {

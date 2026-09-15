@@ -24,7 +24,7 @@ import {
 import { canMarkStress, gain, spend } from '../engine/rules/resources';
 import { reaches, type RangeBand } from '../engine/rules/range';
 import { tierOf } from '../engine/character/progression';
-import { isDomainCard, type CardGrant, type ContentPack } from '../engine/content/pack/import';
+import { isDomainCard, type CardDef, type CardGrant, type ContentPack } from '../engine/content/pack/import';
 import { deriveCharacter, grantedCards, lentCards } from '../engine/character/sheet';
 import { evaluateOptional } from '../engine/script/conditions';
 import { ScriptRunner } from '../engine/script/runner';
@@ -439,14 +439,28 @@ export interface LoadoutView {
   limit: number;
 }
 
+/** What a card prints: its own text, or its named features when it has no text of its own. */
+export function printedText(card: Pick<CardDef, 'text' | 'features'>): string {
+  return card.text !== '' ? card.text : card.features.map((f) => (f.name ? `${f.name}\n${f.text}` : f.text)).join('\n\n');
+}
+
+/** A chosen card as a face draws it, with the loadout's numbers defaulted where a card lacks them. */
+export function loadoutCardOf(card: CardDef): LoadoutCard {
+  return { id: card.id, name: card.name, recallCost: card.recallCost ?? 0, domain: card.domain ?? 'Unknown',
+    level: card.level ?? 1, type: card.type ?? 'ability', text: printedText(card) };
+}
+
+/** A granted card as a face draws it: what granted it, in words, in place of a domain. */
+export function grantedCardOf(card: CardDef, content: ContentPack): GrantedCard {
+  return { id: card.id, name: card.name, text: printedText(card), from: grantedBy(card.grant, content) };
+}
+
 export function loadoutView(demo: DemoScene, characterId: string): LoadoutView {
   const character = demo.characters.get(characterId);
   const content = characterContentFor(demo.project);
   const describe = (id: string) => {
     const card = content.cards.get(id);
-    return { id, name: card?.name ?? id, recallCost: card?.recallCost ?? 0,
-      domain: card?.domain ?? 'Unknown', level: card?.level ?? 1,
-      type: card?.type ?? 'ability', text: card?.features.map(f => f.name ? `${f.name}\n${f.text}` : f.text).join('\n\n') ?? '' };
+    return card === undefined ? { id, name: id, recallCost: 0, domain: 'Unknown', level: 1, type: 'ability', text: '' } : loadoutCardOf(card);
   };
   if (character === undefined) return { loadout: [], vault: [], granted: [], limit: LOADOUT_LIMIT };
   // Read as the cards stand now, the way the world reads them, so a card handed over is shown at
@@ -456,10 +470,8 @@ export function loadoutView(demo: DemoScene, characterId: string): LoadoutView {
   const granted = [...grantedCards(character.sheet, content.cards.values()), ...lentCards(bearing, content.cards.values())]
     .sort((a, b) => grantRank(a.grant) - grantRank(b.grant))
     .map((card) => ({
-      id: card.id,
-      name: card.name,
-      text: card.text !== '' ? card.text : card.features.map((f) => (f.name ? `${f.name}\n${f.text}` : f.text)).join('\n\n'),
-      from: card.grant.kind === 'condition' ? lentBy(card.grant.conditions, bearing, demo) : grantedBy(card.grant, content),
+      ...grantedCardOf(card, content),
+      ...(card.grant.kind === 'condition' ? { from: lentBy(card.grant.conditions, bearing, demo) } : {}),
     }));
   return {
     loadout: loadoutOf(character).map(describe),

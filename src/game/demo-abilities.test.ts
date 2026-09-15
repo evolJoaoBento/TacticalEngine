@@ -303,6 +303,21 @@ describe('the loadout and the vault', () => {
     expect(names(demo, 'kara')).not.toContain(FIXTURE_HAND[5]);
   });
 
+  it("shows a chosen card's own text in the hand, the way a granted card's is shown", () => {
+    const demo = scene();
+    // A card the Cards panel writes: text, and no features.
+    demo.project.cards.push(
+      cardDefSchema.parse({ id: 'oath', name: 'Oath', grant: { kind: 'chosen' }, domain: 'bulwark', type: 'ability', level: 1, recallCost: 0, text: 'Swear it, and hold.' }),
+    );
+    const grown = { ...demo.sheets.get('kara')!, domainCards: ['oath'] };
+    demo.sheets.set('kara', grown);
+    demo.characters.set('kara', deriveCharacter(grown, characterContentFor(demo.project), demo.project.abilities).character);
+    refreshWorld(demo);
+    expect(loadoutView(demo, 'kara').loadout).toEqual([
+      { id: 'oath', name: 'Oath', recallCost: 0, domain: 'bulwark', level: 1, type: 'ability', text: 'Swear it, and hold.' },
+    ]);
+  });
+
   it('lays out what she has without choosing it: face up, in sheet order, read as the cards stand', () => {
     const demo = scene();
     const view = loadoutView(demo, 'kara');

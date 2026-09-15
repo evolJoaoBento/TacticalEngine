@@ -6,10 +6,9 @@ import { abilitySchema } from '../engine/content/abilities';
 import { conditionDefSchema } from '../engine/content/conditions';
 import { blankSheet } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
+import { addAbility, addCardWithAbility } from './card-edits';
 import {
   EditorSession,
-  addAbility,
-  addCardWithAbility,
   addAdversary,
   addEncounter,
   addInteractable,

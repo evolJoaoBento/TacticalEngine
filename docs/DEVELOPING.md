@@ -172,7 +172,8 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 
 | Path | What it is |
 |---|---|
-| `session.ts` | The command/undo model (1932 lines). An `Edit` is `{ label, apply, undo, mergeKey?, absorb?, isNoop? }`; `EditorSession.run` coalesces a brush drag into one undo step rather than snapshotting the grid. Command functions grouped by domain: terrain/deco, interactables, encounters, scenes, dialogues, quests, assets, items/loot, party, abilities, code. |
+| `session.ts` | The command/undo model (1712 lines). An `Edit` is `{ label, apply, undo, mergeKey?, absorb?, isNoop? }`; `EditorSession.run` coalesces a brush drag into one undo step rather than snapshotting the grid. Command functions grouped by domain: terrain/deco, interactables, encounters, scenes, dialogues, quests, assets, items/loot, party, code. |
+| `card-edits.ts` | The Cards panel's edits, over the two documents a card is: `addCardWithAbility`, `updateCard`, `updateAbility`, `addCard`/`removeCard` (a copy of a pack's card), and `updateCardWords`, which writes a name or a text onto the ability and onto the project's own card when the ability is alone on it, so the action bar and the deck browser never disagree. |
 | `controller.ts` | What a click means given the tool in hand; `CONTINUOUS` tools coalesce. |
 | `modes.ts` | The top bar's four modes and the tools each owns. Choosing a tool chooses its mode, so the two never disagree. |
 | `library.ts` | What the bottom strip offers (ground, props, objects, creatures by tier) and what a search there matches. |
