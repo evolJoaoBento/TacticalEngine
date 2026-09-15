@@ -4,6 +4,24 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The helpers say what they read — done
+
+`inCombat`, `setSheet`, `refreshWorld` (and `bindTurn`, `scriptPending`, `speak`) take a `Pick` of
+`DemoScene` naming the fields they touch, and `applyLevelUp` and `equipItem` take `SheetChange`
+on top of them: the eleven fields changing a sheet reaches -- the sheet and what is derived from it,
+the moment, the world rebuilt to read it, the log. A body that reads past its `Pick` does not
+compile, which is the check: dropping `log` from `SheetChange` failed at the two `note` calls.
+`speak` moved to `log.ts`, where it belonged, so the type fits under the pin.
+
+What the pass found: `settle` cannot be narrowed, because `record` -- the one function every
+script's journal passes through -- ticks countdowns and plays party-roll reactions, so it reaches
+the whole fight. `use-item.ts` stays on the full `DemoScene` for that reason. Narrowing `record`
+means separating "write the journal down" from "react to what it says", which is the seam the
+combat pass should open first.
+
+`npx tsc --noEmit` clean; vitest **1881 passed (1881)**; Playwright **118 passed (4.3m)**, `EXIT 0`. The
+check is the compiler: with `log` dropped from `SheetChange`, `tsc` fails at `note` in both files.
+
 ## Levelling, equipping and using items leave `demo-scene.ts` — done
 
 The three sections at the end of the file that nothing in it called: `level-up.ts`
@@ -835,8 +853,10 @@ Measured off the call graph on 2026-09-15, in the order that never breaks an imp
 2. **Movement** (`moveSelectedTo` .. `previewWalk`): three callers, all in the party's attack.
 3. **Narrow before splitting the fight.** Party attack, defence, reactions, the adversary's turn
    and death all call each other in every direction; splitting them into files is cosmetic until
-   each function takes a `Pick<DemoScene, ...>` of what it reads, the way `log.ts` does. Do that
-   in place, and the seams show themselves.
+   each function takes a `Pick<DemoScene, ...>` of what it reads, the way `log.ts` and
+   `SheetChange` do. Start at `record`: it writes the journal down *and* reacts to it (countdown
+   cues, party-roll reactions), which is why nothing that runs a script can be narrowed. Split
+   the reacting half out and the interact section narrows at once.
 4. `script/world.ts` and `main.ts` have doubled since the docs were written and get the same
    recipe, after.
 

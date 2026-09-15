@@ -12,6 +12,7 @@
 
 import type { CharacterSheet } from '../engine/character/sheet';
 import type { QuestDef } from '../engine/content/quests';
+import type { DialogueView } from '../engine/dialogue/dialogue';
 import { NO_TILE, type Spot } from '../engine/grid/grid';
 import type { DualityRoll } from '../engine/rules/duality';
 import type { SceneState } from '../engine/scene/state';
@@ -174,6 +175,26 @@ export function note(demo: Named & Pick<Narration, 'log'>, text: string, tone: L
   const line = withMentions(demo, { text, tone });
   demo.log.push(line);
   return [line];
+}
+
+/**
+ * Add a node's spoken lines to the transcript, if they are not there already.
+ *
+ * What a character *says* lives in the dialogue view, not the journal, so a
+ * transcript is written as nodes are entered — and only once each, because a
+ * node offering replies keeps handing back the same view until one is picked.
+ * `talking` remembers which node is already down. Returns what it added, so a
+ * caller can report the lines from one step.
+ */
+export function speak(demo: Pick<Narration, 'log'>, talking: { spokenNode: string | null }, view: DialogueView): LogLine[] {
+  if (talking.spokenNode === view.node.id) return [];
+  talking.spokenNode = view.node.id;
+  const lines = view.lines.map((line) => ({
+    text: line.speaker === undefined ? line.text : `${line.speaker}: ${line.text}`,
+    tone: 'narration' as const,
+  }));
+  demo.log.push(...lines);
+  return lines;
 }
 
 /** How long two dice take to tumble and settle, unless a view says otherwise. */

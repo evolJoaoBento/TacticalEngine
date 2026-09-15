@@ -7,11 +7,11 @@
  */
 
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
-import { characterContentFor, inCombat, refreshWorld, setSheet, type DemoScene } from './demo-scene';
+import { characterContentFor, inCombat, refreshWorld, setSheet, type DemoScene, type SheetChange } from './demo-scene';
 import { note } from './log';
 
 /** Party members whose sheet is below the level the party has been granted. */
-export function awaitingLevel(demo: DemoScene): string[] {
+export function awaitingLevel(demo: Pick<DemoScene, 'sheets' | 'scenario'>): string[] {
   return [...demo.sheets.values()].filter((s) => s.level < demo.scenario.partyLevel).map((s) => s.id);
 }
 
@@ -26,7 +26,7 @@ export type LevelUpResult = { ok: true; level: number } | { ok: false; issues: L
  * a fight or a pending prompt, because the script world caches the party's
  * traits and a fresh one would orphan whatever is waiting.
  */
-export function applyLevelUp(demo: DemoScene, characterId: string, plan: LevelUpPlan): LevelUpResult {
+export function applyLevelUp(demo: SheetChange, characterId: string, plan: LevelUpPlan): LevelUpResult {
   const sheet = demo.sheets.get(characterId);
   if (sheet === undefined) return { ok: false, issues: [{ field: 'character', message: `no character "${characterId}"` }] };
   if (sheet.level >= demo.scenario.partyLevel) {

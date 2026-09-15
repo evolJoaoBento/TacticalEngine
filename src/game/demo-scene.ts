@@ -38,6 +38,7 @@ import {
   note,
   rolledIn,
   showRoll,
+  speak,
   struck,
   swungAt,
   withMentions,
@@ -432,7 +433,7 @@ export interface ReactionOffer {
 }
 
 /** The waiting script, when what is waiting is a script and not a defender. */
-export function scriptPending(demo: DemoScene): PendingScript | null {
+export function scriptPending(demo: Pick<DemoScene, 'pending'>): PendingScript | null {
   return demo.pending !== null && demo.pending.kind === 'script' ? demo.pending : null;
 }
 
@@ -778,7 +779,7 @@ export function hooksFor(code: readonly CodeDef[] | undefined): HookMap {
  * next time the party is rebuilt from it the change is gone. Every place that
  * changes a sheet goes through here.
  */
-export function setSheet(demo: DemoScene, sheet: CharacterSheet): void {
+export function setSheet(demo: Pick<DemoScene, 'sheets' | 'project' | 'characters'>, sheet: CharacterSheet): void {
   demo.sheets.set(sheet.id, sheet);
   const at = demo.project.party.findIndex((s) => s.id === sheet.id);
   if (at >= 0) demo.project.party[at] = characterSheetSchema.parse(sheet);
@@ -979,8 +980,20 @@ function statBlock(demo: DemoScene, entityId: string): AdversaryDef {
   return adversaryDefOf(demo, entityId) ?? DEMO_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
 }
 
+/**
+ * What changing a sheet at the table touches: the sheet and what is derived
+ * from it, the moment (no fight, no prompt), the world rebuilt to read it, and
+ * the log that says so. `applyLevelUp` and `equipItem` both take exactly this.
+ */
+export type SheetChange = Pick<
+  DemoScene,
+  'sheets' | 'characters' | 'project' | 'scenario' | 'pending' | 'encounter' | 'state' | 'world' | 'scene' | 'gmTurn' | 'log'
+>;
+
 /** Rebuild the script world after a sheet changed under it. */
-export function refreshWorld(demo: DemoScene): void {
+export function refreshWorld(
+  demo: Pick<DemoScene, 'world' | 'state' | 'scenario' | 'characters' | 'project' | 'scene' | 'gmTurn'>,
+): void {
   demo.world = new SceneScriptWorld(
     demo.state,
     demo.scenario,
@@ -1337,12 +1350,12 @@ export function buildProjectScene(project: ProjectDoc, seed = 'project'): DemoSc
  * is the one wire between them, and it is re-tied whenever the world is
  * rebuilt.
  */
-function bindTurn(demo: DemoScene): void {
+function bindTurn(demo: Pick<DemoScene, 'world' | 'gmTurn'>): void {
   demo.world.spotlightSpent = (id) => (demo.gmTurn?.spotlights[id] ?? 0) > 0;
 }
 
 /** Whether a fight is currently running. */
-export function inCombat(demo: DemoScene): boolean {
+export function inCombat(demo: Pick<DemoScene, 'encounter'>): boolean {
   return demo.encounter !== null && demo.encounter.outcome === 'ongoing';
 }
 
@@ -5162,22 +5175,6 @@ function chebyshev(grid: TileGrid, a: number, b: number): number {
   const bx = b % grid.width;
   const by = Math.floor(b / grid.width);
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
-}
-
-/**
- * Add a node's spoken lines to the transcript, if they are not there already.
- *
- * Returns what it added, so a caller can report the lines from one step.
- */
-function speak(demo: DemoScene, talking: PendingDialogue, view: DialogueView): LogLine[] {
-  if (talking.spokenNode === view.node.id) return [];
-  talking.spokenNode = view.node.id;
-  const lines = view.lines.map((line) => ({
-    text: line.speaker === undefined ? line.text : `${line.speaker}: ${line.text}`,
-    tone: 'narration' as const,
-  }));
-  demo.log.push(...lines);
-  return lines;
 }
 
 /**

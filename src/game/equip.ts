@@ -10,13 +10,13 @@
 import type { CharacterSheet } from '../engine/character/sheet';
 import type { ItemDef } from '../engine/content/items';
 import type { WeaponDef } from '../engine/content/pack/import';
-import { characterContentFor, inCombat, refreshWorld, setSheet, type DemoScene } from './demo-scene';
+import { characterContentFor, inCombat, refreshWorld, setSheet, type DemoScene, type SheetChange } from './demo-scene';
 import { note } from './log';
 
 export type EquipResult = { ok: true; slot: 'primary' | 'secondary' | 'armor' } | { ok: false; reason: string };
 
 /** The item in the project whose `contentId` is this piece of SRD gear, if any. */
-function itemForGear(demo: DemoScene, contentId: string | undefined): ItemDef | undefined {
+function itemForGear(demo: Pick<DemoScene, 'project'>, contentId: string | undefined): ItemDef | undefined {
   if (contentId === undefined) return undefined;
   return demo.project.items.find((item) => item.contentId === contentId);
 }
@@ -36,7 +36,7 @@ function slotOf(weapon: WeaponDef): 'primary' | 'secondary' {
  * and the live pools follow: Armor Slots rise or fall with the armor, nothing
  * marked is cleared. Armor cannot be changed mid-fight; a weapon can.
  */
-export function equipItem(demo: DemoScene, characterId: string, itemId: string): EquipResult {
+export function equipItem(demo: SheetChange, characterId: string, itemId: string): EquipResult {
   const sheet = demo.sheets.get(characterId);
   if (sheet === undefined) return { ok: false, reason: `no character "${characterId}"` };
   const item = demo.project.items.find((candidate) => candidate.id === itemId);
@@ -86,7 +86,7 @@ export function equipItem(demo: DemoScene, characterId: string, itemId: string):
 }
 
 /** What a character is wielding and wearing, by name, for a HUD line. */
-export function gearOf(demo: DemoScene, characterId: string): { weapon: string; armor: string } {
+export function gearOf(demo: Pick<DemoScene, 'characters' | 'project'>, characterId: string): { weapon: string; armor: string } {
   const character = demo.characters.get(characterId);
   return {
     weapon: character?.primaryWeapon?.name ?? 'Unarmed',

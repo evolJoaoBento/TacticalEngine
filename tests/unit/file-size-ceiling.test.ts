@@ -28,7 +28,7 @@ const CEILING = 1500;
  */
 const PINNED: Record<string, number> = {
   'src/game/demo-defense.test.ts': 10523,
-  'src/game/demo-scene.ts': 5266,
+  'src/game/demo-scene.ts': 5263,
   'src/editor/authored-scenario.test.ts': 3416,
   'tests/e2e/demo.spec.ts': 2903,
   'src/engine/script/world.ts': 2616,
