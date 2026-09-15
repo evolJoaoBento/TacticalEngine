@@ -107,10 +107,8 @@ import {
   arrive,
   previewStrike,
   previewWalk,
-  note,
   playGmTurn,
   endTurn,
-  nameOf,
   startEncounter,
   refreshWorld,
   syncPools,
@@ -130,6 +128,7 @@ import {
   setSheet,
   type DemoScene,
 } from './game/demo-scene';
+import { nameOf, note } from './game/log';
 import { STARTER_ABILITIES } from './engine/content/pack/starter';
 
 declare global {

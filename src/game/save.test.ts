@@ -10,10 +10,10 @@ import {
   buildDemoScene,
   startEncounter,
   travelTo,
-  note,
   useSelectedOn,
   type DemoScene,
 } from './demo-scene';
+import { note } from './log';
 import { deriveCharacter } from '../engine/character/sheet';
 import type { LevelUpPlan } from '../engine/character/progression';
 import { PIT_SCENE_ID } from './demo-scenes';

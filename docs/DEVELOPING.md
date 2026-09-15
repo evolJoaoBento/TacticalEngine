@@ -40,14 +40,15 @@ and one Preact root, and a mode switch between play and edit.
 In this order, and no further until you need it:
 
 1. `docs/CONTEXT.md` — the constraints.
-2. `src/engine/script/schema.ts` (624 lines) — the effect and condition vocabulary. Everything
+2. `src/engine/script/schema.ts` (1447 lines) — the effect and condition vocabulary. Everything
    content can say is in this one file.
-3. `src/engine/script/runner.ts` (1095 lines) — the stepper that runs it, and the `ScriptWorld`
+3. `src/engine/script/runner.ts` (1953 lines) — the stepper that runs it, and the `ScriptWorld`
    interface it runs against.
-4. `src/engine/rules/damage.ts` (358 lines) — the shape of a rules module: SRD citation at the top,
+4. `src/engine/rules/damage.ts` (379 lines) — the shape of a rules module: SRD citation at the top,
    pure functions, an `Rng` passed in wherever dice are rolled.
-5. `src/game/demo-scene.ts` (2435 lines) — where the engine is actually wired into a playable thing.
-6. `src/main.ts` (1578 lines) — the boot path. It owns the board, play and global keys
+5. `src/game/demo-scene.ts` (5451 lines) — where the engine is actually wired into a playable thing;
+   `src/game/log.ts` is what the player reads of it.
+6. `src/main.ts` (2574 lines) — the boot path. It owns the board, play and global keys
    (`Ctrl+E`, `Ctrl+Z`); the editor shell (`src/editor/ui/EditorShell.tsx`) also listens, for its
    own keys (`1`-`4`, `Esc`) and for a click outside an open menu.
 
@@ -72,6 +73,12 @@ convention: `tests/unit/engine-is-headless.test.ts` walks every non-test source 
 `preact` or `@preact/signals`, on any use of `document`, `window`, `navigator`, `localStorage` or
 `requestAnimationFrame`, and on any call to `Math.random()`. Its last case proves the checks are not
 vacuous by running them against a deliberately bad source.
+
+A second guard keeps files readable. `tests/unit/file-size-ceiling.test.ts` fails when any source
+under `src/` or `tests/` passes 1,500 lines. The files already over it are pinned at their size in
+the test's table, and a pin only goes down: shrink one and the test asks for the number to follow.
+`src/game/demo-scene.ts` grew from 135 lines to 5,856 in eight days before the guard existed; it is
+being taken apart (`BACKLOG.md` §2), and the ceiling is what stops the next slice putting it back.
 
 `src/engine/render/` is the one part of the core allowed to touch WebGL, and it is a one-way
 adapter: the rest of the core does not know it exists.
@@ -101,13 +108,13 @@ adapter: the rest of the core does not know it exists.
 | `combat/adversary-features.ts` | Role features read structurally off a stat block: `IMPLEMENTED_FEATURES = ['relentless', 'momentum', 'terrifying', 'horde', 'minion']`. |
 | `grid/grid.ts` | `TileGrid`, `NO_TILE`. |
 | `grid/los.ts` | Line of sight, and the house rule for partial vs total obstruction. |
-| `grid/pathfinding.ts` | `Pathfinder`, reachable fields (509 lines). |
+| `grid/pathfinding.ts` | `Pathfinder`, reachable fields (521 lines). |
 | `grid/terrain.ts` | Terrain types and their movement cost. |
 | `script/schema.ts` | **The one vocabulary.** `conditionSchema`, `effectSchema`, `checkRequestSchema`, `targetSelectorSchema`, `COUNT_NAMES`, `amountReadSchema` (an amount off a pool), and the `walk*` visitors. |
 | `script/effects.ts` | Behaviour over those shapes: `outcomeEffects` (the five-outcome fallback) and TypeScript constructors. Re-exports the types from `schema.ts`. |
 | `script/conditions.ts` | Evaluating a `Condition` against a `ConditionContext`; `TargetBindings` (`targets`, `hit`, and the optional `counts`), `NO_BINDINGS`, `countOf`. |
 | `script/runner.ts` | `ScriptRunner` (the stepper), `ScriptWorld` (what the world must provide), `JournalEntry`, `Prompt`, `Response`, `RunStatus`. |
-| `script/world.ts` | `SceneScriptWorld` — the only writer of scene state (1330 lines). `ScenarioState`, `worldOptions`' counterpart types. Movement lives here too: `drawIn` walks a creature towards another until it is within a band, `breakAway` walks it as far off as it can get, both within a band as the crow flies and both refused while something holds it. |
+| `script/world.ts` | `SceneScriptWorld` — the only writer of scene state (2616 lines). `ScenarioState`, `worldOptions`' counterpart types. Movement lives here too: `drawIn` walks a creature towards another until it is within a band, `breakAway` walks it as far off as it can get, both within a band as the crow flies and both refused while something holds it. |
 | `script/countdowns.ts` | The board a scenario carries: `RunningCountdown` (a clock plus what it is counting towards), `advanceBoard`, `reapBoard`, `endCreatureCountdowns`, and the snapshot schema a save uses. |
 | `script/hooks.ts` | Running project code: `HookContext`, `runHook`, `SAFE_MATH`. |
 | `content/types.ts` | `AdversaryDef`, `AdversaryFeature`, `ContentIssue`, `ImportResult`, `toContentId`. |
@@ -125,11 +132,11 @@ adapter: the rest of the core does not know it exists.
 | `scene/grid-from-scene.ts` | Builds a `TileGrid` from a `SceneDoc`. |
 | `scene/party.ts` | Selection and follower movement. |
 | `scene/interact.ts`, `scene/triggers.ts` | Interactables and trigger cells. |
-| `scene/legacy-import.ts` | Reads the legacy prototype's maps (482 lines). |
+| `scene/legacy-import.ts` | Reads the legacy prototype's maps (495 lines). |
 | `character/sheet.ts`, `sheet-schema.ts` | An authored `CharacterSheet` and the `DerivedCharacter` computed from it. |
 | `character/progression.ts` | Levelling, subclass stages. |
 | `dialogue/schema.ts`, `dialogue.ts`, `layout.ts` | Conversation graphs and their editor layout. |
-| `render/scene-view.ts` | `SceneView` — engine state to three.js objects, one way (457 lines). |
+| `render/scene-view.ts` | `SceneView` — engine state to three.js objects, one way (1426 lines). |
 | `render/camera.ts` | `OrbitCamera`, plain data, deliberately not three's `OrbitControls` so it is testable headless. |
 | `render/assets.ts` | `AssetLibrary` — glTF/GLB loading. |
 | `render/layout.ts` | The only place that knows tile-to-world scale. |
@@ -145,7 +152,8 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 
 | Path | What it is |
 |---|---|
-| `demo-scene.ts` | `DemoScene` and the ~60 functions over it: `buildDemoScene`, `buildProjectScene`, `worldOptions`, `attackWithSelected`, `playGmTurn`, `endTurn`, `defenseChoices`, `applyDefenseChoice`, `useSelectedOn`, `answerPending`, `travelTo`, `equipItem`, `applyLevelUp`. |
+| `demo-scene.ts` | `DemoScene` and the functions over it (5451 lines, being taken apart — `BACKLOG.md` §2): `buildDemoScene`, `buildProjectScene`, `worldOptions`, `attackWithSelected`, `playGmTurn`, `endTurn`, `defenseChoices`, `applyDefenseChoice`, `useSelectedOn`, `answerPending`, `travelTo`, `equipItem`, `applyLevelUp`. |
+| `log.ts` | What the player reads, and nothing that decides: `LogLine`, `Floater`, `Motion`, `RollShow`; `note`, `nameOf`, `withMentions`, `float`, `swungAt`, `struck`, `floatEntry`, `showRoll`, `describeEntry`, `describeRoll`. `Narration` is the part of a `DemoScene` a line is written against, and each function takes only the `Pick` of it that it reads. |
 | `demo-abilities.ts` | Using a card: cost, targeting, the runner. |
 | `demo-code.ts`, `demo-dialogue.ts`, `demo-items.ts`, `demo-quests.ts`, `demo-scenes.ts` | The demo project's content. |
 | `save.ts` | `saveSchema`, `saveGame`, `loadGame`, `saveBlockedBy`. A save is state layered over a project, not a copy of it. |
@@ -156,7 +164,7 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 
 | Path | What it is |
 |---|---|
-| `session.ts` | The command/undo model (1590 lines). An `Edit` is `{ label, apply, undo, mergeKey?, absorb?, isNoop? }`; `EditorSession.run` coalesces a brush drag into one undo step rather than snapshotting the grid. Command functions grouped by domain: terrain/deco, interactables, encounters, scenes, dialogues, quests, assets, items/loot, party, abilities, code. |
+| `session.ts` | The command/undo model (1932 lines). An `Edit` is `{ label, apply, undo, mergeKey?, absorb?, isNoop? }`; `EditorSession.run` coalesces a brush drag into one undo step rather than snapshotting the grid. Command functions grouped by domain: terrain/deco, interactables, encounters, scenes, dialogues, quests, assets, items/loot, party, abilities, code. |
 | `controller.ts` | What a click means given the tool in hand; `CONTINUOUS` tools coalesce. |
 | `modes.ts` | The top bar's four modes and the tools each owns. Choosing a tool chooses its mode, so the two never disagree. |
 | `library.ts` | What the bottom strip offers (ground, props, objects, creatures by tier) and what a search there matches. |
@@ -178,8 +186,8 @@ loads `/src/main.ts`.
 ### `tests/`, `tools/`
 
 `tests/unit/` holds the tests that are about the repository rather than a module:
-`engine-is-headless.test.ts`, `licensing-boundary.test.ts`, `doc-references.test.ts`, the three
-card-art tests (`card-art.test.ts`, `card-art-packaging.test.ts`, `card-sigil.test.ts`),
+`engine-is-headless.test.ts`, `licensing-boundary.test.ts`, `doc-references.test.ts`,
+`file-size-ceiling.test.ts`, the three card-art tests (`card-art.test.ts`, `card-art-packaging.test.ts`, `card-sigil.test.ts`),
 `demo-scene.test.ts`, `demo-map-fight.test.ts`, `legacy-campaign-import.test.ts` and
 `spike.test.ts`. `tests/e2e/` holds `between-fights`, `building`, `card-browser`, `demo`,
 `editor-panels`, `editor-shell`, `pack-import`, `placement`, `playpass`, `readout`, `save-load`
@@ -565,8 +573,9 @@ Worked example: `defenses.reduce`, commit `6ec74ef` — "a number off the damage
 6. **`src/engine/script/world.ts`** — collect the field off everything the creature holds
    (`defensesOf` reads passives *and* active conditions; resistances and immunities dedupe,
    `reduce` entries stack).
-7. **`src/game/demo-scene.ts`** — report it. A hit for 11 that marks nothing looks like a bug
-   otherwise, so `reduced` travels into the log on every path damage takes.
+7. **`src/game/log.ts`** — say it. A hit for 11 that marks nothing looks like a bug otherwise,
+   so `reduced` travels in the journal entry on every path damage takes, and `describeEntry`
+   prints it.
 8. **`src/editor/ui/AbilityPanel.tsx`** — a row for it (`data-testid="ability-reduce"`,
    `ability-reduce-type`).
 9. **`src/editor/validate.ts`** — refuse what would silently do nothing. Here: a reduction that is

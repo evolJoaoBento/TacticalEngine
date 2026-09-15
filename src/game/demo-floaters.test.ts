@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { demoMap } from '../../legacy/js/data.js';
 import { createRng } from '../engine/core/rng';
 import { runScript } from '../engine/script/runner';
-import { buildDemoScene, float, record, type DemoScene } from './demo-scene';
+import { buildDemoScene, record, type DemoScene } from './demo-scene';
+import { float } from './log';
 
 /**
  * Numbers over heads.

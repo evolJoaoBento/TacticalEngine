@@ -12,7 +12,7 @@
  * the settled result with no animation at all, which is what a test wants.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { RollShow } from '../demo-scene';
+import type { RollShow } from '../log';
 
 export interface DiceTrayProps {
   /** The roll to show, or null when there is nothing to watch. */

@@ -299,15 +299,15 @@ footer {
 
   <ol>
     <li><code>docs/CONTEXT.md</code> — the constraints.</li>
-    <li><code>src/engine/script/schema.ts</code> (624 lines) — the effect and condition vocabulary.
+    <li><code>src/engine/script/schema.ts</code> (1447 lines) — the effect and condition vocabulary.
       Everything content can say is in this one file.</li>
-    <li><code>src/engine/script/runner.ts</code> (1095 lines) — the stepper that runs it, and the
+    <li><code>src/engine/script/runner.ts</code> (1953 lines) — the stepper that runs it, and the
       <code>ScriptWorld</code> interface it runs against.</li>
-    <li><code>src/engine/rules/damage.ts</code> (358 lines) — the shape of a rules module: an SRD
+    <li><code>src/engine/rules/damage.ts</code> (379 lines) — the shape of a rules module: an SRD
       citation at the top, pure functions, an <code>Rng</code> passed in wherever dice are rolled.</li>
-    <li><code>src/game/demo-scene.ts</code> (2435 lines) — where the engine is actually wired into a
-      playable thing.</li>
-    <li><code>src/main.ts</code> (1578 lines) — the boot path. It owns the board, play and global
+    <li><code>src/game/demo-scene.ts</code> (5451 lines) — where the engine is actually wired into a
+      playable thing; <code>src/game/log.ts</code> is what the player reads of it.</li>
+    <li><code>src/main.ts</code> (2574 lines) — the boot path. It owns the board, play and global
       keys (<code>Ctrl+E</code>, <code>Ctrl+Z</code>); the editor shell
       (<code>src/editor/ui/EditorShell.tsx</code>) also listens, for its own keys
       (<code>1</code>-<code>4</code>, <code>Esc</code>) and for a click outside an open menu.</li>
@@ -384,6 +384,12 @@ footer {
     <code>navigator</code>, <code>localStorage</code> or <code>requestAnimationFrame</code>; and on
     any call to <code>Math.random()</code>. Its last case runs the checks against a deliberately bad
     source, so a regex that stopped matching cannot pass vacuously.</p>
+    <p>A second guard keeps files readable. <strong><code>tests/unit/file-size-ceiling.test.ts</code></strong>
+    fails when any source under <code>src/</code> or <code>tests/</code> passes 1,500 lines. The files
+    already over it are pinned at their size in the test's table, and a pin only goes down: shrink one
+    and the test asks for the number to follow. <code>src/game/demo-scene.ts</code> grew from 135 lines
+    to 5,856 in eight days before the guard existed; it is being taken apart, and the ceiling is what
+    stops the next slice putting it back.</p>
   </div>
 
   <p><code>src/engine/render/</code> is the one part of the core allowed to touch WebGL, and it is a
@@ -447,7 +453,7 @@ footer {
       <tr><td><code>script/effects.ts</code></td><td>Behaviour over those shapes: <code>outcomeEffects</code> (the five-outcome fallback) and TypeScript constructors. Re-exports the types from <code>schema.ts</code>.</td></tr>
       <tr><td><code>script/conditions.ts</code></td><td>Evaluating a <code>Condition</code> against a <code>ConditionContext</code>; <code>TargetBindings</code> (<code>targets</code>, <code>hit</code>, and the optional <code>counts</code>), <code>NO_BINDINGS</code>, <code>countOf</code>.</td></tr>
       <tr><td><code>script/runner.ts</code></td><td><code>ScriptRunner</code> (the stepper), <code>ScriptWorld</code>, <code>JournalEntry</code>, <code>Prompt</code>, <code>Response</code>, <code>RunStatus</code>.</td></tr>
-      <tr><td><code>script/world.ts</code></td><td><code>SceneScriptWorld</code> — the only writer of scene state (1330 lines). Movement lives here too: <code>drawIn</code> walks a creature towards another until it is within a band, <code>breakAway</code> walks it as far off as it can get — both inside a budget, both refused while something holds it.</td></tr>
+      <tr><td><code>script/world.ts</code></td><td><code>SceneScriptWorld</code> — the only writer of scene state (2616 lines). Movement lives here too: <code>drawIn</code> walks a creature towards another until it is within a band, <code>breakAway</code> walks it as far off as it can get — both inside a budget, both refused while something holds it.</td></tr>
       <tr><td><code>script/countdowns.ts</code></td><td>The board a scenario carries: <code>RunningCountdown</code> (a clock plus what it is counting towards), <code>advanceBoard</code>, <code>reapBoard</code>, <code>endCreatureCountdowns</code>, and the snapshot schema a save uses.</td></tr>
       <tr><td><code>script/hooks.ts</code></td><td>Running project code: <code>HookContext</code>, <code>runHook</code>, <code>SAFE_MATH</code>.</td></tr>
       <tr><td><code>content/types.ts</code></td><td><code>AdversaryDef</code>, <code>AdversaryFeature</code>, <code>ContentIssue</code>, <code>ImportResult</code>, <code>toContentId</code>.</td></tr>
@@ -490,7 +496,8 @@ footer {
   <table>
     <thead><tr><th>Path</th><th>What it is</th></tr></thead>
     <tbody>
-      <tr><td><code>demo-scene.ts</code><br>2435 lines</td><td><code>DemoScene</code> and the roughly sixty functions over it: <code>buildDemoScene</code>, <code>buildProjectScene</code>, <code>worldOptions</code>, <code>attackWithSelected</code>, <code>playGmTurn</code>, <code>endTurn</code>, <code>defenseChoices</code>, <code>applyDefenseChoice</code>, <code>useSelectedOn</code>, <code>answerPending</code>, <code>travelTo</code>, <code>equipItem</code>, <code>applyLevelUp</code>.</td></tr>
+      <tr><td><code>demo-scene.ts</code><br>5451 lines</td><td><code>DemoScene</code> and the roughly sixty functions over it: <code>buildDemoScene</code>, <code>buildProjectScene</code>, <code>worldOptions</code>, <code>attackWithSelected</code>, <code>playGmTurn</code>, <code>endTurn</code>, <code>defenseChoices</code>, <code>applyDefenseChoice</code>, <code>useSelectedOn</code>, <code>answerPending</code>, <code>travelTo</code>, <code>equipItem</code>, <code>applyLevelUp</code>.</td></tr>
+      <tr><td><code>log.ts</code></td><td>What the player reads, and nothing that decides: <code>LogLine</code>, <code>Floater</code>, <code>Motion</code>, <code>RollShow</code>; <code>note</code>, <code>nameOf</code>, <code>withMentions</code>, <code>float</code>, <code>swungAt</code>, <code>struck</code>, <code>floatEntry</code>, <code>showRoll</code>, <code>describeEntry</code>, <code>describeRoll</code>. <code>Narration</code> is the part of a <code>DemoScene</code> a line is written against, and each function takes only the <code>Pick</code> of it that it reads.</td></tr>
       <tr><td><code>demo-abilities.ts</code></td><td>Using a card: cost, targeting, the runner.</td></tr>
       <tr><td><code>demo-code.ts</code>, <code>demo-dialogue.ts</code>, <code>demo-items.ts</code>, <code>demo-quests.ts</code>, <code>demo-scenes.ts</code></td><td>The demo project's own content.</td></tr>
       <tr><td><code>save.ts</code></td><td><code>saveSchema</code>, <code>saveGame</code>, <code>loadGame</code>, <code>saveBlockedBy</code>. A save is state layered over a project, not a copy of it.</td></tr>
@@ -524,7 +531,7 @@ footer {
 
   <p><code>tests/unit/</code> holds the tests that are about the repository rather than about a
   module: <code>engine-is-headless.test.ts</code>, <code>licensing-boundary.test.ts</code>,
-  <code>doc-references.test.ts</code>, the three card-art tests, <code>demo-scene.test.ts</code>,
+  <code>doc-references.test.ts</code>, <code>file-size-ceiling.test.ts</code>, the three card-art tests, <code>demo-scene.test.ts</code>,
   <code>demo-map-fight.test.ts</code>, <code>legacy-campaign-import.test.ts</code>, and
   <code>spike.test.ts</code>, which asserts three.js resolves as ESM under Vitest.
   <code>tests/e2e/</code> holds twelve specs: between-fights, building, card-browser, demo,
@@ -1375,9 +1382,9 @@ footer {
     <li><strong><code>src/engine/script/world.ts</code></strong> — collect the field off everything
       the creature holds. <code>defensesOf</code> reads passives <em>and</em> active conditions;
       resistances and immunities dedupe, <code>reduce</code> entries stack.</li>
-    <li><strong><code>src/game/demo-scene.ts</code></strong> — report it. A hit for 11 that marks
-      nothing looks like a bug otherwise, so <code>reduced</code> travels into the log on every path
-      damage takes.</li>
+    <li><strong><code>src/game/log.ts</code></strong> — say it. A hit for 11 that marks nothing
+      looks like a bug otherwise, so <code>reduced</code> travels in the journal entry on every path
+      damage takes, and <code>describeEntry</code> prints it.</li>
     <li><strong><code>src/editor/ui/AbilityPanel.tsx</code></strong> — a row for it
       (<code>data-testid="ability-reduce"</code>, <code>ability-reduce-type</code>).</li>
     <li><strong><code>src/editor/validate.ts</code></strong> — refuse what would silently do nothing.

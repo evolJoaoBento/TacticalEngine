@@ -35,8 +35,6 @@ import {
   DEMO_CHARACTERS,
   characterContentFor,
   inCombat,
-  nameOf,
-  note,
   record,
   refreshWorld,
   settle,
@@ -46,10 +44,10 @@ import {
   vaultAfter,
   worthAiming,
   type DemoScene,
-  type LogLine,
   type UseOutcome,
   setSheet,
 } from './demo-scene';
+import { nameOf, note, type LogLine } from './log';
 
 /** An ability as the action bar shows it: what it is, and why it is greyed out. */
 export interface AbilityView {

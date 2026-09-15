@@ -10,7 +10,8 @@
  */
 
 import { useState } from 'preact/hooks';
-import type { LogLine, Pending } from '../demo-scene';
+import type { Pending } from '../demo-scene';
+import type { LogLine } from '../log';
 import type { Response } from '../../engine/script/runner';
 
 /** One line of the pack: what it is, and how many. */

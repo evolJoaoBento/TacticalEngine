@@ -4,6 +4,26 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The log leaves `demo-scene.ts`, and no file outgrows itself — done
+
+`demo-scene.ts` went from 135 lines to 5,856 in eight days, every slice landing in it because the
+recipes said so, and the docs still called it 2,435. The words are out: `src/game/log.ts` holds the
+four view-feed types (`LogLine`, `Floater`, `Motion`, `RollShow`) and the narration over them --
+`note`, `nameOf`, `withMentions`, `float`, `swungAt`, `struck`, `floatEntry`, `showRoll`,
+`describeEntry`, `describeRoll`. Nothing in it reads the fight; `record` stays behind because it
+does. Each function takes a `Pick` of `Narration`, the seven fields a line is written against,
+rather than the whole `DemoScene`. That is the shape the rest of the split should follow: a
+signature that names what it reads is the point, not the file count.
+
+`tests/unit/file-size-ceiling.test.ts` fails when a source under `src/` or `tests/` passes 1,500
+lines. The eleven already over it are pinned at today's size, and a pin only goes down. The recipes
+in `DEVELOPING.md` §7 no longer send new behaviour into `demo-scene.ts`, and its line counts are
+true again.
+
+`npx tsc --noEmit` clean; vitest **1881 passed (1881)**; Playwright **118 passed (4.9m)**, `EXIT 0`. The
+ceiling test was shown red by lowering `demo-scene.ts`'s pin to 5,000, then restored; the doc guard was
+red on the two new files until they were staged, which is its `git ls-files` rule at work.
+
 ## Load asks too, and only about code that is new — done
 
 Load put a project file's code into the running game without a word, which is the same door Import
@@ -788,7 +808,23 @@ it in the matching `CRPG-GAPS.md` section as done, and re-pin the commit and sui
 header. A backlog nobody prunes is wrong within a week, and then it costs the next agent the startup
 time it was written to save.
 
-### 1. Cards — what is left
+### 1. `demo-scene.ts` comes apart
+
+Measured off the call graph on 2026-09-15, in the order that never breaks an import:
+
+1. **Leaves first:** levelling, equipping, carried items and travel. Nothing in the file calls
+   into them. One file each under `src/game/`, one slice each.
+2. **Movement** (`moveSelectedTo` .. `previewWalk`): three callers, all in the party's attack.
+3. **Narrow before splitting the fight.** Party attack, defence, reactions, the adversary's turn
+   and death all call each other in every direction; splitting them into files is cosmetic until
+   each function takes a `Pick<DemoScene, ...>` of what it reads, the way `log.ts` does. Do that
+   in place, and the seams show themselves.
+4. `script/world.ts` and `main.ts` have doubled since the docs were written and get the same
+   recipe, after.
+
+Keep `demo-scene.ts` exporting what it exports today; the twenty-six importers are the tests.
+
+### 2. Cards — what is left
 
 The model, the zones, the card editor, text-only cards, pack import and export, and a condition
 lending a card are done: each has its entry at the top of this file, and the spec's §7 has the
@@ -805,7 +841,7 @@ decisions.
 **Not a licence to rebuild the catalogue with a card model instead of a list.** The IP constraints
 are untouched by this.
 
-### 2. Starter-pack depth
+### 3. Starter-pack depth
 
 The starter pack is sized to keep the game-layer tests meaningful, not to be a game: three classes
 of one domain each, generic ancestries, 15 chosen cards at levels 1 and 2 only (nine and six), and
@@ -818,7 +854,7 @@ about ten adversaries. Depth beyond that is a content slice, judged on what it a
 - No card is above level 2, which is why `progression.test.ts` climbs on a fixture
   (`tests/fixtures/characters.ts`) rather than on the pack.
 
-### 3. The editor rebuild
+### 4. The editor rebuild
 
 The user's direction of 2026-09-10, in five parts, each with its own spec, plan and slices:
 Shell + Inspector; 3D multi-level world; TaleSpire-style terrain; combat with factions; interaction
@@ -836,20 +872,20 @@ scale, seating, facing and four animation clips.
 first; part 1 slice 2's remaining edit-view items (objects, spawns, trigger cells) and a rotated
 prop-facing ghost during Alt.
 
-### 4. Materials for imported models
+### 5. Materials for imported models
 
 `CRPG-GAPS.md` §9. Textures arrive with a glTF file, but nothing authors materials: there is no way
 to tint one, swap a texture, or override what the file ships with. The file picker that was the other
 half of this item landed on 2026-09-12.
 
-### 5. Extend measured rendering budgets beyond construction
+### 6. Extend measured rendering budgets beyond construction
 
 Construction has chunk instancing, frustum/distance culling, three LODs and a tested residency
 budget (`render/building-view.ts`). Extend those to the legacy height field and props. Large
 populated worlds still need hardware FPS/memory profiling; geometry counters are available through
 `window.__engine.buildingStats()`.
 
-### 6. Zip project export
+### 7. Zip project export
 
 `fflate` is a dependency and is imported nowhere under `src/`. `CONTEXT.md`'s "zip import and export
 of projects with assets" is not implemented — export is `JSON.stringify` into a `Blob`, so a project
