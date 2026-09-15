@@ -803,7 +803,7 @@ export function setSheet(demo: Pick<DemoScene, 'sheets' | 'project' | 'character
  * Idempotent: the panel slugs a typed name into an id, and two Newcomers are
  * one id, which the board already has.
  */
-export function syncRoster(demo: DemoScene): { joined: string[]; left: string[] } {
+export function syncRoster(demo: Pick<DemoScene, 'scene' | 'grid' | 'state' | 'party' | 'sheets' | 'characters' | 'world' | 'project' | 'log' | 'encounter'>): { joined: string[]; left: string[] } {
   const joined: string[] = [];
   const left: string[] = [];
 
@@ -849,7 +849,7 @@ export function syncRoster(demo: DemoScene): { joined: string[]; left: string[] 
  * board when the room has no floor to give, which is what a sheet without a
  * scene gets at boot too.
  */
-function roomBeside(demo: DemoScene): number {
+function roomBeside(demo: Pick<DemoScene, 'scene' | 'grid' | 'state' | 'party'>): number {
   const standing = demo.state.entitiesOf('party').filter((e) => e.tile !== NO_TILE);
   const selected = standing.find((e) => e.id === demo.party.selected);
   const spawn = demo.scene.spawns[0];
@@ -863,7 +863,7 @@ function roomBeside(demo: DemoScene): number {
  * designer pressing "play from here" means, and what a script that gathers
  * the party somewhere means too. Nobody is walked: they are put down.
  */
-export function gatherParty(demo: DemoScene, tile: number): void {
+export function gatherParty(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | 'world'>, tile: number): void {
   if (!demo.grid.isTile(tile)) return;
   const living = demo.state.entitiesOf('party').filter((e) => e.alive);
   const first = living.find((e) => e.id === demo.party.selected);
@@ -879,7 +879,7 @@ export function gatherParty(demo: DemoScene, tile: number): void {
 }
 
 /** The nearest free passable tile to `from`, `from` itself when it is one; `NO_TILE` for nowhere. */
-function freeTileNear(demo: DemoScene, from: number): number {
+function freeTileNear(demo: Pick<DemoScene, 'grid' | 'state'>, from: number): number {
   if (from === NO_TILE) return NO_TILE;
   const grid = demo.grid;
   const free = (tile: number): boolean => demo.state.bodyFree(tile);
@@ -900,7 +900,7 @@ function freeTileNear(demo: DemoScene, from: number): number {
   return NO_TILE;
 }
 
-export function syncPools(demo: DemoScene): void {
+export function syncPools(demo: Pick<DemoScene, 'state' | 'characters' | 'world'>): void {
   for (const entity of demo.state.entitiesOf('party')) {
     const character = demo.characters.get(entity.id);
     if (character === undefined) continue;
@@ -966,14 +966,14 @@ export function characterContentFor(project?: ProjectContent): ContentPack {
  * with: a project that carries its own creature is answered with that creature
  * rather than with whatever the shipped pack happens to have under the id.
  */
-export function adversaryDefOf(demo: DemoScene, entityId: string): AdversaryDef | undefined {
+export function adversaryDefOf(demo: Pick<DemoScene, 'state' | 'world'>, entityId: string): AdversaryDef | undefined {
   const entity = demo.state.entity(entityId);
   if (entity === undefined) return undefined;
   return demo.world.adversaryDef(entity.definition);
 }
 
 /** The same, for the fight, which always has a stat block to read. */
-function statBlock(demo: DemoScene, entityId: string): AdversaryDef {
+function statBlock(demo: Pick<DemoScene, 'state' | 'world'>, entityId: string): AdversaryDef {
   return adversaryDefOf(demo, entityId) ?? DEMO_ADVERSARIES.get(DEMO_ADVERSARY_ID)!;
 }
 
@@ -1003,7 +1003,7 @@ export function refreshWorld(
 }
 
 /** What each party member is carrying, pool-wise, right now. */
-function poolsOf(demo: DemoScene): Map<string, PartyPools> {
+function poolsOf(demo: Pick<DemoScene, 'state'>): Map<string, PartyPools> {
   const pools = new Map<string, PartyPools>();
   for (const entity of demo.state.entitiesOf('party')) {
     pools.set(entity.id, {
@@ -1071,7 +1071,7 @@ export function travelTo(demo: DemoScene, sceneId: string): boolean {
  * belongs to the room it was asked in — so both are dropped here rather than at
  * each call site.
  */
-function install(demo: DemoScene, runtime: SceneRuntime, selected: string | null): void {
+function install(demo: Pick<DemoScene, 'scene' | 'grid' | 'state' | 'pathfinder' | 'party' | 'triggers' | 'world' | 'project' | 'syncedPlacements' | 'destination' | 'pending' | 'encounter'>, runtime: SceneRuntime, selected: string | null): void {
   demo.scene = runtime.scene;
   demo.grid = runtime.grid;
   demo.state = runtime.state;
@@ -1118,7 +1118,7 @@ function playablePlacements(scene: SceneDoc, grid: TileGrid): Set<string> {
  * state - `TriggerIndex` is a lookup - so a designer's new trigger cell works
  * immediately and an old one does not come back to life.
  */
-export function syncAuthoredEncounters(demo: DemoScene): void {
+export function syncAuthoredEncounters(demo: Pick<DemoScene, 'scene' | 'grid' | 'state' | 'triggers' | 'project' | 'syncedPlacements'>): void {
   const known = demo.syncedPlacements.get(demo.scene.id);
   const placed = playablePlacements(demo.scene, demo.grid);
   if (known !== undefined) {
@@ -1357,7 +1357,7 @@ export function inCombat(demo: Pick<DemoScene, 'encounter'>): boolean {
 }
 
 /** Tiles the selected member can reach right now. */
-export function reachableTiles(demo: DemoScene, budget?: number): ReachableField {
+export function reachableTiles(demo: Pick<DemoScene, 'pathfinder' | 'party' | 'encounter'>, budget?: number): ReachableField {
   const id = demo.party.selected;
   if (id === null) return demo.pathfinder.reachable(NO_TILE, 0);
   return demo.party.reachable(id, { inCombat: inCombat(demo), budget });
@@ -1419,7 +1419,7 @@ export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spo
  * because a roll that asked for the walk was the action and spends it itself.
  */
 function walkTheMove(
-  demo: DemoScene,
+  demo: Pick<DemoScene, 'grid' | 'state' | 'party' | 'sheets' | 'triggers' | 'world' | 'log' | 'motions' | 'animated' | 'ambush' | 'encounter'>,
   id: string,
   goal: number,
   aim: Spot | undefined,
@@ -1465,12 +1465,12 @@ const RUN_TILES = maxTilesForBand('veryFar', DEMO_BAND_TILES);
  * Very Far, and with a way there that a run covers. A walk here is the action, so a walk within Close
  * is made as part of it and needs no roll - the rule's own `withAction`.
  */
-function underPressure(demo: DemoScene, id: string, destination: number): boolean {
+function underPressure(demo: Pick<DemoScene, 'grid' | 'state' | 'party'>, id: string, destination: number): boolean {
   return asksForRoll(demo, id, destination) && demo.party.reachable(id, { inCombat: true, budget: RUN_TILES }).canReach(destination);
 }
 
 /** Whether the rule asks a fighter for an Agility Roll to walk from where they stand to here, as the crow flies. */
-function asksForRoll(demo: DemoScene, id: string, destination: number): boolean {
+function asksForRoll(demo: Pick<DemoScene, 'grid' | 'state'>, id: string, destination: number): boolean {
   const from = demo.state.entity(id)!.tile;
   return moveUnderPressure(demo.grid, 'pc', from, destination, { bandTiles: DEMO_BAND_TILES, withAction: true }) === 'agilityRoll';
 }
@@ -1479,7 +1479,7 @@ function asksForRoll(demo: DemoScene, id: string, destination: number): boolean 
  * Where a click would ask the selected fighter for an Agility Roll: past one move, and a run away.
  * Empty out of a fight, or with nobody who can act selected.
  */
-export function underPressureTiles(demo: DemoScene): number[] {
+export function underPressureTiles(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | 'encounter'>): number[] {
   const id = demo.party.selected;
   if (id === null || !inCombat(demo) || !demo.encounter!.canAct(id)) return [];
   const inReach = new Set(demo.party.reachable(id, { inCombat: true }).tiles());
@@ -1540,7 +1540,7 @@ function runForIt(
  * Whoever draws the tokens calls this when the last of them stops; headless,
  * the move itself does.
  */
-export function arrive(demo: DemoScene): boolean {
+export function arrive(demo: Pick<DemoScene, 'state' | 'ambush' | 'encounter'>): boolean {
   if (demo.ambush === null) return false;
   const encounter = demo.ambush;
   demo.ambush = null;
@@ -1554,7 +1554,7 @@ export function arrive(demo: DemoScene): boolean {
  * when one is within this move, and otherwise as far along the way as the
  * move allows - `short`, the action spent on the walk.
  */
-function closeToStrike(demo: DemoScene, id: string, target: EntityState, range: RangeBand): 'inReach' | 'closed' | 'short' {
+function closeToStrike(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | 'sheets' | 'world' | 'log' | 'motions' | 'encounter'>, id: string, target: EntityState, range: RangeBand): 'inReach' | 'closed' | 'short' {
   const attacker = demo.state.entity(id)!;
   const fighting = inCombat(demo);
   const strikeFrom = strikeTile(demo, id, target, range);
@@ -1586,7 +1586,7 @@ function closeToStrike(demo: DemoScene, id: string, target: EntityState, range: 
  * is already in reach, else the cheapest to walk to this move that the weapon
  * reaches from; `NO_TILE` when none is.
  */
-function strikeTile(demo: DemoScene, id: string, target: EntityState, range: RangeBand): number {
+function strikeTile(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | 'encounter'>, id: string, target: EntityState, range: RangeBand): number {
   const attacker = demo.state.entity(id)!;
   const inReach = (tile: number): boolean =>
     evaluateTarget(demo.grid, tile, target.tile, range, { bandTiles: DEMO_BAND_TILES }).refusal === null;
@@ -1606,7 +1606,7 @@ function strikeTile(demo: DemoScene, id: string, target: EntityState, range: Ran
 }
 
 /** Walk the selected member to a tile, and tell the board the line they took. */
-function walkSelected(demo: DemoScene, id: string, tile: number, fighting: boolean): void {
+function walkSelected(demo: Pick<DemoScene, 'party' | 'motions'>, id: string, tile: number, fighting: boolean): void {
   const walk = demo.party.walkTo(id, tile, { inCombat: fighting });
   if (walk !== null) demo.motions.push({ id, path: walk.path, route: walk.route });
 }
@@ -1615,7 +1615,7 @@ function walkSelected(demo: DemoScene, id: string, tile: number, fighting: boole
  * The line a click on an adversary would walk before the swing: none when
  * already in reach or nothing would move.
  */
-export function previewStrike(demo: DemoScene, targetId: string): Spot[] | null {
+export function previewStrike(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | 'characters' | 'ambush' | 'pending' | 'encounter'>, targetId: string): Spot[] | null {
   if (demo.pending !== null || demo.ambush !== null) return null;
   const id = demo.party.selected;
   const character = id === null ? undefined : demo.characters.get(id);
@@ -1643,7 +1643,7 @@ export interface WalkPreview {
  * the line drawn on the ground as the pointer moves. Null when nothing would
  * move - nobody selected, a script waiting, nowhere to go.
  */
-export function previewWalk(demo: DemoScene, destination: number, aimed: Spot): WalkPreview | null {
+export function previewWalk(demo: Pick<DemoScene, 'grid' | 'state' | 'party' | 'ambush' | 'pending' | 'encounter'>, destination: number, aimed: Spot): WalkPreview | null {
   if (demo.pending !== null || demo.ambush !== null) return null;
   const id = demo.party.selected;
   if (id === null || !demo.party.canCommand(id)) return null;
@@ -1679,7 +1679,7 @@ export function previewWalk(demo: DemoScene, destination: number, aimed: Spot): 
  * reach; otherwise the reachable tile nearest the spot aimed at, as the crow
  * flies. `NO_TILE` when nothing at all is in reach.
  */
-function nearestReachable(demo: DemoScene, field: ReachableField, aimed: Spot, along: number): number {
+function nearestReachable(demo: Pick<DemoScene, 'grid' | 'party'>, field: ReachableField, aimed: Spot, along: number): number {
   const id = demo.party.selected!;
   if (along !== NO_TILE) {
     // The bounded field is a view over shared buffers: keep it before asking
@@ -1712,7 +1712,7 @@ function clampInto(grid: TileGrid, aimed: Spot, tile: number): Spot {
 }
 
 /** Begin a fight. Safe to call twice. */
-export function startEncounter(demo: DemoScene, encounterId: string): EncounterRunner {
+export function startEncounter(demo: Pick<DemoScene, 'state' | 'encounter'>, encounterId: string): EncounterRunner {
   if (demo.encounter !== null && demo.encounter.encounterId === encounterId) return demo.encounter;
   const runner = new EncounterRunner(demo.state, encounterId);
   runner.start();
@@ -1899,7 +1899,7 @@ function rollingOffers(
  * dice the attack already rolled are thrown away, which costs the fight
  * nothing: they were rolled from the seed and never read.
  */
-function counted(demo: DemoScene, held: HeldSwing): AttackOutcome {
+function counted(demo: Pick<DemoScene, 'state' | 'rng' | 'world'>, held: HeldSwing): AttackOutcome {
   return atLeast(held, rolled(demo, held));
 }
 
@@ -1920,7 +1920,7 @@ function atLeast(held: HeldSwing, outcome: AttackOutcome): AttackOutcome {
 }
 
 /** The blow as the dice and the cards left it, before any floor under it. */
-function rolled(demo: DemoScene, held: HeldSwing): AttackOutcome {
+function rolled(demo: Pick<DemoScene, 'state' | 'rng' | 'world'>, held: HeldSwing): AttackOutcome {
   const { outcome, boost, forced } = held;
   const target = demo.state.entity(held.target);
   // A named band is counted like any other blow of that band: the thresholds
@@ -2177,7 +2177,7 @@ export function endTurn(demo: DemoScene): number {
 }
 
 /** Temporary conditions end on the party members carrying them. */
-function clearPartyTemporary(demo: DemoScene): void {
+function clearPartyTemporary(demo: Pick<DemoScene, 'state' | 'sheets' | 'characters' | 'world' | 'log'>): void {
   for (const entity of demo.state.entitiesOf('party')) {
     if (!entity.alive) continue;
     const cleared: string[] = [];
@@ -2300,7 +2300,7 @@ function deathOffers(demo: DemoScene, id: string): ReactionOffer[] {
 }
 
 /** The question itself: one character, the three ways out of it, and any card. */
-function askDeathMove(demo: DemoScene, id: string, offers: readonly ReactionOffer[]): void {
+function askDeathMove(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'pending'>, id: string, offers: readonly ReactionOffer[]): void {
   demo.pending = {
     kind: 'death',
     who: id,
@@ -2355,7 +2355,7 @@ function applyDeathMove(demo: DemoScene, id: string, move: DeathMove): void {
  * back. The scar is the part that was missing, and it is rolled here rather
  * than on waking because that is where the SRD puts it.
  */
-function avoidDeath(demo: DemoScene, id: string): void {
+function avoidDeath(demo: Pick<DemoScene, 'state' | 'sheets' | 'characters' | 'rng' | 'world' | 'project' | 'log'>, id: string): void {
   const character = demo.characters.get(id);
   if (character === undefined) return;
   note(demo, `${character.sheet.name} drops unconscious.`, 'system');
@@ -2374,7 +2374,7 @@ function avoidDeath(demo: DemoScene, id: string): void {
  * walks into is derived from the sheet and starts a Light short. The pool they
  * are carrying right now loses the slot too, and whatever was sitting in it.
  */
-function scar(demo: DemoScene, id: string, rolled: number): void {
+function scar(demo: Pick<DemoScene, 'state' | 'sheets' | 'characters' | 'world' | 'project' | 'log'>, id: string, rolled: number): void {
   const character = demo.characters.get(id);
   const entity = demo.state.entity(id);
   if (character === undefined || entity === undefined) return;
@@ -2413,7 +2413,7 @@ function scar(demo: DemoScene, id: string, rolled: number): void {
  * character at zero Hit Points wants Hit Points. They are cleared first, and
  * whatever the die has left over goes on Stress.
  */
-function riskItAll(demo: DemoScene, id: string): void {
+function riskItAll(demo: Pick<DemoScene, 'state' | 'sheets' | 'characters' | 'rng' | 'world' | 'log'>, id: string): void {
   const character = demo.characters.get(id);
   const entity = demo.state.entity(id);
   if (character === undefined || entity === undefined) return;
@@ -2514,7 +2514,7 @@ function playDeathCard(demo: DemoScene, id: string, offer: ReactionOffer): void 
 }
 
 /** Crossing through: down, and past anything that clears a Hit Point. */
-function veil(demo: DemoScene, id: string): void {
+function veil(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'log'>, id: string): void {
   const entity = demo.state.entity(id);
   if (entity === undefined) return;
   entity.alive = false;
@@ -2655,7 +2655,7 @@ function takeSpotlight(demo: DemoScene, adversaryId: string, adversary: EntitySt
  * Stress have to agree.
  */
 export function worthAiming(
-  demo: DemoScene,
+  demo: Pick<DemoScene, 'world' | 'scenario'>,
   userId: string,
   ability: AbilityDef,
   candidateId: string,
@@ -2681,7 +2681,7 @@ export function worthAiming(
  * feature is preferred to an aimed one, and the block's own order decides the
  * rest. Nothing here is random, so a seeded fight replays.
  */
-function adversaryFeature(demo: DemoScene, adversaryId: string): { ability: AbilityDef; targets: string[] } | null {
+function adversaryFeature(demo: Pick<DemoScene, 'grid' | 'state' | 'world' | 'scenario' | 'encounter' | 'gmTurn'>, adversaryId: string): { ability: AbilityDef; targets: string[] } | null {
   if (!inCombat(demo)) return null;
   // One feature a turn, however many spotlights Relentless buys: an adversary
   // that erupted goes back to teeth and claws for the rest of the turn.
@@ -2769,7 +2769,7 @@ function spotlightsAllies(ability: AbilityDef): boolean {
  * the feature takes is the effect's business, and rolling here would spend a
  * seeded number twice.
  */
-function spotlightCandidates(demo: DemoScene, adversaryId: string, ability: AbilityDef): string[] {
+function spotlightCandidates(demo: Pick<DemoScene, 'world' | 'scenario'>, adversaryId: string, ability: AbilityDef): string[] {
   const was = demo.scenario.actorId;
   demo.scenario.actorId = adversaryId;
   try {
@@ -2843,7 +2843,7 @@ function swarmSelector(ability: AbilityDef): TargetSelector | null {
 }
 
 /** A list ordered by how far it is from a creature, by id on a tie. */
-function byDistance(demo: DemoScene, from: string, ids: readonly string[]): string[] {
+function byDistance(demo: Pick<DemoScene, 'grid' | 'state'>, from: string, ids: readonly string[]): string[] {
   const here = demo.state.entity(from)!.tile;
   return [...ids].sort(
     (a, b) =>
@@ -2853,7 +2853,7 @@ function byDistance(demo: DemoScene, from: string, ids: readonly string[]): stri
 }
 
 /** The nearest of a list to a creature, by id on a tie: the same rule a swing uses. */
-function nearestOf(demo: DemoScene, from: string, ids: readonly string[]): string {
+function nearestOf(demo: Pick<DemoScene, 'grid' | 'state'>, from: string, ids: readonly string[]): string {
   return byDistance(demo, from, ids)[0]!;
 }
 
@@ -2862,7 +2862,7 @@ function nearestOf(demo: DemoScene, from: string, ids: readonly string[]): strin
  * the creature's own id, so two of the same adversary each get their own, and
  * cleared when the fight ends.
  */
-function featureUsesLeft(demo: DemoScene, adversaryId: string, ability: AbilityDef): number {
+function featureUsesLeft(demo: Pick<DemoScene, 'scenario'>, adversaryId: string, ability: AbilityDef): number {
   if (ability.uses === undefined) return Number.POSITIVE_INFINITY;
   return Math.max(0, ability.uses.count - (demo.scenario.abilityUses.get(useKey(adversaryId, ability.id)) ?? 0));
 }
@@ -2894,7 +2894,7 @@ function useAdversaryFeature(demo: DemoScene, adversaryId: string, ability: Abil
 
 /** What using a stat block's feature costs the GM: Shadow out of the pool, a use off the card. */
 function spendFeatureCost(
-  demo: DemoScene,
+  demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'scenario' | 'log'>,
   adversaryId: string,
   ability: AbilityDef,
   as: 'action' | 'reaction' = 'action',
@@ -3040,7 +3040,7 @@ function runAdversaryScript(
  * The tile a stat block's charge runs at: the nearest party member's, or
  * nowhere when none of them is standing.
  */
-function aimedAt(demo: DemoScene, adversaryId: string): number {
+function aimedAt(demo: Pick<DemoScene, 'grid' | 'state'>, adversaryId: string): number {
   const standing = demo.state.entitiesOf('party').filter((e) => e.alive && e.tile !== NO_TILE);
   if (standing.length === 0 || demo.state.entity(adversaryId)?.tile === NO_TILE) return NO_TILE;
   const nearest = nearestOf(demo, adversaryId, standing.map((e) => e.id));
@@ -3204,7 +3204,7 @@ function playPayouts(
  * arrived, and who was handed the spotlight. One place, because every caller
  * that runs an adversary's effects owes all three.
  */
-function afterAdversaryScript(demo: DemoScene, journal: readonly JournalEntry[]): void {
+function afterAdversaryScript(demo: Pick<DemoScene, 'state' | 'encounter' | 'gmTurn'>, journal: readonly JournalEntry[]): void {
   spendSwarmSpotlights(demo, journal);
   spotlightArrivals(demo, journal);
   spotlightAllies(demo, journal);
@@ -3220,7 +3220,7 @@ function afterAdversaryScript(demo: DemoScene, journal: readonly JournalEntry[])
  * Shadow it never owed. It is filtered out first because a creature with a
  * Relentless spotlight still to come is already standing there.
  */
-function spotlightSelf(demo: DemoScene, journal: readonly JournalEntry[]): void {
+function spotlightSelf(demo: Pick<DemoScene, 'state' | 'gmTurn'>, journal: readonly JournalEntry[]): void {
   const turn = demo.gmTurn;
   if (turn === null) return;
   for (const entry of journal) {
@@ -3237,7 +3237,7 @@ function spotlightSelf(demo: DemoScene, journal: readonly JournalEntry[]): void 
  * once, on the coin the feature already paid. The one it replaced is taken out
  * of the queue - it is not on the map any more.
  */
-function spotlightReplacements(demo: DemoScene, journal: readonly JournalEntry[]): void {
+function spotlightReplacements(demo: Pick<DemoScene, 'state' | 'gmTurn'>, journal: readonly JournalEntry[]): void {
   const turn = demo.gmTurn;
   if (turn === null) return;
   for (const entry of journal) {
@@ -3260,7 +3260,7 @@ function spotlightReplacements(demo: DemoScene, journal: readonly JournalEntry[]
  * for them. One that was already waiting further down is moved rather than
  * added, or it would take two turns out of one spotlight.
  */
-function spotlightAllies(demo: DemoScene, journal: readonly JournalEntry[]): void {
+function spotlightAllies(demo: Pick<DemoScene, 'state' | 'gmTurn'>, journal: readonly JournalEntry[]): void {
   const turn = demo.gmTurn;
   // Nothing to hand out when nobody is taking a GM turn: a countdown that
   // fires on a player's roll, or a scene script, has no queue to put anyone at
@@ -3287,7 +3287,7 @@ function spotlightAllies(demo: DemoScene, journal: readonly JournalEntry[]): voi
  * encounter reads the map for who is waiting, so it is in next turn's queue by
  * standing there.
  */
-function spotlightArrivals(demo: DemoScene, journal: readonly JournalEntry[]): void {
+function spotlightArrivals(demo: Pick<DemoScene, 'gmTurn'>, journal: readonly JournalEntry[]): void {
   const turn = demo.gmTurn;
   if (turn === null) return;
   for (const entry of journal) {
@@ -3308,7 +3308,7 @@ function spotlightArrivals(demo: DemoScene, journal: readonly JournalEntry[]): v
  * this attack and no other: without this the rats that piled in would each
  * come round again on their own and swing a second time.
  */
-function spendSwarmSpotlights(demo: DemoScene, journal: readonly JournalEntry[]): void {
+function spendSwarmSpotlights(demo: Pick<DemoScene, 'encounter' | 'gmTurn'>, journal: readonly JournalEntry[]): void {
   const turn = demo.gmTurn;
   if (turn === null) return;
   for (const entry of journal) {
@@ -3515,7 +3515,7 @@ function offersFor(
  * - an optional card is simply not played: spending someone's Light for them is
  * worse than letting the moment pass.
  */
-function offerReactions(demo: DemoScene, groups: readonly (readonly ReactionOffer[])[]): void {
+function offerReactions(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'pending' | 'askDefender'>, groups: readonly (readonly ReactionOffer[])[]): void {
   const waiting = groups.filter((group) => group.length > 0);
   if (waiting.length === 0 || !demo.askDefender) return;
   const pending = demo.pending;
@@ -3545,7 +3545,7 @@ export interface ResumingScript {
 
 /** The question itself: one character, their cards, and letting it pass. */
 function askReaction(
-  demo: DemoScene,
+  demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'pending'>,
   offers: readonly ReactionOffer[],
   queued: readonly (readonly ReactionOffer[])[],
   landing?: HeldSwing,
@@ -3656,7 +3656,7 @@ function playReaction(
  * The sheet is rewritten, so the world is rebuilt over it: a card that is no
  * longer in the loadout is no longer offering its reactions or its modifiers.
  */
-export function vaultAfter(demo: DemoScene, id: string, ability: AbilityDef, runner: ScriptRunner): void {
+export function vaultAfter(demo: Pick<DemoScene, 'scene' | 'state' | 'sheets' | 'characters' | 'world' | 'scenario' | 'project' | 'log' | 'gmTurn'>, id: string, ability: AbilityDef, runner: ScriptRunner): void {
   // Only a chosen card has a vault to go to. The loadout below is what says it was chosen: a
   // granted card is never in one.
   const cardId = cardOf(ability);
@@ -3680,7 +3680,7 @@ export function vaultAfter(demo: DemoScene, id: string, ability: AbilityDef, run
  * mark instead of rolling. Both are read here rather than written, so the
  * thresholds and the Armor Slots read what actually arrives.
  */
-function asAnswered(demo: DemoScene, held: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
+function asAnswered(demo: Pick<DemoScene, 'grid' | 'state' | 'sheets' | 'characters' | 'rng' | 'world' | 'log'>, held: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
   // The dice first: a card that put one of them back in the cup changes what
   // the rest of this is even about, and a swing that has become a miss has no
   // damage for the riders below to add to.
@@ -3743,7 +3743,7 @@ function asAnswered(demo: DemoScene, held: HeldSwing | undefined, journal: reado
  * the Help dice stand, being properties of the roll rather than of the hands
  * that threw it.
  */
-function asRerolled(demo: DemoScene, held: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
+function asRerolled(demo: Pick<DemoScene, 'grid' | 'state' | 'sheets' | 'characters' | 'rng' | 'world' | 'log'>, held: HeldSwing | undefined, journal: readonly JournalEntry[]): HeldSwing | undefined {
   if (held === undefined) return held;
   const roll = held.outcome.dualityRoll;
   if (roll === undefined) return held;
@@ -3821,7 +3821,7 @@ function asRerolled(demo: DemoScene, held: HeldSwing | undefined, journal: reado
  * nothing else to weigh. A roll with no dice in it - a flat weapon, a blow
  * whose damage was forced - is worth nothing, which is the honest answer.
  */
-function rerollLow(demo: DemoScene, roll: DamageRollResult | undefined, below: number): number {
+function rerollLow(demo: Pick<DemoScene, 'rng'>, roll: DamageRollResult | undefined, below: number): number {
   if (roll === undefined || roll.rolls.length === 0) return 0;
   let moved = 0;
   for (const face of roll.rolls) {
@@ -3934,7 +3934,7 @@ function playPartyRolled(demo: DemoScene, roller: string, roll: DualityRoll): vo
  * The same two entries the countdown cues read: a check is rolled by whoever
  * the script is acting as, and an attack names its own roller.
  */
-function rollsFrom(demo: DemoScene, journal: readonly JournalEntry[]): { roller: string; roll: DualityRoll }[] {
+function rollsFrom(demo: Pick<DemoScene, 'state' | 'scenario'>, journal: readonly JournalEntry[]): { roller: string; roll: DualityRoll }[] {
   const rolls: { roller: string; roll: DualityRoll }[] = [];
   for (const entry of journal) {
     if (entry.kind === 'check') {
@@ -3972,7 +3972,7 @@ function playAttackedOn(demo: DemoScene, defenderId: string, attackerId: string)
 }
 
 /** Whether the GM can pay for a stat block's reaction right now. */
-function affordableReaction(demo: DemoScene, adversaryId: string, ability: AbilityDef): boolean {
+function affordableReaction(demo: Pick<DemoScene, 'state' | 'scenario'>, adversaryId: string, ability: AbilityDef): boolean {
   const entity = demo.state.entity(adversaryId);
   if (entity === undefined) return false;
   if ((ability.cost.stress ?? 0) > unmarked(entity.stress)) return false;
@@ -3986,7 +3986,7 @@ function affordableReaction(demo: DemoScene, adversaryId: string, ability: Abili
  * within Close ends in reach, as far as Very Far instead, which is the whole of the action and leaves
  * no swing after it. Adversaries do not roll to move, per the SRD. Returns whether the swing follows.
  */
-function approach(demo: DemoScene, adversaryId: string, targetTile: number, reach: RangeBand): boolean {
+function approach(demo: Pick<DemoScene, 'grid' | 'state' | 'pathfinder' | 'world' | 'motions'>, adversaryId: string, targetTile: number, reach: RangeBand): boolean {
   const adversary = demo.state.entity(adversaryId);
   if (adversary === undefined || adversary.tile === NO_TILE) return false;
   // The same measure the swing will use: a corner-to-corner neighbour is
@@ -4014,7 +4014,7 @@ function approach(demo: DemoScene, adversaryId: string, targetTile: number, reac
 
 /** The tile a band's walk reaches that is nearest a target, and the way there: null when that is where it stands. */
 function stepToward(
-  demo: DemoScene,
+  demo: Pick<DemoScene, 'grid' | 'state' | 'pathfinder'>,
   adversaryId: string,
   targetTile: number,
   band: 'close' | 'veryFar',
@@ -4040,7 +4040,7 @@ function stepToward(
 }
 
 /** Walk an adversary to a tile, and tell the board the line it took. */
-function walkAdversary(demo: DemoScene, adversaryId: string, step: { tile: number; path: number[] | null }): void {
+function walkAdversary(demo: Pick<DemoScene, 'grid' | 'state' | 'motions'>, adversaryId: string, step: { tile: number; path: number[] | null }): void {
   const adversary = demo.state.entity(adversaryId)!;
   const stood = { ...adversary.at };
   const route =
@@ -4054,7 +4054,7 @@ function walkAdversary(demo: DemoScene, adversaryId: string, step: { tile: numbe
 }
 
 /** An adversary spends its spotlight clearing what a scene put on it. */
-function clearTemporaryConditions(demo: DemoScene, adversaryId: string): void {
+function clearTemporaryConditions(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'log'>, adversaryId: string): void {
   const adversary = demo.state.entity(adversaryId);
   if (adversary === undefined) return;
   const cleared: string[] = [];
@@ -4073,7 +4073,7 @@ function clearTemporaryConditions(demo: DemoScene, adversaryId: string): void {
  * "…or the GM spends a Shadow on their turn to clear this condition": the Shadow
  * is spent when there is one, on whatever holds the adversary from acting.
  */
-function clearWithBad(demo: DemoScene, adversaryId: string): void {
+function clearWithBad(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'log'>, adversaryId: string): void {
   const adversary = demo.state.entity(adversaryId);
   if (adversary === undefined || demo.state.bad.value < 1) return;
   const held = demo.world.blocking(adversaryId, 'act');
@@ -4165,7 +4165,7 @@ function attackPartyMember(demo: DemoScene, adversaryId: string, targetId: strin
 
 /** Half the damage of a swing the creature only got to make because an ally said so. */
 function halveIfRallied(
-  demo: DemoScene,
+  demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'log' | 'gmTurn'>,
   adversaryId: string,
   outcome: ReturnType<typeof resolveAttack>,
 ): ReturnType<typeof resolveAttack> {
@@ -4251,7 +4251,7 @@ function boostDamage(
  * against." The extras are the nearest of the same kind, which is how a table
  * plays it without arguing about which rat dies.
  */
-function defeatMinions(demo: DemoScene, targetId: string, damage: number): void {
+function defeatMinions(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'log'>, targetId: string, damage: number): void {
   const target = demo.state.entity(targetId);
   if (target === undefined) return;
   const per = adversaryTraits(statBlock(demo, targetId)).minion;
@@ -4296,7 +4296,7 @@ function defeatMinions(demo: DemoScene, targetId: string, damage: number): void 
  * path, once for the number the swing reported and once for the hit that
  * lands; only the second is applied, and no shipped party member has one.
  */
-function incomingOf(demo: DemoScene, attack: IncomingAttack): IncomingDamage {
+function incomingOf(demo: Pick<DemoScene, 'world'>, attack: IncomingAttack): IncomingDamage {
   // A band named mid-swing, or one the block's own passive names for it.
   // Only whether it goes through armor: the dice a passive swapped in, and any
   // doubling, are already in the number the swing reported. This is the second
@@ -4418,7 +4418,7 @@ function playMissRiders(demo: DemoScene, attackerId: string, defenderId: string,
 }
 
 /** Everything the defence rules need to know about whoever is taking the hit. */
-function defenderFor(demo: DemoScene, id: string): Defender | null {
+function defenderFor(demo: Pick<DemoScene, 'state' | 'world'>, id: string): Defender | null {
   const entity = demo.state.entity(id);
   if (entity === undefined) return null;
   // The same defender the automatic path builds, resistances included: a
@@ -4447,7 +4447,7 @@ const hitPointWord = (n: number): string => `${n} Hit Point${n === 1 ? '' : 's'}
  * thresholds were read. Without this the number in the next line is a mystery
  * — a hit for 11 that marks nothing looks like a bug rather than plate armor.
  */
-function noteReduction(demo: DemoScene, who: string, resolved: ResolvedDamage | undefined): void {
+function noteReduction(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'log'>, who: string, resolved: ResolvedDamage | undefined): void {
   if (resolved === undefined || resolved.reduced <= 0) return;
   note(demo, `${who} turns aside ${resolved.reduced} of it.`, 'combat');
 }
@@ -4460,7 +4460,7 @@ function noteReduction(demo: DemoScene, who: string, resolved: ResolvedDamage | 
  * an ally in range holds. Each says what it would cost and what it would
  * leave — a player should not have to do the arithmetic the engine just did.
  */
-export function defenseChoices(demo: DemoScene, attack: IncomingAttack): DefenseChoice[] {
+export function defenseChoices(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'scenario'>, attack: IncomingAttack): DefenseChoice[] {
   const defender = defenderFor(demo, attack.defender);
   if (defender === null) return [];
   const damage = incomingOf(demo, attack);
@@ -4553,7 +4553,7 @@ export function defenseChoices(demo: DemoScene, attack: IncomingAttack): Defense
  * card's own effects are the answer, so any card written that way is offered
  * here without the engine knowing what it does.
  */
-function offerMiss(demo: DemoScene, attack: IncomingAttack): void {
+function offerMiss(demo: Pick<DemoScene, 'state' | 'sheets' | 'world' | 'scenario' | 'pending' | 'askDefender'>, attack: IncomingAttack): void {
   if (!demo.askDefender) return;
   const holder = defenderFor(demo, attack.defender);
   if (holder === null) return;
@@ -4879,7 +4879,7 @@ export function applyDefenseChoice(demo: DemoScene, attack: IncomingAttack, choi
 }
 
 /** Pay a reaction's cost. Returns false when it turned out they could not. */
-function payFor(demo: DemoScene, id: string, ability: AbilityDef): boolean {
+function payFor(demo: Pick<DemoScene, 'state' | 'world' | 'scenario'>, id: string, ability: AbilityDef): boolean {
   const entity = demo.state.entity(id);
   if (entity === undefined) return false;
   const good = ability.cost.good ?? 0;
@@ -4896,7 +4896,7 @@ function payFor(demo: DemoScene, id: string, ability: AbilityDef): boolean {
 }
 
 /** Take one use off a limited card, wherever it was played from. */
-function spendUse(demo: DemoScene, id: string, ability: AbilityDef): void {
+function spendUse(demo: Pick<DemoScene, 'scenario'>, id: string, ability: AbilityDef): void {
   if (ability.uses === undefined) return;
   const key = useKey(id, ability.id);
   demo.scenario.abilityUses.set(key, (demo.scenario.abilityUses.get(key) ?? 0) + 1);
@@ -4911,7 +4911,7 @@ function spendUse(demo: DemoScene, id: string, ability: AbilityDef): void {
  * together or a "once per rest" card is offered on every blow.
  */
 function canPlay(
-  demo: DemoScene,
+  demo: Pick<DemoScene, 'scenario'>,
   id: string,
   defender: Pick<Defender, 'good' | 'stress'>,
   ability: AbilityDef,
@@ -5153,7 +5153,7 @@ export function settle(demo: DemoScene, lines: LogLine[]): UseOutcome {
 }
 
 /** The nearest thing the selected member could use right now, if any. */
-export function reachableInteractable(demo: DemoScene): string | null {
+export function reachableInteractable(demo: Pick<DemoScene, 'scene' | 'grid' | 'state' | 'party'>): string | null {
   const actor = demo.party.selected;
   if (actor === null) return null;
   const here = demo.state.entity(actor)?.tile ?? NO_TILE;
@@ -5215,7 +5215,7 @@ function react(demo: DemoScene, journal: readonly JournalEntry[]): void {
  * the number of HP marked" is written about the countdown's owner, and the
  * board only hands the cue to the countdown whose owner marked them.
  */
-function cuesFrom(demo: DemoScene, journal: readonly JournalEntry[]): CountdownCue[] {
+function cuesFrom(demo: Pick<DemoScene, 'state' | 'scenario'>, journal: readonly JournalEntry[]): CountdownCue[] {
   const isParty = (id: string | null): boolean =>
     id !== null && demo.state.entity(id)?.faction === 'party';
   const cues: CountdownCue[] = [];

@@ -4,6 +4,32 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The fight says what it reads, and what it cannot — done
+
+Every function in `demo-scene.ts` that takes `demo` was measured: the fields its body reads,
+plus the needs of everything it passes `demo` to, iterated to a fixpoint. Of 129, **75 now take
+a `Pick`** (70 rewritten here, most of them two to four fields: `statBlock` reads the board and
+the world, `syncPools` the board, the sheets' derivations and the world, `defenseChoices` the
+board, the sheets, the world and who is acting). `tsc` accepted every one on the first pass and
+refuses each when a field is dropped, which is the check.
+
+**51 need 24 or more of the 27 fields**, and keep `DemoScene`: a `Pick` of 24 says what a
+function does not touch, which is the wrong way round. They are one cycle -- reactions
+(`offersFor`, `playReaction`, `askReaction`, `afterReaction`), turns (`playGmTurn`, `runGmTurn`,
+`endTurn`, `takeSpotlight`, `adversaryTurn`), defence (`offerOrLand`, `landAttack`,
+`applyDefenseChoice`), death moves, both sides' attacks, and everything that runs a script
+(`record`, `react`, `settle`, `answerPending`, `runAdversaryScript`, `runCountdown`,
+`playPartyRolled`). A script's roll can wake a reaction card and a reaction card runs a
+script, so each reaches all the others. That list is the fight core, measured rather than
+guessed, and it is what the earlier entries were circling. The three between (14-17 fields)
+are `travelTo`, `enterSavedScene` and `settleTravel`: the room module's, when it comes.
+
+`npx tsc --noEmit` clean; vitest **1884 passed (1884)**; Playwright **118 passed (4.2m)**, `EXIT 0`. The
+first e2e run was red on one boot wait (`editor-shell.spec.ts:154`, `frames > 2` not reached in 30 s,
+on a 4.9-minute run straight after the unit suite); the spec alone and then the whole suite were
+green. No behaviour changed: the edit is signatures only, and the compiler is the test -- dropping
+`characters` from `syncPools`'s `Pick` fails at the line that reads it.
+
 ## `record` is `writeDown` and then `react` — done
 
 The one function every script's journal passed through did two jobs: write the journal down
@@ -871,13 +897,14 @@ Measured off the call graph on 2026-09-15, in the order that never breaks an imp
    `enterSavedScene`, `syncAuthoredEncounters`, `settleTravel` and the `DEMO_*` constants they
    read — as one module the builders and the interact section both import from.
 2. **Movement** (`moveSelectedTo` .. `previewWalk`): three callers, all in the party's attack.
-3. **Narrow before splitting the fight.** Party attack, defence, reactions, the adversary's turn
-   and death all call each other in every direction; splitting them into files is cosmetic until
-   each function takes a `Pick<DemoScene, ...>` of what it reads, the way `log.ts` and
-   `SheetChange` do. `record` is split (`writeDown` / `react`, above) and the interact section
-   did not narrow, because `react` is the fight and a script can wake it. The next honest
-   narrowing is inside the fight itself: give `react`, `playPartyRolled` and `tickCountdowns`
-   a named `Pick` and see what they actually need -- that list is the seam.
+3. ~~**Narrow before splitting the fight.**~~ Done as far as a `Pick` goes (above): 75 of 129
+   functions say what they read, and the 51 that cannot are the fight core, one cycle. The
+   core does not narrow by type; it narrows by **inversion**: the fight raises what happened
+   (a party roll, Hit Points marked, a death) and the reaction and countdown machinery
+   subscribes, instead of `record` calling `playPartyRolled` which calls `runAdversaryScript`
+   which calls `record`. Decide first whether that is worth doing at all -- the coupling is the
+   game's, and the cycle is honest -- and if it is, spec it before touching a line. Splitting
+   the 51 into files without it is cosmetic, and the ceiling does not ask for cosmetic.
 4. `script/world.ts` and `main.ts` have doubled since the docs were written and get the same
    recipe, after.
 
