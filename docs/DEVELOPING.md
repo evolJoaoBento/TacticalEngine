@@ -184,7 +184,7 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 | `ui/EditorShell.tsx` | The editor's root: which menu, workspace, conversation and problem list is open; keys 1-4 and Esc. |
 | `ui/TopBar.tsx`, `ui/SceneMenu.tsx`, `ui/ToolRail.tsx`, `ui/LibraryStrip.tsx`, `ui/ModeSides.tsx`, `ui/icons.tsx` | The shell's parts: menus and modes, the scene dropdown, a mode's tools, the strip, what sits beside the board in each mode, and the icons drawn for tools and modes. |
 | `ui/QuestsWorkspace.tsx`, `ui/ModelsWorkspace.tsx`, `ui/ProblemsPopover.tsx` | Quests and imported models as workspaces, and what Check found. |
-| `ui/editor.css` | The purple theme's tokens on `:root`, and the shell's rules under `.ph-editor`. |
+| `ui/editor.css` | The Blender-grey theme's tokens on `:root`, and the shell's rules under `.ph-editor`: flat regions flush to the edges, blue only on the selected thing. |
 | `ui/Inspector.tsx`, `ui/DialogueGraph.tsx`, `ui/ItemPanel.tsx`, `ui/PartyPanel.tsx`, `ui/QuestEditor.tsx`, `ui/CodePanel.tsx` | The rest of the panels. |
 
 `src/main.ts` is the boot path, and owns the board, play and global keys (`Ctrl+E`, `Ctrl+Z`).

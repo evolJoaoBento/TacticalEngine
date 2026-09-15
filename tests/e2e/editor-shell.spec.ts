@@ -45,16 +45,16 @@ test('the top bar holds the four modes in the order the user set, and 1-4 switch
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
-test('the editor is purple', async ({ page }) => {
+test('the editor is Blender-grey: white on the selected tab, blue only on the one primary button', async ({ page }) => {
   const errors = await editing(page);
   const active = page.locator('[data-testid="mode-inspect"]');
-  expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(181, 140, 255)');
+  expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(230, 230, 230)');
   expect(await page.locator('[data-testid="play"]').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
-    'rgb(181, 140, 255)',
+    'rgb(71, 114, 179)',
   );
   // Inspector is active, so Terrain's mode tab is inactive and should be muted, not white.
   const inactiveMode = page.locator('[data-testid="mode-terrain"]');
-  expect(await inactiveMode.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(165, 156, 186)');
+  expect(await inactiveMode.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(160, 160, 160)');
 
   await page.locator('[data-testid="mode-terrain"]').click();
   const strip = page.locator('[data-testid="terrain-library"]');

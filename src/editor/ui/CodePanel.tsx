@@ -79,14 +79,14 @@ export function CodePanel(props: CodePanelProps): preact.JSX.Element {
       data-testid="code-panel"
       style={{
         position: 'absolute',
-        inset: '24px',
+        inset: '0',
         // The panel floats over the map, which is a canvas that would otherwise
         // swallow the clicks: the overlay it lives in lets them through by default.
         pointerEvents: 'auto',
         zIndex: 2,
         background: 'var(--ph-surface)',
         border: '1px solid var(--ph-line)',
-        borderRadius: '4px',
+        borderRadius: '0',
         padding: '10px',
         display: 'flex',
         gap: '10px',

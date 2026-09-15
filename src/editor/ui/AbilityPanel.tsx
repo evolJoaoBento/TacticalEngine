@@ -513,13 +513,13 @@ export function AbilityPanel(props: AbilityPanelProps): preact.JSX.Element {
       data-testid="ability-panel"
       style={{
         position: 'absolute',
-        inset: '24px',
+        inset: '0',
         // Over the map, which is a canvas that would otherwise swallow clicks.
         pointerEvents: 'auto',
         zIndex: 2,
         background: 'var(--ph-surface)',
         border: '1px solid var(--ph-line)',
-        borderRadius: '4px',
+        borderRadius: '0',
         padding: '10px',
         display: 'flex',
         gap: '10px',

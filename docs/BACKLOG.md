@@ -4,6 +4,22 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The editor goes Blender-grey — done
+
+The user's second direction, with Blender's startup screen as the reference. The purple is gone:
+`editor.css`'s tokens are Blender's greys (`#181818` bar, `#303030` regions, `#3d3d3d` raised,
+`#1d1d1d` fields, `#1c1c1c` seams) with its blue (`#4772b3`) on the one selected thing and white
+text on it, never blue text on grey. The floating rounded cards are flat regions flush to the
+edges: the rail down the left, the properties panel down the right, the library strip along the
+bottom between them, the top bar's modes as tabs underlined in blue, section headings as the
+raised strips Blender's panels have, and the Content workspaces filling the editor rather than
+floating in it. `editor-shell.spec.ts`'s colour test now pins the grey. The workspaces' own
+layouts (Quests is still one row in a corner) are the next slice, not this one.
+
+`npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed**, `EXIT 0`, with the
+colour test retargeted. Screenshots read: the four modes, the Content menu, the Cards and Party
+workspaces.
+
 ## The hand — done
 
 The user's direction, with Slay the Spire as the reference: the card interaction has to be a
@@ -17,7 +33,9 @@ at its right is the hex button. The party HUD moved to a column down the left ed
 Gate's portraits, so the bottom belongs to the hand. `ActionBar` keeps its name, its props (plus
 `light`) and every testid; the slot basis shrinks when the hand is large, so a hand of fourteen
 still fits between the HUD and the panel. `main.ts` paid its one new line with two collapsed
-imports (2,540 -> 2,518). Next in this direction: the editor goes Blender-grey.
+imports (2,540 -> 2,518). Then, on the user's look: the card grows where it stands, anchored at
+its foot so it stays under the pointer, and its neighbours slide aside (`:has()` for the ones to
+its left); the relics moved to the top centre so a lifted card never covers them.
 
 `npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed**, `EXIT 0`, every
 existing card test clicking its card in the fan. Screenshots read: exploring, hovering, in a fight,

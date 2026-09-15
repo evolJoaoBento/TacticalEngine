@@ -357,7 +357,7 @@ each of its modes offers. Ctrl+E toggles play and edit.
 **The shell (2026-09-10).** The user judged that editor "not even good enough to be called a
 prototype", and it is being rebuilt to their direction. The plan is
 `docs/superpowers/specs/2026-09-10-editor-shell-design.md`. The first slice replaced the side panel
-with a purple top bar of four modes (Inspector, Terrain, Combat, Interaction):
+with a Blender-grey top bar of four modes (Inspector, Terrain, Combat, Interaction):
 - each mode has a tool rail, a library strip and a side panel;
 - content editors open as workspaces under the bar;
 - Combat's eraser takes creatures, trigger cells and party starts.
