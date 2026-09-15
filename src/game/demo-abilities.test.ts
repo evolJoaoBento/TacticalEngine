@@ -39,9 +39,7 @@ import {
   useAbility,
 } from './demo-abilities';
 import {
-  DEMO_BAND_TILES,
   adversaryDefOf,
-  characterContentFor,
   answerPending,
   attackWithSelected,
   buildDemoScene,
@@ -50,6 +48,8 @@ import {
   startEncounter,
   type DemoScene,
 } from './demo-scene';
+import { DEMO_BAND_TILES } from './demo-rules';
+import { characterContentFor } from './room';
 
 /**
  * Playing cards. The engine's half — one roll, many targets, damage through

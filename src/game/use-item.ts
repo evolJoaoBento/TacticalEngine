@@ -8,7 +8,8 @@
  */
 
 import { ScriptRunner } from '../engine/script/runner';
-import { inCombat, record, settle, settleTravel, type DemoScene, type UseOutcome } from './demo-scene';
+import { inCombat, record, settle, type DemoScene, type UseOutcome } from './demo-scene';
+import { settleTravel } from './room';
 import { note } from './log';
 
 /**

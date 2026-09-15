@@ -7,7 +7,8 @@
  */
 
 import { levelUp, type LevelUpIssue, type LevelUpPlan } from '../engine/character/progression';
-import { characterContentFor, inCombat, refreshWorld, setSheet, type DemoScene, type SheetChange } from './demo-scene';
+import { inCombat, refreshWorld, setSheet, type DemoScene, type SheetChange } from './demo-scene';
+import { characterContentFor } from './room';
 import { note } from './log';
 
 /** Party members whose sheet is below the level the party has been granted. */

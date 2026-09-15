@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isDomainCard } from '../../src/engine/content/pack/import';
-import { DEMO_CHARACTERS } from '../../src/game/demo-scene';
+import { DEMO_CHARACTERS } from '../../src/game/demo-rules';
 import {
   DOMAIN_COLORS,
   SIGIL_HEIGHT,

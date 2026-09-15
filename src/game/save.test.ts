@@ -5,14 +5,13 @@ import { migrateDocument } from '../engine/scene/migrate';
 import { demoMap } from '../../legacy/js/data.js';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import {
-  characterContentFor,
   answerPending,
   buildDemoScene,
   startEncounter,
-  travelTo,
   useSelectedOn,
   type DemoScene,
 } from './demo-scene';
+import { characterContentFor, travelTo } from './room';
 import { note } from './log';
 import { deriveCharacter } from '../engine/character/sheet';
 import type { LevelUpPlan } from '../engine/character/progression';

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readPack, type PackDocument } from '../engine/content/pack/document';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
-import { adversaryDefsFor, characterContentFor } from '../game/demo-scene';
+import { adversaryDefsFor, characterContentFor } from '../game/room';
 import { EditorSession, importPack, packChanges } from './session';
 
 /**

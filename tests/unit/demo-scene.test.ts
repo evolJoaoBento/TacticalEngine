@@ -17,12 +17,6 @@ import { tileOf } from '../../src/engine/scene/grid-from-scene';
 import { attackProfile } from '../../src/engine/character/sheet';
 import type { Rng } from '../../src/engine/core/rng';
 import {
-  DEMO_ADVERSARY_ID,
-  DEMO_BAND_TILES,
-  DEMO_MOVEMENT,
-  PARTY_SHEETS,
-  DEMO_ADVERSARIES,
-  DEMO_CHARACTERS,
   attackWithSelected,
   buildDemoScene,
   endTurn,
@@ -38,6 +32,14 @@ import {
   arrive,
   type DemoScene,
 } from '../../src/game/demo-scene';
+import {
+  DEMO_ADVERSARY_ID,
+  DEMO_BAND_TILES,
+  DEMO_MOVEMENT,
+  PARTY_SHEETS,
+  DEMO_ADVERSARIES,
+  DEMO_CHARACTERS,
+} from '../../src/game/demo-rules';
 
 const build = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
 

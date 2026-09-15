@@ -4,6 +4,23 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The room leaves `demo-scene.ts` — done
+
+Standing a room up and moving between rooms is `src/game/room.ts`: `SceneRuntime`, `buildRuntime`,
+`worldOptions` and the content it reads (`characterContentFor`, `adversaryDefsFor`, `hooksFor`,
+`traitsFor`), `install`, `travelTo`, `enterSavedScene`, `syncAuthoredEncounters`, `settleTravel`.
+The demo's house rules and cast -- the `DEMO_*` constants and `PARTY_SHEETS` -- are
+`src/game/demo-rules.ts`. `room.ts` reads the rules and the engine and knows `DemoScene` only as
+a type, so `demo-scene.ts` imports from it and never the other way. The cycle that
+`authored-encounters.ts` existed to avoid is gone; that shim stays only so its two importers do
+not move. Nineteen importers were repointed by parsing their import statements, and `tsc` found
+exactly the two functions that had been file-private and nothing else. `demo-scene.ts` is
+4,722 lines, from 5,856 when this began.
+
+`npx tsc --noEmit` clean; vitest **1884 passed (1884)**; Playwright **118 passed (4.2m)**, `EXIT 0`. A
+move, so no new test; this one changed the runtime module graph (three top-level constants now
+evaluate across a module line), which the e2e boot is the check for, and it was green first time.
+
 ## The fight says what it reads, and what it cannot — done
 
 Every function in `demo-scene.ts` that takes `demo` was measured: the fields its body reads,
@@ -892,10 +909,8 @@ time it was written to save.
 
 Measured off the call graph on 2026-09-15, in the order that never breaks an import:
 
-1. ~~**Leaves first:** levelling, equipping, carried items.~~ Done, above. Travel is not a
-   leaf: it goes with **the room** — `SceneRuntime`, `buildRuntime`, `install`, `travelTo`,
-   `enterSavedScene`, `syncAuthoredEncounters`, `settleTravel` and the `DEMO_*` constants they
-   read — as one module the builders and the interact section both import from.
+1. ~~**Leaves first:** levelling, equipping, carried items; then **the room**, with travel and
+   the `DEMO_*` constants.~~ Both done, above.
 2. **Movement** (`moveSelectedTo` .. `previewWalk`): three callers, all in the party's attack.
 3. ~~**Narrow before splitting the fight.**~~ Done as far as a `Pick` goes (above): 75 of 129
    functions say what they read, and the 51 that cannot are the fight core, one cycle. The

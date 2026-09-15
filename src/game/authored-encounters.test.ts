@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { projectSchema, type SceneDoc } from '../engine/scene/schema';
 import { blankScene } from '../engine/scene/grid-from-scene';
-import { buildProjectScene, travelTo, PARTY_SHEETS, type DemoScene } from './demo-scene';
+import { buildProjectScene, type DemoScene } from './demo-scene';
+import { PARTY_SHEETS } from './demo-rules';
+import { travelTo } from './room';
 import { syncAuthoredEncounters } from './authored-encounters';
 import { FIXTURE_ADVERSARIES, FIXTURE_FOE } from '../../tests/fixtures/adversaries';
 

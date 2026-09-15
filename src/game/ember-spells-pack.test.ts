@@ -17,12 +17,11 @@ import {
   answerPending,
   attackWithSelected,
   buildDemoScene,
-  characterContentFor,
   refreshWorld,
   startEncounter,
-  worldOptions,
   type DemoScene,
 } from './demo-scene';
+import { characterContentFor, worldOptions } from './room';
 
 /**
  * The pack the build ships as a file rather than as code: two ember spells, each carrying the

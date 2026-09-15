@@ -10,7 +10,8 @@
 import type { CharacterSheet } from '../engine/character/sheet';
 import type { ItemDef } from '../engine/content/items';
 import type { WeaponDef } from '../engine/content/pack/import';
-import { characterContentFor, inCombat, refreshWorld, setSheet, type DemoScene, type SheetChange } from './demo-scene';
+import { inCombat, refreshWorld, setSheet, type DemoScene, type SheetChange } from './demo-scene';
+import { characterContentFor } from './room';
 import { note } from './log';
 
 export type EquipResult = { ok: true; slot: 'primary' | 'secondary' | 'armor' } | { ok: false; reason: string };

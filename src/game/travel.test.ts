@@ -4,11 +4,11 @@ import { tileOf } from '../engine/scene/grid-from-scene';
 import {
   answerPending,
   buildDemoScene,
-  travelTo,
   useSelectedOn,
-  DEMO_STAIR_ID,
   type DemoScene,
 } from './demo-scene';
+import { DEMO_STAIR_ID } from './demo-rules';
+import { travelTo } from './room';
 import { PIT_SCENE_ID } from './demo-scenes';
 
 /**

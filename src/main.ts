@@ -111,18 +111,14 @@ import {
   gatherParty,
   scriptPending,
   reachableInteractable,
-  travelTo,
   useSelectedOn,
   reachableTiles,
-  DEMO_ADVERSARY_ID,
-  DEMO_MODELS,
-  DEMO_CHARACTERS,
-  characterContentFor,
-  adversaryDefsFor,
   buildProjectScene,
   setSheet,
   type DemoScene,
 } from './game/demo-scene';
+import { DEMO_ADVERSARY_ID, DEMO_MODELS, DEMO_CHARACTERS } from './game/demo-rules';
+import { travelTo, characterContentFor, adversaryDefsFor } from './game/room';
 import { nameOf, note } from './game/log';
 import { applyLevelUp, awaitingLevel } from './game/level-up';
 import { equipItem, gearOf } from './game/equip';

@@ -32,14 +32,11 @@ import { useKey } from '../engine/script/world';
 import { NO_TILE } from '../engine/grid/grid';
 import { walkEffects, type TargetSelector } from '../engine/script/schema';
 import {
-  DEMO_CHARACTERS,
-  characterContentFor,
   inCombat,
   record,
   refreshWorld,
   settle,
   settleFight,
-  settleTravel,
   syncPools,
   vaultAfter,
   worthAiming,
@@ -47,6 +44,8 @@ import {
   type UseOutcome,
   setSheet,
 } from './demo-scene';
+import { DEMO_CHARACTERS } from './demo-rules';
+import { characterContentFor, settleTravel } from './room';
 import { nameOf, note, type LogLine } from './log';
 
 /** An ability as the action bar shows it: what it is, and why it is greyed out. */

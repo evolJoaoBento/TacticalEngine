@@ -19,7 +19,6 @@ import {
   answerPending,
   attackWithSelected,
   buildDemoScene,
-  characterContentFor,
   defenseChoices,
   endTurn,
   refreshWorld,
@@ -28,6 +27,7 @@ import {
   syncPools,
   type DemoScene,
 } from './demo-scene';
+import { characterContentFor } from './room';
 import { restoreScenario, scenarioSnapshot, useKey } from '../engine/script/world';
 import { FIXTURE_ADVERSARIES, FIXTURE_CARDS, FIXTURE_DOMAIN_FOUR, FIXTURE_FOE } from '../../tests/fixtures/adversaries';
 import {

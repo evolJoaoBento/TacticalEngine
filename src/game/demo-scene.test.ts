@@ -11,8 +11,8 @@ import {
   useSelectedOn,
   type DemoScene,
   scriptPending,
-  worldOptions,
 } from './demo-scene';
+import { worldOptions } from './room';
 
 /**
  * Using the vault's own furniture.

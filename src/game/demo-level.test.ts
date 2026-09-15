@@ -6,10 +6,10 @@ import {
   answerPending,
   buildDemoScene,
   startEncounter,
-  travelTo,
   useSelectedOn,
   type DemoScene,
 } from './demo-scene';
+import { travelTo } from './room';
 import { applyLevelUp, awaitingLevel } from './level-up';
 import { PIT_SCENE_ID } from './demo-scenes';
 import { loadGameText, saveGame } from './save';

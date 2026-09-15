@@ -1,10 +1,10 @@
 /**
  * Bringing authored encounters into a running game.
  *
- * The work itself lives in `demo-scene.ts`, beside `install` and the scene
- * builders that have to call it and beside `DEMO_ADVERSARIES`, which it reads;
- * importing it the other way round would put a cycle between the two modules.
- * This file is the name the rest of the game asks for it by.
+ * The work lives in `room.ts`, beside `install` and `buildRuntime`, which call
+ * it on every entry into a scene. This file is the name the rest of the game
+ * asks for it by; it used to be needed to keep a cycle out of `demo-scene.ts`,
+ * and stays only so its importers do not move.
  */
 
-export { syncAuthoredEncounters } from './demo-scene';
+export { syncAuthoredEncounters } from './room';

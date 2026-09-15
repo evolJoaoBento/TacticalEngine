@@ -317,7 +317,7 @@ quest. What is written in the form is what the journal shows, checked end to end
 
 ### ~~11. Scene travel~~ — done
 
-`travelTo` in `game/demo-scene.ts` swaps the per-scene half of the world — scene, grid, state,
+`travelTo` in `game/room.ts` swaps the per-scene half of the world — scene, grid, state,
 pathfinder, party, triggers, script world — and keeps the campaign half. Wounds, Stress, Light and
 the GM's Shadow travel with the party; where everyone stood does not, so they arrive on the new
 scene's spawns. A room already visited is restored from its snapshot, minus its stale party

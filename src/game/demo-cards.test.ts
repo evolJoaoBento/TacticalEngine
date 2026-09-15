@@ -4,17 +4,16 @@ import { deriveCharacter } from '../engine/character/sheet';
 import { NO_TILE } from '../engine/grid/grid';
 import { rest, useAbility } from './demo-abilities';
 import {
-  characterContentFor,
   answerPending,
   attackWithSelected,
   buildDemoScene,
   endTurn,
   refreshWorld,
   startEncounter,
-  travelTo,
   type DemoScene,
   type PendingDefense,
 } from './demo-scene';
+import { characterContentFor, travelTo } from './room';
 import { PIT_SCENE_ID } from './demo-scenes';
 import { abilitySchema } from '../engine/content/abilities';
 import {
