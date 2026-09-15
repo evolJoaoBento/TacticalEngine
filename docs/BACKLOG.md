@@ -38,7 +38,10 @@ purple theme. A name too long for its card wraps to a second line instead of bei
 And an empty tier said "Nothing matches." -- a search's words, when nobody had searched: the pack
 has no creature above tier 2, so Tiers 3 and 4 say "Nothing in Tier 3 yet." now, dimmed on the bar.
 
-VERIFICATION_LINE
+`npx tsc --noEmit` clean; vitest **1888 passed (1888)**; Playwright **122 passed (5.2m)**, `EXIT 0`. New:
+`thumbnails.test.ts` (which model a picture is of; no picture and no recorded miss without WebGL)
+and `library-thumbnails.spec.ts` (every creature and prop card a picture, every object an icon, no
+letters, stand-ins marked, an empty tier said so); screenshots read for all four tiers and each tab.
 
 ## The editor goes Blender-grey — done
 
