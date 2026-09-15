@@ -156,3 +156,12 @@
 .dice-verdict{font:18px Georgia,serif}
 .dice-verdict.is-success{color:#9ae08a}
 .dice-verdict.is-failure{color:#ef8a7a}
+
+/* Numbers rising over heads: a layer over the canvas, under the panels (main.ts). */
+#floaters{position:absolute;inset:0;overflow:hidden;pointer-events:none;font:600 15px/1 system-ui,sans-serif}
+.floater{position:absolute;transform:translate(-50%,-100%);text-shadow:0 1px 2px #000,0 0 6px #000c;white-space:nowrap}
+
+/* Play's colour: the board a little richer than it is lit, and darker at the edges, like a
+   painted scene. Only while the play HUD is up, so the editor keeps its plain grey. */
+body:has(.hud) #gl{filter:saturate(1.18) contrast(1.05)}
+body:has(.hud) #floaters{background:radial-gradient(ellipse at 50% 45%,transparent 52%,#0a060cb3 100%)}

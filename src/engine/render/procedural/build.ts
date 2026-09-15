@@ -23,7 +23,6 @@ import {
   IcosahedronGeometry,
   Mesh,
   MeshBasicMaterial,
-  MeshStandardMaterial,
   Object3D,
   OctahedronGeometry,
   SphereGeometry,
@@ -40,10 +39,12 @@ import {
   type ProceduralModelSpec,
   type Vec3,
 } from './spec';
+import { addOutline, smoothHull, toonMaterial } from '../toon';
 
 /** Geometries, shared by shape. */
 export class PrimitiveCache {
   private readonly cache = new Map<string, BufferGeometry>();
+  private readonly hulls = new Map<string, BufferGeometry>();
 
   get(prim: PrimSpec): BufferGeometry {
     const key = primKey(prim);
@@ -55,13 +56,25 @@ export class PrimitiveCache {
     return geometry;
   }
 
+  /** The shape with its corners closed, for an ink rim that does not split at them (`toon.ts`). */
+  hull(prim: PrimSpec): BufferGeometry {
+    const key = primKey(prim);
+    let hull = this.hulls.get(key);
+    if (hull === undefined) {
+      hull = smoothHull(this.get(prim));
+      this.hulls.set(key, hull);
+    }
+    return hull;
+  }
+
   get size(): number {
     return this.cache.size;
   }
 
   dispose(): void {
-    for (const geometry of this.cache.values()) geometry.dispose();
+    for (const geometry of [...this.cache.values(), ...this.hulls.values()]) geometry.dispose();
     this.cache.clear();
+    this.hulls.clear();
   }
 }
 
@@ -125,12 +138,11 @@ function createMaterial(mat: MatSpec): Material {
     });
   }
   // The legacy library was flat-shaded everywhere; keeping that is what makes a
-  // ported model read the same.
-  const material = new MeshStandardMaterial({
+  // ported model read the same. Light falls in the toon ramp's steps, the
+  // cartoon look (`toon.ts`), so a spec's metalness and roughness still key the
+  // cache but no longer change what is drawn.
+  const material = toonMaterial({
     color: new Color(mat.color),
-    flatShading: true,
-    metalness: mat.metalness ?? 0,
-    roughness: mat.roughness ?? 1,
     transparent,
     opacity: mat.opacity ?? 1,
     depthWrite: mat.depthWrite ?? true,
@@ -160,6 +172,11 @@ export interface BuildOptions {
    * reaches its base ring without the model knowing anything about entities.
    */
   palette?: Readonly<Record<string, MatSpec>>;
+  /**
+   * Rim each lit, solid part in ink (`toon.ts`), on the layer a camera has to ask
+   * for. Off unless asked, so a thumbnail or a test gets the bare model.
+   */
+  outline?: boolean;
 }
 
 export interface BuiltModel {
@@ -195,6 +212,7 @@ export function buildModel(
     }
     const mesh = new Mesh(resources.primitives.get(part.prim), resources.materials.get(matSpec));
     applyTransform(mesh, part);
+    if (options.outline === true && inked(mesh, matSpec)) addOutline(mesh, resources.primitives.hull(part.prim), OUTLINE_WIDTH);
     // Unlit fx parts never cast; everything else does, as the legacy P() did.
     mesh.castShadow = part.castShadow ?? matSpec.unlit !== true;
     mesh.receiveShadow = mesh.castShadow;
@@ -219,6 +237,17 @@ export function buildModel(
   if (spec.groundOffset !== undefined) group.position.y = spec.groundOffset;
 
   return { group, spec, named, hooks };
+}
+
+/** World units a model's ink rim stands out from it: two or three pixels at the play camera's distance. */
+const OUTLINE_WIDTH = 0.022;
+
+/** Whether a part gets a rim: lit, solid, and big enough that the rim is not all of it - an eye is not. */
+function inked(mesh: Mesh, mat: MatSpec): boolean {
+  if (mat.unlit === true || (mat.opacity ?? 1) < 1) return false;
+  const geometry = mesh.geometry;
+  if (geometry.boundingSphere === null) geometry.computeBoundingSphere();
+  return geometry.boundingSphere!.radius * Math.max(mesh.scale.x, mesh.scale.y, mesh.scale.z) >= 0.06;
 }
 
 function applyTransform(mesh: Mesh, part: PartSpec): void {

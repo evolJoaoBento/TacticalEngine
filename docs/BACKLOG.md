@@ -4,6 +4,30 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The board goes cartoon — done
+
+The user asked for the player view to look more like Slay the Spire's cartoon, and liked what
+the board became, though what they meant was the UI (the next entry). Light falls on every model,
+the ground and the construction pieces in three flat bands (`MeshToonMaterial` on one shared ramp,
+`src/engine/render/toon.ts`), faceted as before. Models wear an ink rim: an inverted hull per lit,
+solid part, its normals averaged so a box's rim does not split at the corners, skipped for fx,
+glass and specks like eyes. A hull only draws a silhouette, which left a raised slab's front edge
+bare, so the ground is inked along its creases instead, as lines a few screen pixels wide, found
+over the whole ground at once so two kinds of ground meeting on the level draw no border. Rims and
+lines live on a layer only play's camera turns on: the editor stays plain, and no raycast ever
+hits one. The light is warm (a candle sky, a plum bounce, an afternoon sun), the backdrop a warm
+dark instead of navy, shadows `PCFShadowMap` (what was already running, without the deprecation
+warning in every log), and play grades the canvas a little richer with a vignette, in CSS, while
+the HUD is up. The floaters' inline styles moved into `hud.css` to pay for the one line in
+`main.ts`, and its pin came down to 2457.
+
+`npx tsc --noEmit` clean; vitest **1925 passed (1925)**; Playwright **127 passed (6.6m)**, `EXIT 0` -- the
+125 committed specs and two local screenshot specs. New: `toon.test.ts` (the ramp's three nearest
+bands; a closed hull with outward normals; the ink shader's push; a rim on its own layer that no
+raycast hits; a slab's twelve creases; one ink over the ground with no border between two kinds of
+ground) and a `build.test.ts` case (a rim only when asked, never on fx, glass or a speck, sharing
+its hull). Screenshots and close-ups read: models rimmed, slabs and steps inked, no squares on the floor.
+
 ## Carry anything, with a lift, a swing and a drop — done
 
 The user's ask: a pickup animation, a hover where the bottom lags, a drop animation, and all of it

@@ -136,11 +136,12 @@ adapter: the rest of the core does not know it exists.
 | `character/sheet.ts`, `sheet-schema.ts` | An authored `CharacterSheet` and the `DerivedCharacter` computed from it. |
 | `character/progression.ts` | Levelling, subclass stages. |
 | `dialogue/schema.ts`, `dialogue.ts`, `layout.ts` | Conversation graphs and their editor layout. |
-| `render/scene-view.ts` | `SceneView` — engine state to three.js objects, one way (1485 lines). |
+| `render/scene-view.ts` | `SceneView` — engine state to three.js objects, one way (1490 lines). |
 | `render/camera.ts` | `OrbitCamera`, plain data, deliberately not three's `OrbitControls` so it is testable headless. |
 | `render/assets.ts` | `AssetLibrary` — glTF/GLB loading. |
 | `render/thumbnails.ts` | `ModelThumbnails`, `thumbnailOf` — a model drawn once into a small offscreen canvas of its own and kept as a data URL, for the editor's strip. The canvas is made on the first picture, so play never opens a second WebGL context. |
 | `render/carry.ts` | `CarryMotion` — the editor's hand: a picked-up thing lifts, hangs from its top under the pointer so its bottom swings behind the way it goes (a critically damped follow, and a looser pendulum for the lean), floats while held still, and drops with a squash. Presentation only; it poses a three object, so it is tested headless. |
+| `render/toon.ts` | The cartoon look. `toonMaterial` steps light in three flat bands on one shared ramp, faceted; `addOutline` hangs an inverted-hull ink rim on a model part (normals averaged by `smoothHull` so a box's rim does not split at the corners); `inkEdges` draws the ground's creases as lines a few screen pixels wide. Rims and lines live on `OUTLINE_LAYER`, which only play's camera turns on, so the editor draws the room plain and no raycast ever lands on one. |
 | `render/authoring-marks.ts` | What the editor draws for things with no body of their own: a party start (the legacy blue ring, with a pawn to take hold of) and an object with no model (a gold ring and a gem). `setAuthoring` draws them; play never does. |
 | `render/layout.ts` | The only place that knows tile-to-world scale. |
 | `render/terrain-mesh.ts` | Continuous legacy ground mesh per terrain type. |

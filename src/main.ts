@@ -13,7 +13,7 @@
  */
 
 import { Fragment, h, render } from 'preact';
-import { PCFSoftShadowMap, Plane, PerspectiveCamera, Raycaster, Vector2, Vector3, WebGLRenderer, type Intersection, type Mesh, type Object3D } from 'three';
+import { PCFShadowMap, Plane, PerspectiveCamera, Raycaster, Vector2, Vector3, WebGLRenderer, type Intersection, type Mesh, type Object3D } from 'three';
 import { demoMap } from '../legacy/js/data.js';
 import { EditorController } from './editor/controller';
 import { placementRotation } from './editor/placement-rotation';
@@ -41,7 +41,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NO_TILE, type Spot, type TileGrid } from './engine/grid/grid';
 import { mapExtent, spotToWorld, tileAtWorld, tileCenter, worldToSpot } from './engine/render/layout';
 import { MODELS } from './engine/render/procedural/registry';
-import { SceneView, hueOf } from './engine/render/scene-view';
+import { SceneView, hueOf, OUTLINE_LAYER } from './engine/render/scene-view';
 import { DEFAULT_TERRAIN_COLORS } from './engine/render/terrain-mesh';
 import { journalSummary } from './engine/content/quests';
 import { blankScene, gridFromScene } from './engine/scene/grid-from-scene';
@@ -247,17 +247,10 @@ const app = document.getElementById('app') as HTMLDivElement;
 /**
  * A layer of its own over the canvas, under the panels: a floater is a
  * positioned div rather than a sprite, so it is drawn with the page's font in
- * the log's tone colour and needs no texture.
+ * the log's tone colour and needs no texture. `hud.css` has the look.
  */
 const floaterLayer = document.createElement('div');
 floaterLayer.id = 'floaters';
-Object.assign(floaterLayer.style, {
-  position: 'absolute',
-  inset: '0',
-  overflow: 'hidden',
-  pointerEvents: 'none',
-  font: '600 15px/1 system-ui, sans-serif',
-});
 document.body.insertBefore(floaterLayer, app);
 
 interface LiveFloater {
@@ -295,13 +288,8 @@ function drainFloaters(): void {
     el.dataset['testid'] = 'floater';
     el.dataset['entity'] = floater.id;
     el.textContent = floater.text;
-    Object.assign(el.style, {
-      position: 'absolute',
-      transform: 'translate(-50%, -100%)',
-      color: TONE[floater.tone],
-      textShadow: '0 1px 2px #000, 0 0 6px rgba(0,0,0,0.8)',
-      whiteSpace: 'nowrap',
-    });
+    el.className = 'floater';
+    el.style.color = TONE[floater.tone];
     floaterLayer.appendChild(el);
     liveFloaters.push({ el, id: floater.id, stack, born: now });
   }
@@ -334,7 +322,7 @@ function driveFloaters(now: number): void {
 const renderer = new WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(1);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = PCFSoftShadowMap;
+renderer.shadowMap.type = PCFShadowMap;
 renderer.setSize(window.innerWidth, window.innerHeight, false);
 const gl = renderer.getContext();
 const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
@@ -2448,6 +2436,8 @@ function frame(now = performance.now()): void {
   if (orbit.update(dt)) applyCamera();
   updateBuildingPreview();
   buildings.update(camera);
+  // Ink rims are play's look; the editor draws the room plain (`render/toon.ts`).
+  if (camera.layers.isEnabled(OUTLINE_LAYER) !== (mode === 'play')) camera.layers.toggle(OUTLINE_LAYER);
   renderer.render(view.scene, camera);
   state.frames++;
   requestAnimationFrame(frame);

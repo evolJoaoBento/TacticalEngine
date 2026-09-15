@@ -108,6 +108,7 @@ const RING_ONLY: ProceduralModelSpec = {
 import { ModelRegistry } from './procedural/registry';
 import { OBJECT_MARK, PARTY_START_MARK } from './authoring-marks';
 import { CarryMotion } from './carry';
+export { OUTLINE_LAYER } from './toon';
 import { ringMaterial } from './procedural/spec';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
 
@@ -293,7 +294,7 @@ export class SceneView {
     // placeholder says so, and takes the honest `missing()` entry with it.
     this.fallbackFor = options.fallbackFor ?? ((): string | null => null);
 
-    this.scene.background = new Color('#0d0f14');
+    this.scene.background = new Color('#1b1520');
     this.scene.add(this.root);
 
     this.terrainOptions = options;
@@ -530,10 +531,12 @@ export class SceneView {
    * whole room is inside it whatever the room's size.
    */
   private addLights(): void {
-    this.scene.add(new AmbientLight(0xffffff, 0.3));
-    this.scene.add(new HemisphereLight(new Color('#b9c7e0'), new Color('#2b2a26'), 0.55));
+    // Warm, as a painted room is: a candle-coloured sky, a plum floor bounce, and an
+    // afternoon sun, which the toon ramp turns into flat lit and shaded sides.
+    this.scene.add(new AmbientLight(new Color('#fff1e0'), 0.42));
+    this.scene.add(new HemisphereLight(new Color('#ffe6c4'), new Color('#3d2c48'), 0.6));
 
-    const sun = new DirectionalLight(0xffffff, 1.35);
+    const sun = new DirectionalLight(new Color('#ffe3b8'), 1.5);
     sun.castShadow = true;
     // 1024 is soft enough on a 22-tile room, and half the cost of the next
     // size up on the software GL the browser suite runs on.
@@ -901,6 +904,8 @@ export class SceneView {
   }
 
   private build(modelId: string, options: BuildOptions = {}): BuiltModel {
+    // Everything the room stands up is rimmed in ink; the camera decides whether the rim is seen.
+    options = { outline: true, ...options };
     if (this.assets !== null && this.assets.has(modelId)) {
       const template = this.assets.template(modelId);
       if (template !== undefined) return this.instantiate(modelId, template, options);
@@ -1177,7 +1182,7 @@ export class SceneView {
     this.marks.length = 0;
     this.authoring = scene !== null;
     // The editor's viewport wears Blender's grey, like the panels round it; play keeps its dark ground.
-    (this.scene.background as Color).set(this.authoring ? '#393939' : '#0d0f14');
+    (this.scene.background as Color).set(this.authoring ? '#393939' : '#1b1520');
     if (this.authoring) {
       for (const token of this.tokens.values()) token.group.visible = false;
     } else {
