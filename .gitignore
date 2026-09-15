@@ -22,3 +22,6 @@ public/cards/
 # what is committed here is the engine, not a catalogue packaged for import. Anchored to the root:
 # `public/packs/` is the engine's own pack, written here and shipped with the build.
 /packs/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
