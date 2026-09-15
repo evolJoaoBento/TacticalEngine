@@ -85,7 +85,7 @@ export class BuildingView {
   /** Everything this view owns, for a caller to add to a scene of their own. */
   readonly root = new Group();
   /** The grid drawn at the level being built on, so an empty plane is still aimable. */
-  readonly guide = new GridHelper(32, 32, '#7a7a7a', '#3c3c3c');
+  readonly guide = new GridHelper(32, 32, '#8a8a8a', '#505050');
   /** The translucent piece under the pointer. */
   readonly preview = new Group();
   private readonly chunks = new Map<string, Chunk>();

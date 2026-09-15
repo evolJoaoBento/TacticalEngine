@@ -17,7 +17,10 @@ floating in it. `editor-shell.spec.ts`'s colour test now pins the grey. The work
 layouts (Quests is still one row in a corner) are the next slice, not this one. Two leftovers the
 screenshots showed went after: the build grid and the ghost piece were still purple -- three.js
 colours in `building-view.ts`, not CSS -- and are grey and the editor's blue; and Piece height was a
-heading wrapping its own input, which the new heading strip swallowed.
+heading wrapping its own input, which the new heading strip swallowed. The 3D viewport behind the
+editor was still play's navy; it is Blender's grey now (`#393939`, set in `setAuthoring`, so play
+keeps its dark ground), with the build grid lightened to read on it. The side panels were 96% opaque,
+so a bright board ghosted through them; they are solid now, as Blender's are.
 
 `npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed**, `EXIT 0`, with the
 colour test retargeted. Screenshots read: the four modes, the Content menu, the Cards and Party
@@ -48,7 +51,9 @@ they squeeze, the grown card sits over its neighbours as a deck-builder's does, 
 the fan for the orb or End Turn. A cut that slid the neighbours by a fixed amount ran a big hand's
 end cards onto both; so did keeping the spare room as padding outside the slots, which left a
 four-card hand nothing to spread into. The fan's whole tilt is held to about twelve degrees, and the resting cards
-stand high enough to show the reason along their foot.
+stand high enough to show the reason along their foot. And the GM strip's Shadow label ran into its
+pips -- the row shrank the label to fit twelve of them; neither shrinks now, and the GM's pips are
+narrow enough that twelve fit on the line.
 
 `npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed**, `EXIT 0`, every
 existing card test clicking its card in the fan. Screenshots read: exploring, hovering, in a fight,

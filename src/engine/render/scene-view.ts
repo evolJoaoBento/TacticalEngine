@@ -1167,6 +1167,8 @@ export class SceneView {
     }
     this.authoredCreatures.length = 0;
     this.authoring = scene !== null;
+    // The editor's viewport wears Blender's grey, like the panels round it; play keeps its dark ground.
+    (this.scene.background as Color).set(this.authoring ? '#393939' : '#0d0f14');
     if (this.authoring) {
       for (const token of this.tokens.values()) token.group.visible = false;
     } else {

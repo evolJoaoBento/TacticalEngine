@@ -10,7 +10,7 @@
  */
 :root {
   --ph-bar: #181818;
-  --ph-panel: rgba(48, 48, 48, 0.96);
+  --ph-panel: #303030;
   --ph-surface: #303030;
   --ph-raised: #3d3d3d;
   --ph-field: #1d1d1d;

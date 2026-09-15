@@ -24,16 +24,16 @@
 .hud-card.is-down{opacity:.45}
 .hud-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px}
 .hud-head .play-name{font-size:14px}
-.hud-pips{display:flex;align-items:center;gap:2px;margin-top:3px}
-.hud-pips>span:first-child{min-width:36px;margin-right:3px;white-space:nowrap;font:600 8px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--play-muted)}
-.pip{width:10px;height:6px;border-radius:2px;background:#2a3240;box-shadow:inset 0 0 0 1px #0006}
+.hud-pips{display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-top:3px}
+.hud-pips>span:first-child{flex:none;min-width:36px;margin-right:3px;white-space:nowrap;font:600 8px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--play-muted)}
+.pip{flex:none;width:10px;height:6px;border-radius:2px;background:#2a3240;box-shadow:inset 0 0 0 1px #0006}
 .pip.is-marked{background:var(--pip);box-shadow:0 0 5px var(--pip)}
 .hud-gear{margin-top:5px;font-size:10px;color:var(--play-muted)}
 .hud-conditions{margin-top:2px;font-size:10px;color:var(--play-gold-bright)}
 .hud-level{display:block;width:100%;margin:0 0 6px;padding:3px 6px;font-size:11px}
 .hud-gm{cursor:default;padding:8px 10px 7px}
 .hud-gm .play-eyebrow{display:block;margin-bottom:6px}
-.hud-gm .pip{width:7px}
+.hud-gm .pip{width:5px}
 
 /* The hand, along the bottom: relics above it, the Light orb at its left, the verbs at its right.
    Only the cards and buttons take the pointer; the board shows through the rest. */
@@ -45,7 +45,7 @@
 .relic .ability-card-art{display:block;width:100%;height:100%;opacity:.9}
 .relic .ability-card-art>svg,.relic .ability-card-art>img{display:block;width:100%;height:100%;object-fit:cover}
 .hand-armed{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 14px;border-color:var(--play-gold-bright);background:#2a2618f0;pointer-events:auto}
-.hand-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;width:100%;padding:0 12px;box-sizing:border-box}
+.hand-row{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;width:100%;padding:0 12px;box-sizing:border-box}
 .hand-orb{position:relative;width:64px;height:64px;margin-bottom:22px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#ffe9a8,#c7972e 55%,#6b4d0d);border:2px solid #f2d48f;box-shadow:0 0 18px #e8bd6388,0 6px 14px #000b;color:#3a2a06;line-height:1;pointer-events:auto;flex:none}
 .hand-orb b{font:700 22px/1 Georgia,serif}
 .hand-orb small{font:600 9px/1 system-ui,sans-serif;margin-top:1px}
