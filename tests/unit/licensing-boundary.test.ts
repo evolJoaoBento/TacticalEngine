@@ -7,7 +7,9 @@ import { dirname, join, resolve } from 'node:path';
 /**
  * The licensing boundary, as a test.
  *
- * Only vendored SRD *text* and our own code belong in this repository. The
+ * Only vendored SRD *text* and our own code belong in this repository, and a
+ * third-party asset whose licence grants redistribution, shipped with that
+ * licence beside it -- the play UI's font, Kreon, under the SIL OFL. The
  * Darrington Press Community Gaming License covers the System Reference
  * Document — rules text and mechanics. It does not cover Critical Role's
  * artwork, and a fan mirror is not a licence.
@@ -187,6 +189,15 @@ describe('the marks stay out of the repository', () => {
       'these name a third-party mark outside the attribution. The engine may not be branded or ' +
         'documented as somebody else\'s product. Rewrite the sentence; do not add it here.',
     ).toEqual([]);
+  });
+
+  it('ships a font only with its licence beside it', () => {
+    // Kreon is the one third-party file here, and the SIL Open Font License that lets us ship it
+    // requires the licence to travel with it. A font without its OFL.txt is one nobody can check.
+    const files = tracked();
+    const fonts = files.filter((path) => path.startsWith('public/fonts/') && /\.(woff2?|ttf|otf)$/i.test(path));
+    expect(fonts.length).toBeGreaterThan(0);
+    for (const font of fonts) expect(files, `${font} has no licence beside it`).toContain(font.replace(/[^/]+$/, 'OFL.txt'));
   });
 
   it('has retired the old product name everywhere but its persisted keys', () => {

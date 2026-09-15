@@ -7,7 +7,7 @@
  * stops for an answer.
  *
  * Text only. Lines are read, never spoken — CONTEXT.md rules out narration.
- * The look is `hud.css`, the deck browser's language.
+ * The look is `hud.css`: Slay the Spire's leather, ink and Kreon.
  */
 
 import { useState } from 'preact/hooks';

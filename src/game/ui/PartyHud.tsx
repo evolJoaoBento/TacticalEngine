@@ -5,7 +5,7 @@
  * pips — each Hit Point, Stress and Armor Slot as a bar, lit when marked.
  * That is what the character sheet looks like, and it is what a player counts
  * when deciding whether to take the hit or spend the armor. The look is the
- * deck browser's (`hud.css`): gold for the one selected, Georgia for names.
+ * deck browser's (`hud.css`): gold for the one selected, Kreon for names.
  */
 
 import './hud.css';

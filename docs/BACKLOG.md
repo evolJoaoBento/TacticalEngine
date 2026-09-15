@@ -4,6 +4,31 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The play UI goes Slay the Spire — done
+
+What the user meant by the cartoon ask: the UI. The navy glass and bronze hairlines are gone. Every
+panel, button and card is warm leather or wood with a thick ink line round it, a gold hairline
+inside, and a hard drop shadow instead of a blur; names and numbers are Kreon, Slay the Spire's own
+face, in white outlined in ink. The party are plaques, the selected one lit gold; pips are chunky
+bevelled bars. The Light orb is the energy orb, bigger, glowing, a slow swirl turning in it. End
+Turn is the big blue button rimmed in gold (Rest the same in amber), buttons press down, the relics
+sit on a wooden shelf. Cards are framed in their domain's colour with the name on a ribbon across
+the top, the art in an ink-rimmed window, the rules in cream on a dark inset, and the cost gems
+hanging off the corners where Slay the Spire puts its energy cost, clear of the name; a playable
+card glows cyan. The deck browser, the rest and the level-up sheets wear the same leather, and a
+floater is a big inked number that pops. The hand's widths are untouched; a seven-card hand still
+fits and a hovered card still grows where it stands. Two things the screenshots caught: the cost
+gems first sat on the name, and then were clipped, because `cards.css` loads after `hud.css`
+(PlayPanel imports it first) and `.face` won a tie with `.hand-card` -- the hand's rule is
+`.face.hand-card` now, with a note. Kreon is vendored with its SIL OFL (`public/fonts/kreon`); it is
+the one third-party file, credited in `CONTEXT.md` and guarded by `licensing-boundary.test.ts`.
+
+`npx tsc --noEmit` clean; vitest **1926 passed (1926)**; Playwright **125 passed (6.4m)**, `EXIT 0` --
+a minute and a half slower than before the cartoon work (4.9m). New: `licensing-boundary.test.ts`
+fails if a font is tracked without its licence beside it. Screenshots read for exploring, a fight,
+a hovered card, a seven-card hand and its hover, the rest, the loadout's deck browser and the
+level-up sheet, and a floater close up.
+
 ## The board goes cartoon — done
 
 The user asked for the player view to look more like Slay the Spire's cartoon, and liked what

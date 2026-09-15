@@ -27,6 +27,10 @@ typed arrays, no per-frame allocations, measured budgets.
   terms of the Darrington Press Community Gaming (DPCGL) License. More information can be found at
   https://www.daggerheart.com." Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
   (The vendored community *data* sets are SRD 1.0 and carry their own 1.0 attribution; keep both.)
+- The play UI's font is **Kreon** (Copyright 2018 The Kreon Project Authors), used under the SIL Open
+  Font License 1.1, which lets it be redistributed as long as the licence goes with it:
+  `public/fonts/kreon/OFL.txt`. It is the only third-party file in the repository, and
+  `licensing-boundary.test.ts` fails if a font is ever tracked without its licence beside it.
 
 ## Chosen stack (verified working on this machine, 2026-09-04)
 
