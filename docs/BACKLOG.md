@@ -42,7 +42,15 @@ editor was still play's navy; it is Blender's grey now (`#393939`, set in `setAu
 keeps its dark ground), with the build grid lightened to read on it. The side panels were 96% opaque,
 so a bright board ghosted through them; they are solid now, as Blender's are. And the tool rail was
 one icon tall at the top-left, leaving dead board under it: it runs down to the library strip now,
-and the strip runs to the left edge under it, as the user asked.
+and the strip runs to the left edge under it, as the user asked. And the heading strip painted
+itself over fields wherever `ph-heading` sat on a `label` wrapping its own control -- the Combat
+panel's selected creature and the Models workspace, which Piece height had been patched around one
+at a time: a label is inline, so the strip's padding took no room and covered what was above and
+below. Such a label is Blender's property label now, muted over its control, and only a `div`
+heading is a strip. The same screenshot showed the rule that sets a panel's first heading flush
+under its edge (10px up) catching the first heading of any block inside a panel, so "Selected
+creature" rode up over the hint above it; it applies to a side panel's own first heading only.
+`panel-layout.spec.ts` reads the panels' boxes, which is how either would have been caught.
 
 `npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed**, `EXIT 0`, with the
 colour test retargeted. Screenshots read: the four modes, the Content menu, the Cards and Party

@@ -213,7 +213,14 @@
 .ph-editor .ph-side { position: absolute; top: 40px; right: 0; bottom: 0; width: 300px; overflow-y: auto; padding: 10px 12px; box-sizing: border-box; border-top: 0; border-right: 0; border-bottom: 0; }
 .ph-editor .ph-side-left { right: auto; left: 0; width: 260px; bottom: auto; max-height: calc(100% - 40px); border-left: 0; border-bottom: 1px solid var(--ph-line); }
 .ph-editor .ph-heading { font: 600 11px/1 system-ui, sans-serif; letter-spacing: 0.02em; text-transform: none; color: var(--ph-label); margin: 12px -12px 6px; padding: 5px 12px; background: var(--ph-raised); border-top: 1px solid var(--ph-line); border-bottom: 1px solid var(--ph-line); }
-.ph-editor .ph-heading:first-child { margin-top: -10px; border-top: 0; }
+/* Flush under the panel's own edge -- a panel's first heading only, not the first of any block
+   inside it, or it rides up over whatever that block follows. */
+.ph-editor .ph-side > .ph-heading:first-child { margin-top: -10px; border-top: 0; }
+/* A label wrapping the control it names is a property, not a section: a label is inline, so the
+   section strip's padding painted it over the fields above and below. It is Blender's property
+   label -- muted, over its control -- and only a `div` heading is a strip. */
+.ph-editor label.ph-heading, .ph-editor label.ph-heading:first-child { display: flex; flex-direction: column; align-items: stretch; gap: 4px; margin: 10px 0 0; padding: 0; background: none; border: 0; font: 500 11px/1.2 system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: var(--ph-muted); }
+.ph-editor label.ph-heading > input, .ph-editor label.ph-heading > select, .ph-editor label.ph-heading > textarea { width: 100%; box-sizing: border-box; font: 400 12px/1.4 system-ui, 'Segoe UI', sans-serif; color: var(--ph-text); }
 .ph-editor .ph-hint { color: var(--ph-muted); font-size: 11px; }
 .ph-editor .ph-row { display: flex; gap: 4px; align-items: center; margin-bottom: 3px; }
 .ph-editor .ph-chip { padding: 3px 10px; border: 1px solid var(--ph-line); border-radius: 3px; background: var(--ph-raised); }

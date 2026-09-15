@@ -200,7 +200,7 @@ loads `/src/main.ts`.
 `file-size-ceiling.test.ts`, the three card-art tests (`card-art.test.ts`, `card-art-packaging.test.ts`, `card-sigil.test.ts`),
 `demo-scene.test.ts`, `demo-map-fight.test.ts`, `legacy-campaign-import.test.ts` and
 `spike.test.ts`. `tests/e2e/` holds `between-fights`, `building`, `camera`, `card-browser`, `card-editor`, `demo`,
-`editor-panels`, `editor-shell`, `pack-import`, `placement`, `playpass`, `readout`, `save-load`
+`editor-panels`, `editor-shell`, `library-thumbnails`, `pack-import`, `panel-layout`, `placement`, `playpass`, `readout`, `save-load`
 and `warden`, each a `.spec.ts`. `tests/fixtures/` holds the specimens tests play -- `cards.ts`,
 `adversaries.ts`, `adversary-features.ts`, `characters.ts` -- the frozen version-1 documents in
 `v1/`, and `models/` (`BoxTextured.glb`, `Duck.glb`, `Fox.glb`).
