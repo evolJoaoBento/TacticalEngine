@@ -166,7 +166,7 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 | `demo-code.ts`, `demo-dialogue.ts`, `demo-items.ts`, `demo-quests.ts`, `demo-scenes.ts` | The demo project's content. |
 | `save.ts` | `saveSchema`, `saveGame`, `loadGame`, `saveBlockedBy`. A save is state layered over a project, not a copy of it. |
 | `save-slots.ts` | `localStorage` when there is one, an in-memory store otherwise. |
-| `ui/` | `ActionBar`, `PartyHud`, `PlayPanel`, `LoadoutPanel`, `LevelUpPanel`, `RestPanel` (Preact). `CardFace` draws a card; `CardArtImport` is the per-browser art picker under it, and `CardPreview` is the two together, which `main.ts` hands to the editor's Cards panel as a render prop -- the editor never imports the game. |
+| `ui/` | `ActionBar`, `PartyHud`, `PlayPanel`, `LoadoutPanel`, `LevelUpPanel`, `RestPanel` (Preact). `hud.css` is the play overlay's look -- the deck browser's palette (`cards.css`) named once as `--play-*` tokens -- and the HUD, bar, panel and rest wear its classes rather than inline styles. `CardFace` draws a card; `CardArtImport` is the per-browser art picker under it, and `CardPreview` is the two together, which `main.ts` hands to the editor's Cards panel as a render prop -- the editor never imports the game. |
 
 ### `src/editor/` — a project someone can edit
 

@@ -73,13 +73,13 @@ Q/E) are ignored while a text field has focus; the other keys are not (see Limit
   rolls a single d20, and the log says what it did. Several at once (a feature everyone has to
   dodge) queue and are shown in the order they were rolled.
 - **HUD** (bottom left): one card per party member — name, class, and pips for HP, Stress,
-  Armor, and Light (each box one slot, filled when marked), any conditions, and a line naming
-  what they wield and wear. The selected card has a blue border; a fallen member is dimmed.
-  Clicking a card selects that character. A yellow **Level up** button appears on a card when
-  a level is waiting (see Levelling up). The last card shows the GM's **Shadow** pips and either
-  "Exploring" or "Round N".
+  Armor, and Light (each bar one slot, lit when marked; Light wears the Light die's gold), any
+  conditions, and a line naming what they wield and wear. The selected card has a gold border; a
+  fallen member is dimmed. Clicking a card selects that character. A gold **Level up** button
+  appears on a card when a level is waiting (see Levelling up). The strip beside them is the GM's:
+  "Exploring" or "Round N", and the **Shadow** pips in the Shadow die's violet.
 - **Play panel** (bottom right), top to bottom:
-  - **Save / Load** buttons.
+  - **Save / Save as… / Load**, small and grey until wanted.
   - **Journal**: every quest the party has been given. Active quests show their summary and
     their steps as ☐ / ☑; completed quests are struck through; failed ones say "— failed".
     Finished quests sink below active ones.

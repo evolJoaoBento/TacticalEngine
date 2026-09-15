@@ -4,6 +4,27 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## The play HUD speaks the deck browser's language — done
+
+Screenshots of every screen (`test-results/shots/`, a throwaway spec) showed the split: the editor
+has its purple, the deck browser has gold on navy with Georgia for names, and the play overlay
+had neither -- grey rounded boxes, hollow square pips, four accent colours, system-ui everywhere,
+a name floating loose in the action bar and three Save buttons hanging in a corner. Now
+`src/game/ui/hud.css` names the browser's palette once (`--play-*`) and `PartyHud`, `ActionBar`,
+`PlayPanel` and `RestPanel` wear its classes: one surface, one border, one accent (gold is yours),
+Georgia for names only, eyebrow caps for labels, pips as lit bars in the dice's colours (Light
+gold, Shadow violet), the GM's strip shaped unlike a character's, the acting character as the
+bar's title with the turn under it, the verbs as buttons under the bar rather than a second box,
+the saves as ghosts. The log's tones follow: good is the Light die's gold, bad the Shadow die's
+violet, and the floaters over heads read `TONE` too, so they changed with it. Anchors, testids
+and pointer rules are as they were. Still in the old look: `LevelUpPanel`, the dice tray's
+readout, and the editor's Content workspaces (Quests is an empty panel with one row in a corner).
+
+`npx tsc --noEmit` clean; vitest **1886 passed (1886)**; Playwright **121 passed**, `EXIT 0`. A restyle:
+no new test, since nothing asserts on colours; the screenshots were read, every one, and the two
+defects they showed (a pip label under its pips, the card row wrapping under the name) fixed
+before the run.
+
 ## Middle drag orbits, Ctrl + wheel climbs — done
 
 A middle drag turns the camera in play and in the editor alike, where the left button belongs

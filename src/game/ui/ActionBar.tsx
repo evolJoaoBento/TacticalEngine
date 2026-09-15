@@ -7,13 +7,13 @@
  * next click on the board picks it, and Escape puts the bar down again.
  *
  * Nothing here decides anything; `demo-abilities.ts` says what is usable and
- * why, and this lays it out.
+ * why, and this lays it out. The look is `hud.css`.
  */
 
 import type { AbilityView } from '../demo-abilities';
 import { CardArtwork } from './CardFace';
 import { domainColor } from './card-sigil';
-import './cards.css';
+import './hud.css';
 
 export interface ActionBarProps {
   /** The selected character, or null when nobody is. */
@@ -33,54 +33,6 @@ export interface ActionBarProps {
   onRest: () => void;
 }
 
-const wrap: Record<string, string | number> = {
-  position: 'absolute',
-  left: '50%',
-  // Along the top edge, where nothing else sits and the board is not.
-  top: '12px',
-  transform: 'translateX(-50%)',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '6px',
-  color: '#e8e6df',
-  font: '12px/1.4 system-ui, sans-serif',
-  // The bar floats over the board: only its buttons take the pointer, so a
-  // tile seen through the panel can still be hovered and clicked.
-  pointerEvents: 'none',
-  maxWidth: '60vw',
-};
-
-const row: Record<string, string | number> = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  justifyContent: 'center',
-  gap: '6px',
-  padding: '8px 10px',
-  background: 'rgba(16,18,24,0.9)',
-  border: '1px solid #39404d',
-  borderRadius: '8px',
-};
-
-function chip(kind: 'ability' | 'attack' | 'turn' | 'armed', usable: boolean): Record<string, string | number> {
-  const border = kind === 'armed' ? '#ffe08a' : kind === 'attack' ? '#ffc861' : kind === 'turn' ? '#69d2ff' : '#7fd1ff';
-  return {
-    padding: '5px 10px',
-    border: `1px solid ${usable ? border : '#39404d'}`,
-    borderRadius: '5px',
-    background: kind === 'armed' ? 'rgba(255,224,138,0.18)' : 'rgba(0,0,0,0.25)',
-    color: usable ? 'inherit' : '#8ea3b0',
-    font: 'inherit',
-    cursor: usable ? 'pointer' : 'default',
-    opacity: usable ? 1 : 0.6,
-    textAlign: 'left',
-    minWidth: '92px',
-    pointerEvents: 'auto',
-  };
-}
-
-const small: Record<string, string | number> = { fontSize: '10px', color: '#8ea3b0' };
-
 /** "1 Light · 2 Stress · 1 left" — what a card costs, at a glance. */
 function badges(view: AbilityView): string {
   const parts: string[] = [];
@@ -99,12 +51,12 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
 
   if (props.targeting !== null) {
     return (
-      <div style={wrap} data-testid="action-bar" data-targeting={props.targeting.abilityId}>
-        <div style={{ ...row, border: '1px solid #ffe08a' }}>
-          <span style={{ padding: '5px 4px' }}>
+      <div className="play bar" data-testid="action-bar" data-targeting={props.targeting.abilityId}>
+        <div className="play-box bar-row is-armed">
+          <span className="bar-armed">
             {props.targeting.name}: click {props.targeting.spot === true ? 'a spot' : 'a target'} on the board
           </span>
-          <button style={chip('armed', true)} data-testid="cancel-targeting" onClick={props.onCancelTargeting}>
+          <button className="play-btn is-primary" data-testid="cancel-targeting" onClick={props.onCancelTargeting}>
             Cancel (Esc)
           </button>
         </div>
@@ -113,18 +65,21 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
   }
 
   return (
-    <div style={wrap} data-testid="action-bar">
-      <div style={row}>
-        <span style={{ ...small, alignSelf: 'center', marginRight: '4px' }}>{props.name}</span>
-        <span style={chip('attack', !gmTurn)} title="Click an adversary on the board to attack" data-testid="attack-chip">
+    <div className="play bar" data-testid="action-bar">
+      <div className="play-box bar-row">
+        <div className="bar-who">
+          <span className="play-name">{props.name}</span>
+          <span className="play-eyebrow">{props.fighting ? (props.side === 'party' ? 'Your turn' : "GM's turn") : 'Selected'}</span>
+        </div>
+        <div className="bar-chips">
+        <span className={`chip is-attack${gmTurn ? ' is-off' : ''}`} title="Click an adversary on the board to attack" data-testid="attack-chip">
           <div>Attack</div>
-          <div style={small}>{props.weapon}</div>
+          <div className="chip-sub">{props.weapon}</div>
         </span>
         {props.abilities.map((view) => (
           <button
             key={view.ability.id}
-            className="ability-card-chip"
-            style={chip('ability', view.usable)}
+            className={`chip ability-card-chip${view.usable ? ' is-usable' : ''}`}
             disabled={!view.usable}
             title={`${view.text}${view.reason === null ? '' : `\n\n(${view.reason})`}`}
             data-ability={view.ability.id}
@@ -137,14 +92,15 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
               </span>
             ) : null}
             <div>{view.ability.name}</div>
-            <div style={small}>{view.reason ?? badges(view) ?? ''}</div>
+            <div className="chip-sub">{view.reason ?? badges(view) ?? ''}</div>
           </button>
         ))}
+        </div>
       </div>
-      <div style={{ ...row, padding: '4px 8px' }}>
+      <div className="bar-verbs">
         {props.fighting ? (
           <button
-            style={chip('turn', props.side === 'party')}
+            className="play-btn is-primary"
             disabled={props.side !== 'party'}
             title="Hand the spotlight to the GM (Space)"
             data-testid="pass-to-gm"
@@ -153,11 +109,11 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
             Pass to GM
           </button>
         ) : (
-          <button style={chip('turn', true)} data-testid="open-rest" onClick={props.onRest}>
+          <button className="play-btn" data-testid="open-rest" onClick={props.onRest}>
             Rest…
           </button>
         )}
-        <button style={chip('turn', true)} data-testid="open-loadout" onClick={props.onLoadout}>
+        <button className="play-btn" data-testid="open-loadout" onClick={props.onLoadout}>
           Loadout…
         </button>
       </div>

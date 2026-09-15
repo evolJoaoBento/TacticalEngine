@@ -1,0 +1,94 @@
+/* The play overlay -- HUD, action bar, play panel, rest -- in the deck browser's language
+   (cards.css): navy surfaces, bronze frames, gold for what is yours, Georgia for names and
+   system-ui for everything else. The tokens are cards.css's values, named once. Pips borrow
+   the Duality Dice's colours, so Light on the sheet is the Light die's gold and Shadow the
+   Shadow die's violet. */
+:root{--play-surface:#111722;--play-field:#0d131e;--play-frame:#736349;--play-line:#404957;--play-gold:#c7ac70;--play-gold-bright:#d7b96b;--play-ink:#eee4d1;--play-muted:#9ba5b4;--play-light:#e8bd63;--play-shadow:#9d80c4;--play-hp:#e0645c;--play-stress:#a68be0;--play-armor:#8fa3b8}
+.play{color:var(--play-ink);font:12px/1.4 system-ui,sans-serif}
+.play-box{background:#111722e6;border:1px solid var(--play-line);border-radius:8px;box-shadow:0 8px 24px #0008;backdrop-filter:blur(8px)}
+.play-eyebrow{font:600 9px/1 system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--play-gold)}
+.play-name{font:15px/1.15 Georgia,serif;color:var(--play-ink)}
+.play-btn{color:#ede3cb;background:#2a3240;border:1px solid #7e7054;border-radius:5px;padding:5px 11px;cursor:pointer;font:inherit;transition:border-color .12s,background .12s}
+.play-btn:not(:disabled):hover{border-color:var(--play-gold-bright)}
+.play-btn.is-primary{background:#4b422a;border-color:#b39a5f}
+.play-btn.is-ghost{background:transparent;border-color:var(--play-line);color:var(--play-muted)}
+.play-btn.is-ghost.is-on{color:var(--play-ink);border-color:var(--play-gold)}
+.play-btn:disabled{opacity:.45;cursor:default}
+.play button:focus-visible,.play input:focus-visible,.play select:focus-visible{outline:2px solid #f2d48f;outline-offset:2px}
+.play select{background:var(--play-field);color:var(--play-ink);border:1px solid var(--play-line);border-radius:5px;padding:4px 8px;font:inherit}
+
+/* The party, bottom left. */
+.hud{position:absolute;left:0;bottom:0;display:flex;align-items:flex-end;gap:8px;padding:12px;pointer-events:auto}
+.hud-card{min-width:164px;padding:9px 12px 8px;cursor:pointer;transition:border-color .12s,background .12s}
+.hud-card.is-selected{border-color:var(--play-gold-bright);background:#171e2cf0;box-shadow:0 0 0 1px #d7b96b33,0 8px 24px #0008}
+.hud-card.is-down{opacity:.45}
+.hud-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+.hud-pips{display:flex;align-items:center;gap:2px;margin-top:3px}
+.hud-pips>span:first-child{min-width:36px;margin-right:3px;white-space:nowrap;font:600 8.5px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--play-muted)}
+.pip{width:11px;height:6px;border-radius:2px;background:#2a3240;box-shadow:inset 0 0 0 1px #0006}
+.pip.is-marked{background:var(--pip);box-shadow:0 0 5px var(--pip)}
+.hud-gear{margin-top:6px;font-size:10px;color:var(--play-muted)}
+.hud-conditions{margin-top:2px;font-size:10px;color:var(--play-gold-bright)}
+.hud-level{display:block;width:100%;margin:0 0 6px;padding:3px 6px;font-size:11px}
+.hud-gm{min-width:104px;cursor:default;padding:9px 12px 8px}
+.hud-gm .play-eyebrow{display:block;margin-bottom:6px}
+
+/* What the selected character can do, top centre. Only its buttons take the pointer. */
+.bar{position:absolute;left:50%;top:12px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;max-width:60vw}
+.bar-row{display:flex;align-items:stretch;gap:6px;padding:8px 10px;border-color:var(--play-frame);background:#111722f0}
+.bar-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;min-width:0}
+.bar-row.is-armed{border-color:var(--play-gold-bright);background:#2a2618f0;align-items:center;flex-wrap:wrap;justify-content:center}
+.bar-who{display:flex;flex-direction:column;justify-content:center;padding:0 12px 0 4px;margin-right:2px;border-right:1px solid #736349aa}
+.bar-who .play-name{font-size:16px}
+.bar-who .play-eyebrow{margin-top:4px;white-space:nowrap}
+.bar-armed{padding:0 6px;pointer-events:auto}
+.chip{position:relative;overflow:hidden;min-width:92px;max-width:190px;padding:5px 10px;text-align:left;border:1px solid var(--play-line);border-radius:6px;background:var(--play-field);color:var(--play-ink);font:inherit;cursor:pointer;pointer-events:auto;transition:box-shadow .15s,border-color .15s}
+.chip.is-usable{border-color:#7e7054}
+.chip.is-attack{border-color:var(--play-gold)}
+.chip:disabled,.chip.is-off{cursor:default;opacity:.5;color:var(--play-muted)}
+.chip:not(:disabled):not(.is-off):hover{box-shadow:0 0 15px #c6a96760;border-color:var(--play-gold-bright)}
+.chip-sub{font-size:10px;color:var(--play-muted);margin-top:1px}
+.chip .ability-card-art{display:block;width:calc(100% + 20px);height:48px;margin:-5px -10px 6px;opacity:.85;overflow:hidden}
+.chip .ability-card-art>svg,.chip .ability-card-art>img{display:block;width:100%;height:100%;object-fit:cover}
+.chip:disabled .ability-card-art{filter:grayscale(.6)}
+.bar-verbs{display:flex;gap:6px;pointer-events:auto}
+.bar-verbs .play-btn{font-size:12px;padding:5px 12px}
+
+/* What just happened and what is waiting, bottom right. */
+.panel{position:absolute;right:0;bottom:0;width:340px;max-height:75vh;display:flex;flex-direction:column;gap:8px;padding:12px;box-sizing:border-box;pointer-events:auto;font-size:13px;line-height:1.5}
+.panel-box{overflow-y:auto;padding:9px 12px;scrollbar-color:#615a4b transparent}
+.panel-box.is-fixed{flex-shrink:0}
+.panel-box.is-log{flex:1 1 auto;min-height:80px}
+.panel-saves{display:flex;justify-content:flex-end;gap:4px}
+.panel-saves .play-btn{font-size:11px;padding:3px 9px}
+.panel-heading{margin-bottom:5px}
+.panel-line{margin-bottom:4px}
+.panel-line [data-testid=log-entity]{text-decoration:underline dotted;cursor:default}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.panel-sub{font-size:11px;color:var(--play-muted)}
+.panel-prose{color:#d8d4c8}
+.panel-facts{color:var(--play-gold-bright);font-size:12px;margin-top:3px}
+.panel-card{border:1px solid var(--play-line);border-radius:4px;padding:4px 7px;margin-top:4px;font-size:12px}
+.panel-card b{display:block;font-weight:600}
+.panel-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.panel-row .play-btn{padding:1px 8px;font-size:11px;margin-left:6px}
+.panel-option{display:block;width:100%;text-align:left;margin-bottom:4px}
+.panel-detail{color:var(--play-muted)}
+.panel-speaker{color:var(--play-gold-bright)}
+.panel-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.panel-quest{margin-bottom:6px}
+.panel-quest.is-done{color:var(--play-muted);text-decoration:line-through}
+.panel-quest.is-failed{color:var(--play-muted)}
+.panel-x{padding:1px 8px}
+
+/* A rest: a small modal, framed like the deck browser. */
+.rest{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:460px;padding:16px 18px 14px;background:radial-gradient(ellipse at 50% 0,#283343 0,transparent 65%),var(--play-surface);border:1px solid var(--play-frame);border-radius:12px;box-shadow:0 30px 80px #000b;pointer-events:auto;box-sizing:border-box;font-size:13px;line-height:1.5}
+.rest-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
+.rest-head h2{margin:0;font:22px Georgia,serif}
+.rest-kind label{margin-left:12px;cursor:pointer}
+.rest-kind input{accent-color:#d7b96b}
+.rest-note{color:var(--play-muted);font-size:11px;margin:4px 0 10px}
+.rest-member{margin-bottom:8px}
+.rest-member .play-name{font-size:14px;margin-bottom:3px}
+.rest-member select{margin-right:4px}
+.rest-actions{margin-top:12px;display:flex;gap:6px}

@@ -7,12 +7,14 @@
  * stops for an answer.
  *
  * Text only. Lines are read, never spoken — CONTEXT.md rules out narration.
+ * The look is `hud.css`, the deck browser's language.
  */
 
 import { useState } from 'preact/hooks';
 import type { Pending } from '../demo-scene';
 import type { LogLine } from '../log';
 import type { Response } from '../../engine/script/runner';
+import './hud.css';
 
 /** One line of the pack: what it is, and how many. */
 export interface CarriedItem {
@@ -113,59 +115,17 @@ export interface PlayPanelProps {
   actorGood: number;
 }
 
+/**
+ * The log's tones, and the floaters' over heads (`main.ts`): good is the Light die's gold and
+ * bad the Shadow die's violet, so what the dice say and what the log says wear the same colours.
+ */
 export const TONE: Readonly<Record<LogLine['tone'], string>> = {
   narration: '#d8d4c8',
-  system: '#8ea3b0',
-  good: '#7fd1ff',
-  bad: '#ff9d7a',
-  combat: '#ffc861',
+  system: '#9ba5b4',
+  good: '#e8bd63',
+  bad: '#c9aef0',
+  combat: '#ef8a7a',
   success: '#9ae08a',
-};
-
-const wrap: Record<string, string | number> = {
-  position: 'absolute',
-  right: 0,
-  bottom: 0,
-  width: '340px',
-  maxHeight: '75vh',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-  padding: '12px',
-  color: '#e8e6df',
-  font: '13px/1.5 system-ui, sans-serif',
-  boxSizing: 'border-box',
-  pointerEvents: 'auto',
-};
-
-const logBox: Record<string, string | number> = {
-  overflowY: 'auto',
-  background: 'rgba(16,18,24,0.9)',
-  borderRadius: '8px',
-  padding: '10px 12px',
-  boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
-  backdropFilter: 'blur(6px)',
-};
-
-function button(primary: boolean): Record<string, string | number> {
-  return {
-    padding: '6px 12px',
-    marginRight: '6px',
-    border: `1px solid ${primary ? '#69d2ff' : '#39404d'}`,
-    borderRadius: '4px',
-    background: primary ? 'rgba(105,210,255,0.18)' : 'transparent',
-    color: 'inherit',
-    font: 'inherit',
-    cursor: 'pointer',
-  };
-}
-
-const heading: Record<string, string | number> = {
-  color: '#8ea3b0',
-  font: '600 10px/1 system-ui, sans-serif',
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  marginBottom: '4px',
 };
 
 /** A modifier reads as +2 or -1, never as +-1. */
@@ -185,11 +145,11 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
   const choice = asking !== null && asking.kind === 'choice' ? asking : null;
 
   return (
-    <div style={wrap}>
-      <div data-testid="save-row" style={{ textAlign: 'right' }}>
+    <div className="play panel">
+      <div data-testid="save-row" className="panel-saves">
         <button
           type="button"
-          style={{ ...button(false), opacity: props.saveBlocked === null ? 1 : 0.4 }}
+          className="play-btn is-ghost"
           disabled={props.saveBlocked !== null}
           title={props.saveBlocked ?? 'Quick save: one slot, overwritten'}
           data-testid="save"
@@ -199,7 +159,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         </button>
         <button
           type="button"
-          style={{ ...button(false), opacity: props.saveBlocked === null ? 1 : 0.4 }}
+          className="play-btn is-ghost"
           disabled={props.saveBlocked !== null}
           title={props.saveBlocked ?? 'Save into a new named slot'}
           data-testid="save-as"
@@ -209,7 +169,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         </button>
         <button
           type="button"
-          style={{ ...button(saves), marginRight: 0, opacity: props.saves.length > 0 ? 1 : 0.4 }}
+          className={`play-btn is-ghost${saves ? ' is-on' : ''}`}
           disabled={props.saves.length === 0}
           title={props.saves.length > 0 ? 'Saved games' : 'Nothing saved yet'}
           data-testid="load"
@@ -219,13 +179,14 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         </button>
       </div>
       {saves && props.saves.length > 0 ? (
-        <div style={{ ...logBox, padding: '8px 12px', flexShrink: 0 }} data-testid="saves">
-          <div style={heading}>Saved games</div>
+        <div className="play-box panel-box is-fixed" data-testid="saves">
+          <div className="play-eyebrow panel-heading">Saved games</div>
           {props.saves.map((slot) => (
-            <div key={slot.id} style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '3px' }} data-save={slot.id}>
+            <div key={slot.id} className="panel-row" style={{ marginBottom: '3px' }} data-save={slot.id}>
               <button
                 type="button"
-                style={{ ...button(false), flex: 1, textAlign: 'left', margin: 0 }}
+                className="play-btn"
+                style={{ flex: 1, textAlign: 'left', margin: 0, padding: '4px 10px', fontSize: '12px' }}
                 data-testid="load-slot"
                 onClick={() => {
                   props.onLoad(slot.id);
@@ -233,12 +194,12 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
                 }}
               >
                 {slot.name}
-                <span style={{ color: '#8ea3b0', fontSize: '11px' }}>
+                <span className="panel-sub">
                   {' '}
                   · {slot.where} · {new Date(slot.savedAt).toLocaleString()}
                 </span>
               </button>
-              <button type="button" style={{ ...button(false), margin: 0 }} title="Delete this save" onClick={() => props.onDeleteSave(slot.id)}>
+              <button type="button" className="play-btn is-ghost" title="Delete this save" onClick={() => props.onDeleteSave(slot.id)}>
                 ✕
               </button>
             </div>
@@ -247,22 +208,22 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {props.inspecting !== null ? (
-        <div style={{ ...logBox, padding: '8px 12px', flexShrink: 0, border: '1px solid #39404d' }} data-testid="inspect" data-inspect={props.inspecting.id}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <strong>{props.inspecting.name}</strong>
-            <button type="button" style={{ ...button(false), padding: '1px 8px', marginRight: 0 }} title="Close" onClick={props.onCloseInspect}>
+        <div className="play-box panel-box is-fixed" data-testid="inspect" data-inspect={props.inspecting.id}>
+          <div className="panel-head">
+            <span className="play-name">{props.inspecting.name}</span>
+            <button type="button" className="play-btn is-ghost panel-x" title="Close" onClick={props.onCloseInspect}>
               ✕
             </button>
           </div>
-          <div style={{ color: '#8ea3b0', fontSize: '11px' }}>{props.inspecting.line}</div>
-          {props.inspecting.text !== '' ? <div style={{ margin: '4px 0', color: '#d8d4c8' }}>{props.inspecting.text}</div> : null}
-          <div style={{ color: '#c8b88a', fontSize: '12px' }}>{props.inspecting.facts.join(' · ')}</div>
+          <div className="play-eyebrow">{props.inspecting.line}</div>
+          {props.inspecting.text !== '' ? <div className="panel-prose" style={{ margin: '5px 0' }}>{props.inspecting.text}</div> : null}
+          <div className="panel-facts">{props.inspecting.facts.join(' · ')}</div>
           {props.inspecting.cards !== undefined && props.inspecting.cards.length > 0 ? (
-            <div data-testid="inspect-cards" style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div data-testid="inspect-cards" style={{ marginTop: '4px' }}>
               {props.inspecting.cards.map((card) => (
-                <div key={card.id} data-card={card.id} style={{ border: '1px solid #39404d', borderRadius: '3px', padding: '4px 6px' }}>
-                  <div style={{ color: '#e8e6df', fontWeight: 600, fontSize: '12px' }}>{card.name}</div>
-                  {card.text !== '' ? <div style={{ color: '#d8d4c8', fontSize: '12px' }}>{card.text}</div> : null}
+                <div key={card.id} data-card={card.id} className="panel-card">
+                  <b>{card.name}</b>
+                  {card.text !== '' ? <div className="panel-prose">{card.text}</div> : null}
                 </div>
               ))}
             </div>
@@ -271,21 +232,16 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {props.journal.length > 0 ? (
-        <div style={{ ...logBox, padding: '8px 12px', flexShrink: 0 }} data-testid="journal">
-          <div style={heading}>Journal</div>
+        <div className="play-box panel-box is-fixed" data-testid="journal">
+          <div className="play-eyebrow panel-heading">Journal</div>
           {props.journal.map((quest) => (
-            <div key={quest.id} style={{ marginBottom: '6px' }} data-quest={quest.id}>
-              <div
-                style={{
-                  color: quest.status === 'active' ? '#e8e6df' : '#8ea3b0',
-                  textDecoration: quest.status === 'completed' ? 'line-through' : 'none',
-                }}
-              >
+            <div key={quest.id} className="panel-quest" data-quest={quest.id}>
+              <div className={quest.status === 'completed' ? 'is-done' : quest.status === 'failed' ? 'panel-detail' : ''} style={quest.status === 'completed' ? { color: 'var(--play-muted)', textDecoration: 'line-through' } : undefined}>
                 {quest.name}
                 {quest.status === 'failed' ? ' — failed' : ''}
               </div>
               {quest.status === 'active' ? (
-                <div style={{ color: '#8ea3b0', fontSize: '12px' }}>
+                <div className="panel-detail" style={{ fontSize: '12px' }}>
                   {quest.summary !== '' ? <div style={{ marginBottom: '2px' }}>{quest.summary}</div> : null}
                   {quest.objectives.map((objective) => (
                     <div key={objective.id} data-objective={objective.id} data-done={objective.done}>
@@ -300,28 +256,20 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {props.carried.length > 0 ? (
-        <div style={{ ...logBox, padding: '8px 12px', flexShrink: 0 }} data-testid="pack">
-          <div style={heading}>Carried</div>
+        <div className="play-box panel-box is-fixed" data-testid="pack">
+          <div className="play-eyebrow panel-heading">Carried</div>
           {props.carried.map((item) => (
-            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} data-item={item.id}>
+            <div key={item.id} className="panel-row" data-item={item.id}>
               <span>{item.name}</span>
-              <span style={{ color: '#8ea3b0' }}>
+              <span className="panel-detail">
                 {item.quantity > 1 ? `×${item.quantity}` : ''}
                 {item.usable ? (
-                  <button
-                    style={{ ...button(true), padding: '1px 8px', marginLeft: '6px', marginRight: 0, fontSize: '11px' }}
-                    data-testid="use-item"
-                    onClick={() => props.onUseItem(item.id)}
-                  >
+                  <button className="play-btn is-primary" data-testid="use-item" onClick={() => props.onUseItem(item.id)}>
                     Use
                   </button>
                 ) : null}
                 {item.wearable ? (
-                  <button
-                    style={{ ...button(false), padding: '1px 8px', marginLeft: '6px', marginRight: 0, fontSize: '11px' }}
-                    data-testid="equip"
-                    onClick={() => props.onEquip(item.id)}
-                  >
+                  <button className="play-btn" data-testid="equip" onClick={() => props.onEquip(item.id)}>
                     Equip
                   </button>
                 ) : null}
@@ -333,7 +281,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
 
       {log.length > 0 ? (
         <div
-          style={{ ...logBox, flex: '1 1 auto', minHeight: '80px' }}
+          className="play-box panel-box is-log"
           data-testid="log"
           // The newest line is the one being read; keep it in view.
           ref={(el) => {
@@ -341,7 +289,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
           }}
         >
           {log.slice(-12).map((line, i) => (
-            <div key={i} style={{ color: TONE[line.tone], marginBottom: '4px' }}>
+            <div key={i} className="panel-line" style={{ color: TONE[line.tone] }}>
               {logParts(line).map((part, j) =>
                 part.id === null ? (
                   part.text
@@ -350,7 +298,6 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
                     key={j}
                     data-testid="log-entity"
                     data-entity={part.id}
-                    style={{ textDecoration: 'underline dotted', cursor: 'default' }}
                     onMouseEnter={() => props.onHoverEntity?.(part.id)}
                     onMouseLeave={() => props.onHoverEntity?.(null)}
                   >
@@ -364,13 +311,11 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {talking !== null && talking.view !== null ? (
-        <div style={{ ...logBox, background: 'rgba(20,26,34,0.95)' }} data-testid="dialogue">
+        <div className="play-box panel-box" data-testid="dialogue">
           {talking.view.lines.map((line, i) => (
             <div key={i} style={{ marginBottom: '6px' }}>
-              {line.speaker !== undefined ? (
-                <span style={{ color: '#c8b88a' }}>{line.speaker}: </span>
-              ) : null}
-              <span style={{ color: '#d8d4c8' }}>{line.text}</span>
+              {line.speaker !== undefined ? <span className="panel-speaker">{line.speaker}: </span> : null}
+              <span className="panel-prose">{line.text}</span>
             </div>
           ))}
           {talking.view.options.map((option) => (
@@ -378,24 +323,15 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               key={option.index}
               disabled={!option.enabled}
               title={option.enabled ? undefined : 'Not available'}
-              style={{
-                ...button(false),
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                marginBottom: '4px',
-                opacity: option.enabled ? 1 : 0.5,
-              }}
+              className="play-btn panel-option"
               onClick={() => props.onAnswer({ kind: 'choose', index: option.index })}
             >
               {option.text}
-              {option.detail !== undefined ? (
-                <span style={{ color: '#8ea3b0' }}> — {option.detail}</span>
-              ) : null}
+              {option.detail !== undefined ? <span className="panel-detail"> — {option.detail}</span> : null}
             </button>
           ))}
           {talking.view.options.length === 0 ? (
-            <button style={button(true)} onClick={() => props.onAnswer({ kind: 'continue' })}>
+            <button className="play-btn is-primary" onClick={() => props.onAnswer({ kind: 'continue' })}>
               Continue
             </button>
           ) : null}
@@ -403,21 +339,20 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
       ) : null}
 
       {check !== null ? (
-        <div style={{ ...logBox, background: 'rgba(20,26,34,0.95)' }} data-testid="check-prompt">
+        <div className="play-box panel-box" data-testid="check-prompt">
           <div style={{ marginBottom: '8px' }}>
             {check.prompt ??
               (check.difficulty === 'target'
                 ? `Roll ${check.trait} against ${check.targets.length === 0 ? 'nobody' : check.targets.map(props.nameOf).join(', ')}?`
                 : `Roll ${check.trait} against ${check.difficulty}?`)}
             {check.prompt !== undefined && check.targets.length > 0 ? (
-              <div style={{ color: '#8ea3b0', fontSize: '11px' }}>Against {check.targets.map(props.nameOf).join(', ')}.</div>
+              <div className="panel-sub">Against {check.targets.map(props.nameOf).join(', ')}.</div>
             ) : null}
           </div>
           {check.experiences.length > 0 ? (
             <div style={{ marginBottom: '8px', fontSize: '12px' }}>
-              <label style={{ color: '#8ea3b0' }}>Utilize an Experience (1 Light): </label>
+              <label className="panel-detail">Utilize an Experience (1 Light): </label>
               <select
-                style={{ padding: '2px 6px', border: '1px solid #39404d', borderRadius: '4px', background: 'rgba(0,0,0,0.3)', color: 'inherit', font: 'inherit' }}
                 value={experience}
                 disabled={props.actorGood < 1}
                 title={props.actorGood < 1 ? 'No Light to spend' : undefined}
@@ -433,48 +368,44 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               </select>
             </div>
           ) : null}
-          <button
-            style={button(true)}
-            data-testid="roll"
-            onClick={() => {
-              const chosen = experience;
-              setExperience('');
-              props.onAnswer(chosen === '' || props.actorGood < 1 ? { kind: 'roll' } : { kind: 'roll', experience: chosen });
-            }}
-          >
-            Roll {check.trait} {signed(check.modifier + (experience === '' ? 0 : (check.experiences.find((e) => e.name === experience)?.modifier ?? 0)))}
-          </button>
-          <button
-            style={button(false)}
-            onClick={() => {
-              setExperience('');
-              props.onAnswer({ kind: 'cancel' });
-            }}
-          >
-            Step back
-          </button>
+          <div className="panel-actions">
+            <button
+              className="play-btn is-primary"
+              data-testid="roll"
+              onClick={() => {
+                const chosen = experience;
+                setExperience('');
+                props.onAnswer(chosen === '' || props.actorGood < 1 ? { kind: 'roll' } : { kind: 'roll', experience: chosen });
+              }}
+            >
+              Roll {check.trait} {signed(check.modifier + (experience === '' ? 0 : (check.experiences.find((e) => e.name === experience)?.modifier ?? 0)))}
+            </button>
+            <button
+              className="play-btn"
+              onClick={() => {
+                setExperience('');
+                props.onAnswer({ kind: 'cancel' });
+              }}
+            >
+              Step back
+            </button>
+          </div>
         </div>
       ) : null}
 
       {choice !== null ? (
-        <div data-testid="choice-prompt" style={{ ...logBox, background: 'rgba(20,26,34,0.95)' }}>
-          {choice.title !== undefined ? (
-            <div style={{ marginBottom: '6px', fontWeight: 600 }}>{choice.title}</div>
-          ) : null}
-          {choice.body !== undefined ? (
-            <div style={{ marginBottom: '6px', color: '#b9c6d0' }}>{choice.body}</div>
-          ) : null}
+        <div data-testid="choice-prompt" className="play-box panel-box">
+          {choice.title !== undefined ? <div className="play-name" style={{ marginBottom: '6px' }}>{choice.title}</div> : null}
+          {choice.body !== undefined ? <div className="panel-prose" style={{ marginBottom: '6px' }}>{choice.body}</div> : null}
           {choice.options.map((option) => (
             <button
               key={option.index}
               data-option={option.index}
-              style={{ ...button(false), display: 'block', marginBottom: '4px', width: '100%', textAlign: 'left' }}
+              className="play-btn panel-option"
               onClick={() => props.onAnswer({ kind: 'choose', index: option.index })}
             >
               {option.label}
-              {option.detail === undefined ? null : (
-                <span style={{ color: '#8ea3b0' }}> — {option.detail}</span>
-              )}
+              {option.detail === undefined ? null : <span className="panel-detail"> — {option.detail}</span>}
             </button>
           ))}
         </div>
@@ -482,7 +413,7 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
 
       {pending === null && within !== null ? (
         <div>
-          <button style={button(true)} onClick={() => props.onUse(within)} data-testid="use">
+          <button className="play-btn is-primary" onClick={() => props.onUse(within)} data-testid="use">
             Use what is in reach
           </button>
         </div>
