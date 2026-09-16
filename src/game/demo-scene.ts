@@ -12,6 +12,7 @@
 
 import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
 import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
+import { SHIPPED_MODELS } from 'virtual:shipped-models';
 import { DEMO_QUESTS } from './demo-quests';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES, DEMO_PROJECT_CARDS } from './demo-code';
 import { SRD_CONDITIONS } from '../engine/content/conditions';
@@ -29,8 +30,7 @@ import {
   DICE_MILLIS,
   describeRoll,
   float,
-  nameOf,
-  note,
+  nameOf, note,
   showRoll,
   speak,
   struck,
@@ -745,7 +745,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     // rules condition of the same name. Nothing clashes today; the order is the
     // statement of which owns the id when something does.
     conditionDefs: [...STARTER_CONDITIONS, ...SRD_CONDITIONS.filter((c) => !STARTER_CONDITIONS.some((s) => s.id === c.id))],
-    party: [...PARTY_SHEETS],
+    party: [...PARTY_SHEETS], assets: [...SHIPPED_MODELS],
     startScene: vault.id,
   });
 

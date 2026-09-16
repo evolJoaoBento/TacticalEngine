@@ -1539,11 +1539,10 @@ test('imports a glTF model and draws it where a prop names it', async ({ page })
   expect(await page.evaluate(() => window.__engine!.missingModels())).not.toContain('duck');
   expect(before).toBeGreaterThanOrEqual(0);
 
-  // It survives the project round trip.
+  // It survives the project round trip, among what the project declares rather than
+  // instead of it: the game ships the models in `public/models`, and an import joins them.
   const exported = JSON.parse(await page.evaluate(() => window.__engine!.exportProject()));
-  expect(exported.assets).toEqual([
-    { id: 'duck', kind: 'gltf', url: '/tests/fixtures/models/Duck.glb', scale: 0.01, groundOffset: 0, rotationY: 0, offsetX: 0, offsetY: 0 },
-  ]);
+  expect(exported.assets).toContainEqual({ id: 'duck', kind: 'gltf', url: '/tests/fixtures/models/Duck.glb', scale: 0.01, groundOffset: 0, rotationY: 0, offsetX: 0, offsetY: 0 });
   await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-models"]').click();
   await expect(page.locator('[data-asset="duck"]')).toBeVisible();

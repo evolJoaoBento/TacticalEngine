@@ -1033,3 +1033,37 @@ describe('SceneView', () => {
     view.dispose();
   });
 });
+
+describe('a walk already under way', () => {
+  it('is not begun again by a sync that lands while it is running', () => {
+    const grid = makeGrid(['........', '........', '........']);
+    const view = new SceneView(grid);
+
+    const standing = new SceneState({ id: 'room' }, grid);
+    standing.addEntity(createPartyEntity('walker', 'sentinel', grid.indexOf(0, 1)));
+    view.syncTokens(standing);
+    expect(view.glidingCount).toBe(0);
+
+    // The engine puts the creature at the far end; the token has the journey to make.
+    const moved = new SceneState({ id: 'room' }, grid);
+    moved.addEntity(createPartyEntity('walker', 'sentinel', grid.indexOf(7, 1)));
+    view.syncTokens(moved);
+    expect(view.glidingCount).toBe(1);
+
+    view.tick(0.2);
+    const partway = view.tokenFor('walker')!.group.position.x;
+
+    // Something unrelated arrives and syncs every token - which is what `assetChanged`
+    // does when a model file lands. Mid-walk the token's last drawn spot is where it set
+    // off and the entity is already at the far end, so this reads as a fresh move; without
+    // the guard it starts the walk over, from the beginning, with the walk clip.
+    view.syncTokens(moved);
+    expect(view.glidingCount).toBe(1);
+    expect(view.tokenFor('walker')!.group.position.x).toBe(partway);
+
+    // And it still arrives, so `advanceGlides` keeps the ending and the idle after it.
+    view.tick(5);
+    expect(view.glidingCount).toBe(0);
+    view.dispose();
+  });
+});

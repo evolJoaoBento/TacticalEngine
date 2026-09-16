@@ -136,7 +136,7 @@ adapter: the rest of the core does not know it exists.
 | `character/sheet.ts`, `sheet-schema.ts` | An authored `CharacterSheet` and the `DerivedCharacter` computed from it. |
 | `character/progression.ts` | Levelling, subclass stages. |
 | `dialogue/schema.ts`, `dialogue.ts`, `layout.ts` | Conversation graphs and their editor layout. |
-| `render/scene-view.ts` | `SceneView` — engine state to three.js objects, one way (1486 lines). |
+| `render/scene-view.ts` | `SceneView` — engine state to three.js objects, one way (1491 lines). |
 | `render/camera.ts` | `OrbitCamera`, plain data, deliberately not three's `OrbitControls` so it is testable headless. The pitch is floored by the distance (`pitchFloor`): free close up, nearly overhead far out, and the angle the player dragged to is remembered and handed back on the way in. |
 | `render/glide.ts` | `planGlide`, `advanceGlide`: the drawing of a journey — the line a token crosses, the pace it keeps per tile, the arc of a throw. No scene in it, so a walk can be read in a test. |
 | `render/spotlight.ts` | `Spotlight`: the white rim on whatever the pointer is over, drawn through what stands in front of it. One pair of inverted hulls per thing, round the merged silhouette of all its parts rather than round each — per part, a door's own bands stand in front of its panel, so the through-wall rim passed its depth test across the middle and filled the door instead of edging it. On the outline layer, so the editor never draws them and no raycast finds them. |

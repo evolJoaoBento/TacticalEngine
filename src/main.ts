@@ -414,7 +414,8 @@ editor.setMode('inspect');
 // else happens to re-render them.
 assets.onChange(() => { if (mode === 'edit') renderPanel(); });
 
-const KNOWN_MODELS = new Set(MODELS.map((m) => m.id));
+// The library's own, plus whatever the project declares: a file in `public/models` is drawable.
+const KNOWN_MODELS = new Set([...MODELS.map((m) => m.id), ...demo.project.assets.map((a) => a.id)]);
 const TERRAIN_IDS = demo.grid.palette.types.map((t) => t.id);
 const PROP_MODELS = MODELS.filter((m) => m.category === 'prop').map((m) => m.id);
 /**
@@ -644,7 +645,7 @@ function renderPanel(): void {
       assetClips: (id: string): readonly string[] =>
         (assets.template(id)?.animations ?? []).map((clip) => clip.name),
       assetStatus: (id: string): string => assets.statusOf(id),
-      onRequestAssets: () => assets.requestAll(),
+      onRequestAssets: (id?: string) => (id === undefined ? assets.requestAll() : void assets.request(id)),
       assetPreview: (id: string) => thumbnailOf(view.registry, assets, id)?.url ?? null,
       onAssetTuned: (id: string) => {
         const tuned = session.project.assets.find((asset) => asset.id === id);
@@ -2420,7 +2421,7 @@ window.__engine = state;
 
 let lastFrame = performance.now();
 function frame(now = performance.now()): void {
-  const dt = Math.min(0.1, (now - lastFrame) / 1000);
+  const dt = Math.min(0.5, (now - lastFrame) / 1000);
   lastFrame = now;
   steerCamera(dt);
   view.tick(dt);
@@ -2433,7 +2434,7 @@ function frame(now = performance.now()): void {
   if (orbit.update(dt)) applyCamera();
   updateBuildingPreview();
   buildings.update(camera);
-  // Ink rims are play's look; the editor draws the room plain (`render/toon.ts`).
+  // The hover rim is play's; the editor points at things its own way (`render/toon.ts`).
   if (camera.layers.isEnabled(OUTLINE_LAYER) !== (mode === 'play')) camera.layers.toggle(OUTLINE_LAYER);
   renderer.render(view.scene, camera);
   state.frames++;

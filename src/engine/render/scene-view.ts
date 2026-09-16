@@ -614,10 +614,15 @@ export class SceneView {
       if (moved && options.snap !== true) {
         this.poseToken(token, entity);
         this.startGlide(entity.id, token, was, here, path, route, thrown);
-      } else {
+      } else if (options.snap === true || !this.glides.has(entity.id)) {
         this.glides.delete(entity.id);
         this.placeToken(token, entity);
       }
+      // Else it is already on its way, and this sync has nothing new to say. `tokenSpots` is
+      // set to `here` at the end of every sync, so a sync landing mid-walk reads as "not
+      // moved" - and used to throw the journey away and snap the token to the end. The idle
+      // is played when a glide arrives, and a glide deleted never arrives, so what that left
+      // behind was the walk clip, playing over a token standing still.
       this.tokenSpots.set(entity.id, { x: here.x, y: here.y });
       // Standing to lying, or back, is a fall or a rise; a token first seen
       // lying is simply lying.

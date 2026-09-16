@@ -92,8 +92,8 @@ export function ModelsWorkspace(props: {
   assetClips?: (id: string) => readonly string[];
   /** unknown | loading | ready | failed. */
   assetStatus?: (id: string) => string;
-  /** Start loading what is declared, so clips can be listed. */
-  onRequestAssets?: () => void;
+  /** Start loading one declared model, so its clips can be listed. All of them with no id. */
+  onRequestAssets?: (id?: string) => void;
   /** One model's settings changed; the file it already loaded still stands. */
   onAssetTuned?: (id: string) => void;
   /** A picture of a model as the board will draw it, base and all. */
@@ -102,11 +102,13 @@ export function ModelsWorkspace(props: {
   onClose: () => void;
 }): preact.JSX.Element {
   const { session } = props;
-  // Nothing loads until something draws it, so a model never placed has no
-  // clips to offer. Opening this panel is as good a reason to load as drawing.
+  // Nothing loads until something wants it. A row wants its own model - it lists the
+  // clips the file carries and draws a picture of it - so each asks for that one, rather
+  // than the panel asking for every declared file on the way in. The library returns
+  // early for one already loading or loaded, so asking again is free.
   useEffect(() => {
-    props.onRequestAssets?.();
-  }, []);
+    for (const asset of session.project.assets) props.onRequestAssets?.(asset.id);
+  }, [session.project.assets.length]);
 
   const edit = (id: string, changes: Parameters<typeof updateAsset>[1]): void => {
     session.run(updateAsset(id, changes));
@@ -315,7 +317,7 @@ export function ModelsWorkspace(props: {
                 // written it, or the model is remembered only until the page goes away.
                 await memory().put(asset);
                 props.onAssetsChanged?.();
-                props.onRequestAssets?.();
+                props.onRequestAssets?.(id);
                 props.onChange();
                 // Let the same file be picked again after a remove.
                 input.value = '';

@@ -98,8 +98,8 @@ export interface EditorShellProps {
   assetClips?: (id: string) => readonly string[];
   /** How an imported model is getting on: unknown, loading, ready or failed. */
   assetStatus?: (id: string) => string;
-  /** Start loading every declared model, so their clips can be listed. */
-  onRequestAssets?: () => void;
+  /** Start loading one declared model, so its clips can be listed. All of them with no id. */
+  onRequestAssets?: (id?: string) => void;
   /** A picture of an imported model as the board will draw it, base and all. */
   assetPreview?: (id: string) => string | null;
   /**

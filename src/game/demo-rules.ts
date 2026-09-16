@@ -59,10 +59,19 @@ export const DEMO_MODELS: Readonly<Record<string, string>> = {
   sentinel: 'knight',
   cutpurse: 'rogue',
   emberwright: 'mage',
-  // Its adversaries. One without a line draws the stand-in body rather than the
-  // placeholder, because `fallbackFor` answers for adversaries in `main.ts`.
-  'hollow-knight': 'husk',
-  'briar-wraith': 'bramble',
+  // Its adversaries, each drawn with the file of its own name in `public/models`.
+  // One with no file there would keep the stand-in body, because `fallbackFor`
+  // answers for adversaries in `main.ts`; the set is complete, so none does.
+  'bandit-archer': 'bandit-archer',
+  'bandit-captain': 'bandit-captain',
+  'bandit-cutter': 'bandit-cutter',
+  'briar-wraith': 'briar-wraith',
+  'fen-lurker': 'fen-lurker',
+  'grave-moth': 'grave-moth',
+  'hollow-knight': 'hollow-knight',
+  'rot-hound': 'rot-hound',
+  'stone-golem': 'stone-golem',
+  'wandering-hedge-priest': 'wandering-hedge-priest',
 };
 
 /** Classes, ancestries, communities, armor and weapons, from the pack we ship. */

@@ -1,11 +1,12 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath, URL } from 'node:url';
 import { publicAssets } from './tools/build-public-assets.ts';
+import { modelManifest } from './tools/model-manifest.ts';
 
 const dir = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 export default defineConfig({
-  plugins: [publicAssets()],
+  plugins: [publicAssets(), modelManifest()],
   oxc: { jsx: { runtime: 'automatic', importSource: 'preact' } },
   resolve: {
     alias: {

@@ -256,6 +256,58 @@ fails if a font is tracked without its licence beside it. Screenshots read for e
 a hovered card, a seven-card hand and its hover, the rest, the loadout's deck browser and the
 level-up sheet, and a floater close up.
 
+## A walk ran in slow motion while the room loaded - done
+
+`main.ts` advanced the world by `Math.min(0.1, elapsed)` each frame. The cap is there so a
+tab left in the background does not come back and jump the world forward by a minute. But
+it also means a frame longer than 100ms advances the world by 100ms however much wall
+clock actually went by - and parsing a glTF of 13-22 MB on the main thread takes hundreds
+of milliseconds. Below ten frames a second the animation stopped being time-based and ran
+in slow motion. A walk of about a second took eight while the room's ten models loaded.
+
+Half a second keeps the guard for a backgrounded tab, where the delta is measured in
+minutes, and lets an ordinary stall through at its real length.
+
+This is what `demo.spec.ts:1799` had been failing on: `gliding()` not reaching nought
+inside the test's five seconds. Three runs of three now pass, in about eight seconds each.
+
+The road there is worth recording, because four things were blamed first and none of them
+was it. **Toon shading** was not (the test failed identically with `toonify` reverted).
+**Eager loading** was not (the fox lands in 168ms; and note the test calls `setMode('edit')`,
+which mounts the Models panel, and the panel still asks for every declared model as its
+rows are drawn - so making that per-row rather than `requestAll()` changed nothing on this
+path, and the earlier claim that it would was wrong). **The glide-discard** above was not
+(the test timed out identically with that guard toggled in and out). What settled it was
+the A/B nobody had run: the test passes three of three with the ten models undeclared and
+fails three of three with them declared, and that pointed at load stalls rather than at
+anything the renderer was drawing.
+
+## A sync mid-walk threw the walk away - done
+
+`syncTokens` sets a token's drawn spot to where the engine has the creature at the end of
+every pass. So the *next* sync, landing while the token is still walking there, reads as
+"not moved" - and the branch that handles that case deleted the glide and snapped the
+token to its destination:
+
+    this.glides.delete(entity.id);
+    this.placeToken(token, entity);
+
+The idle clip is played by `advanceGlides` when a glide *arrives*. A glide deleted never
+arrives, so what this left behind was a token standing at its destination with the walk
+clip still playing on it - `gliding()` at nought and 'Run' on a creature that had stopped.
+
+Nothing synced mid-walk often enough to meet it until the game began shipping models:
+`assetChanged` syncs every token each time a file lands, and there are ten of them. A
+glide under way is now left alone unless the caller asked to snap (`options.snap`), and
+`scene-view.test.ts` has the case: move a token, sync again part-way, and the journey and
+the position both survive.
+
+**Not the cause of `demo.spec.ts:1799`.** That test was run three times with this guard in
+and three times with it toggled out, and timed out at line 1822 - `gliding()` never
+reaching nought inside five seconds - every time, identically. The guard is neutral there.
+
+It was the frame delta, and that is its own entry below.
+
 ## The board comes back off cartoon — done
 
 The look went on the board in `The board goes cartoon` below and came off again here, so
