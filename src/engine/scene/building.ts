@@ -46,7 +46,13 @@ export const buildingTileSchema = z.object({
   /** Vertical Z, retained as `level` for compatibility with earlier projects. */
   level: z.number().min(-BUILD_LIMIT).max(BUILD_LIMIT).multipleOf(0.25),
   height: z.number().min(0.25).max(16).multipleOf(0.25).optional(),
-  shape: z.enum(BUILD_SHAPES),
+  /**
+    * Any structure the registry knows, not one of a fixed four: a project declares its
+    * own, so the list cannot live in the schema. `buildingTilesSchema` checks it against
+    * `isStructure`, which is where that question moved.
+    */
+  shape: z.string().min(1),
+  /** Still an enum: there is no materials registry, and an unknown one would tint black. */
   material: z.enum(BUILD_MATERIAL_IDS),
   rotation: z.number().int().min(0).max(3),
 });
@@ -69,6 +75,13 @@ export const buildingTilesSchema = z
   .record(z.string(), buildingTileSchema)
   .superRefine((tiles, ctx) => {
     for (const [key, tile] of Object.entries(tiles)) {
+      if (!isStructure(tile.shape)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `No structure called ${JSON.stringify(tile.shape)}`,
+        });
+      }
       const [cell, instance, ...extra] = key.split('#');
       const numbered = instance === undefined || /^[1-9][0-9]*$/.test(instance);
       if (cell === buildingKey(tile) && extra.length === 0 && numbered) continue;
@@ -94,17 +107,90 @@ const STAIR_STEPS: readonly BuildingPart[] = [
 /** A stair too far away to read as steps: one box with the same silhouette. */
 const STAIR_SOLID: readonly BuildingPart[] = [[0, 0.5, 0, 1, 1, 1]];
 
-/** Each part is a box in a one-tile footprint. Rotation is applied by the renderer. */
-export function buildingParts(shape: BuildingTile['shape'], simplified = false): readonly BuildingPart[] {
-  switch (shape) {
-    case 'floor':
-      return [[0, 0.125, 0, 1, 0.25, 1]];
-    // Rotation moves this wall around all four edges, meeting at the tile corners.
-    case 'wall':
-      return [[0, 0.5, -0.4, 1, 1, 0.2]];
-    case 'stairs':
-      return simplified ? STAIR_SOLID : STAIR_STEPS;
-    case 'block':
-      return [[0, 0.5, 0, 1, 1, 1]];
+/**
+ * The shapes everything else is built from, each a box or boxes in a one-tile footprint.
+ *
+ * These four are the atoms: a structure a project declares is some of these put together,
+ * and there is nothing below them. `far` is the same shape read from a distance, where it
+ * has one - stairs are four steps close up and one ramp-shaped box far off, which is what
+ * keeps a city of them affordable.
+ */
+export const BUILD_ATOMS: Readonly<Record<string, { near: readonly BuildingPart[]; far?: readonly BuildingPart[] }>> = {
+  block: { near: [[0, 0.5, 0, 1, 1, 1]] },
+  floor: { near: [[0, 0.125, 0, 1, 0.25, 1]] },
+  // Rotation moves this wall around all four edges, meeting at the tile corners.
+  wall: { near: [[0, 0.5, -0.4, 1, 1, 0.2]] },
+  stairs: { near: STAIR_STEPS, far: STAIR_SOLID },
+};
+
+/** One atom placed in a structure: which of the four, and where it sits within the tile. */
+export interface StructureAtom {
+  readonly shape: string;
+  /** Offset from the tile's centre, in tiles. Absent means centred, which is most of them. */
+  readonly at?: readonly [number, number, number];
+}
+
+/** A kind of structure: a name, and the atoms it is made of. */
+export interface StructureType {
+  readonly id: string;
+  readonly name: string;
+  readonly atoms: readonly StructureAtom[];
+}
+
+/** The four the engine ships, each a single atom, in the order the strip lists them. */
+export const DEFAULT_STRUCTURES: readonly StructureType[] = BUILD_SHAPES.map((shape) => ({
+  id: shape,
+  name: shape[0]!.toUpperCase() + shape.slice(1),
+  atoms: [{ shape }],
+}));
+
+/** Every structure the app knows, by id. Replaced when a project declares its own. */
+let structures: ReadonlyMap<string, StructureType> = new Map(DEFAULT_STRUCTURES.map((s) => [s.id, s]));
+
+/**
+ * Take on a project's structures, the engine's four first.
+ *
+ * The four are always present and always first: a document names them, and a project that
+ * declared only its own would leave every piece already placed unable to resolve.
+ */
+export function setStructures(declared: readonly StructureType[] = []): void {
+  const byId = new Map(DEFAULT_STRUCTURES.map((s) => [s.id, s]));
+  for (const type of declared) byId.set(type.id, type);
+  structures = byId;
+}
+
+/** Every kind of structure there is, the engine's four first. */
+export function structureTypes(): readonly StructureType[] {
+  return [...structures.values()];
+}
+
+/** Whether anything can be built from this id - what the schema's enum used to answer. */
+export function isStructure(id: string): boolean {
+  return structures.has(id);
+}
+
+/**
+ * Each part is a box in a one-tile footprint. Rotation is applied by the renderer.
+ *
+ * Deterministic per `(shape, simplified)`: the renderer counts the boxes before it fills
+ * them, so an answer that changed between the two calls would overflow the mesh. An id
+ * nothing declares draws nothing rather than throwing - a document naming a structure a
+ * project has since dropped still opens, and Check is where that is reported.
+ */
+export function buildingParts(shape: string, simplified = false): readonly BuildingPart[] {
+  const type = structures.get(shape);
+  if (type === undefined) return [];
+  const boxes: BuildingPart[] = [];
+  for (const atom of type.atoms) {
+    const source = BUILD_ATOMS[atom.shape];
+    if (source === undefined) continue;
+    const parts = simplified ? (source.far ?? source.near) : source.near;
+    if (atom.at === undefined) {
+      boxes.push(...parts);
+      continue;
+    }
+    const [dx, dy, dz] = atom.at;
+    for (const [x, y, z, sx, sy, sz] of parts) boxes.push([x + dx, y + dy, z + dz, sx, sy, sz]);
   }
+  return boxes;
 }

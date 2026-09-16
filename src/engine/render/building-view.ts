@@ -299,12 +299,14 @@ export class BuildingView {
   showPreview(tile: BuildingTile | null, erase = false): void {
     this.preview.visible = tile !== null;
     if (!tile) return;
-    // At most four preview meshes, reused as the pointer moves.
-    while (this.preview.children.length < 4) {
+    const parts = buildingParts(tile.shape);
+    // One ghost per box, reused as the pointer moves and grown when a structure needs
+    // more than the last one did. A pool of four was right while stairs were the largest
+    // thing there was; a structure put together from five atoms would have shown four.
+    while (this.preview.children.length < parts.length) {
       this.preview.add(new Mesh(this.simple, this.ghostMaterial));
     }
     this.ghostMaterial.color.set(erase ? '#ff6a5c' : '#5f8ad0');
-    const parts = buildingParts(tile.shape);
     this.preview.position.set(
       tile.x - this.offsetX,
       DEFAULT_LAYOUT.baseHeight + tile.level,
