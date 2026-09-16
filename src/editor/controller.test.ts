@@ -1012,3 +1012,47 @@ describe('carrying things in the Inspector', () => {
     expect(scene().decos.map((d) => d.position)).toEqual([{ x: 4, y: 1 }, { x: 4, y: 1 }]);
   });
 });
+
+describe('changing what kinds of tile a project has', () => {
+  const bog = { id: 'bog', name: 'Bog', passable: true, cost: 2, providesCover: false, blocksSight: false };
+
+  it('tells the board, because a kind of tile is the ground itself', () => {
+    const { editor, session, changes } = setup();
+    expect(editor.addTile(bog)).toBe(true);
+
+    // Not just the panel: 'terrain' is what rebuilds the ground from the palette.
+    expect(changes).toEqual(['terrain']);
+    expect(session.project.terrainPalette!.map((t) => t.id)).toContain('bog');
+  });
+
+  it('says so for a change and for a removal too', () => {
+    const { editor, changes } = setup();
+    editor.addTile(bog);
+    expect(editor.updateTile('bog', { cost: 3 })).toBe(true);
+    expect(editor.removeTile('bog')).toBe(true);
+    expect(changes).toEqual(['terrain', 'terrain', 'terrain']);
+  });
+
+  it('writes the engine four down first, so the others do not vanish', () => {
+    const { editor, session } = setup();
+    editor.addTile(bog);
+    // A palette of one would say the project had one kind of ground, and every scene
+    // painted on the other three would fall back to it.
+    expect(session.project.terrainPalette!.map((t) => t.id)).toEqual([
+      'floor',
+      'difficult',
+      'cover',
+      'wall',
+      'bog',
+    ]);
+  });
+
+  it('is not a change, and tells nobody, when the id is already taken', () => {
+    const { editor, changes } = setup();
+    editor.addTile(bog);
+    changes.length = 0;
+
+    expect(editor.addTile({ ...bog, name: 'Other Bog' })).toBe(false);
+    expect(changes).toEqual([]);
+  });
+});

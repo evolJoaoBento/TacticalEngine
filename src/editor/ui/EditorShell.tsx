@@ -47,6 +47,7 @@ import { ItemPanel } from './ItemPanel';
 import { CodePanel } from './CodePanel';
 import { QuestsWorkspace } from './QuestsWorkspace';
 import { ModelsWorkspace } from './ModelsWorkspace';
+import { TilesWorkspace } from './TilesWorkspace';
 import { memory, restoreInto } from '../model-memory';
 import { ProblemsPopover } from './ProblemsPopover';
 
@@ -372,6 +373,17 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       break;
     case 'quests':
       workspaceBody = <QuestsWorkspace session={session} onChange={bump} onClose={closeWorkspace} />;
+      break;
+    case 'tiles':
+      workspaceBody = (
+        <TilesWorkspace
+          session={session}
+          controller={controller}
+          models={[...props.knownModels].sort()}
+          onChange={bump}
+          onClose={closeWorkspace}
+        />
+      );
       break;
     case 'models':
       workspaceBody = (

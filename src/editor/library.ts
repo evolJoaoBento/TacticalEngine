@@ -44,9 +44,17 @@ export function titleCase(id: string): string {
 
 const FALLBACK_SWATCH = '#5d8a4a';
 
-/** Tiles has no models and no ids of its own: one card per shape the build tool stamps. */
+/**
+ * Structures has no models and no ids of its own: one card per shape the build tool stamps.
+ *
+ * Named for what it holds rather than for the tab it sits in. These are stackable scenery at
+ * any height, which movement ignores; the Tiles tab beside it is the ground a walk is costed
+ * on. Both were called Tiles until the placer arrived and made the collision visible.
+ *
+ * The id stays `tiles`: the strip draws its icon off it, and the tab-id tests name it.
+ */
 export function buildingTab(): LibraryTab {
-  return { id: 'tiles', label: 'Tiles', items: BUILD_SHAPES.map((shape) => ({
+  return { id: 'tiles', label: 'Structures', items: BUILD_SHAPES.map((shape) => ({
     tab: 'tiles', id: `tile-${shape}`, label: titleCase(shape), detail: 'Stackable', keywords: ['building', shape],
   })) };
 }

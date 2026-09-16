@@ -27,6 +27,10 @@ function defaultPalette(): DeclaredPalette {
     cost: type.cost,
     providesCover: type.providesCover,
     blocksSight: type.blocksSight,
+    // Spread rather than assigned, so a type with none stays a type with none: the
+    // schema draws the distinction and an explicit undefined is not absence.
+    ...(type.color === undefined ? {} : { color: type.color }),
+    ...(type.model === undefined ? {} : { model: type.model }),
   }));
 }
 
@@ -66,6 +70,131 @@ export function setTerrainModel(terrainId: string, modelId: string | null): Edit
     isNoop() {
       // Writing the four down is a change even when the model itself did not take.
       return !found && !hadNoPalette;
+    },
+  };
+}
+
+/** What a kind of tile is, as a document writes it. */
+export type TileType = DeclaredPalette[number];
+
+/** Whether an id is free to use: nothing else in the palette has it. */
+export function tileIdTaken(project: ProjectDoc, id: string): boolean {
+  const declared = project.terrainPalette ?? defaultPalette();
+  return declared.some((type) => type.id === id);
+}
+
+/** How many cells across the whole project stand on this kind of tile. */
+export function tilesStandingOn(project: ProjectDoc, terrainId: string): number {
+  let count = 0;
+  // A parsed project always has scenes; a raw one handed straight to an edit may not.
+  for (const scene of project.scenes ?? []) {
+    for (const id of scene.terrain ?? []) if (id === terrainId) count += 1;
+  }
+  return count;
+}
+
+/**
+ * Add a kind of tile.
+ *
+ * The engine's four are written down first when a project has declared none, for the same
+ * reason naming a model does: a list with one entry in it would mean the project had one
+ * kind of ground, and every scene painted on the other three would fall back to it.
+ */
+export function addTerrainType(type: TileType): Edit {
+  let hadNoPalette = false;
+  let added = false;
+  return {
+    label: `Add tile ${type.id}`,
+    apply(project) {
+      hadNoPalette = project.terrainPalette === undefined;
+      if (project.terrainPalette === undefined) project.terrainPalette = defaultPalette();
+      added = !project.terrainPalette.some((t) => t.id === type.id);
+      if (added) project.terrainPalette.push(type);
+    },
+    undo(project) {
+      if (hadNoPalette) {
+        delete project.terrainPalette;
+        return;
+      }
+      if (!added || project.terrainPalette === undefined) return;
+      const at = project.terrainPalette.findIndex((t) => t.id === type.id);
+      if (at >= 0) project.terrainPalette.splice(at, 1);
+    },
+    isNoop() {
+      return !added && !hadNoPalette;
+    },
+  };
+}
+
+/**
+ * Change what a kind of tile is: its name, its colour, and what a walk over it costs.
+ *
+ * The id is deliberately not editable. Every scene cell names its type by id, so changing
+ * one here would orphan every tile standing on it - that is a rename across the whole
+ * project, not a field on a form.
+ */
+export function updateTerrainType(terrainId: string, changes: Partial<Omit<TileType, 'id'>>): Edit {
+  let hadNoPalette = false;
+  let before: TileType | null = null;
+  return {
+    label: `Edit tile ${terrainId}`,
+    apply(project) {
+      hadNoPalette = project.terrainPalette === undefined;
+      if (project.terrainPalette === undefined) project.terrainPalette = defaultPalette();
+      const at = project.terrainPalette.findIndex((t) => t.id === terrainId);
+      before = at < 0 ? null : { ...project.terrainPalette[at]! };
+      if (at < 0) return;
+      // Absent means absent: a field cleared is deleted rather than written undefined,
+      // which is the distinction `exactOptionalPropertyTypes` draws and the schema keeps.
+      const next: TileType = { ...project.terrainPalette[at]!, ...changes };
+      for (const key of Object.keys(changes) as (keyof typeof changes)[]) {
+        if (changes[key] === undefined) delete next[key];
+      }
+      project.terrainPalette[at] = next;
+    },
+    undo(project) {
+      if (hadNoPalette) {
+        delete project.terrainPalette;
+        return;
+      }
+      if (before === null || project.terrainPalette === undefined) return;
+      const at = project.terrainPalette.findIndex((t) => t.id === terrainId);
+      if (at >= 0) project.terrainPalette[at] = before;
+    },
+    isNoop() {
+      return before === null && !hadNoPalette;
+    },
+  };
+}
+
+/**
+ * Remove a kind of tile.
+ *
+ * Cells still naming it are left alone rather than rewritten: `gridFromScene` falls back
+ * to the palette's first type and reports each unknown id once, so the map stays playable
+ * and Check says what happened. Rewriting them would be a second, larger edit hiding
+ * inside this one, and undo would have to put every cell back.
+ */
+export function removeTerrainType(terrainId: string): Edit {
+  let removed: { index: number; type: TileType } | null = null;
+  return {
+    label: `Remove tile ${terrainId}`,
+    apply(project) {
+      removed = null;
+      if (project.terrainPalette === undefined) project.terrainPalette = defaultPalette();
+      // A palette of one is the floor every scene falls back to; taking it leaves nothing
+      // for `gridFromScene` to resolve against, and `TerrainPalette` refuses an empty list.
+      if (project.terrainPalette.length <= 1) return;
+      const at = project.terrainPalette.findIndex((t) => t.id === terrainId);
+      if (at < 0) return;
+      removed = { index: at, type: project.terrainPalette[at]! };
+      project.terrainPalette.splice(at, 1);
+    },
+    undo(project) {
+      if (removed !== null) project.terrainPalette?.splice(removed.index, 0, removed.type);
+    },
+    isNoop() {
+      return removed === null;
     },
   };
 }

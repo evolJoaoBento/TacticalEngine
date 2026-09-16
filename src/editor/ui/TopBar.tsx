@@ -6,6 +6,7 @@
  * in hand belongs to the controller; this draws them and reports clicks.
  */
 
+import { DEFAULT_TERRAIN_TYPES } from '../../engine/grid/terrain';
 import type { EditorSession } from '../session';
 import { EDITOR_MODES, MODE_LABELS, type EditorMode } from '../modes';
 import type { Problem } from '../validate';
@@ -14,7 +15,7 @@ import { Icon } from './icons';
 /** Which of the top bar's dropdowns is open, or none. */
 export type Menu = 'project' | 'content' | 'scenes';
 /** The long-lived editors that open as a workspace under the bar. */
-export type Workspace = 'party' | 'cards' | 'items' | 'quests' | 'code' | 'models';
+export type Workspace = 'party' | 'cards' | 'items' | 'quests' | 'code' | 'models' | 'tiles';
 
 interface ContentEntry {
   workspace: Workspace;
@@ -30,6 +31,8 @@ const WRITTEN: readonly ContentEntry[] = [
   { workspace: 'items', label: 'Items & loot', testId: 'open-items', count: (s) => s.project.items.length },
   { workspace: 'quests', label: 'Quests', testId: 'open-quests', count: (s) => s.project.quests.length },
   { workspace: 'code', label: 'Code', testId: 'open-code', count: (s) => s.project.code.length },
+  // The engine's four when a project declares none, which is what adding would write down.
+  { workspace: 'tiles', label: 'Tiles', testId: 'open-tiles', count: (s) => s.project.terrainPalette?.length ?? DEFAULT_TERRAIN_TYPES.length },
 ];
 
 const IMPORTED: ContentEntry = {

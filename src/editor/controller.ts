@@ -16,7 +16,7 @@ import { toContentId } from '../engine/content/types';
 import { isBuildCoordinate, isBuildZ, type BuildingTile } from '../engine/scene/building';
 import { BuildingEdit } from './building';
 import type { Deco, Encounter, Interactable, Point, SceneDoc } from '../engine/scene/schema';
-import { setTerrainModel } from './terrain-edits';
+import { addTerrainType, removeTerrainType, setTerrainModel, updateTerrainType } from './terrain-edits';
 import {
   MODE_TOOLS,
   TERRAIN_TAB_TOOL,
@@ -663,6 +663,30 @@ export class EditorController {
    */
   setTerrainModel(terrainId: string, modelId: string | null): boolean {
     const changed = this.session.run(setTerrainModel(terrainId, modelId));
+    if (changed) this.onChange('terrain');
+    return changed;
+  }
+
+  /**
+   * Add a kind of tile, change one, or take one away - each telling the board.
+   *
+   * The same reason `setTerrainModel` is here rather than in the panel: all three change
+   * what the ground is, and `'terrain'` is what rebuilds it from the palette.
+   */
+  addTile(type: Parameters<typeof addTerrainType>[0]): boolean {
+    const changed = this.session.run(addTerrainType(type));
+    if (changed) this.onChange('terrain');
+    return changed;
+  }
+
+  updateTile(terrainId: string, changes: Parameters<typeof updateTerrainType>[1]): boolean {
+    const changed = this.session.run(updateTerrainType(terrainId, changes));
+    if (changed) this.onChange('terrain');
+    return changed;
+  }
+
+  removeTile(terrainId: string): boolean {
+    const changed = this.session.run(removeTerrainType(terrainId));
     if (changed) this.onChange('terrain');
     return changed;
   }

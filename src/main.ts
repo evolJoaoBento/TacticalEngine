@@ -416,7 +416,6 @@ assets.onChange(() => { if (mode === 'edit') renderPanel(); });
 
 // The library's own, plus whatever the project declares: a file in `public/models` is drawable.
 const KNOWN_MODELS = new Set([...MODELS.map((m) => m.id), ...demo.project.assets.map((a) => a.id)]);
-const TERRAIN_TYPES = demo.grid.palette.types;
 const PROP_MODELS = MODELS.filter((m) => m.category === 'prop').map((m) => m.id);
 /**
  * The Combat strip's creatures: the pack the app ships, and whatever the project carries or has
@@ -614,7 +613,9 @@ function renderPanel(): void {
       session,
       controller: editor,
       onNavigateBuilding: navigateBuilding,
-      terrainTypes: TERRAIN_TYPES,
+      // Off the live grid, not a snapshot: a kind of tile made in the workspace has to
+      // be there to pick a moment later.
+      terrainTypes: activeGrid.palette.types,
       propModels: PROP_MODELS,
       adversaries: adversaryLibrary(),
       knownModels: KNOWN_MODELS,
