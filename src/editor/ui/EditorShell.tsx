@@ -83,6 +83,8 @@ export interface EditorShellProps {
   onUndo: () => void;
   onRedo: () => void;
   onSave: () => void;
+  /** Save to a different file from now on. */
+  onSaveAs?: () => void;
   onLoad: (file: File) => void;
   /** Pack files picked under Project, to be laid into the project. */
   onImportPack: (files: readonly File[]) => void;
@@ -420,6 +422,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           setWorkspace(next);
         }}
         onSave={props.onSave}
+        onSaveAs={props.onSaveAs}
         onLoad={props.onLoad}
         onImportPack={props.onImportPack}
         onExportPack={props.onExportPack}

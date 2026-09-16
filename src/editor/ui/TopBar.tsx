@@ -54,6 +54,8 @@ export interface TopBarProps {
   onMenu: (menu: Menu | null) => void;
   onWorkspace: (workspace: Workspace) => void;
   onSave: () => void;
+  /** Save to a different file, forgetting the one saves have been going to. */
+  onSaveAs?: () => void;
   onLoad: (file: File) => void;
   /** One or more pack files, imported in the order they were picked. */
   onImportPack: (files: readonly File[]) => void;
@@ -111,6 +113,19 @@ export function TopBar(props: TopBarProps): preact.JSX.Element {
             >
               Save JSON
             </button>
+            {props.onSaveAs !== undefined ? (
+              <button
+                class="ph-item"
+                data-testid="save-project-as"
+                title="Write the project to a different file from now on"
+                onClick={() => {
+                  props.onMenu(null);
+                  props.onSaveAs?.();
+                }}
+              >
+                Save JSON as…
+              </button>
+            ) : null}
             <label class="ph-item" data-testid="load-project">
               Load…
               <input

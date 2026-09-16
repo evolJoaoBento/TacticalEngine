@@ -50,6 +50,7 @@ import { projectSchema, type Interactable, type ProjectDoc, type SceneDoc } from
 import type { Response } from './engine/script/runner';
 import { loadGameText, saveBlockedBy, serialiseSave } from './game/save';
 import { migrateDocument } from './engine/scene/migrate';
+import { forgetFile, saveProjectFile } from './editor/project-file';
 import { describePack, packOf, readPack } from './engine/content/pack/document';
 import type { AdversaryDef } from './engine/content/types';
 import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore } from './game/save-slots';
@@ -630,7 +631,8 @@ function renderPanel(): void {
       onPlayHere: () => playAt(editor.sceneId, null),
       onUndo: () => void undoEdit(),
       onRedo: () => void redoEdit(),
-      onSave: saveProject,
+      onSave: () => void saveProject(),
+      onSaveAs: () => { forgetFile(); void saveProject(); },
       onLoad: loadProject,
       onImportPack: (files: readonly File[]) => void importPacks(files),
       onExportPack: exportPack,
@@ -682,18 +684,12 @@ function renderPanel(): void {
   );
 }
 
-function saveProject(): void {
-  const blob = new Blob([JSON.stringify(session.project, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${session.project.id}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-  session.markSaved();
+async function saveProject(): Promise<void> {
+  const outcome = await saveProjectFile(JSON.stringify(session.project, null, 2), `${session.project.id}.json`);
+  // A closed dialog is not a save: the project stays dirty and the tab still warns.
+  if (outcome !== 'cancelled') session.markSaved();
   renderPanel();
 }
-
 /**
  * Project > Export pack: the project's content -- classes, cards, creatures, the scripts on the cards
  * and the conditions they apply -- as a pack file, which Import pack reads back into this project or
@@ -1844,6 +1840,11 @@ window.addEventListener('keydown', (event) => {
   if (event.key === 'Alt' && !event.ctrlKey && !event.metaKey && rotatablePlacement()) {
     event.preventDefault();
     if (altRotation === null && lastBuildPointer !== null) beginAltRotation(lastBuildPointer);
+    return;
+  }
+  if (event.key.toLowerCase() === 's' && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault(); // Before the browser's own Save Page.
+    void saveProject();
     return;
   }
   if (event.key === 'e' && (event.ctrlKey || event.metaKey)) {

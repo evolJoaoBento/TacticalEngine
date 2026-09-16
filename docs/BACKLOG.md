@@ -256,6 +256,31 @@ fails if a font is tracked without its licence beside it. Screenshots read for e
 a hovered card, a seven-card hand and its hover, the rest, the loadout's deck browser and the
 level-up sheet, and a floater close up.
 
+## Save writes the file it was given, and Ctrl+S is save - done
+
+Save built a blob and clicked an invisible link, which is a download rather than a save:
+an afternoon's editing left `project.json`, `project (1).json`, `project (2).json`, and
+nothing said which was current. The file is now picked once and the handle held
+(`editor/project-file.ts`), so every save after that writes the same file with no prompt.
+Project > Save JSON as… lets the file go, so the next save asks for a new one.
+
+Ctrl+S saves, and calls `preventDefault` first - Ctrl+S to a browser means Save Page, and
+without that the browser's own dialog opens over the top of the app's.
+
+Two things came out of doing it properly rather than bolting the shortcut on. The old
+code called `markSaved()` before it knew anything had been written, so a cancelled save
+left the project looking clean and `beforeunload` stopped warning about edits that were
+still only in memory; a closed dialog now reports `cancelled` and marks nothing. And the
+File System Access API is not in TypeScript's DOM library, so `src/file-system-access.d.ts`
+declares the part that is used, with both pickers optional - which is also how the
+fallback is chosen, by asking whether they exist rather than by sniffing the browser.
+
+Proven rather than assumed: a throwaway e2e stubbed the picker in the page and pressed
+Ctrl+S twice, which gave one prompt and two writes, with the unsaved badge clearing each
+time. The first version of that test assumed a headless Chromium had no picker and waited
+for a download that never came - Chromium has the API, and an automated page hangs on the
+dialog. Firefox and Safari take the download fallback, which is covered by unit tests.
+
 ## A kind of ground can be drawn with a model - done, and too slow
 
 A terrain type can name a model the way an adversary does. `terrain('floor', { model:

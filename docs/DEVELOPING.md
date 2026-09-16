@@ -184,6 +184,8 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 | `card-edits.ts` | The Cards panel's edits, over the two documents a card is: `addCardWithAbility`, `updateCard`, `updateAbility`, `addCard`/`removeCard` (a copy of a pack's card), and `updateCardWords`, which writes a name or a text onto the ability and onto the project's own card when the ability is alone on it, so the action bar and the deck browser never disagree. |
 | `move-edits.ts` | `moveAdversary`, `moveInteractable`, `moveDeco`, `moveSpawn`: a thing carried to another tile. The controller carries it for as long as the pointer is held and runs one of these on release, so a carry is one undo step and a press without a drag is none. A prop and a party start have no ids and are named by their place in the list. |
 | `asset-edits.ts` | `addAsset`, `removeAsset`, `updateAsset`. Out of `session.ts`, which is pinned; it still hands them out. |
+| `terrain-edits.ts` | `setTerrainModel`: what a kind of ground is drawn with. A project that declares no palette means "the engine's four", and there is nowhere to hang `floor`'s model until `floor` is written down - so the edit writes the four, and undo takes them away again rather than leaving a palette nobody asked for. |
+| `project-file.ts` | The file a project saves to, held between saves. `saveProjectFile` writes the handle it was given and only asks for one the first time, so Save stops leaving `project (1).json` beside `project.json`; `forgetFile` is Save as…. Firefox and Safari have no picker, so the download is still the fallback, chosen by asking whether the API is there rather than by sniffing the browser. A closed dialog reports `cancelled` and is *not* a save: the project stays dirty and the tab still warns. |
 | `model-memory.ts` | The models imported in this browser, kept in IndexedDB and laid back under the project as the editor opens. `missingFrom` is the rule — a project's own declaration wins the id — and the store is injected, so it is tested with a Map. |
 | `controller.ts` | What a click means given the tool in hand; `CONTINUOUS` tools coalesce. |
 | `modes.ts` | The top bar's four modes and the tools each owns. Choosing a tool chooses its mode, so the two never disagree. |
@@ -198,7 +200,7 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 | `ui/editor.css` | The Blender-grey theme's tokens on `:root`, and the shell's rules under `.ph-editor`: flat regions flush to the edges, blue only on the selected thing. |
 | `ui/Inspector.tsx`, `ui/DialogueGraph.tsx`, `ui/ItemPanel.tsx`, `ui/PartyPanel.tsx`, `ui/QuestEditor.tsx`, `ui/CodePanel.tsx` | The rest of the panels. |
 
-`src/main.ts` is the boot path, and owns the board, play and global keys (`Ctrl+E`, `Ctrl+Z`).
+`src/main.ts` is the boot path, and owns the board, play and global keys (`Ctrl+E`, `Ctrl+Z`, `Ctrl+S`).
 The editor shell (`ui/EditorShell.tsx`) also listens, for its own keys (`1`-`4`, `Esc`) and for a
 click outside an open menu. `index.html` holds a `<canvas id="gl">` and a `<div id="app">` and
 loads `/src/main.ts`.
