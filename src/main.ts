@@ -28,7 +28,6 @@ import { ActionBar } from './game/ui/ActionBar';
 import { LoadoutPanel } from './game/ui/LoadoutPanel';
 import { CardPreview } from './game/ui/CardPreview';
 import { RestPanel } from './game/ui/RestPanel';
-import { DiceTray } from './game/ui/DiceTray';
 import { abilityList, abilityTargets, abilitiesOf, loadoutView, pointTiles, rest, shapeAt, swapCard, useAbility, type RestPlan } from './game/demo-abilities';
 import type { LevelUpIssue, LevelUpPlan } from './engine/character/progression';
 import { OrbitCamera } from './engine/render/camera';
@@ -1474,16 +1473,7 @@ function takeLevel(id: string, plan: LevelUpPlan): boolean {
 
 function renderPlayPanel(): void {
   render(
-    h(Fragment, null, h(DiceTray, {
-      // One at a time, in the order they were rolled: a feature that catches
-      // the whole party rolls several in one burst, and they queue.
-      roll: demo.rolls[0] ?? null,
-      millis: demo.diceMillis,
-      onDone: (id: number) => {
-        demo.rolls = demo.rolls.filter((waiting) => waiting.id !== id);
-        refreshPlay();
-      },
-    }), h(PartyHud, {
+    h(Fragment, null, h(PartyHud, {
       members: hudMembers(),
       bad: { ...demo.state.bad },
       round: demo.encounter?.round ?? null,
@@ -1585,6 +1575,14 @@ function renderPlayPanel(): void {
       },
       carried: carriedItems(),
       pending: demo.pending,
+      // One at a time, in the order they were rolled: a feature that catches the
+      // whole party rolls several in one burst, and they queue.
+      rolls: demo.rolls,
+      millis: demo.diceMillis,
+      onRollDone: (id: number) => {
+        demo.rolls = demo.rolls.filter((waiting) => waiting.id !== id);
+        refreshPlay();
+      },
       within: reachableInteractable(demo),
       saveBlocked: saveBlockedBy(demo),
       saves: slots.list(),

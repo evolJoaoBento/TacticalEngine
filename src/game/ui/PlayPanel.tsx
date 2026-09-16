@@ -12,8 +12,9 @@
 
 import { useState } from 'preact/hooks';
 import type { Pending } from '../demo-scene';
-import type { LogLine } from '../log';
+import type { LogLine, RollShow } from '../log';
 import type { Response } from '../../engine/script/runner';
+import { RollStage, asked } from './RollStage';
 import './hud.css';
 
 /** One line of the pack: what it is, and how many. */
@@ -91,6 +92,12 @@ export interface PlayPanelProps {
   /** What the party is carrying. */
   carried: readonly CarriedItem[];
   pending: Pending | null;
+  /** Duality rolls waiting to be watched, oldest first. */
+  rolls: readonly RollShow[];
+  /** How long a roll tumbles. Zero lands it at once. */
+  millis: number;
+  /** This roll has been read; take it out of the queue. */
+  onRollDone: (id: number) => void;
   /** Named when something is close enough to touch. */
   within: string | null;
   onUse: (id: string) => void;
@@ -128,24 +135,28 @@ export const TONE: Readonly<Record<LogLine['tone'], string>> = {
   success: '#9ae08a',
 };
 
-/** A modifier reads as +2 or -1, never as +-1. */
-const signed = (n: number): string => (n >= 0 ? `+${n}` : `${n}`);
-
 export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
   const { log, pending, within } = props;
   const [saves, setSaves] = useState(false);
-  /** The Experience to Utilize on the roll being asked for, if any. */
-  const [experience, setExperience] = useState('');
 
   // A conversation raises its own prompts, so the panel reads the innermost
-  // thing waiting rather than assuming the script is the one asking.
+  // thing waiting rather than assuming the script is the one asking. A check is
+  // not the panel's to draw: it is asked and thrown on a card over the room.
   const talking = pending !== null && pending.kind === 'script' ? pending.dialogue : null;
-  const asking = talking?.prompt ?? (talking === null ? (pending?.prompt ?? null) : null);
-  const check = asking !== null && asking.kind === 'check' ? asking : null;
+  const asking = asked(pending);
   const choice = asking !== null && asking.kind === 'choice' ? asking : null;
 
   return (
     <div className="play panel">
+      <RollStage
+        rolls={props.rolls}
+        millis={props.millis}
+        pending={pending}
+        actorGood={props.actorGood}
+        nameOf={props.nameOf}
+        onAnswer={props.onAnswer}
+        onDone={props.onRollDone}
+      />
       <div data-testid="save-row" className="panel-saves">
         <button
           type="button"
@@ -335,61 +346,6 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
               Continue
             </button>
           ) : null}
-        </div>
-      ) : null}
-
-      {check !== null ? (
-        <div className="play-box panel-box" data-testid="check-prompt">
-          <div style={{ marginBottom: '8px' }}>
-            {check.prompt ??
-              (check.difficulty === 'target'
-                ? `Roll ${check.trait} against ${check.targets.length === 0 ? 'nobody' : check.targets.map(props.nameOf).join(', ')}?`
-                : `Roll ${check.trait} against ${check.difficulty}?`)}
-            {check.prompt !== undefined && check.targets.length > 0 ? (
-              <div className="panel-sub">Against {check.targets.map(props.nameOf).join(', ')}.</div>
-            ) : null}
-          </div>
-          {check.experiences.length > 0 ? (
-            <div style={{ marginBottom: '8px', fontSize: '12px' }}>
-              <label className="panel-detail">Utilize an Experience (1 Light): </label>
-              <select
-                value={experience}
-                disabled={props.actorGood < 1}
-                title={props.actorGood < 1 ? 'No Light to spend' : undefined}
-                data-testid="experience-pick"
-                onChange={(e) => setExperience((e.target as HTMLSelectElement).value)}
-              >
-                <option value="">none</option>
-                {check.experiences.map((e) => (
-                  <option key={e.name} value={e.name}>
-                    {e.name} {signed(e.modifier)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-          <div className="panel-actions">
-            <button
-              className="play-btn is-primary"
-              data-testid="roll"
-              onClick={() => {
-                const chosen = experience;
-                setExperience('');
-                props.onAnswer(chosen === '' || props.actorGood < 1 ? { kind: 'roll' } : { kind: 'roll', experience: chosen });
-              }}
-            >
-              Roll {check.trait} {signed(check.modifier + (experience === '' ? 0 : (check.experiences.find((e) => e.name === experience)?.modifier ?? 0)))}
-            </button>
-            <button
-              className="play-btn"
-              onClick={() => {
-                setExperience('');
-                props.onAnswer({ kind: 'cancel' });
-              }}
-            >
-              Step back
-            </button>
-          </div>
         </div>
       ) : null}
 

@@ -36,7 +36,10 @@ it first and expect Playwright to use it.
 | objects | `objects()`, `use(id)`, `objectState(id)` |
 
 Always `setDiceSpeed(0)` first, or the dice animation makes everything
-wait. A move that wakes an encounter does not start it until the tokens
+wait. A check *clicked* through the UI is thrown on a card of its own,
+which holds the dice until `[data-testid="accept"]` is clicked whatever the
+speed; answering with `answer({ kind: 'roll' })` skips the card, and those
+dice go to the tray as they always did. A move that wakes an encounter does not start it until the tokens
 arrive; call `arrive()` after the move (or wait for `gliding() === 0`)
 before reading `inCombat()`. Drain prompts with
 `while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 })`

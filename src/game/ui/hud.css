@@ -168,7 +168,7 @@
 
 /* The Duality Dice's readout, under the dice. */
 /* Below the action bar, which used to paint over the dice; above everything else. */
-.dice{position:absolute;top:36%;left:50%;transform:translateX(-50%);z-index:3;pointer-events:none;text-align:center;color:var(--play-ink);text-shadow:var(--outline-sm)}
+.dice{position:fixed;top:36%;left:50%;transform:translateX(-50%);z-index:3;pointer-events:none;text-align:center;color:var(--play-ink);text-shadow:var(--outline-sm)}
 .dice-who{margin-bottom:8px;font:700 11px var(--play-font);letter-spacing:.2em;text-transform:uppercase;color:var(--play-gold)}
 .dice-pair{display:flex;gap:18px;justify-content:center;align-items:flex-end}
 .dice-readout{display:inline-flex;flex-direction:column;align-items:center;gap:1px;min-height:38px;margin-top:10px;padding:7px 18px;border-radius:14px;background:linear-gradient(var(--play-surface-top),var(--play-surface));border:3px solid var(--play-line);box-shadow:inset 0 0 0 1px #d9b36b44,0 4px 0 #0009;transition:opacity 140ms}
@@ -182,7 +182,53 @@
 #floaters{position:absolute;inset:0;overflow:hidden;pointer-events:none;font:700 24px/1 var(--play-font)}
 .floater{position:absolute;transform:translate(-50%,-100%);text-shadow:var(--outline-lg);white-space:nowrap;animation:floater-pop .4s cubic-bezier(.2,1.7,.4,1)}
 @keyframes floater-pop{from{scale:.3}to{scale:1}}
-@media(prefers-reduced-motion:reduce){.hand-orb:before,.floater{animation:none}}
+@media(prefers-reduced-motion:reduce){.hand-orb:before,.floater,.roll-backdrop,.roll-card,.die-solid.is-landed,.roll-step,.roll-verdict{animation:none}}
+
+/* One die, drawn as the solid it is (`d12.ts`): three flat bands of light, a heavy ink rim, and
+   the number carried on the face it is printed on, squashed the way that face is turned. */
+.die{position:relative;display:inline-block;flex:none}
+.die-solid{display:block;overflow:visible;transition:filter .18s}
+.die-rim{fill:var(--play-line);stroke:var(--play-line);stroke-width:6;stroke-linejoin:round}
+.die-face{stroke:var(--play-line);stroke-width:1.6;stroke-linejoin:round}
+.die-number{font:700 50px var(--play-font);fill:#fff;stroke:var(--play-line);stroke-width:10;stroke-linejoin:round;paint-order:stroke;text-anchor:middle;dominant-baseline:central}
+.die-bar{fill:#fff;stroke:var(--play-line);stroke-width:4;stroke-linejoin:round;paint-order:stroke}
+.die-solid.is-landed{animation:die-land .22s cubic-bezier(.2,1.7,.4,1)}
+@keyframes die-land{from{scale:1.14}to{scale:1}}
+.die-shadow{position:absolute;left:50%;bottom:-7px;width:76%;height:13%;border-radius:50%;background:#000;filter:blur(3px)}
+
+/* The card a check is asked and thrown on, with the room blurred and dark behind it. */
+.roll-backdrop{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;box-sizing:border-box;background:radial-gradient(ellipse at 50% 42%,#140d0a99,#050302aa 45%,#050302e6);backdrop-filter:blur(7px) saturate(.7);-webkit-backdrop-filter:blur(7px) saturate(.7);pointer-events:auto;animation:roll-in .16s ease-out}
+.roll-card{width:min(540px,100%);box-sizing:border-box;padding:16px 22px 18px;text-align:center;border-radius:18px;animation:roll-rise .22s cubic-bezier(.2,1.5,.4,1)}
+.roll-title{font:700 25px/1.15 var(--play-font);color:#fff;text-shadow:var(--outline);margin:2px 0 3px}
+.roll-against{color:var(--play-muted);font-size:13px}
+.roll-dc{display:inline-flex;flex-direction:column;align-items:center;gap:1px;margin:10px 0 2px;padding:5px 20px 7px;background:var(--play-field);border:3px solid var(--play-line);border-radius:12px 12px 26px 26px;box-shadow:inset 0 0 0 1px #d9b36b55,0 4px 0 #0009}
+.roll-dc b{font:700 30px/1 var(--play-font);color:#fff;text-shadow:var(--outline)}
+.roll-table{display:flex;align-items:flex-end;justify-content:center;gap:16px;margin:12px 0 6px;min-height:136px}
+.roll-die{display:flex;flex-direction:column;align-items:center;gap:5px}
+.roll-die-name{font:700 10px/1 var(--play-font);letter-spacing:.14em;text-transform:uppercase;color:var(--play-muted);text-shadow:var(--outline-sm)}
+.roll-die-name.is-good{color:var(--play-light)}
+.roll-die-name.is-bad{color:var(--play-shadow)}
+.roll-mod{display:grid;place-items:center;width:64px;height:64px;box-sizing:border-box;background:var(--play-field);border:3px solid var(--play-line);border-radius:14px;font:700 28px var(--play-font);color:#fff;text-shadow:var(--outline);box-shadow:inset 0 0 0 1px #d9b36b55,0 4px 0 #0009}
+.roll-bonuses{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;margin:8px 0 2px}
+.roll-bonuses .play-eyebrow{flex-basis:100%}
+.roll-chip{padding:4px 10px;font-size:12px}
+.roll-outcome{min-height:94px;padding-top:2px}
+.roll-steps{display:flex;flex-wrap:wrap;gap:3px 9px;justify-content:center;align-items:baseline;min-height:32px;font:700 17px var(--play-font);text-shadow:var(--outline-sm)}
+.roll-step{animation:step-pop .2s cubic-bezier(.2,1.7,.4,1)}
+.roll-step.is-good{color:var(--play-light)}
+.roll-step.is-bad{color:var(--play-shadow)}
+.roll-step.is-mod{color:var(--play-ink)}
+.roll-step.is-total{color:#fff;font-size:23px;text-shadow:var(--outline)}
+.roll-step.is-vs{color:var(--play-muted);font-size:14px}
+@keyframes step-pop{from{opacity:0;scale:.6;translate:0 -7px}to{opacity:1;scale:1;translate:0}}
+.roll-verdict{font:700 26px/1.1 var(--play-font);text-transform:uppercase;letter-spacing:.03em;text-shadow:var(--outline-lg);animation:step-pop .26s cubic-bezier(.2,1.6,.4,1)}
+.roll-verdict.is-success{color:#9be07f}
+.roll-verdict.is-failure{color:#ff8a73}
+.roll-verdict.is-critical{color:var(--play-gold-bright)}
+.roll-actions{display:flex;gap:12px;justify-content:center;margin-top:12px}
+.play-btn.is-throw{min-width:150px;padding:9px 18px;font-size:16px}
+@keyframes roll-in{from{opacity:0}to{opacity:1}}
+@keyframes roll-rise{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
 
 /* Play's colour: the board a little richer than it is lit, and darker at the edges, like a
    painted scene. Only while the play HUD is up, so the editor keeps its plain grey. */

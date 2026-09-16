@@ -4,6 +4,46 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## A check is thrown the way Baldur's Gate 3 throws one — done
+
+The roll a player is asked for was a prompt in the corner of the panel, answered with a
+button, with the dice tumbling somewhere else afterwards. It is a step of its own now.
+Using something that wants a roll blurs and darkens the room behind a card that names the
+roll, shows the Difficulty, sets both d12s down with the modifier beside them and offers
+each Experience as a chip to spend a Light on: Roll, or Cancel and go back to exploring.
+Roll throws the dice on the card — they tumble and land face on to the player, showing what
+the rules already rolled — and then the sum is read out a term at a time: the Light die, the
+Shadow die, whatever is added to them, the total, and what it was against, each landing on
+the one before it until the verdict pops on the end of it. Accept waits for the sum, so the
+result is read before the room moves again, and a press anywhere on the card skips to the
+end of it. Escape is Cancel before the throw and Accept once the sum is in, and the card
+keeps the overlay's own keys — Enter passes the turn, Tab picks the next character — off
+itself while it is up.
+
+The dice are dice now, not the flat pentagon badges the tray drew: `src/game/ui/d12.ts` is
+the dodecahedron itself — twelve pentagons numbered so opposite faces make thirteen, turned
+by a seeded throw and flattened to polygons, each face in the board's three flat bands with
+its number carried on it and the whole solid ringed in ink. Nothing is downloaded for it and
+no image ships. `Die.tsx` draws one, the card and the tray share it, and only the throw a
+card made is shown on that card: a swing, a reaction, or a check a script answered for the
+room goes to the tray behind, which waits its turn. That is also why a test driving the game
+through `answer({ kind: 'roll' })` never meets the card at all.
+
+The check prompt left `PlayPanel`, which paid for the card in `main.ts` (pin 2455), and the
+Agility Roll test moved out of `demo.spec.ts` (pin 2879) into `tests/e2e/roll.spec.ts` with
+the rest of the rolls.
+
+Verified: `npx tsc --noEmit` clean, `npx vitest run` 1934 passed, `npx playwright test` 126
+passed in 8.3 minutes, exit 0 read off all three. Eight of the unit tests are the die's own
+geometry (`tests/unit/d12.test.ts`): twelve pentagons on a sphere, opposite faces making
+thirteen, corners wound the same way round every face, a throw that only ever turns — never
+squashed or mirrored — and one that ends showing the face the rules rolled, however long it
+took. `tests/e2e/roll.spec.ts` drives the card at the vault door: asked, cancelled back to
+exploring, asked again, thrown, tallied and accepted, checking the faces on screen are the
+faces the engine rolled and that the tray behind never shows the same dice again. Its four
+screenshots were read — the card asking, the dice in the air, the moment they land, and the
+sum with its verdict.
+
 ## The play UI goes Slay the Spire — done
 
 What the user meant by the cartoon ask: the UI. The navy glass and bronze hairlines are gone. Every

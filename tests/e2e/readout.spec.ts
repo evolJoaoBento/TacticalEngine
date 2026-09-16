@@ -46,6 +46,7 @@ const PANELS = [
   'action-bar',
   'dice-tray',
   'check-prompt',
+  'roll-result',
   'choice-prompt',
   'dialogue',
   'journal',

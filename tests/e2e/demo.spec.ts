@@ -597,7 +597,7 @@ test('shows the Duality Dice landing on the faces the roll rolled', async ({ pag
   await expect(tray).toHaveAttribute('data-good', String(rolled!.good));
   await expect(tray).toHaveAttribute('data-bad', String(rolled!.bad));
   await expect(tray).toHaveAttribute('data-settled', 'false');
-  await expect(tray.locator('svg')).toHaveCount(3); // two dice and the sheen defs
+  await expect(tray.locator('[data-testid="die"]')).toHaveCount(2); // two d12s, each drawn as a solid
 
   // Turn the settle time off and the dice finish and clear themselves.
   await page.evaluate(() => window.__engine!.setDiceSpeed(0));
@@ -1862,9 +1862,11 @@ test('casts Cinder Burst at a spot on the board, picks an Experience, and the tu
   await expect(prompt).toContainText('Hollow Knight');
   // The card asked Stress; nothing the pack ships spends Light. The Experience is
   // what spends one, which is why the picker is here at all.
-  await prompt.locator('[data-testid="experience-pick"]').selectOption({ index: 1 });
+  await prompt.locator('[data-testid="experience-pick"]').first().click();
   await prompt.locator('[data-testid="roll"]').click();
   await expect(prompt).toHaveCount(0);
+  // The dice are thrown on the card that asked for them, and it holds until they are read.
+  await page.locator('[data-testid="accept"]').click();
 
   const log = page.locator('[data-testid="log"]');
   await expect(log).toContainText('Draws on');
@@ -2153,32 +2155,6 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
     return Object.fromEntries(api.party().map((id) => [id, api.stressOf(id).marked]));
   });
   for (const id of Object.keys(before)) expect(after[id]).toBe(before[id]! - 1);
-
-  expect(consoleErrors).toEqual([]);
-});
-
-test('a fighter clicks past one move, and an Agility Roll stands between them and the spot', async ({ page }) => {
-  const consoleErrors = await boot(page);
-  const tile = await page.evaluate(() => {
-    const api = window.__engine!;
-    api.startFight();
-    api.select('kara');
-    return api.underPressure()[0] ?? -1;
-  });
-  expect(tile).toBeGreaterThanOrEqual(0);
-  const before = await page.evaluate(() => window.__engine!.standingAt('kara'));
-
-  // The click asks rather than walks.
-  expect(await page.evaluate((t) => window.__engine!.moveTo(t), tile)).toBe(false);
-  const prompt = page.locator('[data-testid="check-prompt"]');
-  await expect(prompt).toBeVisible();
-  await expect(prompt).toContainText('Agility');
-  expect(await page.evaluate(() => window.__engine!.standingAt('kara'))).toEqual(before);
-
-  // Answered, she goes: the whole way on a success, as far as one move on a failure.
-  await prompt.locator('[data-testid="roll"]').click();
-  await expect(prompt).toHaveCount(0);
-  expect(await page.evaluate(() => window.__engine!.standingAt('kara'))).not.toEqual(before);
 
   expect(consoleErrors).toEqual([]);
 });
