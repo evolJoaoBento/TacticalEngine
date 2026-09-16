@@ -51,12 +51,29 @@ export function buildingTab(): LibraryTab {
   })) };
 }
 
-/** Ground has no model to show, so each terrain type is a colour swatch. */
-export function groundTab(terrainIds: readonly string[], colors: Readonly<Record<string, string>>): LibraryTab {
+/** What the strip needs of a kind of ground: what to call it and what colour to show. */
+export interface GroundType {
+  readonly id: string;
+  readonly name?: string;
+  readonly color?: string;
+}
+
+/**
+ * Ground has no model to show, so each kind is a colour swatch.
+ *
+ * Takes the types rather than a list of ids and a table of colours: a project can declare a
+ * kind of ground, and a swatch looked up in a table the engine wrote would never have it.
+ */
+export function groundTab(types: readonly GroundType[]): LibraryTab {
   return {
     id: 'ground',
     label: 'Ground',
-    items: terrainIds.map((id) => ({ tab: 'ground', id, label: titleCase(id), swatch: colors[id] ?? FALLBACK_SWATCH })),
+    items: types.map((type) => ({
+      tab: 'ground',
+      id: type.id,
+      label: type.name !== undefined && type.name !== '' ? type.name : titleCase(type.id),
+      swatch: type.color ?? FALLBACK_SWATCH,
+    })),
   };
 }
 

@@ -41,7 +41,6 @@ import { NO_TILE, type Spot, type TileGrid } from './engine/grid/grid';
 import { mapExtent, spotToWorld, tileAtWorld, tileCenter, worldToSpot } from './engine/render/layout';
 import { MODELS } from './engine/render/procedural/registry';
 import { SceneView, hueOf, OUTLINE_LAYER } from './engine/render/scene-view';
-import { DEFAULT_TERRAIN_COLORS } from './engine/render/terrain-mesh';
 import { journalSummary } from './engine/content/quests';
 import { blankScene, gridFromScene, paletteForProject } from './engine/scene/grid-from-scene';
 import { importLegacyScene } from './engine/scene/legacy-import';
@@ -417,7 +416,7 @@ assets.onChange(() => { if (mode === 'edit') renderPanel(); });
 
 // The library's own, plus whatever the project declares: a file in `public/models` is drawable.
 const KNOWN_MODELS = new Set([...MODELS.map((m) => m.id), ...demo.project.assets.map((a) => a.id)]);
-const TERRAIN_IDS = demo.grid.palette.types.map((t) => t.id);
+const TERRAIN_TYPES = demo.grid.palette.types;
 const PROP_MODELS = MODELS.filter((m) => m.category === 'prop').map((m) => m.id);
 /**
  * The Combat strip's creatures: the pack the app ships, and whatever the project carries or has
@@ -615,8 +614,7 @@ function renderPanel(): void {
       session,
       controller: editor,
       onNavigateBuilding: navigateBuilding,
-      terrainIds: TERRAIN_IDS,
-      terrainColors: DEFAULT_TERRAIN_COLORS,
+      terrainTypes: TERRAIN_TYPES,
       propModels: PROP_MODELS,
       adversaries: adversaryLibrary(),
       knownModels: KNOWN_MODELS,

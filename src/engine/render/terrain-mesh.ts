@@ -127,10 +127,14 @@ export function buildTerrainMesh(
   const tints = options.tints;
   const half = layout.tileSize / 2;
 
-  // Every tile's own colour first, so a corner can be read off its neighbours.
+  // Every tile's own colour first, so a corner can be read off its neighbours. The type's
+  // own colour comes before the table: a project that declares a kind of ground declares
+  // what it looks like, and the table is only what the engine's four were born with.
   const own: Color[] = new Array(grid.size);
   for (let tile = 0; tile < grid.size; tile++) {
-    own[tile] = new Color(colorFor(tile, grid.terrainAt(tile).id, tints, palette));
+    const type = grid.terrainAt(tile);
+    const declared = type.color === undefined ? palette : { ...palette, [type.id]: type.color };
+    own[tile] = new Color(colorFor(tile, type.id, tints, declared));
   }
 
   // The colour at a corner of a tile: the mean of every tile sharing that

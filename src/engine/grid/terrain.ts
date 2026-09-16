@@ -30,6 +30,12 @@ export interface TerrainType {
   /** Whether the tile blocks line of sight through it. */
   readonly blocksSight: boolean;
   /**
+   * The colour the ground is drawn in where this type lies, unless a tile carries a tint
+   * of its own. On the type rather than in a table beside it, so a project can declare a
+   * kind of ground and say what it looks like in the same breath.
+   */
+  readonly color?: string;
+  /**
    * A model every tile of this type is drawn with, if it should be drawn as something
    * rather than coloured. Any id the library or the project's imports can supply, so a
    * `.glb` customises the ground the way it customises a creature. The ground mesh is
@@ -53,6 +59,7 @@ export function terrain(
     providesCover: overrides.providesCover ?? false,
     blocksSight: overrides.blocksSight ?? false,
     // Spread rather than assigned: an explicit undefined is not the same as absent.
+    ...(overrides.color === undefined ? {} : { color: overrides.color }),
     ...(overrides.model === undefined ? {} : { model: overrides.model }),
   };
 }
@@ -62,10 +69,10 @@ export function terrain(
  * default terrain, so a zeroed tile array is a valid open floor.
  */
 export const DEFAULT_TERRAIN_TYPES: readonly TerrainType[] = [
-  terrain('floor', { name: 'Floor' }),
-  terrain('difficult', { name: 'Difficult Terrain', cost: 2 }),
-  terrain('cover', { name: 'Cover', providesCover: true }),
-  terrain('wall', { name: 'Wall', passable: false, cost: Infinity, blocksSight: true }),
+  terrain('floor', { name: 'Floor', color: '#5d8a4a' }),
+  terrain('difficult', { name: 'Difficult Terrain', cost: 2, color: '#6b6350' }),
+  terrain('cover', { name: 'Cover', providesCover: true, color: '#7d7a6d' }),
+  terrain('wall', { name: 'Wall', passable: false, cost: Infinity, blocksSight: true, color: '#3b3f4a' }),
 ];
 
 /**

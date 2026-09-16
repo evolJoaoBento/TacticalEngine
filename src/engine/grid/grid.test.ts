@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { NO_TILE, TileGrid } from './grid';
 import { DEFAULT_TERRAIN_TYPES, TerrainPalette, terrain } from './terrain';
+import { paletteForProject } from '../scene/grid-from-scene';
 
 const grid = (width = 5, height = 4) => new TileGrid({ width, height });
 
@@ -189,5 +190,26 @@ describe('a grid taking on rebuilt ground', () => {
     // Writing to the one it copied from does not reach into the one that adopted.
     rebuilt.setHeight(0, 9);
     expect(live.heightAt(0)).toBe(5);
+  });
+});
+
+describe('a kind of ground that says what it looks like', () => {
+  it('carries its colour, and the engine four keep the ones they were drawn in', () => {
+    const palette = new TerrainPalette();
+    expect(palette.at(palette.require('floor')).color).toBe('#5d8a4a');
+    expect(palette.at(palette.require('wall')).color).toBe('#3b3f4a');
+    // A type declared without one says nothing rather than guessing a colour.
+    expect(terrain('bog').color).toBeUndefined();
+    expect(terrain('bog', { color: '#405030' }).color).toBe('#405030');
+  });
+
+  it('reaches the palette a project is played on', () => {
+    const palette = paletteForProject({
+      terrainPalette: [
+        { id: 'sand', name: 'Sand', passable: true, cost: 2, providesCover: false, blocksSight: false, color: '#d8c38a' },
+      ],
+    });
+    expect(palette.at(0).color).toBe('#d8c38a');
+    expect(palette.at(0).cost).toBe(2);
   });
 });

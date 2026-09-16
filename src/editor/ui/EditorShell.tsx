@@ -26,7 +26,7 @@ import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
 import { EDITOR_MODES, MODE_TOOLS, TERRAIN_RAIL, isTerrainTab, type EditorMode } from '../modes';
 import { BUILD_SHAPES } from '../../engine/scene/building';
-import { buildingTab, creatureTabs, groundTab, objectsTab, propsTab, type LibraryItem } from '../library';
+import { buildingTab, creatureTabs, groundTab, objectsTab, propsTab, type GroundType, type LibraryItem } from '../library';
 import { validateProject, type Problem } from '../validate';
 import { TopBar, type Menu, type Workspace } from './TopBar';
 import { SceneMenu } from './SceneMenu';
@@ -55,9 +55,8 @@ export interface EditorShellProps {
   onNavigateBuilding?: (x: number, y: number) => void;
   session: EditorSession;
   controller: EditorController;
-  terrainIds: readonly string[];
-  /** Swatch colour per terrain id, for the Ground tab. */
-  terrainColors: Readonly<Record<string, string>>;
+  /** The kinds of ground the strip offers, each with the colour it declares. */
+  terrainTypes: readonly GroundType[];
   propModels: readonly string[];
   /** The SRD's stat blocks, for the creature library. */
   adversaries: readonly AdversaryDef[];
@@ -308,7 +307,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           }}
           tabs={[
             buildingTab(),
-            groundTab(props.terrainIds, props.terrainColors),
+            groundTab(props.terrainTypes),
             propsTab(props.propModels, session.project.assets.map((a) => a.id)),
             objectsTab(),
           ]}

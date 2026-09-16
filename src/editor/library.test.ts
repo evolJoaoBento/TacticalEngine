@@ -19,13 +19,24 @@ describe('the library', () => {
     expect(titleCase('wall')).toBe('Wall');
   });
 
-  it('shows ground as swatches, falling back for a type with no colour', () => {
-    const tab = groundTab(['floor', 'water'], { floor: '#5d8a4a' });
+  it('shows ground as swatches, each kind in the colour it declares', () => {
+    const tab = groundTab([
+      { id: 'floor', name: 'Floor', color: '#5d8a4a' },
+      { id: 'lava', name: 'Lava', color: '#c4441f' },
+      // No colour of its own, and no table to look one up in: it takes the fallback.
+      { id: 'water' },
+    ]);
     expect(tab.id).toBe('ground');
     expect(tab.items.map((i) => [i.id, i.label, i.swatch, i.tab])).toEqual([
       ['floor', 'Floor', '#5d8a4a', 'ground'],
+      ['lava', 'Lava', '#c4441f', 'ground'],
       ['water', 'Water', '#5d8a4a', 'ground'],
     ]);
+  });
+
+  it('takes the name a kind of ground was given, and titles its id when it has none', () => {
+    const tab = groundTab([{ id: 'deep-water', name: 'Deep Water' }, { id: 'rot-marsh' }]);
+    expect(tab.items.map((i) => i.label)).toEqual(['Deep Water', 'Rot Marsh']);
   });
 
   it('lists imported models after the built-in props, and says so', () => {
