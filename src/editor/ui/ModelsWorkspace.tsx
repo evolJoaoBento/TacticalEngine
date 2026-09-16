@@ -10,6 +10,7 @@
 import { useEffect } from 'preact/hooks';
 import { modelAssetSchema, type ModelAsset } from '../../engine/render/assets';
 import { addAsset, removeAsset, updateAsset, type EditorSession } from '../session';
+import { memory } from '../model-memory';
 
 /** The small text button every workspace closes with, styled like the other four's. */
 const CLOSE_BUTTON: Record<string, string | number> = {
@@ -94,6 +95,10 @@ export function ModelsWorkspace(props: {
 
   const edit = (id: string, changes: Parameters<typeof updateAsset>[1]): void => {
     session.run(updateAsset(id, changes));
+    // The browser remembers a model as it is now, so a scale tuned here is the
+    // scale it comes back at rather than the one it arrived with.
+    const tuned = session.project.assets.find((asset) => asset.id === id);
+    if (tuned !== undefined) void memory().put(tuned);
     // Not `onAssetsChanged`: rebuilding the library would drop the loaded file
     // and empty the very clip list being chosen from.
     props.onAssetTuned?.(id);
@@ -133,6 +138,8 @@ export function ModelsWorkspace(props: {
                   onClick={() => {
                     if (!confirm(`Remove model "${asset.id}"?`)) return;
                     session.run(removeAsset(asset.id));
+                    // Removed here is removed for good: it does not come back with the editor.
+                    void memory().forget(asset.id);
                     props.onAssetsChanged?.();
                     props.onChange();
                   }}
@@ -236,7 +243,9 @@ export function ModelsWorkspace(props: {
               if (file === undefined) return;
               void readAsDataUrl(file).then((url) => {
                 const id = freeId(session, idFromFileName(file.name));
-                session.run(addAsset(modelAssetSchema.parse({ id, url, scale: 1 })));
+                const asset = modelAssetSchema.parse({ id, url, scale: 1 });
+                session.run(addAsset(asset));
+                void memory().put(asset);
                 props.onAssetsChanged?.();
                 props.onRequestAssets?.();
                 props.onChange();
@@ -247,8 +256,9 @@ export function ModelsWorkspace(props: {
           />
         </label>
         <div class="ph-note">
-          The file is stored in the project, so a save carries its art with it. Pick it from Terrain's
-          Props tab, name it on an object, or point a creature at it from Combat.
+          The file is stored in the project, so a save carries its art with it, and this browser
+          remembers it for the next time the editor opens. Pick it from Terrain's Props tab, name it
+          on an object, or point a creature at it from Combat.
         </div>
       </div>
     </div>

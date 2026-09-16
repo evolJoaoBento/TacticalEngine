@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { AnimationClip, Color, Group, Matrix4, Vector3, type InstancedMesh, type Line, type LineSegments } from 'three';
+import { AnimationClip, Box3, BoxGeometry, Color, Group, Matrix4, Mesh, Vector3, type InstancedMesh, type Line, type LineSegments } from 'three';
 import { AssetLibrary, modelAssetSchema } from './assets';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
@@ -275,6 +275,53 @@ describe('SceneView', () => {
     view.syncTokens(state);
     return { grid, state, view };
   };
+
+  it('seats an imported model on its tile, and twice the size grows it where it stands', async () => {
+    // A box modelled well away from its file's own origin, as an exported file often is.
+    const template = new Group();
+    const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+    mesh.position.set(3, 5, -2);
+    template.add(mesh);
+    const cube = (scale: number) => modelAssetSchema.parse({ id: 'cube', url: '/cube.glb', scale });
+    const library = new AssetLibrary(() => Promise.resolve(template), [cube(1)]);
+    library.request('cube');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const grid = makeGrid(['.....', '.....', '.....']);
+    const state = new SceneState({ id: 'room' }, grid);
+    state.addEntity(createPartyEntity('kara', 'sentinel', grid.indexOf(1, 1)));
+    const view = new SceneView(grid, { assets: library, modelForEntity: () => 'cube' });
+    view.syncTokens(state);
+
+    const centre = tileCenter(grid, grid.indexOf(1, 1));
+    const standing = () => {
+      const token = view.tokenFor('kara')!;
+      token.group.updateMatrixWorld(true);
+      const box = new Box3().setFromObject(token.group.children[0]!);
+      return {
+        middleX: (box.min.x + box.max.x) / 2,
+        middleZ: (box.min.z + box.max.z) / 2,
+        feet: box.min.y,
+        height: box.max.y - box.min.y,
+      };
+    };
+
+    // On its tile and on the ground, not hanging off wherever the artist's origin was.
+    const small = standing();
+    expect(small.middleX).toBeCloseTo(centre.x, 6);
+    expect(small.middleZ).toBeCloseTo(centre.z, 6);
+    expect(small.feet).toBeCloseTo(centre.y, 6);
+
+    // Resized, it grows in place: same spot, same feet, twice as tall.
+    library.retune(cube(2));
+    const big = standing();
+    expect(big.height).toBeCloseTo(small.height * 2, 6);
+    expect(big.middleX).toBeCloseTo(centre.x, 6);
+    expect(big.middleZ).toBeCloseTo(centre.z, 6);
+    expect(big.feet).toBeCloseTo(centre.y, 6);
+    view.dispose();
+  });
 
   it('plays the named idle, the walk while it walks, and the idle again when it has', async () => {
     const { grid, state, view } = await imported({ idle: 'Survey', walk: 'Run' });

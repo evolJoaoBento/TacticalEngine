@@ -16,6 +16,8 @@
 export interface CameraLimits {
   minPitch: number;
   maxPitch: number;
+  /** The flattest the camera may sit when it is all the way out: the far view is looked down on. */
+  farPitch: number;
   minDistance: number;
   maxDistance: number;
 }
@@ -24,6 +26,7 @@ export const DEFAULT_LIMITS: CameraLimits = {
   /** Radians above the ground plane. */
   minPitch: 0.35,
   maxPitch: 1.45,
+  farPitch: 1.3,
   minDistance: 6,
   maxDistance: 80,
 };
@@ -43,6 +46,22 @@ export interface CameraPosition {
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
+/**
+ * The flattest angle allowed from a given distance.
+ *
+ * Close up the camera is the player's to swing where they like — that is where
+ * the room is looked at from, and a low angle is what makes it a place. Pulling
+ * back is asking a different question, "where is everything", and the camera is
+ * levered towards looking down on it so the far view reads as a map rather than
+ * a horizon. Measured on the logarithm of the distance, because zoom multiplies:
+ * a notch of the wheel moves the floor by about as much wherever it is.
+ */
+export function pitchFloor(distance: number, limits: CameraLimits = DEFAULT_LIMITS): number {
+  const held = clamp(distance, limits.minDistance, limits.maxDistance);
+  const out = Math.log(held / limits.minDistance) / Math.log(limits.maxDistance / limits.minDistance);
+  return limits.minPitch + (limits.farPitch - limits.minPitch) * out;
+}
+
 export class OrbitCamera {
   /** Where the camera is heading. Inputs write this. */
   readonly goal: CameraPose;
@@ -51,22 +70,41 @@ export class OrbitCamera {
   readonly limits: CameraLimits;
   /** Fraction of the remaining distance closed per second of `update`. */
   damping = 10;
+  /**
+   * The angle the player last asked for, which is not always the angle they get:
+   * pulled back the camera is held above it, and it is handed back on the way in.
+   */
+  private wanted: number;
 
   constructor(pose: Partial<CameraPose> = {}, limits: CameraLimits = DEFAULT_LIMITS) {
     this.limits = limits;
+    this.wanted = clamp(pose.pitch ?? 0.9, limits.minPitch, limits.maxPitch);
+    const distance = clamp(pose.distance ?? 20, limits.minDistance, limits.maxDistance);
     this.goal = {
       target: { x: 0, y: 0, z: 0, ...pose.target },
       yaw: pose.yaw ?? 0,
-      pitch: clamp(pose.pitch ?? 0.9, limits.minPitch, limits.maxPitch),
-      distance: clamp(pose.distance ?? 20, limits.minDistance, limits.maxDistance),
+      pitch: clamp(this.wanted, pitchFloor(distance, limits), limits.maxPitch),
+      distance,
     };
     this.pose = { ...this.goal, target: { ...this.goal.target } };
   }
 
-  /** Turn around the target. `dx` and `dy` are radians. */
+  /**
+   * Turn around the target. `dx` and `dy` are radians.
+   *
+   * The drag is remembered whether or not it can be shown: asking for a flatter
+   * angle than this distance allows is not refused, it is kept, and zooming in
+   * arrives at it.
+   */
   orbit(dx: number, dy: number): void {
     this.goal.yaw += dx;
-    this.goal.pitch = clamp(this.goal.pitch + dy, this.limits.minPitch, this.limits.maxPitch);
+    this.wanted = clamp(this.wanted + dy, this.limits.minPitch, this.limits.maxPitch);
+    this.seat();
+  }
+
+  /** Hold the angle above the floor for however far out the camera is now. */
+  private seat(): void {
+    this.goal.pitch = clamp(this.wanted, pitchFloor(this.goal.distance, this.limits), this.limits.maxPitch);
   }
 
   /**
@@ -85,6 +123,7 @@ export class OrbitCamera {
   /** Move in or out. `factor > 1` moves away. */
   zoom(factor: number): void {
     this.goal.distance = clamp(this.goal.distance * factor, this.limits.minDistance, this.limits.maxDistance);
+    this.seat();
   }
 
   /** Look at a point from the current angle, at a distance that fits `radius`. */
@@ -93,6 +132,7 @@ export class OrbitCamera {
     // 1.8 × the radius reads the whole board at the default pitch without the
     // corners leaving the frame.
     this.goal.distance = clamp(radius * 1.8, this.limits.minDistance, this.limits.maxDistance);
+    this.seat();
   }
 
   /** Look at a point without changing distance or angle. */

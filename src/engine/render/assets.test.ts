@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Group, Mesh } from 'three';
-import { AssetLibrary, modelAssetSchema } from './assets';
+import { Box3, BoxGeometry, Group, Mesh } from 'three';
+import { AssetLibrary, modelAssetSchema, seatOnTile } from './assets';
 
 /**
  * The asset library, driven with a fake loader.
@@ -156,5 +156,50 @@ describe('loading', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(changed).toEqual([]);
+  });
+});
+
+describe('seating a model on its tile', () => {
+  /** A 2x2x2 box modelled a long way from its file's origin, as an exported file often is. */
+  const offCentre = (scale: number): Group => {
+    const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+    mesh.position.set(3, 5, -2);
+    const model = new Group();
+    model.add(mesh);
+    model.scale.setScalar(scale);
+    return model;
+  };
+
+  it('centres what arrived and stands it on the ground, wherever it was modelled', () => {
+    const model = offCentre(1);
+    seatOnTile(model);
+    // The box spans x 2..4, y 4..6, z -3..-1, so its middle goes to the tile and its feet to zero.
+    expect(model.position.x).toBeCloseTo(-3, 10);
+    expect(model.position.y).toBeCloseTo(-4, 10);
+    expect(model.position.z).toBeCloseTo(2, 10);
+  });
+
+  it('grows where it stands: twice the size is the same spot, not twice as far off it', () => {
+    const stood = (scale: number) => {
+      const model = offCentre(scale);
+      seatOnTile(model);
+      const box = new Box3().setFromObject(model);
+      return { middleX: (box.min.x + box.max.x) / 2, middleZ: (box.min.z + box.max.z) / 2, feet: box.min.y, height: box.max.y - box.min.y };
+    };
+    const small = stood(1);
+    const big = stood(2);
+    for (const one of [small, big]) {
+      expect(one.middleX).toBeCloseTo(0, 10);
+      expect(one.middleZ).toBeCloseTo(0, 10);
+      expect(one.feet).toBeCloseTo(0, 10);
+    }
+    // Bigger, and still standing on the tile rather than sunk through it.
+    expect(big.height).toBeCloseTo(small.height * 2, 10);
+  });
+
+  it('leaves a model with nothing to measure where it is', () => {
+    const empty = new Group();
+    seatOnTile(empty);
+    expect(empty.position.toArray()).toEqual([0, 0, 0]);
   });
 });

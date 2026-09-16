@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import type { Object3D } from 'three';
+import { Box3, type Object3D } from 'three';
 
 import { contentIdSchema } from '../scene/primitives';
 
@@ -48,6 +48,31 @@ export const modelAssetSchema = z.object({
 });
 
 export type ModelAsset = z.infer<typeof modelAssetSchema>;
+
+/**
+ * Seat a loaded model the way the procedural library seats its own: centred over
+ * the tile, its feet at y = 0.
+ *
+ * A glTF is exported around whatever origin the artist worked to — the middle of
+ * a crate, a character's hips, the corner of the room it was modelled in — so a
+ * file dropped in as it comes hangs off its tile, and scaling it about that
+ * origin slides it further off instead of growing it where it stands. Measuring
+ * what actually arrived and moving it onto the tile is what makes the two
+ * settings mean one thing each: `scale` sizes the model, `groundOffset` sinks or
+ * floats it deliberately.
+ *
+ * Call it once the rotation and the scale are on, because it measures what it is
+ * given. A model with nothing in it to measure is left where it is.
+ */
+export function seatOnTile(model: Object3D): void {
+  const box = new Box3().setFromObject(model);
+  if (box.isEmpty()) return;
+  model.position.set(
+    model.position.x - (box.min.x + box.max.x) / 2,
+    model.position.y - box.min.y,
+    model.position.z - (box.min.z + box.max.z) / 2,
+  );
+}
 
 export type AssetLoader = (url: string) => Promise<Object3D>;
 

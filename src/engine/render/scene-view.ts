@@ -41,10 +41,10 @@ import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
 import { lineLength } from '../grid/walk';
 import type { Deco, SceneDoc } from '../scene/schema';
 import type { EntityState, SceneState } from '../scene/state';
-import { DEFAULT_LAYOUT, mapExtent, spotToWorld, surfaceHeight, tileCenter, type TileLayout } from './layout';
+import { DEFAULT_LAYOUT, mapExtent, placementCentre, spotToWorld, surfaceHeight, tileCenter, type TileLayout } from './layout';
 import { ModelResources, buildModel, type BuildOptions, type BuiltModel } from './procedural/build';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import type { AssetLibrary } from './assets';
+import { type AssetLibrary, seatOnTile } from './assets';
 import type { ProceduralModelSpec } from './procedural/spec';
 import { placeholder as placeholderSpec } from './procedural/registry';
 
@@ -589,6 +589,10 @@ export class SceneView {
 
     for (const entity of state.allEntities()) {
       seen.add(entity.id);
+      // What an entity is drawn with can change under it — a creature re-skinned in
+      // the editor — and the token standing there was built from the old id.
+      const wanted = this.drawnModel(this.modelForEntity(entity), entity);
+      if (this.tokens.has(entity.id) && this.tokenModels.get(entity.id) !== wanted) this.dropToken(entity.id);
       let token = this.tokens.get(entity.id);
       const was = this.tokenSpots.get(entity.id);
       const path = this.pendingPaths.get(entity.id);
@@ -599,11 +603,10 @@ export class SceneView {
       if (token === undefined) {
         // The base ring carries the faction colour, so one spec serves both sides.
         const ring = this.factionColors[entity.faction] ?? DEFAULT_FACTION_COLORS['neutral']!;
-        const modelId = this.drawnModel(this.modelForEntity(entity), entity);
-        token = this.build(modelId, { palette: { ring: ringMaterial(ring) } });
+        token = this.build(wanted, { palette: { ring: ringMaterial(ring) } });
         token.group.name = `token:${entity.id}`;
         this.tokens.set(entity.id, token);
-        this.tokenModels.set(entity.id, modelId);
+        this.tokenModels.set(entity.id, wanted);
         this.root.add(token.group);
       }
       // A token already standing somewhere on the board that is now somewhere
@@ -926,6 +929,8 @@ export class SceneView {
     const clone = cloneSkeleton(template);
     clone.scale.setScalar(spec.scale);
     clone.rotation.y = spec.rotationY;
+    // Seated like everything else the room stands up: feet on the tile, centred over it.
+    seatOnTile(clone);
     // A file with clips plays one on a loop - the one the asset names as its
     // idle, or the first in the file, which is the idle in every sample set
     // worth the name. The others play where the view walks, hits or fells it.
@@ -1009,21 +1014,29 @@ export class SceneView {
     return this.clipSets.get(token.group)?.playing ?? null;
   }
 
+  /** Forget an entity's token, so the next sync builds it from whatever it is drawn with now. */
+  private dropToken(entityId: string): void {
+    const token = this.tokens.get(entityId);
+    if (token !== undefined) {
+      this.root.remove(token.group);
+      this.clipSets.delete(token.group);
+    }
+    this.tokens.delete(entityId);
+    this.tokenModels.delete(entityId);
+    // No history, so the one that replaces it is put down rather than walking in.
+    this.tokenSpots.delete(entityId);
+    this.tokenStanding.delete(entityId);
+    this.glides.delete(entityId);
+  }
+
   /** Redraw whatever was drawn from an id whose asset just arrived or failed. */
   private assetChanged(id: string): void {
     let redraw = false;
     for (const modelId of this.tokenModels.values()) if (modelId === id) redraw = true;
     if (this.lastDecos.some((deco) => deco.model === id)) redraw = true;
     if (!redraw) return;
-    for (const [entityId, modelId] of this.tokenModels) {
-      if (modelId !== id) continue;
-      const token = this.tokens.get(entityId);
-      if (token !== undefined) {
-        this.root.remove(token.group);
-        this.clipSets.delete(token.group);
-      }
-      this.tokens.delete(entityId);
-      this.tokenModels.delete(entityId);
+    for (const [entityId, modelId] of [...this.tokenModels]) {
+      if (modelId === id) this.dropToken(entityId);
     }
     if (this.lastState !== null) this.syncTokens(this.lastState);
     if (this.lastDecos.some((deco) => deco.model === id)) this.setDecos(this.lastDecos);
@@ -1150,23 +1163,13 @@ export class SceneView {
     this.lastDecos = decos;
     for (const deco of decos) {
       const model = this.build(deco.model);
-      const centre = this.placementCentre(deco.position);
+      const centre = placementCentre(this.grid, this.layout, deco.position);
       const lift = model.spec.groundOffset ?? 0;
       model.group.position.set(centre.x, centre.y + lift, centre.z);
       model.group.rotation.y = deco.rotation;
       this.root.add(model.group);
       this.decos.push(model.group);
     }
-  }
-
-  private placementCentre(position: { x: number; y: number; z?: number }): { x: number; y: number; z: number } {
-    const tile = this.grid.indexOf(position.x, position.y);
-    return {
-      x: (position.x - (this.grid.width - 1) / 2) * this.layout.tileSize,
-      z: (position.y - (this.grid.height - 1) / 2) * this.layout.tileSize,
-      y: position.z === undefined ? (tile < 0 ? this.layout.baseHeight : surfaceHeight(this.grid.heightAt(tile), this.layout)) :
-        this.layout.baseHeight + position.z * this.layout.tileSize,
-    };
   }
 
   /** Editor creatures come from authored placements, including ones outside the play grid. */
@@ -1201,7 +1204,7 @@ export class SceneView {
       const wanted = placement.model ?? models[placement.adversary] ?? placement.adversary;
       const modelId = this.drawnModel(wanted, { definition: placement.adversary, faction: 'adversary' });
       const model = this.build(modelId, { palette: { ring: ringMaterial(DEFAULT_FACTION_COLORS.adversary!) } });
-      const centre = this.placementCentre(placement.position);
+      const centre = placementCentre(this.grid, this.layout, placement.position);
       model.group.position.set(centre.x, centre.y + (model.spec.groundOffset ?? 0), centre.z);
       model.group.name = `authored-creature:${placement.id}`;
       this.root.add(model.group);
@@ -1220,7 +1223,7 @@ export class SceneView {
 
   /** Put down one of the editor's marks, named so a press can find it to lift. */
   private mark(group: Group, name: string, at: { x: number; y: number; z?: number }): void {
-    const centre = this.placementCentre(at);
+    const centre = placementCentre(this.grid, this.layout, at);
     group.position.set(centre.x, centre.y, centre.z);
     group.name = name;
     this.root.add(group);

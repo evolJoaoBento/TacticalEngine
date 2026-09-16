@@ -101,3 +101,29 @@ export function mapExtent(
   const depth = grid.height * layout.tileSize;
   return { width, depth, radius: Math.hypot(width, depth) / 2 };
 }
+
+/**
+ * The middle of a placement's tile in world units, at the height it stands.
+ *
+ * A placement carries its own height when it has one — a creature on a ledge, a
+ * prop on a table — and otherwise sits on whatever the ground does there. Off
+ * the grid entirely, it sits at the base height, because the editor lets a thing
+ * be placed outside the room it is being written into.
+ */
+export function placementCentre(
+  grid: TileGrid,
+  layout: TileLayout,
+  position: { x: number; y: number; z?: number },
+): { x: number; y: number; z: number } {
+  const tile = grid.indexOf(position.x, position.y);
+  return {
+    x: (position.x - (grid.width - 1) / 2) * layout.tileSize,
+    z: (position.y - (grid.height - 1) / 2) * layout.tileSize,
+    y:
+      position.z === undefined
+        ? tile < 0
+          ? layout.baseHeight
+          : surfaceHeight(grid.heightAt(tile), layout)
+        : layout.baseHeight + position.z * layout.tileSize,
+  };
+}

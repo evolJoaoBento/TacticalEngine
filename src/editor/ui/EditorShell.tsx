@@ -47,6 +47,7 @@ import { ItemPanel } from './ItemPanel';
 import { CodePanel } from './CodePanel';
 import { QuestsWorkspace } from './QuestsWorkspace';
 import { ModelsWorkspace } from './ModelsWorkspace';
+import { memory, restoreInto } from '../model-memory';
 import { ProblemsPopover } from './ProblemsPopover';
 
 /** What the shell needs from `main.ts`: the document, the SRD content it offers, and what a click on the bar should do. */
@@ -134,6 +135,21 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
   // once against state already gone stale.
   useLayoutEffect(() => session.subscribe(() => setVersion((v) => v + 1)), [session]);
   const bump = (): void => setVersion((v) => v + 1);
+
+  // Models imported in this browser come back with it. The file itself rides
+  // inside the project document, but the document is not kept between sessions,
+  // so an import would go with the tab that made it. A project that declares one
+  // of its own keeps it: what is remembered is laid *under* the document.
+  useEffect(() => {
+    void memory()
+      .all()
+      .then((kept) => {
+        if (restoreInto(session, kept) === 0) return;
+        props.onAssetsChanged?.();
+        props.onRequestAssets?.();
+        bump();
+      });
+  }, [session]);
 
   const [menu, setMenu] = useState<Menu | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);

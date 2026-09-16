@@ -4,6 +4,80 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## An imported model sits where it is put, and is still there tomorrow — done
+
+Three things were wrong with a model a designer imports, and the first was the one on
+screen: nothing seated the file. Every model the library builds stands with its feet at
+y = 0 and centred over its tile (`buildModel` says so in as many words), but a glTF arrives
+around whatever origin it was exported from — the middle of a crate, a character's hips —
+and the view cloned it, scaled it about that origin and put it down. A cube modelled about
+its own centre stood half buried; worse, `scale` multiplied the offset, so resizing *slid*
+the model off its tile instead of growing it there, and `groundOffset` could not fix it
+because the drift is sideways as much as down. `seatOnTile` (`src/engine/render/assets.ts`)
+measures what actually arrived and moves it onto the tile, after the rotation and scale are
+on, so the two settings mean one thing each again: one sizes it, one deliberately sinks or
+floats it. A file with nothing in it to measure is left alone, which is what the existing
+tests hand the loader.
+
+The second was that a change of model never reached the board. A token is built once per
+creature and kept; `tokenModels` recorded what each was drawn from and nothing ever compared
+it, so a creature re-skinned where the document is written kept the body it was first drawn
+with — in play, where it matters most. `syncTokens` now asks what the entity should be drawn
+with every time and drops the token when the answer changes, taking its history with it so
+the replacement is put down rather than walking in from wherever the old one stood.
+`assetChanged` was already doing exactly this for a file that arrives late, and now both go
+through the one `dropToken`.
+
+The third was that an import did not survive the tab. The file rides inside the project
+document — that was true and stays true — but the document itself is not kept in the browser,
+so every model imported into it was lost on reload. `src/editor/model-memory.ts` keeps the
+declarations in IndexedDB (not `localStorage`, where the saves live: one rigged character is
+several megabytes), and the editor lays them back under the project as it opens. A project
+that declares a model of its own wins the id every time, a model removed in the panel is
+forgotten for good, and a scale tuned in the panel is the scale it comes back at. The store
+is injected, so the rule about what comes back is driven by a Map in the unit tests.
+
+`placementCentre` moved to `render/layout.ts`, beside the rest of the grid-to-world
+arithmetic, which paid for what this cost `scene-view.ts` (1493 lines, against the 1500 ceiling).
+
+Verified: `npx tsc --noEmit` clean, `npx vitest run` 1946 passed, `npx playwright test` 127
+passed in 8.3 minutes, exit 0 read off all three. `seatOnTile` is driven on a box modelled
+well away from its file's own origin — centred and stood on the ground, and at twice the
+scale the same spot rather than twice as far off it — and again from the view's side, where
+a token wearing an imported file is on its tile, on the ground, and grows in place when the
+asset is retuned. The re-skin has a test of its own: a token built from another id is a new
+token, put down where it stands with nothing gliding, while the same id twice running keeps
+the token it had. The seating was read as pictures too, with a unit cube, which is modelled
+about its own centre: half buried before, standing on the grass after, twice as big in the
+same place at twice the scale, and the same again in play. Remembering is driven by a Map in
+`tests/unit/model-memory.test.ts` — the project wins the id, a removed model stays removed,
+an unreadable row is skipped — and in a browser by `tests/e2e/editor-panels.spec.ts`, which
+picks `Fox.glb` through the panel, reloads the page, and finds it declared with its data URL
+still inside; removed in the panel, it is gone through the next reload.
+
+## The camera is levered towards looking down as it pulls back — done
+
+Close up the angle is the player's: that is where the room is looked at from, and a low
+camera is what makes it a place rather than a plan. Pulled back it is a different question —
+where is everything — so the pitch is now floored by the distance, from complete freedom at
+the nearest zoom to nearly overhead at the furthest. The floor is measured on the logarithm
+of the distance, because zoom multiplies: a notch of the wheel moves it by about as much
+wherever it is turned, instead of crawling up close and lurching far out.
+
+What a player asks for is never thrown away. `orbit` writes the angle they dragged to, whether
+or not this distance can show it, and the camera is seated above it while it cannot — so
+dragging flat while zoomed out does nothing on the spot, and then zooming in arrives exactly
+at the angle they set. `farPitch` joins the limits, so a test can set it.
+
+Verified by the same three runs. `pitchFloor` is driven at both ends of the zoom and for the
+evenness of a wheel notch across it, and the camera's own tests cover what a player would
+notice: the clamps still hold at the nearest zoom, all the way out the angle is the far
+view's whatever was asked for, and an angle dragged while it could not be shown is handed
+back on the way in. Two existing tests changed with the behaviour rather than around it —
+'never goes flat or overhead' now runs at the nearest zoom, where the floor is the old
+minimum, and framing says what it now does: the angle is kept, and seated for how far out
+the fit puts the camera.
+
 ## A check is thrown the way Baldur's Gate 3 throws one — done
 
 The roll a player is asked for was a prompt in the corner of the panel, answered with a
@@ -14,7 +88,8 @@ each Experience as a chip to spend a Light on: Roll, or Cancel and go back to ex
 Roll throws the dice on the card — they tumble and land face on to the player, showing what
 the rules already rolled — and then the sum is read out a term at a time: the Light die, the
 Shadow die, whatever is added to them, the total, and what it was against, each landing on
-the one before it until the verdict pops on the end of it. Accept waits for the sum, so the
+the one before it until the verdict pops on the end of it. A term lands every six tenths of
+a second, the first a little sooner. Accept waits for the sum, so the
 result is read before the room moves again, and a press anywhere on the card skips to the
 end of it. Escape is Cancel before the throw and Accept once the sum is in, and the card
 keeps the overlay's own keys — Enter passes the turn, Tab picks the next character — off

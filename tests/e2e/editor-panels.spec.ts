@@ -96,6 +96,47 @@ test('a model file picked in the panel rides inside the project, and its own cli
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
+test('a model picked in this browser is there again after a reload, until it is removed', async ({ page }) => {
+  const errors = await editing(page);
+  const openModels = async (): Promise<void> => {
+    await page.locator('[data-testid="open-content"]').click();
+    await page.locator('[data-testid="open-models"]').click();
+    await expect(page.locator('[data-testid="models-panel"]')).toBeVisible();
+  };
+  /** What the project declares right now, by id. */
+  const declared = (): Promise<string[]> =>
+    page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as { assets: { id: string }[] }).assets.map((a) => a.id));
+
+  await openModels();
+  await page.locator('[data-testid="add-model"] input[type="file"]').setInputFiles('tests/fixtures/models/Fox.glb');
+  await expect(page.locator('[data-asset="fox"]')).toBeVisible();
+
+  // Closing the tab is what used to lose it: the file rides inside the project,
+  // and the project itself is not kept.
+  const reopen = async (): Promise<void> => {
+    await page.reload();
+    await page.waitForFunction(() => window.__engine !== undefined && window.__engine.frames > 2, null, { timeout: 30_000 });
+    await page.evaluate(() => window.__engine!.setMode('edit'));
+  };
+  await reopen();
+  await expect.poll(declared, { timeout: 15_000 }).toContain('fox');
+  const url = await page.evaluate(
+    () => (JSON.parse(window.__engine!.exportProject()) as { assets: { id: string; url: string }[] }).assets.find((a) => a.id === 'fox')!.url,
+  );
+  expect(url.startsWith('data:')).toBe(true);
+
+  // And removed is removed: what this browser remembers is forgotten with it.
+  await openModels();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.locator('[data-asset="fox"] .ph-mini').click();
+  await expect(page.locator('[data-asset="fox"]')).toHaveCount(0);
+  await reopen();
+  await page.waitForTimeout(1500);
+  expect(await declared()).not.toContain('fox');
+
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
 test('a designer can add one of each thing, and the panel shows it', async ({ page }) => {
   const errors = await editing(page);
 

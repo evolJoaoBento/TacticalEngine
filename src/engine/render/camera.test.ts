@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_LIMITS, OrbitCamera, positionOf } from './camera';
+import { DEFAULT_LIMITS, OrbitCamera, pitchFloor, positionOf } from './camera';
 
 /**
  * The camera as numbers. What matters: the clamps hold, pan is screen-relative
@@ -19,11 +19,46 @@ describe('orbiting', () => {
   });
 
   it('never goes flat or overhead', () => {
-    const cam = new OrbitCamera();
+    // Close up, where the angle is entirely the player's.
+    const cam = new OrbitCamera({ distance: DEFAULT_LIMITS.minDistance });
     cam.orbit(0, -10);
-    expect(cam.goal.pitch).toBe(DEFAULT_LIMITS.minPitch);
+    expect(cam.goal.pitch).toBeCloseTo(DEFAULT_LIMITS.minPitch, 10);
     cam.orbit(0, 10);
     expect(cam.goal.pitch).toBe(DEFAULT_LIMITS.maxPitch);
+  });
+});
+
+describe('how far out it is', () => {
+  it('leaves the angle alone close up and levers it towards looking down as it pulls back', () => {
+    expect(pitchFloor(DEFAULT_LIMITS.minDistance)).toBeCloseTo(DEFAULT_LIMITS.minPitch, 10);
+    expect(pitchFloor(DEFAULT_LIMITS.maxDistance)).toBeCloseTo(DEFAULT_LIMITS.farPitch, 10);
+    expect(pitchFloor(20)).toBeGreaterThan(pitchFloor(10));
+    // A notch of the wheel is worth about the same wherever it is turned.
+    const near = pitchFloor(10 * 1.2) - pitchFloor(10);
+    const far = pitchFloor(50 * 1.2) - pitchFloor(50);
+    expect(near).toBeGreaterThan(0);
+    expect(Math.abs(near - far)).toBeLessThan(near * 0.05);
+  });
+
+  it('gives the player back the angle they set as they come in', () => {
+    const cam = new OrbitCamera({ distance: DEFAULT_LIMITS.minDistance, pitch: 0.5 });
+    expect(cam.goal.pitch).toBeCloseTo(0.5, 10);
+    // All the way out: held to the far view's angle, whatever was asked for.
+    cam.zoom(1000);
+    expect(cam.goal.distance).toBe(DEFAULT_LIMITS.maxDistance);
+    expect(cam.goal.pitch).toBeCloseTo(DEFAULT_LIMITS.farPitch, 10);
+    // And back in: theirs again, exactly as they left it.
+    cam.zoom(0.001);
+    expect(cam.goal.pitch).toBeCloseTo(0.5, 10);
+  });
+
+  it('keeps a drag it could not show, so zooming in arrives at it', () => {
+    const cam = new OrbitCamera({ distance: DEFAULT_LIMITS.maxDistance, pitch: 1.4 });
+    cam.orbit(0, -0.4);
+    // Flatter than the far view allows, so nothing moves — but it is not forgotten.
+    expect(cam.goal.pitch).toBeCloseTo(DEFAULT_LIMITS.farPitch, 10);
+    cam.zoom(0.001);
+    expect(cam.goal.pitch).toBeCloseTo(1.0, 10);
   });
 });
 
@@ -72,13 +107,17 @@ describe('panning', () => {
 });
 
 describe('framing', () => {
-  it('fits a radius and keeps the angle', () => {
+  it('fits a radius and keeps the angle, seated for how far out that is', () => {
     const cam = new OrbitCamera({ yaw: 1, pitch: 0.7 });
     cam.frame({ x: 5, y: 0, z: 5 }, 10);
     expect(cam.goal.target).toEqual({ x: 5, y: 0, z: 5 });
     expect(cam.goal.distance).toBe(18);
     expect(cam.goal.yaw).toBe(1);
-    expect(cam.goal.pitch).toBe(0.7);
+    // From this far back the angle is held above what was asked for, and asking is
+    // not forgetting: coming in hands it back.
+    expect(cam.goal.pitch).toBeCloseTo(pitchFloor(18), 10);
+    cam.zoom(0.01);
+    expect(cam.goal.pitch).toBeCloseTo(0.7, 10);
   });
 });
 

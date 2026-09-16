@@ -50,7 +50,7 @@ const THROW = 1.7;
 /** How big the dice are drawn on the card, and in the tray. */
 const DIE = 104;
 /** How long each term of the sum holds before the next one lands on it. */
-const STEP = 300;
+const STEP = 600;
 
 /** A trait reads as the sheet's own word, capitalised: "Agility", "Spellcast". */
 const named = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1);
@@ -111,7 +111,7 @@ export function RollStage(props: RollStageProps): preact.JSX.Element | null {
       return;
     }
     if (shown >= steps.length) return;
-    const next = setTimeout(() => setShown((was) => was + 1), shown === 0 ? 240 : STEP);
+    const next = setTimeout(() => setShown((was) => was + 1), shown === 0 ? 480 : STEP);
     return () => clearTimeout(next);
   }, [settled, shown, steps.length, millis]);
   const focus = useRef<HTMLButtonElement | null>(null);
