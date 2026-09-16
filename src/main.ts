@@ -43,7 +43,7 @@ import { MODELS } from './engine/render/procedural/registry';
 import { SceneView, hueOf, OUTLINE_LAYER } from './engine/render/scene-view';
 import { DEFAULT_TERRAIN_COLORS } from './engine/render/terrain-mesh';
 import { journalSummary } from './engine/content/quests';
-import { blankScene, gridFromScene } from './engine/scene/grid-from-scene';
+import { blankScene, gridFromScene, paletteForProject } from './engine/scene/grid-from-scene';
 import { importLegacyScene } from './engine/scene/legacy-import';
 import { unfamiliarCode } from './engine/script/hooks';
 import { projectSchema, type Interactable, type ProjectDoc, type SceneDoc } from './engine/scene/schema';
@@ -480,9 +480,8 @@ let activeGrid: TileGrid = demo.grid;
 /** Rebuild the grid from the edited document, then the meshes over it. */
 function rebuildTerrain(): void {
   const scene = activeScene();
-  const { grid } = gridFromScene(scene, activeGrid.palette);
-  activeGrid.terrain.set(grid.terrain);
-  activeGrid.heights.set(grid.heights);
+  const { grid } = gridFromScene(scene, paletteForProject(session.project));
+  activeGrid.adopt(grid);
   view.rebuildTerrain(scene.tints);
   buildings.sync(scene);
   // The scenery hangs off the ground that was just replaced, in either mode:

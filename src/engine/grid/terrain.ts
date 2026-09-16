@@ -29,6 +29,13 @@ export interface TerrainType {
   readonly providesCover: boolean;
   /** Whether the tile blocks line of sight through it. */
   readonly blocksSight: boolean;
+  /**
+   * A model every tile of this type is drawn with, if it should be drawn as something
+   * rather than coloured. Any id the library or the project's imports can supply, so a
+   * `.glb` customises the ground the way it customises a creature. The ground mesh is
+   * still built underneath: this is a look, and the grid is what a walk reads.
+   */
+  readonly model?: string;
 }
 
 export const MAX_TERRAIN_TYPES = 256;
@@ -45,6 +52,8 @@ export function terrain(
     cost: overrides.cost ?? 1,
     providesCover: overrides.providesCover ?? false,
     blocksSight: overrides.blocksSight ?? false,
+    // Spread rather than assigned: an explicit undefined is not the same as absent.
+    ...(overrides.model === undefined ? {} : { model: overrides.model }),
   };
 }
 

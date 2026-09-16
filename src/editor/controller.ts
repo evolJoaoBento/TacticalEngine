@@ -16,6 +16,7 @@ import { toContentId } from '../engine/content/types';
 import { isBuildCoordinate, isBuildZ, type BuildingTile } from '../engine/scene/building';
 import { BuildingEdit } from './building';
 import type { Deco, Encounter, Interactable, Point, SceneDoc } from '../engine/scene/schema';
+import { setTerrainModel } from './terrain-edits';
 import {
   MODE_TOOLS,
   TERRAIN_TAB_TOOL,
@@ -645,6 +646,19 @@ export class EditorController {
       : held.kind === 'prop' ? moveDeco(sceneId, Number(held.key), held.to, held.rotation)
       : moveSpawn(sceneId, Number(held.key), held.to);
     if (this.session.run(edit)) this.onChange('content');
+  }
+
+  /**
+   * Draw every tile of one kind of ground with a model, or put it back to its colour.
+   *
+   * Here rather than in the panel because the board has to be told: a document edit run
+   * straight off the session notifies the session's subscribers, which redraws the panel
+   * and nothing else. `'terrain'` is what rebuilds the ground.
+   */
+  setTerrainModel(terrainId: string, modelId: string | null): boolean {
+    const changed = this.session.run(setTerrainModel(terrainId, modelId));
+    if (changed) this.onChange('terrain');
+    return changed;
   }
 
   /** The object the inspector should show, if it is still there. */

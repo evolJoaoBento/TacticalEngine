@@ -222,6 +222,8 @@ export const terrainTypeSchema = z.object({
   cost: z.number().positive().default(1),
   providesCover: z.boolean().default(false),
   blocksSight: z.boolean().default(false),
+  /** Drawn with this model on every tile of the type, rather than as coloured ground. */
+  model: z.string().min(1).optional(),
 });
 
 /**

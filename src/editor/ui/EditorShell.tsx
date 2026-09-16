@@ -314,7 +314,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           onPick={pickForTerrain}
           thumbnail={props.thumbnail}
         />,
-        <TerrainSide key="side" controller={controller} onChange={bump} onNavigate={props.onNavigateBuilding} />,
+        <TerrainSide key="side" session={session} controller={controller} onChange={bump} onNavigate={props.onNavigateBuilding} />,
       ];
     } else if (mode === 'combat') {
       body = [

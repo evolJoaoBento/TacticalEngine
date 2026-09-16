@@ -24,6 +24,7 @@ export function paletteForProject(project: Pick<ProjectDoc, 'terrainPalette'>): 
         cost: type.cost,
         providesCover: type.providesCover,
         blocksSight: type.blocksSight,
+        ...(type.model === undefined ? {} : { model: type.model }),
       }),
     ),
   );

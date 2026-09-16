@@ -98,6 +98,7 @@ import { CarryMotion } from './carry';
 export { OUTLINE_LAYER } from './toon';
 import { ringMaterial } from './procedural/spec';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
+import { drawsTileModel, redrawTileModels } from './tile-models';
 
 export interface SceneViewOptions extends TerrainMeshOptions {
   layout?: TileLayout;
@@ -194,6 +195,8 @@ export class SceneView {
   /** Flinches and falls in progress, by entity. */
   private readonly reactions = new Map<string, Reaction>();
   private readonly decos: Group[] = [];
+  /** One model per tile whose terrain names one (`tile-models.ts`), rebuilt with the ground. */
+  private tileModels: Group[] = [];
   /** Objects with a body of their own, drawn in both modes. */
   private readonly objects: Group[] = [];
   /** The white rim on whatever the pointer is over. */
@@ -292,6 +295,7 @@ export class SceneView {
     this.terrainOptions = options;
     this.terrain = buildTerrainMesh(grid, options);
     for (const mesh of this.terrain.meshes) this.root.add(mesh);
+    this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id) => this.build(id), (group) => this.clipSets.delete(group));
 
     // One flat quad per lit tile, hovering just above the surface, the full
     // width of the tile: the quads meet without a seam, so what is lit reads
@@ -971,6 +975,9 @@ export class SceneView {
     }
     if (this.lastState !== null) this.syncTokens(this.lastState);
     if (this.lastDecos.some((deco) => deco.model === id)) this.setDecos(this.lastDecos);
+    if (drawsTileModel(this.grid, id)) {
+    this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id) => this.build(id), (group) => this.clipSets.delete(group));
+    }
     if (this.lastObjects.some((object) => object.model === id)) this.setObjects(this.lastObjects);
   }
 
@@ -1073,6 +1080,7 @@ export class SceneView {
       ...(tints === undefined ? {} : { tints }),
     });
     for (const mesh of this.terrain.meshes) this.root.add(mesh);
+    this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id) => this.build(id), (group) => this.clipSets.delete(group));
   }
 
   /** The model standing for an entity, if it has one. */
@@ -1485,6 +1493,7 @@ export class SceneView {
     this.glides.clear();
     this.reactions.clear();
     this.decos.length = 0;
+    this.tileModels.length = 0;
     // Shared caches outlive a scene unless this view created them.
     if (this.ownsResources) this.resources.dispose();
   }

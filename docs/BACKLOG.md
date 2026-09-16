@@ -256,6 +256,40 @@ fails if a font is tracked without its licence beside it. Screenshots read for e
 a hovered card, a seven-card hand and its hover, the rest, the loadout's deck browser and the
 level-up sheet, and a floater close up.
 
+## A kind of ground can be drawn with a model - done, and too slow
+
+A terrain type can name a model the way an adversary does. `terrain('floor', { model:
+'plank' })` stands one on every floor tile, at that tile's own height, from the library or
+from anything the project imported - so a `.glb` dropped into the Models panel customises
+the ground exactly as it customises a creature. Terrain mode's Ground tab has the picker,
+beside the ground it paints.
+
+The ground mesh is still built underneath, deliberately: a tile model is a look, and the
+grid is what a raycast hits, what a walk costs and how high a tile stands. A file that
+fails to load leaves the room playable.
+
+**It is too slow to use on a whole floor.** 290 floor tiles carrying the library's `crate`
+took the editor from 35 frames a second to 1. `buildTileModels` makes one `BuiltModel` per
+tile, so that is 290 groups, 290 draw calls and 290 base rings. Clones share geometry, so
+the memory is fine and the draw calls are not. Usable today for a sparse type - a few
+tiles of something - and not for floor. The fix is instancing: one `InstancedMesh` per
+model with a matrix per tile, which is a rewrite of `tile-models.ts` and not of anything
+around it, because the module was kept apart from `SceneView` for exactly this reason.
+
+Three things had to be fixed before a single crate appeared, and each looked like the
+feature working when it was not:
+
+- `rebuildTerrain` built a grid from the document using `activeGrid.palette` - the palette
+  the grid already had - so a type given a model went on being drawn as a colour. The grid
+  object cannot be swapped (the camera, the party and the view all hold it), so `TileGrid`
+  gained `adopt`, which takes the palette across with the tiles.
+- The picker ran its edit straight off the session. That notifies the session's own
+  subscribers, which redraws the panel and nothing else; `EditorController.onChange`
+  ('terrain') is what reaches the viewport. Every other tool already went through the
+  controller. The picker now does too.
+- Twice the frame rate was measured on a board drawing nothing and read as "essentially
+  free" - 38 to 37. A number measured before the picture is worth nothing.
+
 ## A walk ran in slow motion while the room loaded - done
 
 `main.ts` advanced the world by `Math.min(0.1, elapsed)` each frame. The cap is there so a

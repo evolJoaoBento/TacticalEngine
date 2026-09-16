@@ -160,3 +160,34 @@ describe('TileGrid', () => {
     expect(g.isDiagonalStep(centre, g.indexOf(2, 2))).toBe(false);
   });
 });
+
+describe('a grid taking on rebuilt ground', () => {
+  it('takes the palette with the tiles, so a retyped terrain is drawn the new way', () => {
+    const before = new TerrainPalette([terrain('floor'), terrain('planks')]);
+    const live = new TileGrid({ width: 3, height: 2, palette: before });
+
+    // The document is edited: planks are now drawn with a model. That is a new palette.
+    const after = new TerrainPalette([terrain('floor'), terrain('planks', { model: 'plank' })]);
+    const rebuilt = new TileGrid({ width: 3, height: 2, palette: after });
+    rebuilt.setTerrainById(rebuilt.indexOf(1, 1), 'planks');
+    rebuilt.setHeight(rebuilt.indexOf(0, 0), 3);
+
+    live.adopt(rebuilt);
+
+    // The same object - everything else in the app is still holding it - with new ground.
+    expect(live.palette).toBe(after);
+    expect(live.terrainAt(live.indexOf(1, 1)).model).toBe('plank');
+    expect(live.heightAt(live.indexOf(0, 0))).toBe(3);
+  });
+
+  it('copies the tiles rather than sharing them', () => {
+    const live = new TileGrid({ width: 2, height: 2 });
+    const rebuilt = new TileGrid({ width: 2, height: 2 });
+    rebuilt.setHeight(0, 5);
+    live.adopt(rebuilt);
+
+    // Writing to the one it copied from does not reach into the one that adopted.
+    rebuilt.setHeight(0, 9);
+    expect(live.heightAt(0)).toBe(5);
+  });
+});

@@ -38,7 +38,8 @@ export interface GridOptions {
 export class TileGrid {
   readonly width: number;
   readonly height: number;
-  readonly palette: TerrainPalette;
+  /** Replaceable: an editor can change what a terrain type is, and `adopt` brings the change in. */
+  palette: TerrainPalette;
   /** Elevation level per tile, row-major. */
   readonly heights: Int16Array;
   /** Terrain palette index per tile, row-major. */
@@ -102,6 +103,20 @@ export class TileGrid {
 
   heightAt(index: number): number {
     return this.heights[index] ?? 0;
+  }
+
+  /**
+   * Take on another grid's ground: its palette, its terrain and its heights.
+   *
+   * The editor rebuilds a grid from the document whenever the ground changes, but the old
+   * object is the one the camera, the party and the view all hold - so the new ground moves
+   * into it rather than the reference being swapped. The palette comes with it, or a terrain
+   * type the document just gave a model would go on being drawn the way it was.
+   */
+  adopt(other: TileGrid): void {
+    this.palette = other.palette;
+    this.terrain.set(other.terrain);
+    this.heights.set(other.heights);
   }
 
   terrainAt(index: number): TerrainType {

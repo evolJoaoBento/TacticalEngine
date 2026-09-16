@@ -276,11 +276,12 @@ function typedNumber(value: string, valid: (n: number) => boolean): number | nul
 
 /** Terrain mode's side: the tool in hand, and the brush size when one applies. */
 export function TerrainSide(props: {
+  session: EditorSession;
   controller: EditorController;
   onChange: () => void;
   onNavigate?: (x: number, y: number) => void;
 }): preact.JSX.Element {
-  const { controller } = props;
+  const { controller, session } = props;
   const tool = controller.state.tool;
   const building = tool === 'buildTile' || tool === 'eraseTile';
   const [x, setX] = useState('0');
@@ -378,6 +379,32 @@ export function TerrainSide(props: {
           Rotate · {controller.state.buildRotation * 90}° (Alt + mouse / R)
         </button>
       ) : null}
+      {tool === 'paintTerrain' ? (
+        <>
+          <div class="ph-heading">Drawn with</div>
+          <select
+            class="ph-select"
+            data-testid="terrain-model"
+            aria-label={`What ${controller.state.terrainId} is drawn with`}
+            value={terrainModelOf(session, controller.state.terrainId)}
+            onChange={(e) => {
+              const picked = e.currentTarget.value;
+              controller.setTerrainModel(controller.state.terrainId, picked === '' ? null : picked);
+              props.onChange();
+            }}
+          >
+            <option value="">Colour, not a model</option>
+            {modelChoices(session).map((id) => (
+              <option key={id} value={id}>{id}</option>
+            ))}
+          </select>
+          <div class="ph-note">
+            Every tile of this ground stands one of these. What a walk costs and what a click
+            hits is the ground itself, not the model, so a file that fails to load leaves the
+            room playable.
+          </div>
+        </>
+      ) : null}
       {LEVELLED.includes(tool) ? (
         <>
           <div class="ph-heading">Go to coordinates</div>
@@ -436,6 +463,11 @@ const COMBAT_HINTS: Partial<Record<EditorTool, string>> = {
   spawn: 'Click to add or remove a place the party starts.',
   erase: 'Click a creature to remove it, then a trigger cell, then a party start.',
 };
+
+/** What a kind of ground is drawn with now, or '' for the colour it has always had. */
+function terrainModelOf(session: EditorSession, terrainId: string): string {
+  return session.project.terrainPalette?.find((t) => t.id === terrainId)?.model ?? '';
+}
 
 /** Every model a creature can be pointed at: the library's, plus what the project imported. */
 function modelChoices(session: EditorSession): string[] {
