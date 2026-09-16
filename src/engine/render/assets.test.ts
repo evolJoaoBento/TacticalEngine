@@ -23,7 +23,7 @@ const duck = () =>
 
 describe('the schema', () => {
   it('defaults what a designer would leave out', () => {
-    expect(duck()).toEqual({ id: 'duck', kind: 'gltf', url: '/models/duck.glb', scale: 0.01, groundOffset: 0, rotationY: 0 });
+    expect(duck()).toEqual({ id: 'duck', kind: 'gltf', url: '/models/duck.glb', scale: 0.01, groundOffset: 0, rotationY: 0, offsetX: 0, offsetY: 0 });
   });
 
   it('refuses a scale of nothing', () => {

@@ -100,6 +100,8 @@ export interface EditorShellProps {
   assetStatus?: (id: string) => string;
   /** Start loading every declared model, so their clips can be listed. */
   onRequestAssets?: () => void;
+  /** A picture of an imported model as the board will draw it, base and all. */
+  assetPreview?: (id: string) => string | null;
   /**
    * One model's settings changed — its scale, seating, facing or clips. Lighter
    * than `onAssetsChanged`: the file stays loaded, so the panel editing it does
@@ -379,6 +381,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           assetStatus={props.assetStatus}
           onRequestAssets={props.onRequestAssets}
           onAssetTuned={props.onAssetTuned}
+          preview={props.assetPreview}
           onChange={bump}
           onClose={closeWorkspace}
         />

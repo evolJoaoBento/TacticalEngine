@@ -11,7 +11,7 @@ import { AnimationClip, Box3, BoxGeometry, Color, Group, Matrix4, Mesh, Vector3,
 import { AssetLibrary, modelAssetSchema } from './assets';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
-import { mapExtent, spotToWorld, surfaceHeight, tileCenter } from './layout';
+import { DEFAULT_LAYOUT, mapExtent, spotToWorld, surfaceHeight, tileCenter } from './layout';
 import { SceneView, hueOf } from './scene-view';
 import { DEFAULT_TERRAIN_COLORS, buildTerrainMesh, tilesDrawn, topColorOf } from './terrain-mesh';
 
@@ -276,6 +276,62 @@ describe('SceneView', () => {
     return { grid, state, view };
   };
 
+  it('rebuilds a token when the model it is drawn with changes under it', async () => {
+    const library = new AssetLibrary(() => Promise.resolve(new Group()), [modelAssetSchema.parse({ id: 'fox', url: '/fox.glb', scale: 1 })]);
+    library.request('fox');
+    await Promise.resolve();
+    await Promise.resolve();
+    const grid = makeGrid(['.....', '.....', '.....']);
+    const state = new SceneState({ id: 'room' }, grid);
+    state.addEntity(createPartyEntity('kara', 'sentinel', grid.indexOf(2, 1)));
+    let wanted = 'fox';
+    const view = new SceneView(grid, { assets: library, modelForEntity: () => wanted });
+    view.syncTokens(state);
+    const before = view.tokenFor('kara')!;
+
+    // Re-skinned where the document is written; the token standing there is the old one.
+    wanted = 'husk';
+    view.syncTokens(state);
+    const after = view.tokenFor('kara')!;
+    expect(after).not.toBe(before);
+    // Put down where it stands, rather than walking in from wherever the old one was.
+    const centre = tileCenter(grid, grid.indexOf(2, 1));
+    expect(after.group.position.x).toBeCloseTo(centre.x, 6);
+    expect(after.group.position.z).toBeCloseTo(centre.z, 6);
+    expect(view.glidingCount).toBe(0);
+
+    // And nothing changed is nothing rebuilt: the same id keeps the same token.
+    view.syncTokens(state);
+    expect(view.tokenFor('kara')).toBe(after);
+    view.dispose();
+  });
+
+  it('draws an object with a body of its own in play, where nobody is authoring', () => {
+    const grid = makeGrid(['.....', '.....', '.....']);
+    const view = new SceneView(grid);
+    const objects = [
+      { id: 'strongbox', kind: 'chest', position: { x: 2, y: 1 }, model: 'crate', name: '', flavor: '', blocksMovement: true, effects: [], repeatable: false },
+      { id: 'stair-up', kind: 'portal', position: { x: 4, y: 1 }, model: null, name: '', flavor: '', blocksMovement: true, effects: [], repeatable: false },
+    ] as unknown as Parameters<typeof view.setObjects>[0];
+
+    // Play: nothing is being authored, and the chest is still standing in the room.
+    view.setObjects(objects);
+    view.setAuthoring(null);
+    const drawn = view.root.getObjectByName('object:strongbox');
+    expect(drawn, 'an object with a model is drawn in play').toBeDefined();
+    const centre = tileCenter(grid, grid.indexOf(2, 1));
+    expect(drawn!.position.x).toBeCloseTo(centre.x, 6);
+    expect(drawn!.position.z).toBeCloseTo(centre.z, 6);
+    // One with no body of its own stays invisible in play; the mark is the editor's.
+    expect(view.root.getObjectByName('object:stair-up')).toBeUndefined();
+
+    // Authoring it: the chest as itself, the stair as the mark an author takes hold of.
+    view.setAuthoring({ id: 'room', name: '', encounters: [], spawns: [], interactables: objects, decos: [] } as never);
+    expect(view.root.getObjectByName('object:strongbox')).toBeDefined();
+    expect(view.root.getObjectByName('object:stair-up')).toBeDefined();
+    view.dispose();
+  });
+
   it('seats an imported model on its tile, and twice the size grows it where it stands', async () => {
     // A box modelled well away from its file's own origin, as an exported file often is.
     const template = new Group();
@@ -320,6 +376,13 @@ describe('SceneView', () => {
     expect(big.middleX).toBeCloseTo(centre.x, 6);
     expect(big.middleZ).toBeCloseTo(centre.z, 6);
     expect(big.feet).toBeCloseTo(centre.y, 6);
+
+    // And nudged across the tile, for a model that should not stand in its own middle.
+    library.retune(modelAssetSchema.parse({ id: 'cube', url: '/cube.glb', scale: 1, offsetX: 0.5, offsetY: -0.25 }));
+    const nudged = standing();
+    expect(nudged.middleX).toBeCloseTo(centre.x + 0.5 * DEFAULT_LAYOUT.tileSize, 6);
+    expect(nudged.middleZ).toBeCloseTo(centre.z - 0.25 * DEFAULT_LAYOUT.tileSize, 6);
+    expect(nudged.feet).toBeCloseTo(centre.y, 6);
     view.dispose();
   });
 

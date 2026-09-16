@@ -4,6 +4,60 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## An object stands in the room, and lights up when you point at it — done
+
+An object with a model of its own was drawn only while somebody was authoring the scene:
+`setAuthoring` built it, and going to play cleared it away with the rest of the marks. Every
+door, chest and pillar in the game was therefore invisible the moment play began. Objects are
+content, not authoring furniture, so they are drawn in both modes now (`setObjects`, beside
+`setDecos`), and the gold mark is what it always should have been — the thing an author takes
+hold of when an object has *no* body of its own. An object with `model: null` is still
+invisible in play, deliberately; the demo's own door, stair and strongbox are all like that,
+which is a line of content each and not a code change.
+
+What the pointer is on is rimmed in white, and the rim is drawn through whatever stands in
+front of it, so a chest half behind a wall reads as a whole chest. Only the rim ignores the
+room: the pointing itself does not, so waving at a wall lights nothing, and an object is lit
+only where it can actually be seen. It is the ink rim's own trick — an inverted hull on the
+outline layer, which the editor never draws and no raycast ever finds — in white, with the
+depth test off (`render/spotlight.ts`).
+
+An imported model can be nudged across its tile as well as up and down (`offsetX`, `offsetY`,
+in tiles), for a figure that should not stand in its own middle, and the Models panel shows a
+picture of what the file will look like in the room: seated, scaled, turned, nudged, and
+standing on the same base ring a token carries. The picture is kept under the settings that
+made it, so tuning the scale redraws it rather than showing the old one.
+
+The camera centre follows the storey being built on again. It had been pinned to the build
+plane every frame, which is why it was narrowed to the build tools only — a pin like that
+left Home unable to bring the view back down. It is an event now: `takeLevelChange` on the
+controller says once that the plane moved, and every way of moving it goes through there, so
+the ladder, Ctrl and the wheel, and Page Up all carry the view with them and nothing holds it
+down afterwards.
+
+Two extractions paid for the lines this cost: the journey a token takes is now
+`render/glide.ts` (`planGlide`, `advanceGlide`), and the model edits are `editor/asset-edits.ts`,
+which `session.ts` still hands out — the same move `creature-edits.ts` and `card-edits.ts` made,
+for the same reason. `scene-view.ts` came out of it at 1469 lines.
+
+Verified: `npx tsc --noEmit` clean, `npx vitest run` 1959 passed, `npx playwright test` 127
+passed in 7.2 minutes, exit 0 read off all three. The bug itself is a test: an object with a
+body drawn while nothing is being authored, and one without still invisible. `spotlight.test.ts`
+covers the two rims, the layer only play draws and the fact that no raycast finds them;
+`glide.test.ts` the journey the view no longer owns; `controller.test.ts` the one-shot the camera
+follows; and `editor-panels.spec.ts` picks a model in a browser, reloads the page and finds it
+declared with its data URL, then removes it and finds it gone — which is what caught an import
+whose write had not been waited for, and would have been lost with the tab.
+
+The rim took three goes and was read as pictures each time. Drawn with the depth test off it
+covered the thing it was meant to ring; drawn `GreaterDepth` as a pushed-out hull it was
+occluded by the very thing it belonged to, which came to the same white blob. What works is two
+rims: a hull pushed out and drawn with the room, which shows only past the silhouette, and the
+thing's own shape at its own depth, which draws nothing where it can be seen and comes through
+where a wall is in front. The last screenshots show a crate on the grass — plain, then rimmed
+under the pointer, then plain again — and a pale shape through the stonework when it stands
+behind the wall.
+
 ## An imported model sits where it is put, and is still there tomorrow — done
 
 Three things were wrong with a model a designer imports, and the first was the one on

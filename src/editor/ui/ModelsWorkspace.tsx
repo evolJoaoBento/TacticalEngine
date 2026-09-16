@@ -83,6 +83,8 @@ export function ModelsWorkspace(props: {
   onRequestAssets?: () => void;
   /** One model's settings changed; the file it already loaded still stands. */
   onAssetTuned?: (id: string) => void;
+  /** A picture of a model as the board will draw it, base and all. */
+  preview?: (id: string) => string | null;
   onChange: () => void;
   onClose: () => void;
 }): preact.JSX.Element {
@@ -128,6 +130,10 @@ export function ModelsWorkspace(props: {
           return (
             <div key={asset.id} data-asset={asset.id} style={{ marginBottom: '14px' }}>
               <div class="ph-row">
+                {/* What it will look like standing in a room, once the file is here. */}
+                {props.preview?.(asset.id) !== null && props.preview !== undefined ? (
+                  <img src={props.preview(asset.id) ?? ''} alt="" width="44" height="44" style={{ borderRadius: '3px', background: '#00000030' }} />
+                ) : null}
                 <span style={{ flex: 1 }}>
                   <strong>{asset.id}</strong> <small>{sourceLabel(asset.url)}</small>
                 </span>
@@ -198,6 +204,39 @@ export function ModelsWorkspace(props: {
               </div>
 
               <div class="ph-row">
+                <label class="ph-heading" style={FIELD}>
+                  X offset
+                  <input
+                    class="ph-input"
+                    style={CONTROL}
+                    data-testid={`asset-x-${asset.id}`}
+                    type="number"
+                    step="0.05"
+                    value={asset.offsetX}
+                    onChange={(e) => {
+                      const n = Number(e.currentTarget.value);
+                      if (Number.isFinite(n)) edit(asset.id, { offsetX: n });
+                    }}
+                  />
+                </label>
+                <label class="ph-heading" style={FIELD}>
+                  Y offset
+                  <input
+                    class="ph-input"
+                    style={CONTROL}
+                    data-testid={`asset-y-${asset.id}`}
+                    type="number"
+                    step="0.05"
+                    value={asset.offsetY}
+                    onChange={(e) => {
+                      const n = Number(e.currentTarget.value);
+                      if (Number.isFinite(n)) edit(asset.id, { offsetY: n });
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div class="ph-row">
                 {CLIP_STATES.map((state) => (
                   <label key={state} class="ph-heading" style={FIELD}>
                     {state}
@@ -241,11 +280,13 @@ export function ModelsWorkspace(props: {
               const input = e.currentTarget;
               const file = input.files?.[0];
               if (file === undefined) return;
-              void readAsDataUrl(file).then((url) => {
+              void readAsDataUrl(file).then(async (url) => {
                 const id = freeId(session, idFromFileName(file.name));
                 const asset = modelAssetSchema.parse({ id, url, scale: 1 });
                 session.run(addAsset(asset));
-                void memory().put(asset);
+                // Awaited: a tab closed the moment after a file is picked must still have
+                // written it, or the model is remembered only until the page goes away.
+                await memory().put(asset);
                 props.onAssetsChanged?.();
                 props.onRequestAssets?.();
                 props.onChange();

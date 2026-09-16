@@ -38,7 +38,7 @@ import {
   Scene,
 } from 'three';
 import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
-import { lineLength } from '../grid/walk';
+import { advanceGlide, planGlide, type Glide } from './glide';
 import type { Deco, SceneDoc } from '../scene/schema';
 import type { EntityState, SceneState } from '../scene/state';
 import { DEFAULT_LAYOUT, mapExtent, placementCentre, spotToWorld, surfaceHeight, tileCenter, type TileLayout } from './layout';
@@ -56,20 +56,6 @@ const PATH_WALK = new Color('#69d2ff');
 const PATH_BEYOND = new Color('#ff6a5c');
 /** The part past one move that a run would cover: Movement Under Pressure, an Agility Roll away. */
 const PATH_RUN = new Color('#ffc14d');
-
-interface Glide {
-  token: BuiltModel;
-  /** Where it goes through, first point where it is now. */
-  points: { x: number; y: number; z: number }[];
-  /** Distance along the line at each point, and the whole of it. */
-  cumulative: number[];
-  total: number;
-  elapsed: number;
-  duration: number;
-  /** How high it lifts: once per tile of a walk, once over the whole of a throw. */
-  hop: number;
-  thrown: boolean;
-}
 
 /** What plays on a creature's imported model: the state each clip belongs to. */
 type ClipState = 'idle' | 'walk' | 'hit' | 'fallen';
@@ -95,18 +81,10 @@ interface Reaction {
   offset?: number;
 }
 
-/** Just the faction ring, to put under an imported model. */
-const RING_ONLY: ProceduralModelSpec = {
-  id: 'ring',
-  category: 'prop',
-  standHeight: 0,
-  tags: [],
-  info: { name: 'Ring', desc: '' },
-  palette: { ring: { color: '#ffffff' } },
-  parts: [{ prim: { kind: 'cylinder', rTop: 0.42, rBottom: 0.42, h: 0.05, seg: 24 }, mat: 'ring', pos: [0, 0.025, 0] }],
-};
 import { ModelRegistry } from './procedural/registry';
-import { OBJECT_MARK, PARTY_START_MARK } from './authoring-marks';
+import { OBJECT_MARK, PARTY_START_MARK, RING_ONLY } from './authoring-marks';
+import type { Interactable } from '../scene/schema';
+import { Spotlight } from './spotlight';
 import { CarryMotion } from './carry';
 export { OUTLINE_LAYER } from './toon';
 import { ringMaterial } from './procedural/spec';
@@ -207,6 +185,11 @@ export class SceneView {
   /** Flinches and falls in progress, by entity. */
   private readonly reactions = new Map<string, Reaction>();
   private readonly decos: Group[] = [];
+  /** Objects with a body of their own, drawn in both modes. */
+  private readonly objects: Group[] = [];
+  /** The white rim on whatever the pointer is over. */
+  private readonly spot = new Spotlight();
+  private lastObjects: readonly Interactable[] = [];
   private readonly authoredCreatures: Group[] = [];
   /** Party starts and objects, drawn only while authoring (`authoring-marks.ts`). */
   private readonly marks: Group[] = [];
@@ -484,7 +467,7 @@ export class SceneView {
    * where they were drawn, so the next `syncTokens` puts them down outright
    * rather than gliding them in from the other room's coordinates.
    */
-  rebind(grid: TileGrid, options: { tints?: readonly string[]; decos?: readonly Deco[] } = {}): void {
+  rebind(grid: TileGrid, options: { tints?: readonly string[]; decos?: readonly Deco[]; objects?: readonly Interactable[] } = {}): void {
     this.settle();
     this._grid = grid;
     this.terrainOptions = { ...this.terrainOptions, ...(options.tints === undefined ? {} : { tints: options.tints }) };
@@ -521,6 +504,7 @@ export class SceneView {
     this.tokenSpots.clear();
     this.tokenStanding.clear();
     this.setDecos(options.decos ?? []);
+    this.setObjects(options.objects ?? []);
   }
 
   /**
@@ -802,85 +786,16 @@ export class SceneView {
     route: readonly Spot[] | undefined,
     thrown: boolean,
   ): void {
-    const lift = token.spec.groundOffset ?? 0;
-    const fromTile = this.grid.tileAtSpot(from.x, from.y);
-    const toTile = this.grid.tileAtSpot(to.x, to.y);
-    // The line it crosses: the one it was handed, else the path's centres
-    // from where it stood to where it stands, else straight.
-    let spots: Spot[];
-    if (route !== undefined && route.length >= 2) spots = [...route];
-    else if (path !== undefined && path.length >= 2 && path[0] === fromTile && path[path.length - 1] === toTile) {
-      spots = path.map((tile) => this.grid.spotOf(tile));
-      spots[0] = from;
-      spots[spots.length - 1] = to;
-    } else spots = [from, to];
-    // Every leg cut at most half a tile long, so the height follows the
-    // ground under the line rather than jumping at each corner.
-    const points: { x: number; y: number; z: number }[] = [];
-    for (let i = 0; i + 1 < spots.length; i++) {
-      const a = spots[i]!;
-      const b = spots[i + 1]!;
-      const pieces = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 0.5));
-      for (let k = i === 0 ? 0 : 1; k <= pieces; k++) {
-        const t = k / pieces;
-        const w = spotToWorld(this.grid, { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }, this.layout);
-        points.push({ x: w.x, y: w.y + lift, z: w.z });
-      }
-    }
-    if (points.length < 2) {
-      const w = spotToWorld(this.grid, to, this.layout);
-      points.push({ x: w.x, y: w.y + lift, z: w.z });
-    }
-    // Continue from wherever the token is, so a second move mid-glide does not jump back.
-    const start = token.group.position;
-    points[0] = { x: start.x, y: start.y, z: start.z };
-    const cumulative = [0];
-    for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1]!;
-      const b = points[i]!;
-      cumulative.push(cumulative[i - 1]! + Math.hypot(b.x - a.x, b.z - a.z));
-    }
-    const total = cumulative[cumulative.length - 1]!;
-    // A fixed pace per tile of line, however long it is: a walk across the
-    // room takes as long as a walk across the room, and a follower crossing
-    // five tiles in one leg takes five tiles' worth. A walk keeps its feet on
-    // the ground; only a throw arcs.
-    const crossed = Math.max(1, lineLength(spots));
-    const duration = thrown ? 0.25 : 0.16 * crossed;
-    this.glides.set(id, { token, points, cumulative, total, elapsed: 0, duration, hop: thrown ? 0.35 : 0, thrown });
+    this.glides.set(id, planGlide(this.grid, this.layout, token, from, to, path, route, thrown));
     if (!thrown) this.playState(token.group, 'walk');
   }
 
-  /** Move every glide on by `dt` seconds. */
+  /** Move every glide on by `dt` seconds, and let go of the ones that have arrived. */
   private advanceGlides(dt: number): void {
     for (const [id, glide] of this.glides) {
-      glide.elapsed += dt;
-      const t = Math.min(1, glide.elapsed / glide.duration);
-      // A throw slows into its landing; a walk keeps its pace.
-      const eased = glide.thrown ? 1 - (1 - t) * (1 - t) : t;
-      const segments = glide.points.length - 1;
-      // Steady along the line, wherever its corners fall.
-      const distance = eased * glide.total;
-      let i = 0;
-      while (i < segments - 1 && glide.cumulative[i + 1]! < distance) i++;
-      const legLength = glide.cumulative[i + 1]! - glide.cumulative[i]!;
-      const frac = legLength <= 1e-9 ? 1 : (distance - glide.cumulative[i]!) / legLength;
-      const a = glide.points[i]!;
-      const b = glide.points[i + 1]!;
-      // A throw is one arc; a walk stays on the ground and faces where it is going.
-      const hop = glide.thrown ? glide.hop * Math.sin(Math.PI * t) : 0;
-      glide.token.group.position.set(a.x + (b.x - a.x) * frac, a.y + (b.y - a.y) * frac + hop, a.z + (b.z - a.z) * frac);
-      if (!glide.thrown) {
-        const dx = b.x - a.x;
-        const dz = b.z - a.z;
-        if (dx * dx + dz * dz > 1e-12) glide.token.group.rotation.y = Math.atan2(dx, dz);
-      }
-      if (t >= 1) {
-        const end = glide.points[segments]!;
-        glide.token.group.position.set(end.x, end.y, end.z);
-        this.glides.delete(id);
-        this.playState(glide.token.group, 'idle');
-      }
+      if (!advanceGlide(glide, dt)) continue;
+      this.glides.delete(id);
+      this.playState(glide.token.group, 'idle');
     }
   }
 
@@ -929,8 +844,11 @@ export class SceneView {
     const clone = cloneSkeleton(template);
     clone.scale.setScalar(spec.scale);
     clone.rotation.y = spec.rotationY;
-    // Seated like everything else the room stands up: feet on the tile, centred over it.
+    // Seated like everything else the room stands up: feet on the tile, centred over
+    // it, and then nudged by however much the asset says it should stand off centre.
     seatOnTile(clone);
+    clone.position.x += spec.offsetX * this.layout.tileSize;
+    clone.position.z += spec.offsetY * this.layout.tileSize;
     // A file with clips plays one on a loop - the one the asset names as its
     // idle, or the first in the file, which is the idle in every sample set
     // worth the name. The others play where the view walks, hits or fells it.
@@ -1034,12 +952,14 @@ export class SceneView {
     let redraw = false;
     for (const modelId of this.tokenModels.values()) if (modelId === id) redraw = true;
     if (this.lastDecos.some((deco) => deco.model === id)) redraw = true;
+    if (this.lastObjects.some((object) => object.model === id)) redraw = true;
     if (!redraw) return;
     for (const [entityId, modelId] of [...this.tokenModels]) {
       if (modelId === id) this.dropToken(entityId);
     }
     if (this.lastState !== null) this.syncTokens(this.lastState);
     if (this.lastDecos.some((deco) => deco.model === id)) this.setDecos(this.lastDecos);
+    if (this.lastObjects.some((object) => object.model === id)) this.setObjects(this.lastObjects);
   }
 
   /** Advance every playing clip, every moving token, and the selection's breathing. `dt` in seconds. */
@@ -1172,6 +1092,40 @@ export class SceneView {
     }
   }
 
+  /**
+   * The objects in the room that have a body: a door, a chest, a pillar.
+   *
+   * Drawn in both modes, which is what separates them from the marks. An object
+   * is content — it stands in the room whether or not anybody is editing it —
+   * and it used to be drawn only while authoring, so every door and chest in the
+   * game was invisible the moment play began. An object with no model of its own
+   * is still invisible here, deliberately: the editor marks it instead.
+   */
+  setObjects(objects: readonly Interactable[]): void {
+    this.spot.hide();
+    for (const group of this.objects) {
+      this.root.remove(group);
+      this.clipSets.delete(group);
+    }
+    this.objects.length = 0;
+    this.lastObjects = objects;
+    for (const object of objects) {
+      if (object.model === null) continue;
+      const model = this.build(object.model);
+      const centre = placementCentre(this.grid, this.layout, object.position);
+      model.group.position.set(centre.x, centre.y + (model.spec.groundOffset ?? 0), centre.z);
+      model.group.name = `object:${object.id}`;
+      this.root.add(model.group);
+      this.objects.push(model.group);
+    }
+  }
+
+  /** Everything a room stands up that is not a creature: its scenery and its objects. */
+  setScenery(scene: { decos: readonly Deco[]; interactables: readonly Interactable[] }): void {
+    this.setDecos(scene.decos);
+    this.setObjects(scene.interactables);
+  }
+
   /** Editor creatures come from authored placements, including ones outside the play grid. */
   setAuthoring(scene: SceneDoc | null, models: Readonly<Record<string, string>> = {}): void {
     for (const group of [...this.authoredCreatures, ...this.marks]) {
@@ -1211,10 +1165,11 @@ export class SceneView {
       this.authoredCreatures.push(model.group);
     }
     for (const [i, spawn] of scene.spawns.entries()) this.mark(buildModel(PARTY_START_MARK, this.resources).group, `spawn:${i}`, spawn);
-    // An object's own model where it names one, else the mark.
+    // An object with a body draws itself in both modes (`setObjects`); this is the
+    // mark for one that has none, so an author still has something to take hold of.
     for (const object of scene.interactables) {
-      const drawn = object.model === null ? buildModel(OBJECT_MARK, this.resources) : this.build(object.model);
-      this.mark(drawn.group, `object:${object.id}`, object.position);
+      if (object.model !== null) continue;
+      this.mark(buildModel(OBJECT_MARK, this.resources).group, `object:${object.id}`, object.position);
     }
   }
 
@@ -1246,9 +1201,30 @@ export class SceneView {
     this.carry.drop(kind === undefined || key === undefined ? null : this.drawnFor(kind, key));
   }
 
+  /**
+   * The object drawn under a ray, or null — and null as well when the ground is
+   * in front of it, because pointing at a wall is not pointing at what is behind
+   * it. The same rule the editor picks by, so what lights up is what a press
+   * would reach.
+   */
+  objectUnder(ray: Raycaster): string | null {
+    const hit = ray.intersectObjects(this.objects, true).find((h) => h.object.visible);
+    if (hit === undefined) return null;
+    const ground = ray.intersectObjects(this.terrain.meshes, false)[0];
+    if (ground !== undefined && ground.distance < hit.distance) return null;
+    let drawn: Object3D = hit.object;
+    while (drawn.parent !== null && drawn.parent !== this.root) drawn = drawn.parent;
+    return drawn.name.startsWith('object:') ? drawn.name.slice('object:'.length) : null;
+  }
+
+  /** Rim an object in white, through whatever stands in front of it; null lights nothing. */
+  spotlight(objectId: string | null): void {
+    this.spot.show(objectId === null ? null : (this.root.getObjectByName(`object:${objectId}`) ?? null));
+  }
+
   /** The tile of the nearest authored thing drawn under a ray - a creature, a prop, a mark - unless ground hides it. */
   authoredUnder(ray: Raycaster): { x: number; y: number } | null {
-    const hit = ray.intersectObjects([...this.authoredCreatures, ...this.decos, ...this.marks], true).find((h) => h.object.visible);
+    const hit = ray.intersectObjects([...this.authoredCreatures, ...this.decos, ...this.objects, ...this.marks], true).find((h) => h.object.visible);
     const ground = ray.intersectObjects(this.terrain.meshes, false)[0];
     if (hit === undefined || (ground !== undefined && ground.distance < hit.distance)) return null;
     let drawn: Object3D = hit.object;

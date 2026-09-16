@@ -18,6 +18,8 @@ import {
   Color,
   DataTexture,
   EdgesGeometry,
+  FrontSide,
+  GreaterDepth,
   Mesh,
   MeshBasicMaterial,
   MeshToonMaterial,
@@ -66,13 +68,18 @@ export function toonMaterial(parameters: MeshToonMaterialParameters): MeshToonMa
   return material;
 }
 
-const inks = new Map<number, MeshBasicMaterial>();
+const inks = new Map<string, MeshBasicMaterial>();
 
-/** The ink a hull is drawn in: back faces only, pushed `width` world units out along its normals. */
-export function outlineMaterial(width: number): MeshBasicMaterial {
-  let material = inks.get(width);
+/**
+ * The ink a hull is drawn in: back faces only, pushed `width` world units out along
+ * its normals. White is the same thing in another colour, for the rim on whatever
+ * the pointer is over.
+ */
+export function outlineMaterial(width: number, color = INK): MeshBasicMaterial {
+  const key = `${width}|${color}`;
+  let material = inks.get(key);
   if (material === undefined) {
-    material = new MeshBasicMaterial({ color: new Color(INK), side: BackSide });
+    material = new MeshBasicMaterial({ color: new Color(color), side: BackSide });
     const push = width.toFixed(4);
     material.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader.replace(
@@ -81,7 +88,7 @@ export function outlineMaterial(width: number): MeshBasicMaterial {
       );
     };
     material.customProgramCacheKey = () => `ink:${push}`;
-    inks.set(width, material);
+    inks.set(key, material);
   }
   return material;
 }
@@ -97,6 +104,37 @@ export function smoothHull(geometry: BufferGeometry): BufferGeometry {
   const hull = mergeVertices(bare);
   hull.computeVertexNormals();
   return hull;
+}
+
+const glows = new Map<string, MeshBasicMaterial>();
+
+/**
+ * The white a hull is drawn in when the pointer is on what it rims.
+ *
+ * The same pushed-out back faces as the ink, drawn whatever stands in front of
+ * them and written into no depth of their own, so a thing half behind a wall is
+ * still seen whole. Late in the frame, after the room it shows through.
+ */
+export function xrayMaterial(width: number, color = '#ffffff', opacity = 1, front = false): MeshBasicMaterial {
+  const key = `${width}|${color}|${opacity}|${front}`;
+  let material = glows.get(key);
+  if (material === undefined) {
+    // `GreaterDepth` draws it only where something nearer is already in the depth
+    // buffer — which is to say only where a wall covers it. Where the thing itself
+    // is in view the rim fails the test, so what shows there is an edge and not a
+    // wash over it.
+    material = new MeshBasicMaterial({ color: new Color(color), side: front ? FrontSide : BackSide, depthFunc: GreaterDepth, depthWrite: false, transparent: true, opacity });
+    const push = width.toFixed(4);
+    material.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>\n\ttransformed += normalize( normal ) * ${push};`,
+      );
+    };
+    material.customProgramCacheKey = () => `xray:${push}`;
+    glows.set(key, material);
+  }
+  return material;
 }
 
 const brushes = new Map<number, LineMaterial>();

@@ -44,3 +44,18 @@ export const OBJECT_MARK: ProceduralModelSpec = {
     { prim: { kind: 'octahedron', r: 0.15 }, mat: 'gem', pos: [0, 0.55, 0] },
   ],
 };
+
+/**
+ * The base a creature stands on: the faction ring the procedural tokens carry, so an
+ * imported model reads as one of the board's own. Drawn under a token in play, and under
+ * the picture the Models panel shows of a file that has just been imported.
+ */
+export const RING_ONLY: ProceduralModelSpec = {
+  id: 'ring',
+  category: 'prop',
+  standHeight: 0,
+  tags: [],
+  info: { name: 'Ring', desc: '' },
+  palette: { ring: { color: '#ffffff' } },
+  parts: [{ prim: { kind: 'cylinder', rTop: 0.42, rBottom: 0.42, h: 0.05, seg: 24 }, mat: 'ring', pos: [0, 0.025, 0] }],
+};

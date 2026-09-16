@@ -220,9 +220,28 @@ export class EditorController {
    * It ends the drag first: a stroke that changed height halfway would leave
    * half its pieces on another storey and merge them into one undo step.
    */
+  /** Set when the build plane moves, until a view has followed it. */
+  private levelMoved = false;
+
   setBuildLevel(z: number): void {
     this.end();
+    if (z !== this.state.buildLevel) this.levelMoved = true;
     this.state.buildLevel = z;
+  }
+
+  /**
+   * Whether the build plane has moved since this was last asked, and forget it.
+   *
+   * A view follows the storey being worked on, and every way of changing it — the
+   * ladder, Ctrl and the wheel, Page Up — comes through `setBuildLevel`, so this is
+   * the one place that knows. Asked once a frame: a one-shot rather than a state to
+   * hold the camera at, because a camera held at the plane every frame is a camera
+   * that cannot be moved off it.
+   */
+  takeLevelChange(): boolean {
+    const moved = this.levelMoved;
+    this.levelMoved = false;
+    return moved;
   }
 
   /**

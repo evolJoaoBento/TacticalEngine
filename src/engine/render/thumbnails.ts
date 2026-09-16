@@ -8,8 +8,9 @@
  * WebGL context: the strip falls back rather than this throwing.
  */
 
-import { Box3, DirectionalLight, HemisphereLight, PerspectiveCamera, Scene, Sphere, Vector3, WebGLRenderer, type Object3D } from 'three';
-import type { AssetLibrary } from './assets';
+import { Box3, DirectionalLight, Group, HemisphereLight, PerspectiveCamera, Scene, Sphere, Vector3, WebGLRenderer, type Object3D } from 'three';
+import { seatOnTile, type AssetLibrary } from './assets';
+import { RING_ONLY } from './authoring-marks';
 import { ModelResources, buildModel } from './procedural/build';
 import type { ModelRegistry } from './procedural/registry';
 
@@ -52,12 +53,12 @@ export class ModelThumbnails {
   url(modelId: string, fallback?: string): string | null {
     const id = this.pick(modelId, fallback);
     if (id === null) return null;
-    const kept = this.pictures.get(id);
+    const kept = this.pictures.get(this.key(id));
     if (kept !== undefined) return kept;
     const renderer = this.context();
     if (renderer === null) return null;
     const picture = this.draw(renderer, this.object(id));
-    this.pictures.set(id, picture);
+    this.pictures.set(this.key(id), picture);
     return picture;
   }
 
@@ -76,9 +77,41 @@ export class ModelThumbnails {
     return this.registry.has(id);
   }
 
-  /** An imported model's own template, drawn where it is; a procedural one built for the picture. */
+  /**
+   * What a picture is taken of.
+   *
+   * A procedural model is built for the occasion. An imported one is shown the way
+   * the board will show it — seated on the tile, at the scale and facing and nudge
+   * the asset asks for, standing on the same base ring a token carries — because
+   * the whole point of the picture is to answer "what will this look like in the
+   * room" before it is put in one.
+   */
   private object(id: string): Object3D {
-    return this.assets?.template(id) ?? buildModel(this.registry.get(id), this.resources).group;
+    const spec = this.assets?.spec(id);
+    const template = this.assets?.template(id);
+    if (spec === undefined || template === undefined) return buildModel(this.registry.get(id), this.resources).group;
+    const shown = new Group();
+    const body = template.clone();
+    body.scale.setScalar(spec.scale);
+    body.rotation.y = spec.rotationY;
+    seatOnTile(body);
+    body.position.x += spec.offsetX;
+    body.position.z += spec.offsetY;
+    body.position.y += spec.groundOffset;
+    shown.add(body);
+    // The adversary's red, the colour most of what is imported will stand in.
+    shown.add(buildModel(RING_ONLY, this.resources, { palette: { ring: { color: '#e5483a' } } }).group);
+    return shown;
+  }
+
+  /**
+   * What a picture is kept under. An imported model's settings are part of it: tune
+   * the scale and the picture is of the old one until the key says otherwise.
+   */
+  private key(id: string): string {
+    const spec = this.assets?.spec(id);
+    if (spec === undefined) return id;
+    return `${id}|${spec.scale}|${spec.groundOffset}|${spec.rotationY}|${spec.offsetX}|${spec.offsetY}`;
   }
 
   private context(): WebGLRenderer | null {

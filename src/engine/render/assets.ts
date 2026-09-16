@@ -31,6 +31,14 @@ export const modelAssetSchema = z.object({
   /** Turn the model so it faces the way the procedural library does. Radians. */
   rotationY: z.number().default(0),
   /**
+   * Nudge it across its tile, in tiles: `offsetX` the way the board counts x,
+   * `offsetY` the way it counts y. Seating centres a model on what it actually
+   * is; this is for one that should not stand in its own middle — a figure on
+   * the edge of its base, a door that hangs at the side of its frame.
+   */
+  offsetX: z.number().default(0),
+  offsetY: z.number().default(0),
+  /**
    * Which of the file's clips plays for each state, by the clip's own name.
    * Left out, the first clip in the file loops as the idle and nothing else
    * changes what plays - which is what every sample set does. A state with

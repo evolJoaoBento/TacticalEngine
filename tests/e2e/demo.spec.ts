@@ -1542,7 +1542,7 @@ test('imports a glTF model and draws it where a prop names it', async ({ page })
   // It survives the project round trip.
   const exported = JSON.parse(await page.evaluate(() => window.__engine!.exportProject()));
   expect(exported.assets).toEqual([
-    { id: 'duck', kind: 'gltf', url: '/tests/fixtures/models/Duck.glb', scale: 0.01, groundOffset: 0, rotationY: 0 },
+    { id: 'duck', kind: 'gltf', url: '/tests/fixtures/models/Duck.glb', scale: 0.01, groundOffset: 0, rotationY: 0, offsetX: 0, offsetY: 0 },
   ]);
   await page.locator('[data-testid="open-content"]').click();
   await page.locator('[data-testid="open-models"]').click();

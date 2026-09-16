@@ -379,7 +379,7 @@ const view = new SceneView(demo.grid, {
   fallbackFor: (entity) => (entity.faction === 'adversary' ? 'husk' : null),
   assets,
 });
-view.setDecos(demo.scene.decos);
+view.setScenery(demo.scene);
 view.syncTokens(demo.state);
 const buildings = new BuildingView();
 view.scene.add(buildings.root);
@@ -440,7 +440,7 @@ function refreshEditor(): void {
  * down and the runtime tokens go back to standing where the fight put them.
  */
 function syncEditorContent(): void {
-  view.setDecos(activeScene().decos);
+  view.setScenery(activeScene());
   // Same order the play path uses: the project's own re-skins win over the demo's.
   view.setAuthoring(mode === 'edit' ? editor.scene : null, {
     ...DEMO_MODELS,
@@ -637,7 +637,7 @@ function renderPanel(): void {
       onAssetsChanged: () => {
         for (const id of assets.ids()) assets.remove(id);
         for (const asset of session.project.assets) assets.add(asset);
-        view.setDecos(editor.scene.decos);
+        view.setScenery(editor.scene);
       },
       // The Models panel offers the clips a file actually carries, so it needs
       // the loaded template rather than the declaration.
@@ -645,6 +645,7 @@ function renderPanel(): void {
         (assets.template(id)?.animations ?? []).map((clip) => clip.name),
       assetStatus: (id: string): string => assets.statusOf(id),
       onRequestAssets: () => assets.requestAll(),
+      assetPreview: (id: string) => thumbnailOf(view.registry, assets, id)?.url ?? null,
       onAssetTuned: (id: string) => {
         const tuned = session.project.assets.find((asset) => asset.id === id);
         if (tuned !== undefined) assets.retune(tuned);
@@ -785,7 +786,7 @@ function loadProjectText(text: string, label = 'the project'): string {
   boundScene = '';
   rebindScene();
   rebuildTerrain();
-  view.setDecos(editor.scene.decos);
+  view.setScenery(editor.scene);
   refreshPlay();
   renderPanel();
   return '';
@@ -1184,7 +1185,7 @@ function rebindScene(): void {
 
   // The same view, pointed at the other room: its caches, its lights and the
   // party's own tokens carry over; the ground and the scenery do not.
-  view.rebind(activeGrid, { tints: scene.tints, decos: scene.decos });
+  view.rebind(activeGrid, { tints: scene.tints, decos: scene.decos, objects: scene.interactables });
   buildings.sync(scene);
   frameCamera();
   if (mode === 'edit') syncEditorContent();
@@ -1754,6 +1755,7 @@ canvas.addEventListener('pointermove', (event) => {
   const ground = groundUnderPointer(event);
   const over = ground?.tile ?? NO_TILE;
   view.showCursor(over);
+  view.spotlight(view.objectUnder(aim(event)));
   hoverWalk(ground);
   // A card aimed at the ground redraws its shape as the pointer moves, so what
   // it would catch is on the board before the click rather than in the log
@@ -2308,7 +2310,7 @@ const state = {
     editor.setTool('prop');
     editor.begin(pointOf(tile));
     editor.end();
-    view.setDecos(editor.scene.decos);
+    view.setScenery(editor.scene);
     if (mode === 'edit') renderPanel();
   },
   grantLevel: (level?: number): number => {
@@ -2427,10 +2429,8 @@ function frame(now = performance.now()): void {
   if (demo.ambush !== null && view.glidingCount === 0 && arrive(demo)) refreshPlay();
   followSelected();
   driveFloaters(now);
-  // Only the build tools work on the level plane, so only they pin the camera
-  // to it. Pinning it for a creature placed at Z 3.25 left Home unable to bring
-  // the view back down to the room.
-  if (buildingTool()) orbit.goal.target.y = view.layout.baseHeight + editor.state.buildLevel;
+  // The centre follows the storey, once each time it moves: held there every frame it left Home nothing to do.
+  if (editor.takeLevelChange()) orbit.goal.target.y = view.layout.baseHeight + editor.state.buildLevel;
   if (orbit.update(dt)) applyCamera();
   updateBuildingPreview();
   buildings.update(camera);

@@ -716,6 +716,23 @@ describe("terrain's open tab", () => {
     expect(editor.state.tool).toBe('paintTerrain');
   });
 
+  it('says once that the plane moved, so a view follows the change and not the level', () => {
+    const { editor } = setup();
+    expect(editor.takeLevelChange()).toBe(false);
+
+    editor.setBuildLevel(2);
+    expect(editor.takeLevelChange()).toBe(true);
+    // Asked twice, answered once: a camera held at the plane every frame is a camera
+    // that cannot be moved off it, which is what this replaced.
+    expect(editor.takeLevelChange()).toBe(false);
+
+    // Setting the level it is already on is not a move.
+    editor.setBuildLevel(2);
+    expect(editor.takeLevelChange()).toBe(false);
+    editor.setBuildLevel(-1.25);
+    expect(editor.takeLevelChange()).toBe(true);
+  });
+
   it('ends the drag when the build plane moves, so a stroke cannot span two storeys', () => {
     const { editor, session } = setup();
     editor.setTool('buildTile');
