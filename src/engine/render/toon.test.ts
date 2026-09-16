@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { BackSide, BoxGeometry, Mesh, MeshBasicMaterial, NearestFilter, Raycaster, Scene, Vector2, Vector3 } from 'three';
+import { BackSide, BoxGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, MeshToonMaterial, NearestFilter, Raycaster, Scene, Texture, Vector2, Vector3 } from 'three';
 import type { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { blankScene, gridFromScene } from '../scene/grid-from-scene';
 import { buildTerrainMesh } from './terrain-mesh';
-import { OUTLINE_LAYER, addOutline, inkEdges, outlineMaterial, smoothHull, toonGradient, toonMaterial } from './toon';
+import { OUTLINE_LAYER, addOutline, inkEdges, outlineMaterial, smoothHull, toonGradient, toonMaterial, toonify } from './toon';
 
 describe('the toon ramp', () => {
   it('steps the light in three flat bands, shared by every material', () => {
@@ -87,5 +87,74 @@ describe('ink outlines', () => {
     // Only the room's rim and base: not one line more for the border between the two kinds.
     expect(both.segments).toEqual(plain.segments);
     expect(plain.segments[0]).toBeGreaterThan(0);
+  });
+});
+
+describe('lighting an imported model', () => {
+  /** A glTF arrives like this: physically based, textured, and drawing both faces. */
+  const imported = (): Group => {
+    const model = new Group();
+    const skin = new Texture();
+    const bumps = new Texture();
+    const material = new MeshStandardMaterial({ color: '#c08040', map: skin, normalMap: bumps, side: DoubleSide });
+    material.name = 'hide';
+    model.add(new Mesh(new BoxGeometry(1, 2, 1), material));
+    return model;
+  };
+
+  it('steps its light on the shared ramp, and keeps what makes it look like itself', () => {
+    const model = imported();
+    const before = (model.children[0] as Mesh).material as MeshStandardMaterial;
+    toonify(model);
+
+    const after = (model.children[0] as Mesh).material as MeshToonMaterial;
+    expect(after).toBeInstanceOf(MeshToonMaterial);
+    expect(after.gradientMap).toBe(toonGradient());
+    // Smooth, not faceted. The toon material carries no flatShading of its own - `toonMaterial`
+    // sets one on the parts that want faceting - so what this asks is that nothing set it here.
+    expect((after as unknown as { flatShading?: boolean }).flatShading).not.toBe(true);
+    // The texture, the normal map, the colour, the facing and the name all survive:
+    // toon is how it is lit, not what it looks like.
+    expect(after.map).toBe(before.map);
+    expect(after.normalMap).toBe(before.normalMap);
+    expect(after.color.getHexString()).toBe(before.color.getHexString());
+    expect(after.side).toBe(DoubleSide);
+    expect(after.name).toBe('hide');
+  });
+
+  it('makes one material per material met, however many meshes share it', () => {
+    const model = imported();
+    const shared = (model.children[0] as Mesh).material as MeshStandardMaterial;
+    model.add(new Mesh(new BoxGeometry(1, 1, 1), shared));
+    model.add(new Mesh(new BoxGeometry(1, 1, 1), shared));
+    toonify(model);
+
+    const materials = model.children.map((child) => (child as Mesh).material);
+    expect(materials[0]).toBe(materials[1]);
+    expect(materials[1]).toBe(materials[2]);
+  });
+
+  it('leaves the template it was cloned from alone', () => {
+    const template = imported();
+    const clone = template.clone();
+    toonify(clone);
+
+    // A clone shares its materials with the template; lighting the clone must not
+    // relight everything else drawn from the same file.
+    expect((template.children[0] as Mesh).material).toBeInstanceOf(MeshStandardMaterial);
+    expect((clone.children[0] as Mesh).material).toBeInstanceOf(MeshToonMaterial);
+  });
+
+  it('takes a mesh whose material is a list, one band each', () => {
+    const model = new Group();
+    const mesh: Mesh = new Mesh(new BoxGeometry(1, 1, 1), [new MeshStandardMaterial({ color: '#ff0000' }), new MeshStandardMaterial({ color: '#00ff00' })]);
+    model.add(mesh);
+    toonify(model);
+
+    const materials = mesh.material as MeshToonMaterial[];
+    expect(materials).toHaveLength(2);
+    for (const material of materials) expect(material).toBeInstanceOf(MeshToonMaterial);
+    expect(materials[0]!.color.getHexString()).toBe('ff0000');
+    expect(materials[1]!.color.getHexString()).toBe('00ff00');
   });
 });

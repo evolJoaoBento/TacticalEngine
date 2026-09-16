@@ -96,6 +96,7 @@ const OBJECT_BODIES: Readonly<Record<string, string>> = { door: 'door', chest: '
 import { Spotlight } from './spotlight';
 import { CarryMotion } from './carry';
 export { OUTLINE_LAYER } from './toon';
+import { toonify } from './toon';
 import { ringMaterial } from './procedural/spec';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
 
@@ -882,6 +883,8 @@ export class SceneView {
       this.clipSets.set(group, set);
       this.playClip(set, 'idle');
     }
+    // Lit like the room, not like a photograph: the file's own materials are physically based.
+    toonify(clone);
     clone.traverse((child) => {
       if ((child as Mesh).isMesh) {
         child.castShadow = true;

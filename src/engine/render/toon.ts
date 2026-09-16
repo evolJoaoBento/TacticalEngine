@@ -26,7 +26,10 @@ import {
   NearestFilter,
   RedFormat,
   Vector2,
+  type Material,
   type MeshToonMaterialParameters,
+  type Object3D,
+  type Texture,
   type WebGLRenderer,
 } from 'three';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
@@ -91,6 +94,65 @@ export function outlineMaterial(width: number, color = INK): MeshBasicMaterial {
     inks.set(key, material);
   }
   return material;
+}
+
+/**
+ * Light an imported model the way the room is lit.
+ *
+ * Every mesh under `object` trades its own material for one that steps its light on the shared
+ * ramp, keeping what makes the model look like itself: the colour, the texture, the normal map,
+ * and whether it draws both faces. A glTF carries physically-based materials, so without this a
+ * creature imported into the game is the only thing in the room lit smoothly.
+ *
+ * Materials are made once per material met, not once per mesh, so a model whose parts share one
+ * material compiles one shader. The caller owns `object`: a clone shares its materials with the
+ * template it came from, and replacing them here leaves the template's own alone for whoever
+ * clones it next.
+ *
+ * No rim is added. A rim is an inverted hull, and closing one means merging vertices across the
+ * whole geometry - nothing for a library part of a few dozen, seconds for an imported mesh of two
+ * hundred thousand. The stepped light is what makes it read as drawn.
+ */
+export function toonify(object: Object3D): void {
+  const made = new Map<Material, MeshToonMaterial>();
+  const asToon = (from: Material): MeshToonMaterial => {
+    const already = made.get(from);
+    if (already !== undefined) return already;
+    const source = from as Material & {
+      color?: Color;
+      map?: Texture | null;
+      normalMap?: Texture | null;
+      transparent?: boolean;
+      opacity?: number;
+      alphaTest?: number;
+      vertexColors?: boolean;
+    };
+    // three warns on a key handed an explicit undefined, so each optional one is spread or absent.
+    // Not `toonMaterial`: that facets what it makes, which is the look a library part of a few
+    // dozen vertices is built for and the wrong one for a sculpted mesh of two hundred thousand.
+    // Faceting throws away the normals the model was authored with and derives one per fragment
+    // instead - measured at half the frame rate, which the walk, advancing by dt, walks into.
+    const toon = new MeshToonMaterial({
+      gradientMap: toonGradient(),
+      ...(source.color === undefined ? {} : { color: source.color.clone() }),
+      ...(source.map == null ? {} : { map: source.map }),
+      ...(source.normalMap == null ? {} : { normalMap: source.normalMap }),
+      transparent: source.transparent ?? false,
+      opacity: source.opacity ?? 1,
+      alphaTest: source.alphaTest ?? 0,
+      vertexColors: source.vertexColors ?? false,
+      side: from.side,
+    });
+    toon.name = from.name;
+    made.set(from, toon);
+    return toon;
+  };
+
+  object.traverse((child) => {
+    const mesh = child as Mesh;
+    if (!mesh.isMesh) return;
+    mesh.material = Array.isArray(mesh.material) ? mesh.material.map(asToon) : asToon(mesh.material);
+  });
 }
 
 /**
