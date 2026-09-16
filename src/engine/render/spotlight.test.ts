@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BoxGeometry, GreaterDepth, Group, Mesh, MeshBasicMaterial, Raycaster, Scene, Vector3 } from 'three';
+import { BackSide, BoxGeometry, GreaterDepth, Group, Mesh, MeshBasicMaterial, Raycaster, Scene, Vector3 } from 'three';
 import { Spotlight } from './spotlight';
 import { OUTLINE_LAYER } from './toon';
 
@@ -12,9 +12,13 @@ import { OUTLINE_LAYER } from './toon';
  * nothing is lit until something is pointed at.
  */
 
+/** A door's worth of parts: a panel, and a band across it standing proud of the face. */
 const thing = (): Group => {
   const group = new Group();
   group.add(new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial()));
+  const band = new Mesh(new BoxGeometry(1.1, 0.2, 0.2), new MeshBasicMaterial());
+  band.position.set(0, 0.2, 0.4);
+  group.add(band);
   return group;
 };
 
@@ -29,8 +33,11 @@ describe('the spotlight', () => {
     target.traverse((child) => {
       if (child.name === 'spotlight') rims.push(child as Mesh);
     });
-    // Two per mesh: the outline, and the part of it a wall would otherwise hide.
+    // Two for the thing, however many parts it has: the outline, and the same outline
+    // where a wall hides it. Per part, a door's own bands would be edged too, and the
+    // second rim would find them standing in front of its panel and fill it.
     expect(rims).toHaveLength(2);
+    expect(rims[0]!.geometry).toBe(rims[1]!.geometry);
     for (const rim of rims) {
       expect((rim.material as MeshBasicMaterial).color.getHexString()).toBe('ffffff');
       expect(rim.visible).toBe(true);
@@ -42,6 +49,8 @@ describe('the spotlight', () => {
     expect(edge.opacity).toBe(1);
     // The ghost is drawn only where something nearer already is — through a wall, and
     // never over the thing itself, which would wash it pale instead of rimming it.
+    // It is an edge, like the other: pushed out, and drawn back faces only.
+    expect(ghost.side).toBe(BackSide);
     expect(ghost.depthWrite).toBe(false);
     expect(ghost.transparent).toBe(true);
     expect(ghost.opacity).toBeLessThan(0.8);

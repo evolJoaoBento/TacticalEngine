@@ -27,6 +27,19 @@ const CLOSE_BUTTON: Record<string, string | number> = {
 /** A labelled field: the name above, the control under it, sharing a flex row. */
 const FIELD: Record<string, string | number> = { flex: 1, display: 'block', minWidth: 0 };
 
+/** The model as the board will draw it, big enough to judge a tenth of a tile by. */
+const PREVIEW_SIZE = 150;
+const PREVIEW: Record<string, string | number> = {
+  borderRadius: '4px',
+  background: '#00000040',
+  flex: 'none',
+  // Top of the picture against the top of the controls, rather than centred on them.
+  alignSelf: 'flex-start',
+};
+
+/** Everything that tunes one model, in a column to the right of its picture. */
+const TUNING: Record<string, string | number> = { flex: 1, minWidth: 0 };
+
 /** Controls fill their field rather than sitting beside its label. */
 const CONTROL: Record<string, string | number> = { width: '100%', boxSizing: 'border-box' };
 
@@ -130,19 +143,22 @@ export function ModelsWorkspace(props: {
           const status = props.assetStatus?.(asset.id) ?? 'unknown';
           return (
             <div key={asset.id} data-asset={asset.id} style={{ marginBottom: '14px' }}>
-              <div class="ph-row">
+              {/* The picture down the left, everything that adjusts it down the right. */}
+              <div class="ph-row" style={{ alignItems: 'flex-start' }}>
                 {/* Where it will stand, on a tile with its base under it: big enough that a
                     nudge of a tenth of a tile is something you can see. */}
                 {preview !== null ? (
                   <img
                     src={preview}
                     alt=""
-                    width="96"
-                    height="96"
+                    width={PREVIEW_SIZE}
+                    height={PREVIEW_SIZE}
                     data-testid={`asset-preview-${asset.id}`}
-                    style={{ borderRadius: '4px', background: '#00000040', flex: 'none' }}
+                    style={PREVIEW}
                   />
                 ) : null}
+                <div style={TUNING}>
+              <div class="ph-row">
                 <span style={{ flex: 1 }}>
                   <strong>{asset.id}</strong> <small>{sourceLabel(asset.url)}</small>
                 </span>
@@ -275,6 +291,8 @@ export function ModelsWorkspace(props: {
                       : 'Clip names appear once the file has loaded.'}
                 </div>
               ) : null}
+                </div>
+              </div>
             </div>
           );
         })}

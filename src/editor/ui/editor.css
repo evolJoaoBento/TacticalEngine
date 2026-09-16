@@ -102,7 +102,7 @@
 .ph-editor .ph-scene-row .ph-item { flex: 1; }
 .ph-editor .ph-mini { min-width: 26px; height: 26px; padding: 0 6px; border: 1px solid var(--ph-line); border-radius: 3px; background: var(--ph-raised); }
 .ph-editor .ph-mini:hover:not(:disabled) { background: #4a4a4a; }
-.ph-editor .ph-note { color: var(--ph-muted); font-size: 11px; margin: 6px 4px 2px; }
+.ph-editor .ph-note { color: var(--ph-label); font-size: 11px; margin: 6px 4px 2px; }
 .ph-editor .ph-file { display: none; }
 
 /* Tool rail */
@@ -219,7 +219,7 @@
 /* A label wrapping the control it names is a property, not a section: a label is inline, so the
    section strip's padding painted it over the fields above and below. It is Blender's property
    label -- muted, over its control -- and only a `div` heading is a strip. */
-.ph-editor label.ph-heading, .ph-editor label.ph-heading:first-child { display: flex; flex-direction: column; align-items: stretch; gap: 4px; margin: 10px 0 0; padding: 0; background: none; border: 0; font: 500 11px/1.2 system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: var(--ph-muted); }
+.ph-editor label.ph-heading, .ph-editor label.ph-heading:first-child { display: flex; flex-direction: column; align-items: stretch; gap: 4px; margin: 10px 0 0; padding: 0; background: none; border: 0; font: 500 11px/1.2 system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: var(--ph-label); }
 .ph-editor label.ph-heading > input, .ph-editor label.ph-heading > select, .ph-editor label.ph-heading > textarea { width: 100%; box-sizing: border-box; font: 400 12px/1.4 system-ui, 'Segoe UI', sans-serif; color: var(--ph-text); }
 .ph-editor .ph-hint { color: var(--ph-muted); font-size: 11px; }
 .ph-editor .ph-row { display: flex; gap: 4px; align-items: center; margin-bottom: 3px; }
