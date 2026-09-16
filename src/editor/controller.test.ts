@@ -175,6 +175,39 @@ describe('selecting a creature', () => {
 });
 
 describe('props', () => {
+  it('turns the prop in hand, and puts it down facing that way in one step', () => {
+    const { editor, session } = setup();
+    editor.setTool('prop');
+    editor.set('buildRotation', 0);
+    editor.begin({ x: 2, y: 2 });
+    editor.end();
+
+    // Picked up with Select, turned a quarter, and let go without moving it.
+    editor.setMode('inspect');
+    editor.setTool('select');
+    editor.begin({ x: 2, y: 2 });
+    expect(editor.carried).toMatchObject({ kind: 'prop', rotation: 0 });
+    expect(editor.turnCarried(1), 'a quarter turn is a change').toBe(true);
+    expect(editor.turnCarried(1), 'the same quarter twice is not').toBe(false);
+    editor.end();
+
+    const deco = session.requireScene('room').decos[0]!;
+    expect(deco.rotation).toBeCloseTo(Math.PI / 2);
+    expect(deco.position).toEqual({ x: 2, y: 2 });
+
+    // The carry was one undo step, and the turn went with it.
+    session.undo();
+    expect(session.requireScene('room').decos[0]!.rotation).toBeCloseTo(0);
+  });
+
+  it('has no facing to turn on a creature, an object or a party start', () => {
+    const { editor } = setup();
+    editor.setMode('inspect');
+    editor.setTool('select');
+    // Nothing in hand at all.
+    expect(editor.turnCarried(1)).toBe(false);
+  });
+
   it('places with the chosen facing and preserves it through save and undo/redo', () => {
     const { editor, session } = setup();
     editor.setTool('prop');
@@ -857,7 +890,8 @@ describe('carrying things in the Inspector', () => {
     editor.end();
     expect(editor.carried).toBeNull();
     editor.begin({ x: 1, y: 1 });
-    expect(editor.carried).toEqual({ kind: 'prop', key: '0' });
+    // A prop reports the facing it will land with; nothing else has one.
+    expect(editor.carried).toEqual({ kind: 'prop', key: '0', rotation: 0 });
     // A prop has no panel of its own: the Inspector says what to click, as for bare ground.
     expect(editor.selected).toBeNull();
     editor.end();

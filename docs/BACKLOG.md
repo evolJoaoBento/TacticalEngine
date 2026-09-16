@@ -4,6 +4,35 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Alt turns what the editor is carrying — done
+
+Alt already faced a prop as it was placed: hold it, point the mouse the way the thing should
+face, and the ghost turns a quarter at a time. It does the same for a prop already on the
+board. Pick one up, hold Alt, and it turns where it hangs under the pointer; let go and it
+lands facing that way, in the one undo step the carry already was. The gesture is the same
+one, so there is nothing new to learn: the drag that faces a new crate faces the crate that
+is already there.
+
+Only a prop takes it. A creature, an object and a party start have no facing in the
+document — nothing to turn, so Alt leaves them where they are rather than pretending.
+
+Three things had to be true for it. `CarryMotion` keeps the facing it picked a thing up with
+and applies it under the lean, so `turnTo` turns it in the hand without disturbing the swing.
+`moveDeco` no longer goes through `relocate`, whose idea of "nothing changed" is the position
+alone: a prop turned on the spot stands where it stood and the document is not the same, so
+that is an edit and an undo step of its own. And the controller owns the whole gesture —
+`turnBy` answers `carried` when the thing in hand took the turn and `placed` when it belongs
+to the ghost — which is what kept `main.ts` at its pin (2454) rather than growing a branch.
+
+Verified: `npx tsc --noEmit` clean, `npx vitest run` 1965 passed, `npx playwright test` 127
+passed in 6.7 minutes, exit 0 read off all three. Three tests are the new behaviour:
+`carry.test.ts` turns a thing while it hangs and finds it at rest facing that way with its
+lean gone; `move-edits.test.ts` turns a prop without moving it and finds that an edit, with
+one undo that takes the facing back; and `controller.test.ts` picks a prop up with Select,
+turns it a quarter, lets go, and finds the document holding the new facing at the same tile —
+and the same quarter twice reported as no change. `building.spec.ts`, which pins the placement
+gesture (including that blur, not keyup, ends one), still passes untouched.
+
 ## An object stands in the room, and lights up when you point at it — done
 
 An object with a model of its own was drawn only while somebody was authoring the scene:

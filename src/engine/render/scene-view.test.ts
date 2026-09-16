@@ -306,6 +306,29 @@ describe('SceneView', () => {
     view.dispose();
   });
 
+  it('stands an object with logic in the room even when it names no model', () => {
+    const grid = makeGrid(['.....', '.....', '.....']);
+    const view = new SceneView(grid);
+    const objects = [
+      { id: 'vault-door', kind: 'door', position: { x: 1, y: 1 }, model: null },
+      { id: 'hoard', kind: 'chest', position: { x: 3, y: 1 }, model: null },
+      { id: 'a-lever', kind: 'scripted', position: { x: 4, y: 1 }, model: null },
+    ] as unknown as Parameters<typeof view.setObjects>[0];
+
+    // In play: a door is a door and a chest is a chest, with no model named on either.
+    view.setObjects(objects);
+    view.setAuthoring(null);
+    expect(view.root.getObjectByName('object:vault-door'), 'a door has a body').toBeDefined();
+    expect(view.root.getObjectByName('object:hoard'), 'a chest has a body').toBeDefined();
+    // A scripted object is whatever its author means it to be, so nothing is guessed.
+    expect(view.root.getObjectByName('object:a-lever')).toBeUndefined();
+
+    // Authoring it, the one with no body of its own is the one that gets the mark.
+    view.setAuthoring({ id: 'room', name: '', encounters: [], spawns: [], interactables: objects, decos: [] } as never);
+    expect(view.root.getObjectByName('object:a-lever'), 'the mark is for what nothing draws').toBeDefined();
+    view.dispose();
+  });
+
   it('draws an object with a body of its own in play, where nobody is authoring', () => {
     const grid = makeGrid(['.....', '.....', '.....']);
     const view = new SceneView(grid);
@@ -322,8 +345,9 @@ describe('SceneView', () => {
     const centre = tileCenter(grid, grid.indexOf(2, 1));
     expect(drawn!.position.x).toBeCloseTo(centre.x, 6);
     expect(drawn!.position.z).toBeCloseTo(centre.z, 6);
-    // One with no body of its own stays invisible in play; the mark is the editor's.
-    expect(view.root.getObjectByName('object:stair-up')).toBeUndefined();
+    // A stair is a portal, and a portal has a body of its own now: naming no model is
+    // not the same as having nothing to draw.
+    expect(view.root.getObjectByName('object:stair-up')).toBeDefined();
 
     // Authoring it: the chest as itself, the stair as the mark an author takes hold of.
     view.setAuthoring({ id: 'room', name: '', encounters: [], spawns: [], interactables: objects, decos: [] } as never);

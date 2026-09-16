@@ -126,13 +126,22 @@ export function ModelsWorkspace(props: {
 
         {session.project.assets.map((asset) => {
           const clips = props.assetClips?.(asset.id) ?? [];
+          const preview = props.preview?.(asset.id) ?? null;
           const status = props.assetStatus?.(asset.id) ?? 'unknown';
           return (
             <div key={asset.id} data-asset={asset.id} style={{ marginBottom: '14px' }}>
               <div class="ph-row">
-                {/* What it will look like standing in a room, once the file is here. */}
-                {props.preview?.(asset.id) !== null && props.preview !== undefined ? (
-                  <img src={props.preview(asset.id) ?? ''} alt="" width="44" height="44" style={{ borderRadius: '3px', background: '#00000030' }} />
+                {/* Where it will stand, on a tile with its base under it: big enough that a
+                    nudge of a tenth of a tile is something you can see. */}
+                {preview !== null ? (
+                  <img
+                    src={preview}
+                    alt=""
+                    width="96"
+                    height="96"
+                    data-testid={`asset-preview-${asset.id}`}
+                    style={{ borderRadius: '4px', background: '#00000040', flex: 'none' }}
+                  />
                 ) : null}
                 <span style={{ flex: 1 }}>
                   <strong>{asset.id}</strong> <small>{sourceLabel(asset.url)}</small>

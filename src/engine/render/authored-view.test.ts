@@ -89,10 +89,11 @@ it('draws party starts and objects while authoring, and lifts and drops what the
   // Rebuilt for the next edit, the marks are drawn once, not again beside the old ones.
   view.setAuthoring(scene);
   expect(view.root.children.filter((c) => c.name.startsWith('spawn:'))).toHaveLength(2);
-  // Play draws neither.
+  // Play draws no party start — that is where the party arrives, not a thing in the
+  // room — but a chest is content, and stands there whether or not anybody is editing.
   view.setAuthoring(null);
   expect(view.root.getObjectByName('spawn:0')).toBeUndefined();
-  expect(view.root.getObjectByName('object:chest')).toBeUndefined();
+  expect(view.root.getObjectByName('object:chest'), 'a chest is in the room in play').toBeDefined();
   view.dispose();
 });
 

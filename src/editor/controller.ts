@@ -135,6 +135,8 @@ interface Carry {
   encounterId?: string;
   from: Position;
   to: Position;
+  /** The facing it will land with, in radians. Only a prop has one to change. */
+  rotation?: number;
 }
 
 export class EditorController {
@@ -524,8 +526,48 @@ export class EditorController {
   }
 
   /** What the pointer is carrying, for a viewport to lift: its kind, and its id or place in its list. */
-  get carried(): { kind: CarryKind; key: string } | null {
-    return this.carrying === null ? null : { kind: this.carrying.kind, key: this.carrying.key };
+  get carried(): { kind: CarryKind; key: string; rotation?: number } | null {
+    if (this.carrying === null) return null;
+    const { kind, key, rotation } = this.carrying;
+    return { kind, key, ...(rotation === undefined ? {} : { rotation }) };
+  }
+
+  /**
+   * Turn the prop in hand to a quarter turn, the way Alt faces one being placed.
+   *
+   * Only a prop has a facing in the document — a creature, an object and a party
+   * start have none — so anything else in hand is left alone. Answers whether the
+   * facing actually moved, so a view redraws only when it did.
+   */
+  turnCarried(quarter: number): boolean {
+    return this.turnCarriedTo(((((quarter % 4) + 4) % 4) * Math.PI) / 2);
+  }
+
+  /**
+   * Take an Alt gesture's quarter turn, for whatever the gesture is about.
+   *
+   * A prop in hand turns where it hangs and answers `carried`, so a view can show it.
+   * Otherwise it is the facing of the thing being placed, and `placed` says the strip
+   * showing that facing wants redrawing. `null` is a turn that changed nothing.
+   */
+  turnBy(quarter: number): 'carried' | 'placed' | null {
+    if (this.carriedFacing !== null) return this.turnCarried(quarter) ? 'carried' : null;
+    if (quarter === this.state.buildRotation) return null;
+    this.set('buildRotation', quarter);
+    return 'placed';
+  }
+
+  /** The facing a prop in hand will land with, in radians, or null with nothing to turn. */
+  get carriedFacing(): number | null {
+    return this.carrying === null || this.carrying.kind !== 'prop' ? null : (this.carrying.rotation ?? 0);
+  }
+
+  private turnCarriedTo(radians: number): boolean {
+    const held = this.carrying;
+    if (held === null || held.kind !== 'prop') return false;
+    if (held.rotation !== undefined && Math.abs(held.rotation - radians) < 1e-9) return false;
+    held.rotation = radians;
+    return true;
   }
 
   /** Take hold of the first of these kinds of thing on a tile, for the rest of this press, and say what it was. */
@@ -541,8 +583,15 @@ export class EditorController {
   /** The thing of one kind on a tile, as something to carry. */
   private thingAt(kind: CarryKind, point: Point): Carry | null {
     const scene = this.scene;
-    const hold = (key: string, at: Position, encounterId?: string): Carry =>
-      ({ kind, key, ...(encounterId === undefined ? {} : { encounterId }), from: { ...at }, to: { ...at } });
+    const hold = (key: string, at: Position, encounterId?: string, rotation?: number): Carry =>
+      ({
+        kind,
+        key,
+        ...(encounterId === undefined ? {} : { encounterId }),
+        ...(rotation === undefined ? {} : { rotation }),
+        from: { ...at },
+        to: { ...at },
+      });
     switch (kind) {
       case 'creature': {
         const placed = this.adversaryAt(point);
@@ -555,7 +604,7 @@ export class EditorController {
       }
       case 'prop': {
         const deco = this.decoAt(point);
-        return deco === null ? null : hold(String(scene.decos.lastIndexOf(deco)), deco.position);
+        return deco === null ? null : hold(String(scene.decos.lastIndexOf(deco)), deco.position, undefined, deco.rotation);
       }
       case 'spawn': {
         const index = scene.spawns.findIndex((s) => s.x === point.x && s.y === point.y);
@@ -589,7 +638,7 @@ export class EditorController {
     const edit =
       held.kind === 'creature' ? moveAdversary(sceneId, held.encounterId!, held.key, held.to)
       : held.kind === 'object' ? moveInteractable(sceneId, held.key, held.to)
-      : held.kind === 'prop' ? moveDeco(sceneId, Number(held.key), held.to)
+      : held.kind === 'prop' ? moveDeco(sceneId, Number(held.key), held.to, held.rotation)
       : moveSpawn(sceneId, Number(held.key), held.to);
     if (this.session.run(edit)) this.onChange('content');
   }

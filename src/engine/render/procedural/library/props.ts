@@ -232,6 +232,92 @@ export const campfire: ProceduralModelSpec = {
   ],
 };
 
+/**
+ * The four things a room interacts with, for an object that names no model of its
+ * own. An interactable is content — it stands in the room whether or not anybody is
+ * editing it — and until these existed a door with a lock on it was invisible in play.
+ */
+export const door: ProceduralModelSpec = {
+  id: 'door',
+  category: 'prop',
+  standHeight: 1.9,
+  tags: ['interactable'],
+  info: { name: 'Door', desc: 'Banded timber in a stone frame.' },
+  palette: {
+    timber: { color: '#6b4a2c' },
+    band: { color: '#3f4249' },
+    frame: { color: '#6e7480' },
+  },
+  parts: [
+    { prim: { kind: 'box', w: 0.14, h: 1.8, d: 0.12 }, mat: 'frame', pos: [-0.43, 0.9, 0] },
+    { prim: { kind: 'box', w: 0.14, h: 1.8, d: 0.12 }, mat: 'frame', pos: [0.43, 0.9, 0] },
+    { prim: { kind: 'box', w: 1.0, h: 0.14, d: 0.12 }, mat: 'frame', pos: [0, 1.82, 0] },
+    { prim: { kind: 'box', w: 0.74, h: 1.72, d: 0.08 }, mat: 'timber', pos: [0, 0.86, 0] },
+    { prim: { kind: 'box', w: 0.78, h: 0.1, d: 0.1 }, mat: 'band', pos: [0, 1.4, 0] },
+    { prim: { kind: 'box', w: 0.78, h: 0.1, d: 0.1 }, mat: 'band', pos: [0, 0.42, 0] },
+    { prim: { kind: 'sphere', r: 0.06, wSeg: 8, hSeg: 6 }, mat: 'band', pos: [0.26, 0.92, 0.08] },
+  ],
+};
+
+export const chest: ProceduralModelSpec = {
+  id: 'chest',
+  category: 'prop',
+  standHeight: 0.579,
+  tags: ['interactable'],
+  info: { name: 'Chest', desc: 'Banded and lidded, with a heavy lock.' },
+  palette: {
+    wood: { color: '#5d3f24' },
+    band: { color: '#3f4249' },
+    lock: { color: '#c9a227', emissive: '#6b520d', emissiveIntensity: 0.35 },
+  },
+  parts: [
+    { prim: { kind: 'box', w: 0.72, h: 0.34, d: 0.46 }, mat: 'wood', pos: [0, 0.17, 0] },
+    { prim: { kind: 'cylinder', rTop: 0.23, rBottom: 0.23, h: 0.72, seg: 10 }, mat: 'wood', pos: [0, 0.36, 0], rot: [0, 0, Math.PI / 2] },
+    { prim: { kind: 'box', w: 0.76, h: 0.07, d: 0.12 }, mat: 'band', pos: [0, 0.2, 0] },
+    { prim: { kind: 'box', w: 0.1, h: 0.42, d: 0.5 }, mat: 'band', pos: [-0.24, 0.24, 0] },
+    { prim: { kind: 'box', w: 0.1, h: 0.42, d: 0.5 }, mat: 'band', pos: [0.24, 0.24, 0] },
+    { prim: { kind: 'box', w: 0.12, h: 0.14, d: 0.08 }, mat: 'lock', pos: [0, 0.3, 0.24] },
+  ],
+};
+
+export const pillar: ProceduralModelSpec = {
+  id: 'pillar',
+  category: 'prop',
+  standHeight: 2.14,
+  tags: ['interactable'],
+  info: { name: 'Pillar', desc: 'Worn stone, carved once and long ago.' },
+  palette: {
+    stone: { color: '#7a7f8a' },
+    dark: { color: '#5d626c' },
+    rune: { color: '#8fd0ff', emissive: '#3f8fd0', emissiveIntensity: 0.8 },
+  },
+  parts: [
+    { prim: { kind: 'box', w: 0.62, h: 0.16, d: 0.62 }, mat: 'dark', pos: [0, 0.08, 0] },
+    { prim: { kind: 'cylinder', rTop: 0.22, rBottom: 0.26, h: 1.6, seg: 8 }, mat: 'stone', pos: [0, 0.96, 0] },
+    { prim: { kind: 'box', w: 0.56, h: 0.14, d: 0.56 }, mat: 'dark', pos: [0, 1.83, 0] },
+    { prim: { kind: 'octahedron', r: 0.12 }, mat: 'rune', pos: [0, 2.02, 0] },
+  ],
+};
+
+export const portal: ProceduralModelSpec = {
+  id: 'portal',
+  category: 'prop',
+  standHeight: 1.542,
+  tags: ['interactable'],
+  info: { name: 'Portal', desc: 'A way out of the room, and into another.' },
+  palette: {
+    step: { color: '#6e7480' },
+    dark: { color: '#4a4f58' },
+    glow: { color: '#9fd8ff', emissive: '#4aa3e0', emissiveIntensity: 1.1 },
+  },
+  parts: [
+    { prim: { kind: 'box', w: 0.9, h: 0.12, d: 0.34 }, mat: 'step', pos: [0, 0.06, 0.22] },
+    { prim: { kind: 'box', w: 0.9, h: 0.12, d: 0.34 }, mat: 'dark', pos: [0, 0.18, -0.02] },
+    { prim: { kind: 'torus', r: 0.46, tube: 0.09, radSeg: 6, tubSeg: 18 }, mat: 'step', pos: [0, 1.0, -0.2] },
+    { prim: { kind: 'cylinder', rTop: 0.38, rBottom: 0.38, h: 0.04, seg: 16, open: true }, mat: 'glow', pos: [0, 1.0, -0.2], rot: [Math.PI / 2, 0, 0] },
+  ],
+};
+
 export const PROP_MODELS = [
   pine,
   deadTree,
@@ -243,4 +329,8 @@ export const PROP_MODELS = [
   cart,
   dummy,
   campfire,
+  door,
+  chest,
+  pillar,
+  portal,
 ] as const;

@@ -991,11 +991,11 @@ let altRotation: {
 } | null = null;
 
 function rotatablePlacement(): boolean {
-  return mode === 'edit' && (editor.state.tool === 'buildTile' || editor.state.tool === 'prop');
+  return mode === 'edit' && (editor.carried === null ? editor.state.tool === 'buildTile' || editor.state.tool === 'prop' : editor.carriedFacing !== null);
 }
 
 function beginAltRotation(at: { clientX: number; clientY: number }): boolean {
-  editor.end();
+  if (editor.carried === null) editor.end();
   drag = null;
   lastBuildPointer = { clientX: at.clientX, clientY: at.clientY };
   const world = pointOnBuildPlane(at);
@@ -1003,7 +1003,7 @@ function beginAltRotation(at: { clientX: number; clientY: number }): boolean {
   altRotation = {
     start: { clientX: at.clientX, clientY: at.clientY },
     world,
-    rotation: editor.state.buildRotation,
+    rotation: editor.carriedFacing === null ? editor.state.buildRotation : Math.round(editor.carriedFacing / (Math.PI / 2)),
     tool: editor.state.tool,
     pointer: at,
   };
@@ -1035,10 +1035,9 @@ function rotatePlacement(event: PointerEvent): boolean {
     world.z - gesture.world.z,
     Math.hypot(event.clientX - gesture.start.clientX, event.clientY - gesture.start.clientY),
   );
-  if (rotation !== editor.state.buildRotation) {
-    editor.set('buildRotation', rotation);
-    renderPanel();
-  }
+  const turned = editor.turnBy(rotation);
+  if (turned === 'carried') view.carryTurn(editor.carriedFacing ?? 0);
+  else if (turned === 'placed') renderPanel();
   return true;
 }
 

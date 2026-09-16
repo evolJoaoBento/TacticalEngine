@@ -112,6 +112,31 @@ describe('carrying a thing', () => {
     expect(landed.scale.toArray()).toEqual([1, 1, 1]);
   });
 
+  it('turns what it holds, and puts it down facing that way', () => {
+    const crate = standing();
+    const facing = crate.rotation.y;
+    const carry = new CarryMotion();
+    carry.lift(crate);
+    // Picked up facing the way it stood.
+    expect(carry.facing).toBeCloseTo(facing, 10);
+
+    // A quarter turn while it hangs: it is turned in the hand, not on the ground.
+    carry.turnTo(Math.PI / 2);
+    carry.moveTo(3, 0, -1);
+    for (let i = 0; i < 20; i++) carry.tick(1 / 60);
+    expect(carry.facing).toBeCloseTo(Math.PI / 2, 10);
+    expect(crate.rotation.y).toBeCloseTo(Math.PI / 2, 10);
+    // The lean is still the lean: it trails from the feet while it turns.
+    expect(Math.abs(crate.rotation.x) + Math.abs(crate.rotation.z)).toBeGreaterThan(0);
+
+    // Let go, and it comes to rest facing the way it was turned.
+    carry.drop(null);
+    for (let i = 0; i < 90; i++) carry.tick(1 / 60);
+    expect(crate.rotation.y).toBeCloseTo(Math.PI / 2, 10);
+    expect(crate.rotation.x).toBeCloseTo(0, 10);
+    expect(crate.rotation.z).toBeCloseTo(0, 10);
+  });
+
   it('puts the same one back where it stood when nothing moved', () => {
     const group = standing();
     const motion = new CarryMotion();

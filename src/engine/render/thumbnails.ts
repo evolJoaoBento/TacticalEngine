@@ -10,12 +10,22 @@
 
 import { Box3, DirectionalLight, Group, HemisphereLight, PerspectiveCamera, Scene, Sphere, Vector3, WebGLRenderer, type Object3D } from 'three';
 import { seatOnTile, type AssetLibrary } from './assets';
-import { RING_ONLY } from './authoring-marks';
+import { RING_ONLY, TILE_UNDER } from './authoring-marks';
 import { ModelResources, buildModel } from './procedural/build';
 import type { ModelRegistry } from './procedural/registry';
 
 /** Pixels on a side: the strip shows it at half that, so it stays sharp on a high-density screen. */
 const SIZE = 152;
+
+/**
+ * How much room round the tile a framed picture keeps, in tiles.
+ *
+ * A picture framed to what it contains cannot show where a thing stands: nudge the
+ * model and the camera follows it, so nothing moves. Framing a fixed volume — the
+ * tile, and a model's worth of height over it — is what makes an offset visible,
+ * because the tile stays put while the model slides across it.
+ */
+const FRAMED = 0.78;
 
 /** A three-quarter view from a little above, the angle the board is seen at. */
 const VIEW = new Vector3(0.7, 0.55, 1).normalize();
@@ -57,7 +67,8 @@ export class ModelThumbnails {
     if (kept !== undefined) return kept;
     const renderer = this.context();
     if (renderer === null) return null;
-    const picture = this.draw(renderer, this.object(id));
+    // An imported model is the one somebody is setting up, so its picture is framed.
+    const picture = this.draw(renderer, this.object(id), this.assets?.spec(id) !== undefined);
     this.pictures.set(this.key(id), picture);
     return picture;
   }
@@ -101,6 +112,8 @@ export class ModelThumbnails {
     shown.add(body);
     // The adversary's red, the colour most of what is imported will stand in.
     shown.add(buildModel(RING_ONLY, this.resources, { palette: { ring: { color: '#e5483a' } } }).group);
+    // The tile itself, so what the model is standing off is in the picture with it.
+    shown.add(buildModel(TILE_UNDER, this.resources).group);
     return shown;
   }
 
@@ -129,9 +142,17 @@ export class ModelThumbnails {
     return this.renderer;
   }
 
-  private draw(renderer: WebGLRenderer, object: Object3D): string {
+  private draw(renderer: WebGLRenderer, object: Object3D, framed = false): string {
     this.scene.add(object);
-    const sphere = new Box3().setFromObject(object).getBoundingSphere(new Sphere());
+    const box = new Box3().setFromObject(object);
+    // Framed: the same volume every time, centred on the tile rather than on what is
+    // standing there, so moving the model moves it in the picture.
+    // Framed: the tile and a model's worth of height over it, centred on the tile and
+    // not on what is standing there — so a model nudged across it is drawn across it,
+    // which is the whole reason the picture is worth looking at while setting one up.
+    const sphere = framed
+      ? new Sphere(new Vector3(0, Math.min(Math.max(box.max.y, 0.4), 1.2) / 2, 0), FRAMED)
+      : box.getBoundingSphere(new Sphere());
     const radius = Math.max(sphere.radius, 0.01);
     const distance = (radius / Math.sin((this.camera.fov * Math.PI) / 360)) * 1.02;
     this.camera.position.copy(sphere.center).addScaledVector(VIEW, distance);

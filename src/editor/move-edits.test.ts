@@ -74,6 +74,23 @@ describe('moving props, objects and party starts', () => {
     expect(room(s).spawns).toEqual([{ x: 0, y: 0 }, { x: 0, y: 1 }]);
   });
 
+  it('turns a prop where it stands: a facing is a change, though the tile is not', () => {
+    const s = session();
+    const at = { ...room(s).decos[1]!.position };
+    expect(s.run(moveDeco('room', 1, at, Math.PI / 2))).toBe(true);
+    expect(room(s).decos[1]!.rotation).toBeCloseTo(Math.PI / 2);
+    expect(room(s).decos[1]!.position).toEqual(at);
+
+    // One step, and it takes the facing back with the place.
+    s.undo();
+    expect(room(s).decos[1]!.rotation).toBeCloseTo(1);
+    expect(room(s).decos[1]!.position).toEqual(at);
+
+    // Carried without being turned, it keeps the facing it had.
+    expect(s.run(moveDeco('room', 1, { x: 4, y: 2 }))).toBe(true);
+    expect(room(s).decos[1]!.rotation).toBeCloseTo(1);
+  });
+
   it('changes nothing for a thing that is not there, or one put back where it stood', () => {
     const s = session();
     expect(s.run(moveDeco('room', 7, { x: 3, y: 1 }))).toBe(false);

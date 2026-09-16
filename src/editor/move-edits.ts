@@ -64,14 +64,39 @@ export function moveInteractable(sceneId: string, id: string, to: Position): Edi
 }
 
 /**
- * Put a prop somewhere else. Props have no ids, so it is named by its place in the scene's list,
- * which a move does not change: the one a click finds on a tile is the last placed there.
+ * Put a prop somewhere else, facing where it was turned to. Props have no ids, so one is named by
+ * its place in the scene's list, which a move does not change: the one a click finds on a tile is
+ * the last placed there.
+ *
+ * Not through `relocate`, whose idea of "nothing changed" is the position alone: a prop turned on
+ * the spot stands where it stood and the document is not the same, so that is an edit and an undo
+ * step. Left without a facing, it moves and keeps the one it had.
  */
-export function moveDeco(sceneId: string, index: number, to: Position): Edit {
-  return relocate('Move prop', sceneId, (scene) => {
-    const deco = scene.decos[index];
-    return deco === undefined ? undefined : { get: () => deco.position, set: (at) => { deco.position = at; } };
-  }, to);
+export function moveDeco(sceneId: string, index: number, to: Position, rotation?: number): Edit {
+  const target: Position = { ...to };
+  const find = (project: ProjectDoc): Deco | undefined => project.scenes.find((s) => s.id === sceneId)?.decos[index];
+  let before: { position: Position; rotation: number } | null = null;
+  return {
+    label: 'Move prop',
+    apply(project) {
+      const deco = find(project);
+      before = deco === undefined ? null : { position: { ...deco.position }, rotation: deco.rotation };
+      if (deco === undefined) return;
+      deco.position = { ...target };
+      if (rotation !== undefined) deco.rotation = rotation;
+    },
+    undo(project) {
+      const deco = find(project);
+      if (deco === undefined || before === null) return;
+      deco.position = before.position;
+      deco.rotation = before.rotation;
+    },
+    isNoop() {
+      if (before === null) return true;
+      const turned = rotation !== undefined && Math.abs(rotation - before.rotation) > 1e-9;
+      return samePosition(before.position, target) && !turned;
+    },
+  };
 }
 
 /** Put one of the party's starting places somewhere else, by its place in the list. A start has no Z. */

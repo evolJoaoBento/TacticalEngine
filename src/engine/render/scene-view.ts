@@ -84,6 +84,15 @@ interface Reaction {
 import { ModelRegistry } from './procedural/registry';
 import { OBJECT_MARK, PARTY_START_MARK, RING_ONLY } from './authoring-marks';
 import type { Interactable } from '../scene/schema';
+
+/**
+ * What each kind of object is drawn as when it names no model of its own.
+ *
+ * An object is content: a door with a lock on it should be a door in play, not
+ * nothing at all. Naming a model overrides this; the editor's gold mark is only
+ * for a `scripted` object, which has no shape anybody could guess.
+ */
+const OBJECT_BODIES: Readonly<Record<string, string>> = { door: 'door', chest: 'chest', pillar: 'pillar', portal: 'portal' };
 import { Spotlight } from './spotlight';
 import { CarryMotion } from './carry';
 export { OUTLINE_LAYER } from './toon';
@@ -1110,8 +1119,9 @@ export class SceneView {
     this.objects.length = 0;
     this.lastObjects = objects;
     for (const object of objects) {
-      if (object.model === null) continue;
-      const model = this.build(object.model);
+      const wears = object.model ?? OBJECT_BODIES[object.kind] ?? null;
+      if (wears === null) continue;
+      const model = this.build(wears);
       const centre = placementCentre(this.grid, this.layout, object.position);
       model.group.position.set(centre.x, centre.y + (model.spec.groundOffset ?? 0), centre.z);
       model.group.name = `object:${object.id}`;
@@ -1164,11 +1174,14 @@ export class SceneView {
       this.root.add(model.group);
       this.authoredCreatures.push(model.group);
     }
+    // The bodies as well as the marks: an object drawn in play is drawn here too, or
+    // the editor would show a room missing the very things a press takes hold of.
+    this.setObjects(scene.interactables);
     for (const [i, spawn] of scene.spawns.entries()) this.mark(buildModel(PARTY_START_MARK, this.resources).group, `spawn:${i}`, spawn);
     // An object with a body draws itself in both modes (`setObjects`); this is the
     // mark for one that has none, so an author still has something to take hold of.
     for (const object of scene.interactables) {
-      if (object.model !== null) continue;
+      if (object.model !== null || OBJECT_BODIES[object.kind] !== undefined) continue;
       this.mark(buildModel(OBJECT_MARK, this.resources).group, `object:${object.id}`, object.position);
     }
   }
@@ -1194,6 +1207,11 @@ export class SceneView {
   /** Where the pointer meets the ground while carrying: the thing hangs above it, trailing. */
   carryTo(x: number, y: number, z: number): void {
     this.carry.moveTo(x, y, z);
+  }
+
+  /** Turn what the pointer is carrying, in radians: it is put down facing that way. */
+  carryTurn(radians: number): void {
+    this.carry.turnTo(radians);
   }
 
   /** Let go: it falls onto wherever the document now has it, drawn afresh there or not; with no key, where it was. */

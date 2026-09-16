@@ -59,3 +59,23 @@ export const RING_ONLY: ProceduralModelSpec = {
   palette: { ring: { color: '#ffffff' } },
   parts: [{ prim: { kind: 'cylinder', rTop: 0.42, rBottom: 0.42, h: 0.05, seg: 24 }, mat: 'ring', pos: [0, 0.025, 0] }],
 };
+
+/**
+ * A tile under a previewed model: the ground it will stand on, so the picture shows
+ * where a thing sits rather than only what it is.
+ */
+export const TILE_UNDER: ProceduralModelSpec = {
+  id: 'tile-under',
+  category: 'prop',
+  standHeight: 0,
+  tags: [],
+  info: { name: 'Tile', desc: '' },
+  palette: { ground: { color: '#3c4048' }, edge: { color: '#585e69' } },
+  parts: [
+    { prim: { kind: 'box', w: 1, h: 0.04, d: 1 }, mat: 'ground', pos: [0, -0.02, 0], castShadow: false },
+    { prim: { kind: 'box', w: 1.04, h: 0.012, d: 0.04 }, mat: 'edge', pos: [0, 0.002, 0.5], castShadow: false },
+    { prim: { kind: 'box', w: 1.04, h: 0.012, d: 0.04 }, mat: 'edge', pos: [0, 0.002, -0.5], castShadow: false },
+    { prim: { kind: 'box', w: 0.04, h: 0.012, d: 1.04 }, mat: 'edge', pos: [0.5, 0.002, 0], castShadow: false },
+    { prim: { kind: 'box', w: 0.04, h: 0.012, d: 1.04 }, mat: 'edge', pos: [-0.5, 0.002, 0], castShadow: false },
+  ],
+};

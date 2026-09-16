@@ -111,6 +111,22 @@ export class CarryMotion {
     this.elapsed = 0;
   }
 
+  /**
+   * Turn what is held, in radians about Y.
+   *
+   * It turns in the hand and is put down facing that way: the lean rides on top of
+   * the turn (the rotation order is set on lift), so a thing being swung about still
+   * trails from its feet while it turns.
+   */
+  turnTo(radians: number): void {
+    this.turn = radians;
+  }
+
+  /** Which way what is held will be facing when it lands. */
+  get facing(): number {
+    return this.turn;
+  }
+
   /** Where the pointer meets the ground: the thing follows, riding `LIFT` above it. */
   moveTo(x: number, y: number, z: number): void {
     if (this.carrying) this.goal.set(x, y, z);
