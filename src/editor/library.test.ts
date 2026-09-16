@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OBJECT_KINDS, buildingTab, creatureTabs, filterLibrary, groundTab, objectsTab, propsTab, titleCase } from './library';
+import { OBJECT_KINDS, buildingTab, creatureTabs, filterLibrary, tilesTab, objectsTab, propsTab, titleCase } from './library';
 
 const CREATURES = [
   { id: 'jagged-knife-bandit', name: 'Jagged Knife Bandit', tier: 1 as const, role: 'standard' as const },
@@ -20,7 +20,7 @@ describe('the library', () => {
   });
 
   it('shows ground as swatches, each kind in the colour it declares', () => {
-    const tab = groundTab([
+    const tab = tilesTab([
       { id: 'floor', name: 'Floor', color: '#5d8a4a' },
       { id: 'lava', name: 'Lava', color: '#c4441f' },
       // No colour of its own, and no table to look one up in: it takes the fallback.
@@ -35,7 +35,7 @@ describe('the library', () => {
   });
 
   it('takes the name a kind of ground was given, and titles its id when it has none', () => {
-    const tab = groundTab([{ id: 'deep-water', name: 'Deep Water' }, { id: 'rot-marsh' }]);
+    const tab = tilesTab([{ id: 'deep-water', name: 'Deep Water' }, { id: 'rot-marsh' }]);
     expect(tab.items.map((i) => i.label)).toEqual(['Deep Water', 'Rot Marsh']);
   });
 

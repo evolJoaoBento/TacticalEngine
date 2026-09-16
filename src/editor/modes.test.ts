@@ -17,7 +17,7 @@ const ALL_TOOLS: readonly EditorTool[] = [
   'buildTile',
   'eraseTile',
   'select',
-  'paintTerrain',
+  'placeTile',
   'raise',
   'lower',
   'prop',

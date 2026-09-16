@@ -85,7 +85,7 @@ export function InspectorSide(props: {
 const TERRAIN_HINTS: Partial<Record<EditorTool, string>> = {
   buildTile: 'Drag to place pieces at Z height. Hold Alt and point the mouse toward a tile edge to rotate in that direction.',
   eraseTile: 'Drag to remove the latest piece at each position and Z height. Click again to remove the next overlapping piece.',
-  paintTerrain: 'Drag across the board to paint the ground picked below.',
+  placeTile: 'Click to put down the tile picked below. The brush places a square of them at once.',
   raise: 'Drag to raise the ground a level. One drag is one undo.',
   lower: 'Drag to lower the ground a level. One drag is one undo.',
   prop: 'Hold Alt and point the mouse in the direction the prop should face, then click to place. Click an existing matching prop to turn it.',
@@ -93,7 +93,7 @@ const TERRAIN_HINTS: Partial<Record<EditorTool, string>> = {
   erase: 'Click a prop to remove it, then the object under it.',
 };
 
-const BRUSHED: readonly EditorTool[] = ['paintTerrain', 'raise', 'lower', 'buildTile', 'eraseTile'];
+const BRUSHED: readonly EditorTool[] = ['placeTile', 'raise', 'lower', 'buildTile', 'eraseTile'];
 
 /** Tools that place at `buildLevel`, and so want the Z controls beside them. */
 const LEVELLED: readonly EditorTool[] = ['buildTile', 'eraseTile', 'prop', 'interactable'];
@@ -379,17 +379,17 @@ export function TerrainSide(props: {
           Rotate · {controller.state.buildRotation * 90}° (Alt + mouse / R)
         </button>
       ) : null}
-      {tool === 'paintTerrain' ? (
+      {tool === 'placeTile' ? (
         <>
           <div class="ph-heading">Drawn with</div>
           <select
             class="ph-select"
             data-testid="terrain-model"
-            aria-label={`What ${controller.state.terrainId} is drawn with`}
-            value={terrainModelOf(session, controller.state.terrainId)}
+            aria-label={`What ${controller.state.tileId} is drawn with`}
+            value={terrainModelOf(session, controller.state.tileId)}
             onChange={(e) => {
               const picked = e.currentTarget.value;
-              controller.setTerrainModel(controller.state.terrainId, picked === '' ? null : picked);
+              controller.setTerrainModel(controller.state.tileId, picked === '' ? null : picked);
               props.onChange();
             }}
           >
@@ -399,8 +399,8 @@ export function TerrainSide(props: {
             ))}
           </select>
           <div class="ph-note">
-            Every tile of this ground stands one of these. What a walk costs and what a click
-            hits is the ground itself, not the model, so a file that fails to load leaves the
+            Every tile of this kind stands one of these. What a walk costs and what a click
+            hits is the tile itself, not the model, so a file that fails to load leaves the
             room playable.
           </div>
         </>

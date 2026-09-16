@@ -12,7 +12,7 @@ const PATHS = {
   combat: 'M4 4l10 10M20 4L10 14M7 17l-3 3M17 17l3 3M6 14l4 4M18 14l-4 4',
   interaction: 'M4 5h16v10H10l-5 4v-4H4z',
   select: 'M5 3l6.5 17 2.2-7.3L21 10.5z',
-  paintTerrain: 'M4 20c4 0 5-2 5-5l8-8 3 3-8 8c-3 0-5 1-5 5z',
+  placeTile: 'M12 3l8 4.5-8 4.5-8-4.5zM4 12.5l8 4.5 8-4.5M4 16.5l8 4.5 8-4.5',
   raise: 'M12 4l6 6h-4v8h-4v-8H6z',
   lower: 'M12 20l6-6h-4V6h-4v8H6z',
   prop: 'M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8',

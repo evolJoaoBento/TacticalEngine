@@ -30,73 +30,37 @@ function drag(editor: EditorController, y: number, from: number, to: number): vo
   editor.end();
 }
 
-describe('painting terrain', () => {
-  it('paints on press and keeps painting through a drag', () => {
+describe('placing tiles', () => {
+  it('puts a tile down where it is clicked, and does not follow a drag', () => {
     const { editor, session } = setup();
-    editor.setTool('paintTerrain');
-    editor.set('terrainId', 'wall');
+    editor.setTool('placeTile');
+    editor.set('tileId', 'wall');
     drag(editor, 0, 0, 3);
 
-    expect(session.requireScene('room').terrain.slice(0, 4)).toEqual([
-      'wall',
-      'wall',
-      'wall',
-      'wall',
-    ]);
+    // The press placed one; the drag across the next three did nothing. That is the
+    // whole difference between a placer and the brush it replaced.
+    const scene = session.requireScene('room');
+    expect(scene.terrain[0]).toBe('wall');
+    expect(scene.terrain.slice(1, 4)).toEqual(['floor', 'floor', 'floor']);
   });
 
-  it('makes a whole drag one undo step', () => {
+  it('places a square brush', () => {
     const { editor, session } = setup();
-    editor.setTool('paintTerrain');
-    editor.set('terrainId', 'wall');
-    drag(editor, 0, 0, 5);
-
-    session.undo();
-    expect(session.requireScene('room').terrain.every((t) => t === 'floor')).toBe(true);
-    expect(session.canUndo).toBe(false);
-  });
-
-  it('separates two drags', () => {
-    const { editor, session } = setup();
-    editor.setTool('paintTerrain');
-    editor.set('terrainId', 'wall');
-    drag(editor, 0, 0, 2);
-    drag(editor, 1, 0, 2);
-
-    session.undo();
-    expect(session.requireScene('room').terrain[8]).toBe('floor');
-    expect(session.requireScene('room').terrain[0]).toBe('wall');
-  });
-
-  it('does not re-edit a tile the same stroke already crossed', () => {
-    const { editor, changes } = setup();
-    editor.setTool('paintTerrain');
-    editor.set('terrainId', 'wall');
-    editor.begin({ x: 0, y: 0 });
-    editor.paint({ x: 0, y: 0 });
-    editor.paint({ x: 0, y: 0 });
-    editor.end();
-    expect(changes).toEqual(['terrain']);
-  });
-
-  it('paints a square brush', () => {
-    const { editor, session } = setup();
-    editor.setTool('paintTerrain');
-    editor.set('terrainId', 'wall');
+    editor.setTool('placeTile');
+    editor.set('tileId', 'wall');
     editor.set('brushSize', 3);
     editor.begin({ x: 2, y: 2 });
     editor.end();
 
     const scene = session.requireScene('room');
-    const painted = scene.terrain.filter((t) => t === 'wall').length;
-    expect(painted).toBe(9);
+    expect(scene.terrain.filter((t) => t === 'wall')).toHaveLength(9);
     expect(scene.terrain[2 + 2 * 8]).toBe('wall');
   });
 
   it('clips a brush at the edge rather than wrapping', () => {
     const { editor, session } = setup();
-    editor.setTool('paintTerrain');
-    editor.set('terrainId', 'wall');
+    editor.setTool('placeTile');
+    editor.set('tileId', 'wall');
     editor.set('brushSize', 3);
     editor.begin({ x: 0, y: 0 });
     editor.end();
@@ -105,9 +69,79 @@ describe('painting terrain', () => {
 
   it('ignores a click outside the scene', () => {
     const { editor, changes } = setup();
-    editor.setTool('paintTerrain');
+    editor.setTool('placeTile');
     expect(editor.begin({ x: 99, y: 0 })).toBe('none');
     expect(changes).toEqual([]);
+  });
+
+  it('is one undo step per click, so two clicks are two', () => {
+    const { editor, session } = setup();
+    editor.setTool('placeTile');
+    editor.set('tileId', 'wall');
+    editor.begin({ x: 0, y: 0 });
+    editor.end();
+    editor.begin({ x: 1, y: 0 });
+    editor.end();
+
+    session.undo();
+    expect(session.requireScene('room').terrain[1]).toBe('floor');
+    expect(session.requireScene('room').terrain[0]).toBe('wall');
+  });
+});
+
+/**
+ * The brush machinery a drag still uses.
+ *
+ * These were written against the ground painter, which dragged. The placer does not, so
+ * they moved to Raise rather than being renamed: renamed, they would have passed because
+ * `paint` returns early for a tool that is not continuous, which is green for the wrong
+ * reason.
+ */
+describe('dragging a continuous tool', () => {
+  it('acts on press and keeps acting through a drag', () => {
+    const { editor, session } = setup();
+    editor.setTool('raise');
+    drag(editor, 0, 0, 3);
+    expect(session.requireScene('room').heights.slice(0, 4)).toEqual([1, 1, 1, 1]);
+  });
+
+  it('steps back a tile at a time, because Raise does not coalesce a stroke', () => {
+    const { editor, session } = setup();
+    editor.setTool('raise');
+    drag(editor, 0, 0, 5);
+    expect(session.requireScene('room').heights.slice(0, 6)).toEqual([1, 1, 1, 1, 1, 1]);
+
+    // `adjustHeight` carries no merge key, unlike the edit behind the placer, so six
+    // tiles raised are six steps back rather than one. Asserting otherwise is what the
+    // ground painter's tests used to do, and Raise never behaved that way.
+    session.undo();
+    expect(session.requireScene('room').heights[5]).toBe(0);
+    expect(session.requireScene('room').heights[4]).toBe(1);
+    expect(session.canUndo).toBe(true);
+  });
+
+  it('keeps the drag on one row off the row beside it', () => {
+    const { editor, session } = setup();
+    editor.setTool('raise');
+    drag(editor, 0, 0, 2);
+    drag(editor, 1, 0, 2);
+
+    // Row 1 is tiles 8..10 on a width-8 scene; row 0 is 0..2. Undoing the last tile of
+    // the second row leaves the first row alone.
+    session.undo();
+    expect(session.requireScene('room').heights[10]).toBe(0);
+    expect(session.requireScene('room').heights[8]).toBe(1);
+    expect(session.requireScene('room').heights[0]).toBe(1);
+  });
+
+  it('does not re-edit a tile the same stroke already crossed', () => {
+    const { editor, changes } = setup();
+    editor.setTool('raise');
+    editor.begin({ x: 0, y: 0 });
+    editor.paint({ x: 0, y: 0 });
+    editor.paint({ x: 0, y: 0 });
+    editor.end();
+    expect(changes).toEqual(['terrain']);
   });
 });
 
@@ -422,9 +456,9 @@ describe('select and inspect', () => {
 describe('change notifications', () => {
   it('says which half of the view needs rebuilding', () => {
     const { editor, changes } = setup();
-    editor.setTool('paintTerrain');
+    editor.setTool('placeTile');
     editor.begin({ x: 0, y: 0 });
-    editor.set('terrainId', 'wall');
+    editor.set('tileId', 'wall');
     editor.begin({ x: 1, y: 0 });
     editor.end();
 
@@ -437,13 +471,12 @@ describe('change notifications', () => {
 
   it('ends any drag when the tool changes', () => {
     const { editor, session } = setup();
-    editor.setTool('paintTerrain');
-    editor.set('terrainId', 'wall');
-    editor.begin({ x: 0, y: 0 });
     editor.setTool('raise');
-    // The drag is over, so this paint does nothing.
+    editor.begin({ x: 0, y: 0 });
+    editor.setTool('lower');
+    // The drag is over, so this move does nothing.
     editor.paint({ x: 1, y: 0 });
-    expect(session.requireScene('room').terrain[1]).toBe('floor');
+    expect(session.requireScene('room').heights[1]).toBe(0);
   });
 });
 
@@ -451,7 +484,7 @@ describe('every tool is safe to use on an empty scene', () => {
   it('never throws, whatever is selected', () => {
     const tools: EditorTool[] = [
       'select',
-      'paintTerrain',
+      'placeTile',
       'raise',
       'lower',
       'prop',
@@ -583,7 +616,7 @@ describe('selecting an object to edit', () => {
 describe('modes', () => {
   it('starts in the mode that owns its tool', () => {
     const { editor } = setup();
-    expect(editor.state.tool).toBe('paintTerrain');
+    expect(editor.state.tool).toBe('placeTile');
     expect(editor.mode).toBe('terrain');
   });
 
@@ -604,7 +637,7 @@ describe('modes', () => {
     editor.setTool('select');
     expect(editor.mode).toBe('combat');
     // From a mode that does not own it, it still lands in the Inspector.
-    editor.setTool('paintTerrain');
+    editor.setTool('placeTile');
     expect(editor.mode).toBe('terrain');
     editor.setTool('select');
     expect(editor.mode).toBe('inspect');
@@ -623,12 +656,11 @@ describe('modes', () => {
 
   it('ends a drag when the mode changes', () => {
     const { editor, session } = setup();
-    editor.setTool('paintTerrain');
-    editor.set('terrainId', 'wall');
+    editor.setTool('raise');
     editor.begin({ x: 0, y: 0 });
     editor.setMode('combat');
     editor.paint({ x: 1, y: 0 });
-    expect(session.requireScene('room').terrain[1]).toBe('floor');
+    expect(session.requireScene('room').heights[1]).toBe(0);
   });
 });
 
@@ -746,7 +778,7 @@ describe("terrain's open tab", () => {
     expect(editor.state.tool).toBe('select');
     editor.setMode('terrain');
     expect(editor.terrainTab).toBe('ground');
-    expect(editor.state.tool).toBe('paintTerrain');
+    expect(editor.state.tool).toBe('placeTile');
   });
 
   it('says once that the plane moved, so a view follows the change and not the level', () => {

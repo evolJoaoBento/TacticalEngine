@@ -38,7 +38,7 @@ export const MODE_LABELS: Readonly<Record<EditorMode, string>> = {
  */
 export const MODE_TOOLS: Readonly<Record<EditorMode, readonly EditorTool[]>> = {
   inspect: ['select'],
-  terrain: ['buildTile', 'eraseTile', 'paintTerrain', 'raise', 'lower', 'prop', 'interactable', 'erase'],
+  terrain: ['buildTile', 'eraseTile', 'placeTile', 'raise', 'lower', 'prop', 'interactable', 'erase'],
   // Select comes last deliberately: it is how a creature's panel is opened, but
   // entering Combat should still hand over creature placement, and `defaultTool`
   // takes the first tool in the list.
@@ -62,7 +62,7 @@ export const TERRAIN_TABS: readonly TerrainTab[] = ['tiles', 'ground', 'props', 
 /** The tool opening a tab puts in hand: what a plain click on the board then does. */
 export const TERRAIN_TAB_TOOL: Readonly<Record<TerrainTab, EditorTool>> = {
   tiles: 'buildTile',
-  ground: 'paintTerrain',
+  ground: 'placeTile',
   props: 'prop',
   objects: 'interactable',
 };

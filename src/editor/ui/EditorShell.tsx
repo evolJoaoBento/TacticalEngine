@@ -26,7 +26,7 @@ import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
 import { EDITOR_MODES, MODE_TOOLS, TERRAIN_RAIL, isTerrainTab, type EditorMode } from '../modes';
 import { BUILD_SHAPES } from '../../engine/scene/building';
-import { buildingTab, creatureTabs, groundTab, objectsTab, propsTab, type GroundType, type LibraryItem } from '../library';
+import { buildingTab, creatureTabs, objectsTab, propsTab, tilesTab, type GroundType, type LibraryItem } from '../library';
 import { validateProject, type Problem } from '../validate';
 import { TopBar, type Menu, type Workspace } from './TopBar';
 import { SceneMenu } from './SceneMenu';
@@ -255,8 +255,8 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       const shape = BUILD_SHAPES.find((candidate) => `tile-${candidate}` === item.id);
       if (shape !== undefined) controller.set('buildShape', shape);
     } else if (item.tab === 'ground') {
-      controller.setTool('paintTerrain');
-      controller.set('terrainId', item.id);
+      controller.setTool('placeTile');
+      controller.set('tileId', item.id);
     } else if (item.tab === 'props') {
       controller.setTool('prop');
       controller.set('propModel', item.id);
@@ -276,8 +276,8 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
       ? controller.state.propModel
       : tool === 'interactable'
         ? controller.state.interactableKind
-        : tool === 'paintTerrain'
-          ? controller.state.terrainId
+        : tool === 'placeTile'
+          ? controller.state.tileId
           : '';
 
   const openGraph = graph === null ? null : (session.project.dialogues.find((d) => d.id === graph) ?? null);
@@ -307,7 +307,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
           }}
           tabs={[
             buildingTab(),
-            groundTab(props.terrainTypes),
+            tilesTab(props.terrainTypes),
             propsTab(props.propModels, session.project.assets.map((a) => a.id)),
             objectsTab(),
           ]}

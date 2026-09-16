@@ -320,20 +320,19 @@ function tileValueEdit<T>(
 }
 
 /**
- * Paint terrain onto tiles. Dragging a brush is one undo step.
+ * Put a kind of tile down on tiles. One click of a brush is one undo step.
  *
- * Painting also drops the tile's colour override, so the new terrain is the
- * colour the palette says it is. Elevation deliberately does not change: a wall
- * painted at ground level is one the party cannot cross but can see over, and
- * Raise is a separate tool.
+ * Placing also drops the tile's colour override, so the new tile is the colour its
+ * kind says it is. Elevation deliberately does not change: a wall placed at ground
+ * level is one the party cannot cross but can see over, and Raise is a separate tool.
  */
-export function paintTerrain(sceneId: string, tiles: readonly number[], terrainId: string): Edit {
+export function placeTile(sceneId: string, tiles: readonly number[], tileId: string): Edit {
   return tileValueEdit(
     sceneId,
     tiles,
-    terrainId,
-    `Paint ${terrainId}`,
-    `paint:${sceneId}:${terrainId}`,
+    tileId,
+    `Place ${tileId}`,
+    `place:${sceneId}:${tileId}`,
     (scene) => scene.terrain,
     { read: (scene) => scene.tints, empty: '' },
   );

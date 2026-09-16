@@ -2382,7 +2382,7 @@ const state = {
   },
   editorTool: (): string => editor.state.tool,
   editorTerrainTab: (): string => editor.terrainTab,
-  setTerrain: (id: string): void => editor.set('terrainId', id),
+  setTerrain: (id: string): void => editor.set('tileId', id),
   buildingStats: (): BuildingStats => buildings.stats(),
   authoredCreatureCount: (): number => view.authoredCreatureCount,
   buildAt: (x: number, y: number): boolean => {

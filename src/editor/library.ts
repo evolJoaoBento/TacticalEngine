@@ -64,10 +64,10 @@ export interface GroundType {
  * Takes the types rather than a list of ids and a table of colours: a project can declare a
  * kind of ground, and a swatch looked up in a table the engine wrote would never have it.
  */
-export function groundTab(types: readonly GroundType[]): LibraryTab {
+export function tilesTab(types: readonly GroundType[]): LibraryTab {
   return {
     id: 'ground',
-    label: 'Ground',
+    label: 'Tiles',
     items: types.map((type) => ({
       tab: 'ground',
       id: type.id,

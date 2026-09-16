@@ -34,7 +34,7 @@ import {
   addInteractable,
   adjustHeight,
   brushTiles,
-  paintTerrain,
+  placeTile,
   removeAdversary,
   removeDecoAt,
   removeInteractable,
@@ -49,7 +49,7 @@ export type EditorTool =
   | 'select'
   | 'buildTile'
   | 'eraseTile'
-  | 'paintTerrain'
+  | 'placeTile'
   | 'raise'
   | 'lower'
   | 'prop'
@@ -59,8 +59,14 @@ export type EditorTool =
   | 'trigger'
   | 'erase';
 
-/** Tools that act on every tile a drag crosses. */
-const CONTINUOUS = new Set<EditorTool>(['paintTerrain', 'raise', 'lower', 'erase', 'buildTile', 'eraseTile']);
+/**
+ * Tools that act on every tile a drag crosses.
+ *
+ * `placeTile` is deliberately not one: a placer puts a tile where it is clicked, and
+ * `paint` returns early for anything not named here, so leaving it out is what makes the
+ * difference between placing and painting. Its brush still covers a square.
+ */
+const CONTINUOUS = new Set<EditorTool>(['raise', 'lower', 'erase', 'buildTile', 'eraseTile']);
 
 export interface EditorToolState {
   /** Which construction piece the build tool stamps. */
@@ -79,8 +85,8 @@ export interface EditorToolState {
   /** How tall a stamped piece stands, in tiles, so one shape covers a step and a pillar. */
   buildHeight: number;
   tool: EditorTool;
-  /** Terrain the brush paints. */
-  terrainId: string;
+  /** The kind of tile the placer puts down. */
+  tileId: string;
   /** Prop the prop tool places. */
   propModel: string;
   /** Kind the interactable tool places. */
@@ -101,8 +107,8 @@ export const DEFAULT_TOOL_STATE: EditorToolState = {
   buildLevel: 0,
   buildRotation: 0,
   buildHeight: 1,
-  tool: 'paintTerrain',
-  terrainId: 'floor',
+  tool: 'placeTile',
+  tileId: 'floor',
   propModel: 'crate',
   interactableKind: 'chest',
   adversaryId: 'bandit-cutter',
@@ -405,8 +411,8 @@ export class EditorController {
 
       // Each reports 'none' when the session discarded the edit as a no-op, so a
       // viewport does not rebuild for a brush painting what was already there.
-      case 'paintTerrain':
-        return session.run(paintTerrain(sceneId, tiles, state.terrainId)) ? 'terrain' : 'none';
+      case 'placeTile':
+        return session.run(placeTile(sceneId, tiles, state.tileId)) ? 'terrain' : 'none';
 
       case 'raise':
         return session.run(adjustHeight(sceneId, tiles, 1)) ? 'terrain' : 'none';

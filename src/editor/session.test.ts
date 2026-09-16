@@ -13,7 +13,7 @@ import {
   addScene,
   adjustHeight,
   brushTiles,
-  paintTerrain,
+  placeTile,
   removeAdversary,
   removeDecoAt,
   removeInteractable,
@@ -56,17 +56,17 @@ describe('the session', () => {
 
   it('applies an edit, and reports it as undoable and dirty', () => {
     const s = session();
-    s.run(paintTerrain('room', [0], 'wall'));
+    s.run(placeTile('room', [0], 'wall'));
     expect(s.requireScene('room').terrain[0]).toBe('wall');
     expect(s.canUndo).toBe(true);
     expect(s.dirty).toBe(true);
-    expect(s.undoLabel).toBe('Paint wall');
+    expect(s.undoLabel).toBe('Place wall');
   });
 
   it('undoes and redoes exactly', () => {
     const s = session();
     const before = snapshot(s);
-    s.run(paintTerrain('room', [0, 1, 2], 'wall'));
+    s.run(placeTile('room', [0, 1, 2], 'wall'));
     const after = snapshot(s);
 
     expect(s.undo()).toBe(true);
@@ -78,7 +78,7 @@ describe('the session', () => {
   it('reports nothing to undo or redo at the ends', () => {
     const s = session();
     expect(s.undo()).toBe(false);
-    s.run(paintTerrain('room', [0], 'wall'));
+    s.run(placeTile('room', [0], 'wall'));
     s.undo();
     expect(s.undo()).toBe(false);
     s.redo();
@@ -87,20 +87,20 @@ describe('the session', () => {
 
   it('discards the redo branch once a new edit lands', () => {
     const s = session();
-    s.run(paintTerrain('room', [0], 'wall'));
+    s.run(placeTile('room', [0], 'wall'));
     s.undo();
     expect(s.canRedo).toBe(true);
-    s.run(paintTerrain('room', [1], 'difficult'));
+    s.run(placeTile('room', [1], 'difficult'));
     expect(s.canRedo).toBe(false);
   });
 
   it('tracks saved state', () => {
     const s = session();
-    s.run(paintTerrain('room', [0], 'wall'));
+    s.run(placeTile('room', [0], 'wall'));
     expect(s.dirty).toBe(true);
     s.markSaved();
     expect(s.dirty).toBe(false);
-    s.run(paintTerrain('room', [1], 'wall'));
+    s.run(placeTile('room', [1], 'wall'));
     expect(s.dirty).toBe(true);
     s.undo();
     expect(s.dirty).toBe(false);
@@ -110,7 +110,7 @@ describe('the session', () => {
     const s = session();
     let calls = 0;
     const stop = s.subscribe(() => calls++);
-    s.run(paintTerrain('room', [0], 'wall'));
+    s.run(placeTile('room', [0], 'wall'));
     s.undo();
     expect(calls).toBe(2);
     stop();
@@ -120,7 +120,7 @@ describe('the session', () => {
 
   it('drops the oldest edits past the history limit', () => {
     const s = new EditorSession(project(), { historyLimit: 2 });
-    s.run(paintTerrain('room', [0], 'wall'));
+    s.run(placeTile('room', [0], 'wall'));
     s.run(setHeight('room', [1], 1));
     s.run(setHeight('room', [2], 2));
     expect(s.undo()).toBe(true);
@@ -132,12 +132,12 @@ describe('the session', () => {
 
   it('throws for a scene that is not in the project', () => {
     const s = session();
-    expect(() => s.run(paintTerrain('nowhere', [0], 'wall'))).toThrow(/no scene "nowhere"/);
+    expect(() => s.run(placeTile('nowhere', [0], 'wall'))).toThrow(/no scene "nowhere"/);
     expect(s.scene('nowhere')).toBeUndefined();
   });
 });
 
-describe('painting terrain', () => {
+describe('placing tiles', () => {
   /** A scene whose every tile carries a colour override, as the legacy importer leaves it. */
   const tinted = (): EditorSession => {
     const s = session();
@@ -151,7 +151,7 @@ describe('painting terrain', () => {
   // eye. On an imported map that is every tile.
   it('drops the colour override so the new terrain is visible', () => {
     const s = tinted();
-    s.run(paintTerrain('room', [0, 1], 'wall'));
+    s.run(placeTile('room', [0, 1], 'wall'));
     const scene = s.requireScene('room');
     expect(scene.terrain[0]).toBe('wall');
     expect(scene.tints?.[0]).toBe('');
@@ -163,7 +163,7 @@ describe('painting terrain', () => {
   it('restores the colour override on undo', () => {
     const s = tinted();
     const before = snapshot(s);
-    s.run(paintTerrain('room', [0, 1], 'wall'));
+    s.run(placeTile('room', [0, 1], 'wall'));
     expect(s.undo()).toBe(true);
     expect(snapshot(s)).toBe(before);
   });
@@ -173,7 +173,7 @@ describe('painting terrain', () => {
     const scene = s.requireScene('room');
     const before = snapshot(s);
 
-    for (let x = 0; x < 4; x++) s.run(paintTerrain('room', brushTiles(scene, { x, y: 0 }), 'wall'));
+    for (let x = 0; x < 4; x++) s.run(placeTile('room', brushTiles(scene, { x, y: 0 }), 'wall'));
     expect(scene.tints?.slice(0, 4)).toEqual(['', '', '', '']);
 
     expect(s.undo()).toBe(true);
@@ -185,20 +185,20 @@ describe('painting terrain', () => {
     expect(s.requireScene('room').terrain.slice(0, 4)).toEqual(['wall', 'wall', 'wall', 'wall']);
   });
 
-  it('repaints a tile that already holds the terrain but still carries an override', () => {
+  it('puts a tile down again where one already stands but still carries an override', () => {
     const s = tinted();
     const scene = s.requireScene('room');
     scene.terrain[0] = 'wall';
     // The terrain matches, so the old no-op check would have skipped it and left
     // the tile looking like whatever it was tinted.
-    expect(s.run(paintTerrain('room', [0], 'wall'))).toBe(true);
+    expect(s.run(placeTile('room', [0], 'wall'))).toBe(true);
     expect(scene.tints?.[0]).toBe('');
   });
 
-  it('paints scenes that carry no tints at all', () => {
+  it('places on scenes that carry no tints at all', () => {
     const s = session();
     expect(s.requireScene('room').tints).toBeUndefined();
-    expect(s.run(paintTerrain('room', [0], 'wall'))).toBe(true);
+    expect(s.run(placeTile('room', [0], 'wall'))).toBe(true);
     expect(s.requireScene('room').terrain[0]).toBe('wall');
     expect(s.undo()).toBe(true);
     expect(s.requireScene('room').terrain[0]).toBe('floor');
@@ -208,19 +208,19 @@ describe('painting terrain', () => {
     const s = tinted();
     const scene = s.requireScene('room');
     scene.heights[0] = 3;
-    s.run(paintTerrain('room', [0], 'wall'));
+    s.run(placeTile('room', [0], 'wall'));
     expect(scene.heights[0]).toBe(3);
   });
 
   it('skips tiles that already hold the terrain', () => {
     const s = session();
-    s.run(paintTerrain('room', [0, 1], 'wall'));
+    s.run(placeTile('room', [0, 1], 'wall'));
     const before = s.undoLabel;
-    s.run(paintTerrain('room', [0, 1], 'wall'));
+    s.run(placeTile('room', [0, 1], 'wall'));
     // Nothing changed, so nothing new to undo beyond the merged first edit.
     s.undo();
     expect(s.requireScene('room').terrain[0]).toBe('floor');
-    expect(before).toBe('Paint wall');
+    expect(before).toBe('Place wall');
   });
 
   it('coalesces a brush drag into one undo step', () => {
@@ -229,7 +229,7 @@ describe('painting terrain', () => {
     const before = snapshot(s);
 
     // Six separate edits, as a drag would produce.
-    for (let x = 0; x < 6; x++) s.run(paintTerrain('room', brushTiles(scene, { x, y: 0 }), 'wall'));
+    for (let x = 0; x < 6; x++) s.run(placeTile('room', brushTiles(scene, { x, y: 0 }), 'wall'));
     expect(scene.terrain.slice(0, 6).every((t) => t === 'wall')).toBe(true);
 
     expect(s.undo()).toBe(true);
@@ -240,7 +240,7 @@ describe('painting terrain', () => {
   it('redoes a whole coalesced drag, not just its first stroke', () => {
     const s = session();
     const scene = s.requireScene('room');
-    for (let x = 0; x < 6; x++) s.run(paintTerrain('room', brushTiles(scene, { x, y: 0 }), 'wall'));
+    for (let x = 0; x < 6; x++) s.run(placeTile('room', brushTiles(scene, { x, y: 0 }), 'wall'));
     const painted = snapshot(s);
 
     s.undo();
@@ -255,9 +255,9 @@ describe('painting terrain', () => {
     scene.terrain[1] = 'difficult';
     const before = snapshot(s);
 
-    // Paint over tile 1 twice: the undo must restore 'difficult', not 'wall'.
-    s.run(paintTerrain('room', [0, 1], 'wall'));
-    s.run(paintTerrain('room', [1, 2], 'wall'));
+    // Place over tile 1 twice: the undo must restore 'difficult', not 'wall'.
+    s.run(placeTile('room', [0, 1], 'wall'));
+    s.run(placeTile('room', [1, 2], 'wall'));
     s.undo();
     expect(snapshot(s)).toBe(before);
     expect(scene.terrain[1]).toBe('difficult');
@@ -265,8 +265,8 @@ describe('painting terrain', () => {
 
   it('does not coalesce different terrains or different scenes', () => {
     const s = session();
-    s.run(paintTerrain('room', [0], 'wall'));
-    s.run(paintTerrain('room', [1], 'difficult'));
+    s.run(placeTile('room', [0], 'wall'));
+    s.run(placeTile('room', [1], 'difficult'));
     s.undo();
     expect(s.requireScene('room').terrain[1]).toBe('floor');
     expect(s.requireScene('room').terrain[0]).toBe('wall');
@@ -274,9 +274,9 @@ describe('painting terrain', () => {
 
   it('does not coalesce across an undo', () => {
     const s = session();
-    s.run(paintTerrain('room', [0], 'wall'));
+    s.run(placeTile('room', [0], 'wall'));
     s.undo();
-    s.run(paintTerrain('room', [1], 'wall'));
+    s.run(placeTile('room', [1], 'wall'));
     expect(s.requireScene('room').terrain[0]).toBe('floor');
     expect(s.requireScene('room').terrain[1]).toBe('wall');
   });
@@ -304,8 +304,8 @@ describe('elevation', () => {
     const s = session();
     s.run(setHeight('room', [0], 2));
     s.run(setHeight('room', [1], 2));
-    s.run(paintTerrain('room', [2], 'wall'));
-    expect(s.undoLabel).toBe('Paint wall');
+    s.run(placeTile('room', [2], 'wall'));
+    expect(s.undoLabel).toBe('Place wall');
     s.undo();
     s.undo();
     expect(s.requireScene('room').heights.slice(0, 2)).toEqual([0, 0]);
@@ -547,7 +547,7 @@ describe('scenes', () => {
     function populated(): EditorSession {
       const s = session(6, 4);
       s.run(setHeight('room', [0], 3));
-      s.run(paintTerrain('room', [1], 'wall'));
+      s.run(placeTile('room', [1], 'wall'));
       s.run(addDeco('room', { model: 'crate', position: { x: 5, y: 3 }, rotation: 0 }));
       s.run(addDeco('room', { model: 'pine', position: { x: 0, y: 0 }, rotation: 0 }));
       s.run(setSpawns('room', [{ x: 5, y: 3 }, { x: 0, y: 0 }]));
@@ -597,7 +597,7 @@ describe('the document stays valid', () => {
   it('still parses against the schema after a run of edits', () => {
     const s = session(8, 6);
     const scene = s.requireScene('room');
-    for (let x = 0; x < 8; x++) s.run(paintTerrain('room', brushTiles(scene, { x, y: 0 }), 'wall'));
+    for (let x = 0; x < 8; x++) s.run(placeTile('room', brushTiles(scene, { x, y: 0 }), 'wall'));
     s.run(setHeight('room', [9, 10], 2));
     s.run(addDeco('room', { model: 'crate', position: { x: 3, y: 3 }, rotation: 0.5 }));
     s.run(addEncounter('room', { id: 'ambush', name: '', adversaries: [], triggerCells: [], startsOnTrigger: true }));
@@ -615,7 +615,7 @@ describe('the document stays valid', () => {
     const before = snapshot(s);
     const scene = s.requireScene('room');
 
-    s.run(paintTerrain('room', brushTiles(scene, { x: 1, y: 1 }, 3), 'difficult'));
+    s.run(placeTile('room', brushTiles(scene, { x: 1, y: 1 }, 3), 'difficult'));
     s.run(setHeight('room', [0], 4));
     s.run(addDeco('room', { model: 'rock', position: { x: 1, y: 1 }, rotation: 0 }));
     s.run(setSpawns('room', [{ x: 2, y: 2 }]));

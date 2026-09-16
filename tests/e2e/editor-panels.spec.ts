@@ -197,13 +197,13 @@ test('a scene added in the editor is in the project and can be switched to', asy
 
   expect(made.after).toBe(made.before + 1);
   expect(made.editing).toBe(made.id);
-  expect(made.tiles, 'the new room has ground to paint').toBeGreaterThan(0);
+  expect(made.tiles, 'the new room has ground to build on').toBeGreaterThan(0);
 
-  // Paint a tile in it, and the paint sticks.
+  // Put a tile down in it, and it sticks.
   const painted = await page.evaluate(() => {
     const a = window.__engine!;
     a.setMode('edit');
-    a.setTool('paintTerrain');
+    a.setTool('placeTile');
     a.setTerrain('water');
     const ok = a.editAt(0);
     return { ok, at: a.terrainAt(0), undone: a.undo(), afterUndo: a.terrainAt(0) };

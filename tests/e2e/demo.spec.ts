@@ -351,10 +351,10 @@ test('edits the map, and undoes exactly what it did', async ({ page }) => {
     const api = window.__engine!;
     api.setMode('edit');
 
-    // Paint a wall over open ground.
+    // Put a wall down over open ground.
     const tile = 3 * 22 + 3;
     const before = api.terrainAt(tile);
-    api.setTool('paintTerrain');
+    api.setTool('placeTile');
     api.setTerrain('wall');
     const painted = api.editAt(tile);
     const after = api.terrainAt(tile);
@@ -423,7 +423,7 @@ test('shows the editor panel and keeps the scene renderable while editing', asyn
     // while the brush was writing terrain the renderer never showed, because the
     // imported per-tile tint outranked it.
     const before = middle();
-    api.setTool('paintTerrain');
+    api.setTool('placeTile');
     api.setTerrain('wall');
     for (let y = 4; y < 12; y++) for (let x = 6; x < 16; x++) api.editAt(y * 22 + x);
     const after = middle();
@@ -454,7 +454,7 @@ test('returns to play with the edited map underfoot', async ({ page }) => {
 
     // Wall in the tile immediately east of the party, then play again.
     api.setMode('edit');
-    api.setTool('paintTerrain');
+    api.setTool('placeTile');
     api.setTerrain('wall');
     api.editAt(start + 1);
     api.setMode('play');
@@ -738,7 +738,7 @@ test('edits one room while the party stands in another', async ({ page }) => {
     const editingTiles = api.sceneTiles();
 
     // Paint a wall across the pit while the party is still up in the vault.
-    api.setTool('paintTerrain');
+    api.setTool('placeTile');
     api.setTerrain('wall');
     for (let x = 1; x < 9; x++) api.editAt(4 * 10 + x);
     const pitTile = api.terrainAt(4 * 10 + 5);

@@ -203,7 +203,7 @@ test('the scene picker switches the room being edited, and the top bar undoes', 
 
   const painted = await page.evaluate(() => {
     const api = window.__engine!;
-    api.setTool('paintTerrain');
+    api.setTool('placeTile');
     api.setTerrain('wall');
     // Find the first pit tile that is not 'wall'
     let tile = 0;

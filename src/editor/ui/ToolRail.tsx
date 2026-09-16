@@ -14,7 +14,7 @@ export const TOOL_LABELS: Readonly<Record<EditorTool, string>> = {
   buildTile: 'Build tiles',
   eraseTile: 'Erase building tiles',
   select: 'Select',
-  paintTerrain: 'Paint ground',
+  placeTile: 'Place tiles',
   raise: 'Raise ground',
   lower: 'Lower ground',
   prop: 'Place a prop',

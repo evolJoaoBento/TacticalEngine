@@ -53,7 +53,7 @@ describe('sparse construction', () => {
     // stands on counts tiles, while `heights[]` counts whole levels, so painting
     // the ground from the same tab must not write 2.25 into it.
     editor.openTerrainTab('ground');
-    editor.set('terrainId', 'wall');
+    editor.set('tileId', 'wall');
     editor.begin({ x: 1, y: 1 });
     editor.paint({ x: 2, y: 1 });
     editor.end();
