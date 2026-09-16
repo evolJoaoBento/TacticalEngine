@@ -4,6 +4,35 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## An object has a facing, and Alt turns it — done
+
+Alt turned a prop in hand and left a door alone, because only a prop had a rotation in the
+document. A door is the thing that most obviously needs one: it hangs in a wall, and which
+way it faces is half of placing it. So an object carries a facing now, exactly as a prop
+does — declared on the interactable (defaulted, so a document written before this is still a
+document), drawn by `setObjects`, picked up with the thing, and landed with it.
+
+`moveInteractable` came out of `relocate` for the same reason `moveDeco` did: `relocate`'s
+idea of "nothing changed" is the position alone, and a door turned in its own doorway hangs
+where it hung while the document is not the same. That is an edit, and an undo step of its
+own. The kinds that can turn are now a list the controller keeps — a prop and an object —
+rather than a check against one of them, so a creature and a party start, which have no
+facing anywhere in the document, are still left alone.
+
+Every place that builds an interactable by hand rather than through its schema gained the
+field: the editor's own `newInteractable`, the legacy importer (a legacy map turned nothing,
+so everything it brings in faces north), and the fixtures in three test files.
+
+Verified: `npx tsc --noEmit` clean, `npx vitest run` 1967 passed, `npx playwright test` 127
+passed in 6.1 minutes, exit 0 read off all three. Two tests are the new behaviour:
+`move-edits.test.ts` turns an object without moving it and finds that an edit, with one undo
+that takes the facing back and a move that keeps it; and `controller.test.ts` picks the chest
+up with Select, turns it a quarter, lets go, and finds the document holding the new facing at
+the same tile — then picks up a creature and finds nothing to turn, which is the line between
+what has a facing and what does not. The browser suite matters here more than usual: this
+changed a schema the saved games, the legacy importer and the pack round trip all read, and a
+defaulted field is exactly what shows up there and nowhere else.
+
 ## Alt turns what the editor is carrying — done
 
 Alt already faced a prop as it was placed: hold it, point the mouse the way the thing should

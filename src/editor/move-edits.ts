@@ -7,7 +7,7 @@
  * whenever it runs, so an undo or a redo lands on the same one however the list round it has moved.
  */
 
-import type { Deco, ProjectDoc, SceneDoc } from '../engine/scene/schema';
+import type { Deco, Interactable, ProjectDoc, SceneDoc } from '../engine/scene/schema';
 import type { Edit } from './session';
 
 type Position = Deco['position'];
@@ -55,12 +55,39 @@ export function moveAdversary(sceneId: string, encounterId: string, placementId:
   }, to);
 }
 
-/** Put an object somewhere else. */
-export function moveInteractable(sceneId: string, id: string, to: Position): Edit {
-  return relocate('Move object', sceneId, (scene) => {
-    const object = scene.interactables.find((i) => i.id === id);
-    return object === undefined ? undefined : { get: () => object.position, set: (at) => { object.position = at; } };
-  }, to);
+/**
+ * Put an object somewhere else, facing where it was turned to.
+ *
+ * Not through `relocate`, for the reason `moveDeco` is not: a door turned in its own
+ * doorway hangs where it hung and the document is not the same, so that is an edit and
+ * an undo step. Left without a facing, it moves and keeps the one it had.
+ */
+export function moveInteractable(sceneId: string, id: string, to: Position, rotation?: number): Edit {
+  const target: Position = { ...to };
+  const find = (project: ProjectDoc): Interactable | undefined =>
+    project.scenes.find((s) => s.id === sceneId)?.interactables.find((i) => i.id === id);
+  let before: { position: Position; rotation: number } | null = null;
+  return {
+    label: 'Move object',
+    apply(project) {
+      const object = find(project);
+      before = object === undefined ? null : { position: { ...object.position }, rotation: object.rotation };
+      if (object === undefined) return;
+      object.position = { ...target };
+      if (rotation !== undefined) object.rotation = rotation;
+    },
+    undo(project) {
+      const object = find(project);
+      if (object === undefined || before === null) return;
+      object.position = before.position;
+      object.rotation = before.rotation;
+    },
+    isNoop() {
+      if (before === null) return true;
+      const turned = rotation !== undefined && Math.abs(rotation - before.rotation) > 1e-9;
+      return samePosition(before.position, target) && !turned;
+    },
+  };
 }
 
 /**

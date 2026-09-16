@@ -349,6 +349,8 @@ function importInteractables(
       name: asString(raw['name']) ?? '',
       flavor: asString(raw['flavor']) ?? '',
       model: asString(raw['model']),
+      // A legacy map turned nothing: every object faces north until somebody turns it.
+      rotation: 0,
       blocksMovement: true,
       // A lock that refused once can be tried again; a chest's one set of loot cannot.
       repeatable: kind === 'door',

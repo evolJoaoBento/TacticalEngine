@@ -72,6 +72,12 @@ export const interactableSchema = z.object({
   flavor: z.string().default(''),
   /** Model key for the renderer. `null` means present but invisible. */
   model: z.string().nullable().default(null),
+  /**
+   * Which way it faces, in radians. A door hangs in a wall and a chest opens
+   * towards the room, so an object is turned as a prop is. Defaulted, so a
+   * document written before objects could be turned is still a document.
+   */
+  rotation: z.number().default(0),
   /** Whether a creature can walk through this tile. */
   blocksMovement: z.boolean().default(true),
   /**

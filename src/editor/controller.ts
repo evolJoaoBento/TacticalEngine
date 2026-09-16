@@ -533,11 +533,11 @@ export class EditorController {
   }
 
   /**
-   * Turn the prop in hand to a quarter turn, the way Alt faces one being placed.
+   * Turn what is in hand to a quarter turn, the way Alt faces something being placed.
    *
-   * Only a prop has a facing in the document — a creature, an object and a party
-   * start have none — so anything else in hand is left alone. Answers whether the
-   * facing actually moved, so a view redraws only when it did.
+   * A prop and an object both have a facing in the document; a creature and a party
+   * start have none, so those are left alone. Answers whether the facing actually
+   * moved, so a view redraws only when it did.
    */
   turnCarried(quarter: number): boolean {
     return this.turnCarriedTo(((((quarter % 4) + 4) % 4) * Math.PI) / 2);
@@ -557,14 +557,18 @@ export class EditorController {
     return 'placed';
   }
 
-  /** The facing a prop in hand will land with, in radians, or null with nothing to turn. */
+  /** Which kinds of thing have a facing to turn at all. */
+  private static readonly TURNS: readonly CarryKind[] = ['prop', 'object'];
+
+  /** The facing the thing in hand will land with, in radians, or null with nothing to turn. */
   get carriedFacing(): number | null {
-    return this.carrying === null || this.carrying.kind !== 'prop' ? null : (this.carrying.rotation ?? 0);
+    const held = this.carrying;
+    return held === null || !EditorController.TURNS.includes(held.kind) ? null : (held.rotation ?? 0);
   }
 
   private turnCarriedTo(radians: number): boolean {
     const held = this.carrying;
-    if (held === null || held.kind !== 'prop') return false;
+    if (held === null || !EditorController.TURNS.includes(held.kind)) return false;
     if (held.rotation !== undefined && Math.abs(held.rotation - radians) < 1e-9) return false;
     held.rotation = radians;
     return true;
@@ -600,7 +604,7 @@ export class EditorController {
       }
       case 'object': {
         const object = this.interactableAt(point);
-        return object === null ? null : hold(object.id, object.position);
+        return object === null ? null : hold(object.id, object.position, undefined, object.rotation);
       }
       case 'prop': {
         const deco = this.decoAt(point);
@@ -637,7 +641,7 @@ export class EditorController {
     const { sceneId } = this;
     const edit =
       held.kind === 'creature' ? moveAdversary(sceneId, held.encounterId!, held.key, held.to)
-      : held.kind === 'object' ? moveInteractable(sceneId, held.key, held.to)
+      : held.kind === 'object' ? moveInteractable(sceneId, held.key, held.to, held.rotation)
       : held.kind === 'prop' ? moveDeco(sceneId, Number(held.key), held.to, held.rotation)
       : moveSpawn(sceneId, Number(held.key), held.to);
     if (this.session.run(edit)) this.onChange('content');
@@ -780,6 +784,7 @@ export class EditorController {
       name: '',
       flavor: '',
       model: null,
+      rotation: 0,
       blocksMovement: true,
       repeatable: false,
       effects: [],

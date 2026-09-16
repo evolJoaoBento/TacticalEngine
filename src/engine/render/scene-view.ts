@@ -1124,6 +1124,7 @@ export class SceneView {
       const model = this.build(wears);
       const centre = placementCentre(this.grid, this.layout, object.position);
       model.group.position.set(centre.x, centre.y + (model.spec.groundOffset ?? 0), centre.z);
+      model.group.rotation.y = object.rotation;
       model.group.name = `object:${object.id}`;
       this.root.add(model.group);
       this.objects.push(model.group);

@@ -200,11 +200,11 @@ describe('props', () => {
     expect(session.requireScene('room').decos[0]!.rotation).toBeCloseTo(0);
   });
 
-  it('has no facing to turn on a creature, an object or a party start', () => {
+  it('has nothing to turn with an empty hand', () => {
     const { editor } = setup();
     editor.setMode('inspect');
     editor.setTool('select');
-    // Nothing in hand at all.
+    expect(editor.carriedFacing).toBeNull();
     expect(editor.turnCarried(1)).toBe(false);
   });
 
@@ -885,7 +885,8 @@ describe('carrying things in the Inspector', () => {
   it('says what it carries while the pointer is down, and selects an object it picks up', () => {
     const { editor, scene } = furnished();
     editor.begin({ x: 2, y: 2 });
-    expect(editor.carried).toEqual({ kind: 'object', key: scene().interactables[0]!.id });
+    // An object reports the facing it will land with, as a prop does.
+    expect(editor.carried).toEqual({ kind: 'object', key: scene().interactables[0]!.id, rotation: 0 });
     expect(editor.selected).toBe(scene().interactables[0]!.id);
     editor.end();
     expect(editor.carried).toBeNull();
@@ -894,6 +895,27 @@ describe('carrying things in the Inspector', () => {
     expect(editor.carried).toEqual({ kind: 'prop', key: '0', rotation: 0 });
     // A prop has no panel of its own: the Inspector says what to click, as for bare ground.
     expect(editor.selected).toBeNull();
+    editor.end();
+  });
+
+  it('turns an object in hand, as it turns a prop: a door hangs the way it is faced', () => {
+    const { editor, scene } = furnished();
+    const object = () => scene().interactables[0]!;
+    const at = { ...object().position };
+    editor.begin(at);
+    expect(editor.carried).toMatchObject({ kind: 'object' });
+    expect(editor.carriedFacing, 'an object has a facing to turn').toBe(0);
+    expect(editor.turnCarried(1)).toBe(true);
+    editor.end();
+
+    expect(object().rotation).toBeCloseTo(Math.PI / 2);
+    expect(object().position).toEqual(at);
+
+    // A creature has none: the same gesture leaves it alone.
+    editor.begin({ x: 3, y: 3 });
+    expect(editor.carried).toMatchObject({ kind: 'creature' });
+    expect(editor.carriedFacing).toBeNull();
+    expect(editor.turnCarried(1)).toBe(false);
     editor.end();
   });
 

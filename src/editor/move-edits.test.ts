@@ -91,6 +91,22 @@ describe('moving props, objects and party starts', () => {
     expect(room(s).decos[1]!.rotation).toBeCloseTo(1);
   });
 
+  it('turns an object where it hangs: a door in its own doorway is still an edit', () => {
+    const s = session();
+    const at = { ...room(s).interactables[0]!.position };
+    expect(s.run(moveInteractable('room', 'chest', at, Math.PI / 2))).toBe(true);
+    expect(room(s).interactables[0]!.rotation).toBeCloseTo(Math.PI / 2);
+    expect(room(s).interactables[0]!.position).toEqual(at);
+
+    // One step, and the facing goes back with the place.
+    s.undo();
+    expect(room(s).interactables[0]!.rotation).toBeCloseTo(0);
+
+    // Moved without being turned, it keeps the facing it had.
+    expect(s.run(moveInteractable('room', 'chest', { x: 6, y: 5 }))).toBe(true);
+    expect(room(s).interactables[0]!.rotation).toBeCloseTo(0);
+  });
+
   it('changes nothing for a thing that is not there, or one put back where it stood', () => {
     const s = session();
     expect(s.run(moveDeco('room', 7, { x: 3, y: 1 }))).toBe(false);
