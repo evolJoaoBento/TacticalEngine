@@ -256,6 +256,33 @@ fails if a font is tracked without its licence beside it. Screenshots read for e
 a hovered card, a seven-card hand and its hover, the rest, the loadout's deck browser and the
 level-up sheet, and a floater close up.
 
+## The board comes back off cartoon — done
+
+The look went on the board in `The board goes cartoon` below and came off again here, so
+this is the half worth reading: what broke it was not taste but reach.
+
+Imported glTF models could be lit on the same ramp — `toonify` did it, and kept each
+model's texture, normal map and facing while doing it — but they could not be *rimmed*.
+A rim is an inverted hull, and closing one means merging vertices across the whole
+geometry: instant on a library crate of forty vertices, seconds on a sculpt of two
+hundred thousand. Nor could they be faceted, because faceting throws away the normals a
+sculpted mesh was authored with. So the room had ink round every procedural part and
+none round any imported creature, and smooth sculpts standing among flat-shaded props.
+
+Asked to choose, the user chose consistency: if the imports cannot carry it, the rest
+should not either. `toonMaterial`, `toonGradient`, `toonify`, `addOutline` and `inkEdges`
+are gone; library parts, the ground and the construction layer take a `MeshStandardMaterial`,
+which also means a spec's `metalness` and `roughness` — carried in `MatSpec` all along and
+swallowed by the ramp — reach the material again.
+
+What stayed is the white hover rim (`spotlight.ts`), which is a thing you need to see
+rather than a style: `OUTLINE_LAYER`, `smoothHull`, `outlineMaterial` and `xrayMaterial`
+are what `toon.ts` is now, 95 lines of it where there were 241.
+
+Verified: `npx tsc --noEmit` clean, `npx vitest run` 1966 in 107 files (nine tests of the
+ramp, the ink and the relighting deleted with what they tested), and the room, the vault
+and a hovered door screenshotted — plainly lit, no ink, and the door still rimmed.
+
 ## The board goes cartoon — done
 
 The user asked for the player view to look more like Slay the Spire's cartoon, and liked what

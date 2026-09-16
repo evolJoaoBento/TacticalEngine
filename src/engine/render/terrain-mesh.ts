@@ -19,11 +19,11 @@ import {
   BufferGeometry,
   Color,
   Mesh,
+  MeshStandardMaterial,
   type Material,
 } from 'three';
 import type { TileGrid } from '../grid/grid';
 import { DEFAULT_LAYOUT, surfaceHeight, tileCenter, type TileLayout } from './layout';
-import { inkEdges, toonMaterial } from './toon';
 
 export interface TerrainMeshOptions {
   layout?: TileLayout;
@@ -44,9 +44,6 @@ export const DEFAULT_TERRAIN_COLORS: Readonly<Record<string, string>> = {
 };
 
 const FALLBACK_COLOR = '#5d8a4a';
-
-/** How wide the ground's ink is, in screen pixels. */
-const TERRAIN_INK = 2.4;
 
 export interface TerrainMesh {
   /** One mesh per terrain type that actually appears on the map. */
@@ -202,7 +199,7 @@ export function buildTerrainMesh(
   const faceTiles = new Map<Mesh, readonly number[]>();
   for (const [terrainIndex, surface] of [...surfaces].sort(([a], [b]) => a - b)) {
     const type = grid.palette.at(terrainIndex);
-    const material = toonMaterial({ vertexColors: true });
+    const material = new MeshStandardMaterial({ vertexColors: true });
     materials.push(material);
     const geometry = surface.build();
     geometries.push(geometry);
@@ -216,23 +213,6 @@ export function buildTerrainMesh(
     meshes.push(mesh);
     faceTiles.set(mesh, surface.faceTiles);
   }
-
-  // The ink play draws along a step's lip, a wall's corner and the room's rim (`toon.ts`), found
-  // over the whole ground at once: two kinds of ground meeting on the level are one flat floor,
-  // not a crease, and a tile boundary draws nothing. A child of the first mesh, so `meshes` is
-  // still only ground.
-  const everything = new Float32Array([...surfaces.values()].reduce((n, s) => n + s.positions.length, 0));
-  let at = 0;
-  for (const surface of surfaces.values()) {
-    everything.set(surface.positions, at);
-    at += surface.positions.length;
-  }
-  const ground = new BufferGeometry();
-  ground.setAttribute('position', new BufferAttribute(everything, 3));
-  const ink = inkEdges(ground, TERRAIN_INK);
-  ground.dispose();
-  geometries.push(ink.geometry);
-  meshes[0]?.add(ink);
 
   return {
     meshes,

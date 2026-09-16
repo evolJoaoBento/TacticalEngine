@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BackSide, Box3, Mesh, MeshBasicMaterial, MeshToonMaterial } from 'three';
-import { OUTLINE_LAYER } from '../toon';
+import { Box3, Mesh, MeshBasicMaterial, MeshStandardMaterial } from 'three';
 import {
   MaterialLibrary,
   ModelResources,
@@ -86,17 +85,17 @@ describe('MaterialLibrary', () => {
     library.dispose();
   });
 
-  it('builds an unlit material for fx parts and a faceted toon one otherwise', () => {
+  it('builds an unlit material for fx parts and a faceted lit one otherwise', () => {
     const library = new MaterialLibrary();
     expect(library.get({ color: '#fff', unlit: true })).toBeInstanceOf(MeshBasicMaterial);
-    const toon = library.get({ color: '#fff' });
-    expect(toon).toBeInstanceOf(MeshToonMaterial);
-    expect((toon as MeshToonMaterial).gradientMap).not.toBeNull();
-    expect((toon as unknown as { flatShading: boolean }).flatShading).toBe(true);
+    const lit = library.get({ color: '#fff' });
+    expect(lit).toBeInstanceOf(MeshStandardMaterial);
+    // Faceted as the legacy library was, which is what makes a ported model read the same.
+    expect((lit as MeshStandardMaterial).flatShading).toBe(true);
     library.dispose();
   });
 
-  it('carries emissive and opacity through, and lets the toon ramp have the light', () => {
+  it('carries emissive, opacity and the surface a spec asks for', () => {
     const library = new MaterialLibrary();
     const m = library.get({
       color: '#112233',
@@ -104,10 +103,12 @@ describe('MaterialLibrary', () => {
       emissiveIntensity: 1.4,
       metalness: 0.5,
       opacity: 0.5,
-    }) as MeshToonMaterial;
+    }) as MeshStandardMaterial;
     expect(m.emissiveIntensity).toBe(1.4);
     expect(m.opacity).toBe(0.5);
     expect(m.transparent).toBe(true);
+    // The ramp used to swallow these; a lit material spends them.
+    expect(m.metalness).toBe(0.5);
     library.dispose();
   });
 });
@@ -143,37 +144,6 @@ describe('buildModel', () => {
     resources.dispose();
   });
 
-  it('rims a model in ink only when asked, on a layer of its own, and never an fx part or a speck', () => {
-    const spec: ProceduralModelSpec = {
-      id: 'inked',
-      category: 'prop',
-      standHeight: 1,
-      palette: { solid: { color: '#884422' }, glow: { color: '#ffffff', unlit: true }, glass: { color: '#88ccff', opacity: 0.5 } },
-      parts: [
-        { prim: { kind: 'box', w: 1, h: 1, d: 1 }, mat: 'solid' },
-        { prim: { kind: 'box', w: 1, h: 1, d: 1 }, mat: 'glow' },
-        { prim: { kind: 'box', w: 1, h: 1, d: 1 }, mat: 'glass' },
-        { prim: { kind: 'sphere', r: 0.03, wSeg: 6, hSeg: 6 }, mat: 'solid' },
-      ],
-    };
-    const resources = new ModelResources();
-    const rims = (model: BuiltModel): Mesh[] =>
-      model.group.children.flatMap((part) => part.children.filter((c) => c.name === 'outline')) as Mesh[];
-    expect(rims(buildModel(spec, resources))).toHaveLength(0);
-    const inked = buildModel(spec, resources, { outline: true });
-    const [rim] = rims(inked);
-    expect(rims(inked)).toHaveLength(1);
-    expect(inked.group.children[0]!.children).toContain(rim);
-    expect(rim!.layers.mask).toBe(1 << OUTLINE_LAYER);
-    expect(rim!.castShadow).toBe(false);
-    expect((rim!.material as MeshBasicMaterial).side).toBe(BackSide);
-    // One closed hull per shape, shared as the shape is: a box's corners come to eight.
-    expect(rims(buildModel(spec, resources, { outline: true }))[0]!.geometry).toBe(rim!.geometry);
-    expect(rim!.geometry.getAttribute('position').count).toBe(8);
-    // Still one mesh per part, as far as the model is concerned.
-    expect(inked.group.children.filter((c) => c instanceof Mesh)).toHaveLength(4);
-    resources.dispose();
-  });
 
   it('exposes named parts and hooks', () => {
     const resources = new ModelResources();

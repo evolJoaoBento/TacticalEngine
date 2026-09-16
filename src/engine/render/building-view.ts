@@ -9,6 +9,7 @@ import {
   Matrix4,
   Mesh,
   MeshBasicMaterial,
+  MeshStandardMaterial,
   Object3D,
   Sphere,
   Vector3,
@@ -18,7 +19,6 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { BUILD_MATERIALS, buildingParts, type BuildingTile } from '../scene/building';
 import type { SceneDoc } from '../scene/schema';
 import { DEFAULT_LAYOUT } from './layout';
-import { toonMaterial } from './toon';
 
 /** Tiles per chunk on each axis. One chunk is one draw call, so it sets the grain. */
 export const BUILD_CHUNK_SIZE = 16;
@@ -93,7 +93,7 @@ export class BuildingView {
   private readonly resident = new Set<Chunk>();
   private readonly detailed = new RoundedBoxGeometry(1, 1, 1, 1, 0.035);
   private readonly simple = new BoxGeometry(1, 1, 1);
-  private readonly material = toonMaterial({});
+  private readonly material = new MeshStandardMaterial({ flatShading: true });
   private readonly ghostMaterial = new MeshBasicMaterial({
     color: '#5f8ad0',
     transparent: true,
