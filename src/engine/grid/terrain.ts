@@ -110,10 +110,13 @@ export const DEFAULT_TERRAIN_TYPES: readonly TerrainType[] = [
   // Nothing costs less than 1 to enter. Pathfinding takes its A* heuristic from the
   // cheapest passable cost in the palette, so a kind cheaper than the ground would quietly
   // change how every search in the game explores.
-  terrain('platform', { name: 'Platform', structure: 'floor', color: '#8a7d63' }),
-  terrain('steps', { name: 'Steps', structure: 'stairs', color: '#9a958c' }),
-  terrain('block', { name: 'Block', structure: 'block', passable: false, cost: Infinity, blocksSight: true, color: '#8a8994' }),
-  terrain('barrier', { name: 'Barrier', structure: 'wall', passable: false, cost: Infinity, blocksSight: true, color: '#6f6a63' }),
+  // Each drawn with the file that is that thing, at one tile across. The colour stays as
+  // what the strip shows on its card and as what stands in while the file is still on its
+  // way - a kind of tile is never nothing on screen just because a load is slow.
+  terrain('platform', { name: 'Platform', structure: 'floor', model: 'grass-ground', scale: 1, color: '#618950' }),
+  terrain('steps', { name: 'Steps', structure: 'stairs', model: 'stone-stairs', scale: 1, color: '#9a958c' }),
+  terrain('block', { name: 'Block', structure: 'block', model: 'stone-block', scale: 1, passable: false, cost: Infinity, blocksSight: true, color: '#8a8994' }),
+  terrain('barrier', { name: 'Barrier', structure: 'wall', model: 'stone-wall', scale: 1, passable: false, cost: Infinity, blocksSight: true, color: '#6f6a63' }),
 ];
 
 /**

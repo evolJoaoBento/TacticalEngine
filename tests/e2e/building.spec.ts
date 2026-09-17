@@ -5,12 +5,13 @@ test('Alt + mouse rotates placement without stamping or panning', async ({ page 
   await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
   await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
+  // The kind first, and before the coordinate boxes: they belong to placing at a height,
+  // and the placer opens holding flat ground, which is not placed at one. A kind of tile
+  // that is a wall, too - the shape is what the kind says it is, so there are no chips.
+  await page.evaluate(() => window.__engine!.setTerrain('barrier'));
   await page.getByLabel('Build X', { exact: true }).fill('40');
   await page.getByLabel('Build Y', { exact: true }).fill('20');
   await page.getByRole('button', { name: 'Go', exact: true }).click();
-  // A kind of tile that is a wall, rather than a shape chip beside the strip: the shape is
-  // what the kind says it is now, so there are no chips left to click.
-  await page.evaluate(() => window.__engine!.setTerrain('barrier'));
   const at = await page.evaluate(() => window.__engine!.buildScreenAt(40, 20));
   const camera = await page.evaluate(() => window.__engine!.camera());
   await page.mouse.move(at.x, at.y);
@@ -166,11 +167,13 @@ test('renders a stacked build with a brush, level controls and bounded LOD', asy
   await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
   await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
+  // The kind before the coordinate boxes: they show for what is placed at a height, and
+  // flat ground is not, so holding the floor the placer opens on leaves them absent.
+  await page.evaluate(() => window.__engine!.setTerrain('platform'));
   await page.getByLabel('Build X', { exact: true }).fill('40');
   await page.getByLabel('Build Y', { exact: true }).fill('20');
   await page.getByRole('button', { name: 'Go', exact: true }).click();
   await page.locator('[data-brush="5"]').click();
-  await page.evaluate(() => window.__engine!.setTerrain('platform'));
   await page.evaluate(() => {
     const api = window.__engine!;
     for (const x of [35, 40, 45]) {
