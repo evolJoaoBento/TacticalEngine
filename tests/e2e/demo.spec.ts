@@ -20,6 +20,7 @@ declare global {
       entities: number;
       decos: number;
       missingModels: () => string[];
+      pieceModels: () => number;
       party: () => string[];
       selected: () => string | null;
       select: (id: string) => boolean;

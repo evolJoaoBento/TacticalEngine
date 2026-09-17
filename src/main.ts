@@ -213,6 +213,7 @@ declare global {
       editorTerrainTab: () => string;
       setTerrain: (id: string) => void;
       buildingStats: () => BuildingStats;
+      pieceModels: () => number;
       authoredCreatureCount: () => number;
       buildAt: (x: number, y: number) => boolean;
       buildScreenAt: (x: number, y: number) => { x: number; y: number };
@@ -383,8 +384,7 @@ view.setScenery(demo.scene);
 view.syncTokens(demo.state);
 const buildings = new BuildingView();
 view.scene.add(buildings.root);
-// `demo.grid` rather than `activeGrid`, which is declared further down and is initialised
-// to this very grid: the first draw happens before that binding exists.
+// `demo.grid`, not `activeGrid`: that binding is declared further down, initialised to this
 buildings.sync(demo.scene, demo.grid.palette);
 
 /**
@@ -2385,6 +2385,7 @@ const state = {
   editorTerrainTab: (): string => editor.terrainTab,
   setTerrain: (id: string): void => { editor.set('tileId', id); if (mode === 'edit') renderPanel(); },
   buildingStats: (): BuildingStats => buildings.stats(),
+  pieceModels: (): number => view.root.children.filter((c) => c.name.startsWith('pieces:')).reduce((n, g) => n + g.children.reduce((m, c) => m + ((c as { count?: number }).count ?? 0), 0), 0),
   authoredCreatureCount: (): number => view.authoredCreatureCount,
   buildAt: (x: number, y: number): boolean => {
     const changed = editor.begin({ x, y }) !== 'none';

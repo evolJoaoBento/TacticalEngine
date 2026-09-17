@@ -153,7 +153,9 @@ test('open tabs drive placement; edge walls overlap floors and preserve Z throug
     await page.getByLabel(`Wall ${edge}`, { exact: true }).click();
     await page.evaluate(() => window.__engine!.buildAt(8, 6));
   }
-  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(5);
+  // Counted off the models: both kinds name a file, so `BuildingView` skips them and the
+  // box layer is empty by design. `pieceModels` is what says how many are standing.
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(5);
   await page.getByLabel('Build level', { exact: true }).fill('2.25');
   await page.getByLabel('Piece height', { exact: true }).fill('3.5');
   await page.getByLabel('Piece height', { exact: true }).press('Tab');
@@ -162,7 +164,7 @@ test('open tabs drive placement; edge walls overlap floors and preserve Z throug
   const scene = JSON.parse(saved).scenes[0];
   expect(scene.buildingTiles['8,6,2.25']).toMatchObject({ height: 3.5, level: 2.25, shape: 'wall' });
   await page.evaluate(() => window.__engine!.undo());
-  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(5);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(5);
   expect(await page.evaluate((s) => window.__engine!.loadProjectText(s), saved)).toBe('');
   await page.evaluate(() => {
     window.__engine!.setMode('edit');

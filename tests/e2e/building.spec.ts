@@ -132,8 +132,11 @@ test('builds outside the board, stacks, rotates, erases and restores saved tiles
   const at = await page.evaluate(() => window.__engine!.buildScreenAt(-900000, 900000));
   await page.mouse.move(at.x, at.y);
   await page.mouse.click(at.x, at.y);
-  await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(1);
-  await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().residentChunks)).toBe(1);
+  // Drawn by `tile-models`, not by the building layer: a kind of tile that names a file is
+  // stood up as that file, and `BuildingView` skips it so the box and the model do not
+  // both occupy the cell. `buildingStats` counts boxes, so it is 0 here by design.
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(1);
+  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(0);
 
   await page.getByRole('button', { name: 'Raise build level', exact: true }).click();
   // The shape comes off the kind of tile: there are no shape chips beside the strip any
@@ -149,16 +152,18 @@ test('builds outside the board, stacks, rotates, erases and restores saved tiles
   expect(scene.buildingTiles['-900000,900000,0.25']).toMatchObject({ shape: 'stairs', rotation: 1 });
   expect(scene.terrain.length).toBe(scene.width * scene.height);
 
+  // Counted off the models from here on: both kinds stamped above name a file, so the box
+  // layer is empty by design and `pieceModels` is what says how many are standing.
   await page.locator('[data-tool="eraseTile"]').click();
   await page.evaluate(() => window.__engine!.buildAt(-900000, 900000));
-  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(1);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(1);
   await page.evaluate(() => window.__engine!.undo());
-  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(2);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(2);
   await page.evaluate(() => window.__engine!.redo());
-  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(1);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(1);
   const loadResult = await page.evaluate((text) => window.__engine!.loadProjectText(text), saved);
   expect(loadResult).toBe('');
-  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(2);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(2);
   expect(errors).toEqual([]);
 });
 
