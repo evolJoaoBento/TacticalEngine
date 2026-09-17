@@ -5,6 +5,10 @@ test('the right-side height ladder controls placement Z and follows the active t
   await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
   await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
+  // The ladder follows what is being placed rather than which tab is open - there is no
+  // second terrain tab left for it to follow. A kind that stacks goes down at a height, so
+  // it is what brings the ladder out; the placer opens holding flat ground, which does not.
+  await page.evaluate(() => window.__engine!.setTerrain('block'));
   const height = page.getByTestId('placement-height');
   await expect(height).toBeVisible();
   const [controlBox, sideBox] = await Promise.all([
@@ -47,7 +51,9 @@ test('the right-side height ladder controls placement Z and follows the active t
   const dragged = Number(await page.getByLabel('Build level', { exact: true }).inputValue());
   expect(dragged).toBeGreaterThan(1);
 
-  await page.locator('[data-tab="ground"]').click();
+  // And it goes when what is in hand no longer needs it: flat ground is painted on the
+  // floor it lies on, so there is no height to choose.
+  await page.evaluate(() => window.__engine!.setTerrain('floor'));
   await expect(height).toHaveCount(0);
   await page.locator('[data-tab="props"]').click();
   await expect(page.getByTestId('placement-height')).toBeVisible();

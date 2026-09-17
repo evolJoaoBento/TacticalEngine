@@ -46,6 +46,9 @@ test('Ctrl + wheel over the board moves the build level a quarter tile a notch, 
   const { cx, cy } = await booted(page);
   await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
+  // The ladder shows for anything placed at a height, and a kind that stacks is placed at
+  // one - the placer holds flat ground until something says otherwise.
+  await page.evaluate(() => window.__engine!.setTerrain('block'));
   const ladder = page.getByTestId('height-ladder');
   await expect(ladder).toHaveAttribute('aria-valuenow', '0');
 

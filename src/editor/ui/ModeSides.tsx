@@ -93,8 +93,22 @@ const TERRAIN_HINTS: Partial<Record<EditorTool, string>> = {
 
 const BRUSHED: readonly EditorTool[] = ['placeTile', 'raise', 'lower', 'eraseTile'];
 
-/** Tools that place at `buildLevel`, and so want the Z controls beside them. */
-const LEVELLED: readonly EditorTool[] = ['placeTile', 'eraseTile', 'prop', 'interactable'];
+/**
+ * Tools that place at `buildLevel`, and so want the Z controls beside them.
+ *
+ * `placeTile` is not one of them by itself: it does two things now, and only one of them
+ * happens at a height. Flat ground goes down on the floor it is painted on, so a Z ladder
+ * beside it is a control that changes nothing. `levelled` asks the further question.
+ */
+const LEVELLED: readonly EditorTool[] = ['eraseTile', 'prop', 'interactable'];
+
+/**
+ * Whether what is in hand is placed at a height: one of the levelled tools, or the placer
+ * holding a kind of tile that stacks.
+ */
+function levelled(controller: EditorController): boolean {
+  return LEVELLED.includes(controller.state.tool) || controller.placesStructure();
+}
 
 /**
  * The board-edge elevation ladder shared by terrain placement and creatures.
@@ -116,7 +130,7 @@ export function PlacementHeightControl(props: {
   const justDragged = useRef(false);
   const visible = props.kind === 'creature'
     ? controller.state.tool === 'adversary'
-    : LEVELLED.includes(controller.state.tool);
+    : levelled(controller);
   if (!visible) return null;
   const level = controller.state.buildLevel;
   const setLevel = (value: number): void => {
@@ -371,7 +385,7 @@ export function TerrainSide(props: {
             : `Stamped as a ${structure} at the Z height below, stacking on whatever is already there. A walk over the cell reads whichever kind of tile ends up on top.`}
         </div>
       ) : null}
-      {LEVELLED.includes(tool) ? (
+      {levelled(controller) ? (
         <>
           <div class="ph-heading">Go to coordinates</div>
           <div class="ph-row">
@@ -393,7 +407,9 @@ export function TerrainSide(props: {
           </div>
           {building ? (
             <div class="ph-note">
-              Building tiles are scenery. Party movement still uses the original ground map.
+              A piece is a kind of tile, so a walk over the cell reads whichever one ends up
+              on top. A piece placed before kinds and structures were one thing carries no
+              kind, and stays scenery a walk goes straight through.
             </div>
           ) : null}
         </>

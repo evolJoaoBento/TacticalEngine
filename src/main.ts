@@ -2383,7 +2383,7 @@ const state = {
   },
   editorTool: (): string => editor.state.tool,
   editorTerrainTab: (): string => editor.terrainTab,
-  setTerrain: (id: string): void => editor.set('tileId', id),
+  setTerrain: (id: string): void => { editor.set('tileId', id); if (mode === 'edit') renderPanel(); },
   buildingStats: (): BuildingStats => buildings.stats(),
   authoredCreatureCount: (): number => view.authoredCreatureCount,
   buildAt: (x: number, y: number): boolean => {

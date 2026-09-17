@@ -8,7 +8,9 @@ test('Alt + mouse rotates placement without stamping or panning', async ({ page 
   await page.getByLabel('Build X', { exact: true }).fill('40');
   await page.getByLabel('Build Y', { exact: true }).fill('20');
   await page.getByRole('button', { name: 'Go', exact: true }).click();
-  await page.getByTestId('build-wall').click();
+  // A kind of tile that is a wall, rather than a shape chip beside the strip: the shape is
+  // what the kind says it is now, so there are no chips left to click.
+  await page.evaluate(() => window.__engine!.setTerrain('barrier'));
   const at = await page.evaluate(() => window.__engine!.buildScreenAt(40, 20));
   const camera = await page.evaluate(() => window.__engine!.camera());
   await page.mouse.move(at.x, at.y);
@@ -168,7 +170,7 @@ test('renders a stacked build with a brush, level controls and bounded LOD', asy
   await page.getByLabel('Build Y', { exact: true }).fill('20');
   await page.getByRole('button', { name: 'Go', exact: true }).click();
   await page.locator('[data-brush="5"]').click();
-  await page.getByTestId('build-floor').click();
+  await page.evaluate(() => window.__engine!.setTerrain('platform'));
   await page.evaluate(() => {
     const api = window.__engine!;
     for (const x of [35, 40, 45]) {
@@ -176,7 +178,7 @@ test('renders a stacked build with a brush, level controls and bounded LOD', asy
     }
   });
   await page.locator('[data-brush="1"]').click();
-  await page.getByTestId('build-block').click();
+  await page.evaluate(() => window.__engine!.setTerrain('block'));
   for (let level = 0; level < 3; level++) {
     await page.getByLabel('Build level', { exact: true }).fill(String(level));
     await page.getByLabel('Build level', { exact: true }).press('Tab');
@@ -193,7 +195,7 @@ test('renders a stacked build with a brush, level controls and bounded LOD', asy
       }
     });
   }
-  await page.getByTestId('build-stairs').click();
+  await page.evaluate(() => window.__engine!.setTerrain('steps'));
   await page.getByLabel('Build level', { exact: true }).fill('0');
   await page.getByLabel('Build level', { exact: true }).press('Tab');
   await page.evaluate(() => window.__engine!.buildAt(45, 20));

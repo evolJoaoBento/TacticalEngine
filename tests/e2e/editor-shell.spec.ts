@@ -70,7 +70,9 @@ test('the editor is Blender-grey: white on the selected tab, blue only on the on
 test('Terrain: its own tools, and a pick from the strip takes up the tool that places it', async ({ page }) => {
   const errors = await editing(page);
   await page.locator('[data-testid="mode-terrain"]').click();
-  await expect(page.locator('[data-testid="tool-rail"] [data-tool]')).toHaveCount(1);
+  // Three, where it was one. Tiles and Structures were two tabs and are one, so Raise and
+  // Lower came across with the ground they move: Erase, Raise, Lower beside the placer.
+  await expect(page.locator('[data-testid="tool-rail"] [data-tool]')).toHaveCount(3);
 
   const strip = page.locator('[data-testid="terrain-library"]');
   await strip.locator('[data-tab="props"]').click();
