@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, Vector3 } from 'three';
+import { BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from 'three';
 import { TileGrid } from '../grid/grid';
 import { TerrainPalette, terrain } from '../grid/terrain';
 import { DEFAULT_LAYOUT, placementCentre } from './layout';
@@ -219,6 +219,46 @@ describe('the ground drawn as models', () => {
     // pebble have to be two.
     expect(made.map((g) => g.name).sort()).toEqual(['tiles:paving', 'tiles:pebbles']);
     expect(sizes.sort()).toEqual([0.25, 1]);
+  });
+
+  it('stands a placed piece at its own level, turned the way it was stamped', () => {
+    const grid = new TileGrid({ width: 4, height: 4, palette: palette() });
+    // Not painted anywhere: a piece is a thing standing on the board, not a kind of ground.
+    grid.pieces = [{ x: 1, y: 2, level: 2, rotation: 1, index: grid.palette.require('planks') }];
+
+    const made = buildTileModels(grid, DEFAULT_LAYOUT, recorder().build);
+    const group = made.find((g) => g.name === 'pieces:planks');
+    expect(group).toBeDefined();
+    const mesh = instancesIn(group!);
+    expect(mesh.count).toBe(1);
+
+    const at = new Matrix4();
+    mesh.getMatrixAt(0, at);
+    const where = new Vector3().setFromMatrixPosition(at);
+    // A building level is a whole tile up, which is not the ground's own slab thickness -
+    // the two counts are deliberately separate, and a piece uses the building one.
+    const centre = placementCentre(grid, DEFAULT_LAYOUT, { x: 1, y: 2, z: 2 });
+    expect(where.x).toBeCloseTo(centre.x, 6);
+    expect(where.y).toBeCloseTo(centre.y, 6);
+    expect(where.z).toBeCloseTo(centre.z, 6);
+
+    // A quarter turn, which is how a wall picks the edge it stands on.
+    const spun = new Quaternion().setFromRotationMatrix(at);
+    expect(spun.angleTo(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2))).toBeCloseTo(0, 6);
+  });
+
+  it('draws a piece standing outside the room, which the grid has no cell for', () => {
+    const grid = new TileGrid({ width: 2, height: 2, palette: palette() });
+    grid.pieces = [{ x: 500, y: -400, level: 0, rotation: 0, index: grid.palette.require('planks') }];
+    const group = buildTileModels(grid, DEFAULT_LAYOUT, recorder().build).find((g) => g.name === 'pieces:planks');
+    expect(instancesIn(group!).count).toBe(1);
+  });
+
+  it('leaves a piece whose kind has no model to the layer that draws boxes', () => {
+    const grid = new TileGrid({ width: 2, height: 2, palette: palette() });
+    // `floor` names no model, so nothing here draws it - `building-view` does, as a box.
+    grid.pieces = [{ x: 0, y: 0, level: 0, rotation: 0, index: grid.palette.require('floor') }];
+    expect(buildTileModels(grid, DEFAULT_LAYOUT, recorder().build)).toEqual([]);
   });
 
   it('knows whether a late asset is one the ground is waiting for', () => {

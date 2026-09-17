@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { TileGrid } from '../grid/grid';
 import { TerrainPalette, terrain } from '../grid/terrain';
 import { isStructure, setStructures } from './building';
 import {
@@ -152,6 +153,34 @@ describe('the building layer resolved onto the grid', () => {
     // The building layer reaches to a million on each axis; the grid is the room.
     const { grid } = gridFromScene(room({ '40,40,0': piece({ x: 40, y: 40, tile: 'wall' }) }));
     for (let tile = 0; tile < grid.size; tile++) expect(grid.isPassable(tile)).toBe(true);
+  });
+
+  it('records every piece it can resolve, so the render layer can draw them', () => {
+    const { grid } = gridFromScene(
+      room({
+        '1,1,0': piece({ tile: 'wall', rotation: 2 }),
+        // Outside the room. The building layer reaches a million tiles further than the
+        // grid does, and a piece out there is drawn even though nothing can stand on it.
+        // The key has to spell the piece's own coordinates, level and all.
+        '40,40,3': piece({ x: 40, y: 40, level: 3, tile: 'floor' }),
+        // Scenery, and a kind the palette lost: neither is a kind of tile to draw.
+        '2,1,0': piece({ x: 2 }),
+        '3,1,0': piece({ x: 3, tile: 'rampart' }),
+      }),
+    );
+    expect(grid.pieces.map((p) => [p.x, p.y, p.level, p.rotation])).toEqual([
+      [1, 1, 0, 2],
+      [40, 40, 3, 0],
+    ]);
+    // Recorded by palette index, which is what the renderer looks a kind up by.
+    expect(grid.palette.at(grid.pieces[0]!.index).id).toBe('wall');
+  });
+
+  it('hands the pieces on to a grid that adopts its ground', () => {
+    const { grid } = gridFromScene(room({ '1,1,0': piece({ tile: 'wall' }) }));
+    const live = new TileGrid({ width: 4, height: 3 });
+    live.adopt(grid);
+    expect(live.pieces).toHaveLength(1);
   });
 
   it('leaves a piece naming a kind the palette lost to Check, rather than guessing', () => {

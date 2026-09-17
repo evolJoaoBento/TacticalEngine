@@ -18,6 +18,7 @@ import {
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { BUILD_MATERIALS, buildingParts, type BuildingTile } from '../scene/building';
 import type { SceneDoc } from '../scene/schema';
+import type { TerrainPalette } from '../grid/terrain';
 import { DEFAULT_LAYOUT } from './layout';
 
 /** Tiles per chunk on each axis. One chunk is one draw call, so it sets the grain. */
@@ -119,8 +120,15 @@ export class BuildingView {
     this.root.add(this.guide, this.preview);
   }
 
-  /** Reindex after edits; preserve GPU buffers for every unchanged chunk. */
-  sync(scene: SceneDoc): void {
+  /**
+   * Reindex after edits; preserve GPU buffers for every unchanged chunk.
+   *
+   * A piece whose kind of tile is drawn with a model is skipped: `tile-models` stands the
+   * file up instead, and drawing both would leave a grey box inside every crate. Without a
+   * palette nothing can be skipped, which is what a caller that has none wants - the
+   * thumbnails and the tests draw every piece as a box on purpose.
+   */
+  sync(scene: SceneDoc, palette?: TerrainPalette): void {
     this.needsWork = true;
     const next = new Map<string, Chunk>();
     const offsetX = (scene.width - 1) / 2;
@@ -130,6 +138,10 @@ export class BuildingView {
     this.offsetZ = offsetZ;
     this.tileCount = 0;
     for (const tile of Object.values(scene.buildingTiles ?? {})) {
+      if (tile.tile !== undefined && palette !== undefined) {
+        const index = palette.indexOf(tile.tile);
+        if (index >= 0 && palette.at(index).model !== undefined) continue;
+      }
       const x = Math.floor(tile.x / BUILD_CHUNK_SIZE);
       const y = Math.floor(tile.level / BUILD_CHUNK_SIZE);
       const z = Math.floor(tile.y / BUILD_CHUNK_SIZE);

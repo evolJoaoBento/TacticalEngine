@@ -12,11 +12,30 @@
 
 import { TerrainPalette, type TerrainType } from './terrain';
 
+
 /** Not a tile. Returned by lookups that fall outside the grid. */
 export const NO_TILE = -1;
 
 /** Nothing stacked on a tile: the ground is what a walk meets there. */
 export const NOTHING_STACKED = -1;
+
+/**
+ * One piece standing on the board, as the render layer needs it.
+ *
+ * The building layer reaches far outside the room - a piece may stand at a million on
+ * either axis - so these are not tile indices and there is no promise they are in bounds.
+ * `level` is in building units, where one is a whole tile up; the ground's own elevation
+ * counts in slabs of `levelHeight`, which is a different and deliberately separate thing.
+ */
+export interface PlacedPiece {
+  readonly x: number;
+  readonly y: number;
+  readonly level: number;
+  /** Quarter turns, as the document stores them. */
+  readonly rotation: number;
+  /** Palette index of the kind of tile this piece is. */
+  readonly index: number;
+}
 
 /**
  * A place on the board in tile units, continuous: (0, 0) is the centre of
@@ -61,6 +80,14 @@ export class TileGrid {
    * methods ask "what is on top here", and get this when there is anything.
    */
   readonly overlay: Int16Array;
+  /**
+   * Every piece standing on the board whose kind the palette knows, in or out of bounds.
+   *
+   * `overlay` answers "what does a walk meet on this cell", which only in-bounds cells
+   * have; this is what the render layer draws, and the building layer has always drawn far
+   * outside the room. Rebuilt with the grid rather than edited, so a reference is enough.
+   */
+  pieces: readonly PlacedPiece[] = [];
 
   constructor(options: GridOptions) {
     const { width, height } = options;
@@ -136,6 +163,9 @@ export class TileGrid {
     this.terrain.set(other.terrain);
     this.heights.set(other.heights);
     this.overlay.set(other.overlay);
+    // A reference, not a copy: `gridFromScene` builds a fresh array every time, so there is
+    // nothing for the two grids to share and nothing to be written through.
+    this.pieces = other.pieces;
   }
 
   /**

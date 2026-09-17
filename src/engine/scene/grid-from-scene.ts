@@ -7,7 +7,7 @@
  * turn a typo into an invisible hole in a wall.
  */
 
-import { NO_TILE, TileGrid } from '../grid/grid';
+import { NO_TILE, TileGrid, type PlacedPiece } from '../grid/grid';
 import { DEFAULT_TERRAIN_TYPES, TerrainPalette, terrain } from '../grid/terrain';
 import { setStructures } from './building';
 import type { ContentIssue } from '../content/types';
@@ -102,6 +102,10 @@ export function gridFromScene(
 function stackPieces(scene: SceneDoc, grid: TileGrid, palette: TerrainPalette): void {
   const pieces = scene.buildingTiles;
   if (pieces === undefined) return;
+  // What the render layer draws, which is not the same set as what a walk meets: a piece
+  // outside the room is drawn and never stepped on, and the building layer reaches a
+  // million tiles further than the grid does.
+  const drawn: PlacedPiece[] = [];
   // The height of whatever is currently winning each cell, so a lower piece stamped later
   // does not displace the one above it.
   const bestLevel = new Map<number, number>();
@@ -109,6 +113,7 @@ function stackPieces(scene: SceneDoc, grid: TileGrid, palette: TerrainPalette): 
     if (piece.tile === undefined) continue;
     const index = palette.indexOf(piece.tile);
     if (index < 0) continue;
+    drawn.push({ x: piece.x, y: piece.y, level: piece.level, rotation: piece.rotation, index });
     const tile = grid.indexOf(piece.x, piece.y);
     if (tile === NO_TILE) continue;
     const standing = bestLevel.get(tile);
@@ -116,6 +121,7 @@ function stackPieces(scene: SceneDoc, grid: TileGrid, palette: TerrainPalette): 
     bestLevel.set(tile, piece.level);
     grid.setOverlay(tile, index);
   }
+  grid.pieces = drawn;
 }
 
 /** The tile index a scene coordinate refers to. */

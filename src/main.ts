@@ -383,7 +383,9 @@ view.setScenery(demo.scene);
 view.syncTokens(demo.state);
 const buildings = new BuildingView();
 view.scene.add(buildings.root);
-buildings.sync(demo.scene);
+// `demo.grid` rather than `activeGrid`, which is declared further down and is initialised
+// to this very grid: the first draw happens before that binding exists.
+buildings.sync(demo.scene, demo.grid.palette);
 
 /**
  * One project, edited and played.
@@ -399,7 +401,6 @@ let editor = new EditorController({
   session,
   sceneId: demo.scene.id,
   onChange: (change) => {
-    if (change === 'building') buildings.sync(editor.scene);
     if (change === 'terrain') rebuildTerrain();
     if (change === 'content') syncEditorContent();
   },
@@ -482,7 +483,7 @@ function rebuildTerrain(): void {
   const { grid } = gridFromScene(scene, paletteForProject(session.project));
   activeGrid.adopt(grid);
   view.rebuildTerrain(scene.tints);
-  buildings.sync(scene);
+  buildings.sync(scene, activeGrid.palette);
   // The scenery hangs off the ground that was just replaced, in either mode:
   // this is the one place that redraws it, so undo and redo do not have to.
   syncEditorContent();
@@ -767,7 +768,6 @@ function loadProjectText(text: string, label = 'the project'): string {
     session,
     sceneId: project.startScene,
     onChange: (change) => {
-      if (change === 'building') buildings.sync(editor.scene);
       if (change === 'terrain') rebuildTerrain();
       if (change === 'content') syncEditorContent();
     },
@@ -1180,7 +1180,7 @@ function rebindScene(): void {
   // The same view, pointed at the other room: its caches, its lights and the
   // party's own tokens carry over; the ground and the scenery do not.
   view.rebind(activeGrid, { tints: scene.tints, decos: scene.decos, objects: scene.interactables });
-  buildings.sync(scene);
+  buildings.sync(scene, activeGrid.palette);
   frameCamera();
   if (mode === 'edit') syncEditorContent();
 }

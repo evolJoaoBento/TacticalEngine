@@ -26,7 +26,7 @@
  */
 
 import { Group, InstancedMesh, Matrix4, Mesh, Object3D, Quaternion, Vector3 } from 'three';
-import type { TileGrid } from '../grid/grid';
+import type { PlacedPiece, TileGrid } from '../grid/grid';
 import { placementCentre, type TileLayout } from './layout';
 import type { BuiltModel } from './procedural/build';
 
@@ -46,6 +46,11 @@ const position = new Vector3();
 const offset = new Vector3();
 const rotation = new Quaternion();
 const scaling = new Vector3();
+/** A piece's own quarter turn, and the file's transform carried through it. */
+const turn = new Quaternion();
+const spun = new Quaternion();
+const turned = new Vector3();
+const UP = new Vector3(0, 1, 0);
 
 /**
  * The one mesh inside a built model, if it is the kind that can be instanced.
@@ -140,6 +145,95 @@ export function buildTileModels(grid: TileGrid, layout: TileLayout, build: Build
       const centre = placementCentre(grid, layout, { x: tile % grid.width, y: Math.floor(tile / grid.width) });
       position.set(centre.x + offset.x, centre.y + lift + offset.y, centre.z + offset.z);
       matrix.compose(position, rotation, scaling);
+      instances.setMatrixAt(i, matrix);
+    });
+    instances.instanceMatrix.needsUpdate = true;
+    instances.computeBoundingSphere();
+    group.add(instances);
+    made.push(group);
+  }
+  // The ground and the things standing on it, from one call: both are kinds of tile drawn
+  // with a file, and a caller asking what this grid draws wants all of it.
+  made.push(...buildPieceModels(grid, layout, build));
+  return made;
+}
+
+/**
+ * The pieces standing on the board, grouped by the kind of tile they are.
+ *
+ * Only the kinds drawn with a model: the rest are the building layer's, which draws them
+ * as shaded boxes from their shape, and a piece drawn both ways is a grey box inside a
+ * crate. `BuildingView.sync` skips exactly this set, from the same palette.
+ */
+function piecesByKind(grid: TileGrid): Map<string, { kind: TileKind; pieces: PlacedPiece[] }> {
+  const byKind = new Map<string, { kind: TileKind; pieces: PlacedPiece[] }>();
+  for (const piece of grid.pieces) {
+    const type = grid.palette.at(piece.index);
+    if (type.model === undefined) continue;
+    const found = byKind.get(type.id);
+    if (found !== undefined) {
+      found.pieces.push(piece);
+      continue;
+    }
+    byKind.set(type.id, {
+      kind: { model: type.model, scale: type.scale, tiles: [] },
+      pieces: [piece],
+    });
+  }
+  return byKind;
+}
+
+/**
+ * One instanced mesh per kind of piece, each carrying every piece of that kind.
+ *
+ * A piece stands at its own level rather than on the ground under it, and turns by the
+ * quarter it was stamped at. Two things a box does that a file must not: it stretches to
+ * `height`, and it is drawn wherever the shape says - a model is the thing itself, at the
+ * size its kind declares, so neither applies.
+ */
+function buildPieceModels(grid: TileGrid, layout: TileLayout, build: BuildModel): Group[] {
+  const made: Group[] = [];
+  for (const [typeId, { kind, pieces }] of piecesByKind(grid)) {
+    const built = build(kind.model, kind.scale);
+    const mesh = loneMesh(built.group);
+    const lift = built.spec.groundOffset ?? 0;
+    const group = new Group();
+    group.name = `pieces:${typeId}`;
+    if (mesh === null) {
+      // Still on its way, or a build of many parts: one per piece, as the ground does.
+      for (const piece of pieces) {
+        const extra = build(kind.model, kind.scale).group;
+        const centre = placementCentre(grid, layout, { x: piece.x, y: piece.y, z: piece.level });
+        extra.position.set(centre.x, centre.y + lift, centre.z);
+        extra.rotation.y += piece.rotation * Math.PI / 2;
+        group.add(extra);
+      }
+      made.push(group);
+      continue;
+    }
+
+    built.group.updateWorldMatrix(true, true);
+    mesh.matrixWorld.decompose(offset, rotation, scaling);
+
+    const instances = new InstancedMesh(mesh.geometry, mesh.material, pieces.length);
+    instances.name = `pieces:${typeId}:instances`;
+    // Unlike the ground, a piece stands up off it: it casts as well as receives, which is
+    // what makes a wall read as a wall rather than a painted strip.
+    instances.castShadow = true;
+    instances.receiveShadow = true;
+    pieces.forEach((piece, i) => {
+      // `placementCentre` with a `z` is the building layer's own vertical unit - one whole
+      // tile per level - and not the ground's slabs of `levelHeight`. The two counts are
+      // deliberately different, so this is the one that makes a piece agree with the box
+      // the building view would have drawn in its place.
+      const centre = placementCentre(grid, layout, { x: piece.x, y: piece.y, z: piece.level });
+      turn.setFromAxisAngle(UP, piece.rotation * Math.PI / 2);
+      spun.copy(turn).multiply(rotation);
+      // The file's own offset turns with the piece, or a model that stands off its centre
+      // would swing out of its cell as it was rotated.
+      turned.copy(offset).applyQuaternion(turn);
+      position.set(centre.x + turned.x, centre.y + lift + turned.y, centre.z + turned.z);
+      matrix.compose(position, spun, scaling);
       instances.setMatrixAt(i, matrix);
     });
     instances.instanceMatrix.needsUpdate = true;
