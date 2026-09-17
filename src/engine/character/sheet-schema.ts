@@ -72,6 +72,15 @@ export const characterSheetSchema = z.object({
   loadout: z.array(z.string()).optional(),
   levels: z.array(levelRecordSchema).optional(),
   scars: z.number().int().min(0).optional(),
+  /**
+   * Drawn with this model rather than whatever the class uses.
+   *
+   * On the sheet rather than stamped onto the entity: `EntityState.model` is read once when
+   * a character is stood up and `syncRoster` skips anyone already on the board, so a choice
+   * made mid-game would not reach them until they changed rooms - and `sceneSnapshotSchema`
+   * carries no model, so a save would drop it on the way back.
+   */
+  model: z.string().min(1).optional(),
 });
 
 /** Parse an untrusted sheet. The return type is the interface, so the schema cannot drift. */

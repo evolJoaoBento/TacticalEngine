@@ -81,6 +81,15 @@ export interface CharacterSheet {
    * "If you ever cross out your last Light slot, your character's journey ends."
    */
   scars?: number;
+  /**
+   * Drawn with this model rather than whatever the class uses (`DEMO_MODELS`).
+   *
+   * Declared here as well as in the schema on purpose: `parseSheet` types its return as this
+   * interface, which catches a field the schema has lost - but an extra optional field in
+   * the schema still compiles, so a one-sided change would be stripped by the first re-parse
+   * without a word.
+   */
+  model?: string;
   /** Flat adjustments from advancements, features or items. */
   bonuses?: {
     evasion?: number;

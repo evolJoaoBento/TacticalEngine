@@ -341,7 +341,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
   let workspaceBody: preact.JSX.Element | null = null;
   switch (workspace) {
     case 'party':
-      workspaceBody = <PartyPanel session={session} content={props.characterContent} onChange={bump} onClose={closeWorkspace} />;
+      workspaceBody = <PartyPanel session={session} content={props.characterContent} models={[...props.knownModels].sort()} onChange={bump} onClose={closeWorkspace} />;
       break;
     case 'cards':
       workspaceBody = (

@@ -95,6 +95,9 @@ export const PARTY_SHEETS: readonly CharacterSheet[] = [
     subclassId: 'shieldbearer',
     domainCards: ['power-slash', 'iron-stance'],
     experiences: [{ name: 'Held the line', modifier: 2 }],
+    // A body of her own rather than the class's. `DEMO_MODELS` still answers for any
+    // character who names none, so this is a choice and not a new requirement.
+    model: 'quim',
   }),
   blankSheet('finn', 'cutpurse', {
     name: 'Finn',
@@ -106,6 +109,7 @@ export const PARTY_SHEETS: readonly CharacterSheet[] = [
     subclassId: 'lampsnuffer',
     domainCards: ['quick-hands', 'backstab'],
     experiences: [{ name: 'Knows a locksmith', modifier: 2 }],
+    model: 'violet',
   }),
   blankSheet('mira', 'emberwright', {
     name: 'Mira',
@@ -117,5 +121,6 @@ export const PARTY_SHEETS: readonly CharacterSheet[] = [
     subclassId: 'flamecaller',
     domainCards: ['arcane-ward', 'healing-word'],
     experiences: [{ name: 'Read the old script', modifier: 2 }],
+    model: 'scarlet',
   }),
 ];

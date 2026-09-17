@@ -3,6 +3,7 @@ import { blankSheet } from '../engine/character/sheet';
 import { STARTER_CHARACTERS } from '../engine/content/pack/starter';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema, type ProjectDoc } from '../engine/scene/schema';
+import { MODELS } from '../engine/render/procedural/registry';
 import { EditorSession, addSheet, removeSheet, updateSheet, type PartySheet } from './session';
 import { validateProject } from './validate';
 
@@ -97,6 +98,21 @@ describe('the party in the project', () => {
     expect(parsed.party[0]!.levels).toEqual(kara(s).levels);
   });
 
+  it('keeps the model a character was pointed at through JSON', () => {
+    // The field has to be on the schema *and* the interface: `parseSheet` types its return
+    // as the interface, so a field the schema lost is caught - but an extra optional field
+    // in the schema compiles quietly, and every equip and level-up re-parses the sheet. A
+    // one-sided change would drop the choice on the first edit after it was made.
+    const s = session();
+    s.run(updateSheet('kara', { model: 'hollow-knight' }));
+    const parsed = projectSchema.parse(JSON.parse(JSON.stringify(s.project)));
+    expect(parsed.party[0]!.model).toBe('hollow-knight');
+
+    // And clearing it goes back to whatever the class uses.
+    s.run(updateSheet('kara', { model: undefined }));
+    expect(projectSchema.parse(JSON.parse(JSON.stringify(s.project))).party[0]!.model).toBeUndefined();
+  });
+
   it('rejects two characters with the same id', () => {
     const s = session();
     s.run(addSheet({ ...KARA, name: 'Another Kara' }));
@@ -113,6 +129,20 @@ describe('checking a party', () => {
 
   it('says nothing about a sheet that names real content', () => {
     expect(check({})).toEqual([]);
+  });
+
+  it('warns when a character is drawn with a model nothing can supply', () => {
+    // `knownModels` is passed here and not in `check`: every model check returns early
+    // without it, so the assertion would pass while the loop never ran.
+    const drawn = (model: string): string[] =>
+      validateProject(projectSchema.parse({ ...project(), party: [{ ...KARA, model }] }), {
+        knownModels: new Set(MODELS.map((m) => m.id)),
+      })
+        .filter((p) => p.message.includes('drawn with'))
+        .map((p) => p.message);
+    expect(drawn('no-such-model')).toHaveLength(1);
+    expect(drawn('no-such-model')[0]!).toMatch(/Kara/);
+    expect(drawn(MODELS[0]!.id)).toEqual([]);
   });
 
   it('reports a class, a weapon or a card that does not exist', () => {

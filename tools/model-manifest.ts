@@ -77,5 +77,31 @@ export function modelManifest(): Plugin {
       if (id !== RESOLVED) return null;
       return `export const SHIPPED_MODELS = ${JSON.stringify(shippedModels(publicDir))};\n`;
     },
+    /**
+     * Watch the folder, so a file dropped in appears without a restart.
+     *
+     * Two things stand between a new `.glb` and the running page. Vite keeps `publicDir`
+     * out of the module graph on purpose - those files are copied rather than bundled - so
+     * nothing there is watched unless it is asked for. And the virtual module is loaded
+     * once and held: the list the page has is the one read when it was first asked for, so
+     * even a file that predates the server never appears. Invalidating it is what makes
+     * the next request re-read the folder.
+     */
+    configureServer(server) {
+      const folder = join(publicDir, MODELS_DIRECTORY);
+      server.watcher.add(folder);
+      const changed = (file: string): void => {
+        // Separators differ by platform and the watcher reports the host's own, so the
+        // folder is matched on the segment rather than on a prefix of the joined path.
+        const path = file.replace(/\\/g, '/');
+        if (!/\.(glb|gltf)$/i.test(path) || !path.includes(`/${MODELS_DIRECTORY}/`)) return;
+        const module = server.moduleGraph.getModuleById(RESOLVED);
+        if (module !== undefined) server.moduleGraph.invalidateModule(module);
+        // A full reload rather than an HMR update: the list is read at startup by the
+        // scene the whole game is built from, so nothing short of starting again shows it.
+        server.hot.send({ type: 'full-reload' });
+      };
+      for (const event of ['add', 'unlink', 'change'] as const) server.watcher.on(event, changed);
+    },
   };
 }

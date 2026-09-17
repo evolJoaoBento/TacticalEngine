@@ -1175,6 +1175,14 @@ function checkAdversaryModels(
       }
     }
   }
+
+  // A character picked out on the sheet, by the same rule: a party member drawn with
+  // something nothing can supply stands as the magenta placeholder, which is the library's
+  // honest answer and not one anybody means to ship.
+  for (const sheet of project.party) {
+    if (sheet.model === undefined || resolvable(sheet.model)) continue;
+    add('warning', `"${sheet.name || sheet.id}" is drawn with "${sheet.model}", which nothing can supply.`, sheet.id);
+  }
 }
 
 function checkDialogues(

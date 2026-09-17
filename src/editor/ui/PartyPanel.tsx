@@ -34,6 +34,8 @@ export interface PartyPanelProps {
   onClose: () => void;
   /** The vendored SRD content every dropdown here is drawn from. */
   content: ContentPack;
+  /** Every model a character can be drawn with: the same list the Tiles workspace offers. */
+  models: readonly string[];
 }
 
 const TRAITS: readonly Trait[] = ['agility', 'strength', 'finesse', 'instinct', 'presence', 'knowledge'];
@@ -233,6 +235,19 @@ export function PartyPanel(props: PartyPanelProps): preact.JSX.Element {
               {labelled(
                 'subclass',
                 pick(open.subclassId ?? '', subclasses, (subclassId) => edit({ subclassId: subclassId === '' ? undefined : subclassId }), 'character-subclass', '— none —'),
+              )}
+              {labelled(
+                'drawn with',
+                // Empty means the class decides, which is what every character did before
+                // this: `DEMO_MODELS` maps a class to a body, and a class with no entry
+                // stands as the library's magenta placeholder.
+                pick(
+                  open.model ?? '',
+                  props.models.map((id) => ({ id, name: id })),
+                  (id) => edit({ model: id === '' ? undefined : id }),
+                  'character-model',
+                  '— whatever the class uses —',
+                ),
               )}
             </div>
 

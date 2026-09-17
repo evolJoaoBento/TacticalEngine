@@ -364,12 +364,12 @@ let adversaryModels: Readonly<Record<string, string>> = demo.project.adversaryMo
 
 const view = new SceneView(demo.grid, {
   tints: demo.scene.tints,
-  // This creature's own look first, then what the project draws its type with,
-  // then the game's own mapping, and failing all three the adversary's id. The
-  // project's map beats DEMO_MODELS deliberately: an author who re-skins a type
-  // the demo already names would otherwise be quietly ignored.
+  // A character's own choice first, then the creature's, then the project's map for its
+  // type, then the game's, and failing all of it the id. Off `demo.project` and never
+  // `session`: this first runs before the session exists.
   modelForEntity: (entity) =>
-    entity.model
+    (entity.faction === 'party' ? demo.project.party.find((s) => s.id === entity.id)?.model : undefined)
+    ?? entity.model
     ?? adversaryModels[entity.definition]
     ?? DEMO_MODELS[entity.definition]
     ?? entity.definition,
@@ -415,8 +415,8 @@ editor.setMode('inspect');
 // else happens to re-render them.
 assets.onChange(() => { if (mode === 'edit') renderPanel(); });
 
-// The library's own, plus whatever the project declares: a file in `public/models` is drawable.
-const KNOWN_MODELS = new Set([...MODELS.map((m) => m.id), ...demo.project.assets.map((a) => a.id)]);
+// The library's own plus the project's, read afresh so a model added mid-session is offered.
+const knownModels = (): Set<string> => new Set([...MODELS.map((m) => m.id), ...session.project.assets.map((a) => a.id)]);
 const PROP_MODELS = MODELS.filter((m) => m.category === 'prop').map((m) => m.id);
 /**
  * The Combat strip's creatures: the pack the app ships, and whatever the project carries or has
@@ -619,7 +619,7 @@ function renderPanel(): void {
       terrainTypes: activeGrid.palette.types,
       propModels: PROP_MODELS,
       adversaries: adversaryLibrary(),
-      knownModels: KNOWN_MODELS,
+      knownModels: knownModels(),
       knownAdversaries: new Set(adversaryDefsFor(session.project).keys()),
       libraryAbilities: STARTER_ABILITIES,
       characterContent: characterContentFor(demo.project),
