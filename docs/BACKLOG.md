@@ -348,7 +348,7 @@ time. The first version of that test assumed a headless Chromium had no picker a
 for a download that never came - Chromium has the API, and an automated page hangs on the
 dialog. Firefox and Safari take the download fallback, which is covered by unit tests.
 
-## A kind of ground can be drawn with a model - done, and too slow
+## A kind of ground can be drawn with a model - done, and instanced since
 
 A terrain type can name a model the way an adversary does. `terrain('floor', { model:
 'plank' })` stands one on every floor tile, at that tile's own height, from the library or
@@ -360,13 +360,18 @@ The ground mesh is still built underneath, deliberately: a tile model is a look,
 grid is what a raycast hits, what a walk costs and how high a tile stands. A file that
 fails to load leaves the room playable.
 
-**It is too slow to use on a whole floor.** 290 floor tiles carrying the library's `crate`
-took the editor from 35 frames a second to 1. `buildTileModels` makes one `BuiltModel` per
-tile, so that is 290 groups, 290 draw calls and 290 base rings. Clones share geometry, so
-the memory is fine and the draw calls are not. Usable today for a sparse type - a few
-tiles of something - and not for floor. The fix is instancing: one `InstancedMesh` per
-model with a matrix per tile, which is a rewrite of `tile-models.ts` and not of anything
-around it, because the module was kept apart from `SceneView` for exactly this reason.
+**It was too slow to use on a whole floor, and that is fixed.** 290 floor tiles carrying
+the library's `crate` took the editor from 35 frames a second to 1: `buildTileModels` made
+one `BuiltModel` per tile, so 290 groups, 290 draw calls and 290 base rings. Clones share
+geometry, so the memory was fine and the draw calls were not. `tile-models.ts` instances
+now - one `InstancedMesh` per kind of tile with a matrix per cell, which is why it was kept
+apart from `SceneView` in the first place.
+
+**What has not been built is everything around that.** The instanced layer has no chunking,
+no frustum culling, no residency cap and no LOD; the box layer in `building-view.ts` has all
+four. One mesh per kind over every piece, drawn whole, at roughly 13.6k triangles a file.
+The 1 fps above was headless software GL and has never been measured on a real machine, so
+the next move is a number and not a design.
 
 Three things had to be fixed before a single crate appeared, and each looked like the
 feature working when it was not:

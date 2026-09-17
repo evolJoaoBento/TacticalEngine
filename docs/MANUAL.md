@@ -44,7 +44,7 @@ switches between play and edit at any time.
 | Input | Play mode | Edit mode |
 |---|---|---|
 | Left click | Party member: select. Adversary: attack with the selected character. Object: use it. Ground: walk there. | Apply the current tool to the tile |
-| Left drag | Orbit the camera | Paint / drag with the current tool |
+| Left drag | Orbit the camera | Drag with the current tool — erase, raise and lower follow the pointer; the placer puts one piece where it is clicked |
 | Middle drag | Orbit the camera | Orbit the camera |
 | Right drag | Pan the camera | Pan the camera |
 | Right click (still) | Inspect what is under the pointer: a card with a character's pools, Evasion and gear, an adversary's tier, role, Difficulty and the cards its stat block prints, or an object's kind, state and the roll it asks for | — |
@@ -343,18 +343,19 @@ selection.
 | Mode | Around the board | What a click or drag does |
 |---|---|---|
 | **Inspector** (1) | The selected object's properties, on the right | Click an object to select it. Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as a blue pawn in a ring and an object with no model as a gold ring with a gem |
-| **Terrain** (2) | Tools on the left rail; **Tiles**, **Ground**, **Props** and **Objects** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere; erase tiles at a chosen level; paint ground (brush 1×1, 3×3, 5×5); raise/lower ground; place props and objects |
+| **Terrain** (2) | Tools on the left rail; **Tiles**, **Props** and **Objects** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props and objects |
 | **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one) |
 | **Interaction** (4) | The conversations, on the left | Click one to open its graph |
 
-Opening a Terrain library tab chooses the placement action automatically: Tiles builds,
-Ground paints, Props places props and Objects places objects. Picks are remembered when switching
+Opening a Terrain library tab chooses the placement action automatically: Tiles builds, Props
+places props and Objects places objects. Picks are remembered when switching
 tabs. The rail only offers the applicable erase or raise/lower actions; there is no separate
 placement-type selector. Clicking the tab or an item returns from erase to placement. Every card
 shows what it puts down: a picture of the model for a prop or a creature (one with no model of its
 own shows the husk that stands in for it on the board, marked **stand-in**), a drawn icon for a tile
-or an object, and
-the colour for ground. A name too long for its card wraps to a second line. A tab with nothing in it
+or an object, and the colour a kind of tile declares. The Tiles tab offers only kinds that are
+structures: ground is the substrate every cell already holds, edited in the Tiles workspace, and is
+not something the placer puts down. A name too long for its card wraps to a second line. A tab with nothing in it
 is dimmed and says so ("Nothing in Tier 3 yet."); "Nothing matches." is only ever a search's answer.
 
 ### Building tiles beyond the board
@@ -1168,7 +1169,7 @@ One of those sets noted its material as Public Game Content under the DPCGL (www
 ```
 Play                                   Edit
   Left click   select / attack / use / walk   apply tool
-  Left drag    orbit                          paint or drag with tool
+  Left drag    orbit                          drag with tool (erase, raise/lower)
   Middle drag  orbit                          orbit
   Right drag   pan                            pan
   Right click  inspect (Escape closes)        —

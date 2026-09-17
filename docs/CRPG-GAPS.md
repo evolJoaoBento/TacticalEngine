@@ -383,7 +383,7 @@ multilevel walking, collision and LOS remain open, as do selection/moving of who
 around a floor; erasing peels away the latest instance. Vertical Z supports quarter tiles and
 pieces have adjustable vertical size. The ground's `heights[]` is still whole levels: two
 vertical units coexist until part 2 picks one.
-Terrain library tabs directly choose placement, without separate place/paint rail buttons; the
+Terrain library tabs directly choose placement, without separate placement-type rail buttons; the
 open tab and the tool in hand are one fact (`editor/modes.ts`), so every tool has a tab and the
 rail always shows the tool being used.
 Editor creatures now render from the scene document, including remote or elevated placements.
@@ -396,10 +396,11 @@ gained and takes out the ones it has lost, without resetting existing creatures 
 resurrecting one a script removed. A placement authored outside the board is scenery the editor
 draws and warns about: it never enters play. Elevated/outlying navigation is still open.
 
-Tools: construction/erase construction, terrain brush, raise/lower, props, objects, adversaries, trigger cells, spawns, erase,
-inspect. Save and load a project as JSON. The brush paints terrain only — a wall painted on flat
-ground stops movement and reads as dark floor until Raise gives it height, which is deliberate:
-elevation is its own tool because low walls and tall walls play differently.
+Tools: place tiles, erase tiles, raise/lower, props, objects, adversaries, trigger cells, spawns, erase,
+inspect. Save and load a project as JSON. The placer stamps kinds of tile that are structures, at a
+chosen level, and a walk over the cell reads whichever kind ends up on top. Ground is the substrate a
+cell already holds — still drawn, still saved, edited in the Tiles workspace — and is no longer
+painted. Elevation stays its own tool because low walls and tall walls play differently.
 
 A **scene list** sits in the panel: switch, add, rename, delete, and choose which scene the
 project opens on. Editing a scene is decoupled from playing one — browsing rooms in the editor
