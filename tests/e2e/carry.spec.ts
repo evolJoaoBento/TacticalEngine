@@ -111,3 +111,71 @@ test('carries a prop, an object, a creature and a party start in the Inspector, 
   expect(placed(await room(page))).toEqual(before);
   expect(errors).toEqual([]);
 });
+
+test('Terrain has the same selector, so a room is laid out and nudged without leaving the mode', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  await page.evaluate(() => window.__engine!.setMode('edit'));
+  await page.getByTestId('mode-terrain').click();
+
+  // It is on the rail rather than only in the tool state: a tool that can be held and never
+  // seen is what `modes.test.ts` forbids, and the rail is where a person finds this one.
+  await page.locator('[data-testid="tool-rail"] [data-tool="select"]').click();
+  expect(await page.evaluate(() => window.__engine!.editorTool())).toBe('select');
+  // Picking it leaves the strip where it was - it belongs to every tab, so it moves none.
+  expect(await page.evaluate(() => window.__engine!.editorTerrainTab())).toBe('tiles');
+  expect(await page.evaluate(() => window.__engine!.editorMode())).toBe('terrain');
+
+  const scene = await room(page);
+  const index = (p: Pos) => p.y * scene.width + p.x;
+  const onCanvas = (p: Pos) =>
+    page.evaluate((i) => {
+      const s = window.__engine!.screenOf(i);
+      return document.elementFromPoint(s.x, s.y)?.id === 'gl' ? s : null;
+    }, index(p));
+
+  // The same drag the Inspector does, on the same kind of thing, in Terrain.
+  const before = placed(scene);
+  const taken = new Set(Object.values(before).flat().map((p) => `${p.x},${p.y}`));
+  const open = (p: Pos) =>
+    [1, 2, 3].every((d) => p.y + d >= scene.height || scene.heights[index({ x: p.x, y: p.y + d })]! <= scene.heights[index(p)]!);
+  let move: { at: number; from: Pos; to: Pos; a: { x: number; y: number }; b: { x: number; y: number } } | null = null;
+  for (const [at, from] of before.prop.entries()) {
+    if (from.z !== undefined || !open(from)) continue;
+    const a = await onCanvas(from);
+    if (a === null) continue;
+    for (const [dx, dy] of [[2, 0], [-2, 0], [0, 2], [0, -2], [3, 0], [-3, 0]]) {
+      const to = { x: from.x + dx!, y: from.y + dy! };
+      if (to.x < 0 || to.y < 0 || to.x >= scene.width || to.y >= scene.height) continue;
+      if (taken.has(`${to.x},${to.y}`) || !open(to)) continue;
+      if (scene.heights[index(to)] !== scene.heights[index(from)]) continue;
+      const b = await onCanvas(to);
+      if (b === null) continue;
+      move = { at, from, to, a, b };
+      break;
+    }
+    if (move !== null) break;
+  }
+  expect(move, 'a prop standing in view with bare ground in view beside it').not.toBeNull();
+
+  const { at, from, to, a, b } = move!;
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  expect(await cursor(page), 'a press in Terrain takes hold of the prop').toBe('grabbing');
+  await page.mouse.move((a.x + b.x) / 2, (a.y + b.y) / 2, { steps: 6 });
+  // Nothing moves in the document until the pointer lets go, exactly as in the Inspector.
+  expect(placed(await room(page)).prop[at]).toEqual(from);
+  await page.mouse.move(b.x, b.y, { steps: 6 });
+  await page.mouse.up();
+  expect(await cursor(page)).not.toBe('grabbing');
+  expect(placed(await room(page)).prop[at]).toEqual(to);
+
+  // One undo puts it back, and the mode never changed underfoot.
+  await page.keyboard.press('Control+z');
+  expect(placed(await room(page)).prop[at]).toEqual(from);
+  expect(await page.evaluate(() => window.__engine!.editorMode())).toBe('terrain');
+  await page.screenshot({ path: 'test-results/carry-terrain.png' });
+  expect(errors).toEqual([]);
+});

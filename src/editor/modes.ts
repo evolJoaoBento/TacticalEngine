@@ -31,6 +31,13 @@ export const MODE_LABELS: Readonly<Record<EditorMode, string>> = {
  * depends on which mode it is used in. Interaction keeps Select so a click on the
  * board still picks an object out.
  *
+ * Terrain keeps it too, and for the same reason the user asked for: laying a room out means
+ * nudging what is already in it, and leaving the mode to do that - then coming back for the
+ * next piece - is the trip nobody wants to make. It carries exactly what the Inspector's
+ * does, because it is the same tool: `controller.ts` forks Select on `combat` alone, so
+ * Terrain falls through to the branch that picks up an object, a creature, a prop or a
+ * party start. Last in the list, so entering Terrain still hands over the placer.
+ *
  * Terrain's list is the union of what its tabs offer: `TERRAIN_TAB_TOOL` names
  * the tool each tab puts in hand and `TERRAIN_RAIL` the ones it shows beside it,
  * and between them the tabs partition this list. A tool missing from both would
@@ -38,7 +45,7 @@ export const MODE_LABELS: Readonly<Record<EditorMode, string>> = {
  */
 export const MODE_TOOLS: Readonly<Record<EditorMode, readonly EditorTool[]>> = {
   inspect: ['select'],
-  terrain: ['placeTile', 'eraseTile', 'raise', 'lower', 'prop', 'interactable', 'erase'],
+  terrain: ['placeTile', 'eraseTile', 'raise', 'lower', 'prop', 'interactable', 'erase', 'select'],
   // Select comes last deliberately: it is how a creature's panel is opened, but
   // entering Combat should still hand over creature placement, and `defaultTool`
   // takes the first tool in the list.
@@ -72,13 +79,19 @@ export const TERRAIN_TAB_TOOL: Readonly<Record<TerrainTab, EditorTool>> = {
   objects: 'interactable',
 };
 
-/** What the rail offers beside each tab: the same subject's other verbs. */
+/**
+ * What the rail offers beside each tab: the same subject's other verbs.
+ *
+ * Select is on all three. It is not one tab's verb - it takes hold of whatever it is pressed
+ * on, whichever tab is open - and a tool every tab owns is one `terrainTabOf` never moves the
+ * strip for, so reaching for it leaves the cards where they were.
+ */
 export const TERRAIN_RAIL: Readonly<Record<TerrainTab, readonly EditorTool[]>> = {
   // Raise and Lower join Erase here: the ground they move and the pieces they stand under
   // are one subject now, and there is no second tab left for them to belong to.
-  tiles: ['eraseTile', 'raise', 'lower'],
-  props: ['erase'],
-  objects: ['erase'],
+  tiles: ['eraseTile', 'raise', 'lower', 'select'],
+  props: ['erase', 'select'],
+  objects: ['erase', 'select'],
 };
 
 /** Whether a strip's tab id is one of Terrain's, so a view can narrow without a cast. */

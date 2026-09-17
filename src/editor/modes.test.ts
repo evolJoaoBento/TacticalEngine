@@ -54,7 +54,23 @@ describe('editor modes', () => {
   it('find the mode a tool belongs to', () => {
     expect(modeOfTool('raise', 'inspect')).toBe('terrain');
     expect(modeOfTool('adversary', 'terrain')).toBe('combat');
-    expect(modeOfTool('select', 'terrain')).toBe('inspect');
+    // Not select any more: every mode owns it now, so it can never demonstrate the fallback
+    // to the first mode in the bar that does. Spawn still can.
+    expect(modeOfTool('spawn', 'terrain')).toBe('combat');
+  });
+
+  it('let Terrain select and drag without leaving the mode', () => {
+    // Laying a room out means nudging what is already in it, and leaving the mode to do
+    // that is the trip the user asked to be rid of.
+    expect(MODE_TOOLS.terrain).toContain('select');
+    // Not first: entering Terrain still hands over the placer.
+    expect(defaultTool('terrain')).toBe('placeTile');
+    expect(modeOfTool('select', 'terrain')).toBe('terrain');
+    // On every tab's rail, so reaching for it never moves the strip out from under you.
+    for (const tab of TERRAIN_TABS) {
+      expect(TERRAIN_RAIL[tab], tab).toContain('select');
+      expect(terrainTabOf('select', tab), tab).toBe(tab);
+    }
   });
 
   it('keep a shared tool in the mode that already owns it', () => {
@@ -99,7 +115,8 @@ describe("terrain's tabs", () => {
     expect(TERRAIN_TABS).toEqual(['tiles', 'props', 'objects']);
     expect(TERRAIN_TAB_TOOL.tiles).toBe('placeTile');
     // Raise and Lower came with the ground they move; there is no second tab for them now.
-    expect(TERRAIN_RAIL.tiles).toEqual(['eraseTile', 'raise', 'lower']);
+    // Select is last and on every tab, so it is not one of this tab's own verbs.
+    expect(TERRAIN_RAIL.tiles).toEqual(['eraseTile', 'raise', 'lower', 'select']);
   });
 
   it('recognise their own ids and no others', () => {

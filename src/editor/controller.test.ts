@@ -731,11 +731,15 @@ describe('modes', () => {
     // so picking it stays put rather than throwing the user to the Inspector.
     editor.setTool('select');
     expect(editor.mode).toBe('combat');
-    // From a mode that does not own it, it still lands in the Inspector.
+    // Terrain owns it too, so laying a room out and nudging what is already in it are one
+    // mode: picking Select there stays there rather than throwing the user to the Inspector.
+    // There is no mode left that does not own Select, which is why nothing here shows the
+    // fall back to the Inspector any more - `modes.test.ts` shows it with another tool.
     editor.setTool('placeTile');
     expect(editor.mode).toBe('terrain');
     editor.setTool('select');
-    expect(editor.mode).toBe('inspect');
+    expect(editor.mode).toBe('terrain');
+    expect(editor.terrainTab).toBe('tiles');
   });
 
   it('choosing a mode picks its first tool, unless the current one is its own', () => {
@@ -841,7 +845,7 @@ describe("terrain's open tab", () => {
     editor.openTerrainTab('tiles');
     // One tab for the ground and for what stacks on it, so it hands over the placer.
     expect(editor.state.tool).toBe('placeTile');
-    expect(TERRAIN_RAIL[editor.terrainTab]).toEqual(['eraseTile', 'raise', 'lower']);
+    expect(TERRAIN_RAIL[editor.terrainTab]).toEqual(['eraseTile', 'raise', 'lower', 'select']);
 
     // Erase belongs to Props and Objects, never to Tiles: picking it from the
     // Tiles tab must move the strip rather than leave the tool off the rail.
@@ -870,11 +874,32 @@ describe("terrain's open tab", () => {
     const { editor } = setup();
     editor.setMode('terrain');
     editor.openTerrainTab('props');
+    editor.setMode('combat');
+    expect(editor.state.tool).toBe('adversary');
+    editor.setMode('terrain');
+    expect(editor.terrainTab).toBe('props');
+    expect(editor.state.tool).toBe('prop');
+  });
+
+  it('keeps Select when Terrain is re-entered holding it, because Terrain owns it now', () => {
+    // This used to be the case above: the Inspector hands you Select on entry, so coming
+    // back from a look at an object restored the tab's placer. Terrain owns Select now, so
+    // the rule at `setMode` that keeps one of its own tools applies to it as well.
+    //
+    // The trade is real and deliberate: nobody *chose* Select, the Inspector handed it over,
+    // and coming back with the placer gone is a papercut. The alternative is a special case
+    // for one tool inside a rule that is otherwise clean, so the rule wins until it annoys
+    // somebody.
+    const { editor } = setup();
+    editor.setMode('terrain');
+    editor.openTerrainTab('props');
     editor.setMode('inspect');
     expect(editor.state.tool).toBe('select');
     editor.setMode('terrain');
     expect(editor.terrainTab).toBe('props');
-    expect(editor.state.tool).toBe('prop');
+    expect(editor.state.tool).toBe('select');
+    // And the rail beside that tab shows it, so it is never held unseen.
+    expect(TERRAIN_RAIL[editor.terrainTab]).toContain('select');
   });
 
   it('says once that the plane moved, so a view follows the change and not the level', () => {

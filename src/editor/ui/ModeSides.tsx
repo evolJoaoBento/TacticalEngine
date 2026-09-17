@@ -90,6 +90,7 @@ const TERRAIN_HINTS: Partial<Record<EditorTool, string>> = {
   prop: 'Hold Alt and point the mouse in the direction the prop should face, then click to place. Click an existing matching prop to turn it.',
   interactable: 'Click to place the object picked below; click an object again to remove it.',
   erase: 'Click a prop to remove it, then the object under it.',
+  select: 'Drag anything on the board - a creature, a prop, an object or a party start - to move it. One undo puts it back. Hold Alt to turn what a prop or an object will land facing.',
 };
 
 const BRUSHED: readonly EditorTool[] = ['placeTile', 'raise', 'lower', 'eraseTile'];
