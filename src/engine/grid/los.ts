@@ -207,8 +207,10 @@ export function coverBetween(
   to: number,
   rules: LineOfSightRules = DEFAULT_LINE_OF_SIGHT,
 ): Cover {
-  const terrain: Cover =
-    grid.isTile(to) && grid.terrainAt(to).providesCover ? 'cover' : 'none';
+  // `providesCover` rather than `terrainAt(to).providesCover`: a low wall stacked on a
+  // cell is what the target is sheltering behind, and reaching through to the ground under
+  // it gave cover only when the wall had been painted rather than placed.
+  const terrain: Cover = grid.providesCover(to) ? 'cover' : 'none';
   const sight = lineOfSight(grid, from, to, rules);
   return combineCover(terrain, sight.partial ? 'cover' : 'none');
 }

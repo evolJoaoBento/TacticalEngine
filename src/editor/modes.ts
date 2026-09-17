@@ -38,7 +38,7 @@ export const MODE_LABELS: Readonly<Record<EditorMode, string>> = {
  */
 export const MODE_TOOLS: Readonly<Record<EditorMode, readonly EditorTool[]>> = {
   inspect: ['select'],
-  terrain: ['buildTile', 'eraseTile', 'placeTile', 'raise', 'lower', 'prop', 'interactable', 'erase'],
+  terrain: ['placeTile', 'eraseTile', 'raise', 'lower', 'prop', 'interactable', 'erase'],
   // Select comes last deliberately: it is how a creature's panel is opened, but
   // entering Combat should still hand over creature placement, and `defaultTool`
   // takes the first tool in the list.
@@ -47,30 +47,36 @@ export const MODE_TOOLS: Readonly<Record<EditorMode, readonly EditorTool[]>> = {
 };
 
 /**
- * The four things Terrain can put down, each a tab of the strip along the bottom.
+ * The three things Terrain can put down, each a tab of the strip along the bottom.
  *
  * The open tab, not a rail button, decides what a click on the board places -
  * the TaleSpire arrangement the user asked for. That makes tab and tool two
  * views of one fact, so the mapping is data here rather than a ternary in a
  * view, and `terrainTabOf` is the only way back from a tool to its tab.
+ *
+ * There were four. Tiles and Structures were separate tabs putting down separate things -
+ * one painted the ground a walk was costed on, the other stamped scenery a walk ignored -
+ * and they are one tab now, because a kind of tile can be a structure. What a click does
+ * is decided by the kind of tile in hand: one that names a structure is stamped as a
+ * piece, one that does not is painted as ground.
  */
-export type TerrainTab = 'tiles' | 'ground' | 'props' | 'objects';
+export type TerrainTab = 'tiles' | 'props' | 'objects';
 
 /** The strip's order, left to right. */
-export const TERRAIN_TABS: readonly TerrainTab[] = ['tiles', 'ground', 'props', 'objects'];
+export const TERRAIN_TABS: readonly TerrainTab[] = ['tiles', 'props', 'objects'];
 
 /** The tool opening a tab puts in hand: what a plain click on the board then does. */
 export const TERRAIN_TAB_TOOL: Readonly<Record<TerrainTab, EditorTool>> = {
-  tiles: 'buildTile',
-  ground: 'placeTile',
+  tiles: 'placeTile',
   props: 'prop',
   objects: 'interactable',
 };
 
 /** What the rail offers beside each tab: the same subject's other verbs. */
 export const TERRAIN_RAIL: Readonly<Record<TerrainTab, readonly EditorTool[]>> = {
-  tiles: ['eraseTile'],
-  ground: ['raise', 'lower'],
+  // Raise and Lower join Erase here: the ground they move and the pieces they stand under
+  // are one subject now, and there is no second tab left for them to belong to.
+  tiles: ['eraseTile', 'raise', 'lower'],
   props: ['erase'],
   objects: ['erase'],
 };

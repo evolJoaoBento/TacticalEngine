@@ -22,7 +22,6 @@ import {
   BUILD_LIMIT,
   BUILD_MATERIALS,
   BUILD_MATERIAL_IDS,
-  BUILD_SHAPES,
   isBuildCoordinate,
   isBuildZ,
 } from '../../engine/scene/building';
@@ -83,9 +82,8 @@ export function InspectorSide(props: {
 }
 
 const TERRAIN_HINTS: Partial<Record<EditorTool, string>> = {
-  buildTile: 'Drag to place pieces at Z height. Hold Alt and point the mouse toward a tile edge to rotate in that direction.',
   eraseTile: 'Drag to remove the latest piece at each position and Z height. Click again to remove the next overlapping piece.',
-  placeTile: 'Click to put down the tile picked below. The brush places a square of them at once.',
+  placeTile: 'Click to put down the tile picked below. A kind that is a structure is stamped at Z height and stacks; one that is not is painted flat. The brush covers a square either way.',
   raise: 'Drag to raise the ground a level. One drag is one undo.',
   lower: 'Drag to lower the ground a level. One drag is one undo.',
   prop: 'Hold Alt and point the mouse in the direction the prop should face, then click to place. Click an existing matching prop to turn it.',
@@ -93,10 +91,10 @@ const TERRAIN_HINTS: Partial<Record<EditorTool, string>> = {
   erase: 'Click a prop to remove it, then the object under it.',
 };
 
-const BRUSHED: readonly EditorTool[] = ['placeTile', 'raise', 'lower', 'buildTile', 'eraseTile'];
+const BRUSHED: readonly EditorTool[] = ['placeTile', 'raise', 'lower', 'eraseTile'];
 
 /** Tools that place at `buildLevel`, and so want the Z controls beside them. */
-const LEVELLED: readonly EditorTool[] = ['buildTile', 'eraseTile', 'prop', 'interactable'];
+const LEVELLED: readonly EditorTool[] = ['placeTile', 'eraseTile', 'prop', 'interactable'];
 
 /**
  * The board-edge elevation ladder shared by terrain placement and creatures.
@@ -283,7 +281,10 @@ export function TerrainSide(props: {
 }): preact.JSX.Element {
   const { controller, session } = props;
   const tool = controller.state.tool;
-  const building = tool === 'buildTile' || tool === 'eraseTile';
+  // What is in hand, not which tool: the placer stamps a piece when the kind of tile it
+  // holds is a structure, so the controls a piece needs follow the tile rather than a verb.
+  const structure = controller.heldStructure();
+  const building = tool === 'eraseTile' || (tool === 'placeTile' && structure !== undefined);
   const [x, setX] = useState('0');
   const [y, setY] = useState('0');
   const goX = typedNumber(x, isBuildCoordinate);
@@ -299,22 +300,6 @@ export function TerrainSide(props: {
       <div class="ph-hint">{TERRAIN_HINTS[tool] ?? ''}</div>
       {building ? (
         <>
-          <div class="ph-heading">Tile pieces</div>
-          <div class="ph-row ph-build-pieces">
-            {BUILD_SHAPES.map((shape) => (
-              <button
-                key={shape}
-                class={controller.state.buildShape === shape ? 'ph-chip ph-on' : 'ph-chip'}
-                data-testid={`build-${shape}`}
-                onClick={() => {
-                  controller.set('buildShape', shape);
-                  props.onChange();
-                }}
-              >
-                {shape[0]!.toUpperCase() + shape.slice(1)}
-              </button>
-            ))}
-          </div>
           <div class="ph-heading">Material</div>
           <div class="ph-row">
             {BUILD_MATERIAL_IDS.map((material) => (
@@ -331,7 +316,7 @@ export function TerrainSide(props: {
               </button>
             ))}
           </div>
-          {controller.state.buildShape === 'wall' ? (
+          {structure === 'wall' ? (
             <>
               <div class="ph-heading">Wall edge</div>
               <div class="ph-row">
@@ -380,30 +365,11 @@ export function TerrainSide(props: {
         </button>
       ) : null}
       {tool === 'placeTile' ? (
-        <>
-          <div class="ph-heading">Drawn with</div>
-          <select
-            class="ph-select"
-            data-testid="terrain-model"
-            aria-label={`What ${controller.state.tileId} is drawn with`}
-            value={terrainModelOf(session, controller.state.tileId)}
-            onChange={(e) => {
-              const picked = e.currentTarget.value;
-              controller.setTerrainModel(controller.state.tileId, picked === '' ? null : picked);
-              props.onChange();
-            }}
-          >
-            <option value="">Colour, not a model</option>
-            {modelChoices(session).map((id) => (
-              <option key={id} value={id}>{id}</option>
-            ))}
-          </select>
-          <div class="ph-note">
-            Every tile of this kind stands one of these. What a walk costs and what a click
-            hits is the tile itself, not the model, so a file that fails to load leaves the
-            room playable.
-          </div>
-        </>
+        <div class="ph-note">
+          {structure === undefined
+            ? 'Painted flat, one kind to a cell. Give this kind a Structure in the Tiles workspace to stamp it as a piece that stacks instead.'
+            : `Stamped as a ${structure} at the Z height below, stacking on whatever is already there. A walk over the cell reads whichever kind of tile ends up on top.`}
+        </div>
       ) : null}
       {LEVELLED.includes(tool) ? (
         <>

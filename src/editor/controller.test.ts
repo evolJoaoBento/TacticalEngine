@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { blankScene } from '../engine/scene/grid-from-scene';
+import { DEFAULT_TERRAIN_TYPES } from '../engine/grid/terrain';
 import { projectSchema, sceneSchema } from '../engine/scene/schema';
 import { EditorController, type EditorTool } from './controller';
 import { EditorSession, addScene, removeInteractable } from './session';
@@ -20,6 +21,30 @@ function setup(width = 8, height = 6): { session: EditorSession; editor: EditorC
     sceneId: 'room',
     onChange: (c) => changes.push(c),
   });
+  return { session, editor, changes };
+}
+
+/**
+ * A room whose palette has a kind of tile that is a structure.
+ *
+ * The engine's four are all ground - `wall` included, deliberately, so every cell painted
+ * with it before the two halves were fused stays exactly what it was - so a test that
+ * wants a piece stamped has to declare a kind that is one.
+ */
+function stacking(): { session: EditorSession; editor: EditorController; changes: string[] } {
+  const project = projectSchema.parse({
+    id: 'demo',
+    name: 'Demo',
+    scenes: [sceneSchema.parse(blankScene('room', 8, 6))],
+    startScene: 'room',
+    terrainPalette: [
+      { id: 'floor', name: 'Floor', passable: true, cost: 1, providesCover: false, blocksSight: false },
+      { id: 'rampart', name: 'Rampart', passable: false, cost: 1, providesCover: true, blocksSight: true, structure: 'wall' },
+    ],
+  });
+  const session = new EditorSession(project);
+  const changes: string[] = [];
+  const editor = new EditorController({ session, sceneId: 'room', onChange: (c) => changes.push(c) });
   return { session, editor, changes };
 }
 
@@ -744,8 +769,9 @@ describe("terrain's open tab", () => {
     const { editor } = setup();
     editor.setMode('terrain');
     editor.openTerrainTab('tiles');
-    expect(editor.state.tool).toBe('buildTile');
-    expect(TERRAIN_RAIL[editor.terrainTab]).toEqual(['eraseTile']);
+    // One tab for the ground and for what stacks on it, so it hands over the placer.
+    expect(editor.state.tool).toBe('placeTile');
+    expect(TERRAIN_RAIL[editor.terrainTab]).toEqual(['eraseTile', 'raise', 'lower']);
 
     // Erase belongs to Props and Objects, never to Tiles: picking it from the
     // Tiles tab must move the strip rather than leave the tool off the rail.
@@ -773,12 +799,12 @@ describe("terrain's open tab", () => {
   it('reopens the last tab when Terrain is entered holding somebody else’s tool', () => {
     const { editor } = setup();
     editor.setMode('terrain');
-    editor.openTerrainTab('ground');
+    editor.openTerrainTab('props');
     editor.setMode('inspect');
     expect(editor.state.tool).toBe('select');
     editor.setMode('terrain');
-    expect(editor.terrainTab).toBe('ground');
-    expect(editor.state.tool).toBe('placeTile');
+    expect(editor.terrainTab).toBe('props');
+    expect(editor.state.tool).toBe('prop');
   });
 
   it('says once that the plane moved, so a view follows the change and not the level', () => {
@@ -799,8 +825,9 @@ describe("terrain's open tab", () => {
   });
 
   it('ends the drag when the build plane moves, so a stroke cannot span two storeys', () => {
-    const { editor, session } = setup();
-    editor.setTool('buildTile');
+    const { editor, session } = stacking();
+    editor.setTool('placeTile');
+    editor.set('tileId', 'rampart');
     editor.begin({ x: 0, y: 0 });
     editor.setBuildLevel(2.25);
     editor.begin({ x: 0, y: 0 });
@@ -1033,16 +1060,15 @@ describe('changing what kinds of tile a project has', () => {
     expect(changes).toEqual(['terrain', 'terrain', 'terrain']);
   });
 
-  it('writes the engine four down first, so the others do not vanish', () => {
+  it('writes the engine kinds down first, so the others do not vanish', () => {
     const { editor, session } = setup();
     editor.addTile(bog);
     // A palette of one would say the project had one kind of ground, and every scene
-    // painted on the other three would fall back to it.
+    // painted on the rest would fall back to it. Taken from the engine's own list rather
+    // than spelled out here: it grew when the stackable kinds arrived, and a copy of it in
+    // a test is a copy that goes stale.
     expect(session.project.terrainPalette!.map((t) => t.id)).toEqual([
-      'floor',
-      'difficult',
-      'cover',
-      'wall',
+      ...DEFAULT_TERRAIN_TYPES.map((t) => t.id),
       'bog',
     ]);
   });

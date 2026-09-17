@@ -5,7 +5,6 @@
  */
 
 const PATHS = {
-  buildTile: 'M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8',
   eraseTile: 'M4 8l8-4 8 4v8l-8 4-8-4zM8 10l8 6M16 10l-8 6',
   inspect: 'M5 3l6.5 17 2.2-7.3L21 10.5z',
   terrain: 'M2 19l6.5-11 4 6.5 3-4.5L22 19z',

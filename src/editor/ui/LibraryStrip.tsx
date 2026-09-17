@@ -36,27 +36,6 @@ const RIGHT = '#6f6f6f';
 const GOLD = '#d7b96b';
 const GLOW = '#5f8ad0';
 
-/** A stackable piece, isometric. */
-function TileIcon(props: { id: string }): preact.JSX.Element {
-  return (
-    <svg viewBox="0 0 80 80" width="60" height="60" aria-hidden="true" class="ph-tile-icon">
-      {props.id === 'tile-stairs' ? (
-        <>
-          <path d="M10 53l30 17 30-17V23L40 6v10l-10 6v10l-10 6v10z" fill={RIGHT} />
-          <path d="M10 53l30 17V60L20 48m0-10l30 17V45L30 32m0-10l30 17V29L40 16" fill={LEFT} />
-          <path d="M40 6l30 17-10 6-30-17M30 22l30 17-10 6-30-17M20 38l30 17-10 5-30-17" fill={TOP} />
-        </>
-      ) : (
-        <g transform={props.id === 'tile-floor' ? 'translate(0 40) scale(1 .35)' : props.id === 'tile-wall' ? 'translate(18 0) scale(.55 1)' : ''}>
-          <path d="M10 24L40 7l30 17-30 17z" fill={TOP} />
-          <path d="M10 24l30 17v33L10 57z" fill={LEFT} />
-          <path d="M40 41l30-17v33L40 74z" fill={RIGHT} />
-        </g>
-      )}
-    </svg>
-  );
-}
-
 /** An interactable kind, in the same isometric greys, with its one telling detail picked out. */
 function ObjectIcon(props: { kind: string }): preact.JSX.Element {
   let body: preact.JSX.Element;
@@ -132,9 +111,11 @@ export function LibraryStrip(props: LibraryStripProps): preact.JSX.Element {
   const items = searching ? filterLibrary(props.tabs, query) : (tab?.items ?? []);
 
   const face = (item: LibraryItem): preact.JSX.Element | null => {
-    if (item.tab === 'tiles') return <TileIcon id={item.id} />;
-    if (item.tab === 'objects') return <ObjectIcon kind={item.id} />;
+    // The swatch first, because Tiles is every kind of tile now rather than four shapes
+    // with ids of their own. `TileIcon` drew its glyph off a `tile-<shape>` id, and there
+    // are no such ids left: a structure is a kind of tile, and shows the colour it declares.
     if (item.swatch !== undefined) return null;
+    if (item.tab === 'objects') return <ObjectIcon kind={item.id} />;
     const picture = props.thumbnail?.(item) ?? null;
     if (picture === null) return <span class="ph-glyph">{item.label.slice(0, 1)}</span>;
     return (

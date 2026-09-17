@@ -102,6 +102,18 @@ export const DEFAULT_TERRAIN_TYPES: readonly TerrainType[] = [
   terrain('difficult', { name: 'Difficult Terrain', cost: 2, color: '#6b6350' }),
   terrain('cover', { name: 'Cover', providesCover: true, color: '#7d7a6d' }),
   terrain('wall', { name: 'Wall', passable: false, cost: Infinity, blocksSight: true, color: '#3b3f4a' }),
+  // The stackable four, one per atom the engine builds from. They are appended rather than
+  // folded into the flat four above, and that is the whole compatibility story: `wall`
+  // stays ground, so every cell painted with it before the two halves were fused is still
+  // exactly what it was, and `floor` stays index 0 so a zeroed tile array is open floor.
+  //
+  // Nothing costs less than 1 to enter. Pathfinding takes its A* heuristic from the
+  // cheapest passable cost in the palette, so a kind cheaper than the ground would quietly
+  // change how every search in the game explores.
+  terrain('platform', { name: 'Platform', structure: 'floor', color: '#8a7d63' }),
+  terrain('steps', { name: 'Steps', structure: 'stairs', color: '#9a958c' }),
+  terrain('block', { name: 'Block', structure: 'block', passable: false, cost: Infinity, blocksSight: true, color: '#8a8994' }),
+  terrain('barrier', { name: 'Barrier', structure: 'wall', passable: false, cost: Infinity, blocksSight: true, color: '#6f6a63' }),
 ];
 
 /**

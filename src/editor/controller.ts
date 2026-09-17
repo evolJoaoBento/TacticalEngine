@@ -16,7 +16,7 @@ import { toContentId } from '../engine/content/types';
 import { isBuildCoordinate, isBuildZ, type BuildingTile } from '../engine/scene/building';
 import { BuildingEdit } from './building';
 import type { Deco, Encounter, Interactable, Point, SceneDoc } from '../engine/scene/schema';
-import { addTerrainType, removeTerrainType, setTerrainModel, updateTerrainType } from './terrain-edits';
+import { addTerrainType, defaultPalette, removeTerrainType, setTerrainModel, updateTerrainType, type TileType } from './terrain-edits';
 import {
   MODE_TOOLS,
   TERRAIN_TAB_TOOL,
@@ -47,7 +47,6 @@ import { moveAdversary, moveDeco, moveInteractable, moveSpawn } from './move-edi
 export type EditorTool =
   /** Click things to inspect them; changes nothing. */
   | 'select'
-  | 'buildTile'
   | 'eraseTile'
   | 'placeTile'
   | 'raise'
@@ -65,11 +64,22 @@ export type EditorTool =
  * `placeTile` is deliberately not one: a placer puts a tile where it is clicked, and
  * `paint` returns early for anything not named here, so leaving it out is what makes the
  * difference between placing and painting. Its brush still covers a square.
+ *
+ * That holds now that the placer stamps structures as well as painting ground. Building
+ * used to be a drag, and is a click like everything else it was fused with - the user
+ * asked for a placer and named it one.
  */
-const CONTINUOUS = new Set<EditorTool>(['raise', 'lower', 'erase', 'buildTile', 'eraseTile']);
+const CONTINUOUS = new Set<EditorTool>(['raise', 'lower', 'erase', 'eraseTile']);
 
 export interface EditorToolState {
-  /** Which construction piece the build tool stamps. */
+  /**
+   * The structure the held kind of tile is.
+   *
+   * Written by the controller from `tileId`, never chosen by hand: since the two halves
+   * were fused, a piece's shape is a property of the kind of tile being placed rather than
+   * a separate choice beside it. It stays on the tool state because the preview ghost
+   * reads it every frame, and a frame is not the place to resolve a palette.
+   */
   buildShape: BuildingTile['shape'];
   /** The colour a stamped piece is made of; presentation only. */
   buildMaterial: BuildingTile['material'];
@@ -270,6 +280,36 @@ export class EditorController {
 
   set<K extends keyof EditorToolState>(key: K, value: EditorToolState[K]): void {
     this.state[key] = value;
+    // The shape follows the kind of tile in. The ghost reads `buildShape` every frame, so
+    // a type picked off the strip has to bring its structure with it before the first
+    // click - deriving it only where a piece is stamped would preview the last one.
+    if (key === 'tileId') this.state.buildShape = this.heldStructure() ?? this.state.buildShape;
+  }
+
+  /**
+   * The kind of tile the placer is holding, or nothing when the palette has lost it.
+   *
+   * A held id can go stale - the type it names is removed while it is in hand - so this
+   * misses rather than throwing, and a miss means the placer paints ground.
+   */
+  heldType(): TileType | undefined {
+    const declared = this.session.project.terrainPalette ?? defaultPalette();
+    return declared.find((type) => type.id === this.state.tileId);
+  }
+
+  /** The structure the held kind of tile is, or nothing when it is ground. */
+  heldStructure(): string | undefined {
+    return this.heldType()?.structure;
+  }
+
+  /**
+   * Whether a click would stamp a piece rather than paint ground.
+   *
+   * The question the fused placer turns on, and the one the view asks to know whether the
+   * pointer is aiming at the building plane or at the floor.
+   */
+  placesStructure(): boolean {
+    return this.state.tool === 'placeTile' && this.heldStructure() !== undefined;
   }
 
   /** Press. Applies the tool once; a continuous tool then follows the pointer. */
@@ -286,7 +326,7 @@ export class EditorController {
     if (!this.dragging) return 'none';
     if (this.carrying !== null) return this.carry(point);
     if (!CONTINUOUS.has(this.state.tool)) return 'none';
-    if ((this.state.tool === 'buildTile' || this.state.tool === 'eraseTile') && this.lastBuildingPoint) {
+    if (this.state.tool === 'eraseTile' && this.lastBuildingPoint) {
       const previous = this.lastBuildingPoint;
       this.lastBuildingPoint = { ...point };
       const steps = Math.max(Math.abs(point.x - previous.x), Math.abs(point.y - previous.y));
@@ -298,7 +338,7 @@ export class EditorController {
             x: Math.round(previous.x + (point.x - previous.x) * i / steps),
             y: Math.round(previous.y + (point.y - previous.y) * i / steps),
           };
-          if (this.apply(at, false, false) !== 'none') changed = 'building';
+          if (this.apply(at, false, false) !== 'none') changed = 'terrain';
         }
         if (changed !== 'none') this.onChange(changed);
         return changed;
@@ -321,7 +361,7 @@ export class EditorController {
   }
 
   private apply(point: Point, pressed: boolean, notify = true): EditorChange {
-    if (this.state.tool === 'buildTile' || this.state.tool === 'eraseTile') {
+    if (this.state.tool === 'eraseTile' || this.placesStructure()) {
       const { state } = this;
       if (!isBuildCoordinate(point.x)) return 'none';
       if (!isBuildCoordinate(point.y)) return 'none';
@@ -329,8 +369,12 @@ export class EditorController {
       const changed = this.session.run(
         new BuildingEdit(this.sceneId, this.brushPieces(point), state.tool === 'eraseTile'),
       );
-      if (changed && notify) this.onChange('building');
-      return changed ? 'building' : 'none';
+      // 'terrain', not 'building'. A stamped piece is a kind of tile now, so the grid has
+      // to be rebuilt for a walk to meet it - `'building'` only redraws the scenery, and a
+      // wall you could stroll through is what that would leave. `rebuildTerrain` syncs the
+      // building view on its way past, so nothing stops being drawn.
+      if (changed && notify) this.onChange('terrain');
+      return changed ? 'terrain' : 'none';
     }
     const scene = this.scene;
     if (['prop', 'interactable', 'adversary'].includes(this.state.tool) || (this.mode === 'terrain' && this.state.tool === 'erase')) {
@@ -373,10 +417,13 @@ export class EditorController {
           x,
           y,
           level: state.buildLevel,
-          shape: state.buildShape,
+          shape: this.heldStructure() ?? state.buildShape,
           material: state.buildMaterial,
           rotation: state.buildRotation,
           height: state.buildHeight,
+          // What the piece is, so a walk over it has something to read. This is the field
+          // that makes a stamped block a kind of tile rather than scenery.
+          tile: state.tileId,
         });
       }
     }
@@ -386,7 +433,6 @@ export class EditorController {
   private run(point: Point, tiles: number[], pressed: boolean): EditorChange {
     const { session, sceneId, state } = this;
     switch (state.tool) {
-      case 'buildTile':
       case 'eraseTile': return 'none'; // Sparse tools are handled before rectangular bounds.
       case 'select': {
         if (!pressed) return 'none';

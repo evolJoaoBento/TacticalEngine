@@ -136,11 +136,13 @@ test('open tabs drive placement; edge walls overlap floors and preserve Z throug
   await page.getByTestId('mode-terrain').click();
   const strip = page.getByTestId('terrain-library');
   // The open tab puts the placement tool in hand, so none of them is on the rail.
-  const placementTools = '[data-tool="buildTile"], [data-tool="prop"], [data-tool="interactable"], [data-tool="placeTile"]';
+  const placementTools = '[data-tool="prop"], [data-tool="interactable"], [data-tool="placeTile"]';
   await expect(page.locator(placementTools)).toHaveCount(0);
-  await strip.locator('[data-item="tile-floor"]').click();
+  // Strip cards are kinds of tile now, named by their terrain id: the `tile-<shape>` cards
+  // went with the Structures tab they belonged to.
+  await strip.locator('[data-item="platform"]').click();
   await page.evaluate(() => window.__engine!.buildAt(8, 6));
-  await strip.locator('[data-item="tile-wall"]').click();
+  await strip.locator('[data-item="barrier"]').click();
   for (const edge of ['North', 'East', 'South', 'West']) {
     await page.getByLabel(`Wall ${edge}`, { exact: true }).click();
     await page.evaluate(() => window.__engine!.buildAt(8, 6));

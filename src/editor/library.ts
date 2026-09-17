@@ -44,43 +44,40 @@ export function titleCase(id: string): string {
 
 const FALLBACK_SWATCH = '#5d8a4a';
 
-/**
- * Structures has no models and no ids of its own: one card per shape the build tool stamps.
- *
- * Named for what it holds rather than for the tab it sits in. These are stackable scenery at
- * any height, which movement ignores; the Tiles tab beside it is the ground a walk is costed
- * on. Both were called Tiles until the placer arrived and made the collision visible.
- *
- * The id stays `tiles`: the strip draws its icon off it, and the tab-id tests name it.
- */
-export function buildingTab(): LibraryTab {
-  return { id: 'tiles', label: 'Structures', items: BUILD_SHAPES.map((shape) => ({
-    tab: 'tiles', id: `tile-${shape}`, label: titleCase(shape), detail: 'Stackable', keywords: ['building', shape],
-  })) };
-}
-
-/** What the strip needs of a kind of ground: what to call it and what colour to show. */
+/** What the strip needs of a kind of tile: what to call it, what colour, and whether it stacks. */
 export interface GroundType {
   readonly id: string;
   readonly name?: string;
   readonly color?: string;
+  /** The structure it is, if it is one. Marks the card as something that stacks. */
+  readonly structure?: string;
 }
 
 /**
- * Ground has no model to show, so each kind is a colour swatch.
+ * Every kind of tile the project has, as colour swatches.
+ *
+ * One tab, where there were two. Structures used to be a tab of its own listing the four
+ * shapes a build tool stamped, and picking one put a different tool in hand; a kind of tile
+ * carries its own structure now, so what used to be the choice between two tabs is the
+ * choice between two kinds of tile in one.
  *
  * Takes the types rather than a list of ids and a table of colours: a project can declare a
- * kind of ground, and a swatch looked up in a table the engine wrote would never have it.
+ * kind of tile, and a swatch looked up in a table the engine wrote would never have it.
  */
 export function tilesTab(types: readonly GroundType[]): LibraryTab {
   return {
-    id: 'ground',
+    id: 'tiles',
     label: 'Tiles',
     items: types.map((type) => ({
-      tab: 'ground',
+      tab: 'tiles',
       id: type.id,
       label: type.name !== undefined && type.name !== '' ? type.name : titleCase(type.id),
       swatch: type.color ?? FALLBACK_SWATCH,
+      // What tells the two apart on the strip, now that they sit side by side: one of these
+      // is stamped at a height and stacks, the other is painted flat.
+      ...(type.structure === undefined
+        ? {}
+        : { detail: 'Stackable', keywords: ['building', 'structure', type.structure] }),
     })),
   };
 }

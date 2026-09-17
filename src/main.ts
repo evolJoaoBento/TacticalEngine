@@ -894,7 +894,7 @@ function navigateBuilding(x: number, y: number): void {
 /** Whether a click would stamp or remove construction. */
 function buildingTool(): boolean {
   if (mode !== 'edit') return false;
-  return editor.state.tool === 'buildTile' || editor.state.tool === 'eraseTile';
+  return editor.placesStructure() || editor.state.tool === 'eraseTile';
 }
 
 /** Whether a click would put something down at `buildLevel`: a piece, a prop, an object, a creature. */
@@ -986,7 +986,7 @@ let altRotation: {
 } | null = null;
 
 function rotatablePlacement(): boolean {
-  return mode === 'edit' && (editor.carried === null ? editor.state.tool === 'buildTile' || editor.state.tool === 'prop' : editor.carriedFacing !== null);
+  return mode === 'edit' && (editor.carried === null ? editor.placesStructure() || editor.state.tool === 'prop' : editor.carriedFacing !== null);
 }
 
 function beginAltRotation(at: { clientX: number; clientY: number }): boolean {

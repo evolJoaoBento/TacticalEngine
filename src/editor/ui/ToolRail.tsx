@@ -11,7 +11,6 @@ import { Icon } from './icons';
 
 /** A tool's name, for a title, a button label, and the strip's hint text. */
 export const TOOL_LABELS: Readonly<Record<EditorTool, string>> = {
-  buildTile: 'Build tiles',
   eraseTile: 'Erase building tiles',
   select: 'Select',
   placeTile: 'Place tiles',

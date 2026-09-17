@@ -134,7 +134,12 @@ describe('adding, changing and removing a kind of tile', () => {
     const doc = project();
     const edit = removeTerrainType('cover');
     edit.apply(doc);
-    expect(doc.terrainPalette!.map((t) => t.id)).toEqual(['floor', 'difficult', 'wall']);
+    // Everything the engine ships except the one taken out. Spelled out, this was the one
+    // assertion in the file that held a copy of the engine's list rather than deriving it,
+    // and it went stale the moment the stackable kinds were added.
+    expect(doc.terrainPalette!.map((t) => t.id)).toEqual(
+      DEFAULT_TERRAIN_TYPES.map((t) => t.id).filter((id) => id !== 'cover'),
+    );
 
     edit.undo(doc);
     expect(doc.terrainPalette!.map((t) => t.id)).toEqual(DEFAULT_TERRAIN_TYPES.map((t) => t.id));

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NO_TILE, TileGrid } from './grid';
+import { NOTHING_STACKED, NO_TILE, TileGrid } from './grid';
 import { DEFAULT_TERRAIN_TYPES, TerrainPalette, terrain } from './terrain';
 import { paletteForProject } from '../scene/grid-from-scene';
 
@@ -190,6 +190,62 @@ describe('a grid taking on rebuilt ground', () => {
     // Writing to the one it copied from does not reach into the one that adopted.
     rebuilt.setHeight(0, 9);
     expect(live.heightAt(0)).toBe(5);
+  });
+
+  it('takes what is stacked as well as the ground, and copies that too', () => {
+    const live = new TileGrid({ width: 2, height: 2 });
+    const rebuilt = new TileGrid({ width: 2, height: 2 });
+    rebuilt.setOverlay(0, rebuilt.palette.require('wall'));
+    live.adopt(rebuilt);
+    expect(live.isPassable(0)).toBe(false);
+
+    // Shared arrays would let a stamp in a discarded grid reach the live one.
+    rebuilt.setOverlay(0, NOTHING_STACKED);
+    expect(live.isPassable(0)).toBe(false);
+  });
+});
+
+describe('a tile with something stacked on it', () => {
+  it('is walked on as the thing on top, not the ground under it', () => {
+    const g = grid();
+    // Open floor, with a wall placed on it as a kind of tile.
+    expect(g.isPassable(6)).toBe(true);
+    g.setOverlay(6, g.palette.require('wall'));
+
+    expect(g.isPassable(6)).toBe(false);
+    expect(g.costAt(6)).toBe(Infinity);
+    expect(g.blocksSight(6)).toBe(true);
+    expect(g.topAt(6).id).toBe('wall');
+  });
+
+  it('is still made of the ground it was, which is what draws it', () => {
+    const g = grid();
+    g.setOverlay(6, g.palette.require('wall'));
+    // The ground mesh is coloured by this and `tile-models` draws a floor from it: a wall
+    // standing on a cell does not turn the earth under it into wall.
+    expect(g.terrainAt(6).id).toBe('floor');
+  });
+
+  it('gives cover when what stands on it does, through the grid rather than the ground', () => {
+    const g = grid();
+    expect(g.providesCover(6)).toBe(false);
+    g.setOverlay(6, g.palette.require('cover'));
+    expect(g.providesCover(6)).toBe(true);
+    // Off the map is not cover, the way it is not passable.
+    expect(g.providesCover(NO_TILE)).toBe(false);
+  });
+
+  it('goes back to being ground when what stood on it is taken away', () => {
+    const g = grid();
+    g.setOverlay(6, g.palette.require('wall'));
+    g.setOverlay(6, NOTHING_STACKED);
+    expect(g.isPassable(6)).toBe(true);
+    expect(g.topAt(6).id).toBe('floor');
+  });
+
+  it('starts bare, so a grid nothing was stamped on is the grid it always was', () => {
+    const g = grid();
+    for (let i = 0; i < g.size; i++) expect(g.topAt(i)).toBe(g.terrainAt(i));
   });
 });
 

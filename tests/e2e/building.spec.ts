@@ -120,6 +120,9 @@ test('builds outside the board, stacks, rotates, erases and restores saved tiles
   await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
   await expect(page.locator('[data-tab="tiles"]')).toHaveClass(/ph-on/);
+  // Tiles is one tab now, holding the ground and the kinds that stack on it alike, so what
+  // a click does is decided by the kind in hand rather than by which tab is open.
+  await page.evaluate(() => window.__engine!.setTerrain('block'));
   await page.getByLabel('Build X', { exact: true }).fill('-900000');
   await page.getByLabel('Build Y', { exact: true }).fill('900000');
   await page.getByRole('button', { name: 'Go', exact: true }).click();
@@ -130,7 +133,9 @@ test('builds outside the board, stacks, rotates, erases and restores saved tiles
   await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().residentChunks)).toBe(1);
 
   await page.getByRole('button', { name: 'Raise build level', exact: true }).click();
-  await page.getByTestId('build-stairs').click();
+  // The shape comes off the kind of tile: there are no shape chips beside the strip any
+  // more, because a piece's shape is what the kind being placed says it is.
+  await page.evaluate(() => window.__engine!.setTerrain('steps'));
   await page.getByTestId('build-rotate').click();
   // Use the same public controller path to stamp an upper level.
   expect(await page.evaluate(() => window.__engine!.buildAt(-900000, 900000))).toBe(true);

@@ -25,8 +25,7 @@ import type { Interactable } from '../../engine/scene/schema';
 import type { EditorController, EditorTool } from '../controller';
 import type { EditorSession } from '../session';
 import { EDITOR_MODES, MODE_TOOLS, TERRAIN_RAIL, isTerrainTab, type EditorMode } from '../modes';
-import { BUILD_SHAPES } from '../../engine/scene/building';
-import { buildingTab, creatureTabs, objectsTab, propsTab, tilesTab, type GroundType, type LibraryItem } from '../library';
+import { creatureTabs, objectsTab, propsTab, tilesTab, type GroundType, type LibraryItem } from '../library';
 import { validateProject, type Problem } from '../validate';
 import { TopBar, type Menu, type Workspace } from './TopBar';
 import { SceneMenu } from './SceneMenu';
@@ -250,12 +249,9 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
   /** A pick from Terrain's strip puts the matching tool in hand. */
   const pickForTerrain = (item: LibraryItem): void => {
     if (item.tab === 'tiles') {
-      controller.setTool('buildTile');
-      // The strip's id is a label, not a promise: an unknown one leaves the
-      // shape alone rather than reaching `buildingTileSchema.parse` and throwing.
-      const shape = BUILD_SHAPES.find((candidate) => `tile-${candidate}` === item.id);
-      if (shape !== undefined) controller.set('buildShape', shape);
-    } else if (item.tab === 'ground') {
+      // One branch where there were two. The kind of tile decides what a click does - the
+      // placer stamps it as a piece when it names a structure and paints it as ground when
+      // it does not - so picking one is picking both the thing and the verb.
       controller.setTool('placeTile');
       controller.set('tileId', item.id);
     } else if (item.tab === 'props') {
@@ -273,11 +269,11 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
     bump();
   };
   const terrainPicked =
-    tool === 'buildTile' ? `tile-${controller.state.buildShape}` : tool === 'prop'
+    tool === 'prop'
       ? controller.state.propModel
       : tool === 'interactable'
         ? controller.state.interactableKind
-        : tool === 'placeTile'
+        : tool === 'placeTile' || tool === 'eraseTile'
           ? controller.state.tileId
           : '';
 
@@ -307,7 +303,6 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
             bump();
           }}
           tabs={[
-            buildingTab(),
             tilesTab(props.terrainTypes),
             propsTab(props.propModels, session.project.assets.map((a) => a.id)),
             objectsTab(),

@@ -14,7 +14,6 @@ import {
 } from './modes';
 
 const ALL_TOOLS: readonly EditorTool[] = [
-  'buildTile',
   'eraseTile',
   'select',
   'placeTile',
@@ -71,7 +70,7 @@ describe("terrain's tabs", () => {
     for (const tool of MODE_TOOLS.terrain) {
       const owner = TERRAIN_TABS.find((tab) => TERRAIN_TAB_TOOL[tab] === tool || TERRAIN_RAIL[tab].includes(tool));
       expect(owner, tool).toBeDefined();
-      expect(terrainTabOf(tool, 'tiles'), tool).toBe(tool === 'buildTile' || tool === 'eraseTile' ? 'tiles' : owner);
+      expect(terrainTabOf(tool, 'tiles'), tool).toBe(owner);
     }
   });
 
@@ -90,7 +89,17 @@ describe("terrain's tabs", () => {
   });
 
   it("leave the tab alone for a tool no tab owns", () => {
-    expect(terrainTabOf('adversary', 'ground')).toBe('ground');
+    expect(terrainTabOf('adversary', 'props')).toBe('props');
+  });
+
+  it('put the ground and the things stacked on it in one tab', () => {
+    // There were two: Structures stamped pieces a walk ignored, Tiles painted the ground a
+    // walk was costed on. A kind of tile carries its own structure now, so the choice
+    // between the tabs became a choice between kinds of tile within one.
+    expect(TERRAIN_TABS).toEqual(['tiles', 'props', 'objects']);
+    expect(TERRAIN_TAB_TOOL.tiles).toBe('placeTile');
+    // Raise and Lower came with the ground they move; there is no second tab for them now.
+    expect(TERRAIN_RAIL.tiles).toEqual(['eraseTile', 'raise', 'lower']);
   });
 
   it('recognise their own ids and no others', () => {

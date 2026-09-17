@@ -5,12 +5,31 @@ import { buildingParts, buildingTilesSchema } from '../engine/scene/building';
 import { EditorController } from './controller';
 import { EditorSession } from './session';
 
-/** One small room with the build tool in hand, which is where every case starts. */
+/**
+ * One small room with a stackable kind of tile in hand, which is where every case starts.
+ *
+ * There is no build tool any more: the placer stamps a piece when the kind of tile it
+ * holds names a structure, and paints ground when it does not. So the palette has to
+ * declare kinds that are structures - the engine's four are all ground, `wall` included,
+ * so that every cell painted with it before the fusion stays what it was.
+ */
 function setup() {
-  const project = projectSchema.parse({ id: 'test', startScene: 'room', scenes: [blankScene('room', 4, 4)] });
+  const project = projectSchema.parse({
+    id: 'test',
+    startScene: 'room',
+    scenes: [blankScene('room', 4, 4)],
+    terrainPalette: [
+      { id: 'floor', name: 'Floor', passable: true, cost: 1, providesCover: false, blocksSight: false },
+      { id: 'pier', name: 'Pier', passable: true, cost: 1, providesCover: false, blocksSight: false, structure: 'floor' },
+      { id: 'rampart', name: 'Rampart', passable: false, cost: 1, providesCover: true, blocksSight: true, structure: 'wall' },
+      { id: 'flight', name: 'Flight', passable: true, cost: 1, providesCover: false, blocksSight: false, structure: 'stairs' },
+      { id: 'plinth', name: 'Plinth', passable: false, cost: 1, providesCover: false, blocksSight: false, structure: 'block' },
+    ],
+  });
   const session = new EditorSession(project);
   const editor = new EditorController({ session, sceneId: 'room' });
-  editor.setTool('buildTile');
+  editor.setTool('placeTile');
+  editor.set('tileId', 'plinth');
   return { project, session, editor, scene: editor.scene };
 }
 
@@ -23,9 +42,9 @@ function stamp(editor: EditorController, x: number, y: number): void {
 describe('sparse construction', () => {
   it('keeps four edge walls, a floor and repeated identical pieces at the same position', () => {
     const { editor, scene, session, project } = setup();
-    editor.set('buildShape', 'floor');
+    editor.set('tileId', 'pier');
     stamp(editor, 0, 0);
-    editor.set('buildShape', 'wall');
+    editor.set('tileId', 'rampart');
     for (let rotation = 0; rotation < 4; rotation++) {
       editor.set('buildRotation', rotation);
       stamp(editor, 0, 0);
@@ -52,16 +71,16 @@ describe('sparse construction', () => {
     // Two vertical units coexist until part 2 unifies them: the plane the piece
     // stands on counts tiles, while `heights[]` counts whole levels, so painting
     // the ground from the same tab must not write 2.25 into it.
-    editor.openTerrainTab('ground');
-    editor.set('tileId', 'wall');
+    editor.openTerrainTab('tiles');
+    editor.set('tileId', 'floor');
     editor.begin({ x: 1, y: 1 });
     editor.paint({ x: 2, y: 1 });
     editor.end();
     expect(scene.heights[5]).toBe(0);
-    expect(scene.terrain[5]).toBe('wall');
-    expect(gridFromScene(scene).grid.heightAt(5)).toBe(0);
-    session.undo();
     expect(scene.terrain[5]).toBe('floor');
+    expect(gridFromScene(scene).grid.heightAt(5)).toBe(0);
+    // Painted ground, not a stamped piece: `floor` names no structure.
+    expect(scene.buildingTiles!['1,1,2.25']).toBeUndefined();
   });
   it('takes placement behavior from the open tab, retaining each tab selection', () => {
     const { editor, scene } = setup();
@@ -75,12 +94,15 @@ describe('sparse construction', () => {
     stamp(editor, -20, 80);
     expect(Object.values(scene.buildingTiles!)).toHaveLength(1);
   });
-  it('fills skipped pointer samples in a stroke and undoes it once', () => {
+  it('stamps where it is clicked rather than following a drag', () => {
     const { editor, scene, session } = setup();
     editor.begin({ x: -20, y: 0 });
     editor.paint({ x: -10, y: 0 });
     editor.end();
-    expect(Object.keys(scene.buildingTiles!)).toHaveLength(11);
+    // One piece, not eleven. Building used to be a drag that filled in every sample it
+    // skipped; it is a placer now, because that is what it was fused with and what the
+    // user asked for by name. Erase is still a drag - it is on the rail, not the strip.
+    expect(Object.keys(scene.buildingTiles!)).toEqual(['-20,0,0']);
     session.undo();
     expect(scene.buildingTiles).toBeUndefined();
   });
@@ -96,26 +118,25 @@ describe('sparse construction', () => {
   it('coalesces a brush drag, retains overlapping pieces, and redoes it', () => {
     const { editor, scene, session } = setup();
     stamp(editor, -4, 0);
-    editor.set('buildShape', 'stairs');
+    editor.set('tileId', 'flight');
     editor.set('buildRotation', 3);
-    editor.begin({ x: -4, y: 0 });
-    editor.paint({ x: -3, y: 0 });
-    editor.paint({ x: -2, y: 0 });
-    editor.end();
-    expect(Object.keys(scene.buildingTiles!)).toHaveLength(4);
+    editor.set('brushSize', 3);
+    stamp(editor, -3, 0);
+    // A brush still covers a square in one click, which is the one undo step.
+    expect(Object.keys(scene.buildingTiles!)).toHaveLength(10);
     session.undo();
     expect(Object.keys(scene.buildingTiles!)).toEqual(['-4,0,0']);
+    // The shape came off the kind of tile, not a chip beside it.
     expect(scene.buildingTiles!['-4,0,0']!.shape).toBe('block');
+    expect(scene.buildingTiles!['-4,0,0']!.tile).toBe('plinth');
     session.redo();
-    expect(Object.keys(scene.buildingTiles!)).toHaveLength(4);
     expect(scene.buildingTiles!['-4,0,0#1']!.rotation).toBe(3);
+    expect(scene.buildingTiles!['-4,0,0#1']!.shape).toBe('stairs');
   });
   it('erases only the chosen level and undoes a complete first stroke to the original document', () => {
     const { editor, scene, session, project } = setup();
     const before = JSON.stringify(project);
-    editor.begin({ x: 1000, y: 0 });
-    editor.paint({ x: 1001, y: 0 });
-    editor.end();
+    stamp(editor, 1000, 0);
     session.undo();
     expect(JSON.stringify(project)).toBe(before);
     session.redo();
@@ -136,7 +157,6 @@ describe('sparse construction', () => {
     editor.set('brushSize', 3);
     editor.begin({ x: 1_000_000, y: 1_000_000 });
     expect(Object.keys(scene.buildingTiles!)).toHaveLength(4);
-    expect(editor.paint({ x: 1_000_000, y: 1_000_000 })).toBe('none');
     editor.end();
     session.undo();
     expect(scene.buildingTiles).toBeUndefined();

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OBJECT_KINDS, buildingTab, creatureTabs, filterLibrary, tilesTab, objectsTab, propsTab, titleCase } from './library';
+import { OBJECT_KINDS, creatureTabs, filterLibrary, tilesTab, objectsTab, propsTab, titleCase } from './library';
 
 const CREATURES = [
   { id: 'jagged-knife-bandit', name: 'Jagged Knife Bandit', tier: 1 as const, role: 'standard' as const },
@@ -9,9 +9,17 @@ const CREATURES = [
 ];
 
 describe('the library', () => {
-  it('offers searchable, stackable construction pieces', () => {
-    expect(buildingTab().items.map((item) => item.id)).toEqual(['tile-block', 'tile-floor', 'tile-wall', 'tile-stairs']);
-    expect(filterLibrary([buildingTab()], 'building stairs').map((item) => item.id)).toEqual(['tile-stairs']);
+  it('marks the kinds of tile that stack, and finds them by what they are', () => {
+    // Structures used to be a tab of its own listing four shapes with ids like
+    // `tile-stairs`. They are kinds of tile now, so what says a card stacks is the kind
+    // naming a structure - and searching for the old words still finds it.
+    const tab = tilesTab([
+      { id: 'floor', name: 'Floor', color: '#5d8a4a' },
+      { id: 'rampart', name: 'Rampart', color: '#7d7a6d', structure: 'wall' },
+    ]);
+    expect(tab.items.map((item) => item.detail)).toEqual([undefined, 'Stackable']);
+    expect(filterLibrary([tab], 'building').map((item) => item.id)).toEqual(['rampart']);
+    expect(filterLibrary([tab], 'structure wall').map((item) => item.id)).toEqual(['rampart']);
   });
   it('names ids the way a person would', () => {
     expect(titleCase('deadTree')).toBe('Dead Tree');
@@ -26,11 +34,11 @@ describe('the library', () => {
       // No colour of its own, and no table to look one up in: it takes the fallback.
       { id: 'water' },
     ]);
-    expect(tab.id).toBe('ground');
+    expect(tab.id).toBe('tiles');
     expect(tab.items.map((i) => [i.id, i.label, i.swatch, i.tab])).toEqual([
-      ['floor', 'Floor', '#5d8a4a', 'ground'],
-      ['lava', 'Lava', '#c4441f', 'ground'],
-      ['water', 'Water', '#5d8a4a', 'ground'],
+      ['floor', 'Floor', '#5d8a4a', 'tiles'],
+      ['lava', 'Lava', '#c4441f', 'tiles'],
+      ['water', 'Water', '#5d8a4a', 'tiles'],
     ]);
   });
 

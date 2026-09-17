@@ -102,6 +102,67 @@ describe('sceneTerrainFromGrid', () => {
   });
 });
 
+describe('the building layer resolved onto the grid', () => {
+  const room = (buildingTiles: Record<string, unknown>): SceneDoc =>
+    sceneSchema.parse({ ...blankScene('room', 4, 3), buildingTiles });
+  const piece = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+    x: 1, y: 1, level: 0, shape: 'block', material: 'stone', rotation: 0, ...over,
+  });
+
+  it('makes a cell what is stacked on it, leaving the ground underneath alone', () => {
+    const { grid } = gridFromScene(room({ '1,1,0': piece({ tile: 'wall' }) }));
+    const tile = grid.indexOf(1, 1);
+    expect(grid.isPassable(tile)).toBe(false);
+    expect(grid.blocksSight(tile)).toBe(true);
+    // Still floor: the ground is what draws the cell, and a wall on it is a thing on it.
+    expect(grid.terrainAt(tile).id).toBe('floor');
+  });
+
+  it('leaves a piece that names no kind as scenery', () => {
+    // Every piece placed before the two halves were fused looks like this. It draws, and
+    // a walk goes straight through it, which is exactly how it always behaved.
+    const { grid } = gridFromScene(room({ '1,1,0': piece() }));
+    expect(grid.isPassable(grid.indexOf(1, 1))).toBe(true);
+  });
+
+  it('takes the topmost piece when several stand on one cell', () => {
+    const { grid } = gridFromScene(
+      room({
+        '1,1,0': piece({ tile: 'wall' }),
+        '1,1,1': piece({ level: 1, tile: 'difficult' }),
+      }),
+    );
+    // The last thing you would step onto, not the first: difficult ground over the wall.
+    const tile = grid.indexOf(1, 1);
+    expect(grid.isPassable(tile)).toBe(true);
+    expect(grid.costAt(tile)).toBe(2);
+  });
+
+  it('is not displaced by a lower piece written later in the document', () => {
+    const { grid } = gridFromScene(
+      room({
+        '1,1,2': piece({ level: 2, tile: 'difficult' }),
+        '1,1,0': piece({ tile: 'wall' }),
+      }),
+    );
+    expect(grid.isPassable(grid.indexOf(1, 1))).toBe(true);
+  });
+
+  it('ignores a piece standing outside the room', () => {
+    // The building layer reaches to a million on each axis; the grid is the room.
+    const { grid } = gridFromScene(room({ '40,40,0': piece({ x: 40, y: 40, tile: 'wall' }) }));
+    for (let tile = 0; tile < grid.size; tile++) expect(grid.isPassable(tile)).toBe(true);
+  });
+
+  it('leaves a piece naming a kind the palette lost to Check, rather than guessing', () => {
+    const { grid, issues } = gridFromScene(room({ '1,1,0': piece({ tile: 'rampart' }) }));
+    // Not stacked, and not an issue here either: `gridFromScene` reports unknown *ground*,
+    // and Check is what reports a piece whose kind has gone.
+    expect(grid.isPassable(grid.indexOf(1, 1))).toBe(true);
+    expect(issues).toEqual([]);
+  });
+});
+
 describe('paletteForProject', () => {
   it('uses the engine default when a project declares none', () => {
     expect(paletteForProject({}).has('floor')).toBe(true);

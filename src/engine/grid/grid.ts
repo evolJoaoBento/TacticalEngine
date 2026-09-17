@@ -15,6 +15,9 @@ import { TerrainPalette, type TerrainType } from './terrain';
 /** Not a tile. Returned by lookups that fall outside the grid. */
 export const NO_TILE = -1;
 
+/** Nothing stacked on a tile: the ground is what a walk meets there. */
+export const NOTHING_STACKED = -1;
+
 /**
  * A place on the board in tile units, continuous: (0, 0) is the centre of
  * the first tile, (0.5, 0) its east edge. Where a creature actually stands;
@@ -44,6 +47,20 @@ export class TileGrid {
   readonly heights: Int16Array;
   /** Terrain palette index per tile, row-major. */
   readonly terrain: Uint8Array;
+  /**
+   * What is stacked on each tile, as a palette index, or -1 for nothing. Row-major.
+   *
+   * The ground is one kind of tile per cell and always there; a structure is a piece
+   * stamped on top of it, and a cell can carry several at different heights. This is the
+   * topmost of them - what a walk actually meets - resolved once when the grid is built
+   * rather than searched for on every query.
+   *
+   * Deliberately separate from `terrain` rather than replacing it, because the two are
+   * asked different questions. `terrainAt` is "what is the ground here", which is what the
+   * ground mesh is coloured by and what the tile models are drawn from; the movement
+   * methods ask "what is on top here", and get this when there is anything.
+   */
+  readonly overlay: Int16Array;
 
   constructor(options: GridOptions) {
     const { width, height } = options;
@@ -57,6 +74,7 @@ export class TileGrid {
     const count = width * height;
     this.heights = new Int16Array(count);
     this.terrain = new Uint8Array(count);
+    this.overlay = new Int16Array(count).fill(NOTHING_STACKED);
     if (options.fillHeight !== undefined && options.fillHeight !== 0) {
       this.heights.fill(options.fillHeight);
     }
@@ -117,24 +135,61 @@ export class TileGrid {
     this.palette = other.palette;
     this.terrain.set(other.terrain);
     this.heights.set(other.heights);
+    this.overlay.set(other.overlay);
   }
 
+  /**
+   * The ground at a tile: what it is made of, whatever has been stacked on it.
+   *
+   * Deliberately not overlay-aware. This is what the ground mesh is coloured by and what
+   * `tile-models` draws a floor from, and a wall stamped on a cell does not turn the earth
+   * under it into wall. What a walk meets is `topAt`, and every movement method uses that.
+   */
   terrainAt(index: number): TerrainType {
     return this.palette.at(this.terrain[index] ?? 0);
   }
 
+  /**
+   * What a creature standing on a tile actually meets: the topmost piece stacked there,
+   * or the ground when nothing is.
+   *
+   * This is the whole of the fusion as far as the rules are concerned. Cost, passability,
+   * cover and sight all read it, so a wall placed as a kind of tile stops a walk for the
+   * same reason a wall painted as ground always did - one question, asked in one place.
+   */
+  topAt(index: number): TerrainType {
+    const stacked = this.overlay[index] ?? NOTHING_STACKED;
+    return stacked === NOTHING_STACKED ? this.terrainAt(index) : this.palette.at(stacked);
+  }
+
   /** Movement points to enter a tile. `Infinity` for impassable terrain. */
   costAt(index: number): number {
-    const type = this.terrainAt(index);
+    const type = this.topAt(index);
     return type.passable ? type.cost : Infinity;
   }
 
   isPassable(index: number): boolean {
-    return this.isTile(index) && this.terrainAt(index).passable;
+    return this.isTile(index) && this.topAt(index).passable;
   }
 
   blocksSight(index: number): boolean {
-    return !this.isTile(index) || this.terrainAt(index).blocksSight;
+    return !this.isTile(index) || this.topAt(index).blocksSight;
+  }
+
+  /**
+   * Whether a creature standing here has cover.
+   *
+   * A method rather than something a caller reads off `terrainAt`, which is how `los.ts`
+   * used to ask: reaching through the ground meant a low wall stacked on a cell gave no
+   * cover to whoever sheltered behind it, while the same wall painted as ground did.
+   */
+  providesCover(index: number): boolean {
+    return this.isTile(index) && this.topAt(index).providesCover;
+  }
+
+  /** Stack a kind of tile on a cell, or `NOTHING_STACKED` to leave the ground bare. */
+  setOverlay(index: number, terrainIndex: number): void {
+    if (this.isTile(index)) this.overlay[index] = terrainIndex;
   }
 
   setTerrain(index: number, terrainIndex: number): void {
