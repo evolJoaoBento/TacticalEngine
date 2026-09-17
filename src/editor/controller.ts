@@ -233,7 +233,13 @@ export class EditorController {
     this.end();
     this.mode = mode;
     if (mode === 'terrain') {
-      if (MODE_TOOLS.terrain.includes(this.state.tool)) this.terrainTab = terrainTabOf(this.state.tool, this.terrainTab);
+      // Select is Terrain's own, but nobody reaches for it: the Inspector and Interaction
+      // both hand it over on entry, so arriving in Terrain holding it means arriving from a
+      // look rather than from a choice. It gets the tab's placer back, as any of somebody
+      // else's tools would - keeping it took the placer out of the hand of anyone who
+      // glanced at an object, which is the trip this tool was added to save.
+      const held = this.state.tool;
+      if (held !== 'select' && MODE_TOOLS.terrain.includes(held)) this.terrainTab = terrainTabOf(held, this.terrainTab);
       else this.setTool(TERRAIN_TAB_TOOL[this.terrainTab]);
       return;
     }

@@ -881,15 +881,13 @@ describe("terrain's open tab", () => {
     expect(editor.state.tool).toBe('prop');
   });
 
-  it('keeps Select when Terrain is re-entered holding it, because Terrain owns it now', () => {
-    // This used to be the case above: the Inspector hands you Select on entry, so coming
-    // back from a look at an object restored the tab's placer. Terrain owns Select now, so
-    // the rule at `setMode` that keeps one of its own tools applies to it as well.
-    //
-    // The trade is real and deliberate: nobody *chose* Select, the Inspector handed it over,
-    // and coming back with the placer gone is a papercut. The alternative is a special case
-    // for one tool inside a rule that is otherwise clean, so the rule wins until it annoys
-    // somebody.
+  it('hands the placer back when Terrain is re-entered after a look at something', () => {
+    // Terrain owns Select, so `setMode`'s rule about keeping one of its own tools would
+    // have kept it - and that special case earns its keep. Nobody reaches for Select: the
+    // Inspector hands it over on entry, so holding it on the way back means having glanced
+    // at an object, not having chosen a tool. Keeping it took the placer out of the hand of
+    // anyone who looked at anything, and broke the Z ladder with it, because the ladder
+    // follows what is being placed.
     const { editor } = setup();
     editor.setMode('terrain');
     editor.openTerrainTab('props');
@@ -897,8 +895,17 @@ describe("terrain's open tab", () => {
     expect(editor.state.tool).toBe('select');
     editor.setMode('terrain');
     expect(editor.terrainTab).toBe('props');
+    expect(editor.state.tool).toBe('prop');
+  });
+
+  it('keeps Select when it was picked in Terrain, rather than arrived with', () => {
+    // Picking it off the rail is a choice, and it survives a tab change the way any tool
+    // the open tab owns does.
+    const { editor } = setup();
+    editor.setMode('terrain');
+    editor.setTool('select');
+    expect(editor.mode).toBe('terrain');
     expect(editor.state.tool).toBe('select');
-    // And the rail beside that tab shows it, so it is never held unseen.
     expect(TERRAIN_RAIL[editor.terrainTab]).toContain('select');
   });
 
