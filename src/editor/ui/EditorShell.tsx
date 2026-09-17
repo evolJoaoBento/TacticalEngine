@@ -28,6 +28,7 @@ import { EDITOR_MODES, MODE_TOOLS, TERRAIN_RAIL, isTerrainTab, type EditorMode }
 import { creatureTabs, objectsTab, propsTab, tilesTab, type GroundType, type LibraryItem } from '../library';
 import { validateProject, type Problem } from '../validate';
 import { TopBar, type Menu, type Workspace } from './TopBar';
+import { FrameRate } from './FrameRate';
 import { SceneMenu } from './SceneMenu';
 import { ToolRail } from './ToolRail';
 import { LibraryStrip } from './LibraryStrip';
@@ -438,6 +439,7 @@ export function EditorShell(props: EditorShellProps): preact.JSX.Element {
         onPlay={props.onPlay}
         onPlayHere={props.onPlayHere}
       />
+      <FrameRate />
       {body}
       {openGraph !== null ? (
         <div class="ph-workspace">

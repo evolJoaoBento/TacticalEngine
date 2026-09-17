@@ -45,6 +45,69 @@ test('the top bar holds the four modes in the order the user set, and 1-4 switch
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
+test('the frame rate reads under the top bar, and counts frames rather than guessing', async ({ page }) => {
+  const errors = await editing(page);
+  const fps = page.locator('[data-testid="frame-rate"]');
+  await expect(fps).toBeVisible();
+  // A number, once it has two frames to compare - not the em dash it starts at.
+  await expect.poll(async () => (await fps.innerText()).trim(), { timeout: 10_000 }).toMatch(/^\d+ fps$/);
+
+  // Centred under the bar, which is the 40px the rail, the panels and the strip all start
+  // at. Asserted rather than eyeballed because a readout that drifts over the modes or the
+  // board is worse than none.
+  const [box, bar] = await Promise.all([fps.boundingBox(), page.locator('[data-testid="top-bar"]').boundingBox()]);
+  expect(box).not.toBeNull();
+  expect(bar).not.toBeNull();
+  expect(box!.y).toBeGreaterThanOrEqual(bar!.y + bar!.height - 1);
+  const drift = Math.abs(box!.x + box!.width / 2 - (bar!.x + bar!.width / 2));
+  expect(drift).toBeLessThan(2);
+
+  // It takes no pointer events, so the board underneath stays clickable through the middle
+  // of the screen - the whole reason it is not a panel.
+  const middle = await page.evaluate(() => {
+    const el = document.querySelector('[data-testid="frame-rate"]') as HTMLElement;
+    const r = el.getBoundingClientRect();
+    return (document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) as HTMLElement).dataset.testid ?? '';
+  });
+  expect(middle).not.toBe('frame-rate');
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
+test('an object can be drawn with any model the project has, and put back to its kind', async ({ page }) => {
+  const errors = await editing(page);
+  await page.evaluate(() => {
+    const api = window.__engine!;
+    api.selectObject(api.objects().find((id) => id.startsWith('chest'))!);
+  });
+
+  // Null until something is picked: the kind's own body is what `scene-view` falls back to,
+  // and the schema spells "no model of its own" as null rather than as an empty string.
+  expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBeNull();
+
+  const picker = page.locator('[data-testid="object-model"]');
+  await expect(picker).toBeVisible();
+  // Every shipped .glb is in `project.assets`, discovered from public/models at build time,
+  // so the same list that re-skins a creature re-skins a chest.
+  await expect(picker.locator('option[value="stone-block"]')).toHaveCount(1);
+  await picker.selectOption('stone-block');
+  expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBe('stone-block');
+
+  // It goes through `updateInteractable` like every other field in this panel, so the top
+  // bar's undo reaches it rather than the document being written behind the session's back.
+  await page.locator('[data-testid="undo"]').click();
+  expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBeNull();
+  await page.locator('[data-testid="redo"]').click();
+  expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBe('stone-block');
+
+  // And back to the kind's own body: the empty option must write null, not ''. Asserted on
+  // the value rather than with a second undo, because successive edits to the same field
+  // share a merge key and coalesce into one step (`session.ts:481`, pinned by
+  // `session.test.ts:722`) - so an undo here rewinds the whole model change, not this half.
+  await picker.selectOption('');
+  expect(await page.evaluate(() => window.__engine!.objectField('model'))).toBeNull();
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
 test('the editor is Blender-grey: white on the selected tab, blue only on the one primary button', async ({ page }) => {
   const errors = await editing(page);
   const active = page.locator('[data-testid="mode-inspect"]');

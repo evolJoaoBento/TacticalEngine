@@ -84,6 +84,17 @@
 .ph-editor .ph-button:hover { background: #4a4a4a; }
 .ph-editor .ph-button.ph-primary { background: var(--ph-accent); border-color: var(--ph-accent); color: var(--ph-on-accent); }
 
+/* Frames per second, centred under the top bar. Below the bar's own z-index so a menu
+   opening over it wins, and it never takes `pointer-events` - it is a readout, and the
+   board underneath it has to stay clickable through the middle of the screen. */
+.ph-editor .ph-fps {
+  position: absolute; top: 44px; left: 50%; transform: translateX(-50%); z-index: 4;
+  padding: 2px 8px; border-radius: 0 0 3px 3px;
+  background: rgba(24, 24, 24, 0.8); border: 1px solid var(--ph-line); border-top: 0;
+  color: var(--ph-muted); font: 500 11px/1.5 system-ui, sans-serif; white-space: nowrap;
+}
+.ph-editor .ph-fps b { color: var(--ph-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
 /* Menus */
 .ph-editor .ph-menu {
   position: absolute; top: 36px; left: 0; z-index: 6; min-width: 230px; padding: 4px;

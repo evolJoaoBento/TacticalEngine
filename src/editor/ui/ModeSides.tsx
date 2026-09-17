@@ -65,6 +65,7 @@ export function InspectorSide(props: {
       ) : (
         <Inspector
           interactable={object}
+          models={modelChoices(session)}
           {...props.ids}
           onChange={(changes) => {
             session.run(updateInteractable(sceneId, object.id, changes));
@@ -451,7 +452,10 @@ function terrainModelOf(session: EditorSession, terrainId: string): string {
   return session.project.terrainPalette?.find((t) => t.id === terrainId)?.model ?? '';
 }
 
-/** Every model a creature can be pointed at: the library's, plus what the project imported. */
+/**
+ * Every model a creature or an object can be pointed at: the library's, plus what the
+ * project imported - which is every `.glb` in `public/models`, discovered at build time.
+ */
 function modelChoices(session: EditorSession): string[] {
   return [
     ...new Set([...MODELS.map((m) => m.id), ...session.project.assets.map((a) => a.id)]),

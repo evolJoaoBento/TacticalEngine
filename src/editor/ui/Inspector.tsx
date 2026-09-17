@@ -23,6 +23,12 @@ export interface InspectorProps {
   dialogueIds: readonly string[];
   encounterIds: readonly string[];
   quests: readonly QuestDef[];
+  /**
+   * Every model an object can be drawn with: the library's, plus everything the project
+   * imported or ships. Passed in rather than read here, because this component is handed
+   * its subject and never the session - the same reason it takes `quests` and the id lists.
+   */
+  models: readonly string[];
 }
 
 
@@ -110,6 +116,30 @@ export function Inspector(props: InspectorProps): preact.JSX.Element {
         {(['chest', 'door', 'pillar', 'portal', 'scripted'] as const).map((kind) => (
           <option key={kind} value={kind}>
             {kind}
+          </option>
+        ))}
+      </select>
+
+      <label style={label}>Drawn with</label>
+      <select
+        style={field}
+        data-testid="object-model"
+        aria-label={`What ${object.id} is drawn with`}
+        value={object.model ?? ''}
+        onChange={(e) => {
+          const picked = (e.target as HTMLSelectElement).value;
+          // Unset is `null`, not '': the schema's "no model of its own" is null, and an
+          // empty string would be a model id nothing can resolve.
+          props.onChange({ model: picked === '' ? null : picked });
+        }}
+      >
+        {/* The kind's own body is what `scene-view` falls back to. A `scripted` object has
+            none, so for that one the fallback is the editor's gold mark and nothing in play,
+            which is why the label says what it does rather than naming a shape. */}
+        <option value="">The kind's own body</option>
+        {props.models.map((id) => (
+          <option key={id} value={id}>
+            {id}
           </option>
         ))}
       </select>
