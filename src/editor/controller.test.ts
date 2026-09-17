@@ -55,62 +55,74 @@ function drag(editor: EditorController, y: number, from: number, to: number): vo
   editor.end();
 }
 
+/** The keys of the pieces a scene carries, in the order they were stamped. */
+const stamped = (session: EditorSession): string[] =>
+  Object.keys(session.requireScene('room').buildingTiles ?? {});
+
 describe('placing tiles', () => {
-  it('puts a tile down where it is clicked, and does not follow a drag', () => {
-    const { editor, session } = setup();
+  it('puts a piece down where it is clicked, and does not follow a drag', () => {
+    const { editor, session } = stacking();
     editor.setTool('placeTile');
-    editor.set('tileId', 'wall');
+    editor.set('tileId', 'rampart');
     drag(editor, 0, 0, 3);
 
     // The press placed one; the drag across the next three did nothing. That is the
     // whole difference between a placer and the brush it replaced.
-    const scene = session.requireScene('room');
-    expect(scene.terrain[0]).toBe('wall');
-    expect(scene.terrain.slice(1, 4)).toEqual(['floor', 'floor', 'floor']);
+    expect(stamped(session)).toEqual(['0,0,0']);
   });
 
   it('places a square brush', () => {
-    const { editor, session } = setup();
+    const { editor, session } = stacking();
     editor.setTool('placeTile');
-    editor.set('tileId', 'wall');
+    editor.set('tileId', 'rampart');
     editor.set('brushSize', 3);
     editor.begin({ x: 2, y: 2 });
     editor.end();
 
-    const scene = session.requireScene('room');
-    expect(scene.terrain.filter((t) => t === 'wall')).toHaveLength(9);
-    expect(scene.terrain[2 + 2 * 8]).toBe('wall');
+    expect(stamped(session)).toHaveLength(9);
+    expect(stamped(session)).toContain('2,2,0');
   });
 
-  it('clips a brush at the edge rather than wrapping', () => {
-    const { editor, session } = setup();
+  it('places outside the room, because the building layer reaches past it', () => {
+    // This asked the opposite question while the placer painted ground: a painted cell had
+    // to be in the terrain array, so a click past the edge was ignored. A piece is not in
+    // that array - it is keyed by its own coordinates and reaches a million tiles out - so
+    // the click lands, and the room being 8 by 6 has nothing to do with it.
+    const { editor, session, changes } = stacking();
     editor.setTool('placeTile');
-    editor.set('tileId', 'wall');
-    editor.set('brushSize', 3);
-    editor.begin({ x: 0, y: 0 });
+    editor.set('tileId', 'rampart');
+    expect(editor.begin({ x: 99, y: 0 })).toBe('terrain');
     editor.end();
-    expect(session.requireScene('room').terrain.filter((t) => t === 'wall')).toHaveLength(4);
+    expect(stamped(session)).toEqual(['99,0,0']);
+    expect(changes).toEqual(['terrain']);
   });
 
-  it('ignores a click outside the scene', () => {
-    const { editor, changes } = setup();
+  it('does nothing at all when what is in hand is ground', () => {
+    // Ground is still the substrate - every cell holds a kind, and it is still drawn - but
+    // it stopped being something the placer puts down. A click with a kind of ground in
+    // hand changes no document and asks for no redraw.
+    const { editor, session, changes } = stacking();
     editor.setTool('placeTile');
-    expect(editor.begin({ x: 99, y: 0 })).toBe('none');
+    editor.set('tileId', 'floor');
+    const before = session.requireScene('room').terrain.join(',');
+    expect(editor.begin({ x: 1, y: 1 })).toBe('none');
+    editor.end();
+    expect(session.requireScene('room').terrain.join(',')).toBe(before);
+    expect(stamped(session)).toEqual([]);
     expect(changes).toEqual([]);
   });
 
   it('is one undo step per click, so two clicks are two', () => {
-    const { editor, session } = setup();
+    const { editor, session } = stacking();
     editor.setTool('placeTile');
-    editor.set('tileId', 'wall');
+    editor.set('tileId', 'rampart');
     editor.begin({ x: 0, y: 0 });
     editor.end();
     editor.begin({ x: 1, y: 0 });
     editor.end();
 
     session.undo();
-    expect(session.requireScene('room').terrain[1]).toBe('floor');
-    expect(session.requireScene('room').terrain[0]).toBe('wall');
+    expect(stamped(session)).toEqual(['0,0,0']);
   });
 });
 
@@ -480,10 +492,14 @@ describe('select and inspect', () => {
 
 describe('change notifications', () => {
   it('says which half of the view needs rebuilding', () => {
-    const { editor, changes } = setup();
+    const { editor, changes } = stacking();
     editor.setTool('placeTile');
+    editor.set('tileId', 'rampart');
     editor.begin({ x: 0, y: 0 });
-    editor.set('tileId', 'wall');
+    // Ground in hand: the click does nothing, so it asks for no rebuild. Said explicitly
+    // because the old shape of this test passed either way - it opened holding the kind
+    // every cell already was, so its first click was a no-op for a different reason.
+    editor.set('tileId', 'floor');
     editor.begin({ x: 1, y: 0 });
     editor.end();
 

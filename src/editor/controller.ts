@@ -34,7 +34,6 @@ import {
   addInteractable,
   adjustHeight,
   brushTiles,
-  placeTile,
   removeAdversary,
   removeDecoAt,
   removeInteractable,
@@ -61,13 +60,12 @@ export type EditorTool =
 /**
  * Tools that act on every tile a drag crosses.
  *
- * `placeTile` is deliberately not one: a placer puts a tile where it is clicked, and
- * `paint` returns early for anything not named here, so leaving it out is what makes the
- * difference between placing and painting. Its brush still covers a square.
+ * `placeTile` is deliberately not one: a placer puts a piece where it is clicked, and
+ * `paint` returns early for anything not named here, so leaving it out is what keeps a
+ * click a click. Its brush still covers a square.
  *
- * That holds now that the placer stamps structures as well as painting ground. Building
- * used to be a drag, and is a click like everything else it was fused with - the user
- * asked for a placer and named it one.
+ * Building used to be a drag, and is a click like everything else it was fused with - the
+ * user asked for a placer and named it one.
  */
 const CONTINUOUS = new Set<EditorTool>(['raise', 'lower', 'erase', 'eraseTile']);
 
@@ -118,7 +116,10 @@ export const DEFAULT_TOOL_STATE: EditorToolState = {
   buildRotation: 0,
   buildHeight: 1,
   tool: 'placeTile',
-  tileId: 'floor',
+  // The first kind that stacks, rather than the first kind there is. The placer puts down
+  // structures and nothing else now, so opening it holding a kind of ground would be a
+  // tool holding something it cannot place.
+  tileId: 'platform',
   propModel: 'crate',
   interactableKind: 'chest',
   adversaryId: 'bandit-cutter',
@@ -192,6 +193,12 @@ export class EditorController {
     this.session = options.session;
     this.sceneId = options.sceneId;
     this.state = { ...DEFAULT_TOOL_STATE, ...options.state };
+    // The derivation `set` does, for the kind the controller opens holding. The ghost reads
+    // `buildShape` every frame, so a controller built holding a kind whose shape had never
+    // been resolved would preview the wrong piece until something else was picked - which
+    // is what the two constants said between them before the default became a structure.
+    // A kind this project's palette does not have leaves the fallback where it is.
+    this.state.buildShape = this.heldStructure() ?? this.state.buildShape;
     this.onChange = options.onChange ?? ((): void => {});
     this.mode = modeOfTool(this.state.tool, 'inspect');
   }
@@ -290,7 +297,7 @@ export class EditorController {
    * The kind of tile the placer is holding, or nothing when the palette has lost it.
    *
    * A held id can go stale - the type it names is removed while it is in hand - so this
-   * misses rather than throwing, and a miss means the placer paints ground.
+   * misses rather than throwing, and a miss means the placer has nothing to put down.
    */
   heldType(): TileType | undefined {
     const declared = this.session.project.terrainPalette ?? defaultPalette();
@@ -455,10 +462,12 @@ export class EditorController {
         return 'content';
       }
 
-      // Each reports 'none' when the session discarded the edit as a no-op, so a
-      // viewport does not rebuild for a brush painting what was already there.
+      // Reached only when what is in hand is not a structure: `apply` sends the kinds that
+      // are down the building path long before here. Ground is still the substrate - every
+      // cell holds a kind, `scene.terrain` still carries it and it is still drawn - but it
+      // is no longer something the placer puts down, so this does nothing and says so.
       case 'placeTile':
-        return session.run(placeTile(sceneId, tiles, state.tileId)) ? 'terrain' : 'none';
+        return 'none';
 
       case 'raise':
         return session.run(adjustHeight(sceneId, tiles, 1)) ? 'terrain' : 'none';

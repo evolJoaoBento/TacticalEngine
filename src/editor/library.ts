@@ -68,17 +68,27 @@ export function tilesTab(types: readonly GroundType[]): LibraryTab {
   return {
     id: 'tiles',
     label: 'Tiles',
-    items: types.map((type) => ({
-      tab: 'tiles',
-      id: type.id,
-      label: type.name !== undefined && type.name !== '' ? type.name : titleCase(type.id),
-      swatch: type.color ?? FALLBACK_SWATCH,
-      // What tells the two apart on the strip, now that they sit side by side: one of these
-      // is stamped at a height and stacks, the other is painted flat.
-      ...(type.structure === undefined
-        ? {}
-        : { detail: 'Stackable', keywords: ['building', 'structure', type.structure] }),
-    })),
+    // Only the kinds that stack. The strip is what the placer picks from, and the placer
+    // puts down structures and nothing else, so a card for a kind of ground would be a card
+    // that does nothing when it is clicked. Ground is still every cell's substrate and is
+    // still edited in the Tiles workspace - it is only not a thing you place.
+    //
+    // `flatMap` rather than a filter and a map, so the structure is narrowed where it is
+    // read: after a `filter` it is still `string | undefined` to the compiler.
+    items: types.flatMap((type) =>
+      type.structure === undefined
+        ? []
+        : [
+            {
+              tab: 'tiles',
+              id: type.id,
+              label: type.name !== undefined && type.name !== '' ? type.name : titleCase(type.id),
+              swatch: type.color ?? FALLBACK_SWATCH,
+              // No "Stackable" detail any more: everything here stacks, so it said nothing.
+              keywords: ['building', 'structure', type.structure],
+            },
+          ],
+    ),
   };
 }
 

@@ -286,8 +286,8 @@ dialog. Firefox and Safari take the download fallback, which is covered by unit 
 A terrain type can name a model the way an adversary does. `terrain('floor', { model:
 'plank' })` stands one on every floor tile, at that tile's own height, from the library or
 from anything the project imported - so a `.glb` dropped into the Models panel customises
-the ground exactly as it customises a creature. Terrain mode's Ground tab has the picker,
-beside the ground it paints.
+the ground exactly as it customises a creature. The picker is in the Tiles workspace, on
+the kind of tile itself.
 
 The ground mesh is still built underneath, deliberately: a tile model is a look, and the
 grid is what a raycast hits, what a walk costs and how high a tile stands. A file that

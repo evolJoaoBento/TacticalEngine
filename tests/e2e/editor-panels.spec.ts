@@ -199,21 +199,30 @@ test('a scene added in the editor is in the project and can be switched to', asy
   expect(made.editing).toBe(made.id);
   expect(made.tiles, 'the new room has ground to build on').toBeGreaterThan(0);
 
-  // Put a tile down in it, and it sticks.
-  const painted = await page.evaluate(() => {
+  // Put a tile down in it, and it sticks. A piece stamped on the cell rather than a kind
+  // written into the ground: the placer puts down structures, so what says it landed is the
+  // new room's `buildingTiles` and not `terrainAt`, which reads the ground underneath and
+  // is the same either side of the edit by design.
+  const stamped = await page.evaluate((sceneId) => {
     const a = window.__engine!;
+    const pieces = (): string[] => {
+      const doc = JSON.parse(a.exportProject()) as {
+        scenes: { id: string; buildingTiles?: Record<string, unknown> }[];
+      };
+      return Object.keys(doc.scenes.find((scene) => scene.id === sceneId)?.buildingTiles ?? {});
+    };
     a.setMode('edit');
     a.setTool('placeTile');
-    a.setTerrain('water');
+    a.setTerrain('block');
     const ok = a.editAt(0);
-    return { ok, at: a.terrainAt(0), undone: a.undo(), afterUndo: a.terrainAt(0) };
-  });
-  console.log('PAINTED:', JSON.stringify(painted));
-  expect(painted.ok).toBe(true);
-  expect(painted.at).toBe('water');
+    return { ok, at: pieces(), undone: a.undo(), afterUndo: pieces() };
+  }, made.id);
+  console.log('STAMPED:', JSON.stringify(stamped));
+  expect(stamped.ok).toBe(true);
+  expect(stamped.at).toEqual(['0,0,0']);
   // Undo puts it back, which is what makes a map tool safe to try.
-  expect(painted.undone).toBe(true);
-  expect(painted.afterUndo).not.toBe('water');
+  expect(stamped.undone).toBe(true);
+  expect(stamped.afterUndo).toEqual([]);
 
   await page.screenshot({ path: 'test-results/editor-scene.png' });
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);

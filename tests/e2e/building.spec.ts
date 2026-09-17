@@ -204,8 +204,8 @@ test('renders a stacked build with a brush, level controls and bounded LOD', asy
   expect(loaded).toBe('');
   await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
-  // The kind before the coordinate boxes: they show for what is placed at a height, and
-  // flat ground is not, so holding the floor the placer opens on leaves them absent.
+  // Said explicitly rather than leant on: the placer opens holding a kind that stacks, so
+  // the coordinate boxes are already there, and this is which kind rather than whether.
   await page.evaluate(() => window.__engine!.setTerrain('platform'));
   await page.getByLabel('Build X', { exact: true }).fill('40');
   await page.getByLabel('Build Y', { exact: true }).fill('20');

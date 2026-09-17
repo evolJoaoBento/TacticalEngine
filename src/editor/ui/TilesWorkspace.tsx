@@ -254,9 +254,10 @@ export function TilesWorkspace(props: {
             ))}
           </select>
           <div class="ph-note">
-            Ground is painted flat, one kind to a cell. A structure is stamped as a piece
-            that stacks, and what a walk over that cell costs is read off whichever kind of
-            tile ended up on top.
+            Only a kind that is a structure can be placed: it is stamped as a piece that
+            stacks, and what a walk over that cell costs is read off whichever kind of tile
+            ended up on top. Ground is the substrate under all of it - every cell holds a
+            kind and it is still drawn - but it is not something the placer puts down.
           </div>
 
           <div class="ph-heading">Drawn with</div>

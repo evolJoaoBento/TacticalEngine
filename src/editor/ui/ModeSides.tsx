@@ -83,7 +83,7 @@ export function InspectorSide(props: {
 
 const TERRAIN_HINTS: Partial<Record<EditorTool, string>> = {
   eraseTile: 'Drag to remove the latest piece at each position and Z height. Click again to remove the next overlapping piece.',
-  placeTile: 'Click to put down the tile picked below. A kind that is a structure is stamped at Z height and stacks; one that is not is painted flat. The brush covers a square either way.',
+  placeTile: 'Click to put down the kind of tile picked below. It is stamped at the Z height beside it and stacks on whatever is already there. The brush covers a square.',
   raise: 'Drag to raise the ground a level. One drag is one undo.',
   lower: 'Drag to lower the ground a level. One drag is one undo.',
   prop: 'Hold Alt and point the mouse in the direction the prop should face, then click to place. Click an existing matching prop to turn it.',
@@ -96,8 +96,8 @@ const BRUSHED: readonly EditorTool[] = ['placeTile', 'raise', 'lower', 'eraseTil
 /**
  * Tools that place at `buildLevel`, and so want the Z controls beside them.
  *
- * `placeTile` is not one of them by itself: it does two things now, and only one of them
- * happens at a height. Flat ground goes down on the floor it is painted on, so a Z ladder
+ * `placeTile` is not one of them by itself: it places kinds of tile that are structures and
+ * nothing else, so a placer holding anything else has nothing to put down and a Z ladder
  * beside it is a control that changes nothing. `levelled` asks the further question.
  */
 const LEVELLED: readonly EditorTool[] = ['eraseTile', 'prop', 'interactable'];
@@ -381,7 +381,7 @@ export function TerrainSide(props: {
       {tool === 'placeTile' ? (
         <div class="ph-note">
           {structure === undefined
-            ? 'Painted flat, one kind to a cell. Give this kind a Structure in the Tiles workspace to stamp it as a piece that stacks instead.'
+            ? 'Nothing in hand stacks. Give a kind of tile a Structure in the Tiles workspace to place it.'
             : `Stamped as a ${structure} at the Z height below, stacking on whatever is already there. A walk over the cell reads whichever kind of tile ends up on top.`}
         </div>
       ) : null}

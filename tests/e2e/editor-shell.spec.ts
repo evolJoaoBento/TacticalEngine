@@ -203,22 +203,30 @@ test('the scene picker switches the room being edited, and the top bar undoes', 
   await page.locator('[data-testid="scene-menu"] [data-scene="the-pit"]').click();
   expect(await page.evaluate(() => window.__engine!.editScene())).toBe('the-pit');
 
-  const painted = await page.evaluate(() => {
+  // An edit is a piece stamped on a cell, not a kind written into the ground, so what says
+  // it landed is the scene's `buildingTiles` rather than `terrainAt` - which reads the
+  // ground underneath and is the same before and after by design.
+  const pieces = (): Promise<string[]> =>
+    page.evaluate(() => {
+      const doc = JSON.parse(window.__engine!.exportProject()) as {
+        scenes: { id: string; buildingTiles?: Record<string, unknown> }[];
+      };
+      return Object.keys(doc.scenes.find((scene) => scene.id === 'the-pit')?.buildingTiles ?? {});
+    });
+
+  const before = await pieces();
+  expect(before).not.toContain('0,0,0');
+  const landed = await page.evaluate(() => {
     const api = window.__engine!;
     api.setTool('placeTile');
-    api.setTerrain('wall');
-    // Find the first pit tile that is not 'wall'
-    let tile = 0;
-    const sceneTiles = api.sceneTiles();
-    while (tile < sceneTiles && api.terrainAt(tile) === 'wall') {
-      tile++;
-    }
-    const before = api.terrainAt(tile);
-    api.editAt(tile);
-    return { tile, before, after: api.terrainAt(tile) };
+    api.setTerrain('block');
+    return api.editAt(0);
   });
-  expect(painted.after).toBe('wall');
+  expect(landed).toBe(true);
+  expect(await pieces()).toContain('0,0,0');
+
+  // The top bar's undo reaches the scene being edited, which is the point of this test.
   await page.locator('[data-testid="undo"]').click();
-  expect(await page.evaluate((tile) => window.__engine!.terrainAt(tile), painted.tile)).toBe(painted.before);
+  expect(await pieces()).toEqual(before);
   expect(errors).toEqual([]);
 });

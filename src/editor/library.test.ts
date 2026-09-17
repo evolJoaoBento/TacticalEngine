@@ -17,9 +17,18 @@ describe('the library', () => {
       { id: 'floor', name: 'Floor', color: '#5d8a4a' },
       { id: 'rampart', name: 'Rampart', color: '#7d7a6d', structure: 'wall' },
     ]);
-    expect(tab.items.map((item) => item.detail)).toEqual([undefined, 'Stackable']);
+    // The ground is not on the strip at all: the placer puts down structures and nothing
+    // else, so a card for a kind of ground would do nothing when it was clicked.
+    expect(tab.items.map((item) => item.id)).toEqual(['rampart']);
     expect(filterLibrary([tab], 'building').map((item) => item.id)).toEqual(['rampart']);
     expect(filterLibrary([tab], 'structure wall').map((item) => item.id)).toEqual(['rampart']);
+  });
+
+  it('offers nothing when no kind of tile is a structure', () => {
+    // A project can declare a palette of pure ground - every project did, before kinds and
+    // structures were one thing. The strip is then empty rather than full of dead cards,
+    // and the placer's own panel is where that is explained.
+    expect(tilesTab([{ id: 'floor', name: 'Floor' }, { id: 'lava' }]).items).toEqual([]);
   });
   it('names ids the way a person would', () => {
     expect(titleCase('deadTree')).toBe('Dead Tree');
@@ -27,12 +36,12 @@ describe('the library', () => {
     expect(titleCase('wall')).toBe('Wall');
   });
 
-  it('shows ground as swatches, each kind in the colour it declares', () => {
+  it('shows each kind as a swatch, in the colour it declares', () => {
     const tab = tilesTab([
-      { id: 'floor', name: 'Floor', color: '#5d8a4a' },
-      { id: 'lava', name: 'Lava', color: '#c4441f' },
+      { id: 'floor', name: 'Floor', color: '#5d8a4a', structure: 'floor' },
+      { id: 'lava', name: 'Lava', color: '#c4441f', structure: 'block' },
       // No colour of its own, and no table to look one up in: it takes the fallback.
-      { id: 'water' },
+      { id: 'water', structure: 'block' },
     ]);
     expect(tab.id).toBe('tiles');
     expect(tab.items.map((i) => [i.id, i.label, i.swatch, i.tab])).toEqual([
@@ -42,8 +51,11 @@ describe('the library', () => {
     ]);
   });
 
-  it('takes the name a kind of ground was given, and titles its id when it has none', () => {
-    const tab = tilesTab([{ id: 'deep-water', name: 'Deep Water' }, { id: 'rot-marsh' }]);
+  it('takes the name a kind of tile was given, and titles its id when it has none', () => {
+    const tab = tilesTab([
+      { id: 'deep-water', name: 'Deep Water', structure: 'block' },
+      { id: 'rot-marsh', structure: 'block' },
+    ]);
     expect(tab.items.map((i) => i.label)).toEqual(['Deep Water', 'Rot Marsh']);
   });
 
