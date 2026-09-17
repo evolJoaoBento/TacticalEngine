@@ -969,15 +969,14 @@ export class SceneView {
     for (const modelId of this.tokenModels.values()) if (modelId === id) redraw = true;
     if (this.lastDecos.some((deco) => deco.model === id)) redraw = true;
     if (this.lastObjects.some((object) => object.model === id)) redraw = true;
+    if (drawsTileModel(this.grid, id)) redraw = true;
     if (!redraw) return;
     for (const [entityId, modelId] of [...this.tokenModels]) {
       if (modelId === id) this.dropToken(entityId);
     }
     if (this.lastState !== null) this.syncTokens(this.lastState);
     if (this.lastDecos.some((deco) => deco.model === id)) this.setDecos(this.lastDecos);
-    if (drawsTileModel(this.grid, id)) {
     this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id) => this.build(id), (group) => this.clipSets.delete(group));
-    }
     if (this.lastObjects.some((object) => object.model === id)) this.setObjects(this.lastObjects);
   }
 

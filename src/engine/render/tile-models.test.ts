@@ -96,9 +96,9 @@ describe('the ground drawn as models', () => {
     const centre = placementCentre(grid, DEFAULT_LAYOUT, { x: 2, y: 1 });
     expect(where.x).toBeCloseTo(centre.x, 6);
     expect(where.z).toBeCloseTo(centre.z, 6);
-    // Lifted by half the box, so a model built around its own middle sits on the tile
-    // rather than half-buried in it - and the raised tile carries it up.
-    expect(where.y).toBeCloseTo(centre.y + 0.5, 6);
+    // The tile's own surface: what `build` hands back is already seated, so the instance
+    // adds nothing to it. The raised tile carries it up.
+    expect(where.y).toBeCloseTo(centre.y, 6);
     expect(where.y).toBeGreaterThan(0.5);
   });
 
@@ -127,6 +127,32 @@ describe('the ground drawn as models', () => {
     // The mesh was disposed; its geometry was not, because the asset library owns it and
     // hands the same one to the thumbnails and to every token drawn from that model.
     expect(geometry.attributes['position']).toBeDefined();
+  });
+
+  it('carries what the project says about the model into every instance', () => {
+    const grid = new TileGrid({ width: 2, height: 1, palette: palette() });
+    grid.setTerrainById(0, 'planks');
+    grid.setTerrainById(1, 'planks');
+
+    // What `build` hands back for a shipped model: scaled by what the project declared.
+    const scaled = (): BuiltModel => {
+      const group = new Group();
+      group.add(new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial()));
+      group.scale.setScalar(0.5);
+      return { group, spec: { id: 'plank' } as BuiltModel['spec'], named: new Map(), hooks: new Map() };
+    };
+
+    const [group] = buildTileModels(grid, DEFAULT_LAYOUT, scaled);
+    const mesh = instancesIn(group!);
+    const at = new Matrix4();
+    mesh.getMatrixAt(0, at);
+    const size = new Vector3().setFromMatrixScale(at);
+
+    // Read off the built clone rather than the file: the template's own matrix is identity,
+    // so a scale of 0.5 was being dropped and every shipped tile drew at twice its size.
+    expect(size.x).toBeCloseTo(0.5, 6);
+    expect(size.y).toBeCloseTo(0.5, 6);
+    expect(size.z).toBeCloseTo(0.5, 6);
   });
 
   it('knows whether a late asset is one the ground is waiting for', () => {

@@ -20,7 +20,7 @@
  * because the two are separable — the view owns the groups and decides when to rebuild.
  */
 
-import { Box3, Group, InstancedMesh, Matrix4, Mesh, Object3D, Quaternion, Vector3 } from 'three';
+import { Group, InstancedMesh, Matrix4, Mesh, Object3D, Quaternion, Vector3 } from 'three';
 import type { TileGrid } from '../grid/grid';
 import { placementCentre, type TileLayout } from './layout';
 import type { BuiltModel } from './procedural/build';
@@ -35,7 +35,6 @@ const position = new Vector3();
 const offset = new Vector3();
 const rotation = new Quaternion();
 const scaling = new Vector3();
-const measured = new Box3();
 
 /**
  * The one mesh inside a built model, if it is the kind that can be instanced.
@@ -50,19 +49,6 @@ function loneMesh(model: Object3D): Mesh | null {
     if ((child as Mesh).isMesh) meshes.push(child as Mesh);
   });
   return meshes.length === 1 ? meshes[0]! : null;
-}
-
-/**
- * How far to lift a model so it sits on the tile rather than through it.
- *
- * `seatOnTile` does this by moving a clone; an instance cannot be moved, so the same
- * measurement is taken once per kind and folded into every matrix. The example tiles are
- * modelled around their own middle - half of each is below y=0 - so without this a floor
- * lies half-buried.
- */
-function seatingLift(mesh: Mesh): number {
-  measured.setFromObject(mesh);
-  return measured.isEmpty() ? 0 : -measured.min.y;
 }
 
 /** Which tiles carry each model, so one mesh can be built per kind rather than per cell. */
@@ -106,20 +92,25 @@ export function buildTileModels(grid: TileGrid, layout: TileLayout, build: Build
       continue;
     }
 
-    // Resolved first: `Box3` measures through world matrices, so a lift taken before this
-    // would be measured off a stale one. The mesh's own transform is part of how the file
-    // was authored, so every instance carries it.
-    mesh.updateWorldMatrix(true, false);
-    const lift = seatingLift(mesh) + (built.spec.groundOffset ?? 0);
+    // Decomposed from what `build` made, not from the file it was made from. The built
+    // clone already carries everything the project says about the model - its scale, its
+    // facing, how far across its tile it stands - and has been seated, feet on the tile.
+    // Reading the template instead dropped all of it: a shipped model declares a scale of
+    // 0.5 and drew at 1, and the seating was measured and added a second time.
+    built.group.updateWorldMatrix(true, true);
     mesh.matrixWorld.decompose(offset, rotation, scaling);
 
     const instances = new InstancedMesh(mesh.geometry, mesh.material, tiles.length);
     instances.name = `tiles:${modelId}:instances`;
-    instances.castShadow = true;
+    // A floor receives shadow and does not cast it. Casting would put every one of these
+    // through the depth pass as well - a room of them is millions of triangles rendered
+    // twice - to gain a tile's shadow on the tile beside it. `building-view` draws its own
+    // geometry the same way: it casts from the nearest detail only.
+    instances.castShadow = false;
     instances.receiveShadow = true;
     tiles.forEach((tile, i) => {
       const centre = placementCentre(grid, layout, { x: tile % grid.width, y: Math.floor(tile / grid.width) });
-      position.set(centre.x + offset.x, centre.y + lift + offset.y, centre.z + offset.z);
+      position.set(centre.x + offset.x, centre.y + offset.y, centre.z + offset.z);
       matrix.compose(position, rotation, scaling);
       instances.setMatrixAt(i, matrix);
     });

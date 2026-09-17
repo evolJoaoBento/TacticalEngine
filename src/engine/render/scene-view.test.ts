@@ -8,6 +8,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { AnimationClip, Box3, BoxGeometry, Color, Group, Matrix4, Mesh, Vector3, type InstancedMesh, type Line, type LineSegments } from 'three';
+import { InstancedMesh as InstancedMeshValue, MeshBasicMaterial, Object3D } from 'three';
+import { TerrainPalette, terrain } from '../grid/terrain';
 import { AssetLibrary, modelAssetSchema } from './assets';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
@@ -1064,6 +1066,47 @@ describe('a walk already under way', () => {
     // And it still arrives, so `advanceGlides` keeps the ending and the idle after it.
     view.tick(5);
     expect(view.glidingCount).toBe(0);
+    view.dispose();
+  });
+});
+
+describe('a file the ground is waiting for', () => {
+  it('redraws the ground when it lands, though nothing else in the room uses it', async () => {
+    let arrived: (scene: Object3D) => void = () => {};
+    const library = new AssetLibrary(
+      () => new Promise<Object3D>((resolve) => { arrived = resolve; }),
+      [modelAssetSchema.parse({ id: 'turf', url: '/turf.glb', scale: 1 })],
+    );
+    // A kind of ground drawn with the file, named before the view is built, and no
+    // creature, prop or object anywhere that names the same id.
+    const grid = new TileGrid({
+      width: 2,
+      height: 2,
+      palette: new TerrainPalette([terrain('floor', { model: 'turf' })]),
+    });
+    const view = new SceneView(grid, { assets: library });
+
+    const tileGroup = (): Group | undefined =>
+      view.root.children.find((c) => c.name.startsWith('tiles:')) as Group | undefined;
+    const instancedIn = (group: Group | undefined): boolean =>
+      group !== undefined && group.children.some((c) => c instanceof InstancedMeshValue);
+
+    // Built while the file is in flight: something stands there, and it is not instanced.
+    expect(tileGroup()).toBeDefined();
+    expect(instancedIn(tileGroup())).toBe(false);
+
+    const model = new Group();
+    model.add(new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial()));
+    arrived(model);
+    // The loader resolves, then the library notifies its listeners.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // The ground was rebuilt from the file. Without the fix `assetChanged` returned
+    // before reaching the tile layer, because no token, deco or object was waiting for
+    // the same id - and the placeholders stayed on screen while the asset read as ready.
+    expect(instancedIn(tileGroup())).toBe(true);
+    expect(library.statusOf('turf')).toBe('ready');
     view.dispose();
   });
 });
