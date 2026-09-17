@@ -4,6 +4,73 @@ For whoever picks this up next. `docs/DEVELOPING.md` says how to extend the engi
 `docs/CRPG-GAPS.md` audits what exists; this file says **what to build next** and carries the
 handful of working rules that are learned the expensive way rather than read.
 
+## Ground is the substrate, not something the placer puts down — done
+
+Painting ground is gone, at the user's word: "please remove painted ground entirely." The
+placer places kinds of tile that are structures and nothing else, and the strip offers only
+those — a card that painted a cell is a card that would now do nothing when it was clicked,
+so it is not there. `case 'placeTile'` returns `'none'` when what is in hand is ground, and
+`tilesTab` filters on `structure` rather than labelling it "Stackable".
+
+What stays is the substrate. Every cell still holds a kind, `scene.terrain` still carries
+it, `terrainAt` still reads it, and the ground is still drawn underneath. Taking that out
+would break `gridFromScene`, every saved scene and `terrain-mesh`, and it is not what was
+asked for. `session.placeTile` stays too: the controller stopped calling it, but some thirty
+tests in `session.test.ts` drive it as the undo system's workhorse — coalescing, tint
+clearing, the history limit. It is not dead code, and deleting it would cost that coverage.
+
+The kind the placer opens holding becomes `platform`, the first that stacks, because a tool
+opening on a kind it cannot place is a tool holding nothing. That exposed a bug nobody had
+noticed: the constructor spread `DEFAULT_TOOL_STATE` and never derived `buildShape`, which
+`set` does. The two constants agreed only as long as somebody kept them agreeing by hand,
+and `new EditorController({ state: { tileId } })` has always previewed the wrong piece — the
+ghost reads `buildShape` every frame. The constructor derives it once now. Three tests cover
+it: the default kind, a kind handed in at construction, and a kind the palette does not have,
+which leaves the fallback alone rather than putting `undefined` under the ghost.
+
+Six e2e flows painted `wall` — or `water` — as the cheapest way to make a cell solid. None of
+them was testing painting, so they stamp `block` now and assert through routes that already
+existed: `reachable()` for the pathfinder, which is stronger than what it replaced because it
+proves the overlay drives `isPassable`; `editAt`'s boolean for "an edit landed"; and
+`buildingTiles` for the per-scene isolation. No new driver handle, so `main.ts` is untouched
+at its pin — which has no headroom at all, and is now a standing constraint rather than a
+one-off.
+
+`controller.test.ts` converts rather than deletes, except one. "Clips a brush at the edge" is
+gone: a structure reaches a million tiles out, so there is no edge to clip and the subject
+left with the feature. "Ignores a click outside the scene" inverted into "places outside the
+room", which is what now happens. And the change-notification test says out loud that ground
+in hand asks for no rebuild — it used to pass either way, because it opened holding the kind
+every cell already was, so its first click was a no-op for an unrelated reason.
+
+Three things this cost, worth writing down because each was a way of being wrong that looked
+like being right:
+
+- **The sixth flow was found only by grepping with no result limit.** The first sweep matched
+  the four flat kind names and `water` is not one of them. A truncated grep used to prove
+  absence is a false all-clear, and it produced one here.
+- **A file went over its size pin, and was committed that way.** vitest ran green, a test in
+  that file was then rewritten, and nothing re-ran before the commit. The ceiling caught it
+  rather than the discipline that was supposed to. Verify, then change, then report the old
+  result is the whole shape of the mistake. Fourteen lines came back out of that file's own
+  comment prose; the pin was not raised.
+- **`demo.spec.ts`'s renderable-while-editing test failed for a real reason**, and the fix is
+  the interesting part. Painting changed a colour, which is on screen the moment the terrain
+  rebuilds; a piece is drawn from a file the library may still be fetching, so sampling in
+  the same tick as the edit read a frame from before the stamp and called it proof that
+  nothing was drawn. It waits for the pieces to stand now.
+
+Verified: `npx tsc --noEmit` clean; `npx vitest run` **2050 passed (112 files)**; `npx
+playwright test` **127 passed in 32.5m**, with `demo.spec.ts` re-run at **64 passed** after
+the size reclaim. Playwright exited 0 on every run including the ones carrying failures, so
+the tally is what was read and the exit code was ignored.
+
+**Still open, and named rather than buried:** the model layer has no chunking, no frustum
+culling, no residency cap and no LOD, at roughly 13.6k triangles a file. The box layer has
+all four. Drawing pieces as their files removed exactly the machinery that made a large build
+affordable. The 1 fps figure below is still headless software GL and has never been measured
+on a real machine — measure it before building anything for it.
+
 ## An object has a facing, and Alt turns it — done
 
 Alt turned a prop in hand and left a door alone, because only a prop had a rotation in the

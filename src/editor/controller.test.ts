@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { DEFAULT_TERRAIN_TYPES } from '../engine/grid/terrain';
 import { projectSchema, sceneSchema } from '../engine/scene/schema';
-import { EditorController, type EditorTool } from './controller';
+import { DEFAULT_TOOL_STATE, EditorController, type EditorTool } from './controller';
 import { EditorSession, addScene, removeInteractable } from './session';
 import { TERRAIN_RAIL } from './modes';
 import type { Point } from '../engine/scene/schema';
@@ -123,6 +123,60 @@ describe('placing tiles', () => {
 
     session.undo();
     expect(stamped(session)).toEqual(['0,0,0']);
+  });
+});
+
+/**
+ * The shape follows the kind in hand from the moment there is one.
+ *
+ * `set` has always derived it. The constructor did not, so the two halves of
+ * `DEFAULT_TOOL_STATE` agreed only as long as somebody kept them agreeing by hand - and a
+ * controller handed a kind at construction disagreed with itself from the start. The ghost
+ * reads `buildShape` every frame, so that is a piece previewed wrong until the user picks
+ * something, which is the moment they would have found out.
+ */
+describe('the shape of the kind in hand', () => {
+  it('is derived for the kind the placer opens holding', () => {
+    const { editor } = setup();
+    expect(editor.state.tileId).toBe('platform');
+    // A floor, not the `block` the constant beside it says.
+    expect(editor.state.buildShape).toBe('floor');
+  });
+
+  it('is derived for a kind handed in at construction', () => {
+    const project = projectSchema.parse({
+      id: 'demo',
+      name: 'Demo',
+      scenes: [sceneSchema.parse(blankScene('room', 8, 6))],
+      startScene: 'room',
+      terrainPalette: [
+        { id: 'floor', name: 'Floor', passable: true, cost: 1, providesCover: false, blocksSight: false },
+        { id: 'rampart', name: 'Rampart', passable: false, cost: 1, providesCover: true, blocksSight: true, structure: 'wall' },
+      ],
+    });
+    const editor = new EditorController({
+      session: new EditorSession(project),
+      sceneId: 'room',
+      state: { tileId: 'rampart' },
+    });
+    expect(editor.state.buildShape).toBe('wall');
+  });
+
+  it('leaves the fallback alone for a kind this palette does not have', () => {
+    // A project can declare a palette without the kind the engine opens on. Nothing
+    // resolves, so there is nothing to derive, and the constant stands rather than the
+    // shape becoming undefined under the ghost.
+    const project = projectSchema.parse({
+      id: 'demo',
+      name: 'Demo',
+      scenes: [sceneSchema.parse(blankScene('room', 8, 6))],
+      startScene: 'room',
+      terrainPalette: [
+        { id: 'floor', name: 'Floor', passable: true, cost: 1, providesCover: false, blocksSight: false },
+      ],
+    });
+    const editor = new EditorController({ session: new EditorSession(project), sceneId: 'room' });
+    expect(editor.state.buildShape).toBe(DEFAULT_TOOL_STATE.buildShape);
   });
 });
 

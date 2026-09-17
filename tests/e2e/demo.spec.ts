@@ -352,15 +352,14 @@ test('edits the map, and undoes exactly what it did', async ({ page }) => {
     const api = window.__engine!;
     api.setMode('edit');
 
-    // Stamp a block over open ground. It used to paint the cell `wall`; ground is not
-    // something the placer puts down any more, so the solid thing is a piece standing on
-    // the cell and `terrainAt` - which reads the ground under it - stays what it was.
+    // Stamp a block over open ground. This used to paint the cell `wall`; the solid thing
+    // is a piece standing on it now, so the ground underneath must not move.
     const tile = 3 * 22 + 3;
-    const before = api.terrainAt(tile);
+    const ground = api.terrainAt(tile);
     api.setTool('placeTile');
     api.setTerrain('block');
     const painted = api.editAt(tile);
-    const after = api.terrainAt(tile);
+    const groundHeld = api.terrainAt(tile) === ground;
 
     // Raise the ground next to it.
     api.setTool('raise');
@@ -382,28 +381,25 @@ test('edits the map, and undoes exactly what it did', async ({ page }) => {
     return {
       mode: api.mode(),
       painted,
-      before,
-      after,
+      groundHeld,
       heightBefore,
       heightAfter,
       propsBefore,
       propsAfter,
-      terrainRestored: api.terrainAt(tile),
+      groundRestored: api.terrainAt(tile) === ground,
       heightRestored: api.heightAt(tile + 1),
       propsRestored: api.propCount(),
     };
   });
 
   expect(result.mode).toBe('edit');
-  // `editAt` says an edit landed; the ground beneath is untouched by a piece standing on
-  // it, which is the whole point of the two layers being separate.
   expect(result.painted).toBe(true);
-  expect(result.after).toBe(result.before);
+  expect(result.groundHeld).toBe(true);
   expect(result.heightAfter).toBe(result.heightBefore + 1);
   expect(result.propsAfter).toBe(result.propsBefore + 1);
 
   // Undo put the document back exactly.
-  expect(result.terrainRestored).toBe(result.before);
+  expect(result.groundRestored).toBe(true);
   expect(result.heightRestored).toBe(result.heightBefore);
   expect(result.propsRestored).toBe(result.propsBefore);
 
@@ -417,27 +413,19 @@ test('shows the editor panel and keeps the scene renderable while editing', asyn
   await expect(page.locator('#app')).toContainText('Editor');
   await expect(page.locator('#app')).toContainText('Terrain');
 
+  // Stamp blocks over the middle of the map and read the same pixel either side: an edit
+  // that reaches the document and never the screen is what this catches. Waited on rather
+  // than sampled in the same tick, because a piece is drawn from a file that may still be
+  // fetching - reading immediately gets a frame from before the stamp and calls it proof.
   const before = await page.evaluate(() => {
     const api = window.__engine!;
-    const canvas = document.getElementById('gl') as HTMLCanvasElement;
-    return api.sample(canvas.width >> 1, canvas.height >> 1);
-  });
-
-  // Stamp blocks over the middle of the map, and read the same pixel either side of it.
-  // Asserting only that the frame is non-uniform passes happily while an edit reaches the
-  // document and never the screen, which is what this catches.
-  //
-  // Read after the pieces are standing rather than in the same tick as the edit. This used
-  // to paint the ground, and a colour is on screen the moment the terrain is rebuilt; a
-  // piece is drawn from a file the library may still be fetching, so sampling immediately
-  // reads a frame from before the stamp and calls it proof that nothing was drawn.
-  await page.evaluate(() => {
-    const api = window.__engine!;
+    const c = document.getElementById('gl') as HTMLCanvasElement;
+    const pixel = api.sample(c.width >> 1, c.height >> 1);
     api.setTool('placeTile');
     api.setTerrain('block');
     for (let y = 4; y < 12; y++) for (let x = 6; x < 16; x++) api.editAt(y * 22 + x);
+    return pixel;
   });
-  // Eight rows of ten, and at least: the room may already carry pieces of its own.
   await page.waitForFunction(() => (window.__engine?.pieceModels() ?? 0) >= 80);
 
   const drawn = await page.evaluate(() => {
@@ -482,9 +470,8 @@ test('returns to play with the edited map underfoot', async ({ page }) => {
   });
 
   expect(result.mode).toBe('play');
-  // The pathfinder is reading the edited board, not the imported terrain - and now it is
-  // reading it through the piece standing on the cell rather than the ground under it,
-  // which is the promise the two halves were fused on. The ground there is still floor.
+  // The pathfinder reads the edited board through the piece standing on the cell rather
+  // than the ground under it, which is the promise the two halves were fused on.
   expect(result.canWalkIntoWall).toBe(false);
   expect(result.reachable).toBeGreaterThan(0);
 
@@ -785,11 +772,8 @@ test('edits one room while the party stands in another', async ({ page }) => {
 
   // The edit did land, in the document, on the right scene.
   // Read off the pieces rather than the ground: a stamped block is keyed by its own
-  // coordinates in `buildingTiles`, and the ground under it never changed. The vault may
-  // carry no pieces at all, so it is asked with a `?.` rather than assumed to have the map.
-  const saved = JSON.parse(result.exported) as {
-    scenes: { id: string; buildingTiles?: Record<string, { tile?: string }> }[];
-  };
+  // coordinates, and a scene with none of them carries no map at all, hence the `?.`.
+  const saved = JSON.parse(result.exported) as { scenes: { id: string; buildingTiles?: Record<string, { tile?: string }> }[] };
   const pit = saved.scenes.find((scene) => scene.id === 'the-pit')!;
   expect(pit.buildingTiles?.['5,4,0']?.tile).toBe('block');
   const vault = saved.scenes.find((scene) => scene.id === result.vault)!;
