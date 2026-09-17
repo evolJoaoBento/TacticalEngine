@@ -1749,7 +1749,7 @@ canvas.addEventListener('pointermove', (event) => {
   const ground = groundUnderPointer(event);
   const over = ground?.tile ?? NO_TILE;
   view.showCursor(over);
-  view.spotlight(view.objectUnder(aim(event)));
+  view.spotlight(aim(event), over);
   hoverWalk(ground);
   // A card aimed at the ground redraws its shape as the pointer moves, so what
   // it would catch is on the board before the click rather than in the log

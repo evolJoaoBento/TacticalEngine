@@ -6,18 +6,11 @@
  * it was a plate the thing appeared to stand in. The same fact is a line round the creature
  * now, in its faction's colour.
  *
- * **Why this is not just an inverted hull.** The first attempt was: a copy of the model,
- * back faces only, pushed out along its normals, the way `toon.ts` draws the hover rim. That
- * works on a box and fails on a creature. Pushing along a normal sends a back face outward,
- * and wherever the surface folds inward - every crevice of a 14k-triangle imported model -
- * the pushed copy comes out *in front of* the model's own face. The result was the whole
- * creature flooded red with the model showing through in patches. No width fixes it; the
- * hull is genuinely nearer the camera there, so no depth test saves it either.
- *
- * So the rim is masked instead of merely layered. The model's shape is drawn first into the
- * stencil buffer alone - no colour, no depth - and the pushed copy is then drawn only where
- * the stencil is *not* set. Inside the silhouette the rim cannot be drawn at all, whatever
- * the geometry does, which is the difference between "usually outside" and "outside".
+ * **Masked, not merely layered.** An inverted hull alone floods a creature: pushing back
+ * faces along their normals sends them in front of the model wherever the surface folds
+ * inward, and an imported model is nothing but folds. So the model is drawn into the stencil
+ * buffer first - no colour, no depth - and the pushed copy only where the stencil is not set,
+ * which is the difference between "usually outside" and "outside".
  *
  * Two meshes per outlined thing, both sharing one geometry:
  *
@@ -66,6 +59,77 @@ export const DEFAULT_FACTION_COLORS: Readonly<Record<string, string>> = {
 /** How far the rim stands out past the silhouette, in world units. A line, not a halo. */
 export const OUTLINE_WIDTH = 0.02;
 
+/**
+ * How much of a colour is left when nothing is pointing at it.
+ *
+ * A board of enemies all lit at full strength is a board with nothing picked out on it, so
+ * the line sits back until the pointer finds it. Derived rather than written down as a
+ * second hex, so every side dims by the same amount and there is one colour per faction to
+ * keep in step instead of two.
+ */
+const DIM = 0.55;
+
+/** A colour scaled toward black: the same hue, further away. */
+export function dim(color: string, amount = DIM): string {
+  const c = new Color(color).multiplyScalar(amount);
+  return `#${c.getHexString()}`;
+}
+
+/**
+ * Re-colour the line already round a model, and answer whether anything changed.
+ *
+ * The mask is left alone: it paints nothing, and its only job is to say where the model is.
+ * Only the rim carries a colour, and swapping its material is a cache lookup - every enemy
+ * at rest shares one, and the one the pointer is on shares another.
+ */
+export function recolourOutline(model: Object3D, color: string): boolean {
+  const rim = model.children.find((child) => child.name === OUTLINE_NAME) as Mesh | undefined;
+  if (rim === undefined) return false;
+  const wanted = rimMaterial(OUTLINE_WIDTH, color);
+  if (rim.material === wanted) return false;
+  rim.material = wanted;
+  return true;
+}
+
+/**
+ * Bring one creature's line up to full strength and put every other back to its resting dim.
+ *
+ * Lives here rather than in the view because every part of it is this module's: which colour
+ * a side is, what dim means, and which mesh carries it.
+ */
+export function litOutlines(
+  tokens: Iterable<[string, { group: Object3D }]>,
+  was: string | null,
+  tile: number | null,
+  read: (id: string) => { tile: number; faction: string } | null,
+  colors: Readonly<Record<string, string>>,
+): string | null {
+  const seen = [...tokens].map(([id, token]) => {
+    const of = read(id);
+    return { id, group: token.group, of: of === null ? null : { tile: of.tile, color: colors[of.faction] ?? DEFAULT_FACTION_COLORS['neutral']! } };
+  });
+  const lit = tile === null ? null : (seen.find((t) => t.of?.tile === tile)?.id ?? null);
+  // Nothing to repaint when the pointer has not left what it was on. Hover fires on every
+  // mouse move, and this walks every creature in the room.
+  if (lit === was) return lit;
+  for (const t of seen) {
+    if (t.of !== null) recolourOutline(t.group, t.id === lit ? t.of.color : dim(t.of.color));
+  }
+  return lit;
+}
+
+/** Whether a model carries a line at all, so a caller can tell a miss from a no-op. */
+export function hasOutline(model: Object3D): boolean {
+  return model.children.some((child) => child.name === OUTLINE_NAME);
+}
+
+/** Show or hide the pair, for a line that is only drawn while something is pointed at. */
+export function showOutline(model: Object3D, visible: boolean): void {
+  for (const child of model.children) {
+    if (child.name === OUTLINE_NAME || child.name === MASK_NAME) child.visible = visible;
+  }
+}
+
 /** What the two meshes are called, so a later hull leaves them out and a test can find them. */
 export const OUTLINE_NAME = 'faction-outline';
 export const MASK_NAME = 'faction-outline-mask';
@@ -108,13 +172,20 @@ const rims = new Map<string, MeshBasicMaterial>();
  * Cached by width and colour, so every enemy on the board shares one material and every
  * friend another.
  */
-function rimMaterial(width: number, color: string): MeshBasicMaterial {
-  const key = `${width}|${color}`;
+function rimMaterial(width: number, color: string, seeThrough = false): MeshBasicMaterial {
+  const key = `${width}|${color}|${seeThrough}`;
   let material = rims.get(key);
   if (material === undefined) {
     material = new MeshBasicMaterial({
       color: new Color(color),
       side: BackSide,
+      // Seen through what stands in front of it, for the thing the pointer is on: a door at
+      // the back of a room is half behind a wall, and knowing what you are about to reach
+      // for is the point of rimming it. Safe only because the mask is doing the real work -
+      // the rim still cannot draw inside the silhouette, so this shows the shape through a
+      // wall without washing the thing itself pale.
+      depthTest: !seeThrough,
+      depthWrite: !seeThrough,
       stencilWrite: true,
       stencilRef: STENCIL_REF,
       stencilFunc: NotEqualStencilFunc,
@@ -192,7 +263,7 @@ const hulls = new Map<string, BufferGeometry | null>();
  * Idempotent: a model that already carries one keeps the one it has, so a resync does not
  * stack rims on a token that only moved.
  */
-export function outline(model: Object3D, key: string, color: string): Mesh[] {
+export function outline(model: Object3D, key: string, color: string, visible = true, seeThrough = false): Mesh[] {
   const standing = model.children.filter((child) => child.name === OUTLINE_NAME || child.name === MASK_NAME);
   if (standing.length > 0) return standing as Mesh[];
 
@@ -206,15 +277,27 @@ export function outline(model: Object3D, key: string, color: string): Mesh[] {
   const made: Mesh[] = [];
   for (const [name, material, order] of [
     [MASK_NAME, maskMaterial(), -2],
-    [OUTLINE_NAME, rimMaterial(OUTLINE_WIDTH, color), -1],
+    // A see-through rim draws after the room rather than before it: with no depth test it
+    // has to come last to show over a wall, where a depth-tested one comes first and lets
+    // the model cover its middle.
+    [OUTLINE_NAME, rimMaterial(OUTLINE_WIDTH, color, seeThrough), seeThrough ? 998 : -1],
   ] as const) {
     const mesh = new Mesh(hull, material);
     mesh.name = name;
     mesh.renderOrder = order;
+    // An object's line is only drawn while the pointer is on it, so it is built dark; a
+    // creature's is always on. Both are built once and shown or hidden thereafter.
+    mesh.visible = visible;
     // Casting would put a pushed-out copy through the shadow pass as well, which reads as a
     // creature with a second, larger shadow.
     mesh.castShadow = false;
     mesh.receiveShadow = false;
+    // Invisible to every ray. The hover rim this replaces hid on `OUTLINE_LAYER`, which a
+    // raycaster ignores; these sit on layer 0 so the editor's camera draws them, and that
+    // same choice would otherwise put them in front of every pick. A rim is the model pushed
+    // outward, so it reaches past the thing it rims: picking would quietly grow a margin of
+    // empty space round every object, and `objectUnder` could answer with the rim itself.
+    mesh.raycast = () => {};
     model.add(mesh);
     made.push(mesh);
   }

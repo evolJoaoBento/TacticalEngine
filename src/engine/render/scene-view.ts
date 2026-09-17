@@ -96,7 +96,7 @@ const OBJECT_BODIES: Readonly<Record<string, string>> = { door: 'door', chest: '
 import { Spotlight } from './spotlight';
 import { CarryMotion } from './carry';
 export { OUTLINE_LAYER } from './toon';
-import { DEFAULT_FACTION_COLORS, forgetOutline, outline } from './faction-outline';
+import { DEFAULT_FACTION_COLORS, dim, forgetOutline, litOutlines, outline } from './faction-outline';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
 import { drawsTileModel, redrawTileModels } from './tile-models';
 
@@ -195,6 +195,7 @@ export class SceneView {
   private readonly objects: Group[] = [];
   /** The white rim on whatever the pointer is over. */
   private readonly spot = new Spotlight();
+  private litToken: string | null = null;
   private lastObjects: readonly Interactable[] = [];
   private readonly authoredCreatures: Group[] = [];
   /** Party starts and objects, drawn only while authoring (`authoring-marks.ts`). */
@@ -592,10 +593,9 @@ export class SceneView {
       this.pendingRoutes.delete(entity.id);
       const thrown = this.pendingThrows.delete(entity.id);
       if (token === undefined) {
-        // Which side it is on, drawn round it rather than under it (`faction-outline.ts`).
-        const side = this.factionColors[entity.faction] ?? DEFAULT_FACTION_COLORS['neutral']!;
+        // Which side it is on, drawn round it and dimmed until the pointer finds it.
         token = this.build(wanted);
-        outline(token.group, wanted, side);
+        outline(token.group, wanted, dim(this.factionColors[entity.faction] ?? DEFAULT_FACTION_COLORS['neutral']!));
         token.group.name = `token:${entity.id}`;
         this.tokens.set(entity.id, token);
         this.tokenModels.set(entity.id, wanted);
@@ -1242,9 +1242,12 @@ export class SceneView {
     return drawn.name.startsWith('object:') ? drawn.name.slice('object:'.length) : null;
   }
 
-  /** Rim an object in white, through whatever stands in front of it; null lights nothing. */
-  spotlight(objectId: string | null): void {
+  /** Rim what the pointer is on: an object in white, a creature by bringing its line up. */
+  spotlight(ray: Raycaster | null, tile: number = NO_TILE): void {
+    const objectId = ray === null ? null : this.objectUnder(ray);
     this.spot.show(objectId === null ? null : (this.root.getObjectByName(`object:${objectId}`) ?? null));
+    const on = objectId !== null || !this.grid.isTile(tile) ? null : tile;
+    this.litToken = litOutlines(this.tokens, this.litToken, on, (id) => this.lastState?.entity(id) ?? null, this.factionColors);
   }
 
   /** The tile of the nearest authored thing drawn under a ray - a creature, a prop, a mark - unless ground hides it. */
