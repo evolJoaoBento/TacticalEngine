@@ -335,6 +335,9 @@ the room the party is in; browsing scenes never moves the party or abandons thei
 | **Undo / Redo** | The same history as `Ctrl+Z` / `Ctrl+Shift+Z`; hover for what it would undo |
 | **▶ Play here / ▶ Play** | Play in this room from its spawns (Shift-click a tile to play from there), or go back to where the party is |
 
+Centred under the bar is the **frame rate**, counted from the frames actually drawn rather than
+estimated. It takes no clicks, so the board stays reachable straight through it.
+
 `Esc` closes the nearest thing: a menu, the problem list, a workspace, a conversation, then the
 selection.
 
@@ -435,7 +438,10 @@ ground map; elevated and outlying builds need multilevel navigation before they 
 In Inspector mode, click an object. The inspector edits:
 
 - **What it is** — Name; Flavour (read when used); Kind (chest, door, pillar, portal,
-  scripted — only a door stops blocking its tile when opened); Blocks movement.
+  scripted — only a door stops blocking its tile when opened); Drawn with — any model the
+  project has, which is the library's plus every `.glb` in `public/models`, or *The kind's own
+  body* to leave it to the kind (a `scripted` object has none, and shows the editor's gold
+  mark instead); Blocks movement.
 - **Getting in** — the key it needs (an item id; blank for none) and the line shown without it.
 - **What it does** — effects that run with no roll, before any check.
 - **The roll** — **+ Ask for a roll** adds a check (trait, Difficulty), then an effect list for

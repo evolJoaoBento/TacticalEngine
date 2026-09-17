@@ -20,9 +20,19 @@ export function FrameRate(): preact.JSX.Element {
   useEffect(() => {
     let times: number[] = [];
     let handle = 0;
+    // What is on screen, so the state is only written when the reading a person can see
+    // actually changes. Every frame is still counted - the count has to be exact or the
+    // rate is a lie - but a `setRate` per frame is a re-render per frame, sixty times a
+    // second and for as long as the editor is open, to paint the same two characters.
+    let shown = '';
     const tick = (now: number): void => {
       times = sample(times, now);
-      setRate(frameRate(times));
+      const next = frameRate(times);
+      const text = formatRate(next);
+      if (text !== shown) {
+        shown = text;
+        setRate(next);
+      }
       handle = requestAnimationFrame(tick);
     };
     handle = requestAnimationFrame(tick);
