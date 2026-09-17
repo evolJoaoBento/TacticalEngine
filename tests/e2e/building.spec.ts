@@ -170,6 +170,38 @@ test('builds outside the board, stacks, rotates, erases and restores saved tiles
 test('renders a stacked build with a brush, level controls and bounded LOD', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
+  // What this test is about is the box layer - chunked, capped at a resident count, dropping
+  // to simplified parts at distance - and that layer draws only the kinds naming no file.
+  // Every stackable kind the engine ships now names one, so the room is built from a project
+  // declaring the same three ids without models: same structures, same stamps, drawn as
+  // boxes. The ground kinds are read off the scenes rather than listed here, which would go
+  // stale the day one is renamed; they come back without their colours, which the palette is
+  // the only place to know, so the screenshot below is plainer than the editor's own.
+  // Loaded before the mode is set, because a load builds a new session and controller.
+  const loaded = await page.evaluate(() => {
+    const api = window.__engine!;
+    const doc = JSON.parse(api.exportProject()) as {
+      terrainPalette?: object[];
+      scenes: { terrain: string[] }[];
+    };
+    const stacked = [
+      { id: 'platform', name: 'Platform', structure: 'floor' },
+      { id: 'steps', name: 'Steps', structure: 'stairs' },
+      { id: 'block', name: 'Block', structure: 'block', passable: false, blocksSight: true },
+    ];
+    const seen = new Set(stacked.map((type) => type.id));
+    const ground: { id: string; name: string }[] = [];
+    for (const scene of doc.scenes) {
+      for (const id of scene.terrain) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        ground.push({ id, name: id });
+      }
+    }
+    doc.terrainPalette = [...ground, ...stacked];
+    return api.loadProjectText(JSON.stringify(doc));
+  });
+  expect(loaded).toBe('');
   await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
   // The kind before the coordinate boxes: they show for what is placed at a height, and
@@ -215,6 +247,10 @@ test('renders a stacked build with a brush, level controls and bounded LOD', asy
   const stats = await page.evaluate(() => window.__engine!.buildingStats());
   expect(stats.residentChunks).toBeLessThanOrEqual(96);
   expect(stats.triangles).toBeGreaterThan(0);
+  // Nothing in the model layer: the palette loaded above names no file, and this is what
+  // says so. Give these kinds a model again and the counts above would go quietly to zero
+  // and stop testing anything - the way they did when the shipped kinds gained theirs.
+  expect(await page.evaluate(() => window.__engine!.pieceModels())).toBe(0);
   await page.mouse.move(640, 360);
   await page.screenshot({ path: 'test-results/building-editor.png' });
   await page.getByRole('button', { name: 'Go', exact: true }).click();
