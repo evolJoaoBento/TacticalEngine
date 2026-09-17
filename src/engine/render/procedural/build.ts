@@ -175,6 +175,15 @@ export interface BuildOptions {
    * reaches its base ring without the model knowing anything about entities.
    */
   palette?: Readonly<Record<string, MatSpec>>;
+  /**
+   * How big the thing stands, in tiles, overriding whatever size it was authored or
+   * declared at. This is how a kind of tile says how much of its cell its model fills
+   * without the model having to know it is being used as ground.
+   *
+   * Applied to the group, so it reaches a placeholder standing in for a file still on its
+   * way as readily as the real thing — the ground does not change size when the file lands.
+   */
+  scale?: number;
 }
 
 export interface BuiltModel {
@@ -231,6 +240,9 @@ export function buildModel(
     hooks.set(name, anchor);
   }
 
+  // Scale before the offset is read off it: `position` is applied after `scale` in a local
+  // matrix, so a model told to sink a quarter tile sinks a quarter tile at any size.
+  if (options.scale !== undefined) group.scale.setScalar(options.scale);
   if (spec.groundOffset !== undefined) group.position.y = spec.groundOffset;
 
   return { group, spec, named, hooks };

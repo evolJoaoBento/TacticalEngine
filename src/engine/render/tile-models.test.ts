@@ -16,19 +16,32 @@ import type { BuiltModel } from './procedural/build';
  * replaces without freeing geometry the asset library still owns.
  */
 
-/** A build that hands back one real mesh, which is what an imported tile is. */
-function recorder(): { build: (id: string) => BuiltModel; asked: string[] } {
+/**
+ * A build that hands back one real mesh, which is what an imported tile is.
+ *
+ * `sizes` records what each build was asked for, because how big a kind of tile stands is
+ * passed through to the view rather than applied here - the view sizes a model before
+ * seating it, so the feet land on the tile at any size.
+ */
+function recorder(groundOffset = 0): {
+  build: (id: string, scale?: number) => BuiltModel;
+  asked: string[];
+  sizes: (number | undefined)[];
+} {
   const asked: string[] = [];
+  const sizes: (number | undefined)[] = [];
   return {
     asked,
-    build: (id: string): BuiltModel => {
+    sizes,
+    build: (id: string, scale?: number): BuiltModel => {
       asked.push(id);
+      sizes.push(scale);
       const group = new Group();
       // A unit box sitting on its own middle, like the example tiles: half below y=0.
       group.add(new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial()));
       return {
         group,
-        spec: { id, groundOffset: 0 } as BuiltModel['spec'],
+        spec: { id, groundOffset } as BuiltModel['spec'],
         named: new Map(),
         hooks: new Map(),
       };
@@ -73,7 +86,9 @@ describe('the ground drawn as models', () => {
     grid.setTerrainById(2, 'bog');
 
     const made = buildTileModels(grid, DEFAULT_LAYOUT, recorder().build);
-    expect(made.map((g) => g.name).sort()).toEqual(['tiles:mire', 'tiles:plank']);
+    // Named for the kind of tile, not the file: the kind is what carries the size, so it
+    // is what a mesh is built per.
+    expect(made.map((g) => g.name).sort()).toEqual(['tiles:bog', 'tiles:planks']);
     const counts = made.map((g) => instancesIn(g).count).sort();
     expect(counts).toEqual([1, 2]);
   });
@@ -153,6 +168,57 @@ describe('the ground drawn as models', () => {
     expect(size.x).toBeCloseTo(0.5, 6);
     expect(size.y).toBeCloseTo(0.5, 6);
     expect(size.z).toBeCloseTo(0.5, 6);
+  });
+
+  it('sinks or floats an instance by what the model asks for', () => {
+    const grid = new TileGrid({ width: 2, height: 1, palette: palette() });
+    grid.setTerrainById(0, 'planks');
+
+    // A model that deliberately stands off the tile. `instantiate` hands this back in the
+    // spec for the caller to add rather than applying it to the clone, so an instanced
+    // tile that never reads it sits at the wrong height and nothing says so.
+    const [group] = buildTileModels(grid, DEFAULT_LAYOUT, recorder(0.25).build);
+    const at = new Matrix4();
+    instancesIn(group!).getMatrixAt(0, at);
+    const centre = placementCentre(grid, DEFAULT_LAYOUT, { x: 0, y: 0 });
+    expect(new Vector3().setFromMatrixPosition(at).y).toBeCloseTo(centre.y + 0.25, 6);
+  });
+
+  it('asks for the model at the size the kind of tile stands it at', () => {
+    const grid = new TileGrid({
+      width: 2,
+      height: 1,
+      palette: new TerrainPalette([terrain('floor'), terrain('planks', { model: 'plank', scale: 1 })]),
+    });
+    grid.setTerrainById(0, 'planks');
+
+    const { build, sizes } = recorder();
+    buildTileModels(grid, DEFAULT_LAYOUT, build);
+    // Passed through, not applied here: the view scales the model before seating it, so
+    // the feet land on the tile and a nudge across the cell keeps the size it was given.
+    expect(sizes).toEqual([1]);
+  });
+
+  it('gives two kinds naming one file a mesh each, because the size belongs to the kind', () => {
+    const grid = new TileGrid({
+      width: 4,
+      height: 1,
+      palette: new TerrainPalette([
+        terrain('floor'),
+        terrain('paving', { model: 'stone', scale: 1 }),
+        terrain('pebbles', { model: 'stone', scale: 0.25 }),
+      ]),
+    });
+    grid.setTerrainById(0, 'paving');
+    grid.setTerrainById(1, 'pebbles');
+
+    const { build, sizes } = recorder();
+    const made = buildTileModels(grid, DEFAULT_LAYOUT, build);
+    // An instanced mesh is one geometry at one size, so sharing a URL is not enough to
+    // share a draw call - a floor piece filling its cell and the same file shrunk to a
+    // pebble have to be two.
+    expect(made.map((g) => g.name).sort()).toEqual(['tiles:paving', 'tiles:pebbles']);
+    expect(sizes.sort()).toEqual([0.25, 1]);
   });
 
   it('knows whether a late asset is one the ground is waiting for', () => {

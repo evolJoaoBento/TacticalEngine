@@ -26,6 +26,7 @@ export function paletteForProject(project: Pick<ProjectDoc, 'terrainPalette'>): 
         blocksSight: type.blocksSight,
         ...(type.color === undefined ? {} : { color: type.color }),
         ...(type.model === undefined ? {} : { model: type.model }),
+        ...(type.scale === undefined ? {} : { scale: type.scale }),
       }),
     ),
   );

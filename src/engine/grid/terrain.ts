@@ -42,6 +42,19 @@ export interface TerrainType {
    * still built underneath: this is a look, and the grid is what a walk reads.
    */
   readonly model?: string;
+  /**
+   * How big the model stands, in tiles: `1` fills the cell, `0.5` covers a quarter of it.
+   *
+   * On the kind of tile rather than on the model, because the same file is a different
+   * size depending on what it is being used for — a creature is shrunk to stand in one
+   * cell, a floor piece is authored to fill it, and both are scaled from the same export.
+   * Absolute, not a multiplier: this replaces what the model declares for itself rather
+   * than compounding with it, so the number here is the size you get.
+   *
+   * Absent means the model's own scale, which is what every tile drew at before there was
+   * a field to say otherwise.
+   */
+  readonly scale?: number;
 }
 
 export const MAX_TERRAIN_TYPES = 256;
@@ -61,6 +74,7 @@ export function terrain(
     // Spread rather than assigned: an explicit undefined is not the same as absent.
     ...(overrides.color === undefined ? {} : { color: overrides.color }),
     ...(overrides.model === undefined ? {} : { model: overrides.model }),
+    ...(overrides.scale === undefined ? {} : { scale: overrides.scale }),
   };
 }
 

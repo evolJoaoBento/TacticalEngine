@@ -295,7 +295,7 @@ export class SceneView {
     this.terrainOptions = options;
     this.terrain = buildTerrainMesh(grid, options);
     for (const mesh of this.terrain.meshes) this.root.add(mesh);
-    this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id) => this.build(id), (group) => this.clipSets.delete(group));
+    this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id, at) => this.build(id, at === undefined ? {} : { scale: at }), (group) => this.clipSets.delete(group));
 
     // One flat quad per lit tile, hovering just above the surface, the full
     // width of the tile: the quads meet without a seam, so what is lit reads
@@ -858,7 +858,7 @@ export class SceneView {
     group.name = `model:${modelId}`;
     // SkeletonUtils handles skinned meshes; for a plain scene it is a deep clone.
     const clone = cloneSkeleton(template);
-    clone.scale.setScalar(spec.scale);
+    clone.scale.setScalar(options.scale ?? spec.scale);
     clone.rotation.y = spec.rotationY;
     // Seated like everything else the room stands up: feet on the tile, centred over
     // it, and then nudged by however much the asset says it should stand off centre.
@@ -976,7 +976,7 @@ export class SceneView {
     }
     if (this.lastState !== null) this.syncTokens(this.lastState);
     if (this.lastDecos.some((deco) => deco.model === id)) this.setDecos(this.lastDecos);
-    this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id) => this.build(id), (group) => this.clipSets.delete(group));
+    this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id, at) => this.build(id, at === undefined ? {} : { scale: at }), (group) => this.clipSets.delete(group));
     if (this.lastObjects.some((object) => object.model === id)) this.setObjects(this.lastObjects);
   }
 
@@ -1079,7 +1079,7 @@ export class SceneView {
       ...(tints === undefined ? {} : { tints }),
     });
     for (const mesh of this.terrain.meshes) this.root.add(mesh);
-    this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id) => this.build(id), (group) => this.clipSets.delete(group));
+    this.tileModels = redrawTileModels(this.root, this.tileModels, this.grid, this.layout, (id, at) => this.build(id, at === undefined ? {} : { scale: at }), (group) => this.clipSets.delete(group));
   }
 
   /** The model standing for an entity, if it has one. */

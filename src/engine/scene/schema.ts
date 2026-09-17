@@ -226,6 +226,12 @@ export const terrainTypeSchema = z.object({
   color: z.string().min(1).optional(),
   /** Drawn with this model on every tile of the type, rather than as coloured ground. */
   model: z.string().min(1).optional(),
+  /**
+   * How big that model stands, in tiles: `1` fills the cell. Absolute, replacing what the
+   * model declares for itself — the same file is a creature shrunk into one cell and a
+   * floor piece authored to fill it. Absent means the model's own size.
+   */
+  scale: z.number().positive().optional(),
 });
 
 /**

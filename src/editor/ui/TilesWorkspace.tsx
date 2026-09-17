@@ -14,10 +14,9 @@
 import { useState } from 'preact/hooks';
 import { contentIdSchema } from '../../engine/scene/primitives';
 import { toContentId } from '../../engine/content/types';
-import { DEFAULT_TERRAIN_TYPES } from '../../engine/grid/terrain';
 import type { EditorController } from '../controller';
 import type { EditorSession } from '../session';
-import { tileIdTaken, tilesStandingOn, type TileType } from '../terrain-edits';
+import { defaultPalette, tileIdTaken, tilesStandingOn, type TileType } from '../terrain-edits';
 
 /** The small text button every workspace closes with, styled like the other five's. */
 const CLOSE_BUTTON: Record<string, string | number> = {
@@ -55,16 +54,10 @@ export function TilesWorkspace(props: {
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState('');
 
-  // The declared palette, or the engine's four shown as what adding would write down.
-  const types: readonly TileType[] = session.project.terrainPalette ?? DEFAULT_TERRAIN_TYPES.map((type) => ({
-    id: type.id,
-    name: type.name,
-    passable: type.passable,
-    cost: type.cost,
-    providesCover: type.providesCover,
-    blocksSight: type.blocksSight,
-    ...(type.color === undefined ? {} : { color: type.color }),
-  }));
+  // The declared palette, or the engine's four shown as what adding would write down. The
+  // same function the edits use to write them, rather than a copy of it here that had
+  // already fallen a field behind.
+  const types: readonly TileType[] = session.project.terrainPalette ?? defaultPalette();
   const tile = types.find((t) => t.id === open) ?? null;
 
   const edit = (changes: Parameters<EditorController['updateTile']>[1]): void => {
@@ -260,10 +253,41 @@ export function TilesWorkspace(props: {
               <option key={id} value={id}>{id}</option>
             ))}
           </select>
+          {tile.model === undefined ? null : (
+            <div class="ph-row">
+              <label class="ph-heading" style={FIELD}>
+                Size, in tiles
+                <input
+                  class="ph-input"
+                  style={CONTROL}
+                  data-testid="tile-scale"
+                  type="number"
+                  min="0.05"
+                  step="0.05"
+                  placeholder="the model's own"
+                  value={tile.scale ?? ''}
+                  onChange={(e) => {
+                    // Cleared goes back to the model's own size, which is not the same as
+                    // a size of zero - so an empty box deletes the field rather than
+                    // writing a number that would make every tile of the kind vanish.
+                    const typed = e.currentTarget.value.trim();
+                    if (typed === '') {
+                      edit({ scale: undefined });
+                      return;
+                    }
+                    const scale = Number(typed);
+                    if (scale > 0) edit({ scale });
+                  }}
+                />
+              </label>
+            </div>
+          )}
           <div class="ph-note">
-            Every tile of this kind stands one of these. What a walk costs and what a click
-            hits is the tile itself, not the model, so a file that fails to load leaves the
-            room playable.
+            Every tile of this kind stands one of these, at the size set here: 1 fills the
+            cell. The size belongs to the kind of tile rather than to the file, because the
+            same export is a creature shrunk into one cell and a floor piece made to fill
+            it. What a walk costs and what a click hits is the tile itself, not the model,
+            so a file that fails to load leaves the room playable.
           </div>
         </div>
       )}

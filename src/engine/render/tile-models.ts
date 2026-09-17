@@ -1,11 +1,16 @@
 /**
- * The ground as models rather than as coloured quads, drawn one mesh per kind.
+ * The ground as models rather than as coloured quads, drawn one mesh per kind of tile.
  *
- * A tile type can name a model — `terrain('floor', { model: 'grass-ground' })` — and every
- * tile of that type stands one. Every tile of that type is the point: a room is hundreds
- * of cells, so a group per cell is hundreds of draw calls, which measured at 35 frames a
- * second falling to 1. They are instanced instead: one `InstancedMesh` per model, a matrix
- * per cell, which is how the construction layer has always drawn its boxes.
+ * A tile type can name a model — `terrain('floor', { model: 'grass-ground', scale: 1 })` —
+ * and every tile of that type stands one. Every tile of that type is the point: a room is
+ * hundreds of cells, so a group per cell is hundreds of draw calls, which measured at 35
+ * frames a second falling to 1. They are instanced instead: one `InstancedMesh` per kind,
+ * a matrix per cell, which is how the construction layer has always drawn its boxes.
+ *
+ * Grouped by kind of tile rather than by model, because the kind is what carries the size.
+ * Two types naming the same file at different scales have to be two meshes — an instanced
+ * mesh is one geometry at one size, and a floor piece filling its cell and the same file
+ * shrunk to a pebble are not one draw call however much they share a URL.
  *
  * The geometry and the material belong to the `AssetLibrary`, which hands the same
  * template to the thumbnail strip and to every token drawn from that model. So the meshes
@@ -25,8 +30,14 @@ import type { TileGrid } from '../grid/grid';
 import { placementCentre, type TileLayout } from './layout';
 import type { BuiltModel } from './procedural/build';
 
-/** How a tile model is made: the view's own `build`, which resolves imports and library alike. */
-export type BuildModel = (modelId: string) => BuiltModel;
+/**
+ * How a tile model is made: the view's own `build`, which resolves imports and library
+ * alike. `scale` is how big the kind of tile says its model stands, in tiles, and is
+ * passed through rather than applied here — the view sizes a model before seating it, so
+ * the feet land on the tile at any size and a nudge across the cell stays the distance it
+ * was authored as.
+ */
+export type BuildModel = (modelId: string, scale?: number) => BuiltModel;
 
 /** Scratch, so a room of a thousand tiles allocates nothing per cell. */
 const matrix = new Matrix4();
@@ -51,66 +62,83 @@ function loneMesh(model: Object3D): Mesh | null {
   return meshes.length === 1 ? meshes[0]! : null;
 }
 
-/** Which tiles carry each model, so one mesh can be built per kind rather than per cell. */
-function tilesByModel(grid: TileGrid): Map<string, number[]> {
-  const byModel = new Map<string, number[]>();
+/** A kind of tile that draws itself with a model, and every cell standing on it. */
+interface TileKind {
+  readonly model: string;
+  /** In tiles, or absent for the model's own size. */
+  readonly scale: number | undefined;
+  readonly tiles: number[];
+}
+
+/** Which cells carry each kind, so one mesh can be built per kind rather than per cell. */
+function tilesByKind(grid: TileGrid): Map<string, TileKind> {
+  const byKind = new Map<string, TileKind>();
   for (let tile = 0; tile < grid.size; tile++) {
-    const model = grid.terrainAt(tile).model;
-    if (model === undefined) continue;
-    const tiles = byModel.get(model);
-    if (tiles === undefined) byModel.set(model, [tile]);
-    else tiles.push(tile);
+    const type = grid.terrainAt(tile);
+    if (type.model === undefined) continue;
+    const found = byKind.get(type.id);
+    if (found !== undefined) {
+      found.tiles.push(tile);
+      continue;
+    }
+    byKind.set(type.id, { model: type.model, scale: type.scale, tiles: [tile] });
   }
-  return byModel;
+  return byKind;
 }
 
 /**
- * One instanced mesh per model the ground names, each carrying every tile that wants it.
+ * One instanced mesh per kind of tile the ground draws with a model, each carrying every
+ * cell that stands on it.
  *
  * Returns groups, for a caller that owns them. Nothing here is cached: a rebuild follows a
  * change to the grid or to what an id resolves to, and both make the old answer wrong.
  */
 export function buildTileModels(grid: TileGrid, layout: TileLayout, build: BuildModel): Group[] {
   const made: Group[] = [];
-  for (const [modelId, tiles] of tilesByModel(grid)) {
-    const built = build(modelId);
+  for (const [typeId, kind] of tilesByKind(grid)) {
+    const built = build(kind.model, kind.scale);
     const mesh = loneMesh(built.group);
+    // A model that deliberately sinks or floats. `instantiate` hands this back in the spec
+    // for the caller to add rather than applying it, which is what every other placement
+    // in the view does - and what the instanced path stopped doing when the seating
+    // measurement it was tangled up with was removed.
+    const lift = built.spec.groundOffset ?? 0;
     const group = new Group();
-    group.name = `tiles:${modelId}`;
+    group.name = `tiles:${typeId}`;
     if (mesh === null) {
       // Not instanceable - a procedural build of many parts, or a placeholder standing in
       // while the file is still on its way. One per tile, as it was, and the redraw when
       // the asset lands swaps it for the instanced kind.
       group.add(built.group);
-      for (const tile of tiles.slice(1)) {
-        const extra = build(modelId).group;
-        place(extra, grid, layout, tile, built.spec.groundOffset ?? 0);
+      for (const tile of kind.tiles.slice(1)) {
+        const extra = build(kind.model, kind.scale).group;
+        place(extra, grid, layout, tile, lift);
         group.add(extra);
       }
-      place(built.group, grid, layout, tiles[0]!, built.spec.groundOffset ?? 0);
+      place(built.group, grid, layout, kind.tiles[0]!, lift);
       made.push(group);
       continue;
     }
 
     // Decomposed from what `build` made, not from the file it was made from. The built
-    // clone already carries everything the project says about the model - its scale, its
-    // facing, how far across its tile it stands - and has been seated, feet on the tile.
-    // Reading the template instead dropped all of it: a shipped model declares a scale of
-    // 0.5 and drew at 1, and the seating was measured and added a second time.
+    // clone already carries everything the project and the kind of tile say about the
+    // model - how big it stands, which way it faces, how far across its cell - and has
+    // been seated, feet on the tile. Reading the template instead dropped all of it: a
+    // shipped model declares a scale of 0.5 and drew at 1.
     built.group.updateWorldMatrix(true, true);
     mesh.matrixWorld.decompose(offset, rotation, scaling);
 
-    const instances = new InstancedMesh(mesh.geometry, mesh.material, tiles.length);
-    instances.name = `tiles:${modelId}:instances`;
+    const instances = new InstancedMesh(mesh.geometry, mesh.material, kind.tiles.length);
+    instances.name = `tiles:${typeId}:instances`;
     // A floor receives shadow and does not cast it. Casting would put every one of these
     // through the depth pass as well - a room of them is millions of triangles rendered
     // twice - to gain a tile's shadow on the tile beside it. `building-view` draws its own
     // geometry the same way: it casts from the nearest detail only.
     instances.castShadow = false;
     instances.receiveShadow = true;
-    tiles.forEach((tile, i) => {
+    kind.tiles.forEach((tile, i) => {
       const centre = placementCentre(grid, layout, { x: tile % grid.width, y: Math.floor(tile / grid.width) });
-      position.set(centre.x + offset.x, centre.y + offset.y, centre.z + offset.z);
+      position.set(centre.x + offset.x, centre.y + lift + offset.y, centre.z + offset.z);
       matrix.compose(position, rotation, scaling);
       instances.setMatrixAt(i, matrix);
     });

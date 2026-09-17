@@ -18,8 +18,14 @@ import type { Edit } from './session';
 
 type DeclaredPalette = NonNullable<ProjectDoc['terrainPalette']>;
 
-/** The four the engine ships, as a document would write them. */
-function defaultPalette(): DeclaredPalette {
+/**
+ * The four the engine ships, as a document would write them.
+ *
+ * Exported because the Tiles panel shows exactly this when a project has declared no
+ * palette of its own — "the four, which is what adding to them would write down". It used
+ * to keep a hand-copy, which had already fallen a field behind.
+ */
+export function defaultPalette(): DeclaredPalette {
   return DEFAULT_TERRAIN_TYPES.map((type) => ({
     id: type.id,
     name: type.name,
@@ -31,6 +37,7 @@ function defaultPalette(): DeclaredPalette {
     // schema draws the distinction and an explicit undefined is not absence.
     ...(type.color === undefined ? {} : { color: type.color }),
     ...(type.model === undefined ? {} : { model: type.model }),
+    ...(type.scale === undefined ? {} : { scale: type.scale }),
   }));
 }
 
