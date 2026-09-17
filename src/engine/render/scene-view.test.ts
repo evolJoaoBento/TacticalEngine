@@ -671,6 +671,23 @@ describe('SceneView', () => {
     view.dispose();
   });
 
+  it('hangs a faction outline on every token it builds', () => {
+    // The line round a creature says which side it is on, in place of the disc that used to
+    // lie under one. It is built with the token, so if this is ever empty nothing is drawn
+    // and the board goes back to having no faction cue at all - which is a thing that looks
+    // exactly like the outline being broken, and is not the same bug.
+    const { state, grid, view } = setup();
+    state.addEntity(createAdversaryEntity('husk-1', 'husk', grid.indexOf(3, 3), { hitPoints: 4, stress: 4 }));
+    view.syncTokens(state);
+    for (const id of ['kara', 'husk-1']) {
+      const group = view.tokenFor(id)!.group;
+      const names = group.children.map((child) => child.name);
+      expect(names, `${id}: ${names.join(', ')}`).toContain('faction-outline');
+      expect(names, `${id}: ${names.join(', ')}`).toContain('faction-outline-mask');
+    }
+    view.dispose();
+  });
+
   it('shares geometry and materials between two tokens of the same model', () => {
     const { state, grid, view } = setup();
     state.addEntity(createPartyEntity('finn', 'sentinel', grid.indexOf(1, 0)));

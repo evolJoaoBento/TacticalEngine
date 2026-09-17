@@ -319,7 +319,7 @@ function driveFloaters(now: number): void {
     f.el.style.opacity = `${Math.max(0, 1 - Math.max(0, age - 0.7) / (FLOATER_LIFE - 0.7))}`;
   }
 }
-const renderer = new WebGLRenderer({ canvas, antialias: true });
+const renderer = new WebGLRenderer({ canvas, antialias: true, stencil: true });
 renderer.setPixelRatio(1);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = PCFShadowMap;

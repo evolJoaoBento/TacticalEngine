@@ -108,22 +108,25 @@ export const BASE_PALETTE: Readonly<Record<string, MatSpec>> = {
 /**
  * The round miniature base under every hero and most monsters.
  *
- * Legacy: a `CylinderGeometry(0.34, 0.38, 0.08, 18)` plinth and a flat torus ring
- * in the token's colour, glowing faintly. The ring colour was baked into each
- * builder; here it is a palette key, so an entity's own colour can drive it.
+ * Legacy: a `CylinderGeometry(0.34, 0.38, 0.08, 18)` plinth and a flat torus ring in the
+ * token's colour, glowing faintly. The ring is gone - which side a creature is on is drawn
+ * round it now (`render/faction-outline.ts`) rather than lain under it, at the user's word:
+ * a coloured disc on the ground reads as a thing in the room instead of a mark on one, and
+ * a low camera loses it entirely.
+ *
+ * The plinth stays. It is the dark `#2b2e3c` the miniature stands on rather than anything
+ * the faction coloured, and it is what puts every model's underside at y=0 - `build.test.ts`
+ * measures that, and without it a husk would float a quarter tile off the floor.
+ *
+ * `ringMat` is kept and ignored, so the nine specs that pass a colour in still parse. It
+ * goes when they are next touched.
  */
-export function tokenBase(ringMat = 'ring'): PartSpec[] {
+export function tokenBase(_ringMat = 'ring'): PartSpec[] {
   return [
     {
       prim: { kind: 'cylinder', rTop: 0.34, rBottom: 0.38, h: 0.08, seg: 18 },
       mat: 'base',
       pos: [0, 0.04, 0],
-    },
-    {
-      prim: { kind: 'torus', r: 0.33, tube: 0.025, radSeg: 6, tubSeg: 18 },
-      mat: ringMat,
-      pos: [0, 0.085, 0],
-      rot: [Math.PI / 2, 0, 0],
     },
   ];
 }

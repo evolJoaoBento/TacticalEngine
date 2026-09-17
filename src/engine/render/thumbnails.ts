@@ -10,7 +10,8 @@
 
 import { Box3, DirectionalLight, Group, HemisphereLight, PerspectiveCamera, Scene, Sphere, Vector3, WebGLRenderer, type Object3D } from 'three';
 import { seatOnTile, type AssetLibrary } from './assets';
-import { RING_ONLY, TILE_UNDER } from './authoring-marks';
+import { TILE_UNDER } from './authoring-marks';
+import { outline } from './faction-outline';
 import { ModelResources, buildModel } from './procedural/build';
 import type { ModelRegistry } from './procedural/registry';
 
@@ -110,8 +111,14 @@ export class ModelThumbnails {
     body.position.z += spec.offsetY;
     body.position.y += spec.groundOffset;
     shown.add(body);
-    // The adversary's red, the colour most of what is imported will stand in.
-    shown.add(buildModel(RING_ONLY, this.resources, { palette: { ring: { color: '#e5483a' } } }).group);
+    // The adversary's red, the colour most of what is imported will stand in - drawn round
+    // the model now rather than as a plate under it. `DEFAULT_FACTION_COLORS.adversary`,
+    // written out so a picture does not drag the whole scene view in behind it; the plate
+    // this replaces had drifted to a different red of its own (#e5483a).
+    //
+    // Keyed apart from the board's hull: the same file is seated, scaled and turned
+    // differently here, so the two silhouettes are not the same shape.
+    outline(body, `thumb:${id}`, '#c0524a');
     // The tile itself, so what the model is standing off is in the picture with it.
     shown.add(buildModel(TILE_UNDER, this.resources).group);
     return shown;
@@ -131,7 +138,9 @@ export class ModelThumbnails {
     if (this.renderer !== undefined) return this.renderer;
     try {
       const canvas = document.createElement('canvas');
-      const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+      // `stencil` for the same reason the board asks for one: a preview is outlined the
+      // same way, and three no longer allocates a stencil buffer unless asked.
+      const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true, stencil: true });
       renderer.setPixelRatio(1);
       renderer.setSize(SIZE, SIZE, false);
       renderer.setClearColor(0x000000, 0);

@@ -82,7 +82,7 @@ interface Reaction {
 }
 
 import { ModelRegistry } from './procedural/registry';
-import { OBJECT_MARK, PARTY_START_MARK, RING_ONLY } from './authoring-marks';
+import { OBJECT_MARK, PARTY_START_MARK } from './authoring-marks';
 import type { Interactable } from '../scene/schema';
 
 /**
@@ -96,7 +96,7 @@ const OBJECT_BODIES: Readonly<Record<string, string>> = { door: 'door', chest: '
 import { Spotlight } from './spotlight';
 import { CarryMotion } from './carry';
 export { OUTLINE_LAYER } from './toon';
-import { ringMaterial } from './procedural/spec';
+import { DEFAULT_FACTION_COLORS, forgetOutline, outline } from './faction-outline';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
 import { drawsTileModel, redrawTileModels } from './tile-models';
 
@@ -142,12 +142,6 @@ export function hueOf(word: string): string {
   const colour = new Color().setHSL((hash % 360) / 360, 0.7, 0.6);
   return `#${colour.getHexString()}`;
 }
-
-export const DEFAULT_FACTION_COLORS: Readonly<Record<string, string>> = {
-  party: '#f6c453',
-  adversary: '#c0524a',
-  neutral: '#8ea3b0',
-};
 
 /** Fallback model per faction, when an entity's definition names none. */
 const FALLBACK_MODEL: Readonly<Record<string, string>> = {
@@ -598,9 +592,10 @@ export class SceneView {
       this.pendingRoutes.delete(entity.id);
       const thrown = this.pendingThrows.delete(entity.id);
       if (token === undefined) {
-        // The base ring carries the faction colour, so one spec serves both sides.
-        const ring = this.factionColors[entity.faction] ?? DEFAULT_FACTION_COLORS['neutral']!;
-        token = this.build(wanted, { palette: { ring: ringMaterial(ring) } });
+        // Which side it is on, drawn round it rather than under it (`faction-outline.ts`).
+        const side = this.factionColors[entity.faction] ?? DEFAULT_FACTION_COLORS['neutral']!;
+        token = this.build(wanted);
+        outline(token.group, wanted, side);
         token.group.name = `token:${entity.id}`;
         this.tokens.set(entity.id, token);
         this.tokenModels.set(entity.id, wanted);
@@ -896,12 +891,8 @@ export class SceneView {
       }
     });
     group.add(clone);
-    // The base ring the procedural tokens carry, so a faction still reads.
-    const ring = options.palette?.['ring'];
-    if (ring !== undefined) {
-      const base = buildModel(RING_ONLY, this.resources, { palette: { ring } });
-      group.add(base.group);
-    }
+    // No base ring: an imported model used to stand on a solid red plate here, and a rim is
+    // drawn round it by `syncTokens` instead.
     return {
       group,
       spec: { ...placeholderSpec, id: modelId, groundOffset: spec.groundOffset },
@@ -965,6 +956,8 @@ export class SceneView {
 
   /** Redraw whatever was drawn from an id whose asset just arrived or failed. */
   private assetChanged(id: string): void {
+    // A rim merged from the placeholder is not the rim of what landed, and shares its id.
+    forgetOutline(id);
     let redraw = false;
     for (const modelId of this.tokenModels.values()) if (modelId === id) redraw = true;
     if (this.lastDecos.some((deco) => deco.model === id)) redraw = true;
@@ -1178,7 +1171,10 @@ export class SceneView {
       // with, and failing both the adversary's own id.
       const wanted = placement.model ?? models[placement.adversary] ?? placement.adversary;
       const modelId = this.drawnModel(wanted, { definition: placement.adversary, faction: 'adversary' });
-      const model = this.build(modelId, { palette: { ring: ringMaterial(DEFAULT_FACTION_COLORS.adversary!) } });
+      const model = this.build(modelId);
+      // The editor is where creatures are placed, so it is the mode that most needs to say
+      // which side one is on. Layer 0, which is why it shows here at all.
+      outline(model.group, modelId, DEFAULT_FACTION_COLORS.adversary!);
       const centre = placementCentre(this.grid, this.layout, placement.position);
       model.group.position.set(centre.x, centre.y + (model.spec.groundOffset ?? 0), centre.z);
       model.group.name = `authored-creature:${placement.id}`;
