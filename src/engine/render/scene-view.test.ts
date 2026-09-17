@@ -15,6 +15,7 @@ import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
 import { DEFAULT_LAYOUT, mapExtent, spotToWorld, surfaceHeight, tileCenter } from './layout';
 import { SceneView, hueOf } from './scene-view';
+import { OUTLINE_NAME, SELECTED_COLOR } from './faction-outline';
 import { DEFAULT_TERRAIN_COLORS, buildTerrainMesh, tilesDrawn, topColorOf } from './terrain-mesh';
 
 function makeGrid(rows: string[]): TileGrid {
@@ -180,31 +181,27 @@ describe('SceneView', () => {
     view.dispose();
   });
 
-  it('rings the selected tile, breathes while it is there, and goes away for nobody', () => {
-    const { grid, view } = setup();
-    const ring = view.root.children.find((c) => c.name === 'selection')!;
-    expect(ring.visible).toBe(false);
+  it('turns the selected creature\'s line blue, and gives it back for nobody', () => {
+    // There was a ring on the ground that breathed to catch the eye. The line round them
+    // says it instead: one thing to draw rather than two, and it follows them as they walk
+    // without anything having to move it.
+    const { state, view } = setup();
+    view.syncTokens(state);
+    const rim = (id: string): string =>
+      ((view.tokenFor(id)!.group.children.find((c) => c.name === OUTLINE_NAME) as Mesh)
+        .material as MeshBasicMaterial).color.getHexString();
+    const resting = rim('kara');
+    const tile = state.entity('kara')!.tile;
 
-    const tile = grid.indexOf(2, 1);
-    grid.setHeight(tile, 1);
-    view.showSelection(tile);
+    view.showSelection(tile, 'kara');
     expect(view.selectionAt).toBe(tile);
-    expect(ring.visible).toBe(true);
-    const centre = tileCenter(grid, tile);
-    expect(ring.position.x).toBeCloseTo(centre.x, 6);
-    expect(ring.position.z).toBeCloseTo(centre.z, 6);
-    expect(ring.position.y).toBeGreaterThan(surfaceHeight(1));
-
-    // Breathing changes the size a little and the place not at all.
-    const before = ring.scale.x;
-    view.tick(0.3);
-    expect(ring.scale.x).not.toBe(before);
-    expect(Math.abs(ring.scale.x - 1)).toBeLessThan(0.1);
-    expect(ring.position.x).toBeCloseTo(centre.x, 6);
+    expect(rim('kara')).toBe(SELECTED_COLOR.slice(1));
+    // Nobody else is blue: the point of the mark is that it picks one out.
+    expect(rim('husk')).not.toBe(SELECTED_COLOR.slice(1));
 
     view.showSelection(-1);
-    expect(ring.visible).toBe(false);
     expect(view.selectionAt).toBe(-1);
+    expect(rim('kara')).toBe(resting);
     view.dispose();
   });
 
@@ -536,22 +533,24 @@ describe('SceneView', () => {
     view.dispose();
   });
 
-  it('walks the selection ring with the selected token, and leaves it on the tile', () => {
+  it('carries the blue with the selected token, because it hangs on it', () => {
+    // The ring this replaced had to be walked along by `tick`, chasing whichever token was
+    // gliding to the selected tile. The line is a child of the token, so it goes where the
+    // token goes and there is no tracking left to get wrong.
     const { grid, state, view } = setup();
     view.syncTokens(state);
     const to = grid.indexOf(3, 0);
     state.moveEntity('kara', to);
     view.syncTokens(state);
     view.showSelection(to);
-    const ring = view.root.children.find((c) => c.name === 'selection')!;
 
-    view.tick(0.1);
     const kara = view.tokenFor('kara')!;
-    expect(ring.position.x).toBeCloseTo(kara.group.position.x, 6);
-    expect(ring.position.x).toBeLessThan(tileCenter(grid, to).x);
-
+    const rim = kara.group.children.find((c) => c.name === OUTLINE_NAME)!;
+    expect((((rim as Mesh).material) as MeshBasicMaterial).color.getHexString()).toBe(SELECTED_COLOR.slice(1));
+    view.tick(0.1);
+    expect(rim.parent).toBe(kara.group);
     view.tick(2);
-    expect(ring.position.x).toBeCloseTo(tileCenter(grid, to).x, 6);
+    expect(rim.parent).toBe(kara.group);
     view.dispose();
   });
 
@@ -608,17 +607,16 @@ describe('SceneView', () => {
     view.dispose();
   });
 
-  it('keeps the selection ring under the selected creature\'s token, wherever they stand', () => {
-    const { grid, state, view } = setup();
+  it('marks the selected creature wherever they stand, not the square they are in', () => {
+    const { state, view } = setup();
     state.placeEntity('kara', 1.4, 0.3);
     view.syncTokens(state);
     view.showSelection(state.entity('kara')!.tile, 'kara');
-    view.tick(0.1);
-    const ring = view.root.children.find((c) => c.name === 'selection')!;
     const kara = view.tokenFor('kara')!;
-    expect(ring.position.x).toBeCloseTo(kara.group.position.x, 10);
-    expect(ring.position.z).toBeCloseTo(kara.group.position.z, 10);
-    expect(ring.position.x).not.toBeCloseTo(tileCenter(grid, grid.indexOf(1, 0)).x, 3);
+    const rim = kara.group.children.find((c) => c.name === OUTLINE_NAME) as Mesh;
+    expect((rim.material as MeshBasicMaterial).color.getHexString()).toBe(SELECTED_COLOR.slice(1));
+    // Hung on the token, so it is off-centre exactly as she is.
+    expect(rim.parent).toBe(kara.group);
     view.dispose();
   });
 
@@ -1019,7 +1017,7 @@ describe('SceneView', () => {
 
   it('draws the overlays in a fixed order: ground, edge, walk, pointer, ring', () => {
     const { view } = setup();
-    const order = ['zones', 'zone-edges', 'highlights', 'highlight-edges', 'path', 'cursor', 'selection'].map(
+    const order = ['zones', 'zone-edges', 'highlights', 'highlight-edges', 'path', 'cursor'].map(
       (name) => view.root.children.find((c) => c.name === name)!.renderOrder,
     );
     expect(order).toEqual([...order].sort((a, b) => a - b));

@@ -34,7 +34,6 @@ import {
   MeshBasicMaterial,
   Object3D,
   type Raycaster,
-  RingGeometry,
   Scene,
 } from 'three';
 import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
@@ -196,6 +195,8 @@ export class SceneView {
   /** The white rim on whatever the pointer is over. */
   private readonly spot = new Spotlight();
   private litToken: string | null = null;
+  /** The tile the pointer is over, or null when it is on an object or off the map. */
+  private hoverTile: number | null = null;
   private lastObjects: readonly Interactable[] = [];
   private readonly authoredCreatures: Group[] = [];
   /** Party starts and objects, drawn only while authoring (`authoring-marks.ts`). */
@@ -244,14 +245,9 @@ export class SceneView {
   private readonly cursorGeometry: CircleGeometry;
   private readonly cursorMaterial: MeshBasicMaterial;
   private cursorTile = NO_TILE;
-  /** A ring round whoever is selected, breathing so the eye finds it. */
-  private readonly selection: Mesh;
-  private readonly selectionGeometry: RingGeometry;
-  private readonly selectionMaterial: MeshBasicMaterial;
   private selectionTile = NO_TILE;
-  /** Whose token the ring stands under, when it is somebody's rather than a tile's. */
+  /** Whose line is blue: the one being played, wherever they stand or walk. */
   private selectionId: string | null = null;
-  private breath = 0;
   /** The sun, kept so its shadow map can be let go with the rest. */
   private sun: DirectionalLight | null = null;
   /** How many tiles the overlay layers have room for; grows with the biggest room seen. */
@@ -351,22 +347,6 @@ export class SceneView {
     this.cursor.visible = false;
     this.cursor.renderOrder = 6;
     this.root.add(this.cursor);
-
-    // The same blue the HUD card of whoever is selected is edged in, so the
-    // board and the cards point at the same person.
-    this.selectionGeometry = new RingGeometry(this.layout.tileSize * 0.44, this.layout.tileSize * 0.54, 36);
-    this.selectionGeometry.rotateX(-Math.PI / 2);
-    this.selectionMaterial = new MeshBasicMaterial({
-      color: new Color('#69d2ff'),
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false,
-    });
-    this.selection = new Mesh(this.selectionGeometry, this.selectionMaterial);
-    this.selection.name = 'selection';
-    this.selection.visible = false;
-    this.selection.renderOrder = 7;
-    this.root.add(this.selection);
 
     this.addLights();
   }
@@ -600,6 +580,9 @@ export class SceneView {
         this.tokens.set(entity.id, token);
         this.tokenModels.set(entity.id, wanted);
         this.root.add(token.group);
+        // Built dim, so whoever is already selected - or already under the pointer - has to
+        // be given their colour back. A token is rebuilt when its file lands, too.
+        this.repaint();
       }
       // A token already standing somewhere on the board that is now somewhere
       // else - another spot, however close - walks there; anything else - new,
@@ -973,37 +956,11 @@ export class SceneView {
     if (this.lastObjects.some((object) => object.model === id)) this.setObjects(this.lastObjects);
   }
 
-  /** Advance every playing clip, every moving token, and the selection's breathing. `dt` in seconds. */
+  /** Advance every playing clip and every moving token. `dt` in seconds. */
   tick(dt: number): void {
     this.advanceGlides(dt);
     this.advanceReactions(dt);
     this.carry.tick(dt);
-    if (this.selection.visible) {
-      // The ring stands under the selected creature's token wherever it is,
-      // walking with it; with only a tile to go on, under whoever is walking
-      // to that tile, else at the tile's centre.
-      const token = this.selectionId === null ? undefined : this.tokens.get(this.selectionId);
-      const walking =
-        token ??
-        [...this.glides]
-          .filter(([id]) => {
-            const spot = this.tokenSpots.get(id);
-            return spot !== undefined && this.grid.tileAtSpot(spot.x, spot.y) === this.selectionTile;
-          })
-          .map(([, glide]) => glide.token)[0];
-      const centre = tileCenter(this.grid, this.selectionTile, this.layout);
-      if (walking !== undefined && walking.group.visible) {
-        this.selection.position.x = walking.group.position.x;
-        this.selection.position.z = walking.group.position.z;
-      } else {
-        this.selection.position.x = centre.x;
-        this.selection.position.z = centre.z;
-      }
-      this.breath += dt;
-      const swell = 1 + 0.06 * Math.sin(this.breath * 3.5);
-      this.selection.scale.set(swell, 1, swell);
-      this.selectionMaterial.opacity = 0.75 + 0.2 * Math.sin(this.breath * 3.5);
-    }
     for (const [object, mixer] of this.mixers) {
       // A clone whose group left the scene stops being driven.
       if (object.parent === null || object.parent.parent === null) {
@@ -1246,8 +1203,25 @@ export class SceneView {
   spotlight(ray: Raycaster | null, tile: number = NO_TILE): void {
     const objectId = ray === null ? null : this.objectUnder(ray);
     this.spot.show(objectId === null ? null : (this.root.getObjectByName(`object:${objectId}`) ?? null));
-    const on = objectId !== null || !this.grid.isTile(tile) ? null : tile;
-    this.litToken = litOutlines(this.tokens, this.litToken, on, (id) => this.lastState?.entity(id) ?? null, this.factionColors);
+    this.hoverTile = objectId !== null || !this.grid.isTile(tile) ? null : tile;
+    this.repaint();
+  }
+
+  /** Whoever stands on a tile, of the creatures drawn. */
+  private tokenOn(tile: number): string | null {
+    for (const id of this.tokens.keys()) if (this.lastState?.entity(id)?.tile === tile) return id;
+    return null;
+  }
+
+  /** Every creature's line: blue for the selected, full for the pointed at, dim for the rest. */
+  private repaint(): void {
+    this.litToken = litOutlines(
+      this.tokens,
+      this.hoverTile,
+      this.selectionId,
+      (id) => this.lastState?.entity(id) ?? null,
+      this.factionColors,
+    );
   }
 
   /** The tile of the nearest authored thing drawn under a ray - a creature, a prop, a mark - unless ground hides it. */
@@ -1445,17 +1419,12 @@ export class SceneView {
   showSelection(tile: number, id: string | null = null): void {
     if (tile === this.selectionTile && id === this.selectionId) return;
     this.selectionTile = tile;
-    this.selectionId = id;
-    if (!this.grid.isTile(tile)) {
-      this.selection.visible = false;
-      return;
-    }
-    const centre = tileCenter(this.grid, tile, this.layout);
-    this.selection.position.set(centre.x, surfaceHeight(this.grid.heightAt(tile), this.layout) + 0.035, centre.z);
-    this.selection.visible = true;
+    // Given an id, that is who; given only a tile, whoever stands on it. Nobody off the map.
+    this.selectionId = !this.grid.isTile(tile) ? null : (id ?? this.tokenOn(tile));
+    this.repaint();
   }
 
-  /** The tile the selection ring is on, or `NO_TILE`. */
+  /** The tile whoever is selected stands on, or `NO_TILE`. */
   get selectionAt(): number {
     return this.selectionTile;
   }
@@ -1479,8 +1448,6 @@ export class SceneView {
     this.zoneEdgeGeometry.dispose();
     this.zoneEdgeMaterial.dispose();
     this.cursorMaterial.dispose();
-    this.selectionGeometry.dispose();
-    this.selectionMaterial.dispose();
     // A view is rebuilt on every scene switch; the shadow map is a texture the
     // renderer holds until told otherwise.
     this.sun?.shadow.map?.dispose();

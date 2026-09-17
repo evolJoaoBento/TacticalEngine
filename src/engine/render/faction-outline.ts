@@ -56,6 +56,15 @@ export const DEFAULT_FACTION_COLORS: Readonly<Record<string, string>> = {
   neutral: '#8ea3b0',
 };
 
+/**
+ * The blue whoever is selected is drawn in.
+ *
+ * The same blue their HUD card is edged in, so the board and the cards point at the same
+ * person. It used to be a ring on the ground that breathed to catch the eye; the line round
+ * them says it without a second thing to draw, and follows them as they walk for free.
+ */
+export const SELECTED_COLOR = '#69d2ff';
+
 /** How far the rim stands out past the silhouette, in world units. A line, not a halo. */
 export const OUTLINE_WIDTH = 0.02;
 
@@ -99,8 +108,8 @@ export function recolourOutline(model: Object3D, color: string): boolean {
  */
 export function litOutlines(
   tokens: Iterable<[string, { group: Object3D }]>,
-  was: string | null,
   tile: number | null,
+  selected: string | null,
   read: (id: string) => { tile: number; faction: string } | null,
   colors: Readonly<Record<string, string>>,
 ): string | null {
@@ -109,11 +118,11 @@ export function litOutlines(
     return { id, group: token.group, of: of === null ? null : { tile: of.tile, color: colors[of.faction] ?? DEFAULT_FACTION_COLORS['neutral']! } };
   });
   const lit = tile === null ? null : (seen.find((t) => t.of?.tile === tile)?.id ?? null);
-  // Nothing to repaint when the pointer has not left what it was on. Hover fires on every
-  // mouse move, and this walks every creature in the room.
-  if (lit === was) return lit;
   for (const t of seen) {
-    if (t.of !== null) recolourOutline(t.group, t.id === lit ? t.of.color : dim(t.of.color));
+    if (t.of === null) continue;
+    // Selected wins over pointed at: the blue says who is being played, and the pointer is
+    // only ever a moment. A creature both selected and under the pointer stays blue.
+    recolourOutline(t.group, t.id === selected ? SELECTED_COLOR : t.id === lit ? t.of.color : dim(t.of.color));
   }
   return lit;
 }
