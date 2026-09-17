@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { TerrainPalette, terrain } from '../grid/terrain';
+import { isStructure, setStructures } from './building';
 import {
   blankScene,
   gridFromScene,
@@ -119,6 +120,56 @@ describe('paletteForProject', () => {
     expect(hedge.passable).toBe(false);
     expect(hedge.blocksSight).toBe(true);
     expect(hedge.name).toBe('hedge'); // an empty name falls back to the id
+  });
+});
+
+describe('the structures a project declares', () => {
+  afterEach(() => {
+    // Module state, like the palette is not: a test declaring its own must not leak.
+    setStructures();
+  });
+
+  it('reach the registry through the palette, which is where a project is read', () => {
+    // Nothing called `setStructures` in the running app before the two halves were fused -
+    // the registry existed and only its own tests ever filled it. This is the wiring.
+    expect(isStructure('doorway')).toBe(false);
+    paletteForProject({
+      structureTypes: [{ id: 'doorway', name: 'Doorway', atoms: [{ shape: 'wall' }] }],
+    });
+    expect(isStructure('doorway')).toBe(true);
+    // The engine's four survive a project that declares its own, or every piece already
+    // placed would stop resolving.
+    expect(isStructure('block')).toBe(true);
+  });
+
+  it('are let go of by a project that declares none, rather than lingering', () => {
+    paletteForProject({ structureTypes: [{ id: 'doorway', name: 'Doorway', atoms: [{ shape: 'wall' }] }] });
+    // Loading a second project must not leave the first one's structures behind: the
+    // registry is rebuilt from what this project says, not added to.
+    paletteForProject({});
+    expect(isStructure('doorway')).toBe(false);
+    expect(isStructure('block')).toBe(true);
+  });
+
+  it('carries what a kind of tile is onto the palette it builds', () => {
+    const palette = paletteForProject({
+      terrainPalette: [
+        { id: 'rampart', name: 'Rampart', passable: false, cost: 1, providesCover: true, blocksSight: true, structure: 'wall', model: 'stone-wall', scale: 1 },
+      ],
+    });
+    const rampart = palette.at(palette.require('rampart'));
+    // The three fields the fusion added, all the way from a document to the grid.
+    expect(rampart.structure).toBe('wall');
+    expect(rampart.model).toBe('stone-wall');
+    expect(rampart.scale).toBe(1);
+  });
+
+  it('leaves a kind of tile that is ground alone', () => {
+    const palette = paletteForProject({
+      terrainPalette: [{ id: 'sand', name: 'Sand', passable: true, cost: 2, providesCover: false, blocksSight: false }],
+    });
+    // Absent, not empty: ground is what every kind of tile was before there were both.
+    expect(palette.at(palette.require('sand')).structure).toBeUndefined();
   });
 });
 

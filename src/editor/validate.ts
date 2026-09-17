@@ -928,6 +928,20 @@ function validateScene(scene: SceneDoc, context: Context, problems: Problem[]): 
     }
   }
 
+  // --- building tiles -----------------------------------------------------
+  // Never looked at before, and only worth looking at since a piece began carrying the kind
+  // of tile it is: one naming a kind the palette has lost is walked on as whatever comes
+  // first in the palette, silently, which is an authored mistake with no other way of being
+  // seen. The shape is not checked here - `buildingTilesSchema` refuses a structure nothing
+  // declares before Check's own passes run, so a document cannot reach this carrying one.
+  const unknownTiles = new Set<string>();
+  for (const piece of Object.values(scene.buildingTiles ?? {})) {
+    if (piece.tile !== undefined && !context.palette.has(piece.tile)) unknownTiles.add(piece.tile);
+  }
+  for (const tile of [...unknownTiles].sort()) {
+    add('warning', `A building tile is of kind "${tile}", which the palette does not have; it falls back to the first kind.`);
+  }
+
   // --- encounters ---------------------------------------------------------
   for (const encounter of scene.encounters) {
     if (encounter.adversaries.length === 0) {

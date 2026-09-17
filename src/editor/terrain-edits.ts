@@ -38,6 +38,7 @@ export function defaultPalette(): DeclaredPalette {
     ...(type.color === undefined ? {} : { color: type.color }),
     ...(type.model === undefined ? {} : { model: type.model }),
     ...(type.scale === undefined ? {} : { scale: type.scale }),
+    ...(type.structure === undefined ? {} : { structure: type.structure }),
   }));
 }
 

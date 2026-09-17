@@ -13,6 +13,7 @@
 
 import { useState } from 'preact/hooks';
 import { contentIdSchema } from '../../engine/scene/primitives';
+import { structureTypes } from '../../engine/scene/building';
 import { toContentId } from '../../engine/content/types';
 import type { EditorController } from '../controller';
 import type { EditorSession } from '../session';
@@ -235,6 +236,28 @@ export function TilesWorkspace(props: {
             />
             <span style={{ flex: 1 }}>Blocks line of sight through it</span>
           </label>
+
+          <div class="ph-heading">Structure</div>
+          <select
+            class="ph-select"
+            data-testid="tile-structure"
+            aria-label={`What kind of structure ${tile.id} is`}
+            value={tile.structure ?? ''}
+            onChange={(e) => {
+              const picked = e.currentTarget.value;
+              edit(picked === '' ? { structure: undefined } : { structure: picked });
+            }}
+          >
+            <option value="">Ground, not a structure</option>
+            {structureTypes().map((type) => (
+              <option key={type.id} value={type.id}>{type.name !== '' ? type.name : type.id}</option>
+            ))}
+          </select>
+          <div class="ph-note">
+            Ground is painted flat, one kind to a cell. A structure is stamped as a piece
+            that stacks, and what a walk over that cell costs is read off whichever kind of
+            tile ended up on top.
+          </div>
 
           <div class="ph-heading">Drawn with</div>
           <select

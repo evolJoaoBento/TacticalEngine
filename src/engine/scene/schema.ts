@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { BUILD_LIMIT, buildingTilesSchema } from './building';
+import { BUILD_LIMIT, buildingTilesSchema, structureTypeSchema } from './building';
 import { itemSchema, lootTableSchema } from '../content/items';
 import { abilitySchema } from '../content/abilities';
 import { characterSheetSchema } from '../character/sheet-schema';
@@ -232,6 +232,13 @@ export const terrainTypeSchema = z.object({
    * floor piece authored to fill it. Absent means the model's own size.
    */
   scale: z.number().positive().optional(),
+  /**
+   * The structure a tile of this kind is, by id. Absent means ground, which is what every
+   * kind of tile was before there were both. Not an enum: a project declares its own
+   * structures, so the list cannot live in the schema - `isStructure` is where that
+   * question is asked, the same move `buildingTileSchema.shape` made.
+   */
+  structure: z.string().min(1).optional(),
 });
 
 /**
@@ -272,6 +279,16 @@ export const projectSchema = z
     name: z.string().default(''),
     /** Omitted means the engine's default palette. */
     terrainPalette: z.array(terrainTypeSchema).min(1).optional(),
+    /**
+     * Structures the project declares, each some of the engine's four atoms put together.
+     * The four are always present and always first, so a document naming one of them
+     * resolves whatever this says; these are the ones beyond them.
+     *
+     * Optional rather than defaulted, like `terrainPalette` beside it: a default would
+     * make a parsed document differ from the one it was parsed from, and would oblige
+     * every project built in code to carry an empty array it never asked for.
+     */
+    structureTypes: z.array(structureTypeSchema).optional(),
     scenes: z.array(sceneSchema).min(1),
     /**
      * Conversations, addressed by id from a `startDialogue` effect. Project-level

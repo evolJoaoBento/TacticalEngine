@@ -3,6 +3,7 @@ import {
   BUILD_ATOMS,
   DEFAULT_STRUCTURES,
   buildingParts,
+  buildingTileSchema,
   isStructure,
   setStructures,
   structureTypes,
@@ -99,5 +100,31 @@ describe('a structure put together from them', () => {
       { id: 'odd', name: 'Odd', atoms: [{ shape: 'wall' }, { shape: 'not-an-atom' }] },
     ]);
     expect(buildingParts('odd')).toEqual([[0, 0.5, -0.4, 1, 1, 0.2]]);
+  });
+});
+
+describe('a piece that is a kind of tile', () => {
+  it('carries the kind it is, so a walk over it has something to read', () => {
+    const piece = buildingTileSchema.parse({
+      x: 2, y: 3, level: 0, shape: 'block', material: 'stone', rotation: 0, tile: 'rampart',
+    });
+    expect(piece.tile).toBe('rampart');
+  });
+
+  it('is scenery when it names no kind, which is every piece placed before the fusion', () => {
+    // The whole compatibility story: a piece with no `tile` stays what it always was -
+    // drawn, not walked on - so a project authored before the two halves were one opens
+    // and behaves exactly as it did.
+    const piece = buildingTileSchema.parse({
+      x: 0, y: 0, level: 0, shape: 'wall', material: 'wood', rotation: 1,
+    });
+    expect(piece.tile).toBeUndefined();
+  });
+
+  it('refuses a kind named as an empty string, which is neither a kind nor absence', () => {
+    const parsed = buildingTileSchema.safeParse({
+      x: 0, y: 0, level: 0, shape: 'block', material: 'stone', rotation: 0, tile: '',
+    });
+    expect(parsed.success).toBe(false);
   });
 });

@@ -9,11 +9,24 @@
 
 import { TileGrid } from '../grid/grid';
 import { DEFAULT_TERRAIN_TYPES, TerrainPalette, terrain } from '../grid/terrain';
+import { setStructures } from './building';
 import type { ContentIssue } from '../content/types';
 import type { Point, ProjectDoc, SceneDoc } from './schema';
 
-/** Build the palette a project declares, or the engine's default one. */
-export function paletteForProject(project: Pick<ProjectDoc, 'terrainPalette'>): TerrainPalette {
+/**
+ * Build the palette a project declares, or the engine's default one.
+ *
+ * Takes on the project's structures at the same time, because since the two halves were
+ * fused they are one question: a kind of tile can be a structure, so reading what a
+ * project says about its ground means reading what it says about its structures too.
+ *
+ * Idempotent, which is what makes this the right place rather than somewhere rarer. It
+ * rebuilds a small map from the same input, so being called again on every terrain change
+ * costs nothing, and a registry that is refreshed too often is a great deal safer than one
+ * refreshed too seldom - a project whose structures never loaded draws nothing at all.
+ */
+export function paletteForProject(project: Pick<ProjectDoc, 'terrainPalette' | 'structureTypes'>): TerrainPalette {
+  setStructures(project.structureTypes);
   const declared = project.terrainPalette;
   if (declared === undefined) return new TerrainPalette();
   return new TerrainPalette(
@@ -27,6 +40,7 @@ export function paletteForProject(project: Pick<ProjectDoc, 'terrainPalette'>): 
         ...(type.color === undefined ? {} : { color: type.color }),
         ...(type.model === undefined ? {} : { model: type.model }),
         ...(type.scale === undefined ? {} : { scale: type.scale }),
+        ...(type.structure === undefined ? {} : { structure: type.structure }),
       }),
     ),
   );

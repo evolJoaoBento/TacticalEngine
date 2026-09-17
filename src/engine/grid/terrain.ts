@@ -55,6 +55,20 @@ export interface TerrainType {
    * a field to say otherwise.
    */
   readonly scale?: number;
+  /**
+   * The structure a tile of this kind is: a block, a floor, a wall, a staircase, or
+   * anything else the project has declared.
+   *
+   * This is what fuses the two halves of the editor. A kind of tile used to be ground and
+   * nothing else - a colour, a cost, a thing you painted - while structures were a
+   * separate tab stamping separate pieces. Naming a structure here makes the two one
+   * thing: the placer stamps a piece of this kind, stackable, and what a walk over that
+   * cell costs is read off the kind of tile on top.
+   *
+   * Absent means ground, which is what every kind of tile was before. A project that
+   * never names a structure behaves exactly as it did.
+   */
+  readonly structure?: string;
 }
 
 export const MAX_TERRAIN_TYPES = 256;
@@ -75,6 +89,7 @@ export function terrain(
     ...(overrides.color === undefined ? {} : { color: overrides.color }),
     ...(overrides.model === undefined ? {} : { model: overrides.model }),
     ...(overrides.scale === undefined ? {} : { scale: overrides.scale }),
+    ...(overrides.structure === undefined ? {} : { structure: overrides.structure }),
   };
 }
 

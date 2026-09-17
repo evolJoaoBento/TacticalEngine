@@ -55,6 +55,16 @@ export const buildingTileSchema = z.object({
   /** Still an enum: there is no materials registry, and an unknown one would tint black. */
   material: z.enum(BUILD_MATERIAL_IDS),
   rotation: z.number().int().min(0).max(3),
+  /**
+   * The kind of tile this piece is, by terrain id - what a walk over it costs, whether it
+   * can be stood on, whether it gives cover or blocks sight.
+   *
+   * Optional, and that is the whole compatibility story. A piece placed before the two
+   * halves were fused carries no `tile`, so it stays what it always was: scenery, drawn
+   * but not walked on, which is exactly how it behaved. A piece the fused placer puts
+   * down names its kind, and the grid reads the topmost named piece in a cell.
+   */
+  tile: z.string().min(1).optional(),
 });
 /** One piece of construction, as a document holds it. */
 export type BuildingTile = z.infer<typeof buildingTileSchema>;
@@ -124,18 +134,24 @@ export const BUILD_ATOMS: Readonly<Record<string, { near: readonly BuildingPart[
 };
 
 /** One atom placed in a structure: which of the four, and where it sits within the tile. */
-export interface StructureAtom {
-  readonly shape: string;
+export const structureAtomSchema = z.object({
+  shape: z.string().min(1),
   /** Offset from the tile's centre, in tiles. Absent means centred, which is most of them. */
-  readonly at?: readonly [number, number, number];
-}
+  at: z.tuple([z.number(), z.number(), z.number()]).optional(),
+});
 
 /** A kind of structure: a name, and the atoms it is made of. */
-export interface StructureType {
-  readonly id: string;
-  readonly name: string;
-  readonly atoms: readonly StructureAtom[];
-}
+export const structureTypeSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().default(''),
+  atoms: z.array(structureAtomSchema).min(1),
+});
+
+/** One atom placed in a structure: which of the four, and where it sits within the tile. */
+export type StructureAtom = z.infer<typeof structureAtomSchema>;
+
+/** A kind of structure: a name, and the atoms it is made of. */
+export type StructureType = z.infer<typeof structureTypeSchema>;
 
 /** The four the engine ships, each a single atom, in the order the strip lists them. */
 export const DEFAULT_STRUCTURES: readonly StructureType[] = BUILD_SHAPES.map((shape) => ({
@@ -152,6 +168,11 @@ let structures: ReadonlyMap<string, StructureType> = new Map(DEFAULT_STRUCTURES.
  *
  * The four are always present and always first: a document names them, and a project that
  * declared only its own would leave every piece already placed unable to resolve.
+ *
+ * Called from `paletteForProject`, which is where a project's ground is read: since a kind
+ * of tile can be a structure, the palette and the registry are two answers to one question
+ * and are built together. It is idempotent, so the cost of being asked again on every
+ * terrain change is a four-entry map rebuilt.
  */
 export function setStructures(declared: readonly StructureType[] = []): void {
   const byId = new Map(DEFAULT_STRUCTURES.map((s) => [s.id, s]));
