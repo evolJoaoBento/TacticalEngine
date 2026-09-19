@@ -80,6 +80,40 @@ export class ModelThumbnails {
     return url === null ? null : { url, standIn: this.pick(modelId, fallback) !== modelId };
   }
 
+  /**
+   * A portrait: the model on its own, as a data URL.
+   *
+   * Not the same picture as the strip's. That one answers "what will this look like in the room",
+   * so it stands the model on a tile and draws the adversary's red round anything imported. A
+   * portrait of a party member wants neither -- a character pinned to their own sheet standing on a
+   * floor tile in an enemy's colours is a picture of the wrong thing. Kept apart in the same cache
+   * under its own key, because the two are different pictures of one model.
+   */
+  portraitUrl(modelId: string): string | null {
+    if (!this.drawable(modelId)) return null;
+    const key = `portrait:${this.key(modelId)}`;
+    const kept = this.pictures.get(key);
+    if (kept !== undefined) return kept;
+    const renderer = this.context();
+    if (renderer === null) return null;
+    // Framed on its own bounds, so the model fills the frame however big the file draws it.
+    const picture = this.draw(renderer, this.bare(modelId));
+    this.pictures.set(key, picture);
+    return picture;
+  }
+
+  /** The model alone: what `object` builds, without the tile beneath it or the rim round it. */
+  private bare(id: string): Object3D {
+    const spec = this.assets?.spec(id);
+    const template = this.assets?.template(id);
+    if (spec === undefined || template === undefined) return buildModel(this.registry.get(id), this.resources).group;
+    const body = template.clone();
+    body.scale.setScalar(spec.scale);
+    body.rotation.y = spec.rotationY;
+    seatOnTile(body);
+    return body;
+  }
+
   private drawable(id: string): boolean {
     if (this.assets !== null && this.assets.has(id)) {
       if (this.assets.template(id) !== undefined) return true;
@@ -184,12 +218,22 @@ export interface Thumbnail {
 
 const byRegistry = new WeakMap<ModelRegistry, ModelThumbnails>();
 
-/** The one set of pictures for a registry, made on first use: what `main.ts` asks through. */
-export function thumbnailOf(registry: ModelRegistry, assets: AssetLibrary | null, modelId: string, fallback?: string): Thumbnail | null {
+/** The one set of pictures for a registry, made on first use. Both pictures come off this. */
+function sharedFor(registry: ModelRegistry, assets: AssetLibrary | null): ModelThumbnails {
   let thumbnails = byRegistry.get(registry);
   if (thumbnails === undefined) {
     thumbnails = new ModelThumbnails(registry, assets);
     byRegistry.set(registry, thumbnails);
   }
-  return thumbnails.picture(modelId, fallback);
+  return thumbnails;
+}
+
+/** The strip's picture of a model: on its tile, rimmed. What `main.ts` asks through. */
+export function thumbnailOf(registry: ModelRegistry, assets: AssetLibrary | null, modelId: string, fallback?: string): Thumbnail | null {
+  return sharedFor(registry, assets).picture(modelId, fallback);
+}
+
+/** A portrait of a model -- the model alone -- as a data URL, or null when nothing can be drawn. */
+export function portraitOf(registry: ModelRegistry, assets: AssetLibrary | null, modelId: string): string | null {
+  return sharedFor(registry, assets).portraitUrl(modelId);
 }

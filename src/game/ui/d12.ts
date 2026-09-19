@@ -5,8 +5,8 @@
  * facets around it — a badge, not a die. This is the solid itself: the regular
  * dodecahedron, twelve pentagons numbered the way a real d12 is, opposite faces
  * summing to thirteen. A die here can be turned to any angle, tumbled from a
- * seed, and flattened into polygons a view can draw, each face lit in the three
- * flat bands the board is lit in.
+ * seed, and flattened into polygons a view can draw, each face carrying how much
+ * light it catches.
  *
  * Arithmetic only, no DOM: `Die.tsx` draws what this returns, and a test reads
  * the numbers without a browser.
@@ -191,8 +191,15 @@ export interface DrawnFace {
   value: number;
   /** The pentagon, as an SVG points list. */
   points: string;
-  /** Which of the three bands of light it falls in: 0 lit, 2 in shadow. */
-  band: 0 | 1 | 2;
+  /**
+   * How much light this face catches: 0 turned away from it, 1 square on.
+   *
+   * Shading, not geometry. It falls out of the face's own normal against the light, so a view may
+   * paint it however it likes and the solid underneath is the same solid. This was three flat steps
+   * once -- the light was measured exactly like this and then rounded into bands -- and three steps
+   * over twelve pentagons is what made a die read as a drawing of a die rather than as one.
+   */
+  light: number;
   /** An SVG transform putting the number on the face, squashed the way the face is. */
   label: string;
 }
@@ -240,7 +247,7 @@ export function draw(turn: Turn): Drawn {
     // straight-edged, so the same matrix that carries the pentagon carries the text.
     const k = RADIUS / 100;
     const label = `matrix(${(k * across[0]).toFixed(4)},${(-k * across[1]).toFixed(4)},${(-k * up[0]).toFixed(4)},${(k * up[1]).toFixed(4)},${(BOX / 2 + RADIUS * centre[0]).toFixed(2)},${(BOX / 2 - RADIUS * centre[1]).toFixed(2)})`;
-    faces.push({ value: face.value, points: points(face.corners), band: light > 0.78 ? 0 : light > 0.42 ? 1 : 2, label });
+    faces.push({ value: face.value, points: points(face.corners), light: Math.max(0, Math.min(1, light)), label });
   }
   return { faces, rim: points(silhouette(turn)), front };
 }

@@ -9,6 +9,16 @@
 </head>
 <body>
 <canvas id="gl"></canvas>
+<!-- The torn edge the play sheets are cut with (game/ui/hud.css). A CSS `filter: url(#id)` resolves
+     only against a filter that is in the document, and the play overlay is five sibling roots with
+     no single element to hang it off, so it lives here. Draws nothing; takes no space. -->
+<svg class="paper-defs" width="0" height="0" aria-hidden="true" focusable="false">
+<!-- `scale` is the push in pixels, and it is what decides how ragged the edge reads: these are low
+     and on two octaves, so the edge waves gently and evenly rather than tearing. Two octaves also
+     costs less, which matters because the party puts four of these on screen at once. -->
+<filter id="paper-deckle"><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2"/></filter>
+<filter id="paper-deckle-lg"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.5"/></filter>
+</svg>
 <div id="app"></div>
 <script type="module" src="/src/main.ts"></script>
 </body>

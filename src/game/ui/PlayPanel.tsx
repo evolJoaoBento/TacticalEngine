@@ -7,7 +7,7 @@
  * stops for an answer.
  *
  * Text only. Lines are read, never spoken — CONTEXT.md rules out narration.
- * The look is `hud.css`: Slay the Spire's leather, ink and Kreon.
+ * The look is `hud.css`: paper, brown ink, and Cinzel over Libre Baskerville.
  */
 
 import { useState } from 'preact/hooks';
@@ -125,14 +125,17 @@ export interface PlayPanelProps {
 /**
  * The log's tones, and the floaters' over heads (`main.ts`): good is the Light die's gold and
  * bad the Shadow die's violet, so what the dice say and what the log says wear the same colours.
+ *
+ * Inks, since both grounds are now light -- the log is written on the panel's paper, and a floater
+ * is the same ink carried on a cream halo (`hud.css`, `.floater`) so it reads over the lit board.
  */
 export const TONE: Readonly<Record<LogLine['tone'], string>> = {
-  narration: '#d8d4c8',
-  system: '#9ba5b4',
-  good: '#e8bd63',
-  bad: '#c9aef0',
-  combat: '#ef8a7a',
-  success: '#9ae08a',
+  narration: '#3b2e21',
+  system: '#6a5f4d',
+  good: '#8a6212',
+  bad: '#54398c',
+  combat: '#a8321f',
+  success: '#2b6b30',
 };
 
 export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {

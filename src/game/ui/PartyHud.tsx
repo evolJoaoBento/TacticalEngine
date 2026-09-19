@@ -4,8 +4,9 @@
  * Damage is tracked as slots marked, not points lost, so the HUD shows
  * pips — each Hit Point, Stress and Armor Slot as a bar, lit when marked.
  * That is what the character sheet looks like, and it is what a player counts
- * when deciding whether to take the hit or spend the armor. The look is the
- * deck browser's (`hud.css`): gold for the one selected, Kreon for names.
+ * when deciding whether to take the hit or spend the armor. The look is a sheet
+ * of parchment (`hud.css`): gold for the one selected, Cinzel for names, and a
+ * photograph of whoever it is taped to the corner.
  */
 
 import './hud.css';
@@ -33,6 +34,14 @@ export interface PartyHudProps {
   /** The GM's Shadow, shown so a player knows what the table is up against. */
   bad: { value: number; max: number };
   round: number | null;
+  /**
+   * A picture of the model a character is drawn with, as a data URL, for the photo on their sheet.
+   * A function rather than a field on the member: taking one needs a WebGL context and a built
+   * model, so it is asked for while drawing rather than gathered for everybody up front. Null when
+   * nothing can be drawn -- no model, or a browser that refused the canvas -- and the sheet simply
+   * has no photograph on it.
+   */
+  portrait?: (id: string) => string | null;
   onSelect: (id: string) => void;
   onLevelUp: (id: string) => void;
 }
@@ -55,7 +64,9 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
   if (props.members.length === 0) return null;
   return (
     <div className="play hud" data-testid="hud">
-      {props.members.map((member) => (
+      {props.members.map((member) => {
+        const shot = props.portrait?.(member.id) ?? null;
+        return (
         <div
           key={member.id}
           className={`play-box hud-card${member.selected ? ' is-selected' : ''}${member.alive ? '' : ' is-down'}`}
@@ -63,6 +74,11 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
           data-selected={member.selected}
           onClick={() => props.onSelect(member.id)}
         >
+          {shot === null ? null : (
+            <span className="hud-shot" data-testid="portrait">
+              <img src={shot} alt="" aria-hidden="true" />
+            </span>
+          )}
           <div className="hud-head">
             <span className="play-name">{member.name}</span>
             <span className="play-eyebrow">{member.role}</span>
@@ -90,7 +106,8 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
           </div>
           {member.conditions.length > 0 ? <div className="hud-conditions">{member.conditions.join(' · ')}</div> : null}
         </div>
-      ))}
+        );
+      })}
       <div className="play-box hud-card hud-gm" data-testid="gm">
         <span className="play-eyebrow">{props.round === null ? 'Exploring' : `Round ${props.round}`}</span>
         <Pips label="Shadow" marked={props.bad.value} max={props.bad.max} colour="var(--play-shadow)" testId="bad" />

@@ -3,8 +3,15 @@ import type { GrantedCard, LoadoutCard } from '../demo-abilities';
 import { artFor } from './card-art';
 import { SIGIL_HEIGHT, SIGIL_WIDTH, sigilOf, type Sigil } from './card-sigil';
 
-/** The ink the emblem is drawn in, over the domain-coloured ground. */
-const INK = '#fff2d4';
+/** The ink the emblem is drawn in, over the card's cream stock (`cards.css`, `.face-art`). */
+const INK = '#4a3623';
+
+/**
+ * How hard that ink lands. `card-sigil.ts` mixes its opacities for a pale ink laid over a saturated
+ * ground, where a 0.13 backdrop still reads; the same wash on cream is barely a smudge. The shapes
+ * are the drawing and stay as they are -- this is the painter deciding how dark to print them.
+ */
+const onPaper = (opacity: number): number => Math.min(1, opacity * 1.85);
 
 /**
  * The generated emblem for a card, as SVG.
@@ -25,8 +32,8 @@ export function CardSigil({ card, className }: { card: { id: string; domain: str
     >
       {sigil.shapes.map((shape, i) => {
         const paint = shape.fill
-          ? { fill: INK, 'fill-opacity': shape.opacity }
-          : { fill: 'none', stroke: INK, 'stroke-opacity': shape.opacity, 'stroke-width': shape.width };
+          ? { fill: INK, 'fill-opacity': onPaper(shape.opacity) }
+          : { fill: 'none', stroke: INK, 'stroke-opacity': onPaper(shape.opacity), 'stroke-width': shape.width };
         if (shape.kind === 'circle') {
           return <circle key={i} cx={shape.cx} cy={shape.cy} r={shape.r} {...paint} />;
         }

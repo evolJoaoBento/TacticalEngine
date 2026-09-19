@@ -35,7 +35,7 @@ import { BuildingView, type BuildingStats } from './engine/render/building-view'
 import { BUILD_LIMIT, isBuildCoordinate } from './engine/scene/building';
 import { Z_STEP, roundToStep } from './editor/height-ladder';
 import { AssetLibrary, modelAssetSchema, type ModelAsset } from './engine/render/assets';
-import { thumbnailOf } from './engine/render/thumbnails';
+import { portraitOf, thumbnailOf } from './engine/render/thumbnails';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NO_TILE, type Spot, type TileGrid } from './engine/grid/grid';
 import { mapExtent, spotToWorld, tileAtWorld, tileCenter, worldToSpot } from './engine/render/layout';
@@ -413,7 +413,7 @@ editor.setMode('inspect');
 // not know until the file was here. The view already redraws itself on this;
 // the panel has to be told too, or the dropdowns stay empty until something
 // else happens to re-render them.
-assets.onChange(() => { if (mode === 'edit') renderPanel(); });
+assets.onChange(() => { if (mode === 'edit') renderPanel(); else refreshPlay(); });
 
 // The library's own plus the project's, read afresh so a model added mid-session is offered.
 const knownModels = (): Set<string> => new Set([...MODELS.map((m) => m.id), ...session.project.assets.map((a) => a.id)]);
@@ -1470,7 +1470,7 @@ function renderPlayPanel(): void {
   render(
     h(Fragment, null, h(PartyHud, {
       members: hudMembers(),
-      bad: { ...demo.state.bad },
+      bad: { ...demo.state.bad }, portrait: (id: string) => { const who = demo.state.entity(id); return who === undefined ? null : portraitOf(view.registry, assets, view.drawnModelFor(who)); },
       round: demo.encounter?.round ?? null,
       onSelect: (id: string) => {
         demo.party.select(id);

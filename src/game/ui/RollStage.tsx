@@ -99,6 +99,16 @@ export function RollStage(props: RollStageProps): preact.JSX.Element | null {
   // The sum arrives a term at a time once the dice are down; a card with no
   // time to take over it has the whole thing at once, which is what a test wants.
   const steps = mine === undefined ? [] : tally(mine.roll, thrown.current?.trait ?? '');
+  /** Where the total falls in the sum, so it can be lifted out of the line and set under it. */
+  const totalAt = steps.findIndex((step) => step.tone === 'is-total');
+  /**
+   * Whether the roll reached what it was against.
+   *
+   * The total against the difficulty, and nothing else. `roll.success` is a different question --
+   * a Duality roll succeeds with Light or with Shadow, and a critical is its own case -- so the
+   * number under the sum is coloured by the one thing it is actually showing.
+   */
+  const made = mine !== undefined && mine.roll.total >= mine.roll.difficulty;
   const [shown, setShown] = useState(0);
   const tallied = settled && shown >= steps.length;
   useEffect(() => {
@@ -227,13 +237,24 @@ export function RollStage(props: RollStageProps): preact.JSX.Element | null {
             numbers arrive; a press anywhere on it skips to the end of the sum. */}
         {mine !== undefined ? (
           <div className="roll-outcome" onClick={() => setShown(steps.length)}>
+            {/* The sum reads across the line; what it came to drops out of that line and sits
+                centred under it. It is still one of the terms and still arrives in its turn as the
+                sum is read out -- it is only drawn apart, because the total is the number a player
+                is actually waiting for and it should not be one item among six. */}
             <div className="roll-steps">
-              {steps.slice(0, shown).map((step, i) => (
-                <span key={i} data-testid="step" className={`roll-step ${step.tone}`}>
-                  {step.text}
-                </span>
-              ))}
+              {steps.slice(0, shown).map((step, i) =>
+                step.tone === 'is-total' ? null : (
+                  <span key={i} data-testid="step" className={`roll-step ${step.tone}`}>
+                    {step.text}
+                  </span>
+                ),
+              )}
             </div>
+            {shown > totalAt && totalAt >= 0 ? (
+              <div data-testid="step" className={`roll-total ${made ? 'is-made' : 'is-missed'}`}>
+                {mine.roll.total}
+              </div>
+            ) : null}
             {tallied ? (
               <div
                 data-testid="verdict"

@@ -1,28 +1,88 @@
-/* Cards and the deck browser, in play's Slay the Spire language (hud.css): leather, thick ink, hard
-   shadows, Kreon. The font is vendored under public/fonts/kreon with its SIL Open Font License, so
-   a fresh clone and an offline machine draw the same letters; Rockwell and Georgia stand in while it
-   loads. */
+/* Cards and the deck browser. A card is a printed card: cream stock, a thin ruled frame, brown ink,
+   and the domain's colour kept for the band along its foot and the trim -- so the colour still says
+   which domain it is without swallowing the page. The browser behind them stays a dark table, which
+   is what a cream card wants to be laid on. The faces are vendored under public/fonts with their SIL
+   Open Font Licences, so a fresh clone and an offline machine draw the same letters; Georgia stands
+   in while they load. */
+/* All three vendored under public/fonts with their SIL Open Font Licences, for the same reason Kreon
+   was: a fresh clone and an offline machine draw the same letters, and nothing in the render path
+   waits on a font server. The latin subsets are variable, so each is declared over a weight range
+   rather than one face per weight. Cinzel sets the display -- names, headings, the small-caps
+   labels; Libre Baskerville sets everything that is read as prose. */
 @font-face{font-family:Kreon;src:url(/fonts/kreon/kreon-latin.woff2) format('woff2');font-weight:300 700;font-display:swap}
-.deck-backdrop{position:fixed;inset:0;z-index:60;background:#0d0806d6;backdrop-filter:blur(6px);pointer-events:auto;display:grid;place-items:center;color:#f7eedb;font:13px/1.5 Kreon,Rockwell,Georgia,serif}
-.deck-browser{position:relative;display:flex;flex-direction:column;width:min(1180px,94vw);height:min(900px,92dvh);background:radial-gradient(ellipse at 50% 0,#5e4633 0,transparent 65%),#2c211a;border:3px solid #1a120d;border-radius:14px;box-shadow:inset 0 0 0 1px #d9b36b55,0 6px 0 #0009,0 30px 100px #000b;overflow:hidden;outline:none}
-.deck-header{display:flex;justify-content:space-between;align-items:center;padding:22px 30px 16px;border-bottom:2px solid #1a120d99}
-.deck-eyebrow{font-size:10px;font-weight:700;letter-spacing:.24em;color:#f0c55a;text-shadow:-1px -1px 0 #1a120d,1px -1px 0 #1a120d,-1px 1px 0 #1a120d,1px 1px 0 #1a120d}
-.deck-header h1{font:700 30px Kreon,Rockwell,Georgia,serif;margin:5px 0;color:#fff;text-shadow:-1.5px -1.5px 0 #1a120d,1.5px -1.5px 0 #1a120d,-1.5px 1.5px 0 #1a120d,1.5px 1.5px 0 #1a120d,0 3px 0 #1a120d}.deck-header h1 span{color:#c9b797;font-size:23px}
-.deck-close,.deck-recall{color:#fff;background:linear-gradient(#7a5b3c,#4e3824);border:2px solid #1a120d;border-radius:9px;padding:8px 13px;cursor:pointer;font:700 13px Kreon,Rockwell,Georgia,serif;text-shadow:-1px -1px 0 #1a120d,1px -1px 0 #1a120d,-1px 1px 0 #1a120d,1px 1px 0 #1a120d;box-shadow:inset 0 2px 0 #ffffff2e,0 3px 0 #000a}.deck-close kbd{margin-left:14px;color:#e6d6b8;font:10px system-ui;text-shadow:none}
-.deck-toolbar{display:flex;align-items:end;gap:18px;padding:16px 30px}.deck-toolbar label{display:flex;flex-direction:column;gap:5px;color:#c9b797;font-size:11px}.deck-search{flex:1}.deck-toolbar input,.deck-toolbar select{background:#1b1410;color:#f7eedb;border:2px solid #1a120d;border-radius:7px;padding:10px 12px;font:13px Kreon,Rockwell,Georgia,serif;min-width:0}.deck-toolbar p{color:#c9b797;margin:0;font-size:11px}
-.deck-scroll{overflow:auto;padding:0 30px 24px;flex:1;scrollbar-color:#6b4f36 #2c211a}.deck-section-title{display:flex;align-items:center;gap:12px;margin:18px 0}.deck-section-title h2{margin:0;font:700 22px Kreon,Rockwell,Georgia,serif;color:#fff;text-shadow:-1.5px -1.5px 0 #1a120d,1.5px -1.5px 0 #1a120d,-1.5px 1.5px 0 #1a120d,1.5px 1.5px 0 #1a120d,0 2px 0 #1a120d}.deck-section-title>span{color:#ffd86b;background:#f0c55a1f;border:2px solid #1a120d;padding:2px 9px;border-radius:20px;font-size:11px}.deck-section-title p{margin:0 0 0 auto;color:#c9b797;font-size:11px}
-.deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:22px 18px;align-items:start}.deck-slot{min-width:0;max-width:245px}.card-inspect{display:block;border:0;background:none;padding:0;width:100%;cursor:zoom-in;text-align:left;color:inherit;border-radius:12px;transition:transform .18s,filter .18s}.card-inspect:hover,.card-inspect:focus-visible{transform:translateY(-7px) rotate(-1deg);filter:drop-shadow(0 10px 12px #0009)}
-.deck-select,.deck-ready{display:flex;justify-content:center;align-items:center;gap:6px;padding:9px 0;color:#c9b797;font-size:11px}.deck-select{cursor:pointer}.deck-select input{accent-color:#f0c55a}.is-selected .face{outline:3px solid #ffd86b;box-shadow:0 0 26px #ffd86b66}.deck-ready{color:#b9d68f}.deck-recall{width:100%;margin-top:8px;font-size:11px;background:linear-gradient(#f2c65c,#b27a1f)}.deck-recall:disabled{opacity:.4;cursor:default}.deck-empty{padding:22px;border:2px dashed #6b4f36;border-radius:10px;color:#c9b797;text-align:center}
-.deck-footer{border-top:2px solid #1a120d99;padding:12px 30px;display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#c9b797}.deck-footer>span:last-child{letter-spacing:.16em;color:#f0c55a}.deck-footer [role=alert]{color:#ffb496}
-/* A card as Slay the Spire draws one: a frame in its domain's colour, thick ink round everything,
-   the name on a ribbon across the top, the art in an ink-rimmed window, the rules in cream on the
-   frame's own colour darkened, and the name outlined where it sits on colour. */
-.face{--ink:#1a120d;--rules-bg:color-mix(in srgb,var(--domain-color) 34%,#1c140f);border:3px solid var(--ink);border-radius:12px;overflow:hidden;aspect-ratio:.66;display:flex;flex-direction:column;gap:4px;padding:5px;box-sizing:border-box;background:linear-gradient(170deg,color-mix(in srgb,var(--domain-color) 88%,#fff) 0,color-mix(in srgb,var(--domain-color) 78%,#000) 72%);color:#f7eedb;box-shadow:inset 0 0 0 2px #ffffff33,0 5px 0 #0007;font-family:Kreon,Rockwell,Georgia,serif;position:relative}.face-art{position:relative;flex:0 0 43%;border:2px solid var(--ink);border-radius:7px;background:radial-gradient(ellipse at center,#a194be,var(--domain-color));overflow:hidden;box-shadow:inset 0 0 0 1px #ffffff40}.face-art>svg,.face-art>img{width:100%;height:100%;display:block;object-fit:cover}.face-art:after{content:'';position:absolute;inset:55% 0 0;background:linear-gradient(transparent,#05060c88)}
-.face-level{position:absolute;top:-2px;left:8px;z-index:1;display:flex;align-items:center;flex-direction:column;background:var(--domain-color);color:#fff;padding:7px 9px 17px;border:2px solid var(--ink);border-top:0;clip-path:polygon(0 0,100% 0,100% 80%,50% 100%,0 80%);text-shadow:-1px -1px 0 #1a120d,1px -1px 0 #1a120d,-1px 1px 0 #1a120d,1px 1px 0 #1a120d}.face-level b{font-size:22px}.face-level small,.face-recall small{font:6px system-ui;letter-spacing:.1em}.face-recall{position:absolute;right:6px;top:6px;border:2px solid var(--ink);border-radius:50%;width:32px;height:32px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#4a3a2c,#1d1512);color:#fff;font-size:17px;font-weight:700;z-index:1;box-shadow:inset 0 0 0 1px #ffd86b88;text-shadow:-1px -1px 0 #1a120d,1px -1px 0 #1a120d,-1px 1px 0 #1a120d,1px 1px 0 #1a120d}.face-domain{position:absolute;bottom:5px;left:0;right:0;text-align:center;z-index:1;color:#fff;text-transform:uppercase;letter-spacing:.22em;font:700 9px Kreon,Rockwell,Georgia,serif;text-shadow:-1px -1px 0 #1a120d,1px -1px 0 #1a120d,-1px 1px 0 #1a120d,1px 1px 0 #1a120d}
-.face-title{order:-1;background:linear-gradient(color-mix(in srgb,var(--domain-color) 38%,#fbecc8),color-mix(in srgb,var(--domain-color) 48%,#c89a4e));color:#fff;padding:6px 7px 4px;text-align:center;border:2px solid var(--ink);border-radius:6px;box-shadow:inset 0 2px 0 #ffffff66,0 2px 0 #0006}.face-title h3{font-size:15px;font-weight:700;line-height:1.05;margin:0;text-shadow:-1.2px -1.2px 0 #1a120d,1.2px -1.2px 0 #1a120d,-1.2px 1.2px 0 #1a120d,1.2px 1.2px 0 #1a120d,0 2px 0 #1a120d}.face-title>span{display:block;font:700 8px Kreon,Rockwell,Georgia,serif;text-transform:uppercase;letter-spacing:.14em;color:#3b2410;text-shadow:none}.face-rules{padding:7px 9px;overflow:hidden;flex:1;position:relative;font-size:10px;line-height:1.35;white-space:pre-wrap;background:var(--rules-bg);border:2px solid var(--ink);border-radius:7px;box-shadow:inset 0 2px 5px #0007;text-shadow:0 1px 0 #0009}.face-rules p{margin:0 0 7px}.face-rules:after{content:'';position:absolute;bottom:0;left:0;right:0;height:12px;background:linear-gradient(transparent,var(--rules-bg))}.face-footer{display:flex;justify-content:space-between;padding:0 4px;font:700 6px Kreon,Rockwell,Georgia,serif;letter-spacing:.1em;text-transform:uppercase;color:#f3e2bbcc}
-.card-art-import{display:flex;flex-direction:column;gap:7px}.card-art-import div{display:flex;gap:8px}.card-art-import button{flex:1}.card-art-import p{margin:0;color:#c9b797;font-size:11px;text-align:center}.card-art-import p[role=alert]{color:#ffb496}
+@font-face{font-family:'Libre Baskerville';src:url(/fonts/libre-baskerville/libre-baskerville-latin.woff2) format('woff2');font-weight:400 700;font-style:normal;font-display:swap}
+@font-face{font-family:'Libre Baskerville';src:url(/fonts/libre-baskerville/libre-baskerville-latin-italic.woff2) format('woff2');font-weight:400 700;font-style:italic;font-display:swap}
+@font-face{font-family:Cinzel;src:url(/fonts/cinzel/cinzel-latin.woff2) format('woff2');font-weight:400 700;font-display:swap}
+/* The collection as a ring binder lying open: a leaf of the character's own paper, punched down the
+   left margin, with every card slipped into a clear plastic pocket. The page is the same stock as
+   the party sheets (`hud.css`), so opening the loadout is turning to another leaf of the same book
+   rather than opening a different window. The ground flips with it -- this was pale lettering on a
+   dark panel, and every line of it now has to be ink on paper. */
+.deck-backdrop{position:fixed;inset:0;z-index:60;background:#120c08ad;backdrop-filter:blur(5px);pointer-events:auto;display:grid;place-items:center;color:#1d1611;font:13px/1.5 'Libre Baskerville',Georgia,serif}
+.deck-browser{position:relative;display:flex;flex-direction:column;width:min(1180px,94vw);height:min(900px,92dvh);background-image:var(--paper-grain,none),linear-gradient(172deg,#fdfbf4,#f7f1e2 46%,#ece1ca);background-blend-mode:soft-light,normal;border:1px solid #c7b79a;border-radius:4px;box-shadow:inset 0 1px 0 #fffefb,inset 0 0 90px #8f59221c,0 24px 80px #000000a6;overflow:hidden;outline:none;color:#1d1611}
+/* The punched margin: a ring hole every so far down the left edge, and the rule they sit behind.
+   Drawn over the page rather than in it, so nothing in the content has to know it is there. */
+.deck-browser:before{content:'';position:absolute;top:0;bottom:0;left:0;width:46px;background-image:radial-gradient(circle at 23px 50%,#181009 0 6.5px,#00000038 6.5px 8px,#0000 8.5px);background-size:100% 78px;background-repeat:repeat-y;border-right:1px solid #dccca9;box-shadow:1px 0 0 #fffdf7;pointer-events:none;z-index:3}
+.deck-header{display:flex;justify-content:space-between;align-items:center;padding:22px 30px 16px 62px;border-bottom:1px solid #d5c5a4}
+.deck-eyebrow{font:700 9px Cinzel,'Libre Baskerville',Georgia,serif;letter-spacing:.24em;color:#8a7558}
+.deck-header h1{font:700 28px Cinzel,'Libre Baskerville',Georgia,serif;margin:5px 0;color:#1d1611}.deck-header h1 span{color:#7c6a52;font-size:21px}
+/* The same keycap the play overlay uses, so closing the browser is the same object as saving. */
+.deck-close,.deck-recall{color:#2f241a;background:linear-gradient(#fdfaf1,#e4dbc8);border:1px solid #b2a68d;border-radius:6px;padding:8px 13px;cursor:pointer;font:700 13px 'Libre Baskerville',Georgia,serif;box-shadow:inset 0 1px 0 #fffefb,inset 0 -1px 0 #0000000f,0 3px 0 #b2a68d,0 4px 6px #00000038}.deck-close:active,.deck-recall:not(:disabled):active{transform:translateY(3px);box-shadow:inset 0 1px 0 #fffefb,0 1px 2px #0000002e}.deck-close kbd{margin-left:14px;color:#6f6553;font:10px system-ui}
+.deck-toolbar{display:flex;align-items:end;gap:18px;padding:16px 30px 16px 62px}.deck-toolbar label{display:flex;flex-direction:column;gap:5px;color:#57493a;font:700 9px Cinzel,'Libre Baskerville',Georgia,serif;letter-spacing:.12em;text-transform:uppercase}.deck-search{flex:1}
+/* Ruled boxes on the page, the way a form on a sheet is ruled -- not wells cut into a dark panel. */
+.deck-toolbar input,.deck-toolbar select{background:#fffdf6;color:#1d1611;border:1px solid #c7b79a;border-radius:3px;padding:9px 12px;font:13px 'Libre Baskerville',Georgia,serif;min-width:0;box-shadow:inset 0 1px 2px #00000014}
+.deck-toolbar p{color:#57493a;margin:0;font-size:11px}
+.deck-scroll{overflow:auto;padding:0 30px 24px 62px;flex:1;scrollbar-color:#c0ac88 transparent}
+/* Each section is a heading ruled off across the page, as a sheet divides itself. */
+.deck-section-title{display:flex;align-items:center;gap:12px;margin:20px 0 12px;padding-bottom:5px;border-bottom:1px solid #ddcdab}.deck-section-title h2{margin:0;font:700 20px Cinzel,'Libre Baskerville',Georgia,serif;color:#1d1611}.deck-section-title>span{color:#856018;background:#8560181a;border:1px solid #c7b79a;padding:2px 9px;border-radius:2px;font-size:11px}.deck-section-title p{margin:0 0 0 auto;color:#7c6a52;font-size:11px}
+.deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:22px 18px;align-items:start}.deck-slot{min-width:0;max-width:245px}
+/* The pocket itself: a slip of clear plastic welded to the page, a little larger than the card, with
+   the paper showing through round the edges of what is in it. The button already wraps exactly the
+   card and nothing else, so the sleeve is drawn on it and no markup changes. */
+.card-inspect{position:relative;display:block;border:0;width:100%;padding:5px 5px 9px;cursor:zoom-in;text-align:left;color:inherit;background:#ffffff1f;border-radius:3px;box-shadow:inset 0 0 0 1px #ffffffb3,inset 0 1px 0 #ffffff,0 1px 2px #00000026,0 3px 8px #0000001f;overflow:visible}
+/* The card slides up in its sleeve when pointed at, rather than the sleeve leaving the page. */
+.card-inspect .face{transition:transform .18s,box-shadow .18s}
+.card-inspect:hover .face,.card-inspect:focus-visible .face{transform:translateY(-8px);box-shadow:0 2px 3px #00000033,0 14px 22px #00000047}
+/* The sheen across the plastic, and the thickened lip at the mouth of the pocket. */
+.card-inspect:before{content:'';position:absolute;inset:0;border-radius:3px;background:linear-gradient(104deg,#fff0 0 30%,#ffffff54 41%,#ffffff8c 46%,#ffffff3d 53%,#fff0 66%);pointer-events:none;z-index:2}
+.card-inspect:after{content:'';position:absolute;left:4px;right:4px;top:3px;height:3px;border-radius:3px;background:linear-gradient(#ffffffd1,#ffffff26);pointer-events:none;z-index:3}
+.deck-select,.deck-ready{display:flex;justify-content:center;align-items:center;gap:6px;padding:8px 0 0;color:#57493a;font-size:11px}.deck-select{cursor:pointer}.deck-select input{accent-color:#856018}
+/* Chosen to make room: the pocket is tabbed in gold, rather than the card behind it being lit up. */
+.is-selected .card-inspect{background:#8560181f;box-shadow:inset 0 0 0 2px #856018,inset 0 1px 0 #ffffff,0 1px 2px #00000026,0 5px 12px #00000033}
+.is-selected .face{outline:none}
+.deck-ready{color:#2b6b30}.deck-recall{width:100%;margin-top:8px;font-size:11px}.deck-recall:disabled{opacity:.45;cursor:default;filter:grayscale(.5)}
+.deck-empty{padding:22px;border:1px dashed #c0ac88;border-radius:3px;color:#7c6a52;text-align:center}
+.deck-footer{border-top:1px solid #d5c5a4;padding:12px 30px 12px 62px;display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#57493a}.deck-footer>span:last-child{letter-spacing:.16em;color:#856018;font-family:Cinzel,'Libre Baskerville',Georgia,serif}.deck-footer [role=alert]{color:#9c2f21}
+/* A card as a printed card: cream stock, a hairline ink frame with a second rule inside it in the
+   domain's colour, the name ruled off at the top rather than set on a ribbon, the emblem in a lined
+   window, the rules in brown ink on the paper itself, and the domain's colour saved for the band
+   along the foot -- the one place on the card it is allowed to be solid. */
+.face{--ink:#241a12;--rule:#cdbc9c;--paper:#faf4e6;--rules-bg:var(--paper);border:1px solid #6b5942;border-radius:8px;overflow:hidden;aspect-ratio:.66;display:flex;flex-direction:column;gap:4px;padding:5px;box-sizing:border-box;background-image:var(--paper-grain),linear-gradient(168deg,#fffcf4 0,var(--paper) 46%,#f1e7d2 100%);background-blend-mode:soft-light,normal;color:var(--ink);box-shadow:inset 0 0 0 1px #fffefa,inset 0 0 0 2px color-mix(in srgb,var(--domain-color) 26%,#d8cbb0),inset 0 0 22px #8f592214,0 2px 3px #00000033,0 10px 20px #00000047;font-family:'Libre Baskerville',Georgia,serif;position:relative}
+.face-art{position:relative;flex:0 0 43%;border:1px solid var(--rule);border-radius:5px;background:radial-gradient(ellipse at center,#fffcf3,color-mix(in srgb,var(--domain-color) 18%,#f5ecd8));overflow:hidden;box-shadow:inset 0 0 0 1px #fffefa}
+.face-art>svg,.face-art>img{width:100%;height:100%;display:block;object-fit:cover}
+/* A wash of the paper back up over the foot of the window, so the domain reads on art as well as
+   on the emblem -- the light-ground twin of the dark scrim this used to be. */
+.face-art:after{content:'';position:absolute;inset:62% 0 0;background:linear-gradient(transparent,#fbf3e0ed)}
+.face-level{position:absolute;top:-2px;left:8px;z-index:1;display:flex;align-items:center;flex-direction:column;background:var(--domain-color);color:#fffaf0;padding:7px 9px 17px;border:1px solid var(--ink);border-top:0;clip-path:polygon(0 0,100% 0,100% 80%,50% 100%,0 80%);box-shadow:0 1px 2px #00000038}
+.face-level b{font-size:22px}
+.face-level small,.face-recall small{font:6px system-ui;letter-spacing:.1em}
+/* Struck into the paper rather than sat on it: a cream counter with an ink rim. */
+.face-recall{position:absolute;right:6px;top:6px;border:1px solid var(--ink);border-radius:50%;width:32px;height:32px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#fffaec,#e4d5b1);color:var(--ink);font-size:17px;font-weight:700;z-index:1;box-shadow:inset 0 0 0 1px #fffdf6,0 1px 2px #00000030}
+.face-domain{position:absolute;bottom:4px;left:0;right:0;text-align:center;z-index:1;color:var(--ink);text-transform:uppercase;letter-spacing:.2em;font:700 8px Cinzel,'Libre Baskerville',Georgia,serif}
+/* The name is ruled off, the way a printed card sets it: no ribbon, no relief, just the rule. */
+.face-title{order:-1;background:none;color:var(--ink);padding:5px 7px 4px;text-align:center;border:0;border-bottom:1px solid var(--rule);border-radius:0;box-shadow:none}
+.face-title h3{font:700 14px/1.08 Cinzel,'Libre Baskerville',Georgia,serif;margin:0}
+.face-title>span{display:block;font:700 7.5px Cinzel,'Libre Baskerville',Georgia,serif;text-transform:uppercase;letter-spacing:.14em;color:color-mix(in srgb,var(--domain-color) 46%,#4a3d29)}
+/* Libre Baskerville runs wider and taller in the eye than Kreon at the same nominal size, so the
+   rules text steps down a little to keep the same number of words on a line. */
+.face-rules{padding:6px 8px;overflow:hidden;flex:1;position:relative;font-size:9px;line-height:1.38;white-space:pre-wrap;background:none;border:0;border-radius:0;box-shadow:none;text-shadow:none;color:#241a12}
+.face-rules p{margin:0 0 7px}
+.face-rules:after{content:'';position:absolute;bottom:0;left:0;right:0;height:12px;background:linear-gradient(transparent,var(--rules-bg))}
+/* The band along the foot, pulled out to the card's own edge under the paper's clip. */
+.face-footer{display:flex;justify-content:space-between;margin:0 -5px -5px;padding:3px 7px;font:700 5.5px Cinzel,'Libre Baskerville',Georgia,serif;letter-spacing:.14em;text-transform:uppercase;color:#fff8e8;background:var(--domain-color);border-top:1px solid #6b5942}
+.card-art-import{display:flex;flex-direction:column;gap:7px}.card-art-import div{display:flex;gap:8px}.card-art-import button{flex:1}.card-art-import p{margin:0;color:#e0d3b8;font-size:11px;text-align:center}.card-art-import p[role=alert]{color:#ffb496}
 .card-lightbox{position:absolute;inset:0;background:#120c09ed;backdrop-filter:blur(10px);display:grid;place-items:center;padding:20px;z-index:2;overflow:auto}.card-detail{width:min(390px,80vw);display:flex;flex-direction:column;gap:14px;max-height:100%}.face-expanded{aspect-ratio:auto;min-height:0;flex-shrink:0}.face-expanded .face-art{height:220px;flex:auto}.face-expanded .face-title h3{font-size:25px}.face-expanded .face-rules{font-size:14px;overflow:visible;padding:16px 20px}.face-expanded .face-rules:after{display:none}.face-expanded .face-domain{font-size:12px}.face-expanded .face-footer{font-size:8px}
-.deck-browser button:focus-visible,.deck-browser input:focus-visible,.deck-browser select:focus-visible{outline:2px solid #ffe08a;outline-offset:3px}
+.deck-browser button:focus-visible,.deck-browser input:focus-visible,.deck-browser select:focus-visible{outline:2px solid #856018;outline-offset:3px}
 @media(max-width:700px){.deck-browser{width:100vw;height:100dvh;border-radius:0}.deck-header{padding:16px}.deck-header h1{font-size:24px}.deck-header h1 span{font-size:17px}.deck-toolbar{padding:12px 16px;gap:10px;flex-wrap:wrap}.deck-toolbar p{width:100%}.deck-scroll{padding:0 16px 20px}.deck-section-title{flex-wrap:wrap;gap:8px}.deck-section-title p{width:100%;margin:0}.deck-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}.deck-footer{padding:10px 16px}.deck-footer>span:last-child{display:none}.face-title h3{font-size:13px}.face-rules{font-size:9px}.card-lightbox{padding:12px}.face-expanded .face-art{height:180px}}
 @media(prefers-reduced-motion:reduce){.card-inspect{transition:none}.card-inspect:hover{transform:none}}
 .face-expanded{min-height:550px}.face-expanded .face-art{flex:0 0 220px}.face-expanded .face-rules{flex:1}

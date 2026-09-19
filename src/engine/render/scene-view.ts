@@ -551,6 +551,15 @@ export class SceneView {
   }
 
   /**
+   * The model id an entity is actually drawn from: the one it names, or the stand-in that took its
+   * place. The raw choice is not enough -- a character whose file never arrived is drawn as the
+   * stand-in, and a portrait taken from the raw id would be a picture of something not on the board.
+   */
+  drawnModelFor(entity: EntityState): string {
+    return this.drawnModel(this.modelForEntity(entity), entity);
+  }
+
+  /**
    * Create, move and retire token meshes so they match the entities in `state`.
    *
    * Fallen entities stay on the map, lying flat, because the engine keeps their

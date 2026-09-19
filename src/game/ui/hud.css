@@ -1,64 +1,134 @@
-/* The play overlay -- HUD, hand, play panel, rest, level-up, dice -- drawn the way Slay the Spire
-   draws its UI: warm leather and wood, a thick ink line round every panel, button and card, hard
-   drop shadows under them, and Kreon, outlined in ink wherever it sits on colour. A frame's inner
-   rim is a gold hairline; gold is what is yours to spend. Pips keep the Duality Dice's colours, so
+/* The play overlay -- HUD, hand, play panel, rest, level-up, dice -- drawn as the table it is: aged
+   paper in a leather folio, brown ink, thin rules, and soft shadows where the sheets lie on the wood.
+   The party are character sheets, the hand is a hand of cards, and every verb is a keycap. Gold is
+   still what is yours to spend, darkened to read on paper. Pips keep the Duality Dice's colours, so
    Light on the sheet is the Light die's gold and Shadow the Shadow die's violet. The font is
-   vendored (public/fonts/kreon, SIL OFL) and declared in cards.css. */
-:root{--play-font:Kreon,Rockwell,Georgia,serif;--play-line:#1a120d;--play-surface:#2c211a;--play-surface-top:#46352a;--play-field:#1b1410;--play-frame:#d9b36b;--play-gold:#f0c55a;--play-gold-bright:#ffd86b;--play-ink:#f7eedb;--play-muted:#c9b797;--play-light:#f2c14e;--play-shadow:#a77fd6;--play-hp:#e5483a;--play-stress:#a98bf0;--play-armor:#8fb3d1;
-  --outline-sm:-1px -1px 0 #1a120d,1px -1px 0 #1a120d,-1px 1px 0 #1a120d,1px 1px 0 #1a120d;
-  --outline:-1.5px -1.5px 0 #1a120d,1.5px -1.5px 0 #1a120d,-1.5px 1.5px 0 #1a120d,1.5px 1.5px 0 #1a120d,0 2px 0 #1a120d;
-  --outline-lg:-2px -2px 0 #1a120d,2px -2px 0 #1a120d,-2px 2px 0 #1a120d,2px 2px 0 #1a120d,0 -2px 0 #1a120d,0 2px 0 #1a120d,-2px 0 0 #1a120d,2px 0 0 #1a120d,0 4px 0 #1a120d}
-.play{color:var(--play-ink);font:13px/1.35 var(--play-font)}
-.play-box{background:linear-gradient(180deg,var(--play-surface-top),var(--play-surface));border:3px solid var(--play-line);border-radius:12px;box-shadow:inset 0 0 0 1px #d9b36b44,inset 0 2px 0 #ffffff1c,0 4px 0 #0009,0 10px 24px #0007}
-.play-eyebrow{font:700 10px/1 var(--play-font);letter-spacing:.14em;text-transform:uppercase;color:var(--play-gold);text-shadow:var(--outline-sm)}
-.play-name{font:700 17px/1.1 var(--play-font);color:#fff;text-shadow:var(--outline)}
-.play-btn{color:#fff;background:linear-gradient(#7a5b3c,#4e3824);border:2px solid var(--play-line);border-radius:9px;padding:5px 12px;cursor:pointer;font:700 13px/1.2 var(--play-font);text-shadow:var(--outline-sm);box-shadow:inset 0 2px 0 #ffffff2e,inset 0 -2px 0 #0003,0 3px 0 #000a;transition:filter .12s,transform .08s,box-shadow .08s}
-.play-btn:not(:disabled):hover{filter:brightness(1.15)}
-.play-btn:not(:disabled):active{transform:translateY(2px);box-shadow:inset 0 2px 0 #ffffff2e,0 1px 0 #000a}
-.play-btn.is-primary{background:linear-gradient(#f2c65c,#b27a1f)}
-.play-btn.is-ghost{background:#1b141080;border-color:#1a120dcc;color:var(--play-muted);box-shadow:none;text-shadow:none;font-weight:400}
-.play-btn.is-ghost.is-on{color:#fff;background:#3a2b20;box-shadow:inset 0 0 0 1px var(--play-gold)}
-.play-btn:disabled{opacity:.5;cursor:default;filter:grayscale(.6)}
-.play button:focus-visible,.play input:focus-visible,.play select:focus-visible{outline:2px solid #ffe08a;outline-offset:2px}
-.play select{background:var(--play-field);color:var(--play-ink);border:2px solid var(--play-line);border-radius:7px;padding:4px 8px;font:inherit}
+   vendored (public/fonts/kreon, SIL OFL) and declared in cards.css.
 
-/* The party, stacked down the left edge: a plaque each, the selected one lit in gold. */
-.hud{position:absolute;left:0;top:10px;display:flex;flex-direction:column;align-items:stretch;width:176px;gap:6px;padding:10px;box-sizing:border-box;pointer-events:auto}
-.hud-card{padding:9px 11px 8px;cursor:pointer;transition:filter .12s,box-shadow .12s}
-.hud-card:hover{filter:brightness(1.08)}
-.hud-card.is-selected{background:linear-gradient(180deg,#5c4430,#34271e);box-shadow:inset 0 0 0 2px var(--play-gold-bright),0 0 18px #ffd86b77,0 4px 0 #0009}
-.hud-card.is-down{opacity:.45;filter:grayscale(.8)}
-.hud-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px}
+   Two worlds, two treatments: the sheets are ink on paper and carry no text halo, because a halo
+   round dark letters on cream is a smudge. What floats over the *board* -- the dice, the numbers
+   rising over heads -- keeps the old ink outline, because it sits on a lit 3D scene and needs it. */
+/* Two faces, and the split is by job rather than by taste: Cinzel is a classical inscriptional
+   capital and sets what is *named* -- characters, headings, the small-caps labels; Libre Baskerville
+   is a modern reading serif and sets everything that is *read* -- rules text, the log, the panels.
+   Both vendored (cards.css declares them). Georgia stands in while they load, which is why it, and
+   not a sans, is the fallback: a swap between two serifs does not reflow the page twice. */
+:root{--play-font:'Libre Baskerville',Georgia,serif;--play-display:Cinzel,'Libre Baskerville',Georgia,serif;--play-line:#46352a;--play-rule:#cec0a4;--play-paper:#f8f2e4;--play-paper-top:#fdfbf4;--play-paper-edge:#efe5d0;--play-leather:#5a3a26;--play-leather-dark:#341f13;--play-field:#f2e9d6;--play-frame:#b9a684;--play-gold:#856018;--play-gold-bright:#a9761f;--play-ink:#1d1611;--play-muted:#57493a;--play-light:#9c7020;--play-shadow:#553b8c;--play-hp:#9c2f21;--play-stress:#553b8c;--play-armor:#3c5f80;
+  /* The tooth of the stock: a 50px tile of grey noise, laid over every paper surface in soft-light
+     so it roughens the cream without greying it. Inline, because a fresh clone and an offline
+     machine have to draw the same sheet -- there is no file to go missing. */
+  --paper-grain:url(data:image/png;base64,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);
+  /* Nothing on paper wears a halo, so there are no outline tokens any more. What sits over the
+     board still needs one, and these are it. */
+  --board-sm:-1px -1px 0 #1a120d,1px -1px 0 #1a120d,-1px 1px 0 #1a120d,1px 1px 0 #1a120d;
+  --board:-1.5px -1.5px 0 #1a120d,1.5px -1.5px 0 #1a120d,-1.5px 1.5px 0 #1a120d,1.5px 1.5px 0 #1a120d,0 2px 0 #1a120d;
+  --board-lg:-2px -2px 0 #1a120d,2px -2px 0 #1a120d,-2px 2px 0 #1a120d,2px 2px 0 #1a120d,0 -2px 0 #1a120d,0 2px 0 #1a120d,-2px 0 0 #1a120d,2px 0 0 #1a120d,0 4px 0 #1a120d}
+/* 12.5px, not 13: Libre Baskerville carries a much larger x-height than Kreon, so the same nominal
+   size reads a step bigger and the panels stop holding the same number of words to a line. */
+.play{color:var(--play-ink);font:12.5px/1.45 var(--play-font)}
+/* The filter host draws nothing (`PaperDefs.tsx`); it must not take a corner of the screen. */
+.paper-defs{position:absolute;width:0;height:0;pointer-events:none}
+
+/* A sheet of paper: a cream wash, the tooth of the stock over it, a hairline edge, and the shadow of
+   something lying on wood. The tooth is a 50px tile of grey noise -- soft-light, not multiply, or an
+   opaque grey tile simply covers the cream -- and the warm inset is the aging, drawn over the paper
+   so the sheet darkens towards its edges the way a kept one does. */
+.play-box{background-image:var(--paper-grain),linear-gradient(176deg,var(--play-paper-top),var(--play-paper) 48%,var(--play-paper-edge));background-blend-mode:soft-light,normal;border:1px solid var(--play-rule);border-radius:3px;box-shadow:0 1px 0 #fffefb inset,0 0 34px #8f59220f inset,0 1px 2px #00000026,0 10px 20px #0000003d}
+.play-eyebrow{font:700 9px/1 var(--play-display);letter-spacing:.16em;text-transform:uppercase;color:var(--play-muted)}
+.play-name{font:700 16px/1.15 var(--play-display);color:var(--play-ink)}
+/* Every verb is a keycap: a pale cap, a lip under it, and it goes down when pressed. */
+.play-btn{color:var(--play-ink);background:linear-gradient(#fdfaf1,#e4dbc8);border:1px solid #b2a68d;border-radius:6px;padding:5px 12px;cursor:pointer;font:700 13px/1.2 var(--play-font);box-shadow:inset 0 1px 0 #fffefb,inset 0 -1px 0 #0000000f,0 3px 0 #b2a68d,0 4px 6px #00000038;transition:filter .12s,transform .08s,box-shadow .08s}
+.play-btn:not(:disabled):hover{filter:brightness(1.04)}
+.play-btn:not(:disabled):active{transform:translateY(3px);box-shadow:inset 0 1px 0 #fffefb,0 0 0 #b2a68d,0 1px 2px #0000002e}
+.play-btn.is-primary{background:linear-gradient(#efe3c4,#cfbe93);border-color:#9c8d67;box-shadow:inset 0 1px 0 #fffdf4,inset 0 -1px 0 #0000000f,0 3px 0 #9c8d67,0 4px 6px #00000038}
+.play-btn.is-ghost{background:#00000008;border-color:#c3b191;color:var(--play-muted);box-shadow:none;font-weight:400}
+.play-btn.is-ghost.is-on{color:var(--play-ink);background:#e7d9b7;box-shadow:inset 0 0 0 1px var(--play-gold)}
+.play-btn:disabled{opacity:.45;cursor:default;filter:grayscale(.5)}
+.play button:focus-visible,.play input:focus-visible,.play select:focus-visible{outline:2px solid #9a6f22;outline-offset:2px}
+.play select{background:var(--play-field);color:var(--play-ink);border:1px solid var(--play-rule);border-radius:4px;padding:4px 8px;font:inherit}
+
+/* The party, stacked down the left edge: sheets clipped into a leather folio, the open one lifted. */
+.hud{position:absolute;left:0;top:10px;display:flex;flex-direction:column;align-items:stretch;width:176px;gap:6px;padding:10px;box-sizing:border-box;pointer-events:auto;background:linear-gradient(100deg,var(--play-leather-dark),var(--play-leather));border-right:2px solid #24150c;border-radius:0 8px 8px 0;box-shadow:inset -6px 0 12px #00000059,6px 0 18px #00000047}
+/* Each character is a leaf of parchment, and this is the whole of it.
+ *
+ * The sheet itself carries no paper: it is a transparent box holding the writing, and `:after` is
+ * the parchment behind it. That split is forced and it is also right -- the torn edge is a
+ * displacement filter, and a displacement filter warps everything inside the element it is put on,
+ * so putting it on the sheet would ripple every name, pip and gear line with the edge. The paper
+ * takes the filter; the writing sits above it, straight.
+ *
+ * `:before` is spoken for -- it is the clip at the head of the sheet -- so the folds cannot have a
+ * pseudo-element of their own. They ride in the backing layer's own background stack instead: a
+ * conic sweep of highlights and shadows in overlay, the stock's tooth in soft-light, and the
+ * parchment wash under both. The heavy amber inset is the aging, and it is what stops a cream
+ * rectangle reading as paper stock rather than as a kept sheet.
+ */
+.hud-card{position:relative;padding:11px 11px 8px;cursor:pointer;transition:transform .12s;background:none;border:0;border-radius:0;box-shadow:none;isolation:isolate}
+.hud-card:after{content:'';position:absolute;inset:0;z-index:-1;background-image:conic-gradient(from 208deg,#fff2,#fff0 5% 21%,#96321a 24%,#fff1 26%,#fff0 29% 61%,#9631 65%,#fff1 69%,#fff0 73% 97%,#9631),var(--paper-grain),linear-gradient(168deg,#fffcf2,#f9f3e2 46%,#f0e7d0);background-blend-mode:overlay,soft-light,normal;box-shadow:0 1px 0 #fffefb inset,0 0 30px #8f592226 inset,0 2px 3px #0000002e,0 9px 16px #00000038;filter:url(#paper-deckle)}
+/* The clip sits on the paper, so it is not part of what the filter cuts. */
+.hud-card:before{content:'';position:absolute;top:-3px;left:12px;z-index:1;width:22px;height:8px;border-radius:1px;background:linear-gradient(#bfb69e,#877e69);border:1px solid #5d5545;box-shadow:inset 0 1px 0 #ffffff47,0 1px 2px #00000059}
+.hud-card:hover{transform:translateX(2px)}
+/* The open sheet: lifted off the pile, its parchment fresher, and a gilt line round the tear. */
+.hud-card.is-selected{transform:translateX(3px)}
+.hud-card.is-selected:after{background-image:conic-gradient(from 208deg,#fff3,#fff0 5% 21%,#96321a 24%,#fff2 26%,#fff0 29% 61%,#9631 65%,#fff2 69%,#fff0 73% 97%,#9631),var(--paper-grain),linear-gradient(168deg,#fffefa,#fdf8ec 48%,#f5edd9);box-shadow:0 0 0 1px var(--play-gold),0 1px 0 #fffefb inset,0 0 26px #8f59221c inset,0 2px 3px #00000030,0 13px 24px #0000004d}
+.hud-card.is-down{opacity:.5;filter:grayscale(.7)}
+/* The name and the class stack now rather than sitting on one line, and the head keeps its right
+   edge clear: the photograph is pinned in that corner and the class would run under it. */
+.hud-head{display:flex;flex-direction:column;align-items:flex-start;gap:1px;margin-bottom:5px;padding-bottom:3px;padding-right:50px;border-bottom:1px solid var(--play-rule)}
+/* A snapshot of whoever this is, stuck to the corner of the sheet: a white print with the deep
+   bottom margin a polaroid has, tipped off square, with a strip of tape over the top edge. The
+   picture is drawn from the very model that stands on the board (`thumbnails.ts`). */
+.hud-shot{position:absolute;top:-7px;right:-8px;z-index:2;width:50px;padding:3px 3px 10px;box-sizing:border-box;background:linear-gradient(#fffefb,#f4f1e6);border:1px solid #cfc9b6;box-shadow:0 1px 2px #00000047,0 6px 11px #00000038;transform:rotate(-5deg);transform-origin:50% 0}
+.hud-shot img{display:block;width:100%;height:40px;object-fit:cover;background:radial-gradient(circle at 50% 35%,#5d5546,#2b2620);box-shadow:inset 0 0 0 1px #00000026}
+/* The tape. Barely opaque, so the parchment reads through it the way tape does. */
+.hud-shot:before{content:'';position:absolute;top:-6px;left:50%;width:28px;height:12px;margin-left:-14px;background:linear-gradient(#fbf6e4,#e8ddbd);opacity:.72;transform:rotate(-2.5deg);box-shadow:0 1px 1px #00000026}
+.hud-card.is-down .hud-shot img{filter:grayscale(1) brightness(.7)}
 .hud-head .play-name{font-size:16px}
+/* The label reserves its column and the boxes take the rest. The widths below are what makes a
+   seven-box pool fit on one line: 134px of sheet, less 40 for the label, is eight boxes at 9 and 2.
+   A pool that wraps reads as a second row of something, which is exactly what a sheet must not do. */
 .hud-pips{display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-top:3px}
-.hud-pips>span:first-child{flex:none;min-width:40px;margin-right:3px;white-space:nowrap;font:700 8.5px/1 var(--play-font);letter-spacing:.1em;text-transform:uppercase;color:var(--play-muted);text-shadow:var(--outline-sm)}
-.pip{flex:none;width:10px;height:8px;border-radius:3px;background:#140f0c;box-shadow:inset 0 0 0 1px #000,0 1px 0 #ffffff14}
-.pip.is-marked{background:var(--pip);box-shadow:inset 0 2px 0 #ffffff6b,inset 0 -2px 0 #0000004d,0 0 0 1px var(--play-line)}
-.hud-gear{margin-top:6px;font-size:11px;color:var(--play-muted)}
-.hud-conditions{margin-top:2px;font-size:11px;color:var(--play-gold-bright);text-shadow:var(--outline-sm)}
+/* Cinzel is all capitals and sets wider than Kreon did, so the label's column grows to match. The
+   arithmetic the row depends on holds: 134px of sheet, less 44 for the label, is eight boxes at
+   9 and 2 -- still one line for a seven-box pool. */
+.hud-pips>span:first-child{flex:none;min-width:42px;margin-right:2px;white-space:nowrap;font:700 7.5px/1 var(--play-display);letter-spacing:.06em;text-transform:uppercase;color:var(--play-muted)}
+/* An empty box, ticked in when it is marked: how a sheet records a pool. */
+.pip{flex:none;width:9px;height:9px;border-radius:1px;background:#fffdf6;box-shadow:inset 0 0 0 1px var(--play-rule)}
+.pip.is-marked{background:var(--pip);box-shadow:inset 0 0 0 1px #00000047}
+/* 9px, measured against the longest gear line the demo party carries -- "Hunting Bow · Padded Coat".
+   Libre Baskerville is wide enough that 11px wrapped all three and 9.5px still wrapped that one,
+   which left the sheets at unequal heights down the folio. Truncating instead was the wrong trade:
+   the gear line is read, not decoration. */
+.hud-gear{margin-top:6px;font-size:9px;line-height:1.3;color:var(--play-muted)}
+.hud-conditions{margin-top:2px;font-size:9px;line-height:1.3;color:var(--play-gold);font-weight:700}
 .hud-level{display:block;width:100%;margin:0 0 6px;padding:3px 6px;font-size:12px}
-.hud-gm{cursor:default;padding:9px 11px 8px}
+.hud-gm{cursor:default;padding:11px 11px 8px}
 .hud-gm .play-eyebrow{display:block;margin-bottom:6px}
-.hud-gm .pip{width:5px}
+.hud-gm .pip{width:4px;border-radius:50%}
 
 /* The hand, along the bottom: relics above it on a shelf, the Light orb at its left, the verbs at its
    right. Only the cards and buttons take the pointer; the board shows through the rest. */
-.bar{position:absolute;left:176px;right:340px;bottom:0;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
-/* Relics sit at the top centre, where the old bar was, so a lifted card never covers them. */
-.relics{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:7px;padding:5px 10px;border:3px solid var(--play-line);border-radius:30px;background:linear-gradient(var(--play-surface-top),var(--play-surface));box-shadow:inset 0 0 0 1px #d9b36b44,0 4px 0 #0009;pointer-events:none}
-.relic{width:38px;height:38px;padding:0;border-radius:50%;overflow:hidden;border:3px solid var(--play-line);background:var(--play-field);box-shadow:inset 0 0 0 2px #ffd86b99,0 2px 0 #0009;pointer-events:auto;cursor:help;transition:transform .12s}
-.relic:hover{transform:scale(1.2) rotate(-6deg)}
+/* Lifted off the bottom edge: the fan drops its outer cards by `--drop`, and at 0 that drop carried
+   the new foot band off the screen, so the cards read as cut rather than dealt. */
+.bar{position:absolute;left:176px;right:340px;bottom:12px;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+/* Relics sit at the top centre: struck medallions in a matte leather tray. Nothing here is glossy --
+   a highlight along the top edge is what makes a thing look moulded rather than made. */
+.relics{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:7px;padding:5px 10px;border:1px solid #2a1b10;border-radius:4px;background:var(--play-leather-dark);box-shadow:inset 0 2px 5px #00000059,0 3px 8px #0000004d;pointer-events:none}
+.relic{width:38px;height:38px;padding:0;border-radius:50%;overflow:hidden;border:1px solid #3b2a17;background:linear-gradient(158deg,#c8b58c,#8a7448);box-shadow:inset 0 1px 2px #fff3d060,inset 0 -1px 2px #00000047,0 1px 3px #00000059;pointer-events:auto;cursor:help;transition:transform .12s}
+.relic:hover{transform:translateY(-2px)}
 .relic .ability-card-art{display:block;width:100%;height:100%;opacity:.95}
 .relic .ability-card-art>svg,.relic .ability-card-art>img{display:block;width:100%;height:100%;object-fit:cover}
-.hand-armed{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 14px;background:linear-gradient(#6a4c22,#3d2b14);box-shadow:inset 0 0 0 2px var(--play-gold-bright),0 4px 0 #0009;font-weight:700;text-shadow:var(--outline-sm);pointer-events:auto}
+.hand-armed{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 14px;background:linear-gradient(#f6e6bb,#e2cb92);box-shadow:inset 0 0 0 1px var(--play-gold),0 3px 8px #00000047;font-weight:700;color:var(--play-ink);pointer-events:auto}
 .hand-row{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;width:100%;padding:0 12px;box-sizing:border-box}
-/* The Light orb: Slay the Spire's energy orb, glowing, a slow swirl turning inside it. */
-.hand-orb{position:relative;width:78px;height:78px;margin-bottom:18px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 38% 32%,#fff6c9 0,#ffcf4a 30%,#d9861a 64%,#7a3d06 100%);border:3px solid var(--play-line);box-shadow:0 0 0 3px #ffd86b66,0 0 28px #ffb43099,0 5px 0 #0009;color:#fff;line-height:1;pointer-events:auto;flex:none;isolation:isolate}
-.hand-orb:before{content:'';position:absolute;inset:5px;border-radius:50%;background:conic-gradient(from 0deg,#fff0,#fff6 18%,#fff0 36%,#fff0 55%,#fff5 72%,#fff0 90%);animation:orb-swirl 7s linear infinite;z-index:-1;pointer-events:none}
-@keyframes orb-swirl{to{transform:rotate(360deg)}}
-.hand-orb b{font:700 32px/1 var(--play-font);text-shadow:var(--outline-lg)}
-.hand-orb small{font:700 12px/1 var(--play-font);margin-top:1px;text-shadow:var(--outline-sm)}
-.hand-orb span{position:absolute;bottom:-17px;font:700 10px/1 var(--play-font);letter-spacing:.16em;text-transform:uppercase;color:var(--play-gold);text-shadow:var(--outline-sm)}
+/* Light, as the struck counter it would be on a real table: brass, not a glowing ball. The number is
+   engraved -- cut dark into the metal with a catch of light under the stroke -- rather than outlined
+   in ink, and nothing about it moves. */
+.hand-orb{position:relative;width:78px;height:78px;margin-bottom:18px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(158deg,#d6bd86 0,#bda469 34%,#93794a 62%,#6b5730 100%);border:1px solid #453818;box-shadow:inset 0 2px 3px #fff4cc8c,inset 0 -2px 4px #00000059,0 3px 7px #00000066;color:#352a10;line-height:1;pointer-events:auto;flex:none}
+/* The milled rim every struck counter has. */
+.hand-orb:before{content:'';position:absolute;inset:6px;border-radius:50%;border:1px solid #0000003d;box-shadow:0 1px 0 #ffffff3d;pointer-events:none}
+.hand-orb b{font:700 32px/1 var(--play-font);text-shadow:0 1px 0 #ffffff5e}
+.hand-orb small{font:700 12px/1 var(--play-font);margin-top:1px;color:#4b3b18;text-shadow:0 1px 0 #ffffff4a}
+.hand-orb span{position:absolute;bottom:-17px;font:700 10px/1 var(--play-font);letter-spacing:.16em;text-transform:uppercase;color:#cdbb92;text-shadow:0 1px 2px #000000a6}
 /* Each slot is the room shared out, at most 96px; the faces overlap into their neighbours' slots,
    and the padding is what an end card hangs past the last slot, tilted. */
 .hand{flex:1 1 0;display:flex;align-items:flex-end;justify-content:center;height:176px;min-width:0;padding:0 30px;container-type:inline-size}
@@ -71,160 +141,196 @@
 /* `.face.hand-card`, not `.hand-card`: cards.css can load after this sheet (PlayPanel brings this one
    in first), and its `.face` would win a tie - the border, the padding, and the clip the cost gem
    has to hang past. */
-.face.hand-card{position:absolute;left:50%;bottom:4px;width:110px;margin-left:-55px;display:flex;transform-origin:50% 100%;transform:translateY(var(--drop)) rotate(var(--tilt));transition:transform .16s ease,box-shadow .16s,filter .16s;box-shadow:0 5px 0 #0008,0 8px 16px #000a;border-width:2.5px;padding:4px;gap:3px;overflow:visible}
-/* A card that can be played glows, as Slay the Spire's do when there is energy for them. */
-.hand-slot:not(.is-off) .hand-card{box-shadow:0 0 0 2px #7ce3ff,0 0 14px #58d0ff99,0 5px 0 #0008}
+.face.hand-card{position:absolute;left:50%;bottom:4px;width:110px;margin-left:-55px;display:flex;transform-origin:50% 100%;transform:translateY(var(--drop)) rotate(var(--tilt));transition:transform .16s ease,box-shadow .16s,filter .16s;box-shadow:0 2px 3px #00000038,0 10px 18px #0000004d;border-width:1px;padding:4px;gap:3px;overflow:visible}
+/* A card that can be played is lifted a little and lit at its edge, as a dealt card is. */
+.hand-slot:not(.is-off) .hand-card{box-shadow:0 0 0 1px var(--play-gold),0 2px 3px #00000038,0 10px 18px #0000004d}
 /* The card grows where it stands, anchored at its foot so it stays under the pointer. Its slot
    widens to hold it and the others make the room: aside while the row has some -- the row stays
    centred, so the grown card does not move at all -- and squeezed when it has none, so nothing
    ever leaves the fan. */
-.hand-slot:hover .hand-card,.hand-slot.is-picked .hand-card{aspect-ratio:auto;transform:translateY(-6px) rotate(0) scale(1.45);box-shadow:0 0 0 2px #ffe08a,0 0 26px #ffd86b88,0 24px 36px #000c}
-.hand-slot:focus-visible .hand-card{box-shadow:0 0 0 2px #ffe08a,0 5px 0 #0008}
-.hand-slot.is-off .hand-card{filter:grayscale(.8) brightness(.62)}
-.hand-slot.is-off:hover .hand-card{filter:grayscale(.3) brightness(.95)}
-.bar.is-armed .hand-slot:not(.is-picked) .hand-card{filter:grayscale(.6) brightness(.45)}
+.hand-slot:hover .hand-card,.hand-slot.is-picked .hand-card{aspect-ratio:auto;transform:translateY(-6px) rotate(0) scale(1.45);box-shadow:0 0 0 1px var(--play-gold-bright),0 20px 30px #00000063}
+.hand-slot:focus-visible .hand-card{box-shadow:0 0 0 2px var(--play-gold),0 5px 10px #00000047}
+.hand-slot.is-off .hand-card{filter:grayscale(.55) brightness(.9)}
+.hand-slot.is-off:hover .hand-card{filter:grayscale(.2) brightness(.98)}
+.bar.is-armed .hand-slot:not(.is-picked) .hand-card{filter:grayscale(.5) brightness(.78)}
 /* The art's window clips its picture; the cost gem hangs off the card's own corner, past its edge,
-   where Slay the Spire puts its energy cost, so it never sits on the name. The card itself does not
-   clip: every part inside it is inset and rounded on its own. */
+   so it never sits on the name. The card itself does not clip: every part inside it is inset and
+   rounded on its own. */
 .hand-card .face-art{flex:0 0 56px;position:static}
 .hand-card .face-art:after{display:none}
 .hand-card .face-art>svg,.hand-card .face-art>img{width:100%;height:100%;display:block;object-fit:cover}
-.hand-card .face-title{padding:3px 4px 2px;border-width:2px;border-radius:5px}
+.hand-card .face-title{padding:3px 4px 2px;border-width:0 0 1px;border-radius:0}
 .hand-card .face-title h3{font-size:10.5px}
 .hand-card .face-title>span{font-size:6px}
-.hand-card .face-rules{font-size:7.5px;line-height:1.28;padding:4px 5px;border-width:1.5px;border-radius:5px}
+.hand-card .face-rules{font-size:7.5px;line-height:1.28;padding:4px 5px;border-width:0;border-radius:0}
 .hand-slot:hover .face-rules,.hand-slot.is-picked .face-rules{overflow:visible}
 .hand-slot:hover .face-rules:after,.hand-slot.is-picked .face-rules:after{display:none}
 .hand-card .face-rules p{margin:0}
-.hand-card .face-footer{font-size:5.5px;padding:0 3px}
-.hand-card .face-footer>span:first-child{color:#f3e2bbcc;text-transform:none;letter-spacing:.04em}
-.hand-slot.is-off .face-footer>span:first-child{color:#ffb0a0;font-weight:700}
-.hand-cost{position:absolute;top:-9px;left:-9px;z-index:3;width:26px;height:26px;box-sizing:border-box;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3c4,#f0bb45 55%,#8a5a12);color:#fff;font:700 15px/21px var(--play-font);text-align:center;border:2.5px solid var(--play-line);text-shadow:var(--outline-sm);box-shadow:0 2px 0 #0009}
-.hand-cost.is-stress{left:auto;right:-9px;background:radial-gradient(circle at 35% 30%,#e6d8ff,#8a64c8 60%,#3d2a5c)}
+.hand-card .face-footer{font-size:5.5px;padding:2px 3px}
+.hand-slot.is-off .face-footer>span:first-child{color:#ffd9cf;font-weight:700}
+/* The cost, as a struck counter laid on the card's corner: the same brass as Light, at a quarter the
+   size, with the number cut into it. */
+.hand-cost{position:absolute;top:-9px;left:-9px;z-index:3;width:26px;height:26px;box-sizing:border-box;border-radius:50%;background:linear-gradient(158deg,#d6bd86,#93794a);color:#352a10;font:700 15px/24px var(--play-font);text-align:center;border:1px solid #453818;box-shadow:inset 0 1px 1px #fff4cc7a,inset 0 -1px 2px #00000047,0 1px 3px #00000066}
+.hand-cost.is-stress{left:auto;right:-9px;background:linear-gradient(158deg,#b6a7cd,#6f6089);color:#faf6ff;border-color:#3d3452;box-shadow:inset 0 1px 1px #ece1ff6b,inset 0 -1px 2px #00000047,0 1px 3px #00000066}
 .hand-verbs{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-bottom:26px;pointer-events:auto;flex:none}
 .hand-verbs .play-btn{font-size:13px;padding:5px 12px}
-/* End Turn is Slay the Spire's: big, blue, rimmed in gold. Rest, out of a fight, is the same button in amber. */
-.hand-verbs .play-btn.is-turn{font:700 21px/1 var(--play-font);padding:13px 26px;border:3px solid var(--play-line);border-radius:16px;background:linear-gradient(#63a8dc,#2c6497);text-shadow:var(--outline);box-shadow:inset 0 0 0 2px #ffe08a,inset 0 4px 0 #ffffff4d,0 5px 0 #000a,0 0 18px #63a8dc66}
-.hand-verbs .play-btn.is-turn:not(.is-primary){background:linear-gradient(#e8b85e,#a86f1c);box-shadow:inset 0 0 0 2px #fff0c2,inset 0 4px 0 #ffffff4d,0 5px 0 #000a}
+/* End Turn is the big key on the board, and Rest -- the same key out of a fight -- is the wider one.
+   Both stay the colour of the rest of the board: a key is told apart by its size, not by being
+   painted a brighter colour than anything around it. */
+.hand-verbs .play-btn.is-turn{font:700 21px/1 var(--play-font);padding:13px 26px;border-radius:7px;background:linear-gradient(#e8e1d0,#c6bda6);border-color:#9a917c;box-shadow:inset 0 1px 0 #fffdf6,inset 0 -1px 0 #00000012,0 4px 0 #9a917c,0 5px 7px #00000038}
+.hand-verbs .play-btn.is-turn:not(.is-primary){background:linear-gradient(#ece2c6,#cebf96);border-color:#9d8f6c;box-shadow:inset 0 1px 0 #fffdf6,inset 0 -1px 0 #00000012,0 4px 0 #9d8f6c,0 5px 7px #00000038}
 
-/* What just happened and what is waiting, bottom right. */
+/* What just happened and what is waiting, bottom right: the running sheet of the session. */
 .panel{position:absolute;right:0;bottom:0;width:340px;max-height:75vh;display:flex;flex-direction:column;gap:8px;padding:12px;box-sizing:border-box;pointer-events:auto;font-size:13px;line-height:1.45}
-.panel-box{overflow-y:auto;padding:9px 12px;scrollbar-color:#6b4f36 transparent}
+.panel-box{overflow-y:auto;padding:9px 12px;scrollbar-color:#b9a684 transparent}
 .panel-box.is-fixed{flex-shrink:0}
 .panel-box.is-log{flex:1 1 auto;min-height:80px}
 .panel-saves{display:flex;justify-content:flex-end;gap:4px}
 .panel-saves .play-btn{font-size:11px;padding:3px 9px}
 .panel-heading{margin-bottom:5px}
-.panel-line{margin-bottom:4px;text-shadow:0 1px 0 #0009}
+.panel-line{margin-bottom:4px}
 .panel-line [data-testid=log-entity]{text-decoration:underline dotted;cursor:default}
 .panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .panel-sub{font-size:11px;color:var(--play-muted)}
-.panel-prose{color:#efe4cf}
-.panel-facts{color:var(--play-gold-bright);font-size:12px;margin-top:3px;text-shadow:var(--outline-sm)}
-.panel-card{border:2px solid var(--play-line);border-radius:7px;background:#1b141066;padding:4px 7px;margin-top:4px;font-size:12px}
+.panel-prose{color:#3b2e21}
+.panel-facts{color:var(--play-gold);font-size:12px;margin-top:3px}
+.panel-card{border:1px solid var(--play-rule);border-radius:3px;background:#fffdf699;padding:4px 7px;margin-top:4px;font-size:12px}
 .panel-card b{display:block;font-weight:700}
 .panel-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .panel-row .play-btn{padding:1px 8px;font-size:11px;margin-left:6px}
 .panel-option{display:block;width:100%;text-align:left;margin-bottom:4px}
 .panel-detail{color:var(--play-muted)}
-.panel-speaker{color:var(--play-gold-bright);font-weight:700;text-shadow:var(--outline-sm)}
+.panel-speaker{color:var(--play-gold);font-weight:700}
 .panel-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .panel-quest{margin-bottom:6px}
 .panel-quest.is-done{color:var(--play-muted);text-decoration:line-through}
 .panel-quest.is-failed{color:var(--play-muted)}
 .panel-x{padding:1px 8px}
 
-/* A rest: a small modal, a leather frame like the deck browser's. */
-.rest{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:460px;padding:16px 18px 14px;background:radial-gradient(ellipse at 50% 0,#5e4633 0,transparent 65%),var(--play-surface);border:3px solid var(--play-line);border-radius:14px;box-shadow:inset 0 0 0 1px #d9b36b55,0 6px 0 #0009,0 30px 80px #000b;pointer-events:auto;box-sizing:border-box;font:13px/1.5 var(--play-font)}
-.rest-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
-.rest-head h2{margin:0;font:700 26px var(--play-font);color:#fff;text-shadow:var(--outline)}
+/* A rest: a sheet laid on the table, squared up. Big enough to carry the torn edge, so it does: the
+   paper is a backing layer behind the content (`:before`), and only that layer is cut with the
+   displacement filter -- put the filter on the sheet itself and every label and dropdown inside it
+   ripples with the edge. The creases are a conic sweep of highlights and shadows, as a sheet that
+   has been folded and opened out again catches the light. */
+.rest{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:460px;padding:16px 18px 14px;border-radius:3px;filter:drop-shadow(0 10px 24px #00000047) drop-shadow(0 40px 90px #0000005c);pointer-events:auto;box-sizing:border-box;font:13px/1.5 var(--play-font);color:var(--play-ink);isolation:isolate}
+.rest:before{content:'';position:absolute;inset:0;z-index:-1;background-image:var(--paper-grain),linear-gradient(176deg,var(--play-paper-top),var(--play-paper) 45%,var(--play-paper-edge));background-blend-mode:soft-light,normal;box-shadow:0 1px 0 #fffefb inset,0 0 70px #8f592217 inset,0 0 0 1px var(--play-rule) inset;filter:url(#paper-deckle-lg)}
+.rest:after{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.5;background:conic-gradient(#fff3,#fff0 2% 24%,#fff2 25%,#4321 0,#0000 27% 48%,#9632 50%,#fff2 0,#fff0 52% 73%,#9632 75%,#fff3 0,#fff0 78% 97%,#9632)}
+.rest-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;padding-bottom:4px;border-bottom:1px solid var(--play-rule)}
+.rest-head h2{margin:0;font:700 24px var(--play-display);color:var(--play-ink)}
 .rest-kind label{margin-left:12px;cursor:pointer}
-.rest-kind input{accent-color:#f0c55a}
+.rest-kind input{accent-color:#9a6f22}
 .rest-note{color:var(--play-muted);font-size:11px;margin:4px 0 10px}
 .rest-member{margin-bottom:8px}
 .rest-member .play-name{font-size:15px;margin-bottom:3px}
 .rest-member select{margin-right:4px}
 .rest-actions{margin-top:12px;display:flex;gap:6px}
 
-/* The level-up sheet: the rest's modal, taller and scrolling. */
-.level{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:500px;max-height:85vh;overflow-y:auto;padding:16px 18px 14px;background:radial-gradient(ellipse at 50% 0,#5e4633 0,transparent 65%),var(--play-surface);border:3px solid var(--play-line);border-radius:14px;box-shadow:inset 0 0 0 1px #d9b36b55,0 6px 0 #0009,0 30px 80px #000b;pointer-events:auto;box-sizing:border-box;font:13px/1.5 var(--play-font);scrollbar-color:#6b4f36 transparent}
-.level-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:4px}
-.level-head h2{margin:0;font:700 26px var(--play-font);color:#fff;text-shadow:var(--outline)}
-.level-count{color:var(--play-gold-bright);background:#f0c55a1f;border:2px solid var(--play-line);padding:2px 9px;border-radius:20px;font-size:11px;white-space:nowrap}
+/* The level-up sheet: the rest's sheet, taller and scrolling. */
+/* The level-up sheet scrolls, so its paper cannot be a backing layer pinned to the sheet -- it would
+   scroll away from the content. It takes the grain and the aging and keeps a straight edge. */
+.level{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:500px;max-height:85vh;overflow-y:auto;padding:16px 18px 14px;background-image:var(--paper-grain),linear-gradient(176deg,var(--play-paper-top),var(--play-paper) 45%,var(--play-paper-edge));background-blend-mode:soft-light,normal;border:1px solid var(--play-rule);border-radius:3px;box-shadow:0 1px 0 #fffefb inset,0 0 70px #8f592217 inset,0 10px 24px #00000047,0 40px 90px #0000005c;pointer-events:auto;box-sizing:border-box;font:12.5px/1.5 var(--play-font);color:var(--play-ink);scrollbar-color:#b9a684 transparent}
+.level-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--play-rule)}
+.level-head h2{margin:0;font:700 24px var(--play-display);color:var(--play-ink)}
+.level-count{color:var(--play-gold);background:#9a6f2214;border:1px solid var(--play-rule);padding:2px 9px;border-radius:20px;font-size:11px;white-space:nowrap}
 .level .play-eyebrow{display:block;margin:12px 0 5px}
 .level-option{display:flex;align-items:center;gap:8px;margin-bottom:3px}
 .level-option .play-btn{min-width:200px;text-align:left;padding:4px 10px}
 .level-option .play-btn:disabled{opacity:.4}
 .level-note{color:var(--play-muted);font-size:11px}
-.level-pick{display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap;padding:5px 8px;border:2px solid var(--play-line);border-radius:8px;background:#1b141099}
+.level-pick{display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap;padding:5px 8px;border:1px solid var(--play-rule);border-radius:3px;background:#fffdf680}
 .level-pick>span:first-child{min-width:150px;color:var(--play-ink)}
 .level-pick select{padding:3px 6px}
 .level-pick .play-btn{padding:1px 7px;margin-left:auto}
 .level select,.level input{width:100%;box-sizing:border-box}
-.level input{background:var(--play-field);color:var(--play-ink);border:2px solid var(--play-line);border-radius:7px;padding:5px 8px;font:inherit}
-.level-card{color:#efe4cf;font-size:12px;margin:5px 0 0;white-space:pre-line;padding-left:9px;border-left:3px solid var(--play-gold)}
-.level-issues{color:#ff8a73;margin:10px 0 0}
+.level input{background:var(--play-field);color:var(--play-ink);border:1px solid var(--play-rule);border-radius:4px;padding:5px 8px;font:inherit}
+.level-card{color:#3b2e21;font-size:12px;margin:5px 0 0;white-space:pre-line;padding-left:9px;border-left:2px solid var(--play-gold)}
+.level-issues{color:#a8321f;margin:10px 0 0}
 .level-actions{margin-top:14px;display:flex;gap:6px}
 
-/* The Duality Dice's readout, under the dice. */
-/* Below the action bar, which used to paint over the dice; above everything else. */
-.dice{position:fixed;top:36%;left:50%;transform:translateX(-50%);z-index:3;pointer-events:none;text-align:center;color:var(--play-ink);text-shadow:var(--outline-sm)}
-.dice-who{margin-bottom:8px;font:700 11px var(--play-font);letter-spacing:.2em;text-transform:uppercase;color:var(--play-gold)}
+/* The Duality Dice's readout, under the dice. Over the board, so it keeps the ink outline. */
+.dice{position:fixed;top:36%;left:50%;transform:translateX(-50%);z-index:3;pointer-events:none;text-align:center;color:#f7eedb;text-shadow:var(--board-sm)}
+.dice-who{margin-bottom:8px;font:700 11px var(--play-font);letter-spacing:.2em;text-transform:uppercase;color:#f0c55a}
 .dice-pair{display:flex;gap:18px;justify-content:center;align-items:flex-end}
-.dice-readout{display:inline-flex;flex-direction:column;align-items:center;gap:1px;min-height:38px;margin-top:10px;padding:7px 18px;border-radius:14px;background:linear-gradient(var(--play-surface-top),var(--play-surface));border:3px solid var(--play-line);box-shadow:inset 0 0 0 1px #d9b36b44,0 4px 0 #0009;transition:opacity 140ms}
+.dice-readout{display:inline-flex;flex-direction:column;align-items:center;gap:1px;min-height:38px;margin-top:10px;padding:7px 18px;border-radius:3px;background:linear-gradient(176deg,var(--play-paper-top),var(--play-paper-edge));border:1px solid var(--play-rule);color:var(--play-ink);text-shadow:none;box-shadow:0 6px 14px #00000059;transition:opacity 140ms}
 .dice-line{font-size:12px;color:var(--play-muted)}
-.dice-verdict{font:700 22px var(--play-font);text-shadow:var(--outline)}
-.dice-verdict.is-success{color:#9be07f}
-.dice-verdict.is-failure{color:#ff8a73}
+.dice-verdict{font:700 20px var(--play-display)}
+.dice-verdict.is-success{color:#2f7a33}
+.dice-verdict.is-failure{color:#a8321f}
 
-/* Numbers rising over heads, as Slay the Spire's damage does: big, inked, popping in. A layer over
-   the canvas, under the panels (main.ts). */
+/* Numbers rising over heads. They wear the log's inks (`PlayPanel.tsx`, TONE), which are dark now,
+   so the halo is turned inside out: a cream one, and the number reads on the lit board the way a
+   stencilled letter does. A layer over the canvas, under the panels (main.ts). */
 #floaters{position:absolute;inset:0;overflow:hidden;pointer-events:none;font:700 24px/1 var(--play-font)}
-.floater{position:absolute;transform:translate(-50%,-100%);text-shadow:var(--outline-lg);white-space:nowrap;animation:floater-pop .4s cubic-bezier(.2,1.7,.4,1)}
+.floater{position:absolute;transform:translate(-50%,-100%);text-shadow:-2px -2px 0 #fdf6e4,2px -2px 0 #fdf6e4,-2px 2px 0 #fdf6e4,2px 2px 0 #fdf6e4,0 -2px 0 #fdf6e4,0 2px 0 #fdf6e4,-2px 0 0 #fdf6e4,2px 0 0 #fdf6e4,0 3px 6px #00000080;white-space:nowrap;animation:floater-pop .4s cubic-bezier(.2,1.7,.4,1)}
 @keyframes floater-pop{from{scale:.3}to{scale:1}}
-@media(prefers-reduced-motion:reduce){.hand-orb:before,.floater,.roll-backdrop,.roll-card,.die-solid.is-landed,.roll-step,.roll-verdict{animation:none}}
+@media(prefers-reduced-motion:reduce){.floater,.roll-backdrop,.roll-card,.die-solid.is-landed,.roll-step,.roll-verdict{animation:none}}
 
-/* One die, drawn as the solid it is (`d12.ts`): three flat bands of light, a heavy ink rim, and
-   the number carried on the face it is printed on, squashed the way that face is turned. */
+/* One die, drawn as the solid it is (`d12.ts`).
+ *
+ * The geometry is untouched -- the same twelve pentagons, the same silhouette, the same numerals
+ * squashed onto the faces they are printed on. What made a die read as a sticker laid on the card
+ * was never its shape, it was how it was painted: a 6px ink rim round the whole solid, a 1.6px ink
+ * line on every internal edge, numerals in a 10px ink outline, and a hard offset shadow with no
+ * blur in it. A die in a hand has none of that. It has a soft edge, faces that shade into one
+ * another rather than stepping, numerals painted down into the plastic, and a shadow that touches
+ * the table under it.
+ */
 .die{position:relative;display:inline-block;flex:none}
 .die-solid{display:block;overflow:visible;transition:filter .18s}
-.die-rim{fill:var(--play-line);stroke:var(--play-line);stroke-width:6;stroke-linejoin:round}
-.die-face{stroke:var(--play-line);stroke-width:1.6;stroke-linejoin:round}
-.die-number{font:700 50px var(--play-font);fill:#fff;stroke:var(--play-line);stroke-width:10;stroke-linejoin:round;paint-order:stroke;text-anchor:middle;dominant-baseline:central}
-.die-bar{fill:#fff;stroke:var(--play-line);stroke-width:4;stroke-linejoin:round;paint-order:stroke}
+/* Still drawn under the faces, so no background shows through the seams -- but coloured from the
+   die's own material now (`Die.tsx`) rather than filled with ink. */
+.die-rim{stroke-width:1.1;stroke-linejoin:round}
+/* Where two faces meet is a bevel catching the light, not a line drawn round a shape. */
+.die-face{stroke-width:.5;stroke-linejoin:round;stroke-opacity:.45}
+/* Painted into the face and sunk a little: ivory, with the wall of the engraving showing under it. */
+.die-number{font:700 46px var(--play-display);fill:#fffaec;stroke:#0000005e;stroke-width:1.1;stroke-linejoin:round;paint-order:stroke;text-anchor:middle;dominant-baseline:central}
+.die-bar{fill:#fffaec;stroke:#0000005e;stroke-width:1;stroke-linejoin:round;paint-order:stroke}
+/* One soft highlight across the top of the solid, the way moulded resin catches a light. */
+.die-sheen{pointer-events:none}
 .die-solid.is-landed{animation:die-land .22s cubic-bezier(.2,1.7,.4,1)}
 @keyframes die-land{from{scale:1.14}to{scale:1}}
-.die-shadow{position:absolute;left:50%;bottom:-7px;width:76%;height:13%;border-radius:50%;background:#000;filter:blur(3px)}
+/* A contact shadow: darkest where the die meets the table and gone by its edge. */
+.die-shadow{position:absolute;left:50%;bottom:-6px;width:70%;height:11%;border-radius:50%;background:radial-gradient(ellipse at center,#000000b8,#0000 70%);filter:blur(2.5px)}
 
 /* The card a check is asked and thrown on, with the room blurred and dark behind it. */
 .roll-backdrop{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;box-sizing:border-box;background:radial-gradient(ellipse at 50% 42%,#140d0a99,#050302aa 45%,#050302e6);backdrop-filter:blur(7px) saturate(.7);-webkit-backdrop-filter:blur(7px) saturate(.7);pointer-events:auto;animation:roll-in .16s ease-out}
-.roll-card{width:min(540px,100%);box-sizing:border-box;padding:16px 22px 18px;text-align:center;border-radius:18px;animation:roll-rise .22s cubic-bezier(.2,1.5,.4,1)}
-.roll-title{font:700 25px/1.15 var(--play-font);color:#fff;text-shadow:var(--outline);margin:2px 0 3px}
+.roll-card{width:min(540px,100%);box-sizing:border-box;padding:16px 22px 18px;text-align:center;border-radius:3px;animation:roll-rise .22s cubic-bezier(.2,1.5,.4,1)}
+.roll-title{font:700 23px/1.2 var(--play-display);color:var(--play-ink);margin:2px 0 3px}
 .roll-against{color:var(--play-muted);font-size:13px}
-.roll-dc{display:inline-flex;flex-direction:column;align-items:center;gap:1px;margin:10px 0 2px;padding:5px 20px 7px;background:var(--play-field);border:3px solid var(--play-line);border-radius:12px 12px 26px 26px;box-shadow:inset 0 0 0 1px #d9b36b55,0 4px 0 #0009}
-.roll-dc b{font:700 30px/1 var(--play-font);color:#fff;text-shadow:var(--outline)}
+/* The difficulty is the number the roll is measured against, and the only thing on the card in red:
+   it is the bar, and the total under the sum is then read green or red against it. */
+.roll-dc{display:inline-flex;flex-direction:column;align-items:center;gap:1px;margin:10px 0 2px;padding:5px 20px 7px;background:#fbf1ec;border:1px solid #d4b4a9;border-radius:3px;color:var(--play-hp);box-shadow:inset 0 1px 0 #fffdf9}
+.roll-dc b{font:700 30px/1 var(--play-display);color:var(--play-hp)}
+.roll-dc .play-eyebrow{color:#a8584a}
 .roll-table{display:flex;align-items:flex-end;justify-content:center;gap:16px;margin:12px 0 6px;min-height:136px}
 .roll-die{display:flex;flex-direction:column;align-items:center;gap:5px}
-.roll-die-name{font:700 10px/1 var(--play-font);letter-spacing:.14em;text-transform:uppercase;color:var(--play-muted);text-shadow:var(--outline-sm)}
+.roll-die-name{font:700 10px/1 var(--play-font);letter-spacing:.14em;text-transform:uppercase;color:var(--play-muted)}
 .roll-die-name.is-good{color:var(--play-light)}
 .roll-die-name.is-bad{color:var(--play-shadow)}
-.roll-mod{display:grid;place-items:center;width:64px;height:64px;box-sizing:border-box;background:var(--play-field);border:3px solid var(--play-line);border-radius:14px;font:700 28px var(--play-font);color:#fff;text-shadow:var(--outline);box-shadow:inset 0 0 0 1px #d9b36b55,0 4px 0 #0009}
+.roll-mod{display:grid;place-items:center;width:64px;height:64px;box-sizing:border-box;background:var(--play-field);border:1px solid var(--play-rule);border-radius:3px;font:700 28px var(--play-font);color:var(--play-ink);box-shadow:inset 0 1px 0 #fffdf7}
 .roll-bonuses{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;margin:8px 0 2px}
 .roll-bonuses .play-eyebrow{flex-basis:100%}
 .roll-chip{padding:4px 10px;font-size:12px}
-.roll-outcome{min-height:94px;padding-top:2px}
-.roll-steps{display:flex;flex-wrap:wrap;gap:3px 9px;justify-content:center;align-items:baseline;min-height:32px;font:700 17px var(--play-font);text-shadow:var(--outline-sm)}
+/* Tall enough to hold the sum, the total under it and the verdict under that, from the moment the
+   dice land -- the card must not grow as the numbers arrive under the player's eyes. */
+.roll-outcome{min-height:150px;padding-top:2px}
+.roll-steps{display:flex;flex-wrap:wrap;gap:3px 9px;justify-content:center;align-items:baseline;min-height:32px;font:700 17px var(--play-font)}
 .roll-step{animation:step-pop .2s cubic-bezier(.2,1.7,.4,1)}
 .roll-step.is-good{color:var(--play-light)}
 .roll-step.is-bad{color:var(--play-shadow)}
 .roll-step.is-mod{color:var(--play-ink)}
-.roll-step.is-total{color:#fff;font-size:23px;text-shadow:var(--outline)}
 .roll-step.is-vs{color:var(--play-muted);font-size:14px}
+/* What the sum came to: centred under the line it was worked out on, big enough to read across the
+   room, and coloured by the only question being asked of it -- green on the difficulty or over it,
+   red under. Not the verdict's colour: a Duality roll can succeed on a number that missed. */
+.roll-total{margin:5px 0 1px;font:700 46px/1 var(--play-display);text-align:center;animation:step-pop .22s cubic-bezier(.2,1.7,.4,1)}
+.roll-total.is-made{color:#2b6b30}
+.roll-total.is-missed{color:var(--play-hp)}
 @keyframes step-pop{from{opacity:0;scale:.6;translate:0 -7px}to{opacity:1;scale:1;translate:0}}
-.roll-verdict{font:700 26px/1.1 var(--play-font);text-transform:uppercase;letter-spacing:.03em;text-shadow:var(--outline-lg);animation:step-pop .26s cubic-bezier(.2,1.6,.4,1)}
-.roll-verdict.is-success{color:#9be07f}
-.roll-verdict.is-failure{color:#ff8a73}
-.roll-verdict.is-critical{color:var(--play-gold-bright)}
+.roll-verdict{font:700 24px/1.15 var(--play-display);text-transform:uppercase;letter-spacing:.03em;animation:step-pop .26s cubic-bezier(.2,1.6,.4,1)}
+.roll-verdict.is-success{color:#2f7a33}
+.roll-verdict.is-failure{color:#a8321f}
+.roll-verdict.is-critical{color:var(--play-gold)}
 .roll-actions{display:flex;gap:12px;justify-content:center;margin-top:12px}
 .play-btn.is-throw{min-width:150px;padding:9px 18px;font-size:16px}
 @keyframes roll-in{from{opacity:0}to{opacity:1}}
