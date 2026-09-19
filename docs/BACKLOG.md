@@ -66,7 +66,10 @@ the size reclaim. Playwright exited 0 on every run including the ones carrying f
 the tally is what was read and the exit code was ignored.
 
 **Still open, and named rather than buried:** the model layer has no chunking, no frustum
-culling, no residency cap and no LOD, at roughly 13.6k triangles a file. The box layer has
+culling, no residency cap and no LOD, at 273k-517k triangles for a creature file. That number
+read "roughly 13.6k" here until it was rechecked: only the five tile models had been sampled,
+and those are the small ones, so a figure measured on scenery was quoted for every file in the
+set. A creature is twenty to forty times heavier than the line claimed. The box layer has
 all four. Drawing pieces as their files removed exactly the machinery that made a large build
 affordable. The 1 fps figure below is still headless software GL and has never been measured
 on a real machine — measure it before building anything for it.
@@ -369,7 +372,9 @@ apart from `SceneView` in the first place.
 
 **What has not been built is everything around that.** The instanced layer has no chunking,
 no frustum culling, no residency cap and no LOD; the box layer in `building-view.ts` has all
-four. One mesh per kind over every piece, drawn whole, at roughly 13.6k triangles a file.
+four. One mesh per kind over every piece, drawn whole. A tile file is the light case at
+roughly 6-14k triangles; a creature file is 273k-517k. "Roughly 13.6k a file" stood here for
+both, which was the tile figure generalised to a set it was never measured on.
 The 1 fps above was headless software GL and has never been measured on a real machine, so
 the next move is a number and not a design.
 
