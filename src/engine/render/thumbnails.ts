@@ -11,7 +11,6 @@
 import { Box3, DirectionalLight, Group, HemisphereLight, PerspectiveCamera, Scene, Sphere, Vector3, WebGLRenderer, type Object3D } from 'three';
 import { seatOnTile, type AssetLibrary } from './assets';
 import { TILE_UNDER } from './authoring-marks';
-import { outline } from './faction-outline';
 import { ModelResources, buildModel } from './procedural/build';
 import type { ModelRegistry } from './procedural/registry';
 
@@ -145,14 +144,9 @@ export class ModelThumbnails {
     body.position.z += spec.offsetY;
     body.position.y += spec.groundOffset;
     shown.add(body);
-    // The adversary's red, the colour most of what is imported will stand in - drawn round
-    // the model now rather than as a plate under it. `DEFAULT_FACTION_COLORS.adversary`,
-    // written out so a picture does not drag the whole scene view in behind it; the plate
-    // this replaces had drifted to a different red of its own (#e5483a).
-    //
-    // Keyed apart from the board's hull: the same file is seated, scaled and turned
-    // differently here, so the two silhouettes are not the same shape.
-    outline(body, `thumb:${id}`, '#c0524a');
+    // No rim round it. A picture in the Models panel is there to answer how big the file is
+    // and which way it faces, and a red silhouette drawn round the edge is the one thing in
+    // the frame that is not the model -- it hides the very outline being judged.
     // The tile itself, so what the model is standing off is in the picture with it.
     shown.add(buildModel(TILE_UNDER, this.resources).group);
     return shown;

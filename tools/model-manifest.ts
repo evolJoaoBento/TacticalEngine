@@ -31,13 +31,19 @@ export interface ShippedModel {
 }
 
 /**
- * How much a shipped model is scaled down.
+ * How much a shipped model is scaled on the way in: not at all.
  *
- * Every file in the set measures two units across and two tall, which is a tile's
- * width twice over; half brings a creature down to standing in one. A file that
- * wants its own size says so in the Models panel, which writes it to the project.
+ * This was 0.5, because every file in the original set measured two units across
+ * and two tall -- a tile's width twice over -- and half brought a creature down to
+ * standing in one. That made the engine the place a model's size was decided, and
+ * it is the wrong place: a file that comes in at the wrong size is a file to fix,
+ * not a number to carry. A tile is one unit, so a model exported at one unit per
+ * tile arrives correct, and what Blender says is what the board draws.
+ *
+ * A file that genuinely wants its own size still says so in the Models panel,
+ * which writes it to the project and overrides this.
  */
-export const SHIPPED_SCALE = 0.5;
+export const SHIPPED_SCALE = 1;
 
 /** The `.glb` files in the folder, as models, sorted so a build is the same twice. */
 export function shippedModels(publicDir: string): ShippedModel[] {

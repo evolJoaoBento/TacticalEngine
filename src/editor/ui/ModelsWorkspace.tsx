@@ -165,8 +165,18 @@ export function ModelsWorkspace(props: {
                   <strong>{asset.id}</strong> <small>{sourceLabel(asset.url)}</small>
                 </span>
                 <small data-testid={`asset-status-${asset.id}`}>{status}</small>
+                {/* Hand the model back to its file: one edit, so one undo takes it back. */}
                 <button
                   class="ph-mini"
+                  data-testid={`asset-reset-${asset.id}`}
+                  title="Put scale, rotation and offsets back to what the file itself says"
+                  onClick={() => edit(asset.id, { scale: 1, groundOffset: 0, rotationY: 0, offsetX: 0, offsetY: 0 })}
+                >
+                  Reset
+                </button>
+                <button
+                  class="ph-mini"
+                  data-testid={`asset-remove-${asset.id}`}
                   title="Remove this model"
                   onClick={() => {
                     if (!confirm(`Remove model "${asset.id}"?`)) return;

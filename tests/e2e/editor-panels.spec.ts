@@ -128,7 +128,9 @@ test('a model picked in this browser is there again after a reload, until it is 
   // And removed is removed: what this browser remembers is forgotten with it.
   await openModels();
   page.once('dialog', (dialog) => void dialog.accept());
-  await page.locator('[data-asset="fox"] .ph-mini').click();
+  // The remove button by name, not "the only mini button in the row": it stopped being the
+  // only one the moment a second was added beside it.
+  await page.locator('[data-testid="asset-remove-fox"]').click();
   await expect(page.locator('[data-asset="fox"]')).toHaveCount(0);
   await reopen();
   await page.waitForTimeout(1500);
