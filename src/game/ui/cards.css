@@ -19,23 +19,158 @@
    rather than opening a different window. The ground flips with it -- this was pale lettering on a
    dark panel, and every line of it now has to be ink on paper. */
 .deck-backdrop{position:fixed;inset:0;z-index:60;background:#120c08ad;backdrop-filter:blur(5px);pointer-events:auto;display:grid;place-items:center;color:#1d1611;font:13px/1.5 'Libre Baskerville',Georgia,serif}
-.deck-browser{position:relative;display:flex;flex-direction:column;width:min(1180px,94vw);height:min(900px,92dvh);background-image:var(--paper-grain,none),linear-gradient(172deg,#fdfbf4,#f7f1e2 46%,#ece1ca);background-blend-mode:soft-light,normal;border:1px solid #c7b79a;border-radius:4px;box-shadow:inset 0 1px 0 #fffefb,inset 0 0 90px #8f59221c,0 24px 80px #000000a6;overflow:hidden;outline:none;color:#1d1611}
-/* The punched margin: a ring hole every so far down the left edge, and the rule they sit behind.
-   Drawn over the page rather than in it, so nothing in the content has to know it is there. */
-.deck-browser:before{content:'';position:absolute;top:0;bottom:0;left:0;width:46px;background-image:radial-gradient(circle at 23px 50%,#181009 0 6.5px,#00000038 6.5px 8px,#0000 8.5px);background-size:100% 78px;background-repeat:repeat-y;border-right:1px solid #dccca9;box-shadow:1px 0 0 #fffdf7;pointer-events:none;z-index:3}
-.deck-header{display:flex;justify-content:space-between;align-items:center;padding:22px 30px 16px 62px;border-bottom:1px solid #d5c5a4}
+/* The binder itself: black board, stitched edge, and the two leaves lying open inside it. */
+.deck-browser{position:relative;display:flex;flex-direction:column;width:min(1180px,94vw);height:min(900px,92dvh);background:linear-gradient(160deg,#211f1d,#141312 55%,#0b0a09);border:1px solid #000;border-radius:5px;box-shadow:inset 0 0 0 1px #ffffff0f,inset 0 0 60px #00000080,0 28px 90px #000000c4;overflow:hidden;outline:none;color:#e6dcc6}
+/* The open spread. Only the right leaf turns; the character stays put, as a binder does. */
+/* The two leaves are the same width, measured the only way that actually makes them so.
+ *
+ * `flex: 1 1 0` does not do it, and neither does adding `box-sizing: border-box` -- that was tried
+ * and changed nothing. Padding is taken out of the free space before it is shared and then added
+ * back on top: the sheet carries 64px of it and the pocket page none, so the row handed each leaf
+ * 535 and the sheet came out 599. Asking for half the row minus the gutter as the *outer* width
+ * leaves nothing for padding to distort. The gutter is a variable so the rings column and this
+ * sum cannot drift apart. */
+.deck-spread{display:flex;flex:1;min-height:0;--gutter:46px}
+.deck-spread>.deck-sheet,.deck-spread>.deck-pocketpage{flex:0 0 calc((100% - var(--gutter)) / 2);box-sizing:border-box;width:auto;min-width:0}
+/* The left leaf: paper, the same stock the party sheets are on. */
+/* The left leaf is the binder's own board, and the sheet is a piece of paper lying on it: board
+   shows round the top, the outer edge and the foot, which is what makes the paper read as a sheet
+   rather than as a cream-coloured half of the binder. Not at the spine -- the punched edge has to
+   reach the rings, so there the paper runs right up to the gutter. */
+.deck-sheet{--sheet-margin:20px;position:relative;flex:1 1 0;min-width:0;overflow:hidden;box-sizing:border-box;display:flex;padding:var(--sheet-margin) 0 var(--sheet-margin) var(--sheet-margin);background:linear-gradient(200deg,#211f1d,#141312 55%,#0b0a09)}
+.sheet-paper{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden;container-type:inline-size;padding:18px 40px 18px 24px;box-sizing:border-box;display:flex;flex-direction:column;border-radius:2px 0 0 2px;background-image:var(--paper-grain,none),linear-gradient(172deg,#fdfbf4,#f7f1e2 46%,#ece1ca);background-blend-mode:soft-light,normal;color:#1d1611;box-shadow:inset -16px 0 26px #00000026,-2px 3px 9px #000000a6}
+/* The sheet's own punched edge, along the seam. The tile is 78px so the holes land on the same
+   pitch as the rings in the gutter -- a ring through a hole it does not line up with reads as two
+   unrelated circles, which is what the first attempt looked like. */
+/* (On the paper now, and the paper starts `--sheet-margin` lower than the leaf does, so the tile
+   is pulled up by the same amount: the holes stay at 49, 127, ... of the *leaf*, where the rings
+   and the pocket page's own holes are.) */
+.sheet-paper:after{content:'';position:absolute;top:calc(10px - var(--sheet-margin,20px));height:round(down,calc(100% - 10px + var(--sheet-margin,20px) + 25px),78px);right:0;width:28px;background-image:radial-gradient(circle at 14px 39px,#100e0c 0 6px,#00000047 6px 7.5px,#0000 8px);background-size:100% 78px;background-repeat:repeat-y;pointer-events:none;z-index:2}
+.sheet-name{font:700 24px Cinzel,'Libre Baskerville',Georgia,serif;margin:2px 0 10px;color:#1d1611}
+/* The way out, floating on the binder now that there is no header band to hold it. */
+/* Out of the pocket leaf's top corner entirely. Padding the toolbar around it was tried and still
+   left 17px of overlap -- two things wanting the same corner is the problem, not the margin. The
+   foot of the sheet is empty and nothing else is competing for it. */
+.deck-shut{position:absolute;bottom:34px;left:40px;z-index:6}
+/* The photograph, taped to the head of the sheet rather than pinned in the corner: `.hud-shot`
+   places it against the party card, and on a full page it belongs beside the name. */
+.sheet-top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex:none}
+.sheet-id{min-width:0;flex:1}
+/* The head of the sheet is sized against the leaf it is on (`cqw`), not the window: the leaf is
+   half of whatever the binder is, so the name, the pools and the photograph all shrink together
+   as it narrows, between a floor that is still readable and the size they have on a full page. */
+.sheet-shot{position:relative;top:auto;right:auto;flex:none;width:clamp(88px,34cqw,176px);margin:6px 4px 0 0;padding:clamp(3px,1.2cqw,6px) clamp(3px,1.2cqw,6px) clamp(10px,4.2cqw,22px);transform:rotate(3deg)}
+.sheet-shot img{height:auto;aspect-ratio:1/.9}
+.deck-sheet .deck-eyebrow{font-size:clamp(9px,2.4cqw,12px)}
+.deck-sheet .sheet-name{font-size:clamp(22px,8cqw,40px);margin:4px 0 clamp(6px,2.6cqw,14px)}
+.deck-sheet .hud-pips{gap:clamp(2px,.8cqw,4px);margin-top:clamp(4px,1.5cqw,8px);flex-wrap:nowrap}
+.deck-sheet .hud-pips>span:first-child{min-width:clamp(42px,14.5cqw,74px);font-size:clamp(8px,2.4cqw,12px)}
+.deck-sheet .pip{width:clamp(8px,3.3cqw,17px);height:clamp(8px,3.1cqw,16px);border-radius:2px}
+/* The counts sit at the foot of the leaf, so the sheet fills its page instead of bunching at the
+   top with the paper empty beneath it. */
+/* The lines spread down the leaf rather than bunching at the top with the counts pinned to the
+   foot: an auto top margin on each of them splits the leftover height evenly between them, which
+   is what fills a page. Pinning only the last three left 481px of blank paper through the middle. */
+.deck-sheet .sheet-line{margin-top:auto}
+.deck-sheet .sheet-line:last-of-type{margin-bottom:auto}
+.sheet-issue{margin:10px 0 0;padding:7px 9px;border-left:3px solid #9c2f21;background:#9c2f210f;color:#9c2f21;font-size:11px}
+.deck-sheet .hud-pips{margin-top:4px}
+.sheet-line{display:flex;justify-content:space-between;gap:10px;margin:8px 0 0;padding-top:6px;border-top:1px solid #d5c5a4;font-size:11px;color:#57493a}
+.sheet-line b{color:#1d1611;font-weight:700;text-align:right}
+/* The rings, down the middle where the two leaves meet. */
+/* The gutter, and the rings that pass through both leaves. 34px of ring and 44px of gap is the
+   same 78px pitch the punched holes repeat on, so every ring sits in its own pair of holes. */
+/* The rings pass through both leaves, and land in the holes.
+ *
+ * Two things were wrong. The pitch: `height: 34px` with a 4px border and no `box-sizing` renders
+ * 42px, so ring-to-ring was 86px against the holes' 78px tile and they walked 8px further out of
+ * step with every ring down the page. And the span: the punched columns sit 28px inside each
+ * leaf's inner edge, so their centres are 37px either side of the gutter's centre -- a 34px circle
+ * floating in a 46px gutter never reaches them, and `overflow: hidden` would have clipped one that
+ * did. A 74px ring puts its stroke straight through both hole centres.
+ *
+ * 30px of ring and 48px of gap is the holes' own 78px pitch; 34px of padding puts the first centre
+ * at 49, which is where the first pair of holes is. */
+/* `min-width: 0` is load-bearing: a flex item will not shrink below its content, and the content
+   is a 74px ring, so without it the gutter quietly grew to 74px -- the holes moved out to 51px
+   either side while the rings reached 37, and the spread ran 28px off the binder's right edge. */
+.deck-rings{position:relative;z-index:3;pointer-events:none;flex:0 0 var(--gutter,46px);min-width:0;width:var(--gutter,46px);display:block;overflow:visible;background:linear-gradient(#0d0c0b,#141210 30% 70%,#0d0c0b);box-shadow:inset 2px 0 6px #000000a6,inset -2px 0 6px #000000a6}
+/* The mechanism: a steel plate down the spine with a ring at each end of it, as a ring binder has.
+   Both hang off `--ring-a` and `--ring-b`, the centres of the two hole pairs the panel picked for
+   this height, so the plate is always exactly as long as the rings are far apart. */
+.deck-rings b{position:absolute;left:50%;width:20px;margin-left:-10px;top:calc(var(--ring-a,361px) - 40px);height:calc(var(--ring-b,517px) - var(--ring-a,361px) + 80px);border-radius:10px;background:radial-gradient(circle at 50% 12px,#4a463f 0 3px,#0000 3.5px),radial-gradient(circle at 50% calc(100% - 12px),#4a463f 0 3px,#0000 3.5px),linear-gradient(90deg,#6f6b62,#dcd8cc 32%,#b3afa3 58%,#66625a);box-shadow:0 2px 5px #000000b3,inset 0 1px 0 #ffffff80,inset 0 -1px 0 #00000066}
+.deck-rings i:nth-of-type(1){top:calc(var(--ring-a,361px) - 15px)}
+.deck-rings i:nth-of-type(2){top:calc(var(--ring-b,517px) - 15px)}
+.deck-rings i{position:absolute;left:50%;margin-left:-37px;box-sizing:border-box;display:block;width:74px;height:30px;border-radius:50%;border:4px solid;border-color:#cdc8ba #9a9488 #79746a #b4afa2;box-shadow:0 2px 4px #000000a6,inset 0 1px 0 #ffffff6b}
+/* The right leaf: the black pocket stock a card binder actually uses. */
+.deck-pocketpage{position:relative;flex:1 1 0;min-width:0;display:flex;flex-direction:column;background:linear-gradient(#111010,#0a0909);box-shadow:inset 16px 0 26px #00000080}
+/* The pocket leaf is punched too, on its own inner edge: the second set of holes. */
+.deck-pocketpage:before{content:'';position:absolute;top:0;bottom:0;left:0;width:28px;background-image:radial-gradient(circle at 14px 39px,#000 0 6px,#ffffff14 6px 7.5px,#0000 8px);background-size:100% 78px;background-position:0 10px;background-repeat:repeat-y;pointer-events:none;z-index:2}
+/* Header and footer are the binder's board, not either leaf: light lettering on black. */
+.deck-header{display:flex;justify-content:space-between;align-items:center;padding:18px 26px 14px;border-bottom:1px solid #000;background:linear-gradient(#232120,#181615)}
 .deck-eyebrow{font:700 9px Cinzel,'Libre Baskerville',Georgia,serif;letter-spacing:.24em;color:#8a7558}
-.deck-header h1{font:700 28px Cinzel,'Libre Baskerville',Georgia,serif;margin:5px 0;color:#1d1611}.deck-header h1 span{color:#7c6a52;font-size:21px}
+.deck-header .deck-eyebrow{color:#a08a5f}
+.deck-header h1{font:700 26px Cinzel,'Libre Baskerville',Georgia,serif;margin:4px 0;color:#f2e7d2}.deck-header h1 span{color:#9c8f76;font-size:20px}
 /* The same keycap the play overlay uses, so closing the browser is the same object as saving. */
 .deck-close,.deck-recall{color:#2f241a;background:linear-gradient(#fdfaf1,#e4dbc8);border:1px solid #b2a68d;border-radius:6px;padding:8px 13px;cursor:pointer;font:700 13px 'Libre Baskerville',Georgia,serif;box-shadow:inset 0 1px 0 #fffefb,inset 0 -1px 0 #0000000f,0 3px 0 #b2a68d,0 4px 6px #00000038}.deck-close:active,.deck-recall:not(:disabled):active{transform:translateY(3px);box-shadow:inset 0 1px 0 #fffefb,0 1px 2px #0000002e}.deck-close kbd{margin-left:14px;color:#6f6553;font:10px system-ui}
-.deck-toolbar{display:flex;align-items:end;gap:18px;padding:16px 30px 16px 62px}.deck-toolbar label{display:flex;flex-direction:column;gap:5px;color:#57493a;font:700 9px Cinzel,'Libre Baskerville',Georgia,serif;letter-spacing:.12em;text-transform:uppercase}.deck-search{flex:1}
+.deck-toolbar{display:flex;align-items:end;gap:18px;padding:16px 22px 16px 40px}.deck-toolbar label{display:flex;flex-direction:column;gap:5px;color:#57493a;font:700 9px Cinzel,'Libre Baskerville',Georgia,serif;letter-spacing:.12em;text-transform:uppercase}.deck-search{flex:1}
 /* Ruled boxes on the page, the way a form on a sheet is ruled -- not wells cut into a dark panel. */
 .deck-toolbar input,.deck-toolbar select{background:#fffdf6;color:#1d1611;border:1px solid #c7b79a;border-radius:3px;padding:9px 12px;font:13px 'Libre Baskerville',Georgia,serif;min-width:0;box-shadow:inset 0 1px 2px #00000014}
 .deck-toolbar p{color:#57493a;margin:0;font-size:11px}
-.deck-scroll{overflow:auto;padding:0 30px 24px 62px;flex:1;scrollbar-color:#c0ac88 transparent}
+/* No scrolling: a binder is turned, not scrolled, and a scrollbar down the edge was the one thing
+   left on this page that said "web page". The element stays -- it is the box the leaves sit in. */
+.deck-scroll{overflow:hidden;padding:0 22px 8px 40px;flex:1;min-height:0;display:flex;flex-direction:column}
+/* A leaf pivots about the rings down its left edge, which is where a real one is bound. */
+.deck-page{display:flex;flex-direction:column;flex:1;min-height:0;transform-origin:left center}
+.deck-page[hidden]{display:none}
+.deck-page-body{flex:1;min-height:0}
+/* The page turn, at the foot of the leaf. */
+.deck-pager{display:flex;align-items:center;justify-content:center;gap:16px;padding:10px 0 2px;flex:none}
+.deck-leaf{font:700 10px Cinzel,'Libre Baskerville',Georgia,serif;letter-spacing:.14em;text-transform:uppercase;color:#57493a;min-width:210px;text-align:center}
+.deck-turn{width:34px;height:28px;padding:0;cursor:pointer;color:#2f241a;background:linear-gradient(#fdfaf1,#e4dbc8);border:1px solid #b2a68d;border-radius:5px;font:700 17px/1 'Libre Baskerville',Georgia,serif;box-shadow:inset 0 1px 0 #fffefb,0 2px 0 #b2a68d,0 3px 5px #00000030}
+.deck-turn:not(:disabled):active{transform:translateY(2px);box-shadow:inset 0 1px 0 #fffefb,0 1px 2px #0000002e}
+.deck-turn:disabled{opacity:.35;cursor:default}
 /* Each section is a heading ruled off across the page, as a sheet divides itself. */
-.deck-section-title{display:flex;align-items:center;gap:12px;margin:20px 0 12px;padding-bottom:5px;border-bottom:1px solid #ddcdab}.deck-section-title h2{margin:0;font:700 20px Cinzel,'Libre Baskerville',Georgia,serif;color:#1d1611}.deck-section-title>span{color:#856018;background:#8560181a;border:1px solid #c7b79a;padding:2px 9px;border-radius:2px;font-size:11px}.deck-section-title p{margin:0 0 0 auto;color:#7c6a52;font-size:11px}
-.deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:22px 18px;align-items:start}.deck-slot{min-width:0;max-width:245px}
+/* Tight margins: every pixel the heading takes is a pixel the leaf cannot give to a row of cards,
+   and a leaf that holds one row is a worse binder than the scrollbar this replaced. */
+.deck-section-title{display:flex;align-items:center;gap:12px;margin:8px 0 8px;padding-bottom:4px;border-bottom:1px solid #ddcdab}/* The heading never wraps.
+ *
+ * This is the 27px that pushed a row off the granted leaf: "Always in play" broke to two lines in
+ * the narrow pane where "Active hand" did not, so that leaf's body was 510 where the hand's was
+ * 537 -- and how many rows fit is worked out from whichever leaf is open, then applied to all of
+ * them. Two rows cost 524: fine in 537, one row too many in 510. The note beside it truncates, so
+ * it is the note that gives way when the pane is tight, not the name of the section. */
+.deck-section-title h2{margin:0;flex:none;white-space:nowrap;font:700 20px Cinzel,'Libre Baskerville',Georgia,serif;color:#1d1611}/* The count does not wrap either. With the heading held to one line the chip was the next thing
+   the flex row squeezed, and it broke in two -- which left the granted leaf's grid fitting its
+   body by a single pixel. A layout standing on 1px is a bug waiting for its next tweak. */
+.deck-section-title>span{flex:none;white-space:nowrap;color:#856018;background:#8560181a;border:1px solid #c7b79a;padding:2px 9px;border-radius:2px;font-size:11px}/* One line, always, and truncated rather than wrapped.
+ *
+ * A heading that takes two lines on one leaf and one on another gives those leaves bodies of
+ * different heights -- and how many rows fit is worked out from whichever leaf is open, then
+ * applied to all of them. That is what pushed a row off the foot of the granted leaf: its note
+ * wraps in the narrower pane, costing 27px that the hand leaf never pays. */
+.deck-section-title p{margin:0 0 0 auto;color:#7c6a52;font-size:11px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Smaller pockets, so a leaf holds rows rather than a row. The face was sized in pixels for a card
+   half again this wide, so on the binder page -- and only there, the hand and the reader keep their
+   own tuning -- its insides are sized against the card instead. */
+/* Sized for half a spread. With the leaves equal the pocket page is ~535px wide, less 62px of
+   padding, so a 128px floor fitted only three columns and a leaf held six cards. A 100px floor
+   fits four at about 108px each -- which is small, but a binder page is small. */
+.deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px;align-items:start}.deck-slot{min-width:0;max-width:170px}
+.deck-slot .face,.granted-slot .face{container-type:inline-size}
+.deck-slot .face-title h3,.granted-slot .face-title h3{font-size:9.6cqw}
+.deck-slot .face-title>span,.granted-slot .face-title>span{font-size:5.2cqw}
+.deck-slot .face-rules,.granted-slot .face-rules{font-size:6.2cqw;line-height:1.35;padding:4cqw 5cqw}
+.deck-slot .face-domain,.granted-slot .face-domain{font-size:5.4cqw}
+.deck-slot .face-footer,.granted-slot .face-footer{font-size:3.8cqw}
+.deck-slot .face-level,.granted-slot .face-level{padding:4cqw 5cqw 9cqw}
+.deck-slot .face-level b,.granted-slot .face-level b{font-size:12cqw}
+.deck-slot .face-recall,.granted-slot .face-recall{width:18cqw;height:18cqw;font-size:9.5cqw}
+.deck-slot .face-level small,.deck-slot .face-recall small,.granted-slot .face-level small{font-size:3.2cqw}
+/* One line, always. "Shieldbearer · foundation" wrapping to two made those slots taller than the
+   rest, so a page sized from one row's height fitted a row it could not actually show. */
+.deck-select,.deck-ready,.deck-recall{font-size:10px}
+.deck-ready,.deck-select{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;text-align:center}
 /* The pocket itself: a slip of clear plastic welded to the page, a little larger than the card, with
    the paper showing through round the edges of what is in it. The button already wraps exactly the
    card and nothing else, so the sleeve is drawn on it and no markup changes. */
@@ -43,6 +178,13 @@
 /* The card slides up in its sleeve when pointed at, rather than the sleeve leaving the page. */
 .card-inspect .face{transition:transform .18s,box-shadow .18s}
 .card-inspect:hover .face,.card-inspect:focus-visible .face{transform:translateY(-8px);box-shadow:0 2px 3px #00000033,0 14px 22px #00000047}
+/* An empty pocket: the same sleeve with nothing slipped into it, so a hand that is not full reads
+   as a binder page with room left rather than as a grid that ran out of cards. The page shows
+   through where a card would be. */
+.deck-pocket{position:relative;box-sizing:border-box;padding:5px 5px 9px;border-radius:3px;background:#ffffff14;box-shadow:inset 0 0 0 1px #ffffff96,inset 0 1px 0 #ffffffdb,0 1px 2px #0000001c}
+.deck-pocket>span{display:block;aspect-ratio:.66;border-radius:2px;background:#00000008;box-shadow:inset 0 0 0 1px #0000000f,inset 0 2px 6px #00000012}
+.deck-pocket:before{content:'';position:absolute;inset:0;border-radius:3px;background:linear-gradient(104deg,#fff0 0 30%,#ffffff3d 41%,#ffffff6b 46%,#ffffff2e 53%,#fff0 66%);pointer-events:none}
+.deck-pocket:after{content:'';position:absolute;left:4px;right:4px;top:3px;height:3px;border-radius:3px;background:linear-gradient(#ffffffc4,#ffffff21);pointer-events:none}
 /* The sheen across the plastic, and the thickened lip at the mouth of the pocket. */
 .card-inspect:before{content:'';position:absolute;inset:0;border-radius:3px;background:linear-gradient(104deg,#fff0 0 30%,#ffffff54 41%,#ffffff8c 46%,#ffffff3d 53%,#fff0 66%);pointer-events:none;z-index:2}
 .card-inspect:after{content:'';position:absolute;left:4px;right:4px;top:3px;height:3px;border-radius:3px;background:linear-gradient(#ffffffd1,#ffffff26);pointer-events:none;z-index:3}
@@ -52,7 +194,28 @@
 .is-selected .face{outline:none}
 .deck-ready{color:#2b6b30}.deck-recall{width:100%;margin-top:8px;font-size:11px}.deck-recall:disabled{opacity:.45;cursor:default;filter:grayscale(.5)}
 .deck-empty{padding:22px;border:1px dashed #c0ac88;border-radius:3px;color:#7c6a52;text-align:center}
-.deck-footer{border-top:1px solid #d5c5a4;padding:12px 30px 12px 62px;display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#57493a}.deck-footer>span:last-child{letter-spacing:.16em;color:#856018;font-family:Cinzel,'Libre Baskerville',Georgia,serif}.deck-footer [role=alert]{color:#9c2f21}
+.deck-footer{border-top:1px solid #000;padding:10px 26px;display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#9c8f76;background:linear-gradient(#181615,#111010)}.deck-footer>span:last-child{letter-spacing:.16em;color:#a08a5f;font-family:Cinzel,'Libre Baskerville',Georgia,serif}.deck-footer [role=alert]{color:#ff9d84}
+/* Everything on the pocket leaf is read off black now, so the ink turns back to light. */
+.deck-pocketpage .deck-toolbar label{color:#9c8f76}
+.deck-pocketpage .deck-toolbar input,.deck-pocketpage .deck-toolbar select{background:#1a1817;color:#ece2cc;border-color:#3a342b;box-shadow:inset 0 1px 2px #00000080}
+.deck-pocketpage .deck-toolbar p{color:#8a8071}
+.deck-pocketpage .deck-section-title{border-bottom-color:#2e2922}
+.deck-pocketpage .deck-section-title h2{color:#f0e6d0}
+.deck-pocketpage .deck-section-title>span{color:#d6b877;background:#f0c55a14;border-color:#4a412f}
+.deck-pocketpage .deck-section-title p{color:#8a8071}
+.deck-pocketpage .deck-empty{border-color:#3a342b;color:#8a8071}
+.deck-pocketpage .deck-leaf{color:#9c8f76}
+.deck-pocketpage .deck-select,.deck-pocketpage .deck-ready{color:#9c8f76}
+.deck-pocketpage .deck-ready{color:#8fb87a}
+/* Clear plastic over black stock rather than over paper. The sheen is cut right back: the gloss
+   was mixed to read over cream, and at that strength on black the faces look like mirrors. */
+.deck-pocketpage .card-inspect:before,.deck-pocketpage .deck-pocket:before{background:linear-gradient(104deg,#fff0 0 34%,#ffffff17 44%,#ffffff2b 47%,#ffffff0f 52%,#fff0 64%)}
+.deck-pocketpage .card-inspect:after,.deck-pocketpage .deck-pocket:after{background:linear-gradient(#ffffff40,#ffffff0a)}
+.deck-pocketpage .deck-pocket,.deck-pocketpage .card-inspect{background:#ffffff0a;box-shadow:inset 0 0 0 1px #ffffff2b,inset 0 1px 0 #ffffff47,0 1px 2px #00000080}
+.deck-pocketpage .deck-pocket>span{background:#00000059;box-shadow:inset 0 0 0 1px #ffffff14,inset 0 2px 6px #00000080}
+.deck-pocketpage .is-selected .card-inspect{background:#8560182e;box-shadow:inset 0 0 0 2px #c8a463,inset 0 1px 0 #ffffff47,0 2px 8px #000000a6}
+/* No spread on a phone: the leaves stack out of the way and the pockets take the width. */
+@media(max-width:700px){.deck-sheet,.deck-rings{display:none}.deck-pocketpage{box-shadow:none}}
 /* A card as a printed card: cream stock, a hairline ink frame with a second rule inside it in the
    domain's colour, the name ruled off at the top rather than set on a ribbon, the emblem in a lined
    window, the rules in brown ink on the paper itself, and the domain's colour saved for the band
@@ -87,5 +250,76 @@
 @media(prefers-reduced-motion:reduce){.card-inspect{transition:none}.card-inspect:hover{transform:none}}
 .face-expanded{min-height:550px}.face-expanded .face-art{flex:0 0 220px}.face-expanded .face-rules{flex:1}
 @media(max-width:700px){.face-expanded{min-height:460px}.face-expanded .face-art{flex-basis:180px}}
-.granted-slot{min-width:0;max-width:245px}
+/* The same ceiling as a card in a pocket: two kinds of slot in one grid must be one size, or a
+   page sized from the height of one of them cuts the other off. */
+.granted-slot{min-width:0;max-width:170px}
 .card-preview{display:flex;flex-direction:column;gap:10px}.card-preview .face{font-size:12px}
+
+/* ---- The binder opens and shuts. ----
+ *
+ * The left leaf is hinged on the spine, so it starts folded right over the pocket page -- 180
+ * degrees about its own right edge -- and swings out to lie flat. Folded over, what faces the
+ * reader is its back, and the back of the first leaf of a binder is the cover: `:before` is that
+ * cover, swapped away at the halfway mark, which is the moment the leaf is edge-on and the swap
+ * cannot be seen. The easing is symmetric for that reason: an ease that is not would reach 90
+ * degrees at some other time than half way, and the cover would blink off a leaf still showing it.
+ *
+ * Closed, a binder is only its right half, so the whole thing starts a quarter of its width to the
+ * left -- where a shut binder would sit centred -- and slides across as it opens. The binder no
+ * longer clips: mid-swing the leaf comes towards the reader and perspective draws it taller than
+ * the board it is hinged to. Shutting is the same keyframes run backwards (`LoadoutPanel` holds
+ * the panel open for their length before telling its owner it has closed). */
+/* The board itself is not drawn: it was only ever seen behind the two leaves, and while the binder
+   is shut it showed as a black slab to the left of something that should be half as wide. The
+   leaves carry the shadow it used to cast. */
+.deck-browser{overflow:visible;background:none;border-color:#0000;box-shadow:none}
+.deck-spread>.deck-sheet{box-shadow:inset 0 0 0 1px #ffffff0f,0 28px 70px #000000b0}
+.deck-spread>.deck-pocketpage{box-shadow:inset 16px 0 26px #00000080,0 28px 70px #000000b0}
+/* Close sits on the sheet, so it turns up when the sheet has landed rather than hanging in the air
+   beside a leaf that is still on its way over. */
+.deck-shut{animation:binder-close-in .46s linear both}
+@keyframes binder-close-in{0%,78%{opacity:0}100%{opacity:1}}
+.is-closing .deck-shut{animation:none;opacity:0}
+.deck-spread{perspective:2600px}
+.deck-sheet{transform-origin:right center;z-index:0;border-radius:5px 0 0 5px;animation:binder-open .46s cubic-bezier(.45,0,.55,1) both}
+.deck-sheet:before{content:'';position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;border-radius:0 5px 5px 0;background:linear-gradient(200deg,#262321,#121110 60%,#0a0909);box-shadow:inset 0 0 0 1px #ffffff12,inset 0 0 50px #000000a6;animation:binder-cover .46s cubic-bezier(.45,0,.55,1) both}
+.deck-pocketpage{border-radius:0 5px 5px 0}
+.deck-browser{animation:binder-in .46s cubic-bezier(.45,0,.55,1) both}
+.deck-backdrop{animation:binder-dim .3s ease-out both}
+@keyframes binder-open{from{transform:rotateY(180deg);z-index:5}99%{z-index:5}to{transform:rotateY(0);z-index:0}}
+@keyframes binder-cover{0%,49.9%{opacity:1}50%,100%{opacity:0}}
+@keyframes binder-in{from{opacity:0;transform:translateX(-24%) scale(.95)}25%{opacity:1}to{opacity:1;transform:none}}
+@keyframes binder-dim{from{background-color:#120c0800}}
+.is-closing .deck-sheet{animation:binder-shut .46s cubic-bezier(.45,0,.55,1) both}
+.is-closing .deck-sheet:before{animation:binder-cover-back .46s cubic-bezier(.45,0,.55,1) both}
+.is-closing .deck-browser{animation:binder-out .46s cubic-bezier(.45,0,.55,1) both}
+.is-closing.deck-backdrop{animation:binder-undim .46s ease-in both}
+@keyframes binder-shut{from{transform:rotateY(0);z-index:5}to{transform:rotateY(180deg);z-index:5}}
+@keyframes binder-cover-back{0%,49.9%{opacity:0}50%,100%{opacity:1}}
+@keyframes binder-out{from{opacity:1;transform:none}75%{opacity:1}to{opacity:0;transform:translateX(-24%) scale(.95)}}
+@keyframes binder-undim{to{background-color:#120c0800}}
+@media(prefers-reduced-motion:reduce){.deck-sheet,.deck-sheet:before,.deck-browser,.deck-backdrop{animation:none!important}}
+
+/* ---- The binder at other sizes. Found by photographing it, not by reasoning about it. ---- */
+/* The search controls share the pocket leaf's width, which is half the binder's: they wrap rather
+   than run off the edge, and shrink rather than push each other out. */
+.deck-pocketpage{container-type:inline-size}
+.deck-pocketpage .deck-toolbar{flex-wrap:wrap;row-gap:8px}
+.deck-pocketpage .deck-search{flex:1 1 150px;min-width:0}
+.deck-pocketpage .deck-toolbar label{min-width:0}
+.deck-pocketpage .deck-toolbar input,.deck-pocketpage .deck-toolbar select{max-width:100%;box-sizing:border-box}
+.deck-pocketpage .deck-search input{width:100%}
+/* The hint beside them is the first thing to go. Squeezed into what was left of a narrow leaf it
+   set one word to a line, which made the toolbar tall enough to cost the leaf a whole row of cards
+   -- and what it says is already on every Recall button. */
+@container (max-width:700px){.deck-toolbar p{display:none}}
+/* On a phone there is no spread: the sheet and the rings are put away, so the pocket leaf is the
+   whole binder rather than the half of it the equal-leaves rule would still hand it. Close goes
+   back to the top corner, above the controls instead of on top of the pager. */
+@media(max-width:700px){
+  .deck-spread>.deck-pocketpage{flex:1 1 100%;padding-top:50px}
+  .deck-pocketpage:before{display:none}
+  .deck-pocketpage .deck-toolbar{padding:8px 16px 10px}
+  .deck-pocketpage .deck-scroll{padding:0 16px 8px}
+  .deck-shut{top:10px;right:12px;bottom:auto;left:auto}
+}

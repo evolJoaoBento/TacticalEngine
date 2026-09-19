@@ -1515,7 +1515,7 @@ function renderPlayPanel(): void {
       ? h(LoadoutPanel, {
           name: nameOf(demo, loadoutOpen),
           view: loadoutView(demo, loadoutOpen),
-          resting: false,
+          resting: false, sheet: hudMembers().find((m) => m.id === loadoutOpen), portrait: ((who) => who === undefined ? null : portraitOf(view.registry, assets, view.drawnModelFor(who)))(demo.state.entity(loadoutOpen)),
           issue: loadoutIssue,
           onSwap: (cardIn: string, cardOut: string | undefined) => {
             const result = swapCard(demo, loadoutOpen!, cardIn, cardOut);

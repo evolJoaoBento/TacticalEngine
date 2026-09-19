@@ -86,6 +86,10 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   const recall = panel.locator('[data-card="smoke-step"]').getByTestId('recall');
   await expect(recall).toBeDisabled();
   await panel.locator('[data-card="unbroken"]').getByTestId('pick-out').check();
+  // The collection is a binder now: it turns rather than scrolls, and the vault is a later leaf
+  // than the hand. Turn until the card is actually reachable rather than counting pages -- how many
+  // there are depends on the size of the window and on how many cards are held.
+  for (let turns = 0; turns < 8 && !(await recall.isVisible()); turns++) await panel.getByTestId('next-page').click();
   await recall.click();
   await expect(panel.locator('[data-card="unbroken"]').getByTestId('recall')).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });

@@ -46,8 +46,13 @@ export interface PartyHudProps {
   onLevelUp: (id: string) => void;
 }
 
-/** Bars: `marked` of `max` lit, in the colour the sheet and the dice give that pool. */
-function Pips(props: { label: string; marked: number; max: number; colour: string; testId: string }) {
+/**
+ * Bars: `marked` of `max` lit, in the colour the sheet and the dice give that pool.
+ *
+ * Exported because the loadout binder draws the same pools on its left leaf. Two copies of this
+ * would drift the moment one of them was tuned.
+ */
+export function Pips(props: { label: string; marked: number; max: number; colour: string; testId: string }) {
   const bars = [];
   for (let i = 0; i < props.max; i++) {
     bars.push(<span key={i} className={i < props.marked ? 'pip is-marked' : 'pip'} style={{ '--pip': props.colour }} />);
