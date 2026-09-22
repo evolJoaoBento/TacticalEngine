@@ -25,12 +25,13 @@
  */
 
 import { combineCover, type Cover } from '../rules/cover';
-import type { TileGrid } from './grid';
+import { SLAB_BLOCKS, type TileGrid } from './grid';
 
 export interface LineOfSightRules {
   /**
-   * How much higher than both endpoints a tile must stand before it blocks sight.
-   * 1 means "any tile above both ends blocks".
+   * How much higher than both endpoints a tile must stand before it blocks sight, in levels
+   * of ground. 1 means "any tile above both ends blocks". A placed piece is measured on the
+   * same scale, by how high it stands: a block is nearly three levels.
    */
   readonly blockingHeightMargin: number;
 }
@@ -122,7 +123,7 @@ function blocksBetween(
 ): boolean {
   if (grid.blocksSight(tile)) return true;
   const highestEnd = Math.max(fromHeight, toHeight);
-  return grid.heightAt(tile) - highestEnd >= rules.blockingHeightMargin;
+  return (grid.standAt(tile) - highestEnd) / SLAB_BLOCKS >= rules.blockingHeightMargin - 1e-6;
 }
 
 /**
@@ -140,8 +141,8 @@ export function lineOfSight(
   }
   if (from === to) return { clear: true, partial: false, firstBlocker: -1 };
 
-  const fromHeight = grid.heightAt(from);
-  const toHeight = grid.heightAt(to);
+  const fromHeight = grid.standAt(from);
+  const toHeight = grid.standAt(to);
 
   let blocked = false;
   let partial = false;

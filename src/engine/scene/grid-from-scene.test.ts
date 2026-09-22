@@ -204,7 +204,7 @@ describe('paletteForProject', () => {
         { id: 'hedge', name: '', passable: false, cost: 1, providesCover: true, blocksSight: true },
       ],
     });
-    expect(palette.size).toBe(2);
+    expect(palette.types.map((type) => type.id)).toEqual(['sand', 'hedge', 'void']);
     expect(palette.at(palette.require('sand')).cost).toBe(2);
     const hedge = palette.at(palette.require('hedge'));
     expect(hedge.passable).toBe(false);

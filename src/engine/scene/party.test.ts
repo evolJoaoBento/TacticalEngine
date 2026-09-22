@@ -214,15 +214,16 @@ describe('walking to a spot', () => {
     }
   });
 
-  it('falls back to the trail for whoever the line has no room for', () => {
+  it('seats whoever the trail reaches, and leaves the rest standing', () => {
     const { grid, party, state } = setup();
-    // A walk of one tile: room for one on the line, the other claims the trail.
+    const stood = Object.fromEntries(['finn', 'mira'].map((id) => [id, state.entity(id)!.tile]));
+    // A walk of one tile: one place behind the leader, so one follower takes it.
     const walk = party.walkTo('kara', grid.indexOf(1, 1))!;
     const spots = party.follow('kara', walk.path, walk.route);
-    expect(spots.size).toBe(2);
-    const tiles = [...spots.values()];
-    expect(new Set(tiles).size).toBe(2);
+    expect(spots.size).toBe(1);
     for (const [id, tile] of spots) expect(state.entity(id)!.tile).toBe(tile);
+    // Whoever the trail did not reach is where they were, not shuffled to a free tile nearby.
+    for (const id of ['finn', 'mira']) if (!spots.has(id)) expect(state.entity(id)!.tile).toBe(stood[id]);
   });
 });
 
@@ -259,19 +260,29 @@ describe('following', () => {
     expect(miraDistance).toBeLessThanOrEqual(finnDistance);
   });
 
-  it('falls back to a tile near the leader when the trail is too short', () => {
+  it('grows the trail over several walks, until it seats the whole party', () => {
     const { grid, party, state } = setup();
-    // One step: the trail cannot seat two followers.
-    const path = party.moveTo('kara', grid.indexOf(1, 1))!;
-    expect(path).toHaveLength(2);
-    const spots = party.follow('kara', path);
-
-    expect(spots.size).toBe(2);
-    for (const tile of spots.values()) {
-      expect(grid.isPassable(tile)).toBe(true);
-      expect(tile).not.toBe(state.entity('kara')!.tile);
+    // One step: the trail is a tile long, which is one place.
+    party.moveTo('kara', grid.indexOf(1, 1));
+    expect(party.follow('kara', [grid.indexOf(0, 1), grid.indexOf(1, 1)]).size).toBeLessThanOrEqual(1);
+    // Step by step, the ground behind the leader adds up and the second follower falls in.
+    let spots = new Map<string, number>();
+    for (let x = 2; x <= 5; x++) {
+      const path = party.moveTo('kara', grid.indexOf(x, 1))!;
+      spots = party.follow('kara', path);
     }
+    expect(spots.size).toBe(2);
     expect(new Set([...spots.values()]).size).toBe(2);
+    for (const tile of spots.values()) expect(tile).not.toBe(state.entity('kara')!.tile);
+  });
+
+  it('sends a follower who has been left far behind to catch up', () => {
+    const { grid, party, state } = setup();
+    state.moveEntity('mira', grid.indexOf(9, 2));
+    state.placeEntity('mira', 9, 2);
+    for (let x = 1; x <= 5; x++) party.follow('kara', party.moveTo('kara', grid.indexOf(x, 1))!);
+    // Far enough that no trail reaches her: she is walked towards the leader rather than left.
+    expect(grid.euclideanDistance(state.entity('mira')!.tile, state.entity('kara')!.tile)).toBeLessThan(6);
   });
 
   it('leaves the fallen where they lie', () => {
@@ -300,5 +311,93 @@ describe('following', () => {
       return JSON.stringify([...party.follow('kara', path)].sort());
     };
     expect(run()).toBe(run());
+  });
+});
+
+describe('groups', () => {
+  it('start as one: everybody walks with everybody', () => {
+    const { party } = setup();
+    expect(party.groupOf('kara')).toEqual(['kara', 'finn', 'mira']);
+    expect(party.linked('kara', 'mira')).toBe(true);
+    expect(party.groupOf('husk')).toEqual([]);
+    expect(party.linked('kara', 'husk')).toBe(false);
+  });
+
+  it('unlinks a member to walk alone, and only their own group follows a leader', () => {
+    const { grid, party, state } = setup();
+    expect(party.unlink('mira')).toBe(true);
+    expect(party.unlink('mira')).toBe(false); // already alone
+    expect(party.groupOf('mira')).toEqual(['mira']);
+    expect(party.groupOf('kara')).toEqual(['kara', 'finn']);
+    expect(party.linked('kara', 'mira')).toBe(false);
+    const stood = state.entity('mira')!.tile;
+    const walk = party.walkTo('kara', grid.indexOf(6, 1))!;
+    const followed = party.follow('kara', walk.path, walk.route);
+    expect([...followed.keys()]).toEqual(['finn']);
+    expect(state.entity('mira')!.tile).toBe(stood);
+    // Walking the one alone moves nobody else.
+    const walked = party.walkTo('mira', grid.indexOf(6, 2))!;
+    expect(party.follow('mira', walked.path, walked.route).size).toBe(0);
+  });
+
+  it('links a member to another’s group, making groups of any shape', () => {
+    const { party } = setup();
+    party.unlink('mira');
+    party.unlink('finn');
+    expect(party.groupOf('kara')).toEqual(['kara']);
+    expect(party.link('finn', 'mira')).toBe(true);
+    expect(party.groupOf('mira')).toEqual(['finn', 'mira']);
+    expect(party.link('finn', 'mira')).toBe(false); // already together
+    expect(party.link('kara', 'kara')).toBe(false);
+    expect(party.link('kara', 'nobody')).toBe(false);
+    expect(party.link('nobody', 'kara')).toBe(false);
+    // Back to one party.
+    expect(party.link('kara', 'finn')).toBe(true);
+    expect(party.groupOf('kara')).toEqual(['kara', 'finn', 'mira']);
+  });
+
+  it('walks the followers round somebody left standing on the trail, rather than onto them', () => {
+    const { grid, party, state } = setup();
+    // Mira is left in the corridor the others walk down: a tile short of where Kara stops, where Finn would fall in.
+    party.unlink('mira');
+    state.moveEntity('mira', grid.indexOf(7, 1));
+    state.moveEntity('finn', grid.indexOf(0, 1));
+    state.moveEntity('kara', grid.indexOf(1, 1));
+    const walk = party.walkTo('kara', grid.indexOf(8, 1))!;
+    party.follow('kara', walk.path, walk.route);
+    const mira = state.entity('mira')!;
+    const finn = state.entity('finn')!;
+    expect(mira.tile).toBe(grid.indexOf(7, 1));
+    expect(finn.tile).not.toBe(mira.tile);
+    expect(Math.hypot(finn.at.x - mira.at.x, finn.at.y - mira.at.y)).toBeGreaterThanOrEqual(0.7);
+    // And the old way of claiming a trail tile, with no line to stand along, keeps clear of her too.
+    state.moveEntity('finn', grid.indexOf(0, 1));
+    const claimed = party.follow('kara', [grid.indexOf(5, 1), grid.indexOf(6, 1), grid.indexOf(7, 1), grid.indexOf(8, 1)]);
+    expect(claimed.get('finn')).not.toBe(mira.tile);
+  });
+
+  it('is read in the order it is arranged in, and Tab follows it', () => {
+    const { party } = setup();
+    expect(party.arrange('mira', 'kara')).toBe(true);
+    expect(party.members()).toEqual(['mira', 'kara', 'finn']);
+    expect(party.arrange('mira', 'kara')).toBe(false); // already there
+    expect(party.arrange('kara', null)).toBe(true);
+    expect(party.members()).toEqual(['mira', 'finn', 'kara']);
+    expect(party.living()).toEqual(['mira', 'finn', 'kara']);
+    expect(party.arrange('kara', 'kara')).toBe(false);
+    expect(party.arrange('nobody', 'kara')).toBe(false);
+    expect(party.arrange('kara', 'nobody')).toBe(false);
+    party.select('finn');
+    expect(party.selectNext()).toBe('kara');
+    expect(party.selectNext()).toBe('mira');
+  });
+
+  it('refuses to unlink the last of a group of one, and leaves the fallen where they are', () => {
+    const { party, state } = setup();
+    party.unlink('kara');
+    expect(party.unlink('kara')).toBe(false);
+    expect(party.unlink('nobody')).toBe(false);
+    state.entity('finn')!.alive = false;
+    expect(party.groupOf('mira')).toEqual(['finn', 'mira']); // the group is who they are, alive or not
   });
 });

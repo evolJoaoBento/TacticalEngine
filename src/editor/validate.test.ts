@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from '../game/demo-map';
 import { blankScene } from '../engine/scene/grid-from-scene';
 import { importLegacyCampaign } from '../engine/scene/legacy-import';
 import { projectSchema, sceneSchema, type ProjectDoc, type SceneDoc } from '../engine/scene/schema';
@@ -481,7 +481,7 @@ describe('reporting', () => {
 
 describe('against the real imported campaign', () => {
   it('finds nothing wrong with the demo vault beyond its missing stat blocks', () => {
-    const { project } = importLegacyCampaign(demoMap());
+    const { project } = importLegacyCampaign(hollowVaultMap());
     const problems = validateProject(project!, { knownModels: KNOWN_MODELS });
 
     // The map is sound: no spawn in a wall, no unreachable trigger, no bad link.

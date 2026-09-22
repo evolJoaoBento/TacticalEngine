@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import { validateProject } from '../editor/validate';
 import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './demo-scene';
@@ -22,7 +22,7 @@ import { loadGameText, saveGame } from './save';
  */
 
 const PILLAR = 'pillar-14-7';
-const scene = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
+const scene = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 function stand(demo: DemoScene, id: string): void {
   const object = demo.scene.interactables.find((i) => i.id === id)!;

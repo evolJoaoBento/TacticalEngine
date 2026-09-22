@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { migrateDocument } from '../engine/scene/migrate';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import {
   answerPending,
@@ -28,7 +28,7 @@ import { applyLevelUp } from './level-up';
  */
 
 const CHEST = 'chest-19-13';
-const scene = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
+const scene = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 function stand(demo: DemoScene, id: string): void {
   const object = demo.scene.interactables.find((i) => i.id === id)!;
@@ -92,6 +92,11 @@ describe('a version-1 save at the door', () => {
     // sheet. This is the path a player's file actually takes.
     const fresh = scene();
     expect(loadGameText(fresh, JSON.stringify(v1Save()))).toEqual({ ok: true });
+    // And it puts them back where they were: a version-1 save is of a room 22 wide, and the map is
+    // 44 wide now, so a tile index taken then means another place unless the load reindexes it.
+    const party = fresh.state.entitiesOf('party');
+    expect(party.length).toBeGreaterThan(0);
+    for (const member of party) expect(fresh.grid.xOf(member.tile)).toBeLessThan(12);
   });
 });
 

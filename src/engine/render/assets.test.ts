@@ -31,6 +31,32 @@ describe('the schema', () => {
   });
 });
 
+describe('how the loading stands', () => {
+  it('counts what is on its way and what has finished, and nothing that was never asked for', async () => {
+    const { load, pending } = controllable();
+    const goose = { ...duck(), id: 'goose', url: '/models/goose.glb' };
+    const swan = { ...duck(), id: 'swan', url: '/models/swan.glb' };
+    const library = new AssetLibrary(load, [duck(), goose, swan]);
+    expect(library.progress()).toEqual({ loading: 0, settled: 0 });
+
+    library.request('duck');
+    library.request('goose');
+    expect(library.progress()).toEqual({ loading: 2, settled: 0 });
+
+    pending.get('/models/duck.glb')!.resolve(new Group());
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(library.progress()).toEqual({ loading: 1, settled: 1 });
+
+    // A file that is not coming is finished too: nothing should sit waiting for it.
+    pending.get('/models/goose.glb')!.reject(new Error('404'));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(library.progress()).toEqual({ loading: 0, settled: 2 });
+    expect(library.statusOf('swan')).toBe('unknown');
+  });
+});
+
 describe('retuning', () => {
   it('keeps the file that is already here when only the settings change', async () => {
     const { load, pending } = controllable();
@@ -195,6 +221,23 @@ describe('seating a model on its tile', () => {
     }
     // Bigger, and still standing on the tile rather than sunk through it.
     expect(big.height).toBeCloseTo(small.height * 2, 10);
+  });
+
+  it('centres on the base it stands on, not on the middle of a body that leans over it', () => {
+    // A figure whose feet are a small pad and whose body hangs well off to one side: the pad goes
+    // over the tile, and the body leans off it, which is how a leaning figure reads on a board.
+    const feet = new Mesh(new BoxGeometry(0.6, 0.1, 0.6));
+    feet.position.set(0, 0.05, 0);
+    const body = new Mesh(new BoxGeometry(1, 1.4, 1));
+    body.position.set(1.2, 1, 0); // clear of the floor, so the base is the pad and nothing else
+    const model = new Group();
+    model.add(feet, body);
+    seatOnTile(model);
+    const box = new Box3().setFromObject(model);
+    // The feet are centred on the tile; the middle of the whole thing is not.
+    expect(model.position.x).toBeCloseTo(0, 10);
+    expect(box.min.y).toBeCloseTo(0, 10);
+    expect((box.min.x + box.max.x) / 2).toBeGreaterThan(0.3);
   });
 
   it('leaves a model with nothing to measure where it is', () => {

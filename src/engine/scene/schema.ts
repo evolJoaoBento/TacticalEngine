@@ -33,6 +33,7 @@ import {
   weaponDefSchema,
 } from '../content/pack/schema';
 import { dialogueSchema } from '../dialogue/schema';
+import { jumpRulesSchema } from '../rules/jump';
 import { checkRequestSchema, effectSchema } from '../script/schema';
 import {
   contentIdSchema,
@@ -138,6 +139,15 @@ export const encounterSchema = z.object({
   triggerCells: z.array(pointSchema).default([]),
   /** Whether it starts on its own, or waits for an effect to start it. */
   startsOnTrigger: z.boolean().default(true),
+  /**
+   * Its creatures stand on the map on nobody's side: a gallery, a crowd, prisoners in a cell.
+   *
+   * A fight counts every adversary in the room, whichever encounter placed it -- they all take the
+   * GM's turns and the fight is not won while one stands. So creatures that are only there to be
+   * looked at cannot be adversaries at all, and this is what says so: they are stood up neutral,
+   * with their stat block and their model, and no fight ever counts them.
+   */
+  bystanders: z.boolean().optional(),
 });
 export type Encounter = z.infer<typeof encounterSchema>;
 
@@ -175,6 +185,13 @@ export const sceneSchema = z
     buildingTiles: buildingTilesSchema.optional(),
     /** Visual fog wall inset from the edges, in tiles. */
     fogBand: z.number().int().positive().optional(),
+    /**
+     * How far the room has grown west and north since it was made, in tiles: where the cell
+     * that was `0,0` is now. Nothing in the room reads it - every coordinate was moved when the
+     * corner was - but a game already being played here holds tiles counted from the old corner,
+     * and this is how it learns how far they slid. Absent means the corner never moved.
+     */
+    origin: z.object({ x: z.number().int(), y: z.number().int() }).optional(),
   })
   .superRefine((scene, ctx) => {
     const expected = scene.width * scene.height;
@@ -263,7 +280,7 @@ export type CodeDef = z.infer<typeof codeSchema>;
  * schema sees it; one newer is refused, because guessing at a format from a build that does not
  * exist yet is how a file gets quietly corrupted.
  */
-export const CURRENT_FORMAT_VERSION = 4;
+export const CURRENT_FORMAT_VERSION = 5;
 
 
 export const projectSchema = z
@@ -274,7 +291,7 @@ export const projectSchema = z
      * and a project built in code is current by construction. A version this build does not
      * know is refused, which is what tells a player their file is from a newer build.
      */
-    formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).default(CURRENT_FORMAT_VERSION),
+    formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).default(CURRENT_FORMAT_VERSION),
     id: contentIdSchema,
     name: z.string().default(''),
     /** Omitted means the engine's default palette. */
@@ -348,6 +365,12 @@ export const projectSchema = z
      * falls back on the sheets it ships with.
      */
     party: z.array(characterSheetSchema).default([]),
+    /**
+     * The house rule for height: what a step is, who jumps how far, the roll it asks, what a
+     * fall costs. Optional rather than defaulted, like `terrainPalette`: a project that says
+     * nothing plays by `DEFAULT_JUMP_RULES`, and saving it does not write them down.
+     */
+    jump: jumpRulesSchema.optional(),
     /** Scene the project opens on. */
     startScene: contentIdSchema,
   })

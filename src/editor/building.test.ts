@@ -96,13 +96,14 @@ describe('sparse construction', () => {
   });
   it('stamps where it is clicked rather than following a drag', () => {
     const { editor, scene, session } = setup();
-    editor.begin({ x: -20, y: 0 });
-    editor.paint({ x: -10, y: 0 });
+    editor.begin({ x: -2000, y: 0 });
+    editor.paint({ x: -1990, y: 0 });
     editor.end();
     // One piece, not eleven. Building used to be a drag that filled in every sample it
     // skipped; it is a placer now, because that is what it was fused with and what the
     // user asked for by name. Erase is still a drag - it is on the rail, not the strip.
-    expect(Object.keys(scene.buildingTiles!)).toEqual(['-20,0,0']);
+    // (Two thousand tiles off, so it is scenery: nearer, and the room would grow to it.)
+    expect(Object.keys(scene.buildingTiles!)).toEqual(['-2000,0,0']);
     session.undo();
     expect(scene.buildingTiles).toBeUndefined();
   });
@@ -117,21 +118,21 @@ describe('sparse construction', () => {
   });
   it('coalesces a brush drag, retains overlapping pieces, and redoes it', () => {
     const { editor, scene, session } = setup();
-    stamp(editor, -4, 0);
+    stamp(editor, 1, 1);
     editor.set('tileId', 'flight');
     editor.set('buildRotation', 3);
     editor.set('brushSize', 3);
-    stamp(editor, -3, 0);
+    stamp(editor, 2, 1);
     // A brush still covers a square in one click, which is the one undo step.
     expect(Object.keys(scene.buildingTiles!)).toHaveLength(10);
     session.undo();
-    expect(Object.keys(scene.buildingTiles!)).toEqual(['-4,0,0']);
+    expect(Object.keys(scene.buildingTiles!)).toEqual(['1,1,0']);
     // The shape came off the kind of tile, not a chip beside it.
-    expect(scene.buildingTiles!['-4,0,0']!.shape).toBe('block');
-    expect(scene.buildingTiles!['-4,0,0']!.tile).toBe('plinth');
+    expect(scene.buildingTiles!['1,1,0']!.shape).toBe('block');
+    expect(scene.buildingTiles!['1,1,0']!.tile).toBe('plinth');
     session.redo();
-    expect(scene.buildingTiles!['-4,0,0#1']!.rotation).toBe(3);
-    expect(scene.buildingTiles!['-4,0,0#1']!.shape).toBe('stairs');
+    expect(scene.buildingTiles!['1,1,0#1']!.rotation).toBe(3);
+    expect(scene.buildingTiles!['1,1,0#1']!.shape).toBe('stairs');
   });
   it('erases only the chosen level and undoes a complete first stroke to the original document', () => {
     const { editor, scene, session, project } = setup();

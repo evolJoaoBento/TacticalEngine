@@ -27,17 +27,17 @@ for (const source of ['directory', 'import'] as const) {
     await page.getByTestId('open-loadout').click();
     const panel = page.getByTestId('loadout');
     const tile = panel.locator('[data-card="power-slash"] .face-art');
-    await expect(tile.locator('svg')).toBeVisible();
+    await expect(tile.locator('> svg')).toBeVisible();
     await expect(tile.locator('img')).toHaveCount(0);
     await page.getByRole('button', { name: 'Inspect Power Slash', exact: true }).click();
     const enlarged = panel.locator('.face-expanded .face-art');
-    await expect(enlarged.locator('svg')).toBeVisible();
+    await expect(enlarged.locator('> svg')).toBeVisible();
     await panel.getByTestId('art-file').setInputFiles({ name: 'replacement.png', mimeType: 'image/png', buffer: PIXEL });
     await expect(enlarged.locator('img')).toHaveAttribute('src', /^data:image\/jpeg/);
     await expect.poll(() => tile.locator('img').evaluateAll(images => images.length === 1 && (images[0] as HTMLImageElement).naturalWidth > 0)).toBe(true);
     await panel.getByTestId('clear-art').click();
-    await expect(enlarged.locator('svg')).toBeVisible();
-    await expect(tile.locator('svg')).toBeVisible();
+    await expect(enlarged.locator('> svg')).toBeVisible();
+    await expect(tile.locator('> svg')).toBeVisible();
   });
 }
 
@@ -55,6 +55,11 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   await page.getByTestId('open-loadout').click();
   const panel = page.getByTestId('loadout');
   await expect(panel.locator('.deck-slot')).toHaveCount(6);
+  // The left leaf is her sheet: the six traits, and the numbers a blow is read against.
+  const sheet = panel.getByTestId('loadout-sheet');
+  await expect(sheet.locator('.sheet-trait')).toHaveCount(6);
+  await expect(sheet.getByTestId('sheet-evasion')).toContainText(/\d/);
+  await expect(sheet.getByTestId('sheet-thresholds')).toContainText(/Minor.*\d+.*Major.*\d+.*Severe/s);
   // Every card shows something without waiting on a fetch: a file from
   // `public/cards/` where the index names one, its own drawn emblem otherwise.
   // Which of the two depends on whether this machine has an art directory.
@@ -67,9 +72,12 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   await page.screenshot({ path: 'test-results/card-collection.png' });
   await page.getByRole('button', { name: 'Inspect Unbroken', exact: true }).click();
   await expect(panel.locator('.face-expanded')).toContainText('Unbroken');
+  // While a card is held up to read, the binder's own way out is put away: Esc means the card here.
+  await expect(page.getByTestId('close-loadout')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/card-inspect.png' });
   await page.keyboard.press('Escape');
   await expect(panel.locator('.card-lightbox')).toHaveCount(0);
+  await expect(page.getByTestId('close-loadout')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Inspect Unbroken', exact: true })).toBeFocused();
   await expect(panel).toBeVisible();
   await page.getByRole('textbox', { name: 'Search cards' }).fill('iron');

@@ -22,6 +22,8 @@
  * nothing — `attack.ts` does that, and the caller tells this what happened.
  */
 
+import type { Spot } from '../grid/grid';
+import { nextBand, type RangeBand } from '../rules/range';
 import type { SceneState } from '../scene/state';
 
 /** How the turn economy works. */
@@ -67,6 +69,8 @@ export type EncounterEvent =
   | { kind: 'acted'; id: string; tokensLeft?: number }
   | { kind: 'adversaryActed'; id: string; badSpent: number }
   | { kind: 'tokensRefilled'; round: number }
+  /** A character pushed their movement out a step, on a roll. */
+  | { kind: 'pushed'; id: string; band: RangeBand }
   | { kind: 'ended'; encounter: string; outcome: EncounterOutcome };
 
 /**
@@ -86,6 +90,13 @@ export class EncounterRunner {
   private readonly events: EncounterEvent[] = [];
   /** Adversaries already spotlighted in the current GM turn. */
   private readonly actedThisGmTurn = new Set<string>();
+  /**
+   * Where each party member may walk freely this spotlight: a circle round where they stood when
+   * the spotlight came to the party, Close at first, and one distance step wider for each roll that
+   * pushed it. Anchored when the spotlight comes, so a creature shoved about in the GM's turn is
+   * measured from where that left them.
+   */
+  private readonly circles = new Map<string, { anchor: Spot; band: RangeBand }>();
 
   private side: Side = 'party';
   private roundCount = 1;
@@ -107,6 +118,7 @@ export class EncounterRunner {
       encounter.started = true;
       encounter.triggered = true;
       this.refillTokens(false);
+      this.anchorCircles();
       this.events.push({ kind: 'started', encounter: this.encounterId });
       this.events.push({ kind: 'spotlight', side: 'party', round: this.roundCount });
     }
@@ -246,10 +258,62 @@ export class EncounterRunner {
     this.side = 'party';
     this.roundCount++;
     this.actedThisGmTurn.clear();
+    this.anchorCircles();
     // Under the tracker, a fresh round is when everyone gets their tokens back.
     if (this.policy === 'tracker' && this.readyCharacters().length === 0) this.refillTokens(true);
     this.events.push({ kind: 'spotlight', side: 'party', round: this.roundCount });
     return this.view();
+  }
+
+  /** Every living party member's circle drawn afresh round where they stand, at Close. */
+  private anchorCircles(): void {
+    this.circles.clear();
+    for (const entity of this.state.entitiesOf('party')) {
+      if (entity.alive) this.circles.set(entity.id, { anchor: { ...entity.at }, band: 'close' });
+    }
+  }
+
+  /**
+   * The circle a party member may move freely in right now: its centre and its band. Null for
+   * anybody who is not a living party member, or before the fight has started.
+   */
+  circleOf(id: string): { anchor: Spot; band: RangeBand } | null {
+    const circle = this.circles.get(id);
+    if (circle === undefined) {
+      // Somebody who joined mid-fight, or stood up again: their circle is where they are.
+      const entity = this.state.entity(id);
+      if (!this.started || entity === undefined || !entity.alive || entity.faction !== 'party') return null;
+      const fresh = { anchor: { ...entity.at }, band: 'close' as const };
+      this.circles.set(id, fresh);
+      return fresh;
+    }
+    return circle;
+  }
+
+  /**
+   * Draw a character's circle afresh round where they now stand, keeping its band: for somebody
+   * something else moved - a shove, a script - clean out of the circle they had.
+   */
+  reanchor(id: string): void {
+    const entity = this.state.entity(id);
+    const circle = this.circles.get(id);
+    if (entity !== undefined && circle !== undefined) circle.anchor = { ...entity.at };
+  }
+
+  /** The band a push would open for a character: one step out, or null when there is none past their circle. */
+  pushOpens(id: string): RangeBand | null {
+    const circle = this.circleOf(id);
+    return circle === null ? null : nextBand(circle.band);
+  }
+
+  /** Widen a character's circle by one distance step, on a roll that did: the band it is now, or null when it could not. */
+  push(id: string): RangeBand | null {
+    const circle = this.circleOf(id);
+    const band = circle === null ? null : nextBand(circle.band);
+    if (circle === null || band === null) return null;
+    circle.band = band;
+    this.events.push({ kind: 'pushed', id, band });
+    return band;
   }
 
   /** Tokens a character has left. Always `Infinity` under the spotlight policy. */

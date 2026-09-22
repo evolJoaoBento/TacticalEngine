@@ -30,15 +30,20 @@
  * 535 and the sheet came out 599. Asking for half the row minus the gutter as the *outer* width
  * leaves nothing for padding to distort. The gutter is a variable so the rings column and this
  * sum cannot drift apart. */
-.deck-spread{display:flex;flex:1;min-height:0;--gutter:46px}
+.deck-spread{display:flex;flex:1;min-height:0;--gutter:46px;
+  /* One black for the whole binder. The board under the paper, the spine and the pocket page are the
+     same sheet of vinyl, and three gradients that each looked black on their own showed as three
+     different blacks the moment they met along the top edge. Top to bottom, so that leaves of the
+     same height agree at every line across. */
+  --binder:linear-gradient(#121110,#0a0909)}
 .deck-spread>.deck-sheet,.deck-spread>.deck-pocketpage{flex:0 0 calc((100% - var(--gutter)) / 2);box-sizing:border-box;width:auto;min-width:0}
 /* The left leaf: paper, the same stock the party sheets are on. */
 /* The left leaf is the binder's own board, and the sheet is a piece of paper lying on it: board
    shows round the top, the outer edge and the foot, which is what makes the paper read as a sheet
    rather than as a cream-coloured half of the binder. Not at the spine -- the punched edge has to
    reach the rings, so there the paper runs right up to the gutter. */
-.deck-sheet{--sheet-margin:20px;position:relative;flex:1 1 0;min-width:0;overflow:hidden;box-sizing:border-box;display:flex;padding:var(--sheet-margin) 0 var(--sheet-margin) var(--sheet-margin);background:linear-gradient(200deg,#211f1d,#141312 55%,#0b0a09)}
-.sheet-paper{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden;container-type:inline-size;padding:18px 40px 18px 24px;box-sizing:border-box;display:flex;flex-direction:column;border-radius:2px 0 0 2px;background-image:var(--paper-grain,none),linear-gradient(172deg,#fdfbf4,#f7f1e2 46%,#ece1ca);background-blend-mode:soft-light,normal;color:#1d1611;box-shadow:inset -16px 0 26px #00000026,-2px 3px 9px #000000a6}
+.deck-sheet{--sheet-margin:20px;position:relative;flex:1 1 0;min-width:0;overflow:hidden;box-sizing:border-box;display:flex;padding:var(--sheet-margin) 0 var(--sheet-margin) var(--sheet-margin);background:var(--binder,#0e0d0c)}
+.sheet-paper{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden;container-type:inline-size;padding:34px 58px 60px 28px;box-sizing:border-box;display:flex;flex-direction:column;border-radius:2px 0 0 2px;background-image:var(--paper-grain,none),linear-gradient(172deg,#fdfbf4,#f7f1e2 46%,#ece1ca);background-blend-mode:soft-light,normal;color:#1d1611;box-shadow:inset -16px 0 26px #00000026,-2px 3px 9px #000000a6}
 /* The sheet's own punched edge, along the seam. The tile is 78px so the holes land on the same
    pitch as the rings in the gutter -- a ring through a hole it does not line up with reads as two
    unrelated circles, which is what the first attempt looked like. */
@@ -66,6 +71,7 @@
 .deck-sheet .hud-pips{gap:clamp(2px,.8cqw,4px);margin-top:clamp(4px,1.5cqw,8px);flex-wrap:nowrap}
 .deck-sheet .hud-pips>span:first-child{min-width:clamp(42px,14.5cqw,74px);font-size:clamp(8px,2.4cqw,12px)}
 .deck-sheet .pip{width:clamp(8px,3.3cqw,17px);height:clamp(8px,3.1cqw,16px);border-radius:2px}
+.deck-sheet .pip-icon{width:clamp(10px,3.8cqw,19px);height:clamp(10px,3.8cqw,19px);margin-right:0;border-radius:0}
 /* The counts sit at the foot of the leaf, so the sheet fills its page instead of bunching at the
    top with the paper empty beneath it. */
 /* The lines spread down the leaf rather than bunching at the top with the counts pinned to the
@@ -73,6 +79,29 @@
    is what fills a page. Pinning only the last three left 481px of blank paper through the middle. */
 .deck-sheet .sheet-line{margin-top:auto}
 .deck-sheet .sheet-line:last-of-type{margin-bottom:auto}
+/* The numbers a paper sheet is mostly made of. Ruled in the same thin ink as the sheet's lines and
+   filled with nothing: these are printed boxes with a figure written in, not badges. Everything is
+   sized off the paper's width, like the head above it, so the block shrinks with the leaf. */
+.sheet-stats{flex:none;display:flex;flex-direction:column;gap:clamp(8px,2.6cqw,14px);margin-top:clamp(10px,3.4cqw,20px)}
+.sheet-defence{display:flex;align-items:stretch;gap:clamp(5px,1.8cqw,10px)}
+.sheet-shield{flex:none;box-sizing:border-box;width:clamp(50px,16cqw,84px);padding:clamp(3px,1.2cqw,7px) 2px clamp(7px,2.6cqw,13px);display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #9d8a66;border-radius:3px 3px 50% 50%/3px 3px 26% 26%;background:#ffffff38;text-align:center}
+.sheet-shield b,.sheet-trait b,.sheet-bands b{font:700 clamp(15px,5cqw,26px)/1.1 Cinzel,'Libre Baskerville',Georgia,serif;color:#1d1611;font-variant-numeric:lining-nums}
+.sheet-shield span,.sheet-trait span,.sheet-bands span,.sheet-experiences h3{font:700 clamp(6.5px,1.75cqw,9.5px)/1.2 Cinzel,'Libre Baskerville',Georgia,serif;letter-spacing:.1em;text-transform:uppercase;color:#6b5a43}
+.sheet-bands{flex:1;min-width:0;display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;border:1px solid #9d8a66;border-radius:3px;background:#ffffff38}
+.sheet-bands span{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 2px;text-align:center}
+.sheet-bands small,.sheet-trait small{font:400 clamp(6px,1.6cqw,9px)/1.2 'Libre Baskerville',Georgia,serif;letter-spacing:0;text-transform:none;font-style:italic;color:#8a7558}
+.sheet-bands b{display:grid;place-items:center;min-width:clamp(26px,8.5cqw,46px);border-left:1px solid #9d8a66;border-right:1px solid #9d8a66;background:#1d16110d}
+.sheet-traits{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:clamp(3px,1.2cqw,7px)}
+.sheet-trait{display:flex;flex-direction:column;align-items:center;gap:1px;padding:clamp(3px,1.2cqw,7px) 1px clamp(4px,1.4cqw,8px);border:1px solid #9d8a66;border-radius:3px;background:#ffffff38;text-align:center;min-width:0}
+.sheet-trait span{letter-spacing:.04em}
+.sheet-shield span{letter-spacing:.02em;font-size:clamp(6px,1.6cqw,9px)}
+.sheet-trait.is-spellcast{border-color:#7a5a14;box-shadow:inset 0 0 0 1px #7a5a1433}
+.sheet-experiences h3{margin:0 0 2px}
+.sheet-experiences p{display:flex;align-items:baseline;gap:6px;margin:3px 0 0;font-size:clamp(9px,2.5cqw,12px);color:#2c2219}
+.sheet-experiences p:after{content:'';order:1;flex:1;border-bottom:1px dotted #9d8a66;transform:translateY(-3px)}
+.sheet-experiences p b{order:2;font-weight:700}
+@container (max-width:340px){.sheet-bands small{display:none}}
+@container (max-width:400px){.sheet-traits{grid-template-columns:repeat(3,minmax(0,1fr))}.sheet-trait span,.sheet-bands span,.sheet-experiences h3{font-size:clamp(6.5px,2.3cqw,9.5px)}.sheet-shield{width:clamp(54px,18cqw,84px)}.sheet-shield span{font-size:clamp(6px,1.9cqw,9px)}}
 .sheet-issue{margin:10px 0 0;padding:7px 9px;border-left:3px solid #9c2f21;background:#9c2f210f;color:#9c2f21;font-size:11px}
 .deck-sheet .hud-pips{margin-top:4px}
 .sheet-line{display:flex;justify-content:space-between;gap:10px;margin:8px 0 0;padding-top:6px;border-top:1px solid #d5c5a4;font-size:11px;color:#57493a}
@@ -94,7 +123,7 @@
 /* `min-width: 0` is load-bearing: a flex item will not shrink below its content, and the content
    is a 74px ring, so without it the gutter quietly grew to 74px -- the holes moved out to 51px
    either side while the rings reached 37, and the spread ran 28px off the binder's right edge. */
-.deck-rings{position:relative;z-index:3;pointer-events:none;flex:0 0 var(--gutter,46px);min-width:0;width:var(--gutter,46px);display:block;overflow:visible;background:linear-gradient(#0d0c0b,#141210 30% 70%,#0d0c0b);box-shadow:inset 2px 0 6px #000000a6,inset -2px 0 6px #000000a6}
+.deck-rings{position:relative;z-index:3;pointer-events:none;flex:0 0 var(--gutter,46px);min-width:0;width:var(--gutter,46px);display:block;overflow:visible;background:var(--binder,#0e0d0c);box-shadow:inset 2px 0 5px #00000073,inset -2px 0 5px #00000073}
 /* The mechanism: a steel plate down the spine with a ring at each end of it, as a ring binder has.
    Both hang off `--ring-a` and `--ring-b`, the centres of the two hole pairs the panel picked for
    this height, so the plate is always exactly as long as the rings are far apart. */
@@ -103,7 +132,11 @@
 .deck-rings i:nth-of-type(2){top:calc(var(--ring-b,517px) - 15px)}
 .deck-rings i{position:absolute;left:50%;margin-left:-37px;box-sizing:border-box;display:block;width:74px;height:30px;border-radius:50%;border:4px solid;border-color:#cdc8ba #9a9488 #79746a #b4afa2;box-shadow:0 2px 4px #000000a6,inset 0 1px 0 #ffffff6b}
 /* The right leaf: the black pocket stock a card binder actually uses. */
-.deck-pocketpage{position:relative;flex:1 1 0;min-width:0;display:flex;flex-direction:column;background:linear-gradient(#111010,#0a0909);box-shadow:inset 16px 0 26px #00000080}
+.deck-pocketpage{position:relative;flex:1 1 0;min-width:0;display:flex;flex-direction:column;
+  /* The shade where the leaf dips into the spine is a gradient along that one edge, not an inset
+     box-shadow: a blurred inset shadow darkens every edge a little, and along the top that was
+     enough to make this leaf a different black from the board beside it. */
+  background:linear-gradient(90deg,#00000085,#00000038 18px,#0000 44px),var(--binder,#0e0d0c)}
 /* The pocket leaf is punched too, on its own inner edge: the second set of holes. */
 .deck-pocketpage:before{content:'';position:absolute;top:0;bottom:0;left:0;width:28px;background-image:radial-gradient(circle at 14px 39px,#000 0 6px,#ffffff14 6px 7.5px,#0000 8px);background-size:100% 78px;background-position:0 10px;background-repeat:repeat-y;pointer-events:none;z-index:2}
 /* Header and footer are the binder's board, not either leaf: light lettering on black. */
@@ -166,7 +199,7 @@
 .deck-slot .face-level,.granted-slot .face-level{padding:4cqw 5cqw 9cqw}
 .deck-slot .face-level b,.granted-slot .face-level b{font-size:12cqw}
 .deck-slot .face-recall,.granted-slot .face-recall{width:18cqw;height:18cqw;font-size:9.5cqw}
-.deck-slot .face-level small,.deck-slot .face-recall small,.granted-slot .face-level small{font-size:3.2cqw}
+.deck-slot .face-level small,.granted-slot .face-level small{font-size:3.2cqw}
 /* One line, always. "Shieldbearer · foundation" wrapping to two made those slots taller than the
    rest, so a page sized from one row's height fitted a row it could not actually show. */
 .deck-select,.deck-ready,.deck-recall{font-size:10px}
@@ -228,9 +261,13 @@
 .face-art:after{content:'';position:absolute;inset:62% 0 0;background:linear-gradient(transparent,#fbf3e0ed)}
 .face-level{position:absolute;top:-2px;left:8px;z-index:1;display:flex;align-items:center;flex-direction:column;background:var(--domain-color);color:#fffaf0;padding:7px 9px 17px;border:1px solid var(--ink);border-top:0;clip-path:polygon(0 0,100% 0,100% 80%,50% 100%,0 80%);box-shadow:0 1px 2px #00000038}
 .face-level b{font-size:22px}
-.face-level small,.face-recall small{font:6px system-ui;letter-spacing:.1em}
+.face-level small{font:6px system-ui;letter-spacing:.1em}
 /* Struck into the paper rather than sat on it: a cream counter with an ink rim. */
-.face-recall{position:absolute;right:6px;top:6px;border:1px solid var(--ink);border-radius:50%;width:32px;height:32px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#fffaec,#e4d5b1);color:var(--ink);font-size:17px;font-weight:700;z-index:1;box-shadow:inset 0 0 0 1px #fffdf6,0 1px 2px #00000030}
+/* The Recall Cost is a number and a bolt: it is paid in Stress, and the word RECALL set small enough
+   to fit the ring was four pixels high and still ran out of both sides of it. The bolt is sized in
+   ems so it follows the number wherever the ring is scaled -- in a sleeve, in the hand, enlarged. */
+.face-recall svg{flex:none;width:.62em;height:.88em;margin:0 -.1em 0 -.02em;fill:currentColor;overflow:visible}
+.face-recall{position:absolute;right:6px;top:6px;border:1px solid var(--ink);border-radius:50%;width:32px;height:32px;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:.04em;background:radial-gradient(circle at 35% 30%,#fffaec,#e4d5b1);color:var(--ink);font-size:17px;font-weight:700;z-index:1;box-shadow:inset 0 0 0 1px #fffdf6,0 1px 2px #00000030}
 .face-domain{position:absolute;bottom:4px;left:0;right:0;text-align:center;z-index:1;color:var(--ink);text-transform:uppercase;letter-spacing:.2em;font:700 8px Cinzel,'Libre Baskerville',Georgia,serif}
 /* The name is ruled off, the way a printed card sets it: no ribbon, no relief, just the rule. */
 .face-title{order:-1;background:none;color:var(--ink);padding:5px 7px 4px;text-align:center;border:0;border-bottom:1px solid var(--rule);border-radius:0;box-shadow:none}
@@ -273,8 +310,8 @@
    is shut it showed as a black slab to the left of something that should be half as wide. The
    leaves carry the shadow it used to cast. */
 .deck-browser{overflow:visible;background:none;border-color:#0000;box-shadow:none}
-.deck-spread>.deck-sheet{box-shadow:inset 0 0 0 1px #ffffff0f,0 28px 70px #000000b0}
-.deck-spread>.deck-pocketpage{box-shadow:inset 16px 0 26px #00000080,0 28px 70px #000000b0}
+.deck-spread>.deck-sheet{box-shadow:0 28px 70px #000000b0}
+.deck-spread>.deck-pocketpage{box-shadow:0 28px 70px #000000b0}
 /* Close sits on the sheet, so it turns up when the sheet has landed rather than hanging in the air
    beside a leaf that is still on its way over. */
 .deck-shut{animation:binder-close-in .46s linear both}

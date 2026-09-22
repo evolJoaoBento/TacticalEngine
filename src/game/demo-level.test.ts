@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import type { LevelUpPlan } from '../engine/character/progression';
 import {
@@ -25,7 +25,7 @@ import { createRng } from '../engine/core/rng';
  * the grown sheet.
  */
 
-const scene = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
+const scene = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 const karaToTwo: LevelUpPlan = {
   advancements: [{ kind: 'hitPoint' }, { kind: 'traits', traits: ['strength', 'agility'] }],

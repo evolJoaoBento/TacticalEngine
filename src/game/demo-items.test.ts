@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import { validateProject } from '../editor/validate';
 import { buildDemoScene, useSelectedOn, type DemoScene } from './demo-scene';
@@ -14,7 +14,7 @@ import { useItem } from './use-item';
  */
 
 const DRAUGHT = 'healing-draught';
-const scene = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
+const scene = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 function wounded(demo: DemoScene, marks = 3): string {
   const id = demo.party.selected!;

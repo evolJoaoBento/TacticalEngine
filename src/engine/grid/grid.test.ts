@@ -8,7 +8,9 @@ const grid = (width = 5, height = 4) => new TileGrid({ width, height });
 describe('TerrainPalette', () => {
   it('resolves ids to indices and back', () => {
     const palette = new TerrainPalette();
-    expect(palette.size).toBe(DEFAULT_TERRAIN_TYPES.length);
+    // The kinds it was given, and nothing: every palette knows what a room grows into.
+    expect(palette.size).toBe(DEFAULT_TERRAIN_TYPES.length + 1);
+    expect(palette.at(palette.require('void'))).toMatchObject({ passable: false, blocksSight: false });
     expect(palette.indexOf('floor')).toBe(0);
     expect(palette.at(palette.require('wall')).passable).toBe(false);
     expect(palette.has('difficult')).toBe(true);

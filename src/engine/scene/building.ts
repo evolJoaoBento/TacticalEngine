@@ -215,3 +215,35 @@ export function buildingParts(shape: string, simplified = false): readonly Build
   }
   return boxes;
 }
+
+/** A part this thin is a rail - a wall along an edge - and nobody stands on one. */
+const RAIL = 0.25;
+
+/**
+ * What a piece is to somebody walking: how high they stand on it, in blocks above the level
+ * it was placed at, and whether it closes its tile.
+ *
+ * Read off the same boxes the piece is drawn from, so a structure a project declares walks
+ * the way it looks. The parts wide enough to stand on give the height, averaged by the floor
+ * they cover - a block is 1, a floor a quarter, and a staircase the middle of its flight,
+ * which is where a token on it is drawn and what makes it a way up: half a block from the
+ * ground, half a block from the top. A rail lifts nobody. One that reaches a block above
+ * where they would stand bars the tile; a lower one is stepped over.
+ *
+ * `stretch` is the piece's own `height`, which scales a drawn box and not a model.
+ */
+export function pieceProfile(shape: string, stretch = 1): { stand: number; bars: boolean } {
+  let area = 0;
+  let sum = 0;
+  let rail = 0;
+  for (const [, y, , sx, sy, sz] of buildingParts(shape)) {
+    const top = (y + sy / 2) * stretch;
+    if (Math.min(sx, sz) < RAIL) rail = Math.max(rail, top);
+    else {
+      area += sx * sz;
+      sum += top * sx * sz;
+    }
+  }
+  const stand = area === 0 ? 0 : sum / area;
+  return { stand, bars: rail - stand >= 1 };
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { attackProfile } from '../engine/character/sheet';
 import { buildDemoScene, type DemoScene } from './demo-scene';
 import { startEncounter } from './movement';
@@ -14,7 +14,7 @@ import { loadGameText, saveGame } from './save';
  * is the kind of bug a player finds three fights later.
  */
 
-const scene = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
+const scene = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 describe('equipping', () => {
   it('starts with the sheet\'s own gear, by name', () => {

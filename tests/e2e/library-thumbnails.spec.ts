@@ -29,9 +29,9 @@ test('every creature, prop and object card shows what it puts down, and no card 
   expect(count).toBeGreaterThan(1);
   await expect(creatures.locator('.ph-thumb img[src^="data:image/png"]')).toHaveCount(count);
   await expect(creatures.locator('.ph-glyph')).toHaveCount(0);
-  // Most of the SRD's creatures have no model yet, and the board stands the husk in for them: the
-  // picture shows that body and says so, rather than passing it off as the creature's own.
-  await expect(creatures.locator('[data-item="bandit-archer"] .ph-stand-in')).toHaveText('stand-in');
+  // Every stat block the pack ships has a model of its own now, so no card is a stand-in. The
+  // label is still what a creature without one gets: the husk's body, said to be the husk's.
+  await expect(creatures.locator('.ph-stand-in')).toHaveCount(0);
 
   // The pack ships nothing above tier 2: an empty tier says so, rather than that a search missed,
   // and its tab is dimmed so the empty ones can be told apart without opening them.

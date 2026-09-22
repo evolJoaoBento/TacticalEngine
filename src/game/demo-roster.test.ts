@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { blankSheet, startingPools } from '../engine/character/sheet';
 import { characterSheetSchema } from '../engine/character/sheet-schema';
 import { NO_TILE } from '../engine/grid/grid';
@@ -16,7 +16,7 @@ import { loadGameText, saveGame } from './save';
  * be loaded again.
  */
 
-const scene = (): DemoScene => buildDemoScene(demoMap(), 'demo');
+const scene = (): DemoScene => buildDemoScene(hollowVaultMap(), 'demo');
 
 const tamsin = () => characterSheetSchema.parse(blankSheet('tamsin', 'cutpurse', { name: 'Tamsin' }));
 
@@ -103,6 +103,8 @@ describe('gathering the party at a tile', () => {
 
   it('lands beside a wall rather than in it, and does nothing for a tile off the map', () => {
     const demo = scene();
+    // The vault's own wall is blocks anybody strong enough may stand on, so a wall nobody can is made for this.
+    demo.grid.barred[demo.grid.indexOf(9, 4)] = 1;
     const wall = Array.from({ length: demo.grid.size }, (_, i) => i).find((t) => !demo.grid.isPassable(t))!;
     gatherParty(demo, wall);
     for (const id of demo.party.members()) {

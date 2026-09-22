@@ -9,7 +9,7 @@
 
 import { NO_TILE, TileGrid, type PlacedPiece } from '../grid/grid';
 import { DEFAULT_TERRAIN_TYPES, TerrainPalette, terrain } from '../grid/terrain';
-import { setStructures } from './building';
+import { pieceProfile, setStructures } from './building';
 import type { ContentIssue } from '../content/types';
 import type { Point, ProjectDoc, SceneDoc } from './schema';
 
@@ -60,6 +60,7 @@ export function gridFromScene(
 ): { grid: TileGrid; issues: ContentIssue[] } {
   const issues: ContentIssue[] = [];
   const grid = new TileGrid({ width: scene.width, height: scene.height, palette });
+  if (scene.origin !== undefined) grid.origin = { ...scene.origin };
 
   const unknown = new Map<string, number>();
   for (let tile = 0; tile < grid.size; tile++) {
@@ -113,9 +114,15 @@ function stackPieces(scene: SceneDoc, grid: TileGrid, palette: TerrainPalette): 
     if (piece.tile === undefined) continue;
     const index = palette.indexOf(piece.tile);
     if (index < 0) continue;
-    drawn.push({ x: piece.x, y: piece.y, level: piece.level, rotation: piece.rotation, index });
+    drawn.push({ x: piece.x, y: piece.y, level: piece.level, rotation: piece.rotation, index, ...(piece.height === undefined ? {} : { height: piece.height }) });
     const tile = grid.indexOf(piece.x, piece.y);
     if (tile === NO_TILE) continue;
+    // How high it stands counts whichever piece is on top: the tallest thing in the cell is
+    // what a creature is on, and a rail anywhere in the stack still closes it. The piece's own
+    // `height` stretches it, box or file alike: half a wall is a wall stepped over.
+    const profile = pieceProfile(piece.shape, piece.height ?? 1);
+    grid.lift[tile] = Math.max(grid.lift[tile]!, piece.level + profile.stand);
+    if (profile.bars) grid.barred[tile] = 1;
     const standing = bestLevel.get(tile);
     if (standing !== undefined && piece.level < standing) continue;
     bestLevel.set(tile, piece.level);

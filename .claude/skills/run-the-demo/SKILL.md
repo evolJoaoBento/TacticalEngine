@@ -27,6 +27,8 @@ it first and expect Playwright to use it.
 |---|---|
 | pick a character | `select(id)`, `selected()`, `party()` |
 | walk | `reachable()`, `moveTo(tile)`, `walkTo(x, y)` (a spot in tile units, where a click lands), `standBeside(id)`, `tileOf(id)`, `standingAt(id)` (the spot), `screenAt(x, y)` |
+| steer | there is no handle: hold the left button on the board and they walk towards the pointer (`tests/e2e/steer.spec.ts`). Holding centres the camera on them, so aim from the middle of the screen, not from a `screenAt` taken before the press |
+| who follows | `linked(id)` (their group), `unlink(id)` (they stand while the rest walk), `link(id, withId)`; out of a fight a walk brings the walker's group along, nobody else. With the mouse: drag a HUD card aside, onto another, or between two (`tests/e2e/link.spec.ts` has the drags) |
 | fight | `inCombat()`, `adversaries()`, `attack(id)`, `endGmTurn()`, `round()` |
 | cards | `setCards(id, cards)`, `abilities(id)`, `useAbility(id, ability, targets?, point?)` |
 | aimed cards | `aim(ability)` for the legal tiles, `shape(ability, tile)` for what it catches |
@@ -52,20 +54,26 @@ things bite, in this order:
 
 1. **A card refuses with "only in a fight."** Nothing is a fight until an
    encounter starts.
-2. **`startFight()` is not enough.** It starts the encounter but leaves
+2. **The map is 44x32 now** - the woods south and west, the vault's halls east - but the old room
+   is still its north-west corner, so the door is at (12, 7), the spawns at (2, 7) and a tile index
+   is `y * 44 + x`. It draws about twice as much as the old map, which is why `playwright.config.ts`
+   asks ANGLE for the real GPU (`--use-angle=d3d11`) rather than SwiftShader: software rendering ran
+   the demo at two frames a second and timed screenshots out, and the GPU runs it at forty.
+3. **`startFight()` is not enough.** It starts the encounter but leaves
    the party standing across the room from every adversary, so nothing is
    in range of anything. The demo's real route is: pick the **vault door**
    (`use(door)` in a loop, answering `{ kind: 'roll' }`), then walk east
    until `inCombat()` — the trigger past the door is what wakes the room.
-3. **`standBeside(foe)` returns `false` across a room.** In a fight a
-   character moves within Close range per turn, spent along the path.
+4. **`standBeside(foe)` returns `false` across a room.** In a fight a
+   character moves freely inside a circle of Close range round where the
+   spotlight found them (`reachable()` is the tiles inside it; a click past
+   it is an Agility Roll that widens it a step, and a failure ends the turn).
    `attack(foe)` walks up to where the weapon reaches from before the
-   swing when that is within one move, and otherwise closes as far as it
-   can (the walk is the action, `attack` returns false). So: `attack(foe)`,
-   `endGmTurn()`, repeat, rather than a closing loop of your own. Out of a
-   fight nobody counts: one click walks anywhere the floor goes, and a
-   click beyond reach walks up to the nearest reachable spot.
-4. **The closing loop moves whoever is *selected*.** If the caster is
+   swing when that is inside the circle, and otherwise closes to its edge
+   for free (`attack` returns false). So: `attack(foe)`, `endGmTurn()`,
+   repeat, rather than a closing loop of your own - `endGmTurn()` gives the
+   party's spotlight up when it is theirs, then plays the room's turn.
+5. **The closing loop moves whoever is *selected*.** If the caster is
    Mira, `select('mira')` *before* closing, or you will walk Kara up and
    then cast from where Mira never left.
 
@@ -86,10 +94,10 @@ Armor / Light as pips, and any conditions under the gear line), the Shadow
 track under it, and the narrative log bottom-right in tone colours. On the board: a blue ring breathing under
 whoever is selected, shadows under walls and tokens, any zone painted as
 one shape with a border (Warding Flame's ring is an orange square of nine
-tiles at Melee - a diagonal is Melee too), in a fight the ground the selected
-one can reach lit with an edge round it - a serrated diamond, not a disc,
-since the move is Close range spent along the path with diagonals at root
-two (out of a fight nothing is lit: one click walks anywhere the floor
+tiles at Melee - a diagonal is Melee too), in a fight a blue ring on the ground: the
+circle of Close range the selected one moves freely in, with a fainter amber
+ring outside it for the ground a push would open (nothing is lit as squares,
+in or out of a fight: one click walks anywhere the circle or the floor
 goes), and a
 number - "-2 HP", "+1 Stress", a condition's name - rising over whoever it
 happened to for about a second.

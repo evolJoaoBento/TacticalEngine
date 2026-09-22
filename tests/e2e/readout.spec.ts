@@ -27,7 +27,9 @@ async function vault(page: Page): Promise<void> {
     for (let i = 0; i < 15 && !a.inCombat(); i++) {
       const tiles = a.reachable();
       if (tiles.length === 0) break;
-      const east = tiles.reduce((x, y) => (y % 22 > x % 22 ? y : x));
+      // The vault's own rows: the woods run further east than the vault does.
+      const inside = tiles.filter((t) => Math.floor(t / 44) < 16);
+      const east = (inside.length > 0 ? inside : tiles).reduce((x, y) => (y % 44 > x % 44 ? y : x));
       if (!a.moveTo(east)) break;
       a.arrive();
       while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
@@ -83,7 +85,7 @@ test('nothing a player reads is a content id', async ({ page }) => {
   const ids = await page.evaluate(() => {
     const a = window.__engine!;
     const away = (t: number, to: number): number =>
-      Math.abs((t % 22) - (to % 22)) + Math.abs(Math.floor(t / 22) - Math.floor(to / 22));
+      Math.abs((t % 44) - (to % 44)) + Math.abs(Math.floor(t / 44) - Math.floor(to / 44));
     const close = (): void => {
       const foe = a.adversaries()[0];
       const me = a.selected();

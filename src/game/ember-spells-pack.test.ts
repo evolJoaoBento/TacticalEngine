@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { deriveCharacter } from '../engine/character/sheet';
 import { SRD_CONDITIONS } from '../engine/content/conditions';
 import { describePack, readPack } from '../engine/content/pack/document';
@@ -54,7 +54,7 @@ function standBeside(demo: DemoScene, who: string, beside: number, avoid: readon
 
 /** Somebody beside the nearest husk, a fight begun, and every other creature down. */
 function standoff(seed: string, who: string): { demo: DemoScene; foe: EntityState } {
-  const demo = buildDemoScene(demoMap(), seed);
+  const demo = buildDemoScene(hollowVaultMap(), seed);
   demo.askDefender = false;
   const at = demo.state.entity(who)!.tile;
   const foe = demo.state

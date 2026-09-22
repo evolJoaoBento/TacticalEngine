@@ -177,7 +177,8 @@ export function conditionModifiers(target: Pick<EntityState, 'conditions'>): {
   disadvantage: number;
 } {
   return {
-    advantage: target.conditions.has('vulnerable') ? 1 : 0,
+    // Prone is Vulnerable for as long as they are down. One advantage, not two: it does not stack.
+    advantage: target.conditions.has('vulnerable') || target.conditions.has('prone') ? 1 : 0,
     disadvantage: target.conditions.has('hidden') ? 1 : 0,
   };
 }
@@ -202,7 +203,11 @@ export function resolveAttack(rng: Rng, request: AttackRequest): AttackOutcome {
   const { grid, attacker, target, profile, defender } = request;
   const options = request.options ?? {};
 
-  const targeting = evaluateTarget(grid, attacker.tile, target.tile, profile.range, options);
+  // Measured between where they stand, not between the squares they stand in - for bodies a scene
+  // is keeping, whose spot and tile agree. One made by hand and never stood anywhere has only its tile.
+  const stands = (e: EntityState): boolean => grid.tileAtSpot(e.at.x, e.at.y) === e.tile;
+  const at = stands(attacker) && stands(target) ? { at: { attacker: attacker.at, target: target.at } } : {};
+  const targeting = evaluateTarget(grid, attacker.tile, target.tile, profile.range, { ...at, ...options });
 
   const base: AttackOutcome = {
     attackerId: attacker.id,

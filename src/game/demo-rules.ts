@@ -10,6 +10,7 @@ import { STARTER_ADVERSARIES, STARTER_CHARACTERS } from '../engine/content/pack/
 import type { AdversaryDef } from '../engine/content/types';
 import { DEFAULT_MOVEMENT, type MovementRules } from '../engine/grid/pathfinding';
 import { DEFAULT_WALK, type WalkRules } from '../engine/grid/walk';
+import { DEFAULT_JUMP_RULES, type JumpRules } from '../engine/rules/jump';
 
 /** Adversary stat blocks, keyed by content id, from the pack the engine ships with. */
 export const DEMO_ADVERSARIES: ReadonlyMap<string, AdversaryDef> = STARTER_ADVERSARIES;
@@ -27,6 +28,17 @@ export const DEMO_ADVERSARY_ID = 'hollow-knight';
 
 /** The way out of the vault, added by the demo because the legacy map had none. */
 export const DEMO_STAIR_ID = 'stair-down';
+
+/**
+ * One of each stat block, stood along the vault's back wall to be looked at and never fought.
+ *
+ * The east wall, because it is the far side of the room from the door: the fight happens between
+ * the door and the husks, and a row of bystanders there would be stood in the middle of it. Row 9
+ * is left out -- the stair down is on the tile beside it, and nothing should stand in its mouth.
+ */
+export const DEMO_LINE_UP_ID = 'line-up';
+export const DEMO_LINE_UP_X = 21;
+export const DEMO_LINE_UP_ROWS: readonly number[] = [2, 3, 4, 5, 6, 7, 8, 10, 11, 12];
 
 /** Tight bands, so a 22x16 map spans more than one of them. */
 export const DEMO_BAND_TILES = { melee: 1, veryClose: 2, close: 4, far: 8, veryFar: 12 };
@@ -46,6 +58,15 @@ export const DEMO_MOVEMENT: MovementRules = { ...DEFAULT_MOVEMENT, diagonals: tr
 
 /** The body a creature in the demo walks with. */
 export const DEMO_WALK: WalkRules = { ...DEFAULT_WALK, maxStepHeight: DEMO_MOVEMENT.maxStepHeight };
+
+/** The jump rules a project plays by: its own, or the engine's where it has said nothing. */
+export const jumpRulesFor = (project?: { jump?: JumpRules | undefined }): JumpRules => project?.jump ?? DEFAULT_JUMP_RULES;
+
+/** How everybody in a project's rooms steps: the demo's way, with a step as high as the project's jump rules say. */
+export const movementFor = (project?: { jump?: JumpRules | undefined }): MovementRules => ({ ...DEMO_MOVEMENT, maxStepHeight: jumpRulesFor(project).stepHeight });
+
+/** The body they walk with, stepping as high. */
+export const walkFor = (project?: { jump?: JumpRules | undefined }): WalkRules => ({ ...DEMO_WALK, maxStepHeight: jumpRulesFor(project).stepHeight });
 
 /**
  * Which model an entity uses. Party members carry a class name and adversaries an

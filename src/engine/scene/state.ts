@@ -25,6 +25,7 @@ import {
   type Currency,
   type MarkPool,
 } from '../rules/resources';
+import { shiftSnapshot } from './reshape';
 import type { SceneDoc } from './schema';
 
 /** Which side an entity fights for. */
@@ -109,6 +110,7 @@ const currencySchema = z.object({ value: z.number().int().min(0), max: z.number(
 
 export const sceneSnapshotSchema = z.object({
   sceneId: z.string(),
+  room: z.object({ width: z.number().int().positive(), x: z.number().int(), y: z.number().int() }).optional(),
   entities: z.record(
     z.string(),
     z.object({
@@ -147,6 +149,13 @@ export const sceneSnapshotSchema = z.object({
 
 export interface SceneStateSnapshot {
   sceneId: string;
+  /**
+   * The room the tiles below were counted in: how wide, and where its first corner had got to
+   * (`SceneDoc.origin`). A room can grow after a snapshot is taken - a save from last week, a
+   * room the party left an hour ago - and `restore` reads this to put everybody where they
+   * were rather than where the same numbers now point. Absent in a save older than growing.
+   */
+  room?: { width: number; x: number; y: number };
   entities: Record<
     string,
     Omit<EntityState, 'conditions' | 'conditionDurations' | 'at'> & {
@@ -443,6 +452,7 @@ export class SceneState {
 
     return {
       sceneId: this.sceneId,
+      room: { width: this.grid.width, x: this.grid.origin.x, y: this.grid.origin.y },
       entities,
       interactables,
       encounters,
@@ -452,6 +462,13 @@ export class SceneState {
 
   /** Rebuild state from a snapshot, restoring the occupancy index as it goes. */
   restore(snapshot: SceneStateSnapshot): void {
+    // Taken in this room before it grew (or after, and the growth since undone): the same
+    // places, under the numbers they have now.
+    const { grid } = this;
+    const from = snapshot.room;
+    if (from !== undefined && (from.width !== grid.width || from.x !== grid.origin.x || from.y !== grid.origin.y)) {
+      snapshot = shiftSnapshot(snapshot, from.width, grid.origin.x - from.x, grid.origin.y - from.y, grid.width, grid.height);
+    }
     this.entities.clear();
     this.occupants.clear();
     this.interactables.clear();
@@ -533,11 +550,11 @@ export function createAdversaryEntity(
   id: string,
   definition: string,
   tile: number,
-  options: { hitPoints: number; stress: number; model?: string },
+  options: { hitPoints: number; stress: number; model?: string; faction?: 'adversary' | 'neutral' },
 ): EntityState {
   return {
     id,
-    faction: 'adversary',
+    faction: options.faction ?? 'adversary',
     definition,
     ...(options.model === undefined ? {} : { model: options.model }),
     tile,
@@ -621,6 +638,8 @@ export function sceneStateFromScene(
             hitPoints: placement.hitPoints ?? definition.hitPoints,
             stress: definition.stress,
             ...(placement.model === undefined ? {} : { model: placement.model }),
+            // Bystanders are on nobody's side, so no fight counts them in or waits for them to fall.
+            ...(encounter.bystanders === true ? { faction: 'neutral' as const } : {}),
           },
         ),
       );

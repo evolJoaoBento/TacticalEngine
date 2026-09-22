@@ -59,12 +59,12 @@ test('shows the card as the player will see it, and redraws it as its author typ
   await expect(face.locator('.face-domain')).toHaveText(await panel.locator('[data-testid="card-domain"]').inputValue());
 
   // Art imported here is on the face at once, and given back.
-  await expect(face.locator('.face-art svg')).toBeVisible();
+  await expect(face.locator('.face-art > svg')).toBeVisible();
   await panel.getByTestId('art-file').setInputFiles({ name: 'mine.png', mimeType: 'image/png', buffer: PIXEL });
   await expect(face.locator('.face-art img')).toHaveAttribute('src', /^data:image\/jpeg/);
   await page.screenshot({ path: 'test-results/card-editor-preview.png' });
   await panel.getByTestId('clear-art').click();
-  await expect(face.locator('.face-art svg')).toBeVisible();
+  await expect(face.locator('.face-art > svg')).toBeVisible();
 
   // The words reached the card the player reads, not only the ability the bar reads.
   const written = await page.evaluate(() => {

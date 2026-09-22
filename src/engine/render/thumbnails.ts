@@ -30,6 +30,46 @@ const FRAMED = 0.78;
 /** A three-quarter view from a little above, the angle the board is seen at. */
 const VIEW = new Vector3(0.7, 0.55, 1).normalize();
 
+/**
+ * Where a portrait is taken from: nearly level with the face and only a little to one side. The
+ * board's own angle looks down on the top of a head, which is right for a token and wrong for a
+ * photograph of somebody.
+ */
+const FACE_VIEW = new Vector3(0.42, 0.1, 1).normalize();
+
+/** How much of a figure's height a portrait takes in: head and shoulders, not the whole body. */
+const FACE_SPAN = 0.22;
+
+/** A rig's head joint, by the names rigs give it -- and not the marker at the crown beyond it. */
+const HEAD_JOINT = /head(?!.*(top|end|nub|tip))/i;
+
+/**
+ * What a portrait frames: the face, rather than the whole of whoever it is.
+ *
+ * A rigged model says where its head is, and that is believed: the joint sits at the base of the
+ * skull, so the centre goes a little above it. Anything else -- a scanned miniature, a procedural
+ * token -- is taken to be standing up with its head at the top, which is where the head of nearly
+ * everything that has one is. A figure holding something over its head is framed too high by that;
+ * a head joint is how a model says otherwise.
+ */
+export function faceFraming(box: Box3, head: Vector3 | null): Sphere {
+  const height = Math.max(box.max.y - box.min.y, 0.01);
+  const radius = height * FACE_SPAN;
+  if (head !== null) return new Sphere(new Vector3(head.x, head.y + height * 0.05, head.z), radius);
+  const centre = box.getCenter(new Vector3());
+  return new Sphere(new Vector3(centre.x, box.max.y - radius * 0.95, centre.z), radius);
+}
+
+/** The world position of a model's head joint, or null when it has none. */
+export function headOf(object: Object3D): Vector3 | null {
+  let found: Object3D | null = null;
+  object.updateWorldMatrix(true, true);
+  object.traverse((node) => {
+    if (found === null && HEAD_JOINT.test(node.name)) found = node;
+  });
+  return found === null ? null : (found as Object3D).getWorldPosition(new Vector3());
+}
+
 export class ModelThumbnails {
   /** Made on the first picture; null once a browser has refused it a WebGL context. */
   private renderer: WebGLRenderer | null | undefined = undefined;
@@ -68,7 +108,7 @@ export class ModelThumbnails {
     const renderer = this.context();
     if (renderer === null) return null;
     // An imported model is the one somebody is setting up, so its picture is framed.
-    const picture = this.draw(renderer, this.object(id), this.assets?.spec(id) !== undefined);
+    const picture = this.draw(renderer, this.object(id), this.assets?.spec(id) !== undefined ? 'tile' : 'bounds');
     this.pictures.set(this.key(id), picture);
     return picture;
   }
@@ -95,8 +135,8 @@ export class ModelThumbnails {
     if (kept !== undefined) return kept;
     const renderer = this.context();
     if (renderer === null) return null;
-    // Framed on its own bounds, so the model fills the frame however big the file draws it.
-    const picture = this.draw(renderer, this.bare(modelId));
+    // Framed on its own face, so it fills the frame however big the file draws the body under it.
+    const picture = this.draw(renderer, this.bare(modelId), 'face');
     this.pictures.set(key, picture);
     return picture;
   }
@@ -179,9 +219,10 @@ export class ModelThumbnails {
     return this.renderer;
   }
 
-  private draw(renderer: WebGLRenderer, object: Object3D, framed = false): string {
+  private draw(renderer: WebGLRenderer, object: Object3D, frame: 'bounds' | 'tile' | 'face' = 'bounds'): string {
     this.scene.add(object);
     const box = new Box3().setFromObject(object);
+    const framed = frame === 'tile';
     // Framed: the same volume every time, centred on the tile rather than on what is
     // standing there, so moving the model moves it in the picture.
     // Framed: the tile and a model's worth of height over it, centred on the tile and
@@ -189,10 +230,10 @@ export class ModelThumbnails {
     // which is the whole reason the picture is worth looking at while setting one up.
     const sphere = framed
       ? new Sphere(new Vector3(0, Math.min(Math.max(box.max.y, 0.4), 1.2) / 2, 0), FRAMED)
-      : box.getBoundingSphere(new Sphere());
+      : frame === 'face' ? faceFraming(box, headOf(object)) : box.getBoundingSphere(new Sphere());
     const radius = Math.max(sphere.radius, 0.01);
     const distance = (radius / Math.sin((this.camera.fov * Math.PI) / 360)) * 1.02;
-    this.camera.position.copy(sphere.center).addScaledVector(VIEW, distance);
+    this.camera.position.copy(sphere.center).addScaledVector(frame === 'face' ? FACE_VIEW : VIEW, distance);
     this.camera.near = distance / 50;
     this.camera.far = distance * 3;
     this.camera.updateProjectionMatrix();

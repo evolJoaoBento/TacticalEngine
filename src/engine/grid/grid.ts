@@ -20,6 +20,14 @@ export const NO_TILE = -1;
 export const NOTHING_STACKED = -1;
 
 /**
+ * How much of a block one level of ground elevation is. A block is one tile up, which is the
+ * building layer's unit; the ground counts in thinner slabs. `layout.ts` draws a slab
+ * `levelHeight` thick on a tile of `tileSize`, and this is that ratio, kept here because the
+ * rules need it and the engine core knows nothing about world units.
+ */
+export const SLAB_BLOCKS = 0.35;
+
+/**
  * One piece standing on the board, as the render layer needs it.
  *
  * The building layer reaches far outside the room - a piece may stand at a million on
@@ -33,6 +41,8 @@ export interface PlacedPiece {
   readonly level: number;
   /** Quarter turns, as the document stores them. */
   readonly rotation: number;
+  /** How far the piece is stretched upwards from the size its structure is; 1 when absent. */
+  readonly height?: number;
   /** Palette index of the kind of tile this piece is. */
   readonly index: number;
 }
@@ -88,6 +98,21 @@ export class TileGrid {
    * outside the room. Rebuilt with the grid rather than edited, so a reference is enough.
    */
   pieces: readonly PlacedPiece[] = [];
+  /**
+   * How high the pieces on each tile stand, in blocks above the base, or 0 with none. Row-major.
+   *
+   * What makes a placed tile ground rather than scenery: a creature stands on the top of the
+   * stack, a walk is stopped by a rise of a block, and a jump is measured from one of these
+   * to another. Resolved with `overlay`, from the same pieces.
+   */
+  readonly lift: Float32Array;
+  /**
+   * Tiles closed by something too thin to stand on and too tall to step over: a wall a block
+   * high along one edge. It stops a walk and a line of sight; a lower one does neither.
+   */
+  readonly barred: Uint8Array;
+  /** Where the room's first corner has got to: `SceneDoc.origin`, for whoever holds tiles counted from the old one. */
+  origin: { readonly x: number; readonly y: number } = { x: 0, y: 0 };
 
   constructor(options: GridOptions) {
     const { width, height } = options;
@@ -102,6 +127,8 @@ export class TileGrid {
     this.heights = new Int16Array(count);
     this.terrain = new Uint8Array(count);
     this.overlay = new Int16Array(count).fill(NOTHING_STACKED);
+    this.lift = new Float32Array(count);
+    this.barred = new Uint8Array(count);
     if (options.fillHeight !== undefined && options.fillHeight !== 0) {
       this.heights.fill(options.fillHeight);
     }
@@ -151,6 +178,14 @@ export class TileGrid {
   }
 
   /**
+   * How high a creature on this tile stands, in blocks: the top of whatever is stacked there,
+   * or the ground when that is higher. The one height movement, sight and the tokens read.
+   */
+  standAt(index: number): number {
+    return Math.max((this.heights[index] ?? 0) * SLAB_BLOCKS, this.lift[index] ?? 0);
+  }
+
+  /**
    * Take on another grid's ground: its palette, its terrain and its heights.
    *
    * The editor rebuilds a grid from the document whenever the ground changes, but the old
@@ -159,13 +194,21 @@ export class TileGrid {
    * type the document just gave a model would go on being drawn the way it was.
    */
   adopt(other: TileGrid): void {
+    if (!this.fits(other)) throw new RangeError(`a ${this.width}x${this.height} grid cannot take on a ${other.width}x${other.height} one`);
     this.palette = other.palette;
     this.terrain.set(other.terrain);
     this.heights.set(other.heights);
     this.overlay.set(other.overlay);
+    this.lift.set(other.lift);
+    this.barred.set(other.barred);
     // A reference, not a copy: `gridFromScene` builds a fresh array every time, so there is
     // nothing for the two grids to share and nothing to be written through.
     this.pieces = other.pieces;
+  }
+
+  /** Whether another grid is the same room, cell for cell: the same size, counted from the same corner. */
+  fits(other: TileGrid): boolean {
+    return other.width === this.width && other.height === this.height && other.origin.x === this.origin.x && other.origin.y === this.origin.y;
   }
 
   /**
@@ -195,15 +238,15 @@ export class TileGrid {
   /** Movement points to enter a tile. `Infinity` for impassable terrain. */
   costAt(index: number): number {
     const type = this.topAt(index);
-    return type.passable ? type.cost : Infinity;
+    return type.passable && this.barred[index] !== 1 ? type.cost : Infinity;
   }
 
   isPassable(index: number): boolean {
-    return this.isTile(index) && this.topAt(index).passable;
+    return this.isTile(index) && this.barred[index] !== 1 && this.topAt(index).passable;
   }
 
   blocksSight(index: number): boolean {
-    return !this.isTile(index) || this.topAt(index).blocksSight;
+    return !this.isTile(index) || this.barred[index] === 1 || this.topAt(index).blocksSight;
   }
 
   /**

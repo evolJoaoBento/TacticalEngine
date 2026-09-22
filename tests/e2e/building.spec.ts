@@ -5,19 +5,21 @@ test('Alt + mouse rotates placement without stamping or panning', async ({ page 
   await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
   await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
+  // The room is laid from tiles, some of them boxes: what is counted is what this test adds.
+  const boxes = await page.evaluate(() => window.__engine!.buildingStats().tiles);
   // The kind first, and before the coordinate boxes: they belong to placing at a height,
   // and the placer opens holding flat ground, which is not placed at one. A kind of tile
   // that is a wall, too - the shape is what the kind says it is, so there are no chips.
   await page.evaluate(() => window.__engine!.setTerrain('barrier'));
-  await page.getByLabel('Build X', { exact: true }).fill('40');
-  await page.getByLabel('Build Y', { exact: true }).fill('20');
+  await page.getByLabel('Build X', { exact: true }).fill('60');
+  await page.getByLabel('Build Y', { exact: true }).fill('40');
   await page.getByRole('button', { name: 'Go', exact: true }).click();
-  const at = await page.evaluate(() => window.__engine!.buildScreenAt(40, 20));
+  const at = await page.evaluate(() => window.__engine!.buildScreenAt(60, 40));
   const camera = await page.evaluate(() => window.__engine!.camera());
   await page.mouse.move(at.x, at.y);
-  const north = await page.evaluate(() => window.__engine!.buildScreenAt(40, 19));
-  const west = await page.evaluate(() => window.__engine!.buildScreenAt(39, 20));
-  const east = await page.evaluate(() => window.__engine!.buildScreenAt(41, 20));
+  const north = await page.evaluate(() => window.__engine!.buildScreenAt(60, 39));
+  const west = await page.evaluate(() => window.__engine!.buildScreenAt(59, 40));
+  const east = await page.evaluate(() => window.__engine!.buildScreenAt(61, 40));
   await page.keyboard.down('Alt');
   await page.mouse.move(at.x + 5, at.y);
   await expect(page.getByTestId('build-rotate')).toContainText('0°');
@@ -35,7 +37,7 @@ test('Alt + mouse rotates placement without stamping or panning', async ({ page 
   await page.mouse.move(west.x, west.y, { steps: 5 });
   await page.mouse.up({ button: 'right' });
   await expect(page.getByTestId('build-rotate')).toContainText('90°');
-  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(0);
+  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(boxes);
   expect(await page.evaluate(() => window.__engine!.camera())).toEqual(camera);
   await page.screenshot({ path: 'test-results/alt-placement-rotation.png' });
   await page.keyboard.up('Alt');
@@ -45,9 +47,9 @@ test('Alt + mouse rotates placement without stamping or panning', async ({ page 
     return { text: api.exportProject(), scene: api.editScene() };
   });
   const scene = JSON.parse(saved.text).scenes.find((s: { id: string }) => s.id === saved.scene);
-  expect(scene.buildingTiles['40,20,0']).toMatchObject({ shape: 'wall', rotation: 1 });
+  expect(scene.buildingTiles['60,40,0']).toMatchObject({ shape: 'wall', rotation: 1 });
   expect(await page.evaluate(() => window.__engine!.undo())).toBe(true);
-  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(0);
+  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(boxes);
   expect(await page.evaluate(() => window.__engine!.redo())).toBe(true);
   expect(await page.evaluate((text) => window.__engine!.loadProjectText(text), saved.text)).toBe('');
   expect(await page.evaluate(() => window.__engine!.errors)).toEqual([]);
@@ -123,6 +125,10 @@ test('builds outside the board, stacks, rotates, erases and restores saved tiles
   await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.getByTestId('mode-terrain').click();
   await expect(page.locator('[data-tab="tiles"]')).toHaveClass(/ph-on/);
+  // The room is laid from tiles already: every count below is over what it opened with.
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBeGreaterThan(300);
+  const laid = await page.evaluate(() => window.__engine!.pieceModels());
+  const laidBoxes = await page.evaluate(() => window.__engine!.buildingStats().tiles);
   // Tiles is one tab now, holding the ground and the kinds that stack on it alike, so what
   // a click does is decided by the kind in hand rather than by which tab is open.
   await page.evaluate(() => window.__engine!.setTerrain('block'));
@@ -135,8 +141,8 @@ test('builds outside the board, stacks, rotates, erases and restores saved tiles
   // Drawn by `tile-models`, not by the building layer: a kind of tile that names a file is
   // stood up as that file, and `BuildingView` skips it so the box and the model do not
   // both occupy the cell. `buildingStats` counts boxes, so it is 0 here by design.
-  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(1);
-  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(0);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(laid + 1);
+  expect(await page.evaluate(() => window.__engine!.buildingStats().tiles)).toBe(laidBoxes);
 
   await page.getByRole('button', { name: 'Raise build level', exact: true }).click();
   // The shape comes off the kind of tile: there are no shape chips beside the strip any
@@ -156,14 +162,14 @@ test('builds outside the board, stacks, rotates, erases and restores saved tiles
   // layer is empty by design and `pieceModels` is what says how many are standing.
   await page.locator('[data-tool="eraseTile"]').click();
   await page.evaluate(() => window.__engine!.buildAt(-900000, 900000));
-  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(1);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(laid + 1);
   await page.evaluate(() => window.__engine!.undo());
-  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(2);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(laid + 2);
   await page.evaluate(() => window.__engine!.redo());
-  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(1);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(laid + 1);
   const loadResult = await page.evaluate((text) => window.__engine!.loadProjectText(text), saved);
   expect(loadResult).toBe('');
-  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(2);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(laid + 2);
   expect(errors).toEqual([]);
 });
 
@@ -207,8 +213,8 @@ test('renders a stacked build with a brush, level controls and bounded LOD', asy
   // Said explicitly rather than leant on: the placer opens holding a kind that stacks, so
   // the coordinate boxes are already there, and this is which kind rather than whether.
   await page.evaluate(() => window.__engine!.setTerrain('platform'));
-  await page.getByLabel('Build X', { exact: true }).fill('40');
-  await page.getByLabel('Build Y', { exact: true }).fill('20');
+  await page.getByLabel('Build X', { exact: true }).fill('60');
+  await page.getByLabel('Build Y', { exact: true }).fill('40');
   await page.getByRole('button', { name: 'Go', exact: true }).click();
   await page.locator('[data-brush="5"]').click();
   await page.evaluate(() => {
@@ -242,7 +248,7 @@ test('renders a stacked build with a brush, level controls and bounded LOD', asy
   await page.getByRole('button', { name: 'Raise build level', exact: true }).click();
   await page.evaluate(() => window.__engine!.buildAt(45, 21));
   await page.getByRole('button', { name: 'Raise build level', exact: true }).click();
-  await page.evaluate(() => window.__engine!.buildAt(45, 22));
+  await page.evaluate(() => window.__engine!.buildAt(65, 42));
   await expect.poll(() => page.evaluate(() => window.__engine!.buildingStats().instances)).toBeGreaterThan(100);
   const stats = await page.evaluate(() => window.__engine!.buildingStats());
   expect(stats.residentChunks).toBeLessThanOrEqual(96);

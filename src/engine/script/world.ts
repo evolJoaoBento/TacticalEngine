@@ -38,7 +38,7 @@ import {
 import { GOOD_DIE_SIDES, rollDuality, type DualityRoll, type RollOutcome } from '../rules/duality';
 import { rollGmDie } from '../rules/gm-die';
 import {
-  bandForSpan,
+  bandBetweenStanding, bandForSpan,
   bandIndex,
   maxTilesForBand,
   reaches,
@@ -1426,7 +1426,7 @@ export class SceneScriptWorld implements ScriptWorld {
   }
 
   bandTo(from: string, to: string): RangeBand | null {
-    return this.bandBetween(this.state.entity(from)?.tile ?? NO_TILE, this.state.entity(to)?.tile ?? NO_TILE);
+    return bandBetweenStanding(this.state.entity(from), this.state.entity(to), this.bandTiles); // where they stand, not their squares
   }
 
   /**

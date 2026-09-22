@@ -14,7 +14,9 @@
 
 import { toContentId } from '../engine/content/types';
 import { isBuildCoordinate, isBuildZ, type BuildingTile } from '../engine/scene/building';
-import { BuildingEdit } from './building';
+import { BuildingEdit, MovePiece } from './building';
+import { growthToReach, type Reach } from '../engine/scene/reshape';
+import { GrowScene } from './grow-scene';
 import type { Deco, Encounter, Interactable, Point, SceneDoc } from '../engine/scene/schema';
 import { addTerrainType, defaultPalette, removeTerrainType, setTerrainModel, updateTerrainType, type TileType } from './terrain-edits';
 import {
@@ -134,13 +136,19 @@ export interface EditorControllerOptions {
   state?: Partial<EditorToolState>;
   /** Called after any edit, so a viewport can rebuild what changed. */
   onChange?: (change: EditorChange) => void;
+  /**
+   * Whether the room may change shape just now. A game being played in it holds every tile by
+   * number, and one in the middle of a fight or a question cannot be stood up again round
+   * them - so there the tiles are laid as scenery, as they always were, and the room waits.
+   */
+  growable?: () => boolean;
 }
 
 /** What a viewport has to redraw. */
 export type EditorChange = 'terrain' | 'content' | 'building' | 'none';
 
 /** What a press can take hold of and carry off. */
-export type CarryKind = 'creature' | 'prop' | 'object' | 'spawn';
+export type CarryKind = 'creature' | 'prop' | 'object' | 'spawn' | 'piece';
 
 type Position = Deco['position'];
 
@@ -155,6 +163,8 @@ interface Carry {
   to: Position;
   /** The facing it will land with, in radians. Only a prop has one to change. */
   rotation?: number;
+  /** A piece of building in hand, as it was where it was picked up: what a view draws hanging under the pointer. */
+  piece?: BuildingTile;
 }
 
 export class EditorController {
@@ -169,8 +179,11 @@ export class EditorController {
    */
   terrainTab: TerrainTab = 'tiles';
   private readonly onChange: (change: EditorChange) => void;
+  private readonly growable: () => boolean;
   /** Tiles already painted in this drag, so one stroke does not re-edit them. */
   private readonly strokeTiles = new Set<number>();
+  /** The cells this stroke has laid a kind of tile on, as a rectangle: what the room grows to when it ends. */
+  private strokeReach: Reach | null = null;
   private readonly buildingStroke = new Set<string>();
   private dragging = false;
   private lastBuildingPoint: Point | null = null;
@@ -200,6 +213,7 @@ export class EditorController {
     // A kind this project's palette does not have leaves the fallback where it is.
     this.state.buildShape = this.heldStructure() ?? this.state.buildShape;
     this.onChange = options.onChange ?? ((): void => {});
+    this.growable = options.growable ?? ((): boolean => true);
     this.mode = modeOfTool(this.state.tool, 'inspect');
   }
 
@@ -331,6 +345,7 @@ export class EditorController {
     this.lastBuildingPoint = { ...point };
     this.strokeTiles.clear();
     this.buildingStroke.clear();
+    this.strokeReach = null;
     return this.apply(point, true);
   }
 
@@ -365,6 +380,7 @@ export class EditorController {
     this.dragging = false;
     this.carrying = null;
     if (held !== null) this.land(held);
+    this.growToReach();
     this.lastBuildingPoint = null;
     this.strokeTiles.clear();
     this.buildingStroke.clear();
@@ -379,9 +395,20 @@ export class EditorController {
       if (!isBuildCoordinate(point.x)) return 'none';
       if (!isBuildCoordinate(point.y)) return 'none';
       if (!isBuildZ(state.buildLevel)) return 'none';
-      const changed = this.session.run(
-        new BuildingEdit(this.sceneId, this.brushPieces(point), state.tool === 'eraseTile'),
-      );
+      const pieces = this.brushPieces(point);
+      const changed = this.session.run(new BuildingEdit(this.sceneId, pieces, state.tool === 'eraseTile'));
+      // A kind of tile laid is ground somebody may want to stand on; anything else is scenery.
+      if (changed && state.tool !== 'eraseTile' && state.tileId !== undefined) {
+        for (const piece of pieces) {
+          const reach = this.strokeReach;
+          this.strokeReach = {
+            minX: Math.min(reach?.minX ?? piece.x, piece.x),
+            minY: Math.min(reach?.minY ?? piece.y, piece.y),
+            maxX: Math.max(reach?.maxX ?? piece.x, piece.x),
+            maxY: Math.max(reach?.maxY ?? piece.y, piece.y),
+          };
+        }
+      }
       // 'terrain', not 'building'. A stamped piece is a kind of tile now, so the grid has
       // to be rebuilt for a walk to meet it - `'building'` only redraws the scenery, and a
       // wall you could stroll through is what that would leave. `rebuildTerrain` syncs the
@@ -390,7 +417,8 @@ export class EditorController {
       return changed ? 'terrain' : 'none';
     }
     const scene = this.scene;
-    if (['prop', 'interactable', 'adversary'].includes(this.state.tool) || (this.mode === 'terrain' && this.state.tool === 'erase')) {
+    // Sparse tools reach past the room's edge: what they act on is keyed by its own coordinates.
+    if (['prop', 'interactable', 'adversary'].includes(this.state.tool) || (this.mode === 'terrain' && ['erase', 'select'].includes(this.state.tool))) {
       if (!isBuildCoordinate(point.x) || !isBuildCoordinate(point.y)) return 'none';
       const changed = this.run(point, [], pressed);
       if (changed !== 'none') this.onChange(changed);
@@ -409,6 +437,20 @@ export class EditorController {
     const change = this.run(point, tiles, pressed);
     if (change !== 'none') this.onChange(change);
     return change;
+  }
+
+  /**
+   * The stroke is over: if it laid tiles outside the room, the room grows to hold them, as the
+   * same undo step. Not under the pointer - growing west or north moves every cell, and the
+   * brush with them - and not at all for a piece so far off that it can only be scenery.
+   */
+  private growToReach(): void {
+    const reach = this.strokeReach;
+    this.strokeReach = null;
+    if (reach === null) return;
+    const growth = this.growable() ? growthToReach(this.scene, reach) : null;
+    if (growth === null) return;
+    if (this.session.run(new GrowScene(this.sceneId, growth, BuildingEdit.placingKey(this.sceneId)))) this.onChange('terrain');
   }
 
   /**
@@ -461,7 +503,11 @@ export class EditorController {
           this.selectedAdversary = creature;
           return 'content';
         }
-        const held = this.pickUp(point, ['object', 'creature', 'prop', 'spawn']);
+        // The Terrain tab's Select takes hold of a piece of building too - the one on top of the
+        // cell - after anything standing on it. The ladder goes to the piece's level, so the
+        // plane the pointer reads is the piece's own, and the wheel lifts it while it is held.
+        const held = this.pickUp(point, this.mode === 'terrain' ? ['object', 'creature', 'prop', 'spawn', 'piece'] : ['object', 'creature', 'prop', 'spawn']);
+        if (held?.piece !== undefined) this.state.buildLevel = held.piece.level;
         const next = held?.kind === 'object' ? held.key : null;
         if (next === this.selected) return 'none';
         this.selected = next;
@@ -594,10 +640,10 @@ export class EditorController {
   }
 
   /** What the pointer is carrying, for a viewport to lift: its kind, and its id or place in its list. */
-  get carried(): { kind: CarryKind; key: string; rotation?: number } | null {
+  get carried(): { kind: CarryKind; key: string; rotation?: number; piece?: BuildingTile } | null {
     if (this.carrying === null) return null;
-    const { kind, key, rotation } = this.carrying;
-    return { kind, key, ...(rotation === undefined ? {} : { rotation }) };
+    const { kind, key, rotation, piece } = this.carrying;
+    return { kind, key, ...(rotation === undefined ? {} : { rotation }), ...(piece === undefined ? {} : { piece }) };
   }
 
   /**
@@ -626,7 +672,7 @@ export class EditorController {
   }
 
   /** Which kinds of thing have a facing to turn at all. */
-  private static readonly TURNS: readonly CarryKind[] = ['prop', 'object'];
+  private static readonly TURNS: readonly CarryKind[] = ['prop', 'object', 'piece'];
 
   /** The facing the thing in hand will land with, in radians, or null with nothing to turn. */
   get carriedFacing(): number | null {
@@ -682,6 +728,16 @@ export class EditorController {
         const index = scene.spawns.findIndex((s) => s.x === point.x && s.y === point.y);
         return index < 0 ? null : hold(String(index), scene.spawns[index]!);
       }
+      case 'piece': {
+        // The topmost piece on the cell; of two at one level, the one stamped last.
+        let top: [string, BuildingTile] | null = null;
+        for (const [key, piece] of Object.entries(scene.buildingTiles ?? {})) {
+          if (piece.x === point.x && piece.y === point.y && (top === null || piece.level >= top[1].level)) top = [key, piece];
+        }
+        if (top === null) return null;
+        const [key, piece] = top;
+        return { ...hold(key, { x: piece.x, y: piece.y }, undefined, (piece.rotation * Math.PI) / 2), piece };
+      }
     }
   }
 
@@ -696,7 +752,8 @@ export class EditorController {
     const held = this.carrying!;
     if (!isBuildCoordinate(point.x) || !isBuildCoordinate(point.y)) return 'none';
     if (held.kind === 'spawn' && !inBounds(this.scene, point)) return 'none';
-    const there = held.kind === 'prop' ? null : this.thingAt(held.kind, point);
+    // Props and pieces stack, so they may land on their own kind.
+    const there = held.kind === 'prop' || held.kind === 'piece' ? null : this.thingAt(held.kind, point);
     if (there !== null && there.key !== held.key) return 'none';
     held.to = held.kind === 'spawn' ? { ...point }
       : this.state.tool === 'adversary' ? this.placementAt(point)
@@ -707,12 +764,26 @@ export class EditorController {
   /** Put the thing in hand down where it was carried to: one edit, and none at all if it never moved. */
   private land(held: Carry): void {
     const { sceneId } = this;
+    if (held.kind === 'piece') return this.landPiece(held);
     const edit =
       held.kind === 'creature' ? moveAdversary(sceneId, held.encounterId!, held.key, held.to)
       : held.kind === 'object' ? moveInteractable(sceneId, held.key, held.to, held.rotation)
       : held.kind === 'prop' ? moveDeco(sceneId, Number(held.key), held.to, held.rotation)
       : moveSpawn(sceneId, Number(held.key), held.to);
     if (this.session.run(edit)) this.onChange('content');
+  }
+
+  /**
+   * Put a piece of building down: at the cell it was carried to, at the ladder's level, facing
+   * the way it was turned. A kind of tile is ground somebody may want to stand on, so the room
+   * grows to hold where it lands as it grows for one laid there; scenery grows nothing.
+   */
+  private landPiece(held: Carry): void {
+    const level = this.state.buildLevel;
+    const quarter = held.rotation === undefined ? undefined : ((Math.round(held.rotation / (Math.PI / 2)) % 4) + 4) % 4;
+    if (!isBuildZ(level) || !this.session.run(new MovePiece(this.sceneId, held.key, { x: held.to.x, y: held.to.y, level }, quarter))) return;
+    if (held.piece?.tile !== undefined) this.strokeReach = { minX: held.to.x, minY: held.to.y, maxX: held.to.x, maxY: held.to.y };
+    this.onChange('terrain');
   }
 
   /**

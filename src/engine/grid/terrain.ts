@@ -115,9 +115,25 @@ export const DEFAULT_TERRAIN_TYPES: readonly TerrainType[] = [
   // way - a kind of tile is never nothing on screen just because a load is slow.
   terrain('platform', { name: 'Platform', structure: 'floor', model: 'grass-ground', scale: 1, color: '#618950' }),
   terrain('steps', { name: 'Steps', structure: 'stairs', model: 'stone-stairs', scale: 1, color: '#9a958c' }),
-  terrain('block', { name: 'Block', structure: 'block', model: 'stone-block', scale: 1, passable: false, cost: Infinity, blocksSight: true, color: '#8a8994' }),
-  terrain('barrier', { name: 'Barrier', structure: 'wall', model: 'stone-wall', scale: 1, passable: false, cost: Infinity, blocksSight: true, color: '#6f6a63' }),
+  // A block and a barrier are not impassable kinds: how high a piece stands is what stops a
+  // walk or a line of sight, so a block is somewhere to climb to and a low wall is stepped over.
+  terrain('block', { name: 'Block', structure: 'block', model: 'stone-block', scale: 1, color: '#8a8994' }),
+  terrain('barrier', { name: 'Barrier', structure: 'wall', model: 'stone-wall', scale: 1, providesCover: true, color: '#6f6a63' }),
 ];
+
+/**
+ * Nothing at all: the cells a room takes in when it grows to reach tiles laid outside it.
+ *
+ * A room is a rectangle and what is built in it need not be, so a rectangle that has grown
+ * round a platform standing off to one side is mostly this - not drawn, not walked on, and no
+ * bar to a line of sight or a jump, which is what makes a gap a gap. A piece stacked on such
+ * a cell is ground like any other: what a walk meets is the piece.
+ *
+ * Every palette knows it, whether the project wrote it down or not, so a document that names
+ * it always resolves; a project that declares a kind with this id has said what its own is.
+ */
+export const VOID_TERRAIN_ID = 'void';
+export const VOID_TERRAIN: TerrainType = terrain(VOID_TERRAIN_ID, { name: 'Nothing', passable: false, cost: Infinity });
 
 /**
  * An ordered set of terrain types. The index is what a grid stores; the id is
@@ -133,6 +149,8 @@ export class TerrainPalette {
     if (types.length > MAX_TERRAIN_TYPES) {
       throw new RangeError(`a terrain palette holds at most ${MAX_TERRAIN_TYPES} types`);
     }
+    // Last, so every index a grid already stores means what it meant.
+    if (types.length < MAX_TERRAIN_TYPES && !types.some((type) => type.id === VOID_TERRAIN_ID)) types = [...types, VOID_TERRAIN];
     const byId = new Map<string, number>();
     types.forEach((type, i) => {
       if (byId.has(type.id)) throw new RangeError(`duplicate terrain id "${type.id}"`);

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { buildDemoScene } from './demo-scene';
 import { inspection } from './inspect';
 
 describe('what a right-click shows', () => {
-  const demo = buildDemoScene(demoMap(), 'demo');
+  const demo = buildDemoScene(hollowVaultMap(), 'demo');
 
   it('reads a party member as a character: class and level, pools, gear', () => {
     const id = demo.party.selected!;

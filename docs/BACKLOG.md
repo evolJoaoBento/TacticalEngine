@@ -993,6 +993,307 @@ copy, grants a card of its own by a class, deletes its ability, and deletes the 
 `npx tsc --noEmit` clean; vitest **1866 passed (1866)**; Playwright **115 passed (4.2m)**, `EXIT 0`.
 Two breaks -- every text card offering Delete, and none -- each fail the e2e written for them.
 
+## Ground as tiles, and the jump — done
+
+The demo's room is pieces now. `groundAsTiles` (`demo-scenes.ts`) relays the imported vault cell for
+cell - a floor tile under everything, two blocks of plain `block` for the wall, blocks for the dais with `steps` where
+the legacy map had its one-slab ledge, `road` at cost 2, `low-wall` for cover - and flattens the
+painted ground underneath. Every coordinate the tests and the content know is where it was.
+
+**The rule.** `TileGrid.lift` is how high the pieces on a cell stand, in blocks; `standAt` is that or
+the painted ground (`SLAB_BLOCKS` = 0.35 of a block a level), whichever is higher, and it is the one
+height the pathfinder, `walk.ts`, `los.ts`, the tokens and the cursor read. `pieceProfile`
+(`building.ts`) reads it off the same boxes a piece is drawn from: a block 1, a floor 0.25, stairs the
+middle of the flight, a rail (anything thinner than a quarter tile) nothing - and a rail a block high
+sets `barred`, which stops feet and sight. A piece's own `height` stretches all of that, box or file
+alike (`PlacedPiece.height`, and `tile-models` stretches the instance), so half a Barrier is a wall
+stepped over. `WALKABLE_RISE` is 0.72: half a block is a step, three
+quarters - a block beside a floor tile - is a jump. `block` and `barrier` are no longer impassable
+kinds; height is what stops a walk. A wall nobody may climb is a kind that says `passable: false` (the demo ships `rampart` for that, and
+an arc stops at one whatever its height). The vault's own wall is not one: it is two blocks and the
+rule for height is the only rule it has, so Strength +1 jumps onto it, the drop inside is a fall,
+and a jump that lands on a trigger wakes what a walk there would have (`leapTo`).
+
+**Automatic.** Placing a tile emits `'terrain'`, `rebuildTerrain` adopts the new grid - `adopt` carries
+`lift` and `barred` - and the pathfinder reads the live grid, so there is nothing to bake.
+`buildRuntime` and the editor's other-room grid now build with `paletteForProject`; before, a room
+laid from a project's own kinds stood up in play as bare floor.
+
+**The jump** (`leap.ts`, `rolled-move.ts`). `beyondReach` answers a click out of reach: a `Leap` from
+the cheapest reachable neighbour, `'refused'` when the ground is out of reach *for its height* (no
+walk gets there however long, and the nearest reachable tile is a block or more above or below it),
+or null - a shut door, a move too short - which walks as it always did. In a fight a jump whose foot is
+past this move comes back `within: false`, and the click walks towards `from` like any click past
+one move. Up: reach is 1 + max(0,
+Strength) blocks, an Agility Roll at `DEMO_MOVE_DIFFICULTY`. Down: free within 1 + max(0, Agility);
+past it Difficulty +1 per two blocks past safe and a d6 per block past safe, direct, halved on a
+success. A failure lands them **Prone** (new in `SRD_CONDITIONS`; `conditionModifiers` reads it as
+Vulnerable; cleared by the next walk or leap, "gets up"). They land either way. `runForIt` moved to
+`rolled-move.ts` with it, which took `demo-scene.ts` from 4437 to 4394.
+
+**Drawn.** `standHeight` (`layout.ts`) seats tokens, decos, cursor, highlights and zones on the stack.
+`buildTerrainMesh` adds an undrawn `terrain:standing` mesh at standing height so a pointer on top of
+a block strikes the block. `tile-models` fits a structure's file to the height the rules say it
+stands (the shipped block file is 1.115 tall, the grass 0.41) and leaves its width alone - the files
+are wider than a tile on purpose, and edge to edge they show seams. The cursor wears an X
+(`refusal-mark.ts`) when `previewWalk` says `refused`; a glide leg that climbs most of a block arcs.
+
+**The button.** A key beside the Light, the Rest key's twin and its neighbour - `.hand-keys` holds the
+two; it was a brass medal first, and Rest stood across the hand by the Loadout book - (`JumpButton`
+and `RestKey` in `ActionBar.tsx`, `.key-btn.jump-key` in `hud.css`; armed is the key held down, gold):
+it arms the bar's own aiming with `JUMP_ID`, so the landings light and Escape cancels the way a card
+aimed at the ground does, and `main.ts` grew by nothing - `onUse` and `pickTarget` each branch on
+the id in the line they already had. `leapTargets` is wider than a bare click: every landing beside
+ground in reach, a walk there or not, because a jump asked for by name is a jump. `jumpTo` makes
+it; `jumpOffered` is whether the medal shows. The token's jump is `Motion.leap` through
+`walkAlong(id, route, leap)` to `planGlide`: the last leg is one leg, takes `LEAP_SECONDS` of its
+own, and `advanceGlide` plays it in three - gathered on the spot, long over an arc, squat on landing.
+
+**A click never jumps.** It did, for a day: `beyondReach` turned a click on high ground into a walk
+and a leap, and refused with an X what nobody could make. That is gone - `moveSelectedTo` and
+`previewWalk` are walking again and nothing else, `planLeap`, `beyondReach`, `leapInstead` and
+`Leap.within` with them - because a jump taken for you is a roll you did not ask for. The button is
+the only way in. What is left of "part of the movement" is `planRunningJump`: the jump from where
+they stand when that reaches, and only otherwise the cheapest spot this move walks to from which it
+can be made. `leapTargets` still lights the direct disc alone, so the board shows the jump and not
+the walk; `jumpReaches` is what lets a click past the disc through `pickTarget`. The aim draws the
+walk (`JumpArc.walk`, laid by `TrajectoryLine`) and wears the X (`refusal-mark.ts`, the ring's now,
+not the cursor's).
+
+**Movement is a distance.** The pathfinder still answers "is there a way, and by which tiles" - it is
+a grid search and stays one - but nothing is *counted* on it any more. `Party.planWalk` searches
+without a budget, pulls the path straight (`smoothPath`), and measures that line with `lineCost`:
+length times the cost of the ground under each quarter-tile of it. A way the count of squares covers
+is always covered (the line only adds, so every caller that picks a tile off `reachable` - the strike
+walk, the running jump, the adversaries - is still right); past that, `short: true` cuts the line at
+`distanceWithin`, backs it up a tenth of a tile at a time to where a body stands clear, and returns
+`beyond`. `aimOfMove` (`game/movement.ts`) is what `moveSelectedTo` does with a click, and
+`previewWalk` draws the same plan. `Party.covered` is the lit ground: `reachable` plus every tile
+in a slightly wider search whose centre the line reaches. Still counted in squares, and next:
+followers and adversaries walk to tile centres; the run's amber ring is `reachable`, not `covered`.
+
+**A placed tile can be picked up.** `CarryKind` has `'piece'`: the Terrain tab's Select (`run`, the non-combat
+branch) picks it *last*, after the things standing on the cell, and `thingAt('piece')` takes the topmost
+(highest level, latest key). Picking one up sets `buildLevel` to its level, so the plane the pointer is read
+on is the piece's own and the wheel lifts it; `landPiece` runs `MovePiece` (`building.ts`: delete the old
+key, insert under the new cell's key with `#n` for an overlap; noop when put back; absorbs a `GrowScene`
+like a stroke does, and sets `strokeReach` so a kind of tile dropped outside grows the room). In `main.ts`
+a carried piece counts as a placement tool, so the pointer reads the build plane and the blue ghost shows
+it; the original stays drawn where it was until it lands, since pieces are instanced and one cannot be
+lifted alone. Select on ground off the room falls back to the build plane, to reach pieces out there.
+
+**No mark under the pointer.** The yellow disc on the hovered tile is gone: `showCursor` keeps the tile
+(`cursorAt`, which the click and the driver read) and draws nothing. The walk line, the arc and the
+lit creature are what the pointer shows. The jump's landing ring stays; it is the arc's end, not the pointer's.
+
+**Range is a real number.** `bandForSpan` no longer rounds: a band reaches `BAND_GRACE` (half a tile)
+past its number, which is the same thing - `round(x) <= n` is `x < n + 0.5`, and no span between two
+tile centres is ever exactly a half - so every centre-measured answer in the game is what it was, and
+a test proves it for the whole 15 by 15. What changed is what is fed to it: `resolveAttack` passes
+`at: { attacker, target }` to `evaluateTarget` (only for bodies whose spot and tile agree - one made
+by hand in a test has only its tile), and `world.bandTo` is `bandBetweenStanding`. Sight and cover
+are still asked of tiles. Whoever picks a tile to strike *from* measures as the swing will:
+`game/reach.ts` (`standingIn`, `bandFromSpot`) for `strikeTile` and the adversaries' `approach`.
+Still tiles, on purpose: zone membership (`bandBetween(anchor, entity.tile)`) and every shape on the
+ground, because the ring is *drawn* in tiles and who burns has to match the picture; `maxSpan`.
+
+**A jump is aimed at a spot.** `Leap` carries `fromAt`, `at` and `across`; `planJump(demo, id, to, aim?)`
+lands by `settleEnd` and measures between the two spots; `leapTo` uses `placeEntity`. No `aim` means
+the tile's centre, which is every caller that is not the pointer. `main.ts` keeps `aimedAt` beside
+`aimed`, and while a jump is armed redraws the arc alone on a move within a tile (no `refreshPlay`).
+A tile is lit when its *centre* is in range, so the far edge of the last lit tile can be past it: the arc
+goes red there (or draws the walk first), which is the telling. If a grown room ever makes the armed
+pointer-move slow, throttle on `aimedAt` moving less than a twentieth of a tile.
+
+**The hand holds what the loadout holds, at a size you can read.** The bar dealt only what could be
+played, so two of Kara's five loadout cards - the passive ones - were never in her hand at all;
+`ActionBar` deals every ability that sits on a card and marks the always-in-play ones (`is-always`,
+"always in play" along the foot, not a button and not greyed like a card that cannot be afforded).
+The layout was fixed-width and crushed the hand between a 176px sheet column and a 340px journal:
+at 1065 across, each card had 15px of room. The three are tokens now (`--hud-w`, `--panel-w`,
+`--key-size`), a card's width follows its place in the fan (`--slot`, `--card-w`) rather than being
+110px whatever happens, and under 1240px across the journal stacks above the cards instead of beside
+them. The fan's droop is capped like its spread, so a hand of eight does not hang off the screen.
+Saving moved with it: Save, Save as… and Load are on the Escape sheet now (`SettingsModal` takes a
+`games` section and hands it a way to shut itself), so the board keeps its edges and the menu holds
+what a player steps out of the game for. Escape still belongs to whatever is up, so mid conversation
+the menu does not open at all.
+
+**A creature is the size it should be, and stands on its base.** Five models - the hedge priest,
+the stone golem, the rot hound, the grave moth and the fen lurker - were scanned to fill the same
+1.9-unit box, so a hound was as long as a knight is tall and every one of them spilled over its
+tile. `tools/size-model.py` (Blender, headless) scales a `.glb` to a height in tiles and bakes the
+transform, putting the origin at the middle of the lowest slice of the mesh - the base it rests on,
+not the middle of the body dropped down, which on a figure that leans is somewhere else entirely.
+The heights used: priest 0.95 (a person, as the bandits and the party already were), golem 1.45,
+lurker 1.05, moth 0.80, hound 0.70. `seatOnTile` now centres every model on that base slice too,
+rather than on its bounding box, so an authored pivot and a loaded one agree. Not done: the masters
+under `public/models/heavy/` keep the old size, so a re-lighten needs a re-size after it; the
+withering tree prop is still 1.9 wide.
+
+**Walking looks like walking.** Three things were wrong with it. A walk was timed by the line it was
+planned along rather than the ground the token actually had to cover, so a second click mid-walk
+left the token behind its own character and it slid to catch up; `planGlide` times the journey by
+`total` now, which includes the catch-up. A token slid rather than stepped, so a walk carries a small
+`WALK_HOP` twice a tile (`bobs`), which reads as steps on a body with no animation of its own. And
+`WALK_PER_TILE` is 0.4, about two and a half tiles a second. Following was re-placed from scratch on
+every walk, which with steering meant a fresh placement every tenth of a second and a party that
+hopped about: `Party` keeps a trail per leader (`remember`, `downTheTrail`, `backAlong`, capped by
+`trailLength`), each follower walks to a spacing further back down it, and whoever it does not reach
+keeps their ground unless they are adrift or standing where the leader is trying to put their feet.
+Not done: the trail is not saved, and adversaries do not follow anything.
+
+**The woods, and walking them.** The demo's map is `game/demo-map.ts` now, not the prototype's:
+44x32, with the old 22x16 room copied into its north-west corner tile for tile (so every coordinate
+a test or a save knows still holds), woods south and west, and the vault's halls run east. It is all
+worked out from the coordinates, so it is the same every run. `groundAsTiles` grew a third argument,
+`beaten`, because a trail should look like a road without costing double and a thicket should cost
+double without looking like one; the demo passes it the tints `BEATEN_TINTS` names. Walking is
+slower - `WALK_PER_TILE` is 0.285, about three and a half tiles a second - and a held button steers:
+`game/steer.ts` says where the next step goes: towards the pointer, as far as a walk covers in the
+time the step stands for (`WALK_PER_TILE`, capped by `STEER_MOST` so a lost frame is not a leap),
+nothing within `STEER_STOP`, and in a fight never outside the circle. Sizing the step by distance
+instead ran the character's own position away from the token drawing it, which is a sprint, so the
+step is sized by time and the two agree. `main.ts` reads the pointer, centres the camera on the
+walker, and takes a step every `STEER_EVERY`. A press that does not last `STEER_HOLD`
+is still a click. Aiming falls back to the flat the room stands on when the pointer is off the
+board, which centring the camera will do. Not done: followers still trail a steered walk one step at
+a time rather than keeping formation; adversaries and the editor know nothing about steering; the
+map is about twice the drawing cost of the old one, which this machine's software renderer feels.
+
+**Who follows is a group, and the cards are how it is set.** `Party` keeps a group per member
+(`groupOf`, `linked`, `unlink`, `link`) and an order (`members`, `arrange`): everybody starts in one
+group, `unlink` makes a group of one, `link` moves a member into another's, and `followersOf` is the
+leader's own group, so the followers of a walk are whoever walks with the walker - and they keep a
+body's width clear of anybody left standing on the trail (`leftStanding`). The HUD cards are dragged
+(`PartyHud`, pointer events on the window): `game/party-drop.ts` reads the pointer against the cards'
+boxes (`dropTargetAt`: aside past `ASIDE`, onto a card's middle half, between over its edges or the
+gaps) and does what the drop meant (`dropCard`: aside unlinks; onto links and puts the card under;
+between arranges, and links to the pair either side when they walk together). A chain behind the cards
+shows who walks with whom: `ui/party-chain.ts` says where it runs (`chainSpans`, one span per run of
+cards side by side in the same group, so a chain never passes behind a card that is not in it) and
+who no chain reaches (`strandedIds`, whose cards wear a colour tab instead); `PartyHud` measures the
+cards it runs between and draws it as a masked strip down the middle of the column, behind the
+sheets, so it shows only in the gaps; it is put away while a card is lifted, and a resize watch on
+the column redraws it when a card grows. Driver handles
+`linked`, `link`, `unlink`; `party()` reads in the arranged order. Not done: neither groups nor the
+order are in the save; a group of two is still followed by `followDistance` as the whole party was;
+`link` moves one member, not their whole group.
+
+**Movement in a fight is a circle.** Nothing is counted in a fight any more. `EncounterRunner` keeps a
+circle per party member - `{ anchor, band }`, anchored at `start` and at every `endGmTurn` (and by
+`reanchor` when something moves them clean out of it) - and `push(id)` widens it a step (`nextBand`).
+`game/circle.ts` turns that into tiles (`maxSpanForBand` = the band's number plus `BAND_GRACE`),
+gives `fightWalk` (budget `Infinity`, `within` the circle) to every walk a fighter makes, and
+`reachRings` for the board. `Party.WalkOptions.within` keeps the whole line inside (`distanceInside`),
+`short` cuts at the edge, and `covered(within)` is the lit ground - the tiles inside whose walk from
+here stays inside. A walk inside is free (`walkTheMove` never `act`s); `aimOfMove` makes a click past
+the edge a push when the spot is outside and a step is left (`underPressure`), `runForIt` rolls it:
+success `push`es and walks as far as the wider circle goes, failure moves nobody and `act`s with
+`spotlightToGm`. The prompt (`pushPrompt`) is the warning. `closeToStrike` with no strike tile inside
+the circle walks to its edge for free and refuses the swing. Drawn: `reach-ring.ts` - a ring per kind
+(move, push, jump) at the anchor, and in a fight nothing is lit as squares. The driver's `endGmTurn`
+now gives the party's spotlight up first when it is theirs, which is what every test loop meant by it.
+A jump, a shove or a drag that leaves somebody outside their circle re-anchors it where they landed,
+band kept (`movementCircle` calls `reanchor`); inside it, nothing moves. `walkTheMove`'s `act` option is
+dead now. `covered(within)` searches once per tile inside the circle, but only the driver handles read
+it; the board draws a ring. Not done: the tracker policy's tokens are untouched by free moves.
+
+**The run-up is continuous.** `planRunningJump` still finds launch *tiles* (in range of the landing,
+reachable - with `budget: Infinity`, since in a fight the walk is planned whole and cut where the
+movement runs out; squares the count puts well past one move are skipped), *nearest the landing* first -
+cheapest-first bent the run-up towards a launch square and it read as snapping to the grid; then `planJumpAfterWalk` plans the walk to the first of them and
+searches *along the line* at `RUN_UP_STRIDE` for the first point the jump can be made from, with room
+to stand. `Leap.walk` is that cut line and `fromAt` its end; `leapTo` walks to the spot (`walkTheMove`
+with `aim`) and jumps from wherever they then stand. A still right click clears `targeting` before it
+inspects anything.
+
+**A step within a tile.** `Party.planWalk` to the mover's own tile is `shuffle`: `[start, end]`, gated on
+`segmentClear`, null under `LEAST_STEP`. The path is one tile long, so `walkTheMove` skips the followers
+(an empty trail reshuffles all of them). `entityNear` and both of its callers skip whoever is selected,
+or a click within half a tile of them could never be ground. In a fight it costs the action, because
+here a move is the action: a per-turn movement pool is the change that would make nudging free.
+
+**The room grows to reach what is laid outside it.** `engine/scene/reshape.ts` is the arithmetic:
+`growthToReach` (null inside the room, null past `MAX_GROWN`), `grownScene` (pure - new arrays, new
+objects, so the edit keeps the old ones by reference), `shiftSnapshot`. West and north move the
+corner, so *every* coordinate moves, building keys included (`x,y,level#n`, the `#n` kept); the
+running total is `SceneDoc.origin`, which nothing in the room reads and everything holding tiles
+by number needs. `editor/grow-scene.ts` is the edit; the controller runs it in `end()`, never under
+the pointer (a brush whose cells slide mid-drag paints somewhere else), and `BuildingEdit.absorb`
+takes it as the stroke's tail - applied after the stamps, undone before them, so both are in the
+coordinates the stamps were made in. New cells are `void` (`VOID_TERRAIN`), which every
+`TerrainPalette` appends for itself: impassable, no bar to sight or to a jump's arc, drawn with an
+invisible material so the editor's pointer still strikes it, and kept out of the Tiles list in
+`main.ts`. A `TileGrid` cannot change size, so `adopt` now refuses one that does not `fits`, and
+`takeGround` (`game/room.ts`) stands the game up again the way a save is loaded; `SceneState.restore`
+reads `snapshot.room` (width and origin when taken) and shifts - which is also what fixes remembered
+rooms and old saves, with no code of their own. `rebindScene(grown)` slides the camera by
+`groundSlide`. Refused mid-fight and mid-prompt (`growable`), because a fight's runner holds the old
+state. Known: `growable` stops a growth mid-fight, but nothing stops one being *undone* from the editor mid-fight, and `install` drops the fight as travel does. Not done: shrinking back; painting `void` by hand to cut a hole; adversaries jumping gaps.
+
+**Being hurt, seen.** Two halves, neither told about the other. The token: `flinch` is
+`hurt-reaction.ts` now - `poseHurt` (scale and lean only, never position: the hurt are often mid-walk)
+and `flashOutline` in `faction-outline.ts`, which burns the faction line red and wide and hands back
+what undoes it. It remembers the resting material on the mesh, so a recolour mid-flash changes what
+it goes back to rather than cutting it short, and a second blow does not remember red. Not a tint on
+the body: a model's materials are shared by every token of that model. A flinch that arrives with a
+move (`waiting`, a pending route, a glide) is kept in `lateFlinch` and played where the move ends.
+The sheet: `PartyHud` measures marked Hit Points from one drawing to the next (`hud-wounds.ts`,
+`woundsSince`), so anything that marks one shows and nobody has to say so; `is-hurt` on the card,
+`is-lost` on the hearts that went (keyed by the wound's stamp, so a second blow replays), `hud-wound`
+for the flush and the number. While a roll card is up (`.roll-backdrop`) the sheet waits with it.
+
+**The player's own settings** (`game/user-settings.ts`): one `localStorage` key, read through a zod
+schema so an unreadable value is the defaults, held in memory where there is no storage. Not the
+project's and not the save's. What settings there are is a list, `USER_SETTINGS` - a key, a `kind`,
+a section, a name, what it does - and `SettingsModal` draws the list under its headings, a row by
+its kind; one kind today (`toggle`), and the next is a member of the union and a case in `Row`. A
+test holds the list and the schema to each other. **Escape is the only way in**, and Escape is
+already everybody's "put that down": the modal listens in the capture phase and asks the page
+(`escapeIsTaken`, a list of what Escape closes) before anything has reacted, so it opens only on
+an Escape with nothing to put down, and swallows the key while it is up. Nothing in `main.ts`
+changed for it. The first setting is `autoRollJumps`: `jumpTo` answers its own prompt with `roll`.
+
+**A rolled jump waits to be read.** `answerPending` lands them the moment the dice are thrown, which
+is right for the state and wrong for the eye: the token used to be on the block while the card was
+still showing whether it got there. `Motion.wait` marks a move decided by a roll thrown by hand;
+`walkAlong(..., wait)` holds it and `syncTokens(state, { reading })` skips that token while a roll
+is still on the table (`demo.rolls`), so it goes on Accept. Thrown automatically there is no card,
+no `wait`, and it goes at once. The state itself never waits - a save made mid-card is whole.
+
+**Aimed, the way Baldur's Gate aims one.** The button's jump is `planJump`: from where they stand, to
+anywhere within `jumpRange` (3 tiles + the reach trait, `rangeBase` / `rangePerPoint`), level ground
+included, nothing walked first - so `leapTargets` is a disc now, not the rim of what a walk reaches.
+The arc is one curve three times over: `arcHeight` with `arcLift(tiles, rise)` is what `arcClear`
+checks the ground against (higher ground, impassable kinds, barred cells and shut things stop it;
+bodies and low walls do not), what `TrajectoryLine` draws (`view.showArc`, gold or red, a ring on the
+landing), and what `advanceGlide` flies - `Motion.leap` is the lift, a number, not a flag. A level
+jump asks for nothing unless `flatRoll`; `leapTerms` says so. In a fight it is the
+action; a jump that cost only movement would want the encounter to count movement, which it does not.
+
+**The project's to change.** `project.jump` (`engine/rules/jump.ts`, `jumpRulesSchema`) is every number
+above: `enabled`, `stepHeight`, the reach trait with its base and per-point, the roll's trait and
+Difficulty, the same three for a safe drop, `harderEvery`, `fallDie`, `halfOnSuccess`,
+`failCondition`. Optional, like `terrainPalette`: saying nothing is the defaults, unwritten.
+`jumpRulesFor` / `movementFor` / `walkFor` (`demo-rules.ts`) are how the game reads them - the step
+height reaches the party's pathfinder, the adversaries', the script world's and the walk smoother,
+and `Party.setRules` takes a changed one on the way back from the editor (`syncAuthoredEncounters`).
+The editor's form is `JumpRulesEditor` in the Tiles workspace, its edits `jump-edits.ts` (one undo
+step a field; reset deletes the key), its Check `validate-jump.ts`. Only literal Prone is cleared
+by moving; a project that lands them Restrained has made a harder rule on purpose.
+
+Floor tiles cast no shadow (`castShadow = structure !== 'floor'`): a room of them through the depth
+pass shades nothing. `building.spec.ts` counts over what the room opens with, since it no longer
+opens empty.
+
+Open: a project with `stepHeight` near 1 walks steps a bare glide does not arc over, which is right,
+but anything it still jumps is drawn from `Motion.leap` and not from height, so nothing is lost;
+adversaries do not jump, and an attack-click never does - it closes by the stairs; a roof
+over a cell makes the cell the roof (no headroom); the inside of a plateau is refused until
+somebody is up on its edge; the editor has no readout of a cell's standing height; The Sounding
+Pit is still painted ground.
+
 ## Movement Under Pressure — done
 
 The rule was written and tested, and nothing called it: a click past one move in a fight walked as

@@ -18,8 +18,8 @@ export interface MovementRules {
   /** Allow the four diagonal steps as well as the four orthogonal ones. */
   readonly diagonals: boolean;
   /**
-   * Largest elevation change a single step may cross. The legacy rule was 1;
-   * `Infinity` ignores elevation entirely.
+   * Largest change in standing height a single step may cross, in blocks - one block is one
+   * tile up, and a level of ground is `SLAB_BLOCKS` of one. `Infinity` ignores height entirely.
    */
   readonly maxStepHeight: number;
   /**
@@ -32,12 +32,20 @@ export interface MovementRules {
 }
 
 /**
- * Four-neighbour movement with the legacy prototype's one-level step limit —
- * the semantics the existing content was authored against.
+ * The most a step climbs, in blocks: half a block, a third, a quarter, and the two levels of
+ * ground that come to a little over two thirds. Past it is a jump - three quarters already,
+ * because that is a whole block stood beside a floor tile, which is what "a block up" looks
+ * like on a board laid from tiles.
+ */
+export const WALKABLE_RISE = 0.72;
+
+/**
+ * Four-neighbour movement. A step crosses up to two levels of ground - the prototype's limit
+ * was one, and the content authored against it still walks.
  */
 export const DEFAULT_MOVEMENT: MovementRules = {
   diagonals: false,
-  maxStepHeight: 1,
+  maxStepHeight: WALKABLE_RISE,
   allowCornerCutting: false,
   diagonalCostMultiplier: 1.5,
 };
@@ -356,7 +364,7 @@ export class Pathfinder {
     const grid = this.grid;
     if (!grid.isPassable(to)) return false;
     if (context.isBlocked?.(to) === true) return false;
-    if (Math.abs(grid.heightAt(to) - grid.heightAt(from)) > rules.maxStepHeight) return false;
+    if (Math.abs(grid.standAt(to) - grid.standAt(from)) > rules.maxStepHeight) return false;
 
     if (rules.diagonals && !rules.allowCornerCutting && grid.isDiagonalStep(from, to)) {
       // Both tiles shared by the corner must be enterable. Checked inline rather
@@ -378,7 +386,7 @@ export class Pathfinder {
     const grid = this.grid;
     if (!grid.isPassable(side)) return false;
     if (context.isBlocked?.(side) === true) return false;
-    return Math.abs(grid.heightAt(side) - grid.heightAt(from)) <= rules.maxStepHeight;
+    return Math.abs(grid.standAt(side) - grid.standAt(from)) <= rules.maxStepHeight;
   }
 
   private stepCost(

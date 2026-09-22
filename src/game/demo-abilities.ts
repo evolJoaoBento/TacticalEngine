@@ -25,7 +25,8 @@ import { canMarkStress, gain, spend } from '../engine/rules/resources';
 import { reaches, type RangeBand } from '../engine/rules/range';
 import { tierOf } from '../engine/character/progression';
 import { isDomainCard, type CardDef, type CardGrant, type ContentPack } from '../engine/content/pack/import';
-import { deriveCharacter, grantedCards, lentCards } from '../engine/character/sheet';
+import { deriveCharacter, grantedCards, lentCards, type DerivedCharacter } from '../engine/character/sheet';
+import { traitSchema, type Trait } from '../engine/scene/primitives';
 import { evaluateOptional } from '../engine/script/conditions';
 import { ScriptRunner } from '../engine/script/runner';
 import { useKey } from '../engine/script/world';
@@ -437,6 +438,24 @@ export interface LoadoutView {
   /** What they have without choosing it: face up, counted by no limit, never vaulted. */
   granted: GrantedCard[];
   limit: number;
+  /** The numbers on the sheet beside the cards. Absent when there is no character to read. */
+  stats?: SheetStats;
+}
+
+/**
+ * What a player looks up on their sheet in the middle of a fight: what they roll with, what it
+ * takes to hit them, and how hard a blow has to be to cost more than one Hit Point.
+ */
+export interface SheetStats {
+  level: number;
+  proficiency: number;
+  /** As it stands now, with whatever their conditions and cards add. */
+  evasion: number;
+  /** `Infinity` for a threshold they do not have. */
+  thresholds: { major: number; severe: number };
+  /** In the order a sheet prints them, advancements folded in. */
+  traits: { id: Trait; value: number; spellcast: boolean }[];
+  experiences: { name: string; modifier: number }[];
 }
 
 /** What a card prints: its own text, or its named features when it has no text of its own. */
@@ -478,6 +497,24 @@ export function loadoutView(demo: DemoScene, characterId: string): LoadoutView {
     vault: vaultOf(character).map(describe),
     granted,
     limit: LOADOUT_LIMIT,
+    stats: sheetStats(demo, character),
+  };
+}
+
+/**
+ * Evasion and the thresholds are asked of the world rather than read off the sheet, so they are
+ * the numbers an attack would actually be rolled against: a condition that raises Evasion shows.
+ */
+function sheetStats(demo: DemoScene, character: DerivedCharacter): SheetStats {
+  const entity = demo.state.entity(character.sheet.id);
+  const defence = entity === undefined ? { difficulty: character.evasion, thresholds: character.thresholds } : demo.world.defenderOf(entity);
+  return {
+    level: character.sheet.level,
+    proficiency: character.proficiency,
+    evasion: defence.difficulty,
+    thresholds: { ...defence.thresholds },
+    traits: traitSchema.options.map((id) => ({ id, value: character.traits[id], spellcast: character.spellcastTrait === id })),
+    experiences: character.experiences.map((e) => ({ name: e.name, modifier: e.modifier })),
   };
 }
 

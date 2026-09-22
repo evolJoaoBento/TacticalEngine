@@ -28,6 +28,13 @@ export interface Motion {
   path?: readonly number[];
   /** The line actually crossed, from where they stood to where they stopped; the path when left out. */
   route?: readonly Spot[];
+  /**
+   * The last leg of `route` is a jump, arcing this many blocks over the straight line between its
+   * ends: the token gathers, flies the arc the aim drew and lands, rather than walking it.
+   */
+  leap?: number;
+  /** Drawn only once the roll that decided it has been read: the card is accepted, then the token goes. */
+  wait?: true;
   thrown?: true;
   /** A wound landed; the token takes it. */
   struck?: true;

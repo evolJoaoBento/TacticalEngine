@@ -302,8 +302,8 @@ test('a character added in the Party panel is standing with the party when Play 
   expect(played.party, 'the newcomer is in the party').toEqual([...before, 'tamsin']);
   expect(played.tile, 'and standing on the board').not.toBe(-1);
   const away = Math.max(
-    Math.abs((played.tile % 22) - (played.anchorTile % 22)),
-    Math.abs(Math.floor(played.tile / 22) - Math.floor(played.anchorTile / 22)),
+    Math.abs((played.tile % 44) - (played.anchorTile % 44)),
+    Math.abs(Math.floor(played.tile / 44) - Math.floor(played.anchorTile / 44)),
   );
   expect(away, 'beside whoever was selected').toBeLessThanOrEqual(1);
   expect(played.log.join(' | '), 'the log says so').toContain('Tamsin joins the party.');

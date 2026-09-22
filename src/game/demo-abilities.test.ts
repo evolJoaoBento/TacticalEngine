@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { deriveCharacter } from '../engine/character/sheet';
 import { abilitySchema } from '../engine/content/abilities';
 import { conditionDefSchema } from '../engine/content/conditions';
@@ -60,7 +60,7 @@ import { characterContentFor } from './room';
 
 /** The demo, knowing the catalogue conditions these tests play: the engine ships only the rules' three. */
 const scene = (seed = 'cards'): DemoScene => {
-  const demo = buildDemoScene(demoMap(), seed);
+  const demo = buildDemoScene(hollowVaultMap(), seed);
   demo.project.conditionDefs.push(...FIXTURE_CONDITIONS);
   refreshWorld(demo);
   return demo;

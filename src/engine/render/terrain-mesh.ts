@@ -23,7 +23,8 @@ import {
   type Material,
 } from 'three';
 import type { TileGrid } from '../grid/grid';
-import { DEFAULT_LAYOUT, surfaceHeight, tileCenter, type TileLayout } from './layout';
+import { VOID_TERRAIN_ID } from '../grid/terrain';
+import { DEFAULT_LAYOUT, standHeight, surfaceHeight, tileCenter, type TileLayout } from './layout';
 
 export interface TerrainMeshOptions {
   layout?: TileLayout;
@@ -46,8 +47,17 @@ export const DEFAULT_TERRAIN_COLORS: Readonly<Record<string, string>> = {
 const FALLBACK_COLOR = '#5d8a4a';
 
 export interface TerrainMesh {
-  /** One mesh per terrain type that actually appears on the map. */
+  /**
+   * One mesh per terrain type that actually appears on the map - and, where anything is
+   * stacked, one more that is never drawn: the columns as high as a creature stands, which is
+   * what a pointer looking for ground strikes.
+   */
   readonly meshes: Mesh[];
+  /**
+   * Only the ground that is drawn. What hides a thing from a press is what is seen in front
+   * of it, and the undrawn columns are in front of half of what stands in a doorway.
+   */
+  readonly drawn: Mesh[];
   /** The tile a face of a mesh belongs to, for a raycast; `-1` for a face that is not there. */
   tileOf(mesh: Mesh, faceIndex: number): number;
   /** Release the geometry and materials this built. */
@@ -152,6 +162,8 @@ export function buildTerrainMesh(
     for (const [dx, dy] of [[0, 0], [sx, 0], [0, sy], [sx, sy]] as const) {
       const other = grid.indexOf(x + dx, y + dy);
       if (other < 0 || grid.heightAt(other) !== level) continue;
+      // Nothing has no colour to lend: the grass beside a gap is as green as the rest of it.
+      if (other !== tile && grid.terrainAt(other).id === VOID_TERRAIN_ID) continue;
       const c = own[other]!;
       r += c.r;
       g += c.g;
@@ -182,7 +194,9 @@ export function buildTerrainMesh(
     const y = grid.yOf(tile);
     for (const side of SIDES) {
       const other = grid.indexOf(x + side.dx, y + side.dy);
-      const floor = other < 0 ? 0 : surfaceHeight(grid.heightAt(other), layout);
+      // Beside nothing is the edge of the world, as off the map is: the ground shows its side there.
+      const edge = other < 0 || grid.terrainAt(other).id === VOID_TERRAIN_ID;
+      const floor = edge ? 0 : surfaceHeight(grid.heightAt(other), layout);
       if (floor >= top) continue;
       const a = corners[side.a]!;
       const b = corners[side.b]!;
@@ -203,7 +217,9 @@ export function buildTerrainMesh(
   const faceTiles = new Map<Mesh, readonly number[]>();
   for (const [terrainIndex, surface] of [...surfaces].sort(([a], [b]) => a - b)) {
     const type = grid.palette.at(terrainIndex);
-    const material = new MeshStandardMaterial({ vertexColors: true });
+    // Nothing is not drawn - and is still struck, so the editor's pointer finds the cell to fill.
+    const nothing = type.id === VOID_TERRAIN_ID;
+    const material = new MeshStandardMaterial({ vertexColors: true, visible: !nothing });
     materials.push(material);
     const geometry = surface.build();
     geometries.push(geometry);
@@ -211,15 +227,49 @@ export function buildTerrainMesh(
     mesh.name = `terrain:${type.id}`;
     // A raised slab or a wall throws its shadow on the floor beside it, which
     // is most of what makes the height read.
-    mesh.castShadow = true;
+    mesh.castShadow = !nothing;
     mesh.receiveShadow = true;
     mesh.frustumCulled = true;
     meshes.push(mesh);
     faceTiles.set(mesh, surface.faceTiles);
   }
 
+  // What is stacked on the ground is drawn by other hands, from files and boxes that know no
+  // tile - so a pointer over the top of a block would go through it and strike the floor
+  // behind. This is the same columns again, as high as a creature stands on each and never
+  // drawn: a ray meets it first, and the face it meets knows its tile.
+  const raised = new Surface();
+  for (let tile = 0; tile < grid.size; tile++) {
+    const top = standHeight(grid, tile, layout);
+    if (top <= surfaceHeight(grid.heightAt(tile), layout)) continue;
+    const centre = tileCenter(grid, tile, layout);
+    const corners = CORNERS.map(([sx, sz]): [number, number, number] => [centre.x + sx * half, top, centre.z + sz * half]);
+    const c = own[tile]!;
+    raised.quad(corners, [0, 1, 0], [c, c, c, c], tile);
+    for (const side of SIDES) {
+      const other = grid.indexOf(grid.xOf(tile) + side.dx, grid.yOf(tile) + side.dy);
+      const floor = other < 0 ? 0 : standHeight(grid, other, layout);
+      if (floor >= top) continue;
+      const a = corners[side.a]!;
+      const b = corners[side.b]!;
+      raised.quad([[a[0], top, a[2]], [b[0], top, b[2]], [b[0], floor, b[2]], [a[0], floor, a[2]]], side.normal, [c, c, c, c], tile);
+    }
+  }
+  if (raised.faceTiles.length > 0) {
+    // Not drawn, and still struck: a raycast asks the geometry and never the material.
+    const material = new MeshStandardMaterial({ visible: false });
+    materials.push(material);
+    const geometry = raised.build();
+    geometries.push(geometry);
+    const mesh = new Mesh(geometry, material);
+    mesh.name = 'terrain:standing';
+    meshes.push(mesh);
+    faceTiles.set(mesh, raised.faceTiles);
+  }
+
   return {
     meshes,
+    drawn: meshes.filter((mesh) => mesh.name !== 'terrain:standing' && mesh.name !== `terrain:${VOID_TERRAIN_ID}`),
     tileOf(mesh, faceIndex) {
       return faceTiles.get(mesh)?.[faceIndex] ?? -1;
     },

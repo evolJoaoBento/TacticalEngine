@@ -14,6 +14,7 @@
  * why, and this lays it out. The look is `hud.css`.
  */
 
+import { useState } from 'preact/hooks';
 import type { AbilityView } from '../demo-abilities';
 import { CardArtwork } from './CardFace';
 import { domainColor } from './card-sigil';
@@ -33,11 +34,68 @@ export interface ActionBarProps {
   side: 'party' | 'gm' | null;
   /** The ability waiting for a target, if any. `spot` when it wants ground rather than a creature. */
   targeting: { abilityId: string; name: string; spot?: boolean } | null;
+  /** Whether the selected character is offered a jump: somebody who can act, in a project that has jumping. */
+  jump?: boolean;
   onUse: (abilityId: string) => void;
   onCancelTargeting: () => void;
   onPassToGm: () => void;
   onLoadout: () => void;
   onRest: () => void;
+}
+
+/** What the jump button arms the bar with. The game's `JUMP_ID`, said again here so the bar asks nothing of the game. */
+const JUMP_ID = 'jump:button';
+
+/**
+ * The jump, as a key beside the Light - the Rest key's twin, off the same keyboard: a figure
+ * on the cap that gathers itself when the pointer comes near, and leaps - again and again -
+ * while the board is waiting to be told where. Armed, the key stays down, the way a key held
+ * does; a second press lets it up, as Escape does.
+ */
+function JumpButton(props: { armed: boolean; off: boolean; onJump: () => void }): preact.JSX.Element {
+  return (
+    <button
+      type="button"
+      className={`key-btn jump-key${props.armed ? ' is-armed' : ''}`}
+      data-testid="jump-button"
+      aria-label="Jump"
+      aria-pressed={props.armed}
+      disabled={props.off}
+      title={props.armed ? 'Click a spot to jump there - or here again to stay put (Esc)' : 'Jump: aim an arc from where you stand'}
+      onClick={props.onJump}
+    >
+      <span className="key-cap">
+        <span className="key-top">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            {/* Where they leave and the higher place they land, and whoever is in the air between. */}
+            <path className="jump-ledge" d="M1.5 20.5h7.5v3h-7.5zM15 17.5h7.5v6H15z" />
+            <g className="jump-figure">
+              <circle cx="16.2" cy="3.9" r="2.2" />
+              <path d="M14.4 7.4L10.4 12M14 8l4 1.8 2.4-1.6M14 8l-4.4-.8-1.8 1.9M10.4 12l4.3 1.1.6 3.3M10.4 12l-3.4 2-2.9-.9" />
+            </g>
+          </svg>
+          <span className="key-legend">Jump</span>
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** The Rest key: one key off a mechanical keyboard, with a campfire on the cap. */
+function RestKey(props: { onRest: () => void }): preact.JSX.Element {
+  return (
+    <button type="button" className="key-btn" data-testid="open-rest" title="Rest" aria-label="Rest" onClick={props.onRest}>
+      <span className="key-cap">
+        <span className="key-top">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2.4c.7 2.7 3.8 4.4 3.8 7.8a3.8 3.8 0 0 1-7.6 0c0-1.6.8-2.6 1.5-3.4.3 1.1.8 1.6 1.5 1.8-.4-2 .1-4.2.8-6.2Z" />
+            <path className="key-logs" d="M4.4 16.6l15.2 4.2M19.6 16.6L4.4 20.8" />
+          </svg>
+          <span className="key-legend">Rest</span>
+        </span>
+      </span>
+    </button>
+  );
 }
 
 /** "1 Light · 2 Stress · 1 left" — what a card costs, at a glance. */
@@ -53,13 +111,53 @@ function badges(view: AbilityView): string {
 
 /**
  * Where a card sits in the fan: tilted away from the middle, and dropped a little the further out
- * it is. The whole spread is held to about twelve degrees, so a big hand's end cards do not swing
- * out past the fan.
+ * it is. Both the spread and the drop are held to what a hand can be - about twelve degrees and ten
+ * pixels end to end - so a hand of eight neither swings out past the fan nor hangs off the screen.
  */
+const FAN_DEGREES = 12;
+const FAN_DROP = 10;
+
 function pose(index: number, count: number): Record<string, string> {
-  const off = index - (count - 1) / 2;
-  const step = count > 1 ? Math.min(4, 12 / (count - 1)) : 0;
-  return { '--tilt': `${(off * step).toFixed(1)}deg`, '--drop': `${(off * off * 2.4).toFixed(1)}px` };
+  const ends = (count - 1) / 2;
+  const off = index - ends;
+  const step = count > 1 ? Math.min(4, FAN_DEGREES / (count - 1)) : 0;
+  const drop = ends > 0 ? Math.min(2.4, FAN_DROP / (ends * ends)) : 0;
+  return { '--tilt': `${(off * step).toFixed(1)}deg`, '--drop': `${(off * off * drop).toFixed(1)}px` };
+}
+
+/** Whether a card is one that is simply true while it is held, rather than one that is played. */
+function always(view: AbilityView): boolean {
+  return view.ability.kind === 'passive';
+}
+
+/** How long the cover takes to swing right back: the length of `binder-open` in `cards.css`. */
+const BOOK_OPENS_MS = 460;
+
+/**
+ * The way into the loadout: the binder itself, shut, lying by the hand.
+ *
+ * A black book with its name on the cover. Pointing at it lifts the cover a little, the way a thumb
+ * does before opening one; clicking swings it right back. The binder over the table opens in the
+ * same moment, on the same curve and for the same length of time, so the two are one movement --
+ * the small book and the big one are the same book. Nothing waits on anything: the click opens the
+ * loadout at once, and the swing here is only what is seen of it from the hand.
+ */
+function LoadoutBook(props: { onOpen: () => void }) {
+  const [opening, setOpening] = useState(false);
+  const open = (): void => {
+    props.onOpen();
+    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (still || opening) return;
+    setOpening(true);
+    // The binder's backdrop is over it by the end of the swing; it is shut again for when that lifts.
+    setTimeout(() => setOpening(false), BOOK_OPENS_MS + 700);
+  };
+  return (
+    <button type="button" className={`book-btn${opening ? ' is-opening' : ''}`} data-testid="open-loadout" title="Open the loadout" onClick={open}>
+      <span className="book-leaves" aria-hidden="true" />
+      <span className="book-cover"><span className="book-title">Loadout</span></span>
+    </button>
+  );
 }
 
 export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
@@ -67,7 +165,10 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
   const gmTurn = props.fighting && props.side === 'gm';
   const armed = props.targeting;
   const relics = props.abilities.filter((view) => view.ability.kind === 'passive');
-  const hand = props.abilities.filter((view) => view.ability.kind !== 'passive');
+  // Every card the loadout shows is in the hand: the ones that are played, and the ones that are
+  // simply true while they are held. A card that is always in play is not a button - there is
+  // nothing to press - but it is one of the cards you are holding, so it is dealt with the rest.
+  const hand = props.abilities.filter((view) => view.card !== null);
   const count = hand.length + 1;
 
   return (
@@ -110,6 +211,11 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
             <span>Light</span>
           </div>
         )}
+        {/* The keys, side by side next to the Light: what the body does, as the hand is what the cards do. */}
+        <div className="hand-keys">
+          {props.jump === true ? <JumpButton armed={armed?.abilityId === JUMP_ID} off={gmTurn} onJump={() => (armed?.abilityId === JUMP_ID ? props.onCancelTargeting() : props.onUse(JUMP_ID))} /> : null}
+          {props.fighting ? null : <RestKey onRest={props.onRest} />}
+        </div>
 
         <div className="hand" style={{ '--n': String(count) }}>
           <span className={`hand-slot${gmTurn ? ' is-off' : ''}`} style={pose(0, count)} title="Click an adversary on the board to attack" data-testid="attack-chip">
@@ -135,9 +241,10 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
             return (
               <button
                 key={view.ability.id}
-                className={`hand-slot${view.usable ? '' : ' is-off'}${armed?.abilityId === view.ability.id ? ' is-picked' : ''}`}
+                className={`hand-slot${always(view) ? ' is-always' : view.usable ? '' : ' is-off'}${armed?.abilityId === view.ability.id ? ' is-picked' : ''}`}
                 style={pose(i + 1, count)}
                 disabled={!view.usable}
+                aria-disabled={always(view)}
                 title={`${view.text}${view.reason === null ? '' : `\n\n(${view.reason})`}`}
                 data-ability={view.ability.id}
                 data-usable={view.usable}
@@ -157,7 +264,7 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
                     <p>{view.text}</p>
                   </span>
                   <span className="face-footer">
-                    <span>{view.reason ?? badges(view)}</span>
+                    <span>{always(view) ? 'always in play' : (view.reason ?? badges(view))}</span>
                     <span>{view.usesLeft === null ? '' : `${view.usesLeft} left`}</span>
                   </span>
                 </span>
@@ -177,14 +284,13 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
             >
               End Turn
             </button>
-          ) : (
-            <button className="play-btn is-turn" data-testid="open-rest" onClick={props.onRest}>
-              Rest…
-            </button>
-          )}
-          <button className="play-btn" data-testid="open-loadout" onClick={props.onLoadout}>
-            Loadout…
-          </button>
+          ) : null}
+          {/* The two things done between fights, side by side: open the binder, and make camp. The
+              book is nearer the hand, since its cards are what it holds; in a fight there is no
+              resting, so the key is not there and the book has the row. */}
+          <div className="hand-tools">
+            <LoadoutBook onOpen={props.onLoadout} />
+          </div>
         </div>
       </div>
     </div>

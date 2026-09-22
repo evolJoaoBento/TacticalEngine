@@ -10,8 +10,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from '../../src/game/demo-map';
 import { SceneView } from '../../src/engine/render/scene-view';
+import { movementCircle } from '../../src/game/circle';
 import { tilesDrawn } from '../../src/engine/render/terrain-mesh';
 import { tileOf } from '../../src/engine/scene/grid-from-scene';
 import { attackProfile } from '../../src/engine/character/sheet';
@@ -43,7 +44,7 @@ import {
   DEMO_CHARACTERS,
 } from '../../src/game/demo-rules';
 
-const build = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
+const build = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 /**
  * A project is played with the content it carries.
@@ -104,10 +105,10 @@ function walkTowards(demo: DemoScene, target: number, steps = 12): void {
 }
 
 describe('the demo scene', () => {
-  it('imports the legacy vault and stands a party in it', () => {
+  it('builds the woods and the vault, and stands a party in them', () => {
     const demo = build();
-    expect(demo.scene.width).toBe(22);
-    expect(demo.grid.size).toBe(22 * 16);
+    expect(demo.scene.width).toBe(44);
+    expect(demo.grid.size).toBe(44 * 32);
     expect(demo.party.members()).toEqual(['kara', 'finn', 'mira']);
     expect(demo.party.selected).toBe('kara');
   });
@@ -124,6 +125,32 @@ describe('the demo scene', () => {
     const adversaries = demo.state.entitiesOf('adversary');
     expect(adversaries.length).toBeGreaterThan(0);
     for (const a of adversaries) expect(a.hitPoints.max).toBe(knight.hitPoints);
+  });
+
+  it('stands one of every stat block along the back wall, on nobody\'s side', () => {
+    const demo = build();
+    const lineUp = demo.state.entitiesOf('neutral');
+    expect(lineUp.map((e) => e.definition).sort()).toEqual([...DEMO_ADVERSARIES.keys()].sort());
+    // Each on a tile of its own that can be stood on, and none of them where something else is.
+    const taken = new Set([...demo.state.entitiesOf('party'), ...demo.state.entitiesOf('adversary')].map((e) => e.tile));
+    expect(new Set(lineUp.map((e) => e.tile)).size).toBe(lineUp.length);
+    for (const one of lineUp) {
+      expect(demo.grid.isPassable(one.tile), one.id).toBe(true);
+      expect(taken.has(one.tile), one.id).toBe(false);
+      expect(one.hitPoints.max).toBe(DEMO_ADVERSARIES.get(one.definition)!.hitPoints);
+    }
+    // And the fight in the room is the one it always was: the three husks, and only them.
+    expect(demo.state.entitiesOf('adversary').map((e) => e.id).sort()).toEqual(['group-1-husk-16-8', 'group-1-husk-18-3', 'group-1-husk-19-11']);
+  });
+
+  it('calls the fight won with the line-up still standing', () => {
+    const demo = build();
+    const runner = startEncounter(demo, 'group-1');
+    expect([...runner.view().waiting].sort()).toEqual(['group-1-husk-16-8', 'group-1-husk-18-3', 'group-1-husk-19-11']);
+    for (const husk of demo.state.entitiesOf('adversary')) husk.alive = false;
+    expect(runner.settleIfDecided()).toBe(true);
+    expect(runner.outcome).toBe('victory');
+    expect(demo.state.entitiesOf('neutral').every((e) => e.alive)).toBe(true);
   });
 
   it('seats the party on the scene spawn points', () => {
@@ -176,18 +203,22 @@ describe('party control', () => {
     expect(farthest).toBeGreaterThan(DEMO_BAND_TILES.close);
   });
 
-  it('in a fight, the walk is within Close range along the way, spent as it goes', () => {
+  it('in a fight, the ground is a circle of Close range round where the spotlight found them', () => {
     const demo = build();
     openTheDoor(demo);
     const target = demo.state.entitiesOf('adversary')[0]!.tile;
     walkTowards(demo, target);
     expect(inCombat(demo)).toBe(true);
-    const start = demo.state.entity(demo.party.selected!)!.tile;
+    const id = demo.party.selected!;
+    const circle = movementCircle(demo, id)!;
+    expect(circle.band).toBe('close');
+    expect(circle.radius).toBe(DEMO_BAND_TILES.close + 0.5);
+    const start = demo.grid.tileAtSpot(circle.anchor.x, circle.anchor.y);
     const tiles = reachableTiles(demo).tiles();
     expect(tiles.length).toBeGreaterThan(1);
     for (const tile of tiles) {
       expect(demo.grid.isPassable(tile)).toBe(true);
-      expect(Math.round(demo.grid.euclideanDistance(start, tile))).toBeLessThanOrEqual(DEMO_BAND_TILES.close);
+      expect(Math.hypot(demo.grid.xOf(tile) - circle.anchor.x, demo.grid.yOf(tile) - circle.anchor.y)).toBeLessThanOrEqual(circle.radius);
     }
     // And a diagonal is one step, so the disc is round rather than a diamond.
     const corner = [...tiles].find((t) => {
@@ -249,7 +280,10 @@ describe('party control', () => {
     const preview = previewWalk(demo, far, demo.grid.spotOf(far))!;
     expect(preview.route.length).toBeGreaterThanOrEqual(2);
     const stop = preview.route.at(-1)!;
-    expect(inReach.has(demo.grid.tileAtSpot(stop.x, stop.y))).toBe(true);
+    // The first line stays inside the circle they move freely in, and stops at its edge: not in a lit square.
+    const circle = movementCircle(demo, id)!;
+    for (const spot of preview.route) expect(Math.hypot(spot.x - circle.anchor.x, spot.y - circle.anchor.y)).toBeLessThanOrEqual(circle.radius + 1e-6);
+    expect(Math.hypot(stop.x - circle.anchor.x, stop.y - circle.anchor.y)).toBeGreaterThan(circle.radius - 0.2);
     expect(preview.beyond.length).toBeGreaterThanOrEqual(2);
     expect(preview.beyond[0]).toEqual(stop);
     expect(preview.beyond.at(-1)).toEqual(demo.grid.spotOf(far));
@@ -260,7 +294,8 @@ describe('party control', () => {
     const start = demo.state.entity('kara')!.tile;
     const reachable = new Set(reachableTiles(demo).tiles());
     // The shut vault door: the far side is out of reach, so the walk ends at the door.
-    const unreachable = [...Array(demo.grid.size).keys()].find((t) => !reachable.has(t) && demo.grid.isPassable(t))!;
+    // On the floor, that is: the top of the wall is out of reach too, and a click there is a jump.
+    const unreachable = [...Array(demo.grid.size).keys()].find((t) => !reachable.has(t) && demo.grid.isPassable(t) && demo.grid.standAt(t) === demo.grid.standAt(start))!;
     const aimed = demo.grid.spotOf(unreachable);
     expect(moveSelectedTo(demo, unreachable, aimed).moved).toBe(true);
     const kara = demo.state.entity('kara')!;
@@ -270,7 +305,7 @@ describe('party control', () => {
     for (const tile of reachable) expect(near(kara.tile)).toBeLessThanOrEqual(near(tile) + 1e-9);
   });
 
-  it('in a fight, walks as far along the way as one move allows, and refuses only the unreachable', () => {
+  it('in a fight, a click past even the push asks for the push, and refuses only the unreachable', () => {
     const demo = build();
     openTheDoor(demo);
     const target = demo.state.entitiesOf('adversary')[0]!.tile;
@@ -279,17 +314,14 @@ describe('party control', () => {
     const id = demo.party.selected!;
     const start = demo.state.entity(id)!.tile;
     const inReach = new Set(reachableTiles(demo).tiles());
-    // Past what a run could reach, too: a spot one would get to asks for an Agility Roll instead.
+    // Past what one push opens, too: the roll is still asked, and a success walks as far as the wider circle goes.
     const run = new Set(underPressureTiles(demo));
     const whole = demo.party.reachable(id, { inCombat: true, budget: Infinity }).tiles();
     const far = whole.find((t) => !inReach.has(t) && !run.has(t))!;
     expect(far).toBeDefined();
-    const logBefore = demo.log.length;
-    expect(moveSelectedTo(demo, far).moved).toBe(true);
-    const stood = demo.state.entity(id)!.tile;
-    expect(stood).not.toBe(start);
-    expect(inReach.has(stood)).toBe(true);
-    expect(demo.log.slice(logBefore).some((l) => l.text.includes('can go no further'))).toBe(true);
+    expect(moveSelectedTo(demo, far)).toMatchObject({ moved: false, pending: true });
+    answerPending(demo, { kind: 'cancel' });
+    expect(demo.state.entity(id)!.tile).toBe(start);
     // A wall is nowhere to go at all.
     const wall = [...Array(demo.grid.size).keys()].find((t) => !demo.grid.isPassable(t))!;
     demo.encounter!.endGmTurn();
@@ -362,12 +394,13 @@ describe('walking into the fight', () => {
     openTheDoor(demo);
     let hit: string | undefined;
     for (let i = 0; i < 12 && hit === undefined; i++) {
+      // East along the door's own row: the woods now run further east than the vault does, and a
+      // walk out into them would never cross the trigger.
       const field = reachableTiles(demo);
       const best = field
         .tiles()
-        .reduce((a, b) =>
-          demo.grid.xOf(b) > demo.grid.xOf(a) ? b : a,
-        );
+        .filter((tile) => demo.grid.yOf(tile) === 7)
+        .reduce((a, b) => (demo.grid.xOf(b) > demo.grid.xOf(a) ? b : a));
       const result = moveSelectedTo(demo, best);
       if (!result.moved) break;
       hit = result.triggered;
@@ -531,17 +564,20 @@ describe('movement under pressure', () => {
     return rng;
   };
 
-  it('previews a run in its own colour, and a way past any run in the other', () => {
+  it('previews a push in its own colour, and moves freely inside the circle again and again', () => {
     const { demo, id, inReach, far } = pressed();
     const run = previewWalk(demo, far, demo.grid.spotOf(far))!;
     expect(run.beyond.length).toBeGreaterThanOrEqual(2);
     expect(run.run).toBe(true);
-    const runs = new Set(underPressureTiles(demo));
-    const past = demo.party.reachable(id, { inCombat: true, budget: Infinity }).tiles().find((t) => !inReach.has(t) && !runs.has(t))!;
-    expect(past).toBeDefined();
-    const beyond = previewWalk(demo, past, demo.grid.spotOf(past))!;
-    expect(beyond.beyond.length).toBeGreaterThanOrEqual(2);
-    expect(beyond.run).toBe(false);
+    // Inside the circle nothing is spent: two moves, and still able to act.
+    const before = acted(demo, id);
+    const [first, second] = [...inReach].filter((t) => t !== demo.state.entity(id)!.tile).slice(0, 2) as [number, number];
+    expect(moveSelectedTo(demo, first).moved).toBe(true);
+    expect(moveSelectedTo(demo, second).moved).toBe(true);
+    expect(acted(demo, id)).toBe(before);
+    expect(demo.encounter!.canAct(id)).toBe(true);
+    // The circle is where the spotlight found them, not where they have got to: the same ground is free after the moves.
+    expect(new Set(reachableTiles(demo).tiles())).toEqual(inReach);
   });
 
   it('asks for an Agility Roll past one move, and a run called off costs nothing', () => {
@@ -557,29 +593,55 @@ describe('movement under pressure', () => {
     expect(acted(demo, id)).toBe(before);
   });
 
-  it('gets there on a success, and the roll was the action', () => {
+  it('gets there on a success, the roll was the action, and the circle stays pushed out for the rest of the turn', () => {
     const { demo, id, far } = pressed();
     const before = acted(demo, id);
+    expect(movementCircle(demo, id)!.band).toBe('close');
     demo.rng = dice(12, 11);
     moveSelectedTo(demo, far);
     answerPending(demo, { kind: 'roll' });
     expect(demo.pending).toBeNull();
     expect(demo.state.entity(id)!.tile).toBe(far);
     expect(acted(demo, id)).toBe(before + 1);
+    expect(movementCircle(demo, id)!.band).toBe('far');
+    expect(demo.encounter!.view().side).toBe('party');
+    // Pushed out, the wider ground is free too; and the next spotlight draws the circle again at Close.
+    expect(reachableTiles(demo).tiles().length).toBeGreaterThan(0);
+    endTurn(demo);
+    while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+    expect(movementCircle(demo, id)!.band).toBe('close');
   });
 
-  it('goes only as far as one move on a failure, and says so', () => {
-    const { demo, id, start, inReach, far } = pressed();
+  it('walks as far as the wider circle goes when the click was past even that, and says so', () => {
+    const { demo, id, inReach, far: pushed } = pressed();
+    const run = new Set(underPressureTiles(demo));
+    const whole = demo.party.reachable(id, { inCombat: true, budget: Infinity }).tiles();
+    const far = whole.find((t) => !inReach.has(t) && !run.has(t)) ?? pushed;
+    demo.rng = dice(12, 11);
+    const logBefore = demo.log.length;
+    moveSelectedTo(demo, far);
+    answerPending(demo, { kind: 'roll' });
+    const circle = movementCircle(demo, id)!;
+    expect(circle.band).toBe('far');
+    const walked = demo.motions.at(-1)!.route!;
+    for (const spot of walked) expect(Math.hypot(spot.x - circle.anchor.x, spot.y - circle.anchor.y)).toBeLessThanOrEqual(circle.radius + 1e-6);
+    expect(demo.state.entity(id)!.at).toEqual(walked.at(-1));
+    if (far !== pushed) expect(demo.log.slice(logBefore).some((l) => l.text.includes('can go no further'))).toBe(true);
+  });
+
+  it('moves nobody on a failure, and the spotlight passes to the GM', () => {
+    const { demo, id, start, far } = pressed();
     const before = acted(demo, id);
     demo.rng = dice(1, 2);
     const logBefore = demo.log.length;
     moveSelectedTo(demo, far);
+    // The warning is on the card before the dice are thrown.
+    expect(demo.pending?.kind === 'script' && demo.pending.prompt.kind === 'check' ? demo.pending.prompt.prompt ?? '' : '').toMatch(/spotlight passes to the GM/);
     answerPending(demo, { kind: 'roll' });
-    const stood = demo.state.entity(id)!.tile;
-    expect(stood).not.toBe(start);
-    expect(inReach.has(stood)).toBe(true);
-    expect(demo.log.slice(logBefore).some((l) => l.text.includes('can go no further'))).toBe(true);
+    expect(demo.state.entity(id)!.tile).toBe(start);
     expect(acted(demo, id)).toBe(before + 1);
+    expect(demo.encounter!.view().side).toBe('gm');
+    expect(demo.log.slice(logBefore).some((l) => l.text.includes('spotlight passes to the GM'))).toBe(true);
   });
 
   it('walks a creature with no swing in reach from within Close as far as Very Far, and that is its turn', () => {
@@ -687,7 +749,9 @@ describe('the demo renders', () => {
     expect(view.terrain.meshes.length).toBeLessThanOrEqual(4);
     expect(view.decoCount).toBe(demo.scene.decos.length);
     for (const entity of demo.state.allEntities()) expect(view.tokenFor(entity.id)).toBeDefined();
-    expect(view.registry.missing()).toEqual([]);
+    // The ground is laid from shipped files, which are imports: a view handed no asset library
+    // has none of them, and everything else the room names is in the procedural one.
+    expect(view.registry.missing()).toEqual(['grass-ground', 'stone-block', 'stone-stairs', 'tree-prop', 'withering-tree-prop']);
     view.dispose();
   });
 

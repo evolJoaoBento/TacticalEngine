@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import {
   answerPending,
@@ -20,7 +20,7 @@ import { PIT_SCENE_ID } from './demo-scenes';
  */
 
 const CHEST = 'chest-19-13';
-const scene = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
+const scene = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 const vaultId = (demo: DemoScene): string => demo.project.scenes[0]!.id;
 
 function stand(demo: DemoScene, id: string): void {

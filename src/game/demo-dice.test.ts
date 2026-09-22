@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { runScript } from '../engine/script/runner';
 import {
   attackWithSelected,
@@ -18,7 +18,7 @@ import { startEncounter } from './movement';
  * faces it landed on, and that a d20 leaves nothing behind to watch.
  */
 
-const scene = (seed = 'dice'): DemoScene => buildDemoScene(demoMap(), seed);
+const scene = (seed = 'dice'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 /** Kara, next to the nearest thing worth swinging at. */
 function standoff(seed = 'dice'): { demo: DemoScene; foe: string } {

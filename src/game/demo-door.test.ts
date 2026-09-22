@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './demo-scene';
 
@@ -10,7 +10,7 @@ import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './
  * it shut but does not use it up; an open door is not rolled again.
  */
 
-const scene = (seed: string): DemoScene => buildDemoScene(demoMap(), seed);
+const scene = (seed: string): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 function door(demo: DemoScene) {
   return demo.scene.interactables.find((i) => i.kind === 'door')!;

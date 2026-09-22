@@ -11,6 +11,7 @@
  * problems and let the work continue, not refuse to open the file.
  */
 
+import { checkJumpRules } from './validate-jump';
 import { NO_TILE } from '../engine/grid/grid';
 import { Pathfinder } from '../engine/grid/pathfinding';
 import { danglingLinks, unreachableNodes } from '../engine/dialogue/dialogue';
@@ -116,6 +117,7 @@ export function validateProject(
   checkEmbeddedAssets(project, (severity, message, entity) => {
     problems.push({ severity, message, ...(entity === undefined ? {} : { entity }) });
   });
+  checkJumpRules(project, options.knownConditions, (severity, message) => problems.push({ severity, message }));
   return problems;
 }
 

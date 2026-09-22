@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { Group } from 'three';
+import { Box3, Group, Object3D, Sphere, Vector3 } from 'three';
 import { AssetLibrary, modelAssetSchema } from './assets';
-import { ModelThumbnails } from './thumbnails';
+import { ModelThumbnails, faceFraming, headOf } from './thumbnails';
 import { ModelRegistry } from './procedural/registry';
 
 /**
@@ -23,6 +23,47 @@ function loaded(asset = fox()) {
   library.request('fox');
   return library;
 }
+
+describe('what a portrait frames', () => {
+  const standing = new Box3(new Vector3(-0.3, 0, -0.2), new Vector3(0.3, 2, 0.2));
+
+  it('is the top of a figure, not the whole of it', () => {
+    const face = faceFraming(standing, null);
+    const whole = standing.getBoundingSphere(new Sphere());
+    expect(face.radius).toBeLessThan(whole.radius / 2);
+    // Head and shoulders: the frame reaches the crown and stops well short of the waist.
+    expect(face.center.y + face.radius).toBeGreaterThanOrEqual(standing.max.y - 0.05);
+    expect(face.center.y - face.radius).toBeGreaterThan(1);
+    expect(face.center.x).toBeCloseTo(0);
+  });
+
+  it('believes a rig about where its head is', () => {
+    const rig = new Group();
+    const spine = new Object3D();
+    spine.name = 'mixamorigSpine';
+    const head = new Object3D();
+    head.name = 'mixamorigHead';
+    head.position.set(0.4, 1.2, 0);
+    // The marker beyond the crown is not the head, whichever comes first in the file.
+    const crown = new Object3D();
+    crown.name = 'mixamorigHeadTop_End';
+    crown.position.set(0, 9, 0);
+    rig.add(crown, spine);
+    spine.add(head);
+
+    const at = headOf(rig)!;
+    expect([at.x, at.y]).toEqual([0.4, 1.2]);
+    // Somebody stooped, or holding a banner: the joint wins over the top of the box.
+    const face = faceFraming(standing, at);
+    expect(face.center.x).toBeCloseTo(0.4);
+    expect(face.center.y).toBeGreaterThan(1.2);
+    expect(face.center.y).toBeLessThan(1.5);
+  });
+
+  it('finds no head on something that has none', () => {
+    expect(headOf(new Group())).toBeNull();
+  });
+});
 
 describe('what a preview is kept under', () => {
   it('is a different picture once the model is nudged across its tile', async () => {

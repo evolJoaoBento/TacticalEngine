@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from 'three';
+import { Box3, BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from 'three';
 import { TileGrid } from '../grid/grid';
 import { TerrainPalette, terrain } from '../grid/terrain';
 import { DEFAULT_LAYOUT, placementCentre } from './layout';
@@ -245,6 +245,43 @@ describe('the ground drawn as models', () => {
     // A quarter turn, which is how a wall picks the edge it stands on.
     const spun = new Quaternion().setFromRotationMatrix(at);
     expect(spun.angleTo(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2))).toBeCloseTo(0, 6);
+  });
+
+  it('fits the file of a structure to how tall the rules say it stands, and leaves it as wide as it came', () => {
+    const kinds = new TerrainPalette([
+      terrain('floor', { name: 'Floor' }),
+      terrain('crate', { name: 'Crate', model: 'crate', scale: 1, structure: 'block' }),
+      terrain('mat', { name: 'Mat', model: 'mat', scale: 1, structure: 'floor' }),
+      terrain('fence', { name: 'Fence', model: 'fence', scale: 1, structure: 'wall' }),
+      terrain('rock', { name: 'Rock', model: 'rock', structure: 'block' }),
+    ]);
+    const grid = new TileGrid({ width: 4, height: 4, palette: kinds });
+    grid.pieces = ['crate', 'mat', 'fence', 'rock'].map((id, x) => ({ x, y: 1, level: 1, rotation: 0, index: kinds.require(id) }));
+    // A file a fifth too wide and a tenth too tall, seated the way the view seats one: feet at 0.
+    const oversize = (id: string): BuiltModel => {
+      const group = new Group();
+      const mesh = new Mesh(new BoxGeometry(1.2, 1.1, 1.2), new MeshBasicMaterial());
+      mesh.position.y = 0.55;
+      group.add(mesh);
+      return { group, spec: { id } as BuiltModel['spec'], named: new Map(), hooks: new Map() };
+    };
+    const made = buildTileModels(grid, DEFAULT_LAYOUT, oversize);
+    const boxOf = (id: string): Box3 => {
+      const mesh = instancesIn(made.find((g) => g.name === `pieces:${id}`)!);
+      const at = new Matrix4();
+      mesh.getMatrixAt(0, at);
+      mesh.geometry.computeBoundingBox();
+      return mesh.geometry.boundingBox!.clone().applyMatrix4(at);
+    };
+    const foot = placementCentre(grid, DEFAULT_LAYOUT, { x: 0, y: 1, z: 1 }).y;
+    const size = (box: Box3): number[] => box.getSize(new Vector3()).toArray().map((n) => Math.round(n * 1000) / 1000);
+    expect(size(boxOf('crate'))).toEqual([1.2, 1, 1.2]);
+    expect(boxOf('crate').min.y).toBeCloseTo(foot, 6);
+    expect(boxOf('crate').max.y).toBeCloseTo(foot + 1, 6);
+    expect(size(boxOf('mat'))).toEqual([1.2, 0.25, 1.2]);
+    expect(size(boxOf('fence'))).toEqual([1.2, 1, 1.2]);
+    // No declared size: the file's own, untouched.
+    expect(size(boxOf('rock'))).toEqual([1.2, 1.1, 1.2]);
   });
 
   it('draws a piece standing outside the room, which the grid has no cell for', () => {

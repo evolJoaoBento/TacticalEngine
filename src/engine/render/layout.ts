@@ -36,6 +36,15 @@ export function surfaceHeight(level: number, layout: TileLayout = DEFAULT_LAYOUT
   return layout.baseHeight + level * layout.levelHeight;
 }
 
+/**
+ * World height of where a creature on a tile stands: the top of the pieces stacked there, or
+ * the ground when that is higher. A piece counts a whole tile per level from the base, which
+ * is why this is not `surfaceHeight` of anything.
+ */
+export function standHeight(grid: TileGrid, tile: number, layout: TileLayout = DEFAULT_LAYOUT): number {
+  return Math.max(surfaceHeight(grid.heightAt(tile), layout), layout.baseHeight + (grid.lift[tile] ?? 0) * layout.tileSize);
+}
+
 export interface WorldPoint {
   x: number;
   y: number;
@@ -56,7 +65,19 @@ export function tileCenter(
   const { tileSize } = layout;
   const x = (grid.xOf(tile) - (grid.width - 1) / 2) * tileSize;
   const z = (grid.yOf(tile) - (grid.height - 1) / 2) * tileSize;
-  return { x, y: surfaceHeight(grid.heightAt(tile), layout), z };
+  return { x, y: standHeight(grid, tile, layout), z };
+}
+
+/**
+ * How far the ground moved when a room grew, in world units: the map is drawn centred, so a
+ * room that grows on one side slides across the world, and a camera that slides with it is
+ * looking at the same flagstone afterwards.
+ */
+export function groundSlide(was: TileGrid, now: TileGrid, layout: TileLayout = DEFAULT_LAYOUT): { x: number; z: number } {
+  return {
+    x: (now.origin.x - was.origin.x - (now.width - was.width) / 2) * layout.tileSize,
+    z: (now.origin.y - was.origin.y - (now.height - was.height) / 2) * layout.tileSize,
+  };
 }
 
 /**
@@ -87,7 +108,7 @@ export function spotToWorld(grid: TileGrid, spot: Spot, layout: TileLayout = DEF
   const tile = grid.tileAtSpot(spot.x, spot.y);
   return {
     x: (spot.x - (grid.width - 1) / 2) * tileSize,
-    y: tile === -1 ? 0 : surfaceHeight(grid.heightAt(tile), layout),
+    y: tile === -1 ? 0 : standHeight(grid, tile, layout),
     z: (spot.y - (grid.height - 1) / 2) * tileSize,
   };
 }
@@ -123,7 +144,7 @@ export function placementCentre(
       position.z === undefined
         ? tile < 0
           ? layout.baseHeight
-          : surfaceHeight(grid.heightAt(tile), layout)
+          : standHeight(grid, tile, layout)
         : layout.baseHeight + position.z * layout.tileSize,
   };
 }

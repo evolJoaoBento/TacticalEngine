@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
+import { CURRENT_FORMAT_VERSION } from '../../src/engine/scene/schema';
 
 /**
  * The demo page, driven end to end in a real browser.
@@ -25,6 +26,9 @@ declare global {
       selected: () => string | null;
       select: (id: string) => boolean;
       selectNext: () => string | null;
+      linked: (id: string) => string[];
+      link: (id: string, withId: string) => boolean;
+      unlink: (id: string) => boolean;
       tileOf: (id: string) => number;
       zones: () => { id: string; name: string; tiles: number[] }[];
       inCombat: () => boolean;
@@ -45,12 +49,7 @@ declare global {
       use: (id: string) => string;
       useInReach: () => string;
       answer: (
-        response:
-          | { kind: 'choose'; index: number }
-          | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number; experience?: string }
-          | { kind: 'cancel' }
-          | { kind: 'answered'; reroll?: 'good' | 'bad' | 'both'; name?: boolean; raise?: number }
-          | { kind: 'continue' },
+        response: { kind: 'choose'; index: number } | { kind: 'roll'; advantage?: number; disadvantage?: number; helpDice?: number; experience?: string } | { kind: 'cancel' } | { kind: 'answered'; reroll?: 'good' | 'bad' | 'both'; name?: boolean; raise?: number } | { kind: 'continue' },
       ) => string;
       log: () => { text: string; tone: string }[];
       setDiceSpeed: (millis: number) => void;
@@ -118,6 +117,7 @@ declare global {
       takeLevel: (id: string, plan: unknown) => boolean;
       characterLevel: (id: string) => number;
       cursorTile: () => number;
+      arc: () => 'ok' | 'blocked' | null;
       floaters: () => { id: string; text: string }[];
       gliding: () => number;
       arrive: () => boolean;
@@ -195,10 +195,10 @@ test('renders the imported demo vault under headless WebGL, with no errors', asy
   expect(consoleErrors).toEqual([]);
 
   // The demo map is the legacy 22x16 vault, with a party and its adversaries.
-  expect(info.tiles).toBe(22 * 16);
+  expect(info.tiles).toBe(44 * 32);
   expect(info.entities).toBeGreaterThan(3);
   // Every deco got a model, and none fell back to the placeholder.
-  expect(info.decos).toBe(19);
+  expect(info.decos).toBe(73); // the woods, the camp and the halls, as well as the old room's dressing
   expect(info.missingModels).toEqual([]);
 
   // Something was actually drawn: the frame is not one flat colour.
@@ -267,7 +267,8 @@ test('walks into the vault, fights, and hands the spotlight back and forth', asy
       const tiles = api.reachable();
       if (tiles.length === 0) break;
       // The vault is east, so head for the highest column reachable.
-      const east = tiles.reduce((a, b) => (b % 22 > a % 22 ? b : a));
+      const rows = tiles.filter((t) => Math.floor(t / 44) < 16);
+      const east = (rows.length > 0 ? rows : tiles).reduce((a, b) => (b % 44 > a % 44 ? b : a));
       if (!api.moveTo(east)) break;
       api.arrive();
     }
@@ -285,7 +286,7 @@ test('walks into the vault, fights, and hands the spotlight back and forth', asy
       const foeTile = api.tileOf(foe);
       if (tiles.length > 0) {
         const closest = tiles.reduce((a, b) => {
-          const d = (t: number) => Math.abs((t % 22) - (foeTile % 22)) + Math.abs(Math.floor(t / 22) - Math.floor(foeTile / 22));
+          const d = (t: number) => Math.abs((t % 44) - (foeTile % 44)) + Math.abs(Math.floor(t / 44) - Math.floor(foeTile / 44));
           return d(b) < d(a) ? b : a;
         });
         api.moveTo(closest);
@@ -354,7 +355,7 @@ test('edits the map, and undoes exactly what it did', async ({ page }) => {
 
     // Stamp a block over open ground. This used to paint the cell `wall`; the solid thing
     // is a piece standing on it now, so the ground underneath must not move.
-    const tile = 3 * 22 + 3;
+    const tile = 3 * 44 + 3;
     const ground = api.terrainAt(tile);
     api.setTool('placeTile');
     api.setTerrain('block');
@@ -419,11 +420,12 @@ test('shows the editor panel and keeps the scene renderable while editing', asyn
   // fetching - reading immediately gets a frame from before the stamp and calls it proof.
   const before = await page.evaluate(() => {
     const api = window.__engine!;
-    const c = document.getElementById('gl') as HTMLCanvasElement;
-    const pixel = api.sample(c.width >> 1, c.height >> 1);
+    // Over a tile the stamp will cover, not the middle of the canvas: the room is wider than the view.
+    const over = api.screenOf(8 * 44 + 10);
+    const pixel = api.sample(Math.round(over.x), Math.round(over.y));
     api.setTool('placeTile');
     api.setTerrain('block');
-    for (let y = 4; y < 12; y++) for (let x = 6; x < 16; x++) api.editAt(y * 22 + x);
+    for (let y = 4; y < 12; y++) for (let x = 6; x < 16; x++) api.editAt(y * 44 + x);
     return pixel;
   });
   await page.waitForFunction(() => (window.__engine?.pieceModels() ?? 0) >= 80);
@@ -431,7 +433,9 @@ test('shows the editor panel and keeps the scene renderable while editing', asyn
   const drawn = await page.evaluate(() => {
     const api = window.__engine!;
     const canvas = document.getElementById('gl') as HTMLCanvasElement;
-    const middle = (): number[] => api.sample(canvas.width >> 1, canvas.height >> 1);
+    // Over a stamped tile, not the middle of the canvas: the room is wider than the screen's centre.
+    const over = api.screenOf(8 * 44 + 10);
+    const middle = (): number[] => api.sample(Math.round(over.x), Math.round(over.y));
     return {
       after: middle(),
       samples: [api.sample(2, 2), middle(), api.sample(canvas.width >> 2, canvas.height >> 1)],
@@ -458,7 +462,7 @@ test('returns to play with the edited map underfoot', async ({ page }) => {
     // Block the tile immediately east of the party, then play again.
     api.setMode('edit');
     api.setTool('placeTile');
-    api.setTerrain('block');
+    api.setTerrain('rampart'); // which nobody stands on: a plain block is somewhere to climb to now
     api.editAt(start + 1);
     api.setMode('play');
 
@@ -568,7 +572,8 @@ test('shows the Duality Dice landing on the faces the roll rolled', async ({ pag
     for (let i = 0; i < 15 && !api.inCombat(); i++) {
       const tiles = api.reachable();
       if (tiles.length === 0) break;
-      if (!api.moveTo(tiles.reduce((a, b) => (b % 22 > a % 22 ? b : a)))) break;
+      const rows = tiles.filter((t) => Math.floor(t / 44) < 16);
+      if (!api.moveTo((rows.length > 0 ? rows : tiles).reduce((a, b) => (b % 44 > a % 44 ? b : a)))) break;
       api.arrive();
     }
     if (!api.inCombat()) return null;
@@ -582,7 +587,7 @@ test('shows the Duality Dice landing on the faces the roll rolled', async ({ pag
       const foeTile = api.tileOf(foe);
       const tiles = api.reachable();
       if (tiles.length > 0) {
-        const d = (t: number) => Math.abs((t % 22) - (foeTile % 22)) + Math.abs(Math.floor(t / 22) - Math.floor(foeTile / 22));
+        const d = (t: number) => Math.abs((t % 44) - (foeTile % 44)) + Math.abs(Math.floor(t / 44) - Math.floor(foeTile / 44));
         api.moveTo(tiles.reduce((a, b) => (d(b) < d(a) ? b : a)));
       }
       if (api.attack(foe)) break;
@@ -777,7 +782,7 @@ test('edits one room while the party stands in another', async ({ page }) => {
   const pit = saved.scenes.find((scene) => scene.id === 'the-pit')!;
   expect(pit.buildingTiles?.['5,4,0']?.tile).toBe('block');
   const vault = saved.scenes.find((scene) => scene.id === result.vault)!;
-  expect(vault.buildingTiles?.['5,4,0']).toBeUndefined();
+  expect(vault.buildingTiles?.['5,4,0']?.tile).not.toBe('block'); // laid from tiles of its own, and none of them the pit's
 
   expect(consoleErrors).toEqual([]);
 });
@@ -851,7 +856,7 @@ test('authors an object in the inspector, and plays what it wrote', async ({ pag
     api.setMode('edit');
     api.setTool('interactable');
     // Somewhere the party can reach, in the open part of the vault.
-    api.editAt(9 * 22 + 3);
+    api.editAt(9 * 44 + 3);
   });
 
   const authored = await page.evaluate(() => {
@@ -1107,12 +1112,21 @@ test('talks the Warden round, and the word opens the strongbox downstairs', asyn
   expect(consoleErrors).toEqual([]);
 });
 
+/** Saving lives in the Escape menu now: open it, and hand back the sheet the buttons are on. */
+async function saveMenu(page: Page) {
+  const sheet = page.getByTestId('user-settings');
+  if ((await sheet.count()) === 0) await page.keyboard.press('Escape');
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
 test('saves the campaign and finds it again after a reload', async ({ page }) => {
   const consoleErrors = await boot(page);
   await page.evaluate(() => window.localStorage.clear());
 
   // Nothing saved yet, so there is nothing to go back to.
-  await expect(page.locator('[data-testid="load"]')).toBeDisabled();
+  await expect((await saveMenu(page)).locator('[data-testid="load"]')).toBeDisabled();
+  await page.keyboard.press('Escape');
 
   const before = await page.evaluate(() => {
     const api = window.__engine!;
@@ -1126,7 +1140,7 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
     const me = api.selected()!;
     const here = api.tileOf(me);
     const step = api.reachable().find((t) => t !== here)!;
-    api.walkTo((step % 22) + 0.3, Math.floor(step / 22) - 0.2);
+    api.walkTo((step % 44) + 0.3, Math.floor(step / 44) - 0.2);
     return {
       vault,
       carried: api.carried(),
@@ -1140,7 +1154,7 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
   expect(before.scene).toBe('the-pit');
 
   // Save through the button a player would actually press.
-  await page.locator('[data-testid="save"]').click();
+  await (await saveMenu(page)).locator('[data-testid="save"]').click();
   await expect(page.locator('[data-testid="log"]')).toContainText('Saved: Quick save.');
 
   // A real reload: a new page, a new engine, and nothing but storage between.
@@ -1153,7 +1167,7 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
   expect(fresh.scene).not.toBe('the-pit');
   expect(fresh.carried).toEqual([]);
 
-  await page.locator('[data-testid="load"]').click();
+  await (await saveMenu(page)).locator('[data-testid="load"]').click();
   await page.locator('[data-testid="saves"] [data-save="quick"] [data-testid="load-slot"]').click();
   const after = await page.evaluate(() => {
     const api = window.__engine!;
@@ -1190,8 +1204,9 @@ test('saves the campaign and finds it again after a reload', async ({ page }) =>
 test('will not save in the middle of a conversation', async ({ page }) => {
   const consoleErrors = await boot(page);
 
-  const save = page.locator('[data-testid="save"]');
+  const save = (await saveMenu(page)).locator('[data-testid="save"]');
   await expect(save).toBeEnabled();
+  await page.keyboard.press('Escape');
 
   await page.evaluate(() => {
     const api = window.__engine!;
@@ -1200,7 +1215,10 @@ test('will not save in the middle of a conversation', async ({ page }) => {
     api.use(pillar);
   });
   expect(await page.evaluate(() => window.__engine!.hasDialogue())).toBe(true);
-  await expect(save).toBeDisabled();
+  // Escape belongs to the conversation while it is up, so the menu the save button lives on does
+  // not even open: there is no way to press it, and the engine refuses it in any case.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('user-settings')).toHaveCount(0);
   expect(await page.evaluate(() => window.__engine!.saveBlocked())).toMatch(/conversation/);
 
   expect(consoleErrors).toEqual([]);
@@ -1305,7 +1323,7 @@ test('authors a quest effect from dropdowns, and the objective follows the quest
   expect(consoleErrors).toEqual([]);
 });
 
-test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a still click is a click', async ({ page }) => {
+test('orbits on a middle drag, pans on a right drag, zooms on the wheel, and a still click is a click', async ({ page }) => {
   const consoleErrors = await boot(page);
   const canvas = page.locator('#gl');
   const box = (await canvas.boundingBox())!;
@@ -1314,11 +1332,12 @@ test('orbits on a left drag, pans on a right drag, zooms on the wheel, and a sti
 
   const start = await page.evaluate(() => window.__engine!.camera());
 
-  // Left drag: turns, does not move the target.
+  // Middle drag: turns, does not move the target. The left button walks whoever is selected in
+  // play, so turning the view is the middle button's there (`tests/e2e/steer.spec.ts`).
   await page.mouse.move(cx, cy);
-  await page.mouse.down();
+  await page.mouse.down({ button: 'middle' });
   await page.mouse.move(cx + 120, cy + 30, { steps: 6 });
-  await page.mouse.up();
+  await page.mouse.up({ button: 'middle' });
   const turned = await page.evaluate(() => window.__engine!.camera());
   expect(turned.yaw).not.toBeCloseTo(start.yaw);
   expect(turned.target).toEqual(start.target);
@@ -1706,7 +1725,7 @@ test('keeps named saves and an autosave from the last doorway', async ({ page })
   // Reload the page: the list survives, and loading the older slot puts the party back upstairs.
   await page.reload();
   await page.waitForFunction(() => (window.__engine?.frames ?? 0) > 5);
-  await page.locator('[data-testid="load"]').click();
+  await (await saveMenu(page)).locator('[data-testid="load"]').click();
   const list = page.locator('[data-testid="saves"]');
   await expect(list).toContainText('Before the stairs');
   // A fresh boot starts in the vault, so loading "Downstairs" changes rooms.
@@ -1720,13 +1739,13 @@ test('keeps named saves and an autosave from the last doorway', async ({ page })
   expect(autosaveAfter!.where).toContain('Sounding Pit');
 
   // And loading the older slot puts the party back upstairs, pack intact.
-  await page.locator('[data-testid="load"]').click();
+  await (await saveMenu(page)).locator('[data-testid="load"]').click();
   await list.locator(`[data-save="${ids.beforeTravel}"] [data-testid="load-slot"]`).click();
   expect(await page.evaluate(() => window.__engine!.sceneId())).not.toBe('the-pit');
   expect(await page.evaluate(() => window.__engine!.carried().length)).toBeGreaterThan(0);
 
   // Delete one; it is gone from the list and from storage.
-  await page.locator('[data-testid="load"]').click();
+  await (await saveMenu(page)).locator('[data-testid="load"]').click();
   await list.locator(`[data-save="${ids.downstairs}"] button[title="Delete this save"]`).click();
   expect(await page.evaluate(() => window.__engine!.saves().map((s) => s.name).sort())).toEqual(['Autosave', 'Before the stairs']);
 
@@ -1941,6 +1960,7 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
   await expect(recall).toBeDisabled();
   await panel.locator('[data-card="unbroken"] [data-testid="pick-out"]').check();
   await expect(recall).toBeEnabled();
+  for (let turns = 0; turns < 8 && !(await recall.isVisible()); turns++) await panel.getByTestId('next-page').click(); // the vault is a later leaf of the binder
   await recall.click();
   await expect(page.locator('[data-member="kara"] [data-testid="stress"]')).toHaveAttribute('data-marked', '1');
   await expect(panel.locator('[data-card="unbroken"] [data-testid="recall"]')).toHaveCount(1);
@@ -2166,7 +2186,7 @@ test("writes the project's content out as a pack file, and nothing else", async 
 
   const pack = JSON.parse(readFileSync(await download.path(), 'utf8')) as Record<string, unknown>;
   const project = JSON.parse(await page.evaluate(() => window.__engine!.exportProject())) as Record<string, unknown>;
-  expect(pack['formatVersion']).toBe(4);
+  expect(pack['formatVersion']).toBe(CURRENT_FORMAT_VERSION);
   // The content, list for list, and none of what makes it a project. The code its cards run goes
   // with them, so the pack asks before that code comes in wherever it is imported next.
   for (const list of ['weapons', 'armors', 'classes', 'ancestries', 'communities', 'subclasses', 'cards', 'adversaries', 'abilities', 'conditionDefs', 'code']) {
@@ -2432,7 +2452,7 @@ test('grants a card by subclass stage, ancestry and community, and the one Kara 
     api.select('kara');
   });
   await page.getByTestId('open-loadout').click();
-  await expect(page.getByTestId('granted-zone')).toContainText('Oathmark');
+  await expect(page.getByTestId('granted-zone').filter({ hasText: 'Oathmark' })).toHaveCount(1);
 
   expect(consoleErrors).toEqual([]);
 });

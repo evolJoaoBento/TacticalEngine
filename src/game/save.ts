@@ -38,7 +38,7 @@ export const saveSchema = z.object({
    * at the door before this schema sees it, and one from a newer build is refused there rather
    * than guessed at.
    */
-  formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
   /** The project this save is state for. Loading it into another is refused. */
   projectId: z.string(),
   /** The room being played when the game was put down. */

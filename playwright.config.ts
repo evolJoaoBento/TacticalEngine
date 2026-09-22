@@ -14,9 +14,12 @@ export default defineConfig({
     headless: true,
     viewport: { width: 1280, height: 800 },
     launchOptions: {
+      // The machine's own GPU through ANGLE, not SwiftShader: software rendering drew the demo at
+      // two or three frames a second, which is what made screenshots time out and slow assertions
+      // flake. The same browser on d3d11 runs it at forty.
       args: [
         '--use-gl=angle',
-        '--use-angle=swiftshader',
+        '--use-angle=d3d11',
         '--ignore-gpu-blocklist',
         '--enable-unsafe-swiftshader',
         '--enable-webgl',

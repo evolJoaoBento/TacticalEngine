@@ -179,7 +179,10 @@ const RAW: ConditionInput[] = [
     text: "You can't move until this condition is cleared, but you can still take actions from your current position.",
     blocks: ['move'],
   },
+  // Not one of the rules' three: what a bad landing leaves somebody, and the engine's own
+  // because a jump is. It is Vulnerable by another name, and getting up is the next move made.
+  { id: 'prone', name: 'Prone', text: 'All rolls targeting you have advantage. It ends when you next move: you get up.' },
 ];
 
-/** The conditions the engine's own rules read: Vulnerable, Hidden and Restrained. */
+/** The conditions the engine's own rules read: Vulnerable, Hidden and Restrained, and Prone for a fall. */
 export const SRD_CONDITIONS: readonly ConditionDef[] = RAW.map((c) => conditionDefSchema.parse(c));

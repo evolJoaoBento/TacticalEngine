@@ -277,4 +277,6 @@
 .ph-editor .ph-build-pieces { flex-wrap: wrap; }
 .ph-editor .ph-rotate { display: block; width: 100%; margin-top: 8px; text-align: left; }
 .ph-editor .ph-side .ph-input { min-width: 0; width: 100%; box-sizing: border-box; padding: 4px 8px; border: 1px solid var(--ph-line); border-radius: 3px; background: var(--ph-field); color: var(--ph-text); }
+/* A workspace's fields too: left to the browser they are white, under text the editor colours for a dark page. */
+.ph-editor .ph-workspace-panel .ph-input { padding: 4px 8px; border: 1px solid var(--ph-line); border-radius: 3px; background: var(--ph-field); color: var(--ph-text); }
 .ph-editor input:focus-visible, .ph-editor select:focus-visible, .ph-editor textarea:focus-visible { outline: 1px solid var(--ph-accent-line); outline-offset: 0; }

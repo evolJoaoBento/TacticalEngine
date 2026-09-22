@@ -11,15 +11,15 @@
  */
 
 import { CHEST_LOOT, DEMO_ITEMS, DEMO_LOOT_TABLES } from './demo-items';
-import { PIT_SCENE, PIT_SCENE_ID } from './demo-scenes';
+import { DEMO_TERRAIN, DEMO_VAULT_WALL_X, PIT_SCENE, PIT_SCENE_ID, groundAsTiles, lineUp } from './demo-scenes';
+import { BEATEN_TINTS, VAULT_SOUTH_Y } from './demo-map';
 import { SHIPPED_MODELS } from 'virtual:shipped-models';
 import { DEMO_QUESTS } from './demo-quests';
 import { DEMO_CODE, DEMO_PROJECT_ABILITIES, DEMO_PROJECT_CARDS } from './demo-code';
 import { SRD_CONDITIONS } from '../engine/content/conditions';
 import { MAX_SLOTS } from '../engine/rules/resources';
 import { walkCheck, walkEffects, type CountName, type Effect, type TargetSelector } from '../engine/script/schema';
-import { rollDice } from '../engine/rules/dice';
-import type { DamageType } from '../engine/rules/dice';
+import { rollDice, type DamageType, type ParsedDamage } from '../engine/rules/dice';
 import type { MarkPool } from '../engine/rules/resources';
 import { interactableSchema, projectSchema, type ProjectDoc } from '../engine/scene/schema';
 import type { EntityState, SceneStateSnapshot } from '../engine/scene/state';
@@ -42,15 +42,16 @@ import {
   type RollShow,
 } from './log';
 import { inCombat, scriptPending } from './moment';
-import { RUN_TILES, clampInto, closeToStrike, nearestReachable, underPressure, walkTheMove, type MoveResult } from './movement';
+import { aimOfMove, closeToStrike, walkTheMove, type MoveResult } from './movement';
+import { bandFromSpot, standingIn } from './reach';
+import { runForIt } from './rolled-move';
 import {
   DEMO_ADVERSARIES,
   DEMO_ADVERSARY_ID,
   DEMO_BAND_TILES,
-  DEMO_MOVE_DIFFICULTY,
-  DEMO_MOVEMENT,
+  movementFor,
   DEMO_STAIR_ID,
-  DEMO_WALK,
+  walkFor,
   PARTY_SHEETS,
 } from './demo-rules';
 import {
@@ -95,7 +96,6 @@ import {
   type IncomingDamage,
   type ResolvedDamage,
 } from '../engine/rules/damage';
-import type { ParsedDamage } from '../engine/rules/dice';
 import { EncounterRunner } from '../engine/combat/encounter';
 import {
   attackProfile,
@@ -696,6 +696,10 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     }
   }
 
+  vault.encounters.push(lineUp()); // one of every stat block along the back wall, never fought
+  // The room relaid as tiles: flagstone inside the vault, road where the trail and the water run.
+  groundAsTiles(vault, (x, y) => x >= DEMO_VAULT_WALL_X && y < VAULT_SOUTH_Y, (x, y) => BEATEN_TINTS.has(vault.tints?.[y * vault.width + x] ?? ''));
+
   // The pillar is the dullest thing on the map — a Strength check and a line of
   // text. Give it the conversation instead, so the demo has something to talk to.
   // Authored the way a project file would: an effect on the object, no roll to
@@ -745,7 +749,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     // rules condition of the same name. Nothing clashes today; the order is the
     // statement of which owns the id when something does.
     conditionDefs: [...STARTER_CONDITIONS, ...SRD_CONDITIONS.filter((c) => !STARTER_CONDITIONS.some((s) => s.id === c.id))],
-    party: [...PARTY_SHEETS], assets: [...SHIPPED_MODELS],
+    party: [...PARTY_SHEETS], assets: [...SHIPPED_MODELS], terrainPalette: [...DEMO_TERRAIN],
     startScene: vault.id,
   });
 
@@ -850,76 +854,12 @@ export function moveSelectedTo(demo: DemoScene, destination: number, aimed?: Spo
   const fighting = inCombat(demo);
   if (fighting && !demo.encounter!.canAct(id)) return { moved: false, path: [] };
 
-  const field = demo.party.reachable(id, { inCombat: fighting });
-  let goal = destination;
-  let aim = aimed;
-  let short = false;
-  if (!field.canReach(destination)) {
-    // Beyond reach is not a refusal. Out of a fight the walk goes to the
-    // reachable spot nearest the one aimed at - a click across a chasm or on a
-    // shut door walks up to it. In a fight it goes as far along the way as one
-    // move allows, and says so.
-    const nearest = nearestReachable(demo, field, aimed ?? demo.grid.spotOf(destination), fighting ? destination : NO_TILE);
-    const stays = nearest === NO_TILE || nearest === demo.state.entity(id)!.tile;
-    const clamped = aimed === undefined || stays ? undefined : clampInto(demo.grid, aimed, nearest);
-    // Unless a run would get there: Movement Under Pressure. That asks for an
-    // Agility Roll, and one move's worth is what a failure still walks.
-    if (fighting && underPressure(demo, id, destination)) {
-      return runForIt(demo, id, destination, aimed, { goal: stays ? NO_TILE : nearest, aim: clamped });
-    }
-    if (stays) return { moved: false, path: [] };
-    goal = nearest;
-    aim = clamped;
-    short = fighting;
-  }
-  return walkTheMove(demo, id, goal, aim, { fighting, short });
-}
-
-/**
- * Movement Under Pressure: the Agility Roll between a fighter and a spot past one move.
- *
- * The roll is the action, so the turn is spent once it is answered, and not at all when it is called
- * off before the dice are thrown. A success walks the whole way; a failure walks as far as one move
- * allows, which is all the click would have done without the roll. What the roll gave - Light or
- * Shadow, and the spotlight - stands either way.
- */
-function runForIt(
-  demo: DemoScene,
-  id: string,
-  destination: number,
-  aimed: Spot | undefined,
-  shortOf: { goal: number; aim: Spot | undefined },
-): MoveResult {
-  const effects: Effect[] = [
-    {
-      kind: 'check',
-      check: {
-        trait: 'agility',
-        difficulty: DEMO_MOVE_DIFFICULTY,
-        prompt: `Run for it: an Agility Roll gets ${nameOf(demo, id)} there, and a failure only as far as one move.`,
-      },
-    },
-  ];
-  const finish = (runner: ScriptRunner): void => {
-    if (runner.cancelled && !runner.rolled) return;
-    if (runner.lastActionRoll?.success === true) {
-      walkTheMove(demo, id, destination, aimed, { fighting: true, short: false, budget: RUN_TILES, act: false });
-    } else if (shortOf.goal !== NO_TILE) {
-      walkTheMove(demo, id, shortOf.goal, shortOf.aim, { fighting: true, short: true, act: false });
-    }
-    if (inCombat(demo) && demo.encounter!.canAct(id)) demo.encounter!.act(id, { spotlightToGm: runner.spotlightToGm });
-    settleFight(demo);
-  };
-  demo.scenario.actorId = id;
-  const runner = new ScriptRunner(demo.world, demo.rng, { rollAs: 'actor' });
-  const result = runner.run(effects);
-  record(demo, result.journal);
-  if (result.status === 'waiting') {
-    demo.pending = { kind: 'script', runner, prompt: result.prompt, interactable: null, recorded: result.journal.length, dialogue: null, onDone: finish };
-    return { moved: false, path: [], pending: true };
-  }
-  finish(runner);
-  return { moved: true, path: [] };
+  // Where the click goes is `aimOfMove`'s to say. A run is Movement Under Pressure: it asks
+  // for an Agility Roll, and one move's worth is what a failure still walks.
+  const to = aimOfMove(demo, id, destination, aimed, fighting);
+  if (to.run) return runForIt(demo, id, destination, aimed, { goal: to.goal, aim: to.aim });
+  if (to.stays) return { moved: false, path: [] };
+  return walkTheMove(demo, id, to.goal, to.aim, { fighting, short: to.short });
 }
 
 /**
@@ -3187,14 +3127,14 @@ function affordableReaction(demo: Pick<DemoScene, 'state' | 'scenario'>, adversa
  * within Close ends in reach, as far as Very Far instead, which is the whole of the action and leaves
  * no swing after it. Adversaries do not roll to move, per the SRD. Returns whether the swing follows.
  */
-function approach(demo: Pick<DemoScene, 'grid' | 'state' | 'pathfinder' | 'world' | 'motions'>, adversaryId: string, targetTile: number, reach: RangeBand): boolean {
+function approach(demo: Pick<DemoScene, 'grid' | 'state' | 'pathfinder' | 'world' | 'motions' | 'project'>, adversaryId: string, targetTile: number, reach: RangeBand): boolean {
   const adversary = demo.state.entity(adversaryId);
   if (adversary === undefined || adversary.tile === NO_TILE) return false;
   // The same measure the swing will use: a corner-to-corner neighbour is
   // already in Melee and does not walk to a side first.
   const inReachFrom = (tile: number): boolean => {
-    const band = demo.world.bandBetween(tile, targetTile);
-    return band !== null && reaches(band, reach);
+    const band = bandFromSpot(demo, standingIn(demo, adversaryId, tile), targetTile);
+    return reaches(band, reach);
   };
   if (inReachFrom(adversary.tile)) return true;
 
@@ -3215,14 +3155,14 @@ function approach(demo: Pick<DemoScene, 'grid' | 'state' | 'pathfinder' | 'world
 
 /** The tile a band's walk reaches that is nearest a target, and the way there: null when that is where it stands. */
 function stepToward(
-  demo: Pick<DemoScene, 'grid' | 'state' | 'pathfinder'>,
+  demo: Pick<DemoScene, 'grid' | 'state' | 'pathfinder' | 'project'>,
   adversaryId: string,
   targetTile: number,
   band: 'close' | 'veryFar',
 ): { tile: number; path: number[] | null } | null {
   const adversary = demo.state.entity(adversaryId)!;
   const field = demo.pathfinder.reachable(adversary.tile, maxTilesForBand(band, DEMO_BAND_TILES), {
-    rules: DEMO_MOVEMENT,
+    rules: movementFor(demo.project),
     isBlocked: demo.state.blockedFor(adversaryId),
   });
   let best = adversary.tile;
@@ -3241,13 +3181,13 @@ function stepToward(
 }
 
 /** Walk an adversary to a tile, and tell the board the line it took. */
-function walkAdversary(demo: Pick<DemoScene, 'grid' | 'state' | 'motions'>, adversaryId: string, step: { tile: number; path: number[] | null }): void {
+function walkAdversary(demo: Pick<DemoScene, 'grid' | 'state' | 'motions' | 'project'>, adversaryId: string, step: { tile: number; path: number[] | null }): void {
   const adversary = demo.state.entity(adversaryId)!;
   const stood = { ...adversary.at };
   const route =
     step.path === null
       ? undefined
-      : smoothPath(demo.grid, step.path, demo.state.blockedFor(adversaryId), DEMO_WALK, { start: stood, end: demo.grid.spotOf(step.tile) });
+      : smoothPath(demo.grid, step.path, demo.state.blockedFor(adversaryId), walkFor(demo.project), { start: stood, end: demo.grid.spotOf(step.tile) });
   demo.state.moveEntity(adversaryId, step.tile);
   demo.motions.push(
     step.path === null ? { id: adversaryId } : route === undefined ? { id: adversaryId, path: step.path } : { id: adversaryId, path: step.path, route },

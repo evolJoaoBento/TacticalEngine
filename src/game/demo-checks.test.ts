@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './demo-scene';
 
@@ -12,7 +12,7 @@ import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './
  */
 
 const CHEST = 'chest-19-13';
-const scene = (seed: string): DemoScene => buildDemoScene(demoMap(), seed);
+const scene = (seed: string): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 function openTheChest(demo: DemoScene): string {
   const chest = demo.scene.interactables.find((i) => i.id === CHEST)!;

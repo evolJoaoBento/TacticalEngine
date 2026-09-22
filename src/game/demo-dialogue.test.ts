@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { tileOf } from '../engine/scene/grid-from-scene';
 import { answerPending, buildDemoScene, useSelectedOn, type DemoScene } from './demo-scene';
 import { scriptPending } from './moment';
@@ -23,7 +23,7 @@ function stand(demo: DemoScene, id: string): void {
   );
 }
 
-const scene = (seed = 'demo'): DemoScene => buildDemoScene(demoMap(), seed);
+const scene = (seed = 'demo'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 /** The reply labels the player can currently see. */
 const options = (demo: DemoScene): string[] =>

@@ -52,6 +52,14 @@ async function throughTheCampaign(page: Page): Promise<void> {
   });
 }
 
+/** Saving lives in the Escape menu now: open it, and hand back the sheet the buttons are on. */
+async function saveMenu(page: Page) {
+  const sheet = page.getByTestId('user-settings');
+  if ((await sheet.count()) === 0) await page.keyboard.press('Escape');
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
 test('a campaign put down comes back the way it was left', async ({ page }) => {
   const errors = await ready(page);
   await throughTheCampaign(page);
@@ -70,7 +78,7 @@ test('a campaign put down comes back the way it was left', async ({ page }) => {
   expect(left.blocked, 'nothing is in the way of a save here').toBeNull();
 
   // Save from the button a player would use.
-  await page.locator('[data-testid="save"]').click();
+  await (await saveMenu(page)).locator('[data-testid="save"]').click();
   const slots = await page.evaluate(() => window.__engine!.saves());
   console.log('SLOTS:', JSON.stringify(slots));
   expect(slots.length, 'the save is in a slot').toBeGreaterThan(0);
@@ -92,7 +100,7 @@ test('a campaign put down comes back the way it was left', async ({ page }) => {
 
   // And pick it up again. Load is two clicks: the button opens the list of
   // saved games, and a slot in the list is the one that loads.
-  await page.locator('[data-testid="load"]').click();
+  await (await saveMenu(page)).locator('[data-testid="load"]').click();
   const list = page.locator('[data-testid="saves"]');
   await expect(list).toBeVisible();
   console.log('SAVES PANEL:', JSON.stringify(await list.innerText()));
@@ -124,7 +132,7 @@ test('the save carries the tail of the log, not the whole campaign', async ({ pa
 
   // `saveText` reads the quick slot, so write one first - the same button a
   // player presses.
-  await page.locator('[data-testid="save"]').click();
+  await (await saveMenu(page)).locator('[data-testid="save"]').click();
 
   const sizes = await page.evaluate(() => {
     const a = window.__engine!;
@@ -162,7 +170,8 @@ test('a named save sits beside the autosave and loads on its own', async ({ page
   console.log('SLOTS:', JSON.stringify(slots));
   expect(slots.some((s) => s.name === 'After the strongbox')).toBe(true);
 
-  // The panel lists it by its name, not by its id.
+  // The list names it, rather than naming its id.
+  await (await saveMenu(page)).locator('[data-testid="load"]').click();
   const panel = page.locator('[data-testid="saves"]');
   if ((await panel.count()) > 0) {
     const text = await panel.innerText();

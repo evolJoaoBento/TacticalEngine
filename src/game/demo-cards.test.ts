@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { deriveCharacter } from '../engine/character/sheet';
 import { NO_TILE } from '../engine/grid/grid';
 import { rest, useAbility } from './demo-abilities';
@@ -54,7 +54,7 @@ import type { EntityState } from '../engine/scene/state';
  * and by leaving the room, a tile meaning nothing in another one.
  */
 
-const scene = (seed: string): DemoScene => buildDemoScene(demoMap(), seed);
+const scene = (seed: string): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
 /**
  * The cards these tests play, carried into the project once.

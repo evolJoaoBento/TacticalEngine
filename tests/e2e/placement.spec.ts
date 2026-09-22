@@ -147,6 +147,8 @@ test('open tabs drive placement; edge walls overlap floors and preserve Z throug
   await expect(page.locator(placementTools)).toHaveCount(0);
   // Strip cards are kinds of tile now, named by their terrain id: the `tile-<shape>` cards
   // went with the Structures tab they belonged to.
+  // The room is laid from tiles already: counted over what it opened with.
+  const laid = await page.evaluate(() => window.__engine!.pieceModels());
   await strip.locator('[data-item="platform"]').click();
   await page.evaluate(() => window.__engine!.buildAt(8, 6));
   await strip.locator('[data-item="barrier"]').click();
@@ -156,7 +158,7 @@ test('open tabs drive placement; edge walls overlap floors and preserve Z throug
   }
   // Counted off the models: both kinds name a file, so `BuildingView` skips them and the
   // box layer is empty by design. `pieceModels` is what says how many are standing.
-  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(5);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(laid + 5);
   await page.getByLabel('Build level', { exact: true }).fill('2.25');
   await page.getByLabel('Piece height', { exact: true }).fill('3.5');
   await page.getByLabel('Piece height', { exact: true }).press('Tab');
@@ -165,7 +167,7 @@ test('open tabs drive placement; edge walls overlap floors and preserve Z throug
   const scene = JSON.parse(saved).scenes[0];
   expect(scene.buildingTiles['8,6,2.25']).toMatchObject({ height: 3.5, level: 2.25, shape: 'wall' });
   await page.evaluate(() => window.__engine!.undo());
-  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(5);
+  await expect.poll(() => page.evaluate(() => window.__engine!.pieceModels())).toBe(laid + 5);
   expect(await page.evaluate((s) => window.__engine!.loadProjectText(s), saved)).toBe('');
   await page.evaluate(() => {
     window.__engine!.setMode('edit');
@@ -205,7 +207,7 @@ test('creatures immediately appear in authored scenes, undo correctly, and enter
   expect(await page.evaluate(() => window.__engine!.authoredCreatureCount())).toBe(before + 1);
   await page.screenshot({ path: 'test-results/creature-placement.png' });
   await page.evaluate(() => window.__engine!.setMode('play'));
-  expect(await page.evaluate((id) => window.__engine!.tileOf(id), id)).toBe(6 * 22 + 8);
+  expect(await page.evaluate((id) => window.__engine!.tileOf(id), id)).toBe(6 * 44 + 8);
   await page.evaluate(() => window.__engine!.setMode('edit'));
   await page.getByLabel('Creature Z').fill('3.25');
   await page.getByLabel('Creature Z').press('Tab');
@@ -235,10 +237,10 @@ test('a creature clicked onto raised ground lands on the tile under the cursor',
   // later cover.
   const plateau = await page.evaluate(() => {
     const api = window.__engine!;
-    for (let y = 2; y <= 5; y += 1) {
-      for (let x = 19; x >= 15; x -= 1) {
-        const tile = y * 22 + x;
-        if (api.heightAt(tile) <= 0) continue;
+    // The dais is blocks now, not raised ground: the rows and columns it stands on, off its edge.
+    for (let y = 1; y <= 3; y += 1) {
+      for (let x = 19; x >= 17; x -= 1) {
+        const tile = y * 44 + x;
         const point = api.screenOf(tile);
         if (document.elementFromPoint(point.x, point.y)?.id === 'gl') return tile;
       }
@@ -246,7 +248,6 @@ test('a creature clicked onto raised ground lands on the tile under the cursor',
     return -1;
   });
   expect(plateau).toBeGreaterThan(0);
-  expect(await page.evaluate((tile) => window.__engine!.heightAt(tile), plateau)).toBeGreaterThan(0);
   const placements = async (): Promise<{ id: string; position: { x: number; y: number } }[]> =>
     page.evaluate(() => (JSON.parse(window.__engine!.exportProject()) as {
       scenes: { encounters: { adversaries: { id: string; position: { x: number; y: number } }[] }[] }[];
@@ -258,6 +259,6 @@ test('a creature clicked onto raised ground lands on the tile under the cursor',
   await page.mouse.click(at.x, at.y);
   const added = (await placements()).filter((a) => !before.has(a.id));
   expect(added).toHaveLength(1);
-  expect(added[0]!.position).toMatchObject({ x: plateau % 22, y: Math.floor(plateau / 22) });
+  expect(added[0]!.position).toMatchObject({ x: plateau % 44, y: Math.floor(plateau / 44) });
   expect(errors).toEqual([]);
 });

@@ -44,7 +44,7 @@ switches between play and edit at any time.
 | Input | Play mode | Edit mode |
 |---|---|---|
 | Left click | Party member: select. Adversary: attack with the selected character. Object: use it. Ground: walk there. | Apply the current tool to the tile |
-| Left drag | Orbit the camera | Drag with the current tool — erase, raise and lower follow the pointer; the placer puts one piece where it is clicked |
+| Left drag | Walk the selected character towards the pointer in play; orbit the camera in the editor. Turning the view in play is the **middle** drag | Drag with the current tool — erase, raise and lower follow the pointer; the placer puts one piece where it is clicked |
 | Middle drag | Orbit the camera | Orbit the camera |
 | Right drag | Pan the camera | Pan the camera |
 | Right click (still) | Inspect what is under the pointer: a card with a character's pools, Evasion and gear, an adversary's tier, role, Difficulty and the cards its stat block prints, or an object's kind, state and the roll it asks for | — |
@@ -95,30 +95,67 @@ Q/E) are ignored while a text field has focus; the other keys are not (see Limit
 ### Turns: exploring and fighting
 
 Out of combat there are no turns. Click the ground to walk the selected character anywhere the
-floor goes - nobody counts steps; the others follow in a trail. Walking onto a trigger cell
+floor goes - nobody counts steps. The others **follow down the ground the walker covered**, a pace
+further back each, so the party reads as a line however it was moved: one long click, or a held
+button steering in short steps. Whoever the trail does not reach yet stays where they are rather
+than hopping to a free tile nearby; only somebody left far behind, or somebody the leader is walking
+into, is moved. **Hold** the button instead of
+clicking and they walk towards the pointer for as long as it is down, at a walk - the same pace a
+click sends them at, no faster - with the camera settled on them: that is how the woods are crossed, rather than by clicking along the
+trail. Steering follows the pointer wherever it goes, even off the room's edge. In a fight it keeps
+inside the circle and stops at its edge, because leaving the circle is an Agility Roll and a roll is
+something you decide on with a click. A press that does not linger is still a click. Walking onto a trigger cell
 starts that cell's encounter and the mover stops on the trigger rather than running past the
 ambush.
 
+**Who follows** is the cards. The party walks as one until you **drag a card out to the side**
+of the column: put down there, that character stands where they are while the others go on - to
+hold a door, to stay out of a trap, to scout alone. **Drop a card on another** and they walk with
+that character, their card falling in under theirs. **Drop a card between two** and the party is
+read in that order from now on - and where the two either side walk together, so does the one put
+between them, so any grouping is a few drags. A **chain** passes behind the cards, linking everybody
+who walks together: it runs down the middle of the column, under the sheets, and shows in the gaps
+between them - one chain per run of cards side by side in the same group, in that group's colour,
+and no chain at all for somebody who walks alone. A card whose group has been split up the column -
+somebody else's card in between - has no chain reaching it, and wears a tab in its group's colour
+down its edge instead, so drop the cards of a group together to see the chain whole. The chain is put away while a card is in the hand. A click on a card still selects
+it.
+Neither the groups nor the order are written into a save, and everybody walks as one again after a
+load.
+
 These rules are not played on a grid, and neither is this. Distance is as the crow flies: a
 creature standing corner-to-corner is in Melee like one standing straight ahead, and the range
-bands (Melee, Very Close, Close, Far, Very Far) are circles round whoever is measuring. In a
-fight a character moves within Close range as part of an action - the lit disc with a border
-round whoever is selected - spent along the way, as BG3 spends movement, so the way round a
-pillar costs the way round. A click on the ground is a spot, not a square: the character walks
+bands (Melee, Very Close, Close, Far, Very Far) are circles round whoever is measuring - round
+*where they stand*, not round the middle of their square. A swing, a spell on somebody and a
+reaction to somebody all measure from one body to the other, and each band reaches half a tile
+past its number (Melee is within a tile and a half), which is what "to the nearest tile" always
+came to. So half a step can be the step that brings somebody into reach, or takes them out of it.
+**A click at your own feet is a step**: within half a tile of whoever is selected, the ground is
+ground, and they shuffle to the spot - up to a wall, out of a line, a lean towards somebody - as
+small as a twentieth of a tile. The others stay put for it. In a fight it is still a move, and
+spends what a move spends. (What a spell lays on the *ground* - a ring, a cone - is still laid
+on whole tiles, and catches whoever's tile it covers.) In a
+fight a character moves inside a **circle**, drawn on the ground as the circle it is. When the
+spotlight comes to the party, each character's circle is drawn round where they are standing, at
+Close range (four and a half tiles out from where they stand, the demo's number), and **inside it they move freely** -
+as often as they like, to any spot, at no cost, and the circle stays where it was drawn rather than
+following them. A click past its edge is a **push**: an Agility Roll (Difficulty 12) that widens
+the circle one distance step, Close to Far to Very Far, for the rest of the turn. The card says
+what it opens and what it costs before you throw: on a **success** the circle is Far and they walk
+towards the spot as far as it now allows; on a **failure nobody moves, the spotlight passes to the
+GM, and the turn is over** - as any failed action roll ends it. A success with Shadow walks first
+and then passes the spotlight, as the rules have it. Calling the roll off costs nothing. Past Very
+Far there is no further push. The fainter ring outside the circle is the ground a push would open.
+A click on the ground is a spot, not a square: the character walks
 there in a straight line where nothing is in the way, stops where you clicked (or as near as
 their body fits, clear of walls and of everyone else), and the others fall in a pace behind along
 the line, round the same corners. Hovering the ground draws the line a click would walk - in a
-fight, the part past one move in red, or in amber where a run would get there on an Agility
-Roll. A click beyond reach is not refused: out of a fight it
-walks up to the nearest reachable spot (the shut door, the edge of the chasm). In a fight, a spot a
-run could reach - past Close, as far as Very Far, with a way there - asks for an **Agility Roll**
-first (Difficulty 12, the demo's number): a success walks the whole way, a failure only as far as
-the move allows, and either way the roll was the action; calling the roll off costs nothing.
-Farther than a run, the walk goes as far as the move allows and the log says so. A walk within
-Close asks for no roll: here the walk is the action, and the rules let a move within Close ride on
-one. A click on an enemy across the room walks
+fight, the part past the circle in amber where a push could open it, or red where nothing could.
+Out of a fight a click beyond reach is not refused: it walks up to the nearest reachable spot (the
+shut door, the edge of the chasm). A click on an enemy across the room walks
 up to where the weapon reaches from and swings, the move being part of the action; with nowhere
-in reach this move, it closes as far as it can and the walk is the action. A creature on the GM's
+in reach inside the circle, it closes as far as the circle allows - for free, the swing still to
+come once something opens the way. A creature on the GM's
 turn moves by the same rule, without rolling: it swings after a walk within Close, and when no
 walk within Close brings its weapon to bear, it spends the turn walking as far as Very Far. A walk that wakes
 an ambush starts the fight when the party gets there, not when the board is crossed: nothing is
@@ -139,6 +176,84 @@ Attacks and hits are read out in the log ("Kara hits with the Broadsword: 2 Hit 
 Acid Burrower.", "The Acid Burrower's Claws hits Kara, and is turned aside."). A click on an
 adversary that cannot be attacked (out of range, the GM's turn) does nothing visible.
 
+### Height, steps and jumps
+
+Ground can be laid from tiles - the demo's is - and then how high each piece stands is the
+ground. A creature stands on the top of whatever is stacked on its cell. Heights are counted in
+**blocks**: a block is one tile up, a floor tile is a quarter of one, a flight of stairs stands
+you halfway up it.
+
+- **A step** is any rise or drop of half a block or less: a floor tile on a floor tile, a flight
+  of stairs, the two slabs of painted ground the old maps called a ledge. Walking takes it
+  without comment, and the path found is found the moment a tile is placed.
+- **More than a step is not walked.** Three quarters of a block or more - a whole block stood
+  beside a floor tile - stops a walk. A click on the ground is only ever a walk: clicked on top
+  of a block, the character walks to the foot of it and stops. **Nobody jumps unless told to.**
+- **The Jump button** is a key beside the Light, the twin of the Rest key next to it, and it
+  works at any time, in a fight or out of one. Armed, the key stays pressed and its face goes gold. Press it and the jump is aimed from where the selected character stands:
+  everywhere in range lights up, level ground included, and an **arc** follows the pointer -
+  gold where the jump can be made, red with an X where it cannot. Click and they fly it. Press
+  the key again, or Escape, to put it down.
+- **Past their range** the spot can still be aimed at. Then, and only then, a walk comes first:
+  the line on the ground to where the jump can be made from, and the arc from there. The
+  run-up stops the moment the landing comes within range - part-way into a tile, not at the
+  middle of one - and in a fight it is as far as one move goes. **A right click** while the
+  jump is being aimed puts it down, as Escape does; so does a right click while a card is aimed.
+- **How far**: 3 tiles at Strength 0 or less and one more per point, measured from where they
+  stand to the spot the pointer is on - a jump is aimed at a spot, as a walk is, and that is where
+  they come down (or as near it as a body lands clear of whoever is beside it). A tile is lit
+  when its middle is in range; the near side of the next one may be too, and the arc says so. **How high**: one block at
+  Strength 0 or less and one more per point - +1 jumps two, +2 three - measured from where they
+  stand to where they land. The arc goes over people and over anything lower than it passes,
+  and is stopped by what stands higher, by a kind of tile that says it is impassable, and by a
+  shut door.
+- **The roll**: a jump across level ground asks for nothing. One that climbs more than a step
+  asks for **an Agility Roll, Difficulty 12**. They land either way; on a failure they land
+  **Prone** - rolls against them have advantage until they next move, which is them getting up.
+- **Down** is never refused. A drop of 1 + Agility blocks (1 at Agility 0 or less) asks for
+  nothing. Past that the fall is rolled for: Difficulty 12, one harder for every two blocks past
+  safe, and a d6 of direct physical damage for each block past safe - halved on a success, all of
+  it and Prone on a failure.
+- **A wall** along a cell's edge closes the cell at a block high, to feet and to sight. Lower
+  than a block it is stepped over and only gives cover: set the piece's **height** to a half or
+  three quarters before stamping it, and the wall is drawn that tall and walked that way.
+- In a fight the jump is the action, as a run's roll is. Adversaries do not jump.
+- **Every number above is the project's to change**: Content → Tiles → **Height and jumping**
+  (§3). What is described here is what a project plays by when it has said nothing.
+
+### Being hurt
+
+Losing Hit Points shows in two places at once. **On the board** the token is knocked - a swell
+on the blow, a recoil that rocks and dies away - and the line round it burns red and wide for
+as long as that takes; a number rises over its head as it always has. **On the sheet** the
+character's card is jolted the same way and flushes red from its edges, the number lost rises
+off it, the portrait flares, and the hearts that went break - red, large, then settling into
+the outlines they now are. A second blow before the first has faded starts over.
+
+It is read off the sheets, not told to them, so anything that marks a Hit Point shows: a blade,
+a fall, a trap, a spell's price. Healing is not a wound. A wound that came with a move - a fall -
+is the landing's: the token flinches when it gets there, and when the move is waiting on a roll
+you are still reading, both wait for **Accept** with it.
+
+### Your settings
+
+**Escape** opens your settings: a sheet over the table, and the only way to it - there is no
+button for it on the board. Escape already means "put that down" everywhere else, so it opens
+the settings only when there is nothing to put down: with the loadout open it shuts the loadout,
+with a card or a jump being aimed it calls that off, with a roll on the table it is the roll's.
+Escape again, **Close**, or a click outside the sheet puts it away. While it is up the keyboard
+is its own: Tab walks its switches rather than the party.
+
+What it holds is yours rather than the campaign's. It is kept in this browser (`localStorage`),
+so it is there for every project and every save opened in it, and it is written into neither.
+Settings sit under headings, and there is room for more of both.
+
+- **Dice → Roll jumps automatically** - the dice for a jump are thrown at once, without the
+  prompt between the click and the roll, and the jump is drawn at once. The roll is still made,
+  logged and paid for. Off to begin with - and off, a jump you roll for by hand is not drawn
+  until you have read the result and pressed **Accept**: the card holds the dice, and the
+  character stands where they were until it is put away.
+
 ### The hand
 
 Along the bottom of the screen the selected character holds their hand, fanned like a deck-builder's:
@@ -147,10 +262,23 @@ reaction — the class's Light feature, subclass cards, and the domain cards in 
 grows where it stands under the pointer, its neighbours sliding aside, so its whole text can be read; its Light cost is the gold
 coin on its corner and its Stress cost the violet one. A card that cannot be played now is greyed,
 with why along its foot ("needs 3 Light", "the GM's turn", "nothing in range", "the table
-adjudicates this one" for a card the engine has no script for). Passives are not cards to play,
-so they sit above the hand as small emblems — hover one for its text. The orb at the hand's left
+adjudicates this one" for a card the engine has no script for). **Every card the loadout holds is
+in the hand**, including the ones that are simply true while they are held: a card that is always
+in play is dealt with the rest and says so along its foot, rather than being kept out of the hand
+because there is nothing to press. The orb at the hand's left
 is the character's Light; at its right, **End Turn** in a fight, **Rest…** out of one, and
 **Loadout…**.
+
+**Escape** opens the menu: saving, loading and the player's own settings, on a sheet over the
+table. **Save** is one quick slot, overwritten; **Save as…** names a new one; **Load** lists what is
+saved, newest first, and loading one shuts the sheet. Escape closes it again. Escape means "put that
+down" everywhere else in the game, so the menu only opens when there is nothing to put down: mid
+conversation, or with a card aimed, the key belongs to that instead.
+
+The screen gives the cards the room they need. The party's sheets, the journal column and the keys
+are sized from the window, and on a window too narrow to hold a hand of cards beside the journal,
+the journal moves above the cards rather than squeezing them. The fan closes up as it fills, so a
+hand of eight overlaps more than a hand of four without any card shrinking out of legibility.
 
 An ability that wants a target and has more than one in reach arms the hand — the card stays
 lifted, the rest dim, and the valid targets light up on the board; click one, or `Escape` to put
@@ -346,7 +474,7 @@ selection.
 | Mode | Around the board | What a click or drag does |
 |---|---|---|
 | **Inspector** (1) | The selected object's properties, on the right | Click an object to select it. Press on anything placed, a creature, a prop, an object or a party start, and drag to move it: it lifts off the ground, hangs under the pointer with its bottom swinging behind the way it goes, and drops with a bump where you let go, at the height it stood. It never lands on another of its kind (props stack), and a party start stays in the room; one undo puts it back. The editor draws a party start as a blue pawn in a ring and an object with no model as a gold ring with a gem |
-| **Terrain** (2) | Tools on the left rail; **Tiles**, **Props** and **Objects** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props and objects |
+| **Terrain** (2) | Tools on the left rail; **Tiles**, **Props** and **Objects** in the strip along the bottom; the tool's options on the right | Build stacked tiles anywhere (brush 1×1, 3×3, 5×5); erase tiles at a chosen level; raise/lower ground; place props and objects; **Select** picks up a placed tile - the topmost on the cell - and carries it: the Z ladder goes to its level, the wheel lifts it while held, Alt turns it, and it lands where you let go, on top of whatever is there. One undo puts it back |
 | **Combat** (3) | Tools on the left rail; the SRD's creatures by tier in the strip, with a search; the encounter on the right | Place the picked creature in the encounter; press on a placed creature and drag to move it, as in the Inspector (Select carries party starts too); toggle trigger cells that start it; toggle party start tiles; erase a creature, then a trigger cell, then a party start (never the last one) |
 | **Interaction** (4) | The conversations, on the left | Click one to open its graph |
 
@@ -429,9 +557,40 @@ Nearby pieces have beveled edges, middle-distance pieces use simpler geometry, a
 become solid silhouettes. Chunks outside the viewing range unload automatically. On a dense
 view, the nearest 96 visible chunks take priority and load progressively.
 
-**Building tiles are scenery in both edit and play.** They do not yet add walkable surfaces,
-collision or line-of-sight blockers. Party navigation still uses the original rectangular
-ground map; elevated and outlying builds need multilevel navigation before they can be played.
+**A kind of tile laid outside the room makes the room bigger.** Lay a platform past the edge
+and, when you let go, the room grows to hold the stroke: what you laid is floor, and the party
+can walk out onto it. The rest of the rectangle the room had to grow by is **nothing** - not
+drawn, not walked on, no bar to a line of sight - so a platform standing off on its own is an
+island, with a gap round it that a jump can cross and a walk cannot. Fill the gap with more
+tiles and it is a bridge. It happens at the end of the stroke, the camera slides with the
+ground so nothing on screen moves, and **one undo** takes back the tiles and the growth together.
+
+Growing west or north moves the room's first corner, so every coordinate in it goes up by as
+much: spawns, doors, props, creatures, triggers and every piece. The Build X / Y boxes read the
+new numbers afterwards. A game already being played in the room is stood up again round the
+party where they stand, wounds and opened doors and all; a save made before the room grew puts
+everybody back in the same places. The room does **not** grow while a fight or a question is
+in progress - the tiles are laid, as scenery, and the next stroke outside will take them in.
+
+A room grows to at most 128 tiles on a side. Anything laid further off than that stays what it
+always was: scenery, drawn and never walked on. Pieces that are not a kind of tile, and erasing,
+never grow anything; and a room never shrinks again on its own.
+
+### Height and jumping
+
+**Content → Tiles → Height and jumping** holds the house rule for height, beside the kinds of
+tile that make height. Whether anybody jumps at all; how much of a block a step takes; which
+trait carries a jump up, how many blocks anybody makes and how many more each point adds; how many
+tiles an aimed jump carries across the ground, and whether a level one is rolled for; the
+trait and Difficulty of the roll; the same three numbers for a safe drop; how fast a fall gets
+harder, what die it costs per block and whether a success halves it; and the condition a
+failed roll lands them with, from the project's own conditions. Two lines read the numbers
+back as a table would say them - "Strength 0 jumps 1, +1 jumps 2, +2 jumps 3."
+
+Each field is one undo step. **Back to the defaults** removes the rules from the project
+rather than writing the defaults into it. A step's height takes hold when play is next entered.
+Check warns when the landing condition is not one the project has, when nobody without the
+trait could jump at all, and when every drop past a step would be a fall that hurts.
 
 ### Objects and the inspector
 
@@ -733,8 +892,25 @@ the buttons' tooltips name the step.
 
 `formatVersion` (4) · `id` · `name` · `terrainPalette?` (id, name, passable, cost,
 providesCover, blocksSight) · `scenes[]` · `dialogues[]` · `items[]` · `lootTables[]` ·
-`quests[]` · `abilities[]` · `conditionDefs[]` · `code[]` · `party[]` · `startScene`. All ids
-are stable kebab-case strings; duplicates are rejected.
+`quests[]` · `abilities[]` · `conditionDefs[]` · `code[]` · `party[]` · `jump?` · `startScene`.
+All ids are stable kebab-case strings; duplicates are rejected.
+
+**Jump rules** (`project.jump`, optional - a project that says nothing plays by the defaults and
+does not write them down):
+
+| field | default | what it is |
+|---|---|---|
+| `enabled` | `true` | Whether anybody jumps. Off, ground too high to step onto is out of reach, and no click is refused. |
+| `stepHeight` | `0.72` | The most a walk climbs or drops in one step, in blocks. Everybody's pathfinding reads it, adversaries included. |
+| `reachTrait` / `reachBase` / `reachPerPoint` | `strength` / `1` / `1` | Blocks a jump goes up: the base at 0 or less, more per point above. |
+| `rangeBase` / `rangePerPoint` | `3` / `1` | Tiles an aimed jump carries across the ground, on the same trait. |
+| `flatRoll` | `false` | Whether a jump across level ground asks for the roll too. |
+| `rollTrait` / `difficulty` | `agility` / `12` | The roll a jump asks for. |
+| `dropTrait` / `dropBase` / `dropPerPoint` | `agility` / `1` / `1` | Blocks down that are only a drop. |
+| `harderEvery` | `2` | Past a safe drop, Difficulty +1 for every this many blocks. `0` for never. |
+| `fallDie` | `6` | The die rolled for each block past safe, as direct physical damage. `0` for a fall that does not hurt. |
+| `halfOnSuccess` | `true` | Whether a success halves the fall. |
+| `failCondition` | `prone` | The condition a failed roll lands them with; empty for none. |
 
 A **character sheet** (`project.party[]`): `id`, `name`, `level`, `classId`, `subclassId?`,
 `ancestryId?`, `communityId?`, `traits` (the six), `proficiency`, `armorId?`,
@@ -1073,11 +1249,20 @@ elf, gambeson, shortbow) and Mira (Wizard, faerie, gambeson, greatstaff), each w
 two domain cards and one Experience. Every adversary uses the SRD Acid Burrower's stat block,
 standing in for the prototype's homebrew Hollow Husks.
 
-1. **The Husk Vault** (imported from the prototype's map, 22×16). The vault door starts shut
+1. **The Hollow Vault** (44×32, and relaid as tiles on the way
+   in: grass outside, a road that costs double, flagstone indoors, a wall two blocks high that
+   whoever is strong enough jumps onto - Kara is, and the drop inside is a fall - low
+   walls for cover, and the dais as blocks with its steps - or, in a fight with the steps a
+   move away, a jump). The vault door starts shut
    and in the way: using it is a Finesse 13 roll, a failure leaves it shut, and a door can be
    tried again. East of the door, trigger cells start the husk fight; a chest opens
    on a Finesse check and pays out from the `vault-chest` table (gold, a healing draught, or
-   the brass key).
+   the brass key). West and south of the door are **the woods**: a trail winding down to the
+   south-west, a stream running south out of the marsh with a ford where the trail crosses it,
+   thickets that cost double to push through, hillocks, and an outcrop two blocks high to climb or
+   jump off. East of the vault door the halls run on through two cross-walls to a dais between its
+   braziers. The room the prototype drew is still the map's north-west corner, tile for tile, so
+   the door is still at (12, 7) and a save from before still finds it.
 2. **The Warden** is the carved pillar. Using it starts the conversation and the quest
    **The Warden's Word**. Ask "Who are you?" to learn the name (this sets a flag; a reply
    gated on that flag exists to demonstrate an `available` condition, but since a used pillar
@@ -1175,7 +1360,7 @@ One of those sets noted its material as Public Game Content under the DPCGL (www
 ```
 Play                                   Edit
   Left click   select / attack / use / walk   apply tool
-  Left drag    orbit                          drag with tool (erase, raise/lower)
+  Left hold    walk towards the pointer       drag with tool (erase, raise/lower)
   Middle drag  orbit                          orbit
   Right drag   pan                            pan
   Right click  inspect (Escape closes)        —

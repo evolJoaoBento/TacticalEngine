@@ -14,7 +14,7 @@
  * attacks are unaffected by both — the attacker is already past the obstruction.
  */
 
-import { TileGrid } from '../grid/grid';
+import { TileGrid, type Spot } from '../grid/grid';
 import { coverBetween, lineOfSight, type LineOfSightRules } from '../grid/los';
 import { coverDisadvantage, type Cover } from '../rules/cover';
 import {
@@ -43,6 +43,13 @@ export interface TargetingOptions {
    * Defaults to "anything beyond Melee band is ranged".
    */
   ranged?: boolean;
+  /**
+   * Where the two of them actually stand, in tile units. The span is measured between
+   * these when they are given, and between the tiles' centres when not: a creature is
+   * not at the centre of its square, and half a step can be what puts it in reach. Sight
+   * and cover are still asked of the tiles, which is what walls are made of.
+   */
+  at?: { attacker: Spot; target: Spot };
 }
 
 export interface TargetingReport {
@@ -105,9 +112,12 @@ export function evaluateTarget(
     };
   }
 
-  const distance = grid.euclideanDistance(attackerTile, targetTile);
-  // As the crow flies, to the nearest tile: every neighbour is Melee, whichever
-  // way it lies, and nothing past one depends on the shape of the map.
+  // As the crow flies, from where one stands to where the other does: every neighbour is
+  // Melee, whichever way it lies, and nothing past one depends on the shape of the map.
+  const distance =
+    options.at === undefined
+      ? grid.euclideanDistance(attackerTile, targetTile)
+      : Math.hypot(options.at.attacker.x - options.at.target.x, options.at.attacker.y - options.at.target.y);
   const band = bandForSpan(distance, options.bandTiles);
   const ranged = options.ranged ?? band !== 'melee';
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { deriveCharacter } from '../engine/character/sheet';
 import { abilitySchema, isStatBlockFeature, loadoutOf, type AbilityDef } from '../engine/content/abilities';
 import { conditionDefSchema } from '../engine/content/conditions';
@@ -64,7 +64,7 @@ import {
 
 /** The demo, knowing the catalogue conditions these tests play: the engine ships only the rules' three. */
 const scene = (seed = 'defense'): DemoScene => {
-  const demo = buildDemoScene(demoMap(), seed);
+  const demo = buildDemoScene(hollowVaultMap(), seed);
   demo.project.conditionDefs.push(...FIXTURE_CONDITIONS);
   refreshWorld(demo);
   return demo;
@@ -5872,14 +5872,21 @@ describe('ground that means something', () => {
   };
 
   /** A tile well away from everything, for walking out of the light. */
+  // The nearest ground out of the zone's reach, not the furthest: a shove is still a move with a
+  // budget, and on a map the size of the woods the far corner is beyond any of them.
   const outside = (demo: DemoScene, from: number): number => {
-    for (let tile = demo.grid.width * demo.grid.height - 1; tile >= 0; tile--) {
+    let best = NO_TILE;
+    let nearest = Infinity;
+    for (let tile = 0; tile < demo.grid.width * demo.grid.height; tile++) {
       if (!demo.grid.isPassable(tile) || demo.state.blockedFor('kara')(tile)) continue;
       const band = demo.world.bandBetween(from, tile);
       if (band === null || reaches(band, 'veryClose')) continue;
-      return tile;
+      const away = demo.grid.euclideanDistance(from, tile);
+      if (away >= nearest) continue;
+      nearest = away;
+      best = tile;
     }
-    return NO_TILE;
+    return best;
   };
 
   it('puts its condition on whoever is standing in it, and takes it off whoever leaves', () => {

@@ -13,7 +13,7 @@
    is a modern reading serif and sets everything that is *read* -- rules text, the log, the panels.
    Both vendored (cards.css declares them). Georgia stands in while they load, which is why it, and
    not a sans, is the fallback: a swap between two serifs does not reflow the page twice. */
-:root{--play-font:'Libre Baskerville',Georgia,serif;--play-display:Cinzel,'Libre Baskerville',Georgia,serif;--play-line:#46352a;--play-rule:#cec0a4;--play-paper:#f8f2e4;--play-paper-top:#fdfbf4;--play-paper-edge:#efe5d0;--play-leather:#5a3a26;--play-leather-dark:#341f13;--play-field:#f2e9d6;--play-frame:#b9a684;--play-gold:#856018;--play-gold-bright:#a9761f;--play-ink:#1d1611;--play-muted:#57493a;--play-light:#9c7020;--play-shadow:#553b8c;--play-hp:#9c2f21;--play-stress:#553b8c;--play-armor:#3c5f80;
+:root{--hud-w:clamp(170px,15vw,176px);--panel-w:clamp(216px,25vw,340px);--key-size:clamp(54px,6.2vw,78px);--chain-link:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='18'%20height='23'%3E%3Cg%20fill='none'%20stroke='%23000'%20stroke-width='2.9'%3E%3Cellipse%20cx='9'%20cy='6'%20rx='4'%20ry='5.6'/%3E%3Cellipse%20cx='9'%20cy='17.3'%20rx='6'%20ry='4.1'/%3E%3C/g%3E%3C/svg%3E");--play-font:'Libre Baskerville',Georgia,serif;--play-display:Cinzel,'Libre Baskerville',Georgia,serif;--play-line:#46352a;--play-rule:#cec0a4;--play-paper:#f8f2e4;--play-paper-top:#fdfbf4;--play-paper-edge:#efe5d0;--play-leather:#5a3a26;--play-leather-dark:#341f13;--play-field:#f2e9d6;--play-frame:#b9a684;--play-gold:#856018;--play-gold-bright:#a9761f;--play-ink:#1d1611;--play-muted:#57493a;--play-light:#9c7020;--play-shadow:#553b8c;--play-hp:#9c2f21;--play-stress:#553b8c;--play-armor:#3c5f80;
   /* The tooth of the stock: a 50px tile of grey noise, laid over every paper surface in soft-light
      so it roughens the cream without greying it. Inline, because a fresh clone and an offline
      machine have to draw the same sheet -- there is no file to go missing. */
@@ -48,7 +48,7 @@
 .play select{background:var(--play-field);color:var(--play-ink);border:1px solid var(--play-rule);border-radius:4px;padding:4px 8px;font:inherit}
 
 /* The party, stacked down the left edge: sheets clipped into a leather folio, the open one lifted. */
-.hud{position:absolute;left:0;top:10px;display:flex;flex-direction:column;align-items:stretch;width:176px;gap:6px;padding:10px;box-sizing:border-box;pointer-events:auto;background:linear-gradient(100deg,var(--play-leather-dark),var(--play-leather));border-right:2px solid #24150c;border-radius:0 8px 8px 0;box-shadow:inset -6px 0 12px #00000059,6px 0 18px #00000047}
+.hud{position:absolute;left:0;top:10px;display:flex;flex-direction:column;align-items:stretch;width:var(--hud-w);gap:clamp(13px,2.2vh,21px);padding:10px;box-sizing:border-box;pointer-events:auto;background:linear-gradient(100deg,var(--play-leather-dark),var(--play-leather));border-right:2px solid #24150c;border-radius:0 8px 8px 0;box-shadow:inset -6px 0 12px #00000059,6px 0 18px #00000047}
 /* Each character is a leaf of parchment, and this is the whole of it.
  *
  * The sheet itself carries no paper: it is a transparent box holding the writing, and `:after` is
@@ -72,6 +72,24 @@
 .hud-card.is-selected{transform:translateX(3px)}
 .hud-card.is-selected:after{background-image:conic-gradient(from 208deg,#fff3,#fff0 5% 21%,#96321a 24%,#fff2 26%,#fff0 29% 61%,#9631 65%,#fff2 69%,#fff0 73% 97%,#9631),var(--paper-grain),linear-gradient(168deg,#fffefa,#fdf8ec 48%,#f5edd9);box-shadow:0 0 0 1px var(--play-gold),0 1px 0 #fffefb inset,0 0 26px #8f59221c inset,0 2px 3px #00000030,0 13px 24px #0000004d}
 .hud-card.is-down{opacity:.5;filter:grayscale(.7)}
+/* Hurt: the sheet is jolted the way the body was, a red flush comes up from its edges and goes, the number
+   lost rises off it, the portrait flares - and the hearts that went break before they settle as outlines. */
+.hud-card.is-hurt{animation:hud-hurt .5s cubic-bezier(.36,.07,.19,.97) both}
+.hud-wound{position:absolute;inset:0;z-index:3;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,#b3261e00 30%,#b3261e99 100%);box-shadow:inset 0 0 0 2px #b3261e;animation:hud-wound .9s ease-out both}
+.hud-wound b{position:absolute;right:62px;top:6px;font:700 20px/1 var(--play-display);color:#b3261e;text-shadow:0 1px 0 #fff8,0 0 8px #fff6;animation:hud-wound-count .9s ease-out both}
+.hud-card.is-hurt .hud-shot{animation:hud-shot-hurt .5s cubic-bezier(.36,.07,.19,.97) both}
+.hud-card.is-hurt .hud-shot img{animation:hud-shot-flare .9s ease-out both}
+.pip.is-lost{animation:pip-lost-bar .9s ease-out both}
+.pip-icon.is-lost{transform-box:fill-box;transform-origin:50% 50%;animation:pip-lost .9s ease-out both}
+@keyframes hud-hurt{0%,100%{transform:translateX(0) rotate(0)}12%{transform:translateX(-6px) rotate(-1.1deg)}28%{transform:translateX(6px) rotate(1deg)}44%{transform:translateX(-4px) rotate(-.7deg)}60%{transform:translateX(3px) rotate(.4deg)}78%{transform:translateX(-1.5px) rotate(-.2deg)}}
+@keyframes hud-wound{0%{opacity:0}10%{opacity:1}100%{opacity:0}}
+@keyframes hud-wound-count{0%{opacity:0;transform:translateY(6px) scale(.7)}15%{opacity:1;transform:translateY(0) scale(1.25)}35%{transform:translateY(-2px) scale(1)}100%{opacity:0;transform:translateY(-16px) scale(1)}}
+@keyframes hud-shot-hurt{0%,100%{transform:rotate(0)}20%{transform:rotate(-7deg)}50%{transform:rotate(5deg)}75%{transform:rotate(-2deg)}}
+@keyframes hud-shot-flare{0%,100%{filter:none}12%{filter:sepia(1) saturate(7) hue-rotate(-38deg) brightness(1.15)}}
+@keyframes pip-lost{0%{fill:#b3261e;stroke:#b3261e;transform:scale(1)}16%{fill:#e8412f;stroke:#e8412f;transform:scale(2) rotate(-10deg)}40%{fill:#b3261e;stroke:#b3261e;transform:scale(.75) rotate(8deg)}60%{transform:scale(1.1) rotate(0)}100%{fill:#b3261e00;stroke:#4a3d2e;transform:scale(1)}}
+@keyframes pip-lost-bar{0%{background:#b3261e;transform:scale(1)}16%{background:#e8412f;transform:scale(1.8)}100%{background:#fffdf6;transform:scale(1)}}
+@keyframes pip-lost-still{0%{fill:#b3261e;stroke:#b3261e;background:#b3261e}100%{fill:#b3261e00;stroke:#4a3d2e;background:#fffdf6}}
+@media(prefers-reduced-motion:reduce){.hud-card.is-hurt,.hud-card.is-hurt .hud-shot,.hud-wound b{animation:none}.pip-icon.is-lost,.pip.is-lost{animation-name:pip-lost-still}}
 /* The name and the class stack now rather than sitting on one line, and the head keeps its right
    edge clear: the photograph is pinned in that corner and the class would run under it. */
 .hud-head{display:flex;flex-direction:column;align-items:flex-start;gap:1px;margin-bottom:5px;padding-bottom:3px;padding-right:50px;border-bottom:1px solid var(--play-rule)}
@@ -95,6 +113,17 @@
 /* An empty box, ticked in when it is marked: how a sheet records a pool. */
 .pip{flex:none;width:9px;height:9px;border-radius:1px;background:#fffdf6;box-shadow:inset 0 0 0 1px var(--play-rule)}
 .pip.is-marked{background:var(--pip);box-shadow:inset 0 0 0 1px #00000047}
+/* A pool drawn as its own shape. Printed hollow in the sheet's ink and filled in when marked, the
+   same as the box -- so the box's paint comes off and the outline does the work. A hair wider than
+   a box, with the gap taken in to pay for it: eight at 10 and 1 is the 88px eight boxes were. The
+   stroke does not scale with the icon, or a 9px heart would be all outline and a 17px one all hole. */
+.pip-icon,.pip-icon.is-marked{background:none;box-shadow:none;border-radius:0}
+.pip-icon{width:10px;height:10px;margin-right:-1px;overflow:visible;fill:none;stroke:#4a3d2e;stroke-width:1px;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.pip-icon path{vector-effect:non-scaling-stroke}
+/* One ink, as a printer has: a pool is told from its neighbour by its shape, and a colour per row is
+   what made the block read as an interface laid over the paper rather than something printed on it.
+   `--pip` still arrives from the caller and is simply not used here; the Shadow dots keep theirs. */
+.pip-icon.is-marked{fill:var(--play-ink,#1d1611);stroke:var(--play-ink,#1d1611)}
 /* 9px, measured against the longest gear line the demo party carries -- "Hunting Bow · Padded Coat".
    Libre Baskerville is wide enough that 11px wrapped all three and 9.5px still wrapped that one,
    which left the sheets at unequal heights down the folio. Truncating instead was the wrong trade:
@@ -102,6 +131,25 @@
 .hud-gear{margin-top:6px;font-size:9px;line-height:1.3;color:var(--play-muted)}
 .hud-conditions{margin-top:2px;font-size:9px;line-height:1.3;color:var(--play-gold);font-weight:700}
 .hud-level{display:block;width:100%;margin:0 0 6px;padding:3px 6px;font-size:12px}
+.hud-card{touch-action:none;user-select:none}
+/* Links of iron down the left of the column, behind the sheets: they show in the gaps, and each
+   group has its own colour, so two parties walking apart are told apart at a glance. */
+.hud-chain{position:absolute;left:50%;margin-left:-9px;width:18px;z-index:0;pointer-events:none;background:var(--play-group,#b89354);filter:drop-shadow(0 1px 1px #00000073);
+  -webkit-mask:var(--chain-link) repeat-y center top/18px 23px;mask:var(--chain-link) repeat-y center top/18px 23px}
+.hud-card .hud-band{position:absolute;left:1px;top:14px;bottom:14px;width:4px;border-radius:2px;background:var(--play-group,#b89354);z-index:2;opacity:.85}
+.hud-card[data-group="0"] .hud-band,.hud-chain[data-group="0"]{--play-group:#b89354}
+.hud-card[data-group="1"] .hud-band,.hud-chain[data-group="1"]{--play-group:#79a7cd}
+.hud-card[data-group="2"] .hud-band,.hud-chain[data-group="2"]{--play-group:#8ec277}
+.hud-card[data-group="3"] .hud-band,.hud-chain[data-group="3"]{--play-group:#d98aa6}
+.hud-chain[data-group="0"]{--play-group:#b89354}
+.hud-chain[data-group="1"]{--play-group:#79a7cd}
+.hud-chain[data-group="2"]{--play-group:#8ec277}
+.hud-chain[data-group="3"]{--play-group:#d98aa6}
+.hud-card.is-held{z-index:20;transition:none;pointer-events:none;box-shadow:0 8px 18px #00000066;opacity:.92}
+.hud-card.is-aside{outline:1px dashed var(--play-gold);outline-offset:2px}
+.hud-card.is-under{outline:2px solid var(--play-gold);outline-offset:-2px}
+.hud-slot{position:absolute;left:4px;right:4px;top:-5px;height:0;border-top:2px solid var(--play-gold);box-shadow:0 0 6px var(--play-gold);z-index:3}
+.hud-slot.is-below{top:auto;bottom:-5px}
 .hud-gm{cursor:default;padding:11px 11px 8px}
 .hud-gm .play-eyebrow{display:block;margin-bottom:6px}
 .hud-gm .pip{width:4px;border-radius:50%}
@@ -110,7 +158,7 @@
    right. Only the cards and buttons take the pointer; the board shows through the rest. */
 /* Lifted off the bottom edge: the fan drops its outer cards by `--drop`, and at 0 that drop carried
    the new foot band off the screen, so the cards read as cut rather than dealt. */
-.bar{position:absolute;left:176px;right:340px;bottom:12px;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.bar{position:absolute;left:var(--hud-w);right:var(--panel-w);bottom:clamp(12px,1.8vh,18px);display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
 /* Relics sit at the top centre: struck medallions in a matte leather tray. Nothing here is glossy --
    a highlight along the top edge is what makes a thing look moulded rather than made. */
 .relics{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:7px;padding:5px 10px;border:1px solid #2a1b10;border-radius:4px;background:var(--play-leather-dark);box-shadow:inset 0 2px 5px #00000059,0 3px 8px #0000004d;pointer-events:none}
@@ -119,29 +167,31 @@
 .relic .ability-card-art{display:block;width:100%;height:100%;opacity:.95}
 .relic .ability-card-art>svg,.relic .ability-card-art>img{display:block;width:100%;height:100%;object-fit:cover}
 .hand-armed{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 14px;background:linear-gradient(#f6e6bb,#e2cb92);box-shadow:inset 0 0 0 1px var(--play-gold),0 3px 8px #00000047;font-weight:700;color:var(--play-ink);pointer-events:auto}
-.hand-row{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;width:100%;padding:0 12px;box-sizing:border-box}
+.hand-row{display:flex;align-items:flex-end;justify-content:space-between;gap:clamp(8px,2.2vw,28px);width:100%;padding:0 clamp(4px,1.2vw,12px);box-sizing:border-box}
 /* Light, as the struck counter it would be on a real table: brass, not a glowing ball. The number is
    engraved -- cut dark into the metal with a catch of light under the stroke -- rather than outlined
    in ink, and nothing about it moves. */
-.hand-orb{position:relative;width:78px;height:78px;margin-bottom:18px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(158deg,#d6bd86 0,#bda469 34%,#93794a 62%,#6b5730 100%);border:1px solid #453818;box-shadow:inset 0 2px 3px #fff4cc8c,inset 0 -2px 4px #00000059,0 3px 7px #00000066;color:#352a10;line-height:1;pointer-events:auto;flex:none}
+.hand-orb{position:relative;width:var(--key-size);height:var(--key-size);margin-bottom:18px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(158deg,#d6bd86 0,#bda469 34%,#93794a 62%,#6b5730 100%);border:1px solid #453818;box-shadow:inset 0 2px 3px #fff4cc8c,inset 0 -2px 4px #00000059,0 3px 7px #00000066;color:#352a10;line-height:1;pointer-events:auto;flex:none}
 /* The milled rim every struck counter has. */
 .hand-orb:before{content:'';position:absolute;inset:6px;border-radius:50%;border:1px solid #0000003d;box-shadow:0 1px 0 #ffffff3d;pointer-events:none}
-.hand-orb b{font:700 32px/1 var(--play-font);text-shadow:0 1px 0 #ffffff5e}
+.hand-orb b{font:700 clamp(22px,2.6vw,32px)/1 var(--play-font);text-shadow:0 1px 0 #ffffff5e}
 .hand-orb small{font:700 12px/1 var(--play-font);margin-top:1px;color:#4b3b18;text-shadow:0 1px 0 #ffffff4a}
 .hand-orb span{position:absolute;bottom:-17px;font:700 10px/1 var(--play-font);letter-spacing:.16em;text-transform:uppercase;color:#cdbb92;text-shadow:0 1px 2px #000000a6}
 /* Each slot is the room shared out, at most 96px; the faces overlap into their neighbours' slots,
    and the padding is what an end card hangs past the last slot, tilted. */
-.hand{flex:1 1 0;display:flex;align-items:flex-end;justify-content:center;height:176px;min-width:0;padding:0 30px;container-type:inline-size}
-.hand-slot{--slot:min(96px,calc(100cqw / var(--n,1)));flex:0 1 var(--slot);min-width:0;height:176px;transition:flex-basis .16s ease;position:relative;pointer-events:auto;background:none;border:0;padding:0;margin:0;cursor:pointer;font:inherit;color:inherit;text-align:left;display:block}
+/* The cards get whatever the row does not need, and what they get is never nothing: the hand is
+   the one thing here that a narrow window must not squeeze away. */
+.hand{flex:1 1 auto;display:flex;align-items:flex-end;justify-content:center;height:clamp(132px,19vh,176px);min-width:0;padding:0 clamp(6px,2vw,30px);container-type:inline-size}
+.hand-slot{--slot:clamp(34px,calc(100cqw / var(--n,1)),96px);flex:0 1 var(--slot);min-width:30px;height:100%;transition:flex-basis .16s ease;position:relative;pointer-events:auto;background:none;border:0;padding:0;margin:0;cursor:pointer;font:inherit;color:inherit;text-align:left;display:block}
 .hand-slot:disabled{cursor:default}
 /* Wide enough that a four-card hand's neighbours clear the grown card; never so wide that the
    others get less than 46px each, which is what keeps a big hand's end cards inside the fan. */
-.hand-slot:hover,.hand-slot.is-picked{z-index:20;flex:0 0 min(206px,calc(100cqw - (var(--n,1) - 1) * 46px))}
+.hand-slot:hover,.hand-slot.is-picked{z-index:20;flex:0 0 max(var(--slot),min(206px,calc(100cqw - (var(--n,1) - 1) * 46px)))}
 .hand-slot:focus-visible{outline:none}
 /* `.face.hand-card`, not `.hand-card`: cards.css can load after this sheet (PlayPanel brings this one
    in first), and its `.face` would win a tie - the border, the padding, and the clip the cost gem
    has to hang past. */
-.face.hand-card{position:absolute;left:50%;bottom:4px;width:110px;margin-left:-55px;display:flex;transform-origin:50% 100%;transform:translateY(var(--drop)) rotate(var(--tilt));transition:transform .16s ease,box-shadow .16s,filter .16s;box-shadow:0 2px 3px #00000038,0 10px 18px #0000004d;border-width:1px;padding:4px;gap:3px;overflow:visible}
+.face.hand-card{--card-w:clamp(88px,calc(var(--slot) * 1.5),124px);position:absolute;left:50%;bottom:4px;width:var(--card-w);margin-left:calc(var(--card-w) / -2);display:flex;transform-origin:50% 100%;transform:translateY(var(--drop)) rotate(var(--tilt));transition:transform .16s ease,box-shadow .16s,filter .16s;box-shadow:0 2px 3px #00000038,0 10px 18px #0000004d;border-width:1px;padding:4px;gap:3px;overflow:visible}
 /* A card that can be played is lifted a little and lit at its edge, as a dealt card is. */
 .hand-slot:not(.is-off) .hand-card{box-shadow:0 0 0 1px var(--play-gold),0 2px 3px #00000038,0 10px 18px #0000004d}
 /* The card grows where it stands, anchored at its foot so it stays under the pointer. Its slot
@@ -151,6 +201,11 @@
 .hand-slot:hover .hand-card,.hand-slot.is-picked .hand-card{aspect-ratio:auto;transform:translateY(-6px) rotate(0) scale(1.45);box-shadow:0 0 0 1px var(--play-gold-bright),0 20px 30px #00000063}
 .hand-slot:focus-visible .hand-card{box-shadow:0 0 0 2px var(--play-gold),0 5px 10px #00000047}
 .hand-slot.is-off .hand-card{filter:grayscale(.55) brightness(.9)}
+/* A card that is always in play is not dimmed like one that cannot be afforded: it is doing its
+   work. It is only marked as nothing to press, with a quieter edge than a card waiting to be used. */
+.hand-slot.is-always{cursor:default}
+.hand-slot.is-always .hand-card{filter:none;box-shadow:0 0 0 1px #9d8f6c,0 2px 3px #00000038,0 10px 18px #0000004d}
+.hand-slot.is-always .face-footer{color:var(--play-muted)}
 .hand-slot.is-off:hover .hand-card{filter:grayscale(.2) brightness(.98)}
 .bar.is-armed .hand-slot:not(.is-picked) .hand-card{filter:grayscale(.5) brightness(.78)}
 /* The art's window clips its picture; the cost gem hangs off the card's own corner, past its edge,
@@ -179,14 +234,99 @@
    painted a brighter colour than anything around it. */
 .hand-verbs .play-btn.is-turn{font:700 21px/1 var(--play-font);padding:13px 26px;border-radius:7px;background:linear-gradient(#e8e1d0,#c6bda6);border-color:#9a917c;box-shadow:inset 0 1px 0 #fffdf6,inset 0 -1px 0 #00000012,0 4px 0 #9a917c,0 5px 7px #00000038}
 .hand-verbs .play-btn.is-turn:not(.is-primary){background:linear-gradient(#ece2c6,#cebf96);border-color:#9d8f6c;box-shadow:inset 0 1px 0 #fffdf6,inset 0 -1px 0 #00000012,0 4px 0 #9d8f6c,0 5px 7px #00000038}
+/* Rest and the binder, side by side under whatever the big key is. */
+.hand-tools{display:flex;align-items:flex-end;justify-content:center;gap:14px}
+/* Rest is one key off a mechanical keyboard, and built like one so that it moves like one. The
+   button itself is the plate: a dark well that never moves. The cap sits in it, raised by its own
+   travel, and what shows below the cap's face is its skirt -- a solid drop shadow exactly as tall as
+   the distance it has left to fall. Pointing at it takes up the slack, the way a finger resting on a
+   key does; pressing bottoms it out, and the skirt is gone because there is no travel left to show.
+   The legend is a campfire, in the sheet's ink, with the word under it small. */
+.key-btn{position:relative;flex:none;width:var(--key-size);height:calc(var(--key-size) + 4px);padding:0;border:0;border-radius:11px;cursor:pointer;background:linear-gradient(#0f0d0b,#241f19);box-shadow:inset 0 2px 5px #000,inset 0 0 0 1px #000,0 1px 0 #ffffff24;-webkit-tap-highlight-color:transparent}
+.key-btn:focus-visible{outline:2px solid #856018;outline-offset:3px}
+.key-cap{position:absolute;inset:3px 3px 5px;border-radius:9px;background:linear-gradient(#d3cab2,#a2987f);transform:translateY(-8px);box-shadow:0 8px 0 #6f6753,0 8px 0 1px #00000059,0 12px 9px #00000073;transition:transform .1s ease-out,box-shadow .1s ease-out}
+.key-top{position:absolute;inset:3px 7px 11px;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--play-ink);background:linear-gradient(165deg,#fffdf6,#efe7d3 60%,#e6dcc5);box-shadow:inset 0 1px 0 #fff,inset 0 -2px 4px #00000014,0 1px 2px #00000047}
+.key-top svg{width:30px;height:30px;fill:currentColor}
+.key-top .key-logs{fill:none;stroke:currentColor;stroke-width:2.7;stroke-linecap:round}
+.key-legend{font:700 7.5px/1 var(--play-display);letter-spacing:.16em;text-transform:uppercase;color:var(--play-muted)}
+.key-btn:hover .key-cap,.key-btn:focus-visible .key-cap{transform:translateY(-6px);box-shadow:0 6px 0 #6f6753,0 6px 0 1px #00000059,0 9px 8px #00000066}
+.key-btn:active .key-cap{transform:translateY(0);box-shadow:0 0 0 #6f6753,0 0 0 1px #00000059,0 1px 2px #00000059;transition-duration:.05s}
+@media(prefers-reduced-motion:reduce){.key-cap{transition:none}}
+/* The keys stand together beside the Light: Jump, and Rest when there is no fight to rest from. */
+.hand-keys{display:flex;align-items:flex-end;gap:10px;flex:none;margin:0 0 10px -12px;pointer-events:auto}
+/* Jump is the same key with another legend, and as heavy a one as the fire: a figure in the air between
+   the place it left and the higher place it is going, limbs as thick as the logs. Under the pointer it
+   gathers itself. Armed, the key is held down - bottomed out like a key under a finger - its face goes
+   to gold, and the figure makes the leap again and again until the board is told where. */
+.jump-key .key-top svg{overflow:visible}
+.jump-key .jump-figure{fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;transform-box:fill-box;transform-origin:50% 100%;transition:transform .16s cubic-bezier(.3,0,.2,1)}
+.jump-key .jump-figure circle{fill:currentColor;stroke:none}
+.jump-key:hover:not(:disabled) .jump-figure,.jump-key:focus-visible .jump-figure{transform:translate(-.6px,1.2px) scale(1.06,.86)}
+.jump-key:disabled{cursor:default;filter:grayscale(.5) brightness(.78)}
+.jump-key:disabled .key-cap,.jump-key:disabled:hover .key-cap{transform:translateY(-8px);box-shadow:0 8px 0 #6f6753,0 8px 0 1px #00000059,0 12px 9px #00000073}
+.jump-key.is-armed .key-cap,.jump-key.is-armed:hover .key-cap{transform:translateY(0);box-shadow:0 0 0 #6f6753,0 0 0 1px #00000059,0 1px 2px #00000059}
+.jump-key.is-armed .key-top{background:linear-gradient(165deg,#fff3c4,#e9c560);box-shadow:inset 0 0 0 1px #856018,0 0 12px #ffe08ab3;animation:jump-glow 1.1s ease-in-out infinite}
+.jump-key.is-armed .key-legend{color:#5a3f0c}
+.jump-key.is-armed .jump-figure,.jump-key.is-armed:hover .jump-figure{animation:jump-leap 1.1s cubic-bezier(.3,0,.3,1) infinite}
+/* Off the low ledge, gathered; long in the air; down on the high one with a give in the knees; and gone, to do it again. */
+@keyframes jump-leap{0%{opacity:0;transform:translate(-5px,3px) scale(1.08,.85)}10%{opacity:1;transform:translate(-5px,3.4px) scale(1.12,.78)}50%{transform:translate(-.5px,-2px) scale(.95,1.1)}80%{transform:translate(4px,0) scale(1,1)}88%{opacity:1;transform:translate(4px,.8px) scale(1.1,.84)}100%{opacity:0;transform:translate(4px,0) scale(1,1)}}
+@keyframes jump-glow{50%{box-shadow:inset 0 0 0 1px #856018,0 0 20px #ffe08a}}
+@media(prefers-reduced-motion:reduce){.jump-key .jump-figure{transition:none}.jump-key.is-armed .key-top,.jump-key.is-armed .jump-figure,.jump-key.is-armed:hover .jump-figure{animation:none}}
+
+/* The loadout's button is the binder itself, shut: black board, its name on the cover in the same
+   pale ink the pocket page uses, a lighter strip down the spine and two ticks on it for the rings.
+   The cover is its own element hinged on the spine, over a block of cream leaves -- so lifting it
+   shows paper underneath, which is the whole of what makes it read as a book and not a black tile.
+   Pointing at it lifts the cover the way a thumb does; `is-opening` swings it right back, on the
+   curve and for the time `binder-open` in `cards.css` takes, because the two open together. */
+.book-btn{position:relative;align-self:center;width:88px;height:112px;margin-top:4px;padding:0;border:0;background:none;cursor:pointer;perspective:520px;color:#efe6d0;-webkit-tap-highlight-color:transparent}
+.book-btn:focus-visible{outline:2px solid #856018;outline-offset:4px}
+/* The back board and the leaves lying on it. */
+.book-btn:before{content:'';position:absolute;inset:0;border-radius:3px 7px 7px 3px;background:linear-gradient(#141312,#0a0909);box-shadow:0 2px 0 #000,0 3px 0 #2b2826,0 9px 14px #00000073}
+.book-leaves{position:absolute;inset:3px 4px 4px 7px;border-radius:1px 3px 3px 1px;background:repeating-linear-gradient(#0000 0 6px,#cdbd9c52 6px 7px),linear-gradient(90deg,#c9bb9c,#f7f1e2 14%,#fdfbf4);box-shadow:inset 0 0 0 1px #d5c5a4}
+.book-cover{position:absolute;inset:0;display:grid;place-items:center;border-radius:3px 7px 7px 3px;border-left:1px solid #000;transform-origin:left center;transform:rotateY(0);transition:transform .22s ease-out;backface-visibility:visible;
+  background:linear-gradient(90deg,#3a3633 0,#3a3633 2px,#0000 7px),linear-gradient(135deg,#262321,#151413 46%,#0b0a09 90%,#1a1817);
+  box-shadow:inset 0 1px 1px #ffffff2e,inset -1px 0 0 #ffffff0f}
+/* The two ring marks on the spine, where the pattern this was drawn from has its two ticks. */
+.book-cover:before,.book-cover:after{content:'';position:absolute;left:-1px;width:1px;height:16px;background:#8d867c;border-right:1px solid #000}
+.book-cover:before{top:20px}
+.book-cover:after{bottom:20px}
+.book-title{padding:5px 0 4px;border-top:1px solid #efe6d066;border-bottom:1px solid #efe6d066;font:700 10.5px/1 var(--play-display);letter-spacing:.14em;text-transform:uppercase;text-shadow:0 1px 2px #000;transition:opacity .07s}
+.book-btn:hover .book-cover,.book-btn:focus-visible .book-cover{transform:rotateY(-34deg)}
+.book-btn.is-opening .book-cover{transform:rotateY(-164deg);transition:transform .46s cubic-bezier(.45,0,.55,1)}
+/* Seen from behind, the lettering would read backwards through the board; it is gone before then. */
+.book-btn.is-opening .book-title{opacity:0}
+@media(prefers-reduced-motion:reduce){.book-cover,.book-title{transition:none}.book-btn:hover .book-cover,.book-btn:focus-visible .book-cover{transform:none}}
 
 /* What just happened and what is waiting, bottom right: the running sheet of the session. */
-.panel{position:absolute;right:0;bottom:0;width:340px;max-height:75vh;display:flex;flex-direction:column;gap:8px;padding:12px;box-sizing:border-box;pointer-events:auto;font-size:13px;line-height:1.45}
+.panel{position:absolute;right:0;bottom:0;width:var(--panel-w);max-height:min(75vh,calc(100vh - 210px));display:flex;flex-direction:column;gap:8px;padding:12px;box-sizing:border-box;pointer-events:auto;font-size:13px;line-height:1.45}
 .panel-box{overflow-y:auto;padding:9px 12px;scrollbar-color:#b9a684 transparent}
 .panel-box.is-fixed{flex-shrink:0}
 .panel-box.is-log{flex:1 1 auto;min-height:80px}
-.panel-saves{display:flex;justify-content:flex-end;gap:4px}
+.panel-saves{display:flex;justify-content:flex-start;gap:6px;margin:2px 0 4px}
+.settings-saves{max-height:38vh;overflow-y:auto;margin-top:6px;padding-right:2px;scrollbar-color:#b9a684 transparent}
 .panel-saves .play-btn{font-size:11px;padding:3px 9px}
+/* The player's own settings: a sheet of paper over a dimmed table, opened by Escape and by nothing else. A
+   heading a section, a row a setting - the name over what it does - and a switch drawn in ink. */
+.settings-backdrop{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:16px;box-sizing:border-box;background:#120c08ad;backdrop-filter:blur(4px);pointer-events:auto;animation:settings-dim .16s ease-out both}
+.settings-sheet{width:min(460px,100%);max-height:min(640px,calc(100vh - 32px));overflow-y:auto;padding:18px 22px 14px;box-sizing:border-box;outline:none;box-shadow:0 18px 50px #000000b3;animation:settings-rise .18s ease-out both}
+.settings-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #4a3d2e40}
+.settings-head h2{margin:0;font:700 20px/1 var(--play-display,var(--play-font));letter-spacing:.06em;color:var(--play-ink)}
+.settings-section{margin:12px 0 4px}
+.settings-section .play-eyebrow{margin-bottom:6px}
+.settings-foot{margin:12px 0 0;padding-top:8px;border-top:1px solid #4a3d2e26;font:italic 400 11px/1.3 var(--play-font);color:#5b4d38}
+@keyframes settings-dim{from{opacity:0}}
+@keyframes settings-rise{from{opacity:0;transform:translateY(8px) scale(.985)}}
+.settings-row{display:flex;align-items:flex-start;gap:9px;margin:4px 0 8px;cursor:pointer}
+.settings-row span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.settings-row b{font:700 12.5px/1.2 var(--play-font);color:var(--play-ink)}
+.settings-row small{font:400 11px/1.3 var(--play-font);color:#5b4d38}
+.settings-switch{appearance:none;flex:none;width:30px;height:16px;margin:1px 0 0;border-radius:9px;border:1px solid #4a3d2e;background:#d9caa6;position:relative;cursor:pointer;transition:background .15s ease}
+.settings-switch:after{content:'';position:absolute;top:1px;left:1px;width:12px;height:12px;border-radius:50%;background:#4a3d2e;transition:transform .15s ease,background .15s ease}
+.settings-switch:checked{background:#4a3d2e}
+.settings-switch:checked:after{transform:translateX(14px);background:#f3e7c9}
+.settings-switch:focus-visible{outline:2px solid #8a6d2f;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.settings-switch,.settings-switch:after{transition:none}.settings-backdrop,.settings-sheet{animation:none}}
 .panel-heading{margin-bottom:5px}
 .panel-line{margin-bottom:4px}
 .panel-line [data-testid=log-entity]{text-decoration:underline dotted;cursor:default}
@@ -340,3 +480,10 @@
    painted scene. Only while the play HUD is up, so the editor keeps its plain grey. */
 body:has(.hud) #gl{filter:saturate(1.18) contrast(1.05)}
 body:has(.hud) #floaters{background:radial-gradient(ellipse at 50% 45%,transparent 52%,#0a060cb3 100%)}
+
+/* A window too narrow to hold a hand of cards beside the journal stacks them instead: the journal
+   sits above the cards, and the cards take the width, which is what they need to stay cards. */
+@media (max-width:1240px){
+  .bar{right:12px}
+  .panel{bottom:calc(clamp(132px,19vh,176px) + 26px);max-height:min(56vh,calc(100vh - 300px))}
+}

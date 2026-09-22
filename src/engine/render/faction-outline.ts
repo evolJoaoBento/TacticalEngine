@@ -95,6 +95,11 @@ export function recolourOutline(model: Object3D, color: string): boolean {
   const rim = model.children.find((child) => child.name === OUTLINE_NAME) as Mesh | undefined;
   if (rim === undefined) return false;
   const wanted = rimMaterial(OUTLINE_WIDTH, color);
+  // Mid-flash the line is somebody else's for a moment: what it goes back to changes, and it does not.
+  if (rim.userData['beforeFlash'] !== undefined) {
+    rim.userData['beforeFlash'] = wanted;
+    return false;
+  }
   if (rim.material === wanted) return false;
   rim.material = wanted;
   return true;
@@ -125,6 +130,31 @@ export function litOutlines(
     recolourOutline(t.group, t.id === selected ? SELECTED_COLOR : t.id === lit ? t.of.color : dim(t.of.color));
   }
   return lit;
+}
+
+/** How much wider than its resting width a flashed line is drawn, so it reads as a flare and not a recolour. */
+export const FLASH_WIDTH = 2.5;
+
+/**
+ * Burn the line round a model in another colour for a moment, and hand back what puts it right.
+ *
+ * What it was before is remembered on the mesh, so a second flash on top of the first does not
+ * remember the flash as the colour to go back to, and a recolour that arrives mid-flash - the
+ * pointer finding the creature, a selection changing - changes what it goes back to rather than
+ * cutting the flash short. Nothing to flash is nothing to undo.
+ */
+export function flashOutline(model: Object3D, color: string): () => void {
+  const rim = model.children.find((child) => child.name === OUTLINE_NAME) as Mesh | undefined;
+  if (rim === undefined) return () => {};
+  const flash = rimMaterial(OUTLINE_WIDTH * FLASH_WIDTH, color);
+  if (rim.userData['beforeFlash'] === undefined) rim.userData['beforeFlash'] = rim.material;
+  rim.material = flash;
+  return () => {
+    // A later flash owns the line now, and will put it right itself.
+    if (rim.material !== flash || rim.userData['beforeFlash'] === undefined) return;
+    rim.material = rim.userData['beforeFlash'] as MeshBasicMaterial;
+    delete rim.userData['beforeFlash'];
+  };
 }
 
 /** Whether a model carries a line at all, so a caller can tell a miss from a no-op. */

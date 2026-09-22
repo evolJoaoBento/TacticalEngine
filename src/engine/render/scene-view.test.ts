@@ -14,6 +14,7 @@ import { AssetLibrary, modelAssetSchema } from './assets';
 import { TileGrid } from '../grid/grid';
 import { SceneState, createAdversaryEntity, createPartyEntity } from '../scene/state';
 import { DEFAULT_LAYOUT, mapExtent, spotToWorld, surfaceHeight, tileCenter } from './layout';
+import { WALK_HOP, WALK_PER_TILE } from './glide';
 import { SceneView, hueOf } from './scene-view';
 import { OUTLINE_NAME, SELECTED_COLOR } from './faction-outline';
 import { DEFAULT_TERRAIN_COLORS, buildTerrainMesh, tilesDrawn, topColorOf } from './terrain-mesh';
@@ -213,6 +214,7 @@ describe('SceneView', () => {
     view.showZones([{ tiles: [grid.indexOf(1, 1)], color: '#ff7a3a' }]);
     view.showSelection(grid.indexOf(0, 0));
     view.showCursor(grid.indexOf(1, 0));
+    expect(view.root.children.some((child) => child.name === 'cursor')).toBe(false); // the pointer draws nothing of its own
     const resources = view.resources;
 
     // A bigger room, with Kara arriving on a spawn and the husk left behind.
@@ -512,7 +514,7 @@ describe('SceneView', () => {
 
     // Two thirds of the way in time is the corner tile, not a point on the
     // straight line from start to finish.
-    view.tick(0.16 * 2);
+    view.tick(WALK_PER_TILE * 2);
     const corner = tileCenter(grid, grid.indexOf(2, 0));
     expect(kara.group.position.x).toBeCloseTo(corner.x, 3);
     expect(kara.group.position.z).toBeCloseTo(corner.z, 3);
@@ -522,7 +524,8 @@ describe('SceneView', () => {
     expect(kara.group.rotation.y).toBeCloseTo(Math.PI / 2, 6);
     view.tick(0.08);
     expect(kara.group.rotation.y).toBeCloseTo(0, 6);
-    expect(kara.group.position.y).toBeCloseTo(corner.y, 6);
+    // On the ground, to within the rise of a step: a walking token bobs.
+    expect(Math.abs(kara.group.position.y - corner.y)).toBeLessThanOrEqual(WALK_HOP + 1e-6);
 
     view.tick(1);
     const to = tileCenter(grid, grid.indexOf(2, 1));
@@ -566,6 +569,67 @@ describe('SceneView', () => {
     view.dispose();
   });
 
+  it('holds a move that waits on a roll until the roll has been read, and then makes it', () => {
+    const { grid, state, view } = setup();
+    view.syncTokens(state);
+    const kara = view.tokenFor('kara')!;
+    const stood = kara.group.position.clone();
+    const route = [{ x: 0, y: 0 }, { x: 2, y: 0 }];
+    state.placeEntity('kara', 2, 0);
+    view.walkAlong('kara', route, 0.75, true);
+
+    // The card is up: drawn again and again, the token has not stirred, and nothing is gliding.
+    for (let i = 0; i < 3; i++) {
+      view.syncTokens(state, { reading: true });
+      view.tick(0.5);
+    }
+    expect(view.glidingCount).toBe(0);
+    expect(kara.group.position.distanceTo(stood)).toBeCloseTo(0, 10);
+
+    // Accepted: it goes, along the line it was handed, as the jump it was.
+    view.syncTokens(state, { reading: false });
+    expect(view.glidingCount).toBe(1);
+    view.tick(5);
+    const to = spotToWorld(grid, { x: 2, y: 0 });
+    expect(kara.group.position.x).toBeCloseTo(to.x, 10);
+    expect(view.glidingCount).toBe(0);
+
+    // A move that waits on nothing is not held by somebody else's roll being read.
+    state.placeEntity('kara', 0, 0);
+    view.walkAlong('kara', [{ x: 2, y: 0 }, { x: 0, y: 0 }]);
+    view.syncTokens(state, { reading: true });
+    expect(view.glidingCount).toBe(1);
+    view.dispose();
+  });
+
+  it('flinches where the move ends when the blow came with the move, and at once when standing still', () => {
+    const { state, view } = setup();
+    view.syncTokens(state);
+    // Standing: struck is struck.
+    view.flinch('kara');
+    expect(view.reactingCount).toBe(1);
+    view.tick(5);
+    expect(view.reactingCount).toBe(0);
+
+    // A fall: the move and the wound arrive together, and the wound is the landing's.
+    state.placeEntity('kara', 2, 0);
+    view.walkAlong('kara', [{ x: 0, y: 0 }, { x: 2, y: 0 }], 0.75);
+    view.flinch('kara');
+    view.syncTokens(state);
+    expect(view.glidingCount).toBe(1);
+    expect(view.reactingCount).toBe(0);
+    view.tick(0.1);
+    expect(view.reactingCount).toBe(0);
+    // Landed: now they flinch, once. Frame by frame, as a page draws it - one long tick would
+    // land them and play the whole flinch in the same breath.
+    for (let i = 0; i < 100 && view.glidingCount > 0; i++) view.tick(0.02);
+    expect(view.glidingCount).toBe(0);
+    expect(view.reactingCount).toBe(1);
+    view.tick(5);
+    expect(view.reactingCount).toBe(0);
+    view.dispose();
+  });
+
   it('walks a token along the line it was handed, and arrives at the spot at its end', () => {
     const { grid, state, view } = setup();
     view.syncTokens(state);
@@ -583,7 +647,7 @@ describe('SceneView', () => {
     const to = spotToWorld(grid, { x: 3.4, y: 1.7 });
 
     // Halfway in time is halfway along the line, since it is one leg.
-    const duration = Math.min(1.2, 0.16 * Math.hypot(3.4, 1.7));
+    const duration = WALK_PER_TILE * Math.hypot(3.4, 1.7);
     view.tick(duration / 2);
     expect(kara.group.position.x).toBeCloseTo((from.x + to.x) / 2, 3);
     expect(kara.group.position.z).toBeCloseTo((from.z + to.z) / 2, 3);
@@ -1015,9 +1079,9 @@ describe('SceneView', () => {
     view.dispose();
   });
 
-  it('draws the overlays in a fixed order: ground, edge, walk, pointer, ring', () => {
+  it('draws the overlays in a fixed order: ground, edge, walk', () => {
     const { view } = setup();
-    const order = ['zones', 'zone-edges', 'highlights', 'highlight-edges', 'path', 'cursor'].map(
+    const order = ['zones', 'zone-edges', 'highlights', 'highlight-edges', 'path'].map(
       (name) => view.root.children.find((c) => c.name === name)!.renderOrder,
     );
     expect(order).toEqual([...order].sort((a, b) => a - b));

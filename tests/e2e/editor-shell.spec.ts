@@ -162,7 +162,7 @@ test('Terrain: its own tools, and a pick from the strip takes up the tool that p
       (JSON.parse(api.exportProject()) as { scenes: { decos: { model: string }[] }[] }).scenes[0]!.decos.map((d) => d.model);
     const barrels = (): number => models().filter((model) => model === 'barrel').length;
     const before = { all: models().length, barrels: barrels() };
-    api.editAt(2 * 22 + 2);
+    api.editAt(2 * 44 + 2);
     return { added: models().length - before.all, barrels: barrels() - before.barrels };
   });
   // One deco more, and it is the barrel the strip picked - not merely a change of tool.
@@ -204,7 +204,7 @@ test('Combat: its own tools, and a creature found by searching is the one placed
         .encounters.flatMap((e) => e.adversaries.map((a) => a.adversary));
     const matching = (): number => kinds().filter((kind) => kind === id).length;
     const before = { all: kinds().length, matching: matching() };
-    api.editAt(2 * 22 + 2);
+    api.editAt(2 * 44 + 2);
     return { added: kinds().length - before.all, matching: matching() - before.matching };
   }, creatureId);
   // One creature more, and it is the one the search found - wherever the encounter lists it.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from './demo-map';
 import { blankScene, tileOf } from '../engine/scene/grid-from-scene';
 import { projectSchema, sceneSchema } from '../engine/scene/schema';
 import { SRD_CONDITIONS } from '../engine/content/conditions';
@@ -34,7 +34,7 @@ function stand(demo: DemoScene, interactableId: string): void {
   demo.state.moveEntity(demo.party.selected!, tileOf(demo.grid, beside));
 }
 
-const scene = (): DemoScene => buildDemoScene(demoMap());
+const scene = (): DemoScene => buildDemoScene(hollowVaultMap());
 
 describe('using the demo vault', () => {
   it('imported the authored checks that used to go nowhere', () => {
@@ -138,7 +138,7 @@ describe('using the demo vault', () => {
 
   it('is replayable: the same seed opens the chest the same way', () => {
     const play = (): string => {
-      const demo = buildDemoScene(demoMap(), 'fixed-seed');
+      const demo = buildDemoScene(hollowVaultMap(), 'fixed-seed');
       stand(demo, CHEST);
       useSelectedOn(demo, CHEST);
       answerPending(demo, { kind: 'roll' });
@@ -172,7 +172,7 @@ describe('the conditions a project inherits', () => {
     expect(named.get('warding-flame-ring')).toBe('Warding Flame');
     expect(named.has('vulnerable')).toBe(true);
     // The engine's own are the three its rules read; a card's or a stat block's travels with its pack.
-    expect(SRD_CONDITIONS.map((def) => def.id)).toEqual(['vulnerable', 'hidden', 'restrained']);
+    expect(SRD_CONDITIONS.map((def) => def.id)).toEqual(['vulnerable', 'hidden', 'restrained', 'prone']);
     // The project's own wins, and nothing is listed twice.
     expect(named.get('restrained')).toBe('Pinned');
     expect(new Set(defs.map((def) => def.id)).size).toBe(defs.length);

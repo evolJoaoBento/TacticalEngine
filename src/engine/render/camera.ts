@@ -135,6 +135,14 @@ export class OrbitCamera {
     this.seat();
   }
 
+  /** Move with the ground, at once and without easing: what is looked at, and what was about to be. */
+  slide(by: { x: number; z: number }): void {
+    for (const target of [this.goal.target, this.pose.target]) {
+      target.x += by.x;
+      target.z += by.z;
+    }
+  }
+
   /** Look at a point without changing distance or angle. */
   lookAt(target: { x: number; y: number; z: number }): void {
     this.goal.target = { ...target };

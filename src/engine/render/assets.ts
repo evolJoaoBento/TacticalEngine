@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { Box3, type Object3D } from 'three';
+import { Box3, Vector3, type BufferAttribute, type Mesh, type Object3D } from 'three';
 
 import { contentIdSchema } from '../scene/primitives';
 
@@ -69,17 +69,59 @@ export type ModelAsset = z.infer<typeof modelAssetSchema>;
  * settings mean one thing each: `scale` sizes the model, `groundOffset` sinks or
  * floats it deliberately.
  *
+ * It is centred on the base it stands on rather than on the middle of the whole
+ * body: a figure that leans out, reaches or trails a tail has a box whose middle
+ * is nowhere near its feet, and a token centred on that stands off its tile and
+ * swings as it turns. The base is the lowest slice of what arrived, and the
+ * middle of that slice is what goes over the middle of the tile.
+ *
  * Call it once the rotation and the scale are on, because it measures what it is
  * given. A model with nothing in it to measure is left where it is.
  */
 export function seatOnTile(model: Object3D): void {
   const box = new Box3().setFromObject(model);
   if (box.isEmpty()) return;
+  const base = baseOf(model, box);
   model.position.set(
-    model.position.x - (box.min.x + box.max.x) / 2,
+    model.position.x - base.x,
     model.position.y - box.min.y,
-    model.position.z - (box.min.z + box.max.z) / 2,
+    model.position.z - base.z,
   );
+}
+
+/** How deep a slice of a model counts as the base it stands on: enough for the feet, not the knees. */
+const BASE_SLICE = 0.06;
+
+/**
+ * The middle of the ground a model rests on, in the space its parent sees.
+ *
+ * Every point within a slice of the lowest one is taken, and the middle of what they cover is the
+ * answer. A model whose meshes carry no positions, or whose base cannot be read, falls back to the
+ * middle of the whole box, which is what this always used to do.
+ */
+function baseOf(model: Object3D, box: Box3): { x: number; z: number } {
+  const floor = box.min.y + BASE_SLICE * Math.max(1e-6, box.max.y - box.min.y);
+  let lowX = Infinity;
+  let highX = -Infinity;
+  let lowZ = Infinity;
+  let highZ = -Infinity;
+  const point = new Vector3();
+  model.updateWorldMatrix(true, true);
+  model.traverse((child) => {
+    const mesh = child as Mesh;
+    const positions = mesh.isMesh ? (mesh.geometry.getAttribute('position') as BufferAttribute | undefined) : undefined;
+    if (positions === undefined) return;
+    for (let i = 0; i < positions.count; i++) {
+      point.fromBufferAttribute(positions, i).applyMatrix4(child.matrixWorld);
+      if (point.y > floor) continue;
+      lowX = Math.min(lowX, point.x);
+      highX = Math.max(highX, point.x);
+      lowZ = Math.min(lowZ, point.z);
+      highZ = Math.max(highZ, point.z);
+    }
+  });
+  if (lowX > highX) return { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2 };
+  return { x: (lowX + highX) / 2, z: (lowZ + highZ) / 2 };
 }
 
 export type AssetLoader = (url: string) => Promise<Object3D>;
@@ -202,6 +244,22 @@ export class AssetLibrary {
       },
     );
     return true;
+  }
+
+  /**
+   * How the loading stands: files still on their way, and files that have finished one way or the
+   * other. A failed file counts as settled -- it is not coming, and nothing should wait for it. An
+   * asset nobody has asked for is in neither number: most of a library is never drawn, so "all of
+   * them ready" is a thing that never happens.
+   */
+  progress(): { loading: number; settled: number } {
+    let loading = 0;
+    let settled = 0;
+    for (const status of this.status.values()) {
+      if (status === 'loading') loading++;
+      else if (status === 'ready' || status === 'failed') settled++;
+    }
+    return { loading, settled };
   }
 
   /** Start every declared asset loading. */

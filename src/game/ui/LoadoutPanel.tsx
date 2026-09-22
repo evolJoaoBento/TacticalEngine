@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { GrantedCard, LoadoutCard, LoadoutView } from '../demo-abilities';
+import type { GrantedCard, LoadoutCard, LoadoutView, SheetStats } from '../demo-abilities';
 import { CardFace, GrantedFace } from './CardFace';
 import { CardArtImport } from './CardArtImport';
 import { Pips, type HudMember } from './PartyHud';
@@ -23,6 +23,43 @@ export interface LoadoutPanelProps {
   issue: string | null;
   onSwap: (cardIn: string, cardOut: string | undefined) => void;
   onClose: () => void;
+}
+
+const signed = (value: number): string => (value > 0 ? `+${value}` : `${value}`);
+/** A threshold they do not have is `Infinity`, which is not a number anybody writes on a sheet. */
+const threshold = (value: number): string => (Number.isFinite(value) ? `${value}` : '—');
+
+/**
+ * The block of numbers a paper sheet is mostly made of: what it takes to hit them, how hard a blow
+ * must be to cost more than one Hit Point, and what they add to a roll.
+ *
+ * The thresholds are laid out the way the printed sheet does it -- the three bands in a line with
+ * the two numbers between them -- because that is the shape a player reads damage against: find
+ * where the number falls, read off how many Hit Points to mark.
+ */
+function SheetNumbers({ stats }: { stats: SheetStats }) {
+  return <div className="sheet-stats" data-testid="sheet-stats">
+    <div className="sheet-defence">
+      <div className="sheet-shield" data-testid="sheet-evasion"><b>{stats.evasion}</b><span>Evasion</span></div>
+      <div className="sheet-shield" data-testid="sheet-proficiency"><b>{stats.proficiency}</b><span>Proficiency</span></div>
+      <div className="sheet-bands" data-testid="sheet-thresholds" aria-label={`Damage thresholds: Major ${threshold(stats.thresholds.major)}, Severe ${threshold(stats.thresholds.severe)}`}>
+        <span>Minor<small>mark 1 HP</small></span>
+        <b>{threshold(stats.thresholds.major)}</b>
+        <span>Major<small>mark 2 HP</small></span>
+        <b>{threshold(stats.thresholds.severe)}</b>
+        <span>Severe<small>mark 3 HP</small></span>
+      </div>
+    </div>
+    <div className="sheet-traits">
+      {stats.traits.map(trait => <div key={trait.id} className={`sheet-trait${trait.spellcast ? ' is-spellcast' : ''}`} data-testid={`sheet-trait-${trait.id}`}>
+        <b>{signed(trait.value)}</b><span>{trait.id}</span>{trait.spellcast ? <small>Spellcast</small> : null}
+      </div>)}
+    </div>
+    {stats.experiences.length === 0 ? null : <div className="sheet-experiences">
+      <h3>Experiences</h3>
+      {stats.experiences.map(experience => <p key={experience.name}><span>{experience.name}</span><b>{signed(experience.modifier)}</b></p>)}
+    </div>}
+  </div>;
 }
 
 /**
@@ -317,7 +354,10 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
       {/* No header band. The binder is the two leaves and the rings between them, so the only
           chrome left is the way out, floated on the board itself. Whose loadout it is is written
           at the head of the sheet, where a binder would have it. */}
-      <button className="deck-close deck-shut" onClick={shut} data-testid="close-loadout">Close <kbd>Esc</kbd></button>
+      {/* Not while a card is held up to read. Esc there puts the card down, not the binder away, so
+          a button saying "Close Esc" beside it promised something the key would not do -- and
+          "Back to collection" is already the way out of the reader. */}
+      {inspect ? null : <button className="deck-close deck-shut" onClick={shut} data-testid="close-loadout">Close <kbd>Esc</kbd></button>}
       {/* The binder lies open: the character on the left leaf, the pockets on the right, rings down
           the middle. Only the right leaf turns -- who you are does not change page. */}
       <div className="deck-spread" ref={spreadBox}>
@@ -330,14 +370,14 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
               flex column -- which is how the photo first ended up stranded above the name. */}
           <div className="sheet-top">
             <div className="sheet-id">
-              <div className="deck-eyebrow">{props.sheet?.role ?? 'Character'}</div>
+              <div className="deck-eyebrow">{props.sheet?.role ?? 'Character'}{view.stats === undefined ? '' : ` · Level ${view.stats.level}`}</div>
               <h2 className="sheet-name">{props.name}</h2>
               {props.sheet === undefined ? null : <>
-                <Pips label="HP" marked={props.sheet.hitPoints.marked} max={props.sheet.hitPoints.max} colour="var(--play-hp)" testId="sheet-hp" />
-                <Pips label="Stress" marked={props.sheet.stress.marked} max={props.sheet.stress.max} colour="var(--play-stress)" testId="sheet-stress" />
-                <Pips label="Armor" marked={props.sheet.armorSlots.marked} max={props.sheet.armorSlots.max} colour="var(--play-armor)" testId="sheet-armor" />
+                <Pips label="HP" marked={props.sheet.hitPoints.marked} max={props.sheet.hitPoints.max} colour="var(--play-hp)" icon="heart" left testId="sheet-hp" />
+                <Pips label="Stress" marked={props.sheet.stress.marked} max={props.sheet.stress.max} colour="var(--play-stress)" icon="bolt" left testId="sheet-stress" />
+                <Pips label="Armor" marked={props.sheet.armorSlots.marked} max={props.sheet.armorSlots.max} colour="var(--play-armor)" icon="shield" left testId="sheet-armor" />
                 {props.sheet.good === undefined ? null
-                  : <Pips label="Light" marked={props.sheet.good.value} max={props.sheet.good.max} colour="var(--play-light)" testId="sheet-light" />}
+                  : <Pips label="Light" marked={props.sheet.good.value} max={props.sheet.good.max} colour="var(--play-light)" icon="star" testId="sheet-light" />}
               </>}
             </div>
             {props.portrait === null || props.portrait === undefined ? null : (
@@ -346,13 +386,14 @@ export function LoadoutPanel(props: LoadoutPanelProps): preact.JSX.Element {
               </span>
             )}
           </div>
+          {view.stats === undefined ? null : <SheetNumbers stats={view.stats} />}
           {props.sheet === undefined ? null : <>
             <p className="sheet-line"><span>Gear</span><b>{props.sheet.gear}</b></p>
             {props.sheet.conditions.length > 0 ? <p className="sheet-line"><span>Conditions</span><b>{props.sheet.conditions.join(' · ')}</b></p> : null}
           </>}
-          <p className="sheet-line"><span>Active hand</span><b>{view.loadout.length} / {view.limit}</b></p>
-          <p className="sheet-line"><span>Always in play</span><b>{view.granted.length}</b></p>
-          <p className="sheet-line"><span>The vault</span><b>{view.vault.length}</b></p>
+          {/* One line for the three counts: the pocket page opposite already says each of them over
+              its own section, and the paper has better things to spend three rows on. */}
+          <p className="sheet-line" data-testid="sheet-counts"><span>Cards</span><b>{view.loadout.length} / {view.limit} in hand · {view.granted.length} always · {view.vault.length} in the vault</b></p>
           {/* A refused recall says so here now that there is no footer band to say it in. It is
               the only word a player gets about why a swap did not happen, so it keeps its name. */}
           {props.issue === null ? null : <p className="sheet-issue" role="alert" data-testid="loadout-issue">{props.issue}</p>}

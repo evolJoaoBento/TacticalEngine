@@ -19,7 +19,6 @@ import {
   BoxGeometry,
   BufferAttribute,
   BufferGeometry,
-  CircleGeometry,
   Color,
   DirectionalLight,
   Group,
@@ -38,9 +37,11 @@ import {
 } from 'three';
 import { NO_TILE, type Spot, type TileGrid } from '../grid/grid';
 import { advanceGlide, planGlide, type Glide } from './glide';
+import { TrajectoryLine, type AimedArc } from './trajectory-line';
+import { ReachRing } from './reach-ring';
 import type { Deco, SceneDoc } from '../scene/schema';
 import type { EntityState, SceneState } from '../scene/state';
-import { DEFAULT_LAYOUT, mapExtent, placementCentre, spotToWorld, surfaceHeight, tileCenter, type TileLayout } from './layout';
+import { DEFAULT_LAYOUT, mapExtent, placementCentre, spotToWorld, standHeight, tileCenter, type TileLayout } from './layout';
 import { ModelResources, buildModel, type BuildOptions, type BuiltModel } from './procedural/build';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { type AssetLibrary, seatOnTile } from './assets';
@@ -78,6 +79,8 @@ interface Reaction {
   /** A lunge: the way to the target, unit length, and how far along it the token is right now. */
   toward?: { x: number; z: number };
   offset?: number;
+  /** A flinch: what puts the line round them back to the colour it was. */
+  undo?: () => void;
 }
 
 import { ModelRegistry } from './procedural/registry';
@@ -95,7 +98,8 @@ const OBJECT_BODIES: Readonly<Record<string, string>> = { door: 'door', chest: '
 import { Spotlight } from './spotlight';
 import { CarryMotion } from './carry';
 export { OUTLINE_LAYER } from './toon';
-import { DEFAULT_FACTION_COLORS, dim, forgetOutline, litOutlines, outline } from './faction-outline';
+import { DEFAULT_FACTION_COLORS, dim, flashOutline, forgetOutline, litOutlines, outline } from './faction-outline';
+import { HURT_RIM, HURT_SECONDS, poseHurt, restFromHurt } from './hurt-reaction';
 import { buildTerrainMesh, type TerrainMesh, type TerrainMeshOptions } from './terrain-mesh';
 import { drawsTileModel, redrawTileModels } from './tile-models';
 
@@ -183,6 +187,12 @@ export class SceneView {
   private readonly pendingPaths = new Map<string, readonly number[]>();
   private readonly pendingRoutes = new Map<string, readonly Spot[]>();
   private readonly pendingThrows = new Set<string>();
+  private readonly pendingLeaps = new Map<string, number>();
+  private readonly waiting = new Set<string>();
+  private readonly lateFlinch = new Set<string>();
+  private readonly arc = new TrajectoryLine(DEFAULT_LAYOUT.tileSize);
+  /** The ranges on the ground as the circles they are: `reach-ring.ts`. */
+  private readonly reach = new ReachRing(DEFAULT_LAYOUT.tileSize);
   /** Whether each token was last drawn standing, so a fall is a change to animate. */
   private readonly tokenStanding = new Map<string, boolean>();
   /** Flinches and falls in progress, by entity. */
@@ -241,9 +251,6 @@ export class SceneView {
   private readonly pathMaterial: LineBasicMaterial;
   private pathPoints = 0;
   /** The spot under the pointer: a soft disc, a different colour, or hidden. */
-  private readonly cursor: Mesh;
-  private readonly cursorGeometry: CircleGeometry;
-  private readonly cursorMaterial: MeshBasicMaterial;
   private cursorTile = NO_TILE;
   private selectionTile = NO_TILE;
   /** Whose line is blue: the one being played, wherever they stand or walk. */
@@ -332,21 +339,7 @@ export class SceneView {
     this.pathLine.renderOrder = 5;
     this.root.add(this.pathLine);
 
-    // A disc rather than a square: the pointer marks a spot on the ground,
-    // not a cell of it.
-    this.cursorGeometry = new CircleGeometry(this.layout.tileSize * 0.4, 32);
-    this.cursorGeometry.rotateX(-Math.PI / 2);
-    this.cursorMaterial = new MeshBasicMaterial({
-      color: new Color('#ffe08a'),
-      transparent: true,
-      opacity: 0.35,
-      depthWrite: false,
-    });
-    this.cursor = new Mesh(this.cursorGeometry, this.cursorMaterial);
-    this.cursor.name = 'cursor';
-    this.cursor.visible = false;
-    this.cursor.renderOrder = 6;
-    this.root.add(this.cursor);
+    this.root.add(this.arc.group, this.reach.group);
 
     this.addLights();
   }
@@ -420,7 +413,7 @@ export class SceneView {
     let edges = from;
     for (const tile of held) {
       const centre = tileCenter(this.grid, tile, this.layout);
-      const top = surfaceHeight(this.grid.heightAt(tile), this.layout);
+      const top = standHeight(this.grid, tile, this.layout);
       const x = this.grid.xOf(tile);
       const y = this.grid.yOf(tile);
       const sides: [number, number, [number, number], [number, number]][] = [
@@ -487,6 +480,7 @@ export class SceneView {
     this.showCursor(NO_TILE);
     this.showSelection(NO_TILE);
     this.clearPath();
+    this.reach.hide();
     this.fitSun();
 
     this.tokenSpots.clear();
@@ -565,7 +559,7 @@ export class SceneView {
    * Fallen entities stay on the map, lying flat, because the engine keeps their
    * bodies too — `SceneState.isOccupied` already treats them as not blocking.
    */
-  syncTokens(state: SceneState, options: { snap?: boolean } = {}): void {
+  syncTokens(state: SceneState, options: { snap?: boolean; reading?: boolean } = {}): void {
     const seen = new Set<string>();
 
     for (const entity of state.allEntities()) {
@@ -575,12 +569,18 @@ export class SceneView {
       const wanted = this.drawnModel(this.modelForEntity(entity), entity);
       if (this.tokens.has(entity.id) && this.tokenModels.get(entity.id) !== wanted) this.dropToken(entity.id);
       let token = this.tokens.get(entity.id);
+      // A move waiting on a roll that is still being read: the token stays put, what it was
+      // handed stays queued, and it goes when the card is accepted.
+      if (options.reading === true && token !== undefined && this.waiting.has(entity.id)) continue;
+      this.waiting.delete(entity.id);
       const was = this.tokenSpots.get(entity.id);
       const path = this.pendingPaths.get(entity.id);
       this.pendingPaths.delete(entity.id);
       const route = this.pendingRoutes.get(entity.id);
       this.pendingRoutes.delete(entity.id);
       const thrown = this.pendingThrows.delete(entity.id);
+      const leap = this.pendingLeaps.get(entity.id);
+      this.pendingLeaps.delete(entity.id);
       if (token === undefined) {
         // Which side it is on, drawn round it and dimmed until the pointer finds it.
         token = this.build(wanted);
@@ -604,7 +604,7 @@ export class SceneView {
         (Math.abs(was.x - here.x) > 1e-9 || Math.abs(was.y - here.y) > 1e-9);
       if (moved && options.snap !== true) {
         this.poseToken(token, entity);
-        this.startGlide(entity.id, token, was, here, path, route, thrown);
+        this.startGlide(entity.id, token, was, here, path, route, thrown, leap);
       } else if (options.snap === true || !this.glides.has(entity.id)) {
         this.glides.delete(entity.id);
         this.placeToken(token, entity);
@@ -648,6 +648,8 @@ export class SceneView {
   flinch(id: string): void {
     const token = this.tokens.get(id);
     if (token === undefined || !token.group.visible) return;
+    // Hurt by where they are going - a fall - they flinch when they get there, not while they wait or fly.
+    if (this.waiting.has(id) || this.pendingRoutes.has(id) || this.glides.has(id)) return void this.lateFlinch.add(id);
     this.startReaction(id, token, 'flinch');
   }
 
@@ -676,8 +678,9 @@ export class SceneView {
       if ((current.kind === 'fall' || current.kind === 'rise') && kind !== 'fall' && kind !== 'rise') return;
       this.finishReaction(current);
     }
-    const duration = kind === 'flinch' ? 0.35 : kind === 'lunge' ? 0.3 : 0.45;
-    this.reactions.set(id, { token, kind, elapsed: 0, duration, ...(toward === undefined ? {} : { toward, offset: 0 }) });
+    const duration = kind === 'flinch' ? HURT_SECONDS : kind === 'lunge' ? 0.3 : 0.45;
+    this.reactions.get(id)?.undo?.(); // a blow on top of a blow: the first flash is put right before the second
+    this.reactions.set(id, { token, kind, elapsed: 0, duration, ...(toward === undefined ? {} : { toward, offset: 0 }), ...(kind === 'flinch' ? { undo: flashOutline(token.group, HURT_RIM) } : {}) });
     if (kind === 'flinch') this.playState(token.group, 'hit');
     else if (kind === 'fall') this.playState(token.group, 'fallen');
     else if (kind === 'rise') this.playState(token.group, 'idle');
@@ -690,11 +693,7 @@ export class SceneView {
       const t = Math.min(1, reaction.elapsed / reaction.duration);
       const group = reaction.token.group;
       if (reaction.kind === 'flinch') {
-        // A quick swell and a lean, both gone by the end.
-        const pulse = Math.sin(Math.PI * t);
-        const swell = 1 + 0.18 * pulse;
-        group.scale.set(swell, 1 + 0.08 * pulse, swell);
-        group.rotation.z = 0.22 * Math.sin(2 * Math.PI * t) * (1 - t);
+        poseHurt(group, t); // knocked, shuddering, and the line round them burning red
       } else if (reaction.kind === 'lunge') {
         // Out fast, back slower, a third of a tile at the furthest. Applied as
         // the change since last tick, so a walk under it is left alone.
@@ -718,8 +717,8 @@ export class SceneView {
   private finishReaction(reaction: Reaction): void {
     const group = reaction.token.group;
     if (reaction.kind === 'flinch') {
-      group.scale.set(1, 1, 1);
-      group.rotation.z = 0;
+      restFromHurt(group);
+      reaction.undo?.();
       // Back to the idle, or to the walk if one is still under way.
       const walking = [...this.glides.values()].some((glide) => glide.token === reaction.token && !glide.thrown);
       this.playState(group, walking ? 'walk' : 'idle');
@@ -743,8 +742,10 @@ export class SceneView {
   }
 
   /** The entity is about to be found at the end of this line, having crossed it. */
-  walkAlong(id: string, route: readonly Spot[]): void {
+  walkAlong(id: string, route: readonly Spot[], leap?: number, wait = false): void {
     this.pendingRoutes.set(id, route);
+    if (wait) this.waiting.add(id);
+    if (leap !== undefined) this.pendingLeaps.set(id, leap); // the last leg is a jump, arcing this many blocks
   }
 
   /** The entity is about to be found somewhere it was thrown, not somewhere it went. */
@@ -790,8 +791,9 @@ export class SceneView {
     path: readonly number[] | undefined,
     route: readonly Spot[] | undefined,
     thrown: boolean,
+    leap?: number,
   ): void {
-    this.glides.set(id, planGlide(this.grid, this.layout, token, from, to, path, route, thrown));
+    this.glides.set(id, planGlide(this.grid, this.layout, token, from, to, path, route, thrown, leap));
     if (!thrown) this.playState(token.group, 'walk');
   }
 
@@ -801,6 +803,7 @@ export class SceneView {
       if (!advanceGlide(glide, dt)) continue;
       this.glides.delete(id);
       this.playState(glide.token.group, 'idle');
+      if (this.lateFlinch.delete(id)) this.flinch(id);
     }
   }
 
@@ -1201,7 +1204,7 @@ export class SceneView {
   objectUnder(ray: Raycaster): string | null {
     const hit = ray.intersectObjects(this.objects, true).find((h) => h.object.visible);
     if (hit === undefined) return null;
-    const ground = ray.intersectObjects(this.terrain.meshes, false)[0];
+    const ground = ray.intersectObjects(this.terrain.drawn, false)[0];
     if (ground !== undefined && ground.distance < hit.distance) return null;
     let drawn: Object3D = hit.object;
     while (drawn.parent !== null && drawn.parent !== this.root) drawn = drawn.parent;
@@ -1236,7 +1239,7 @@ export class SceneView {
   /** The tile of the nearest authored thing drawn under a ray - a creature, a prop, a mark - unless ground hides it. */
   authoredUnder(ray: Raycaster): { x: number; y: number } | null {
     const hit = ray.intersectObjects([...this.authoredCreatures, ...this.decos, ...this.objects, ...this.marks], true).find((h) => h.object.visible);
-    const ground = ray.intersectObjects(this.terrain.meshes, false)[0];
+    const ground = ray.intersectObjects(this.terrain.drawn, false)[0];
     if (hit === undefined || (ground !== undefined && ground.distance < hit.distance)) return null;
     let drawn: Object3D = hit.object;
     while (drawn.parent !== null && drawn.parent !== this.root) drawn = drawn.parent;
@@ -1268,7 +1271,7 @@ export class SceneView {
       if (!this.grid.isTile(tile) || held.has(tile)) continue;
       held.add(tile);
       const centre = tileCenter(this.grid, tile, this.layout);
-      this.dummy.position.set(centre.x, surfaceHeight(this.grid.heightAt(tile), this.layout) + 0.02, centre.z);
+      this.dummy.position.set(centre.x, standHeight(this.grid, tile, this.layout) + 0.02, centre.z);
       this.dummy.scale.set(1, 1, 1);
       this.dummy.rotation.set(0, 0, 0);
       this.dummy.updateMatrix();
@@ -1313,7 +1316,7 @@ export class SceneView {
       for (const tile of held) {
         if (i >= this.maxHighlights) break outer;
         const centre = tileCenter(this.grid, tile, this.layout);
-        const top = surfaceHeight(this.grid.heightAt(tile), this.layout);
+        const top = standHeight(this.grid, tile, this.layout);
         this.dummy.position.set(centre.x, top + 0.012, centre.z);
         this.dummy.scale.set(1, 1, 1);
         this.dummy.rotation.set(0, 0, 0);
@@ -1403,17 +1406,26 @@ export class SceneView {
     return this.pathPoints;
   }
 
-  /** Mark the tile under the pointer, or nothing for `NO_TILE`. */
+  /** The arc a jump is aimed along, or none; and what is showing, for whoever is reading the board. */
+  readonly showArc = (arc: AimedArc | null): void => this.arc.show(this.grid, this.layout, arc);
+  /** Circles on the ground, each centred on a spot: a fighter's free movement, the push a roll would open, a jump's reach. */
+  showReach(rings: readonly { at: Spot; radius: number; kind: 'move' | 'push' | 'jump' }[]): void {
+    this.reach.show(rings.map((ring) => ({ ...spotToWorld(this.grid, ring.at, this.layout), radius: ring.radius, kind: ring.kind })));
+  }
+  get reachShowing(): readonly { radius: number; kind: string }[] {
+    return this.reach.showing;
+  }
+  get arcShowing(): 'ok' | 'blocked' | null {
+    return this.arc.showing;
+  }
+
+  /**
+   * The tile under the pointer, or `NO_TILE`. Nothing is drawn for it: the line a click would
+   * walk, the arc a jump would fly and the light on a creature are what the pointer shows, and a
+   * disc on the ground under all of them was one mark too many.
+   */
   showCursor(tile: number): void {
-    if (tile === this.cursorTile) return;
-    this.cursorTile = tile;
-    if (!this.grid.isTile(tile)) {
-      this.cursor.visible = false;
-      return;
-    }
-    const centre = tileCenter(this.grid, tile, this.layout);
-    this.cursor.position.set(centre.x, surfaceHeight(this.grid.heightAt(tile), this.layout) + 0.03, centre.z);
-    this.cursor.visible = true;
+    this.cursorTile = this.grid.isTile(tile) ? tile : NO_TILE;
   }
 
   /** The tile the cursor marks, or `NO_TILE`. */
@@ -1449,14 +1461,14 @@ export class SceneView {
     this.highlight.dispose();
     this.highlightEdgeGeometry.dispose();
     this.highlightEdgeMaterial.dispose();
-    this.cursorGeometry.dispose();
     this.pathGeometry.dispose();
     this.pathMaterial.dispose();
     this.zoneMaterial.dispose();
     this.zoneLayer.dispose();
     this.zoneEdgeGeometry.dispose();
     this.zoneEdgeMaterial.dispose();
-    this.cursorMaterial.dispose();
+    this.arc.dispose();
+    this.reach.dispose();
     // A view is rebuilt on every scene switch; the shadow map is a texture the
     // renderer holds until told otherwise.
     this.sun?.shadow.map?.dispose();

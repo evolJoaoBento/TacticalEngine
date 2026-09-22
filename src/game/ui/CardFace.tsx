@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import type { GrantedCard, LoadoutCard } from '../demo-abilities';
 import { artFor } from './card-art';
 import { SIGIL_HEIGHT, SIGIL_WIDTH, sigilOf, type Sigil } from './card-sigil';
+import { PIP_ICONS } from './pool-icons';
 
 /** The ink the emblem is drawn in, over the card's cream stock (`cards.css`, `.face-art`). */
 const INK = '#4a3623';
@@ -70,7 +71,7 @@ function ImageArtwork({ card, className, src }: { card: { id: string; domain: st
 export function CardFace({ card, expanded = false }: { card: LoadoutCard; expanded?: boolean }): preact.JSX.Element {
   return <div className={`face ${expanded ? 'face-expanded' : ''}`} style={{ '--domain-color': sigilOf(card).color }}>
     <div className="face-art"><CardArtwork card={card} />
-      <span className="face-level"><b>{card.level}</b><small>LEVEL</small></span><span className="face-recall" title="Recall Cost">{card.recallCost}<small>RECALL</small></span>
+      <span className="face-level"><b>{card.level}</b><small>LEVEL</small></span><span className="face-recall" title={`Recall Cost: ${card.recallCost} Stress`} aria-label={`Recall Cost ${card.recallCost} Stress`}>{card.recallCost}<svg viewBox="0 0 16 16" aria-hidden="true"><path d={PIP_ICONS.bolt} /></svg></span>
       <span className="face-domain">{card.domain}</span></div>
     <div className="face-title"><h3>{card.name}</h3><span>{card.type}</span></div>
     <div className="face-rules">{card.text.split('\n').filter(Boolean).map((text, i) => <p key={i}>{text}</p>)}</div>

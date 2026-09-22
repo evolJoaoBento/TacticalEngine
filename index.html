@@ -6,9 +6,39 @@
 <title>Tactical Engine</title>
 <link rel="icon" href="data:,">
 <style>html,body{margin:0;height:100%;background:#0d0f14;color:#e8e6df;font-family:system-ui,sans-serif}#gl{width:100vw;height:100vh;display:block}#app{position:absolute;inset:0;pointer-events:none}</style>
+<!-- The curtain (game/ui/curtain.ts). Its styles are here and not in a stylesheet the app imports,
+     because the whole point is to be on screen before the app has been fetched: the first paint is
+     this, and the room is laid behind it. The two faces are declared again for the same reason -
+     the app's own declarations arrive with the app - and preloaded so the title does not change
+     letters half way through being read. -->
+<link rel="preload" href="/fonts/cinzel/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/libre-baskerville/libre-baskerville-latin-italic.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:Cinzel;src:url(/fonts/cinzel/cinzel-latin.woff2) format('woff2');font-weight:400 700;font-display:swap}
+@font-face{font-family:'Libre Baskerville';src:url(/fonts/libre-baskerville/libre-baskerville-latin-italic.woff2) format('woff2');font-weight:400 700;font-style:italic;font-display:swap}
+#curtain{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 42%,#1b1917,#0e0d0c 58%,#070606);transition:opacity .55s ease-in}
+#curtain.is-lifting{opacity:0;pointer-events:none}
+.no-curtain #curtain{display:none}
+.curtain-card{box-sizing:border-box;width:min(380px,84vw);padding:34px 36px 30px;text-align:center;color:#1d1611;border-radius:2px;background:linear-gradient(172deg,#fdfbf4,#f7f1e2 46%,#ece1ca);box-shadow:inset 0 0 0 1px #d9ccb0,inset 0 0 0 5px #fbf7ec,inset 0 0 0 6px #cdbd9c,0 18px 50px #000000b3,0 2px 6px #00000080;transform:rotate(-.6deg)}
+.curtain-card h1{margin:0;font:700 clamp(20px,5.4vw,27px)/1.15 Cinzel,Georgia,serif;letter-spacing:.08em}
+.curtain-rule{height:2px;margin:18px 4px 12px;background:#d5c5a4;overflow:hidden}
+.curtain-rule i{display:block;height:100%;background:#1d1611;transform:scaleX(0);transform-origin:left;transition:transform .35s ease-out}
+.curtain-card p{margin:0;font:italic 400 12px/1.4 'Libre Baskerville',Georgia,serif;color:#57493a;font-variant-numeric:lining-nums}
+@media(prefers-reduced-motion:reduce){#curtain,.curtain-rule i{transition:none}}
+</style>
+<!-- A browser being driven by a script gets no curtain. Every end-to-end test clicks the moment the
+     engine reports a frame, and a cover over the page would make each of those clicks wait on a
+     model download; `?curtain` puts it back for the test that is about the curtain itself. -->
+<script>if(navigator.webdriver&&!new URLSearchParams(location.search).has('curtain'))document.documentElement.classList.add('no-curtain')</script>
 </head>
 <body>
 <canvas id="gl"></canvas>
+<div id="curtain" data-testid="curtain" role="status" aria-live="polite">
+<div class="curtain-card"><h1>Tactical Engine</h1><div class="curtain-rule"><i data-curtain-bar></i></div><p data-curtain-line>Laying the table</p></div>
+</div>
+<!-- If the app never starts there is nobody to lift the curtain, and it would hide the very error
+     that explains why. Say so on it instead. -->
+<script>addEventListener('error',function(){var l=document.querySelector('[data-curtain-line]');if(l)l.textContent='Something went wrong while loading - the browser console has the details.'})</script>
 <!-- The torn edge the play sheets are cut with (game/ui/hud.css). A CSS `filter: url(#id)` resolves
      only against a filter that is in the document, and the play overlay is five sibling roots with
      no single element to hang it off, so it lives here. Draws nothing; takes no space. -->

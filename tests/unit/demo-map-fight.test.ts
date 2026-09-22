@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { demoMap } from '../../legacy/js/data.js';
+import { hollowVaultMap } from '../../src/game/demo-map';
 import { createRng, type Rng } from '../../src/engine/core/rng';
 import { FIXTURE_ADVERSARIES, FIXTURE_DIGGER } from '../fixtures/adversaries';
 import { Pathfinder, tracePath } from '../../src/engine/grid/pathfinding';
@@ -61,7 +61,7 @@ function buildFight(seed: string): {
   pathfinder: Pathfinder;
   diggerId: string;
 } {
-  const scene = importLegacyScene(demoMap()).scene!;
+  const scene = importLegacyScene(hollowVaultMap()).scene!;
   const { grid, issues: gridIssues } = gridFromScene(scene);
   expect(gridIssues).toEqual([]);
 

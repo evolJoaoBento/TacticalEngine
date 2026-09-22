@@ -263,6 +263,26 @@ function toVersion3(doc: Raw): void {
  *
  * Two conditions lending one ability lend one card.
  */
+/**
+ * The demo's vault grew: the room a save was taken in was 22 tiles wide, and the map it is part of
+ * is wider now. A snapshot holds tiles by index, so it says where it was measured (`room`) and the
+ * load reindexes it; a save from before that field existed is of the old room, and says so here.
+ *
+ * Only that scene: every other room is the size it always was, and a snapshot that already names
+ * its room is left alone.
+ */
+function toVersion5(doc: Raw): void {
+  const scenes = doc['scenes'];
+  if (!isObject(scenes)) return;
+  const vault = scenes[HUSK_VAULT_SCENE];
+  if (!isObject(vault) || isObject(vault['room'])) return;
+  vault['room'] = { width: HUSK_VAULT_WIDTH, x: 0, y: 0 };
+}
+
+/** The demo scene a version-4 save measured its tiles in, and how wide it was then. */
+const HUSK_VAULT_SCENE = 'the-husk-vault';
+const HUSK_VAULT_WIDTH = 22;
+
 function toVersion4(doc: Raw): void {
   const lending = objects(doc['conditionDefs']).filter((def) => 'grants' in def);
   if (lending.length === 0) return;
@@ -344,6 +364,7 @@ const STEPS: readonly { to: number; migrate: (doc: Raw) => void }[] = [
   { to: 2, migrate: (doc) => walk(doc, toVersion2) },
   { to: 3, migrate: toVersion3 },
   { to: 4, migrate: toVersion4 },
+  { to: 5, migrate: toVersion5 },
 ];
 
 /**

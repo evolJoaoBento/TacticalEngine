@@ -20,7 +20,7 @@ import type { AdversaryDef } from '../engine/content/types';
 import { NO_TILE, type TileGrid } from '../engine/grid/grid';
 import { Pathfinder } from '../engine/grid/pathfinding';
 import type { Currency, MarkPool } from '../engine/rules/resources';
-import { gridFromScene, tileOf } from '../engine/scene/grid-from-scene';
+import { gridFromScene, paletteForProject, tileOf } from '../engine/scene/grid-from-scene';
 import { Party } from '../engine/scene/party';
 import type { Trait } from '../engine/scene/primitives';
 import type { CodeDef, ProjectDoc, SceneDoc } from '../engine/scene/schema';
@@ -28,7 +28,7 @@ import { createAdversaryEntity, createPartyEntity, sceneStateFromScene, type Sce
 import { TriggerIndex } from '../engine/scene/triggers';
 import { compileHooks, type HookMap } from '../engine/script/hooks';
 import { SceneScriptWorld, type SceneScriptWorldOptions, type ScenarioState } from '../engine/script/world';
-import { DEMO_ADVERSARIES, DEMO_BAND_TILES, DEMO_CHARACTERS, DEMO_MOVEMENT } from './demo-rules';
+import { DEMO_ADVERSARIES, DEMO_BAND_TILES, DEMO_CHARACTERS, movementFor } from './demo-rules';
 import type { DemoScene, UseOutcome } from './demo-scene';
 import { note, type LogLine } from './log';
 
@@ -51,7 +51,7 @@ interface RuntimeOptions {
   /** The project's loot tables, so a chest in any room pays out. */
   lootTables?: ReadonlyMap<string, LootTable>;
   /** The project's abilities, conditions and stat blocks, for the world's modifiers. */
-  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code' | 'adversaries'> & ProjectContent;
+  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code' | 'adversaries'> & Partial<Pick<ProjectDoc, 'terrainPalette' | 'structureTypes' | 'jump'>> & ProjectContent;
   /** Ask the defender how they take a hit, rather than deciding for them. */
   askDefender?: boolean;
 }
@@ -78,7 +78,8 @@ export function buildRuntime(
   scenario: ScenarioState,
   options: RuntimeOptions = {},
 ): SceneRuntime {
-  const { grid } = gridFromScene(scene);
+  // With the project's own kinds of tile: a room laid from them is otherwise a room of nothing.
+  const { grid } = gridFromScene(scene, options.project === undefined ? undefined : paletteForProject(options.project));
 
   // Stat blocks the document carries itself, which win over the shipped pack:
   // a room may bring the creature it places rather than borrow one.
@@ -126,7 +127,7 @@ export function buildRuntime(
     grid,
     state,
     pathfinder,
-    party: new Party(state, pathfinder, { combatReach: DEMO_BAND_TILES.close, rules: DEMO_MOVEMENT }),
+    party: new Party(state, pathfinder, { combatReach: DEMO_BAND_TILES.close, rules: movementFor(options.project) }),
     triggers: new TriggerIndex(scene, grid),
     world: new SceneScriptWorld(state, scenario, worldOptions(characters, options.lootTables, scene, options.project)),
   };
@@ -166,14 +167,14 @@ export function worldOptions(
   characters: ReadonlyMap<string, DerivedCharacter>,
   lootTables?: ReadonlyMap<string, LootTable>,
   scene?: SceneDoc,
-  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code' | 'adversaries'> & ProjectContent,
+  project?: Pick<ProjectDoc, 'abilities' | 'conditionDefs' | 'code' | 'adversaries'> & Partial<Pick<ProjectDoc, 'jump'>> & ProjectContent,
 ): SceneScriptWorldOptions {
   return {
     traits: traitsFor(characters),
     characters,
     adversaries: adversaryDefsFor(project),
     bandTiles: DEMO_BAND_TILES,
-    movement: DEMO_MOVEMENT,
+    movement: movementFor(project),
     // A stat block's features travel with the block. The engine used to merge a shipped
     // catalogue's adversary features in here, so a scene placing a creature got that creature's
     // feature without anyone writing it down; with no catalogue to inherit from, what a project
@@ -393,7 +394,9 @@ export function playablePlacements(scene: SceneDoc, grid: TileGrid): Set<string>
  * state - `TriggerIndex` is a lookup - so a designer's new trigger cell works
  * immediately and an old one does not come back to life.
  */
-export function syncAuthoredEncounters(demo: Pick<DemoScene, 'scene' | 'grid' | 'state' | 'triggers' | 'project' | 'syncedPlacements'>): void {
+export function syncAuthoredEncounters(demo: Pick<DemoScene, 'scene' | 'grid' | 'state' | 'party' | 'triggers' | 'project' | 'syncedPlacements'>): void {
+  // Back from the editor: a step is as high as the project says now, which may not be what it said.
+  demo.party.setRules(movementFor(demo.project));
   const known = demo.syncedPlacements.get(demo.scene.id);
   const placed = playablePlacements(demo.scene, demo.grid);
   if (known !== undefined) {
@@ -452,6 +455,33 @@ export function enterSavedScene(
   runtime.state.restore(snapshot);
   install(demo, runtime, null);
   return true;
+}
+
+/**
+ * Take on the ground the document now describes, and say whether it was the same room.
+ *
+ * Nearly always it is - a tile painted, a wall stamped - and the grid everybody holds takes the
+ * new ground into itself. A room that has grown is another shape, and a grid is as big as it
+ * was made: so the game in it is stood up again on a new one, the way a save is loaded, with
+ * everybody where they were (`SceneState.restore` reads the room a snapshot was taken in, and
+ * moves them with it). Whoever a growth undone leaves standing on nothing goes back to where
+ * the party comes in. False means the caller is holding a grid that is no longer the room.
+ */
+export function takeGround(demo: DemoScene, scene: SceneDoc, active: TileGrid, fresh: TileGrid): boolean {
+  if (active.fits(fresh)) {
+    active.adopt(fresh);
+    return true;
+  }
+  if (scene.id !== demo.scene.id) return false;
+  const selected = demo.party.selected;
+  const snapshot = demo.state.snapshot();
+  enterSavedScene(demo, scene.id, snapshot);
+  const door = scene.spawns[0];
+  for (const entity of demo.state.entitiesOf('party')) {
+    if (entity.tile === NO_TILE && snapshot.entities[entity.id]?.tile !== NO_TILE && door !== undefined) demo.state.moveEntity(entity.id, tileOf(demo.grid, door));
+  }
+  if (selected !== null && demo.party.members().includes(selected)) demo.party.select(selected);
+  return false;
 }
 
 /**

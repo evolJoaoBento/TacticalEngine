@@ -15,6 +15,7 @@ import type { Pending } from '../demo-scene';
 import type { LogLine, RollShow } from '../log';
 import type { Response } from '../../engine/script/runner';
 import { RollStage, asked } from './RollStage';
+import { SettingsModal } from './SettingsModal';
 import './hud.css';
 
 /** One line of the pack: what it is, and how many. */
@@ -160,66 +161,70 @@ export function PlayPanel(props: PlayPanelProps): preact.JSX.Element | null {
         onAnswer={props.onAnswer}
         onDone={props.onRollDone}
       />
-      <div data-testid="save-row" className="panel-saves">
-        <button
-          type="button"
-          className="play-btn is-ghost"
-          disabled={props.saveBlocked !== null}
-          title={props.saveBlocked ?? 'Quick save: one slot, overwritten'}
-          data-testid="save"
-          onClick={props.onSave}
-        >
-          Save
-        </button>
-        <button
-          type="button"
-          className="play-btn is-ghost"
-          disabled={props.saveBlocked !== null}
-          title={props.saveBlocked ?? 'Save into a new named slot'}
-          data-testid="save-as"
-          onClick={props.onSaveAs}
-        >
-          Save as…
-        </button>
-        <button
-          type="button"
-          className={`play-btn is-ghost${saves ? ' is-on' : ''}`}
-          disabled={props.saves.length === 0}
-          title={props.saves.length > 0 ? 'Saved games' : 'Nothing saved yet'}
-          data-testid="load"
-          onClick={() => setSaves(!saves)}
-        >
-          Load
-        </button>
-      </div>
-      {saves && props.saves.length > 0 ? (
-        <div className="play-box panel-box is-fixed" data-testid="saves">
-          <div className="play-eyebrow panel-heading">Saved games</div>
-          {props.saves.map((slot) => (
-            <div key={slot.id} className="panel-row" style={{ marginBottom: '3px' }} data-save={slot.id}>
-              <button
-                type="button"
-                className="play-btn"
-                style={{ flex: 1, textAlign: 'left', margin: 0, padding: '4px 10px', fontSize: '12px' }}
-                data-testid="load-slot"
-                onClick={() => {
-                  props.onLoad(slot.id);
-                  setSaves(false);
-                }}
-              >
-                {slot.name}
-                <span className="panel-sub">
-                  {' '}
-                  · {slot.where} · {new Date(slot.savedAt).toLocaleString()}
-                </span>
-              </button>
-              <button type="button" className="play-btn is-ghost" title="Delete this save" onClick={() => props.onDeleteSave(slot.id)}>
-                ✕
-              </button>
+      <SettingsModal games={(close) => (
+        <>
+          <div data-testid="save-row" className="panel-saves">
+            <button
+              type="button"
+              className="play-btn is-ghost"
+              disabled={props.saveBlocked !== null}
+              title={props.saveBlocked ?? 'Quick save: one slot, overwritten'}
+              data-testid="save"
+              onClick={props.onSave}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              className="play-btn is-ghost"
+              disabled={props.saveBlocked !== null}
+              title={props.saveBlocked ?? 'Save into a new named slot'}
+              data-testid="save-as"
+              onClick={props.onSaveAs}
+            >
+              Save as…
+            </button>
+            <button
+              type="button"
+              className={`play-btn is-ghost${saves ? ' is-on' : ''}`}
+              disabled={props.saves.length === 0}
+              title={props.saves.length > 0 ? 'Saved games' : 'Nothing saved yet'}
+              data-testid="load"
+              onClick={() => setSaves(!saves)}
+            >
+              Load
+            </button>
+          </div>
+          {saves && props.saves.length > 0 ? (
+            <div className="settings-saves" data-testid="saves">
+              {props.saves.map((slot) => (
+                <div key={slot.id} className="panel-row" style={{ marginBottom: '3px' }} data-save={slot.id}>
+                  <button
+                    type="button"
+                    className="play-btn"
+                    style={{ flex: 1, textAlign: 'left', margin: 0, padding: '4px 10px', fontSize: '12px' }}
+                    data-testid="load-slot"
+                    onClick={() => {
+                      props.onLoad(slot.id);
+                      setSaves(false);
+                      close();
+                    }}
+                  >
+                    {slot.name}
+                    <span className="panel-sub">
+                      {' '}
+                      · {slot.where} · {new Date(slot.savedAt).toLocaleString()}
+                    </span>
+                  </button>
+                  <button type="button" className="play-btn is-ghost" title="Delete this save" onClick={() => props.onDeleteSave(slot.id)}>
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : null}
+          ) : null}
+        </>
+      )} />
 
       {props.inspecting !== null ? (
         <div className="play-box panel-box is-fixed" data-testid="inspect" data-inspect={props.inspecting.id}>

@@ -14,7 +14,6 @@
 
 import { Fragment, h, render } from 'preact';
 import { PCFShadowMap, Plane, PerspectiveCamera, Raycaster, Vector2, Vector3, WebGLRenderer, type Intersection, type Mesh, type Object3D } from 'three';
-import { demoMap } from '../legacy/js/data.js';
 import { EditorController } from './editor/controller';
 import { placementRotation } from './editor/placement-rotation';
 import { EDITOR_MODES, type EditorMode } from './editor/modes';
@@ -22,10 +21,14 @@ import { EditorSession, addAsset, removeAsset, addScene, removeScene, renameScen
 import { EditorShell } from './editor/ui/EditorShell';
 import { PlayPanel, TONE, type Inspection, type JournalQuest } from './game/ui/PlayPanel';
 import { PartyHud, type HudMember } from './game/ui/PartyHud';
+import { hollowVaultMap } from './game/demo-map';
+import { STEER_EVERY, STEER_HOLD, steerStep } from './game/steer';
+import { dropCard, type Drop } from './game/party-drop';
 import { LevelUpPanel } from './game/ui/LevelUpPanel';
 import { deriveCharacter } from './engine/character/sheet';
 import { ActionBar } from './game/ui/ActionBar';
 import { LoadoutPanel } from './game/ui/LoadoutPanel';
+import { liftCurtainWhenReady } from './game/ui/curtain';
 import { CardPreview } from './game/ui/CardPreview';
 import { RestPanel } from './game/ui/RestPanel';
 import { abilityList, abilityTargets, abilitiesOf, loadoutView, pointTiles, rest, shapeAt, swapCard, useAbility, type RestPlan } from './game/demo-abilities';
@@ -38,7 +41,8 @@ import { AssetLibrary, modelAssetSchema, type ModelAsset } from './engine/render
 import { portraitOf, thumbnailOf } from './engine/render/thumbnails';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NO_TILE, type Spot, type TileGrid } from './engine/grid/grid';
-import { mapExtent, spotToWorld, tileAtWorld, tileCenter, worldToSpot } from './engine/render/layout';
+import { groundSlide, mapExtent, spotToWorld, tileAtWorld, tileCenter, worldToSpot } from './engine/render/layout';
+import { VOID_TERRAIN_ID } from './engine/grid/terrain';
 import { MODELS } from './engine/render/procedural/registry';
 import { SceneView, hueOf, OUTLINE_LAYER } from './engine/render/scene-view';
 import { journalSummary } from './engine/content/quests';
@@ -54,11 +58,12 @@ import { describePack, packOf, readPack } from './engine/content/pack/document';
 import type { AdversaryDef } from './engine/content/types';
 import { AUTO_SLOT, QUICK_SLOT, SaveSlots, browserStore } from './game/save-slots';
 import { CardArtImports, loadCardArtIndex, useCardArtImports, useCardArtIndex } from './game/ui/card-art';
-import { answerPending, attackWithSelected, buildDemoScene, moveSelectedTo, playGmTurn, endTurn, refreshWorld, syncPools, syncRoster, gatherParty, reachableInteractable, useSelectedOn, buildProjectScene, setSheet, type DemoScene } from './game/demo-scene';
+import { answerPending, attackWithSelected, buildDemoScene, moveSelectedTo, endTurn, refreshWorld, syncPools, syncRoster, gatherParty, reachableInteractable, useSelectedOn, buildProjectScene, setSheet, type DemoScene } from './game/demo-scene';
 import { inCombat, scriptPending } from './game/moment';
-import { underPressureTiles, arrive, previewStrike, previewWalk, startEncounter, reachableTiles } from './game/movement';
+import { underPressureTiles, arrive, previewStrike, previewWalk, startEncounter, reachableTiles, JUMP_ID, aimedArc, jumpAim, jumpOffered, jumpReaches, jumpTo } from './game/movement';
 import { DEMO_ADVERSARY_ID, DEMO_MODELS, DEMO_CHARACTERS } from './game/demo-rules';
-import { travelTo, characterContentFor, adversaryDefsFor, syncAuthoredEncounters } from './game/room';
+import { travelTo, characterContentFor, adversaryDefsFor, syncAuthoredEncounters, takeGround } from './game/room';
+import { reachRings } from './game/circle';
 import { nameOf, note } from './game/log';
 import { applyLevelUp, awaitingLevel } from './game/level-up';
 import { equipItem, gearOf } from './game/equip';
@@ -81,6 +86,9 @@ declare global {
       selected: () => string | null;
       select: (id: string) => boolean;
       selectNext: () => string | null;
+      linked: (id: string) => string[];
+      link: (id: string, withId: string) => boolean;
+      unlink: (id: string) => boolean;
       tileOf: (id: string) => number;
       /** The zones standing on the board, and the tiles each one holds. */
       zones: () => { id: string; name: string; tiles: number[] }[];
@@ -185,6 +193,7 @@ declare global {
       takeLevel: (id: string, plan: unknown) => boolean;
       characterLevel: (id: string) => number;
       cursorTile: () => number;
+      arc: () => 'ok' | 'blocked' | null;
       floaters: () => { id: string; text: string }[];
       /** How many tokens are still walking to where their creature already is. */
       gliding: () => number;
@@ -267,7 +276,7 @@ const FLOATER_LIFE = 1.4;
 /** Tell the view how everybody got where they are, before it looks. */
 function drainMotions(): void {
   for (const motion of demo.motions) {
-    if (motion.route !== undefined) view.walkAlong(motion.id, motion.route);
+    if (motion.route !== undefined) view.walkAlong(motion.id, motion.route, motion.leap, motion.wait === true);
     else if (motion.path !== undefined) view.walk(motion.id, motion.path);
     else if (motion.thrown === true) view.throwBack(motion.id);
     else if (motion.struck === true) view.flinch(motion.id);
@@ -333,7 +342,7 @@ const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof We
 
 // `let`, because loading a project restarts the game on it: everything below
 // reads this binding rather than capturing the object it happens to hold.
-let demo = buildDemoScene(demoMap());
+let demo = buildDemoScene(hollowVaultMap());
 // At the table the defender decides how a hit lands: an Armor Slot, a card,
 // or an ally stepping in. The engine decides for itself in tests and headless
 // runs, where there is nobody to ask.
@@ -377,7 +386,7 @@ const view = new SceneView(demo.grid, {
   // of magenta markers cannot be read. A husk body stands in - and the view
   // still reports the real id as missing, so the models diagnostic and
   // `docs/CRPG-GAPS.md` keep saying what is still to be made.
-  fallbackFor: (entity) => (entity.faction === 'adversary' ? 'husk' : null),
+  fallbackFor: (entity) => (entity.faction === 'party' ? null : 'husk'),
   assets,
 });
 view.setScenery(demo.scene);
@@ -397,23 +406,21 @@ buildings.sync(demo.scene, demo.grid.palette);
  */
 let project: ProjectDoc = demo.project;
 let session = new EditorSession(project);
-let editor = new EditorController({
-  session,
-  sceneId: demo.scene.id,
-  onChange: (change) => {
-    if (change === 'terrain') rebuildTerrain();
-    if (change === 'content') syncEditorContent();
-  },
-});
+/** What an edit redraws - and a room does not change shape under a fight or a question, so it does not grow then. */
+const editorHooks = {
+  onChange: (change: string): void => { if (change === 'terrain') rebuildTerrain(); if (change === 'content') syncEditorContent(); },
+  growable: (): boolean => activeScene().id !== demo.scene.id || saveBlockedBy(demo) === null,
+};
+let editor = new EditorController({ session, sceneId: demo.scene.id, ...editorHooks });
 
 // The editor opens on the Inspector, the first of the top bar's modes.
 editor.setMode('inspect');
 
-// A file arriving changes what the Models panel can offer - a clip list it could
-// not know until the file was here. The view already redraws itself on this;
-// the panel has to be told too, or the dropdowns stay empty until something
-// else happens to re-render them.
+// A file arriving changes what the Models panel can offer - a clip list it could not know until
+// the file was here. The view already redraws itself on this; the panel has to be told too, or the
+// dropdowns stay empty until something else re-renders them. The curtain reads the same library.
 assets.onChange(() => { if (mode === 'edit') renderPanel(); else refreshPlay(); });
+liftCurtainWhenReady(assets, () => state.frames);
 
 // The library's own plus the project's, read afresh so a model added mid-session is offered.
 const knownModels = (): Set<string> => new Set([...MODELS.map((m) => m.id), ...session.project.assets.map((a) => a.id)]);
@@ -481,7 +488,8 @@ let activeGrid: TileGrid = demo.grid;
 function rebuildTerrain(): void {
   const scene = activeScene();
   const { grid } = gridFromScene(scene, paletteForProject(session.project));
-  activeGrid.adopt(grid);
+  // A room that grew is another grid: the view is pointed at it, as it is at another room.
+  if (!takeGround(demo, scene, activeGrid, grid)) return rebindScene(activeGrid);
   view.rebuildTerrain(scene.tints);
   buildings.sync(scene, activeGrid.palette);
   // The scenery hangs off the ground that was just replaced, in either mode:
@@ -616,7 +624,7 @@ function renderPanel(): void {
       onNavigateBuilding: navigateBuilding,
       // Off the live grid, not a snapshot: a kind of tile made in the workspace has to
       // be there to pick a moment later.
-      terrainTypes: activeGrid.palette.types,
+      terrainTypes: activeGrid.palette.types.filter((type) => type.id !== VOID_TERRAIN_ID), // nothing is not a kind to lay
       propModels: PROP_MODELS,
       adversaries: adversaryLibrary(),
       knownModels: knownModels(),
@@ -764,14 +772,7 @@ function loadProjectText(text: string, label = 'the project'): string {
   demo.animated = true;
   project = demo.project;
   session = new EditorSession(project);
-  editor = new EditorController({
-    session,
-    sceneId: project.startScene,
-    onChange: (change) => {
-      if (change === 'terrain') rebuildTerrain();
-      if (change === 'content') syncEditorContent();
-    },
-  });
+  editor = new EditorController({ session, sceneId: project.startScene, ...editorHooks });
   editor.setMode('inspect');
   // The loaded project is a different document; nothing on screen survives it.
   for (const id of assets.ids()) assets.remove(id);
@@ -901,7 +902,7 @@ function buildingTool(): boolean {
 function placementTool(): boolean {
   if (buildingTool()) return true;
   if (mode !== 'edit') return false;
-  return ['prop', 'interactable', 'adversary'].includes(editor.state.tool);
+  return ['prop', 'interactable', 'adversary'].includes(editor.state.tool) || editor.carried?.kind === 'piece';
 }
 
 /** Where a point `height` above a tile's surface lands on screen, in CSS pixels. */
@@ -953,6 +954,8 @@ frameCamera();
 // same line at 6px with OrbitControls; here the threshold is ours to test.
 const DRAG_THRESHOLD = 6;
 let drag: { button: number; startX: number; startY: number; lastX: number; lastY: number; moved: boolean } | null = null;
+/** A held button in play: whoever is selected walks towards the pointer while it is down (`game/steer.ts`). */
+let steering: { clientX: number; clientY: number; since: number; last: number; walked: boolean } | null = null;
 
 canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
@@ -975,6 +978,8 @@ canvas.addEventListener(
 const raycaster = new Raycaster();
 const pointer = new Vector2();
 const groundPoint = new Vector3();
+/** Straight up, for the flat a steered walk aims across when the pointer is off the room. */
+const UP = new Vector3(0, 1, 0);
 const buildPlane = new Plane(new Vector3(0, 1, 0), 0);
 let lastBuildPointer: { clientX: number; clientY: number } | null = null;
 let altRotation: {
@@ -1089,21 +1094,22 @@ function updateBuildingPreview(): void {
   const target = worldToSpot(activeGrid, orbit.pose.target.x, orbit.pose.target.z, view.layout);
   buildings.showGuide(target.x, target.y, editor.state.buildLevel, active);
   const at = active && lastBuildPointer !== null ? buildingUnderPointer(lastBuildPointer) : null;
-  const ghost = at !== null && buildingTool()
+  const piece = editor.carried?.piece; // a piece in hand hangs under the pointer as one being placed would
+  const ghost = at !== null && (buildingTool() || piece !== undefined)
     ? {
       ...at,
       level: editor.state.buildLevel,
-      shape: editor.state.buildShape,
-      material: editor.state.buildMaterial,
-      rotation: editor.state.buildRotation,
-      height: editor.state.buildHeight,
+      shape: piece?.shape ?? editor.state.buildShape,
+      material: piece?.material ?? editor.state.buildMaterial,
+      rotation: piece === undefined ? editor.state.buildRotation : Math.round((editor.carriedFacing ?? 0) / (Math.PI / 2)),
+      height: piece?.height ?? editor.state.buildHeight,
     }
     : null;
   buildings.showPreview(ghost, editor.state.tool === 'eraseTile');
 }
 
 /** The ground under the pointer: the tile struck, and the exact spot on it. */
-function groundUnderPointer(event: PointerEvent | MouseEvent): { tile: number; spot: Spot } | null {
+function groundUnderPointer(event: { clientX: number; clientY: number }): { tile: number; spot: Spot } | null {
   const hits: Intersection<Object3D>[] = aim(event).intersectObjects(view.terrain.meshes, false);
   const hit = hits[0];
   if (hit === undefined) return null;
@@ -1147,7 +1153,8 @@ function entityNear(spot: Spot): string | null {
   let best: string | null = null;
   let bestDistance = 0.5;
   for (const entity of demo.state.allEntities()) {
-    if (!entity.alive || entity.tile === NO_TILE) continue;
+    // Not whoever is already chosen: a click at their own feet is a step to one side, not a choice of them again.
+    if (!entity.alive || entity.tile === NO_TILE || entity.id === demo.party.selected) continue;
     const distance = Math.hypot(entity.at.x - spot.x, entity.at.y - spot.y);
     if (distance < bestDistance) {
       best = entity.id;
@@ -1167,21 +1174,24 @@ function entityNear(spot: Spot): string | null {
  */
 let boundScene = demo.scene.id;
 
-function rebindScene(): void {
+function rebindScene(grown?: TileGrid): void {
   const scene = activeScene();
-  if (boundScene === scene.id) return;
+  if (boundScene === scene.id && grown === undefined) return;
   boundScene = scene.id;
 
   // The party's own grid when it is their room, so an edit reaches the
   // pathfinder; a grid of its own when the editor is looking somewhere else, so
   // editing one room cannot corrupt the one being played.
-  activeGrid = scene.id === demo.scene.id ? demo.grid : gridFromScene(scene).grid;
+  activeGrid = scene.id === demo.scene.id ? demo.grid : gridFromScene(scene, paletteForProject(session.project)).grid;
 
   // The same view, pointed at the other room: its caches, its lights and the
   // party's own tokens carry over; the ground and the scenery do not.
   view.rebind(activeGrid, { tints: scene.tints, decos: scene.decos, objects: scene.interactables });
   buildings.sync(scene, activeGrid.palette);
-  frameCamera();
+  // The same room, grown: the camera slides as far as the ground did, and nothing seems to move.
+  if (grown === undefined) frameCamera();
+  else orbit.slide(groundSlide(grown, activeGrid, view.layout));
+  applyCamera();
   if (mode === 'edit') syncEditorContent();
 }
 
@@ -1192,24 +1202,24 @@ function refreshPlay(): void {
   // the party on whatever happens to share those tile indices.
   if (activeScene().id === demo.scene.id) {
     drainMotions();
-    view.syncTokens(demo.state);
+    view.syncTokens(demo.state, { reading: demo.rolls.length > 0 });
     drainFloaters();
     view.showZones(paintedZones());
     view.showSelection(demo.party.selected === null ? NO_TILE : (demo.state.entity(demo.party.selected)?.tile ?? NO_TILE), demo.party.selected);
     // A target to pick lights the creatures it could be; otherwise, in a
     // fight, the Close-range walk round whoever is selected. Out of a fight a
     // walk goes anywhere the floor does, and the floor is not lit for it.
+    view.showArc(aimedArc(demo, targeting)); // a jump being aimed: the arc to where the pointer is
+    view.showReach(reachRings(demo, targeting?.abilityId === JUMP_ID)); // the ranges as circles: the fighter's, the push's, the jump's
     view.showHighlights(
       targeting !== null
         ? aimingHighlights(targeting)
-        : demo.party.selected === null || !inCombat(demo)
-          ? []
-          : reachableTiles(demo).tiles(),
+        : [], // in a fight the ground they may move over is a circle, drawn as one, not as squares
     );
   } else {
     view.clearHighlights();
     view.clearZones();
-    view.showSelection(NO_TILE);
+    view.showReach([]); view.showSelection(NO_TILE); // nothing of a fight is drawn over a room being edited
   }
   renderPlayPanel();
 }
@@ -1230,7 +1240,6 @@ function paintedZones(): { tiles: number[]; color: string }[] {
   ];
 }
 
-
 /**
  * What lights up while the bar is armed.
  *
@@ -1242,6 +1251,7 @@ function paintedZones(): { tiles: number[]; color: string }[] {
 function aimingHighlights(armed: NonNullable<typeof targeting>): number[] {
   const tileOf = (id: string): number => demo.state.entity(id)?.tile ?? NO_TILE;
   if (armed.tiles === undefined) return armed.valid.map(tileOf).filter((t) => t !== NO_TILE);
+  if (armed.abilityId === JUMP_ID) return []; // a jump's reach is a circle on the ground, not lit squares
   const ability = abilitiesOf(demo, armed.characterId).find((a) => a.id === armed.abilityId);
   const aimed = armed.aimed;
   if (ability === undefined || aimed === undefined || !armed.tiles.includes(aimed)) return armed.tiles;
@@ -1346,10 +1356,12 @@ function journalEntries(): JournalQuest[] {
   return entries.sort((a, b) => Number(a.status !== 'active') - Number(b.status !== 'active'));
 }
 
-/** What the HUD shows for each party member. */
+/** What the HUD shows for each party member, in the party's order. */
 function hudMembers(): HudMember[] {
   const waiting = new Set(awaitingLevel(demo));
-  return demo.state.entitiesOf('party').map((entity) => {
+  // Groups are numbered by their first member, in the party's order, for the band on the cards.
+  const groups = [...new Set(demo.party.members().map((id) => demo.party.groupOf(id)[0]!))];
+  return demo.party.members().map((id) => demo.state.entity(id)!).map((entity) => {
     const character = demo.characters.get(entity.id);
     const sheet = character?.sheet;
     const role = sheet === undefined ? '' : (characterContentFor(demo.project).classes.get(sheet.classId)?.name ?? sheet.classId);
@@ -1367,6 +1379,7 @@ function hudMembers(): HudMember[] {
       conditions: [...entity.conditions].map((c) => demo.world.conditionName(c)),
       canLevel: waiting.has(entity.id) && !inCombat(demo) && demo.pending === null,
       gear: `${gearOf(demo, entity.id).weapon} · ${gearOf(demo, entity.id).armor}`,
+      group: demo.party.groupOf(entity.id).length > 1 ? groups.indexOf(demo.party.groupOf(entity.id)[0]!) : null,
     };
   });
 }
@@ -1378,7 +1391,6 @@ let inspecting: Inspection | null = null;
 let levelling: string | null = null;
 let levelIssues: LevelUpIssue[] = [];
 
-/** An ability waiting for its target to be clicked on the board. */
 /**
  * The ability the bar is armed with, and what the next click on the board is
  * for. `valid` is creature ids for a card that picks somebody; `tiles` is the
@@ -1392,7 +1404,7 @@ let targeting: {
   name: string;
   valid: string[];
   tiles?: number[];
-  aimed?: number;
+  aimed?: number; aimedAt?: Spot; // the tile under the pointer, and - for a jump - the spot in it
 } | null = null;
 /** Whose loadout is open, and why the last swap was refused. */
 let loadoutOpen: string | null = null;
@@ -1430,18 +1442,18 @@ function beginAbility(abilityId: string): void {
 }
 
 /** The board was clicked while an ability waits for a target. */
-function pickTarget(tile: number): void {
+function pickTarget(tile: number, spot?: Spot): void {
   if (targeting === null) return;
   // A card aimed at the ground takes the tile itself, whoever is standing on
   // it: "a point within Far range" is a place in the room.
   if (targeting.tiles !== undefined) {
-    if (!targeting.tiles.includes(tile)) {
+    if (!targeting.tiles.includes(tile) && !(targeting.abilityId === JUMP_ID && jumpReaches(demo, targeting.characterId, tile, spot))) {
       note(demo, `${targeting.name}: that is out of range.`, 'system');
       return;
     }
     const aimed = targeting;
     targeting = null;
-    useAbility(demo, aimed.characterId, aimed.abilityId, [], { point: tile });
+    if (aimed.abilityId === JUMP_ID) jumpTo(demo, aimed.characterId, tile, spot); else useAbility(demo, aimed.characterId, aimed.abilityId, [], { point: tile });
     return;
   }
   const occupant = entityOn(tile);
@@ -1472,15 +1484,9 @@ function renderPlayPanel(): void {
       members: hudMembers(),
       bad: { ...demo.state.bad }, portrait: (id: string) => { const who = demo.state.entity(id); return who === undefined ? null : portraitOf(view.registry, assets, view.drawnModelFor(who)); },
       round: demo.encounter?.round ?? null,
-      onSelect: (id: string) => {
-        demo.party.select(id);
-        refreshPlay();
-      },
-      onLevelUp: (id: string) => {
-        levelling = id;
-        levelIssues = [];
-        refreshPlay();
-      },
+      onSelect: (id: string) => { demo.party.select(id); refreshPlay(); },
+      onLevelUp: (id: string) => { levelling = id; levelIssues = []; refreshPlay(); },
+      onDrop: (id: string, drop: Drop) => { dropCard(demo.party, id, drop); refreshPlay(); },
     }), h(ActionBar, {
       characterId: demo.party.selected,
       name: demo.party.selected === null ? '' : nameOf(demo, demo.party.selected),
@@ -1493,11 +1499,9 @@ function renderPlayPanel(): void {
         targeting === null
           ? null
           : { abilityId: targeting.abilityId, name: targeting.name, ...(targeting.tiles === undefined ? {} : { spot: true }) },
-      onUse: beginAbility,
-      onCancelTargeting: () => {
-        targeting = null;
-        refreshPlay();
-      },
+      jump: jumpOffered(demo),
+      onUse: (id: string) => { if (id !== JUMP_ID) return beginAbility(id); targeting = jumpAim(demo); refreshPlay(); },
+      onCancelTargeting: () => { targeting = null; refreshPlay(); },
       onPassToGm: () => {
         endTurn(demo);
         refreshPlay();
@@ -1663,7 +1667,9 @@ canvas.addEventListener('pointerdown', (event) => {
       return;
     }
     const tile = tileUnderPointer(event);
-    if (tile === NO_TILE) return;
+    // Off the room's ground, the Terrain tab's Select reaches the pieces laid out there, on the build plane.
+    const off = tile === NO_TILE && editor.mode === 'terrain' && editor.state.tool === 'select' ? buildingUnderPointer(event) : null;
+    if (tile === NO_TILE) return void (off !== null && pressAt(event, off));
     // Shift-click on the ground: play from this tile.
     if (event.shiftKey) {
       playAt(editor.sceneId, tile);
@@ -1674,8 +1680,9 @@ canvas.addEventListener('pointerdown', (event) => {
   }
 
   // In play every button starts a possible drag; the click happens on release
-  // if the pointer stayed put.
+  // if the pointer stayed put. The left button also starts a steer: hold it and they walk.
   drag = { button: event.button, startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, moved: false };
+  if (event.button === 0) steering = { clientX: event.clientX, clientY: event.clientY, since: performance.now(), last: performance.now() + STEER_HOLD, walked: false };
   canvas.setPointerCapture(event.pointerId);
 });
 
@@ -1689,12 +1696,12 @@ function clickAt(event: PointerEvent): void {
   const { tile, spot } = ground;
 
   if (targeting !== null) {
-    pickTarget(tile);
+    pickTarget(tile, spot);
     refreshPlay();
     return;
   }
 
-  const occupant = entityNear(spot) ?? entityOn(tile);
+  const occupant = entityNear(spot) ?? [entityOn(tile)].find((id) => id !== demo.party.selected) ?? null;
   if (occupant !== null) {
     const entity = demo.state.entity(occupant)!;
     if (entity.faction === 'party') demo.party.select(occupant);
@@ -1713,6 +1720,11 @@ function clickAt(event: PointerEvent): void {
 
 canvas.addEventListener('pointermove', (event) => {
   if (rotatePlacement(event)) return;
+  if (steering !== null) {
+    steering.clientX = event.clientX;
+    steering.clientY = event.clientY;
+    return;
+  }
   if (drag !== null) {
     const dx = event.clientX - drag.lastX;
     const dy = event.clientY - drag.lastY;
@@ -1744,8 +1756,8 @@ canvas.addEventListener('pointermove', (event) => {
     if (editor.carried !== null) view.carryTo(groundPoint.x, groundPoint.y, groundPoint.z);
     return;
   }
-  // Hover: mark the spot under the pointer so a click has a visible target,
-  // and draw the line a click there would walk.
+  // Hover: remember the tile under the pointer (nothing is drawn for it), light whoever is
+  // there, and draw the line a click would walk.
   const ground = groundUnderPointer(event);
   const over = ground?.tile ?? NO_TILE;
   view.showCursor(over);
@@ -1755,13 +1767,14 @@ canvas.addEventListener('pointermove', (event) => {
   // it would catch is on the board before the click rather than in the log
   // after it.
   if (targeting?.tiles !== undefined && targeting.aimed !== over) {
-    targeting = { ...targeting, aimed: over };
+    targeting = { ...targeting, aimed: over, ...(ground === null ? {} : { aimedAt: ground.spot }) };
     refreshPlay();
-  }
+  } else if (targeting?.abilityId === JUMP_ID && ground !== null) view.showArc(aimedArc(demo, (targeting = { ...targeting, aimedAt: ground.spot }))); // a jump follows the pointer within the tile too
 });
 
 canvas.addEventListener('pointerleave', () => {
   endAltRotation();
+  steering = null;
   lastBuildPointer = null;
   view.showCursor(NO_TILE);
   view.clearPath();
@@ -1769,6 +1782,7 @@ canvas.addEventListener('pointerleave', () => {
 
 canvas.addEventListener('pointercancel', () => {
   endAltRotation();
+  steering = null;
   lastBuildPointer = null;
   drag = null;
   // Rendering the editor shell in play would paint it over the play UI.
@@ -1784,7 +1798,7 @@ function hoverWalk(ground: { tile: number; spot: Spot } | null): void {
   }
   // A click on an enemy walks up to it before the swing: that line. A click
   // on anyone else, or on a thing, is not a walk.
-  const near = entityNear(ground.spot) ?? entityOn(ground.tile);
+  const near = entityNear(ground.spot) ?? [entityOn(ground.tile)].find((id) => id !== demo.party.selected) ?? null;
   if (near !== null) {
     const route = demo.state.entity(near)?.faction === 'adversary' ? previewStrike(demo, near) : null;
     if (route === null) view.clearPath();
@@ -1803,14 +1817,17 @@ function hoverWalk(ground: { tile: number; spot: Spot } | null): void {
 canvas.addEventListener('pointerup', (event) => {
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
   if (drag !== null) {
-    const wasClick = !drag.moved && mode === 'play';
+    // A press that walked somebody is not a click on where it was let go.
+    const wasClick = !drag.moved && steering?.walked !== true && mode === 'play';
     const button = drag.button;
     drag = null;
+    steering = null;
     if (wasClick && button === 0) clickAt(event);
     if (wasClick && button === 2) {
-      // A still right-click looks at what is there rather than acting on it.
+      // A still right-click puts down whatever was being aimed - a jump, a card - and otherwise looks at what is there.
       const tile = tileUnderPointer(event);
-      inspecting = tile === NO_TILE ? null : inspectTile(tile);
+      inspecting = targeting !== null || tile === NO_TILE ? null : inspectTile(tile);
+      targeting = null;
       refreshPlay();
     }
     return;
@@ -1877,9 +1894,7 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.key === 'Escape' && (inspecting !== null || targeting !== null || loadoutOpen !== null || restOpen)) {
-    inspecting = null;
-    targeting = null;
-    loadoutOpen = null;
+    inspecting = targeting = loadoutOpen = null;
     restOpen = false;
     refreshPlay();
   } else if (event.key === 'Tab') {
@@ -1933,12 +1948,35 @@ window.addEventListener('beforeunload', (event) => {
  * ends within a third of the view's distance of the target moves nothing.
  */
 function followSelected(): void {
-  if (mode !== 'play' || drag !== null || held.size > 0) return;
+  if (mode !== 'play' || (drag !== null && steering === null) || held.size > 0) return;
   const id = demo.party.selected;
-  if (id === null || !view.isGliding(id)) return;
+  if (id === null || (!view.isGliding(id) && steering === null)) return;
   const token = view.tokenFor(id);
   if (token === undefined) return;
-  orbit.follow(token.group.position, orbit.goal.distance * 0.35);
+  // A steered walk is centred on them; a walk they were sent on is only kept in frame.
+  orbit.follow(token.group.position, steering === null ? orbit.goal.distance * 0.35 : 0);
+}
+
+/**
+ * One step of a held walk: towards the pointer, a short step at a time, as often as the rule says.
+ * The press has to be held a moment first, so a click is still a click.
+ */
+function steerWalk(now: number): void {
+  if (steering === null || mode !== 'play' || targeting !== null || activeScene().id !== demo.scene.id) return;
+  if (now - steering.since < STEER_HOLD || now - steering.last < STEER_EVERY) return;
+  // How long this step stands for: the walk covers what a walk covers in that time, and no more.
+  const seconds = (now - steering.last) / 1000;
+  steering.last = now;
+  // Where the pointer is aiming: the ground under it, or - off the room's edge, which centring the
+  // camera can put it over - the flat the room stands on, so steering keeps its direction anyway.
+  const ground = groundUnderPointer(steering);
+  const flat = ground !== null ? null : aim(steering).ray.intersectPlane(buildPlane.set(UP, -view.layout.baseHeight), groundPoint);
+  const spot = ground?.spot ?? (flat === null ? null : worldToSpot(activeGrid, flat.x, flat.z, view.layout));
+  const step = spot === null ? null : steerStep(demo, spot, seconds);
+  if (step === null) return;
+  if (moveSelectedTo(demo, demo.grid.tileAtSpot(step.x, step.y), step).moved) steering.walked = true;
+  view.clearPath();
+  refreshPlay();
 }
 
 function steerCamera(dt: number): void {
@@ -1975,23 +2013,16 @@ const state = {
   missingModels: (): string[] => view.registry.missing(),
   party: (): string[] => demo.party.members(),
   selected: (): string | null => demo.party.selected,
-  select: (id: string): boolean => {
-    const ok = demo.party.select(id);
-    if (ok) refreshPlay();
-    return ok;
-  },
-  selectNext: (): string | null => {
-    const id = demo.party.selectNext();
-    refreshPlay();
-    return id;
-  },
+  select: (id: string): boolean => { const ok = demo.party.select(id); if (ok) refreshPlay(); return ok; },
+  selectNext: (): string | null => { const id = demo.party.selectNext(); refreshPlay(); return id; },
+  linked: (id: string): string[] => demo.party.groupOf(id),
+  link: (id: string, withId: string): boolean => { const ok = demo.party.link(id, withId); if (ok) refreshPlay(); return ok; },
+  unlink: (id: string): boolean => { const ok = demo.party.unlink(id); if (ok) refreshPlay(); return ok; },
   tileOf: (id: string): number => demo.state.entity(id)?.tile ?? NO_TILE,
-  zones: (): { id: string; name: string; tiles: number[] }[] =>
-    demo.world.zoneFootprints().map((z) => ({ id: z.id, name: z.name, tiles: z.tiles })),
+  zones: (): { id: string; name: string; tiles: number[] }[] => demo.world.zoneFootprints().map((z) => ({ id: z.id, name: z.name, tiles: z.tiles })),
   inCombat: (): boolean => inCombat(demo),
   round: (): number => demo.encounter?.round ?? 0,
-  adversaries: (): string[] =>
-    demo.state.entitiesOf('adversary').filter((e) => e.alive).map((e) => e.id),
+  adversaries: (): string[] => demo.state.entitiesOf('adversary').filter((e) => e.alive).map((e) => e.id),
   hitPoints: (id: string): { marked: number; max: number } => {
     const pool = demo.state.entity(id)?.hitPoints;
     return { marked: pool?.marked ?? 0, max: pool?.max ?? 0 };
@@ -2016,7 +2047,7 @@ const state = {
   previewAt: (x: number, y: number): { route: { x: number; y: number }[]; beyond: { x: number; y: number }[]; run: boolean } | null => {
     const preview = previewWalk(demo, activeGrid.tileAtSpot(x, y), { x, y });
     if (preview === null) return null;
-    return { route: preview.route.map((s) => ({ x: s.x, y: s.y })), beyond: preview.beyond.map((s) => ({ x: s.x, y: s.y })), run: preview.run };
+    return { ...preview, route: preview.route.map((s) => ({ x: s.x, y: s.y })), beyond: preview.beyond.map((s) => ({ x: s.x, y: s.y })) };
   },
   pathPoints: (): number => view.pathPointCount,
   attack: (id: string): boolean => {
@@ -2025,7 +2056,7 @@ const state = {
     return result !== null && result.refused === null;
   },
   endGmTurn: (): number => {
-    const acted = playGmTurn(demo);
+    const acted = endTurn(demo); // let the room have its turn: the party's spotlight is given up first when it is theirs
     refreshPlay();
     return acted;
   },
@@ -2321,6 +2352,7 @@ const state = {
   takeLevel: (id: string, plan: unknown): boolean => takeLevel(id, plan as LevelUpPlan),
   characterLevel: (id: string): number => demo.sheets.get(id)?.level ?? 0,
   cursorTile: (): number => view.cursorAt,
+  arc: (): 'ok' | 'blocked' | null => view.arcShowing,
   /** Where a tile's centre lands on screen, in CSS pixels from the page origin. */
   screenOf: (tile: number): { x: number; y: number } => screenPoint(tile, 0),
   gliding: (): number => view.glidingCount,
@@ -2424,6 +2456,7 @@ function frame(now = performance.now()): void {
   const dt = Math.min(0.5, (now - lastFrame) / 1000);
   lastFrame = now;
   steerCamera(dt);
+  steerWalk(now);
   view.tick(dt);
   // The last token stops: the ambush the walk woke begins.
   if (demo.ambush !== null && view.glidingCount === 0 && arrive(demo)) refreshPlay();

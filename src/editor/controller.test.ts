@@ -87,13 +87,14 @@ describe('placing tiles', () => {
     // This asked the opposite question while the placer painted ground: a painted cell had
     // to be in the terrain array, so a click past the edge was ignored. A piece is not in
     // that array - it is keyed by its own coordinates and reaches a million tiles out - so
-    // the click lands, and the room being 8 by 6 has nothing to do with it.
+    // the click lands, and the room being 8 by 6 has nothing to do with it. (A thousand tiles
+    // out it is scenery and stays so; within reach the room grows to it - `grow-scene.test.ts`.)
     const { editor, session, changes } = stacking();
     editor.setTool('placeTile');
     editor.set('tileId', 'rampart');
-    expect(editor.begin({ x: 99, y: 0 })).toBe('terrain');
+    expect(editor.begin({ x: 999, y: 0 })).toBe('terrain');
     editor.end();
-    expect(stamped(session)).toEqual(['99,0,0']);
+    expect(stamped(session)).toEqual(['999,0,0']);
     expect(changes).toEqual(['terrain']);
   });
 

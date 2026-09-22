@@ -38,7 +38,8 @@ async function intoTheVault(page: Page): Promise<{ inCombat: boolean; foe: strin
     for (let i = 0; i < 15 && !a.inCombat(); i++) {
       const tiles = a.reachable();
       if (tiles.length === 0) break;
-      const east = tiles.reduce((x, y) => (y % 22 > x % 22 ? y : x));
+      const inside = tiles.filter((t) => Math.floor(t / 44) < 16);
+      const east = (inside.length > 0 ? inside : tiles).reduce((x, y) => (y % 44 > x % 44 ? y : x));
       if (!a.moveTo(east)) break;
       a.arrive();
       while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
@@ -53,7 +54,7 @@ async function intoTheVault(page: Page): Promise<{ inCombat: boolean; foe: strin
     const foe = a.adversaries()[0];
     if (foe === undefined) return;
     const away = (t: number, to: number): number =>
-      Math.abs((t % 22) - (to % 22)) + Math.abs(Math.floor(t / 22) - Math.floor(to / 22));
+      Math.abs((t % 44) - (to % 44)) + Math.abs(Math.floor(t / 44) - Math.floor(to / 44));
     for (let i = 0; i < 12; i++) {
       const here = a.tileOf(a.selected() ?? '');
       if (away(here, a.tileOf(foe)) <= 1) break;
@@ -113,7 +114,7 @@ test('a click on an enemy across the room walks up and swings', async ({ page })
     const me = a.selected()!;
     const foe = a.adversaries()[0]!;
     // Back off within this move, let the room have a turn, then click the foe from there.
-    const away = (t: number): number => Math.hypot((t % 22) - (a.tileOf(foe) % 22), Math.floor(t / 22) - Math.floor(a.tileOf(foe) / 22));
+    const away = (t: number): number => Math.hypot((t % 44) - (a.tileOf(foe) % 44), Math.floor(t / 44) - Math.floor(a.tileOf(foe) / 44));
     const back = a.reachable().reduce((x, y) => (away(y) > away(x) ? y : x));
     a.moveTo(back);
     while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
@@ -143,7 +144,7 @@ test('the warding ring burns whatever is standing in it', async ({ page }) => {
     // The closing loop walked whoever was selected then; the caster is Mira,
     // and a circle at her feet only catches what is standing by her feet.
     const away = (x: number, to: number): number =>
-      Math.abs((x % 22) - (to % 22)) + Math.abs(Math.floor(x / 22) - Math.floor(to / 22));
+      Math.abs((x % 44) - (to % 44)) + Math.abs(Math.floor(x / 44) - Math.floor(to / 44));
     let beside = a.standBeside(foe);
     for (let i = 0; i < 12 && !beside; i++) {
       const tiles = a.reachable();
@@ -191,8 +192,8 @@ test('the warding ring burns whatever is standing in it', async ({ page }) => {
   const circle = cast.zones.find((z) => z.name === 'Warding Flame')!;
   expect(circle.tiles).toContain(cast.mira);
   expect(circle.tiles).toContain(cast.foeWas);
-  // In a fight the Close-range walk round whoever is selected is lit.
-  expect(cast.lit).toBeGreaterThan(0);
+  // In a fight nothing is lit as squares: the ground the selected one moves in is a ring, drawn as the circle it is.
+  expect(cast.lit).toBe(0);
 
   // And the wound rose over the Burrower's head as a number. Read through the
   // driver in the same tick as the cast: a floater lives 1.4 seconds, and the
@@ -254,14 +255,15 @@ test('a name in the log points at whoever it named', async ({ page }) => {
     for (let i = 0; i < 15 && !a.inCombat(); i++) {
       const tiles = a.reachable();
       if (tiles.length === 0) break;
-      const east = tiles.reduce((x, y) => (y % 22 > x % 22 ? y : x));
+      const inside = tiles.filter((t) => Math.floor(t / 44) < 16);
+      const east = (inside.length > 0 ? inside : tiles).reduce((x, y) => (y % 44 > x % 44 ? y : x));
       if (!a.moveTo(east)) break;
       a.arrive();
       while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
     }
     const foe = a.adversaries()[0]!;
     const away = (t: number, to: number): number =>
-      Math.abs((t % 22) - (to % 22)) + Math.abs(Math.floor(t / 22) - Math.floor(to / 22));
+      Math.abs((t % 44) - (to % 44)) + Math.abs(Math.floor(t / 44) - Math.floor(to / 44));
     for (let i = 0; i < 12; i++) {
       const me = a.selected() ?? '';
       if (away(a.tileOf(me), a.tileOf(foe)) <= 1) break;
@@ -319,9 +321,9 @@ test('a walk ends where it was aimed, not at the centre of a square, and the tok
     const me = a.selected()!;
     const from = a.tileOf(me);
     // Towards the middle of the room, where nothing on the HUD covers the board.
-    const span = (t: number): number => Math.hypot((t % 22) - 10, Math.floor(t / 22) - 8);
+    const span = (t: number): number => Math.hypot((t % 44) - 10, Math.floor(t / 44) - 8);
     const far = a.reachable().filter((t) => t !== from).reduce((x, y) => (span(y) < span(x) ? y : x));
-    const aimed = { x: (far % 22) + 0.3, y: Math.floor(far / 22) - 0.2 };
+    const aimed = { x: (far % 44) + 0.3, y: Math.floor(far / 44) - 0.2 };
     const moved = a.walkTo(aimed.x, aimed.y);
     return { me, moved, aimed, tile: a.tileOf(me), at: a.standingAt(me), far, others: a.party().filter((p) => p !== me).map((p) => a.standingAt(p)) };
   });
@@ -365,9 +367,9 @@ test('hovering the ground draws the line a click would walk', async ({ page }) =
     const a = window.__engine!;
     const me = a.selected()!;
     const from = a.tileOf(me);
-    const span = (t: number): number => Math.hypot((t % 22) - 9, Math.floor(t / 22) - 8);
+    const span = (t: number): number => Math.hypot((t % 44) - 9, Math.floor(t / 44) - 8);
     const far = a.reachable().filter((t) => t !== from).reduce((x, y) => (span(y) < span(x) ? y : x));
-    const spot = { x: (far % 22) + 0.2, y: Math.floor(far / 22) - 0.1 };
+    const spot = { x: (far % 44) + 0.2, y: Math.floor(far / 44) - 0.1 };
     return { spot, px: a.screenAt(spot.x, spot.y), preview: a.previewAt(spot.x, spot.y) };
   });
   expect(target.preview).not.toBeNull();
@@ -407,7 +409,7 @@ test('the party rounds the vault door together, along the line the hover drew', 
       while (a.pendingKind() !== null) a.answer({ kind: 'choose', index: 0 });
     }
     // Back to the west, so the walk has to come round through the doorway.
-    a.moveTo(9 * 22 + 4);
+    a.moveTo(9 * 44 + 4);
     return a.objectState(door).open;
   });
   expect(opened).toBe(true);
@@ -442,7 +444,7 @@ test('the party rounds the vault door together, along the line the hover drew', 
   console.log('DONE:', JSON.stringify(done));
   expect(done.inCombat).toBe(true);
   // Through the doorway (x 12) or at it: nobody left on the far side of the wall.
-  for (const member of done.party) expect(member.tile % 22).toBeGreaterThanOrEqual(11);
+  for (const member of done.party) expect(member.tile % 44).toBeGreaterThanOrEqual(11);
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
@@ -476,7 +478,8 @@ test('a walked token walks, and is standing on the tile when it has', async ({ p
   expect(walked.gliding, 'the token is on its way').toBeGreaterThan(0);
 
   await page.screenshot({ path: 'test-results/walk-mid.png' });
-  await page.waitForFunction(() => window.__engine!.gliding() === 0, null, { timeout: 5_000 });
+  // A walk is a pace now, not a scamper, and the woods are wide: give it room.
+  await page.waitForFunction(() => window.__engine!.gliding() === 0, null, { timeout: 30_000 });
 
   // The camera kept them in frame: its target ends within a third of its
   // distance of where they now stand, and the angle is untouched.

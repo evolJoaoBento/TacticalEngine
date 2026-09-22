@@ -25,8 +25,9 @@
  * because the two are separable — the view owns the groups and decides when to rebuild.
  */
 
-import { Group, InstancedMesh, Matrix4, Mesh, Object3D, Quaternion, Vector3 } from 'three';
+import { Box3, Group, InstancedMesh, Matrix4, Mesh, Object3D, Quaternion, Vector3 } from 'three';
 import type { PlacedPiece, TileGrid } from '../grid/grid';
+import { buildingParts } from '../scene/building';
 import { placementCentre, type TileLayout } from './layout';
 import type { BuiltModel } from './procedural/build';
 
@@ -46,10 +47,13 @@ const position = new Vector3();
 const offset = new Vector3();
 const rotation = new Quaternion();
 const scaling = new Vector3();
-/** A piece's own quarter turn, and the file's transform carried through it. */
+/** A piece's own quarter turn, and the file's transform fitted to the box its structure is. */
 const turn = new Quaternion();
-const spun = new Quaternion();
-const turned = new Vector3();
+const fitted = new Matrix4();
+const bounds = new Box3();
+const extent = new Vector3();
+const ONE = new Vector3(1, 1, 1);
+const stretch = new Matrix4();
 const UP = new Vector3(0, 1, 0);
 
 /**
@@ -72,6 +76,8 @@ interface TileKind {
   readonly model: string;
   /** In tiles, or absent for the model's own size. */
   readonly scale: number | undefined;
+  /** The structure a piece of this kind is: the box its model is fitted to. */
+  readonly structure?: string | undefined;
   readonly tiles: number[];
 }
 
@@ -142,7 +148,7 @@ export function buildTileModels(grid: TileGrid, layout: TileLayout, build: Build
     instances.castShadow = false;
     instances.receiveShadow = true;
     kind.tiles.forEach((tile, i) => {
-      const centre = placementCentre(grid, layout, { x: tile % grid.width, y: Math.floor(tile / grid.width) });
+      const centre = placementCentre(grid, layout, onTheGround(grid, layout, tile));
       position.set(centre.x + offset.x, centre.y + lift + offset.y, centre.z + offset.z);
       matrix.compose(position, rotation, scaling);
       instances.setMatrixAt(i, matrix);
@@ -176,7 +182,7 @@ function piecesByKind(grid: TileGrid): Map<string, { kind: TileKind; pieces: Pla
       continue;
     }
     byKind.set(type.id, {
-      kind: { model: type.model, scale: type.scale, tiles: [] },
+      kind: { model: type.model, scale: type.scale, structure: type.structure, tiles: [] },
       pieces: [piece],
     });
   }
@@ -187,9 +193,13 @@ function piecesByKind(grid: TileGrid): Map<string, { kind: TileKind; pieces: Pla
  * One instanced mesh per kind of piece, each carrying every piece of that kind.
  *
  * A piece stands at its own level rather than on the ground under it, and turns by the
- * quarter it was stamped at. Two things a box does that a file must not: it stretches to
- * `height`, and it is drawn wherever the shape says - a model is the thing itself, at the
- * size its kind declares, so neither applies.
+ * quarter it was stamped at, and stretches to the piece's own `height` as a box does - half a
+ * wall is drawn half as tall, because half as tall is how it is walked.
+ *
+ * A file is fitted to its structure in height: as tall as the rules say a creature stands on
+ * it. The rules read the structure and never the file, so a block whose file came out of its
+ * maker a tenth too tall is a block feet sink into, under a cursor lying inside it. Fitted,
+ * what is drawn is what is walked on. A kind that declares no size is left as its file is.
  */
 function buildPieceModels(grid: TileGrid, layout: TileLayout, build: BuildModel): Group[] {
   const made: Group[] = [];
@@ -213,13 +223,15 @@ function buildPieceModels(grid: TileGrid, layout: TileLayout, build: BuildModel)
     }
 
     built.group.updateWorldMatrix(true, true);
-    mesh.matrixWorld.decompose(offset, rotation, scaling);
+    fitted.copy(fitOf(built.group, kind)).multiply(mesh.matrixWorld);
 
     const instances = new InstancedMesh(mesh.geometry, mesh.material, pieces.length);
     instances.name = `pieces:${typeId}:instances`;
     // Unlike the ground, a piece stands up off it: it casts as well as receives, which is
-    // what makes a wall read as a wall rather than a painted strip.
-    instances.castShadow = true;
+    // what makes a wall read as a wall rather than a painted strip. A floor is the ground
+    // again, and a room laid from floor tiles would put every one of them through the depth
+    // pass to shade nothing.
+    instances.castShadow = kind.structure !== 'floor';
     instances.receiveShadow = true;
     pieces.forEach((piece, i) => {
       // `placementCentre` with a `z` is the building layer's own vertical unit - one whole
@@ -228,12 +240,10 @@ function buildPieceModels(grid: TileGrid, layout: TileLayout, build: BuildModel)
       // the building view would have drawn in its place.
       const centre = placementCentre(grid, layout, { x: piece.x, y: piece.y, z: piece.level });
       turn.setFromAxisAngle(UP, piece.rotation * Math.PI / 2);
-      spun.copy(turn).multiply(rotation);
-      // The file's own offset turns with the piece, or a model that stands off its centre
-      // would swing out of its cell as it was rotated.
-      turned.copy(offset).applyQuaternion(turn);
-      position.set(centre.x + turned.x, centre.y + lift + turned.y, centre.z + turned.z);
-      matrix.compose(position, spun, scaling);
+      // The file's own transform goes through the turn whole, so a model that stands off its
+      // centre turns about the cell rather than swinging out of it.
+      position.set(centre.x, centre.y + lift, centre.z);
+      matrix.compose(position, turn, ONE).multiply(stretch.makeScale(1, piece.height ?? 1, 1)).multiply(fitted);
       instances.setMatrixAt(i, matrix);
     });
     instances.instanceMatrix.needsUpdate = true;
@@ -244,9 +254,39 @@ function buildPieceModels(grid: TileGrid, layout: TileLayout, build: BuildModel)
   return made;
 }
 
+/**
+ * The stretch that makes a seated model as tall as its structure stands, from its foot -
+ * which is where a seated model is measured from, so it stays on its level. The identity for a
+ * kind with no structure or no declared size, and for a model with nothing in it to measure.
+ */
+function fitOf(model: Object3D, kind: TileKind): Matrix4 {
+  const fit = new Matrix4();
+  if (kind.structure === undefined || kind.scale === undefined) return fit;
+  const parts = buildingParts(kind.structure);
+  // Vertex by vertex: a file whose mesh is turned inside its node has a loose box a good deal
+  // bigger than it is, and a tile fitted to that is a tile with a gap all round it.
+  bounds.setFromObject(model, true).getSize(extent);
+  if (parts.length === 0 || extent.y <= 0) return fit;
+  let top = 0;
+  for (const [, y, , , sy] of parts) top = Math.max(top, y + sy / 2);
+  // Up and down only. Across, a file is as wide as its maker made it, and the shipped ones
+  // are a little wider than a tile on purpose: their stones overlap, and a wall of blocks
+  // fitted edge to edge is a wall with a dark seam round every one.
+  return fit.makeScale(1, (top * kind.scale) / extent.y, 1);
+}
+
+/**
+ * A tile's own ground as a placement: the height given outright, in the tiles a placement
+ * counts in. Left to itself a placement stands on top of whatever is stacked on the cell,
+ * which is right for a creature and would float the earth up onto the wall built on it.
+ */
+function onTheGround(grid: TileGrid, layout: TileLayout, tile: number): { x: number; y: number; z: number } {
+  return { x: tile % grid.width, y: Math.floor(tile / grid.width), z: (grid.heightAt(tile) * layout.levelHeight) / layout.tileSize };
+}
+
 /** Stand one built model on a tile, for the models that cannot be instanced. */
 function place(model: Object3D, grid: TileGrid, layout: TileLayout, tile: number, lift: number): void {
-  const centre = placementCentre(grid, layout, { x: tile % grid.width, y: Math.floor(tile / grid.width) });
+  const centre = placementCentre(grid, layout, onTheGround(grid, layout, tile));
   model.position.set(centre.x, centre.y + lift, centre.z);
 }
 

@@ -18,6 +18,7 @@ import { toContentId } from '../../engine/content/types';
 import type { EditorController } from '../controller';
 import type { EditorSession } from '../session';
 import { defaultPalette, tileIdTaken, tilesStandingOn, type TileType } from '../terrain-edits';
+import { JumpRulesEditor } from './JumpRulesEditor';
 
 /** The small text button every workspace closes with, styled like the other five's. */
 const CLOSE_BUTTON: Record<string, string | number> = {
@@ -37,6 +38,9 @@ const CONTROL: Record<string, string | number> = { width: '100%', boxSizing: 'bo
 
 /** The colour a new kind of tile starts as, until somebody says otherwise. */
 const NEW_COLOR = '#6b6350';
+
+/** What `open` holds while the jump rules are showing: no kind of tile can be called this, since an id has no space in it. */
+const JUMP_RULES = 'jump rules';
 
 export function TilesWorkspace(props: {
   session: EditorSession;
@@ -154,13 +158,21 @@ export function TilesWorkspace(props: {
             + Tile
           </button>
         </div>
+        {/* How high the kinds above stand is ground; what the game makes of that height is here. */}
+        <div class="ph-row">
+          <button class={open === JUMP_RULES ? 'ph-item ph-on' : 'ph-item'} data-testid="open-jump-rules" onClick={() => setOpen(JUMP_RULES)}>
+            Height and jumping <small>{session.project.jump === undefined ? 'the defaults' : 'set by this project'}</small>
+          </button>
+        </div>
         <div class="ph-note">
           What a kind of tile says is what the game reads: a walk costs what it costs here,
           and a wall blocks sight because this says so. The placer puts them down.
         </div>
       </div>
 
-      {tile === null ? (
+      {open === JUMP_RULES ? (
+        <JumpRulesEditor session={session} onChange={props.onChange} />
+      ) : tile === null ? (
         <div class="ph-workspace-body ph-hint">Pick a kind of tile to change what it is.</div>
       ) : (
         <div class="ph-workspace-body" data-testid="tile-editor">

@@ -14,18 +14,19 @@
  */
 
 import { NO_TILE, type Spot, type TileGrid } from './grid';
+import { WALKABLE_RISE } from './pathfinding';
 
 export interface WalkRules {
   /** Half the width of a creature, in tiles: how close to a wall or another creature it may stand. */
   readonly radius: number;
-  /** Largest change of level a step may cross, as the pathfinder's rule says. */
+  /** Largest change in standing height a step may cross, in blocks, as the pathfinder's rule says. */
   readonly maxStepHeight: number;
 }
 
 /** Half the width of a creature, in tiles: a body a little over two thirds of a tile wide, which is what the tokens are. */
 export const BODY_RADIUS = 0.35;
 
-export const DEFAULT_WALK: WalkRules = { radius: BODY_RADIUS, maxStepHeight: 1 };
+export const DEFAULT_WALK: WalkRules = { radius: BODY_RADIUS, maxStepHeight: WALKABLE_RISE };
 
 /** How finely a segment is checked, in tiles. */
 const STRIDE = 0.25;
@@ -56,12 +57,12 @@ export function canStandAt(
 ): boolean {
   const centre = grid.tileAtSpot(spot.x, spot.y);
   if (centre === NO_TILE || !grid.isPassable(centre) || blocked(centre)) return false;
-  const level = grid.heightAt(centre);
+  const level = grid.standAt(centre);
   for (const [dx, dy] of RIM) {
     const tile = grid.tileAtSpot(spot.x + dx * rules.radius, spot.y + dy * rules.radius);
     if (tile === centre) continue;
     if (tile === NO_TILE || !grid.isPassable(tile) || blocked(tile)) return false;
-    if (Math.abs(grid.heightAt(tile) - level) > rules.maxStepHeight) return false;
+    if (Math.abs(grid.standAt(tile) - level) > rules.maxStepHeight) return false;
   }
   return true;
 }
@@ -80,12 +81,12 @@ export function segmentClear(
 ): boolean {
   const length = Math.hypot(to.x - from.x, to.y - from.y);
   const steps = Math.max(1, Math.ceil(length / STRIDE));
-  let level = grid.heightAt(grid.tileAtSpot(from.x, from.y));
+  let level = grid.standAt(grid.tileAtSpot(from.x, from.y));
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
     const spot = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
     if (!canStandAt(grid, spot, blocked, rules)) return false;
-    const here = grid.heightAt(grid.tileAtSpot(spot.x, spot.y));
+    const here = grid.standAt(grid.tileAtSpot(spot.x, spot.y));
     if (Math.abs(here - level) > rules.maxStepHeight) return false;
     level = here;
   }
@@ -207,4 +208,106 @@ export function lineLength(line: readonly Spot[]): number {
     total += Math.hypot(line[i + 1]!.x - line[i]!.x, line[i + 1]!.y - line[i]!.y);
   }
   return total;
+}
+
+/** What one small piece of a line costs to cross: its length, times what the ground under its middle costs to enter. */
+function pieceCost(grid: TileGrid, a: Spot, b: Spot): number {
+  const cost = grid.costAt(grid.tileAtSpot((a.x + b.x) / 2, (a.y + b.y) / 2));
+  return Math.hypot(b.x - a.x, b.y - a.y) * (Number.isFinite(cost) ? cost : 1);
+}
+
+/** A line's segments as pieces no longer than a stride, in order: `visit` returns false to stop. */
+function eachPiece(line: readonly Spot[], visit: (a: Spot, b: Spot) => boolean): void {
+  for (let i = 0; i + 1 < line.length; i++) {
+    const from = line[i]!;
+    const to = line[i + 1]!;
+    const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / STRIDE));
+    for (let k = 0; k < steps; k++) {
+      const a = { x: from.x + ((to.x - from.x) * k) / steps, y: from.y + ((to.y - from.y) * k) / steps };
+      const b = { x: from.x + ((to.x - from.x) * (k + 1)) / steps, y: from.y + ((to.y - from.y) * (k + 1)) / steps };
+      if (!visit(a, b)) return;
+    }
+  }
+}
+
+/**
+ * What a line costs to walk, in movement: its length where the going is ordinary, and more
+ * through whatever costs more to enter - counted along the line itself rather than by the
+ * tiles under it, so a walk is as long as it is and not as long as the squares it crossed.
+ */
+export function lineCost(grid: TileGrid, line: readonly Spot[]): number {
+  let total = 0;
+  eachPiece(line, (a, b) => {
+    total += pieceCost(grid, a, b);
+    return true;
+  });
+  return total;
+}
+
+/** How far along a line an allowance of movement goes, in tiles of the line's own length: all of it, when it covers it. */
+export function distanceWithin(grid: TileGrid, line: readonly Spot[], allowance: number): number {
+  let spent = 0;
+  let gone = 0;
+  eachPiece(line, (a, b) => {
+    const cost = pieceCost(grid, a, b);
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (spent + cost > allowance) {
+      gone += cost <= 0 ? 0 : (length * Math.max(0, allowance - spent)) / cost;
+      return false;
+    }
+    spent += cost;
+    gone += length;
+    return true;
+  });
+  return gone;
+}
+
+/** A circle on the ground, in tile units. */
+export interface Circle {
+  readonly anchor: Spot;
+  readonly radius: number;
+}
+
+/** Whether a spot is inside a circle - on the edge counts. */
+export function insideCircle(spot: Spot, circle: Circle): boolean {
+  return Math.hypot(spot.x - circle.anchor.x, spot.y - circle.anchor.y) <= circle.radius + 1e-9;
+}
+
+/**
+ * How far along a line stays inside a circle, in tiles of the line's own length: all of it when it
+ * never leaves; else up to the point it crosses the edge, found to the nearest hundredth of a tile.
+ * A line that starts outside goes nowhere.
+ */
+export function distanceInside(line: readonly Spot[], circle: Circle): number {
+  if (line.length === 0 || !insideCircle(line[0]!, circle)) return 0;
+  const total = lineLength(line);
+  if (line.every((spot) => insideCircle(spot, circle))) return total;
+  let inside = 0;
+  let outside = total;
+  // The first crossing: a line may leave and come back, and the walk stops at the first leaving.
+  for (let gone = 0.01; gone < total; gone += 0.01) {
+    if (!insideCircle(pointAlong(line, gone), circle)) {
+      outside = gone;
+      break;
+    }
+    inside = gone;
+  }
+  return Math.min(inside, outside);
+}
+
+/** A line in two at a distance along it: what is walked, and what is left. Both carry the point between them. */
+export function splitLine(line: readonly Spot[], distance: number): { within: Spot[]; beyond: Spot[] } {
+  const cut = pointAlong(line, distance);
+  const within: Spot[] = [];
+  let left = Math.max(0, distance);
+  let i = 0;
+  for (; i + 1 < line.length; i++) {
+    within.push({ ...line[i]! });
+    const length = Math.hypot(line[i + 1]!.x - line[i]!.x, line[i + 1]!.y - line[i]!.y);
+    if (left <= length) break;
+    left -= length;
+  }
+  if (i + 1 >= line.length) return { within: line.map((spot) => ({ ...spot })), beyond: [] };
+  within.push(cut);
+  return { within, beyond: [cut, ...line.slice(i + 1).map((spot) => ({ ...spot }))] };
 }

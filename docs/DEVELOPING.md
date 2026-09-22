@@ -96,6 +96,7 @@ adapter: the rest of the core does not know it exists.
 | `rules/duality.ts` | `rollDuality` — a PC's two dice, the five outcomes, Light/Shadow/spotlight. |
 | `rules/gm-die.ts` | `rollGmDie` — the GM's single d20 against Evasion, natural-20 crit. |
 | `rules/damage.ts` | Thresholds, severity bands, Armor Slots, resistance/immunity/reduction, `rollDamage`, `resolveDamage`. |
+| `rules/jump.ts` | The house rule for height as a project writes it: `jumpRulesSchema`, `DEFAULT_JUMP_RULES`, `jumpReach`, `jumpRange`, `safeDrop`, `leapTerms`, `arcLift`, `arcHeight`. Arithmetic only; where a jump is made from is `game/leap.ts`. |
 | `rules/countdown.ts` | The clock: `advanceCountdown`, `stepsFor`, `dynamicSteps` (the SRD's progress/consequence chart), loops. No effects, no rng. |
 | `rules/cover.ts` | SRD 2.0 cover: a partial obstruction costs the attacker a disadvantage die. |
 | `rules/range.ts` | `RANGE_BANDS`, `DEFAULT_BAND_TILES` (a house rule — see CONTEXT.md). |
@@ -130,7 +131,7 @@ adapter: the rest of the core does not know it exists.
 | `scene/schema.ts` | The authored document: `sceneSchema`, `projectSchema`, `ProjectDoc`, `codeSchema`. |
 | `scene/state.ts` | Runtime overlay: `EntityState`, `SceneState`, `SceneStateSnapshot`, `sceneStateFromScene`. |
 | `scene/grid-from-scene.ts` | Builds a `TileGrid` from a `SceneDoc`. |
-| `scene/party.ts` | Selection and follower movement. |
+| `scene/party.ts` | Selection, order (`members`, `arrange`), the leader trail a group walks down (`remember`, `downTheTrail`), groups (`groupOf`, `link`, `unlink` - the followers of a walk are the walker's group), follower movement, and what a walk costs: `planWalk` finds the way without a budget and measures the *line* (`lineCost` in `grid/walk.ts`); `short: true` cuts it where the allowance runs out (`distanceWithin`, `splitLine`) and returns the rest as `beyond`; `covered` is the lit ground. |
 | `scene/interact.ts`, `scene/triggers.ts` | Interactables and trigger cells. |
 | `scene/legacy-import.ts` | Reads the legacy prototype's maps (495 lines). |
 | `character/sheet.ts`, `sheet-schema.ts` | An authored `CharacterSheet` and the `DerivedCharacter` computed from it. |
@@ -140,7 +141,8 @@ adapter: the rest of the core does not know it exists.
 | `render/camera.ts` | `OrbitCamera`, plain data, deliberately not three's `OrbitControls` so it is testable headless. The pitch is floored by the distance (`pitchFloor`): free close up, nearly overhead far out, and the angle the player dragged to is remembered and handed back on the way in. |
 | `render/glide.ts` | `planGlide`, `advanceGlide`: the drawing of a journey — the line a token crosses, the pace it keeps per tile, the arc of a throw. No scene in it, so a walk can be read in a test. |
 | `render/spotlight.ts` | `Spotlight`: the white rim on whatever the pointer is over, drawn through what stands in front of it. One pair of inverted hulls per thing, round the merged silhouette of all its parts rather than round each — per part, a door's own bands stand in front of its panel, so the through-wall rim passed its depth test across the middle and filled the door instead of edging it. On the outline layer, so the editor never draws them and no raycast finds them. |
-| `render/assets.ts` | `AssetLibrary` — glTF/GLB loading. `seatOnTile` puts a loaded file where the library puts its own models: centred over the tile with its feet at y = 0, measured after the rotation and scale are on, so `scale` grows a model where it stands instead of sliding it off. |
+| `tools/size-model.py` | Blender, headless: give a `.glb` a height in tiles and put its origin at the middle of its base. Run after `lighten-model.py`, which keeps whatever size it was handed. |
+| `render/assets.ts` | `AssetLibrary` — glTF/GLB loading. `seatOnTile` puts a loaded file where the library puts its own models: centred over the **base it stands on** (the lowest slice of its meshes, not the middle of its bounding box, which on a leaning figure is off its feet) with its feet at y = 0, measured after the rotation and scale are on, so `scale` grows a model where it stands instead of sliding it off. |
 | `render/thumbnails.ts` | `ModelThumbnails`, `thumbnailOf` — a model drawn once into a small offscreen canvas of its own and kept as a data URL, for the editor's strip. The canvas is made on the first picture, so play never opens a second WebGL context. |
 | `render/carry.ts` | `CarryMotion` — the editor's hand: a picked-up thing lifts, hangs from its top under the pointer so its bottom swings behind the way it goes (a critically damped follow, and a looser pendulum for the lean), floats while held still, and drops with a squash. Presentation only; it poses a three object, so it is tested headless. |
 | `render/toon.ts` | What the hover rim is made of. `smoothHull` closes a geometry at its corners, averaging the normals so a pushed-out copy stays whole; `outlineMaterial` and `xrayMaterial` draw that copy back-faces-only in a colour, the second only where something nearer already stands, so a thing behind a wall still shows its edge. Rims live on `OUTLINE_LAYER`, which only play's camera turns on, so the editor draws the room plain and no raycast ever lands on one. It held the cartoon look too — light stepped on a shared ramp, ink round every part, creases along the ground — until imported models turned out not to carry it, and half a room in ink read worse than none. |
@@ -159,10 +161,20 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 
 | Path | What it is |
 |---|---|
-| `demo-scene.ts` | `DemoScene` and the fight over it (4437 lines — `BACKLOG.md` §2 has what is left): `buildDemoScene`, `buildProjectScene`, `moveSelectedTo`, `attackWithSelected`, `playGmTurn`, `endTurn`, `defenseChoices`, `applyDefenseChoice`, `useSelectedOn`, `answerPending`. |
-| `movement.ts` | Walking: `reachableTiles`, `walkTheMove`, `underPressureTiles`, `closeToStrike`, `previewStrike`, `previewWalk`, `arrive`, `startEncounter` (the fight starts when the walkers reach the trigger). `moveSelectedTo` and `runForIt` stay in `demo-scene.ts`: the click, and the Movement Under Pressure roll, which is a script. |
+| `demo-scene.ts` | `DemoScene` and the fight over it (4394 lines — `BACKLOG.md` §2 has what is left): `buildDemoScene`, `buildProjectScene`, `moveSelectedTo`, `attackWithSelected`, `playGmTurn`, `endTurn`, `defenseChoices`, `applyDefenseChoice`, `useSelectedOn`, `answerPending`. |
+| `movement.ts` | Walking: `reachableTiles`, `walkTheMove`, `underPressureTiles`, `closeToStrike`, `previewStrike`, `previewWalk`, `arrive`, `startEncounter` (the fight starts when the walkers reach the trigger). `moveSelectedTo` stays in `demo-scene.ts`: the click. |
+| `leap.ts` | Jumping, without the dice, and only ever asked for by name: `planJump` (from where they stand), `planRunningJump` (with a walk first when the landing is past their range), `leapTargets` (the disc the button lights), `jumpArc` (what the aim draws). The arithmetic and every number in it are `rules/jump.ts`, read from `project.jump`. |
+| `rolled-move.ts` | The moves a roll stands in front of, as scripts: `runForIt` (Movement Under Pressure) and the jump - `jumpAim`, `jumpTo`, `jumpReaches`, `jumpOffered`, `aimedArc`. |
+| `ui/party-chain.ts` | Where the chain behind the party's cards runs: `chainSpans` (one per run of cards side by side in a group) and `strandedIds` (a group's card that no chain reaches). DOM-free; `PartyHud` measures the cards and draws it. |
+| `ui/hud-wounds.ts` | Who on the sheets has just lost Hit Points, measured between drawings: `woundsSince`, `markedNow`, `WOUND_MS`. What `PartyHud` animates from. |
+| `user-settings.ts` | The player's own settings, kept in the browser: `userSettings`, `setUserSetting`, `onUserSettings`, and `USER_SETTINGS` - the list the Escape-opened `SettingsModal` is drawn from. Not the project's and not the save's. |
 | `moment.ts` | Where the game is: `inCombat`, `scriptPending`. One field each, asked by everything, so they sit below everything. |
-| `room.ts` | Standing a room up and moving between rooms: `SceneRuntime`, `buildRuntime`, `worldOptions` (what the script world needs from the game) and the content it reads (`characterContentFor`, `adversaryDefsFor`, `hooksFor`), `install`, `travelTo`, `enterSavedScene`, `syncAuthoredEncounters`, `settleTravel`. Knows `DemoScene` only as a type: `demo-scene.ts` imports from here, never the other way. |
+| `demo-map.ts` | The demo's map: the old room copied in, the woods around it, the halls east. `hollowVaultMap`, `BEATEN_TINTS`, and the coordinates the rest of the demo counts on. |
+| `steer.ts` | Where a held button walks somebody next: `steerStep`, and the distances it uses. DOM-free. |
+| `party-drop.ts` | A HUD card dragged: `dropTargetAt` (aside, onto, between - from the cards' boxes and the pointer) and `dropCard` (what the party does about it). DOM-free. |
+| `circle.ts` | Where a fighter may move this spotlight: `movementCircle`, `pushCircle`, `fightWalk` (the options every walk in a fight is asked with), `pushPrompt`, `reachRings`. |
+| `reach.ts` | Reach measured as a swing measures it, for whoever must pick a tile to strike from before anyone has moved: `standingIn`, `standingOn`, `bandFromSpot`. |
+| `room.ts` | Standing a room up and moving between rooms: `SceneRuntime`, `buildRuntime`, `worldOptions` (what the script world needs from the game) and the content it reads (`characterContentFor`, `adversaryDefsFor`, `hooksFor`), `install`, `travelTo`, `enterSavedScene`, `syncAuthoredEncounters`, `settleTravel`, and `takeGround` (the edited ground taken into the grid in hand, or - when the room grew - the game stood up again on a bigger one). Knows `DemoScene` only as a type: `demo-scene.ts` imports from here, never the other way. |
 | `demo-rules.ts` | The demo's house rules and cast: `DEMO_BAND_TILES`, `DEMO_MOVEMENT`, `DEMO_WALK`, `DEMO_MODELS`, `DEMO_ADVERSARIES`, `DEMO_CHARACTERS`, `PARTY_SHEETS`. Numbers and content; nothing here runs. |
 | `level-up.ts` | `awaitingLevel`, `applyLevelUp`: the game's side of `levelUp`, and what changes on the board once a level is taken. |
 | `equip.ts` | `equipItem`, `gearOf`: a piece out of the pack and onto the sheet, the old one back in. |
@@ -188,6 +200,7 @@ exists: input is DOM listeners in `src/main.ts`, and there is no audio system at
 | `project-file.ts` | The file a project saves to, held between saves. `saveProjectFile` writes the handle it was given and only asks for one the first time, so Save stops leaving `project (1).json` beside `project.json`; `forgetFile` is Save as…. Firefox and Safari have no picker, so the download is still the fallback, chosen by asking whether the API is there rather than by sniffing the browser. A closed dialog reports `cancelled` and is *not* a save: the project stays dirty and the tab still warns. |
 | `model-memory.ts` | The models imported in this browser, kept in IndexedDB and laid back under the project as the editor opens. `missingFrom` is the rule — a project's own declaration wins the id — and the store is injected, so it is tested with a Map. |
 | `controller.ts` | What a click means given the tool in hand; `CONTINUOUS` tools coalesce. |
+| `grow-scene.ts` | `GrowScene`: the room growing round tiles laid outside it, as the tail of the stroke that laid them - one undo. The arithmetic is `engine/scene/reshape.ts` (`growthToReach`, `grownScene`, `shiftSnapshot`). |
 | `modes.ts` | The top bar's four modes and the tools each owns. Choosing a tool chooses its mode, so the two never disagree. |
 | `library.ts` | What the bottom strip offers (ground, props, objects, creatures by tier) and what a search there matches. |
 | `validate.ts` | The **Check** button (653 lines). Reports playability problems a zod parse cannot: party, abilities, code, item uses, quests, then per scene the spawns, interactables, decos, encounters, reachability (pathfinding, run last because it is the expensive one), loot tables and dialogues. |
@@ -847,6 +860,15 @@ when the source changes; browser tests cover broken directory art, corrupt impor
 - **The repository path contains a space.** Quote it everywhere. The repo has moved between
   machines before: prefer repo-relative paths in code, scripts and docs, and never hardcode a path
   or a home directory.
+- **Two heights, one to read.** `grid.heightAt` is the painted ground in slabs and is what a save
+  round-trips; `grid.standAt` is where a creature stands, in blocks, with the placed pieces on top.
+  Rules and drawing read `standAt` / `standHeight`. Writing a piece's height into `heights` would
+  corrupt the document on the next save, which is why `lift` is its own array.
+- **A `block` can be stood on.** Height stops a walk, not the kind. A wall that must never hold a
+  body - a room's own walls - is a kind with `passable: false`, like the demo's `rampart`.
+- **`ReachableField`s are views.** A second `party.reachable(...)` invalidates the first and the
+  first throws when read. `clone()` the one you keep - `beyondReach` does - and ask for what needs
+  other searches *before* taking the field you mean to use, as `moveSelectedTo` does with the leap.
 - **`legacy/` is never modified.** It is the original prototype, kept runnable via
   `legacy/start.bat`. It also serves on port 8420, so do not run it and `npm run dev` at once. Read
   `docs/research/legacy-*.md` instead of the sources.

@@ -60,16 +60,54 @@ export function bandForDistance(tiles: number, table: BandTiles = DEFAULT_BAND_T
   return 'outOfRange';
 }
 
+/** How far past a band's number a span still counts as inside it, in tiles: half a tile, which is what rounding gave. */
+export const BAND_GRACE = 0.5;
+
 /**
- * The band a straight-line span falls in, the span measured to the nearest
- * tile. The game is not played on a grid: distance is "as the crow flies",
- * so a diagonal neighbour (1.41 tiles away) is Melee like any other neighbour,
- * and nothing depends on which way a corridor runs. Every measurement between
- * two tiles goes through here, so the rule cannot drift between the attack,
- * the area, the script and the picture.
+ * The band a straight-line span falls in. The game is not played on a grid:
+ * distance is "as the crow flies", from where one creature stands to where the
+ * other does, and nothing depends on which way a corridor runs.
+ *
+ * A band reaches half a tile past its number. That is what measuring "to the
+ * nearest tile" always meant - `round(span) <= n` is `span < n + 0.5` - so a
+ * diagonal neighbour (1.41 tiles away) is Melee like any other neighbour, and
+ * every span between two tile centres falls where it always fell. What is new
+ * is that a span need not be between centres: it is a real number, and a step
+ * of a tenth of a tile can be the step that brings somebody into reach.
+ *
+ * Every measurement goes through here, so the rule cannot drift between the
+ * attack, the area, the script and the picture.
  */
 export function bandForSpan(span: number, table: BandTiles = DEFAULT_BAND_TILES): RangeBand {
-  return bandForDistance(Math.round(span), table);
+  for (const band of RANGE_BANDS) {
+    if (band === 'outOfRange') break;
+    if (span < table[band] + BAND_GRACE) return band;
+  }
+  return 'outOfRange';
+}
+
+/** The furthest span still inside a band: the radius of the circle a band is, on the ground. */
+export function maxSpanForBand(band: RangeBand, table: BandTiles = DEFAULT_BAND_TILES): number {
+  return band === 'outOfRange' ? Infinity : table[band] + BAND_GRACE;
+}
+
+/** The next distance step out from a band - Close to Far, Far to Very Far - or null past the last. */
+export function nextBand(band: RangeBand): TargetableRangeBand | null {
+  const i = RANGE_BANDS.indexOf(band);
+  const next = RANGE_BANDS[i + 1];
+  return next === undefined || next === 'outOfRange' ? null : next;
+}
+
+/** Somebody on the map: the tile they are in (negative when they are off it) and where in it they stand. */
+interface Standing {
+  readonly tile: number;
+  readonly at: { readonly x: number; readonly y: number };
+}
+
+/** The band between two creatures, from where one stands to where the other does; null when either is missing or off the map. */
+export function bandBetweenStanding(a: Standing | undefined, b: Standing | undefined, table: BandTiles = DEFAULT_BAND_TILES): RangeBand | null {
+  if (a === undefined || b === undefined || a.tile < 0 || b.tile < 0) return null;
+  return bandForSpan(Math.hypot(a.at.x - b.at.x, a.at.y - b.at.y), table);
 }
 
 /** Furthest tile distance still inside a band. */
