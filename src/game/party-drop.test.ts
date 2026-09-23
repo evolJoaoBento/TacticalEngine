@@ -30,11 +30,11 @@ describe('where a card is dropped', () => {
   });
 
   it('is onto a card over its middle, and between over its edges or the gaps', () => {
-    // Over Mira's middle, and over her top and bottom quarters.
+    // Over Scarlet's middle, and over her top and bottom quarters.
     expect(dropTargetAt(column, 'finn', 80, 290)).toEqual({ kind: 'onto', id: 'mira' });
     expect(dropTargetAt(column, 'finn', 80, 250)).toEqual({ kind: 'between', above: 'kara', below: 'mira' });
     expect(dropTargetAt(column, 'finn', 80, 335)).toEqual({ kind: 'between', above: 'mira', below: 'rook' });
-    // The gap between Mira and Rook, above everybody, and below everybody.
+    // The gap between Scarlet and Rook, above everybody, and below everybody.
     expect(dropTargetAt(column, 'finn', 80, 345)).toEqual({ kind: 'between', above: 'mira', below: 'rook' });
     expect(dropTargetAt(column, 'finn', 80, 5)).toEqual({ kind: 'between', above: null, below: 'kara' });
     expect(dropTargetAt(column, 'finn', 80, 500)).toEqual({ kind: 'between', above: 'rook', below: null });
@@ -48,12 +48,14 @@ describe('where a card is dropped', () => {
 });
 
 describe('what a drop does', () => {
-  it('to the side: they walk alone', () => {
+  it('to the side: they walk alone, and go above the group they left', () => {
     const p = party();
     expect(dropCard(p, 'finn', { kind: 'aside' })).toBe(true);
     expect(p.groupOf('finn')).toEqual(['finn']);
     expect(dropCard(p, 'finn', { kind: 'aside' })).toBe(false);
-    expect(p.members()).toEqual(['kara', 'finn', 'mira', 'rook']);
+    // Out of the middle, so the three still walking together are side by side and stay chained.
+    expect(p.members()).toEqual(['finn', 'kara', 'mira', 'rook']);
+    expect(p.groupOf('kara')).toEqual(['kara', 'mira', 'rook']);
   });
 
   it('onto a card: they walk with that character, and their card goes under theirs', () => {
@@ -73,11 +75,11 @@ describe('what a drop does', () => {
     const p = party();
     p.unlink('mira');
     p.unlink('rook');
-    // Mira between Kara and Finn, who walk together: she walks with them, third card.
+    // Scarlet between Quim and Violet, who walk together: she walks with them, third card.
     expect(dropCard(p, 'mira', { kind: 'between', above: 'kara', below: 'finn' })).toBe(true);
     expect(p.members()).toEqual(['kara', 'mira', 'finn', 'rook']);
     expect(p.groupOf('mira')).toEqual(['kara', 'mira', 'finn']);
-    // Rook between Finn and nobody: the order alone, since there is nobody below to be with.
+    // Rook between Violet and nobody: the order alone, since there is nobody below to be with.
     expect(dropCard(p, 'rook', { kind: 'between', above: 'finn', below: null })).toBe(false); // already last
     expect(dropCard(p, 'rook', { kind: 'between', above: null, below: 'kara' })).toBe(true);
     expect(p.members()).toEqual(['rook', 'kara', 'mira', 'finn']);

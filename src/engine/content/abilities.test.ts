@@ -127,7 +127,7 @@ describe('abilitiesFor', () => {
   });
 
   it('leaves out a card printed on a stat block, even one named for the character', () => {
-    // A block that happens to share Kara's id: `adversary` names blocks, never characters, so the
+    // A block that happens to share Quim's id: `adversary` names blocks, never characters, so the
     // card is nobody's hand however the ids fall.
     const printed = cardDefSchema.parse({ id: 'claws', name: 'Claws', grant: { kind: 'adversary', adversaries: ['kara'] } });
     const claws = abilitySchema.parse({ id: 'claws', name: 'Claws', source: { card: 'claws' } });

@@ -143,7 +143,7 @@ import { startEncounter } from '../game/movement';
 
 const KARA = characterSheetSchema.parse(
   blankSheet('kara', 'sentinel', {
-    name: 'Kara',
+    name: 'Quim',
     traits: { agility: 0, strength: 2, finesse: 1, instinct: 1, presence: 0, knowledge: -1 },
     ancestryId: 'human',
     armorId: 'ringmail',
@@ -297,7 +297,7 @@ describe('a block that shrugs the party off', () => {
       return demo.state.entity('warrior-1')!.hitPoints.marked;
     };
 
-    // One seed, so both runs roll the same swing: Kara's longsword deals
+    // One seed, so both runs roll the same swing: Quim's longsword deals
     // physical damage, which is what the hide answers. Major on this block's
     // thresholds, and one band down once it is halved.
     const plain = build(false, 's5');
@@ -346,7 +346,7 @@ describe('a Lieutenant with more where that came from', () => {
 });
 
 describe('a Leader buying its own side a turn', () => {
-  /** A leader and two of its own down the hall from Kara. */
+  /** A leader and two of its own down the hall from Quim. */
   const gang = (seed: string, bad: number) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -485,7 +485,7 @@ describe('a creature that does not stay the same creature', () => {
     const said = demo.log.map((l) => l.text);
     expect(said).toContain('Foe is gone: 2 Runts in their place.');
     expect(said.indexOf('Foe is gone: 2 Runts in their place.')).toBeGreaterThan(
-      said.findIndex((t) => t.includes('Kara hits with the Longsword')),
+      said.findIndex((t) => t.includes('Quim hits with the Longsword')),
     );
 
     const halves = demo.state.entitiesOf('adversary').filter((e) => e.alive);
@@ -566,7 +566,7 @@ describe('what the two of them make of each other', () => {
     ],
   });
 
-  /** Kara and one creature, at the distance the test asks for. */
+  /** Quim and one creature, at the distance the test asks for. */
   const facing = (seed: string, features: readonly Printed[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -677,7 +677,7 @@ describe('a wound that answers back', () => {
     ],
   });
 
-  /** Kara toe to toe with something carrying the feature under test. */
+  /** Quim toe to toe with something carrying the feature under test. */
   const duel = (seed: string, features: readonly Printed[]) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -731,7 +731,7 @@ describe('a wound that answers back', () => {
       if (!demo.encounter!.canAct('kara')) endTurn(demo);
       attackWithSelected(demo, 'foe');
     }
-    // A `uses` of one per scene: the clock starts once, however many times Kara
+    // A `uses` of one per scene: the clock starts once, however many times Quim
     // connects, and the countdown it started is the one on the board.
     expect(demo.log.filter((l) => l.text.includes('Rising Hum begins')).length).toBe(1);
     expect(demo.scenario.countdowns.has('fixture-rising-hum')).toBe(true);
@@ -813,7 +813,7 @@ describe('a wound big enough to be counted', () => {
     ],
   });
 
-  /** Kara toe to toe with something carrying the feature under test. */
+  /** Quim toe to toe with something carrying the feature under test. */
   const duel = (seed: string, features: readonly Printed[]) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -838,7 +838,7 @@ describe('a wound big enough to be counted', () => {
     settleFight(demo);
 
     expect(demo.log.some((l) => l.text.includes('The blow folds back on itself.'))).toBe(true);
-    expect(demo.log.some((l) => l.text.includes('10 damage to Kara'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('10 damage to Quim'))).toBe(true);
   });
 
   it('answers only a wound of the size the block names', () => {
@@ -875,7 +875,7 @@ describe('a wound big enough to be counted', () => {
     expect(demo.log.some((l) => l.text.includes('takes the wound back'))).toBe(true);
     const took = demo.state.entity('kara')!.hitPoints.marked - hurt;
     expect(took).toBeGreaterThan(0);
-    // What it cleared is what the blast marked, less whatever Kara's own swing
+    // What it cleared is what the blast marked, less whatever Quim's own swing
     // put back on it.
     expect(foe.hitPoints.marked).toBeLessThanOrEqual(marked - took + 1);
   });
@@ -1005,7 +1005,7 @@ describe('a creature that walks before it swings', () => {
     ],
   });
 
-  /** Kara at one end of the hall and something at the other. */
+  /** Quim at one end of the hall and something at the other. */
   const hall = (seed: string, features: readonly Printed[], at: { x: number; y: number } = { x: 9, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -1163,7 +1163,7 @@ describe('what the room makes of a roll', () => {
     effects: [{ kind: 'loseGood', target: { kind: 'target' } }],
   });
 
-  /** Kara and something watching her roll, at the distance the test asks for. */
+  /** Quim and something watching her roll, at the distance the test asks for. */
   const watched = (seed: string, features: readonly Printed[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -1670,7 +1670,7 @@ describe("what the party puts behind its own blow", () => {
 });
 
 describe('a creature that acts again, and one that acts out of turn', () => {
-  /** Kara, and whatever is standing over her. */
+  /** Quim, and whatever is standing over her. */
   const room = (seed: string, blocks: readonly { id: string; adversary: string; x: number }[]) => {
     const s = blank();
     // The pack's abilities, not a catalogue's. The blocks these tests place carry their own
@@ -1683,7 +1683,7 @@ describe('a creature that acts again, and one that acts out of turn', () => {
     for (const block of blocks) {
       s.run(addAdversary('hall', 'duel', { id: block.id, adversary: block.adversary, position: { x: block.x, y: 4 } }));
       // Only the block whose feature is under test carries one. A plain foe
-      // handed an overload would kill Kara early and fail a loop that is
+      // handed an overload would kill Quim early and fail a loop that is
       // waiting on something else entirely.
       const feature =
         block.adversary === 'fixture-brute'
@@ -1740,7 +1740,7 @@ describe('a creature that acts again, and one that acts out of turn', () => {
 
       expect(demo.log.some((l) => l.text.includes('something turns toward it'))).toBe(true);
       expect(lurker.stress.marked).toBeGreaterThan(before);
-      // It moved to the wound: the Lurker is standing over Kara now.
+      // It moved to the wound: the Lurker is standing over Quim now.
       expect(demo.world.bandTo('lurker', 'kara')).toBe('melee');
       return;
     }
@@ -1861,7 +1861,7 @@ describe('what a card makes of somebody else being hit', () => {
   };
 
   it('puts a die on the card when the marked creature hurts an ally', () => {
-    // The mechanism: a marked creature hurting anybody adds to the count. Kara is
+    // The mechanism: a marked creature hurting anybody adds to the count. Quim is
     // the one standing in front of it; the card is Vela's, and it hears about her
     // wound from across the room.
     for (let seed = 1; seed < 30; seed++) {
@@ -1872,7 +1872,7 @@ describe('what a card makes of somebody else being hit', () => {
       expect(demo.world.tokensOn('vela', TALLY)).toBeGreaterThan(0);
       return;
     }
-    throw new Error('nothing landed a blow on Kara in thirty tries');
+    throw new Error('nothing landed a blow on Quim in thirty tries');
   });
 
   it('answers a blow that landed on somebody else, once it is offered', () => {
@@ -1912,7 +1912,7 @@ describe('what a card makes of somebody else being hit', () => {
       expect(foe.hitPoints.marked).toBeGreaterThanOrEqual(before.hp);
       return;
     }
-    throw new Error('nothing landed a blow on Kara in thirty tries');
+    throw new Error('nothing landed a blow on Quim in thirty tries');
   });
 
   it('says nothing about a blow from something that carries no mark', () => {
@@ -1925,7 +1925,7 @@ describe('what a card makes of somebody else being hit', () => {
       expect(demo.world.tokensOn('vela', TALLY)).toBe(0);
       return;
     }
-    throw new Error('nothing landed a blow on Kara in thirty tries');
+    throw new Error('nothing landed a blow on Quim in thirty tries');
   });
 });
 
@@ -2191,7 +2191,7 @@ describe('a Spellcast Roll against a target, and what it leaves on them', () => 
 });
 
 describe('a number read off a pool', () => {
-  /** Kara toe to toe with something, the fight already on. */
+  /** Quim toe to toe with something, the fight already on. */
   const facing = (adversary: string, seed: string, features: readonly Printed[] = []) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -2242,7 +2242,7 @@ describe('a number read off a pool', () => {
 });
 
 describe('the blow that has landed and not yet been counted', () => {
-  /** One thing swinging at Kara, and optionally somebody watching. */
+  /** One thing swinging at Quim, and optionally somebody watching. */
   const swinging = (
     adversary: string,
     seed: string,
@@ -2428,7 +2428,7 @@ describe('one of its own, standing beside the target', () => {
     ],
   });
 
-  /** Kara with two of a kind on her, or one of them standing off. */
+  /** Quim with two of a kind on her, or one of them standing off. */
   const pack = (seed: string, features: readonly Printed[], together = true) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -2546,7 +2546,7 @@ describe('one of its own, standing beside the target', () => {
 });
 
 describe('a token on the stat block', () => {
-  /** A slow thing standing next to Kara, the fight already on. */
+  /** A slow thing standing next to Quim, the fight already on. */
   const winding = (adversary: string, seed: string, second = false) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -2743,7 +2743,7 @@ describe("what a block's own teeth do to this target", () => {
     },
   });
 
-  /** Kara in reach of something, the fight already on. */
+  /** Quim in reach of something, the fight already on. */
   const facing = (seed: string, features: readonly Printed[]) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -2817,7 +2817,7 @@ describe('a Demon rallying Relentless allies', () => {
     s.run(setSpawns('hall', [{ x: 2, y: 4 }]));
     s.run(addEncounter('hall', encounterSchema.parse({ id: 'pit', name: 'The pit' })));
     s.run(addAdversary('hall', 'pit', { id: 'hubris', adversary: 'fixture-captain', position: { x: 7, y: 4 } }));
-    // The imps stand in Far range of Kara and past a Close-range walk of her:
+    // The imps stand in Far range of Quim and past a Close-range walk of her:
     // rallied, they close in and stop short, and the fight makes no Shadow of its own.
     s.run(addAdversary('hall', 'pit', { id: 'imp-1', adversary: 'fixture-relentless-runt', position: { x: 10, y: 3 } }));
     s.run(addAdversary('hall', 'pit', { id: 'imp-2', adversary: 'fixture-relentless-runt', position: { x: 10, y: 5 } }));
@@ -2955,10 +2955,10 @@ describe('a Necromancer who buys their troops a turn', () => {
     expect(demo.log.map((l) => l.text)).toEqual([
       'The Captain uses Borrowed Time.',
       'Runt, Runt are called into the fight, striking for half.',
-      "The Runt's Jab misses Kara.",
-      "The Runt's Jab hits Kara, and is turned aside.",
-      "The Runt's Jab misses Kara.",
-      "The Runt's Jab misses Kara.",
+      "The Runt's Jab misses Quim.",
+      "The Runt's Jab hits Quim, and is turned aside.",
+      "The Runt's Jab misses Quim.",
+      "The Runt's Jab misses Quim.",
     ]);
     // Four swings for two of them: the two the rally bought, and one more each
     // that the GM paid a Shadow for. Nothing in the log says any of them struck for
@@ -3043,7 +3043,7 @@ describe('a clock the fight carries', () => {
     ],
   });
 
-  /** One creature across the hall from Kara, and the fight already on. */
+  /** One creature across the hall from Quim, and the fight already on. */
   const ruin = (seed: string, features: readonly Printed[], at: { x: number; y: number } = { x: 3, y: 4 }) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -3056,14 +3056,14 @@ describe('a clock the fight carries', () => {
     startEncounter(demo, 'ruin');
     demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
     demo.party.select('kara');
-    // This test is about the clock rather than about Kara: give her the Hit
+    // This test is about the clock rather than about Quim: give her the Hit
     // Points to stand there while it runs down.
     demo.state.entity('kara')!.hitPoints = { max: 40, marked: 0 };
     return demo;
   };
 
   /**
-   * Kara swings, taking the spotlight back first if a roll with Shadow lost it -
+   * Quim swings, taking the spotlight back first if a roll with Shadow lost it -
    * and closing the ground again first, because a creature that answers a
    * wound by backing off is one somebody has to walk back to.
    */
@@ -3083,7 +3083,7 @@ describe('a clock the fight carries', () => {
     expect(clock).toMatchObject({ owner: 'foe', advance: 'standard', loop: 'reset' });
     expect(clock!.value).toBeGreaterThanOrEqual(2);
 
-    // A clock nobody spends a turn on: Kara swings, and it moves.
+    // A clock nobody spends a turn on: Quim swings, and it moves.
     const started = demo.scenario.countdowns.get('fixture-closing-in')!.value;
     swing(demo);
     expect(demo.scenario.countdowns.get('fixture-closing-in')!.value).toBe(started - 1);
@@ -3194,7 +3194,7 @@ describe('a swarm that piles onto one target', () => {
     ],
   });
 
-  /** A pack loose in the hall, and Kara alone in the middle of it. */
+  /** A pack loose in the hall, and Quim alone in the middle of it. */
   const hall = (pack: readonly { x: number; y: number }[], bad: number) => {
     const s = blank();
     s.run(addSheet(KARA));
@@ -3212,7 +3212,7 @@ describe('a swarm that piles onto one target', () => {
   };
 
   it('calls the rest of the pack in for one shared bite, and each of them swings once', () => {
-    // Four of them, none next to Kara: Close range of her, which is what the
+    // Four of them, none next to Quim: Close range of her, which is what the
     // feature gathers.
     const demo = hall([{ x: 7, y: 4 }, { x: 7, y: 3 }, { x: 7, y: 5 }, { x: 8, y: 4 }], 6);
     endTurn(demo);
@@ -3322,7 +3322,7 @@ describe('a Treant that puts its roots down', () => {
     // Once, because something already rooted has nothing to gain by rooting
     // again -- and then it uses its turns on the party.
     expect(said.filter((t) => t.includes('uses Put Down Roots')).length).toBe(1);
-    expect(said.some((t) => t.includes('Kara'))).toBe(true);
+    expect(said.some((t) => t.includes('Quim'))).toBe(true);
     expect(demo.world.hasCondition('treant-1', 'rooted')).toBe(true);
   });
 });
@@ -3405,11 +3405,11 @@ describe('a scenario built with nothing but the editor', () => {
 
   it('lets an edit made after the fact reach a game built from the document', () => {
     const session = author();
-    session.run(updateSheet('kara', { name: 'Kara the Unmoved' }));
+    session.run(updateSheet('kara', { name: 'Quim the Unmoved' }));
     session.run(updateInteractable('hall', 'iron-door', { name: 'A rusted door' }));
 
     const demo = buildProjectScene(session.project, 'authored');
-    expect(demo.sheets.get('kara')!.name).toBe('Kara the Unmoved');
+    expect(demo.sheets.get('kara')!.name).toBe('Quim the Unmoved');
     expect(demo.scene.interactables.find((i) => i.id === 'iron-door')!.name).toBe('A rusted door');
   });
 });

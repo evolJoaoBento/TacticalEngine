@@ -37,7 +37,7 @@ describe('using an item', () => {
     expect(result.status).toBe('done');
     expect(demo.state.entity(kara)!.hitPoints.marked).toBe(1);
     expect(demo.scenario.items.get(DRAUGHT)).toBe(1);
-    expect(demo.log.map((l) => l.text)).toContain('Kara uses the Healing draught.');
+    expect(demo.log.map((l) => l.text)).toContain('Quim uses the Healing draught.');
     expect(demo.log.map((l) => l.text)).toContain('Iron and mint. The cuts close.');
   });
 

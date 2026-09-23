@@ -14,7 +14,7 @@ const RALLY = {
   id: 'rally',
   name: 'Rally',
   source: { card: 'rally' },
-  effects: [{ kind: 'log', text: 'Kara shouts.' }],
+  effects: [{ kind: 'log', text: 'Quim shouts.' }],
 };
 
 const WRAITH = {

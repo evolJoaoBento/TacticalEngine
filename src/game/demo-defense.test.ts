@@ -144,6 +144,16 @@ const WATCHED: Record<string, unknown>[] = [
   },
 ];
 
+/**
+ * The fixture cards among a roll's answers.
+ *
+ * The demo party holds answers of its own - Pint's Footnote puts a failed roll's dice back in the
+ * cup - so a test about one fixture asks what of its own was offered, not what the whole table
+ * could do.
+ */
+const fixtures = (offers: readonly { ability: { id: string } }[]): string[] =>
+  offers.map((o) => o.ability.id).filter((id) => id.startsWith('fixture-'));
+
 describe('passives on the sheet', () => {
   /**
    * Two passives that are read off the sheet rather than run: one rewrites the
@@ -324,7 +334,7 @@ describe('a card that reads its own holder', () => {
     holding(demo, []);
     const kara = demo.state.entity('kara')!;
     // The GM's turn is on, so the actor is an adversary: the card still has to
-    // read Kara's Hit Points and not the husk's.
+    // read Quim's Hit Points and not the husk's.
     demo.scenario.actorId = demo.state.entitiesOf('adversary')[0]!.id;
 
     // Her own subclass features are read here too; this is about the one card.
@@ -483,7 +493,7 @@ describe('conditions with modifiers', () => {
     expect(useAbility(demo, 'mira', 'fixture-worn-armor', ['kara']).status).toBe('done');
     expect(kara.conditions.has('fixture-worn')).toBe(true);
     expect(kara.armorSlots.max).toBe(max + 1);
-    // Cast on Mira instead: Kara's goes, Mira's comes.
+    // Cast on Scarlet instead: Quim's goes, Scarlet's comes.
     mira.good = { max: 6, value: 2 };
     expect(useAbility(demo, 'mira', 'fixture-worn-armor', ['mira']).status).toBe('done');
     expect(kara.armorSlots.max).toBe(max);
@@ -557,7 +567,7 @@ describe('reactions when a hit lands', () => {
     refreshWorld(demo);
   };
 
-  it('two carried reactions answer a Severe hit on Kara, automatically', () => {
+  it('two carried reactions answer a Severe hit on Quim, automatically', () => {
     const demo = scene();
     const kara = demo.state.entity('kara')!;
     carry(demo, 'kara', [SLOT_CARD, SHRUG_CARD]);
@@ -571,7 +581,7 @@ describe('reactions when a hit lands', () => {
     expect(kara.stress.marked).toBe(1);
   });
 
-  it('a carried ward spends a Light on Mira when its die helps', () => {
+  it('a carried ward spends a Light on Scarlet when its die helps', () => {
     const demo = scene();
     const mira = demo.state.entity('mira')!;
     mira.good = { max: 6, value: 2 };
@@ -599,7 +609,7 @@ describe('reactions when a hit lands', () => {
 // The defender's choice
 // ---------------------------------------------------------------------------
 
-/** A fight where one husk stands next to Kara and the party is asked. */
+/** A fight where one husk stands next to Quim and the party is asked. */
 function standoff(seed = 'ask'): DemoScene {
   const demo = scene(seed);
   demo.askDefender = true;
@@ -607,7 +617,7 @@ function standoff(seed = 'ask'): DemoScene {
     .entitiesOf('adversary')
     .filter((e) => e.alive)
     .sort((a, b) => demo.grid.manhattanDistance(demo.state.entity('kara')!.tile, a.tile) - demo.grid.manhattanDistance(demo.state.entity('kara')!.tile, b.tile))[0]!;
-  // Kara beside it, the others out of the way but in range to help.
+  // Quim beside it, the others out of the way but in range to help.
   const blocked = demo.state.blockedFor('kara');
   let stand = NO_TILE;
   demo.grid.forEachNeighbor(foe.tile, false, (tile) => {
@@ -616,7 +626,7 @@ function standoff(seed = 'ask'): DemoScene {
   demo.state.moveEntity('kara', stand);
   demo.party.select('kara');
   startEncounter(demo, demo.scene.encounters[0]!.id);
-  // Everyone else is down, so the husk always swings at Kara.
+  // Everyone else is down, so the husk always swings at Quim.
   for (const e of demo.state.entitiesOf('adversary')) {
     if (e.id !== foe.id) {
       e.hitPoints = { ...e.hitPoints, marked: e.hitPoints.max };
@@ -628,9 +638,9 @@ function standoff(seed = 'ask'): DemoScene {
 
 
 /**
- * Stand a party member where they can help Kara but are not the nearest
+ * Stand a party member where they can help Quim but are not the nearest
  * target themselves: beside her, but a step further from the husk. The GM
- * takes the nearest, so this keeps Kara the one being hit.
+ * takes the nearest, so this keeps Quim the one being hit.
  */
 function standBehind(demo: DemoScene, id: string, husk: number): void {
   const kara = demo.state.entity('kara')!.tile;
@@ -735,7 +745,7 @@ describe('being asked how a hit lands', () => {
 
   it('holds the rest of the GM\'s turn until it is answered', () => {
     const demo = standoff('two-husks');
-    // Wake a second husk beside Finn, so the GM has two to spotlight.
+    // Wake a second husk beside Violet, so the GM has two to spotlight.
     const down = demo.state.entitiesOf('adversary').find((e) => !e.alive)!;
     down.alive = true;
     down.hitPoints = { ...down.hitPoints, marked: 0 };
@@ -817,11 +827,11 @@ describe('an ally interrupting', () => {
 
   it('takes the hit instead when the one beside them steps in', () => {
     const demo = standoff('shield');
-    // Finn holds the card and stands beside Kara.
+    // Violet holds the card and stands beside Quim.
     carry(demo, 'finn', [SHIELD_CARD]);
     standBehind(demo, 'finn', demo.state.entitiesOf('adversary').find((e) => e.alive)!.tile);
-    // Spit Acid catches the whole party; Finn has to still be standing when a
-    // single blow finally lands on Kara.
+    // Spit Acid catches the whole party; Violet has to still be standing when a
+    // single blow finally lands on Quim.
     demo.state.entity('finn')!.hitPoints = { max: 12, marked: 0 };
 
     const pending = untilChoice(demo, 'redirect');
@@ -832,9 +842,9 @@ describe('an ally interrupting', () => {
     const finnStress = finn.stress.marked;
     answerPending(demo, { kind: 'choose', index: shield });
 
-    // Finn marked the Stress and is now the one being asked how it lands.
+    // Violet marked the Stress and is now the one being asked how it lands.
     expect(demo.state.entity('finn')!.stress.marked).toBe(finnStress + 1);
-    expect(demo.log.map((l) => l.text).some((t) => t.includes('steps in front of Kara'))).toBe(true);
+    expect(demo.log.map((l) => l.text).some((t) => t.includes('steps in front of Quim'))).toBe(true);
     if (demo.pending !== null) {
       expect(demo.pending.kind).toBe('defense');
       if (demo.pending.kind === 'defense') expect(demo.pending.attack.defender).toBe('finn');
@@ -849,7 +859,7 @@ describe('an ally interrupting', () => {
     const mira = demo.state.entity('mira')!;
     carry(demo, 'mira', [AGAIN_CARD]);
     mira.good = { max: 6, value: 6 };
-    // Mira holds the card, and has to be able to see it happen — within Far
+    // Scarlet holds the card, and has to be able to see it happen — within Far
     // range of the adversary.
     standBehind(demo, 'mira', demo.state.entitiesOf('adversary').find((e) => e.alive)!.tile);
     demo.state.entity('mira')!.hitPoints = { max: 12, marked: 0 };
@@ -934,7 +944,7 @@ describe('answering a miss', () => {
 });
 
 describe('what a block hangs on its own attack', () => {
-  /** Kara, but so hard to hurt that only the Armor Slot decides the outcome. */
+  /** Quim, but so hard to hurt that only the Armor Slot decides the outcome. */
   function unhittable(demo: DemoScene): void {
     // Parsed rather than cast. The cast version hand-spells the fields the
     // schema would have defaulted, and leaving one off is what crashed the
@@ -1118,7 +1128,7 @@ describe("an adversary's own features", () => {
 
   it('erupts when it catches more than one of the party, and the ones who fail are Vulnerable', () => {
     const demo = standoff('eruption');
-    // Finn and Mira crowd in beside Kara, so the Burrower has a reason to erupt.
+    // Violet and Scarlet crowd in beside Quim, so the Burrower has a reason to erupt.
     const around: number[] = [];
     demo.grid.forEachNeighbor(demo.state.entity('kara')!.tile, false, (tile) => {
       if (demo.grid.isPassable(tile)) around.push(tile);
@@ -1190,7 +1200,7 @@ describe("an adversary's own features", () => {
     const demo = standoff('aimed');
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-    // Finn stands further off than Kara, who is beside it.
+    // Violet stands further off than Quim, who is beside it.
     standBehind(demo, 'finn', husk.tile);
     // The block's own features would be chosen ahead of this one by the rules
     // under test; this is about how a feature is aimed, so they come off.
@@ -1219,12 +1229,12 @@ describe("an adversary's own features", () => {
     expect(gored).toBe(true);
     // It swung at someone: no refusal for want of anyone to swing at.
     expect(demo.log.map((l) => l.text).join(' ')).not.toContain('nothing to attack');
-    // Kara is the nearest, so Kara is who it went for — hit or missed. The
+    // Quim is the nearest, so Quim is who it went for — hit or missed. The
     // gore carries no attack name of its own, so the blow is logged under the
     // block's: read it off the creature rather than naming it here.
     const attack = adversaryDefOf(demo, husk.id)!.attackName;
     const swung = demo.log.map((l) => l.text).find((t) => t.includes(attack));
-    expect(swung).toContain('Kara');
+    expect(swung).toContain('Quim');
   });
 
   it('spends a once-per-scene feature once, and has it back next fight', () => {
@@ -1292,7 +1302,7 @@ describe("an adversary's own features", () => {
     // It comes off when the party's turn ends — and goes straight back on,
     // because the only thing this adversary does is put it there, so the log
     // is what says the hold was shaken rather than the state afterwards.
-    expect(demo.log.map((l) => l.text)).toContain('Kara shakes off restrained.');
+    expect(demo.log.map((l) => l.text)).toContain('Quim shakes off restrained.');
   });
 
   it("leaves a feature alone when the block's own condition on it is not met", () => {
@@ -1428,7 +1438,7 @@ describe('a creature that answers its own wounds', () => {
     // the spotlight it spends getting there.
     standBehind(demo, 'finn', foe.tile);
     demo.state.bad = { ...demo.state.bad, value: demo.state.bad.max };
-    // Finn's armor is already gone, so the spray costs him a Hit Point instead.
+    // Violet's armor is already gone, so the spray costs him a Hit Point instead.
     const finn = demo.state.entity('finn')!;
     finn.armorSlots = { ...finn.armorSlots, marked: finn.armorSlots.max };
 
@@ -1506,7 +1516,7 @@ const asked = (demo: DemoScene): string | null => demo.pending?.kind ?? null;
 
 describe("the party's own answer to a blow", () => {
   /**
-   * Kara holding a card, in a fight, with the party asked rather than decided
+   * Quim holding a card, in a fight, with the party asked rather than decided
    * for. The cards are put straight into the loadout: what is under test is
    * the card firing, not how it was earned.
    */
@@ -1522,7 +1532,7 @@ describe("the party's own answer to a blow", () => {
     return demo;
   };
 
-  /** The husk Kara is standing next to, given enough Hit Points to be hit. */
+  /** The husk Quim is standing next to, given enough Hit Points to be hit. */
   const foeOf = (demo: DemoScene): string => {
     const foe = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     foe.hitPoints = { max: 40, marked: 0 };
@@ -1606,7 +1616,7 @@ describe("the party's own answer to a blow", () => {
     const waiting = demo.pending;
     expect(waiting?.kind).toBe('reaction');
     if (waiting?.kind !== 'reaction') throw new Error('nothing was offered');
-    expect(waiting.offers.map((o) => o.ability.id)).toEqual(['fixture-healing-strike']);
+    expect(fixtures(waiting.offers)).toEqual(['fixture-healing-strike']);
     // Nothing has been spent while the question stands.
     expect(demo.state.entity('kara')!.good!.value).toBe(6);
 
@@ -1708,7 +1718,7 @@ describe("the party's own answer to a blow", () => {
       expect(demo.encounter!.view().side).toBe('party');
       return;
     }
-    throw new Error('the husk never marked a Hit Point on Kara');
+    throw new Error('the husk never marked a Hit Point on Quim');
   });
 
   it('reads the Severe threshold the card raises', () => {
@@ -1815,7 +1825,7 @@ describe('a bonus the card counts out for itself', () => {
   ];
 
   /**
-   * Kara holding a card, in a fight, the party asked rather than decided for.
+   * Quim holding a card, in a fight, the party asked rather than decided for.
    * The card and its abilities are the project's, carried before the sheet is
    * derived over them.
    */
@@ -1881,7 +1891,7 @@ describe('a bonus the card counts out for itself', () => {
       if (result?.hit === true) break;
     }
     // "On your next successful attack… then clear all tokens."
-    expect(demo.log.some((l) => /Kara (hits|lands a critical)/.test(l.text))).toBe(true);
+    expect(demo.log.some((l) => /Quim (hits|lands a critical)/.test(l.text))).toBe(true);
     expect(demo.world.tokensOn('kara', 'fixture-never-upstaged')).toBe(0);
     // And with the card empty the bonus is gone with it.
     expect(demo.world.rollBonus('kara', 'damageRoll', { melee: true })).toBe(0);
@@ -1932,7 +1942,7 @@ describe('a bonus the card counts out for itself', () => {
 
 /**
  * "They deal Severe damage instead of their standard damage": a blow that
- * names the band it lands in rather than rolling for one. Kara's thresholds
+ * names the band it lands in rather than rolling for one. Quim's thresholds
  * are pushed out of reach in both tests, so anything the dice could roll is
  * Minor - and what lands is whatever named the band, not what was rolled.
  */
@@ -1947,7 +1957,7 @@ describe('a blow that names its band', () => {
     entity.armorSlots = { ...entity.armorSlots, marked: entity.armorSlots.max };
   };
 
-  /** The husk beside Kara with one feature of its own, and Shadow to spend. */
+  /** The husk beside Quim with one feature of its own, and Shadow to spend. */
   const husking = (seed: string, ability: Record<string, unknown>): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -1962,7 +1972,7 @@ describe('a blow that names its band', () => {
   };
 
   /**
-   * Turns until the husk's claws land on Kara, and what that blow cost her,
+   * Turns until the husk's claws land on Quim, and what that blow cost her,
    * read off the line the log wrote for it. The first one is the one read: the
    * Burrower swings more than once a turn, and a blow is what is under test.
    */
@@ -1973,8 +1983,8 @@ describe('a blow that names its band', () => {
     // null for a reason that has nothing to do with the card.
     const standing = demo.state.entitiesOf('adversary').find((e) => e.alive) ?? demo.state.entitiesOf('adversary')[0]!;
     const attack = adversaryDefOf(demo, standing.id)!.attackName;
-    const turned = `${attack} hits Kara, and is turned aside`;
-    const landing = new RegExp(`${attack} (?:hits|tears into) Kara: (\\d+) Hit`);
+    const turned = `${attack} hits Quim, and is turned aside`;
+    const landing = new RegExp(`${attack} (?:hits|tears into) Quim: (\\d+) Hit`);
     for (let i = 0; i < 8 && demo.encounter?.outcome === 'ongoing'; i++) {
       endTurn(demo);
       for (const line of demo.log) {
@@ -2057,7 +2067,7 @@ describe('answering a miss', () => {
    * card that must *not* be offered.
    *
    * The second is the point of the test. It is gated on a condition carried by
-   * the target -- and on a miss the target is whoever swung. Kara carries that
+   * the target -- and on a miss the target is whoever swung. Quim carries that
    * condition herself, so a card offered on a self-binding would appear in the
    * choices; the test asserts it does not.
    *
@@ -2090,7 +2100,7 @@ describe('answering a miss', () => {
       ],
     },
     {
-      // The control: gated on a mark the one who missed does not carry. Kara
+      // The control: gated on a mark the one who missed does not carry. Quim
       // does carry it, so a card offered on a self-binding would show here.
       id: 'fixture-grudge',
       name: 'Grudge',
@@ -2422,7 +2432,7 @@ describe('a card that answers the blow in its own words', () => {
       const after = demo.log.slice(said).map((l) => l.text);
       if (!after.some((t) => t.includes('turns in the air and goes home'))) continue;
       // The blow found nobody, and the Burrower took it instead.
-      expect(after.some((t) => t.includes('finds nothing where Kara was'))).toBe(true);
+      expect(after.some((t) => t.includes('finds nothing where Quim was'))).toBe(true);
       expect(husk.hitPoints.marked).toBeGreaterThan(before);
       expect(demo.state.entity('kara')!.hitPoints.marked).toBe(0);
       return;
@@ -2457,12 +2467,12 @@ describe('a card that answers the blow in its own words', () => {
     demo.scenario.actorId = was;
     expect(journal.some((e) => e.kind === 'diceChecked' && e.passed)).toBe(true);
     expect(other.hitPoints.marked).toBeGreaterThan(0);
-    // The dice are the Burrower's, not Kara's: it is their attack, turned.
+    // The dice are the Burrower's, not Quim's: it is their attack, turned.
     const dealt = journal.find((e) => e.kind === 'damage');
     const claws = adversaryDefOf(demo, husk.id)!.attackDamage;
     expect(dealt?.kind === 'damage' ? dealt.dice : '').toBe(formatDice(claws));
     // Every die came up its best, so the blow is the most those dice can do -
-    // which is not a number Kara's own weapon could have rolled.
+    // which is not a number Quim's own weapon could have rolled.
     expect(dealt?.kind === 'damage' ? dealt.amount : 0).toBe(claws.count * claws.sides + claws.modifier);
   });
 
@@ -2525,9 +2535,9 @@ describe('a card that answers the blow in its own words', () => {
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
       const after = demo.log.slice(said).map((t) => t.text);
       expect(after.some((t) => t.includes('sees it coming'))).toBe(true);
-      if (!after.some((t) => t.includes('misses Kara'))) continue;
+      if (!after.some((t) => t.includes('misses Quim'))) continue;
       // The d4 was enough: the swing that had landed no longer has.
-      expect(after.some((t) => /Loosed Arrow (hits|tears into) Kara/.test(t))).toBe(false);
+      expect(after.some((t) => /Loosed Arrow (hits|tears into) Quim/.test(t))).toBe(false);
       expect(demo.state.entity('kara')!.stress.marked).toBeGreaterThanOrEqual(1);
       return;
     }
@@ -2547,10 +2557,10 @@ describe('a card that answers the blow in its own words', () => {
     const said = demo.log.length;
     answerPending(demo, { kind: 'choose', index });
     const after = demo.log.slice(said).map((l) => l.text);
-    expect(after.some((t) => t.includes('finds nothing where Kara was'))).toBe(true);
+    expect(after.some((t) => t.includes('finds nothing where Quim was'))).toBe(true);
     // The blow was not a miss and not a hit: nothing was marked for it, and
-    // Kara is no longer standing where it was aimed.
-    expect(after.some((t) => /Claws (hits|tears into) Kara/.test(t))).toBe(false);
+    // Quim is no longer standing where it was aimed.
+    expect(after.some((t) => /Claws (hits|tears into) Quim/.test(t))).toBe(false);
     expect(kara.tile).not.toBe(stood);
   });
 });
@@ -2766,7 +2776,7 @@ describe('what a card leaves on its holder', () => {
     holding(demo, [LEAVES_CARD]);
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     const finn = demo.state.entity('finn')!;
-    // Within earshot: Kara went to meet the husk, and the rest of the party
+    // Within earshot: Quim went to meet the husk, and the rest of the party
     // spawned across the room.
     standBehind(demo, 'finn', husk.tile);
     finn.stress = { max: 6, marked: 2 };
@@ -2815,7 +2825,7 @@ describe('what a card leaves on its holder', () => {
  * because two of the three put the character back on their feet.
  */
 describe('a death move', () => {
-  /** Kara alone against however many husks, with a player at the table. */
+  /** Quim alone against however many husks, with a player at the table. */
   const lastStand = (seed: string, foes = 1): DemoScene => {
     const demo = scene(seed);
     demo.askDefender = true;
@@ -2837,7 +2847,7 @@ describe('a death move', () => {
       extra.hitPoints = { ...extra.hitPoints, marked: extra.hitPoints.max };
       extra.alive = false;
     }
-    // Kara beside the nearest of them, so its swing reaches her.
+    // Quim beside the nearest of them, so its swing reaches her.
     const blocked = demo.state.blockedFor('kara');
     let stand = NO_TILE;
     demo.grid.forEachNeighbor(standing[0]!.tile, false, (tile) => {
@@ -3110,7 +3120,7 @@ describe('a death move', () => {
     },
   ];
 
-  /** Put a card in Kara's hands and in her loadout. */
+  /** Put a card in Quim's hands and in her loadout. */
   const carrying = (demo: DemoScene, cards: string[]): void => {
     demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of LAST_WORDS) demo.project.abilities.push(abilitySchema.parse(ability));
@@ -3130,7 +3140,7 @@ describe('a death move', () => {
     expect(asked.kind).toBe('death');
     // After the three moves, because the first option is the one that changes
     // nothing.
-    expect(asked.offers.map((o) => o.ability.id)).toEqual(['fixture-still-standing']);
+    expect(fixtures(asked.offers)).toEqual(['fixture-still-standing']);
 
     choose(demo, 'Still Standing');
     // "Roll a d6 and clear a number of Hit Points equal to the result."
@@ -3381,7 +3391,7 @@ describe('a swing that missed', () => {
     refreshWorld(demo);
   };
 
-  /** Swing at the husk beside Kara until the dice go one way or the other. */
+  /** Swing at the husk beside Quim until the dice go one way or the other. */
   const swingUntil = (seed: string, cards: string[], hit: boolean): DemoScene | null => {
     for (let n = 1; n < 40; n++) {
       const demo = standoff(`${seed}-${n}`);
@@ -3404,7 +3414,7 @@ describe('a swing that missed', () => {
     const demo = missed!;
     expect(demo.pending?.kind).toBe('reaction');
     const asked = demo.pending as { offers: readonly { ability: { id: string } }[] };
-    expect(asked.offers.map((o) => o.ability.id)).toEqual(['fixture-glance']);
+    expect(fixtures(asked.offers)).toEqual(['fixture-glance']);
 
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     const before = husk.hitPoints.marked;
@@ -3559,7 +3569,7 @@ describe('a swing lifted, and a swing that names its own number', () => {
       if (result === null || result.refused !== null || !result.hit) return null;
       if (demo.pending?.kind !== 'reaction') return null;
       const asked = demo.pending as { offers: readonly { ability: { id: string } }[]; landing?: HeldSwing };
-      if (asked.offers.map((o) => o.ability.id).join() !== 'fixture-lift-die') return null;
+      if (fixtures(asked.offers).join() !== 'fixture-lift-die') return null;
       const roll = asked.landing?.outcome.damageRoll;
       if (roll === undefined) return null;
       const lift = roll.expression.sides - Math.min(...roll.rolls);
@@ -3609,7 +3619,7 @@ describe('a swing lifted, and a swing that names its own number', () => {
       if (demo.pending?.kind !== 'reaction') continue;
       const asked = demo.pending as { offers: readonly { ability: { id: string } }[]; landing?: HeldSwing };
       if (asked.landing?.outcome.critical !== true) continue;
-      expect(asked.offers.map((o) => o.ability.id)).toEqual(['fixture-lift-die']);
+      expect(fixtures(asked.offers)).toEqual(['fixture-lift-die']);
 
       answerPending(demo, { kind: 'choose', index: 1 });
       for (let guard = 0; guard < 8 && demo.pending !== null; guard++) {
@@ -3687,7 +3697,7 @@ describe('a swing lifted, and a swing that names its own number', () => {
 
   it("reads 'within your weapon's range' off the weapon, not off a band", () => {
     const demo = standoff('reach');
-    // Kara swings a Melee weapon, so a selector that says `reach: 'weapon'`
+    // Quim swings a Melee weapon, so a selector that says `reach: 'weapon'`
     // reaches Melee however wide a band it names as its fallback.
     expect(demo.world.weaponRange('kara')).toBe('melee');
     demo.scenario.actorId = 'kara';
@@ -3776,7 +3786,7 @@ describe('a card that moves before it swings', () => {
     refreshWorld(demo);
   };
 
-  /** Kara well back from the husk, with an ally beside her. */
+  /** Quim well back from the husk, with an ally beside her. */
   const across = (seed: string): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -3797,7 +3807,7 @@ describe('a card that moves before it swings', () => {
     const demo = across('shove');
     hold(demo, [SHOVE_CARD]);
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
-    // Mira beside her: the card only has to know somebody is close enough to
+    // Scarlet beside her: the card only has to know somebody is close enough to
     // push off, and nothing happens to them.
     standBehind(demo, 'mira', husk.tile);
     expect(demo.world.bandTo('kara', 'mira')).not.toBe(null);
@@ -3887,7 +3897,7 @@ describe('a card that moves before it swings', () => {
 
 
 describe('a card aimed at the ground', () => {
-  /** Kara alone with two husks in a row, and a card that runs a path. */
+  /** Quim alone with two husks in a row, and a card that runs a path. */
   const room = (seed: string): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -4122,7 +4132,7 @@ describe('a run in a straight line', () => {
 
       // The Ogre's own script, run where the husk stands: the point is bound
       // for it, so the charge has somewhere to go and a line to cut.
-      // Kara a few tiles off, so the charge has ground to cover.
+      // Quim a few tiles off, so the charge has ground to cover.
       const away = demo.grid.indexOf(
         Math.min(demo.grid.width - 1, demo.grid.xOf(husk.tile) + 3),
         demo.grid.yOf(husk.tile),
@@ -4193,7 +4203,7 @@ describe('what a charge runs over', () => {
       kind: 'reaction',
       trigger: 'tookDamage',
       action: false,
-      effects: [{ kind: 'log', text: 'Kara steadies herself.', tone: 'good' }],
+      effects: [{ kind: 'log', text: 'Quim steadies herself.', tone: 'good' }],
     },
     {
       // Only a shape: something aimed at a tile, so the path can be read.
@@ -4235,7 +4245,7 @@ describe('what a charge runs over', () => {
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 40, marked: 0 };
     // The creature's own features come off, so the charge is the only thing it
-    // can answer a wound with, and what Kara is asked about is the whole of the
+    // can answer a wound with, and what Quim is asked about is the whole of the
     // assertion.
     withoutFeatures(demo);
     holds(demo, [FLINCH_CARD]);
@@ -4254,7 +4264,7 @@ describe('what a charge runs over', () => {
     // The wound the charge dealt is heard in the same breath as the wound that
     // set it off, not left in the queue for whatever lands next. The card costs
     // nothing and asks nothing, so it runs where it would have been offered.
-    expect(demo.log.some((l) => l.text.includes('Kara steadies herself.'))).toBe(true);
+    expect(demo.log.some((l) => l.text.includes('Quim steadies herself.'))).toBe(true);
   });
 
   it('aims a charge that comes off a countdown, with nobody there to aim it', () => {
@@ -4298,7 +4308,7 @@ describe('what a charge runs over', () => {
     const tiles = pointTiles(demo, 'kara', card);
     expect(tiles.length).toBeGreaterThan(0);
 
-    // The husk is at Kara's elbow. Aimed through it the run catches it; aimed
+    // The husk is at Quim's elbow. Aimed through it the run catches it; aimed
     // the other way it does not, because the tile she started on is not on the
     // path she ran.
     const through = tiles.filter((tile) => shapeAt(demo, 'kara', card, tile).includes(husk.id));
@@ -4396,7 +4406,7 @@ describe('the same blow again', () => {
     refreshWorld(demo);
   };
 
-  /** Kara beside the husk, Mira a step behind her with the cards in hand. */
+  /** Quim beside the husk, Scarlet a step behind her with the cards in hand. */
   const stage = (seed: string, cards: string[]): DemoScene => {
     const demo = standoff(seed);
     demo.askDefender = true;
@@ -4432,7 +4442,7 @@ describe('the same blow again', () => {
           trigger: 'nearbyTookDamage',
           action: false,
           available: { kind: 'side', of: { kind: 'hit' }, is: 'adversary' },
-          effects: [{ kind: 'log', text: 'Mira marks the one that is bleeding.', tone: 'good' }],
+          effects: [{ kind: 'log', text: 'Scarlet marks the one that is bleeding.', tone: 'good' }],
         }),
       );
       gives(demo, 'mira', [NOTICE_CARD]);
@@ -4444,7 +4454,7 @@ describe('the same blow again', () => {
       expect(demo.log.some((l) => l.text.includes('marks the one that is bleeding'))).toBe(true);
       return;
     }
-    throw new Error('Kara never landed a blow for Mira to read');
+    throw new Error('Quim never landed a blow for Scarlet to read');
   });
 
   it('offers Encore when an ally lands one, and carries their damage over', () => {
@@ -4462,8 +4472,8 @@ describe('the same blow again', () => {
       while (demo.pending !== null && guard++ < 8) answerPending(demo, { kind: 'roll' });
       const after = demo.log.slice(said).map((l) => l.text);
 
-      expect(after.some((t) => t.includes('Mira: Second Blow'))).toBe(true);
-      // A roll that beat the husk carries Kara's own damage over; one that did
+      expect(after.some((t) => t.includes('Scarlet: Second Blow'))).toBe(true);
+      // A roll that beat the husk carries Quim's own damage over; one that did
       // not carries nothing, and the card is spent either way.
       if (husk.hitPoints.marked === before) continue;
       const carried = /(\d+) damage to/.exec(after.find((t) => t.includes('damage to')) ?? '');
@@ -4507,7 +4517,7 @@ describe('the same blow again', () => {
       if (demo.state.entity('kara')!.hitPoints.marked > 0) break;
     }
     expect(demo.state.entity('kara')!.hitPoints.marked).toBeGreaterThan(0);
-    expect(demo.log.some((l) => l.text.includes('Mira: Second Blow'))).toBe(false);
+    expect(demo.log.some((l) => l.text.includes('Scarlet: Second Blow'))).toBe(false);
     expect(husk.hitPoints.marked).toBe(0);
   });
 });
@@ -4570,7 +4580,7 @@ describe('a smite held back for the next blow', () => {
     },
   ];
 
-  /** Kara beside the husk with the card in hand and Light to spend it. */
+  /** Quim beside the husk with the card in hand and Light to spend it. */
   const charged = (seed: string, spend: boolean) => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -4608,7 +4618,7 @@ describe('a smite held back for the next blow', () => {
       expect(lit.demo.state.entity('kara')!.conditions.has('fixture-charge')).toBe(false);
       return;
     }
-    throw new Error('Kara never landed a blow to smite with');
+    throw new Error('Quim never landed a blow to smite with');
   });
 
   it('lands as magic, whatever the weapon deals', () => {
@@ -4627,7 +4637,7 @@ describe('a smite held back for the next blow', () => {
       expect(rooted.husk.hitPoints.marked).toBe(open.husk.hitPoints.marked);
       return;
     }
-    throw new Error('Kara never landed a smited blow');
+    throw new Error('Quim never landed a smited blow');
   });
 
   it('charges once between rests, and not twice over', () => {
@@ -4662,7 +4672,7 @@ describe('a smite held back for the next blow', () => {
       expect(demo.state.entity('kara')!.conditions.has('fixture-charge')).toBe(true);
       return;
     }
-    throw new Error('Kara never missed');
+    throw new Error('Quim never missed');
   });
 });
 
@@ -4709,7 +4719,7 @@ describe('a shell of light over somebody', () => {
   ];
 
   /**
-   * Mira beside Kara with the spell in hand, cast on her or not, and the husk
+   * Scarlet beside Quim with the spell in hand, cast on her or not, and the husk
    * swinging hard enough that an Armor Slot alone does not answer the blow.
    */
   const staged = (seed: string, cast: boolean, swing: Record<string, unknown> = { damage: '2d20+30' }): DemoScene => {
@@ -4736,7 +4746,7 @@ describe('a shell of light over somebody', () => {
     const sheet = { ...demo.sheets.get('mira')!, domainCards: [AURA_CARD], loadout: [AURA_CARD] };
     demo.sheets.set('mira', sheet);
     demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
-    // Kara's own cards come off: Iron Will and Get Back Up answer a blow the
+    // Quim's own cards come off: Iron Will and Get Back Up answer a blow the
     // same way the aura does, and what is under test is the aura.
     const hers = { ...demo.sheets.get('kara')!, domainCards: [], loadout: [] };
     demo.sheets.set('kara', hers);
@@ -4752,7 +4762,7 @@ describe('a shell of light over somebody', () => {
   };
 
   /**
-   * Turns until an Armor Slot is marked for a blow of Kara's, or null.
+   * Turns until an Armor Slot is marked for a blow of Quim's, or null.
    *
    * A new mark, not a total. One test below hands her a single unspent slot,
    * and against a total this returned on the first turn whatever happened --
@@ -4791,7 +4801,7 @@ describe('a shell of light over somebody', () => {
       const shielded = lit.state.entity('kara')!;
       expect(shielded.armorSlots.marked).toBe(hurt.armorSlots.marked);
       expect(shielded.hitPoints.marked).toBeLessThan(hurt.hitPoints.marked);
-      expect(lit.log.some((l) => l.text.includes('The aura around Kara takes it down to'))).toBe(true);
+      expect(lit.log.some((l) => l.text.includes('The aura around Quim takes it down to'))).toBe(true);
       return;
     }
     throw new Error('no seed put a blow through the armor in sixty tries');
@@ -4842,13 +4852,13 @@ describe('a shell of light over somebody', () => {
       expect(kara.conditions.has('fixture-shell')).toBe(true);
       return;
     }
-    throw new Error('nothing ever got through to Kara');
+    throw new Error('nothing ever got through to Quim');
   });
 
   it('hangs over one creature at a time', () => {
     const demo = staged('aura-one', true);
     demo.state.entity('mira')!.stress = { max: 6, marked: 0 };
-    // Finn beside her, so the second casting has somebody in range to take it.
+    // Violet beside her, so the second casting has somebody in range to take it.
     const blocked = demo.state.blockedFor('finn');
     let stand = NO_TILE;
     demo.grid.forEachNeighbor(demo.state.entity('mira')!.tile, false, (tile) => {
@@ -4932,7 +4942,7 @@ describe('a word in the wrong ear', () => {
   };
 
   /**
-   * Mira beside one husk with the card in hand, and a second husk beside it.
+   * Scarlet beside one husk with the card in hand, and a second husk beside it.
    * The whisper is a Spellcast Roll, so the one who says it is the wizard.
    */
   const whispering = (seed: string) => {
@@ -4941,7 +4951,7 @@ describe('a word in the wrong ear', () => {
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     husk.hitPoints = { max: 40, marked: 0 };
     husk.stress = { max: 6, marked: 0 };
-    // A second one back on its feet, and Mira, both standing beside the first.
+    // A second one back on its feet, and Scarlet, both standing beside the first.
     const other = demo.state.entitiesOf('adversary').find((e) => !e.alive)!;
     other.alive = true;
     other.hitPoints = { max: 40, marked: 0 };
@@ -5134,7 +5144,7 @@ describe('a shout the next one hears', () => {
     for (const ability of abilities) demo.project.abilities.push(abilitySchema.parse(ability));
   };
 
-  /** Kara beside the husk with the card in hand, Finn beside it as well. */
+  /** Quim beside the husk with the card in hand, Violet beside it as well. */
   const rallying = (seed: string) => {
     const demo = standoff(seed);
     demo.askDefender = true;
@@ -5154,7 +5164,7 @@ describe('a shout the next one hears', () => {
     return { demo, husk };
   };
 
-  /** Kara swings and plays the card if she is offered it; true when she did. */
+  /** Quim swings and plays the card if she is offered it; true when she did. */
   const shout = (demo: DemoScene, husk: string): boolean => {
     demo.party.select('kara');
     attackWithSelected(demo, husk);
@@ -5181,12 +5191,12 @@ describe('a shout the next one hears', () => {
       expect(demo.log.some((l) => l.text.includes('Take heart from it'))).toBe(false);
       expect(demo.pending).toBeNull();
 
-      // Finn swings at the same one, and is the one who takes heart from it.
+      // Violet swings at the same one, and is the one who takes heart from it.
       const finn = demo.state.entity('finn')!;
       finn.stress = { max: 6, marked: 3 };
       demo.party.select('finn');
       attackWithSelected(demo, husk.id);
-      // Offered the way a card is, so it queues behind anything else Finn was
+      // Offered the way a card is, so it queues behind anything else Violet was
       // already being asked about rather than sitting on top of it.
       const asked = demo.pending;
       expect(asked?.kind).toBe('reaction');
@@ -5201,7 +5211,7 @@ describe('a shout the next one hears', () => {
       expect(demo.state.entity(husk.id)!.conditions.has('fixture-led')).toBe(false);
       return;
     }
-    throw new Error('Kara was never offered the card in sixty tries');
+    throw new Error('Quim was never offered the card in sixty tries');
   });
 
   it('pays on a swing that misses, because a swing is a swing', () => {
@@ -5219,7 +5229,7 @@ describe('a shout the next one hears', () => {
       expect(JSON.stringify(demo.pending)).toContain('Led by Example');
       return;
     }
-    throw new Error('Finn never missed after a shout');
+    throw new Error('Violet never missed after a shout');
   });
 
   it('does not pay the one who marked them on the swing that marked them', () => {
@@ -5254,11 +5264,11 @@ describe('a shout the next one hears', () => {
       expect(demo.log.some((l) => l.text.includes('Take heart from it'))).toBe(false);
       return;
     }
-    throw new Error('Kara never landed a blow in sixty tries');
+    throw new Error('Quim never landed a blow in sixty tries');
   });
 
   it('queues behind a card of the one collecting it, rather than over it', () => {
-    // Both questions belong to Finn, and both have to reach him: a payout
+    // Both questions belong to Violet, and both have to reach him: a payout
     // written straight into the pending slot would take the place of the card
     // he was already being offered.
     for (let seed = 1; seed < 60; seed++) {
@@ -5273,7 +5283,7 @@ describe('a shout the next one hears', () => {
           trigger: 'dealtDamage',
           action: false,
           auto: false,
-          effects: [{ kind: 'log', text: 'Finn follows through.', tone: 'good' }],
+          effects: [{ kind: 'log', text: 'Violet follows through.', tone: 'good' }],
         }),
       );
       const his = { ...demo.sheets.get('finn')!, domainCards: [FOLLOW_CARD], loadout: [FOLLOW_CARD] };
@@ -5299,14 +5309,14 @@ describe('a shout the next one hears', () => {
       expect(seen.some((label) => label.includes('Led by Example'))).toBe(true);
       return;
     }
-    throw new Error('Finn never landed a blow after a shout');
+    throw new Error('Violet never landed a blow after a shout');
   });
 
   it('is not offered to somebody swinging at anybody else', () => {
     for (let seed = 1; seed < 60; seed++) {
       const { demo, husk } = rallying(`rally-elsewhere-${seed}`);
       if (!shout(demo, husk.id)) continue;
-      // Another one on its feet, standing where Finn can reach it.
+      // Another one on its feet, standing where Violet can reach it.
       const other = demo.state.entitiesOf('adversary').find((e) => !e.alive)!;
       other.alive = true;
       other.hitPoints = { max: 40, marked: 0 };
@@ -5324,7 +5334,7 @@ describe('a shout the next one hears', () => {
       expect(demo.state.entity(husk.id)!.conditions.has('fixture-led')).toBe(true);
       return;
     }
-    throw new Error('Kara was never offered the card in sixty tries');
+    throw new Error('Quim was never offered the card in sixty tries');
   });
 });
 
@@ -5362,7 +5372,7 @@ describe('one swing through all of them', () => {
     },
   ];
 
-  /** Kara with the card in hand and two husks standing beside her. */
+  /** Quim with the card in hand and two husks standing beside her. */
   const surrounded = (seed: string, cards: string[]) => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -5511,7 +5521,7 @@ describe('a step across the room without crossing it', () => {
     },
   ];
 
-  /** Mira beside Kara with the card in hand, both beside the husk. */
+  /** Scarlet beside Quim with the card in hand, both beside the husk. */
   const blinking = (seed: string) => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -5595,7 +5605,7 @@ describe('a step across the room without crossing it', () => {
       if (!demo.log.some((l) => /Success|Critical/.test(l.text))) continue;
       if (demo.state.entity('mira')!.tile === stood) continue;
 
-      // Kara came too. Whoever is brought arrives first, so she has the spot
+      // Quim came too. Whoever is brought arrives first, so she has the spot
       // itself and the caster is standing next to her.
       expect(kara.tile).not.toBe(stood);
       expect(kara.tile).toBe(at);
@@ -5609,7 +5619,7 @@ describe('a step across the room without crossing it', () => {
     for (let seed = 1; seed < 40; seed++) {
       const { demo } = blinking(`blink-price-${seed}`);
       const mira = demo.state.entity('mira')!;
-      // Kara and Finn both standing with her, so the crossing costs two.
+      // Quim and Violet both standing with her, so the crossing costs two.
       const blocked = demo.state.blockedFor('finn');
       let stand = NO_TILE;
       demo.grid.forEachNeighbor(mira.tile, false, (tile) => {
@@ -5642,8 +5652,8 @@ describe('a step across the room without crossing it', () => {
       // With a Light for each of them it is offered, and each of them is paid for.
       const { demo: rich } = blinking(`blink-price-${seed}`);
       rich.state.moveEntity('finn', stand);
-      const richMira = rich.state.entity('mira')!;
-      richMira.good = { max: 6, value: 4 };
+      const richScarlet = rich.state.entity('mira')!;
+      richScarlet.good = { max: 6, value: 4 };
       expect(useAbility(rich, 'mira', 'fixture-blink', [], { point: at }).status).not.toBe('refused');
       let took: string[] = [];
       for (let guard = 0; guard < 8 && rich.pending !== null; guard++) {
@@ -5745,7 +5755,7 @@ describe('a line of light down the room', () => {
   ];
 
   /**
-   * Mira with the beam in hand and the rest of the party wounded, standing in
+   * Scarlet with the beam in hand and the rest of the party wounded, standing in
    * a row so a line from her runs over them.
    */
   const beaming = (seed: string): { demo: DemoScene; at: number } => {
@@ -5760,7 +5770,7 @@ describe('a line of light down the room', () => {
     demo.state.entity('mira')!.stress = { max: 6, marked: 0 };
     demo.party.select('mira');
 
-    // A row: Mira, then Kara and Finn on the two tiles after her, and the beam
+    // A row: Scarlet, then Quim and Violet on the two tiles after her, and the beam
     // aimed past them. A line drawn through a scattered party catches nobody,
     // and where they happen to stand is not what is under test.
     const grid = demo.grid;
@@ -5852,13 +5862,13 @@ describe('a line of light down the room', () => {
 
 
 describe('ground that means something', () => {
-  /** Kara beside the husk, and a zone she can be walked in and out of. */
+  /** Quim beside the husk, and a zone she can be walked in and out of. */
   const ground = (seed: string) => {
     const demo = standoff(seed);
     demo.askDefender = false;
     const husk = demo.state.entitiesOf('adversary').find((e) => e.alive)!;
     const kara = demo.state.entity('kara')!;
-    // A patch of light on the tile Kara is standing on, reaching Very Close.
+    // A patch of light on the tile Quim is standing on, reaching Very Close.
     demo.world.placeZone({
       id: 'light',
       name: 'Light',
@@ -5934,7 +5944,7 @@ describe('ground that means something', () => {
     expect(zone?.condition).toBe('rooted');
     expect(zone?.tiles).toContain(kara.tile);
     const painted = new Set(zone!.tiles);
-    // Walk Kara over every tile she can stand on: painted is rooted, unpainted
+    // Walk Quim over every tile she can stand on: painted is rooted, unpainted
     // is not. The picture and the rule are the same measure.
     for (let tile = 0; tile < demo.grid.width * demo.grid.height; tile++) {
       if (!demo.grid.isPassable(tile) || demo.state.blockedFor('kara')(tile)) continue;
@@ -6076,7 +6086,7 @@ describe('ground worth standing on', () => {
     },
   ];
 
-  /** Mira with the spell in hand and Kara beside the husk, in reach of it. */
+  /** Scarlet with the spell in hand and Quim beside the husk, in reach of it. */
   const warding = (seed: string) => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -6086,7 +6096,7 @@ describe('ground worth standing on', () => {
     const sheet = { ...demo.sheets.get('mira')!, domainCards: [LIGHT_CARD], loadout: [LIGHT_CARD] };
     demo.sheets.set('mira', sheet);
     demo.characters.set('mira', deriveCharacter(sheet, characterContentFor(demo.project), demo.project.abilities).character);
-    // Kara's own cards come off: what is under test is what the ground does.
+    // Quim's own cards come off: what is under test is what the ground does.
     const hers = { ...demo.sheets.get('kara')!, domainCards: [], loadout: [] };
     demo.sheets.set('kara', hers);
     demo.characters.set('kara', deriveCharacter(hers, characterContentFor(demo.project), demo.project.abilities).character);
@@ -6095,7 +6105,7 @@ describe('ground worth standing on', () => {
     return demo;
   };
 
-  /** Cast it on Kara's ground; true when the roll got there. */
+  /** Cast it on Quim's ground; true when the roll got there. */
   const cast = (demo: DemoScene): boolean => {
     const at = demo.state.entity('kara')!.tile;
     if (useAbility(demo, 'mira', 'fixture-light', [], { point: at }).status === 'refused') return false;
@@ -6287,7 +6297,7 @@ describe('a room put out', () => {
     },
   ];
 
-  /** Mira with the spell in hand, the party and the husk all within Far. */
+  /** Scarlet with the spell in hand, the party and the husk all within Far. */
   const dark = (seed: string) => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -6430,7 +6440,7 @@ describe('half of what somebody is', () => {
     },
   ];
 
-  /** Kara with an Agility of `agility`, holding these cards. */
+  /** Quim with an Agility of `agility`, holding these cards. */
   const nimble = (agility: number, cards: string[]): DemoScene => {
     const demo = standoff(`nimble-${agility}-${cards.length}`);
     demo.project.cards.push(...FIXTURE_CARDS);
@@ -6511,7 +6521,7 @@ describe('a sigil that answers a fall', () => {
     },
   ];
 
-  /** Mira with the ward in hand, standing with the rest of the party. */
+  /** Scarlet with the ward in hand, standing with the rest of the party. */
   const warded = (seed: string, on: string | null) => {
     const demo = standoff(seed);
     demo.askDefender = true;
@@ -6562,9 +6572,9 @@ describe('a sigil that answers a fall', () => {
     fell(demo, 'finn');
     const after = demo.log.slice(said).map((l) => l.text);
     expect(after.some((t) => t.includes('The ward takes it'))).toBe(false);
-    // Finn is asked what he does about it, the way anybody would be.
+    // Violet is asked what he does about it, the way anybody would be.
     expect(demo.pending?.kind).toBe('death');
-    // And Kara still has hers.
+    // And Quim still has hers.
     expect(demo.state.entity('kara')!.conditions.has('fixture-warded')).toBe(true);
   });
 
@@ -6621,7 +6631,7 @@ describe('a throw worth making again', () => {
     },
   ];
 
-  /** Kara beside the husk with these cards in hand. */
+  /** Quim beside the husk with these cards in hand. */
   const swinging = (seed: string, cards: string[]) => {
     const demo = standoff(seed);
     demo.askDefender = true;
@@ -6660,7 +6670,7 @@ describe('a throw worth making again', () => {
       while (demo.pending !== null && guard++ < 6) answerPending(demo, { kind: 'choose', index: 0 });
       expect(demo.log.slice(said).some((l) => l.text.includes('Not good enough. Again.'))).toBe(true);
       // The blow was still being held: it lands after the card, once.
-      expect(demo.log.slice(said).filter((l) => /Kara (hits|lands a critical) with/.test(l.text)).length).toBe(1);
+      expect(demo.log.slice(said).filter((l) => /Quim (hits|lands a critical) with/.test(l.text)).length).toBe(1);
       return;
     }
     throw new Error('the card was never offered in forty tries');
@@ -6770,7 +6780,7 @@ describe('the next one', () => {
     },
   ];
 
-  /** Kara beside the husk holding these cards; Finn beside it too. */
+  /** Quim beside the husk holding these cards; Violet beside it too. */
   const trying = (seed: string, cards: string[]) => {
     const demo = standoff(seed);
     demo.askDefender = true;
@@ -6825,7 +6835,7 @@ describe('the next one', () => {
       expect(demo.world.advantageFor('kara', husk.id).advantage).toBe(1);
       return;
     }
-    throw new Error('Kara never failed a roll in sixty tries');
+    throw new Error('Quim never failed a roll in sixty tries');
   });
 
   it('is spent on the next roll, whether that one lands or not', () => {
@@ -6846,7 +6856,7 @@ describe('the next one', () => {
       expect(kara.conditions.has('fixture-carried')).toBe(false);
       return;
     }
-    throw new Error('Kara never failed a roll in sixty tries');
+    throw new Error('Quim never failed a roll in sixty tries');
   });
 
   it('leans on an ally who failed, and never on herself', () => {
@@ -6859,7 +6869,7 @@ describe('the next one', () => {
       kara.stress = { max: 6, marked: 4 };
       finn.stress = { max: 6, marked: 4 };
 
-      // Finn swings and fails: the card is Kara's to offer.
+      // Violet swings and fails: the card is Quim's to offer.
       demo.party.select('finn');
       attackWithSelected(demo, husk.id);
       const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
@@ -6894,7 +6904,7 @@ describe('the next one', () => {
     for (let seed = 1; seed < 60; seed++) {
       const { demo, husk } = trying(`lean-self-${seed}`, [WORD_CARD]);
       demo.state.entity('kara')!.stress = { max: 6, marked: 4 };
-      // Kara's own failure: "an ally who failed an action roll" is not her.
+      // Quim's own failure: "an ally who failed an action roll" is not her.
       attackWithSelected(demo, husk.id);
       const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
       if (rolled !== 'failureWithGood' && rolled !== 'failureWithBad') continue;
@@ -6902,7 +6912,7 @@ describe('the next one', () => {
       expect(demo.state.entity('kara')!.stress.marked).toBe(4);
       return;
     }
-    throw new Error('Kara never failed a roll in sixty tries');
+    throw new Error('Quim never failed a roll in sixty tries');
   });
 
   it("answers her own roll and not an ally's", () => {
@@ -6913,12 +6923,12 @@ describe('the next one', () => {
       swing(demo, husk.id);
       const rolled = demo.rolls[demo.rolls.length - 1]?.roll.outcome;
       if (rolled !== 'failureWithGood' && rolled !== 'failureWithBad') continue;
-      // Finn's failure is Finn's: "when *you* fail an action roll".
+      // Violet's failure is Violet's: "when *you* fail an action roll".
       expect(kara.conditions.has('fixture-carried')).toBe(false);
       expect(demo.state.entity('finn')!.conditions.has('fixture-carried')).toBe(false);
       return;
     }
-    throw new Error('Finn never failed a roll in sixty tries');
+    throw new Error('Violet never failed a roll in sixty tries');
   });
 });
 
@@ -7267,7 +7277,7 @@ describe('a card that moves the room', () => {
       hold(demo, 'kara', [WRANGLE_CARD]);
       const kara = demo.state.entity('kara')!;
       kara.good = { max: 6, value: 4 };
-      // Finn beside her, so he is one of the "willing allies within Close".
+      // Violet beside her, so he is one of the "willing allies within Close".
       const finn = demo.state.entity('finn')!;
       const beside = spotNear(demo, kara.tile);
       if (beside === NO_TILE) continue;
@@ -7287,7 +7297,7 @@ describe('a card that moves the room', () => {
       expect(kara.tile).toBe(stood);
       return;
     }
-    throw new Error('never found room to stand Finn in, in sixty tries');
+    throw new Error('never found room to stand Violet in, in sixty tries');
   });
 
   it('moves nobody with no Light to spend, and a roll with Light pays for itself', () => {
@@ -7340,7 +7350,7 @@ describe('a card that throws the dice again', () => {
   };
 
   /**
-   * Kara swinging with the room able to answer, and a husk that will not fall.
+   * Quim swinging with the room able to answer, and a husk that will not fall.
    * The cards and what they do are the project's, carried before any sheet is
    * derived over them.
    */
@@ -7354,7 +7364,7 @@ describe('a card that throws the dice again', () => {
     demo.askDefender = true;
     demo.project.cards.push(...FIXTURE_CARDS);
     for (const ability of abilities) demo.project.abilities.push(abilitySchema.parse(ability));
-    // Nothing of Kara's own answers a swing, so an offer is always Finn's: the
+    // Nothing of Quim's own answers a swing, so an offer is always Violet's: the
     // card in her hand carries nothing at all.
     hold(demo, 'kara', [SILENT_CARD]);
     hold(demo, 'finn', card === null ? [] : [card]);
@@ -7376,11 +7386,11 @@ describe('a card that throws the dice again', () => {
   it('Reassurance is offered on an ally\'s roll and not on the holder\'s own', () => {
     const { demo, husk } = swinging('reassure-offered', REASSURANCE, REASSURANCE_CARD);
     const first = attackWithSelected(demo, husk.id);
-    // Kara rolled; Finn holds the card, so Finn is asked.
+    // Quim rolled; Violet holds the card, so Violet is asked.
     expect(first?.waiting).toBe(true);
     expect(demo.pending?.kind).toBe('reaction');
     if (demo.pending?.kind !== 'reaction') throw new Error('expected a reaction prompt');
-    expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-reassurance']);
+    expect(fixtures(demo.pending.offers)).toEqual(['fixture-reassurance']);
     expect(demo.pending.offers[0]!.by).toBe('finn');
 
     // The same card in the roller's own hand answers nothing: `not self`.
@@ -7454,7 +7464,7 @@ describe('a card that throws the dice again', () => {
       // A hit is a successful roll; the card only answers a failed one.
       if (first?.waiting === true) {
         if (demo.pending?.kind !== 'reaction') throw new Error('expected a reaction prompt');
-        expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-support-tank']);
+        expect(fixtures(demo.pending.offers)).toEqual(['fixture-support-tank']);
         expect(first.hit).toBe(false);
         // Two Light, and only the Shadow Die goes back in the cup.
         const before = demo.state.entity('finn')!.good!.value;
@@ -7975,7 +7985,7 @@ describe('a stance that holds the ground around it', () => {
     refreshWorld(demo);
   };
 
-  /** Kara braced, with the husk parked well outside Very Close of her. */
+  /** Quim braced, with the husk parked well outside Very Close of her. */
   const braced = (seed: string): { demo: DemoScene; husk: EntityState; kara: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -8077,7 +8087,7 @@ describe('a stance that holds the ground around it', () => {
       expect(husk.conditions.has('fixture-caught')).toBe(false);
       return;
     }
-    throw new Error('Kara never failed with Shadow in eighty tries');
+    throw new Error('Quim never failed with Shadow in eighty tries');
   });
 });
 
@@ -8172,7 +8182,7 @@ describe('a swing that reaches one more', () => {
     refreshWorld(demo);
   };
 
-  /** Kara beside two husks, marked with the echo and about to swing. */
+  /** Quim beside two husks, marked with the echo and about to swing. */
   const marked = (seed: string): { demo: DemoScene; first: EntityState; second: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -8211,7 +8221,7 @@ describe('a swing that reaches one more', () => {
       expect(demo.state.entity('kara')!.conditions.has('fixture-echo')).toBe(false);
       return;
     }
-    throw new Error('Kara never landed a swing with the echo up, in sixty tries');
+    throw new Error('Quim never landed a swing with the echo up, in sixty tries');
   });
 
   it('throws no second time: the echo is the same dice', () => {
@@ -8495,7 +8505,7 @@ describe('the last of the Codex', () => {
     refreshWorld(demo);
   };
 
-  /** Mira holding one card, stood beside Kara and holding the spotlight. */
+  /** Scarlet holding one card, stood beside Quim and holding the spotlight. */
   const casting = (
     seed: string,
     family: readonly Record<string, unknown>[],
@@ -9372,7 +9382,7 @@ describe('coming at them well, and knowing them', () => {
     const demo = standoff('approach-tokens');
     carry(demo, APPROACH);
     hold(demo, 'kara', [APPROACH_CARD]);
-    // Kara's Knowledge is below one, and the card floors it at one.
+    // Quim's Knowledge is below one, and the card floors it at one.
     expect(demo.world.tokenCount('kara', 'fixture-approach')).toBe(1);
 
     const { demo: ready, husk } = approaching('approach-offer');
@@ -9403,7 +9413,7 @@ describe('coming at them well, and knowing them', () => {
     finn.stress = { max: 6, marked: 3 };
     const mira = demo.state.entity('mira')!;
     mira.stress = { max: 6, marked: 3 };
-    // Finn beside the husk; Mira left where she was, well away from it.
+    // Violet beside the husk; Scarlet left where she was, well away from it.
     const blocked = demo.state.blockedFor('finn');
     demo.grid.forEachNeighbor(husk.tile, false, (tile) => {
       if (demo.grid.isPassable(tile) && !blocked(tile) && tile !== demo.state.entity('kara')!.tile) {
@@ -9416,7 +9426,7 @@ describe('coming at them well, and knowing them', () => {
     while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
 
     // `around: 'target'` is the whole of this: the band is measured from the
-    // adversary, which is why Finn is steadied and Mira is not.
+    // adversary, which is why Violet is steadied and Scarlet is not.
     expect(finn.stress.marked).toBe(2);
     expect(mira.stress.marked).toBe(3);
   });
@@ -9436,7 +9446,7 @@ describe('coming at them well, and knowing them', () => {
       expect(kara.conditions.has('strategic-force')).toBe(false);
       return;
     }
-    throw new Error('Kara never landed a blow in forty tries');
+    throw new Error('Quim never landed a blow in forty tries');
   });
 
   it('Know Thy Enemy takes a Light, and offers a Stress for one of the GM\'s Shadow', () => {
@@ -9613,7 +9623,7 @@ describe('out of sight, and under the skin', () => {
     refreshWorld(demo);
   };
 
-  /** Mira beside Kara, holding a Grace card and the spotlight. */
+  /** Scarlet beside Quim, holding a Grace card and the spotlight. */
   const casting = (seed: string, card: string): { demo: DemoScene; mira: EntityState; kara: EntityState; husk: EntityState } => {
     const demo = standoff(seed);
     demo.askDefender = false;
@@ -9660,9 +9670,9 @@ describe('out of sight, and under the skin', () => {
   it('spends a token for every action she takes, and drops when the last one goes', () => {
     for (let seed = 1; seed < 60; seed++) {
       const { demo, kara, husk } = casting('invis-spend-' + seed, HIDE_CARD);
-      // The spell put on her by hand rather than cast: casting it is Mira's
-      // action, and the spotlight would be hers when Kara came to swing. What
-      // this test is about is the spending, which is Kara's own.
+      // The spell put on her by hand rather than cast: casting it is Scarlet's
+      // action, and the spotlight would be hers when Quim came to swing. What
+      // this test is about is the spending, which is Quim's own.
       demo.world.applyCondition('kara', 'fixture-hidden', 'scene');
       // Exactly two, so the second swing is the one that ends it.
       demo.world.spendTokens('kara', 'fixture-hide', 99);
@@ -9694,7 +9704,7 @@ describe('out of sight, and under the skin', () => {
     const marked: number[] = [];
     for (let seed = 1; seed < 60 && marked.length < 6; seed++) {
       const { demo, husk } = casting('trouble-' + seed, TAUNT_CARD);
-      // Presence is Mira's, and the taunt is aimed rather than cast.
+      // Presence is Scarlet's, and the taunt is aimed rather than cast.
       expect(useAbility(demo, 'mira', 'fixture-taunt', [husk.id]).status).toBe('waiting');
       while (demo.pending !== null) answerPending(demo, { kind: 'roll' });
       if (husk.stress.marked === 0) continue;
@@ -9796,7 +9806,7 @@ describe('asking for somebody back', () => {
       if (demo.grid.isPassable(tile) && !blocked(tile)) demo.state.moveEntity('mira', tile);
     });
     demo.party.select('mira');
-    // Kara gone past the veil: down, and marked as not coming back by a heal.
+    // Quim gone past the veil: down, and marked as not coming back by a heal.
     kara.hitPoints = { max: kara.hitPoints.max, marked: kara.hitPoints.max };
     kara.alive = false;
     kara.dead = true;
@@ -9856,8 +9866,8 @@ describe('a check the room can answer', () => {
   };
 
   /**
-   * Kara about to make a check, with Finn holding something to say about it.
-   * She always holds the card that stops for its dice to be read; what Finn
+   * Quim about to make a check, with Violet holding something to say about it.
+   * She always holds the card that stops for its dice to be read; what Violet
    * holds is what the test is about.
    */
   const rolling = (
@@ -9899,10 +9909,10 @@ describe('a check the room can answer', () => {
       expect(demo.world.answersRoll('kara', { total: 10, outcome: 'failureWithBad' })).toBe(true);
       expect(useAbility(demo, 'kara', 'fixture-watching', [husk.id]).status).toBe('waiting');
 
-      // The dice are read, and the question that follows is Finn's, not Kara's.
+      // The dice are read, and the question that follows is Violet's, not Quim's.
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
-      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-reassurance']);
+      expect(fixtures(demo.pending.offers)).toEqual(['fixture-reassurance']);
       expect(demo.pending.offers[0]!.by).toBe('finn');
       // The throw is on the offer, not in the log: nothing has been journalled
       // yet, which is the point - the roll has not decided anything.
@@ -9916,7 +9926,7 @@ describe('a check the room can answer', () => {
       expect(after.good === first.good && after.bad === first.bad).toBe(false);
       return;
     }
-    throw new Error('Reassurance was never put to Finn in eighty tries');
+    throw new Error('Reassurance was never put to Violet in eighty tries');
   });
 
   it('leaves the roll exactly as thrown when the ally lets it pass', () => {
@@ -9933,7 +9943,7 @@ describe('a check the room can answer', () => {
       expect({ good: after.good, bad: after.bad }).toEqual({ good: thrown.good, bad: thrown.bad });
       return;
     }
-    throw new Error('Reassurance was never put to Finn in eighty tries');
+    throw new Error('Reassurance was never put to Violet in eighty tries');
   });
 
   it('Support Tank answers a failed check, and only a failed one', () => {
@@ -9945,7 +9955,7 @@ describe('a check the room can answer', () => {
       answerPending(demo, { kind: 'roll' });
 
       if (demo.pending?.kind === 'reaction') {
-        expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-support-tank']);
+        expect(fixtures(demo.pending.offers)).toEqual(['fixture-support-tank']);
         // Only a failure: the card says so and the gate is read before asking.
         expect(demo.pending.offers[0]!.swing!.success).toBe(false);
         const before = demo.state.entity('finn')!.good!.value;
@@ -10226,7 +10236,7 @@ describe('reaching past the dice', () => {
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
 
-      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-name-the-roll']);
+      expect(fixtures(demo.pending.offers)).toEqual(['fixture-name-the-roll']);
       // Never put on a roll that did not need it.
       const thrown = demo.pending.offers[0]!.swing!;
       expect(thrown.success).toBe(false);
@@ -10300,7 +10310,7 @@ describe('a roll with a purpose', () => {
   };
 
   /**
-   * Mira holding the reroll that answers her own tagged rolls, and whatever the
+   * Scarlet holding the reroll that answers her own tagged rolls, and whatever the
    * test wants her to roll with. Every card and ability here is the project's.
    */
   const talking = (seed: string, cards: string[]): { demo: DemoScene; mira: EntityState; husk: EntityState } => {
@@ -10333,7 +10343,7 @@ describe('a roll with a purpose', () => {
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
 
-      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-own-tagged-reroll']);
+      expect(fixtures(demo.pending.offers)).toEqual(['fixture-own-tagged-reroll']);
       const thrown = demo.pending.offers[0]!.swing!;
 
       answerPending(demo, { kind: 'choose', index: 1 });
@@ -10357,7 +10367,7 @@ describe('a roll with a purpose', () => {
       hold(demo, 'kara', [WATCHING_CARD]);
       expect(useAbility(demo, 'kara', 'fixture-watching', [husk.id]).status).toBe('waiting');
       answerPending(demo, { kind: 'roll' });
-      // The card is in Mira's hand and the roll is not one it answers, so the
+      // The card is in Scarlet's hand and the roll is not one it answers, so the
       // check never stops at all.
       expect(demo.pending?.kind).not.toBe('reaction');
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });

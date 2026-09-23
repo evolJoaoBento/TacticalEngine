@@ -53,7 +53,7 @@ import {
   DEMO_STAIR_ID,
   walkFor,
   PARTY_SHEETS,
-} from './demo-rules';
+  DEMO_WEAPONS } from './demo-rules';
 import {
   buildRuntime,
   characterContentFor,
@@ -749,7 +749,7 @@ export function buildDemoScene(map: LegacyMap, seed = 'demo'): DemoScene {
     // rules condition of the same name. Nothing clashes today; the order is the
     // statement of which owns the id when something does.
     conditionDefs: [...STARTER_CONDITIONS, ...SRD_CONDITIONS.filter((c) => !STARTER_CONDITIONS.some((s) => s.id === c.id))],
-    party: [...PARTY_SHEETS], assets: [...SHIPPED_MODELS], terrainPalette: [...DEMO_TERRAIN],
+    party: [...PARTY_SHEETS], assets: [...SHIPPED_MODELS], terrainPalette: [...DEMO_TERRAIN], weapons: [...DEMO_WEAPONS],
     startScene: vault.id,
   });
 

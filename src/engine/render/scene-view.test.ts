@@ -217,7 +217,7 @@ describe('SceneView', () => {
     expect(view.root.children.some((child) => child.name === 'cursor')).toBe(false); // the pointer draws nothing of its own
     const resources = view.resources;
 
-    // A bigger room, with Kara arriving on a spawn and the husk left behind.
+    // A bigger room, with Quim arriving on a spawn and the husk left behind.
     const bigger = makeGrid(['........', '........', '........', '........', '........', '........']);
     const arrived = new SceneState({ id: 'hall' }, bigger);
     arrived.addEntity(createPartyEntity('kara', 'sentinel', bigger.indexOf(7, 5)));
@@ -234,7 +234,7 @@ describe('SceneView', () => {
     // The sun reaches the whole of the new room.
     expect(view.sunlight!.shadow.camera.right).toBeGreaterThanOrEqual(mapExtent(bigger).radius);
 
-    // Kara's token is the same one, put down where she now is with no walk
+    // Quim's token is the same one, put down where she now is with no walk
     // from the other room's coordinates; the husk is gone.
     view.syncTokens(arrived);
     expect(view.tokenFor('kara')).toBe(karaBefore);
@@ -847,7 +847,7 @@ describe('SceneView', () => {
     view.syncTokens(state);
     const kara = view.tokenFor('kara')!.group;
     const rest = kara.position.clone();
-    // Kara at (0,0), the husk at (4,2): the lunge is east and a little south.
+    // Quim at (0,0), the husk at (4,2): the lunge is east and a little south.
     view.lunge('kara', grid.indexOf(4, 2));
     expect(view.reactingCount).toBe(1);
     view.tick(0.12);

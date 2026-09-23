@@ -55,6 +55,18 @@ sets carry. `docs/CONTEXT.md` holds the exact wording and is now the only place 
 per-source READMEs went with `tools/srd-sources/`. No rules text is vendored any more.
 Daggerheart is a trademark of Critical Role, LLC; this project is unaffiliated.
 
+## What the repository is licensed as
+
+The project's own work is **AGPL-3.0-or-later**: `LICENSE` holds the text, `NOTICE.md` says what it
+reaches, and `package.json` declares it. Two things it does not reach, both named in the notice —
+Kreon, which stays under the SIL OFL beside its own licence file, and the rules the engine
+implements, which are Public Game Content under the DPCGL and are relicensed by nothing here.
+
+Section 13 is the one to know. A browser game is used over a network rather than handed over, so
+anyone running a modified copy for other people owes those people the source of their version. Keep
+the repository URL in `NOTICE.md` correct; it is the offer that satisfies it.
+`tests/unit/licensing-boundary.test.ts` fails if the three files stop agreeing.
+
 ---
 
 ## Where everything is written down

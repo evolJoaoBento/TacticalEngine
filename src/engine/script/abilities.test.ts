@@ -76,7 +76,7 @@ const husk = (id: string, difficulty: number): AdversaryDef => ({
 const bandTiles = { melee: 1, veryClose: 2, close: 4, far: 8, veryFar: 12 };
 
 /**
- * A corridor: Kara (a Guardian, no Spellcast trait) and Mira (a Wizard, who
+ * A corridor: Quim (a Guardian, no Spellcast trait) and Scarlet (a Wizard, who
  * casts with Knowledge +2), a soft husk two tiles east and a tough one four.
  */
 function scene(
@@ -93,7 +93,7 @@ function scene(
   const state = new SceneState({ id: 'corridor' }, grid);
   const sheets = [
     blankSheet('kara', 'sentinel', {
-      name: 'Kara',
+      name: 'Quim',
       traits: { agility: 0, strength: 2, finesse: 0, instinct: 1, presence: 1, knowledge: -1 },
       armorId: 'ringmail',
       primaryWeaponId: 'longsword',
@@ -102,7 +102,7 @@ function scene(
       experiences: [{ name: 'Held the line', modifier: 2 }],
     }),
     blankSheet('mira', 'emberwright', {
-      name: 'Mira',
+      name: 'Scarlet',
       traits: { agility: 0, strength: -1, finesse: 1, instinct: 2, presence: 1, knowledge: 2 },
       armorId: 'padded-coat',
       primaryWeaponId: 'ember-staff',
@@ -163,13 +163,13 @@ const refusals = (journal: readonly JournalEntry[]): string[] =>
 
 describe('a shape aimed at a point', () => {
   /**
-   * The corridor is 14x3 with Mira at (0,1), Kara at (1,1), husk-1 at (3,1)
-   * and husk-2 at (5,1) - so a line east from Mira runs through all of them,
+   * The corridor is 14x3 with Scarlet at (0,1), Quim at (1,1), husk-1 at (3,1)
+   * and husk-2 at (5,1) - so a line east from Scarlet runs through all of them,
    * and a creature parked well off that row is a creature the charge misses.
    */
   it('catches everything the line runs through, and leaves the one charging out of it', () => {
     const { world, grid } = scene();
-    // Mira is the actor. A path east to (7,1) crosses both husks and Kara.
+    // Scarlet is the actor. A path east to (7,1) crosses both husks and Quim.
     const down = { targets: [], hit: [], point: grid.indexOf(7, 1) };
     expect(world.resolveTargets({ kind: 'inPath' }, down)).toEqual(['kara', 'husk-1', 'husk-2']);
     // "All adversaries along that path": the same line, one side of it.
@@ -216,13 +216,13 @@ describe('a shape aimed at a point', () => {
     const { world, grid, state, scenario } = scene();
     state.moveEntity('husk-2', grid.indexOf(9, 0));
     const down = { targets: [], hit: [], point: grid.indexOf(7, 1) };
-    // Mira's ember staff reaches Close, which this scene's band table puts at four tiles --
+    // Scarlet's ember staff reaches Close, which this scene's band table puts at four tiles --
     // wide enough to sweep in the husk standing two off the line. It stands at (9, 0) rather
     // than further out because a sweep that reaches nothing extra would read the same as
-    // Kara's Melee one below, and the test would stop telling the two reaches apart.
+    // Quim's Melee one below, and the test would stop telling the two reaches apart.
     expect(world.weaponRange('mira')).toBe('close');
     expect(world.resolveTargets({ kind: 'inPath', side: 'adversaries', reach: 'weapon' }, down)).toEqual(['husk-1', 'husk-2']);
-    // Kara's longsword reaches Melee, and the same run down the same line
+    // Quim's longsword reaches Melee, and the same run down the same line
     // catches only what it passes.
     scenario.actorId = 'kara';
     expect(world.weaponRange('kara')).toBe('melee');
@@ -236,7 +236,7 @@ describe('selectors', () => {
     const bound = { targets: ['husk-1', 'husk-2'], hit: ['husk-2'] };
     expect(world.resolveTargets({ kind: 'target' }, bound)).toEqual(['husk-1', 'husk-2']);
     expect(world.resolveTargets({ kind: 'hit' }, bound)).toEqual(['husk-2']);
-    // Mira stands at x=0: husk-1 is three tiles off (Close), husk-2 five (Far).
+    // Scarlet stands at x=0: husk-1 is three tiles off (Close), husk-2 five (Far).
     expect(world.resolveTargets({ kind: 'adversaries', range: 'close' }, bound)).toEqual(['husk-1']);
     expect(world.resolveTargets({ kind: 'adversaries', range: 'far' }, bound)).toEqual(['husk-1', 'husk-2']);
     // A group around the chosen target: husk-2's Very Close neighbours.
@@ -428,7 +428,7 @@ describe('what a block calls onto the map', () => {
   it('multiplies by the party still standing when the text counts PCs', () => {
     const built = scene();
     built.scenario.actorId = 'husk-1';
-    // "A number equal to twice the number of PCs": Kara and Mira, so four.
+    // "A number equal to twice the number of PCs": Quim and Scarlet, so four.
     const journal = runScript(
       [{ kind: 'summon', adversary: 'soft-husk', count: '2', perPc: true, range: 'close' }],
       built.world,
@@ -515,11 +515,11 @@ describe('a swarm that piles in', () => {
   ];
 
   /**
-   * The corridor with more of husk-1's kind loose in it, and Kara a step
+   * The corridor with more of husk-1's kind loose in it, and Quim a step
    * further in so there is a free tile on every side of her: eight creatures
    * can stand beside anyone, a diagonal being as close as a side.
    *
-   * Armor is left alone here so the arithmetic is the swarm's: Kara's
+   * Armor is left alone here so the arithmetic is the swarm's: Quim's
    * thresholds are 8/16, and each husk deals 1d6+2.
    */
   function rats(where: readonly [number, number][]) {
@@ -569,7 +569,7 @@ describe('a swarm that piles in', () => {
   });
 
   it('takes no more than can get there', () => {
-    // Six of them. Kara has seven free tiles round her with husk-1 on the
+    // Six of them. Quim has seven free tiles round her with husk-1 on the
     // eighth, but the two on her far side are past a Close-range walk for the
     // last rat in the corridor, which stops short.
     const built = rats([[4, 0], [4, 2], [5, 2], [5, 0], [6, 1], [6, 0]]);
@@ -673,7 +673,7 @@ describe('a check against targets', () => {
     const asActor = new ScriptRunner(world, scripted([]), { targets: ['husk-1'], rollAs: 'actor' }).run([check]);
     if (asParty.status !== 'waiting' || asParty.prompt.kind !== 'check') throw new Error('expected a prompt');
     if (asActor.status !== 'waiting' || asActor.prompt.kind !== 'check') throw new Error('expected a prompt');
-    // The party's best Strength is Kara's +2; Mira's own is −1.
+    // The party's best Strength is Quim's +2; Scarlet's own is −1.
     expect(asParty.prompt.modifier).toBe(2);
     expect(asActor.prompt.modifier).toBe(-1);
   });
@@ -771,7 +771,7 @@ describe('damage with dice', () => {
   it('halves, goes direct past armor, and scales with Proficiency or the Spellcast trait', () => {
     const { world, state, scenario } = scene();
     const bound = { targets: ['kara'], rollAs: 'actor' as const };
-    // Kara wears chainmail: thresholds 7/15 at level 1, Armor Score 4.
+    // Quim wears chainmail: thresholds 7/15 at level 1, Armor Score 4.
     // 12 is Major; one Armor Slot makes it Minor.
     runScript([{ kind: 'damage', dice: '12 phy', target: { kind: 'target' } }], world, scripted([]), bound);
     expect(state.entity('kara')!.hitPoints.marked).toBe(1);
@@ -785,14 +785,14 @@ describe('damage with dice', () => {
     expect(state.entity('kara')!.hitPoints.marked).toBe(3);
     expect(state.entity('kara')!.armorSlots.marked).toBe(2);
 
-    // Mira's Spellcast trait is 2: "d6 using your Spellcast trait" is 2d6.
+    // Scarlet's Spellcast trait is 2: "d6 using your Spellcast trait" is 2d6.
     scenario.actorId = 'mira';
     const rng = scripted([4, 4]);
     const journal = runScript([{ kind: 'damage', dice: 'd6', using: 'spellcast', target: { kind: 'entity', id: 'husk-1' } }], world, rng, bound);
     expect(journal.find((e) => e.kind === 'damage')).toMatchObject({ amount: 8, dice: '2d6' });
     expect(rng.drawn()).toBe(2);
 
-    // Kara's Proficiency is 1; a level-5 sheet would roll more, but the rule is the same call.
+    // Quim's Proficiency is 1; a level-5 sheet would roll more, but the rule is the same call.
     scenario.actorId = 'kara';
     const one = scripted([3]);
     runScript([{ kind: 'damage', dice: 'd8', using: 'proficiency', target: { kind: 'entity', id: 'husk-1' } }], world, one, bound);
@@ -884,12 +884,12 @@ describe('pools and conditions', () => {
     expect(says(branch({ kind: 'inCombat' }))).toBe('yes');
     expect(says(branch({ kind: 'hasCondition', condition: 'vulnerable' }))).toBe('yes');
     expect(says(branch({ kind: 'hasCondition', condition: 'vulnerable' }), ['husk-2'])).toBe('no');
-    // Mira has 2 Light and 6 free Stress slots.
+    // Scarlet has 2 Light and 6 free Stress slots.
     expect(says(branch({ kind: 'pool', pool: 'good', op: '>=', value: 2 }))).toBe('yes');
     expect(says(branch({ kind: 'pool', pool: 'good', op: '>=', value: 3 }))).toBe('no');
     expect(says(branch({ kind: 'pool', pool: 'stress', op: '>=', value: 1 }))).toBe('yes');
     expect(says(branch({ kind: 'pool', pool: 'stress', measure: 'marked', op: '==', value: 0 }))).toBe('yes');
-    // husk-1 is Close to Mira, husk-2 Far.
+    // husk-1 is Close to Scarlet, husk-2 Far.
     expect(says(branch({ kind: 'withinRange', range: 'close' }))).toBe('yes');
     expect(says(branch({ kind: 'withinRange', range: 'close' }), ['husk-2'])).toBe('no');
     expect(says(branch({ kind: 'withinRange', range: 'far' }), ['husk-2'])).toBe('yes');
@@ -914,7 +914,7 @@ describe('an attack from a script', () => {
     expect(journal.find((e) => e.kind === 'attack')).toMatchObject({ attacker: 'kara', target: 'husk-1', hit: true, hitPointsMarked: 2, weapon: 'Longsword' });
     expect(kinds(journal)).toEqual(['attack', 'good', 'moved', 'log']);
     expect(journal.find((e) => e.kind === 'log')).toMatchObject({ text: 'hit' });
-    // Pushed east from x=3 to the first tile that reads as Close of Kara at x=2: x=5 is taken, so x=4 … no: x=5 blocks, it stops at x=4.
+    // Pushed east from x=3 to the first tile that reads as Close of Quim at x=2: x=5 is taken, so x=4 … no: x=5 blocks, it stops at x=4.
     expect(grid.xOf(state.entity('husk-1')!.tile)).toBe(4);
     expect(state.entity('kara')!.good!.value).toBe(3);
     expect(rng.drawn()).toBe(3);
@@ -944,7 +944,7 @@ describe('an attack from a script', () => {
     scenario.actorId = 'husk-1';
     const at = (effect: Effect) =>
       runScript([effect], world, scripted([12, 4]), { targets: ['kara'], rollAs: 'actor' });
-    // Kara stands at Very Close; the husk's claws are a Melee weapon.
+    // Quim stands at Very Close; the husk's claws are a Melee weapon.
     expect(at({ kind: 'attack' }).filter((e) => e.kind === 'refused').map((e) => e.reason)).toEqual([
       expect.stringContaining('outOfRange'),
     ]);
@@ -958,7 +958,7 @@ describe('an attack from a script', () => {
     scenario.actorId = 'husk-1';
     const kara = state.entity('kara')!;
     const armorBefore = kara.armorSlots.marked;
-    // 12 + 4 beats Kara's Evasion; the damage is stated, so no die is rolled for it.
+    // 12 + 4 beats Quim's Evasion; the damage is stated, so no die is rolled for it.
     const journal = runScript(
       [{ kind: 'attack', range: 'veryClose', damage: '20 phy', direct: true }],
       world,
@@ -1203,7 +1203,7 @@ describe("a passive printed on a stat block", () => {
 describe('Light taken rather than spent', () => {
   it('takes what is there and no more, and a creature with none is untouched', () => {
     const { world, state } = scene();
-    // Kara has 2 Light; the husk has none at all.
+    // Quim has 2 Light; the husk has none at all.
     const journal = runScript(
       [
         { kind: 'loseGood', amount: 3, target: { kind: 'entity', id: 'kara' } },
@@ -1221,7 +1221,7 @@ describe('Light taken rather than spent', () => {
 describe('a walk', () => {
   it('carries the line the creature crossed, from where it stood to where it stands', () => {
     const { world, state, grid } = scene();
-    // Mira (0,1) closes on husk-2 (5,1), round Kara and husk-1 in the row.
+    // Scarlet (0,1) closes on husk-2 (5,1), round Quim and husk-1 in the row.
     const journal = runScript([{ kind: 'move', how: 'toward', range: 'melee' }], world, scripted([]), {
       targets: ['husk-2'],
       rollAs: 'actor',
@@ -1239,7 +1239,7 @@ describe('a walk', () => {
 describe('a push', () => {
   it('moves the target straight away from the actor until the band reads right, and stops at a wall', () => {
     const { world, state, grid } = scene();
-    // Mira at x=0 pushes husk-1 (x=3) to Far: the first tile that reads as Far is x=5 — held by husk-2 — so it stops at x=4.
+    // Scarlet at x=0 pushes husk-1 (x=3) to Far: the first tile that reads as Far is x=5 — held by husk-2 — so it stops at x=4.
     expect(runScript([{ kind: 'push', to: 'far' }], world, scripted([]), { targets: ['husk-1'] })).toEqual([
       { kind: 'moved', id: 'husk-1', from: grid.indexOf(3, 1), to: grid.indexOf(4, 1) },
     ]);

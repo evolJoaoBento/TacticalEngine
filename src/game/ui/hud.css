@@ -150,9 +150,6 @@
 .hud-card.is-under{outline:2px solid var(--play-gold);outline-offset:-2px}
 .hud-slot{position:absolute;left:4px;right:4px;top:-5px;height:0;border-top:2px solid var(--play-gold);box-shadow:0 0 6px var(--play-gold);z-index:3}
 .hud-slot.is-below{top:auto;bottom:-5px}
-.hud-gm{cursor:default;padding:11px 11px 8px}
-.hud-gm .play-eyebrow{display:block;margin-bottom:6px}
-.hud-gm .pip{width:4px;border-radius:50%}
 
 /* The hand, along the bottom: relics above it on a shelf, the Light orb at its left, the verbs at its
    right. Only the cards and buttons take the pointer; the board shows through the rest. */
@@ -171,12 +168,36 @@
 /* Light, as the struck counter it would be on a real table: brass, not a glowing ball. The number is
    engraved -- cut dark into the metal with a catch of light under the stroke -- rather than outlined
    in ink, and nothing about it moves. */
-.hand-orb{position:relative;width:var(--key-size);height:var(--key-size);margin-bottom:18px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(158deg,#d6bd86 0,#bda469 34%,#93794a 62%,#6b5730 100%);border:1px solid #453818;box-shadow:inset 0 2px 3px #fff4cc8c,inset 0 -2px 4px #00000059,0 3px 7px #00000066;color:#352a10;line-height:1;pointer-events:auto;flex:none}
-/* The milled rim every struck counter has. */
-.hand-orb:before{content:'';position:absolute;inset:6px;border-radius:50%;border:1px solid #0000003d;box-shadow:0 1px 0 #ffffff3d;pointer-events:none}
-.hand-orb b{font:700 clamp(22px,2.6vw,32px)/1 var(--play-font);text-shadow:0 1px 0 #ffffff5e}
-.hand-orb small{font:700 12px/1 var(--play-font);margin-top:1px;color:#4b3b18;text-shadow:0 1px 0 #ffffff4a}
-.hand-orb span{position:absolute;bottom:-17px;font:700 10px/1 var(--play-font);letter-spacing:.16em;text-transform:uppercase;color:#cdbb92;text-shadow:0 1px 2px #000000a6}
+/* The two pools as the dice they are counted in: the Light a yellow six, the GM's Shadow a black
+   twelve, side by side where the Light alone used to sit. They are the same solids the Duality
+   Dice are turned from (`Die`, `d6.ts`, `d12.ts`), landed rather than thrown. No word on either -
+   the number is the whole of it, and the tooltip says which is which - so the numbers carry the
+   reading: black on the yellow, white on the black. */
+.hand-dice{display:flex;align-items:flex-start;gap:8px;margin-bottom:14px;padding-top:2px;pointer-events:auto;flex:none;position:relative}
+.pool-slot{display:flex;flex-direction:column;align-items:center;gap:1px;cursor:default}
+.pool-slot small{font:700 9px/1 var(--play-font);letter-spacing:.1em;text-transform:uppercase;color:#cdbb92;text-shadow:0 1px 2px #000000a6;white-space:nowrap}
+.pool-slot .die-number{font-size:52px}
+.pool-slot.is-light .die-number{fill:#1d1611;stroke:none}
+.pool-slot.is-shadow .die-number{fill:#f6f1e4;stroke:none}
+/* Pointed at, a die rattles where it sits and settles again - the same hand that would pick it up
+   off the table. The wrapper is shaken rather than the svg inside it, which carries the throw's own
+   transform and would fight this one. */
+.pool-slot .die{animation:pool-still 1s linear infinite paused}
+.pool-slot:hover .die{animation:pool-shake 1.3s ease-in-out infinite}
+@keyframes pool-still{from{transform:none}to{transform:none}}
+@keyframes pool-shake{
+  0%{transform:translate(0,0) rotate(0)}
+  6%{transform:translate(-2px,-1px) rotate(-8deg)}
+  13%{transform:translate(2px,1px) rotate(7deg)}
+  20%{transform:translate(-2px,1px) rotate(-6deg)}
+  27%{transform:translate(2px,-1px) rotate(4deg)}
+  34%{transform:translate(-1px,0) rotate(-2deg)}
+  40%,100%{transform:translate(0,0) rotate(0)}
+}
+/* A die on the tray casts a shadow on the table it landed on. A die on the bar is standing on
+   nothing, so the pool dice keep the shadow the solid casts on itself and drop the one underneath. */
+.pool-slot .die-shadow{display:none}
+.pool-round{position:absolute;left:0;right:0;bottom:-14px;text-align:center;font:italic 700 10px/1 var(--play-font);letter-spacing:.08em;color:#cdbb92;text-shadow:0 1px 2px #000000a6;white-space:nowrap}
 /* Each slot is the room shared out, at most 96px; the faces overlap into their neighbours' slots,
    and the padding is what an end card hangs past the last slot, tilted. */
 /* The cards get whatever the row does not need, and what they get is never nothing: the hand is
@@ -186,7 +207,7 @@
 .hand-slot:disabled{cursor:default}
 /* Wide enough that a four-card hand's neighbours clear the grown card; never so wide that the
    others get less than 46px each, which is what keeps a big hand's end cards inside the fan. */
-.hand-slot:hover,.hand-slot.is-picked{z-index:20;flex:0 0 max(var(--slot),min(206px,calc(100cqw - (var(--n,1) - 1) * 46px)))}
+.hand-slot:hover,.hand-slot.is-picked{z-index:20}
 .hand-slot:focus-visible{outline:none}
 /* `.face.hand-card`, not `.hand-card`: cards.css can load after this sheet (PlayPanel brings this one
    in first), and its `.face` would win a tie - the border, the padding, and the clip the cost gem
@@ -211,7 +232,7 @@
 /* The art's window clips its picture; the cost gem hangs off the card's own corner, past its edge,
    so it never sits on the name. The card itself does not clip: every part inside it is inset and
    rounded on its own. */
-.hand-card .face-art{flex:0 0 56px;position:static}
+.hand-card .face-art{flex:0 0 56px;position:relative}
 .hand-card .face-art:after{display:none}
 .hand-card .face-art>svg,.hand-card .face-art>img{width:100%;height:100%;display:block;object-fit:cover}
 .hand-card .face-title{padding:3px 4px 2px;border-width:0 0 1px;border-radius:0}
@@ -225,8 +246,10 @@
 .hand-slot.is-off .face-footer>span:first-child{color:#ffd9cf;font-weight:700}
 /* The cost, as a struck counter laid on the card's corner: the same brass as Light, at a quarter the
    size, with the number cut into it. */
-.hand-cost{position:absolute;top:-9px;left:-9px;z-index:3;width:26px;height:26px;box-sizing:border-box;border-radius:50%;background:linear-gradient(158deg,#d6bd86,#93794a);color:#352a10;font:700 15px/24px var(--play-font);text-align:center;border:1px solid #453818;box-shadow:inset 0 1px 1px #fff4cc7a,inset 0 -1px 2px #00000047,0 1px 3px #00000066}
-.hand-cost.is-stress{left:auto;right:-9px;background:linear-gradient(158deg,#b6a7cd,#6f6089);color:#faf6ff;border-color:#3d3452;box-shadow:inset 0 1px 1px #ece1ff6b,inset 0 -1px 2px #00000047,0 1px 3px #00000066}
+/* What a card costs is part of the card, not a token sitting on the corner of it: the coins are
+   printed on the art, the way the full card prints its recall cost - inside, and clear of the name. */
+.hand-cost{position:absolute;top:3px;left:3px;z-index:3;width:26px;height:26px;box-sizing:border-box;border-radius:50%;background:linear-gradient(158deg,#d6bd86,#93794a);color:#352a10;font:700 15px/24px var(--play-font);text-align:center;border:1px solid #453818;box-shadow:inset 0 1px 1px #fff4cc7a,inset 0 -1px 2px #00000047,0 1px 3px #00000066}
+.hand-cost.is-stress{left:auto;right:3px;background:linear-gradient(158deg,#b6a7cd,#6f6089);color:#faf6ff;border-color:#3d3452;box-shadow:inset 0 1px 1px #ece1ff6b,inset 0 -1px 2px #00000047,0 1px 3px #00000066}
 .hand-verbs{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-bottom:26px;pointer-events:auto;flex:none}
 .hand-verbs .play-btn{font-size:13px;padding:5px 12px}
 /* End Turn is the big key on the board, and Rest -- the same key out of a fight -- is the wider one.

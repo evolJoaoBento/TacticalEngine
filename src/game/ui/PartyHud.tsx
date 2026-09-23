@@ -39,9 +39,6 @@ export interface HudMember {
 
 export interface PartyHudProps {
   members: readonly HudMember[];
-  /** The GM's Shadow, shown so a player knows what the table is up against. */
-  bad: { value: number; max: number };
-  round: number | null;
   /**
    * A picture of the model a character is drawn with, as a data URL, for the photo on their sheet.
    * A function rather than a field on the member: taking one needs a WebGL context and a built
@@ -278,10 +275,6 @@ export function PartyHud(props: PartyHudProps): preact.JSX.Element | null {
         </div>
         );
       })}
-      <div key="gm" className="play-box hud-card hud-gm" data-testid="gm">
-        <span className="play-eyebrow">{props.round === null ? 'Exploring' : `Round ${props.round}`}</span>
-        <Pips label="Shadow" marked={props.bad.value} max={props.bad.max} colour="var(--play-shadow)" testId="bad" />
-      </div>
     </div>
   );
 }

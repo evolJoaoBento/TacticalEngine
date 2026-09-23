@@ -11,6 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { hollowVaultMap } from '../../src/game/demo-map';
+import { characterContentFor } from '../../src/game/room';
 import { SceneView } from '../../src/engine/render/scene-view';
 import { movementCircle } from '../../src/game/circle';
 import { tilesDrawn } from '../../src/engine/render/terrain-mesh';
@@ -109,7 +110,7 @@ describe('the demo scene', () => {
     const demo = build();
     expect(demo.scene.width).toBe(44);
     expect(demo.grid.size).toBe(44 * 32);
-    expect(demo.party.members()).toEqual(['kara', 'finn', 'mira']);
+    expect(demo.party.members()).toEqual(['kara', 'finn', 'mira', 'arty', 'pint', 'ganja']);
     expect(demo.party.selected).toBe('kara');
   });
 
@@ -679,12 +680,14 @@ describe('movement under pressure', () => {
 describe('the party is built from content, not written down', () => {
   it('derives every sheet against the vendored SRD with no issues', () => {
     const demo = build();
+    // Against what the demo is played with: the pack, plus whatever the project brings of its own.
+    const content = characterContentFor(demo.project);
     expect(demo.characters.size).toBe(PARTY_SHEETS.length);
     for (const sheet of PARTY_SHEETS) {
-      expect(DEMO_CHARACTERS.classes.has(sheet.classId)).toBe(true);
-      expect(DEMO_CHARACTERS.armors.has(sheet.armorId!)).toBe(true);
-      expect(DEMO_CHARACTERS.weapons.has(sheet.primaryWeaponId!)).toBe(true);
-      expect(DEMO_CHARACTERS.ancestries.has(sheet.ancestryId!)).toBe(true);
+      expect(content.classes.has(sheet.classId)).toBe(true);
+      expect(content.armors.has(sheet.armorId!)).toBe(true);
+      expect(content.weapons.has(sheet.primaryWeaponId!)).toBe(true);
+      expect(content.ancestries.has(sheet.ancestryId!)).toBe(true);
     }
   });
 
@@ -702,7 +705,7 @@ describe('the party is built from content, not written down', () => {
       expect(entity.stress.max).toBe(6);
       expect(entity.good!.value).toBe(2);
       // Level 1, so thresholds are the armor's plus one — plus one more for
-      // Kara, whose subclass feature raises them.
+      // Quim, whose subclass feature raises them.
       const raised = character.sheet.subclassId === 'shieldbearer' ? 1 : 0;
       expect(character.thresholds).toEqual({
         major: armor.baseThresholds.major + 1 + raised,

@@ -34,7 +34,7 @@ test('shows the card as the player will see it, and redraws it as its author typ
   const panel = page.locator('[data-testid="ability-panel"]');
   const face = panel.locator('[data-testid="card-preview"] .face');
 
-  // The demo's own card, handed to Kara: drawn as the deck browser draws a granted card, with its words.
+  // The demo's own card, handed to Quim: drawn as the deck browser draws a granted card, with its words.
   await panel.locator('[data-ability="rally-the-line"]').click();
   await expect(face).toHaveClass(/face-granted/);
   await expect(face.locator('h3')).toHaveText('Rally the Line');

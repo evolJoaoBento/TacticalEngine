@@ -32,7 +32,7 @@ const RALLY = {
   source: { card: 'rally' },
   text: 'Shout, and they stand a little straighter.',
   cost: { good: 1 },
-  effects: [{ kind: 'log', text: 'Kara shouts.' }],
+  effects: [{ kind: 'log', text: 'Quim shouts.' }],
 };
 
 function project(): ProjectDoc {
@@ -55,7 +55,7 @@ describe('a cost only the GM can pay', () => {
     expect(validateProject(s.project).map((p) => p.message).join(' ')).toContain('only the GM spends');
 
     // The same cost on a stat block's feature is exactly where it belongs: the card it sits on,
-    // printed on a block rather than handed to Kara.
+    // printed on a block rather than handed to Quim.
     s.project.cards.push(cardDefSchema.parse({ id: 'rally', name: 'Rally', grant: { kind: 'given', characters: ['kara'] } }));
     s.run(updateCard('rally', { grant: { kind: 'adversary', adversaries: ['acid-burrower'] } }));
     expect(validateProject(s.project)).toEqual([]);
@@ -146,7 +146,7 @@ describe('cards in the project', () => {
 
     expect(s.run(removeCard('oath'))).toBe(true);
     expect(s.project.cards).toEqual([]);
-    // Kara still holds it: deleting a card does not reach into a sheet, and Check is where that shows.
+    // Quim still holds it: deleting a card does not reach into a sheet, and Check is where that shows.
     expect(said()).toEqual(['error']);
     s.undo();
     expect(said()).toEqual([]);

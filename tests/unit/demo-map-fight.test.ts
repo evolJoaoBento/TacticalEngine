@@ -6,12 +6,12 @@
  * whole fight replays identically — which is the property a save file, a replay
  * and a regression test all depend on.
  *
- * The map is the prototype's own demo vault, and both fighters are fixtures: Kara is
+ * The map is the prototype's own demo vault, and both fighters are fixtures: Quim is
  * written out below, and the thing she swings at comes from `tests/fixtures`. Neither
  * is content the app ships, which is the point -- a test about the engine should not
  * depend on a catalogue for the creature in front of it. The fixture's numbers are the
  * ones these assertions need: 8/15 thresholds, so a d10+3 lands major often enough to
- * finish 8 Hit Points inside forty rounds, and 1d12+2 at +3, so Kara is marked through
+ * finish 8 Hit Points inside forty rounds, and 1d12+2 at +3, so Quim is marked through
  * Evasion 11 and a 5/11 coat.
  */
 
@@ -36,7 +36,7 @@ const digger = FIXTURE_ADVERSARIES.find((def) => def.id === FIXTURE_DIGGER)!;
 /** A tight band table so the demo vault spans more than one band. */
 const bandTiles = { melee: 1, veryClose: 2, close: 4, far: 8, veryFar: 12 };
 
-/** Kara from the legacy party, restated in the engine's terms: level 1, a padded coat. */
+/** Quim from the legacy party, restated in the engine's terms: level 1, a padded coat. */
 const kara = {
   evasion: 11,
   level: 1,
@@ -155,7 +155,7 @@ describe('the fixture stat block is the one being fought', () => {
 });
 
 describe('a full melee exchange on the demo map', () => {
-  it('walks Kara into Melee range and fights until the digger falls', () => {
+  it('walks Quim into Melee range and fights until the digger falls', () => {
     const { rng, state, pathfinder, diggerId } = buildFight('the-vault');
     const grid = state.grid;
     const kara2 = state.entity('kara')!;
@@ -226,7 +226,7 @@ describe('a full melee exchange on the demo map', () => {
     // A fallen adversary stops holding its tile.
     expect(state.isOccupied(target.tile)).toBe(false);
 
-    // Both sides took the fight seriously: Kara was hit at least once, and the
+    // Both sides took the fight seriously: Quim was hit at least once, and the
     // Light/Shadow economy moved.
     expect(kara2.hitPoints.marked).toBeGreaterThan(0);
     expect(kara2.good!.value + state.bad.value).toBeGreaterThan(2);
@@ -260,11 +260,11 @@ describe('a full melee exchange on the demo map', () => {
     expect(run('same-seed')).not.toBe(run('other-seed'));
   });
 
-  it('refuses the digger a shot at Kara from across the vault', () => {
+  it('refuses the digger a shot at Quim from across the vault', () => {
     const { rng, state, diggerId } = buildFight('range');
     const target = state.entity(diggerId)!;
     const kara2 = state.entity('kara')!;
-    // Kara starts at the spawn, on the far side of the wall from the digger.
+    // Quim starts at the spawn, on the far side of the wall from the digger.
     const outcome = resolveAttack(rng, {
       grid: state.grid,
       attacker: target,

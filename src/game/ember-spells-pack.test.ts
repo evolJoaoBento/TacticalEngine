@@ -142,7 +142,7 @@ describe('the ember spells pack', () => {
       const kara = demo.state.entity('kara')!;
       const mira = demo.state.entity('mira')!;
       mira.good = { max: 6, value: 6 };
-      // A second husk stood back up beside Kara, so the echo has somewhere to go.
+      // A second husk stood back up beside Quim, so the echo has somewhere to go.
       const spare = demo.state.entitiesOf('adversary').find((e) => !e.alive)!;
       spare.alive = true;
       spare.hitPoints = { max: 60, marked: 0 };
@@ -172,6 +172,6 @@ describe('the ember spells pack', () => {
       expect(kara.conditions.has('echoing')).toBe(false);
       return;
     }
-    throw new Error('Kara never landed a marked blow with a second husk beside her, in sixty tries');
+    throw new Error('Quim never landed a marked blow with a second husk beside her, in sixty tries');
   });
 });

@@ -8,6 +8,7 @@
 import { blankSheet, type CharacterSheet } from '../engine/character/sheet';
 import { STARTER_ADVERSARIES, STARTER_CHARACTERS } from '../engine/content/pack/starter';
 import type { AdversaryDef } from '../engine/content/types';
+import type { WeaponDef } from '../engine/content/pack/import';
 import { DEFAULT_MOVEMENT, type MovementRules } from '../engine/grid/pathfinding';
 import { DEFAULT_WALK, type WalkRules } from '../engine/grid/walk';
 import { DEFAULT_JUMP_RULES, type JumpRules } from '../engine/rules/jump';
@@ -107,7 +108,7 @@ export const DEMO_CHARACTERS = STARTER_CHARACTERS;
  */
 export const PARTY_SHEETS: readonly CharacterSheet[] = [
   blankSheet('kara', 'sentinel', {
-    name: 'Kara',
+    name: 'Quim',
     traits: { agility: 0, strength: 2, finesse: 0, instinct: 1, presence: 1, knowledge: -1 },
     ancestryId: 'stoneborn',
     communityId: 'wayfarer',
@@ -121,7 +122,7 @@ export const PARTY_SHEETS: readonly CharacterSheet[] = [
     model: 'quim',
   }),
   blankSheet('finn', 'cutpurse', {
-    name: 'Finn',
+    name: 'Violet',
     traits: { agility: 2, strength: -1, finesse: 2, instinct: 1, presence: 0, knowledge: 0 },
     ancestryId: 'sylvan',
     communityId: 'guildsworn',
@@ -133,7 +134,7 @@ export const PARTY_SHEETS: readonly CharacterSheet[] = [
     model: 'violet',
   }),
   blankSheet('mira', 'emberwright', {
-    name: 'Mira',
+    name: 'Scarlet',
     traits: { agility: 0, strength: -1, finesse: 1, instinct: 2, presence: 1, knowledge: 2 },
     ancestryId: 'human',
     communityId: 'guildsworn',
@@ -144,4 +145,88 @@ export const PARTY_SHEETS: readonly CharacterSheet[] = [
     experiences: [{ name: 'Read the old script', modifier: 2 }],
     model: 'scarlet',
   }),
+  // Three more, each carrying a mechanic the first three never touch, so there is something to
+  // play against while the rules are tuned: knockback and a magazine, a reroll and a place kept,
+  // and a round bought with the GM's own Shadow.
+  blankSheet('arty', 'cutpurse', {
+    name: 'Arty',
+    traits: { agility: 1, strength: -1, finesse: 2, instinct: 2, presence: 0, knowledge: 1 },
+    ancestryId: 'stoneborn',
+    communityId: 'guildsworn',
+    armorId: 'padded-coat',
+    primaryWeaponId: 'hand-cannon',
+    subclassId: 'lampsnuffer',
+    domainCards: ['grapeshot', 'powder-and-shot'],
+    experiences: [{ name: 'Sighted the long shot', modifier: 2 }],
+    model: 'arty',
+  }),
+  blankSheet('pint', 'emberwright', {
+    name: 'Pint',
+    traits: { agility: 1, strength: -1, finesse: 1, instinct: 0, presence: 2, knowledge: 2 },
+    ancestryId: 'sylvan',
+    communityId: 'guildsworn',
+    armorId: 'padded-coat',
+    primaryWeaponId: 'bound-ledger',
+    subclassId: 'flamecaller',
+    domainCards: ['footnote', 'mark-the-page'],
+    // Footnote answers any failed roll, and a card that does that from the loadout stops every
+    // roll in the game to ask. It starts in the vault instead: recall it to play with it.
+    loadout: ['mark-the-page'],
+    experiences: [{ name: 'Kept the only copy', modifier: 2 }],
+    model: 'pint',
+  }),
+  blankSheet('ganja', 'sentinel', {
+    name: 'Ganja',
+    traits: { agility: -1, strength: 2, finesse: 0, instinct: 1, presence: 2, knowledge: 0 },
+    ancestryId: 'human',
+    communityId: 'wayfarer',
+    armorId: 'ringmail',
+    primaryWeaponId: 'oaken-tankard',
+    subclassId: 'shieldbearer',
+    domainCards: ['another-round', 'barrel-through'],
+    experiences: [{ name: 'Drank the room under', modifier: 2 }],
+    model: 'ganja',
+  }),
+];
+
+/**
+ * Gear the project brings, for the three who were added with it.
+ *
+ * A hand cannon is a bow's range with a heavier die and a slower hand; a bound ledger is a staff
+ * that reads rather than burns; a tankard is a club that somebody is still drinking from.
+ */
+export const DEMO_WEAPONS: readonly WeaponDef[] = [
+  {
+    id: 'hand-cannon',
+    name: 'Hand Cannon',
+    tier: 1,
+    slot: 'primaryPhysical',
+    trait: 'finesse',
+    range: 'far',
+    damage: { count: 1, sides: 10, modifier: 0, types: ['physical'] },
+    burden: 'twoHanded',
+    features: [],
+  },
+  {
+    id: 'bound-ledger',
+    name: 'Bound Ledger',
+    tier: 1,
+    slot: 'primaryMagic',
+    trait: 'knowledge',
+    range: 'close',
+    damage: { count: 1, sides: 6, modifier: 1, types: ['magic'] },
+    burden: 'oneHanded',
+    features: [],
+  },
+  {
+    id: 'oaken-tankard',
+    name: 'Oaken Tankard',
+    tier: 1,
+    slot: 'primaryPhysical',
+    trait: 'strength',
+    range: 'melee',
+    damage: { count: 1, sides: 10, modifier: 1, types: ['physical'] },
+    burden: 'oneHanded',
+    features: [],
+  },
 ];

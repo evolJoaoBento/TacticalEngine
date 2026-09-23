@@ -13,7 +13,7 @@ import { jumpArc, planJump, planRunningJump } from './leap';
 import { jumpTo, previewWalk, startEncounter } from './movement';
 import { setUserSetting } from './user-settings';
 
-/** Kara alone in the open field at (4, 9): Strength +2, so a jump of five tiles. */
+/** Quim alone in the open field at (4, 9): Strength +2, so a jump of five tiles. */
 function inTheOpen(seed = 'spot'): DemoScene {
   const demo = buildDemoScene(hollowVaultMap(), seed);
   demo.party.select('kara');
@@ -59,7 +59,7 @@ describe('a jump aimed at a spot', () => {
     const demo = inTheOpen();
     demo.state.placeEntity('finn', 7.45, 9);
     const leap = planJump(demo, 'kara', demo.grid.indexOf(7, 9), { x: 7.3, y: 9 });
-    // Finn's body is over that square: nobody lands in it.
+    // Violet's body is over that square: nobody lands in it.
     expect(leap).toBeNull();
     demo.state.placeEntity('finn', 8, 9);
     const beside = planJump(demo, 'kara', demo.grid.indexOf(7, 9), { x: 7.45, y: 9 })!;

@@ -8,7 +8,7 @@
  * which is what a test wants.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { draw, tumble } from './d12';
+import { FACES, draw, tumble, type Face } from './d12';
 import './hud.css';
 
 /** A die's material: its colour in full light, at a glance, in shadow, and what it glows once landed. */
@@ -57,12 +57,23 @@ export interface DieProps {
   colours: DieColours;
   /** How wide it is drawn, in pixels. */
   size: number;
+  /** The solid to turn: the Duality d12 unless a d6 is handed in. */
+  faces?: readonly Face[];
+  /**
+   * What to print on the face at the front, in place of the number the solid carries there.
+   *
+   * A die that counts a pool rather than a roll has to be able to read nothing: an empty pool is
+   * zero, and no die has a zero on it. The die still turns to a real face - it is a real solid -
+   * and that face is overprinted with what is being counted.
+   */
+  label?: string;
 }
 
 export function Die(props: DieProps): preact.JSX.Element {
   const { colours, size, t } = props;
-  const turn = tumble(props.value, props.seed, t);
-  const drawn = draw(turn);
+  const solid = props.faces ?? FACES;
+  const turn = tumble(props.value, props.seed, t, solid);
+  const drawn = draw(turn, solid);
   const landed = t >= 1;
   // Three hops, each smaller than the last, and none at all once it is down.
   const hop = landed ? 0 : Math.abs(Math.sin(t * Math.PI * 3)) * (1 - t) ** 2;
@@ -113,7 +124,7 @@ export function Die(props: DieProps): preact.JSX.Element {
         {drawn.faces.map((face) => (
           <g key={face.value} transform={face.label}>
             <text className="die-number" x="0" y="0">
-              {face.value}
+              {face.value === drawn.front && props.label !== undefined ? props.label : face.value}
             </text>
             {/* Six and nine are told apart the way they are on a real die. */}
             {face.value === 6 || face.value === 9 ? <rect className="die-bar" x="-16" y="26" width="32" height="7" rx="3" /> : null}

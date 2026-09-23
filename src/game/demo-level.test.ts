@@ -47,7 +47,7 @@ describe('granting a level', () => {
     const demo = scene();
     grant(demo);
     expect(demo.scenario.partyLevel).toBe(2);
-    expect(awaitingLevel(demo).sort()).toEqual(['finn', 'kara', 'mira']);
+    expect(awaitingLevel(demo).sort()).toEqual(['arty', 'finn', 'ganja', 'kara', 'mira', 'pint']);
   });
 
   it('can name the level, and never goes backwards', () => {
@@ -84,15 +84,15 @@ describe('taking the level', () => {
     expect(kara.stress.max).toBe(before.stress);
     expect(demo.sheets.get('kara')!.level).toBe(2);
     expect(demo.characters.get('kara')!.traits.strength).toBe(3);
-    expect(awaitingLevel(demo).sort()).toEqual(['finn', 'mira']);
-    expect(demo.log.at(-1)!.text).toContain('Kara reaches level 2');
+    expect(awaitingLevel(demo).sort()).toEqual(['arty', 'finn', 'ganja', 'mira', 'pint']);
+    expect(demo.log.at(-1)!.text).toContain('Quim reaches level 2');
   });
 
   it('reaches the next check with the raised trait', () => {
     const demo = scene();
     grant(demo);
     applyLevelUp(demo, 'kara', karaToTwo);
-    // Kara had the party's best Strength (2); it is 3 now, and a script's
+    // Quim had the party's best Strength (2); it is 3 now, and a script's
     // Strength check rolls with it.
     expect(demo.world.traitModifier('strength')).toBe(3);
   });
@@ -144,7 +144,7 @@ describe('a grown sheet', () => {
     expect(fresh.sheets.get('kara')!.level).toBe(2);
     expect(fresh.characters.get('kara')!.traits.strength).toBe(3);
     expect(fresh.scenario.partyLevel).toBe(2);
-    expect(awaitingLevel(fresh).sort()).toEqual(['finn', 'mira']);
+    expect(awaitingLevel(fresh).sort()).toEqual(['arty', 'finn', 'ganja', 'mira', 'pint']);
   });
 
   it('loads a save written before levels existed', () => {

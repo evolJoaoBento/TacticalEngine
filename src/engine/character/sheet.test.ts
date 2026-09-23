@@ -16,7 +16,7 @@ const content = STARTER_CHARACTERS;
 
 const sentinel = (overrides: Partial<CharacterSheet> = {}): CharacterSheet =>
   blankSheet('kara', 'sentinel', {
-    name: 'Kara',
+    name: 'Quim',
     traits: { agility: 0, strength: 2, finesse: 0, instinct: 1, presence: 1, knowledge: -1 },
     // Same thresholds and score as the armour this replaced (5/11, 3), so every derived
     // number below stays the literal it was.

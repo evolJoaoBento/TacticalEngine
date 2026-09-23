@@ -1468,13 +1468,15 @@ test('levels a character up through the sheet, and the pips grow', async ({ page
   // The GM grants a level: every card offers it.
   const granted = await page.evaluate(() => window.__engine!.grantLevel());
   expect(granted).toBe(2);
-  await expect(hud.locator('[data-testid="level-up-button"]')).toHaveCount(3);
+  // One per party member, whoever the party is.
+  const party = await page.evaluate(() => window.__engine!.party().length);
+  await expect(hud.locator('[data-testid="level-up-button"]')).toHaveCount(party);
 
   const hpBefore = await page.evaluate(() => window.__engine!.hitPoints('kara'));
   await hud.locator('[data-member="kara"] [data-testid="level-up-button"]').click();
   const sheet = page.locator('[data-testid="level-up"]');
   await expect(sheet).toBeVisible();
-  await expect(sheet).toContainText('Kara — level 2');
+  await expect(sheet).toContainText('Quim — level 2');
 
   // Try to take it with nothing picked: the engine refuses and says why.
   await sheet.locator('[data-testid="experience"]').fill('Survived the vault');
@@ -1488,12 +1490,15 @@ test('levels a character up through the sheet, and the pips grow', async ({ page
   await expect(sheet).toHaveCount(0);
 
   expect(await page.evaluate(() => window.__engine!.characterLevel('kara'))).toBe(2);
-  expect(await page.evaluate(() => window.__engine!.awaitingLevel())).toEqual(['finn', 'mira']);
+  // Everyone but the one who took it is still waiting.
+  const waiting = await page.evaluate(() => window.__engine!.awaitingLevel());
+  expect(waiting).not.toContain('kara');
+  expect(waiting.length).toBe((await page.evaluate(() => window.__engine!.party().length)) - 1);
   const hpAfter = await page.evaluate(() => window.__engine!.hitPoints('kara'));
   expect(hpAfter.max).toBe(hpBefore.max + 1);
   await expect(hud.locator('[data-member="kara"] [data-testid="hp"]')).toHaveAttribute('data-max', String(hpAfter.max));
   await expect(hud.locator('[data-member="kara"] [data-testid="level-up-button"]')).toHaveCount(0);
-  await expect(page.locator('[data-testid="log"]')).toContainText('Kara reaches level 2');
+  await expect(page.locator('[data-testid="log"]')).toContainText('Quim reaches level 2');
 
   expect(consoleErrors).toEqual([]);
 });
@@ -1529,7 +1534,7 @@ test('equips a found weapon from the pack, and the card says so', async ({ page 
   await expect(armor).toHaveAttribute('data-max', /\d+/);
   // The log is built from the item's name, which is spelled "Padded coat"; the gear
   // line above is built from the pack's armour, which is spelled "Padded Coat".
-  await expect(page.locator('[data-testid="log"]')).toContainText('Kara puts on the Padded coat');
+  await expect(page.locator('[data-testid="log"]')).toContainText('Quim puts on the Padded coat');
 
   expect(consoleErrors).toEqual([]);
 });
@@ -1778,7 +1783,7 @@ test('right-clicks to inspect, and Escape closes the card', async ({ page }) => 
 
   // A party member and an object through the handle, for their facts.
   const kara = await page.evaluate(() => window.__engine!.inspect(window.__engine!.tileOf('kara')));
-  expect(kara).toMatchObject({ kind: 'character', name: 'Kara' });
+  expect(kara).toMatchObject({ kind: 'character', name: 'Quim' });
   expect(kara!.facts.join(' ')).toMatch(/Evasion \d+/);
   const chest = await page.evaluate(() => {
     const api = window.__engine!;
@@ -1816,7 +1821,7 @@ test('plays a skinned model\'s first clip once it arrives', async ({ page }) => 
 
 test('a glTF that names its clips walks with the walk and idles after', async ({ page }) => {
   const consoleErrors = await boot(page);
-  // The fox as Finn's body: the asset id is the model id the rogue's token asks for.
+  // The fox as Violet's body: the asset id is the model id the rogue's token asks for.
   await page.evaluate(() => {
     const api = window.__engine!;
     api.addAsset({ id: 'rogue', url: '/tests/fixtures/models/Fox.glb', scale: 0.012, clips: { idle: 'Survey', walk: 'Run' } });
@@ -1847,7 +1852,7 @@ test('casts Cinder Burst at a spot on the board, picks an Experience, and the tu
   const setup = await page.evaluate(() => {
     const api = window.__engine!;
     api.select('mira');
-    // Cinder Burst is an Ember card and Mira is the Emberwright; her own hand is
+    // Cinder Burst is an Ember card and Scarlet is the Emberwright; her own hand is
     // Arcane Ward and Healing Word, so the card has to be put in it.
     api.setCards('mira', ['cinder-burst']);
     const foe = api.adversaries()[0]!;
@@ -1888,7 +1893,7 @@ test('casts Cinder Burst at a spot on the board, picks an Experience, and the tu
   const log = page.locator('[data-testid="log"]');
   await expect(log).toContainText('Draws on');
   await expect(log).toContainText(/Light \d+ \+ Shadow \d+/);
-  // The card was the turn: Finn acted, and the side follows the roll.
+  // The card was the turn: Violet acted, and the side follows the roll.
   const acted = await page.evaluate(() => window.__engine!.turnSide());
   expect(['party', 'gm', null]).toContain(acted);
   expect(consoleErrors).toEqual([]);
@@ -1904,8 +1909,8 @@ test('arms Shield Wall, picks the ally it is held for, and Escape disarms', asyn
     api.standNear(foe);
     // And somebody for the shield to be held in front of. `standNear` moves
     // whoever is selected to a free tile beside what it names, and it names any
-    // entity -- so this puts Mira one tile from Kara, which is Melee. Without it
-    // Kara walks to the husk alone and is the only ally in her own reach.
+    // entity -- so this puts Scarlet one tile from Quim, which is Melee. Without it
+    // Quim walks to the husk alone and is the only ally in her own reach.
     api.select('mira');
     api.standNear('kara');
     api.select('kara');
@@ -1919,14 +1924,16 @@ test('arms Shield Wall, picks the ally it is held for, and Escape disarms', asyn
   // target is valid -- "one thing to pick is no pick at all" -- so the older
   // version of this test wrapped the whole arm-and-disarm path in
   // `if (targets.length > 1)` and skipped it in silence whenever one husk was
-  // adjacent. Kara counts as her own ally, and Mira is standing beside her by
+  // adjacent. Quim counts as her own ally, and Scarlet is standing beside her by
   // the setup above, so this is two; the party's tiles come back with it so a
   // failure says where everybody was rather than only that the count was wrong.
   expect(armed.targets.length, 'more than one ally in reach, so arming waits for a pick').toBeGreaterThan(1);
   const ally = armed.targets.find((id) => id !== 'kara')!;
 
   const bar = page.locator('[data-testid="action-bar"]');
-  await bar.locator('[data-ability="shield-wall"]').click();
+  // The left strip of the card, which is the part of it a crowded fan leaves showing: the middle
+  // of a card is under the next one along, so that is where a player points too.
+  await bar.locator('[data-ability="shield-wall"] .hand-card').click({ position: { x: 10, y: 60 } });
   await expect(bar).toHaveAttribute('data-targeting', 'shield-wall');
   await page.keyboard.press('Escape');
   await expect(bar).not.toHaveAttribute('data-targeting', /.+/);
@@ -1940,7 +1947,7 @@ test('arms Shield Wall, picks the ally it is held for, and Escape disarms', asyn
   }, ally);
   expect(held.status).toBe('done');
   expect(held.on).toContain('behind-the-shield');
-  await expect(page.locator('[data-testid="log"]')).toContainText(/Kara uses Shield Wall on /);
+  await expect(page.locator('[data-testid="log"]')).toContainText(/Quim uses Shield Wall on /);
   expect(consoleErrors).toEqual([]);
 });
 
@@ -1951,6 +1958,17 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
     api.select('kara');
     api.setCards('kara', ['power-slash', 'shield-wall', 'iron-stance', 'rallying-cry', 'unbroken', 'smoke-step']);
   });
+  // What a card costs is printed on the card the way the full card prints its recall cost: every
+  // coin sits inside its own card, down on the art, so the name above it is still readable.
+  const coins = await page.locator('[data-testid="action-bar"] .hand-cost').evaluateAll((els) => els.map((el) => {
+    const card = el.closest('.hand-card')!;
+    const coin = el.getBoundingClientRect();
+    const box = card.getBoundingClientRect();
+    const title = card.querySelector('.face-title')!.getBoundingClientRect();
+    return { inside: coin.top > box.top && coin.left >= box.left && coin.right <= box.right, clear: coin.top >= title.bottom - 3 };
+  }));
+  expect(coins.length).toBeGreaterThan(0);
+  expect(coins.every((coin) => coin.inside && coin.clear), JSON.stringify(coins)).toBe(true);
   await page.locator('[data-testid="open-loadout"]').click();
   const panel = page.locator('[data-testid="loadout"]');
   await expect(panel).toBeVisible();
@@ -1978,7 +1996,7 @@ test('recalls a card from the vault for Stress, and passes the spotlight with a 
   await expect(pass).toBeVisible();
   await expect(pass).toBeEnabled();
   await pass.click();
-  // The husk's blow may be waiting on Kara's answer; take it as it comes.
+  // The husk's blow may be waiting on Quim's answer; take it as it comes.
   const asked = page.locator('[data-testid="choice-prompt"]');
   if ((await asked.count()) > 0) await asked.locator('[data-option="0"]').click();
   await expect(page.locator('[data-testid="log"]')).toContainText(/Hollow Knight's/);
@@ -1999,7 +2017,7 @@ test('takes a short rest through the panel and the wounds close', async ({ page 
   await page.locator('[data-testid="open-rest"]').click();
   const panel = page.locator('[data-testid="rest"]');
   await expect(panel).toBeVisible();
-  // Kara tends her wounds twice; Mira tends Kara too.
+  // Quim tends her wounds twice; Scarlet tends Quim too.
   const kara = panel.locator('[data-rest-member="kara"]');
   await kara.locator('[data-testid="move-1"]').selectOption('tendWounds');
   const mira = panel.locator('[data-rest-member="mira"]');
@@ -2007,10 +2025,12 @@ test('takes a short rest through the panel and the wounds close', async ({ page 
   await mira.locator('[data-testid="target-0"]').selectOption('kara');
   await panel.locator('[data-testid="take-rest"]').click();
   await expect(panel).toHaveCount(0);
-  // Three tendings of 2–5: nothing left.
+  // Tended, two to five a time: nothing left.
   await expect(hp).toHaveAttribute('data-marked', '0');
+  // The log carries a line per member now, so the rest's own line may have scrolled off the tail
+  // the panel keeps; the journal is asked for the whole of it instead.
   const log = page.locator('[data-testid="log"]');
-  await expect(log).toContainText('catch its breath');
+  expect(await page.evaluate(() => window.__engine!.log().map((l) => l.text).join('\n'))).toContain('catch its breath');
   await expect(log).toContainText(/The GM gains \d Shadow/);
   await page.screenshot({ path: 'test-results/rest-panel-after.png' });
   expect(consoleErrors).toEqual([]);
@@ -2040,12 +2060,12 @@ test('writes logic in the Code panel and plays the card that runs it', async ({ 
   await expect(panel.locator('[data-testid="code-errors"]')).toHaveText('Compiles.');
   await panel.locator('[data-testid="close-code"]').click();
 
-  // Play it: Kara's card runs the project's code, and every change it makes is logged.
+  // Play it: Quim's card runs the project's code, and every change it makes is logged.
   const before = await page.evaluate(() => {
     const api = window.__engine!;
     api.setMode('play');
     api.select('kara');
-    // Kara is badly hurt, so the code clears a Hit Point for her; the others
+    // Quim is badly hurt, so the code clears a Hit Point for her; the others
     // are merely rattled, so it clears a Stress.
     const hp = api.hitPoints('kara');
     api.wound('kara', hp.max - 1);
@@ -2081,7 +2101,7 @@ test('writes logic in the Code panel and plays the card that runs it', async ({ 
 test('asks the defender how a hit lands, and the fight waits for the answer', async ({ page }) => {
   const consoleErrors = await boot(page);
 
-  // Kara stands in the husk's reach and hands the spotlight over.
+  // Quim stands in the husk's reach and hands the spotlight over.
   await page.evaluate(() => {
     const api = window.__engine!;
     api.select('kara');
@@ -2139,7 +2159,7 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
   await expect(panel.locator('[data-ability="banner-cry"]')).toBeVisible();
   await expect(panel.locator('[data-testid="ability-name"]')).toHaveValue('Banner Cry');
 
-  // Kara holds it, and it says what it is.
+  // Quim holds it, and it says what it is.
   await panel.locator('[data-testid="ability-characters"]').fill('kara');
   await panel.locator('[data-testid="ability-text"]').fill('Raise the banner: the whole line breathes again.');
 
@@ -2163,7 +2183,7 @@ test('writes a whole card in the Cards panel and plays it from the action bar', 
 
   const bar = page.locator('[data-testid="action-bar"]');
   await expect(bar.locator('[data-ability="banner-cry"]')).toHaveAttribute('data-usable', 'true');
-  // A card of the project's own, handed to Kara: drawn in the granted colour, as the loadout draws it.
+  // A card of the project's own, handed to Quim: drawn in the granted colour, as the loadout draws it.
   await expect(bar.locator('[data-ability="banner-cry"] .ability-card-art')).toBeVisible();
   await bar.locator('[data-ability="banner-cry"]').click();
 
@@ -2289,7 +2309,7 @@ test("edits a copy of the pack's card, and the loadout plays the copy", async ({
   await expect(page.locator('[data-testid="problems"]')).toBeVisible();
   await expect(page.locator('[data-testid="problems"]')).not.toContainText('power-slash');
 
-  // And the table plays the copy: Kara's Power Slash recalls for three.
+  // And the table plays the copy: Quim's Power Slash recalls for three.
   await page.evaluate(() => {
     const api = window.__engine!;
     api.setMode('play');
@@ -2362,7 +2382,7 @@ test("takes the copy back out, and the table plays the pack's card again", async
   await expect(panel.locator('[data-testid="card-grant-kind"]')).toHaveValue('given');
   await expect(panel.locator('[data-testid="card-remove-copy"]')).toHaveCount(0);
 
-  // And the table plays the pack's card: Kara's Power Slash recalls for one again.
+  // And the table plays the pack's card: Quim's Power Slash recalls for one again.
   await panel.locator('[data-testid="close-abilities"]').click();
   await page.evaluate(() => {
     const api = window.__engine!;
@@ -2376,7 +2396,7 @@ test("takes the copy back out, and the table plays the pack's card again", async
   expect(consoleErrors).toEqual([]);
 });
 
-test('lends a card by a condition, and Kara holds it while the condition is on her and not after', async ({ page }) => {
+test('lends a card by a condition, and Quim holds it while the condition is on her and not after', async ({ page }) => {
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Oathmark'));
 
@@ -2416,7 +2436,7 @@ test('lends a card by a condition, and Kara holds it while the condition is on h
   expect(consoleErrors).toEqual([]);
 });
 
-test('grants a card by subclass stage, ancestry and community, and the one Kara answers to is in her hand', async ({ page }) => {
+test('grants a card by subclass stage, ancestry and community, and the one Quim answers to is in her hand', async ({ page }) => {
   const consoleErrors = await boot(page);
   page.on('dialog', (dialog) => void dialog.accept('Oathmark'));
 
@@ -2444,7 +2464,7 @@ test('grants a card by subclass stage, ancestry and community, and the one Kara 
   await panel.locator('[data-testid="card-grant-community"]').selectOption('wayfarer');
   expect(await grant()).toEqual({ kind: 'community', communityId: 'wayfarer' });
 
-  // Kara is a Wayfarer, so the card is hers without anyone choosing it.
+  // Quim is a Wayfarer, so the card is hers without anyone choosing it.
   await panel.locator('[data-testid="close-abilities"]').click();
   await page.evaluate(() => {
     const api = window.__engine!;
@@ -2689,7 +2709,7 @@ test('writes a character in the Party panel and the table plays the new sheet', 
   await expect(panel.locator('[data-character="mira"]')).toBeVisible();
 
   await panel.locator('[data-character="kara"]').click();
-  await expect(panel.locator('[data-testid="character-name"]')).toHaveValue('Kara');
+  await expect(panel.locator('[data-testid="character-name"]')).toHaveValue('Quim');
   const derived = panel.locator('[data-testid="character-derived"]');
   const armored = await derived.textContent();
 
@@ -2708,7 +2728,7 @@ test('writes a character in the Party panel and the table plays the new sheet', 
 
   await panel.locator('[data-testid="close-party"]').click();
 
-  // Back at the table, Kara wears what the document says and knows the card.
+  // Back at the table, Quim wears what the document says and knows the card.
   const after = await page.evaluate(() => {
     const api = window.__engine!;
     api.setMode('play');

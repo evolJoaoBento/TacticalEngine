@@ -17,6 +17,9 @@
 import { useState } from 'preact/hooks';
 import type { AbilityView } from '../demo-abilities';
 import { CardArtwork } from './CardFace';
+import { Die, type DieColours } from './Die';
+import { D6_FACES } from './d6';
+import type { Face } from './d12';
 import { domainColor } from './card-sigil';
 import './cards.css';
 import './hud.css';
@@ -27,8 +30,12 @@ export interface ActionBarProps {
   name: string;
   weapon: string;
   abilities: readonly AbilityView[];
-  /** What the selected character has to spend, for the orb. */
+  /** What the selected character has to spend, for the yellow die. */
   light: { value: number; max: number } | null;
+  /** The GM's Shadow, on the black die beside it: what the table is up against, where the table can see it. */
+  bad: { value: number; max: number };
+  /** The round in a fight, or null out of one, said under the dice. */
+  round: number | null;
   /** Whether a fight is on, and whose turn it is. */
   fighting: boolean;
   side: 'party' | 'gm' | null;
@@ -130,6 +137,38 @@ function always(view: AbilityView): boolean {
   return view.ability.kind === 'passive';
 }
 
+/** The two pools, as the dice they are counted in: the Light a yellow six, the Shadow a black twelve. */
+const LIGHT_POOL: DieColours = { lit: '#ffe9a4', mid: '#e8c14a', dark: '#a8842a', glow: '#ffdb8a' };
+const SHADOW_POOL: DieColours = { lit: '#4a4550', mid: '#2b2732', dark: '#120f18', glow: '#6b6478' };
+
+/** How wide a pool die is drawn, against the keys beside it. */
+const POOL_SIZE = 72;
+
+/**
+ * A pool as a die at rest: the count on the face at the front, the most it holds written under it.
+ *
+ * Landed rather than thrown (`t` of 1), because this counts rather than rolls - but it is the same
+ * solid the Duality Dice are turned from, so the two read as the same kind of object. Nothing says
+ * which pool it is: the shape and the colour do, and hovering names it.
+ */
+function PoolDie(props: {
+  pool: { value: number; max: number };
+  title: string;
+  testId: string;
+  tone: string;
+  colours: DieColours;
+  seed: number;
+  faces?: readonly Face[];
+}): preact.JSX.Element {
+  return (
+    <span className={`pool-slot ${props.tone}`} title={props.title} data-testid={props.testId} data-value={props.pool.value}>
+      {/* No die carries a nought, so an empty pool turns to its lowest face and overprints it. */}
+      <Die value={Math.max(1, props.pool.value)} label={String(props.pool.value)} seed={props.seed} t={1} colours={props.colours} size={POOL_SIZE} {...(props.faces === undefined ? {} : { faces: props.faces })} />
+      <small>max. {props.pool.max}</small>
+    </span>
+  );
+}
+
 /** How long the cover takes to swing right back: the length of `binder-open` in `cards.css`. */
 const BOOK_OPENS_MS = 460;
 
@@ -205,10 +244,10 @@ export function ActionBar(props: ActionBarProps): preact.JSX.Element | null {
 
       <div className="hand-row">
         {props.light === null ? null : (
-          <div className="hand-orb" title={`${props.name}'s Light`} data-testid="light-orb">
-            <b>{props.light.value}</b>
-            <small>/ {props.light.max}</small>
-            <span>Light</span>
+          <div className="hand-dice">
+            <PoolDie pool={props.light} title={`${props.name}'s Light`} testId="light-orb" tone="is-light" faces={D6_FACES} colours={LIGHT_POOL} seed={1} />
+            <PoolDie pool={props.bad} title="The GM's Shadow" testId="shadow-die" tone="is-shadow" colours={SHADOW_POOL} seed={2} />
+            <em className="pool-round">{props.round === null ? 'Exploring' : `Round ${props.round}`}</em>
           </div>
         )}
         {/* The keys, side by side next to the Light: what the body does, as the hand is what the cards do. */}

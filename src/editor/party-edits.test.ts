@@ -18,7 +18,7 @@ import { validateProject } from './validate';
 const content = STARTER_CHARACTERS;
 
 const KARA = blankSheet('kara', 'sentinel', {
-  name: 'Kara',
+  name: 'Quim',
   traits: { agility: 0, strength: 2, finesse: 0, instinct: 1, presence: 1, knowledge: -1 },
   ancestryId: 'human',
   armorId: 'ringmail',
@@ -43,7 +43,7 @@ const kara = (s: EditorSession) => s.project.party[0]!;
 describe('the party in the project', () => {
   it('adds and removes a character, putting them back where they were', () => {
     const s = session();
-    s.run(addSheet(blankSheet('finn', 'cutpurse', { name: 'Finn' }) as PartySheet));
+    s.run(addSheet(blankSheet('finn', 'cutpurse', { name: 'Violet' }) as PartySheet));
     expect(s.project.party.map((p) => p.id)).toEqual(['kara', 'finn']);
 
     expect(s.run(removeSheet('kara'))).toBe(true);
@@ -60,25 +60,25 @@ describe('the party in the project', () => {
 
   it('coalesces keystrokes in one field and starts again on another', () => {
     const s = session();
-    for (const name of ['K', 'Ka', 'Kar', 'Karah']) s.run(updateSheet('kara', { name }));
-    expect(kara(s).name).toBe('Karah');
+    for (const name of ['K', 'Ka', 'Kar', 'Quimh']) s.run(updateSheet('kara', { name }));
+    expect(kara(s).name).toBe('Quimh');
     s.run(updateSheet('kara', { armorId: 'padded-coat' }));
     s.undo();
     expect(kara(s).armorId).toBe('ringmail');
-    expect(kara(s).name).toBe('Karah');
+    expect(kara(s).name).toBe('Quimh');
     s.undo();
-    expect(kara(s).name).toBe('Kara');
+    expect(kara(s).name).toBe('Quim');
   });
 
   it('undoes only what it wrote, leaving what the table wrote alone', () => {
     const s = session();
-    s.run(updateSheet('kara', { name: 'Karah' }));
+    s.run(updateSheet('kara', { name: 'Quimh' }));
     // The table levels her up between the edit and the undo: the panel never
     // knew about it, and must not take it back.
     s.project.party[0] = { ...s.project.party[0]!, level: 2, levels: [{ level: 2, advancements: [], domainCard: 'rallying-cry' }] };
 
     s.undo();
-    expect(kara(s).name).toBe('Kara');
+    expect(kara(s).name).toBe('Quim');
     expect(kara(s).level).toBe(2);
     expect(kara(s).levels).toHaveLength(1);
   });
@@ -115,7 +115,7 @@ describe('the party in the project', () => {
 
   it('rejects two characters with the same id', () => {
     const s = session();
-    s.run(addSheet({ ...KARA, name: 'Another Kara' }));
+    s.run(addSheet({ ...KARA, name: 'Another Quim' }));
     const problems = projectSchema.safeParse(JSON.parse(JSON.stringify(s.project)));
     expect(problems.success).toBe(false);
   });
@@ -141,7 +141,7 @@ describe('checking a party', () => {
         .filter((p) => p.message.includes('drawn with'))
         .map((p) => p.message);
     expect(drawn('no-such-model')).toHaveLength(1);
-    expect(drawn('no-such-model')[0]!).toMatch(/Kara/);
+    expect(drawn('no-such-model')[0]!).toMatch(/Quim/);
     expect(drawn(MODELS[0]!.id)).toEqual([]);
   });
 

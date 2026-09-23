@@ -99,6 +99,38 @@ describe('the licensing boundary', () => {
   });
 });
 
+describe('the licence the repository is under', () => {
+  /**
+   * The repository went public, and a public repository with no licence grants nobody anything.
+   * Three files have to agree about which one it is, and they are edited at different times by
+   * different people, so this is the thing that notices when one of them stops agreeing.
+   */
+  it('ships the licence text whole, and the section a browser game is licensed for', () => {
+    const licence = read('LICENSE');
+    expect(licence).toContain('GNU AFFERO GENERAL PUBLIC LICENSE');
+    expect(licence).toContain('Version 3, 19 November 2007');
+    // Section 13 is why this and not the GPL: the game is used over a network, never handed over.
+    expect(licence).toContain('13. Remote Network Interaction');
+  });
+
+  it('says which licence in the place a tool reads and the place a person reads', () => {
+    expect(JSON.parse(read('package.json')).license).toBe('AGPL-3.0-or-later');
+    const notice = read('NOTICE.md');
+    expect(notice).toContain('GNU Affero General Public License');
+    expect(notice).toContain('https://github.com/evolJoaoBento/TacticalEngine');
+  });
+
+  it('keeps the carve-outs the licence cannot reach', () => {
+    // Two things in here are not ours to relicense, and the notice is where a reader finds that
+    // out. Neither line may be dropped for tidiness: the font's licence requires the credit, and
+    // the rules are somebody else's Public Game Content under the DPCGL.
+    const notice = read('NOTICE.md');
+    expect(notice).toContain('public/fonts/kreon/OFL.txt');
+    expect(notice).toContain('DPCGL');
+    expect(notice).toContain('docs/CONTEXT.md');
+  });
+});
+
 /**
  * The boundary, enforced rather than remembered.
  *

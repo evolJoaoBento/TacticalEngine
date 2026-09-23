@@ -9,7 +9,7 @@ const CARD = {
   id: 'lantern-oath',
   name: 'Lantern Oath',
   source: { kind: 'granted', characters: ['kara'] },
-  text: 'Kara lifts a lantern and swears by it.',
+  text: 'Quim lifts a lantern and swears by it.',
   effects: [{ kind: 'log', text: 'The lantern oath is sworn.' }],
 };
 
@@ -52,7 +52,7 @@ test('a pack picked under Project brings creatures to place and cards to play, a
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({ formatVersion: 2, adversaries: [WRAITH], abilities: [CARD] })),
     });
-  // A version-2 pack whose card was handed to Kara the old way: format version 3 reads it as a
+  // A version-2 pack whose card was handed to Quim the old way: format version 3 reads it as a
   // card of its own, granted to her, with the ability sitting on it -- so a card arrives too.
   await expect.poll(() => said).toBe('Imported lanterns.json: 1 card, 1 adversary, 1 ability.');
 
@@ -86,7 +86,7 @@ test('a pack picked under Project brings creatures to place and cards to play, a
 
 test('undoing an import in play takes it out of the running game at once, and redo puts it back', async ({ page }) => {
   await boot(page);
-  // A passive handed to Kara: it changes a number her sheet is derived with, which is what the
+  // A passive handed to Quim: it changes a number her sheet is derived with, which is what the
   // running game keeps until something rebuilds it.
   const STEADY = {
     id: 'lantern-steadiness',
@@ -148,12 +148,12 @@ test('a file that is not a pack is refused, and the project is left as it was', 
 test('a pack that carries code asks first, and brings nothing when the answer is no', async ({ page }) => {
   await boot(page);
   const SPARK = { id: 'lantern-spark', name: 'Lantern Spark', source: "ctx.log('The lantern spits a spark.', 'good');" };
-  const SPARK_CARD = { id: 'spark-oath', name: 'Spark Oath', grant: { kind: 'given', characters: ['kara'] }, text: 'Kara strikes the lantern.' };
+  const SPARK_CARD = { id: 'spark-oath', name: 'Spark Oath', grant: { kind: 'given', characters: ['kara'] }, text: 'Quim strikes the lantern.' };
   const SPARK_OATH = {
     id: 'spark-oath',
     name: 'Spark Oath',
     source: { card: 'spark-oath' },
-    text: 'Kara strikes the lantern, and the code the pack brought answers.',
+    text: 'Quim strikes the lantern, and the code the pack brought answers.',
     effects: [{ kind: 'run', hook: 'lantern-spark' }],
   };
   const pack = JSON.stringify({ formatVersion: 4, cards: [SPARK_CARD], abilities: [SPARK_OATH], code: [SPARK] });

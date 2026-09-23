@@ -68,7 +68,8 @@ test('a held button walks the selected character towards the pointer, with the c
   });
   expect(line.length).toBeGreaterThan(1);
   expect(line[0]).toBeGreaterThan(0.6);
-  expect(line[line.length - 1]).toBeLessThan(4);
+  // A pace or so each, so the line is as long as the party is: the last of six is five paces back.
+  expect(line[line.length - 1]).toBeLessThan(1.6 * line.length);
   for (let i = 1; i < line.length; i++) expect(line[i]! - line[i - 1]!).toBeGreaterThan(0.4);
 
   // A press that does not linger is still a click: this one walks to where it was let go.

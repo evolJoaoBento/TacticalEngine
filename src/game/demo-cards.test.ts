@@ -93,7 +93,7 @@ const gated = (card: string, companion?: string, inDomain = 3): string[] => [
   ...(companion === undefined ? [] : [companion]),
 ];
 
-/** Mira holding these cards, with Light to spend, out of combat. */
+/** Scarlet holding these cards, with Light to spend, out of combat. */
 function holding(seed: string, cards: string[]): DemoScene {
   const demo = scene(seed);
   demo.askDefender = false;
@@ -132,7 +132,7 @@ describe('Phantom Step', () => {
     expect(useAbility(demo, 'mira', 'fixture-phantom-step', []).status).toBe('done');
     expect(demo.world.marks()).toEqual([{ mark: FIXTURE_SPOT_MARK, owner: 'mira', tile: stood }]);
     expect(mira.good!.value).toBe(5);
-    expect(demo.log.at(-1)?.text).toBe('Mira marks the ground where they stand.');
+    expect(demo.log.at(-1)?.text).toBe('Scarlet marks the ground where they stand.');
 
     const away = elsewhere(demo, stood);
     demo.state.moveEntity('mira', away);
@@ -149,7 +149,7 @@ describe('Phantom Step', () => {
     const mira = demo.state.entity('mira')!;
     const stood = mira.tile;
     useAbility(demo, 'mira', 'fixture-phantom-step', []);
-    // Kara on the mark, Mira far away.
+    // Quim on the mark, Scarlet far away.
     demo.state.moveEntity('kara', stood);
     const far = demo.grid.indexOf(demo.grid.width - 2, demo.grid.height - 2);
     demo.state.moveEntity('mira', demo.grid.isPassable(far) ? far : elsewhere(demo, stood));
@@ -238,7 +238,7 @@ describe('Rift Step', () => {
  * with Shadow stays one; only whether it succeeds can change.
  */
 
-/** Kara holding these cards, in a fight, beside a husk to roll against. */
+/** Quim holding these cards, in a fight, beside a husk to roll against. */
 function karaHolding(seed: string, cards: string[]): { demo: DemoScene; kara: EntityState; husk: EntityState } {
   const demo = scene(seed);
   demo.askDefender = true;
@@ -314,7 +314,7 @@ describe('Bold Front', () => {
 });
 
 describe('a weapon swing', () => {
-  it('is a roll with the weapon\'s trait: Wild-Bound answers Finn\'s Agility shot', () => {
+  it('is a roll with the weapon\'s trait: Wild-Bound answers Violet\'s Agility shot', () => {
     const sage = gated(FIXTURE_SAGE_CARD);
     for (let seed = 1; seed < 120; seed++) {
       const { demo, husk } = karaHolding('swing-' + seed, []);
@@ -324,11 +324,11 @@ describe('a weapon swing', () => {
       refreshWorld(demo);
       const finn = demo.state.entity('finn')!;
       // The bow's trait is Finesse, and a weapon swing is a roll with the weapon's
-      // trait — so Finesse is what the card reads and what it raises by. Finn's
+      // trait — so Finesse is what the card reads and what it raises by. Violet's
       // Agility happens to equal his Finesse, so asserting Agility here would pass
       // while reading the wrong number off the sheet.
       const raised = demo.characters.get('finn')!.sheet.traits.finesse;
-      // Finn beside the husk with his shortbow, and the fight is his to act in.
+      // Violet beside the husk with his shortbow, and the fight is his to act in.
       const blocked = demo.state.blockedFor('finn');
       demo.grid.forEachNeighbor(husk.tile, false, (tile) => {
         if (demo.grid.isPassable(tile) && !blocked(tile)) demo.state.moveEntity('finn', tile);
@@ -366,9 +366,16 @@ describe('Codex-Bound', () => {
       answerPending(demo, { kind: 'roll' });
       if (demo.pending?.kind !== 'reaction') continue;
 
-      expect(demo.pending.offers.map((o) => o.ability.id)).toEqual(['fixture-codex-bound']);
-      const thrown = demo.pending.offers[0]!.swing!;
-      answerPending(demo, { kind: 'choose', index: 1 });
+      // Pint's Footnote answers a roll too, so a reaction being offered is not this card being
+      // offered: keep throwing until the card under test is one of the answers.
+      const offers = demo.pending.offers.map((o) => o.ability.id);
+      const at = offers.indexOf('fixture-codex-bound');
+      if (at < 0) {
+        while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
+        continue;
+      }
+      const thrown = demo.pending.offers[at]!.swing!;
+      answerPending(demo, { kind: 'choose', index: at + 1 });
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
 
       const settled = demo.rolls[demo.rolls.length - 1]!.roll;
@@ -387,7 +394,9 @@ describe('Codex-Bound', () => {
       demo.askDefender = true;
       useAbility(demo, 'mira', 'fixture-rift-step', []);
       answerPending(demo, { kind: 'roll' });
-      expect(demo.pending?.kind === 'reaction').toBe(false);
+      // Somebody else may answer the roll; this card may not, which is what is being asked.
+      const offered = demo.pending?.kind === 'reaction' ? demo.pending.offers.map((o) => o.ability.id) : [];
+      expect(offered).not.toContain('fixture-codex-bound');
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
     }
   });
@@ -432,7 +441,7 @@ describe('Wild-Bound', () => {
  * script defences, offered beside the plans when the husk's swing lands.
  */
 
-/** Mira holding these cards beside the husk, the others down so the husk swings at her. */
+/** Scarlet holding these cards beside the husk, the others down so the husk swings at her. */
 function miraFacing(seed: string, cards: string[]): { demo: DemoScene; mira: EntityState; husk: EntityState } {
   const demo = holding(seed, cards);
   demo.askDefender = true;
@@ -517,7 +526,7 @@ describe('Doubtful Air', () => {
       const after = demo.log.slice(said).map((l) => l.text);
       if (after.some((t) => t.includes('never there'))) {
         turned++;
-        expect(after.some((t) => t.includes('finds nothing where Mira was'))).toBe(true);
+        expect(after.some((t) => t.includes('finds nothing where Scarlet was'))).toBe(true);
         expect(demo.world.tokensOn('mira', 'fixture-aura')).toBe(1);
       } else {
         broke++;
@@ -543,7 +552,7 @@ describe('Bone-Bound', () => {
       const said = demo.log.length;
       answerPending(demo, { kind: 'choose', index });
       const after = demo.log.slice(said).map((l) => l.text);
-      expect(after.some((t) => t.includes('finds nothing where Mira was'))).toBe(true);
+      expect(after.some((t) => t.includes('finds nothing where Scarlet was'))).toBe(true);
       expect(mira.good!.value).toBe(3);
       expect(mira.hitPoints.marked).toBe(0);
       while (demo.pending !== null) answerPending(demo, { kind: 'choose', index: 0 });
@@ -553,7 +562,7 @@ describe('Bone-Bound', () => {
       expect(again === null || !again.choices.some((c) => c.label.includes('Bone-Bound'))).toBe(true);
       return;
     }
-    throw new Error('the husk never landed a blow on Mira in forty tries');
+    throw new Error('the husk never landed a blow on Scarlet in forty tries');
   });
 
   it('is not offered with three of the domain', () => {

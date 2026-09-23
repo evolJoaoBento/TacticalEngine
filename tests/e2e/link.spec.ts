@@ -52,10 +52,17 @@ test('a card dragged aside walks alone, dropped on another walks with them, and 
   await expect(page.locator(`.hud-card[data-member="${second}"]`)).not.toHaveAttribute('data-group', /.+/);
   // The card was let go over the board: putting a card down is not a click on the ground, and nobody walked.
   expect(await page.evaluate((id) => window.__engine!.tileOf(id), first)).toBe(stoodOn);
-  // The two still walking together are not next to each other now, so no chain is drawn; each keeps its tab.
-  await expect(chains).toHaveCount(0);
+  // The one let go walks alone: no chain reaches their card, and the rest are still chained to
+  // each other, so the chain that is drawn is not theirs.
   await expect(page.locator(`.hud-card[data-member="${second}"] [data-testid="group-tab"]`)).toHaveCount(0);
-  await expect(page.locator(`.hud-card[data-member="${first}"] [data-testid="group-tab"]`)).toHaveCount(1);
+  const reaches = await page.evaluate((id) => {
+    const card = document.querySelector(`.hud-card[data-member="${id}"]`)!.getBoundingClientRect();
+    return [...document.querySelectorAll('[data-testid="chain"]')].some((el) => {
+      const chain = el.getBoundingClientRect();
+      return chain.top < card.bottom - 4 && chain.bottom > card.top + 4;
+    });
+  }, second);
+  expect(reaches).toBe(false);
   await page.screenshot({ path: 'test-results/link-stranded.png' });
   expect(await page.evaluate((id) => window.__engine!.linked(id), second)).toEqual([second]);
   // The drop was not a click: the selection stayed where it was.
@@ -76,7 +83,10 @@ test('a card dragged aside walks alone, dropped on another walks with them, and 
   const onto = await centre(page, third);
   await dragCard(page, second, { x: onto.x, y: onto.y });
   expect(await page.evaluate(() => window.__engine!.party())).toEqual([first, third, second, ...party.slice(3)]);
-  expect(await page.evaluate((id) => window.__engine!.linked(id), second)).toEqual([first, third, second]);
+  // Back with the others, and their card under the one they were dropped on.
+  const withSecond = await page.evaluate((id) => window.__engine!.linked(id), second);
+  expect(withSecond).toContain(third);
+  expect(withSecond.indexOf(second)).toBe(withSecond.indexOf(third) + 1);
   await expect(page.locator(`.hud-card[data-member="${second}"]`)).toHaveAttribute('data-group', /.+/);
 
   // The first dragged aside walks alone; dropped between the third and the second, they are second in the order, and one of their group again.
@@ -87,16 +97,20 @@ test('a card dragged aside walks alone, dropped on another walks with them, and 
   const gap = { x: above.x, y: above.y + above.h / 2 + 2 };
   await dragCard(page, first, gap);
   expect(await page.evaluate(() => window.__engine!.party())).toEqual([third, first, second, ...party.slice(3)]);
-  expect(await page.evaluate((id) => window.__engine!.linked(id), first)).toEqual([third, first, second]);
-  // The cards read in the party's order, and the GM's stays at the foot of the column.
-  expect(await page.locator('[data-testid="hud"] > .hud-card').evaluateAll((els) => els.map((el) => el.getAttribute('data-member') ?? el.getAttribute('data-testid')))).toEqual([third, first, second, ...party.slice(3), 'gm']);
-  // All three walk together again: one chain, from the first card's middle to the last card's middle.
+  // Back in the group they were dropped into, in the place they were dropped: between the two.
+  const group = await page.evaluate((id) => window.__engine!.linked(id), first);
+  expect(group.indexOf(first)).toBe(group.indexOf(third) + 1);
+  expect(group.indexOf(second)).toBe(group.indexOf(first) + 1);
+  // The cards read in the party's order, and the column is the party's alone.
+  expect(await page.locator('[data-testid="hud"] > .hud-card').evaluateAll((els) => els.map((el) => el.getAttribute('data-member')))).toEqual([third, first, second, ...party.slice(3)]);
+  // They all walk together again: one chain, starting at the top card's middle and running down
+  // past the one they were dropped above.
   await expect(chains).toHaveCount(1);
   const whole = (await chains.first().boundingBox())!;
   const top = await centre(page, third);
   const foot = await centre(page, second);
   expect(Math.abs(whole.y - top.y)).toBeLessThan(3);
-  expect(Math.abs(whole.y + whole.height - foot.y)).toBeLessThan(3);
+  expect(whole.y + whole.height).toBeGreaterThan(foot.y - 3);
   await page.screenshot({ path: 'test-results/link-grouped.png' });
 
   // A card that grows - a condition, a level-up button - moves everything under it, and the chain follows.

@@ -101,7 +101,9 @@ button steering in short steps. Whoever the trail does not reach yet stays where
 than hopping to a free tile nearby; only somebody left far behind, or somebody the leader is walking
 into, is moved. **Hold** the button instead of
 clicking and they walk towards the pointer for as long as it is down, at a walk - the same pace a
-click sends them at, no faster - with the camera settled on them: that is how the woods are crossed, rather than by clicking along the
+click sends them at, no faster - with the camera settled on them for as long as the button is down
+and nowhere else: a click walks somebody and leaves the view exactly where you aimed it, because a
+camera that slides on every click is one nobody can aim. Holding is what says "come along": that is how the woods are crossed, rather than by clicking along the
 trail. Steering follows the pointer wherever it goes, even off the room's edge. In a fight it keeps
 inside the circle and stops at its edge, because leaving the circle is an Agility Roll and a roll is
 something you decide on with a click. A press that does not linger is still a click. Walking onto a trigger cell
@@ -118,7 +120,9 @@ who walks together: it runs down the middle of the column, under the sheets, and
 between them - one chain per run of cards side by side in the same group, in that group's colour,
 and no chain at all for somebody who walks alone. A card whose group has been split up the column -
 somebody else's card in between - has no chain reaching it, and wears a tab in its group's colour
-down its edge instead, so drop the cards of a group together to see the chain whole. The chain is put away while a card is in the hand. A click on a card still selects
+down its edge instead. A card dragged out of the middle of a group goes above that group rather
+than staying in the hole it left, so the ones still walking together stay side by side and their
+chain stays whole. The chain is put away while a card is in the hand. A click on a card still selects
 it.
 Neither the groups nor the order are written into a save, and everybody walks as one again after a
 load.
@@ -260,14 +264,19 @@ Along the bottom of the screen the selected character holds their hand, fanned l
 **Attack** with the weapon in hand (click an adversary on the board), then one card per action or
 reaction — the class's Light feature, subclass cards, and the domain cards in the loadout. A card
 grows where it stands under the pointer, its neighbours sliding aside, so its whole text can be read; its Light cost is the gold
-coin on its corner and its Stress cost the violet one. A card that cannot be played now is greyed,
+coin printed on the art and its Stress cost the violet one beside it, in the corners the full card
+prints its recall cost in and clear of the card's name. A card that cannot be played now is greyed,
 with why along its foot ("needs 3 Light", "the GM's turn", "nothing in range", "the table
 adjudicates this one" for a card the engine has no script for). **Every card the loadout holds is
 in the hand**, including the ones that are simply true while they are held: a card that is always
 in play is dealt with the rest and says so along its foot, rather than being kept out of the hand
-because there is nothing to press. The orb at the hand's left
-is the character's Light; at its right, **End Turn** in a fight, **Rest…** out of one, and
-**Loadout…**.
+because there is nothing to press. The two dice at the hand's left are the pools, turned from the same solids the Duality Dice are
+thrown from: a yellow six for the selected character's Light, read in black, and a black twelve for
+the GM's Shadow, read in white, with the most each can hold written under it. Point at one and it
+rattles where it sits. Neither is labelled - the shape and the colour say which is which, and hovering
+one names it. The round, or **Exploring** out of a fight, is written under the pair. To their right
+sit the **Jump** and **Rest** keys, and at the hand's far right **End Turn** in a fight, **Rest…**
+out of one, and **Loadout…**.
 
 **Escape** opens the menu: saving, loading and the player's own settings, on a sheet over the
 table. **Save** is one quick slot, overwritten; **Save as…** names a new one; **Load** lists what is
@@ -1244,9 +1253,22 @@ This table matches the core rulebook's level-up sheet (Chapter 2, "Choosing Adva
 
 ## 5. The demo campaign
 
-Placeholder fiction. The party is Kara (Guardian, human, chainmail, broadsword), Finn (Rogue,
-elf, gambeson, shortbow) and Mira (Wizard, faerie, gambeson, greatstaff), each with a subclass,
-two domain cards and one Experience. Every adversary uses the SRD Acid Burrower's stat block,
+Placeholder fiction. The party is six, each named for the body they are drawn with, each with a
+subclass, two domain cards and one Experience.
+
+| Who | Class | Carries | Their two cards, and what those cards are here to try |
+|---|---|---|---|
+| **Quim** | Sentinel, Shieldbearer | Longsword, ringmail | Power Slash, Iron Stance - damage and armour, the plain case |
+| **Violet** | Cutpurse, Lampsnuffer | Hunting bow, padded coat | Quick Hands, Backstab |
+| **Scarlet** | Emberwright, Flamecaller | Ember staff, padded coat | Arcane Ward, Healing Word |
+| **Arty** | Cutpurse, Lampsnuffer | Hand cannon, padded coat | **Powder and Shot** loads two shots onto **Grapeshot**, which spends one to hurt everything Very Close and knock it out to Close. A magazine and knockback |
+| **Pint** | Emberwright, Flamecaller | Bound ledger, padded coat | **Mark the Page** keeps the place they stand and puts them back on it next time. **Footnote** puts a failed roll's dice back in the cup, and starts in the vault |
+| **Ganja** | Sentinel, Shieldbearer | Oaken tankard, ringmail | **Another Round** clears a Stress from every ally Close and hands the GM a Shadow for it. **Barrel Through** shoves what is in Melee out to Very Close |
+
+The last three are there to be played against: each of their cards reaches for a rule the first
+three never touch - tokens on a card, knockback, a reroll, a place kept on the floor, and the party
+choosing to give the GM Shadow. Footnote sits in the vault rather than the loadout because a card
+that answers every failed roll stops every roll in the game to ask; recall it at a rest to try it. Every adversary uses the SRD Acid Burrower's stat block,
 standing in for the prototype's homebrew Hollow Husks.
 
 1. **The Hollow Vault** (44×32, and relaid as tiles on the way

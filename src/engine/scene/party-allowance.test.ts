@@ -13,7 +13,7 @@ import { SceneState, createAdversaryEntity, createPartyEntity } from './state';
 
 const EIGHT_WAY = { ...DEFAULT_MOVEMENT, diagonals: true, diagonalCostMultiplier: Math.SQRT2 };
 
-/** An open field with Kara at (1, 4) and four tiles of movement in a fight. */
+/** An open field with Quim at (1, 4) and four tiles of movement in a fight. */
 function field(width = 14, height = 9): { grid: TileGrid; state: SceneState; party: Party } {
   const grid = new TileGrid({ width, height });
   const state = new SceneState({ id: 'field' }, grid);

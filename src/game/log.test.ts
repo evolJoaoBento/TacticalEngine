@@ -28,7 +28,7 @@ function narration(): Narration {
       adversaryDef: (definition: string) => STARTER_ADVERSARIES.get(definition),
       conditionName: (condition: string) => (condition === 'hidden' ? 'Hidden' : condition),
     },
-    sheets: new Map([['kara', { name: 'Kara' }]]),
+    sheets: new Map([['kara', { name: 'Quim' }]]),
     project: { items: [], quests: [] },
     scenario: { actorId: 'kara' },
     log: [],
@@ -51,12 +51,12 @@ describe('writing a journal down', () => {
     const lines = writeDown(demo, journal);
 
     expect(lines).toHaveLength(1);
-    expect(lines[0]!.text).toBe(`Kara hits with the Broadsword: 2 Hit Points on ${knight}.`);
+    expect(lines[0]!.text).toBe(`Quim hits with the Broadsword: 2 Hit Points on ${knight}.`);
     expect(lines[0]!.tone).toBe('combat');
     // Both names are found on the board, whichever order they were matched in.
     expect(lines[0]!.mentions!.map((m) => m.id).sort()).toEqual(['kara', 'knight-1']);
     expect(demo.log).toEqual(lines);
-    expect(demo.rolls).toEqual([{ id: expect.any(Number), who: 'Kara', what: 'Broadsword', roll }]);
+    expect(demo.rolls).toEqual([{ id: expect.any(Number), who: 'Quim', what: 'Broadsword', roll }]);
     expect(demo.floaters).toEqual([{ id: 'knight-1', text: '-2 HP', tone: 'combat' }]);
     expect(demo.motions).toEqual([{ id: 'kara', lunge: { at: 6 } }, { id: 'knight-1', struck: true }]);
   });

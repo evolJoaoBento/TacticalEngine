@@ -54,13 +54,16 @@ test('a click only ever walks, and the Jump button aims an arc from where they s
   expect(foot).not.toBe(block);
   expect(await page.evaluate(() => window.__engine!.log().some((line) => line.text.includes('jumps')))).toBe(false);
 
-  // The key, beside the Light, with Rest beside it: twins off one keyboard.
+  // The key, beside the two pool dice, with Rest beside it: twins off one keyboard.
   const button = page.getByTestId('jump-button');
   await expect(button).toBeVisible();
-  const orb = (await page.getByTestId('light-orb').boundingBox())!;
+  const dice = (await page.locator('.hand-dice').boundingBox())!;
   const medal = (await button.boundingBox())!;
-  expect(medal.x).toBeGreaterThanOrEqual(orb.x + orb.width - 20);
-  expect(medal.x).toBeLessThan(orb.x + orb.width + 40);
+  expect(medal.x).toBeGreaterThanOrEqual(dice.x + dice.width - 20);
+  expect(medal.x).toBeLessThan(dice.x + dice.width + 40);
+  // Both pools are there to read, and neither says which it is except on hover.
+  await expect(page.getByTestId('light-orb')).toHaveAttribute('title', /Light/);
+  await expect(page.getByTestId('shadow-die')).toHaveAttribute('title', /Shadow/);
   const rest = (await page.getByTestId('open-rest').boundingBox())!;
   expect(rest.x).toBeGreaterThan(medal.x + medal.width);
   expect(rest.x).toBeLessThan(medal.x + medal.width + 24);
@@ -99,7 +102,7 @@ test('a click only ever walks, and the Jump button aims an arc from where they s
   expect(await page.evaluate(() => window.__engine!.tileOf('kara'))).toBe(block);
   await expect(button).toHaveAttribute('aria-pressed', 'false');
 
-  // Mira, Strength -1, jumps one block. The stack of two is past her wherever she walks to: red, with an X.
+  // Scarlet, Strength -1, jumps one block. The stack of two is past her wherever she walks to: red, with an X.
   await page.evaluate(() => window.__engine!.select('mira'));
   await button.click();
   await aimAt(page, 3, 10);
@@ -131,7 +134,7 @@ test('a jump aimed past their range walks first, and one in range does not', asy
   await expect.poll(() => page.evaluate(() => window.__engine!.gliding()), { timeout: 30_000 }).toBe(0);
   const landed = await page.evaluate(() => window.__engine!.tileOf('kara'));
   expect(landed).toBe(near.y * 44 + near.x);
-  expect(await page.evaluate(() => window.__engine!.log().at(-1)!.text)).toMatch(/^Kara jumps \d tiles?\.$/);
+  expect(await page.evaluate(() => window.__engine!.log().at(-1)!.text)).toMatch(/^Quim jumps \d tiles?\.$/);
 
   // Past her five tiles: not lit, and still aimed at - the walk is drawn, then the arc.
   await button.click();
@@ -257,7 +260,7 @@ test('jump rules set in the editor are the rules the game plays by', async ({ pa
   await buildBlocks(page);
   const button = page.getByTestId('jump-button');
 
-  // Two blocks stacked in the open: past Mira, who is Strength -1 and jumps one.
+  // Two blocks stacked in the open: past Scarlet, who is Strength -1 and jumps one.
   await page.evaluate(() => window.__engine!.select('mira'));
   await button.click();
   await aimAt(page, 3, 10);

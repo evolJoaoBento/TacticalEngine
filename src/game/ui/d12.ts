@@ -94,8 +94,14 @@ function build(): Face[] {
 /** The twelve faces, in the order the solid was built. */
 export const FACES: readonly Face[] = build();
 
-/** The face that says this number. */
-export const faceOf = (value: number): Face => FACES.find((face) => face.value === value) ?? FACES[0]!;
+/**
+ * The face that says this number, on this solid.
+ *
+ * The solid is an argument with a default rather than a fixed twelve, because the same turning,
+ * tumbling and flattening draw any die: `d6.ts` builds a cube's six squares and hands them in.
+ */
+export const faceOf = (value: number, faces: readonly Face[] = FACES): Face =>
+  faces.find((face) => face.value === value) ?? faces[0]!;
 
 /** Where a point of the die ends up once it has been turned. */
 export function apply(turn: Turn, point: Vec): Vec {
@@ -142,8 +148,8 @@ const LEAN_BACK = 0.12;
 const LEAN_SIDE = 0.07;
 
 /** The die at rest, showing this number, leaning as if it were looked down on. */
-export function landing(value: number): Turn {
-  const face = faceOf(value);
+export function landing(value: number, faces: readonly Face[] = FACES): Turn {
+  const face = faceOf(value, faces);
   const across = cross(face.up, face.normal);
   const flat: Turn = [
     across[0], across[1], across[2],
@@ -178,8 +184,8 @@ function axisFrom(seed: number, step: number): Vec {
  * measured back from where the die comes to rest — so however long the throw
  * takes, it ends on the number the rules already rolled.
  */
-export function tumble(value: number, seed: number, t: number): Turn {
-  const rest = landing(value);
+export function tumble(value: number, seed: number, t: number, faces: readonly Face[] = FACES): Turn {
+  const rest = landing(value, faces);
   const gone = Math.max(0, Math.min(1, t));
   if (gone >= 1) return rest;
   const left = (1 - gone) ** 3;
@@ -221,7 +227,7 @@ const RADIUS = 44;
 const LIGHT = unit([-0.45, 0.62, 0.65]);
 
 /** Everything about a turned die a view needs: its faces, its outline and what it is showing. */
-export function draw(turn: Turn): Drawn {
+export function draw(turn: Turn, solid: readonly Face[] = FACES): Drawn {
   const flat = (point: Vec): [number, number] => {
     const [x, y] = apply(turn, point);
     return [BOX / 2 + RADIUS * x, BOX / 2 - RADIUS * y];
@@ -229,9 +235,9 @@ export function draw(turn: Turn): Drawn {
   const points = (corners: readonly Vec[]): string => corners.map((corner) => flat(corner).map((n) => n.toFixed(2)).join(',')).join(' ');
 
   const faces: DrawnFace[] = [];
-  let front = FACES[0]!.value;
+  let front = solid[0]!.value;
   let nearest = -Infinity;
-  for (const face of FACES) {
+  for (const face of solid) {
     const normal = apply(turn, face.normal);
     if (normal[2] > nearest) {
       nearest = normal[2];
@@ -249,7 +255,7 @@ export function draw(turn: Turn): Drawn {
     const label = `matrix(${(k * across[0]).toFixed(4)},${(-k * across[1]).toFixed(4)},${(-k * up[0]).toFixed(4)},${(k * up[1]).toFixed(4)},${(BOX / 2 + RADIUS * centre[0]).toFixed(2)},${(BOX / 2 - RADIUS * centre[1]).toFixed(2)})`;
     faces.push({ value: face.value, points: points(face.corners), light: Math.max(0, Math.min(1, light)), label });
   }
-  return { faces, rim: points(silhouette(turn)), front };
+  return { faces, rim: points(silhouette(turn, solid)), front };
 }
 
 /**
@@ -258,8 +264,8 @@ export function draw(turn: Turn): Drawn {
  * A dodecahedron is convex, so its outline is the convex hull of every corner —
  * found here by walking the lower and upper chains of the sorted corners.
  */
-function silhouette(turn: Turn): Vec[] {
-  const on = [...FACES.flatMap((face) => face.corners)];
+function silhouette(turn: Turn, solid: readonly Face[] = FACES): Vec[] {
+  const on = [...solid.flatMap((face) => face.corners)];
   const seen = new Set<string>();
   const unique = on.filter((corner) => {
     const key = corner.map((n) => n.toFixed(4)).join();

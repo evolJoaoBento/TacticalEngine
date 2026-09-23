@@ -38,7 +38,7 @@ const FLOOR = 0.25;
 
 /**
  * The demo with a pillar raised out in the open field, this many blocks above the floor, and
- * somebody stood two tiles west of it, on level floor. Kara is Strength +2 and Agility 0; Mira is Strength -1.
+ * somebody stood two tiles west of it, on level floor. Quim is Strength +2 and Agility 0; Scarlet is Strength -1.
  */
 function pillar(blocks: number, who = 'kara'): { demo: DemoScene; id: string; top: number; beside: number } {
   const demo = buildDemoScene(hollowVaultMap(), 'leap');
@@ -49,7 +49,7 @@ function pillar(blocks: number, who = 'kara'): { demo: DemoScene; id: string; to
   return { demo, id: who, top, beside: demo.grid.indexOf(5, 6) };
 }
 
-/** Kara out in the open field, with the party cleared away from her. Strength +2: five tiles, three blocks. */
+/** Quim out in the open field, with the party cleared away from her. Strength +2: five tiles, three blocks. */
 function inTheOpen(seed = 'aim'): { demo: DemoScene; at: number } {
   const demo = buildDemoScene(hollowVaultMap(), seed);
   demo.party.select('kara');
@@ -140,7 +140,7 @@ describe('the Jump button: aimed from where they stand', () => {
     expect(lit).not.toContain(at);
     for (const tile of lit) expect(demo.state.bodyFree(tile, 'kara')).toBe(true);
     expect(jumpAim(demo)).toMatchObject({ characterId: 'kara', abilityId: JUMP_ID, name: 'Jump', tiles: lit });
-    // Mira is Strength -1: three tiles.
+    // Scarlet is Strength -1: three tiles.
     demo.party.select('mira');
     demo.state.moveEntity('mira', demo.grid.indexOf(4, 3));
     expect(leapTargets(demo, 'mira')).toContain(demo.grid.indexOf(7, 3));
@@ -160,7 +160,7 @@ describe('the Jump button: aimed from where they stand', () => {
     // Nothing was rolled, so there is nothing to wait for.
     expect(own[0]!.wait).toBeUndefined();
     expect(own[0]!.route).toHaveLength(2);
-    expect(demo.log.at(-1)!.text).toBe('Kara jumps 4 tiles.');
+    expect(demo.log.at(-1)!.text).toBe('Quim jumps 4 tiles.');
   });
 
   it('is rolled for across level ground when the project says so', () => {
@@ -208,7 +208,7 @@ describe('the Jump button: aimed from where they stand', () => {
     expect(demo.log.some((line) => line.text.includes('gets up'))).toBe(true);
   });
 
-  it('is three blocks for Kara and one for Mira, and past that the aim says no', () => {
+  it('is three blocks for Quim and one for Scarlet, and past that the aim says no', () => {
     expect(planJump(pillar(3).demo, 'kara', pillar(3).top)).toMatchObject({ rise: 3 });
     const weak = pillar(2, 'mira');
     expect(planRunningJump(weak.demo, 'mira', weak.top)).toBeNull();
@@ -221,7 +221,7 @@ describe('the Jump button: aimed from where they stand', () => {
   it('goes over people and low walls, and not through what stands higher than the arc', () => {
     const { demo } = inTheOpen();
     const beyond = demo.grid.indexOf(6, 9);
-    // Finn in the way: a jump goes over him.
+    // Violet in the way: a jump goes over him.
     demo.state.moveEntity('finn', demo.grid.indexOf(5, 9));
     expect(planJump(demo, 'kara', beyond)).not.toBeNull();
     // A pillar two blocks high in the way of a two-tile hop, which arcs three quarters of a block.
@@ -241,7 +241,7 @@ describe('the Jump button: aimed from where they stand', () => {
     const inside = demo.grid.indexOf(13, 3);
     // Two blocks of wall stand higher than a two-tile hop arcs, from here or from anywhere she can walk to.
     expect(planRunningJump(demo, 'kara', inside)).toBeNull();
-    // Kara, Strength +2, makes two blocks: up onto it, with the roll.
+    // Quim, Strength +2, makes two blocks: up onto it, with the roll.
     expect(planJump(demo, 'kara', onTheWall)).toMatchObject({ rise: 2, difficulty: DEMO_MOVE_DIFFICULTY });
     demo.rng = dice(12, 11);
     jumpTo(demo, 'kara', onTheWall);
@@ -249,7 +249,7 @@ describe('the Jump button: aimed from where they stand', () => {
     expect(demo.state.entity('kara')!.tile).toBe(onTheWall);
     // And down into the vault: two blocks is past a safe drop at Agility 0, so it is rolled for and it hurts.
     expect(planJump(demo, 'kara', inside)).toMatchObject({ rise: -2, difficulty: DEMO_MOVE_DIFFICULTY, fallDice: 1 });
-    // Mira, Strength -1, makes one block, and the wall is not for her.
+    // Scarlet, Strength -1, makes one block, and the wall is not for her.
     demo.party.select('mira');
     demo.state.moveEntity('mira', demo.grid.indexOf(11, 5));
     expect(planRunningJump(demo, 'mira', demo.grid.indexOf(12, 5))).toBeNull();
@@ -345,7 +345,7 @@ describe('a jump aimed past their range', () => {
 });
 
 describe('a drop', () => {
-  /** Kara on top of a pillar this high, about to jump off it. */
+  /** Quim on top of a pillar this high, about to jump off it. */
   function perched(blocks: number): { demo: DemoScene; id: string; down: number } {
     const { demo, id, top, beside } = pillar(blocks);
     demo.state.moveEntity(id, top);
@@ -427,7 +427,7 @@ describe('rolling jumps automatically', () => {
 
 describe('the jump, by the rules a project writes down', () => {
   it('is carried by whatever trait the project says, as far as it says', () => {
-    // Mira: Strength -1, so a block and no more - until jumping is a matter of her best trait.
+    // Scarlet: Strength -1, so a block and no more - until jumping is a matter of her best trait.
     const { demo, top } = pillar(3, 'mira');
     expect(planJump(demo, 'mira', top)).toBeNull();
     const best = Object.entries(demo.characters.get('mira')!.traits).sort((a, b) => b[1] - a[1])[0]!;
@@ -477,7 +477,7 @@ describe('the jump, by the rules a project writes down', () => {
   it('carries further when the project says a jump does, and jumps nothing when jumping is off', () => {
     const { demo } = inTheOpen();
     demo.project.jump = jumpRulesSchema.parse({ rangeBase: 1, rangePerPoint: 0.5 });
-    // Kara, Strength +2: two tiles now.
+    // Quim, Strength +2: two tiles now.
     expect(planJump(demo, 'kara', demo.grid.indexOf(6, 9))).not.toBeNull();
     expect(planJump(demo, 'kara', demo.grid.indexOf(7, 9))).toBeNull();
     demo.project.jump = jumpRulesSchema.parse({ enabled: false });
@@ -505,6 +505,6 @@ describe('Prone', () => {
     attackWithSelected(demo, husk.id);
     expect(demo.state.entity('kara')!.tile).not.toBe(start);
     expect(demo.state.entity('kara')!.conditions.has('prone')).toBe(false);
-    expect(demo.log.some((line) => line.text.includes('Kara gets up'))).toBe(true);
+    expect(demo.log.some((line) => line.text.includes('Quim gets up'))).toBe(true);
   });
 });

@@ -1482,8 +1482,7 @@ function renderPlayPanel(): void {
   render(
     h(Fragment, null, h(PartyHud, {
       members: hudMembers(),
-      bad: { ...demo.state.bad }, portrait: (id: string) => { const who = demo.state.entity(id); return who === undefined ? null : portraitOf(view.registry, assets, view.drawnModelFor(who)); },
-      round: demo.encounter?.round ?? null,
+      portrait: (id: string) => { const who = demo.state.entity(id); return who === undefined ? null : portraitOf(view.registry, assets, view.drawnModelFor(who)); },
       onSelect: (id: string) => { demo.party.select(id); refreshPlay(); },
       onLevelUp: (id: string) => { levelling = id; levelIssues = []; refreshPlay(); },
       onDrop: (id: string, drop: Drop) => { dropCard(demo.party, id, drop); refreshPlay(); },
@@ -1493,6 +1492,7 @@ function renderPlayPanel(): void {
       weapon: demo.party.selected === null ? '' : gearOf(demo, demo.party.selected).weapon,
       abilities: demo.party.selected === null ? [] : abilityList(demo, demo.party.selected),
       light: demo.party.selected === null ? null : (demo.state.entity(demo.party.selected)?.good ?? null),
+      bad: { ...demo.state.bad }, round: demo.encounter?.round ?? null,
       fighting: inCombat(demo),
       side: inCombat(demo) ? demo.encounter!.view().side : null,
       targeting:
@@ -1941,20 +1941,20 @@ window.addEventListener('beforeunload', (event) => {
 });
 
 /**
- * Keep whoever is selected in frame while their token walks.
+ * Keep whoever is being steered in the middle of the view.
  *
- * Only while it walks: the camera does not chase a click on a card, and it
- * does not fight the player - a drag or a held key is theirs, and a walk that
- * ends within a third of the view's distance of the target moves nothing.
+ * Only while the button is held: a click sends somebody walking and leaves the camera where the
+ * player put it, because a view that slides on every click is a view nobody can aim. Holding is
+ * the gesture that says "take me with them", so that is the one the camera answers - and a held
+ * key of the player's own still wins over it.
  */
 function followSelected(): void {
-  if (mode !== 'play' || (drag !== null && steering === null) || held.size > 0) return;
+  if (mode !== 'play' || steering === null || held.size > 0) return;
   const id = demo.party.selected;
-  if (id === null || (!view.isGliding(id) && steering === null)) return;
+  if (id === null) return;
   const token = view.tokenFor(id);
   if (token === undefined) return;
-  // A steered walk is centred on them; a walk they were sent on is only kept in frame.
-  orbit.follow(token.group.position, steering === null ? orbit.goal.distance * 0.35 : 0);
+  orbit.follow(token.group.position, 0);
 }
 
 /**

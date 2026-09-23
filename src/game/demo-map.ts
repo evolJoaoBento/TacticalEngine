@@ -105,7 +105,9 @@ export function hollowVaultMap(): LegacyMap {
     nodes: old.nodes,
     enemies: old.enemies,
     triggers: old.triggers,
-    spawns: old.spawns,
+    // The prototype stood three on the grass; the party is six, so there are six places to stand,
+    // the first three exactly where they always were.
+    spawns: [...old.spawns, [3, 8], [2, 6], [3, 6]],
   };
 }
 

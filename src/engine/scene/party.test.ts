@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { TileGrid } from '../grid/grid';
 import { Pathfinder } from '../grid/pathfinding';
 import { segmentClear } from '../grid/walk';
+import { chainSpans } from '../../game/ui/party-chain';
 import { Party } from './party';
 import { SceneState, createAdversaryEntity, createPartyEntity } from './state';
 
@@ -358,7 +359,7 @@ describe('groups', () => {
 
   it('walks the followers round somebody left standing on the trail, rather than onto them', () => {
     const { grid, party, state } = setup();
-    // Mira is left in the corridor the others walk down: a tile short of where Kara stops, where Finn would fall in.
+    // Scarlet is left in the corridor the others walk down: a tile short of where Quim stops, where Violet would fall in.
     party.unlink('mira');
     state.moveEntity('mira', grid.indexOf(7, 1));
     state.moveEntity('finn', grid.indexOf(0, 1));
@@ -390,6 +391,39 @@ describe('groups', () => {
     party.select('finn');
     expect(party.selectNext()).toBe('kara');
     expect(party.selectNext()).toBe('mira');
+  });
+
+  it('lifts somebody out of the middle of the group they leave, so the rest stay side by side', () => {
+    const { party } = setup();
+    // Quim, Violet, Scarlet, all walking together: the middle one steps out.
+    expect(party.members()).toEqual(['kara', 'finn', 'mira']);
+    expect(party.unlink('finn')).toBe(true);
+    // They go above the group rather than staying in the hole they left.
+    expect(party.members()).toEqual(['finn', 'kara', 'mira']);
+    // And the two still together are next to each other, which is what the chain is drawn between.
+    expect(party.groupOf('kara')).toEqual(['kara', 'mira']);
+    expect(chainSpans(party.members().map((id) => ({ id, group: party.groupOf(id).length > 1 ? 0 : null })))).toEqual([
+      { group: 0, from: 'kara', to: 'mira' },
+    ]);
+  });
+
+  it('moves nobody when the one leaving is at either end of the group', () => {
+    const { party } = setup();
+    expect(party.unlink('kara')).toBe(true); // the top
+    expect(party.members()).toEqual(['kara', 'finn', 'mira']);
+    party.link('kara', 'finn');
+    expect(party.unlink('mira')).toBe(true); // the foot
+    expect(party.members()).toEqual(['kara', 'finn', 'mira']);
+  });
+
+  it('closes ranks the same way when the middle one joins somebody else', () => {
+    const { grid, state, party } = setup();
+    state.addEntity(createPartyEntity('rook', 'warden', grid.indexOf(5, 1)));
+    party.unlink('rook');
+    expect(party.link('finn', 'rook')).toBe(true);
+    // Violet left the middle of the first group, so they go above it and the rest close up.
+    expect(party.members()).toEqual(['finn', 'kara', 'mira', 'rook']);
+    expect(party.groupOf('kara')).toEqual(['kara', 'mira']);
   });
 
   it('refuses to unlink the last of a group of one, and leaves the fallen where they are', () => {

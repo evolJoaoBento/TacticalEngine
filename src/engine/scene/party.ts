@@ -201,7 +201,9 @@ export class Party {
   /** Put a member in a group of their own: the others walk on without them. False when they already walk alone, or are no member. */
   unlink(id: string): boolean {
     if (this.groupIndex(id) === null || this.groupOf(id).length === 1) return false;
+    const left = this.groupOf(id);
     this.groups.set(id, this.nextGroup++);
+    this.closeRanks(id, left);
     return true;
   }
 
@@ -209,8 +211,30 @@ export class Party {
   link(id: string, withId: string): boolean {
     const group = this.groupIndex(withId);
     if (group === null || this.groupIndex(id) === null || id === withId || this.linked(id, withId)) return false;
+    const left = this.groupOf(id);
     this.groups.set(id, group);
+    this.closeRanks(id, left);
     return true;
+  }
+
+  /**
+   * Lift somebody out of the middle of the group they have just left.
+   *
+   * Who walks with whom is read off the cards, and the chain that says so is only drawn between
+   * cards standing side by side. Somebody stepping out from the middle of a group would leave the
+   * ones still together on either side of the hole they left - chained in two pieces, or in none -
+   * which reads as the group breaking up when it has not. So the one leaving goes above the group
+   * instead, and the rest close up behind them. Leaving from either end splits nothing, and moves
+   * nobody.
+   */
+  private closeRanks(id: string, left: readonly string[]): void {
+    const rest = left.filter((other) => other !== id);
+    if (rest.length < 2) return;
+    const order = this.members();
+    const at = order.indexOf(id);
+    const above = rest.some((other) => order.indexOf(other) < at);
+    const below = rest.some((other) => order.indexOf(other) > at);
+    if (above && below) this.arrange(id, rest[0]!);
   }
 
   private groupIndex(id: string): number | null {

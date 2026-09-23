@@ -64,7 +64,7 @@ test('the card collection filters, inspects and swaps without leaking keyboard i
   // `public/cards/` where the index names one, its own drawn emblem otherwise.
   // Which of the two depends on whether this machine has an art directory.
   await expect(panel.locator('.deck-slot .face-art > :is(svg, img)')).toHaveCount(6);
-  // Beside the hand, face up and counted by no limit: what Kara has without choosing it.
+  // Beside the hand, face up and counted by no limit: what Quim has without choosing it.
   const granted = panel.getByTestId('granted-zone');
   await expect(granted.locator('.granted-slot')).toHaveCount(9);
   await expect(granted.locator('[data-card="rally-the-line"]')).toContainText('Given');

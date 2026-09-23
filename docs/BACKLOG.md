@@ -1105,6 +1105,45 @@ A tile is lit when its *centre* is in range, so the far edge of the last lit til
 goes red there (or draws the walk first), which is the telling. If a grown room ever makes the armed
 pointer-move slow, throttle on `aimedAt` moving less than a twentieth of a tile.
 
+**Both pools are dice on the bar.** The GM's Shadow was a sheet at the foot of the party column,
+which put the thing the table is up against among the things the table owns; it is a black d12 beside
+the Light's yellow d6 now, at the hand's left, and the party column is only party. Neither is
+labelled: the number fills the shape, the most it holds is written under it, and a tooltip names it.
+Both are `ActionBar`'s (`bad` and `round` moved there from `PartyHud`), and both are real solids
+rather than drawn shapes: `d12.ts`'s turning, tumbling and flattening now take the solid as an
+argument, `d6.ts` builds the cube (opposite faces summing to seven, in the same sphere so the two
+draw the same size), and `Die` takes `faces` and a `label`. The label is what lets a pool read
+nought, which no die carries: it turns to its lowest face and overprints it. They are landed (`t`
+of 1) rather than thrown, and rattle on hover. `silhouette` took the twelve's corners whatever solid
+it was drawing, so the cube was painted over a dodecahedron's outline and wore it as a dark collar;
+it takes the solid now, and a test holds the outline to the faces it encloses. The tray's own cast
+shadow is hidden on these: a die on the bar stands on nothing. `followSelected` answers the held
+button alone now - a click walks somebody and the view stays where the player aimed it. The fan's hover no longer widens the slot, because
+with eight cards in it that slid the card out from under the pointer that opened it; the middle of
+a card in a crowded fan is still under the next one along, so a click lands on the strip it leaves
+showing.
+
+**Leaving a group closes its ranks.** A chain is drawn between cards standing side by side, so
+somebody stepping out from the middle of a group left the ones still together on either side of the
+hole and the chain went with them - the group read as broken when it was not. `Party.closeRanks`
+lifts whoever leaves a group (by `unlink` or by `link` into another) to just above the group they
+left, but only when they were actually between two of it; leaving from either end splits nothing and
+moves nobody. Not done: two groups the player has deliberately interleaved still show tabs rather
+than chains, which is what `strandedIds` is for.
+
+**Six at the table, and three of them there to break the rules on.** The party's first three are
+named for the models they are drawn with (Quim, Violet, Scarlet), and three more join them, each
+carrying mechanics nothing else in the demo uses: a magazine (`addToken`/`spendToken` with a
+`tokens` condition gating the card), knockback (`push`), a reroll of the duality dice
+(`rerollDuality` on a `partyRolling` reaction, narrowed by `rolled: failure`), a place kept and
+returned to (`markSpot`/`forgetSpot` with `move to: 'mark'`, told apart by a flag because a hook
+cannot read a mark), and the party handing the GM Shadow (`gainBad`). Their gear is three project
+weapons. The map grew three more spawns. Footnote starts in the vault: held in the loadout it makes
+`answersRoll` true for every failure, which stops every roll in the game - the kind of thing this
+party exists to find. Not done: the three new models are the heavy kind (22-25MB, unlightened), and
+`demo-defense.test.ts` now filters offers to its own fixtures, since the party at large holds
+answers of its own.
+
 **The hand holds what the loadout holds, at a size you can read.** The bar dealt only what could be
 played, so two of Kara's five loadout cards - the passive ones - were never in her hand at all;
 `ActionBar` deals every ability that sits on a card and marks the always-in-play ones (`is-always`,

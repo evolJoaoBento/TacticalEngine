@@ -1630,7 +1630,7 @@ export const BONE_BOUND = [
  * and both are what other suites use to prove a gate refuses. This one is held by a named
  * character and asks nothing, so what it proves is that the offer arrives at all.
  *
- * Handed to Kara on a card of its own (`A_GUARD_CARDS`) rather than chosen: no loadout to arrange,
+ * Handed to Quim on a card of its own (`A_GUARD_CARDS`) rather than chosen: no loadout to arrange,
  * nothing to get wrong in the setup of a test that is about something else.
  */
 export const A_GUARD_THAT_ANSWERS = [
@@ -1648,5 +1648,5 @@ export const A_GUARD_THAT_ANSWERS = [
   },
 ];
 
-/** The card the guard sits on, handed to Kara. */
+/** The card the guard sits on, handed to Quim. */
 export const A_GUARD_CARDS = [handedTo({ id: 'fixture-guard-that-answers', name: 'Guard' }, 'kara')];

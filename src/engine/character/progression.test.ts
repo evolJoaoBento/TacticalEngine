@@ -30,7 +30,7 @@ const content = FIXTURE_CONTENT;
 
 const kara = (overrides: Partial<CharacterSheet> = {}): CharacterSheet =>
   blankSheet('kara', 'fixture-warden', {
-    name: 'Kara',
+    name: 'Quim',
     traits: { agility: 0, strength: 2, finesse: 0, instinct: 1, presence: 1, knowledge: -1 },
     armorId: 'fixture-coat',
     primaryWeaponId: 'fixture-blade',

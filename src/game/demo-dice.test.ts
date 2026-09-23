@@ -20,7 +20,7 @@ import { startEncounter } from './movement';
 
 const scene = (seed = 'dice'): DemoScene => buildDemoScene(hollowVaultMap(), seed);
 
-/** Kara, next to the nearest thing worth swinging at. */
+/** Quim, next to the nearest thing worth swinging at. */
 function standoff(seed = 'dice'): { demo: DemoScene; foe: string } {
   const demo = scene(seed);
   demo.askDefender = false;
@@ -42,7 +42,7 @@ describe('the dice a player watches land', () => {
 
     expect(demo.rolls).toHaveLength(1);
     const shown = demo.rolls[0]!;
-    expect(shown.who).toBe('Kara');
+    expect(shown.who).toBe('Quim');
     expect(shown.what).toBe('the Longsword');
     // The faces are the roll's own: two d12s, and the total they add up to.
     expect(shown.roll.good).toBeGreaterThanOrEqual(1);
@@ -80,7 +80,7 @@ describe('the dice a player watches land', () => {
     // In the order they were rolled, each one naming who rolled it.
     const ids = demo.rolls.map((shown) => shown.id);
     expect(ids).toEqual([...ids].sort((a, b) => a - b));
-    expect(demo.rolls.map((shown) => shown.who)).toContain('Kara');
+    expect(demo.rolls.map((shown) => shown.who)).toContain('Quim');
     expect(new Set(demo.rolls.map((shown) => shown.who)).size).toBe(demo.rolls.length);
   });
 

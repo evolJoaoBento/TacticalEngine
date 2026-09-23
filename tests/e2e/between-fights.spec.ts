@@ -63,7 +63,7 @@ test('the level they earned is taken by clicking it', async ({ page }) => {
   console.log('EARNED:', JSON.stringify(before));
   expect(before.waiting, 'the strongbox handed the party a level').toContain('kara');
 
-  // The button on Kara's card, which the pit pass left unpressed.
+  // The button on Quim's card, which the pit pass left unpressed.
   await page.locator('[data-testid="hud"] [data-testid="level-up-button"]').first().click();
   const panel = page.locator('[data-testid="level-up"]');
   await expect(panel).toBeVisible();
@@ -174,7 +174,7 @@ test('what the strongbox paid out can be put on', async ({ page }) => {
   // Something changed hands, and the log says so rather than showing an id.
   //
   // Not the gear line: `gearOf` reports the primary weapon and the armour, and this table
-  // pays out neither kind. It pays a longsword Kara already carries and a round shield,
+  // pays out neither kind. It pays a longsword Quim already carries and a round shield,
   // which is a secondary the readout does not show, so equipping either moves nothing the
   // gear line can see. What the equip demonstrably does is log it and empty the row.
   expect(after.log.join(' ')).toMatch(/takes up|puts on/);

@@ -189,8 +189,8 @@ describe('a Light feature', () => {
     expect(result.status).toBe('done');
     expect(kara.good.value).toBe(0);
     expect(kara.armorSlots.marked).toBe(1);
-    expect(demo.log.map((l) => l.text)).toContain('Kara clears 2 Armor Slots.');
-    // Not an action: no `acted` event for Kara.
+    expect(demo.log.map((l) => l.text)).toContain('Quim clears 2 Armor Slots.');
+    // Not an action: no `acted` event for Quim.
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'kara')).toBe(false);
   });
 });
@@ -210,7 +210,7 @@ describe('a spell in a fight', () => {
     expect(result.status).toBe('waiting');
     expect(demo.pending?.prompt.kind).toBe('check');
     if (demo.pending?.prompt.kind !== 'check') throw new Error('expected a check');
-    // Finn's Spellcast trait is Finesse +2, and the targets are the adversaries in reach.
+    // Violet's Spellcast trait is Finesse +2, and the targets are the adversaries in reach.
     expect(demo.pending.prompt.modifier).toBe(2);
     expect(demo.pending.prompt.trait).toBe('spellcast');
     expect(demo.pending.prompt.targets).toContain(foe.id);
@@ -261,7 +261,7 @@ describe('a spell in a fight', () => {
     // Two hands, and `carry` is guarded so the pool is not pushed twice.
     holds(demo, 'mira', [FIXTURE_GRIMOIRE]);
     holds(demo, 'finn', [FIXTURE_AREA_CARD]);
-    // Mira starts far from every husk: the splinter reaches Far, and the room is wider.
+    // Scarlet starts far from every husk: the splinter reaches Far, and the room is wider.
     const before = demo.rng.save();
     expect(abilityTargets(demo, 'mira', abilitiesOf(demo, 'mira').find((a) => a.id === 'fixture-grimoire-splinter')!)).toEqual([]);
     expect(useAbility(demo, 'mira', 'fixture-grimoire-splinter').status).toBe('refused');
@@ -363,7 +363,7 @@ describe('the loadout and the vault', () => {
     expect(swapped).toEqual({ ok: true, stress: 1 });
     expect(kara.stress.marked).toBe(1);
     expect(loadoutView(demo, 'kara').vault.map((c) => c.id)).toEqual([FIXTURE_HAND[4]]);
-    expect(demo.log.at(-1)!.text).toBe('Kara recalls Hand VI and vaults Hand V, marking 1 Stress.');
+    expect(demo.log.at(-1)!.text).toBe('Quim recalls Hand VI and vaults Hand V, marking 1 Stress.');
 
     // Full Stress: no room to mark the cost.
     kara.stress = { max: kara.stress.max, marked: kara.stress.max };
@@ -455,7 +455,7 @@ describe("the GM's turn", () => {
     expect(husk.conditions.has('restrained')).toBe(false);
     expect(demo.log.map((l) => l.text)).toContain(`The ${foeName(demo, foe.id)} shakes off restrained.`);
     // It did not also attack.
-    expect(demo.log.some((l) => l.text.includes(`${foeName(demo, foe.id)}'s`) && l.text.includes('Kara'))).toBe(false);
+    expect(demo.log.some((l) => l.text.includes(`${foeName(demo, foe.id)}'s`) && l.text.includes('Quim'))).toBe(false);
     expect(demo.state.entity('kara')!.hitPoints.marked).toBe(hpBefore);
   });
 
@@ -502,7 +502,7 @@ describe('what holds an adversary', () => {
     endTurn(demo);
     // Still asleep, and it did not attack.
     expect(husk.conditions.has('asleep')).toBe(true);
-    expect(demo.log.some((l) => l.text.includes(`${foeName(demo, foe.id)}'s`) && l.text.includes('Kara'))).toBe(false);
+    expect(demo.log.some((l) => l.text.includes(`${foeName(demo, foe.id)}'s`) && l.text.includes('Quim'))).toBe(false);
     expect(demo.state.entity('kara')!.hitPoints.marked).toBe(hpBefore);
 
     demo.state.bad = { ...demo.state.bad, value: 1 };
@@ -549,7 +549,7 @@ describe('stepping back from a roll', () => {
     expect(stepped.status).toBe('done');
     expect(demo.pending).toBeNull();
     expect(finn.good.value).toBe(2);
-    expect(demo.log.map((l) => l.text)).toContain('Finn steps back from Bladefall; its cost is returned.');
+    expect(demo.log.map((l) => l.text)).toContain('Violet steps back from Bladefall; its cost is returned.');
     expect(demo.encounter!.log.some((e) => e.kind === 'acted' && e.id === 'finn')).toBe(false);
     expect(demo.encounter!.canAct('finn')).toBe(true);
   });
@@ -605,7 +605,7 @@ describe('a card written in the project\'s own code', () => {
     demo.state.moveEntity('finn', demo.grid.indexOf(demo.grid.xOf(kara.tile) + 1, demo.grid.yOf(kara.tile)));
     demo.state.moveEntity('mira', demo.grid.indexOf(demo.grid.xOf(kara.tile), demo.grid.yOf(kara.tile) + 1));
     kara.good = { max: 6, value: 2 };
-    // Finn is badly hurt; Mira is merely rattled.
+    // Violet is badly hurt; Scarlet is merely rattled.
     finn.hitPoints = { ...finn.hitPoints, marked: finn.hitPoints.max - 1 };
     finn.stress = { ...finn.stress, marked: 1 };
     mira.stress = { ...mira.stress, marked: 2 };
