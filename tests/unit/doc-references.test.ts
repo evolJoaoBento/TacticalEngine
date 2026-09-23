@@ -19,6 +19,7 @@ import { dirname, resolve } from 'node:path';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const REFERENCE_DOCS = [
+  'README.md',
   'docs/DEVELOPING.md',
   'docs/developer-guide.html',
   'docs/MANUAL.md',

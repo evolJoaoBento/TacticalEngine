@@ -73,6 +73,7 @@ the repository URL in `NOTICE.md` correct; it is the offer that satisfies it.
 
 | Order | File | Why |
 |---|---|---|
+| 0 | `README.md` | The front page, for a stranger. Says what this is, how to run it, and what it is licensed as. |
 | 1 | `docs/CONTEXT.md` | The goal, the hard constraints, the stack, the SRD sourcing. The working agreement. |
 | 2 | `docs/BACKLOG.md` | What to build next, ranked, and the working rules learned the expensive way. |
 | 3 | `docs/DEVELOPING.md` | Extending the engine. **§11 Gotchas** repays reading twice. |
